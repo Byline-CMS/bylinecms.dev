@@ -128,6 +128,9 @@ At the moment, the project is a prototype, but it builds and runs if you wanted 
 # git clone this repo
 git clone git@github.com:Byline-CMS/bylinecms.dev.git
 cd bylinecms.dev
+# install rimraf global
+pnpm install -g rimraf
+# or npm install -g rimraf
 # install deps
 pnpm install
 # build once so that all workspace packages and apps have their deps
@@ -144,6 +147,7 @@ The prototype currently requires PostgreSQL. There is a docker-compose.yml in th
 # From the root of the project
 cd postgres
 mkdir data
+# If you want to run docker detached, run './postgres.sh up -d'
 ./postgres.sh up
 
 # And then 'down' if you want to remove the Docker container and network configuration when you're done.
@@ -184,7 +188,8 @@ pnpm drizzle:migrate
 # from /apps/dashboard. Note that our seed script is in 
 # apps/dashboard (for now and for 'reasons')
 cd apps/dashboard
-tsx --env-file=.env server/seed-bulk-documents.ts
+cp .env.example .env
+pnpm tsx --env-file=.env server/seed-bulk-documents.ts
 ```
 
 ### 3. Start dev mode
