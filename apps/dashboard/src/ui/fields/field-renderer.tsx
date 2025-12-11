@@ -282,7 +282,7 @@ const ArrayField = ({
 
       return (
         <SortableItem key={itemWrapper.id} id={itemWrapper.id} label={subField.label ?? ''}>
-          <div className="flex flex-col gap-4">{innerBody}</div>
+          <div className="flex flex-col gap-4 overflow-y-auto">{innerBody}</div>
         </SortableItem>
       )
     }

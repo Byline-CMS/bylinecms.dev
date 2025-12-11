@@ -153,9 +153,14 @@ export default function DropDown({
     const dropDown = dropDownRef.current
 
     if (showDropDown && button !== null && dropDown !== null) {
+      window.document.body.style.overflow = 'hidden'
       const { top, left } = button.getBoundingClientRect()
       dropDown.style.top = `${top + 40}px`
       dropDown.style.left = `${Math.min(left, window.innerWidth - dropDown.offsetWidth - 20)}px`
+    }
+
+    return () => {
+      window.document.body.style.overflow = ''
     }
   }, [showDropDown])
 
