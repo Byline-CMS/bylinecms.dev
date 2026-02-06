@@ -1,6 +1,7 @@
 .lexicalRichTextEditor {
   display: flex;
   isolation: isolate;
+  width: 100%;
 }
 
 .lexicalRichTextEditor--read-only {
