@@ -11,10 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CollectionsCollectionIndexRouteImport } from './routes/collections/$collection/index'
+import { Route as ApiCollectionIndexRouteImport } from './routes/api/$collection/index'
 import { Route as CollectionsCollectionCreateRouteImport } from './routes/collections/$collection/create'
 import { Route as CollectionsCollectionIdIndexRouteImport } from './routes/collections/$collection/$id/index'
+import { Route as ApiCollectionIdIndexRouteImport } from './routes/api/$collection/$id/index'
 import { Route as CollectionsCollectionIdHistoryRouteImport } from './routes/collections/$collection/$id/history'
 import { Route as CollectionsCollectionIdApiRouteImport } from './routes/collections/$collection/$id/api'
+import { Route as ApiCollectionIdPatchesRouteImport } from './routes/api/$collection/$id/patches'
+import { Route as ApiCollectionIdHistoryRouteImport } from './routes/api/$collection/$id/history'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -27,6 +31,11 @@ const CollectionsCollectionIndexRoute =
     path: '/collections/$collection/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiCollectionIndexRoute = ApiCollectionIndexRouteImport.update({
+  id: '/api/$collection/',
+  path: '/api/$collection/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CollectionsCollectionCreateRoute =
   CollectionsCollectionCreateRouteImport.update({
     id: '/collections/$collection/create',
@@ -39,6 +48,11 @@ const CollectionsCollectionIdIndexRoute =
     path: '/collections/$collection/$id/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiCollectionIdIndexRoute = ApiCollectionIdIndexRouteImport.update({
+  id: '/api/$collection/$id/',
+  path: '/api/$collection/$id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CollectionsCollectionIdHistoryRoute =
   CollectionsCollectionIdHistoryRouteImport.update({
     id: '/collections/$collection/$id/history',
@@ -51,30 +65,52 @@ const CollectionsCollectionIdApiRoute =
     path: '/collections/$collection/$id/api',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiCollectionIdPatchesRoute = ApiCollectionIdPatchesRouteImport.update({
+  id: '/api/$collection/$id/patches',
+  path: '/api/$collection/$id/patches',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCollectionIdHistoryRoute = ApiCollectionIdHistoryRouteImport.update({
+  id: '/api/$collection/$id/history',
+  path: '/api/$collection/$id/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/collections/$collection/create': typeof CollectionsCollectionCreateRoute
-  '/collections/$collection': typeof CollectionsCollectionIndexRoute
+  '/api/$collection/': typeof ApiCollectionIndexRoute
+  '/collections/$collection/': typeof CollectionsCollectionIndexRoute
+  '/api/$collection/$id/history': typeof ApiCollectionIdHistoryRoute
+  '/api/$collection/$id/patches': typeof ApiCollectionIdPatchesRoute
   '/collections/$collection/$id/api': typeof CollectionsCollectionIdApiRoute
   '/collections/$collection/$id/history': typeof CollectionsCollectionIdHistoryRoute
-  '/collections/$collection/$id': typeof CollectionsCollectionIdIndexRoute
+  '/api/$collection/$id/': typeof ApiCollectionIdIndexRoute
+  '/collections/$collection/$id/': typeof CollectionsCollectionIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/collections/$collection/create': typeof CollectionsCollectionCreateRoute
+  '/api/$collection': typeof ApiCollectionIndexRoute
   '/collections/$collection': typeof CollectionsCollectionIndexRoute
+  '/api/$collection/$id/history': typeof ApiCollectionIdHistoryRoute
+  '/api/$collection/$id/patches': typeof ApiCollectionIdPatchesRoute
   '/collections/$collection/$id/api': typeof CollectionsCollectionIdApiRoute
   '/collections/$collection/$id/history': typeof CollectionsCollectionIdHistoryRoute
+  '/api/$collection/$id': typeof ApiCollectionIdIndexRoute
   '/collections/$collection/$id': typeof CollectionsCollectionIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/collections/$collection/create': typeof CollectionsCollectionCreateRoute
+  '/api/$collection/': typeof ApiCollectionIndexRoute
   '/collections/$collection/': typeof CollectionsCollectionIndexRoute
+  '/api/$collection/$id/history': typeof ApiCollectionIdHistoryRoute
+  '/api/$collection/$id/patches': typeof ApiCollectionIdPatchesRoute
   '/collections/$collection/$id/api': typeof CollectionsCollectionIdApiRoute
   '/collections/$collection/$id/history': typeof CollectionsCollectionIdHistoryRoute
+  '/api/$collection/$id/': typeof ApiCollectionIdIndexRoute
   '/collections/$collection/$id/': typeof CollectionsCollectionIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -82,34 +118,50 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/collections/$collection/create'
-    | '/collections/$collection'
+    | '/api/$collection/'
+    | '/collections/$collection/'
+    | '/api/$collection/$id/history'
+    | '/api/$collection/$id/patches'
     | '/collections/$collection/$id/api'
     | '/collections/$collection/$id/history'
-    | '/collections/$collection/$id'
+    | '/api/$collection/$id/'
+    | '/collections/$collection/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/collections/$collection/create'
+    | '/api/$collection'
     | '/collections/$collection'
+    | '/api/$collection/$id/history'
+    | '/api/$collection/$id/patches'
     | '/collections/$collection/$id/api'
     | '/collections/$collection/$id/history'
+    | '/api/$collection/$id'
     | '/collections/$collection/$id'
   id:
     | '__root__'
     | '/'
     | '/collections/$collection/create'
+    | '/api/$collection/'
     | '/collections/$collection/'
+    | '/api/$collection/$id/history'
+    | '/api/$collection/$id/patches'
     | '/collections/$collection/$id/api'
     | '/collections/$collection/$id/history'
+    | '/api/$collection/$id/'
     | '/collections/$collection/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CollectionsCollectionCreateRoute: typeof CollectionsCollectionCreateRoute
+  ApiCollectionIndexRoute: typeof ApiCollectionIndexRoute
   CollectionsCollectionIndexRoute: typeof CollectionsCollectionIndexRoute
+  ApiCollectionIdHistoryRoute: typeof ApiCollectionIdHistoryRoute
+  ApiCollectionIdPatchesRoute: typeof ApiCollectionIdPatchesRoute
   CollectionsCollectionIdApiRoute: typeof CollectionsCollectionIdApiRoute
   CollectionsCollectionIdHistoryRoute: typeof CollectionsCollectionIdHistoryRoute
+  ApiCollectionIdIndexRoute: typeof ApiCollectionIdIndexRoute
   CollectionsCollectionIdIndexRoute: typeof CollectionsCollectionIdIndexRoute
 }
 
@@ -125,8 +177,15 @@ declare module '@tanstack/react-router' {
     '/collections/$collection/': {
       id: '/collections/$collection/'
       path: '/collections/$collection'
-      fullPath: '/collections/$collection'
+      fullPath: '/collections/$collection/'
       preLoaderRoute: typeof CollectionsCollectionIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/$collection/': {
+      id: '/api/$collection/'
+      path: '/api/$collection'
+      fullPath: '/api/$collection/'
+      preLoaderRoute: typeof ApiCollectionIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/collections/$collection/create': {
@@ -139,8 +198,15 @@ declare module '@tanstack/react-router' {
     '/collections/$collection/$id/': {
       id: '/collections/$collection/$id/'
       path: '/collections/$collection/$id'
-      fullPath: '/collections/$collection/$id'
+      fullPath: '/collections/$collection/$id/'
       preLoaderRoute: typeof CollectionsCollectionIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/$collection/$id/': {
+      id: '/api/$collection/$id/'
+      path: '/api/$collection/$id'
+      fullPath: '/api/$collection/$id/'
+      preLoaderRoute: typeof ApiCollectionIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/collections/$collection/$id/history': {
@@ -157,17 +223,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionsCollectionIdApiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/$collection/$id/patches': {
+      id: '/api/$collection/$id/patches'
+      path: '/api/$collection/$id/patches'
+      fullPath: '/api/$collection/$id/patches'
+      preLoaderRoute: typeof ApiCollectionIdPatchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/$collection/$id/history': {
+      id: '/api/$collection/$id/history'
+      path: '/api/$collection/$id/history'
+      fullPath: '/api/$collection/$id/history'
+      preLoaderRoute: typeof ApiCollectionIdHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CollectionsCollectionCreateRoute: CollectionsCollectionCreateRoute,
+  ApiCollectionIndexRoute: ApiCollectionIndexRoute,
   CollectionsCollectionIndexRoute: CollectionsCollectionIndexRoute,
+  ApiCollectionIdHistoryRoute: ApiCollectionIdHistoryRoute,
+  ApiCollectionIdPatchesRoute: ApiCollectionIdPatchesRoute,
   CollectionsCollectionIdApiRoute: CollectionsCollectionIdApiRoute,
   CollectionsCollectionIdHistoryRoute: CollectionsCollectionIdHistoryRoute,
+  ApiCollectionIdIndexRoute: ApiCollectionIdIndexRoute,
   CollectionsCollectionIdIndexRoute: CollectionsCollectionIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

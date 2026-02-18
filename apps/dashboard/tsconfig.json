@@ -24,7 +24,6 @@
       "~/*": ["./byline/*"]
     }
   },
-  "include": ["src", "byline", "byline.client.config.ts"],
-  "exclude": ["node_modules"],
-  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.server.json" }]
+  "include": ["src", "byline", "byline.client.config.ts", "byline.server.config.ts"],
+  "exclude": ["node_modules"]
 }

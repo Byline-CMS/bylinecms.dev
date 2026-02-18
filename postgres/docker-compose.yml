@@ -11,7 +11,7 @@ services:
     volumes:
       - type: bind
         source: ./data
-        target: /var/lib/postgresql/data
+        target: /var/lib/postgresql
 
   adminer:
     image: adminer
