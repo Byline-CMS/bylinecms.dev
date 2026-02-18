@@ -155,7 +155,7 @@ export const EditorComponent = memo(function EditorComponent({
     <div className={baseClass}>
       <div className={`${baseClass}__wrap`}>
         {label && <Label id="label" label={label} htmlFor={id} required={required} />}
-        <ErrorBoundary fallbackRender={fallbackRender} onReset={() => { }}>
+        <ErrorBoundary fallbackRender={fallbackRender} onReset={() => {}}>
           {/* 
             // NOTE: Temporary feature props via React nodes for beforeEditor
             // afterEditor, and featureChildren.

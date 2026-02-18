@@ -3,7 +3,7 @@ import type {
   SerializedLexicalNode,
   SerializedParagraphNode,
   SerializedRootNode,
-} from 'lexical'  
+} from 'lexical'
 
 /**
  * createEmptyEditorState
@@ -36,16 +36,16 @@ export function createEmptyEditorState(): SerializedEditorState<SerializedLexica
     type: 'paragraph',
     version: 1,
     textFormat: 0,
-    textStyle: ''
+    textStyle: '',
   }
 
   const rootNode: SerializedRootNode = {
     children: [emptyParagraphNode],
     direction: null,
-    format: "",
+    format: '',
     indent: 0,
-    type: "root",
-    version: 1
+    type: 'root',
+    version: 1,
   }
 
   return { root: rootNode }

@@ -35,8 +35,16 @@ export function EditorContext(props: {
   beforeEditor?: React.ReactNode[]
   afterEditor?: React.ReactNode[]
 }): React.JSX.Element {
-  const { composerKey, editorConfig, onChange, readOnly, value, beforeEditor,
-    afterEditor, children } = props
+  const {
+    composerKey,
+    editorConfig,
+    onChange,
+    readOnly,
+    value,
+    beforeEditor,
+    afterEditor,
+    children,
+  } = props
 
   // useMemo for the initialConfig that depends on readOnly and value
   // biome-ignore lint/correctness/useExhaustiveDependencies: TODO: revisit

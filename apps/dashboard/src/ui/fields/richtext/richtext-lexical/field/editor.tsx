@@ -22,7 +22,7 @@
  */
 
 import type * as React from 'react'
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { TRANSFORMERS } from '@lexical/markdown'
 import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin'
@@ -170,8 +170,9 @@ export const Editor = memo(function Editor({
       {tablePlugin && <PayloadTablePlugin />}
       {richText && <ToolbarPlugin />}
       <div
-        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${!richText ? 'plain-text' : ''
-          }`}
+        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
+          !richText ? 'plain-text' : ''
+        }`}
       >
         {/* <DragDropPaste /> */}
         {autoFocusPlugin && <AutoFocusPlugin />}

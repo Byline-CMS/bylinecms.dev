@@ -329,7 +329,7 @@ export function ToolbarPlugin(): React.JSX.Element {
   const [blockType, setBlockType] = useState<keyof typeof blockTypeToBlockName>('paragraph')
   const [rootType, setRootType] = useState<keyof typeof rootTypeToRootName>('root')
   const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null)
-  const [toggleAiDrawerCommand, setToggleAiDrawerCommand] = useState<LexicalCommand<void> | null>(
+  const [_toggleAiDrawerCommand, _setToggleAiDrawerCommand] = useState<LexicalCommand<void> | null>(
     null
   )
 
@@ -376,9 +376,9 @@ export function ToolbarPlugin(): React.JSX.Element {
         anchorNode.getKey() === 'root'
           ? anchorNode
           : $findMatchingParent(anchorNode, (e) => {
-            const parent = e.getParent()
-            return parent !== null && $isRootOrShadowRoot(parent)
-          })
+              const parent = e.getParent()
+              return parent !== null && $isRootOrShadowRoot(parent)
+            })
 
       if (element === null) {
         element = anchorNode.getTopLevelElementOrThrow()
@@ -926,7 +926,6 @@ export function ToolbarPlugin(): React.JSX.Element {
         .map((item) => (
           <Fragment key={item.id}>{item.node}</Fragment>
         ))}
-
     </div>
   )
 }
