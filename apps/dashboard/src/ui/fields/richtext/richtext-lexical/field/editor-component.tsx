@@ -1,37 +1,5 @@
 'use client'
 
-/**
- * Byline CMS
- *
- * Copyright © 2025 Anthony Bouch and contributors.
- *
- * This file is part of Byline CMS.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
-/**
- * Portions Copyright (c) Meta Platforms, Inc. and affiliates.
- * Licensed under the MIT license found in the LICENSE file in the root directory of this source tree.
- *
- * Portions Copyright (c) Payload CMS, LLC info@payloadcms.com
- * Licensed under the MIT license found in the LICENSE file in the root directory of this source tree.
- *
- * Debounce strategy adapted from
- * https://github.com/payloadcms/payload/tree/main/packages/richtext-lexical
- */
-
 import type React from 'react'
 import { memo, useCallback, useMemo, useRef } from 'react'
 
@@ -68,9 +36,14 @@ export const EditorComponent = memo(function EditorComponent({
   defaultValue,
   value,
   onChange,
+  minHeight,
+  maxHeight,
   validate = richTextValidate,
   onError: _onError,
   lexicalEditorProps: _lexicalEditorProps,
+  featureBeforeEditor,
+  featureAfterEditor,
+  featureChildren,
 }: EditorFieldProps): React.JSX.Element {
   const disabled = readonly ?? false
   const dispatchFieldUpdateTask = useRef<number>(undefined)
@@ -182,7 +155,14 @@ export const EditorComponent = memo(function EditorComponent({
     <div className={baseClass}>
       <div className={`${baseClass}__wrap`}>
         {label && <Label id="label" label={label} htmlFor={id} required={required} />}
-        <ErrorBoundary fallbackRender={fallbackRender} onReset={() => {}}>
+        <ErrorBoundary fallbackRender={fallbackRender} onReset={() => { }}>
+          {/* 
+            // NOTE: Temporary feature props via React nodes for beforeEditor
+            // afterEditor, and featureChildren.
+            // These must be replaced with serializable config options that map to
+            // import maps for feature components and plugins in the future.
+            //  
+          */}
           <EditorContext
             composerKey={id}
             editorConfig={editorConfig}
@@ -190,6 +170,10 @@ export const EditorComponent = memo(function EditorComponent({
             onChange={handleChange}
             readOnly={disabled}
             value={incomingValue}
+            minHeight={minHeight}
+            maxHeight={maxHeight}
+            beforeEditor={featureBeforeEditor}
+            afterEditor={featureAfterEditor}
           >
             <ApplyValuePlugin
               value={incomingValue}
@@ -198,6 +182,7 @@ export const EditorComponent = memo(function EditorComponent({
               normalizedIncomingHashRef={normalizedIncomingHashRef}
               hasNormalizedBaselineRef={hasNormalizedBaselineRef}
             />
+            {featureChildren}
           </EditorContext>
         </ErrorBoundary>
         {description && <HelpText text={description} />}

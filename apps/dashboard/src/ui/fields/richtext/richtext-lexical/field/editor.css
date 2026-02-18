@@ -35,7 +35,6 @@
 }
 
 .editor-scroller {
-  min-height: 125px;
   border: 0;
   display: flex;
   position: relative;
@@ -149,7 +148,7 @@
   box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.4);
 }
 
-.test-recorder-button + .test-recorder-button {
+.test-recorder-button+.test-recorder-button {
   margin-left: 4px;
 }
 
@@ -214,7 +213,7 @@
 .typeahead-popover {
   background: #fff;
   box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.3);
-  border-radius: 8px;
+  border-radius: 4px;
   margin-top: 25px;
 }
 
@@ -222,7 +221,7 @@
   padding: 0;
   list-style: none;
   margin: 0;
-  border-radius: 8px;
+  border-radius: 4px;
   max-height: 200px;
   overflow-y: scroll;
 }
@@ -242,7 +241,7 @@
   font-size: 14px;
   outline: none;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .typeahead-popover ul li.selected {
@@ -261,7 +260,7 @@
   flex-direction: row;
   flex-shrink: 0;
   background-color: #fff;
-  border-radius: 8px;
+  border-radius: 4px;
   border: 0;
 }
 
@@ -333,6 +332,10 @@ i.clear {
 
 i.code {
   background-image: url(images/icons/code.svg);
+}
+
+i.ai {
+  background-image: url(images/icons/ai.svg);
 }
 
 i.underline {
@@ -511,7 +514,7 @@ i.prettier-error {
   box-shadow: rgba(0, 0, 0, 0.1) 0px 1px 2px 0px;
   top: 16px;
   z-index: 9;
-  border-radius: 8px;
+  border-radius: 4px;
   border: 1px solid rgb(206, 208, 212);
   overflow: hidden;
 }
@@ -523,7 +526,7 @@ i.prettier-error {
   transition: background-color 0.1s ease;
   cursor: pointer;
   outline: none;
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 3px;
 }
 
@@ -593,7 +596,7 @@ i.prettier-error {
     0 12px 28px 0 rgba(0, 0, 0, 0.2),
     0 2px 4px 0 rgba(0, 0, 0, 0.1),
     inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
+  border-radius: 4px;
   min-height: 40px;
   background-color: #fff;
 }
@@ -611,7 +614,7 @@ i.prettier-error {
   flex-shrink: 0;
   justify-content: space-between;
   background-color: #fff;
-  border-radius: 8px;
+  border-radius: 4px;
   border: 0;
   max-width: 250px;
   min-width: 100px;
@@ -672,7 +675,7 @@ i.prettier-error {
     display: none;
   }
 
-  .dialog-dropdown > .dropdown-button-text {
+  .dialog-dropdown>.dropdown-button-text {
     display: flex;
   }
 
@@ -1398,7 +1401,10 @@ button.item.dropdown-item-active i {
   width: 100%;
 }
 
-.dark {
+.dark,
+[data-theme="dark"],
+[data-theme="dark"] ::backdrop {
+
   .toolbar i,
   .toolbar span {
     filter: invert(1) brightness(1.2);

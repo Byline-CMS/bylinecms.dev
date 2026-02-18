@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import type * as React from 'react'
+import * as React from 'react'
 
 import './input.scss'
 
@@ -22,10 +22,15 @@ export default function FileInput({
   onChange,
   'data-test-id': dataTestId,
 }: Props): React.JSX.Element {
+  const inputId = React.useId()
+
   return (
     <div className="Input__wrapper">
-      <label className="Input__label">{label}</label>
+      <label className="Input__label" htmlFor={inputId}>
+        {label}
+      </label>
       <input
+        id={inputId}
         type="file"
         accept={accept}
         className="Input__input"

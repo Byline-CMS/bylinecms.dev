@@ -20,11 +20,11 @@
 }
 
 .LexicalEditorTheme__quote {
-  margin: 0;
+  margin-bottom: 1.75rem;
+  margin-top: 1.75rem;
   margin-left: 20px;
-  margin-bottom: 10px;
-  font-size: 15px;
-  color: rgb(101, 103, 107);
+  font-size: 1.2rem;
+  color: rgb(128, 130, 134);
   border-left-color: rgb(206, 208, 212);
   border-left-width: 4px;
   border-left-style: solid;
@@ -40,24 +40,24 @@
 }
 
 .LexicalEditorTheme__h1 {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: 1.5rem;
 }
 
 .LexicalEditorTheme__h2 {
-  font-size: 2.4rem;
+  font-size: 2rem;
   margin-top: 0.5rem;
   margin-bottom: 1.5rem;
 }
 
 .LexicalEditorTheme__h3 {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   margin-top: 1rem;
   margin-bottom: 1.5rem;
 }
 
 .LexicalEditorTheme__h4 {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   margin-top: 1rem;
   margin-bottom: 1rem;
 }
@@ -396,6 +396,7 @@ html[data-theme="dark"] .LexicalEditorTheme__code:before {
   padding: 0;
   margin: 0 0 0.5rem 0;
   list-style-position: outside;
+  list-style-type: disc;
 }
 
 .LexicalEditorTheme__listItem {
@@ -552,6 +553,14 @@ html[data-theme="dark"] .LexicalEditorTheme__code:before {
   padding: 8px 16px;
 }
 
-.dark .LexicalEditorTheme__tableCellHeader {
-  background-color: var(--canvas-700);
+.dark,
+[data-theme="dark"],
+[data-theme="dark"] ::backdrop {
+  .LexicalEditorTheme__quote {
+    color: rgb(187, 189, 192);
+  }
+
+  .LexicalEditorTheme__tableCellHeader {
+    background-color: var(--canvas-700);
+  }
 }

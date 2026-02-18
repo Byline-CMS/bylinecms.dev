@@ -9,38 +9,37 @@
  */
 import { type HTMLInputTypeAttribute, type JSX, useId } from 'react'
 
-import './input.css'
+import './text-area.css'
 
 type Props = Readonly<{
   'data-test-id'?: string
   label: string
+  rows?: number
   onChange: (val: string) => void
   placeholder?: string
   value: string
   type?: HTMLInputTypeAttribute
 }>
 
-export default function TextInput({
+export function TextArea({
   label,
-  value,
   onChange,
+  rows = 4,
   placeholder = '',
   'data-test-id': dataTestId,
-  type = 'text',
 }: Props): JSX.Element {
   const inputId = useId()
 
   return (
-    <div className="Input__wrapper">
-      <label className="Input__label" htmlFor={inputId}>
+    <div className="TextArea__wrapper">
+      <label className="TextArea__label" htmlFor={inputId}>
         {label}
       </label>
-      <input
+      <textarea
+        rows={rows}
         id={inputId}
-        type={type}
-        className="Input__input"
+        className="TextArea__input"
         placeholder={placeholder}
-        value={value}
         onChange={(e) => {
           onChange(e.target.value)
         }}

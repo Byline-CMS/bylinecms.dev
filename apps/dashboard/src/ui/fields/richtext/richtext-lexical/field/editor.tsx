@@ -22,7 +22,7 @@
  */
 
 import type * as React from 'react'
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { TRANSFORMERS } from '@lexical/markdown'
 import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin'
@@ -46,6 +46,7 @@ import { useSharedHistoryContext } from './context/shared-history-context'
 import { useSharedOnChange } from './context/shared-on-change-context'
 import { Debug } from './debug'
 import { AdmonitionPlugin } from './plugins/admonition-plugin'
+// import { AiPlugin } from './plugins/ai-plugin'
 import { AutoEmbedPlugin } from './plugins/auto-embed-plugin'
 import { CodeHighlightPlugin } from './plugins/code-highlight-plugin'
 // import { DragDropPaste } from './plugins/drag-drop-paste-plugin'
@@ -73,7 +74,13 @@ import { APPLY_VALUE_TAG } from './constants'
 // editor instance should trigger re-renders. Our form-context and value handlers
 // are subscription-based and so in theory this shouldn't be necessary, but
 // here just in case.
-export const Editor = memo(function Editor(): React.JSX.Element {
+export const Editor = memo(function Editor({
+  minHeight,
+  maxHeight,
+}: {
+  minHeight?: number | string
+  maxHeight?: number | string
+}): React.JSX.Element {
   const [floatingAnchorElem, setFloatingAnchorElem] = useState<HTMLDivElement | null>(null)
   const [isSmallWidthViewport, setIsSmallWidthViewport] = useState<boolean>(false)
   const _debugTagLogCountRef = useState(() => ({ count: 0 }))[0]
@@ -115,24 +122,30 @@ export const Editor = memo(function Editor(): React.JSX.Element {
 
   const richTextContentEditable = useMemo(
     () => (
-      <div className="editor-scroller">
+      <div
+        className="editor-scroller"
+        style={{ minHeight: minHeight ?? '150px', maxHeight: maxHeight ?? undefined }}
+      >
         <div className="editor" ref={onRef}>
           <ContentEditable />
         </div>
       </div>
     ),
-    [onRef]
+    [onRef, minHeight, maxHeight]
   )
 
   const plainTextContentEditable = useMemo(
     () => (
-      <div className="editor-scroller">
+      <div
+        className="editor-scroller"
+        style={{ minHeight: minHeight ?? '150px', maxHeight: maxHeight ?? undefined }}
+      >
         <div className="editor">
           <ContentEditable />
         </div>
       </div>
     ),
-    []
+    [minHeight, maxHeight]
   )
 
   useEffect(() => {
@@ -157,9 +170,8 @@ export const Editor = memo(function Editor(): React.JSX.Element {
       {tablePlugin && <PayloadTablePlugin />}
       {richText && <ToolbarPlugin />}
       <div
-        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
-          !richText ? 'plain-text' : ''
-        }`}
+        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${!richText ? 'plain-text' : ''
+          }`}
       >
         {/* <DragDropPaste /> */}
         {autoFocusPlugin && <AutoFocusPlugin />}
@@ -225,10 +237,10 @@ export const Editor = memo(function Editor(): React.JSX.Element {
             <HistoryPlugin externalHistoryState={historyState} />
           </>
         )}
+        <ClearEditorPlugin />
         {debug && (
           <>
             <Debug />
-            <ClearEditorPlugin />
             <TreeViewPlugin />
           </>
         )}

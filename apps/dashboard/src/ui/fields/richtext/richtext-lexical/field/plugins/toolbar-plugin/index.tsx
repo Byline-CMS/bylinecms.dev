@@ -16,7 +16,7 @@
  *
  */
 import type * as React from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 
 import {
   $createCodeNode,
@@ -53,7 +53,7 @@ import {
   mergeRegister,
 } from '@lexical/utils'
 // import { formatDrawerSlug, useEditDepth, useModal as usePayloadModal } from '@payloadcms/ui'
-import type { LexicalEditor, NodeKey } from 'lexical'
+import type { LexicalCommand, LexicalEditor, NodeKey } from 'lexical'
 import {
   $createParagraphNode,
   $getNodeByKey,
@@ -78,7 +78,8 @@ import {
 import { useEditorConfig } from '../../config/editor-config-context'
 import { $isLinkNode, type LinkAttributes, TOGGLE_LINK_COMMAND } from '../../nodes/link-nodes'
 import { IS_APPLE } from '../../shared/environment'
-import DropDown, { DropDownItem } from '../../ui/dropdown'
+import { useToolbarExtensions } from '../../toolbar-extensions'
+import { DropDown, DropDownItem } from '../../ui/dropdown'
 import { getSelectedNode } from '../../utils/getSelectedNode'
 import { sanitizeUrl } from '../../utils/url'
 import { OPEN_ADMONITION_MODAL_COMMAND } from '../admonition-plugin'
@@ -328,6 +329,9 @@ export function ToolbarPlugin(): React.JSX.Element {
   const [blockType, setBlockType] = useState<keyof typeof blockTypeToBlockName>('paragraph')
   const [rootType, setRootType] = useState<keyof typeof rootTypeToRootName>('root')
   const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null)
+  const [toggleAiDrawerCommand, setToggleAiDrawerCommand] = useState<LexicalCommand<void> | null>(
+    null
+  )
 
   const [isLink, setIsLink] = useState(false)
   const [isBold, setIsBold] = useState(false)
@@ -342,6 +346,7 @@ export function ToolbarPlugin(): React.JSX.Element {
   const [isRTL, _setIsRTL] = useState(false)
   const [codeLanguage, setCodeLanguage] = useState<string>('')
   const [isEditable, setIsEditable] = useState(() => editor.isEditable())
+  const { items: toolbarExtensionItems } = useToolbarExtensions()
   const {
     uuid,
     config: {
@@ -371,9 +376,9 @@ export function ToolbarPlugin(): React.JSX.Element {
         anchorNode.getKey() === 'root'
           ? anchorNode
           : $findMatchingParent(anchorNode, (e) => {
-              const parent = e.getParent()
-              return parent !== null && $isRootOrShadowRoot(parent)
-            })
+            const parent = e.getParent()
+            return parent !== null && $isRootOrShadowRoot(parent)
+          })
 
       if (element === null) {
         element = anchorNode.getTopLevelElementOrThrow()
@@ -914,6 +919,14 @@ export function ToolbarPlugin(): React.JSX.Element {
             )}
         </>
       )}
+
+      {toolbarExtensionItems
+        .slice()
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map((item) => (
+          <Fragment key={item.id}>{item.node}</Fragment>
+        ))}
+
     </div>
   )
 }

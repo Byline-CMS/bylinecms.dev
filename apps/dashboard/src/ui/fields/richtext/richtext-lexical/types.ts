@@ -16,9 +16,17 @@ export type EditorFieldProps = {
   readonly?: boolean
   placeholder?: string
   className?: string
+  minHeight?: number | string
+  maxHeight?: number | string
   editorConfig: EditorConfig
   defaultValue?: SerializedEditorState
   value?: SerializedEditorState
+  // NOTE: Temporary feature props via React nodes.
+  // These must be replaced with serializable config options that map to
+  // import maps for feature components and plugins in the future.
+  featureBeforeEditor?: React.ReactNode[]
+  featureAfterEditor?: React.ReactNode[]
+  featureChildren?: React.ReactNode[]
   onChange?: (value: SerializedEditorState) => void
   validate?: (
     value: SerializedEditorState | undefined,

@@ -44,6 +44,12 @@ export interface EditorSettings {
   placeholderText: string
 }
 
+export interface EditorSettingsOverride {
+  options?: Partial<Record<OptionName, boolean>>
+  inlineImageUploadCollection?: string
+  placeholderText?: string
+}
+
 export interface EditorConfig {
   settings: EditorSettings
   lexical: LexicalEditorConfig

@@ -8,30 +8,27 @@ import type {
 export function hasText(
   value: SerializedEditorState<SerializedLexicalNode> | null | undefined
 ): boolean {
-  if (value == null) return false
+  if (value === null || value === undefined) return false
 
-  const hasChildren = !!value?.root?.children?.length
+  const rootChildren = value.root?.children
+  if (rootChildren === null || rootChildren === undefined) return false
+  if (rootChildren.length === 0) return false
 
-  let hasOnlyEmptyParagraph = false
-  if (value?.root?.children?.length === 1) {
-    if (value?.root?.children[0]?.type === 'paragraph') {
-      const paragraphNode = value?.root?.children[0] as SerializedParagraphNode
+  // Treat a single empty paragraph as "no content".
+  if (rootChildren.length === 1 && rootChildren[0]?.type === 'paragraph') {
+    const paragraphNode = rootChildren[0] as SerializedParagraphNode
+    const paragraphChildren = paragraphNode.children
 
-      if (!paragraphNode?.children || paragraphNode?.children?.length === 0) {
-        hasOnlyEmptyParagraph = true
-      } else if (paragraphNode?.children?.length === 1) {
-        const paragraphNodeChild = paragraphNode?.children[0]
-        if (paragraphNodeChild.type === 'text') {
-          if (!(paragraphNodeChild as SerializedTextNode | undefined)?.text?.length) {
-            hasOnlyEmptyParagraph = true
-          }
-        }
-      }
+    if (paragraphChildren === null || paragraphChildren === undefined) return false
+    if (paragraphChildren.length === 0) return false
+
+    if (paragraphChildren.length === 1 && paragraphChildren[0]?.type === 'text') {
+      const textNode = paragraphChildren[0] as SerializedTextNode
+      const text = textNode.text
+      if (text === null || text === undefined) return false
+      if (text.length === 0) return false
     }
   }
 
-  if (hasChildren === false || hasOnlyEmptyParagraph === true) {
-    return false
-  }
   return true
 }

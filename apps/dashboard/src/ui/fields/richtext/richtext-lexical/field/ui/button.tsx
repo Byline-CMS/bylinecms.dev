@@ -13,7 +13,7 @@ import './button.css'
 
 import joinClasses from '../utils/joinClasses'
 
-export default function Button({
+export function Button({
   'data-test-id': dataTestId,
   children,
   className,

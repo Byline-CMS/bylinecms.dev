@@ -7,7 +7,7 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import type * as React from 'react'
+import * as React from 'react'
 
 import './select.css'
 
@@ -22,12 +22,15 @@ export default function Select({
   className,
   ...other
 }: SelectProps): React.JSX.Element {
+  const generatedId = React.useId()
+  const id = other.id ?? generatedId
+
   return (
     <div className="Input__wrapper">
-      <label style={{ marginTop: '-1em' }} className="Input__label">
+      <label htmlFor={id} style={{ marginTop: '-1em' }} className="Input__label">
         {label}
       </label>
-      <select {...other} className={className ?? 'select'}>
+      <select {...other} id={id} className={className ?? 'select'}>
         {children}
       </select>
     </div>

@@ -1,0 +1,6 @@
+export { defaultEditorConfig } from './field/config/default'
+export { EditorField } from './field/editor-field'
+export { Nodes } from './field/nodes'
+export { createEmptyEditorState } from './validate/createEmptyEditorState'
+export { hasText } from './validate/hasText'
+export type { EditorConfig, EditorSettings, EditorSettingsOverride } from './field/config/types'

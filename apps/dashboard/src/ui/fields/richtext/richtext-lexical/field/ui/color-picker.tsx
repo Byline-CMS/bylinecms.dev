@@ -111,6 +111,7 @@ export default function ColorPicker({
       <div className="color-picker-basic-color">
         {basicColors.map((basicColor) => (
           <button
+            type="button"
             className={basicColor === selfColor.hex ? ' active' : ''}
             key={basicColor}
             style={{ backgroundColor: basicColor }}
@@ -125,6 +126,7 @@ export default function ColorPicker({
         className="color-picker-saturation"
         style={{ backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)` }}
         onChange={onMoveSaturation}
+        ariaLabel="Saturation and value"
       >
         <div
           className="color-picker-saturation_cursor"
@@ -135,7 +137,7 @@ export default function ColorPicker({
           }}
         />
       </MoveWrapper>
-      <MoveWrapper className="color-picker-hue" onChange={onMoveHue}>
+      <MoveWrapper className="color-picker-hue" onChange={onMoveHue} ariaLabel="Hue">
         <div
           className="color-picker-hue_cursor"
           style={{
@@ -159,6 +161,7 @@ interface MoveWrapperProps {
   style?: React.CSSProperties
   onChange: (position: Position) => void
   children: React.JSX.Element
+  ariaLabel?: string
 }
 
 function MoveWrapper({
@@ -166,8 +169,15 @@ function MoveWrapper({
   style,
   onChange,
   children,
+  ariaLabel,
 }: MoveWrapperProps): React.JSX.Element {
   const divRef = useRef<HTMLDivElement>(null)
+  const lastPositionRef = useRef<Position>({ x: WIDTH / 2, y: HEIGHT / 2 })
+
+  const applyPosition = (position: Position): void => {
+    lastPositionRef.current = position
+    onChange(position)
+  }
 
   const move = (e: React.MouseEvent | MouseEvent): void => {
     if (divRef.current != null) {
@@ -177,7 +187,7 @@ function MoveWrapper({
       const x = clamp(e.clientX - left, width, 0)
       const y = clamp(e.clientY - top, height, 0)
 
-      onChange({ x, y })
+      applyPosition({ x, y })
     }
   }
 
@@ -201,8 +211,56 @@ function MoveWrapper({
     document.addEventListener('mouseup', onMouseUp, false)
   }
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (divRef.current == null) return
+
+    const { width, height } = divRef.current.getBoundingClientRect()
+    const stepX = Math.max(1, width / 50)
+    const stepY = Math.max(1, height / 50)
+
+    const current = lastPositionRef.current
+    let next: Position | null = null
+
+    switch (e.key) {
+      case 'ArrowLeft':
+        next = { x: clamp(current.x - stepX, width, 0), y: current.y }
+        break
+      case 'ArrowRight':
+        next = { x: clamp(current.x + stepX, width, 0), y: current.y }
+        break
+      case 'ArrowUp':
+        next = { x: current.x, y: clamp(current.y - stepY, height, 0) }
+        break
+      case 'ArrowDown':
+        next = { x: current.x, y: clamp(current.y + stepY, height, 0) }
+        break
+      case 'Home':
+        next = { x: 0, y: 0 }
+        break
+      case 'End':
+        next = { x: width, y: height }
+        break
+      default:
+        break
+    }
+
+    if (next != null) {
+      e.preventDefault()
+      applyPosition(next)
+    }
+  }
+
   return (
-    <div ref={divRef} className={className} style={style} onMouseDown={onMouseDown}>
+    <div
+      ref={divRef}
+      className={className}
+      style={style}
+      onMouseDown={onMouseDown}
+      role="button"
+      tabIndex={0}
+      aria-label={ariaLabel}
+      onKeyDown={onKeyDown}
+    >
       {children}
     </div>
   )
