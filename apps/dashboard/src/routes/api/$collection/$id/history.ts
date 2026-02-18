@@ -29,7 +29,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getServerConfig } from '@byline/core'
 
-import { ensureCollection, historySchema, searchParamsToObject } from '@/server/api-utils'
+import { ensureCollection, historySchema, searchParamsToObject } from '@/lib/api-utils'
 
 export const Route = createFileRoute('/api/$collection/$id/history')({
   server: {

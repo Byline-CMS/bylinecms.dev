@@ -39,7 +39,7 @@ import {
   ensureCollection,
   normaliseDateFields,
   searchParamsToObject,
-} from '@/server/api-utils'
+} from '@/lib/api-utils'
 
 export const Route = createFileRoute('/api/$collection/')({
   server: {

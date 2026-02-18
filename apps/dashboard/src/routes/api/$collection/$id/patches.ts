@@ -35,7 +35,7 @@ import {
   ensureCollection,
   getModelCollectionForDefinition,
   normaliseDateFields,
-} from '@/server/api-utils'
+} from '@/lib/api-utils'
 
 export const Route = createFileRoute('/api/$collection/$id/patches')({
   server: {

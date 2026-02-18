@@ -30,7 +30,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getServerConfig } from '@byline/core'
 
-import { ensureCollection, normaliseDateFields } from '@/server/api-utils'
+import { ensureCollection, normaliseDateFields } from '@/lib/api-utils'
 
 export const Route = createFileRoute('/api/$collection/$id/')({
   server: {

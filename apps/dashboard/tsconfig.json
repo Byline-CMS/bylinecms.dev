@@ -19,11 +19,18 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
+    "types": ["node"],
     "paths": {
       "@/*": ["./src/*"],
       "~/*": ["./byline/*"]
     }
   },
-  "include": ["src", "byline", "byline.client.config.ts", "byline.server.config.ts"],
+  "include": [
+    "src",
+    "byline",
+    "byline.client.config.ts",
+    "byline.server.config.ts",
+    "vite.config.ts"
+  ],
   "exclude": ["node_modules"]
 }
