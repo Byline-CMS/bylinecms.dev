@@ -9,62 +9,57 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as CollectionsCollectionIndexRouteImport } from './routes/collections/$collection/index'
-import { Route as ApiCollectionIndexRouteImport } from './routes/api/$collection/index'
-import { Route as CollectionsCollectionCreateRouteImport } from './routes/collections/$collection/create'
-import { Route as CollectionsCollectionIdIndexRouteImport } from './routes/collections/$collection/$id/index'
-import { Route as ApiCollectionIdIndexRouteImport } from './routes/api/$collection/$id/index'
-import { Route as CollectionsCollectionIdHistoryRouteImport } from './routes/collections/$collection/$id/history'
-import { Route as CollectionsCollectionIdApiRouteImport } from './routes/collections/$collection/$id/api'
-import { Route as ApiCollectionIdPatchesRouteImport } from './routes/api/$collection/$id/patches'
 import { Route as ApiCollectionIdHistoryRouteImport } from './routes/api/$collection/$id/history'
+import { Route as ApiCollectionIdIndexRouteImport } from './routes/api/$collection/$id/index'
+import { Route as ApiCollectionIdPatchesRouteImport } from './routes/api/$collection/$id/patches'
+import { Route as ApiCollectionIndexRouteImport } from './routes/api/$collection/index'
+import { Route as CollectionsCollectionIdApiRouteImport } from './routes/collections/$collection/$id/api'
+import { Route as CollectionsCollectionIdHistoryRouteImport } from './routes/collections/$collection/$id/history'
+import { Route as CollectionsCollectionIdIndexRouteImport } from './routes/collections/$collection/$id/index'
+import { Route as CollectionsCollectionCreateRouteImport } from './routes/collections/$collection/create'
+import { Route as CollectionsCollectionIndexRouteImport } from './routes/collections/$collection/index'
+import { Route as IndexRouteImport } from './routes/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CollectionsCollectionIndexRoute =
-  CollectionsCollectionIndexRouteImport.update({
-    id: '/collections/$collection/',
-    path: '/collections/$collection/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const CollectionsCollectionIndexRoute = CollectionsCollectionIndexRouteImport.update({
+  id: '/collections/$collection/',
+  path: '/collections/$collection/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCollectionIndexRoute = ApiCollectionIndexRouteImport.update({
   id: '/api/$collection/',
   path: '/api/$collection/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CollectionsCollectionCreateRoute =
-  CollectionsCollectionCreateRouteImport.update({
-    id: '/collections/$collection/create',
-    path: '/collections/$collection/create',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const CollectionsCollectionIdIndexRoute =
-  CollectionsCollectionIdIndexRouteImport.update({
-    id: '/collections/$collection/$id/',
-    path: '/collections/$collection/$id/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const CollectionsCollectionCreateRoute = CollectionsCollectionCreateRouteImport.update({
+  id: '/collections/$collection/create',
+  path: '/collections/$collection/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionsCollectionIdIndexRoute = CollectionsCollectionIdIndexRouteImport.update({
+  id: '/collections/$collection/$id/',
+  path: '/collections/$collection/$id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCollectionIdIndexRoute = ApiCollectionIdIndexRouteImport.update({
   id: '/api/$collection/$id/',
   path: '/api/$collection/$id/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CollectionsCollectionIdHistoryRoute =
-  CollectionsCollectionIdHistoryRouteImport.update({
-    id: '/collections/$collection/$id/history',
-    path: '/collections/$collection/$id/history',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const CollectionsCollectionIdApiRoute =
-  CollectionsCollectionIdApiRouteImport.update({
-    id: '/collections/$collection/$id/api',
-    path: '/collections/$collection/$id/api',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const CollectionsCollectionIdHistoryRoute = CollectionsCollectionIdHistoryRouteImport.update({
+  id: '/collections/$collection/$id/history',
+  path: '/collections/$collection/$id/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionsCollectionIdApiRoute = CollectionsCollectionIdApiRouteImport.update({
+  id: '/collections/$collection/$id/api',
+  path: '/collections/$collection/$id/api',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCollectionIdPatchesRoute = ApiCollectionIdPatchesRouteImport.update({
   id: '/api/$collection/$id/patches',
   path: '/api/$collection/$id/patches',
@@ -257,7 +252,7 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true

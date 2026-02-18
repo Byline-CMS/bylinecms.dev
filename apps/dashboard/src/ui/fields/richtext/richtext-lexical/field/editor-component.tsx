@@ -96,7 +96,7 @@ export const EditorComponent = memo(function EditorComponent({
 
   // Debounced onChange -> emit to store
   const handleChange = useCallback(
-    (editorState: EditorState, _editor: unknown, tags?: Set<string>) => {
+    (editorState: EditorState, _editor: unknown, _tags?: Set<string>) => {
       // const _capturedTags = tags != null ? Array.from(tags) : []
       const updateFieldValue = (editorState: EditorState) => {
         const newState = editorState.toJSON()

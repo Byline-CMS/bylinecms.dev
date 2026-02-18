@@ -21,7 +21,7 @@
 
 import type { RichTextField as FieldType } from '@byline/core'
 
-import { useFieldError, useFieldValue, useIsDirty } from '../../form-context'
+import { useFieldError, useFieldValue } from '../../form-context'
 import { defaultEditorConfig } from './field/config/default'
 import { EditorField } from './field/editor-field'
 

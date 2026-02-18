@@ -27,6 +27,7 @@
  */
 
 import { createFileRoute } from '@tanstack/react-router'
+
 import { getServerConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { applyPatches } from '@byline/core/patches'

@@ -27,6 +27,7 @@
  */
 
 import { createFileRoute } from '@tanstack/react-router'
+
 import { getServerConfig } from '@byline/core'
 
 import { ensureCollection, historySchema, searchParamsToObject } from '@/lib/api-utils'

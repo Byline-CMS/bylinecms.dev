@@ -24,7 +24,7 @@ import { useCallback, useRef } from 'react'
 import type { TextField as FieldType } from '@byline/core'
 import { Input } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue, useIsDirty } from '../../fields/form-context'
+import { useFieldError, useFieldValue } from '../../fields/form-context'
 
 export const TextField = ({
   field,

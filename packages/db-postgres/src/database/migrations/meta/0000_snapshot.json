@@ -142,12 +142,8 @@
           "name": "store_boolean_document_version_id_document_versions_id_fk",
           "tableFrom": "store_boolean",
           "tableTo": "document_versions",
-          "columnsFrom": [
-            "document_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -155,12 +151,8 @@
           "name": "store_boolean_collection_id_collections_id_fk",
           "tableFrom": "store_boolean",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -170,11 +162,7 @@
         "unique_boolean_field": {
           "name": "unique_boolean_field",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_version_id",
-            "field_path",
-            "locale"
-          ]
+          "columns": ["document_version_id", "field_path", "locale"]
         }
       },
       "policies": {},
@@ -237,9 +225,7 @@
         "collections_path_unique": {
           "name": "collections_path_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "path"
-          ]
+          "columns": ["path"]
         }
       },
       "policies": {},
@@ -411,12 +397,8 @@
           "name": "store_datetime_document_version_id_document_versions_id_fk",
           "tableFrom": "store_datetime",
           "tableTo": "document_versions",
-          "columnsFrom": [
-            "document_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -424,12 +406,8 @@
           "name": "store_datetime_collection_id_collections_id_fk",
           "tableFrom": "store_datetime",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -439,11 +417,7 @@
         "unique_datetime_field": {
           "name": "unique_datetime_field",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_version_id",
-            "field_path",
-            "locale"
-          ]
+          "columns": ["document_version_id", "field_path", "locale"]
         }
       },
       "policies": {},
@@ -511,12 +485,8 @@
           "name": "document_relationships_parent_document_id_documents_id_fk",
           "tableFrom": "document_relationships",
           "tableTo": "documents",
-          "columnsFrom": [
-            "parent_document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parent_document_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -524,12 +494,8 @@
           "name": "document_relationships_child_document_id_documents_id_fk",
           "tableFrom": "document_relationships",
           "tableTo": "documents",
-          "columnsFrom": [
-            "child_document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["child_document_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -539,10 +505,7 @@
         "document_relationships_parent_document_id_child_document_id_unique": {
           "name": "document_relationships_parent_document_id_child_document_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "parent_document_id",
-            "child_document_id"
-          ]
+          "columns": ["parent_document_id", "child_document_id"]
         }
       },
       "policies": {},
@@ -791,12 +754,8 @@
           "name": "document_versions_document_id_documents_id_fk",
           "tableFrom": "document_versions",
           "tableTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -804,12 +763,8 @@
           "name": "document_versions_collection_id_collections_id_fk",
           "tableFrom": "document_versions",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -873,12 +828,8 @@
           "name": "documents_collection_id_collections_id_fk",
           "tableFrom": "documents",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1155,12 +1106,8 @@
           "name": "store_file_document_version_id_document_versions_id_fk",
           "tableFrom": "store_file",
           "tableTo": "document_versions",
-          "columnsFrom": [
-            "document_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1168,12 +1115,8 @@
           "name": "store_file_collection_id_collections_id_fk",
           "tableFrom": "store_file",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1183,11 +1126,7 @@
         "unique_file_field": {
           "name": "unique_file_field",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_version_id",
-            "field_path",
-            "locale"
-          ]
+          "columns": ["document_version_id", "field_path", "locale"]
         }
       },
       "policies": {},
@@ -1326,12 +1265,8 @@
           "name": "store_json_document_version_id_document_versions_id_fk",
           "tableFrom": "store_json",
           "tableTo": "document_versions",
-          "columnsFrom": [
-            "document_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1339,12 +1274,8 @@
           "name": "store_json_collection_id_collections_id_fk",
           "tableFrom": "store_json",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1354,11 +1285,7 @@
         "unique_json_field": {
           "name": "unique_json_field",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_version_id",
-            "field_path",
-            "locale"
-          ]
+          "columns": ["document_version_id", "field_path", "locale"]
         }
       },
       "policies": {},
@@ -1496,12 +1423,8 @@
           "name": "store_meta_document_version_id_document_versions_id_fk",
           "tableFrom": "store_meta",
           "tableTo": "document_versions",
-          "columnsFrom": [
-            "document_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1509,12 +1432,8 @@
           "name": "store_meta_collection_id_collections_id_fk",
           "tableFrom": "store_meta",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1524,11 +1443,7 @@
         "unique_meta_node": {
           "name": "unique_meta_node",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_version_id",
-            "type",
-            "path"
-          ]
+          "columns": ["document_version_id", "type", "path"]
         }
       },
       "policies": {},
@@ -1715,12 +1630,8 @@
           "name": "store_numeric_document_version_id_document_versions_id_fk",
           "tableFrom": "store_numeric",
           "tableTo": "document_versions",
-          "columnsFrom": [
-            "document_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1728,12 +1639,8 @@
           "name": "store_numeric_collection_id_collections_id_fk",
           "tableFrom": "store_numeric",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1743,11 +1650,7 @@
         "unique_numeric_field": {
           "name": "unique_numeric_field",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_version_id",
-            "field_path",
-            "locale"
-          ]
+          "columns": ["document_version_id", "field_path", "locale"]
         }
       },
       "policies": {},
@@ -1936,12 +1839,8 @@
           "name": "store_relation_document_version_id_document_versions_id_fk",
           "tableFrom": "store_relation",
           "tableTo": "document_versions",
-          "columnsFrom": [
-            "document_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1949,12 +1848,8 @@
           "name": "store_relation_collection_id_collections_id_fk",
           "tableFrom": "store_relation",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1962,12 +1857,8 @@
           "name": "store_relation_target_document_id_documents_id_fk",
           "tableFrom": "store_relation",
           "tableTo": "documents",
-          "columnsFrom": [
-            "target_document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["target_document_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1975,12 +1866,8 @@
           "name": "store_relation_target_collection_id_collections_id_fk",
           "tableFrom": "store_relation",
           "tableTo": "collections",
-          "columnsFrom": [
-            "target_collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["target_collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1990,11 +1877,7 @@
         "unique_relation_field": {
           "name": "unique_relation_field",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_version_id",
-            "field_path",
-            "locale"
-          ]
+          "columns": ["document_version_id", "field_path", "locale"]
         }
       },
       "policies": {},
@@ -2154,12 +2037,8 @@
           "name": "store_text_document_version_id_document_versions_id_fk",
           "tableFrom": "store_text",
           "tableTo": "document_versions",
-          "columnsFrom": [
-            "document_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2167,12 +2046,8 @@
           "name": "store_text_collection_id_collections_id_fk",
           "tableFrom": "store_text",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2182,11 +2057,7 @@
         "unique_text_field": {
           "name": "unique_text_field",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_version_id",
-            "field_path",
-            "locale"
-          ]
+          "columns": ["document_version_id", "field_path", "locale"]
         }
       },
       "policies": {},

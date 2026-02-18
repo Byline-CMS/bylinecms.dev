@@ -22,13 +22,14 @@
 // Initialize Byline config by importing the browser-safe client config.
 import '../byline.client.config.ts'
 
-import { StartClient } from '@tanstack/react-start/client'
 import { StrictMode } from 'react'
+import { StartClient } from '@tanstack/react-start/client'
+
 import { hydrateRoot } from 'react-dom/client'
 
 hydrateRoot(
   document,
   <StrictMode>
     <StartClient />
-  </StrictMode>,
+  </StrictMode>
 )

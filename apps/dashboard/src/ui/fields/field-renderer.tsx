@@ -22,12 +22,18 @@
 // NOTE: Before you dunk on this, this is a totally naïve and "weekend hack"
 // implementation of a field renderer used only for prototype development.
 
-import { Select, SelectItem } from '@infonomic/uikit/react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 
 import type { ArrayField as ArrayFieldType, Field } from '@byline/core'
 import { resolveFieldDefaultValue } from '@byline/core'
-import { ChevronDownIcon, GripperVerticalIcon, IconButton, PlusIcon } from '@infonomic/uikit/react'
+import {
+  ChevronDownIcon,
+  GripperVerticalIcon,
+  IconButton,
+  PlusIcon,
+  Select,
+  SelectItem,
+} from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { DraggableSortable, moveItem, useSortable } from '@/ui/dnd/draggable-sortable'
