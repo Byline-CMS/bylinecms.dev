@@ -37,7 +37,7 @@ import type {
   ModelScalarField,
 } from '@byline/core'
 import { getCollectionDefinition, getServerConfig } from '@byline/core'
-import { booleanSchema } from '@byline/shared/schemas'
+import { booleanSchema } from '@infonomic/schemas'
 import * as z from 'zod'
 
 export const collectionListSchema = z.object({
