@@ -80,9 +80,10 @@ const SortableItem = ({
       className={cx('p-4 pt-2 border border-dashed border-gray-600 rounded-md', {
         'shadow-sm bg-canvas-800': !isDragging,
         'shadow-md bg-canvas-700/30': isDragging,
+        'pt-2 pb-2': collapsed,
       })}
     >
-      <div className="flex items-center gap-2 mb-3 -ml-3">
+      <div className={cx("flex items-center gap-2 mb-0 -ml-3", { 'mb-2': !collapsed })}>
         <button
           type="button"
           className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-800 rounded text-gray-400 flex items-center justify-center"
@@ -106,8 +107,8 @@ const SortableItem = ({
         </button>
       </div>
       <div
-        className={cx('flex flex-col gap-4 transition-all duration-200', {
-          'max-h-0 opacity-0': collapsed,
+        className={cx('flex flex-col relative gap-4 transition-all duration-200', {
+          'max-h-0 opacity-0 -z-10': collapsed,
           'opacity-100': !collapsed,
         })}
       >
