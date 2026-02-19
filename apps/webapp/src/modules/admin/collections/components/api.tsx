@@ -49,7 +49,7 @@ export const ApiView = ({
               variant="text"
               onClick={() =>
                 navigate({
-                  to: '/collections/$collection/$id/history',
+                  to: '/admin/collections/$collection/$id/history',
                   params: { collection: path, id: String(initialData.document_id) },
                 })
               }
@@ -62,7 +62,7 @@ export const ApiView = ({
               className="min-w-[50px] min-h-[28px]"
               onClick={() =>
                 navigate({
-                  to: '/collections/$collection/$id',
+                  to: '/admin/collections/$collection/$id',
                   params: { collection: path, id: String(initialData.document_id) },
                 })
               }
@@ -75,7 +75,7 @@ export const ApiView = ({
               className="min-w-[50px] min-h-[28px]"
               onClick={() =>
                 navigate({
-                  to: '/collections/$collection/$id/api',
+                  to: '/admin/collections/$collection/$id/api',
                   params: { collection: path, id: String(initialData.document_id) },
                 })
               }

@@ -34,7 +34,7 @@ import { applyPatches } from '@byline/core/patches'
 
 import { ensureCollection, normaliseDateFields } from '@/lib/api-utils'
 
-export const Route = createFileRoute('/api/$collection/$id/patches')({
+export const Route = createFileRoute('/admin/api/$collection/$id/patches')({
   server: {
     handlers: {
       POST: async ({ request, params }) => {

@@ -21,37 +21,18 @@
 
 import { createFileRoute, Link } from '@tanstack/react-router'
 
-import { getClientConfig } from '@byline/core'
-import { Card, Container, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@infonomic/uikit/react'
 
 export const Route = createFileRoute('/')({
   component: Index,
 })
 
 function Index() {
-  const config = getClientConfig()
   return (
     <Section className="py-6">
       <Container>
-        <div className="grid grid-cols-auto-fit-320 gap-6">
-          {config.collections.map((collection) => (
-            <Card asChild key={collection.path} hover={true}>
-              <Link
-                to="/collections/$collection"
-                params={{ collection: collection.path }}
-                className="block"
-              >
-                <Card.Header>
-                  <Card.Title>{collection.labels.plural}</Card.Title>
-                  <Card.Description>{`${collection.labels.plural} collection`}</Card.Description>
-                </Card.Header>
-                <Card.Content>
-                  <p>{collection.labels.plural} collection description or stats here...</p>
-                </Card.Content>
-              </Link>
-            </Card>
-          ))}
-        </div>
+        <p>Link to admin area...</p>
+        <Link to="/admin" className="underline">Go to admin</Link>
       </Container>
     </Section>
   )

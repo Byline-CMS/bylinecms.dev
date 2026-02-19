@@ -22,13 +22,13 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { getCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
-import { ApiView } from '@/modules/collections/components/api'
-import { getCollectionDocument } from '@/modules/collections/data'
+import { EditView } from '@/modules/admin/collections/components/edit'
+import { getCollectionDocument } from '@/modules/admin/collections/data'
 
-export const Route = createFileRoute('/collections/$collection/$id/api')({
+export const Route = createFileRoute('/admin/collections/$collection/$id/')({
   loader: async ({ params }) => {
     const collectionDef = getCollectionDefinition(params.collection)
     if (!collectionDef) {
@@ -55,6 +55,7 @@ function RouteComponent() {
   const data = Route.useLoaderData()
   const { collection, id } = Route.useParams()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+  const adminConfig = getCollectionAdminConfig(collection)
 
   return (
     <>
@@ -65,13 +66,9 @@ function RouteComponent() {
             label: 'Edit',
             href: `/collections/${collection}/${id}`,
           },
-          {
-            label: 'API',
-            href: `/collections/${collection}/${id}/api`,
-          },
         ]}
       />
-      <ApiView collectionDefinition={collectionDef} initialData={data} />
+      <EditView collectionDefinition={collectionDef} adminConfig={adminConfig ?? undefined} initialData={data} />
     </>
   )
 }

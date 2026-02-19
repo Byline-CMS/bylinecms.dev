@@ -66,7 +66,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-      }`}
+        }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -90,7 +90,7 @@ export const ListView = ({
       delete params.page
       params.query = query
       navigate({
-        to: '/collections/$collection',
+        to: '/admin/collections/$collection',
         params: { collection: data.included.collection.path },
         search: params,
       })
@@ -102,7 +102,7 @@ export const ListView = ({
     delete params.page
     delete params.query
     navigate({
-      to: '/collections/$collection',
+      to: '/admin/collections/$collection',
       params: { collection: data.included.collection.path },
       search: params,
     })
@@ -114,7 +114,7 @@ export const ListView = ({
       delete params.page
       params.page_size = Number.parseInt(value, 10)
       navigate({
-        to: '/collections/$collection',
+        to: '/admin/collections/$collection',
         params: { collection: data.included.collection.path },
         search: params,
       })
@@ -129,7 +129,7 @@ export const ListView = ({
           <Stats total={data?.meta.total} />
           <IconButton aria-label="Create New" asChild>
             <Link
-              to="/collections/$collection/create"
+              to="/admin/collections/$collection/create"
               params={{ collection: data.included.collection.path }}
             >
               <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
@@ -192,7 +192,7 @@ export const ListView = ({
                       >
                         {column.fieldName === 'title' ? (
                           <Link
-                            to="/collections/$collection/$id"
+                            to="/admin/collections/$collection/$id"
                             params={{
                               collection: data.included.collection.path,
                               id: document.document_id,

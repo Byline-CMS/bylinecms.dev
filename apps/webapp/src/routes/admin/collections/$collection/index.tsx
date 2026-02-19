@@ -28,8 +28,8 @@ import { Toast } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
-import { ListView } from '@/modules/collections/components/list'
-import { getCollectionDocuments } from '@/modules/collections/data'
+import { ListView } from '@/modules/admin/collections/components/list'
+import { getCollectionDocuments } from '@/modules/admin/collections/data'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -41,7 +41,7 @@ const searchSchema = z.object({
   action: z.enum(['created']).optional(),
 })
 
-export const Route = createFileRoute('/collections/$collection/')({
+export const Route = createFileRoute('/admin/collections/$collection/')({
   validateSearch: searchSchema,
   loaderDeps: ({ search: { page, page_size, order, desc, query, locale } }) => ({
     page,

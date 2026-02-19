@@ -19,7 +19,7 @@ export interface HistorySearchParams {
 }
 
 // API base URL is now same-origin (served by TanStack Start server routes).
-const API_BASE_URL = '/api'
+const API_BASE_URL = '/admin/api'
 
 export async function getCollectionDocuments(collection: string, params: CollectionSearchParams) {
   const searchParams = new URLSearchParams()

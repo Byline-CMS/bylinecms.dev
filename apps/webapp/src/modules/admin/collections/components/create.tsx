@@ -55,7 +55,7 @@ export const CreateView = ({
     try {
       await createCollectionDocument(path, data)
       navigate({
-        to: '/collections/$collection',
+        to: '/admin/collections/$collection',
         params: { collection: path },
         search: { action: 'created' },
       })
@@ -79,7 +79,7 @@ export const CreateView = ({
             onSubmit={handleSubmit}
             onCancel={() =>
               navigate({
-                to: '/collections/$collection',
+                to: '/admin/collections/$collection',
                 params: { collection: path },
               })
             }

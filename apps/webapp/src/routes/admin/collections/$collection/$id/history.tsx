@@ -26,8 +26,8 @@ import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
-import { HistoryView } from '@/modules/collections/components/history'
-import { getCollectionDocumentHistory } from '@/modules/collections/data'
+import { HistoryView } from '@/modules/admin/collections/components/history'
+import { getCollectionDocumentHistory } from '@/modules/admin/collections/data'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -37,7 +37,7 @@ const searchSchema = z.object({
   locale: z.string().optional(),
 })
 
-export const Route = createFileRoute('/collections/$collection/$id/history')({
+export const Route = createFileRoute('/admin/collections/$collection/$id/history')({
   validateSearch: searchSchema,
   loaderDeps: ({ search: { page, page_size, order, desc, locale } }) => ({
     page,

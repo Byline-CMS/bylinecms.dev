@@ -83,7 +83,7 @@ export const HistoryView = ({
   adminConfig?: CollectionAdminConfig
   data: AnyCollectionSchemaTypes['HistoryType']
 }) => {
-  const { id, collection } = useParams({ from: '/collections/$collection/$id/history' })
+  const { id, collection } = useParams({ from: '/admin/collections/$collection/$id/history' })
   const navigate = useNavigate()
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
@@ -95,7 +95,7 @@ export const HistoryView = ({
       delete params.page
       params.page_size = Number.parseInt(value, 10)
       navigate({
-        to: '/collections/$collection',
+        to: '/admin/collections/$collection',
         params: { collection },
         search: params,
       })
@@ -117,7 +117,7 @@ export const HistoryView = ({
                 variant="text"
                 onClick={() =>
                   navigate({
-                    to: '/collections/$collection/$id/history',
+                    to: '/admin/collections/$collection/$id/history',
                     params: { collection, id },
                   })
                 }
@@ -130,7 +130,7 @@ export const HistoryView = ({
                 className="min-w-[50px] min-h-[28px]"
                 onClick={() =>
                   navigate({
-                    to: '/collections/$collection/$id',
+                    to: '/admin/collections/$collection/$id',
                     params: { collection, id },
                   })
                 }
@@ -143,7 +143,7 @@ export const HistoryView = ({
                 className="min-w-[50px] min-h-[28px]"
                 onClick={() =>
                   navigate({
-                    to: '/collections/$collection/$id/api',
+                    to: '/admin/collections/$collection/$id/api',
                     params: { collection, id },
                   })
                 }
@@ -204,7 +204,7 @@ export const HistoryView = ({
                         >
                           {column.fieldName === 'title' ? (
                             <Link
-                              to="/collections/$collection/$id"
+                              to="/admin/collections/$collection/$id"
                               params={{
                                 collection,
                                 id: document.document_id,

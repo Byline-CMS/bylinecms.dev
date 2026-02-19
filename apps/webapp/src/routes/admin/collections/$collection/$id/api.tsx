@@ -22,41 +22,56 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { buildInitialDataFromFields, getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { getCollectionDefinition } from '@byline/core'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
-import { CreateView } from '@/modules/collections/components/create'
+import { ApiView } from '@/modules/admin/collections/components/api'
+import { getCollectionDocument } from '@/modules/admin/collections/data'
 
-export const Route = createFileRoute('/collections/$collection/create')({
-  loader: async ({
-    params,
-  }): Promise<{ collectionDef: CollectionDefinition; initialData: any }> => {
+export const Route = createFileRoute('/admin/collections/$collection/$id/api')({
+  loader: async ({ params }) => {
     const collectionDef = getCollectionDefinition(params.collection)
     if (!collectionDef) {
       throw notFound()
     }
-    const initialData = await buildInitialDataFromFields(collectionDef.fields, {
-      data: {},
-      now: () => new Date(),
-    })
-    return { collectionDef, initialData }
+
+    const data = await getCollectionDocument(params.collection, params.id)
+
+    if (!data) {
+      throw notFound()
+    }
+
+    console.log('Fetched data:', JSON.stringify(data, null, 2))
+
+    return data
   },
+  staleTime: 0,
+  gcTime: 0,
+  shouldReload: true,
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  const { collection } = Route.useParams()
-  const { collectionDef, initialData } = Route.useLoaderData()
-  const adminConfig = getCollectionAdminConfig(collection)
+  const data = Route.useLoaderData()
+  const { collection, id } = Route.useParams()
+  const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+
   return (
     <>
       <BreadcrumbsClient
         breadcrumbs={[
           { label: collectionDef.labels.plural, href: `/collections/${collection}` },
-          { label: 'Create', href: `/collections/${collection}/create` },
+          {
+            label: 'Edit',
+            href: `/collections/${collection}/${id}`,
+          },
+          {
+            label: 'API',
+            href: `/collections/${collection}/${id}/api`,
+          },
         ]}
       />
-      <CreateView collectionDefinition={collectionDef} adminConfig={adminConfig ?? undefined} initialData={initialData} />
+      <ApiView collectionDefinition={collectionDef} initialData={data} />
     </>
   )
 }

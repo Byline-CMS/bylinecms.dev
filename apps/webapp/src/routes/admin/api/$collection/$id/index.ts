@@ -33,7 +33,7 @@ import { getServerConfig } from '@byline/core'
 
 import { ensureCollection, normaliseDateFields } from '@/lib/api-utils'
 
-export const Route = createFileRoute('/api/$collection/$id/')({
+export const Route = createFileRoute('/admin/api/$collection/$id/')({
   server: {
     handlers: {
       /**
