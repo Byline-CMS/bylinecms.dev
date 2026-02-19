@@ -19,9 +19,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-// NOTE: Before you dunk on this, this is a totally naïve and "weekend hack"
-// implementation of a field renderer used only for prototype development.
-
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 
 import type { ArrayField as ArrayFieldType, Field } from '@byline/core'
@@ -33,7 +30,7 @@ import {
   GripperVerticalIcon,
   IconButton,
   Modal,
-  PlusIcon
+  PlusIcon,
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
@@ -45,6 +42,7 @@ import { SelectField } from '../fields/select/select-field'
 import { TextField } from '../fields/text/text-field'
 import { TextAreaField } from '../fields/text-area/text-area-field'
 import { DateTimeField } from './datetime/datetime-field'
+import { DraggableContextMenu } from './draggable-context-menu'
 import { FileField } from './file/file-field'
 import { ImageField } from './image/image-field'
 import { NumericalField } from './numerical/numerical-field'
@@ -53,10 +51,14 @@ const SortableItem = ({
   id,
   label,
   children,
+  onAddBelow,
+  onRemove,
 }: {
   id: string
   label: ReactNode
   children: ReactNode
+  onAddBelow?: () => void
+  onRemove?: () => void
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -91,9 +93,10 @@ const SortableItem = ({
           {...attributes}
           {...listeners}
         >
-          <GripperVerticalIcon className="w-4 h-4" />
+          <GripperVerticalIcon className="w-4 h-4 text-primary-500 dark:text-primary-200" />
         </button>
         <div className="text-[1rem] font-medium flex-1 min-w-0 truncate">{label}</div>
+        <DraggableContextMenu lng='en' onAddBelow={onAddBelow} onRemove={onRemove} />
         <button
           type="button"
           className="p-1 rounded hover:bg-gray-800 text-gray-400 flex items-center justify-center"
@@ -133,6 +136,7 @@ const ArrayField = ({
   const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
   const [showAddBlockModal, setShowAddBlockModal] = useState(false)
+  const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null)
 
   const blockVariants = useMemo(
     () => (field.fields ?? []).filter((subField) => subField.type === 'block'),
@@ -264,11 +268,12 @@ const ArrayField = ({
     }
   }
 
-  const handleAddItem = async (forcedVariantName?: string) => {
+  const handleAddItem = async (forcedVariantName?: string, atIndex?: number) => {
     // NOTE: Array elements in this prototype behave like a tagged union:
     // each item should select ONE sub-field variant (legacy shape: { variantName: value }).
     // Defensive: for block arrays, only allow inserting block variants derived from the schema.
     setShowAddBlockModal(false)
+    setPendingInsertIndex(null)
     const variants = isBlockArray ? blockVariants : (field.fields ?? [])
     const variant =
       (forcedVariantName != null
@@ -357,24 +362,67 @@ const ArrayField = ({
           [variant.name]: await defaultValueForVariant(variant),
         }
 
-    // Add to local state
+    const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
+    const insertAt = atIndex != null ? atIndex : (currentArray ? currentArray.length : 0)
+
+    // Add to local state at the correct position
     const newItemWrapper = { id: newId, data: newItem }
-    setItems((prev) => [...prev, newItemWrapper])
+    setItems((prev) => {
+      const next = [...prev]
+      next.splice(insertAt, 0, newItemWrapper)
+      return next
+    })
 
     // Emit array.insert patch
-    const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
-    const newIndex = currentArray ? currentArray.length : 0
-
     appendPatch({
       kind: 'array.insert',
       path: path,
-      index: newIndex,
+      index: insertAt,
       item: newItem,
     })
 
     // Update the form store without emitting a field.set patch
-    const newArrayValue = currentArray ? [...currentArray, newItem] : [newItem]
+    const newArrayValue = currentArray ? [...currentArray] : []
+    newArrayValue.splice(insertAt, 0, newItem)
     setFieldStore(path, newArrayValue)
+  }
+
+  const handleRemoveItem = (index: number) => {
+    const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
+    if (!Array.isArray(currentArray) || index < 0 || index >= currentArray.length) return
+
+    const item = currentArray[index]
+
+    // Use stable id when present; otherwise fall back to index-based id
+    const itemId =
+      item && typeof item === 'object' && 'id' in item
+        ? String((item as { id: string }).id)
+        : String(index)
+
+    // Remove from local state
+    setItems((prev) => prev.filter((_, i) => i !== index))
+
+    // Emit array.remove patch
+    appendPatch({
+      kind: 'array.remove',
+      path: path,
+      itemId,
+    })
+
+    // Update the form store without emitting a field.set patch
+    const newArrayValue = [...currentArray]
+    newArrayValue.splice(index, 1)
+    setFieldStore(path, newArrayValue)
+  }
+
+  const handleInsertBelow = (index: number, forcedVariantName?: string) => {
+    if (isBlockArray && blockVariants.length > 1 && forcedVariantName == null) {
+      // Multiple block variants — show the picker modal with the insertion position stored
+      setPendingInsertIndex(index + 1)
+      setShowAddBlockModal(true)
+    } else {
+      void handleAddItem(forcedVariantName, index + 1)
+    }
   }
 
   const renderItem = (itemWrapper: { id: string; data: any }, index: number) => {
@@ -447,7 +495,13 @@ const ArrayField = ({
       }
 
       return (
-        <SortableItem key={itemWrapper.id} id={itemWrapper.id} label={subField.label ?? ''}>
+        <SortableItem
+          key={itemWrapper.id}
+          id={itemWrapper.id}
+          label={subField.label ?? ''}
+          onAddBelow={() => handleInsertBelow(index)}
+          onRemove={() => handleRemoveItem(index)}
+        >
           <div className="flex flex-col gap-4">{innerBody}</div>
         </SortableItem>
       )
@@ -477,7 +531,13 @@ const ArrayField = ({
     }
 
     return (
-      <SortableItem key={itemWrapper.id} id={itemWrapper.id} label={label ?? subField.name}>
+      <SortableItem
+        key={itemWrapper.id}
+        id={itemWrapper.id}
+        label={label ?? subField.name}
+        onAddBelow={() => handleInsertBelow(index)}
+        onRemove={() => handleRemoveItem(index)}
+      >
         {body}
       </SortableItem>
     )
@@ -503,8 +563,8 @@ const ArrayField = ({
             <div className="flex items-center gap-2">
               <IconButton
                 onClick={() => {
-                  // TODO: Open modal to show a grid of block variants.
-                  void setShowAddBlockModal(true)
+                  setPendingInsertIndex(null)
+                  setShowAddBlockModal(true)
                 }}
                 disabled={!selectedBlockName}
                 aria-label="Add block"
@@ -526,7 +586,14 @@ const ArrayField = ({
           )}
         </DraggableSortable>
       )}
-      <Modal isOpen={showAddBlockModal} closeOnOverlayClick={true} onDismiss={() => setShowAddBlockModal(false)}>
+      <Modal
+        isOpen={showAddBlockModal}
+        closeOnOverlayClick={true}
+        onDismiss={() => {
+          setShowAddBlockModal(false)
+          setPendingInsertIndex(null)
+        }}
+      >
         <Modal.Container style={{ maxWidth: '600px' }}>
           <Modal.Header>
             <h3 className="m-0 mb-2">Blocks</h3>
@@ -535,6 +602,7 @@ const ArrayField = ({
               size="sm"
               onClick={() => {
                 setShowAddBlockModal(false)
+                setPendingInsertIndex(null)
               }}
             >
               <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
@@ -543,13 +611,16 @@ const ArrayField = ({
           <Modal.Content className="cursor-pointer">
             <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
               {blockVariants.map((b) => (
-                <Card key={b.name} hover onClick={() => void handleAddItem(b.name)} className="mb-2">
+                <Card
+                  key={b.name}
+                  hover
+                  onClick={() => void handleAddItem(b.name, pendingInsertIndex ?? undefined)}
+                  className="mb-2"
+                >
                   <Card.Header>
                     <Card.Title className="text-xl">{b.label ?? b.name}</Card.Title>
                   </Card.Header>
-                  <Card.Content>
-                    {b.label ?? b.name}
-                  </Card.Content>
+                  <Card.Content>{b.label ?? b.name}</Card.Content>
                 </Card>
               ))}
             </div>
