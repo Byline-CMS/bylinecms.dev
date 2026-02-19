@@ -35,12 +35,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getServerConfig } from '@byline/core'
 
-import {
-  collectionListSchema,
-  ensureCollection,
-  normaliseDateFields,
-  searchParamsToObject,
-} from '@/lib/api-utils'
+import { collectionListSchema, ensureCollection, normaliseDateFields } from '@/lib/api-utils'
 
 export const Route = createFileRoute('/api/$collection/')({
   server: {
@@ -62,16 +57,23 @@ export const Route = createFileRoute('/api/$collection/')({
           )
         }
 
-        const url = new URL(request.url)
-        const search = searchParamsToObject(url)
-        const searchParams = collectionListSchema.safeParse(search)
+        const parsed = collectionListSchema.safeParse(
+          Object.fromEntries(new URL(request.url).searchParams)
+        )
+
+        if (!parsed.success) {
+          return Response.json(
+            { error: 'Invalid query parameters', issues: parsed.error.issues },
+            { status: 400 }
+          )
+        }
 
         const db = getServerConfig().db
 
         const result = await db.queries.documents.getDocumentsByPage({
           collection_id: config.collection.id,
           locale: 'en',
-          ...searchParams.data,
+          ...parsed.data,
         })
 
         return Response.json(result)

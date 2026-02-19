@@ -30,7 +30,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getServerConfig } from '@byline/core'
 
-import { ensureCollection, historySchema, searchParamsToObject } from '@/lib/api-utils'
+import { ensureCollection, historySchema } from '@/lib/api-utils'
 
 export const Route = createFileRoute('/api/$collection/$id/history')({
   server: {
@@ -46,15 +46,20 @@ export const Route = createFileRoute('/api/$collection/$id/history')({
           )
         }
 
-        const url = new URL(request.url)
-        const search = searchParamsToObject(url)
+        const search = Object.fromEntries(new URL(request.url).searchParams)
         const parsed = historySchema.safeParse({ ...search, document_id: id })
+
+        if (!parsed.success) {
+          return Response.json(
+            { error: 'Invalid query parameters', issues: parsed.error.issues },
+            { status: 400 }
+          )
+        }
 
         const db = getServerConfig().db
 
         const result = await db.queries.documents.getDocumentHistory({
           collection_id: config.collection.id,
-          document_id: id,
           locale: 'en',
           ...parsed.data,
         })
