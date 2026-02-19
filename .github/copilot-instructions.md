@@ -1,7 +1,7 @@
 # Copilot instructions (Byline CMS)
 
 Byline CMS is a **pnpm + Turborepo** monorepo (prototype / PoC). Key packages:
-- `apps/dashboard`: Vite + React admin UI **and** a prototype Fastify API server
+- `apps/dashboard`: Tanstack Start in SPA mode + React admin UI .
 - `packages/byline` (`@byline/core`): core config/types/patch logic
 - `packages/db-postgres` (`@byline/db-postgres`): Postgres adapter (Drizzle)
 - `packages/shared` (`@byline/shared`): shared crypto/schemas utilities
@@ -22,7 +22,7 @@ Byline CMS is a **pnpm + Turborepo** monorepo (prototype / PoC). Key packages:
 ## Architecture patterns to follow
 - **Config is side-effect loaded**:
   - Browser: `apps/dashboard/src/main.tsx` imports `../byline.client.config.ts`
-  - Server: `apps/dashboard/server/index.ts` imports `../byline.server.config.*` before creating Fastify
+  - Server: `apps/dashboard/routes/api` Tanstack server API routes imports `../byline.server.config.*`
 - **Dashboard routing**: `@tanstack/react-router` file-based routes under `apps/dashboard/src/routes` with generated `src/routeTree.gen.ts`. Route files export `Route = createFileRoute(...)`.
 - **Validation**: Zod is the default runtime validator (e.g. API query parsing in `apps/dashboard/server/index.ts`).
 - **DB schema is in one place**: `packages/db-postgres/src/database/schema/index.ts`; migrations in `packages/db-postgres/src/database/migrations`.
