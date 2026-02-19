@@ -51,43 +51,53 @@ We use the `easy fix` tag to indicate issues that are appropriate for beginners.
 
 ## Commit Guidelines ##
 
-We follow the conventional commit approach to commit messages.
+We follow the [Conventional Commits](https://www.conventionalcommits.org/)
+approach to commit messages. Conventional Commits provide a lightweight
+convention on top of commit messages that makes it easier to understand
+the history of a project, automate changelogs, and determine semantic
+version bumps.
+
+### Format
 
 The commit message format is:
 
 ```
-<type> <subject>
+<type>(<scope>): <subject>
 
 [body]
 
 [footer]
 ```
 
-Where type is:
+- **type** – describes the category of the change (see table below).
+- **scope** *(optional)* – the area of the codebase affected
+  (e.g. `dashboard`, `db-postgres`, `core`, `i18n`).
+- **subject** – a concise description in the imperative mood.
+- **body** *(optional)* – additional context, motivation, or details.
+- **footer** *(optional)* – references to issues, breaking-change
+  notices (`BREAKING CHANGE: …`), etc.
 
-- :bug: `:bug:` a commit that fixes a bug
-- :sparkles: `:sparkles:` a commit that adds an improvement
-- :tada: `:tada:` a commit with a new feature
-- :recycle: `:recycle:` a commit that introduces a refactor
-- :lipstick: `:lipstick:` a commit with cosmetic changes
-- :ambulance: `:ambulance:` a commit that fixes a critical bug
-- :books: `:books:` a commit that improves or adds documentation
-- :construction: `:construction:` a WIP commit
-- :boom: `:boom:` a commit with breaking changes
-- :wrench: `:wrench:` a commit for config updates
-- :zap: `:zap:` a commit with performance improvements
-- :whale: `:whale:` a commit for Docker-related stuff
-- :paperclip: `:paperclip:` a commit with other non-relevant changes
-- :arrow_up: `:arrow_up:` a commit with dependency updates
-- :arrow_down: `:arrow_down:` a commit with dependency downgrades
-- :fire: `:fire:` a commit that removes files or code
-- :globe_with_meridians: `:globe_with_meridians:` a commit that adds or updates
-  translations
+### Commit Types
 
-More info:
+| Type | Emoji | Description |
+|------|-------|-------------|
+| `fix` | :bug: | A bug fix |
+| `feat` | :sparkles: | A new feature |
+| `perf` | :zap: | A performance improvement |
+| `docs` | :books: | Documentation-only changes |
+| `style` | :art: | Code style / formatting (no logic change) |
+| `refactor` | :recycle: | Code change that neither fixes a bug nor adds a feature |
+| `test` | :white_check_mark: | Adding or updating tests |
+| `build` | :wrench: | Changes to the build system or dependencies |
+| `ci` | :construction_worker: | CI/CD configuration changes |
+| `chore` | :broom: | Miscellaneous tasks (e.g. .gitignore, tooling) |
+| `hotfix` | :ambulance: | Critical bug fix requiring immediate release |
 
- - https://gist.github.com/parmentf/035de27d6ed1dce0b36a
- - https://gist.github.com/rxaviers/7360908
+> **Breaking changes**: append `!` after the type/scope
+> (e.g. `feat(api)!: remove legacy endpoint`) **and** include a
+> `BREAKING CHANGE:` line in the footer.
+
+### Rules
 
 Each commit should have:
 
@@ -98,16 +108,40 @@ Each commit should have:
 - An entry in the CHANGES.md file if applicable, referencing the
   GitHub or Taiga issue/user story using these same rules.
 
-Examples of good commit messages:
+### Examples
 
-- `:bug: Fix unexpected error on launching modal`
-- `:bug: Set proper error message on generic error`
-- `:sparkles: Enable new modal for profile`
-- `:zap: Improve performance of dashboard navigation`
-- `:wrench: Update default backend configuration`
-- `:books: Add more documentation for authentication process`
-- `:ambulance: Fix critical bug on user registration process`
-- `:tada: Add new approach for user registration`
+```
+feat(admin): add modal for user profile editing
+
+Introduces a reusable profile modal component that supports
+avatar upload and field validation.
+
+Closes #142
+```
+
+```
+fix(db-postgres): set proper error message on generic query error
+```
+
+```
+docs: add authentication process documentation
+```
+
+```
+perf(admin): improve navigation rendering performance
+
+Memoize route calculations to avoid unnecessary re-renders
+on every navigation event.
+```
+
+```
+feat(api)!: remove legacy /v1/auth endpoint
+
+BREAKING CHANGE: The /v1/auth endpoint has been removed.
+Clients must migrate to /v2/auth.
+
+Closes #287
+```
 
 ## Formatting and Linting ##
 
@@ -157,7 +191,7 @@ can be automatically added by adding the `-s` parameter to `git commit`.
 This is an example of what the line should look like:
 
 ```
-Signed-off-by: Andrey Antukh <niwi@niwi.nz>
+Signed-off-by: Burbury Brown <burbury@brown.in>
 ```
 
 Please, use your real name (sorry, no pseudonyms or anonymous
