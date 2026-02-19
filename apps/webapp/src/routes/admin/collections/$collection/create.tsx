@@ -39,8 +39,8 @@ function RouteComponent() {
     <>
       <BreadcrumbsClient
         breadcrumbs={[
-          { label: collectionDef.labels.plural, href: `/collections/${collection}` },
-          { label: 'Create', href: `/collections/${collection}/create` },
+          { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
+          { label: 'Create', href: `/admin/collections/${collection}/create` },
         ]}
       />
       <CreateView collectionDefinition={collectionDef} adminConfig={adminConfig ?? undefined} initialData={initialData} />
