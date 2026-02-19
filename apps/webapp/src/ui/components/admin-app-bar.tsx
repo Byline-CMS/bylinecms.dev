@@ -25,7 +25,7 @@ import { Breadcrumbs } from '@/context/breadcrumbs/breadcrumbs'
 import { useBreadcrumbs } from '@/context/breadcrumbs/breadcrumbs-provider'
 import { Branding } from './branding'
 
-export function AppBar() {
+export function AdminAppBar() {
   const { breadCrumbSettings } = useBreadcrumbs()
   return (
     <header className="h-[45px] fixed z-50 w-full max-w-full bg-white dark:bg-canvas-800 shadow p-4 text-lg font-semibold flex items-center justify-between">

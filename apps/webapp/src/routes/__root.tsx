@@ -28,7 +28,6 @@ import { ToastProvider, ToastViewport } from '@infonomic/uikit/react'
 
 import { BreadcrumbsProvider } from '@/context/breadcrumbs/breadcrumbs-provider'
 import { TranslationsProvider } from '@/i18n/client/translation-provider'
-import { AppBar } from '@/ui/components/app-bar.tsx'
 
 import '@/ui/styles/global.css'
 
@@ -57,10 +56,7 @@ function RootComponent() {
         <ToastProvider swipeDirection="right" duration={5000}>
           <BreadcrumbsProvider>
             <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
-              <AppBar />
-              <main className="flex flex-col flex-1 pt-[55px] w-full max-w-full">
-                <Outlet />
-              </main>
+              <Outlet />
             </div>
             <TanStackRouterDevtools />
           </BreadcrumbsProvider>

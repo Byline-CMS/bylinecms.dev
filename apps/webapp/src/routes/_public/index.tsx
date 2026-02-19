@@ -23,7 +23,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { Container, Section } from '@infonomic/uikit/react'
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute('/_public/')({
   component: Index,
 })
 
