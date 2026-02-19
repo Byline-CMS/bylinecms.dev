@@ -27,7 +27,7 @@ import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { Button, Container, HistoryIcon, IconButton, Section, Toast } from '@infonomic/uikit/react'
 
 import { FormRenderer } from '@/ui/fields/form-renderer'
-import { updateCollectionDocument, updateCollectionDocumentWithPatches } from '../data'
+import { updateCollectionDocumentWithPatches } from '../data'
 
 type EditState = {
   status: 'success' | 'failed' | 'busy' | 'idle'
@@ -53,19 +53,13 @@ export const EditView = ({
 
   const handleSubmit = async ({ data, patches }: { data: any; patches: any[] }) => {
     try {
-      const isDocsCollection = path === 'docs'
-
-      if (isDocsCollection && import.meta.env.DEV) {
-        await updateCollectionDocumentWithPatches(
-          path,
-          String(initialData.document_id),
-          data,
-          patches,
-          initialData.document_version_id
-        )
-      } else {
-        await updateCollectionDocument(path, String(initialData.document_id), data)
-      }
+      await updateCollectionDocumentWithPatches(
+        path,
+        String(initialData.document_id),
+        data,
+        patches,
+        initialData.document_version_id as string | undefined
+      )
 
       setEditState({
         status: 'success',
