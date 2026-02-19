@@ -27,12 +27,13 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import type { ArrayField as ArrayFieldType, Field } from '@byline/core'
 import { resolveFieldDefaultValue } from '@byline/core'
 import {
+  Card,
   ChevronDownIcon,
+  CloseIcon,
   GripperVerticalIcon,
   IconButton,
-  PlusIcon,
-  Select,
-  SelectItem,
+  Modal,
+  PlusIcon
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
@@ -83,7 +84,7 @@ const SortableItem = ({
         'pt-2 pb-2': collapsed,
       })}
     >
-      <div className={cx("flex items-center gap-2 mb-0 -ml-3", { 'mb-2': !collapsed })}>
+      <div className={cx('flex items-center gap-2 mb-0 -ml-3', { 'mb-2': !collapsed })}>
         <button
           type="button"
           className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-800 rounded text-gray-400 flex items-center justify-center"
@@ -131,6 +132,7 @@ const ArrayField = ({
 }) => {
   const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
+  const [showAddBlockModal, setShowAddBlockModal] = useState(false)
 
   const blockVariants = useMemo(
     () => (field.fields ?? []).filter((subField) => subField.type === 'block'),
@@ -266,6 +268,7 @@ const ArrayField = ({
     // NOTE: Array elements in this prototype behave like a tagged union:
     // each item should select ONE sub-field variant (legacy shape: { variantName: value }).
     // Defensive: for block arrays, only allow inserting block variants derived from the schema.
+    setShowAddBlockModal(false)
     const variants = isBlockArray ? blockVariants : (field.fields ?? [])
     const variant =
       (forcedVariantName != null
@@ -498,21 +501,10 @@ const ArrayField = ({
           {items.map((item, index) => renderItem(item, index))}
           {disableSorting ? null : isBlockArray ? (
             <div className="flex items-center gap-2">
-              <Select
-                size="sm"
-                value={selectedBlockName ?? ''}
-                onValueChange={(value) => setSelectedBlockName(value)}
-                aria-label="Choose block type"
-              >
-                {blockVariants.map((b) => (
-                  <SelectItem key={b.name} value={b.name}>
-                    {b.label ?? b.name}
-                  </SelectItem>
-                ))}
-              </Select>
               <IconButton
                 onClick={() => {
-                  void handleAddItem(selectedBlockName)
+                  // TODO: Open modal to show a grid of block variants.
+                  void setShowAddBlockModal(true)
                 }}
                 disabled={!selectedBlockName}
                 aria-label="Add block"
@@ -534,6 +526,36 @@ const ArrayField = ({
           )}
         </DraggableSortable>
       )}
+      <Modal isOpen={showAddBlockModal} closeOnOverlayClick={true} onDismiss={() => setShowAddBlockModal(false)}>
+        <Modal.Container style={{ maxWidth: '600px' }}>
+          <Modal.Header>
+            <h3 className="m-0 mb-2">Blocks</h3>
+            <IconButton
+              arial-label="Close"
+              size="sm"
+              onClick={() => {
+                setShowAddBlockModal(false)
+              }}
+            >
+              <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
+            </IconButton>
+          </Modal.Header>
+          <Modal.Content className="cursor-pointer">
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+              {blockVariants.map((b) => (
+                <Card key={b.name} hover onClick={() => void handleAddItem(b.name)} className="mb-2">
+                  <Card.Header>
+                    <Card.Title className="text-xl">{b.label ?? b.name}</Card.Title>
+                  </Card.Header>
+                  <Card.Content>
+                    {b.label ?? b.name}
+                  </Card.Content>
+                </Card>
+              ))}
+            </div>
+          </Modal.Content>
+        </Modal.Container>
+      </Modal>
     </div>
   )
 }
