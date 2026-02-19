@@ -1,5 +1,3 @@
-[![CLA assistant](https://cla-assistant.io/readme/badge/Byline-CMS/bylinecms.dev)](https://cla-assistant.io/Byline-CMS/bylinecms.dev)
-
 # Byline CMS
 
 
@@ -206,10 +204,13 @@ Enjoy and stay tuned!
 
 ## License
 
-Byline CMS is free software licensed under the GNU Affero General Public License v3.0 or later.
+This project is licensed under the Mozilla Public License Version 2.0.
+A copy of the full license text can be found in the LICENSE file.
+
+Copyright © 2025 Infonomic Company Limited
+
 For full details, please refer to the [LICENSE](LICENSE) and [COPYRIGHT](COPYRIGHT) files in this repository.
 
-Copyright © 2025 Anthony Bouch and contributors.
 
 ### Major Contributors
 
