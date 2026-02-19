@@ -22,7 +22,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { getCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
@@ -72,6 +72,7 @@ function RouteComponent() {
   const data = Route.useLoaderData()
   const { collection, id } = Route.useParams()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+  const adminConfig = getCollectionAdminConfig(collection)
 
   return (
     <>
@@ -88,7 +89,7 @@ function RouteComponent() {
           },
         ]}
       />
-      <HistoryView collectionDefinition={collectionDef} data={data} />
+      <HistoryView collectionDefinition={collectionDef} adminConfig={adminConfig ?? undefined} data={data} />
     </>
   )
 }

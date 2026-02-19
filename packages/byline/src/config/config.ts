@@ -1,4 +1,9 @@
-import type { ClientConfig, CollectionDefinition, ServerConfig } from '@/@types/index.js'
+import type {
+  ClientConfig,
+  CollectionAdminConfig,
+  CollectionDefinition,
+  ServerConfig,
+} from '@/@types/index.js'
 
 let serverConfigInstance: ServerConfig | null = null
 let clientConfigInstance: ClientConfig | null = null
@@ -12,6 +17,17 @@ export const getCollectionDefinition = (path: string): CollectionDefinition | nu
   }
 
   return config.collections.find((collection) => collection.path === path) ?? null
+}
+
+export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | null => {
+  const config = clientConfigInstance ?? serverConfigInstance
+  if (config == null) {
+    throw new Error(
+      'Byline has not been configured yet. Please call defineClientConfig or defineServerConfig first.'
+    )
+  }
+
+  return config.admin?.find((admin) => admin.slug === slug) ?? null
 }
 
 export function defineClientConfig(config: ClientConfig) {

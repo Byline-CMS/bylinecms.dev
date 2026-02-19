@@ -1,9 +1,7 @@
 // Layout / presentation types for Byline collections
 
-import type { ModelPath } from '../model/model-types.js'
-
 export interface LayoutFieldRef {
-  target: ModelPath
+  target: string
   label?: string
   helpText?: string
 }
@@ -29,7 +27,7 @@ export interface LayoutTab {
 }
 
 export interface LayoutBlockPalette {
-  target: ModelPath
+  target: string
   allowedBlockTypes?: string[]
 }
 

@@ -19,6 +19,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { CollectionAdminConfig } from './admin-types.js'
 import type { CollectionDefinition } from './collection-types.js'
 import type { IDbAdapter } from './db-types.js'
 
@@ -37,6 +38,8 @@ export interface ClientConfig {
     }
   }
   collections: CollectionDefinition[]
+  /** Admin UI configuration for collections (client-side only). */
+  admin?: CollectionAdminConfig[]
 }
 
 export interface ServerConfig extends ClientConfig {

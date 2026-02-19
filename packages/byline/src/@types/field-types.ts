@@ -85,9 +85,6 @@ interface BaseField {
    * Can be a literal or an (async) function.
    */
   defaultValue?: DefaultValue
-  admin?: {
-    position?: 'default' | 'sidebar'
-  }
 }
 
 // Base for presentational fields that contain nested fields

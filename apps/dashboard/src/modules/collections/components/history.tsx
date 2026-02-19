@@ -22,7 +22,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 
-import type { CollectionDefinition } from '@byline/core'
+import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import {
   Button,
@@ -66,7 +66,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-      }`}
+        }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -76,14 +76,16 @@ function padRows(value: number) {
 
 export const HistoryView = ({
   collectionDefinition,
+  adminConfig,
   data,
 }: {
   collectionDefinition: CollectionDefinition
+  adminConfig?: CollectionAdminConfig
   data: AnyCollectionSchemaTypes['HistoryType']
 }) => {
   const { id, collection } = useParams({ from: '/collections/$collection/$id/history' })
   const navigate = useNavigate()
-  const columns = collectionDefinition.columns || []
+  const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
   const location = useRouterState({ select: (s) => s.location })
 

@@ -2,13 +2,6 @@
 // This is not wired into runtime yet; used for exploration.
 import type { DocumentPatch } from '../patches/patch-types.js'
 
-export type {
-  ModelCollection,
-  ModelField,
-  ModelPath,
-  ModelScalarType,
-} from '../model/model-types.js'
-
 // ---- Layout / presentation ----
 
 export type {
@@ -46,12 +39,12 @@ export type {
 // ---- Example: Docs model & layout (sketch) ----
 
 // Re-export examples so existing exploratory imports keep working.
-export { DocsLayoutExample, DocsModelExample } from '../examples/docs-examples.js'
+export { DocsCollectionExample, DocsLayoutExample } from '../examples/docs-examples.js'
 
 // ---- Minimal patch application skeleton (experimental) ----
 
 // Re-export the real implementation so existing experimental imports keep working.
-export { applyPatches, parsePatchPath } from '../patches/apply-patches.js'
+export { applyPatches, parsePatchPath, resolveFieldForPath } from '../patches/apply-patches.js'
 
 // Tiny example to illustrate the idea; not used at runtime.
 export const DocsPatchExample: DocumentPatch[] = [

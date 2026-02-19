@@ -19,9 +19,55 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { CollectionDefinition, ColumnDefinition } from '@byline/core'
+import type { CollectionDefinition } from '@byline/core'
+import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
-// import { formatDateTime } from '../utils/formatDateTime'
+// ---- Schema (server-safe, no UI concerns) ----
+
+export const Pages: CollectionDefinition = {
+  path: 'pages',
+  labels: {
+    singular: 'Page',
+    plural: 'Pages',
+  },
+  fields: [
+    { name: 'path', label: 'Path', type: 'text', required: true },
+    { name: 'title', label: 'Title', type: 'text', required: true },
+    {
+      name: 'category',
+      label: 'Category',
+      type: 'select',
+      helpText: 'Select a category for this page',
+      options: [
+        { label: 'Foo', value: 'foo' },
+        { label: 'Bar', value: 'bar' },
+        { label: 'Baz', value: 'baz' },
+      ],
+    },
+    {
+      name: 'content',
+      label: 'Content',
+      type: 'richText',
+      helpText: 'Enter the main content for this page.',
+      required: true,
+    },
+    {
+      name: 'publishedOn',
+      label: 'Published On',
+      type: 'datetime',
+      mode: 'datetime',
+      required: true,
+    },
+    {
+      name: 'featured',
+      label: 'Featured',
+      type: 'checkbox',
+      helpText: 'Is this page featured on the home page?',
+    },
+  ],
+}
+
+// ---- Admin UI config (client-only, presentation concerns) ----
 
 const pagesColumns: ColumnDefinition[] = [
   {
@@ -51,52 +97,15 @@ const pagesColumns: ColumnDefinition[] = [
     sortable: true,
     align: 'right',
     className: 'w-[20%]',
-    // formatter: (value) => formatDateTime(value),
   },
 ]
 
-export const Pages: CollectionDefinition = {
-  path: 'pages',
-  labels: {
-    singular: 'Page',
-    plural: 'Pages',
-  },
-  fields: [
-    { name: 'path', label: 'Path', type: 'text', required: true, admin: { position: 'sidebar' } },
-    { name: 'title', label: 'Title', type: 'text', required: true },
-    {
-      name: 'category',
-      label: 'Category',
-      type: 'select',
-      helpText: 'Select a category for this page',
-      options: [
-        { label: 'Foo', value: 'foo' },
-        { label: 'Bar', value: 'bar' },
-        { label: 'Baz', value: 'baz' },
-      ],
-    },
-    {
-      name: 'content',
-      label: 'Content',
-      type: 'richText',
-      helpText: 'Enter the main content for this page.',
-      required: true,
-    },
-    {
-      name: 'publishedOn',
-      label: 'Published On',
-      type: 'datetime',
-      mode: 'datetime',
-      required: true,
-      admin: { position: 'sidebar' },
-    },
-    {
-      name: 'featured',
-      label: 'Featured',
-      type: 'checkbox',
-      helpText: 'Is this page featured on the home page?',
-      admin: { position: 'sidebar' },
-    },
-  ],
+export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
+  useAsTitle: 'title',
   columns: pagesColumns,
-}
+  fields: {
+    path: { position: 'sidebar' },
+    publishedOn: { position: 'sidebar' },
+    featured: { position: 'sidebar' },
+  },
+})

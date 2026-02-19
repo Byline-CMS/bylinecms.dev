@@ -27,7 +27,7 @@ import type {
   IDocumentCommands,
 } from '@byline/core'
 import { isFileStore, isJsonStore, isNumericStore, isRelationStore } from '@byline/core'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -49,7 +49,7 @@ import type * as schema from '../database/schema/index.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
 
-interface WriteMetaForBlocksParams {
+interface WriteDocumentMetaParams {
   tx: DatabaseConnection
   documentVersionId: string
   collectionId: string
@@ -57,21 +57,21 @@ interface WriteMetaForBlocksParams {
   documentData: any
 }
 
-async function writeMetaForBlocks({
+async function writeDocumentMeta({
   tx,
   documentVersionId,
   collectionId,
   collectionConfig,
   documentData,
-}: WriteMetaForBlocksParams) {
+}: WriteDocumentMetaParams) {
   const existingMeta = await tx
-    .select({ path: metaStore.path, item_id: metaStore.item_id })
+    .select({ type: metaStore.type, path: metaStore.path, item_id: metaStore.item_id })
     .from(metaStore)
-    .where(and(eq(metaStore.document_version_id, documentVersionId), eq(metaStore.type, 'block')))
+    .where(eq(metaStore.document_version_id, documentVersionId))
 
   const existingByPath = new Map<string, string>()
   for (const row of existingMeta) {
-    existingByPath.set(row.path, row.item_id)
+    existingByPath.set(`${row.type}:${row.path}`, row.item_id)
   }
 
   const metaInserts: {
@@ -116,7 +116,7 @@ async function writeMetaForBlocks({
             if (!blockName) return
 
             const blockPath = `${currentPath}.${index}.${blockName}`
-            let itemId = existingByPath.get(blockPath)
+            let itemId = existingByPath.get(`block:${blockPath}`)
 
             if (item.id) {
               itemId = item.id
@@ -124,7 +124,7 @@ async function writeMetaForBlocks({
 
             if (!itemId) {
               // Check if we already assigned one in this transaction (unlikely for flat list)
-              itemId = existingByPath.get(blockPath)
+              itemId = existingByPath.get(`block:${blockPath}`)
             }
 
             if (!itemId) {
@@ -175,7 +175,7 @@ async function writeMetaForBlocks({
 
             // Generate/Retrieve ID
             let itemId = item.id
-            if (!itemId) itemId = existingByPath.get(blockPath)
+            if (!itemId) itemId = existingByPath.get(`block:${blockPath}`)
             if (!itemId) itemId = uuidv7()
 
             metaInserts.push({
@@ -202,13 +202,31 @@ async function writeMetaForBlocks({
               // traverse expects data to contain richText.
               traverse(subField.fields as Field[], syntheticData, blockPath)
             }
-          } else if (typeof item === 'object' && item !== null && fieldConfig.fields) {
-            const fieldName = Object.keys(item)[0]
-            if (fieldName != null) {
-              const fieldValue = item[fieldName]
-              const subField = fieldConfig.fields.find((f) => f.name === fieldName)
-              if (subField) {
-                traverse([subField], { [fieldName]: fieldValue }, arrayElementPath)
+          } else if (typeof item === 'object' && item !== null) {
+            // Non-block array item — assign a stable identity via array_item meta.
+            let itemId = item._id
+            if (!itemId) itemId = existingByPath.get(`array_item:${arrayElementPath}`)
+            if (!itemId) itemId = uuidv7()
+
+            metaInserts.push({
+              id: uuidv7(),
+              document_version_id: documentVersionId,
+              collection_id: collectionId,
+              type: 'array_item',
+              path: arrayElementPath,
+              item_id: itemId,
+              meta: null,
+            })
+
+            // Recurse into sub-fields for nested structures
+            if (fieldConfig.fields) {
+              const fieldName = Object.keys(item).filter((k) => k !== '_id')[0]
+              if (fieldName != null) {
+                const fieldValue = item[fieldName]
+                const subField = fieldConfig.fields.find((f) => f.name === fieldName)
+                if (subField) {
+                  traverse([subField], { [fieldName]: fieldValue }, arrayElementPath)
+                }
               }
             }
           }
@@ -310,18 +328,42 @@ export class DocumentCommands implements IDocumentCommands {
         params.locale ?? 'all'
       )
 
-      // 3. Insert all field values
-      for (const fieldValue of flattenedFields) {
-        await this.insertFieldValueByType(
-          tx,
-          documentVersion.id, // Use the document version ID
-          params.collectionId,
-          fieldValue
-        )
+      // 3. Batch-insert all field values, grouped by store type
+      const storeBuckets = this.groupFieldValuesByStore(
+        flattenedFields,
+        documentVersion.id,
+        params.collectionId
+      )
+
+      for (const [store, rows] of storeBuckets) {
+        if (rows.length === 0) continue
+        switch (store) {
+          case 'text':
+            await tx.insert(textStore).values(rows)
+            break
+          case 'numeric':
+            await tx.insert(numericStore).values(rows)
+            break
+          case 'boolean':
+            await tx.insert(booleanStore).values(rows)
+            break
+          case 'datetime':
+            await tx.insert(datetimeStore).values(rows)
+            break
+          case 'file':
+            await tx.insert(fileStore).values(rows)
+            break
+          case 'relation':
+            await tx.insert(relationStore).values(rows)
+            break
+          case 'json':
+            await tx.insert(jsonStore).values(rows)
+            break
+        }
       }
 
-      // 4. Write meta data for blocks (e.g. durable block IDs)
-      await writeMetaForBlocks({
+      // 4. Write meta data (durable IDs for blocks and array items)
+      await writeDocumentMeta({
         tx,
         documentVersionId: documentVersion.id,
         collectionId: params.collectionId,
@@ -337,13 +379,170 @@ export class DocumentCommands implements IDocumentCommands {
   }
 
   /**
-   * insertFieldValueByType
+   * groupFieldValuesByStore
    *
-   * @param tx
-   * @param documentVersionId
-   * @param collectionId
-   * @param fieldValue
-   * @returns
+   * Groups flattened field values into per-store-type buckets so they can be
+   * batch-inserted with a single multi-row INSERT per store.
+   */
+  private groupFieldValuesByStore(
+    flattenedFields: any[],
+    documentVersionId: string,
+    collectionId: string
+  ): Map<string, any[]> {
+    const buckets = new Map<string, any[]>([
+      ['text', []],
+      ['numeric', []],
+      ['boolean', []],
+      ['datetime', []],
+      ['file', []],
+      ['relation', []],
+      ['json', []],
+    ])
+
+    for (const fieldValue of flattenedFields) {
+      const baseData = {
+        id: uuidv7(),
+        document_version_id: documentVersionId,
+        collection_id: collectionId,
+        field_path: fieldValue.field_path,
+        field_name: fieldValue.field_name,
+        locale: fieldValue.locale,
+        parent_path: fieldValue.parent_path,
+      }
+
+      switch (fieldValue.field_type) {
+        case 'select':
+        case 'text':
+        case 'textArea':
+          if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
+            const entries = Object.entries<string>(fieldValue.value)
+            for (const [locale, localizedValue] of entries) {
+              buckets.get('text')!.push({
+                ...baseData,
+                id: uuidv7(),
+                locale,
+                value: localizedValue,
+              })
+            }
+          } else {
+            buckets.get('text')!.push({ ...baseData, value: fieldValue.value as string })
+          }
+          break
+
+        case 'float':
+        case 'integer':
+        case 'decimal':
+          if (isNumericStore(fieldValue)) {
+            buckets.get('numeric')!.push({
+              ...baseData,
+              number_type: fieldValue.number_type,
+              value_float: fieldValue.value_float,
+              value_integer: fieldValue.value_integer,
+              value_decimal: fieldValue.value_decimal,
+            })
+          } else {
+            throw new Error(`Invalid numeric field value for ${baseData.field_path}`)
+          }
+          break
+
+        case 'checkbox':
+        case 'boolean':
+          buckets.get('boolean')!.push({ ...baseData, value: fieldValue.value })
+          break
+
+        case 'time':
+        case 'date':
+        case 'datetime':
+          buckets.get('datetime')!.push({
+            ...baseData,
+            date_type: fieldValue.date_type || 'datetime',
+            value_time: fieldValue.value_time,
+            value_date: fieldValue.value_date,
+            value_timestamp_tz: fieldValue.value_timestamp_tz,
+          })
+          break
+
+        case 'file':
+        case 'image':
+          if (isFileStore(fieldValue)) {
+            buckets.get('file')!.push({
+              ...baseData,
+              file_id: fieldValue.file_id,
+              filename: fieldValue.filename,
+              original_filename: fieldValue.original_filename,
+              mime_type: fieldValue.mime_type,
+              file_size: fieldValue.file_size,
+              storage_provider: fieldValue.storage_provider,
+              storage_path: fieldValue.storage_path,
+              storage_url: fieldValue.storage_url,
+              file_hash: fieldValue.file_hash,
+              image_width: fieldValue.image_width,
+              image_height: fieldValue.image_height,
+              image_format: fieldValue.image_format,
+              processing_status: fieldValue.processing_status || 'pending',
+              thumbnail_generated: fieldValue.thumbnail_generated || false,
+            })
+          } else {
+            throw new Error(`Invalid file field value for ${baseData.field_path}`)
+          }
+          break
+
+        case 'relation':
+          if (isRelationStore(fieldValue)) {
+            buckets.get('relation')!.push({
+              ...baseData,
+              target_document_id: fieldValue.target_document_id,
+              target_collection_id: fieldValue.target_collection_id,
+              relationship_type: fieldValue.relationship_type || 'reference',
+              cascade_delete: fieldValue.cascade_delete || false,
+            })
+          } else {
+            throw new Error(`Invalid relation field value for ${baseData.field_path}`)
+          }
+          break
+
+        case 'richText':
+          buckets.get('json')!.push({ ...baseData, value: fieldValue.value })
+          break
+
+        case 'json':
+        case 'object':
+          if (isJsonStore(fieldValue)) {
+            if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
+              const entries = Object.entries<string>(fieldValue.value)
+              for (const [locale, localizedValue] of entries) {
+                buckets.get('json')!.push({
+                  ...baseData,
+                  id: uuidv7(),
+                  locale,
+                  value: localizedValue,
+                })
+              }
+            } else {
+              buckets.get('json')!.push({
+                ...baseData,
+                value: fieldValue.value,
+                json_schema: fieldValue.json_schema,
+                object_keys: fieldValue.object_keys,
+              })
+            }
+          } else {
+            throw new Error(`Invalid JSON field value for ${baseData.field_path}`)
+          }
+          break
+
+        default:
+          throw new Error(`Unsupported field type: ${fieldValue.field_type}`)
+      }
+    }
+
+    return buckets
+  }
+
+  /**
+   * insertFieldValueByType (legacy — kept for reference / single-row inserts)
+   *
+   * @deprecated Prefer groupFieldValuesByStore for batch inserts.
    */
   private async insertFieldValueByType(
     tx: DatabaseConnection,

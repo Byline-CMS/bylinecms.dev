@@ -19,7 +19,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-export * from '../model/model-types.js'
+export * from './admin-types.js'
 export * from './collection-types.js'
 export * from './db-types.js'
 export * from './field-types.js'

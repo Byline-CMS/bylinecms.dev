@@ -1,8 +1,9 @@
 // Patch model shared between dashboard, core and adapters
 
-import type { ModelCollection, ModelPath } from '../model/model-types.js'
+import type { CollectionDefinition } from '../@types/collection-types.js'
 
-export type PatchPath = ModelPath
+/** Dot-notation path addressing a field within a document. */
+export type PatchPath = string
 
 export interface BasePatch {
   opId?: string
@@ -93,8 +94,9 @@ export interface PatchError {
 export interface ApplyPatchesResult {
   doc: unknown
   errors: PatchError[]
+  warnings: PatchError[]
 }
 
 export interface PatchContext {
-  model: ModelCollection
+  definition: CollectionDefinition
 }

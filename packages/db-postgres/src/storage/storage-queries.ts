@@ -51,31 +51,64 @@ import {
 } from './storage-template-queries.js'
 import { reconstructFields } from './storage-utils.js'
 
-interface BlockMetaRow {
+interface MetaRow {
   type: string
   path: string
   item_id: string
   meta: Record<string, any> | null
 }
 
-function attachBlockMetaToDocument(document: any, blockMetaRows: BlockMetaRow[]): any {
-  if (!document || typeof document !== 'object') return document
+/**
+ * Enrich a reconstructed document with stable IDs from store_meta.
+ *
+ * Handles two types of meta rows:
+ *
+ * **block** — paths like `content.0.richTextBlock`. The array item is
+ * transformed from the legacy `{ blockName: fields }` shape into the
+ * normalised block shape: `{ id, type: 'block', name, fields, meta }`.
+ *
+ * **array_item** — paths like `tags.0`. A stable `_id` property is
+ * injected into each array item so patches can target items by identity
+ * rather than fragile index.
+ *
+ * Discovery is fully generic — top-level array fields are discovered from
+ * the meta row paths themselves, not from hard-coded field names.
+ */
+function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
+  if (!document || typeof document !== 'object' || metaRows.length === 0) return document
 
-  const metaByPath = new Map<string, BlockMetaRow>()
-  for (const row of blockMetaRows) {
+  const metaByPath = new Map<string, MetaRow>()
+  for (const row of metaRows) {
     metaByPath.set(row.path, row)
+  }
+
+  // Separate rows by type so we can handle each kind independently.
+  const blockRows: MetaRow[] = []
+  const arrayItemRows: MetaRow[] = []
+  for (const row of metaRows) {
+    if (row.type === 'block') blockRows.push(row)
+    else if (row.type === 'array_item') arrayItemRows.push(row)
   }
 
   const result: any = { ...document }
 
-  if (Array.isArray(result.content)) {
-    result.content = result.content.map((item: any, index: number) => {
+  // --- Block enrichment ---
+  const blockFieldNames = new Set<string>()
+  for (const row of blockRows) {
+    const topField = row.path.split('.')[0]
+    if (topField) blockFieldNames.add(topField)
+  }
+
+  for (const fieldName of blockFieldNames) {
+    if (!Array.isArray(result[fieldName])) continue
+
+    result[fieldName] = result[fieldName].map((item: any, index: number) => {
       if (!item || typeof item !== 'object') return item
       const blockName = Object.keys(item)[0]
       if (!blockName) return item
 
       const blockFields = item[blockName]
-      const blockPath = `content.${index}.${blockName}`
+      const blockPath = `${fieldName}.${index}.${blockName}`
       const meta = metaByPath.get(blockPath)
 
       return {
@@ -85,6 +118,27 @@ function attachBlockMetaToDocument(document: any, blockMetaRows: BlockMetaRow[])
         fields: blockFields,
         meta: meta?.meta ?? null,
       }
+    })
+  }
+
+  // --- Array-item enrichment ---
+  const arrayItemFieldNames = new Set<string>()
+  for (const row of arrayItemRows) {
+    const topField = row.path.split('.')[0]
+    if (topField) arrayItemFieldNames.add(topField)
+  }
+
+  for (const fieldName of arrayItemFieldNames) {
+    // Skip fields already handled as blocks.
+    if (blockFieldNames.has(fieldName)) continue
+    if (!Array.isArray(result[fieldName])) continue
+
+    result[fieldName] = result[fieldName].map((item: any, index: number) => {
+      if (!item || typeof item !== 'object') return item
+      const itemPath = `${fieldName}.${index}`
+      const meta = metaByPath.get(itemPath)
+      if (!meta) return item
+      return { _id: meta.item_id, ...item }
     })
   }
 
@@ -491,19 +545,21 @@ export class DocumentQueries implements IDocumentQueries {
     // 3. Convert unified values back to FlattenedStore format
     const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
 
-    // 4. If reconstruct is true, reconstruct the fields and attach block meta
+    // 4. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
       const reconstructedFields = reconstructFields(fieldValues, locale)
 
-      const blockMetaRows = await this.db
-        .select({ path: metaStore.path, item_id: metaStore.item_id, meta: metaStore.meta })
+      const metaRows = await this.db
+        .select({
+          type: metaStore.type,
+          path: metaStore.path,
+          item_id: metaStore.item_id,
+          meta: metaStore.meta,
+        })
         .from(metaStore)
-        .where(and(eq(metaStore.document_version_id, document.id), eq(metaStore.type, 'block')))
+        .where(eq(metaStore.document_version_id, document.id))
 
-      const documentWithBlocks = attachBlockMetaToDocument(
-        reconstructedFields,
-        blockMetaRows as BlockMetaRow[]
-      )
+      const enrichedDocument = attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
       return {
         document_version_id: document.id,
@@ -512,7 +568,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
-        ...documentWithBlocks,
+        ...enrichedDocument,
       }
     }
     return {
@@ -565,20 +621,22 @@ export class DocumentQueries implements IDocumentQueries {
     // 3. Convert unified values back to FlattenedStore format
     const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
 
-    // 4. If reconstruct is true, reconstruct the fields and attach block meta
+    // 4. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
       // 4. Reconstruct field values for document
       const reconstructedFields = reconstructFields(fieldValues, locale)
 
-      const blockMetaRows = await this.db
-        .select({ path: metaStore.path, item_id: metaStore.item_id, meta: metaStore.meta })
+      const metaRows = await this.db
+        .select({
+          type: metaStore.type,
+          path: metaStore.path,
+          item_id: metaStore.item_id,
+          meta: metaStore.meta,
+        })
         .from(metaStore)
-        .where(and(eq(metaStore.document_version_id, document.id), eq(metaStore.type, 'block')))
+        .where(eq(metaStore.document_version_id, document.id))
 
-      const documentWithBlocks = attachBlockMetaToDocument(
-        reconstructedFields,
-        blockMetaRows as BlockMetaRow[]
-      )
+      const enrichedDocument = attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
       return {
         document_version_id: document.id,
@@ -587,7 +645,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
-        ...documentWithBlocks,
+        ...enrichedDocument,
       }
     }
     return {
@@ -630,15 +688,17 @@ export class DocumentQueries implements IDocumentQueries {
 
     const reconstructedFields = reconstructFields(fieldValues, locale)
 
-    const blockMetaRows = await this.db
-      .select({ path: metaStore.path, item_id: metaStore.item_id, meta: metaStore.meta })
+    const metaRows = await this.db
+      .select({
+        type: metaStore.type,
+        path: metaStore.path,
+        item_id: metaStore.item_id,
+        meta: metaStore.meta,
+      })
       .from(metaStore)
-      .where(and(eq(metaStore.document_version_id, document.id), eq(metaStore.type, 'block')))
+      .where(eq(metaStore.document_version_id, document.id))
 
-    const documentWithBlocks = attachBlockMetaToDocument(
-      reconstructedFields,
-      blockMetaRows as BlockMetaRow[]
-    )
+    const enrichedDocument = attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
     // Add document properties at root level
     const documentWithFields = {
@@ -648,7 +708,7 @@ export class DocumentQueries implements IDocumentQueries {
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
-      ...documentWithBlocks,
+      ...enrichedDocument,
     }
 
     return documentWithFields
@@ -706,22 +766,23 @@ export class DocumentQueries implements IDocumentQueries {
       fieldValuesByVersion.get(fieldValue.document_version_id)?.push(fieldValue)
     }
 
-    // Reconstruct each document with document data at root level and attach block meta
-    const blockMetaRows = await this.db
+    // Reconstruct each document with document data at root level and attach meta
+    const allMetaRows = await this.db
       .select({
         document_version_id: metaStore.document_version_id,
+        type: metaStore.type,
         path: metaStore.path,
         item_id: metaStore.item_id,
         meta: metaStore.meta,
       })
       .from(metaStore)
-      .where(and(inArray(metaStore.document_version_id, versionIds), eq(metaStore.type, 'block')))
+      .where(inArray(metaStore.document_version_id, versionIds))
 
-    const metaByVersion = new Map<string, BlockMetaRow[]>()
-    for (const row of blockMetaRows) {
+    const metaByVersion = new Map<string, MetaRow[]>()
+    for (const row of allMetaRows) {
       const list = metaByVersion.get(row.document_version_id) ?? []
       list.push({
-        type: 'block',
+        type: row.type,
         path: row.path,
         item_id: row.item_id,
         meta: row.meta as Record<string, any> | null,
@@ -738,9 +799,9 @@ export class DocumentQueries implements IDocumentQueries {
 
       const reconstructedFields = reconstructFields(flattenedFieldValues, locale)
 
-      const documentWithBlocks = attachBlockMetaToDocument(
+      const enrichedDocument = attachMetaToDocument(
         reconstructedFields,
-        (metaByVersion.get(doc.document_version_id) ?? []) as BlockMetaRow[]
+        (metaByVersion.get(doc.document_version_id) ?? []) as MetaRow[]
       )
 
       // Add document data at root level
@@ -751,7 +812,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: doc.status,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
-        ...documentWithBlocks,
+        ...enrichedDocument,
       }
 
       result.push(documentWithFields)

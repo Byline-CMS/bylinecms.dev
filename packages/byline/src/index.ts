@@ -3,6 +3,7 @@ export {
   defineClientConfig,
   defineServerConfig,
   getClientConfig,
+  getCollectionAdminConfig,
   getCollectionDefinition,
   getServerConfig,
 } from './config/config.js'

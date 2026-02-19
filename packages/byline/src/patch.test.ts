@@ -1,90 +1,87 @@
 import { describe, expect, it } from 'vitest'
 
 import { applyPatches } from './patches/apply-patches.js'
-import type { ModelCollection } from './model/model-types.js'
+import type { CollectionDefinition } from './@types/collection-types.js'
 import type { DocumentPatch } from './patches/patch-types.js'
 
-const DocsModelExample: ModelCollection = {
-  id: 'docs',
+const DocsDefinition: CollectionDefinition = {
   path: 'docs',
-  label: 'Documents',
+  labels: {
+    singular: 'Document',
+    plural: 'Documents',
+  },
   fields: [
-    { id: 'path', label: 'Path', kind: 'scalar', scalarType: 'string', required: true },
-    { id: 'title', label: 'Title', kind: 'scalar', scalarType: 'string', required: true },
-    { id: 'summary', label: 'Summary', kind: 'scalar', scalarType: 'text', localized: true },
+    { name: 'path', label: 'Path', type: 'text', required: true },
+    { name: 'title', label: 'Title', type: 'text', required: true },
+    { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
     {
-      id: 'publishedOn',
+      name: 'publishedOn',
       label: 'Published On',
-      kind: 'scalar',
-      scalarType: 'datetime',
+      type: 'datetime',
+      mode: 'datetime',
       required: true,
     },
     {
-      id: 'featured',
+      name: 'featured',
       label: 'Featured',
-      kind: 'scalar',
-      scalarType: 'boolean',
+      type: 'checkbox',
     },
     {
-      id: 'content',
+      name: 'content',
       label: 'Content',
-      kind: 'blocks',
-      typeDiscriminator: 'type',
-      blocks: [
+      type: 'array',
+      fields: [
         {
-          type: 'richTextBlock',
+          name: 'richTextBlock',
           label: 'Richtext Block',
+          type: 'block',
           fields: [
             {
-              id: 'richText',
+              name: 'richText',
               label: 'Richtext',
-              kind: 'scalar',
-              scalarType: 'json',
+              type: 'richText',
             },
             {
-              id: 'constrainedWidth',
+              name: 'constrainedWidth',
               label: 'Constrained Width',
-              kind: 'scalar',
-              scalarType: 'boolean',
+              type: 'checkbox',
             },
           ],
         },
         {
-          type: 'photoBlock',
+          name: 'photoBlock',
           label: 'Photo Block',
+          type: 'block',
           fields: [
-            { id: 'display', label: 'Display', kind: 'scalar', scalarType: 'string' },
-            { id: 'photo', label: 'Photo', kind: 'scalar', scalarType: 'json' },
-            { id: 'alt', label: 'Alt', kind: 'scalar', scalarType: 'string' },
-            { id: 'caption', label: 'Caption', kind: 'scalar', scalarType: 'json' },
+            { name: 'display', label: 'Display', type: 'text' },
+            { name: 'photo', label: 'Photo', type: 'image' },
+            { name: 'alt', label: 'Alt', type: 'text' },
+            { name: 'caption', label: 'Caption', type: 'richText' },
           ],
         },
       ],
     },
     {
-      id: 'reviews',
+      name: 'reviews',
       label: 'Reviews',
-      kind: 'array',
-      item: {
-        id: 'reviewItem',
-        label: 'Review Item',
-        kind: 'object',
-        fields: [
-          { id: 'rating', label: 'Rating', kind: 'scalar', scalarType: 'integer' },
-          { id: 'comment', label: 'Comments', kind: 'scalar', scalarType: 'json' },
-        ],
-      },
+      type: 'array',
+      fields: [
+        {
+          name: 'reviewItem',
+          label: 'Review Item',
+          type: 'array',
+          fields: [
+            { name: 'rating', label: 'Rating', type: 'integer', required: true },
+            { name: 'comment', label: 'Comments', type: 'richText' },
+          ],
+        },
+      ],
     },
     {
-      id: 'links',
+      name: 'links',
       label: 'Links',
-      kind: 'array',
-      item: {
-        id: 'linkItem',
-        label: 'Link',
-        kind: 'object',
-        fields: [{ id: 'link', label: 'Link', kind: 'scalar', scalarType: 'string' }],
-      },
+      type: 'array',
+      fields: [{ name: 'link', label: 'Link', type: 'text' }],
     },
   ],
 }
@@ -111,7 +108,7 @@ describe('applyPatches', () => {
       summary: 'Original summary',
     }
 
-    const { doc, errors } = applyPatches(DocsModelExample, original, DocsPatchExample)
+    const { doc, errors } = applyPatches(DocsDefinition, original, DocsPatchExample)
 
     expect(errors).toHaveLength(0)
     const patched = doc as DocsLike
@@ -128,7 +125,7 @@ describe('applyPatches', () => {
       summary: 'Original summary',
     }
 
-    const { doc, errors } = applyPatches(DocsModelExample, original, [])
+    const { doc, errors } = applyPatches(DocsDefinition, original, [])
 
     expect(errors).toHaveLength(0)
     expect(doc).toEqual(original)
@@ -139,7 +136,7 @@ describe('applyPatches', () => {
       title: 'Original title',
     }
 
-    const { errors } = applyPatches(DocsModelExample, original, [
+    const { errors } = applyPatches(DocsDefinition, original, [
       // @ts-expect-error - intentionally passing an unsupported kind to verify type narrowing behaviour
       { kind: 'unknown.kind', path: 'links' },
     ])
@@ -156,7 +153,7 @@ describe('applyPatches', () => {
       ],
     }
 
-    const { doc: afterInsert, errors: insertErrors } = applyPatches(DocsModelExample, original, [
+    const { doc: afterInsert, errors: insertErrors } = applyPatches(DocsDefinition, original, [
       {
         kind: 'array.insert',
         path: 'reviews',
@@ -170,7 +167,7 @@ describe('applyPatches', () => {
     const inserted = afterInsert as { reviews: { id: string; rating: number }[] }
     expect(inserted.reviews.map((r) => r.id)).toEqual(['a', 'c', 'b'])
 
-    const { doc: afterMove, errors: moveErrors } = applyPatches(DocsModelExample, inserted, [
+    const { doc: afterMove, errors: moveErrors } = applyPatches(DocsDefinition, inserted, [
       {
         kind: 'array.move',
         path: 'reviews',
@@ -189,7 +186,7 @@ describe('applyPatches', () => {
       content: [],
     }
 
-    const { doc: afterAdd, errors: addErrors } = applyPatches(DocsModelExample, original, [
+    const { doc: afterAdd, errors: addErrors } = applyPatches(DocsDefinition, original, [
       {
         kind: 'block.add',
         path: 'content',
@@ -211,7 +208,7 @@ describe('applyPatches', () => {
     expect(block?.type).toBe('richTextBlock')
     expect(block?.richText).toEqual({ ops: [{ insert: 'Hello' }] })
 
-    const { doc: afterUpdate, errors: updateErrors } = applyPatches(DocsModelExample, withBlock, [
+    const { doc: afterUpdate, errors: updateErrors } = applyPatches(DocsDefinition, withBlock, [
       {
         kind: 'block.updateField',
         path: 'content',

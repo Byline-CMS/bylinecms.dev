@@ -24,7 +24,7 @@
 
 import { useEffect, useState } from 'react'
 
-import type { Field } from '@byline/core'
+import type { CollectionAdminConfig, Field } from '@byline/core'
 import { Button } from '@infonomic/uikit/react'
 
 import { formatDateTime } from '../../utils/utils.general'
@@ -61,11 +61,13 @@ const FormContent = ({
   onSubmit,
   onCancel,
   initialData,
+  adminConfig,
 }: {
   fields: Field[]
   onSubmit: (data: any) => void
   onCancel: () => void
   initialData?: Record<string, any>
+  adminConfig?: CollectionAdminConfig
 }) => {
   const {
     getFieldValues,
@@ -114,11 +116,15 @@ const FormContent = ({
     }
   }
 
-  // Split fields by admin.position
+  // Split fields by admin config position
+  const fieldPositions = adminConfig?.fields ?? {}
   const defaultFields = fields.filter(
-    (f) => f.admin?.position == null || f.admin.position === 'default'
+    (f) => {
+      const pos = fieldPositions[f.name]?.position
+      return pos == null || pos === 'default'
+    }
   )
-  const sidebarFields = fields.filter((f) => f.admin?.position === 'sidebar')
+  const sidebarFields = fields.filter((f) => fieldPositions[f.name]?.position === 'sidebar')
 
   return (
     <form onSubmit={handleSubmit} className="w-full flex flex-col">
@@ -183,11 +189,13 @@ export const FormRenderer = ({
   onSubmit,
   onCancel,
   initialData,
+  adminConfig,
 }: {
   fields: Field[]
   onSubmit: (data: any) => void
   onCancel: () => void
   initialData?: Record<string, any>
+  adminConfig?: CollectionAdminConfig
 }) => (
   <FormProvider initialData={initialData}>
     <FormContent
@@ -195,6 +203,7 @@ export const FormRenderer = ({
       onSubmit={onSubmit}
       onCancel={onCancel}
       initialData={initialData}
+      adminConfig={adminConfig}
     />
   </FormProvider>
 )

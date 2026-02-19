@@ -19,43 +19,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { CollectionDefinition, ColumnDefinition } from '@byline/core'
+import type { CollectionDefinition } from '@byline/core'
+import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
 import { PhotoBlock } from '../blocks/photo-block.js'
 import { RichTextBlock } from '../blocks/richtext-block.js'
 
-// import { formatDateTime } from '../utils/formatDateTime'
-
-const docsColumns: ColumnDefinition[] = [
-  {
-    fieldName: 'title',
-    label: 'Title',
-    sortable: true,
-    align: 'left',
-    className: 'w-[30%]',
-  },
-  {
-    fieldName: 'featured',
-    label: 'Featured',
-    align: 'center',
-    className: 'w-[10%]',
-    formatter: (value) => (value ? '★' : ''),
-  },
-  {
-    fieldName: 'status',
-    label: 'Status',
-    align: 'center',
-    className: 'w-[15%]',
-  },
-  {
-    fieldName: 'updated_at',
-    label: 'Last Updated',
-    sortable: true,
-    align: 'right',
-    className: 'w-[20%]',
-    // formatter: (value) => formatDateTime(value),
-  },
-]
+// ---- Schema (server-safe, no UI concerns) ----
 
 export const Docs: CollectionDefinition = {
   path: 'docs',
@@ -64,7 +34,7 @@ export const Docs: CollectionDefinition = {
     plural: 'Documents',
   },
   fields: [
-    { name: 'path', label: 'Path', type: 'text', required: true, admin: { position: 'sidebar' } },
+    { name: 'path', label: 'Path', type: 'text', required: true },
     { name: 'title', label: 'Title', type: 'text', required: true },
     { name: 'summary', label: 'Summary', type: 'textArea', required: true, localized: true },
     {
@@ -73,14 +43,12 @@ export const Docs: CollectionDefinition = {
       type: 'datetime',
       mode: 'datetime',
       required: true,
-      admin: { position: 'sidebar' },
     },
     {
       name: 'featured',
       label: 'Featured',
       type: 'checkbox',
       helpText: 'Is this page featured on the home page?',
-      admin: { position: 'sidebar' },
     },
     {
       name: 'content',
@@ -117,5 +85,46 @@ export const Docs: CollectionDefinition = {
       fields: [{ name: 'link', label: 'Link', type: 'text' }],
     },
   ],
-  columns: docsColumns,
 }
+
+// ---- Admin UI config (client-only, presentation concerns) ----
+
+const docsColumns: ColumnDefinition[] = [
+  {
+    fieldName: 'title',
+    label: 'Title',
+    sortable: true,
+    align: 'left',
+    className: 'w-[30%]',
+  },
+  {
+    fieldName: 'featured',
+    label: 'Featured',
+    align: 'center',
+    className: 'w-[10%]',
+    formatter: (value) => (value ? '★' : ''),
+  },
+  {
+    fieldName: 'status',
+    label: 'Status',
+    align: 'center',
+    className: 'w-[15%]',
+  },
+  {
+    fieldName: 'updated_at',
+    label: 'Last Updated',
+    sortable: true,
+    align: 'right',
+    className: 'w-[20%]',
+  },
+]
+
+export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
+  useAsTitle: 'title',
+  columns: docsColumns,
+  fields: {
+    path: { position: 'sidebar' },
+    publishedOn: { position: 'sidebar' },
+    featured: { position: 'sidebar' },
+  },
+})

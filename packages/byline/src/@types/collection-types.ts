@@ -21,13 +21,39 @@
 
 import type { Field } from './field-types.js'
 
-export interface ColumnDefinition<T = any> {
-  fieldName: keyof T
-  label: string
-  sortable?: boolean
-  align?: 'left' | 'center' | 'right'
-  className?: string
-  formatter?: (value: any, record: T) => any
+/**
+ * Lifecycle hooks for a collection.
+ *
+ * Each hook receives a context object. `beforeChange` hooks can mutate the
+ * data before it is persisted; `afterChange` hooks receive the final data
+ * after persistence.
+ *
+ * Hooks are optional — if omitted, the framework skips the step.
+ */
+export interface CollectionHooks {
+  /** Runs before a new document is created. Can mutate `data`. */
+  beforeCreate?: (ctx: {
+    data: Record<string, any>
+    collectionPath: string
+  }) => void | Promise<void>
+  /** Runs after a new document is created. */
+  afterCreate?: (ctx: { data: Record<string, any>; collectionPath: string }) => void | Promise<void>
+  /** Runs before an existing document is updated (PUT or patch). Can mutate `data`. */
+  beforeUpdate?: (ctx: {
+    data: Record<string, any>
+    originalData: Record<string, any>
+    collectionPath: string
+  }) => void | Promise<void>
+  /** Runs after an existing document is updated. */
+  afterUpdate?: (ctx: {
+    data: Record<string, any>
+    originalData: Record<string, any>
+    collectionPath: string
+  }) => void | Promise<void>
+  /** Runs before a document is deleted. */
+  beforeDelete?: (ctx: { id: string; collectionPath: string }) => void | Promise<void>
+  /** Runs after a document is deleted. */
+  afterDelete?: (ctx: { id: string; collectionPath: string }) => void | Promise<void>
 }
 
 export interface CollectionDefinition {
@@ -37,5 +63,14 @@ export interface CollectionDefinition {
   }
   path: string
   fields: Field[]
-  columns?: ColumnDefinition[]
+  /** Lifecycle hooks for server-side document operations. */
+  hooks?: CollectionHooks
+}
+
+/**
+ * Type-safe factory for creating a CollectionDefinition.
+ * Returns the definition as-is but provides type checking.
+ */
+export function defineCollection(definition: CollectionDefinition): CollectionDefinition {
+  return definition
 }

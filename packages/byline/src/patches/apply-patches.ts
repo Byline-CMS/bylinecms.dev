@@ -1,6 +1,8 @@
 // Core implementation of the patch engine
 
-import type { ModelCollection, ModelField } from '../model/model-types.js'
+import { isPresentationalField } from '../@types/field-types.js'
+import type { CollectionDefinition } from '../@types/collection-types.js'
+import type { Field } from '../@types/field-types.js'
 import type {
   ApplyPatchesResult,
   ArrayPatch,
@@ -67,44 +69,47 @@ export function parsePatchPath(path: PatchPath): PathSegment[] {
   return segments
 }
 
-// Very small, best-effort resolver that walks the ModelCollection to find the
-// field targeted by a patch path. This is intentionally conservative and
-// currently only understands top-level fields and simple nested array fields.
-export function resolveModelFieldForPath(
-  model: ModelCollection | null | undefined,
+// Very small, best-effort resolver that walks the CollectionDefinition to find
+// the field targeted by a patch path. This is intentionally conservative and
+// currently only understands top-level fields and simple nested paths.
+export function resolveFieldForPath(
+  definition: CollectionDefinition | null | undefined,
   path: PatchPath
-): ModelField | null {
-  if (!model || !path) return null
+): Field | null {
+  if (!definition || !path) return null
 
   const segments = parsePatchPath(path)
   if (segments.length === 0) return null
 
-  // Only attempt to resolve simple field paths of the form
-  // "field", "field.subField", or "arrayField[0].subField" for now.
   const [first, ...rest] = segments
   if (!first || first.kind !== 'field') return null
 
-  let current: ModelField | undefined = model.fields.find((f) => f.id === first.key)
+  let current: Field | undefined = definition.fields.find((f) => f.name === first.key)
   if (!current) return null
 
-  // Walk remaining segments in a very small subset of the full grammar.
   for (const segment of rest) {
     if (!current) return null
 
     if (segment.kind === 'index') {
-      // Index segments only make sense on array fields; we just step into the item.
-      if (current.kind !== 'array') return null
-      current = current.item
+      // Index segments step into array/block children
+      if (isPresentationalField(current) && current.fields) {
+        // For array fields with a single item schema, stay at the array level
+        // so the next field segment can find a child field.
+        continue
+      }
+      return null
     } else if (segment.kind === 'field') {
-      if (current.kind === 'object') {
-        current = current.fields.find((f) => f.id === segment.key)
+      if (isPresentationalField(current) && current.fields) {
+        // Search child fields — handles group, row, array, and block
+        current = current.fields.find((f) => f.name === segment.key)
       } else {
-        // For now we don't attempt to resolve arbitrary nested structures under
-        // non-object fields.
         return null
       }
     } else if (segment.kind === 'id') {
-      // Block unions and id-addressed arrays are not yet model-resolved here.
+      // ID-addressed arrays/blocks — stay at current level
+      if (isPresentationalField(current) && current.fields) {
+        continue
+      }
       return null
     }
   }
@@ -265,7 +270,7 @@ function resolveArrayAtPath(doc: any, path: PatchPath): any[] {
   return parent[key]
 }
 
-function applyArrayPatch(doc: any, patch: ArrayPatch, model: ModelCollection) {
+function applyArrayPatch(doc: any, patch: ArrayPatch, definition: CollectionDefinition) {
   const array = resolveArrayAtPath(doc, patch.path)
 
   if (patch.kind === 'array.insert') {
@@ -296,7 +301,7 @@ function applyArrayPatch(doc: any, patch: ArrayPatch, model: ModelCollection) {
       throw new Error(`array.updateItem: item with id=${patch.itemId} not found`)
     }
     const current = array[index]
-    const { doc: updated, errors } = applyPatches(model, current, patch.patches)
+    const { doc: updated, errors } = applyPatches(definition, current, patch.patches)
     if (errors.length > 0) {
       throw new Error(
         `array.updateItem produced nested errors: ${errors.map((e) => e.message).join('; ')}`
@@ -306,7 +311,7 @@ function applyArrayPatch(doc: any, patch: ArrayPatch, model: ModelCollection) {
   }
 }
 
-function applyBlockPatch(doc: any, patch: BlockPatch, model: ModelCollection) {
+function applyBlockPatch(doc: any, patch: BlockPatch, definition: CollectionDefinition) {
   // Blocks are just arrays of objects with stable ids under the hood.
   const array = resolveArrayAtPath(doc, patch.path)
 
@@ -343,39 +348,41 @@ function applyBlockPatch(doc: any, patch: BlockPatch, model: ModelCollection) {
       path: patch.fieldPath,
       value: patch.value,
     }
-    const { errors } = applyPatches(model, block, [fieldPatch])
+    const { doc: updated, errors } = applyPatches(definition, block, [fieldPatch])
     if (errors.length > 0) {
       throw new Error(
         `block.updateField produced nested errors: ${errors.map((e) => e.message).join('; ')}`
       )
     }
+    array[index] = updated
   }
 }
 
 // Main entry point: apply all patches against a cloned document.
 export function applyPatches(
-  model: ModelCollection,
+  definition: CollectionDefinition,
   doc: Record<string, any>,
   patches: DocumentPatch[]
 ): ApplyPatchesResult {
   const working = structuredClone(doc)
   const errors: ApplyPatchesResult['errors'] = []
+  const warnings: ApplyPatchesResult['warnings'] = []
 
   patches.forEach((patch, index) => {
     try {
-      // Best-effort schema-aware validation: skip patches whose paths do not
-      // resolve against the provided model collection. This is intentionally
-      // conservative and currently only understands a subset of the path
-      // grammar implemented in parsePatchPath/resolveModelFieldForPath.
-      // const resolvedField = resolveModelFieldForPath(model, patch.path)
-      // if (!resolvedField) {
-      //   errors.push({
-      //     index,
-      //     message: `Patch path not found in model: ${String(patch.path ?? '')}`,
-      //     patch,
-      //   })
-      //   return
-      // }
+      // Best-effort schema-aware validation: warn (but don't reject) patches
+      // whose paths do not resolve against the collection definition. This is
+      // intentionally conservative — the resolver only understands a subset of
+      // the path grammar, so a null result does not necessarily mean the path
+      // is invalid.
+      const resolvedField = resolveFieldForPath(definition, patch.path)
+      if (!resolvedField) {
+        warnings.push({
+          index,
+          message: `Patch path could not be resolved against schema: ${String(patch.path ?? '')}`,
+          patch,
+        })
+      }
 
       if (patch.kind === 'field.set' || patch.kind === 'field.clear') {
         applyFieldPatch(working, patch)
@@ -385,14 +392,14 @@ export function applyPatches(
         patch.kind === 'array.remove' ||
         patch.kind === 'array.updateItem'
       ) {
-        applyArrayPatch(working, patch, model)
+        applyArrayPatch(working, patch, definition)
       } else if (
         patch.kind === 'block.add' ||
         patch.kind === 'block.move' ||
         patch.kind === 'block.remove' ||
         patch.kind === 'block.updateField'
       ) {
-        applyBlockPatch(working, patch, model)
+        applyBlockPatch(working, patch, definition)
       } else {
         errors.push({
           index,
@@ -409,5 +416,5 @@ export function applyPatches(
     }
   })
 
-  return { doc: working, errors }
+  return { doc: working, errors, warnings }
 }

@@ -22,7 +22,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { getCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { EditView } from '@/modules/collections/components/edit'
@@ -55,6 +55,7 @@ function RouteComponent() {
   const data = Route.useLoaderData()
   const { collection, id } = Route.useParams()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+  const adminConfig = getCollectionAdminConfig(collection)
 
   return (
     <>
@@ -67,7 +68,7 @@ function RouteComponent() {
           },
         ]}
       />
-      <EditView collectionDefinition={collectionDef} initialData={data} />
+      <EditView collectionDefinition={collectionDef} adminConfig={adminConfig ?? undefined} initialData={data} />
     </>
   )
 }

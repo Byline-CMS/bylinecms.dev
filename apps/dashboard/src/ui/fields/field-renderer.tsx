@@ -200,12 +200,12 @@ const ArrayField = ({
       const isBlockField = (field as any).type === 'block' && Array.isArray((field as any).fields)
       const normalized = isBlockField
         ? ((field as any).fields as Field[]).map((blockChildField) => {
-            const found = defaultValue.find(
-              (el: any) =>
-                el != null && typeof el === 'object' && Object.hasOwn(el, blockChildField.name)
-            )
-            return found ?? { [blockChildField.name]: placeholderForField(blockChildField) }
-          })
+          const found = defaultValue.find(
+            (el: any) =>
+              el != null && typeof el === 'object' && Object.hasOwn(el, blockChildField.name)
+          )
+          return found ?? { [blockChildField.name]: placeholderForField(blockChildField) }
+        })
         : defaultValue
 
       setItems(
@@ -213,7 +213,9 @@ const ArrayField = ({
           id:
             item && typeof item === 'object' && 'id' in item
               ? String((item as { id: string }).id)
-              : crypto.randomUUID(),
+              : item && typeof item === 'object' && '_id' in item
+                ? String((item as { _id: string })._id)
+                : crypto.randomUUID(),
           data: item,
         }))
       )
@@ -342,14 +344,14 @@ const ArrayField = ({
     const newItem =
       variant.type === 'block'
         ? {
-            id: newId,
-            type: 'block',
-            name: variant.name,
-            fields: await defaultValueForVariant(variant),
-          }
+          id: newId,
+          type: 'block',
+          name: variant.name,
+          fields: await defaultValueForVariant(variant),
+        }
         : {
-            [variant.name]: await defaultValueForVariant(variant),
-          }
+          [variant.name]: await defaultValueForVariant(variant),
+        }
 
     // Add to local state
     const newItemWrapper = { id: newId, data: newItem }
@@ -396,7 +398,8 @@ const ArrayField = ({
         return null
       }
       // Legacy shape: { blockName: [ { fieldName: value }, ... ] } or generic array item
-      const outerKey = Object.keys(item)[0]
+      // Skip _id (injected stable identity) when finding the data field key.
+      const outerKey = Object.keys(item).find((k) => k !== '_id')
       if (outerKey == null) {
         return null
       }

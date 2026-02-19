@@ -96,6 +96,15 @@ export const Route = createFileRoute('/api/$collection/$id/')({
 
         const db = getServerConfig().db
 
+        // Lifecycle: beforeUpdate
+        if (config.definition.hooks?.beforeUpdate) {
+          await config.definition.hooks.beforeUpdate({
+            data: documentData,
+            originalData: documentData, // PUT replaces wholesale — no separate original
+            collectionPath: path,
+          })
+        }
+
         await db.commands.documents.createDocumentVersion({
           documentId: id,
           collectionId: config.collection.id,
@@ -106,6 +115,15 @@ export const Route = createFileRoute('/api/$collection/$id/')({
           status: documentData.status,
           locale: 'en',
         })
+
+        // Lifecycle: afterUpdate
+        if (config.definition.hooks?.afterUpdate) {
+          await config.definition.hooks.afterUpdate({
+            data: documentData,
+            originalData: documentData,
+            collectionPath: path,
+          })
+        }
 
         return Response.json({ status: 'ok' })
       },

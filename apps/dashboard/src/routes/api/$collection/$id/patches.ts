@@ -32,11 +32,7 @@ import { getServerConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { applyPatches } from '@byline/core/patches'
 
-import {
-  ensureCollection,
-  getModelCollectionForDefinition,
-  normaliseDateFields,
-} from '@/lib/api-utils'
+import { ensureCollection, normaliseDateFields } from '@/lib/api-utils'
 
 export const Route = createFileRoute('/api/$collection/$id/patches')({
   server: {
@@ -72,12 +68,29 @@ export const Route = createFileRoute('/api/$collection/$id/patches')({
         const body = (await request.json()) as {
           data: Record<string, any>
           patches: DocumentPatch[]
+          document_version_id?: string
         }
-        const { patches } = body
+        const { patches, document_version_id } = body
+
+        // Optimistic concurrency: if the client specifies the version it based
+        // its patches on, verify it is still the current version. A mismatch
+        // means another write happened since the client loaded the document.
+        if (document_version_id && document_version_id !== originalData.document_version_id) {
+          return Response.json(
+            {
+              error: 'Conflict',
+              message:
+                'The document has been modified since you loaded it. Please refresh and try again.',
+              current_version_id: originalData.document_version_id,
+              your_version_id: document_version_id,
+            },
+            { status: 409 }
+          )
+        }
 
         // Apply patches to the reconstructed database version to create the next version.
         const { doc: patchedDocument, errors } = applyPatches(
-          getModelCollectionForDefinition(config.definition),
+          config.definition,
           originalData,
           patches
         )
@@ -97,6 +110,15 @@ export const Route = createFileRoute('/api/$collection/$id/patches')({
         // mirroring the behaviour in the generic POST/PUT handlers.
         normaliseDateFields(nextData)
 
+        // Lifecycle: beforeUpdate
+        if (config.definition.hooks?.beforeUpdate) {
+          await config.definition.hooks.beforeUpdate({
+            data: nextData,
+            originalData,
+            collectionPath: path,
+          })
+        }
+
         await db.commands.documents.createDocumentVersion({
           documentId: id,
           collectionId: config.collection.id,
@@ -107,6 +129,15 @@ export const Route = createFileRoute('/api/$collection/$id/patches')({
           status: nextData.status ?? originalData.status ?? 'draft',
           locale: 'en',
         })
+
+        // Lifecycle: afterUpdate
+        if (config.definition.hooks?.afterUpdate) {
+          await config.definition.hooks.afterUpdate({
+            data: nextData,
+            originalData,
+            collectionPath: path,
+          })
+        }
 
         return Response.json({ status: 'ok' })
       },

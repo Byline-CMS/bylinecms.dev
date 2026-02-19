@@ -124,13 +124,14 @@ export async function updateCollectionDocumentWithPatches(
   collection: string,
   id: string,
   data: any,
-  patches: DocumentPatch[]
+  patches: DocumentPatch[],
+  document_version_id?: string
 ) {
   const url = `${API_BASE_URL}/${collection}/${id}/patches`
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data, patches }),
+    body: JSON.stringify({ data, patches, document_version_id }),
   })
   if (!response.ok) {
     const error = await response.json()

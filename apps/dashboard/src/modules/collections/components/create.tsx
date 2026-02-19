@@ -22,7 +22,7 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
-import type { CollectionDefinition } from '@byline/core'
+import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { Container, Section, Toast } from '@infonomic/uikit/react'
 
 import { FormRenderer } from '@/ui/fields/form-renderer'
@@ -35,9 +35,11 @@ type CreateState = {
 
 export const CreateView = ({
   collectionDefinition,
+  adminConfig,
   initialData,
 }: {
   collectionDefinition: CollectionDefinition
+  adminConfig?: CollectionAdminConfig
   initialData?: Record<string, any>
 }) => {
   const [toast, setToast] = useState(false)
@@ -82,6 +84,7 @@ export const CreateView = ({
               })
             }
             initialData={initialData}
+            adminConfig={adminConfig}
           />
         </Container>
       </Section>

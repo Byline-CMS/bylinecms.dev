@@ -1,90 +1,87 @@
-// Example model and layout definitions for the Docs collection.
+// Example collection definition and layout for the Docs collection.
 // These are design-time examples and not yet wired into runtime.
 
+import type { CollectionDefinition } from '../@types/collection-types.js'
 import type { LayoutCollection } from '../layout/layout-types.js'
-import type { ModelCollection } from '../model/model-types.js'
 
-export const DocsModelExample: ModelCollection = {
-  id: 'docs',
+export const DocsCollectionExample: CollectionDefinition = {
   path: 'docs',
-  label: 'Documents',
+  labels: {
+    singular: 'Document',
+    plural: 'Documents',
+  },
   fields: [
-    { id: 'path', label: 'Path', kind: 'scalar', scalarType: 'string', required: true },
-    { id: 'title', label: 'Title', kind: 'scalar', scalarType: 'string', required: true },
-    { id: 'summary', label: 'Summary', kind: 'scalar', scalarType: 'text', localized: true },
+    { name: 'path', label: 'Path', type: 'text', required: true },
+    { name: 'title', label: 'Title', type: 'text', required: true },
+    { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
     {
-      id: 'publishedOn',
+      name: 'publishedOn',
       label: 'Published On',
-      kind: 'scalar',
-      scalarType: 'datetime',
+      type: 'datetime',
+      mode: 'datetime',
       required: true,
     },
     {
-      id: 'featured',
+      name: 'featured',
       label: 'Featured',
-      kind: 'scalar',
-      scalarType: 'boolean',
+      type: 'checkbox',
     },
     {
-      id: 'content',
+      name: 'content',
       label: 'Content',
-      kind: 'blocks',
-      typeDiscriminator: 'type',
-      blocks: [
+      type: 'array',
+      fields: [
         {
-          type: 'richTextBlock',
+          name: 'richTextBlock',
           label: 'Richtext Block',
+          type: 'block',
           fields: [
             {
-              id: 'richText',
+              name: 'richText',
               label: 'Richtext',
-              kind: 'scalar',
-              scalarType: 'json',
+              type: 'richText',
             },
             {
-              id: 'constrainedWidth',
+              name: 'constrainedWidth',
               label: 'Constrained Width',
-              kind: 'scalar',
-              scalarType: 'boolean',
+              type: 'checkbox',
             },
           ],
         },
         {
-          type: 'photoBlock',
+          name: 'photoBlock',
           label: 'Photo Block',
+          type: 'block',
           fields: [
-            { id: 'display', label: 'Display', kind: 'scalar', scalarType: 'string' },
-            { id: 'photo', label: 'Photo', kind: 'scalar', scalarType: 'json' },
-            { id: 'alt', label: 'Alt', kind: 'scalar', scalarType: 'string' },
-            { id: 'caption', label: 'Caption', kind: 'scalar', scalarType: 'json' },
+            { name: 'display', label: 'Display', type: 'text' },
+            { name: 'photo', label: 'Photo', type: 'image' },
+            { name: 'alt', label: 'Alt', type: 'text' },
+            { name: 'caption', label: 'Caption', type: 'richText' },
           ],
         },
       ],
     },
     {
-      id: 'reviews',
+      name: 'reviews',
       label: 'Reviews',
-      kind: 'array',
-      item: {
-        id: 'reviewItem',
-        label: 'Review Item',
-        kind: 'object',
-        fields: [
-          { id: 'rating', label: 'Rating', kind: 'scalar', scalarType: 'integer' },
-          { id: 'comment', label: 'Comments', kind: 'scalar', scalarType: 'json' },
-        ],
-      },
+      type: 'array',
+      fields: [
+        {
+          name: 'reviewItem',
+          label: 'Review Item',
+          type: 'array',
+          fields: [
+            { name: 'rating', label: 'Rating', type: 'integer' },
+            { name: 'comment', label: 'Comments', type: 'richText' },
+          ],
+        },
+      ],
     },
     {
-      id: 'links',
+      name: 'links',
       label: 'Links',
-      kind: 'array',
-      item: {
-        id: 'linkItem',
-        label: 'Link',
-        kind: 'object',
-        fields: [{ id: 'link', label: 'Link', kind: 'scalar', scalarType: 'string' }],
-      },
+      type: 'array',
+      fields: [{ name: 'link', label: 'Link', type: 'text' }],
     },
   ],
 }

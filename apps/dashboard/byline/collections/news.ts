@@ -19,9 +19,38 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { CollectionDefinition, ColumnDefinition } from '@byline/core'
+import type { CollectionDefinition } from '@byline/core'
+import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
-// import { formatDateTime } from '../utils/formatDateTime'
+// ---- Schema (server-safe, no UI concerns) ----
+
+export const News: CollectionDefinition = {
+  path: 'news',
+  labels: {
+    singular: 'News',
+    plural: 'News',
+  },
+  fields: [
+    { name: 'path', label: 'Path', type: 'text', required: true },
+    { name: 'title', label: 'Title', type: 'text', required: true },
+    {
+      name: 'content',
+      label: 'Content',
+      type: 'richText',
+      helpText: 'Enter the main content for this page.',
+      required: true,
+    },
+    {
+      name: 'publishedOn',
+      label: 'Published On',
+      type: 'datetime',
+      mode: 'datetime',
+      required: true,
+    },
+  ],
+}
+
+// ---- Admin UI config (client-only, presentation concerns) ----
 
 const newsColumns: ColumnDefinition[] = [
   {
@@ -44,34 +73,14 @@ const newsColumns: ColumnDefinition[] = [
     sortable: true,
     align: 'right',
     className: 'w-[20%]',
-    // formatter: (value) => formatDateTime(value),
   },
 ]
 
-export const News: CollectionDefinition = {
-  path: 'news',
-  labels: {
-    singular: 'News',
-    plural: 'News',
-  },
-  fields: [
-    { name: 'path', label: 'Path', type: 'text', required: true, admin: { position: 'sidebar' } },
-    { name: 'title', label: 'Title', type: 'text', required: true },
-    {
-      name: 'content',
-      label: 'Content',
-      type: 'richText',
-      helpText: 'Enter the main content for this page.',
-      required: true,
-    },
-    {
-      name: 'publishedOn',
-      label: 'Published On',
-      type: 'datetime',
-      mode: 'datetime',
-      required: true,
-      admin: { position: 'sidebar' },
-    },
-  ],
+export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
+  useAsTitle: 'title',
   columns: newsColumns,
-}
+  fields: {
+    path: { position: 'sidebar' },
+    publishedOn: { position: 'sidebar' },
+  },
+})

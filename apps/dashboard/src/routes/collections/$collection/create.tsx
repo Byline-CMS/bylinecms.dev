@@ -22,7 +22,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { buildInitialDataFromFields, getCollectionDefinition } from '@byline/core'
+import { buildInitialDataFromFields, getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { CreateView } from '@/modules/collections/components/create'
@@ -47,6 +47,7 @@ export const Route = createFileRoute('/collections/$collection/create')({
 function RouteComponent() {
   const { collection } = Route.useParams()
   const { collectionDef, initialData } = Route.useLoaderData()
+  const adminConfig = getCollectionAdminConfig(collection)
   return (
     <>
       <BreadcrumbsClient
@@ -55,7 +56,7 @@ function RouteComponent() {
           { label: 'Create', href: `/collections/${collection}/create` },
         ]}
       />
-      <CreateView collectionDefinition={collectionDef} initialData={initialData} />
+      <CreateView collectionDefinition={collectionDef} adminConfig={adminConfig ?? undefined} initialData={initialData} />
     </>
   )
 }

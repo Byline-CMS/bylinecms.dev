@@ -22,7 +22,7 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
-import type { CollectionDefinition } from '@byline/core'
+import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { Button, Container, HistoryIcon, IconButton, Section, Toast } from '@infonomic/uikit/react'
 
@@ -36,9 +36,11 @@ type EditState = {
 
 export const EditView = ({
   collectionDefinition,
+  adminConfig,
   initialData,
 }: {
   collectionDefinition: CollectionDefinition
+  adminConfig?: CollectionAdminConfig
   initialData: AnyCollectionSchemaTypes['UpdateType']
 }) => {
   const [toast, setToast] = useState(false)
@@ -58,7 +60,8 @@ export const EditView = ({
           path,
           String(initialData.document_id),
           data,
-          patches
+          patches,
+          initialData.document_version_id
         )
       } else {
         await updateCollectionDocument(path, String(initialData.document_id), data)
@@ -130,6 +133,7 @@ export const EditView = ({
             fields={fields}
             onSubmit={handleSubmit}
             initialData={initialData}
+            adminConfig={adminConfig}
             onCancel={() =>
               navigate({ to: '/collections/$collection', params: { collection: path } })
             }

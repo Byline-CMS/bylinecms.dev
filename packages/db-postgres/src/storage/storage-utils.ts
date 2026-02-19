@@ -19,8 +19,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-// TODO - this must come from site config for content collections.
-const CONTENT_LOCALES = ['en', 'es', 'fr']
+// Default content locales used when none are provided explicitly via config.
+// Kept as a fallback so existing call sites don't break.
+const DEFAULT_CONTENT_LOCALES = ['en', 'es', 'fr']
 
 import type {
   ArrayField,
@@ -48,7 +49,8 @@ export const getFirstOrThrow =
 export function flattenFields(
   documentData: any,
   collectionConfig: CollectionDefinition,
-  locale = 'all'
+  locale = 'all',
+  contentLocales: string[] = DEFAULT_CONTENT_LOCALES
 ): FlattenedStore[] {
   const flattenedFields: FlattenedStore[] = []
 
@@ -101,7 +103,9 @@ export function flattenFields(
               }
             } else {
               // Legacy / generic array item shape: { fieldName: value }
-              const fieldName = Object.keys(item)[0]
+              // Skip `_id` — it's a stable identity injected during read by
+              // attachMetaToDocument and is not a real data field.
+              const fieldName = Object.keys(item).find((k) => k !== '_id')
               if (fieldName != null) {
                 const fieldValue = item[fieldName]
                 const subField = containerField.fields.find((f) => f.name === fieldName)
@@ -121,7 +125,7 @@ export function flattenFields(
         // for localized fields, and we can submit the document as such during migration, instead
         // of having to iterate over each locale and insert portions of a localized document separately.
         const isLocalizedObject =
-          valueKeys.length > 0 && valueKeys.every((key) => CONTENT_LOCALES.includes(key))
+          valueKeys.length > 0 && valueKeys.every((key) => contentLocales.includes(key))
 
         if (isLocalizedObject) {
           for (const [localeKey, localizedValue] of Object.entries(value)) {

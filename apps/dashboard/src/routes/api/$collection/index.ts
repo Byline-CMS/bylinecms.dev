@@ -102,6 +102,14 @@ export const Route = createFileRoute('/api/$collection/')({
         // coerce values to the correct types.
         normaliseDateFields(documentData)
 
+        // Lifecycle: beforeCreate
+        if (config.definition.hooks?.beforeCreate) {
+          await config.definition.hooks.beforeCreate({
+            data: documentData,
+            collectionPath: path,
+          })
+        }
+
         // Ensure path is present. If not, generate one from title or random UUID.
         if (!documentData.path) {
           if (documentData.title) {
@@ -125,6 +133,14 @@ export const Route = createFileRoute('/api/$collection/')({
           status: documentData.status,
           locale: 'en',
         })
+
+        // Lifecycle: afterCreate
+        if (config.definition.hooks?.afterCreate) {
+          await config.definition.hooks.afterCreate({
+            data: documentData,
+            collectionPath: path,
+          })
+        }
 
         return Response.json({ status: 'ok' })
       },

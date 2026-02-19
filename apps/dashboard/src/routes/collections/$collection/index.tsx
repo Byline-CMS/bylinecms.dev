@@ -23,7 +23,7 @@ import { useEffect, useState } from 'react'
 import { createFileRoute, notFound, useNavigate } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { getCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 import { Toast } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
@@ -77,7 +77,8 @@ function RouteComponent() {
   const search = Route.useSearch()
   const navigate = useNavigate()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
-  const columns = collectionDef.columns || []
+  const adminConfig = getCollectionAdminConfig(collection)
+  const columns = adminConfig?.columns || []
   const [toastOpen, setToastOpen] = useState(false)
 
   useEffect(() => {
