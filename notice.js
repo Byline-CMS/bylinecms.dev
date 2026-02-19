@@ -1,37 +1,24 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'fs'
+import path from 'path'
 
 // --- Configuration ---
 // Directories to recursively scan
 const directoriesToScan = [
   './apps/admin/src',
   // Add other directories here
-];
+]
 
 // File extensions to target
-const fileExtensions = ['.js', '.jsx', '.ts', '.tsx'];
+const fileExtensions = ['.js', '.jsx', '.ts', '.tsx']
 
 // The copyright notice to add
 const copyrightNotice = `/**
- * Byline CMS
- *
- * Copyright © 2025 Anthony Bouch and contributors.
- *
- * This file is part of Byline CMS.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */`;
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ * 
+ * Copyright (c) Infonomic Company Limited
+ */`
 
 // --- Script ---
 
@@ -41,17 +28,17 @@ const copyrightNotice = `/**
  */
 function walkDir(dirPath) {
   try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true })
     for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name);
+      const fullPath = path.join(dirPath, entry.name)
       if (entry.isDirectory()) {
-        walkDir(fullPath);
+        walkDir(fullPath)
       } else if (entry.isFile() && fileExtensions.includes(path.extname(fullPath))) {
-        processFile(fullPath);
+        processFile(fullPath)
       }
     }
   } catch (error) {
-    console.error(`Error reading directory ${dirPath}:`, error);
+    console.error(`Error reading directory ${dirPath}:`, error)
   }
 }
 
@@ -61,33 +48,32 @@ function walkDir(dirPath) {
  */
 function processFile(filePath) {
   try {
-    let content = fs.readFileSync(filePath, 'utf8');
+    const content = fs.readFileSync(filePath, 'utf8')
 
     if (content.includes('Copyright © 2025 Anthony Bouch')) {
-      console.log(`Skipping (copyright already exists): ${filePath}`);
-      return;
+      console.log(`Skipping (copyright already exists): ${filePath}`)
+      return
     }
 
-    const useClientRegex = /^(?:\s*)('|")use client('|");?\s*\n?/;
-    const match = content.match(useClientRegex);
+    const useClientRegex = /^(?:\s*)('|")use client('|");?\s*\n?/
+    const match = content.match(useClientRegex)
 
-    let newContent;
-    const noticeWithSpacing = copyrightNotice + '\n\n';
+    let newContent
+    const noticeWithSpacing = copyrightNotice + '\n\n'
 
     if (match) {
-      const useClientDirective = match[0];
-      const restOfContent = content.substring(useClientDirective.length);
-      newContent = useClientDirective + noticeWithSpacing + restOfContent;
-      console.log(`Updating (with 'use client'): ${filePath}`);
+      const useClientDirective = match[0]
+      const restOfContent = content.substring(useClientDirective.length)
+      newContent = useClientDirective + noticeWithSpacing + restOfContent
+      console.log(`Updating (with 'use client'): ${filePath}`)
     } else {
-      newContent = noticeWithSpacing + content;
-      console.log(`Updating: ${filePath}`);
+      newContent = noticeWithSpacing + content
+      console.log(`Updating: ${filePath}`)
     }
 
-    fs.writeFileSync(filePath, newContent, 'utf8');
-
+    fs.writeFileSync(filePath, newContent, 'utf8')
   } catch (error) {
-    console.error(`Error processing file ${filePath}:`, error);
+    console.error(`Error processing file ${filePath}:`, error)
   }
 }
 
@@ -95,17 +81,17 @@ function processFile(filePath) {
  * Main function to start the process.
  */
 function main() {
-  console.log('Starting copyright notice script...');
-  directoriesToScan.forEach(dir => {
-    const fullPath = path.resolve(dir);
+  console.log('Starting copyright notice script...')
+  directoriesToScan.forEach((dir) => {
+    const fullPath = path.resolve(dir)
     if (fs.existsSync(fullPath)) {
-      walkDir(fullPath);
+      walkDir(fullPath)
     } else {
-      console.warn(`Directory not found, skipping: ${fullPath}`);
+      console.warn(`Directory not found, skipping: ${fullPath}`)
     }
-  });
-  console.log('Script finished.');
+  })
+  console.log('Script finished.')
 }
 
 // Run the script
-main();
+main()
