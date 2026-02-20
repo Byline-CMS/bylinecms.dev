@@ -260,6 +260,27 @@ export class DocumentQueries implements IDocumentQueries {
   }> {
     throw new Error('db-remote method not implemented.')
   }
+
+  /**
+   * getPublishedVersion
+   */
+  async getPublishedVersion({
+    collection_id,
+    document_id,
+    status = 'published',
+  }: {
+    collection_id: string
+    document_id: string
+    status?: string
+  }): Promise<{
+    document_version_id: string
+    document_id: string
+    status: string
+    created_at: Date
+    updated_at: Date
+  } | null> {
+    throw new Error('db-remote method not implemented.')
+  }
 }
 
 /**

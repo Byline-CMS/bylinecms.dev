@@ -14,7 +14,7 @@ import type {
   IDocumentCommands,
 } from '@byline/core'
 import { isFileStore, isJsonStore, isNumericStore, isRelationStore } from '@byline/core'
-import { eq } from 'drizzle-orm'
+import { and, eq, ne } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -380,6 +380,35 @@ export class DocumentCommands implements IDocumentCommands {
         updated_at: new Date(),
       })
       .where(eq(documentVersions.id, params.document_version_id))
+  }
+
+  /**
+   * archivePublishedVersions
+   *
+   * Set ALL versions of a document that currently have `currentStatus`
+   * (defaults to 'published') to 'archived'. Optionally exclude a specific
+   * version so the caller can protect the version it is about to publish.
+   *
+   * Returns the number of rows updated.
+   */
+  async archivePublishedVersions(params: {
+    document_id: string
+    currentStatus?: string
+    excludeVersionId?: string
+  }): Promise<number> {
+    const targetStatus = params.currentStatus ?? 'published'
+    const conditions = [
+      eq(documentVersions.document_id, params.document_id),
+      eq(documentVersions.status, targetStatus),
+    ]
+    if (params.excludeVersionId) {
+      conditions.push(ne(documentVersions.id, params.excludeVersionId))
+    }
+    const result = await this.db
+      .update(documentVersions)
+      .set({ status: 'archived', updated_at: new Date() })
+      .where(and(...conditions))
+    return (result as any).rowCount ?? 0
   }
 
   /**

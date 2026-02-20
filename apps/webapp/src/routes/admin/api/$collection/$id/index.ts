@@ -17,6 +17,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { getServerConfig } from '@byline/core'
+import { getDefaultStatus } from '@byline/core/workflow'
 
 import { ensureCollection, normaliseDateFields } from '@/lib/api-utils'
 
@@ -52,7 +53,24 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
           return Response.json({ error: 'Document not found' }, { status: 404 })
         }
 
-        return Response.json({ document })
+        // If the current version is not published, check whether a published
+        // version exists behind it so the UI can show a "published is live" badge.
+        let publishedVersion: {
+          document_version_id: string
+          document_id: string
+          status: string
+          created_at: Date
+          updated_at: Date
+        } | null = null
+
+        if ((document as any).status !== 'published') {
+          publishedVersion = await db.queries.documents.getPublishedVersion({
+            collection_id: config.collection.id,
+            document_id: id,
+          })
+        }
+
+        return Response.json({ document, publishedVersion })
       },
 
       /**
@@ -92,6 +110,11 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
           })
         }
 
+        // New versions always start at the collection's default status (typically
+        // 'draft'). This preserves any previously published version so that the
+        // published content remains live until the editor explicitly re-publishes.
+        const defaultStatus = getDefaultStatus(config.definition)
+
         await db.commands.documents.createDocumentVersion({
           documentId: id,
           collectionId: config.collection.id,
@@ -99,7 +122,7 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
           action: 'update',
           documentData,
           path: documentData.path,
-          status: documentData.status,
+          status: defaultStatus,
           locale: 'en',
         })
 

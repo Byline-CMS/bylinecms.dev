@@ -479,6 +479,32 @@ export class DocumentQueries implements IDocumentQueries {
 
     const documents = await this.reconstructDocuments({ documents: currentDocuments, locale })
 
+    // Determine which documents in this page have a published version anywhere
+    // in their version history. This powers the "live" indicator in the list UI.
+    const documentIds = currentDocuments.map((d) => d.document_id)
+    const publishedSet = new Set<string>()
+    if (documentIds.length > 0) {
+      const publishedRows = await this.db
+        .select({ document_id: documentVersions.document_id })
+        .from(documentVersions)
+        .where(
+          and(
+            inArray(documentVersions.document_id, documentIds),
+            eq(documentVersions.status, 'published'),
+            eq(documentVersions.is_deleted, false)
+          )
+        )
+        .groupBy(documentVersions.document_id)
+      for (const row of publishedRows) {
+        publishedSet.add(row.document_id)
+      }
+    }
+
+    // Attach the flag to each document.
+    for (const doc of documents) {
+      ;(doc as any).has_published_version = publishedSet.has((doc as any).document_id)
+    }
+
     return {
       documents,
       meta: { total, page, page_size, total_pages, order, desc, query },
@@ -896,6 +922,62 @@ export class DocumentQueries implements IDocumentQueries {
     return {
       documents: history,
       meta: { total, page, page_size, total_pages, order, desc },
+    }
+  }
+
+  /**
+   * getPublishedVersion
+   *
+   * Find the latest version of a document that has a specific status
+   * (defaults to 'published'). Queries `document_versions` directly so it
+   * can find a published version even when a newer draft exists.
+   *
+   * Returns minimal version metadata (not reconstructed content), or null
+   * if no version with the requested status exists.
+   */
+  async getPublishedVersion({
+    collection_id,
+    document_id,
+    status = 'published',
+  }: {
+    collection_id: string
+    document_id: string
+    status?: string
+  }): Promise<{
+    document_version_id: string
+    document_id: string
+    status: string
+    created_at: Date
+    updated_at: Date
+  } | null> {
+    const [row] = await this.db
+      .select({
+        document_version_id: documentVersions.id,
+        document_id: documentVersions.document_id,
+        status: documentVersions.status,
+        created_at: documentVersions.created_at,
+        updated_at: documentVersions.updated_at,
+      })
+      .from(documentVersions)
+      .where(
+        and(
+          eq(documentVersions.collection_id, collection_id),
+          eq(documentVersions.document_id, document_id),
+          eq(documentVersions.status, status),
+          eq(documentVersions.is_deleted, false)
+        )
+      )
+      .orderBy(sql`${documentVersions.id} DESC`)
+      .limit(1)
+
+    if (!row) return null
+
+    return {
+      document_version_id: row.document_version_id,
+      document_id: row.document_id,
+      status: row.status ?? 'draft',
+      created_at: row.created_at ?? new Date(),
+      updated_at: row.updated_at ?? new Date(),
     }
   }
 

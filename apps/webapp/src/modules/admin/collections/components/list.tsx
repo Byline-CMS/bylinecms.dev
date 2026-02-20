@@ -194,8 +194,17 @@ export const ListView = ({
                         ) : column.formatter ? (
                           column.formatter((document as any)[column.fieldName], document)
                         ) : column.fieldName === 'status' && workflowStatuses ? (
-                          (workflowStatuses.find((s) => s.name === (document as any).status)
-                            ?.label ?? String((document as any).status ?? ''))
+                          <span className="inline-flex items-center gap-1">
+                            {workflowStatuses.find((s) => s.name === (document as any).status)
+                              ?.label ?? String((document as any).status ?? '')}
+                            {(document as any).has_published_version === true &&
+                              (document as any).status !== 'published' && (
+                                <span
+                                  title="A published version is live"
+                                  className="inline-block w-2 h-2 rounded-full bg-emerald-500"
+                                />
+                              )}
+                          </span>
                         ) : (
                           String((document as any)[column.fieldName] ?? '')
                         )}

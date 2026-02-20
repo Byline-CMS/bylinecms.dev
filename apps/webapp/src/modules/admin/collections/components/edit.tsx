@@ -15,7 +15,7 @@ import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { Button, Container, HistoryIcon, IconButton, Section, Toast } from '@infonomic/uikit/react'
 
 import { FormRenderer } from '@/ui/fields/form-renderer'
-import { updateCollectionDocumentWithPatches, updateDocumentStatus } from '../data'
+import { unpublishDocument, updateCollectionDocumentWithPatches, updateDocumentStatus } from '../data'
 
 type EditState = {
   status: 'success' | 'failed' | 'busy' | 'idle'
@@ -71,6 +71,32 @@ export const EditView = ({
     }
   }
 
+  // Published version metadata — attached by getCollectionDocument when a
+  // published version exists behind the current draft.
+  const publishedVersion = (initialData as any)?._publishedVersion ?? null
+
+  const handleUnpublish = async () => {
+    try {
+      await unpublishDocument(path, String(initialData.document_id))
+      setEditState({
+        status: 'success',
+        message: 'Published version has been taken offline.',
+      })
+      setToast(true)
+      navigate({
+        to: '/admin/collections/$collection/$id',
+        params: { collection: path, id: String(initialData.document_id) },
+      })
+    } catch (err) {
+      console.error('Unpublish error:', err)
+      setEditState({
+        status: 'failed',
+        message: `Failed to unpublish: ${(err as Error).message}`,
+      })
+      setToast(true)
+    }
+  }
+
   const handleSubmit = async ({ data, patches }: { data: any; patches: any[] }) => {
     try {
       await updateCollectionDocumentWithPatches(
@@ -85,14 +111,23 @@ export const EditView = ({
         status: 'success',
         message: `Successfully updated ${labels.singular.toLowerCase()}`,
       })
+      setToast(true)
+
+      // Re-navigate to the same route so the loader re-fetches the document.
+      // The new version will have a fresh version ID, draft status, and
+      // updated publishedVersion metadata.
+      navigate({
+        to: '/admin/collections/$collection/$id',
+        params: { collection: path, id: String(initialData.document_id) },
+      })
     } catch (err) {
       console.error('Network error:', err)
       setEditState({
         status: 'failed',
         message: `An error occurred while updating ${labels.singular.toLowerCase()}`,
       })
+      setToast(true)
     }
-    setToast(true)
   }
 
   return (
@@ -149,6 +184,8 @@ export const EditView = ({
             initialData={initialData}
             adminConfig={adminConfig}
             onStatusChange={handleStatusChange}
+            onUnpublish={publishedVersion ? handleUnpublish : undefined}
+            publishedVersion={publishedVersion}
             nextStatus={nextStatus}
             workflowStatuses={workflowStatuses}
             onCancel={() =>

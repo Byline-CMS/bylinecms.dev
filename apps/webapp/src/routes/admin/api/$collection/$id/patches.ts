@@ -18,6 +18,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getServerConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { applyPatches } from '@byline/core/patches'
+import { getDefaultStatus } from '@byline/core/workflow'
 
 import { ensureCollection, normaliseDateFields } from '@/lib/api-utils'
 
@@ -106,6 +107,11 @@ export const Route = createFileRoute('/admin/api/$collection/$id/patches')({
           })
         }
 
+        // New versions always start at the collection's default status (typically
+        // 'draft'). This preserves any previously published version so that the
+        // published content remains live until the editor explicitly re-publishes.
+        const defaultStatus = getDefaultStatus(config.definition)
+
         await db.commands.documents.createDocumentVersion({
           documentId: id,
           collectionId: config.collection.id,
@@ -113,7 +119,7 @@ export const Route = createFileRoute('/admin/api/$collection/$id/patches')({
           action: 'update',
           documentData: nextData,
           path: nextData.path ?? originalData.path ?? '/',
-          status: nextData.status ?? originalData.status ?? 'draft',
+          status: defaultStatus,
           locale: 'en',
         })
 

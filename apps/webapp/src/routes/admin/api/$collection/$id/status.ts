@@ -85,6 +85,16 @@ export const Route = createFileRoute('/admin/api/$collection/$id/status')({
           status: nextStatus,
         })
 
+        // Auto-archive: when transitioning to 'published', archive ALL
+        // previously published versions (excluding the one we just published)
+        // so there can only ever be one published version at a time.
+        if (nextStatus === 'published') {
+          await db.commands.documents.archivePublishedVersions({
+            document_id: id,
+            excludeVersionId: (latest as any).document_version_id,
+          })
+        }
+
         return Response.json({
           status: 'ok',
           previousStatus: currentStatus,

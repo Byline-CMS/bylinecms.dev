@@ -9,7 +9,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getCollectionDefinition, getWorkflowStatuses, } from '@byline/core'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
@@ -77,7 +77,7 @@ function RouteComponent() {
           },
         ]}
       />
-      <HistoryView collectionDefinition={collectionDef} adminConfig={adminConfig ?? undefined} data={data} />
+      <HistoryView collectionDefinition={collectionDef} workflowStatuses={getWorkflowStatuses(collectionDef)} adminConfig={adminConfig ?? undefined} data={data} />
     </>
   )
 }

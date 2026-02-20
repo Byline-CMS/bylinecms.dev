@@ -9,7 +9,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 
-import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+
+import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import {
   Button,
@@ -65,10 +66,12 @@ export const HistoryView = ({
   collectionDefinition,
   adminConfig,
   data,
+  workflowStatuses,
 }: {
   collectionDefinition: CollectionDefinition
   adminConfig?: CollectionAdminConfig
   data: AnyCollectionSchemaTypes['HistoryType']
+  workflowStatuses?: WorkflowStatus[]
 }) => {
   const { id, collection } = useParams({ from: '/admin/collections/$collection/$id/history' })
   const navigate = useNavigate()
@@ -203,6 +206,9 @@ export const HistoryView = ({
                             </Link>
                           ) : column.formatter ? (
                             column.formatter((document as any)[column.fieldName], document)
+                          ) : column.fieldName === 'status' && workflowStatuses ? (
+                            (workflowStatuses.find((s) => s.name === (document as any).status)
+                              ?.label ?? String((document as any).status ?? ''))
                           ) : (
                             String((document as any)[column.fieldName] ?? '')
                           )}

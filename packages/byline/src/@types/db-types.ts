@@ -36,6 +36,20 @@ export interface IDocumentCommands {
    * creating a new version — status is lifecycle metadata, not content.
    */
   setDocumentStatus(params: { document_version_id: string; status: string }): Promise<void>
+
+  /**
+   * Archive ALL versions of a document that currently have a given status.
+   *
+   * Optionally exclude a specific version (e.g. the one being published right
+   * now) so we don't accidentally archive it.
+   *
+   * Returns the number of rows updated.
+   */
+  archivePublishedVersions(params: {
+    document_id: string
+    currentStatus?: string
+    excludeVersionId?: string
+  }): Promise<number>
 }
 
 // From: /apps/dashboard/server/storage/storage-queries.ts
@@ -125,4 +139,24 @@ export interface IDocumentQueries {
       desc: boolean
     }
   }>
+
+  /**
+   * Find the latest version of a document that has a specific status.
+   *
+   * This queries `document_versions` directly (not the current_documents view)
+   * so it can find a published version even when a newer draft exists.
+   *
+   * Returns minimal version metadata (not reconstructed content).
+   */
+  getPublishedVersion(params: {
+    collection_id: string
+    document_id: string
+    status?: string
+  }): Promise<{
+    document_version_id: string
+    document_id: string
+    status: string
+    created_at: Date
+    updated_at: Date
+  } | null>
 }

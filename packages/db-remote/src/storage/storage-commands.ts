@@ -47,6 +47,18 @@ export class DocumentCommands implements IDocumentCommands {
   }) {
     throw new Error('db-remote method not implemented')
   }
+
+  async setDocumentStatus(_params: { document_version_id: string; status: string }): Promise<void> {
+    throw new Error('db-remote method not implemented')
+  }
+
+  async archivePublishedVersions(_params: {
+    document_id: string
+    currentStatus?: string
+    excludeVersionId?: string
+  }): Promise<number> {
+    throw new Error('db-remote method not implemented')
+  }
 }
 /**
  * Factory function

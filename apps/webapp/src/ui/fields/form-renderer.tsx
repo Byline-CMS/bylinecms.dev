@@ -18,38 +18,74 @@ import { formatDateTime } from '../../utils/utils.general'
 import { FieldRenderer } from '../fields/field-renderer'
 import { FormProvider, useFormContext } from '../fields/form-context'
 
+/** Metadata about a previously published version that is still live. */
+export interface PublishedVersionInfo {
+  document_version_id: string
+  document_id: string
+  status: string
+  created_at: string | Date
+  updated_at: string | Date
+}
+
 const FormStatusDisplay = ({
   initialData,
   workflowStatuses,
+  publishedVersion,
+  onUnpublish,
 }: {
   initialData?: Record<string, any>
   workflowStatuses?: WorkflowStatus[]
+  publishedVersion?: PublishedVersionInfo | null
+  onUnpublish?: () => Promise<void>
 }) => {
   const statusCode = initialData?.status
   const statusLabel = workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
 
   return (
-    <div className="form-status text-sm flex flex-col sm:flex-row sm:items-center sm:gap-2">
-      <div className="published flex items-center gap-1 min-w-0">
-        <span className="muted shrink-0">Status:</span>
-        <span className="truncate overflow-hidden">{statusLabel}</span>
+    <div className="form-status text-sm flex flex-col gap-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+        <div className="published flex items-center gap-1 min-w-0">
+          <span className="muted shrink-0">Status:</span>
+          <span className="truncate overflow-hidden">{statusLabel}</span>
+        </div>
+
+        {initialData?.updated_at != null && (
+          <div className="last-modified flex items-center gap-1 min-w-0">
+            <span className="muted shrink-0">Last modified:</span>
+            <span className="truncate overflow-hidden">
+              {formatDateTime(initialData?.updated_at)}
+            </span>
+          </div>
+        )}
+
+        {initialData?.created_at != null && (
+          <div className="created flex items-center gap-1 min-w-0">
+            <span className="muted shrink-0">Created:</span>
+            <span className="truncate overflow-hidden">
+              {formatDateTime(initialData?.created_at)}
+            </span>
+          </div>
+        )}
       </div>
 
-      {initialData?.updated_at != null && (
-        <div className="last-modified flex items-center gap-1 min-w-0">
-          <span className="muted shrink-0">Last modified:</span>
-          <span className="truncate overflow-hidden">
-            {formatDateTime(initialData?.updated_at)}
+      {publishedVersion != null && (
+        <div className="published-version-banner flex items-center gap-2 text-xs px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <span>
+            A published version is currently live
+            {publishedVersion.updated_at
+              ? ` (published ${formatDateTime(publishedVersion.updated_at as string)})`
+              : ''}
           </span>
-        </div>
-      )}
-
-      {initialData?.created_at != null && (
-        <div className="created flex items-center gap-1 min-w-0">
-          <span className="muted shrink-0">Created:</span>
-          <span className="truncate overflow-hidden">
-            {formatDateTime(initialData?.created_at)}
-          </span>
+          {onUnpublish && (
+            <button
+              type="button"
+              onClick={onUnpublish}
+              className="ml-auto text-xs underline text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+            >
+              Unpublish
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -122,8 +158,10 @@ const FormContent = ({
   onSubmit,
   onCancel,
   onStatusChange,
+  onUnpublish,
   nextStatus,
   workflowStatuses,
+  publishedVersion,
   initialData,
   adminConfig,
 }: {
@@ -131,8 +169,10 @@ const FormContent = ({
   onSubmit: (data: any) => void
   onCancel: () => void
   onStatusChange?: (nextStatus: string) => Promise<void>
+  onUnpublish?: () => Promise<void>
   nextStatus?: WorkflowStatus
   workflowStatuses?: WorkflowStatus[]
+  publishedVersion?: PublishedVersionInfo | null
   initialData?: Record<string, any>
   adminConfig?: CollectionAdminConfig
 }) => {
@@ -215,7 +255,12 @@ const FormContent = ({
       )}
 
       <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
-        <FormStatusDisplay initialData={initialData} workflowStatuses={workflowStatuses} />
+        <FormStatusDisplay
+          initialData={initialData}
+          workflowStatuses={workflowStatuses}
+          publishedVersion={publishedVersion}
+          onUnpublish={onUnpublish}
+        />
         <div className="form-actions flex items-center gap-2">
           <Button
             size="sm"
@@ -293,8 +338,10 @@ export const FormRenderer = ({
   onSubmit,
   onCancel,
   onStatusChange,
+  onUnpublish,
   nextStatus,
   workflowStatuses,
+  publishedVersion,
   initialData,
   adminConfig,
 }: {
@@ -302,8 +349,10 @@ export const FormRenderer = ({
   onSubmit: (data: any) => void
   onCancel: () => void
   onStatusChange?: (nextStatus: string) => Promise<void>
+  onUnpublish?: () => Promise<void>
   nextStatus?: WorkflowStatus
   workflowStatuses?: WorkflowStatus[]
+  publishedVersion?: PublishedVersionInfo | null
   initialData?: Record<string, any>
   adminConfig?: CollectionAdminConfig
 }) => (
@@ -313,8 +362,10 @@ export const FormRenderer = ({
       onSubmit={onSubmit}
       onCancel={onCancel}
       onStatusChange={onStatusChange}
+      onUnpublish={onUnpublish}
       nextStatus={nextStatus}
       workflowStatuses={workflowStatuses}
+      publishedVersion={publishedVersion}
       initialData={initialData}
       adminConfig={adminConfig}
     />

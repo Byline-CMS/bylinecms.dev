@@ -63,7 +63,13 @@ export async function getCollectionDocument(collection: string, id: string) {
 
   // Validate with schema for runtime type safety
   const { get } = getCollectionSchemasForPath(collection)
-  return get.parse(rawData.document)
+  const document = get.parse(rawData.document)
+
+  // Pass through published-version metadata returned by the API.
+  // This is null when the current version is already published.
+  const publishedVersion = rawData.publishedVersion ?? null
+
+  return { ...document, _publishedVersion: publishedVersion }
 }
 
 export async function getCollectionDocumentHistory(
@@ -152,6 +158,24 @@ export async function updateDocumentStatus(collection: string, id: string, statu
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.message || error.reason || 'Failed to update document status')
+  }
+  return response.json()
+}
+
+/**
+ * Unpublish a document by archiving its published version.
+ * This is a cross-version action — it sets a *previous* published version
+ * to 'archived', not a workflow transition on the current version.
+ */
+export async function unpublishDocument(collection: string, id: string) {
+  const url = `${API_BASE_URL}/${collection}/${id}/unpublish`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to unpublish document')
   }
   return response.json()
 }
