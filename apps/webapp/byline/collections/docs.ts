@@ -27,10 +27,10 @@ export const Docs: CollectionDefinition = {
   },
   workflow: defineWorkflow({
     statuses: [
-      { name: 'draft', label: 'Draft' },
-      { name: 'needs_review', label: 'Needs Review' },
-      { name: 'published', label: 'Published' },
-      { name: 'archived', label: 'Archived' },
+      { name: 'draft', label: 'Draft', verb: 'Revert to Draft' },
+      { name: 'needs_review', label: 'Needs Review', verb: 'Request Review' },
+      { name: 'published', label: 'Published', verb: 'Publish' },
+      { name: 'archived', label: 'Archived', verb: 'Archive' },
     ],
   }),
   fields: [

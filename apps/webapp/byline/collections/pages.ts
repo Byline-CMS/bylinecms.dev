@@ -24,9 +24,9 @@ export const Pages: CollectionDefinition = {
   },
   workflow: defineWorkflow({
     statuses: [
-      { name: 'draft', label: 'Draft' },
-      { name: 'published', label: 'Published' },
-      { name: 'archived', label: 'Archived' },
+      { name: 'draft', label: 'Draft', verb: 'Revert to Draft' },
+      { name: 'published', label: 'Published', verb: 'Publish' },
+      { name: 'archived', label: 'Archived', verb: 'Archive' },
     ],
   }),
   fields: [
@@ -84,11 +84,10 @@ const pagesColumns: ColumnDefinition[] = [
     formatter: (value) => (value ? '★' : ''),
   },
   {
-    fieldName: 'published',
+    fieldName: 'status',
     label: 'Status',
     align: 'center',
     className: 'w-[15%]',
-    formatter: (value) => (value ? 'Published' : 'Draft'),
   },
   {
     fieldName: 'updated_at',

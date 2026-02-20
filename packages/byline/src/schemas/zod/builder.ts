@@ -126,14 +126,24 @@ export const fieldToZodSchema = (field: Field): z.ZodType => {
   return field.required ? schema : schema.nullable().optional()
 }
 
-// Create the base schema that all collections share
-export const createBaseSchema = () =>
-  z.object({
+// Create the base schema that all collections share.
+// When a collection defines a workflow, status is constrained to its status names;
+// otherwise it falls back to the default draft | published | archived.
+const DEFAULT_STATUSES = ['draft', 'published', 'archived'] as const
+
+export const createBaseSchema = (collection?: CollectionDefinition) => {
+  const statuses =
+    collection?.workflow?.statuses?.map((s) => s.name) ?? ([...DEFAULT_STATUSES] as string[])
+  // z.enum requires a non-empty tuple [string, ...string[]]
+  const statusEnum = z.enum([statuses[0], ...statuses.slice(1)] as [string, ...string[]])
+
+  return z.object({
     document_id: z.uuid(),
-    status: z.enum(['draft', 'published', 'archived']),
+    status: statusEnum,
     created_at: z.iso.datetime(),
     updated_at: z.iso.datetime(),
   })
+}
 
 // Create field schemas for a collection
 export const createFieldsSchema = (fields: Field[]) => {
@@ -178,7 +188,7 @@ export const createCollectionSchemasForPath = (path: string) => {
 
 // Main function to create all schemas for a collection
 export const createCollectionSchemas = (collection: CollectionDefinition) => {
-  const baseSchema = createBaseSchema()
+  const baseSchema = createBaseSchema(collection)
   const fieldsSchema = createFieldsSchema(collection.fields)
   const fullSchema = z.object({
     ...baseSchema.shape,

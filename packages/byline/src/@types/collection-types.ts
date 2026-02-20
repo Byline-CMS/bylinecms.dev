@@ -16,11 +16,13 @@ import type { Field } from './field-types.js'
  * A single status in a sequential workflow.
  *
  * `name` is the value stored in the database (e.g. `'draft'`, `'needs_review'`).
- * `label` is an optional human-readable label for the UI (defaults to `name`).
+ * `label` is an optional human-readable display label for the status indicator (defaults to `name`).
+ * `verb` is an optional action label shown on the transition button (e.g. "Publish"). Defaults to `label` then `name`.
  */
 export interface WorkflowStatus {
   name: string
   label?: string
+  verb?: string
 }
 
 /**

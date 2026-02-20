@@ -10,7 +10,11 @@ import { useEffect, useState } from 'react'
 import { createFileRoute, notFound, useNavigate } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import {
+  getCollectionAdminConfig,
+  getCollectionDefinition,
+  getWorkflowStatuses,
+} from '@byline/core'
 import { Toast } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
@@ -87,10 +91,17 @@ function RouteComponent() {
       <BreadcrumbsClient
         breadcrumbs={[
           { label: 'Admin', href: `/admin` },
-          { label: data.included.collection.labels.plural, href: `/admin/collections/${collection}` },
+          {
+            label: data.included.collection.labels.plural,
+            href: `/admin/collections/${collection}`,
+          },
         ]}
       />
-      <ListView data={data} columns={columns} />
+      <ListView
+        data={data}
+        columns={columns}
+        workflowStatuses={getWorkflowStatuses(collectionDef)}
+      />
       <Toast
         title={`${collectionDef.labels.singular} Created`}
         intent="success"

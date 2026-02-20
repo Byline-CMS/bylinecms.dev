@@ -42,7 +42,7 @@ export class DocumentCommands implements IDocumentCommands {
     documentData: any
     path: string
     locale?: string
-    status?: 'draft' | 'published' | 'archived'
+    status?: string
     createdBy?: string
   }) {
     throw new Error('db-remote method not implemented')

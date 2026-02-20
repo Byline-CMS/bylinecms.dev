@@ -10,11 +10,12 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import { getWorkflowStatuses } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { Button, Container, HistoryIcon, IconButton, Section, Toast } from '@infonomic/uikit/react'
 
 import { FormRenderer } from '@/ui/fields/form-renderer'
-import { updateCollectionDocumentWithPatches } from '../data'
+import { updateCollectionDocumentWithPatches, updateDocumentStatus } from '../data'
 
 type EditState = {
   status: 'success' | 'failed' | 'busy' | 'idle'
@@ -37,6 +38,38 @@ export const EditView = ({
   })
   const navigate = useNavigate()
   const { labels, path, fields } = collectionDefinition
+
+  // Compute the next forward workflow status for the status button.
+  const workflowStatuses = getWorkflowStatuses(collectionDefinition)
+  const currentStatus = (initialData as any)?.status ?? 'draft'
+  const currentIndex = workflowStatuses.findIndex((s) => s.name === currentStatus)
+  const nextStatus =
+    currentIndex !== -1 && currentIndex < workflowStatuses.length - 1
+      ? workflowStatuses[currentIndex + 1]
+      : undefined
+
+  const handleStatusChange = async (status: string) => {
+    try {
+      await updateDocumentStatus(path, String(initialData.document_id), status)
+      setEditState({
+        status: 'success',
+        message: `Status changed to "${status}"`,
+      })
+      setToast(true)
+      // Refresh the page to reflect the new status.
+      navigate({
+        to: '/admin/collections/$collection/$id',
+        params: { collection: path, id: String(initialData.document_id) },
+      })
+    } catch (err) {
+      console.error('Status change error:', err)
+      setEditState({
+        status: 'failed',
+        message: `Failed to change status: ${(err as Error).message}`,
+      })
+      setToast(true)
+    }
+  }
 
   const handleSubmit = async ({ data, patches }: { data: any; patches: any[] }) => {
     try {
@@ -115,6 +148,9 @@ export const EditView = ({
             onSubmit={handleSubmit}
             initialData={initialData}
             adminConfig={adminConfig}
+            onStatusChange={handleStatusChange}
+            nextStatus={nextStatus}
+            workflowStatuses={workflowStatuses}
             onCancel={() =>
               navigate({ to: '/admin/collections/$collection', params: { collection: path } })
             }

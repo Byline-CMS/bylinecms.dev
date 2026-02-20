@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 
-import type { ColumnDefinition } from '@byline/core'
+import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import {
   Container,
@@ -64,9 +64,11 @@ function padRows(value: number) {
 export const ListView = ({
   data,
   columns,
+  workflowStatuses,
 }: {
   data: AnyCollectionSchemaTypes['ListType']
   columns: ColumnDefinition[]
+  workflowStatuses?: WorkflowStatus[]
 }) => {
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
@@ -191,6 +193,9 @@ export const ListView = ({
                           </Link>
                         ) : column.formatter ? (
                           column.formatter((document as any)[column.fieldName], document)
+                        ) : column.fieldName === 'status' && workflowStatuses ? (
+                          (workflowStatuses.find((s) => s.name === (document as any).status)
+                            ?.label ?? String((document as any).status ?? ''))
                         ) : (
                           String((document as any)[column.fieldName] ?? '')
                         )}

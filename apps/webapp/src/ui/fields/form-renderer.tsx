@@ -11,48 +11,66 @@
 
 import { useEffect, useState } from 'react'
 
-import type { CollectionAdminConfig, Field } from '@byline/core'
+import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
 import { Button } from '@infonomic/uikit/react'
 
 import { formatDateTime } from '../../utils/utils.general'
 import { FieldRenderer } from '../fields/field-renderer'
 import { FormProvider, useFormContext } from '../fields/form-context'
 
-const FormStatusDisplay = ({ initialData }: { initialData?: Record<string, any> }) => (
-  <div className="form-status text-sm flex flex-col sm:flex-row sm:items-center sm:gap-2">
-    <div className="published flex items-center gap-1 min-w-0">
-      <span className="muted shrink-0">Status:</span>
-      <span className="truncate overflow-hidden">
-        {initialData?.status === 'published' ? 'Published' : 'Unpublished'}
-      </span>
+const FormStatusDisplay = ({
+  initialData,
+  workflowStatuses,
+}: {
+  initialData?: Record<string, any>
+  workflowStatuses?: WorkflowStatus[]
+}) => {
+  const statusCode = initialData?.status
+  const statusLabel =
+    workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
+
+  return (
+    <div className="form-status text-sm flex flex-col sm:flex-row sm:items-center sm:gap-2">
+      <div className="published flex items-center gap-1 min-w-0">
+        <span className="muted shrink-0">Status:</span>
+        <span className="truncate overflow-hidden">
+          {statusLabel}
+        </span>
+      </div>
+
+      {initialData?.updated_at != null && (
+        <div className="last-modified flex items-center gap-1 min-w-0">
+          <span className="muted shrink-0">Last modified:</span>
+          <span className="truncate overflow-hidden">{formatDateTime(initialData?.updated_at)}</span>
+        </div>
+      )}
+
+      {initialData?.created_at != null && (
+        <div className="created flex items-center gap-1 min-w-0">
+          <span className="muted shrink-0">Created:</span>
+          <span className="truncate overflow-hidden">{formatDateTime(initialData?.created_at)}</span>
+        </div>
+      )}
     </div>
-
-    {initialData?.updated_at != null && (
-      <div className="last-modified flex items-center gap-1 min-w-0">
-        <span className="muted shrink-0">Last modified:</span>
-        <span className="truncate overflow-hidden">{formatDateTime(initialData?.updated_at)}</span>
-      </div>
-    )}
-
-    {initialData?.created_at != null && (
-      <div className="created flex items-center gap-1 min-w-0">
-        <span className="muted shrink-0">Created:</span>
-        <span className="truncate overflow-hidden">{formatDateTime(initialData?.created_at)}</span>
-      </div>
-    )}
-  </div>
-)
+  )
+}
 
 const FormContent = ({
   fields,
   onSubmit,
   onCancel,
+  onStatusChange,
+  nextStatus,
+  workflowStatuses,
   initialData,
   adminConfig,
 }: {
   fields: Field[]
   onSubmit: (data: any) => void
   onCancel: () => void
+  onStatusChange?: (nextStatus: string) => Promise<void>
+  nextStatus?: WorkflowStatus
+  workflowStatuses?: WorkflowStatus[]
   initialData?: Record<string, any>
   adminConfig?: CollectionAdminConfig
 }) => {
@@ -69,6 +87,7 @@ const FormContent = ({
 
   const [errors, setErrors] = useState(initialErrors)
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
+  const [statusBusy, setStatusBusy] = useState(false)
 
   useEffect(() => {
     return subscribeErrors((newErrors) => setErrors(newErrors))
@@ -128,7 +147,7 @@ const FormContent = ({
       )}
 
       <div className="sticky rounded top-[45px] z-50 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
-        <FormStatusDisplay initialData={initialData} />
+        <FormStatusDisplay initialData={initialData} workflowStatuses={workflowStatuses} />
         <div className="form-actions flex items-center gap-2">
           <Button
             size="sm"
@@ -142,9 +161,25 @@ const FormContent = ({
           <Button size="sm" type="submit" className="min-w-[70px]" disabled={hasChanges === false}>
             Save
           </Button>
-          <Button size="sm" type="submit" intent="success" className="min-w-[80px]">
-            {initialData?.published === true ? 'Unpublish' : 'Publish'}
-          </Button>
+          {nextStatus && onStatusChange && (
+            <Button
+              size="sm"
+              type="button"
+              intent="success"
+              className="min-w-[80px]"
+              disabled={statusBusy}
+              onClick={async () => {
+                setStatusBusy(true)
+                try {
+                  await onStatusChange(nextStatus.name)
+                } finally {
+                  setStatusBusy(false)
+                }
+              }}
+            >
+              {statusBusy ? '...' : (nextStatus.verb ?? nextStatus.label ?? nextStatus.name)}
+            </Button>
+          )}
         </div>
       </div>
       <div className="page-layout--two-columns--right-sticky pt-4">
@@ -175,12 +210,18 @@ export const FormRenderer = ({
   fields,
   onSubmit,
   onCancel,
+  onStatusChange,
+  nextStatus,
+  workflowStatuses,
   initialData,
   adminConfig,
 }: {
   fields: Field[]
   onSubmit: (data: any) => void
   onCancel: () => void
+  onStatusChange?: (nextStatus: string) => Promise<void>
+  nextStatus?: WorkflowStatus
+  workflowStatuses?: WorkflowStatus[]
   initialData?: Record<string, any>
   adminConfig?: CollectionAdminConfig
 }) => (
@@ -189,6 +230,9 @@ export const FormRenderer = ({
       fields={fields}
       onSubmit={onSubmit}
       onCancel={onCancel}
+      onStatusChange={onStatusChange}
+      nextStatus={nextStatus}
+      workflowStatuses={workflowStatuses}
       initialData={initialData}
       adminConfig={adminConfig}
     />
