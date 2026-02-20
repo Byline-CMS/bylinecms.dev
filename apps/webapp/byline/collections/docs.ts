@@ -25,13 +25,16 @@ export const Docs: CollectionDefinition = {
     singular: 'Document',
     plural: 'Documents',
   },
+  // Workflow: defineWorkflow() guarantees draft, published, and archived are
+  // always present and correctly ordered. Any additional statuses specified in
+  // customStatuses are inserted between draft and published.
+  //
+  //   Resulting order: [draft, needs_review, published, archived]
   workflow: defineWorkflow({
-    statuses: [
-      { name: 'draft', label: 'Draft', verb: 'Revert to Draft' },
-      { name: 'needs_review', label: 'Needs Review', verb: 'Request Review' },
-      { name: 'published', label: 'Published', verb: 'Publish' },
-      { name: 'archived', label: 'Archived', verb: 'Archive' },
-    ],
+    draft: { label: 'Draft', verb: 'Revert to Draft' },
+    published: { label: 'Published', verb: 'Publish' },
+    archived: { label: 'Archived', verb: 'Archive' },
+    customStatuses: [{ name: 'needs_review', label: 'Needs Review', verb: 'Request Review' }],
   }),
   fields: [
     { name: 'path', label: 'Path', type: 'text', required: true },

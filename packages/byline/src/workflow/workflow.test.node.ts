@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_WORKFLOW } from '../@types/collection-types.js'
+import { DEFAULT_WORKFLOW, defineWorkflow } from '../@types/collection-types.js'
 import {
   getAvailableTransitions,
   getDefaultStatus,
@@ -160,5 +160,89 @@ describe('getAvailableTransitions', () => {
 
   it('returns empty for unknown status', () => {
     expect(getAvailableTransitions(w, 'bogus')).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// defineWorkflow tests
+// ---------------------------------------------------------------------------
+
+describe('defineWorkflow', () => {
+  it('produces the default three-status workflow when called with no args', () => {
+    const wf = defineWorkflow()
+    expect(wf.statuses.map((s) => s.name)).toEqual(['draft', 'published', 'archived'])
+  })
+
+  it('produces the default three-status workflow when called with empty input', () => {
+    const wf = defineWorkflow({})
+    expect(wf.statuses.map((s) => s.name)).toEqual(['draft', 'published', 'archived'])
+    expect(wf.statuses[0]).toEqual({ name: 'draft', label: 'Draft' })
+    expect(wf.statuses[1]).toEqual({ name: 'published', label: 'Published' })
+    expect(wf.statuses[2]).toEqual({ name: 'archived', label: 'Archived' })
+  })
+
+  it('applies custom labels and verbs to required statuses', () => {
+    const wf = defineWorkflow({
+      draft: { label: 'Brouillon', verb: 'Revenir au brouillon' },
+      published: { label: 'Publié', verb: 'Publier' },
+      archived: { label: 'Archivé', verb: 'Archiver' },
+    })
+    expect(wf.statuses[0]).toEqual({
+      name: 'draft',
+      label: 'Brouillon',
+      verb: 'Revenir au brouillon',
+    })
+    expect(wf.statuses[1]).toEqual({ name: 'published', label: 'Publié', verb: 'Publier' })
+    expect(wf.statuses[2]).toEqual({ name: 'archived', label: 'Archivé', verb: 'Archiver' })
+  })
+
+  it('inserts custom statuses between draft and published', () => {
+    const wf = defineWorkflow({
+      customStatuses: [
+        { name: 'needs_review', label: 'Needs Review', verb: 'Request Review' },
+        { name: 'approved', label: 'Approved', verb: 'Approve' },
+      ],
+    })
+    expect(wf.statuses.map((s) => s.name)).toEqual([
+      'draft',
+      'needs_review',
+      'approved',
+      'published',
+      'archived',
+    ])
+  })
+
+  it('passes through defaultStatus override', () => {
+    const wf = defineWorkflow({ defaultStatus: 'needs_review' })
+    expect(wf.defaultStatus).toBe('needs_review')
+  })
+
+  it('omits defaultStatus key when not specified', () => {
+    const wf = defineWorkflow({})
+    expect(wf).not.toHaveProperty('defaultStatus')
+  })
+
+  it('throws when a custom status uses a reserved name (draft)', () => {
+    expect(() =>
+      defineWorkflow({
+        customStatuses: [{ name: 'draft', label: 'Duplicate Draft' }],
+      })
+    ).toThrow(/custom status 'draft' conflicts/)
+  })
+
+  it('throws when a custom status uses a reserved name (published)', () => {
+    expect(() =>
+      defineWorkflow({
+        customStatuses: [{ name: 'published' }],
+      })
+    ).toThrow(/custom status 'published' conflicts/)
+  })
+
+  it('throws when a custom status uses a reserved name (archived)', () => {
+    expect(() =>
+      defineWorkflow({
+        customStatuses: [{ name: 'archived' }],
+      })
+    ).toThrow(/custom status 'archived' conflicts/)
   })
 })

@@ -1,5 +1,6 @@
 import * as z from 'zod'
 
+import { REQUIRED_WORKFLOW_STATUSES } from '../../@types/index.js'
 import { getCollectionDefinition } from '../../config/config.js'
 import type {
   CollectionDefinition,
@@ -128,12 +129,12 @@ export const fieldToZodSchema = (field: Field): z.ZodType => {
 
 // Create the base schema that all collections share.
 // When a collection defines a workflow, status is constrained to its status names;
-// otherwise it falls back to the default draft | published | archived.
-const DEFAULT_STATUSES = ['draft', 'published', 'archived'] as const
+// otherwise it falls back to the required statuses (draft, published, archived).
 
 export const createBaseSchema = (collection?: CollectionDefinition) => {
   const statuses =
-    collection?.workflow?.statuses?.map((s) => s.name) ?? ([...DEFAULT_STATUSES] as string[])
+    collection?.workflow?.statuses?.map((s) => s.name) ??
+    ([...REQUIRED_WORKFLOW_STATUSES] as string[])
   // z.enum requires a non-empty tuple [string, ...string[]]
   const statusEnum = z.enum([statuses[0], ...statuses.slice(1)] as [string, ...string[]])
 

@@ -22,12 +22,15 @@ export const News: CollectionDefinition = {
     singular: 'News',
     plural: 'News',
   },
+  // Workflow: defineWorkflow() guarantees draft, published, and archived are
+  // always present and correctly ordered. No custom statuses here — the
+  // standard three-step lifecycle is used.
+  //
+  //   Resulting order: [draft, published, archived]
   workflow: defineWorkflow({
-    statuses: [
-      { name: 'draft', label: 'Draft', verb: 'Revert to Draft' },
-      { name: 'published', label: 'Published', verb: 'Publish' },
-      { name: 'archived', label: 'Archived', verb: 'Archive' },
-    ],
+    draft: { label: 'Draft', verb: 'Revert to Draft' },
+    published: { label: 'Published', verb: 'Publish' },
+    archived: { label: 'Archived', verb: 'Archive' },
   }),
   fields: [
     { name: 'path', label: 'Path', type: 'text', required: true },
