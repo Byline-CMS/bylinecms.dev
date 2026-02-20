@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
-import { Button } from '@infonomic/uikit/react'
+import { Button, ComboButton } from '@infonomic/uikit/react'
 
 import { formatDateTime } from '../../utils/utils.general'
 import { FieldRenderer } from '../fields/field-renderer'
@@ -26,33 +26,95 @@ const FormStatusDisplay = ({
   workflowStatuses?: WorkflowStatus[]
 }) => {
   const statusCode = initialData?.status
-  const statusLabel =
-    workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
+  const statusLabel = workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
 
   return (
     <div className="form-status text-sm flex flex-col sm:flex-row sm:items-center sm:gap-2">
       <div className="published flex items-center gap-1 min-w-0">
         <span className="muted shrink-0">Status:</span>
-        <span className="truncate overflow-hidden">
-          {statusLabel}
-        </span>
+        <span className="truncate overflow-hidden">{statusLabel}</span>
       </div>
 
       {initialData?.updated_at != null && (
         <div className="last-modified flex items-center gap-1 min-w-0">
           <span className="muted shrink-0">Last modified:</span>
-          <span className="truncate overflow-hidden">{formatDateTime(initialData?.updated_at)}</span>
+          <span className="truncate overflow-hidden">
+            {formatDateTime(initialData?.updated_at)}
+          </span>
         </div>
       )}
 
       {initialData?.created_at != null && (
         <div className="created flex items-center gap-1 min-w-0">
           <span className="muted shrink-0">Created:</span>
-          <span className="truncate overflow-hidden">{formatDateTime(initialData?.created_at)}</span>
+          <span className="truncate overflow-hidden">
+            {formatDateTime(initialData?.created_at)}
+          </span>
         </div>
       )}
     </div>
   )
+}
+
+/**
+ * Compute the primary and secondary status transitions for the ComboButton.
+ * - Primary: the main action (forward step, or back step if at the end)
+ * - Secondary: other available transitions to show as dropdown options
+ */
+function computeStatusTransitions(
+  currentStatus: string | undefined,
+  workflowStatuses: WorkflowStatus[] | undefined,
+  nextStatus: WorkflowStatus | undefined
+): {
+  primaryStatus: WorkflowStatus | undefined
+  secondaryStatuses: WorkflowStatus[]
+} {
+  if (!workflowStatuses || workflowStatuses.length === 0 || !currentStatus) {
+    return { primaryStatus: nextStatus, secondaryStatuses: [] }
+  }
+
+  const currentIndex = workflowStatuses.findIndex((s) => s.name === currentStatus)
+  if (currentIndex === -1) {
+    return { primaryStatus: nextStatus, secondaryStatuses: [] }
+  }
+
+  const isAtEnd = currentIndex === workflowStatuses.length - 1
+  const isAtStart = currentIndex === 0
+
+  // Collect all available target statuses
+  const availableTargets: WorkflowStatus[] = []
+
+  // Reset to first (if not at first)
+  if (!isAtStart && workflowStatuses[0]) {
+    availableTargets.push(workflowStatuses[0])
+  }
+
+  // Back one step (if not at start and the previous is not already the first)
+  if (currentIndex > 1 && workflowStatuses[currentIndex - 1]) {
+    availableTargets.push(workflowStatuses[currentIndex - 1])
+  }
+
+  // Forward one step (if not at end) - this is the nextStatus
+  if (!isAtEnd && workflowStatuses[currentIndex + 1]) {
+    availableTargets.push(workflowStatuses[currentIndex + 1])
+  }
+
+  // Determine primary and secondary
+  let primaryStatus: WorkflowStatus | undefined
+  let secondaryStatuses: WorkflowStatus[]
+
+  if (isAtEnd) {
+    // At the last status: primary is the back step (previous status)
+    const prevStatus = workflowStatuses[currentIndex - 1]
+    primaryStatus = prevStatus
+    secondaryStatuses = availableTargets.filter((s) => s.name !== prevStatus?.name)
+  } else {
+    // Not at end: primary is the forward step (nextStatus)
+    primaryStatus = nextStatus
+    secondaryStatuses = availableTargets.filter((s) => s.name !== nextStatus?.name)
+  }
+
+  return { primaryStatus, secondaryStatuses }
 }
 
 const FormContent = ({
@@ -89,6 +151,14 @@ const FormContent = ({
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
 
+  // Compute available status transitions
+  const currentStatus = initialData?.status
+  const { primaryStatus, secondaryStatuses } = computeStatusTransitions(
+    currentStatus,
+    workflowStatuses,
+    nextStatus
+  )
+
   useEffect(() => {
     return subscribeErrors((newErrors) => setErrors(newErrors))
   }, [subscribeErrors])
@@ -124,12 +194,10 @@ const FormContent = ({
 
   // Split fields by admin config position
   const fieldPositions = adminConfig?.fields ?? {}
-  const defaultFields = fields.filter(
-    (f) => {
-      const pos = fieldPositions[f.name]?.position
-      return pos == null || pos === 'default'
-    }
-  )
+  const defaultFields = fields.filter((f) => {
+    const pos = fieldPositions[f.name]?.position
+    return pos == null || pos === 'default'
+  })
   const sidebarFields = fields.filter((f) => fieldPositions[f.name]?.position === 'sidebar')
 
   return (
@@ -146,7 +214,7 @@ const FormContent = ({
         </div>
       )}
 
-      <div className="sticky rounded top-[45px] z-50 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
+      <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
         <FormStatusDisplay initialData={initialData} workflowStatuses={workflowStatuses} />
         <div className="form-actions flex items-center gap-2">
           <Button
@@ -161,24 +229,38 @@ const FormContent = ({
           <Button size="sm" type="submit" className="min-w-[70px]" disabled={hasChanges === false}>
             Save
           </Button>
-          {nextStatus && onStatusChange && (
-            <Button
-              size="sm"
-              type="button"
-              intent="success"
-              className="min-w-[80px]"
-              disabled={statusBusy}
-              onClick={async () => {
-                setStatusBusy(true)
-                try {
-                  await onStatusChange(nextStatus.name)
-                } finally {
-                  setStatusBusy(false)
-                }
-              }}
-            >
-              {statusBusy ? '...' : (nextStatus.verb ?? nextStatus.label ?? nextStatus.name)}
-            </Button>
+          {primaryStatus && onStatusChange && (
+            <div className="relative z-10">
+              <ComboButton
+                options={secondaryStatuses.map((s) => ({
+                  label: s.verb ?? s.label ?? s.name,
+                  value: s.name,
+                }))}
+                sideOffset={5}
+                size="sm"
+                type="button"
+                intent="success"
+                disabled={statusBusy}
+                onOptionSelect={async (value: string) => {
+                  setStatusBusy(true)
+                  try {
+                    await onStatusChange(value)
+                  } finally {
+                    setStatusBusy(false)
+                  }
+                }}
+                onButtonClick={async () => {
+                  setStatusBusy(true)
+                  try {
+                    await onStatusChange(primaryStatus.name)
+                  } finally {
+                    setStatusBusy(false)
+                  }
+                }}
+              >
+                {statusBusy ? '...' : (primaryStatus.verb ?? primaryStatus.label ?? primaryStatus.name)}
+              </ComboButton>
+            </div>
           )}
         </div>
       </div>
