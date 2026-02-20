@@ -94,9 +94,9 @@ We felt this balance would help to encourage collaboration and shared maintenanc
 
 ## Key Architectural Decisions
 
-1. Universal Storage (Inverted Index / EAV-per-type): One of our 'experiments' in this effort - in in creating a general purpose storage model that does not require per-collection schema deployments or migrations regardless of collection shape. It is similar to an  Entity-Attribute-Value store partitioned by type. Our typed store_* tables give us proper column types, indexability, and future full-text/GIN indexing — which we feel is a significant advantage over a single JSONB-per-document approach. We use a custom store path notation (content.1.photoBlock.0.display) as our addressing scheme for 'flattening' and 'reconstructing' documents.
+1. Universal Storage (Inverted Index / EAV-per-type): One of our experiments in this effort is the creation of a general purpose storage model that does not require per-collection schema deployments or migrations regardless of collection shape. It is similar to an  Entity-Attribute-Value store partitioned by type. Our typed store_* tables give us proper column types, indexability, and future full-text/GIN indexing — which we feel is a significant advantage over a single JSONB-per-document approach. We use a custom store path notation (content.1.photoBlock.0.display) as our addressing scheme for 'flattening' and 'reconstructing' documents.
 
-2. Immutable Versioning: We save document versions by default (UUIDv7 time-ordering). This gives use built-in version history, enables eventual audit trails, and avoids in-place mutation. We use ROW_NUMBER() OVER PARTITION for resolving "latest" versions.
+2. Immutable Versioning: We save document versions by default (UUIDv7 time-ordered). This gives use built-in version history, enables eventual audit trails, and avoids in-place mutation. We use ROW_NUMBER() OVER PARTITION for resolving "latest" versions.
 
 3. Patch-Based Updates: We accumulate DocumentPatch[] on the client and apply them server-side against the reconstructed document. Three patch families (field, array, block) cover the essential operations. We also feel our patch-based strategy is a good foundation for future collaborative editing (OT/CRDT).
 
@@ -182,9 +182,7 @@ Here's a list of things that will need to be done, in no particular order:
 
 1. UI Kit: The current UI kit is based on Infonomic's agency 'CSS Module / CSS only' UI kit. Some components are rolled from scratch. Others abstract / wrap publicly available components. Several components are based on Radix UI which is a great project. The kit is not complete and Radix-based components are being migrated to [Base UI](https://base-ui.com/). The style system has minimal theme / token definitions. Our preference for the moment is to continue with [@infonomic/uikit](https://github.com/infonomic/uikit) - but consider alternatives as appropriate.
 
-11. Tests: tests, tests, tests.
-
-Plus lots more... whew!
+1. And last but not least - AI/MCP integration: Once we feel the core is stable, we'll turn on the taps for AI integration (content translation, rephrasing, clarity etc.,) and first-class MCP support.
 
 ## Getting Started
 
