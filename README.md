@@ -21,7 +21,7 @@ Our mission statement pretty much sums up the 'why', but we also think there's a
 
 <details>
 <summary>2. Who are you?</summary>
-We’re pretty much nobody — at least not within the usual spheres of influence. We're a couple of developers at an agency based in Southeast Asia, and we're fairly certain you've never heard of us. That said, we have a lot of experience building content solutions for clients — and we’re tired of fighting frameworks for core features our clients need and expect.
+We’re pretty much nobody — at least not within the usual spheres of influence. We're an agency based in Southeast Asia, and we're fairly certain you've never heard of us. That said, we have a lot of experience building content solutions for clients — and we’re tired of fighting frameworks for core features our clients need and expect.
 </details>
 
 <details>
@@ -32,7 +32,7 @@ We hope so - but at this early stage, we have no idea.
 
 <details>
 <summary>4. What governance structures are you considering? </summary> 
-We really like the governance structure of [Penpot](https://community.penpot.app/t/penpots-upcoming-business-model-for-2025/7328), [Zulip](https://zulip.com/) and [Fastify](https://github.com/fastify/.github/blob/main/GOVERNANCE.md). We're committed to 100% open-source software, with no "open core" or 'freemium' gotchas.
+We really like the governance structure of [Penpot](https://community.penpot.app/t/penpots-upcoming-business-model-for-2025/7328). We're committed to 100% open-source software, with no "open core" or "freemium" gotchas.
 </details>
 
 <details>
@@ -42,7 +42,7 @@ Yes!
 
 <details>
 <summary>6. Would you accept venture or seed-round investment?</summary>
-We’re not certain yet, and likely not at this early stage. Our priority is to figure out key aspects of the project first. What we feel strongly about, however, is that community contributions should remain accessible — not locked behind an “enterprise” or paywalled solution. Ultimately, our governance structure and commitment to being community‑driven will guide any financial decisions we make.
+We’re not certain yet, and likely not at this early stage. Our priority is to figure out key aspects of the project first. What we feel strongly about, however, is that community contributions should remain accessible — not locked behind an enterprise or paywalled solution. Ultimately, our governance structure and commitment to being community‑driven will guide any financial decisions we make.
 </details>
 
 <details>
@@ -52,12 +52,21 @@ We're working on a prototype as a 'proof of concept' for our design goals. It ru
 
 <details>
 <summary>8. Will you fork Payload CMS? </summary>
-Absolutely not. The initial maintainers of this project were also Payload CMS users. Payload is a great CMS, with a couple of caveats and one recent event. The main caveat is Payload's tight integration with Next.js and resulting complexity, and so there would be no point in taking on the complexity of Payload when it's the complexity of the project itself we'd like to avoid. The 'event' is Payload's recent acquisition by Figma. We're not sure yet what this means for the future of Payload, and so we felt there would be no harm (and maybe even some fun) in considering an alternative.
+Absolutely not. The initial maintainers of this project were also Payload CMS users. Payload is a great CMS, with a several of caveats and one recent event. The main caveat is Payload's tight integration with Next.js and resulting complexity, and so there would be no point in taking on the complexity of Payload when it's the complexity of the project itself we'd like to avoid. The 'event' is Payload's recent acquisition by Figma. We're not sure yet what this means for the future of Payload and so we felt there would be no harm (and maybe even some fun) in considering an alternative.
 </details>
 
 <details>
-<summary>9. Why is the project's copyright assigned to Anthony Bouch?</summary>
-While we're still finding our feet in terms of overall strategy, we felt it would be simpler if we assigned all copyright to Anthony Bouch as the initial steward of the project (also the lead maintainer of the  project at the moment). We have a CLA that has been implemented via [https://cla-assistant.io/](https://cla-assistant.io/). You can read more about the AGPL 3.0 license here [https://fossa.com/blog/open-source-software-licenses-101-agpl-license/](https://fossa.com/blog/open-source-software-licenses-101-agpl-license/) We'll update this section as soon as there is more to report. 
+<summary>9. Why the Mozilla Public License (MPL-2.0) Version 2.0?</summary>
+
+We chose the MPL as we feel this represents the best balance between community-driven open source software, while still allowing commercial value-based services to flourish.
+
+The Mozilla Public License 2.0 (MPL-2.0) is often described as a “file-level copyleft” license. That means it sits somewhere between very permissive licenses (like MIT or BSD) and strong copyleft licenses (like GPL). In simple terms: if someone modifies MPL-licensed source files, those modified files must remain open and distributed under the MPL. However, they can combine those files with their own proprietary code in the same larger project, as long as they keep the MPL files separate and respect the license terms.
+
+This creates a clear boundary. Improvements to the original open-source codebase stay open and benefit the community. At the same time, companies can build additional features, integrations, services, or proprietary modules around it without being required to open-source their entire product. The obligation applies only to the specific MPL-licensed files that are modified or redistributed — not to the entire application.
+
+Practically speaking, if someone uses MPL-licensed software in a commercial product, they can sell that product, host it as a service, or build paid offerings around it. If they modify the original MPL files and distribute those modifications, they must make those specific changes available under the MPL. If they simply link to or use the software without modifying those files, there is no requirement to open their own independent code.
+
+We felt this balance would help to encourage collaboration and shared maintenance of the core platform, while still supporting sustainable commercial ecosystems — which is why many teams see MPL-2.0 as a pragmatic middle path between fully permissive and strongly reciprocal open-source licenses.
 </details>
 
 ## Design Goals
@@ -83,8 +92,69 @@ While we're still finding our feet in terms of overall strategy, we felt it woul
 
 8. And more....
 
-## What's Next?
-We need to find our feet, choose a license, publish a roadmap, code of conduct, as well as settle on a governance model and likely stewardship entity. We've published the prototype under the [AGPL](https://www.gnu.org/licenses/agpl-3.0.en.html) license — for now, as we understand this has implications. Before we accept contributions, we'll revisit licensing, looking closely at the [MPL 2.0](https://www.mozilla.org/en-US/MPL/2.0/), or possibly even a more permissive license like Apache 2.0. Changing the project's license will require consent or a CLA from contributors, which is fine while there's just a few of us.
+## Key Architectural Decisions
+
+1. Universal Storage (Inverted Index / EAV-per-type): One of our 'experiments' in this effort - in in creating a general purpose storage model that does not require per-collection schema deployments or migrations regardless of collection shape. It is similar to an  Entity-Attribute-Value store partitioned by type. Our typed store_* tables give us proper column types, indexability, and future full-text/GIN indexing — which we feel is a significant advantage over a single JSONB-per-document approach. We use a custom store path notation (content.1.photoBlock.0.display) as our addressing scheme for 'flattening' and 'reconstructing' documents.
+
+2. Immutable Versioning: We save document versions by default (UUIDv7 time-ordering). This gives use built-in version history, enables eventual audit trails, and avoids in-place mutation. We use ROW_NUMBER() OVER PARTITION for resolving "latest" versions.
+
+3. Patch-Based Updates: We accumulate DocumentPatch[] on the client and apply them server-side against the reconstructed document. Three patch families (field, array, block) cover the essential operations. We also feel our patch-based strategy is a good foundation for future collaborative editing (OT/CRDT).
+
+4. Separate schema (collection schema) and 'presentation' configuration systems: We're fairly sure that a split schema from presentation concerns is the right way to go. The core idea is to have schema/data config defined separately from admin UI config (which references the schema). Something like this:
+
+```ts
+// collections/pages.schema.ts  (server-only, no UI concerns)
+export const PagesSchema = defineCollection({
+  slug: 'pages',
+  fields: [
+    { name: 'title', type: 'text', required: true, localized: true },
+    { name: 'sub', type: 'textarea', localized: true },
+    { name: 'content', type: 'blocks', blocks: ['richtext', 'photo'], required: true },
+    slugField(),
+    publishedOn(),
+  ],
+  access: { create: isAdminOrEditor, read: publishedOnly, /* ... */ },
+  hooks: { /* ... */ },
+  versions: { drafts: true, maxPerDoc: 5 },
+})
+```
+
+```ts
+// collections/pages.admin.tsx  (client-safe, UI-only)
+import { PagesSchema } from './pages.schema'
+
+export const PagesAdmin = defineAdmin(PagesSchema, {
+  useAsTitle: 'title',
+  group: 'Content',
+  defaultColumns: ['title', 'publishedOn', '_status'],
+  preview: (doc, { locale }) => `http://localhost:3000/${doc.slug}?locale=${locale}`,
+  fields: {
+    title: { /* custom component overrides */ },
+    content: {
+      editor: <LexicalEditor settings={minimalSettings} />,
+    },
+  },
+})
+```
+The advantages of this approach:
+
+- Schema definitions become truly server-only — no import-map strings, no admin blocks, no client components anywhere near them. They're plain data, trivially serializable, testable, and publishable as an API contract.
+- Admin UI config can use real JSX and real imports because it's explicitly a client (or RSC) module. No string indirection needed.
+- The schema can be consumed by other frontends (mobile, CLI tools, external APIs) without dragging admin UI baggage along.
+- Type-safety improves: defineAdmin(PagesSchema, ...) can infer field names from the schema and offer autocomplete for UI overrides.
+
+What it costs:
+
+- Two files instead of one (or two declarations in a single file - though this is arguably better separation of concerns).
+- A "linking" mechanism is needed so the framework knows which admin config belongs to which schema.
+- Harder to see "the whole picture" at a glance for a single collection.
+
+Prior art for this split:
+
+- Django does exactly this: models (schema) are separate from ModelAdmin (admin site presentation). It's one of Django's most praised architectural decisions.
+- Rails ActiveAdmin / Administrate: resource definitions are separate from their admin "dashboard" configuration.
+- Sanity Studio v3: schema types are defined separately from "desk structure" (how the admin UI organizes and presents them). Custom input components are real React components, not string references.
+- Keystatic: schema and UI ("reader" vs "admin") are somewhat separated by design.
 
 ## What is there to do?
 
@@ -96,7 +166,7 @@ Here's a list of things that will need to be done, in no particular order:
 
 1. Compositional Block Strategy: As above, we need a strategy for block composition. Blocks are small(er) units of 'Field API' that can be reused, reordered, and specified as part of a collection's field definition.
 
-1. Data Storage: We're working on what we think is a pretty good (and very fast) storage API. Stay tuned...
+1. Data Storage: We're working on what we think is a pretty good (and very fast) storage API. See above Architectural Decisions.
 
 1. Security: Authentication (AuthN) and authorization (AuthZ) for the above including roles, abilities, admin account user management etc.
 
@@ -110,7 +180,7 @@ Here's a list of things that will need to be done, in no particular order:
 
 1. Packages and Distribution Strategy: We'll need to extract and prepare packages in the monorepo for distribution.
 
-1. UI Kit: The Byline UI kit is a 'CSS Module / CSS only' UI kit. Some components are rolled from scratch. Others abstract / wrap publicly available components. Several components are based on Radix UI which is a great project. The kit is not complete, and so we should evaluate other sources like [BaseUI](https://base-ui.com/) (which is also excellent), or [React Aria Components](https://react-spectrum.adobe.com/react-aria/components.html) (a superb project). The style system has minimal theme / token definitions. These should be expanded. Docs for the ui kit are Storybook `cd packages/uikit && pnpm storybook` to start the Storybook server.
+1. UI Kit: The current UI kit is based on Infonomic's agency 'CSS Module / CSS only' UI kit. Some components are rolled from scratch. Others abstract / wrap publicly available components. Several components are based on Radix UI which is a great project. The kit is not complete and Radix-based components are being migrated to [Base UI](https://base-ui.com/). The style system has minimal theme / token definitions. Our preference for the moment is to continue with [@infonomic/uikit](https://github.com/infonomic/uikit) - but consider alternatives as appropriate.
 
 11. Tests: tests, tests, tests.
 
@@ -183,11 +253,11 @@ pnpm drizzle:generate
 pnpm drizzle:migrate
 
 # Optionally seed the database with documents.
-# from /apps/dashboard. Note that our seed script is in 
-# apps/dashboard (for now and for 'reasons')
-cd apps/dashboard
+# from /apps/webapp. Note that our seed script is in 
+# apps/webapp (for now and for 'reasons')
+cd apps/webapp
 cp .env.example .env
-pnpm tsx --env-file=.env server/seed-bulk-documents.ts
+pnpm tsx --env-file=.env byline/seed-bulk-documents.ts
 ```
 
 ### 3. Start dev mode
