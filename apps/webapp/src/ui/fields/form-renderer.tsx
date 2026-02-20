@@ -69,9 +69,8 @@ const FormStatusDisplay = ({
       </div>
 
       {publishedVersion != null && (
-        <div className="published-version-banner flex items-center gap-2 text-xs px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200">
-          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-          <span>
+        <div className="published-version-notice flex items-center gap-2 text-xs py-1">
+          <span className="text-green-500">
             A published version is currently live
             {publishedVersion.updated_at
               ? ` (published ${formatDateTime(publishedVersion.updated_at as string)})`
@@ -81,7 +80,7 @@ const FormStatusDisplay = ({
             <button
               type="button"
               onClick={onUnpublish}
-              className="ml-auto text-xs underline text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+              className="text-xs underline text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
             >
               Unpublish
             </button>
