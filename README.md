@@ -96,7 +96,7 @@ We feel the MPL will help to encourage collaboration and shared maintenance of t
 
 1. Universal Storage (Inverted Index / EAV-per-type): One of our experiments in this effort is the creation of a general purpose storage model that does not require per-collection schema deployments or migrations regardless of collection shape. It is similar to an  Entity-Attribute-Value store partitioned by type. Our typed store_* tables give us proper column types, indexability, and future full-text/GIN indexing — which we feel is a significant advantage over a single JSONB-per-document approach. We use a custom store path notation (content.1.photoBlock.0.display) as our addressing scheme for 'flattening' and 'reconstructing' documents.
 
-2. Immutable Versioning: We save document versions by default (UUIDv7 time-ordered). This gives use built-in version history, enables eventual audit trails, and avoids in-place mutation. We use ROW_NUMBER() OVER PARTITION for resolving "latest" versions.
+2. Immutable Versioning: We save document versions by default (UUIDv7 time-ordered). This gives us built-in version history, enables eventual audit trails, and avoids in-place mutation. We use ROW_NUMBER() OVER PARTITION for resolving "latest" versions.
 
 3. Patch-Based Updates: We accumulate DocumentPatch[] on the client and apply them server-side against the reconstructed document. Three patch families (field, array, block) cover the essential operations. We also feel our patch-based strategy is a good foundation for future collaborative editing (OT/CRDT).
 
@@ -186,7 +186,7 @@ Here's a list of things that will need to be done, in no particular order:
 
 ## Getting Started
 
-At the moment, the project is a prototype, but it builds and runs if you wanted to poke around or follow along. Note that we're currently combining the dashboard, api, and configuration into apps/dashboard for prototype development only. 
+At the moment, the project is a prototype, but it builds and runs if you wanted to poke around or follow along.
 
 ### 1. Clone and install dependencies
 
@@ -247,7 +247,9 @@ cd ../..
 # NOTE: While this project is in prototype development,
 # you can optionally skip drizzle:generate since the latest
 # migration will be included in the repo.
-pnpm drizzle:generate
+
+# You can optionally run pnpm drizzle:generate, although since this is a development repo - migrations have already been generated and committed.
+# pnpm drizzle:generate
 pnpm drizzle:migrate
 
 # Optionally seed the database with documents.
