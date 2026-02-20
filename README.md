@@ -114,8 +114,7 @@ export const PagesSchema = defineCollection({
     publishedOn(),
   ],
   access: { create: isAdminOrEditor, read: publishedOnly, /* ... */ },
-  hooks: { /* ... */ },
-  versions: { drafts: true, maxPerDoc: 5 },
+  hooks: { /* ... */ }
 })
 ```
 
@@ -248,7 +247,9 @@ cd ../..
 # you can optionally skip drizzle:generate since the latest
 # migration will be included in the repo.
 
-# You can optionally run pnpm drizzle:generate, although since this is a development repo - migrations have already been generated and committed.
+# You can optionally run pnpm drizzle:generate, although since 
+# this is a development repo - migrations have already been generated 
+# and committed.
 # pnpm drizzle:generate
 pnpm drizzle:migrate
 
