@@ -83,6 +83,7 @@ function RouteComponent() {
     <>
       <BreadcrumbsClient
         breadcrumbs={[
+          { label: 'Admin', href: `/admin` },
           { label: data.included.collection.labels.plural, href: `/admin/collections/${collection}` },
         ]}
       />

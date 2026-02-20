@@ -11,6 +11,8 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { getClientConfig } from '@byline/core'
 import { Card, Container, Section } from '@infonomic/uikit/react'
 
+import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
+
 export const Route = createFileRoute('/admin/')({
   component: Index,
 })
@@ -18,28 +20,35 @@ export const Route = createFileRoute('/admin/')({
 function Index() {
   const config = getClientConfig()
   return (
-    <Section className="py-6">
-      <Container>
-        <div className="grid grid-cols-auto-fit-320 gap-6">
-          {config.collections.map((collection) => (
-            <Card asChild key={collection.path} hover={true}>
-              <Link
-                to="/admin/collections/$collection"
-                params={{ collection: collection.path }}
-                className="block"
-              >
-                <Card.Header>
-                  <Card.Title>{collection.labels.plural}</Card.Title>
-                  <Card.Description>{`${collection.labels.plural} collection`}</Card.Description>
-                </Card.Header>
-                <Card.Content>
-                  <p>{collection.labels.plural} collection description or stats here...</p>
-                </Card.Content>
-              </Link>
-            </Card>
-          ))}
-        </div>
-      </Container>
-    </Section>
+    <>
+      <BreadcrumbsClient
+        breadcrumbs={[
+          { label: 'Admin', href: `/admin` },
+        ]}
+      />
+      <Section className="py-6">
+        <Container>
+          <div className="grid grid-cols-auto-fit-320 gap-6">
+            {config.collections.map((collection) => (
+              <Card asChild key={collection.path} hover={true}>
+                <Link
+                  to="/admin/collections/$collection"
+                  params={{ collection: collection.path }}
+                  className="block"
+                >
+                  <Card.Header>
+                    <Card.Title>{collection.labels.plural}</Card.Title>
+                    <Card.Description>{`${collection.labels.plural} collection`}</Card.Description>
+                  </Card.Header>
+                  <Card.Content>
+                    <p>{collection.labels.plural} collection description or stats here...</p>
+                  </Card.Content>
+                </Link>
+              </Card>
+            ))}
+          </div>
+        </Container>
+      </Section>
+    </>
   )
 }

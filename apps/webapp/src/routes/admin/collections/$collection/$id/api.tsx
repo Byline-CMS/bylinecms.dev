@@ -47,6 +47,7 @@ function RouteComponent() {
     <>
       <BreadcrumbsClient
         breadcrumbs={[
+          { label: 'Admin', href: `/admin` },
           { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
           {
             label: 'Edit',

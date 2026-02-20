@@ -68,15 +68,15 @@ const SortableItem = ({
       ref={setNodeRef}
       style={style}
       className={cx('p-4 pt-2 border border-dashed border-gray-600 rounded-md', {
-        'shadow-sm bg-canvas-800': !isDragging,
-        'shadow-md bg-canvas-700/30': isDragging,
+        'shadow-sm bg-canvas-50/50 dark:bg-canvas-800': !isDragging,
+        'shadow-md bg-canvas-50/80 dark:bg-canvas-700/30': isDragging,
         'pt-2 pb-2': collapsed,
       })}
     >
       <div className={cx('flex items-center gap-2 mb-0 -ml-3', { 'mb-2': !collapsed })}>
         <button
           type="button"
-          className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-800 rounded text-gray-400 flex items-center justify-center"
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-400 flex items-center justify-center"
           {...attributes}
           {...listeners}
         >

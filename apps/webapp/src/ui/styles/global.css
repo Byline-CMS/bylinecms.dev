@@ -13,6 +13,11 @@
 @import "@infonomic/uikit/typography.css";
 
 /**
+ * Custom uikit overrides
+ */
+@import "./overrides.css";
+
+/**
  * Tailwind - should come after the above.
  */
 @import "./tailwind.css";

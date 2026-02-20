@@ -116,7 +116,7 @@ const FormContent = ({
   return (
     <form onSubmit={handleSubmit} className="w-full flex flex-col">
       {errors.length > 0 && (
-        <div className="mb-4 p-3 bg-canvas-800 border border-red-700 rounded">
+        <div className="mb-4 p-3 bg-canvas-25 dark:bg-canvas-800 border border-red-700 rounded">
           <h4 className="text-red-800 font-medium">Please fix the following errors:</h4>
           <ul className="mt-2 text-sm text-red-700">
             {errors.map((error, index) => (
@@ -127,7 +127,7 @@ const FormContent = ({
         </div>
       )}
 
-      <div className="sticky top-[45px] z-50 p-2 bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
+      <div className="sticky rounded top-[45px] z-50 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
         <FormStatusDisplay initialData={initialData} />
         <div className="form-actions flex items-center gap-2">
           <Button
@@ -157,7 +157,7 @@ const FormContent = ({
             />
           ))}
         </div>
-        <div className="sidebar-second mt-4 p-4 bg-canvas-900 border-l border-gray-800 flex flex-col gap-4">
+        <div className="sidebar-second mt-4 p-4 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
           {sidebarFields.map((field) => (
             <FieldRenderer
               key={field.name}
