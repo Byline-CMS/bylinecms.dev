@@ -275,7 +275,7 @@ export class DocumentCommands implements IDocumentCommands {
     documentData: any
     path: string
     locale?: string
-    status?: 'draft' | 'published' | 'archived'
+    status?: string
     createdBy?: string
   }) {
     return await this.db.transaction(async (tx) => {
@@ -363,6 +363,23 @@ export class DocumentCommands implements IDocumentCommands {
         fieldCount: flattenedFields.length,
       }
     })
+  }
+
+  /**
+   * setDocumentStatus
+   *
+   * Mutate the status field on an existing document version row.
+   * This is the one case where we UPDATE a version in-place — status is
+   * lifecycle metadata, not content.
+   */
+  async setDocumentStatus(params: { document_version_id: string; status: string }): Promise<void> {
+    await this.db
+      .update(documentVersions)
+      .set({
+        status: params.status,
+        updated_at: new Date(),
+      })
+      .where(eq(documentVersions.id, params.document_version_id))
   }
 
   /**

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyPatches } from './patches/apply-patches.js'
-import type { CollectionDefinition } from './@types/collection-types.js'
-import type { DocumentPatch } from './patches/patch-types.js'
+import { applyPatches } from './apply-patches.js'
+import type { CollectionDefinition } from '../@types/collection-types.js'
+import type { DocumentPatch } from './patch-types.js'
 
 const DocsDefinition: CollectionDefinition = {
   path: 'docs',

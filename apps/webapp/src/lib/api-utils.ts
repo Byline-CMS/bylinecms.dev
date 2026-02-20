@@ -28,6 +28,7 @@ export const collectionListSchema = z.object({
   desc: booleanSchema(true),
   query: z.string().optional(),
   locale: z.string().optional(),
+  status: z.string().optional(),
 })
 
 export const historySchema = z.object({

@@ -361,6 +361,7 @@ export class DocumentQueries implements IDocumentQueries {
     order = 'created_at',
     desc = true,
     query,
+    status,
   }: {
     collection_id: string
     locale?: string
@@ -369,6 +370,7 @@ export class DocumentQueries implements IDocumentQueries {
     order?: string
     desc?: boolean
     query?: string
+    status?: string
   }): Promise<{
     documents: any[]
     meta: {
@@ -401,6 +403,9 @@ export class DocumentQueries implements IDocumentQueries {
 
     const config = collection.config as CollectionDefinition
 
+    // Build reusable WHERE conditions.
+    const statusCondition = status ? eq(currentDocumentsView.status, status) : undefined
+
     let totalResult: { count: number }[]
     if (query) {
       totalResult = await this.db
@@ -413,7 +418,8 @@ export class DocumentQueries implements IDocumentQueries {
           and(
             eq(currentDocumentsView.collection_id, collection_id),
             eq(textStore.field_name, 'title'),
-            ilike(textStore.value, `%${query}%`)
+            ilike(textStore.value, `%${query}%`),
+            statusCondition
           )
         )
     } else {
@@ -422,7 +428,7 @@ export class DocumentQueries implements IDocumentQueries {
           count: sql<number>`count(*)`,
         })
         .from(currentDocumentsView)
-        .where(eq(currentDocumentsView.collection_id, collection_id))
+        .where(and(eq(currentDocumentsView.collection_id, collection_id), statusCondition))
     }
 
     const total = Number(totalResult[0]?.count) || 0
@@ -454,7 +460,8 @@ export class DocumentQueries implements IDocumentQueries {
           and(
             eq(currentDocumentsView.collection_id, collection_id),
             eq(textStore.field_name, 'title'),
-            ilike(textStore.value, `%${query}%`)
+            ilike(textStore.value, `%${query}%`),
+            statusCondition
           )
         )
         .orderBy(sql`${orderColumn} ${orderFunc}`)
@@ -464,7 +471,7 @@ export class DocumentQueries implements IDocumentQueries {
       currentDocuments = await this.db
         .select()
         .from(currentDocumentsView)
-        .where(eq(currentDocumentsView.collection_id, collection_id))
+        .where(and(eq(currentDocumentsView.collection_id, collection_id), statusCondition))
         .orderBy(sql`${orderColumn} ${orderFunc}`)
         .limit(page_size)
         .offset(offset)

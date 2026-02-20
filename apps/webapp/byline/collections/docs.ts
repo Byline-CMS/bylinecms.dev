@@ -7,7 +7,12 @@
  */
 
 import type { CollectionDefinition } from '@byline/core'
-import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
+import {
+  type CollectionAdminConfig,
+  type ColumnDefinition,
+  defineAdmin,
+  defineWorkflow,
+} from '@byline/core'
 
 import { PhotoBlock } from '../blocks/photo-block.js'
 import { RichTextBlock } from '../blocks/richtext-block.js'
@@ -20,6 +25,14 @@ export const Docs: CollectionDefinition = {
     singular: 'Document',
     plural: 'Documents',
   },
+  workflow: defineWorkflow({
+    statuses: [
+      { name: 'draft', label: 'Draft' },
+      { name: 'needs_review', label: 'Needs Review' },
+      { name: 'published', label: 'Published' },
+      { name: 'archived', label: 'Archived' },
+    ],
+  }),
   fields: [
     { name: 'path', label: 'Path', type: 'text', required: true },
     { name: 'title', label: 'Title', type: 'text', required: true },

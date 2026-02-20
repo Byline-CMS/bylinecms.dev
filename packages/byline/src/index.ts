@@ -10,3 +10,4 @@ export {
 export * from './defaults/default-values.js'
 export * from './patches/index.js'
 export { getCollectionSchemasForPath } from './schemas/zod/cache.js'
+export * from './workflow/index.js'

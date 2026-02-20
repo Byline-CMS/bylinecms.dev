@@ -7,7 +7,12 @@
  */
 
 import type { CollectionDefinition } from '@byline/core'
-import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
+import {
+  type CollectionAdminConfig,
+  type ColumnDefinition,
+  defineAdmin,
+  defineWorkflow,
+} from '@byline/core'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -17,6 +22,13 @@ export const News: CollectionDefinition = {
     singular: 'News',
     plural: 'News',
   },
+  workflow: defineWorkflow({
+    statuses: [
+      { name: 'draft', label: 'Draft' },
+      { name: 'published', label: 'Published' },
+      { name: 'archived', label: 'Archived' },
+    ],
+  }),
   fields: [
     { name: 'path', label: 'Path', type: 'text', required: true },
     { name: 'title', label: 'Title', type: 'text', required: true },

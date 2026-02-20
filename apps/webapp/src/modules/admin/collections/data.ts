@@ -8,6 +8,7 @@ export interface CollectionSearchParams {
   desc?: boolean
   query?: string
   locale?: string
+  status?: string
 }
 
 export interface HistorySearchParams {
@@ -30,6 +31,7 @@ export async function getCollectionDocuments(collection: string, params: Collect
   if (params.desc != null) searchParams.set('desc', params.desc.toString())
   if (params.query != null) searchParams.set('query', params.query)
   if (params.locale != null) searchParams.set('locale', params.locale)
+  if (params.status != null) searchParams.set('status', params.status)
 
   const queryString = searchParams.toString()
   const url = `${API_BASE_URL}/${collection}${queryString ? `?${queryString}` : ''}`
@@ -136,6 +138,20 @@ export async function updateCollectionDocumentWithPatches(
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.message || 'Failed to update document with patches')
+  }
+  return response.json()
+}
+
+export async function updateDocumentStatus(collection: string, id: string, status: string) {
+  const url = `${API_BASE_URL}/${collection}/${id}/status`
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || error.reason || 'Failed to update document status')
   }
   return response.json()
 }

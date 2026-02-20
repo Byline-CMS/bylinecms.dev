@@ -28,8 +28,7 @@
     "clean": "rimraf node_modules dist build .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "skip": "tsx ./scripts/task-watch.js",
-    "test": "LOG_LEVEL=off tsx --test $(find . -name \"*.test.ts\")",
-    "test:one": "LOG_LEVEL=off tsx --no-warnings --test"
+    "test": "vitest --mode=node"
   },
   "exports": {
     ".": {
@@ -47,12 +46,18 @@
       "import": "./dist/patches/index.js",
       "require": "./dist/patches/index.js"
     },
+    "./workflow": {
+      "types": "./dist/workflow/index.d.ts",
+      "import": "./dist/workflow/index.js",
+      "require": "./dist/workflow/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
   "dependencies": {
+    "dotenv": "^17.3.1",
     "jose": "^6.1.3",
     "npm-run-all": "^4.1.5",
     "uuid": "^13.0.0",
@@ -66,6 +71,7 @@
     "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "5.9.3",
+    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.0.18"
   },
   "publishConfig": {

@@ -25,20 +25,22 @@ const searchSchema = z.object({
   desc: z.coerce.boolean().optional(),
   query: z.string().optional(),
   locale: z.string().optional(),
+  status: z.string().optional(),
   action: z.enum(['created']).optional(),
 })
 
 export const Route = createFileRoute('/admin/collections/$collection/')({
   validateSearch: searchSchema,
-  loaderDeps: ({ search: { page, page_size, order, desc, query, locale } }) => ({
+  loaderDeps: ({ search: { page, page_size, order, desc, query, locale, status } }) => ({
     page,
     page_size,
     order,
     desc,
     query,
     locale,
+    status,
   }),
-  loader: async ({ params, deps: { page, page_size, order, desc, query, locale } }) => {
+  loader: async ({ params, deps: { page, page_size, order, desc, query, locale, status } }) => {
     const collectionDef = getCollectionDefinition(params.collection)
     if (!collectionDef) {
       throw notFound()
@@ -51,6 +53,7 @@ export const Route = createFileRoute('/admin/collections/$collection/')({
       desc,
       query,
       locale,
+      status,
     })
 
     return data

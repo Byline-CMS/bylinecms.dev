@@ -7,10 +7,11 @@ import type {
 } from 'lexical'
 import { describe, expect, it } from 'vitest'
 
-import { createEmptyEditorState } from './createEmptyEditorState'
 import { hasText } from './hasText'
 
 type State = SerializedEditorState<SerializedLexicalNode>
+
+import { createEmptyEditorState } from './createEmptyEditorState'
 
 function rootState(_children: SerializedRootNode['children']): State {
   return {

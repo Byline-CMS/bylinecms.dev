@@ -1,16 +1,19 @@
-// NOTE: Important! Allows process.env.SOME_ENV_VAR to accessed in tests
-// without using import { loadEnv } from 'vite't'
+import tsconfigPaths from 'vite-tsconfig-paths'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
-  // Fallback to vitest default suffix  '**/*.test.ts' for jsdom mode.
-  const testFiles = '**/*.test.ts'
+  // Support both .ts and .tsx tests in node/jsdom modes.
+  const testFiles =
+    mode === 'node'
+      ? ['**/*.test.node.ts', '**/*.test.node.tsx']
+      : ['**/*.test.ts', '**/*.test.tsx']
 
   return {
-    plugins: [],
+    plugins: [tsconfigPaths()],
     test: {
-      environment: 'node',
-      include: [testFiles],
+      setupFiles: './vitest.setup.node.ts',
+      environment: mode === 'node' ? 'node' : 'jsdom',
+      include: testFiles,
       reporter: 'verbose',
       globals: true,
     },

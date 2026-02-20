@@ -20,6 +20,7 @@ import { Route as AdminCollectionsCollectionIdIndexRouteImport } from './routes/
 import { Route as AdminApiCollectionIdIndexRouteImport } from './routes/admin/api/$collection/$id/index'
 import { Route as AdminCollectionsCollectionIdHistoryRouteImport } from './routes/admin/collections/$collection/$id/history'
 import { Route as AdminCollectionsCollectionIdApiRouteImport } from './routes/admin/collections/$collection/$id/api'
+import { Route as AdminApiCollectionIdStatusRouteImport } from './routes/admin/api/$collection/$id/status'
 import { Route as AdminApiCollectionIdPatchesRouteImport } from './routes/admin/api/$collection/$id/patches'
 import { Route as AdminApiCollectionIdHistoryRouteImport } from './routes/admin/api/$collection/$id/history'
 
@@ -83,6 +84,12 @@ const AdminCollectionsCollectionIdApiRoute =
     path: '/collections/$collection/$id/api',
     getParentRoute: () => AdminRouteRoute,
   } as any)
+const AdminApiCollectionIdStatusRoute =
+  AdminApiCollectionIdStatusRouteImport.update({
+    id: '/api/$collection/$id/status',
+    path: '/api/$collection/$id/status',
+    getParentRoute: () => AdminRouteRoute,
+  } as any)
 const AdminApiCollectionIdPatchesRoute =
   AdminApiCollectionIdPatchesRouteImport.update({
     id: '/api/$collection/$id/patches',
@@ -105,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/admin/collections/$collection/': typeof AdminCollectionsCollectionIndexRoute
   '/admin/api/$collection/$id/history': typeof AdminApiCollectionIdHistoryRoute
   '/admin/api/$collection/$id/patches': typeof AdminApiCollectionIdPatchesRoute
+  '/admin/api/$collection/$id/status': typeof AdminApiCollectionIdStatusRoute
   '/admin/collections/$collection/$id/api': typeof AdminCollectionsCollectionIdApiRoute
   '/admin/collections/$collection/$id/history': typeof AdminCollectionsCollectionIdHistoryRoute
   '/admin/api/$collection/$id/': typeof AdminApiCollectionIdIndexRoute
@@ -118,6 +126,7 @@ export interface FileRoutesByTo {
   '/admin/collections/$collection': typeof AdminCollectionsCollectionIndexRoute
   '/admin/api/$collection/$id/history': typeof AdminApiCollectionIdHistoryRoute
   '/admin/api/$collection/$id/patches': typeof AdminApiCollectionIdPatchesRoute
+  '/admin/api/$collection/$id/status': typeof AdminApiCollectionIdStatusRoute
   '/admin/collections/$collection/$id/api': typeof AdminCollectionsCollectionIdApiRoute
   '/admin/collections/$collection/$id/history': typeof AdminCollectionsCollectionIdHistoryRoute
   '/admin/api/$collection/$id': typeof AdminApiCollectionIdIndexRoute
@@ -134,6 +143,7 @@ export interface FileRoutesById {
   '/admin/collections/$collection/': typeof AdminCollectionsCollectionIndexRoute
   '/admin/api/$collection/$id/history': typeof AdminApiCollectionIdHistoryRoute
   '/admin/api/$collection/$id/patches': typeof AdminApiCollectionIdPatchesRoute
+  '/admin/api/$collection/$id/status': typeof AdminApiCollectionIdStatusRoute
   '/admin/collections/$collection/$id/api': typeof AdminCollectionsCollectionIdApiRoute
   '/admin/collections/$collection/$id/history': typeof AdminCollectionsCollectionIdHistoryRoute
   '/admin/api/$collection/$id/': typeof AdminApiCollectionIdIndexRoute
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/admin/collections/$collection/'
     | '/admin/api/$collection/$id/history'
     | '/admin/api/$collection/$id/patches'
+    | '/admin/api/$collection/$id/status'
     | '/admin/collections/$collection/$id/api'
     | '/admin/collections/$collection/$id/history'
     | '/admin/api/$collection/$id/'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/admin/collections/$collection'
     | '/admin/api/$collection/$id/history'
     | '/admin/api/$collection/$id/patches'
+    | '/admin/api/$collection/$id/status'
     | '/admin/collections/$collection/$id/api'
     | '/admin/collections/$collection/$id/history'
     | '/admin/api/$collection/$id'
@@ -178,6 +190,7 @@ export interface FileRouteTypes {
     | '/admin/collections/$collection/'
     | '/admin/api/$collection/$id/history'
     | '/admin/api/$collection/$id/patches'
+    | '/admin/api/$collection/$id/status'
     | '/admin/collections/$collection/$id/api'
     | '/admin/collections/$collection/$id/history'
     | '/admin/api/$collection/$id/'
@@ -268,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCollectionsCollectionIdApiRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/api/$collection/$id/status': {
+      id: '/admin/api/$collection/$id/status'
+      path: '/api/$collection/$id/status'
+      fullPath: '/admin/api/$collection/$id/status'
+      preLoaderRoute: typeof AdminApiCollectionIdStatusRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/api/$collection/$id/patches': {
       id: '/admin/api/$collection/$id/patches'
       path: '/api/$collection/$id/patches'
@@ -304,6 +324,7 @@ interface AdminRouteRouteChildren {
   AdminCollectionsCollectionIndexRoute: typeof AdminCollectionsCollectionIndexRoute
   AdminApiCollectionIdHistoryRoute: typeof AdminApiCollectionIdHistoryRoute
   AdminApiCollectionIdPatchesRoute: typeof AdminApiCollectionIdPatchesRoute
+  AdminApiCollectionIdStatusRoute: typeof AdminApiCollectionIdStatusRoute
   AdminCollectionsCollectionIdApiRoute: typeof AdminCollectionsCollectionIdApiRoute
   AdminCollectionsCollectionIdHistoryRoute: typeof AdminCollectionsCollectionIdHistoryRoute
   AdminApiCollectionIdIndexRoute: typeof AdminApiCollectionIdIndexRoute
@@ -317,6 +338,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminCollectionsCollectionIndexRoute: AdminCollectionsCollectionIndexRoute,
   AdminApiCollectionIdHistoryRoute: AdminApiCollectionIdHistoryRoute,
   AdminApiCollectionIdPatchesRoute: AdminApiCollectionIdPatchesRoute,
+  AdminApiCollectionIdStatusRoute: AdminApiCollectionIdStatusRoute,
   AdminCollectionsCollectionIdApiRoute: AdminCollectionsCollectionIdApiRoute,
   AdminCollectionsCollectionIdHistoryRoute:
     AdminCollectionsCollectionIdHistoryRoute,

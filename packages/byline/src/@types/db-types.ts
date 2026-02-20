@@ -25,9 +25,17 @@ export interface IDocumentCommands {
     documentData: any
     path: string
     locale?: string
-    status?: 'draft' | 'published' | 'archived'
+    status?: string
     createdBy?: string
   }): Promise<{ document: any; fieldCount: number }>
+
+  /**
+   * Mutate the status on an existing document version row.
+   *
+   * This is the one case where we UPDATE a version in-place rather than
+   * creating a new version — status is lifecycle metadata, not content.
+   */
+  setDocumentStatus(params: { document_version_id: string; status: string }): Promise<void>
 }
 
 // From: /apps/dashboard/server/storage/storage-queries.ts
@@ -55,6 +63,7 @@ export interface IDocumentQueries {
     order?: string
     desc?: boolean
     query?: string
+    status?: string
   }): Promise<{
     documents: any[]
     meta: {

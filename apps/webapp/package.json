@@ -25,9 +25,9 @@
     "preview": "vite preview",
     "clean": "rimraf node_modules dist build .output .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "test": "LOG_LEVEL=off tsx --env-file=.env --test $(find . -name \"*.test.ts\")",
-    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test",
-    "test:vitest": "vitest run"
+    "test": "vitest --mode=jsdom",
+    "test:jsdom": "vitest --mode=jsdom",
+    "test:node": "vitest --mode=node"
   },
   "dependencies": {
     "@byline/core": "workspace:*",

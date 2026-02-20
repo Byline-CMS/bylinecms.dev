@@ -8,6 +8,68 @@
 
 import type { Field } from './field-types.js'
 
+// ---------------------------------------------------------------------------
+// Workflow
+// ---------------------------------------------------------------------------
+
+/**
+ * A single status in a sequential workflow.
+ *
+ * `name` is the value stored in the database (e.g. `'draft'`, `'needs_review'`).
+ * `label` is an optional human-readable label for the UI (defaults to `name`).
+ */
+export interface WorkflowStatus {
+  name: string
+  label?: string
+}
+
+/**
+ * Configurable sequential workflow for a collection.
+ *
+ * The `statuses` array defines the ordered progression. The first entry is
+ * used as the default status for new documents unless `defaultStatus` is
+ * explicitly set.
+ *
+ * @example
+ * ```ts
+ * defineWorkflow({
+ *   statuses: [
+ *     { name: 'draft' },
+ *     { name: 'needs_review', label: 'Needs Review' },
+ *     { name: 'published' },
+ *     { name: 'archived' },
+ *   ],
+ * })
+ * ```
+ */
+export interface WorkflowConfig {
+  statuses: WorkflowStatus[]
+  /** Override the default status for new documents (defaults to the first entry). */
+  defaultStatus?: string
+}
+
+/**
+ * The built-in default workflow used when a collection does not define its own.
+ */
+export const DEFAULT_WORKFLOW: WorkflowConfig = {
+  statuses: [
+    { name: 'draft', label: 'Draft' },
+    { name: 'published', label: 'Published' },
+    { name: 'archived', label: 'Archived' },
+  ],
+}
+
+/**
+ * Type-safe factory for creating a WorkflowConfig.
+ */
+export function defineWorkflow(config: WorkflowConfig): WorkflowConfig {
+  return config
+}
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
 /**
  * Lifecycle hooks for a collection.
  *
@@ -50,6 +112,8 @@ export interface CollectionDefinition {
   }
   path: string
   fields: Field[]
+  /** Sequential workflow configuration. Falls back to DEFAULT_WORKFLOW if omitted. */
+  workflow?: WorkflowConfig
   /** Lifecycle hooks for server-side document operations. */
   hooks?: CollectionHooks
 }
