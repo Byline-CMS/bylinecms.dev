@@ -9,25 +9,15 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 
-
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import {
-  Button,
-  Container,
-  HistoryIcon,
-  IconButton,
-  LoaderRing,
-  Section,
-  Select,
-  SelectItem,
-  Table,
-} from '@infonomic/uikit/react'
+import { Container, LoaderRing, Section, Select, SelectItem, Table } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { formatNumber } from '@/utils/utils.general.ts'
+import { ViewMenu } from './view-menu'
 
 function Stats({ total }: { total: number }) {
   const [showLoader, _] = useState(false)
@@ -100,47 +90,7 @@ export const HistoryView = ({
             <h2 className="mb-2 flex items-center gap-2">
               {labels.singular} History <Stats total={data?.meta.total} />
             </h2>
-            <div className="flex items-center gap-2">
-              <IconButton
-                className="min-w-[24px] min-h-[24px]"
-                size="sm"
-                variant="text"
-                onClick={() =>
-                  navigate({
-                    to: '/admin/collections/$collection/$id/history',
-                    params: { collection, id },
-                  })
-                }
-              >
-                <HistoryIcon className="w-4 h-4" />
-              </IconButton>
-              <Button
-                size="sm"
-                variant="filled"
-                className="min-w-[50px] min-h-[28px]"
-                onClick={() =>
-                  navigate({
-                    to: '/admin/collections/$collection/$id',
-                    params: { collection, id },
-                  })
-                }
-              >
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="outlined"
-                className="min-w-[50px] min-h-[28px]"
-                onClick={() =>
-                  navigate({
-                    to: '/admin/collections/$collection/$id/api',
-                    params: { collection, id },
-                  })
-                }
-              >
-                API
-              </Button>
-            </div>
+            <ViewMenu collection={collection} documentId={id} activeView="history" />
           </div>
         </Container>
       </Section>

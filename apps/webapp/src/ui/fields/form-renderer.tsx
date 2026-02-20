@@ -69,8 +69,8 @@ const FormStatusDisplay = ({
       </div>
 
       {publishedVersion != null && (
-        <div className="published-version-notice flex items-center gap-2 text-xs py-1">
-          <span className="text-green-500">
+        <div className="published-version-notice flex items-center gap-2 text-xs">
+          <span className="text-green-600 dark:text-green-500">
             A published version is currently live
             {publishedVersion.updated_at
               ? ` (published ${formatDateTime(publishedVersion.updated_at as string)})`

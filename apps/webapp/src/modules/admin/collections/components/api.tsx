@@ -6,12 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useNavigate } from '@tanstack/react-router'
-
 import type { CollectionDefinition } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Button, Container, HistoryIcon, IconButton, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@infonomic/uikit/react'
 import { allExpanded, darkStyles, JsonView } from 'react-json-view-lite'
+
+import { ViewMenu } from './view-menu'
 import 'react-json-view-lite/dist/index.css'
 
 export const ApiView = ({
@@ -21,7 +21,6 @@ export const ApiView = ({
   collectionDefinition: CollectionDefinition
   initialData: AnyCollectionSchemaTypes['UpdateType']
 }) => {
-  const navigate = useNavigate()
   const { labels, path } = collectionDefinition
 
   return (
@@ -29,47 +28,11 @@ export const ApiView = ({
       <Container>
         <div className="item-view flex flex-col sm:flex-row justify-start sm:justify-between mb-2">
           <h2 className="mb-2">{labels.singular} API</h2>
-          <div className="flex items-center gap-2">
-            <IconButton
-              className="min-w-[24px] min-h-[24px]"
-              size="sm"
-              variant="text"
-              onClick={() =>
-                navigate({
-                  to: '/admin/collections/$collection/$id/history',
-                  params: { collection: path, id: String(initialData.document_id) },
-                })
-              }
-            >
-              <HistoryIcon className="w-4 h-4" />
-            </IconButton>
-            <Button
-              size="sm"
-              variant="filled"
-              className="min-w-[50px] min-h-[28px]"
-              onClick={() =>
-                navigate({
-                  to: '/admin/collections/$collection/$id',
-                  params: { collection: path, id: String(initialData.document_id) },
-                })
-              }
-            >
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outlined"
-              className="min-w-[50px] min-h-[28px]"
-              onClick={() =>
-                navigate({
-                  to: '/admin/collections/$collection/$id/api',
-                  params: { collection: path, id: String(initialData.document_id) },
-                })
-              }
-            >
-              API
-            </Button>
-          </div>
+          <ViewMenu
+            collection={path}
+            documentId={String(initialData.document_id)}
+            activeView="api"
+          />
         </div>
         <div className="border bg-canvas-800 rounded p-1 font-mono text-sm font-weight-normal">
           <JsonView

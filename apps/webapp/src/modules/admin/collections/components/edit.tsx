@@ -12,10 +12,15 @@ import { useNavigate } from '@tanstack/react-router'
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getWorkflowStatuses } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Button, Container, HistoryIcon, IconButton, Section, Toast } from '@infonomic/uikit/react'
+import { Container, Section, Toast } from '@infonomic/uikit/react'
 
 import { FormRenderer } from '@/ui/fields/form-renderer'
-import { unpublishDocument, updateCollectionDocumentWithPatches, updateDocumentStatus } from '../data'
+import {
+  unpublishDocument,
+  updateCollectionDocumentWithPatches,
+  updateDocumentStatus,
+} from '../data'
+import { ViewMenu } from './view-menu'
 
 type EditState = {
   status: 'success' | 'failed' | 'busy' | 'idle'
@@ -137,45 +142,11 @@ export const EditView = ({
           <div className="item-view flex flex-col sm:flex-row justify-start sm:justify-between">
             <h2 className="mb-2">Edit {labels.singular}</h2>
             <div className="flex items-center gap-2 pb-4 sm:pb-2">
-              <IconButton
-                className="min-w-[24px] min-h-[24px]"
-                size="sm"
-                variant="text"
-                onClick={() =>
-                  navigate({
-                    to: '/admin/collections/$collection/$id/history',
-                    params: { collection: path, id: String(initialData.document_id) },
-                  })
-                }
-              >
-                <HistoryIcon className="w-4 h-4" />
-              </IconButton>
-              <Button
-                size="sm"
-                variant="filled"
-                className="min-w-[50px] min-h-[28px]"
-                onClick={() =>
-                  navigate({
-                    to: '/admin/collections/$collection/$id',
-                    params: { collection: path, id: String(initialData.document_id) },
-                  })
-                }
-              >
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="outlined"
-                className="min-w-[50px] min-h-[28px]"
-                onClick={() =>
-                  navigate({
-                    to: '/admin/collections/$collection/$id/api',
-                    params: { collection: path, id: String(initialData.document_id) },
-                  })
-                }
-              >
-                API
-              </Button>
+              <ViewMenu
+                collection={path}
+                documentId={String(initialData.document_id)}
+                activeView="edit"
+              />
             </div>
           </div>
           <FormRenderer
