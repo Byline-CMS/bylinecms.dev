@@ -8,7 +8,9 @@
 
 import { createFileRoute, Link } from '@tanstack/react-router'
 
-import { Container, Section } from '@infonomic/uikit/react'
+import { EditorAnimation } from '@/modules/home/editor-animation'
+import { FeatureGrid } from '@/modules/home/feature-grid'
+import { HeroTagline } from '@/modules/home/hero-tagline'
 
 export const Route = createFileRoute('/_public/')({
   component: Index,
@@ -16,11 +18,10 @@ export const Route = createFileRoute('/_public/')({
 
 function Index() {
   return (
-    <Section className="py-6">
-      <Container>
-        <p>Link to admin area...</p>
-        <Link to="/admin" className="underline">Go to admin</Link>
-      </Container>
-    </Section>
+    <>
+      <HeroTagline />
+      <EditorAnimation />
+      <FeatureGrid />
+    </>
   )
 }

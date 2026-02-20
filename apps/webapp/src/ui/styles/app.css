@@ -1,2 +1,13 @@
 @import "./base/base.css";
 @import "./layouts/layouts.css";
+
+body {
+  background-color: white;
+}
+
+.dark,
+[data-theme="dark"] {
+  body {
+    background-color: var(--canvas-900);
+  }
+}

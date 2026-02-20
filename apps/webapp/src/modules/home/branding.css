@@ -1,0 +1,7 @@
+.glow {
+  background: conic-gradient(from 180deg at 50% 50%, #2a8af6 0deg, #a853ba 180deg, #e92a67 2turn);
+  filter: blur(32px);
+  mix-blend-mode: normal;
+  opacity: 0.5;
+  transform: rotate(20deg);
+}

@@ -15,6 +15,9 @@ import { ToastProvider, ToastViewport } from '@infonomic/uikit/react'
 
 import { BreadcrumbsProvider } from '@/context/breadcrumbs/breadcrumbs-provider'
 import { TranslationsProvider } from '@/i18n/client/translation-provider'
+import { EarlyThemeDetector } from '@/ui/theme/early-theme-detector'
+import { ThemeProvider } from '@/ui/theme/provider'
+import { Theme } from '@/ui/theme/utils'
 
 import '@/ui/styles/global.css'
 
@@ -24,6 +27,7 @@ export const Route = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
       { title: 'Byline CMS' },
+      { name: 'color-scheme', content: 'dark light' },
     ],
     links: [
       { rel: 'icon', type: 'image/png', href: '/favicon-96x96.png', sizes: '96x96' },
@@ -39,28 +43,31 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <RootDocument>
-      <TranslationsProvider>
-        <ToastProvider swipeDirection="right" duration={5000}>
-          <BreadcrumbsProvider>
-            <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
-              <Outlet />
-            </div>
-            <TanStackRouterDevtools />
-          </BreadcrumbsProvider>
-          <ToastViewport className="toast-viewport" />
-        </ToastProvider>
-      </TranslationsProvider>
+      <ThemeProvider force={Theme.DARK}>
+        <TranslationsProvider>
+          <ToastProvider swipeDirection="right" duration={5000}>
+            <BreadcrumbsProvider>
+              <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
+                <Outlet />
+              </div>
+              <TanStackRouterDevtools />
+            </BreadcrumbsProvider>
+            <ToastViewport className="toast-viewport" />
+          </ToastProvider>
+        </TranslationsProvider>
+      </ThemeProvider>
     </RootDocument>
   )
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html className="dark" lang="en">
+    <html className="dark" lang="en" suppressHydrationWarning>
       <head>
+        <EarlyThemeDetector />
         <HeadContent />
       </head>
-      <body style={{ margin: 0, padding: 0, backgroundColor: 'var(--canvas-900)' }}>
+      <body>
         {children}
         <Scripts />
       </body>

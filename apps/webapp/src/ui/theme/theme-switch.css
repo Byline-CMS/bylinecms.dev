@@ -1,0 +1,73 @@
+.component--theme-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-sizing: border-box;
+  background-color: transparent;
+  outline: 0;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  color: white;
+  min-width: 32px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  border: dashed 0.5px transparent;
+  transition: all 250ms ease;
+}
+
+.component--theme-switch:active,
+.component--theme-switch:focus {
+  border-color: var(--canvas-900);
+  outline: none;
+  border-style: solid;
+  border-width: 1.5px;
+  border-radius: 4px;
+}
+
+.dark .component--theme-switch:active,
+.dark .component--theme-switch:focus {
+  border-color: var(--canvas-200);
+}
+
+.component--theme-switch .moon,
+.component--theme-switch .light {
+  transition: opacity 0.2s ease-in-out;
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+}
+
+/* Default (light theme): show moon, hide light */
+.component--theme-switch .moon {
+  opacity: 1;
+  animation: spin 0.3s;
+}
+
+.component--theme-switch .light {
+  opacity: 0;
+}
+
+/* Dark theme: swap visibility */
+.dark .component--theme-switch .moon {
+  opacity: 0;
+  animation: none;
+}
+
+.dark .component--theme-switch .light {
+  opacity: 1;
+  animation: spin 0.3s;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
