@@ -52,13 +52,13 @@ We're working on a prototype as a 'proof of concept' for our design goals. It ru
 
 <details>
 <summary>8. Will you fork Payload CMS? </summary>
-Absolutely not. The initial maintainers of this project were also Payload CMS users. Payload is a great CMS, with a several of caveats and one recent event. The main caveat is Payload's tight integration with Next.js and resulting complexity, and so there would be no point in taking on the complexity of Payload when it's the complexity of the project itself we'd like to avoid. The 'event' is Payload's recent acquisition by Figma. We're not sure yet what this means for the future of Payload and so we felt there would be no harm (and maybe even some fun) in considering an alternative.
+Absolutely not. The initial maintainers of this project were also Payload CMS users. Payload is a great CMS, with several caveats and one recent event. The main caveat is Payload's tight integration with Next.js and resulting complexity, and so there would be no point in taking on the complexity of Payload when it's the complexity of the project itself we'd like to avoid. The 'event' is Payload's recent acquisition by Figma. We're not sure yet what this means for the future of Payload and so we felt there would be no harm (and maybe even some fun) in considering an alternative.
 </details>
 
 <details>
 <summary>9. Why the Mozilla Public License (MPL-2.0) Version 2.0?</summary>
 
-We chose the MPL as we feel this represents the best balance between community-driven open source software, while still allowing commercial value-based services to flourish.
+We chose the MPL as we feel this represents the best balance between community-driven open source software, and allowing commercial value-based services to flourish.
 
 The Mozilla Public License 2.0 (MPL-2.0) is often described as a “file-level copyleft” license. That means it sits somewhere between very permissive licenses (like MIT or BSD) and strong copyleft licenses (like GPL). In simple terms: if someone modifies MPL-licensed source files, those modified files must remain open and distributed under the MPL. However, they can combine those files with their own proprietary code in the same larger project, as long as they keep the MPL files separate and respect the license terms.
 
@@ -66,7 +66,7 @@ This creates a clear boundary. Improvements to the original open-source codebase
 
 Practically speaking, if someone uses MPL-licensed software in a commercial product, they can sell that product, host it as a service, or build paid offerings around it. If they modify the original MPL files and distribute those modifications, they must make those specific changes available under the MPL. If they simply link to or use the software without modifying those files, there is no requirement to open their own independent code.
 
-We felt this balance would help to encourage collaboration and shared maintenance of the core platform, while still supporting sustainable commercial ecosystems — which is why many teams see MPL-2.0 as a pragmatic middle path between fully permissive and strongly reciprocal open-source licenses.
+We feel the MPL will help to encourage collaboration and shared maintenance of the core platform, while still supporting sustainable commercial ecosystems — which is why many teams see MPL-2.0 as a pragmatic middle path between fully permissive and strongly reciprocal open-source licenses.
 </details>
 
 ## Design Goals
