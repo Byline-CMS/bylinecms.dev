@@ -13,9 +13,10 @@ type State = SerializedEditorState<SerializedLexicalNode>
 
 import { createEmptyEditorState } from './createEmptyEditorState'
 
-function rootState(_children: SerializedRootNode['children']): State {
+function rootState(children: SerializedRootNode['children']): State {
   return {
     root: {
+      children,
       direction: null,
       format: '',
       indent: 0,
