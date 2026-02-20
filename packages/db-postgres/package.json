@@ -1,7 +1,7 @@
 {
   "name": "@byline/db-postgres",
   "private": false,
-  "license": "AGPL",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Byline CMS db postgres package",
   "keywords": [
