@@ -26,7 +26,7 @@ importers:
     dependencies:
       '@byline/core':
         specifier: workspace:*
-        version: link:../../packages/byline
+        version: link:../../packages/core
       '@byline/db-postgres':
         specifier: workspace:*
         version: link:../../packages/db-postgres
@@ -203,7 +203,7 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.0)(happy-dom@20.6.3)(jiti@2.6.1)(jsdom@28.1.0)(less@4.4.2)(lightningcss@1.31.1)(sass@1.93.2)(stylus@0.62.0)(tsx@4.21.0)(yaml@2.8.0)
 
-  packages/byline:
+  packages/core:
     dependencies:
       dotenv:
         specifier: ^17.3.1
@@ -253,7 +253,7 @@ importers:
     dependencies:
       '@byline/core':
         specifier: workspace:*
-        version: link:../byline
+        version: link:../core
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@types/pg@8.16.0)(pg@8.18.0)
@@ -305,7 +305,7 @@ importers:
     dependencies:
       '@byline/core':
         specifier: workspace:*
-        version: link:../byline
+        version: link:../core
       jose:
         specifier: ^6.1.3
         version: 6.1.3
