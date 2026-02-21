@@ -28,7 +28,8 @@
     "clean": "rimraf node_modules dist build .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "skip": "tsx ./scripts/task-watch.js",
-    "test": "vitest --mode=node"
+    "test": "vitest run --mode=node",
+    "test:watch": "vitest --mode=node"
   },
   "exports": {
     ".": {

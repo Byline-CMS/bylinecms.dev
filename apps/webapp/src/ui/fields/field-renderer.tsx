@@ -28,6 +28,7 @@ import { RichTextField } from '../fields/richtext/richtext-lexical/richtext-fiel
 import { SelectField } from '../fields/select/select-field'
 import { TextField } from '../fields/text/text-field'
 import { TextAreaField } from '../fields/text-area/text-area-field'
+import { useFieldChangeHandler } from '../fields/use-field-change-handler'
 import { DateTimeField } from './datetime/datetime-field'
 import { DraggableContextMenu } from './draggable-context-menu'
 import { FileField } from './file/file-field'
@@ -633,14 +634,10 @@ export const FieldRenderer = ({
   disableSorting,
   hideLabel,
 }: FieldRendererProps) => {
-  const { setFieldValue } = useFormContext()
   const path = basePath ? `${basePath}.${field.name}` : field.name
   const htmlId = path.replace(/[[\].]/g, '-')
 
-  const handleChange = (value: any) => {
-    console.log('FieldRenderer.handleChange', { path, value })
-    setFieldValue(path, value)
-  }
+  const handleChange = useFieldChangeHandler(field, path)
 
   switch (field.type) {
     case 'text':

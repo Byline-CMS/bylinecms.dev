@@ -35,6 +35,8 @@ interface FormContextType {
   validateForm: (fields: Field[]) => FormError[]
   errors: FormError[]
   clearErrors: () => void
+  setFieldError: (field: string, message: string) => void
+  clearFieldError: (field: string) => void
   isDirty: (fieldName: string) => boolean
   subscribeField: (name: string, listener: FieldListener) => () => void
   subscribeErrors: (listener: ErrorsListener) => () => void
@@ -363,6 +365,27 @@ export const FormProvider = ({
     notifyErrorListeners()
   }, [notifyErrorListeners])
 
+  const setFieldError = useCallback(
+    (field: string, message: string) => {
+      // Replace any existing error for this field, or add a new one
+      const filtered = errorsRef.current.filter((e) => e.field !== field)
+      filtered.push({ field, message })
+      errorsRef.current = filtered
+      notifyErrorListeners()
+    },
+    [notifyErrorListeners]
+  )
+
+  const clearFieldError = useCallback(
+    (field: string) => {
+      if (errorsRef.current.some((e) => e.field === field)) {
+        errorsRef.current = errorsRef.current.filter((e) => e.field !== field)
+        notifyErrorListeners()
+      }
+    },
+    [notifyErrorListeners]
+  )
+
   return (
     <FormContext.Provider
       value={{
@@ -380,6 +403,8 @@ export const FormProvider = ({
         validateForm,
         errors: errorsRef.current,
         clearErrors,
+        setFieldError,
+        clearFieldError,
         isDirty,
         subscribeField,
         subscribeErrors,

@@ -37,8 +37,39 @@ export const Docs: CollectionDefinition = {
     customStatuses: [{ name: 'needs_review', label: 'Needs Review', verb: 'Request Review' }],
   }),
   fields: [
-    { name: 'path', label: 'Path', type: 'text', required: true },
-    { name: 'title', label: 'Title', type: 'text', required: true },
+    {
+      name: 'path',
+      label: 'Path',
+      type: 'text',
+      required: true,
+      hooks: {
+        // Enforce URL-safe slug format on every keystroke
+        beforeChange: ({ value }) => {
+          if (typeof value !== 'string') return
+          const slug = value
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9-]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
+          return { value: slug }
+        },
+      },
+    },
+    {
+      name: 'title',
+      label: 'Title',
+      type: 'text',
+      required: true,
+      hooks: {
+        // Trim leading/trailing whitespace before committing
+        beforeChange: ({ value }) => {
+          if (typeof value !== 'string') return
+          const trimmed = value.trimStart()
+          if (trimmed !== value) return { value: trimmed }
+        },
+      },
+    },
     { name: 'summary', label: 'Summary', type: 'textArea', required: true, localized: true },
     {
       name: 'publishedOn',

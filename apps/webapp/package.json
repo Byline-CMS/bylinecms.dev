@@ -25,9 +25,9 @@
     "preview": "vite preview",
     "clean": "rimraf node_modules dist build .output .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "test": "vitest --mode=jsdom",
-    "test:jsdom": "vitest --mode=jsdom",
-    "test:node": "vitest --mode=node"
+    "test": "vitest run --mode=jsdom",
+    "test:jsdom": "vitest run --mode=jsdom",
+    "test:node": "vitest run --mode=node"
   },
   "dependencies": {
     "@byline/core": "workspace:*",

@@ -57,6 +57,65 @@ export interface DefaultValueContext {
 
 export type DefaultValue<T = unknown> = T | ((ctx: DefaultValueContext) => T | Promise<T>)
 
+// ---------------------------------------------------------------------------
+// Field-level hooks (client-side)
+// ---------------------------------------------------------------------------
+
+/**
+ * Context passed to field-level hooks. Gives the hook access to the changing
+ * value, the previous value, the full document data, and the field definition.
+ */
+export interface FieldHookContext {
+  /** The incoming value (after the user edit). */
+  value: any
+  /** The value before this edit. */
+  previousValue: any
+  /** Current document data (full form state). */
+  data: Record<string, any>
+  /** Dot-path of the field inside the document, e.g. `"content.0.richText"`. */
+  path: string
+  /** The field definition this hook is attached to. */
+  field: Field
+}
+
+/**
+ * Return type of `beforeChange`. Allows the hook to:
+ *  - replace the value (`value`),
+ *  - reject the change with a per-field error (`error`),
+ *  - or do nothing (return `undefined` / `{}`).
+ */
+export interface FieldBeforeChangeResult {
+  /** If set, this value replaces the incoming value. */
+  value?: any
+  /** If set, the change is blocked and this message is shown as a field error. */
+  error?: string
+}
+
+/**
+ * Hooks that can be attached to any field via the `hooks` property on the
+ * field definition. Both hooks are async-capable to support debounced
+ * remote validation or similar patterns.
+ */
+export interface FieldHooks {
+  /**
+   * Fires **before** the built-in validation rules are evaluated.
+   * Returning `{ error }` short-circuits: the value is **not** written and
+   * the error is displayed on the field.
+   */
+  beforeValidate?: (
+    ctx: FieldHookContext
+  ) => FieldBeforeChangeResult | Promise<FieldBeforeChangeResult> | void | Promise<void>
+  /**
+   * Fires **after** validation passes but **before** the value is committed
+   * to the form store and a patch is emitted.
+   * Returning `{ value }` substitutes the committed value (e.g. trim, slug).
+   * Returning `{ error }` blocks the change.
+   */
+  beforeChange?: (
+    ctx: FieldHookContext
+  ) => FieldBeforeChangeResult | Promise<FieldBeforeChangeResult> | void | Promise<void>
+}
+
 // Base properties that all fields share
 interface BaseField {
   name: string
@@ -72,6 +131,11 @@ interface BaseField {
    * Can be a literal or an (async) function.
    */
   defaultValue?: DefaultValue
+  /**
+   * Optional field-level hooks that run on the client during editing.
+   * @see FieldHooks
+   */
+  hooks?: FieldHooks
 }
 
 // Base for presentational fields that contain nested fields
