@@ -68,7 +68,7 @@ const FormStatusDisplay = ({
       {publishedVersion != null && (
         <div className="published-version-notice flex items-center gap-2 text-xs">
           <span className="text-green-600 dark:text-green-500">
-            A published version is currently live
+            A published version is currently live. {' '}
             {publishedVersion.updated_at
               ? (<span>Published on <LocalDateTime value={publishedVersion.updated_at} /></span>)
               : ''
