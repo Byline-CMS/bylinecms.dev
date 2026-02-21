@@ -175,6 +175,7 @@ const FormContent = ({
 }) => {
   const {
     getFieldValues,
+    runFieldHooks,
     validateForm,
     errors: initialErrors,
     hasChanges: hasChangesFn,
@@ -210,23 +211,28 @@ const FormContent = ({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    // Validate form
-    const formErrors = validateForm(fields)
-    if (formErrors.length > 0) {
-      console.error('Form validation failed:', formErrors)
-      return
-    }
+    // Run field-level beforeValidate hooks (submit-time), then validate
+    void (async () => {
+      const hookErrors = await runFieldHooks(fields)
+      const formErrors = validateForm(fields)
+      const allErrors = [...hookErrors, ...formErrors]
 
-    const data = getFieldValues()
-    const patches = getPatches()
+      if (allErrors.length > 0) {
+        console.error('Form validation failed:', allErrors)
+        return
+      }
 
-    if (onSubmit && typeof onSubmit === 'function') {
-      onSubmit({ data, patches })
-      resetHasChanges()
-    }
+      const data = getFieldValues()
+      const patches = getPatches()
+
+      if (onSubmit && typeof onSubmit === 'function') {
+        onSubmit({ data, patches })
+        resetHasChanges()
+      }
+    })()
   }
 
   // Split fields by admin config position
@@ -238,7 +244,7 @@ const FormContent = ({
   const sidebarFields = fields.filter((f) => fieldPositions[f.name]?.position === 'sidebar')
 
   return (
-    <form onSubmit={handleSubmit} className="w-full flex flex-col">
+    <form noValidate onSubmit={handleSubmit} className="w-full flex flex-col">
       {errors.length > 0 && (
         <div className="mb-4 p-3 bg-canvas-25 dark:bg-canvas-800 border border-red-700 rounded">
           <h4 className="text-red-800 font-medium">Please fix the following errors:</h4>

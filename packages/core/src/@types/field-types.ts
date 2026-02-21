@@ -76,6 +76,14 @@ export interface FieldHookContext {
   path: string
   /** The field definition this hook is attached to. */
   field: Field
+  /**
+   * `'change'` — fired on every keystroke / field edit.
+   * `'submit'` — fired once during form submit, before `validateForm()`.
+   *
+   * Hooks can use this to vary behaviour, e.g. only auto-populate a
+   * derived value at submit time while showing advisory errors on change.
+   */
+  operation: 'change' | 'submit'
 }
 
 /**
@@ -99,17 +107,24 @@ export interface FieldBeforeChangeResult {
 export interface FieldHooks {
   /**
    * Fires **before** the built-in validation rules are evaluated.
-   * Returning `{ error }` short-circuits: the value is **not** written and
-   * the error is displayed on the field.
+   *
+   * This hook is **advisory**: the value is always committed to the form
+   * store regardless of the result. Returning `{ error }` displays a
+   * per-field error (useful for live validation feedback) but does **not**
+   * block the change — the user can keep typing.
    */
   beforeValidate?: (
     ctx: FieldHookContext
   ) => FieldBeforeChangeResult | Promise<FieldBeforeChangeResult> | void | Promise<void>
   /**
-   * Fires **after** validation passes but **before** the value is committed
+   * Fires **after** `beforeValidate` but **before** the value is committed
    * to the form store and a patch is emitted.
+   *
    * Returning `{ value }` substitutes the committed value (e.g. trim, slug).
-   * Returning `{ error }` blocks the change.
+   * Returning `{ error }` **blocks** the change — the value is not written.
+   *
+   * ⚠️  Value transformations will reset the cursor position in text inputs.
+   * Prefer `beforeValidate` for feedback that should not interfere with typing.
    */
   beforeChange?: (
     ctx: FieldHookContext

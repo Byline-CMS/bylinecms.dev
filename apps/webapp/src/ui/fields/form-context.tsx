@@ -9,7 +9,7 @@
 import type React from 'react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 
-import type { Field } from '@byline/core'
+import type { Field, FieldBeforeChangeResult, FieldHookContext } from '@byline/core'
 import type { DocumentPatch, FieldSetPatch } from '@byline/core/patches'
 import { get as getNestedValue, set as setNestedValue } from 'lodash-es'
 
@@ -32,6 +32,7 @@ interface FormContextType {
   resetPatches: () => void
   hasChanges: () => boolean
   resetHasChanges: () => void
+  runFieldHooks: (fields: Field[]) => Promise<FormError[]>
   validateForm: (fields: Field[]) => FormError[]
   errors: FormError[]
   clearErrors: () => void
@@ -386,6 +387,59 @@ export const FormProvider = ({
     [notifyErrorListeners]
   )
 
+  /**
+   * Run `beforeValidate` hooks for every top-level field that defines one.
+   * Called at submit time, before `validateForm()`. Hooks may return
+   * `{ value }` to auto-populate a field, or `{ error }` to block submit.
+   */
+  const runFieldHooks = useCallback(
+    async (fields: Field[]): Promise<FormError[]> => {
+      const hookErrors: FormError[] = []
+      const data = { ...fieldValues.current }
+
+      for (const field of fields) {
+        const hook = field.hooks?.beforeValidate
+        if (!hook) continue
+
+        const path = field.name
+        const value = getFieldValue(path)
+
+        const ctx: FieldHookContext = {
+          value,
+          previousValue: value,
+          data,
+          path,
+          field,
+          operation: 'submit',
+        }
+
+        try {
+          const result = (await hook(ctx)) as FieldBeforeChangeResult | undefined
+          if (result?.error) {
+            hookErrors.push({ field: path, message: result.error })
+          }
+          if (result?.value !== undefined) {
+            // Auto-populate: write the derived value into the store
+            setFieldValue(path, result.value)
+            // Keep data snapshot in sync for subsequent hooks
+            data[path] = result.value
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Unexpected hook error'
+          hookErrors.push({ field: path, message })
+        }
+      }
+
+      if (hookErrors.length > 0) {
+        errorsRef.current = [...errorsRef.current, ...hookErrors]
+        notifyErrorListeners()
+      }
+
+      return hookErrors
+    },
+    [getFieldValue, setFieldValue, notifyErrorListeners]
+  )
+
   return (
     <FormContext.Provider
       value={{
@@ -400,6 +454,7 @@ export const FormProvider = ({
         },
         hasChanges,
         resetHasChanges,
+        runFieldHooks,
         validateForm,
         errors: errorsRef.current,
         clearErrors,

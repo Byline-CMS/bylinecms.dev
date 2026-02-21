@@ -17,9 +17,10 @@ import { useFormContext } from './form-context'
  * field-hook pipeline before committing the value:
  *
  *   1. `clearFieldError(path)`
- *   2. `field.hooks.beforeValidate(ctx)` — may return `{ error }` to block
+ *   2. `field.hooks.beforeValidate(ctx)` — advisory: may set an error on
+ *      the field but the value is **always** committed (user can keep typing)
  *   3. `field.hooks.beforeChange(ctx)` — may return `{ value }` to replace
- *      or `{ error }` to block
+ *      or `{ error }` to block the change entirely
  *   4. `setFieldValue(path, finalValue)`
  *
  * When the field has no hooks the function is a zero-overhead pass-through
@@ -47,20 +48,21 @@ export function useFieldChangeHandler(field: Field, path: string) {
         data: getFieldValues(),
         path,
         field,
+        operation: 'change',
       }
 
       clearFieldError(path)
 
       void (async () => {
         try {
-          // 1. beforeValidate
+          // 1. beforeValidate (advisory — value is always committed)
+          let advisoryError: string | undefined
           if (hooks?.beforeValidate) {
             const result = (await hooks.beforeValidate(ctx)) as FieldBeforeChangeResult | undefined
             if (result?.error) {
-              setFieldError(path, result.error)
-              return // block the change
+              advisoryError = result.error
             }
-            // Allow beforeValidate to transform the value too
+            // Allow beforeValidate to adjust the value passed to beforeChange
             if (result?.value !== undefined) {
               ctx.value = result.value
             }
@@ -78,8 +80,11 @@ export function useFieldChangeHandler(field: Field, path: string) {
             }
           }
 
-          // 3. commit
+          // 3. commit the value, then surface any advisory error
           setFieldValue(path, ctx.value)
+          if (advisoryError) {
+            setFieldError(path, advisoryError)
+          }
         } catch (err) {
           // Surface unexpected hook errors as field errors rather than crashing
           const message = err instanceof Error ? err.message : 'Unexpected hook error'

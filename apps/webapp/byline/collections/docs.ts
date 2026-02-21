@@ -16,6 +16,7 @@ import {
 
 import { PhotoBlock } from '../blocks/photo-block.js'
 import { RichTextBlock } from '../blocks/richtext-block.js'
+import { formatSlug } from '../utilities/format-slug.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -43,17 +44,7 @@ export const Docs: CollectionDefinition = {
       type: 'text',
       required: true,
       hooks: {
-        // Enforce URL-safe slug format on every keystroke
-        beforeChange: ({ value }) => {
-          if (typeof value !== 'string') return
-          const slug = value
-            .toLowerCase()
-            .trim()
-            .replace(/[^a-z0-9-]/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '')
-          return { value: slug }
-        },
+        beforeValidate: formatSlug('title'),
       },
     },
     {
@@ -62,11 +53,11 @@ export const Docs: CollectionDefinition = {
       type: 'text',
       required: true,
       hooks: {
-        // Trim leading/trailing whitespace before committing
-        beforeChange: ({ value }) => {
-          if (typeof value !== 'string') return
-          const trimmed = value.trimStart()
-          if (trimmed !== value) return { value: trimmed }
+        // Advisory: flag leading whitespace without altering the value.
+        beforeValidate: ({ value }) => {
+          if (typeof value === 'string' && value !== value.trimStart()) {
+            return { error: 'Title should not start with whitespace' }
+          }
         },
       },
     },
