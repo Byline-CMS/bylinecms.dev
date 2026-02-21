@@ -16,6 +16,8 @@ import {
 
 // ---- Schema (server-safe, no UI concerns) ----
 
+import { formatSlug } from '../utilities/format-slug.js'
+
 export const Pages: CollectionDefinition = {
   path: 'pages',
   labels: {
@@ -33,7 +35,15 @@ export const Pages: CollectionDefinition = {
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   fields: [
-    { name: 'path', label: 'Path', type: 'text', required: true },
+    {
+      name: 'path',
+      label: 'Path',
+      type: 'text',
+      required: true,
+      hooks: {
+        beforeValidate: formatSlug('title'),
+      },
+    },
     { name: 'title', label: 'Title', type: 'text', required: true },
     {
       name: 'category',

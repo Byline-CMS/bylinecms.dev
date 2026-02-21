@@ -14,6 +14,8 @@ import {
   defineWorkflow,
 } from '@byline/core'
 
+import { formatSlug } from '../utilities/format-slug.js'
+
 // ---- Schema (server-safe, no UI concerns) ----
 
 export const News: CollectionDefinition = {
@@ -33,7 +35,15 @@ export const News: CollectionDefinition = {
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   fields: [
-    { name: 'path', label: 'Path', type: 'text', required: true },
+    {
+      name: 'path',
+      label: 'Path',
+      type: 'text',
+      required: true,
+      hooks: {
+        beforeValidate: formatSlug('title'),
+      },
+    },
     { name: 'title', label: 'Title', type: 'text', required: true },
     {
       name: 'content',
