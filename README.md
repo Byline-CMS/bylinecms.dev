@@ -50,13 +50,13 @@ We’re not certain yet, and likely not at this early stage. Our priority is to 
 We're working on a prototype as a 'proof of concept' for our design goals. It runs, and you're more than welcome to follow along, but it will almost certain change significantly over time.
 </details>
 
-<!-- <details>
-<summary>8. Will you fork Payload CMS? </summary>
-Absolutely not. The initial maintainers of this project were also Payload CMS users. Payload is a great CMS, with several caveats and one recent event. The main caveat is Payload's tight integration with Next.js and resulting complexity, and so there would be no point in taking on the complexity of Payload when it's the complexity of the project itself we'd like to avoid. The 'event' is Payload's recent acquisition by Figma. We're not sure yet what this means for the future of Payload and so we felt there would be no harm (and maybe even some fun) in considering an alternative.
-</details> -->
+<details>
+<summary>8. Why do some of your design decisions look a little like Payload CMS? </summary>
+The current maintainers of this project were also [Payload CMS](https://payloadcms.com/) users. Payload is a great CMS, with a few caveats and one recent event. The main caveats are Payload's tight integration with Next.js, its monolithic configuration system, and its current storage model (see our Key Architectural Decisions below). The 'event' is Payload's recent acquisition by Figma. We're not sure yet what this means for the future of Payload and so we felt there would be no harm (and maybe even some fun) in considering an alternative.
+</details>
 
 <details>
-<summary>8. Why the Mozilla Public License (MPL-2.0) Version 2.0?</summary>
+<summary>9. Why the Mozilla Public License (MPL-2.0) Version 2.0?</summary>
 
 We chose the MPL as we feel this represents the best balance between community-driven open source software, and allowing commercial value-based services to flourish.
 
