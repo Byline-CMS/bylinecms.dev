@@ -278,7 +278,7 @@ Enjoy and stay tuned!
 This project is licensed under the Mozilla Public License Version 2.0.
 A copy of the full license text can be found in the LICENSE file.
 
-Copyright © 2025 Infonomic Company Limited
+Copyright © 2026 Infonomic Company Limited
 
 For full details, please refer to the [LICENSE](LICENSE) and [COPYRIGHT](COPYRIGHT) files in this repository.
 
