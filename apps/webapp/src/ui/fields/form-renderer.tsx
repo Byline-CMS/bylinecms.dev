@@ -6,15 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-// NOTE: Before you dunk on this, this is a totally naïve  and "weekend hack"
-// implementation of a form renderer used only for prototype development.
-
 import { useEffect, useState } from 'react'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
 import { Button, ComboButton } from '@infonomic/uikit/react'
 
-import { formatDateTime } from '../../utils/utils.general'
+import { LocalDateTime } from '../components/local-date-time'
 import { FieldRenderer } from '../fields/field-renderer'
 import { FormProvider, useFormContext } from '../fields/form-context'
 
@@ -53,7 +50,7 @@ const FormStatusDisplay = ({
           <div className="last-modified flex items-center gap-1 min-w-0">
             <span className="muted shrink-0">Last modified:</span>
             <span className="truncate overflow-hidden">
-              {formatDateTime(initialData?.updated_at)}
+              <LocalDateTime value={initialData.updated_at} />
             </span>
           </div>
         )}
@@ -62,7 +59,7 @@ const FormStatusDisplay = ({
           <div className="created flex items-center gap-1 min-w-0">
             <span className="muted shrink-0">Created:</span>
             <span className="truncate overflow-hidden">
-              {formatDateTime(initialData?.created_at)}
+              <LocalDateTime value={initialData.created_at} />
             </span>
           </div>
         )}
@@ -73,8 +70,9 @@ const FormStatusDisplay = ({
           <span className="text-green-600 dark:text-green-500">
             A published version is currently live
             {publishedVersion.updated_at
-              ? ` (published ${formatDateTime(publishedVersion.updated_at as string)})`
-              : ''}
+              ? (<span>Published on <LocalDateTime value={publishedVersion.updated_at} /></span>)
+              : ''
+            }
           </span>
           {onUnpublish && (
             <button
