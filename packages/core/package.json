@@ -51,6 +51,11 @@
       "import": "./dist/workflow/index.js",
       "require": "./dist/workflow/index.js"
     },
+    "./services": {
+      "types": "./dist/services/index.d.ts",
+      "import": "./dist/services/index.js",
+      "require": "./dist/services/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

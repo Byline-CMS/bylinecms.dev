@@ -193,39 +193,140 @@ export function defineWorkflow(input: DefineWorkflowInput = {}): WorkflowConfig 
 // Hooks
 // ---------------------------------------------------------------------------
 
+// -- Hook context types -----------------------------------------------------
+
+/**
+ * Context passed to `beforeCreate` hooks.
+ *
+ * The hook can mutate `data` before it is persisted.
+ */
+export interface BeforeCreateContext {
+  data: Record<string, any>
+  collectionPath: string
+}
+
+/**
+ * Context passed to `afterCreate` hooks.
+ *
+ * Includes the `documentId` and `documentVersionId` returned by storage
+ * so the hook can reference the persisted document.
+ */
+export interface AfterCreateContext {
+  data: Record<string, any>
+  collectionPath: string
+  documentId: string
+  documentVersionId: string
+}
+
+/**
+ * Context passed to `beforeUpdate` hooks — both PUT and patch flows.
+ *
+ * `data` is the next version (mutable). `originalData` is the previous
+ * version as reconstructed from storage.
+ */
+export interface BeforeUpdateContext {
+  data: Record<string, any>
+  originalData: Record<string, any>
+  collectionPath: string
+}
+
+/**
+ * Context passed to `afterUpdate` hooks.
+ *
+ * Includes the `documentId` and `documentVersionId` of the newly created
+ * version so the hook can reference the persisted document.
+ */
+export interface AfterUpdateContext {
+  data: Record<string, any>
+  originalData: Record<string, any>
+  collectionPath: string
+  documentId: string
+  documentVersionId: string
+}
+
+/**
+ * Context passed to `beforeStatusChange` / `afterStatusChange` hooks.
+ */
+export interface StatusChangeContext {
+  documentId: string
+  documentVersionId: string
+  collectionPath: string
+  previousStatus: string
+  nextStatus: string
+}
+
+/**
+ * Context passed to `beforeUnpublish` hooks.
+ */
+export interface BeforeUnpublishContext {
+  documentId: string
+  collectionPath: string
+}
+
+/**
+ * Context passed to `afterUnpublish` hooks.
+ *
+ * `archivedCount` indicates how many published versions were archived.
+ */
+export interface AfterUnpublishContext {
+  documentId: string
+  collectionPath: string
+  archivedCount: number
+}
+
+/**
+ * Context passed to `beforeDelete` / `afterDelete` hooks (future).
+ */
+export interface DeleteContext {
+  id: string
+  collectionPath: string
+}
+
+// -- CollectionHooks interface ----------------------------------------------
+
 /**
  * Lifecycle hooks for a collection.
  *
- * Each hook receives a context object. `beforeChange` hooks can mutate the
- * data before it is persisted; `afterChange` hooks receive the final data
- * after persistence.
+ * Each hook receives a typed context object. `before*` hooks can mutate the
+ * data before it is persisted; `after*` hooks receive the final data after
+ * persistence together with identifiers of what was created/updated.
+ *
+ * Hooks run **outside** the storage transaction — they cannot participate in
+ * the atomic write. They are suitable for logging, cache invalidation,
+ * webhooks, and similar side-effects.
  *
  * Hooks are optional — if omitted, the framework skips the step.
  */
 export interface CollectionHooks {
+  // -- Document create ------------------------------------------------------
   /** Runs before a new document is created. Can mutate `data`. */
-  beforeCreate?: (ctx: {
-    data: Record<string, any>
-    collectionPath: string
-  }) => void | Promise<void>
+  beforeCreate?: (ctx: BeforeCreateContext) => void | Promise<void>
   /** Runs after a new document is created. */
-  afterCreate?: (ctx: { data: Record<string, any>; collectionPath: string }) => void | Promise<void>
+  afterCreate?: (ctx: AfterCreateContext) => void | Promise<void>
+
+  // -- Document update (PUT or patches) -------------------------------------
   /** Runs before an existing document is updated (PUT or patch). Can mutate `data`. */
-  beforeUpdate?: (ctx: {
-    data: Record<string, any>
-    originalData: Record<string, any>
-    collectionPath: string
-  }) => void | Promise<void>
+  beforeUpdate?: (ctx: BeforeUpdateContext) => void | Promise<void>
   /** Runs after an existing document is updated. */
-  afterUpdate?: (ctx: {
-    data: Record<string, any>
-    originalData: Record<string, any>
-    collectionPath: string
-  }) => void | Promise<void>
+  afterUpdate?: (ctx: AfterUpdateContext) => void | Promise<void>
+
+  // -- Workflow status change -----------------------------------------------
+  /** Runs before a document's workflow status is changed. */
+  beforeStatusChange?: (ctx: StatusChangeContext) => void | Promise<void>
+  /** Runs after a document's workflow status has been changed. */
+  afterStatusChange?: (ctx: StatusChangeContext) => void | Promise<void>
+
+  // -- Unpublish (cross-version archive) ------------------------------------
+  /** Runs before a published document is unpublished (archived). */
+  beforeUnpublish?: (ctx: BeforeUnpublishContext) => void | Promise<void>
+  /** Runs after a published document has been unpublished.  */
+  afterUnpublish?: (ctx: AfterUnpublishContext) => void | Promise<void>
+
+  // -- Document delete (future) ---------------------------------------------
   /** Runs before a document is deleted. */
-  beforeDelete?: (ctx: { id: string; collectionPath: string }) => void | Promise<void>
+  beforeDelete?: (ctx: DeleteContext) => void | Promise<void>
   /** Runs after a document is deleted. */
-  afterDelete?: (ctx: { id: string; collectionPath: string }) => void | Promise<void>
+  afterDelete?: (ctx: DeleteContext) => void | Promise<void>
 }
 
 export interface CollectionDefinition {

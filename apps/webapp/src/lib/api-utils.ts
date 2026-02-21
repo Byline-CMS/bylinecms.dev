@@ -18,8 +18,11 @@
 
 import type { CollectionDefinition } from '@byline/core'
 import { getCollectionDefinition, getServerConfig } from '@byline/core'
+import { normaliseDateFields } from '@byline/core/services'
 import { booleanSchema } from '@infonomic/schemas'
 import * as z from 'zod'
+
+export { normaliseDateFields }
 
 export const collectionListSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -67,15 +70,6 @@ export async function ensureCollection(
   }
 
   return { definition: collectionDefinition, collection }
-}
-
-/**
- * Normalise known date-like fields to Date instances before persisting.
- */
-export function normaliseDateFields(data: Record<string, any>): void {
-  if (typeof data.created_at === 'string') data.created_at = new Date(data.created_at)
-  if (typeof data.updated_at === 'string') data.updated_at = new Date(data.updated_at)
-  if (typeof data.publishedOn === 'string') data.publishedOn = new Date(data.publishedOn)
 }
 
 /**

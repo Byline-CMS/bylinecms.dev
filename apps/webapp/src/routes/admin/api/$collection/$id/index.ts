@@ -17,9 +17,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { getServerConfig } from '@byline/core'
-import { getDefaultStatus } from '@byline/core/workflow'
+import type { DocumentLifecycleContext } from '@byline/core/services'
+import { updateDocument } from '@byline/core/services'
 
-import { ensureCollection, normaliseDateFields } from '@/lib/api-utils'
+import { ensureCollection } from '@/lib/api-utils'
 
 export const Route = createFileRoute('/admin/api/$collection/$id/')({
   server: {
@@ -95,45 +96,19 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
 
         const documentData = structuredClone(await request.json())
 
-        // TODO: Validate the documentData against the collection schema and
-        // coerce values to the correct types.
-        normaliseDateFields(documentData)
-
         const db = getServerConfig().db
-
-        // Lifecycle: beforeUpdate
-        if (config.definition.hooks?.beforeUpdate) {
-          await config.definition.hooks.beforeUpdate({
-            data: documentData,
-            originalData: documentData, // PUT replaces wholesale — no separate original
-            collectionPath: path,
-          })
+        const ctx: DocumentLifecycleContext = {
+          db,
+          definition: config.definition,
+          collectionId: config.collection.id,
+          collectionPath: path,
         }
 
-        // New versions always start at the collection's default status (typically
-        // 'draft'). This preserves any previously published version so that the
-        // published content remains live until the editor explicitly re-publishes.
-        const defaultStatus = getDefaultStatus(config.definition)
-
-        await db.commands.documents.createDocumentVersion({
+        await updateDocument(ctx, {
           documentId: id,
-          collectionId: config.collection.id,
-          collectionConfig: config.definition,
-          action: 'update',
-          documentData,
-          path: documentData.path,
-          status: defaultStatus,
+          data: documentData,
           locale: 'en',
         })
-
-        // Lifecycle: afterUpdate
-        if (config.definition.hooks?.afterUpdate) {
-          await config.definition.hooks.afterUpdate({
-            data: documentData,
-            originalData: documentData,
-            collectionPath: path,
-          })
-        }
 
         return Response.json({ status: 'ok' })
       },

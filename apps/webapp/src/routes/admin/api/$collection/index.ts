@@ -21,8 +21,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { getServerConfig } from '@byline/core'
+import type { DocumentLifecycleContext } from '@byline/core/services'
+import { createDocument } from '@byline/core/services'
 
-import { collectionListSchema, ensureCollection, normaliseDateFields } from '@/lib/api-utils'
+import { collectionListSchema, ensureCollection } from '@/lib/api-utils'
 
 export const Route = createFileRoute('/admin/api/$collection/')({
   server: {
@@ -85,49 +87,19 @@ export const Route = createFileRoute('/admin/api/$collection/')({
 
         const documentData = structuredClone(await request.json())
 
-        // TODO: Validate the documentData against the collection schema and
-        // coerce values to the correct types.
-        normaliseDateFields(documentData)
-
-        // Lifecycle: beforeCreate
-        if (config.definition.hooks?.beforeCreate) {
-          await config.definition.hooks.beforeCreate({
-            data: documentData,
-            collectionPath: path,
-          })
-        }
-
-        // Ensure path is present. If not, generate one from title or random UUID.
-        if (!documentData.path) {
-          if (documentData.title) {
-            documentData.path = documentData.title
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/(^-|-$)+/g, '')
-          } else {
-            documentData.path = crypto.randomUUID()
-          }
-        }
-
         const db = getServerConfig().db
-
-        await db.commands.documents.createDocumentVersion({
+        const ctx: DocumentLifecycleContext = {
+          db,
+          definition: config.definition,
           collectionId: config.collection.id,
-          collectionConfig: config.definition,
-          action: 'create',
-          documentData,
-          path: documentData.path,
+          collectionPath: path,
+        }
+
+        await createDocument(ctx, {
+          data: documentData,
           status: documentData.status,
           locale: 'en',
         })
-
-        // Lifecycle: afterCreate
-        if (config.definition.hooks?.afterCreate) {
-          await config.definition.hooks.afterCreate({
-            data: documentData,
-            collectionPath: path,
-          })
-        }
 
         return Response.json({ status: 'ok' })
       },

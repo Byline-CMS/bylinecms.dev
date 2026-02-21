@@ -2,7 +2,7 @@
 
 Byline CMS is a **pnpm + Turborepo** monorepo (prototype / PoC). Key packages:
 - `apps/webapp`: TanStack Start in SPA mode + React admin UI.
-- `packages/byline` (`@byline/core`): core config, types, patch logic, workflow, Zod schema builder.
+- `packages/core` (`@byline/core`): core config, types, patch logic, workflow, Zod schema builder.
 - `packages/db-postgres` (`@byline/db-postgres`): Postgres adapter (Drizzle ORM).
 - `packages/db-remote` (`@byline/db-remote`): remote/stub adapter (placeholder).
 
@@ -11,7 +11,7 @@ Byline CMS is a **pnpm + Turborepo** monorepo (prototype / PoC). Key packages:
 - Build: `pnpm build` (4 packages: `@byline/core`, `@byline/db-postgres`, `@byline/db-remote`, `@byline/webapp`)
 - Lint/format: `pnpm lint` (Biome). Prefer Biome fixes; don't introduce ESLint/Prettier workflows.
 - Tests: `pnpm test` (Turbo). App-specific: `cd apps/webapp && pnpm test` or `pnpm test:one -- <file>`
-  - Core tests: `cd packages/byline && pnpm test` (Vitest — patches + workflow).
+  - Core tests: `cd packages/core && pnpm test` (Vitest — patches + workflow).
   - DB tests: `cd packages/db-postgres && pnpm test` (tsx --test — requires running Postgres).
 
 ## Database workflows (prototype)
@@ -46,7 +46,7 @@ the existing version row in-place (status is lifecycle metadata, not content).
 
 ### 3. Patch-based updates
 The client accumulates `DocumentPatch[]` and POSTs `{ data, patches }`. The server applies patches
-via `applyPatches` (`packages/byline/src/patches/`). Three patch families: `field.*`, `array.*`,
+via `applyPatches` (`packages/core/src/patches/`). Three patch families: `field.*`, `array.*`,
 `block.*`. This design is a foundation for future collaborative editing (OT/CRDT).
 
 ### 4. Schema / presentation split
@@ -65,7 +65,7 @@ formatters. This mirrors Django's "model vs ModelAdmin" pattern.
 - **Dashboard routing**: `@tanstack/react-router` file-based routes under `apps/webapp/src/routes`
   with generated `src/routeTree.gen.ts`. Route files export `Route = createFileRoute(...)`.
 - **Validation**: Zod is the default runtime validator (e.g. `apps/webapp/src/lib/api-utils.ts`).
-  The Zod schema builder in `packages/byline/src/schemas/zod/builder.ts` generates per-collection
+  The Zod schema builder in `packages/core/src/schemas/zod/builder.ts` generates per-collection
   schemas (including dynamic status enums derived from workflow config).
 - **DB schema is in one place**: `packages/db-postgres/src/database/schema/index.ts`;
   migrations in `packages/db-postgres/src/database/migrations`.
@@ -84,8 +84,8 @@ formatters. This mirrors Django's "model vs ModelAdmin" pattern.
 
 ### Workflow system
 - **Types**: `WorkflowStatus { name, label?, verb? }`, `WorkflowConfig { statuses, defaultStatus? }`,
-  `defineWorkflow()` — all in `packages/byline/src/@types/collection-types.ts`.
-- **Logic**: `packages/byline/src/workflow/workflow.ts` — `getWorkflow()`, `getWorkflowStatuses()`,
+  `defineWorkflow()` — all in `packages/core/src/@types/collection-types.ts`.
+- **Logic**: `packages/core/src/workflow/workflow.ts` — `getWorkflow()`, `getWorkflowStatuses()`,
   `getDefaultStatus()`, `validateStatusTransition()` (±1 step or reset-to-first),
   `getAvailableTransitions()`.
 - **Subpath export**: `@byline/core/workflow` (also re-exported from `@byline/core` main barrel).

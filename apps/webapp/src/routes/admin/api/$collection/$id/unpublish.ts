@@ -22,6 +22,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { getServerConfig } from '@byline/core'
+import type { DocumentLifecycleContext } from '@byline/core/services'
+import { unpublishDocument } from '@byline/core/services'
 
 import { ensureCollection } from '@/lib/api-utils'
 
@@ -40,15 +42,16 @@ export const Route = createFileRoute('/admin/api/$collection/$id/unpublish')({
         }
 
         const db = getServerConfig().db
+        const ctx: DocumentLifecycleContext = {
+          db,
+          definition: config.definition,
+          collectionId: config.collection.id,
+          collectionPath: path,
+        }
 
-        // Archive ALL published versions of this document so it is
-        // completely taken offline. This handles the (unlikely) case where
-        // multiple versions ended up with 'published' status.
-        const archivedCount = await db.commands.documents.archivePublishedVersions({
-          document_id: id,
-        })
+        const result = await unpublishDocument(ctx, { documentId: id })
 
-        if (archivedCount === 0) {
+        if (result.archivedCount === 0) {
           return Response.json(
             { error: 'No published version found for this document.' },
             { status: 404 }
@@ -57,7 +60,7 @@ export const Route = createFileRoute('/admin/api/$collection/$id/unpublish')({
 
         return Response.json({
           status: 'ok',
-          archivedCount,
+          archivedCount: result.archivedCount,
         })
       },
     },
