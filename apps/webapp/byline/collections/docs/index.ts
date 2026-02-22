@@ -146,7 +146,7 @@ export const Docs: CollectionDefinition = {
       name: 'featured',
       label: 'Featured',
       type: 'checkbox',
-      helpText: 'Is this page featured on the home page?',
+      helpText: 'Feature this document.',
     },
     {
       name: 'content',

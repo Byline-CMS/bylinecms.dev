@@ -74,7 +74,7 @@ export const Pages: CollectionDefinition = {
       name: 'featured',
       label: 'Featured',
       type: 'checkbox',
-      helpText: 'Is this page featured on the home page?',
+      helpText: 'Feature this page.',
     },
   ],
 }
