@@ -11,14 +11,31 @@ import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-ro
 
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Container, LoaderRing, Section, Select, SelectItem, Table } from '@infonomic/uikit/react'
+import { Container, IconButton, LoaderRing, Section, Select, SelectItem, Table } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
+import { DiffModal } from './diff-modal'
 import { ViewMenu } from './view-menu'
+
+function CompareSplitIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect x="1" y="2" width="6" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="9" y="2" width="6" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
 
 function Stats({ total }: { total: number }) {
   const [showLoader, _] = useState(false)
@@ -58,17 +75,20 @@ export const HistoryView = ({
   adminConfig,
   data,
   workflowStatuses,
+  currentDocument,
 }: {
   collectionDefinition: CollectionDefinition
   adminConfig?: CollectionAdminConfig
   data: AnyCollectionSchemaTypes['HistoryType']
   workflowStatuses?: WorkflowStatus[]
+  currentDocument?: Record<string, unknown> | null
 }) => {
   const { id, collection } = useParams({ from: '/admin/collections/$collection/$id/history' })
   const navigate = useNavigate()
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
   const location = useRouterState({ select: (s) => s.location })
+  const [selectedVersion, setSelectedVersion] = useState<{ versionId: string; label: string } | null>(null)
 
   function handleOnPageSizeChange(value: string): void {
     if (value != null && value.length > 0) {
@@ -112,6 +132,7 @@ export const HistoryView = ({
             <Table>
               <Table.Header>
                 <Table.Row>
+                  <th scope="col" className="w-[1%]" />
                   {columns.map((column) => {
                     return (
                       <TableHeadingCellSortable
@@ -130,8 +151,28 @@ export const HistoryView = ({
 
               <Table.Body>
                 {data?.documents?.map((document) => {
+                  const versionId = (document as any).document_version_id as string | undefined
                   return (
                     <Table.Row key={document.document_id}>
+                      <Table.Cell className="text-left">
+                        {versionId && currentDocument ? (
+                          <IconButton
+                            size="xs"
+                            aria-label="Compare this version with the current version"
+                            title="Compare with current"
+                            onClick={() =>
+                              setSelectedVersion({
+                                versionId,
+                                label: new Date(
+                                  (document as any).created_at ?? ''
+                                ).toLocaleString(),
+                              })
+                            }
+                          >
+                            <CompareSplitIcon />
+                          </IconButton>
+                        ) : null}
+                      </Table.Cell>
                       {columns.map((column) => (
                         <Table.Cell
                           key={String(column.fieldName)}
@@ -144,17 +185,36 @@ export const HistoryView = ({
                           }
                         >
                           {column.fieldName === 'title' ? (
-                            <Link
-                              to="/admin/collections/$collection/$id"
-                              params={{
-                                collection,
-                                id: document.document_id,
-                              }}
-                            >
-                              {column.formatter
-                                ? renderFormatted((document as any)[column.fieldName], document, column.formatter)
-                                : ((document as any)[column.fieldName] ?? '------')}
-                            </Link>
+                            versionId && currentDocument ? (
+                              <button
+                                type="button"
+                                className="text-left underline underline-offset-2 cursor-pointer hover:opacity-75"
+                                onClick={() =>
+                                  setSelectedVersion({
+                                    versionId,
+                                    label: new Date(
+                                      (document as any).created_at ?? ''
+                                    ).toLocaleString(),
+                                  })
+                                }
+                              >
+                                {column.formatter
+                                  ? renderFormatted((document as any)[column.fieldName], document, column.formatter)
+                                  : ((document as any)[column.fieldName] ?? '------')}
+                              </button>
+                            ) : (
+                              <Link
+                                to="/admin/collections/$collection/$id"
+                                params={{
+                                  collection,
+                                  id: document.document_id,
+                                }}
+                              >
+                                {column.formatter
+                                  ? renderFormatted((document as any)[column.fieldName], document, column.formatter)
+                                  : ((document as any)[column.fieldName] ?? '------')}
+                              </Link>
+                            )
                           ) : column.formatter ? (
                             renderFormatted((document as any)[column.fieldName], document, column.formatter)
                           ) : column.fieldName === 'status' && workflowStatuses ? (
@@ -199,6 +259,18 @@ export const HistoryView = ({
           </div>
         </Container>
       </Section>
+
+      {selectedVersion && currentDocument && (
+        <DiffModal
+          isOpen={true}
+          onDismiss={() => setSelectedVersion(null)}
+          collection={collection}
+          documentId={id}
+          versionId={selectedVersion.versionId}
+          versionLabel={selectedVersion.label}
+          currentDocument={currentDocument}
+        />
+      )}
     </>
   )
 }

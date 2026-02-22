@@ -64,6 +64,7 @@
     "lodash-es": "^4.17.23",
     "lucide-react": "^0.575.0",
     "react": "19.2.4",
+    "react-diff-viewer-continued": "^4.1.2",
     "react-dom": "19.2.4",
     "react-error-boundary": "^6.1.1",
     "react-hook-form": "^7.71.2",

@@ -27,12 +27,17 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
     handlers: {
       /**
        * GET /api/:collection/:id
+       * GET /api/:collection/:id?version_id=<document_version_id>
        *
        * Get a specific document by ID from a collection.
-       * Note: this expects a logical document_id, and not a document version ID.
+       * When `version_id` is provided, fetches that specific historical version
+       * instead of the current (latest) version.
+       * Note: the `id` param is the logical document_id, not a document version ID.
        */
-      GET: async ({ params }) => {
+      GET: async ({ request, params }) => {
         const { collection: path, id } = params
+        const { searchParams } = new URL(request.url)
+        const versionId = searchParams.get('version_id')
 
         const config = await ensureCollection(path)
         if (config == null) {
@@ -43,6 +48,19 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
         }
 
         const db = getServerConfig().db
+
+        // When version_id is supplied, fetch that specific historical version
+        // directly from document_versions (bypasses the current_documents view).
+        if (versionId) {
+          const document = await db.queries.documents.getDocumentByVersion({
+            document_version_id: versionId,
+            locale: 'en',
+          })
+          if (document == null) {
+            return Response.json({ error: 'Document version not found' }, { status: 404 })
+          }
+          return Response.json({ document })
+        }
 
         const document = await db.queries.documents.getDocumentById({
           collection_id: config.collection.id,

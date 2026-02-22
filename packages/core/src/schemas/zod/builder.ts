@@ -139,6 +139,7 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
   const statusEnum = z.enum([statuses[0], ...statuses.slice(1)] as [string, ...string[]])
 
   return z.object({
+    document_version_id: z.uuid().optional(),
     document_id: z.uuid(),
     status: statusEnum,
     created_at: z.iso.datetime(),

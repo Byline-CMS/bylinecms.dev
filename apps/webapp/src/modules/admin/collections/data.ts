@@ -100,6 +100,30 @@ export async function getCollectionDocumentHistory(
   return history.parse(rawData)
 }
 
+export async function getCollectionDocumentVersion(
+  collection: string,
+  documentId: string,
+  versionId: string
+) {
+  const url = `${API_BASE_URL}/${collection}/${documentId}?version_id=${encodeURIComponent(versionId)}`
+
+  const response = await fetch(url)
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null
+    }
+    throw new Error('Failed to fetch document version')
+  }
+
+  const rawData = await response.json()
+
+  // Parse through the same Zod schema used by getCollectionDocument so that
+  // key ordering and datetime formats are normalised identically on both sides
+  // of the diff — otherwise identical content renders as changed.
+  const { get } = getCollectionSchemasForPath(collection)
+  return get.parse(rawData.document) as Record<string, unknown>
+}
+
 export async function createCollectionDocument(collection: string, data: any) {
   const url = `${API_BASE_URL}/${collection}`
   const response = await fetch(url, {

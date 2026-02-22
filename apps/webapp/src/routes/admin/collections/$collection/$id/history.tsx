@@ -14,7 +14,7 @@ import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { HistoryView } from '@/modules/admin/collections/components/history'
-import { getCollectionDocumentHistory } from '@/modules/admin/collections/data'
+import { getCollectionDocument, getCollectionDocumentHistory } from '@/modules/admin/collections/data'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -39,15 +39,18 @@ export const Route = createFileRoute('/admin/collections/$collection/$id/history
       throw notFound()
     }
 
-    const data = await getCollectionDocumentHistory(params.collection, params.id, {
-      page,
-      page_size,
-      order,
-      desc,
-      locale,
-    })
+    const [history, currentDocument] = await Promise.all([
+      getCollectionDocumentHistory(params.collection, params.id, {
+        page,
+        page_size,
+        order,
+        desc,
+        locale,
+      }),
+      getCollectionDocument(params.collection, params.id),
+    ])
 
-    return data
+    return { history, currentDocument }
   },
   staleTime: 0,
   gcTime: 0,
@@ -56,7 +59,7 @@ export const Route = createFileRoute('/admin/collections/$collection/$id/history
 })
 
 function RouteComponent() {
-  const data = Route.useLoaderData()
+  const { history, currentDocument } = Route.useLoaderData()
   const { collection, id } = Route.useParams()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
   const adminConfig = getCollectionAdminConfig(collection)
@@ -77,7 +80,13 @@ function RouteComponent() {
           },
         ]}
       />
-      <HistoryView collectionDefinition={collectionDef} workflowStatuses={getWorkflowStatuses(collectionDef)} adminConfig={adminConfig ?? undefined} data={data} />
+      <HistoryView
+        collectionDefinition={collectionDef}
+        workflowStatuses={getWorkflowStatuses(collectionDef)}
+        adminConfig={adminConfig ?? undefined}
+        data={history}
+        currentDocument={currentDocument as Record<string, unknown> | null}
+      />
     </>
   )
 }
