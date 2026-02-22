@@ -70,7 +70,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.3",
+    "@biomejs/biome": "2.4.4",
     "@types/node": "^25.3.0",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",

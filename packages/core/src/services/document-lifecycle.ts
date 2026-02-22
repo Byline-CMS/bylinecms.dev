@@ -80,6 +80,10 @@ export interface UnpublishResult {
   archivedCount: number
 }
 
+export interface DeleteDocumentResult {
+  deletedVersionCount: number
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -438,6 +442,58 @@ export async function unpublishDocument(
   })
 
   return { archivedCount }
+}
+
+/**
+ * Soft-delete a document.
+ *
+ * Marks all versions of the document as deleted (`is_deleted = true`). The
+ * `current_documents` view automatically filters deleted rows, so the
+ * document disappears from all list / page queries without physically
+ * removing data.
+ *
+ * Flow:
+ *   1. `hooks.beforeDelete({ documentId, collectionPath })`
+ *   2. `db.commands.documents.softDeleteDocument({ document_id })`
+ *   3. `hooks.afterDelete({ documentId, collectionPath })`
+ */
+export async function deleteDocument(
+  ctx: DocumentLifecycleContext,
+  params: {
+    documentId: string
+  }
+): Promise<DeleteDocumentResult> {
+  const { db, collectionPath } = ctx
+  const hooks: CollectionHooks | undefined = ctx.definition.hooks
+
+  // 1. Verify the document exists.
+  const latest = await db.queries.documents.getDocumentById({
+    collection_id: ctx.collectionId,
+    document_id: params.documentId,
+    reconstruct: false,
+  })
+
+  if (latest == null) {
+    throw new DocumentNotFoundError(params.documentId)
+  }
+
+  const hookCtx = {
+    documentId: params.documentId,
+    collectionPath,
+  }
+
+  // 2. beforeDelete hook.
+  await invokeHook(hooks?.beforeDelete, hookCtx)
+
+  // 3. Soft-delete all versions.
+  const deletedVersionCount = await db.commands.documents.softDeleteDocument({
+    document_id: params.documentId,
+  })
+
+  // 4. afterDelete hook.
+  await invokeHook(hooks?.afterDelete, hookCtx)
+
+  return { deletedVersionCount }
 }
 
 // ---------------------------------------------------------------------------

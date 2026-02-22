@@ -412,6 +412,26 @@ export class DocumentCommands implements IDocumentCommands {
   }
 
   /**
+   * softDeleteDocument
+   *
+   * Mark ALL versions of a document as deleted by setting `is_deleted = true`.
+   * The `current_documents` view filters these out, so the document disappears
+   * from listings without physically removing data.
+   *
+   * Returns the number of version rows marked as deleted.
+   */
+  async softDeleteDocument(params: { document_id: string }): Promise<number> {
+    const result = await this.db
+      .update(documentVersions)
+      .set({
+        is_deleted: true,
+        updated_at: new Date(),
+      })
+      .where(eq(documentVersions.document_id, params.document_id))
+    return (result as any).rowCount ?? 0
+  }
+
+  /**
    * groupFieldValuesByStore
    *
    * Groups flattened field values into per-store-type buckets so they can be

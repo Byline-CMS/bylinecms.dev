@@ -50,6 +50,15 @@ export interface IDocumentCommands {
     currentStatus?: string
     excludeVersionId?: string
   }): Promise<number>
+
+  /**
+   * Soft-delete a document by setting `is_deleted = true` on ALL of its
+   * versions. The `current_documents` view automatically filters these out,
+   * so the document disappears from listings without physically removing data.
+   *
+   * Returns the number of version rows marked as deleted.
+   */
+  softDeleteDocument(params: { document_id: string }): Promise<number>
 }
 
 // From: /apps/dashboard/server/storage/storage-queries.ts

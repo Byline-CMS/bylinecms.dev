@@ -160,6 +160,7 @@ const FormContent = ({
   onCancel,
   onStatusChange,
   onUnpublish,
+  onDelete,
   nextStatus,
   workflowStatuses,
   publishedVersion,
@@ -171,6 +172,7 @@ const FormContent = ({
   onCancel: () => void
   onStatusChange?: (nextStatus: string) => Promise<void>
   onUnpublish?: () => Promise<void>
+  onDelete?: () => Promise<void>
   nextStatus?: WorkflowStatus
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
@@ -316,7 +318,7 @@ const FormContent = ({
               </ComboButton>
             </div>
           )}
-          <DocumentActions publishedVersion={publishedVersion} onUnpublish={onUnpublish} />
+          <DocumentActions publishedVersion={publishedVersion} onUnpublish={onUnpublish} onDelete={onDelete} />
         </div>
       </div>
       <div className="page-layout--two-columns--right-sticky pt-4">
@@ -349,6 +351,7 @@ export const FormRenderer = ({
   onCancel,
   onStatusChange,
   onUnpublish,
+  onDelete,
   nextStatus,
   workflowStatuses,
   publishedVersion,
@@ -360,6 +363,7 @@ export const FormRenderer = ({
   onCancel: () => void
   onStatusChange?: (nextStatus: string) => Promise<void>
   onUnpublish?: () => Promise<void>
+  onDelete?: () => Promise<void>
   nextStatus?: WorkflowStatus
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
@@ -373,6 +377,7 @@ export const FormRenderer = ({
       onCancel={onCancel}
       onStatusChange={onStatusChange}
       onUnpublish={onUnpublish}
+      onDelete={onDelete}
       nextStatus={nextStatus}
       workflowStatuses={workflowStatuses}
       publishedVersion={publishedVersion}

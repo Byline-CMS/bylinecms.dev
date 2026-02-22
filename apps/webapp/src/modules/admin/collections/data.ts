@@ -179,3 +179,19 @@ export async function unpublishDocument(collection: string, id: string) {
   }
   return response.json()
 }
+
+/**
+ * Delete a document (soft-delete).
+ * All versions are marked as deleted and the document disappears from listings.
+ */
+export async function deleteDocument(collection: string, id: string) {
+  const url = `${API_BASE_URL}/${collection}/${id}`
+  const response = await fetch(url, {
+    method: 'DELETE',
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to delete document')
+  }
+  return response.json()
+}

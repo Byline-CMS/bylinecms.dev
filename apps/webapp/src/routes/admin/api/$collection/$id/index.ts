@@ -18,7 +18,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
-import { updateDocument } from '@byline/core/services'
+import { deleteDocument, updateDocument } from '@byline/core/services'
 
 import { ensureCollection } from '@/lib/api-utils'
 
@@ -116,16 +116,11 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
       /**
        * DELETE /api/:collection/:id
        *
-       * Delete a specific document by ID in a collection.
-       *
-       * NOTE: In our new immutable 'versioning-by-default' document
-       * model, this will create a new version of the document with
-       * is_deleted set to 'true'.
-       *
-       * TODO: Re-implement with our new queries and commands
+       * Soft-delete a document by marking all of its versions as deleted.
+       * The document disappears from listings but data is preserved.
        */
       DELETE: async ({ params }) => {
-        const { collection: path } = params
+        const { collection: path, id } = params
 
         const config = await ensureCollection(path)
         if (config == null) {
@@ -135,8 +130,29 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
           )
         }
 
-        // TODO: Re-implement with our new queries and commands
-        return Response.json({ status: 'not implemented' }, { status: 501 })
+        const db = getServerConfig().db
+        const ctx: DocumentLifecycleContext = {
+          db,
+          definition: config.definition,
+          collectionId: config.collection.id,
+          collectionPath: path,
+        }
+
+        try {
+          const result = await deleteDocument(ctx, { documentId: id })
+          return Response.json({
+            status: 'ok',
+            deletedVersionCount: result.deletedVersionCount,
+          })
+        } catch (err: any) {
+          if (err.name === 'DocumentNotFoundError') {
+            return Response.json({ error: 'Document not found' }, { status: 404 })
+          }
+          return Response.json(
+            { error: err.message || 'Failed to delete document' },
+            { status: 500 }
+          )
+        }
       },
     },
   },

@@ -59,6 +59,10 @@ export class DocumentCommands implements IDocumentCommands {
   }): Promise<number> {
     throw new Error('db-remote method not implemented')
   }
+
+  async softDeleteDocument(_params: { document_id: string }): Promise<number> {
+    throw new Error('db-remote method not implemented')
+  }
 }
 /**
  * Factory function

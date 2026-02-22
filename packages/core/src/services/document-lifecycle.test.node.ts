@@ -47,6 +47,7 @@ function createMockDb() {
   })
   const setDocumentStatus = vi.fn().mockResolvedValue(undefined)
   const archivePublishedVersions = vi.fn().mockResolvedValue(0)
+  const softDeleteDocument = vi.fn().mockResolvedValue(1)
   const getDocumentById = vi.fn().mockResolvedValue(null)
 
   const db: IDbAdapter = {
@@ -59,6 +60,7 @@ function createMockDb() {
         createDocumentVersion,
         setDocumentStatus,
         archivePublishedVersions,
+        softDeleteDocument,
       },
     },
     queries: {
@@ -81,7 +83,14 @@ function createMockDb() {
     },
   }
 
-  return { db, createDocumentVersion, setDocumentStatus, archivePublishedVersions, getDocumentById }
+  return {
+    db,
+    createDocumentVersion,
+    setDocumentStatus,
+    archivePublishedVersions,
+    softDeleteDocument,
+    getDocumentById,
+  }
 }
 
 function buildCtx(

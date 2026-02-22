@@ -16,6 +16,7 @@ import { Container, Section, Toast } from '@infonomic/uikit/react'
 
 import { FormRenderer } from '@/ui/fields/form-renderer'
 import {
+  deleteDocument,
   unpublishDocument,
   updateCollectionDocumentWithPatches,
   updateDocumentStatus,
@@ -102,6 +103,26 @@ export const EditView = ({
     }
   }
 
+  const handleDelete = async () => {
+    try {
+      await deleteDocument(path, String(initialData.document_id))
+      setEditState({
+        status: 'success',
+        message: `${labels.singular} has been deleted.`,
+      })
+      setToast(true)
+      // Navigate back to the collection list after deletion.
+      navigate({ to: '/admin/collections/$collection', params: { collection: path } })
+    } catch (err) {
+      console.error('Delete error:', err)
+      setEditState({
+        status: 'failed',
+        message: `Failed to delete: ${(err as Error).message}`,
+      })
+      setToast(true)
+    }
+  }
+
   const handleSubmit = async ({ data, patches }: { data: any; patches: any[] }) => {
     try {
       await updateCollectionDocumentWithPatches(
@@ -156,6 +177,7 @@ export const EditView = ({
             adminConfig={adminConfig}
             onStatusChange={handleStatusChange}
             onUnpublish={publishedVersion ? handleUnpublish : undefined}
+            onDelete={handleDelete}
             publishedVersion={publishedVersion}
             nextStatus={nextStatus}
             workflowStatuses={workflowStatuses}
