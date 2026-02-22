@@ -16,6 +16,7 @@ import cx from 'classnames'
 
 import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
+import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
 import { ViewMenu } from './view-menu'
 
@@ -151,11 +152,11 @@ export const HistoryView = ({
                               }}
                             >
                               {column.formatter
-                                ? column.formatter((document as any)[column.fieldName], document)
+                                ? renderFormatted((document as any)[column.fieldName], document, column.formatter)
                                 : ((document as any)[column.fieldName] ?? '------')}
                             </Link>
                           ) : column.formatter ? (
-                            column.formatter((document as any)[column.fieldName], document)
+                            renderFormatted((document as any)[column.fieldName], document, column.formatter)
                           ) : column.fieldName === 'status' && workflowStatuses ? (
                             (workflowStatuses.find((s) => s.name === (document as any).status)
                               ?.label ?? String((document as any).status ?? ''))

@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 
-import type { ColumnDefinition, ColumnFormatter, FormatterProps, WorkflowStatus } from '@byline/core'
+import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import {
   Container,
@@ -26,6 +26,7 @@ import cx from 'classnames'
 
 import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
+import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
 
 function Stats({ total }: { total: number }) {
@@ -59,28 +60,6 @@ function padRows(value: number) {
       &nbsp;
     </div>
   ))
-}
-
-/**
- * Type guard: returns true when the formatter is a `{ component }` wrapper
- * rather than a plain function.
- */
-function isComponentFormatter<T>(
-  fmt: ColumnFormatter<T>
-): fmt is { component: (props: FormatterProps<T>) => any } {
-  return typeof fmt === 'object' && fmt !== null && 'component' in fmt
-}
-
-/**
- * Render a cell value through its column formatter (if any).
- * Handles both plain-function and `{ component }` formatters.
- */
-function renderFormatted(value: any, document: any, formatter: ColumnFormatter) {
-  if (isComponentFormatter(formatter)) {
-    const Component = formatter.component
-    return <Component value={value} record={document} />
-  }
-  return formatter(value, document)
 }
 
 export const ListView = ({

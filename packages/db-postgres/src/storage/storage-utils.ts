@@ -143,7 +143,7 @@ export function flattenFields(
           )
         }
       } else if (fieldConfig.type !== 'block') {
-        // Only value-bearing field types are flattened directly. Presentational
+        // Only value-bearing field types are flattened directly. Structure
         // fields like blocks are containers and should delegate to their
         // nested value fields instead of being stored themselves.
         flattenedFields.push(

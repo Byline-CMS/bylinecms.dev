@@ -2,7 +2,7 @@ import type {
   DefaultValue,
   DefaultValueContext,
   Field,
-  PresentationalField,
+  StructureField,
 } from '../@types/field-types.js'
 
 function normalizeCtx(ctx?: Partial<DefaultValueContext>): DefaultValueContext {
@@ -38,7 +38,7 @@ export async function resolveFieldDefaultValue(
   return resolveDefaultValue(field.defaultValue, ctx)
 }
 
-function isPresentationalField(field: Field): field is PresentationalField {
+function isStructureField(field: Field): field is StructureField {
   return (
     field.type === 'array' ||
     field.type === 'group' ||
@@ -51,7 +51,7 @@ function isPresentationalField(field: Field): field is PresentationalField {
  * Build initial document data from a field list.
  *
  * This is intentionally conservative: it only sets values that are explicitly defaulted
- * (either via `defaultValue` or via nested presentational fields that have child defaults).
+ * (either via `defaultValue` or via nested structure fields that have child defaults).
  */
 export async function buildInitialDataFromFields(
   fields: Field[],
@@ -73,11 +73,11 @@ export async function buildInitialDataFromFields(
       continue
     }
 
-    if (!isPresentationalField(field)) {
+    if (!isStructureField(field)) {
       continue
     }
 
-    // If this is a presentational field with child defaults, build a nested default.
+    // If this is a structure field with child defaults, build a nested default.
     // For arrays we avoid guessing a default shape.
     if (field.type === 'group' || field.type === 'row') {
       const nested = await buildInitialDataFromFields(field.fields, {

@@ -29,11 +29,11 @@ export type FieldType =
   | 'json'
   | 'object'
 
-// Utility type to identify presentational field types
-export type PresentationalFieldType = 'array' | 'group' | 'row' | 'block'
+// Utility type to identify structure field types (fields that contain nested fields)
+export type StructureFieldType = 'array' | 'group' | 'row' | 'block'
 
 // Utility type to identify value field types
-export type ValueFieldType = Exclude<FieldType, PresentationalFieldType>
+export type ValueFieldType = Exclude<FieldType, StructureFieldType>
 
 export interface ValidationRule {
   type: 'min' | 'max' | 'pattern' | 'custom' | 'email' | 'url'
@@ -166,9 +166,9 @@ interface BaseField {
   hooks?: FieldHooks
 }
 
-// Base for presentational fields that contain nested fields
-interface BasePresentationalField extends BaseField {
-  type: PresentationalFieldType
+// Base for structure fields that contain nested fields
+interface BaseStructureField extends BaseField {
+  type: StructureFieldType
   fields: Field[]
 }
 
@@ -177,20 +177,20 @@ interface BaseValueField extends BaseField {
   type: ValueFieldType
 }
 
-// Presentational field types
-export interface ArrayField extends BasePresentationalField {
+// Structure field types
+export interface ArrayField extends BaseStructureField {
   type: 'array'
 }
 
-export interface GroupField extends BasePresentationalField {
+export interface GroupField extends BaseStructureField {
   type: 'group'
 }
 
-export interface RowField extends BasePresentationalField {
+export interface RowField extends BaseStructureField {
   type: 'row'
 }
 
-export interface BlockField extends BasePresentationalField {
+export interface BlockField extends BaseStructureField {
   type: 'block'
 }
 
@@ -307,8 +307,8 @@ export interface ObjectField extends BaseValueField {
   type: 'object'
 }
 
-// Union of all presentational fields
-export type PresentationalField = ArrayField | GroupField | RowField | BlockField
+// Union of all structure fields
+export type StructureField = ArrayField | GroupField | RowField | BlockField
 
 // Union of all value fields
 export type ValueField =
@@ -331,18 +331,18 @@ export type ValueField =
   | ObjectField
 
 // Main Field union type
-export type Field = PresentationalField | ValueField
+export type Field = StructureField | ValueField
 
 // Type guards for field identification
-export function isPresentationalField(field: Field): field is PresentationalField {
+export function isStructureField(field: Field): field is StructureField {
   return ['array', 'group', 'row', 'block'].includes(field.type)
 }
 
 export function isValueField(field: Field): field is ValueField {
-  return !isPresentationalField(field)
+  return !isStructureField(field)
 }
 
 // Utility type to get all nested fields from a field hierarchy
-export type NestedFields<T extends Field> = T extends PresentationalField
+export type NestedFields<T extends Field> = T extends StructureField
   ? T['fields'][number] | NestedFields<T['fields'][number]>
   : never

@@ -14,6 +14,7 @@ import { Button, ComboButton } from '@infonomic/uikit/react'
 import { LocalDateTime } from '../components/local-date-time'
 import { FieldRenderer } from '../fields/field-renderer'
 import { FormProvider, useFormContext } from '../fields/form-context'
+import { DocumentActions } from './document-actions'
 
 /** Metadata about a previously published version that is still live. */
 export interface PublishedVersionInfo {
@@ -68,11 +69,14 @@ const FormStatusDisplay = ({
       {publishedVersion != null && (
         <div className="published-version-notice flex items-center gap-2 text-xs">
           <span className="text-green-600 dark:text-green-500">
-            A published version is currently live. {' '}
-            {publishedVersion.updated_at
-              ? (<span>Published on <LocalDateTime value={publishedVersion.updated_at} /></span>)
-              : ''
-            }
+            A published version is currently live.{' '}
+            {publishedVersion.updated_at ? (
+              <span>
+                Published on <LocalDateTime value={publishedVersion.updated_at} />
+              </span>
+            ) : (
+              ''
+            )}
           </span>
           {onUnpublish && (
             <button
@@ -306,10 +310,13 @@ const FormContent = ({
                   }
                 }}
               >
-                {statusBusy ? '...' : (primaryStatus.verb ?? primaryStatus.label ?? primaryStatus.name)}
+                {statusBusy
+                  ? '...'
+                  : (primaryStatus.verb ?? primaryStatus.label ?? primaryStatus.name)}
               </ComboButton>
             </div>
           )}
+          <DocumentActions publishedVersion={publishedVersion} onUnpublish={onUnpublish} />
         </div>
       </div>
       <div className="page-layout--two-columns--right-sticky pt-4">

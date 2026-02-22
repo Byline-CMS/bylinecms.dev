@@ -1,6 +1,6 @@
 // Core implementation of the patch engine
 
-import { isPresentationalField } from '../@types/field-types.js'
+import { isStructureField } from '../@types/field-types.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
 import type { Field } from '../@types/field-types.js'
 import type {
@@ -92,14 +92,14 @@ export function resolveFieldForPath(
 
     if (segment.kind === 'index') {
       // Index segments step into array/block children
-      if (isPresentationalField(current) && current.fields) {
+      if (isStructureField(current) && current.fields) {
         // For array fields with a single item schema, stay at the array level
         // so the next field segment can find a child field.
         continue
       }
       return null
     } else if (segment.kind === 'field') {
-      if (isPresentationalField(current) && current.fields) {
+      if (isStructureField(current) && current.fields) {
         // Search child fields — handles group, row, array, and block
         current = current.fields.find((f) => f.name === segment.key)
       } else {
@@ -107,7 +107,7 @@ export function resolveFieldForPath(
       }
     } else if (segment.kind === 'id') {
       // ID-addressed arrays/blocks — stay at current level
-      if (isPresentationalField(current) && current.fields) {
+      if (isStructureField(current) && current.fields) {
         continue
       }
       return null

@@ -34,8 +34,8 @@ export const ViewMenu = ({
   return (
     <div className="flex items-center gap-2">
       <IconButton
-        className="min-w-[24px] min-h-[24px]"
-        size="sm"
+        className="min-w-[24px]"
+        size="xs"
         variant="text"
         onClick={() =>
           navigate({
@@ -47,9 +47,9 @@ export const ViewMenu = ({
         <HistoryIcon className="w-5 h-5" />
       </IconButton>
       <Button
-        size="sm"
+        size="xs"
         variant={activeView === 'edit' ? 'filled' : 'outlined'}
-        className="min-w-[50px] min-h-[28px]"
+        className="min-w-[50px]"
         onClick={() =>
           navigate({
             to: '/admin/collections/$collection/$id',
@@ -60,9 +60,9 @@ export const ViewMenu = ({
         Edit
       </Button>
       <Button
-        size="sm"
+        size="xs"
         variant={activeView === 'api' ? 'filled' : 'outlined'}
-        className="min-w-[50px] min-h-[28px]"
+        className="min-w-[50px]"
         onClick={() =>
           navigate({
             to: '/admin/collections/$collection/$id/api',
