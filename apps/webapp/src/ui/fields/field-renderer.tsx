@@ -583,11 +583,11 @@ const ArrayField = ({
         }}
       >
         <Modal.Container style={{ maxWidth: '600px' }}>
-          <Modal.Header>
-            <h3 className="m-0 mb-2">Blocks</h3>
+          <Modal.Header className="pt-4 mb-2">
+            <h3 className="m-0 mb-2 text-2xl">Blocks</h3>
             <IconButton
               arial-label="Close"
-              size="sm"
+              size="xs"
               onClick={() => {
                 setShowAddBlockModal(false)
                 setPendingInsertIndex(null)
