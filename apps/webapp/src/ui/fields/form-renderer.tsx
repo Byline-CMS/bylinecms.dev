@@ -67,7 +67,7 @@ const FormStatusDisplay = ({
       </div>
 
       {publishedVersion != null && (
-        <div className="published-version-notice flex items-center gap-2 text-xs">
+        <div className="published-version-notice inline gap-2 text-xs">
           <span className="text-green-600 dark:text-green-500">
             A published version is currently live.{' '}
             {publishedVersion.updated_at ? (
@@ -79,17 +79,21 @@ const FormStatusDisplay = ({
             )}
           </span>
           {onUnpublish && (
-            <button
-              type="button"
-              onClick={onUnpublish}
-              className="text-xs underline text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-            >
-              Unpublish
-            </button>
+            <>
+              {' '}
+              < button
+                type="button"
+                onClick={onUnpublish}
+                className="text-xs underline text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+              >
+                Unpublish
+              </button>
+            </>
           )}
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   )
 }
 
