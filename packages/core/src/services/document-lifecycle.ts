@@ -21,10 +21,16 @@
  * dependency on any specific database adapter.
  */
 
+import {
+  type CollectionDefinition,
+  type CollectionHookSlot,
+  type CollectionHooks,
+  type IDbAdapter,
+  normalizeCollectionHook,
+} from '../@types/index.js'
 import { applyPatches } from '../patches/index.js'
 import { normaliseDateFields } from '../utils/normalise-dates.js'
 import { getDefaultStatus, getWorkflow, validateStatusTransition } from '../workflow/workflow.js'
-import type { CollectionDefinition, CollectionHooks, IDbAdapter } from '../@types/index.js'
 import type { DocumentPatch, PatchError as PatchErrorInfo } from '../patches/index.js'
 
 // ---------------------------------------------------------------------------
@@ -79,14 +85,14 @@ export interface UnpublishResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Safely invoke an optional hook, awaiting the result if it returns a Promise.
+ * Safely invoke an optional hook slot, awaiting the result if it returns a
+ * Promise. When the slot is an array of functions they are executed
+ * sequentially in order.
  */
-async function invokeHook<Ctx>(
-  hook: ((ctx: Ctx) => void | Promise<void>) | undefined,
-  ctx: Ctx
-): Promise<void> {
-  if (hook) {
-    await hook(ctx)
+async function invokeHook<Ctx>(hook: CollectionHookSlot<Ctx> | undefined, ctx: Ctx): Promise<void> {
+  const fns = normalizeCollectionHook(hook)
+  for (const fn of fns) {
+    await fn(ctx)
   }
 }
 

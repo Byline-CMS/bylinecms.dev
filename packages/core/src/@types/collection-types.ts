@@ -285,6 +285,26 @@ export interface DeleteContext {
 // -- CollectionHooks interface ----------------------------------------------
 
 /**
+ * A single collection-hook function signature, parameterised by context type.
+ */
+export type CollectionHookFn<Ctx> = (ctx: Ctx) => void | Promise<void>
+
+/**
+ * A hook slot: accepts a single function **or** an array of functions.
+ *
+ * When an array is provided the functions are executed sequentially in order.
+ */
+export type CollectionHookSlot<Ctx> = CollectionHookFn<Ctx> | CollectionHookFn<Ctx>[]
+
+/** Normalise a collection-hook slot (single function or array) into a flat array. */
+export function normalizeCollectionHook<Ctx>(
+  hook: CollectionHookSlot<Ctx> | undefined
+): CollectionHookFn<Ctx>[] {
+  if (!hook) return []
+  return Array.isArray(hook) ? hook : [hook]
+}
+
+/**
  * Lifecycle hooks for a collection.
  *
  * Each hook receives a typed context object. `before*` hooks can mutate the
@@ -295,38 +315,40 @@ export interface DeleteContext {
  * the atomic write. They are suitable for logging, cache invalidation,
  * webhooks, and similar side-effects.
  *
- * Hooks are optional — if omitted, the framework skips the step.
+ * Each hook accepts a single function or an **array** of functions that are
+ * executed sequentially in order. Hooks are optional — if omitted, the
+ * framework skips the step.
  */
 export interface CollectionHooks {
   // -- Document create ------------------------------------------------------
   /** Runs before a new document is created. Can mutate `data`. */
-  beforeCreate?: (ctx: BeforeCreateContext) => void | Promise<void>
+  beforeCreate?: CollectionHookSlot<BeforeCreateContext>
   /** Runs after a new document is created. */
-  afterCreate?: (ctx: AfterCreateContext) => void | Promise<void>
+  afterCreate?: CollectionHookSlot<AfterCreateContext>
 
   // -- Document update (PUT or patches) -------------------------------------
   /** Runs before an existing document is updated (PUT or patch). Can mutate `data`. */
-  beforeUpdate?: (ctx: BeforeUpdateContext) => void | Promise<void>
+  beforeUpdate?: CollectionHookSlot<BeforeUpdateContext>
   /** Runs after an existing document is updated. */
-  afterUpdate?: (ctx: AfterUpdateContext) => void | Promise<void>
+  afterUpdate?: CollectionHookSlot<AfterUpdateContext>
 
   // -- Workflow status change -----------------------------------------------
   /** Runs before a document's workflow status is changed. */
-  beforeStatusChange?: (ctx: StatusChangeContext) => void | Promise<void>
+  beforeStatusChange?: CollectionHookSlot<StatusChangeContext>
   /** Runs after a document's workflow status has been changed. */
-  afterStatusChange?: (ctx: StatusChangeContext) => void | Promise<void>
+  afterStatusChange?: CollectionHookSlot<StatusChangeContext>
 
   // -- Unpublish (cross-version archive) ------------------------------------
   /** Runs before a published document is unpublished (archived). */
-  beforeUnpublish?: (ctx: BeforeUnpublishContext) => void | Promise<void>
+  beforeUnpublish?: CollectionHookSlot<BeforeUnpublishContext>
   /** Runs after a published document has been unpublished.  */
-  afterUnpublish?: (ctx: AfterUnpublishContext) => void | Promise<void>
+  afterUnpublish?: CollectionHookSlot<AfterUnpublishContext>
 
   // -- Document delete (future) ---------------------------------------------
   /** Runs before a document is deleted. */
-  beforeDelete?: (ctx: DeleteContext) => void | Promise<void>
+  beforeDelete?: CollectionHookSlot<DeleteContext>
   /** Runs after a document is deleted. */
-  afterDelete?: (ctx: DeleteContext) => void | Promise<void>
+  afterDelete?: CollectionHookSlot<DeleteContext>
 }
 
 export interface CollectionDefinition {

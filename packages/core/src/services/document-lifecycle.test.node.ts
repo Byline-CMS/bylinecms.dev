@@ -197,6 +197,91 @@ describe('Document lifecycle service', () => {
       const result = await createDocument(ctx, { data: { title: 'OK', path: 'ok' } })
       expect(result.documentId).toBe('doc-1')
     })
+
+    it('supports an array of beforeCreate hooks executed in order', async () => {
+      const callOrder: string[] = []
+
+      const hooks = {
+        beforeCreate: [
+          vi.fn(async () => {
+            callOrder.push('hook-1')
+          }),
+          vi.fn(async () => {
+            callOrder.push('hook-2')
+          }),
+          vi.fn(async () => {
+            callOrder.push('hook-3')
+          }),
+        ],
+      }
+
+      const { db, createDocumentVersion } = createMockDb()
+      createDocumentVersion.mockImplementation(async () => {
+        callOrder.push('persist')
+        return { document: { id: 'ver-1', document_id: 'doc-1' }, fieldCount: 1 }
+      })
+
+      const definition = { ...minimalCollection, hooks }
+      const ctx = buildCtx(db, definition)
+
+      await createDocument(ctx, { data: { title: 'Test', path: 'test' } })
+
+      expect(callOrder).toEqual(['hook-1', 'hook-2', 'hook-3', 'persist'])
+      for (const fn of hooks.beforeCreate) {
+        expect(fn).toHaveBeenCalledOnce()
+      }
+    })
+
+    it('supports an array of afterCreate hooks executed in order', async () => {
+      const callOrder: string[] = []
+
+      const hooks = {
+        afterCreate: [
+          vi.fn(async () => {
+            callOrder.push('after-1')
+          }),
+          vi.fn(async () => {
+            callOrder.push('after-2')
+          }),
+        ],
+      }
+
+      const { db, createDocumentVersion } = createMockDb()
+      createDocumentVersion.mockImplementation(async () => {
+        callOrder.push('persist')
+        return { document: { id: 'ver-1', document_id: 'doc-1' }, fieldCount: 1 }
+      })
+
+      const definition = { ...minimalCollection, hooks }
+      const ctx = buildCtx(db, definition)
+
+      await createDocument(ctx, { data: { title: 'Test', path: 'test' } })
+
+      expect(callOrder).toEqual(['persist', 'after-1', 'after-2'])
+    })
+
+    it('array of beforeCreate hooks can each mutate data cumulatively', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const definition = {
+        ...minimalCollection,
+        hooks: {
+          beforeCreate: [
+            vi.fn(({ data }) => {
+              data.title = `${data.title}-A`
+            }),
+            vi.fn(({ data }) => {
+              data.title = `${data.title}-B`
+            }),
+          ],
+        },
+      }
+      const ctx = buildCtx(db, definition)
+
+      await createDocument(ctx, { data: { title: 'Original', path: 'p' } })
+
+      const persistedData = createDocumentVersion.mock.calls[0]![0].documentData
+      expect(persistedData.title).toBe('Original-A-B')
+    })
   })
 
   // -----------------------------------------------------------------------
@@ -259,6 +344,43 @@ describe('Document lifecycle service', () => {
       })
 
       expect(createDocumentVersion.mock.calls[0]![0].status).toBe('draft')
+    })
+
+    it('supports an array of beforeUpdate and afterUpdate hooks', async () => {
+      const callOrder: string[] = []
+
+      const hooks = {
+        beforeUpdate: [
+          vi.fn(async () => {
+            callOrder.push('before-1')
+          }),
+          vi.fn(async () => {
+            callOrder.push('before-2')
+          }),
+        ],
+        afterUpdate: [
+          vi.fn(async () => {
+            callOrder.push('after-1')
+          }),
+          vi.fn(async () => {
+            callOrder.push('after-2')
+          }),
+        ],
+      }
+
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({ title: 'Old', path: 'old', status: 'draft' })
+      createDocumentVersion.mockImplementation(async () => {
+        callOrder.push('persist')
+        return { document: { id: 'ver-1', document_id: 'doc-1' }, fieldCount: 1 }
+      })
+
+      const definition = { ...minimalCollection, hooks }
+      const ctx = buildCtx(db, definition)
+
+      await updateDocument(ctx, { documentId: 'doc-1', data: { title: 'New', path: 'new' } })
+
+      expect(callOrder).toEqual(['before-1', 'before-2', 'persist', 'after-1', 'after-2'])
     })
   })
 
@@ -451,6 +573,42 @@ describe('Document lifecycle service', () => {
         excludeVersionId: 'ver-1',
       })
     })
+
+    it('supports an array of beforeStatusChange and afterStatusChange hooks', async () => {
+      const callOrder: string[] = []
+
+      const hooks = {
+        beforeStatusChange: [
+          vi.fn(async () => {
+            callOrder.push('before-1')
+          }),
+          vi.fn(async () => {
+            callOrder.push('before-2')
+          }),
+        ],
+        afterStatusChange: [
+          vi.fn(async () => {
+            callOrder.push('after-1')
+          }),
+          vi.fn(async () => {
+            callOrder.push('after-2')
+          }),
+        ],
+      }
+
+      const { db, getDocumentById, setDocumentStatus } = createMockDb()
+      getDocumentById.mockResolvedValue({ status: 'draft', document_version_id: 'ver-1' })
+      setDocumentStatus.mockImplementation(async () => {
+        callOrder.push('persist')
+      })
+
+      const definition = { ...minimalCollection, hooks }
+      const ctx = buildCtx(db, definition)
+
+      await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+
+      expect(callOrder).toEqual(['before-1', 'before-2', 'persist', 'after-1', 'after-2'])
+    })
   })
 
   // -----------------------------------------------------------------------
@@ -505,6 +663,42 @@ describe('Document lifecycle service', () => {
 
       const result = await unpublishDocument(ctx, { documentId: 'doc-1' })
       expect(result.archivedCount).toBe(0)
+    })
+
+    it('supports an array of beforeUnpublish and afterUnpublish hooks', async () => {
+      const callOrder: string[] = []
+
+      const hooks = {
+        beforeUnpublish: [
+          vi.fn(async () => {
+            callOrder.push('before-1')
+          }),
+          vi.fn(async () => {
+            callOrder.push('before-2')
+          }),
+        ],
+        afterUnpublish: [
+          vi.fn(async () => {
+            callOrder.push('after-1')
+          }),
+          vi.fn(async () => {
+            callOrder.push('after-2')
+          }),
+        ],
+      }
+
+      const { db, archivePublishedVersions } = createMockDb()
+      archivePublishedVersions.mockImplementation(async () => {
+        callOrder.push('archive')
+        return 2
+      })
+
+      const definition = { ...minimalCollection, hooks }
+      const ctx = buildCtx(db, definition)
+
+      await unpublishDocument(ctx, { documentId: 'doc-1' })
+
+      expect(callOrder).toEqual(['before-1', 'before-2', 'archive', 'after-1', 'after-2'])
     })
   })
 })
