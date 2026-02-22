@@ -100,9 +100,20 @@ export interface FieldBeforeChangeResult {
 }
 
 /**
+ * A single field-hook function signature.
+ */
+export type FieldHookFn = (
+  ctx: FieldHookContext
+) => FieldBeforeChangeResult | Promise<FieldBeforeChangeResult> | void | Promise<void>
+
+/**
  * Hooks that can be attached to any field via the `hooks` property on the
  * field definition. Both hooks are async-capable to support debounced
  * remote validation or similar patterns.
+ *
+ * Each hook accepts a single function or an **array** of functions that
+ * are executed in order. Execution stops at the first function that
+ * returns `{ error }` (for blocking hooks like `beforeChange`).
  */
 export interface FieldHooks {
   /**
@@ -113,9 +124,7 @@ export interface FieldHooks {
    * per-field error (useful for live validation feedback) but does **not**
    * block the change — the user can keep typing.
    */
-  beforeValidate?: (
-    ctx: FieldHookContext
-  ) => FieldBeforeChangeResult | Promise<FieldBeforeChangeResult> | void | Promise<void>
+  beforeValidate?: FieldHookFn | FieldHookFn[]
   /**
    * Fires **after** `beforeValidate` but **before** the value is committed
    * to the form store and a patch is emitted.
@@ -126,9 +135,13 @@ export interface FieldHooks {
    * ⚠️  Value transformations will reset the cursor position in text inputs.
    * Prefer `beforeValidate` for feedback that should not interfere with typing.
    */
-  beforeChange?: (
-    ctx: FieldHookContext
-  ) => FieldBeforeChangeResult | Promise<FieldBeforeChangeResult> | void | Promise<void>
+  beforeChange?: FieldHookFn | FieldHookFn[]
+}
+
+/** Normalise a hook slot (single function or array) into a flat array. */
+export function normalizeHooks(hook: FieldHookFn | FieldHookFn[] | undefined): FieldHookFn[] {
+  if (!hook) return []
+  return Array.isArray(hook) ? hook : [hook]
 }
 
 // Base properties that all fields share

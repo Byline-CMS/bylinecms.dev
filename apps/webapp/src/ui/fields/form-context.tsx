@@ -10,6 +10,7 @@ import type React from 'react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 import type { Field, FieldBeforeChangeResult, FieldHookContext } from '@byline/core'
+import { normalizeHooks } from '@byline/core'
 import type { DocumentPatch, FieldSetPatch } from '@byline/core/patches'
 import { get as getNestedValue, set as setNestedValue } from 'lodash-es'
 
@@ -398,8 +399,8 @@ export const FormProvider = ({
       const data = { ...fieldValues.current }
 
       for (const field of fields) {
-        const hook = field.hooks?.beforeValidate
-        if (!hook) continue
+        const fns = normalizeHooks(field.hooks?.beforeValidate)
+        if (fns.length === 0) continue
 
         const path = field.name
         const value = getFieldValue(path)
@@ -414,15 +415,18 @@ export const FormProvider = ({
         }
 
         try {
-          const result = (await hook(ctx)) as FieldBeforeChangeResult | undefined
-          if (result?.error) {
-            hookErrors.push({ field: path, message: result.error })
-          }
-          if (result?.value !== undefined) {
-            // Auto-populate: write the derived value into the store
-            setFieldValue(path, result.value)
-            // Keep data snapshot in sync for subsequent hooks
-            data[path] = result.value
+          for (const fn of fns) {
+            const result = (await fn(ctx)) as FieldBeforeChangeResult | undefined
+            if (result?.error) {
+              hookErrors.push({ field: path, message: result.error })
+            }
+            if (result?.value !== undefined) {
+              // Auto-populate: write the derived value into the store
+              setFieldValue(path, result.value)
+              // Keep ctx and data snapshot in sync for subsequent hooks
+              ctx.value = result.value
+              data[path] = result.value
+            }
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Unexpected hook error'

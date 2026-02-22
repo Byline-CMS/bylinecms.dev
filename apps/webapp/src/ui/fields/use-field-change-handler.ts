@@ -9,6 +9,7 @@
 import { useCallback } from 'react'
 
 import type { Field, FieldBeforeChangeResult, FieldHookContext } from '@byline/core'
+import { normalizeHooks } from '@byline/core'
 
 import { useFormContext } from './form-context'
 
@@ -35,7 +36,10 @@ export function useFieldChangeHandler(field: Field, path: string) {
       const hooks = field.hooks
 
       // ── fast path: no hooks defined ────────────────────────────
-      if (!hooks?.beforeValidate && !hooks?.beforeChange) {
+      const validateFns = normalizeHooks(hooks?.beforeValidate)
+      const changeFns = normalizeHooks(hooks?.beforeChange)
+
+      if (validateFns.length === 0 && changeFns.length === 0) {
         setFieldValue(path, value)
         return
       }
@@ -57,20 +61,19 @@ export function useFieldChangeHandler(field: Field, path: string) {
         try {
           // 1. beforeValidate (advisory — value is always committed)
           let advisoryError: string | undefined
-          if (hooks?.beforeValidate) {
-            const result = (await hooks.beforeValidate(ctx)) as FieldBeforeChangeResult | undefined
+          for (const fn of validateFns) {
+            const result = (await fn(ctx)) as FieldBeforeChangeResult | undefined
             if (result?.error) {
               advisoryError = result.error
             }
-            // Allow beforeValidate to adjust the value passed to beforeChange
             if (result?.value !== undefined) {
               ctx.value = result.value
             }
           }
 
           // 2. beforeChange
-          if (hooks?.beforeChange) {
-            const result = (await hooks.beforeChange(ctx)) as FieldBeforeChangeResult | undefined
+          for (const fn of changeFns) {
+            const result = (await fn(ctx)) as FieldBeforeChangeResult | undefined
             if (result?.error) {
               setFieldError(path, result.error)
               return // block the change

@@ -1,9 +1,9 @@
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
 
-import { Docs, DocsAdmin } from './byline/collections/docs.js'
-import { News, NewsAdmin } from './byline/collections/news.js'
-import { Pages, PagesAdmin } from './byline/collections/pages.js'
+import { Docs, DocsAdmin } from './byline/collections/docs/index.js'
+import { News, NewsAdmin } from './byline/collections/news/index.js'
+import { Pages, PagesAdmin } from './byline/collections/pages/index.js'
 
 export const config: ClientConfig = {
   serverURL: 'http://localhost:5173/',

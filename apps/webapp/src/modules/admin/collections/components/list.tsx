@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 
-import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
+import type { ColumnDefinition, ColumnFormatter, FormatterProps, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import {
   Container,
@@ -59,6 +59,28 @@ function padRows(value: number) {
       &nbsp;
     </div>
   ))
+}
+
+/**
+ * Type guard: returns true when the formatter is a `{ component }` wrapper
+ * rather than a plain function.
+ */
+function isComponentFormatter<T>(
+  fmt: ColumnFormatter<T>
+): fmt is { component: (props: FormatterProps<T>) => any } {
+  return typeof fmt === 'object' && fmt !== null && 'component' in fmt
+}
+
+/**
+ * Render a cell value through its column formatter (if any).
+ * Handles both plain-function and `{ component }` formatters.
+ */
+function renderFormatted(value: any, document: any, formatter: ColumnFormatter) {
+  if (isComponentFormatter(formatter)) {
+    const Component = formatter.component
+    return <Component value={value} record={document} />
+  }
+  return formatter(value, document)
 }
 
 export const ListView = ({
@@ -188,11 +210,11 @@ export const ListView = ({
                             }}
                           >
                             {column.formatter
-                              ? column.formatter((document as any)[column.fieldName], document)
+                              ? renderFormatted((document as any)[column.fieldName], document, column.formatter)
                               : ((document as any)[column.fieldName] ?? '------')}
                           </Link>
                         ) : column.formatter ? (
-                          column.formatter((document as any)[column.fieldName], document)
+                          renderFormatted((document as any)[column.fieldName], document, column.formatter)
                         ) : column.fieldName === 'status' && workflowStatuses ? (
                           <span className="inline-flex items-center gap-1">
                             {workflowStatuses.find((s) => s.name === (document as any).status)

@@ -14,25 +14,29 @@ import {
   defineWorkflow,
 } from '@byline/core'
 
+import { PhotoBlock } from '../../blocks/photo-block.js'
+import { RichTextBlock } from '../../blocks/richtext-block.js'
+import { formatSlug } from '../../utilities/format-slug.js'
+import { FeaturedCell } from './components/feature-cell.js'
+
 // ---- Schema (server-safe, no UI concerns) ----
 
-import { formatSlug } from '../utilities/format-slug.js'
-
-export const Pages: CollectionDefinition = {
-  path: 'pages',
+export const Docs: CollectionDefinition = {
+  path: 'docs',
   labels: {
-    singular: 'Page',
-    plural: 'Pages',
+    singular: 'Document',
+    plural: 'Documents',
   },
   // Workflow: defineWorkflow() guarantees draft, published, and archived are
-  // always present and correctly ordered. No custom statuses here — the
-  // standard three-step lifecycle is used.
+  // always present and correctly ordered. Any additional statuses specified in
+  // customStatuses are inserted between draft and published.
   //
-  //   Resulting order: [draft, published, archived]
+  //   Resulting order: [draft, needs_review, published, archived]
   workflow: defineWorkflow({
     draft: { label: 'Draft', verb: 'Revert to Draft' },
     published: { label: 'Published', verb: 'Publish' },
     archived: { label: 'Archived', verb: 'Archive' },
+    customStatuses: [{ name: 'needs_review', label: 'Needs Review', verb: 'Request Review' }],
   }),
   fields: [
     {
@@ -44,25 +48,21 @@ export const Pages: CollectionDefinition = {
         beforeValidate: formatSlug('title'),
       },
     },
-    { name: 'title', label: 'Title', type: 'text', required: true },
     {
-      name: 'category',
-      label: 'Category',
-      type: 'select',
-      helpText: 'Select a category for this page',
-      options: [
-        { label: 'Foo', value: 'foo' },
-        { label: 'Bar', value: 'bar' },
-        { label: 'Baz', value: 'baz' },
-      ],
-    },
-    {
-      name: 'content',
-      label: 'Content',
-      type: 'richText',
-      helpText: 'Enter the main content for this page.',
+      name: 'title',
+      label: 'Title',
+      type: 'text',
       required: true,
+      hooks: {
+        // Advisory: flag leading whitespace without altering the value.
+        beforeValidate: ({ value }) => {
+          if (typeof value === 'string' && value !== value.trimStart()) {
+            return { error: 'Title should not start with whitespace' }
+          }
+        },
+      },
     },
+    { name: 'summary', label: 'Summary', type: 'textArea', required: true, localized: true },
     {
       name: 'publishedOn',
       label: 'Published On',
@@ -76,12 +76,46 @@ export const Pages: CollectionDefinition = {
       type: 'checkbox',
       helpText: 'Is this page featured on the home page?',
     },
+    {
+      name: 'content',
+      label: 'Content',
+      type: 'array',
+      fields: [RichTextBlock, PhotoBlock],
+    },
+    {
+      name: 'reviews',
+      label: 'Reviews',
+      type: 'array',
+      fields: [
+        {
+          name: 'reviewItem',
+          label: 'Review Item',
+          type: 'array',
+          fields: [
+            { name: 'rating', label: 'Rating', type: 'integer', required: true },
+            {
+              name: 'comment',
+              label: 'Comments',
+              type: 'richText',
+              required: true,
+              localized: false,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'links',
+      label: 'Links',
+      type: 'array',
+      fields: [{ name: 'link', label: 'Link', type: 'text' }],
+    },
   ],
 }
 
 // ---- Admin UI config (client-only, presentation concerns) ----
 
-const pagesColumns: ColumnDefinition[] = [
+const docsColumns: ColumnDefinition[] = [
   {
     fieldName: 'title',
     label: 'Title',
@@ -94,7 +128,7 @@ const pagesColumns: ColumnDefinition[] = [
     label: 'Featured',
     align: 'center',
     className: 'w-[10%]',
-    formatter: (value) => (value ? '★' : ''),
+    formatter: { component: FeaturedCell },
   },
   {
     fieldName: 'status',
@@ -119,9 +153,9 @@ const pagesColumns: ColumnDefinition[] = [
   },
 ]
 
-export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
+export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   useAsTitle: 'title',
-  columns: pagesColumns,
+  columns: docsColumns,
   fields: {
     path: { position: 'sidebar' },
     publishedOn: { position: 'sidebar' },

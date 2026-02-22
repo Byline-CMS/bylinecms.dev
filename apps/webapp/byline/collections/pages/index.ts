@@ -14,15 +14,15 @@ import {
   defineWorkflow,
 } from '@byline/core'
 
-import { formatSlug } from '../utilities/format-slug.js'
-
 // ---- Schema (server-safe, no UI concerns) ----
 
-export const News: CollectionDefinition = {
-  path: 'news',
+import { formatSlug } from '../../utilities/format-slug.js'
+
+export const Pages: CollectionDefinition = {
+  path: 'pages',
   labels: {
-    singular: 'News',
-    plural: 'News',
+    singular: 'Page',
+    plural: 'Pages',
   },
   // Workflow: defineWorkflow() guarantees draft, published, and archived are
   // always present and correctly ordered. No custom statuses here — the
@@ -46,6 +46,17 @@ export const News: CollectionDefinition = {
     },
     { name: 'title', label: 'Title', type: 'text', required: true },
     {
+      name: 'category',
+      label: 'Category',
+      type: 'select',
+      helpText: 'Select a category for this page',
+      options: [
+        { label: 'Foo', value: 'foo' },
+        { label: 'Bar', value: 'bar' },
+        { label: 'Baz', value: 'baz' },
+      ],
+    },
+    {
       name: 'content',
       label: 'Content',
       type: 'richText',
@@ -59,18 +70,31 @@ export const News: CollectionDefinition = {
       mode: 'datetime',
       required: true,
     },
+    {
+      name: 'featured',
+      label: 'Featured',
+      type: 'checkbox',
+      helpText: 'Is this page featured on the home page?',
+    },
   ],
 }
 
 // ---- Admin UI config (client-only, presentation concerns) ----
 
-const newsColumns: ColumnDefinition[] = [
+const pagesColumns: ColumnDefinition[] = [
   {
     fieldName: 'title',
     label: 'Title',
     sortable: true,
     align: 'left',
-    className: 'w-[25%]',
+    className: 'w-[30%]',
+  },
+  {
+    fieldName: 'featured',
+    label: 'Featured',
+    align: 'center',
+    className: 'w-[10%]',
+    formatter: (value) => (value ? '★' : ''),
   },
   {
     fieldName: 'status',
@@ -95,11 +119,12 @@ const newsColumns: ColumnDefinition[] = [
   },
 ]
 
-export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
+export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   useAsTitle: 'title',
-  columns: newsColumns,
+  columns: pagesColumns,
   fields: {
     path: { position: 'sidebar' },
     publishedOn: { position: 'sidebar' },
+    featured: { position: 'sidebar' },
   },
 })

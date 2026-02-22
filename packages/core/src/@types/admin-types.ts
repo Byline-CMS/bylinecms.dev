@@ -9,6 +9,28 @@
 import type { CollectionDefinition } from './collection-types.js'
 
 /**
+ * Props passed to a component-style column formatter.
+ */
+export interface FormatterProps<T = any> {
+  /** The raw field value for this cell. */
+  value: any
+  /** The full document record for the current row. */
+  record: T
+}
+
+/**
+ * A column formatter is either:
+ * - A plain function: `(value, record) => ReactNode | string`
+ * - A component wrapper: `{ component: (props: FormatterProps) => ReactNode }`
+ *
+ * The `{ component }` form lets you use React hooks, context, or JSX
+ * directly inside the cell renderer.
+ */
+export type ColumnFormatter<T = any> =
+  | ((value: any, record: T) => any)
+  | { component: (props: FormatterProps<T>) => any }
+
+/**
  * Column definition for collection list views.
  * This is purely an admin/UI concern — it controls how documents
  * are displayed in the dashboard list table.
@@ -19,7 +41,7 @@ export interface ColumnDefinition<T = any> {
   sortable?: boolean
   align?: 'left' | 'center' | 'right'
   className?: string
-  formatter?: (value: any, record: T) => any
+  formatter?: ColumnFormatter<T>
 }
 
 /**
