@@ -278,7 +278,7 @@ export interface AfterUnpublishContext {
  * Context passed to `beforeDelete` / `afterDelete` hooks (future).
  */
 export interface DeleteContext {
-  id: string
+  documentId: string
   collectionPath: string
 }
 
