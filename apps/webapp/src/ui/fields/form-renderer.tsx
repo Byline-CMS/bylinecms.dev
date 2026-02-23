@@ -6,10 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useBlocker } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
-import { Button, ComboButton } from '@infonomic/uikit/react'
+import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
 
 import { LocalDateTime } from '../components/local-date-time'
 import { FieldRenderer } from '../fields/field-renderer'
@@ -40,7 +41,7 @@ const FormStatusDisplay = ({
   const statusLabel = workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
 
   return (
-    <div className="form-status text-sm flex flex-col gap-1">
+    <div className="form-status text-sm flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
         <div className="published flex items-center gap-1 min-w-0">
           <span className="muted shrink-0">Status:</span>
@@ -67,8 +68,8 @@ const FormStatusDisplay = ({
       </div>
 
       {publishedVersion != null && (
-        <div className="published-version-notice inline gap-2 text-xs">
-          <span className="text-green-600 dark:text-green-500">
+        <div className="published-version-notice inline">
+          <span className="muted text-[0.8rem]">
             A published version is currently live.{' '}
             {publishedVersion.updated_at ? (
               <span>
@@ -81,19 +82,14 @@ const FormStatusDisplay = ({
           {onUnpublish && (
             <>
               {' '}
-              < button
-                type="button"
-                onClick={onUnpublish}
-                className="text-xs underline text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-              >
+              <button type="button" onClick={onUnpublish} className="text-[0.8rem] underline">
                 Unpublish
               </button>
             </>
           )}
         </div>
-      )
-      }
-    </div >
+      )}
+    </div>
   )
 }
 
@@ -198,6 +194,14 @@ const FormContent = ({
   const [errors, setErrors] = useState(initialErrors)
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
+
+  // Navigation guard — block TanStack Router navigation and browser unload when dirty
+  const shouldBlockFn = useCallback(() => hasChanges, [hasChanges])
+  const blocker = useBlocker({
+    shouldBlockFn,
+    enableBeforeUnload: true,
+    withResolver: true,
+  })
 
   // Compute available status transitions
   const currentStatus = initialData?.status
@@ -322,7 +326,11 @@ const FormContent = ({
               </ComboButton>
             </div>
           )}
-          <DocumentActions publishedVersion={publishedVersion} onUnpublish={onUnpublish} onDelete={onDelete} />
+          <DocumentActions
+            publishedVersion={publishedVersion}
+            onUnpublish={onUnpublish}
+            onDelete={onDelete}
+          />
         </div>
       </div>
       <div className="page-layout--two-columns--right-sticky pt-4">
@@ -345,6 +353,28 @@ const FormContent = ({
           ))}
         </div>
       </div>
+      {blocker.status === 'blocked' && (
+        <Modal isOpen={true} closeOnOverlayClick={false} onDismiss={blocker.reset}>
+          <Modal.Container style={{ maxWidth: '460px' }}>
+            <Modal.Header className="pt-4 mb-2">
+              <h3 className="m-0 mb-2 text-2xl">Leave without saving?</h3>
+            </Modal.Header>
+            <Modal.Content>
+              <p className="text-sm">
+                Your changes have not been saved. If you leave now, you will lose your changes.
+              </p>
+            </Modal.Content>
+            <Modal.Actions>
+              <Button size="sm" intent="noeffect" type="button" onClick={blocker.reset}>
+                Stay on this page
+              </Button>
+              <Button size="sm" intent="danger" type="button" onClick={blocker.proceed}>
+                Leave anyway
+              </Button>
+            </Modal.Actions>
+          </Modal.Container>
+        </Modal>
+      )}
     </form>
   )
 }
