@@ -100,7 +100,7 @@ export function resolveFieldForPath(
       return null
     } else if (segment.kind === 'field') {
       if (isStructureField(current) && current.fields) {
-        // Search child fields — handles group, row, array, and block
+        // Search child fields — handles array and block
         current = current.fields.find((f) => f.name === segment.key)
       } else {
         return null

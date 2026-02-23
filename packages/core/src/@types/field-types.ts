@@ -8,8 +8,6 @@
 
 export type FieldType =
   | 'array'
-  | 'group'
-  | 'row'
   | 'block'
   | 'text'
   | 'textArea'
@@ -30,7 +28,7 @@ export type FieldType =
   | 'object'
 
 // Utility type to identify structure field types (fields that contain nested fields)
-export type StructureFieldType = 'array' | 'group' | 'row' | 'block'
+export type StructureFieldType = 'array' | 'block'
 
 // Utility type to identify value field types
 export type ValueFieldType = Exclude<FieldType, StructureFieldType>
@@ -182,14 +180,6 @@ export interface ArrayField extends BaseStructureField {
   type: 'array'
 }
 
-export interface GroupField extends BaseStructureField {
-  type: 'group'
-}
-
-export interface RowField extends BaseStructureField {
-  type: 'row'
-}
-
 export interface BlockField extends BaseStructureField {
   type: 'block'
 }
@@ -308,7 +298,7 @@ export interface ObjectField extends BaseValueField {
 }
 
 // Union of all structure fields
-export type StructureField = ArrayField | GroupField | RowField | BlockField
+export type StructureField = ArrayField | BlockField
 
 // Union of all value fields
 export type ValueField =
@@ -335,7 +325,7 @@ export type Field = StructureField | ValueField
 
 // Type guards for field identification
 export function isStructureField(field: Field): field is StructureField {
-  return ['array', 'group', 'row', 'block'].includes(field.type)
+  return ['array', 'block'].includes(field.type)
 }
 
 export function isValueField(field: Field): field is ValueField {

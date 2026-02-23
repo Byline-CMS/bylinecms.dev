@@ -45,12 +45,70 @@ export interface ColumnDefinition<T = any> {
 }
 
 /**
+ * A tab groups fields under a named tab in the edit form.
+ * Tabs are a purely presentational concern — they do not affect field paths,
+ * storage, patches, or validation.
+ */
+export interface TabDefinition {
+  /** Unique key used to reference this tab in FieldAdminConfig. */
+  name: string
+  /** Human-readable label rendered on the tab button. */
+  label: string
+  /**
+   * Optional condition: when provided, the tab is only rendered when this
+   * function returns true. Receives the current live form data, allowing
+   * tabs to appear/disappear based on field values.
+   *
+   * This is a client-only function and must not be placed on CollectionDefinition.
+   */
+  condition?: (data: Record<string, any>) => boolean
+}
+
+/**
+ * A field group is a labelled visual section that clusters related fields
+ * within a tab (or the default layout when no tabs are configured).
+ * Purely presentational — no storage or schema impact.
+ */
+export interface FieldGroupDefinition {
+  /** Unique key used to reference this group in FieldAdminConfig. */
+  name: string
+  /** Optional heading rendered above the grouped fields. */
+  label?: string
+  /** When tabs are configured, restrict this group to a specific tab. */
+  tab?: string
+}
+
+/**
+ * A row lays out a set of named fields side-by-side horizontally.
+ * Fields listed here are rendered in a flex row instead of the default
+ * vertical stack. Purely presentational.
+ */
+export interface RowDefinition {
+  /** Ordered list of field names to render in a horizontal row. */
+  fields: string[]
+  /** When tabs are configured, restrict this row to a specific tab. */
+  tab?: string
+  /** When groups are configured, restrict this row to a specific group. */
+  group?: string
+}
+
+/**
  * Per-field admin UI configuration.
  * Controls how individual fields are rendered in the admin dashboard.
  */
 export interface FieldAdminConfig {
   /** Where to place the field in the edit form layout. */
   position?: 'default' | 'sidebar'
+  /**
+   * Which tab (by name) this field belongs to.
+   * Requires `tabs` to be declared on the CollectionAdminConfig.
+   */
+  tab?: string
+  /**
+   * Which field group (by name) this field belongs to.
+   * Requires `groups` to be declared on the CollectionAdminConfig.
+   */
+  group?: string
   // Future: custom component overrides, editor config, etc.
 }
 
@@ -79,6 +137,24 @@ export interface CollectionAdminConfig<T = any> {
 
   /** Per-field admin UI overrides, keyed by field name. */
   fields?: Record<string, FieldAdminConfig>
+
+  /**
+   * Ordered tab declarations for tabbed form layouts.
+   * Assign fields to tabs via `fields[fieldName].tab`.
+   */
+  tabs?: TabDefinition[]
+
+  /**
+   * Named visual grouping sections within the form (or within a tab).
+   * Assign fields to groups via `fields[fieldName].group`.
+   */
+  groups?: FieldGroupDefinition[]
+
+  /**
+   * Horizontal row layouts — fields listed in each row are rendered
+   * side-by-side instead of stacked vertically.
+   */
+  rows?: RowDefinition[]
 
   /** Preview URL builder for live preview links. */
   preview?: (doc: T, ctx: { locale?: string }) => string

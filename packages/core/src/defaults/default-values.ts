@@ -39,12 +39,7 @@ export async function resolveFieldDefaultValue(
 }
 
 function isStructureField(field: Field): field is StructureField {
-  return (
-    field.type === 'array' ||
-    field.type === 'group' ||
-    field.type === 'row' ||
-    field.type === 'block'
-  )
+  return field.type === 'array' || field.type === 'block'
 }
 
 /**
@@ -79,16 +74,6 @@ export async function buildInitialDataFromFields(
 
     // If this is a structure field with child defaults, build a nested default.
     // For arrays we avoid guessing a default shape.
-    if (field.type === 'group' || field.type === 'row') {
-      const nested = await buildInitialDataFromFields(field.fields, {
-        ...normalized,
-        data: currentData,
-      })
-      if (Object.keys(nested).length > 0) {
-        out[field.name] = nested
-      }
-    }
-
     if (field.type === 'block') {
       // Blocks are represented in the dashboard as an array of single-key objects.
       const nested = await buildInitialDataFromFields(field.fields, {
