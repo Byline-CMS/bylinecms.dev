@@ -316,7 +316,6 @@ const FormContent = ({
     return pos == null || pos === 'default'
   })
   const sidebarFields = fields.filter((f) => {
-    if (!fieldBelongsToActiveTab(f.name)) return false
     return fieldPositions[f.name]?.position === 'sidebar'
   })
 
@@ -401,17 +400,17 @@ const FormContent = ({
           />
         </div>
       </div>
-      {hasTabs && visibleTabs.length > 0 && (
-        <Tabs
-          tabs={visibleTabs}
-          activeTab={resolvedActiveTab}
-          onChange={setActiveTab}
-          errorCounts={tabErrorCounts}
-          className="mt-3"
-        />
-      )}
-      <div className="page-layout--two-columns--right-sticky pt-4">
+      <div className="page-layout--two-columns--right-sticky pt-8">
         <div className="content flex flex-col gap-4">
+          {hasTabs && visibleTabs.length > 0 && (
+            <Tabs
+              tabs={visibleTabs}
+              activeTab={resolvedActiveTab}
+              onChange={setActiveTab}
+              errorCounts={tabErrorCounts}
+              className="-mt-4 mb-0"
+            />
+          )}
           {defaultFields.map((field) => (
             <FieldRenderer
               key={field.name}
@@ -420,7 +419,7 @@ const FormContent = ({
             />
           ))}
         </div>
-        <div className="sidebar-second mt-4 p-4 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
+        <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
           {sidebarFields.map((field) => (
             <FieldRenderer
               key={field.name}
