@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { Badge } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 export interface TabItem {
@@ -17,6 +18,8 @@ interface TabsProps {
   tabs: TabItem[]
   activeTab: string
   onChange: (name: string) => void
+  /** Error counts keyed by tab name — shows a danger badge when > 0. */
+  errorCounts?: Record<string, number>
   className?: string
 }
 
@@ -27,7 +30,7 @@ interface TabsProps {
  * Each tab is a simple button with a bottom-border active indicator.
  * Inactive tabs show a subtle hover state. Fully dark-mode aware.
  */
-export const Tabs = ({ tabs, activeTab, onChange, className }: TabsProps) => {
+export const Tabs = ({ tabs, activeTab, onChange, errorCounts, className }: TabsProps) => {
   return (
     <div
       role="tablist"
@@ -58,7 +61,17 @@ export const Tabs = ({ tabs, activeTab, onChange, className }: TabsProps) => {
                 ],
             )}
           >
-            {tab.label}
+            <span className="flex items-center gap-1.5">
+              {tab.label}
+              {(errorCounts?.[tab.name] ?? 0) > 0 && (
+                <Badge
+                  intent="danger"
+                  className="text-[0.7rem] px-1.5 py-0 min-w-[1.25rem] h-[1.25rem] flex items-center justify-center"
+                >
+                  {errorCounts![tab.name]}
+                </Badge>
+              )}
+            </span>
           </button>
         )
       })}

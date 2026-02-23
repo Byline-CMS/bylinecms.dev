@@ -289,6 +289,20 @@ const FormContent = ({
   const fieldPositions = adminConfig?.fields ?? {}
   const firstTabName = tabsConfig?.[0]?.name
 
+  // Count errors per tab so the Tabs bar can show a danger badge
+  const tabErrorCounts = useMemo<Record<string, number>>(() => {
+    if (!hasTabs) return {}
+    const counts: Record<string, number> = {}
+    for (const err of errors) {
+      // err.field is the top-level field name; look up its tab assignment
+      const assignedTab = fieldPositions[err.field]?.tab ?? firstTabName
+      if (assignedTab) {
+        counts[assignedTab] = (counts[assignedTab] ?? 0) + 1
+      }
+    }
+    return counts
+  }, [hasTabs, errors, fieldPositions, firstTabName])
+
   const fieldBelongsToActiveTab = (fieldName: string): boolean => {
     if (!hasTabs) return true
     const assignedTab = fieldPositions[fieldName]?.tab
@@ -312,7 +326,8 @@ const FormContent = ({
         <h1 className="mb-2">{heading}</h1>
         {headerSlot}
       </div>
-      {errors.length > 0 && (
+      {/* Will revisit */}
+      {/* {errors.length > 0 && (
         <div className="mb-4 p-3 bg-canvas-25 dark:bg-canvas-800 border border-red-700 rounded">
           <h4 className="text-red-800 font-medium">Please fix the following errors:</h4>
           <ul className="mt-2 text-sm text-red-700">
@@ -322,7 +337,7 @@ const FormContent = ({
             ))}
           </ul>
         </div>
-      )}
+      )} */}
 
       <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
         <FormStatusDisplay
@@ -391,6 +406,7 @@ const FormContent = ({
           tabs={visibleTabs}
           activeTab={resolvedActiveTab}
           onChange={setActiveTab}
+          errorCounts={tabErrorCounts}
           className="mt-3"
         />
       )}
