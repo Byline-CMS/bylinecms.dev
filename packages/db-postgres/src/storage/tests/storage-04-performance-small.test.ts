@@ -31,7 +31,7 @@ const ComplexCollectionConfig: CollectionDefinition = {
     { name: 'price', type: 'decimal', required: true },
     { name: 'inStock', type: 'boolean', required: true },
     { name: 'releaseDate', type: 'datetime', required: false },
-    { name: 'category', type: 'relation', required: false },
+    { name: 'category', type: 'relation', targetCollection: 'categories', required: false },
     {
       name: 'images',
       type: 'array',

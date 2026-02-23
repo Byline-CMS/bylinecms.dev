@@ -9,6 +9,7 @@
 import type { CollectionAdminConfig } from './admin-types.js'
 import type { CollectionDefinition } from './collection-types.js'
 import type { IDbAdapter } from './db-types.js'
+import type { IStorageProvider } from './storage-types.js'
 
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
 
@@ -31,4 +32,18 @@ export interface ClientConfig {
 
 export interface ServerConfig extends ClientConfig {
   db: IDbAdapter
+  /**
+   * Pluggable file-storage provider.
+   *
+   * Used by upload-enabled collections (`CollectionDefinition.upload`) to
+   * persist uploaded files. Defaults to a local-filesystem provider if
+   * omitted (when `@byline/storage-local` is available).
+   *
+   * @example
+   * ```ts
+   * import { localStorageProvider } from '@byline/storage-local'
+   * storage: localStorageProvider({ uploadDir: './public/uploads', baseUrl: '/uploads' })
+   * ```
+   */
+  storage?: IStorageProvider
 }

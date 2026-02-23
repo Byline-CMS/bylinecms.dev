@@ -9,6 +9,84 @@
 import type { Field } from './field-types.js'
 
 // ---------------------------------------------------------------------------
+// Upload / media
+// ---------------------------------------------------------------------------
+
+/** Output format for Sharp-generated image variants. */
+export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'avif'
+
+/**
+ * Resize fit strategy passed to Sharp.
+ * Mirrors Sharp's `fit` option.
+ */
+export type ImageFit = 'cover' | 'contain' | 'fill' | 'inside' | 'outside'
+
+/**
+ * A named image size variant to generate after upload via Sharp.
+ *
+ * @example
+ * ```ts
+ * { name: 'thumbnail', width: 200, height: 200, fit: 'cover' }
+ * { name: 'desktop',   width: 1920, fit: 'inside', format: 'webp', quality: 85 }
+ * ```
+ */
+export interface ImageSize {
+  /** A unique name for this variant (e.g. `'thumbnail'`, `'desktop'`). */
+  name: string
+  /** Target width in pixels. Omit to scale proportionally from height. */
+  width?: number
+  /** Target height in pixels. Omit to scale proportionally from width. */
+  height?: number
+  /** Resize fit strategy. Defaults to `'cover'`. */
+  fit?: ImageFit
+  /** Output format override. Defaults to the original image format. */
+  format?: ImageFormat
+  /** Quality (1–100). Relevant for jpeg, webp, and avif output. */
+  quality?: number
+}
+
+/**
+ * Configuration block that turns a `CollectionDefinition` into an
+ * upload-enabled collection.
+ *
+ * Any collection with an `upload` block is treated as a media library.
+ * An upload route is automatically mounted at
+ * `POST /admin/api/<collection-path>/upload`.
+ *
+ * @example
+ * ```ts
+ * export const Media: CollectionDefinition = {
+ *   path: 'media',
+ *   upload: {
+ *     mimeTypes: ['image/*'],
+ *     maxFileSize: 10 * 1024 * 1024, // 10 MB
+ *     sizes: [
+ *       { name: 'thumbnail', width: 300, height: 300, fit: 'cover' },
+ *       { name: 'mobile',    width: 768,  fit: 'inside' },
+ *       { name: 'desktop',   width: 1920, fit: 'inside', format: 'webp', quality: 85 },
+ *     ],
+ *   },
+ *   ...
+ * }
+ * ```
+ */
+export interface UploadConfig {
+  /**
+   * Allowed MIME types. Supports wildcards (e.g. `'image/*'`).
+   * Omit to allow all types.
+   */
+  mimeTypes?: string[]
+  /** Maximum file size in bytes. Omit for no limit. */
+  maxFileSize?: number
+  /**
+   * Named image variants to generate via Sharp after upload.
+   * Only applied to MIME types that match `image/*`.
+   * Omit to skip image processing (e.g. for a video or PDF collection).
+   */
+  sizes?: ImageSize[]
+}
+
+// ---------------------------------------------------------------------------
 // Workflow
 // ---------------------------------------------------------------------------
 
@@ -360,6 +438,11 @@ export interface CollectionDefinition {
   fields: Field[]
   /** Sequential workflow configuration. Falls back to DEFAULT_WORKFLOW if omitted. */
   workflow?: WorkflowConfig
+  /**
+   * Upload configuration. When present, this collection is treated as a
+   * media/upload collection and an upload endpoint is mounted automatically.
+   */
+  upload?: UploadConfig
   /** Lifecycle hooks for server-side document operations. */
   hooks?: CollectionHooks
 }

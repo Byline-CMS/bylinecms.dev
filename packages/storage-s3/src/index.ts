@@ -6,10 +6,5 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-export * from './admin-types.js'
-export * from './collection-types.js'
-export * from './db-types.js'
-export * from './field-types.js'
-export * from './site-config.js'
-export * from './storage-types.js'
-export * from './store-types.js'
+export { s3StorageProvider } from './s3-storage-provider.js'
+export type { S3StorageConfig } from './s3-storage-provider.js'

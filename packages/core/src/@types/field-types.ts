@@ -287,6 +287,21 @@ export interface DecimalField extends BaseValueField {
 
 export interface RelationField extends BaseValueField {
   type: 'relation'
+  /**
+   * The `path` of the target collection (e.g. `'media'`, `'authors'`).
+   * The field picker will query this collection when selecting a reference.
+   */
+  targetCollection: string
+  /**
+   * Allow multiple references. When `true` the stored value is an array of
+   * relation rows. Defaults to `false` (single reference).
+   */
+  multiple?: boolean
+  /**
+   * Field name from the target collection to display in the picker and
+   * inline summary. Falls back to the first text field if omitted.
+   */
+  displayField?: string
 }
 
 export interface JsonField extends BaseValueField {

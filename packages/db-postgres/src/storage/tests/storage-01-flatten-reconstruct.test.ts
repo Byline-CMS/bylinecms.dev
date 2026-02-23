@@ -24,7 +24,7 @@ const DocsCollectionConfig: CollectionDefinition = {
     { name: 'path', type: 'text', required: true, unique: true },
     { name: 'title', type: 'text', required: true, localized: true },
     { name: 'summary', type: 'text', required: true, localized: true },
-    { name: 'category', type: 'relation', required: false },
+    { name: 'category', type: 'relation', targetCollection: 'categories', required: false },
     {
       name: 'publishedOn',
       type: 'datetime',
