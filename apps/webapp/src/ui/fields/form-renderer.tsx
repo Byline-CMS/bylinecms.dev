@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { useBlocker } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
@@ -14,7 +14,7 @@ import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
 
 import { LocalDateTime } from '../components/local-date-time'
 import { FieldRenderer } from '../fields/field-renderer'
-import { FormProvider, useFormContext } from '../fields/form-context'
+import { FormProvider, useFieldValue, useFormContext } from '../fields/form-context'
 import { DocumentActions } from './document-actions'
 
 /** Metadata about a previously published version that is still live. */
@@ -166,6 +166,8 @@ const FormContent = ({
   publishedVersion,
   initialData,
   adminConfig,
+  headingLabel,
+  headerSlot,
 }: {
   fields: Field[]
   onSubmit: (data: any) => void
@@ -178,6 +180,8 @@ const FormContent = ({
   publishedVersion?: PublishedVersionInfo | null
   initialData?: Record<string, any>
   adminConfig?: CollectionAdminConfig
+  headingLabel?: string
+  headerSlot?: ReactNode
 }) => {
   const {
     getFieldValues,
@@ -194,6 +198,11 @@ const FormContent = ({
   const [errors, setErrors] = useState(initialErrors)
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
+
+  // Live document heading — tracks the useAsTitle field as the user types
+  const titleFieldName = adminConfig?.useAsTitle
+  const liveTitle = useFieldValue<string>(titleFieldName ?? '')
+  const heading = liveTitle || (headingLabel ? `Edit ${headingLabel}` : 'Edit')
 
   // Navigation guard — block TanStack Router navigation and browser unload when dirty
   const shouldBlockFn = useCallback(() => hasChanges, [hasChanges])
@@ -259,6 +268,10 @@ const FormContent = ({
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full flex flex-col">
+      <div className="item-view flex flex-col sm:flex-row justify-start sm:justify-between mb-3">
+        <h1 className="mb-2">{heading}</h1>
+        {headerSlot}
+      </div>
       {errors.length > 0 && (
         <div className="mb-4 p-3 bg-canvas-25 dark:bg-canvas-800 border border-red-700 rounded">
           <h4 className="text-red-800 font-medium">Please fix the following errors:</h4>
@@ -391,6 +404,8 @@ export const FormRenderer = ({
   publishedVersion,
   initialData,
   adminConfig,
+  headingLabel,
+  headerSlot,
 }: {
   fields: Field[]
   onSubmit: (data: any) => void
@@ -403,6 +418,8 @@ export const FormRenderer = ({
   publishedVersion?: PublishedVersionInfo | null
   initialData?: Record<string, any>
   adminConfig?: CollectionAdminConfig
+  headingLabel?: string
+  headerSlot?: ReactNode
 }) => (
   <FormProvider initialData={initialData}>
     <FormContent
@@ -417,6 +434,8 @@ export const FormRenderer = ({
       publishedVersion={publishedVersion}
       initialData={initialData}
       adminConfig={adminConfig}
+      headingLabel={headingLabel}
+      headerSlot={headerSlot}
     />
   </FormProvider>
 )
