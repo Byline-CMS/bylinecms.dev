@@ -46,8 +46,8 @@ importers:
         specifier: ^2.4.0
         version: 2.4.0
       '@infonomic/uikit':
-        specifier: ^5.38.0
-        version: 5.38.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: ^5.39.0
+        version: 5.39.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@lexical/clipboard':
         specifier: 0.40.0
         version: 0.40.0
@@ -1144,8 +1144,8 @@ packages:
   '@infonomic/schemas@2.4.0':
     resolution: {integrity: sha512-FFt69fDyhYdNiWabxUq/cBCsvenh1OVkj/ZrbjmGhPGkrDTY7N20KqysC46mFFmUzrTnLfMRAyy2f7sT1ZScwg==}
 
-  '@infonomic/uikit@5.38.0':
-    resolution: {integrity: sha512-04noqv0zSvOc2kAL+QWzsUdYMmJX6BAI4yybkTY2j4odqm0JKAO8dtx6notZGd0mqVzF1ZWM9K4LgpR9dV3tvA==}
+  '@infonomic/uikit@5.39.0':
+    resolution: {integrity: sha512-DKz88a8SS8SKg7/SFh5uIcrdNCMqnX6ucfJ9PY/g9Kg7J6M3jMLzPmzOK4bGGmG2HU3l78J4p2f8QkZ38Oz+gA==}
     peerDependencies:
       react: ^19.0.0
       react-dom: ^19.0.0
@@ -5346,7 +5346,7 @@ snapshots:
       dotenv: 17.3.1
       zod: 4.3.6
 
-  '@infonomic/uikit@5.38.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@infonomic/uikit@5.39.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@mantine/hooks': 8.3.15(react@19.2.4)
       '@radix-ui/react-icons': 1.3.2(react@19.2.4)

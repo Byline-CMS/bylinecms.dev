@@ -101,8 +101,8 @@ export function AdmonitionModal({
       <Modal.Container className="admonition-modal-container">
         <Modal.Header className="admonition-modal-header">
           <h3>Admonition</h3>
-          <IconButton arial-label="Close" size="sm" onClick={handleOnCancel}>
-            <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
+          <IconButton arial-label="Close" size="xs" onClick={handleOnCancel}>
+            <CloseIcon width="15px" height="15px" svgClassName="white-icon" />
           </IconButton>
         </Modal.Header>
         <Modal.Content className="admonition-modal-content">
