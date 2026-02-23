@@ -6,12 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { useBlocker } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
 import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
 
+import { Tabs } from '../admin/tabs'
 import { LocalDateTime } from '../components/local-date-time'
 import { FieldRenderer } from '../fields/field-renderer'
 import { FormProvider, useFieldValue, useFormContext } from '../fields/form-context'
@@ -199,6 +200,14 @@ const FormContent = ({
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
 
+  // Tabs — initialise active tab to the first declared tab (empty string when no tabs configured)
+  const tabsConfig = adminConfig?.tabs
+  const hasTabs = tabsConfig != null && tabsConfig.length > 0
+  const [activeTab, setActiveTab] = useState<string>(() => tabsConfig?.[0]?.name ?? '')
+
+  // Track live form data so TabDefinition.condition functions can react to field changes
+  const [formData, setFormData] = useState<Record<string, any>>(() => getFieldValues())
+
   // Live document heading — tracks the useAsTitle field as the user types
   const titleFieldName = adminConfig?.useAsTitle
   const liveTitle = useFieldValue<string>(titleFieldName ?? '')
@@ -227,6 +236,11 @@ const FormContent = ({
   useEffect(() => {
     return subscribeMeta(() => setHasChanges(hasChangesFn()))
   }, [subscribeMeta, hasChangesFn])
+
+  // Keep formData in sync for evaluating TabDefinition.condition functions
+  useEffect(() => {
+    return subscribeMeta(() => setFormData(getFieldValues()))
+  }, [subscribeMeta, getFieldValues])
 
   const handleCancel = () => {
     if (onCancel && typeof onCancel === 'function') {
@@ -258,13 +272,39 @@ const FormContent = ({
     })()
   }
 
-  // Split fields by admin config position
+  // Compute visible tabs, applying any condition functions against the live form data
+  const visibleTabs = useMemo(
+    () => tabsConfig?.filter((tab) => !tab.condition || tab.condition(formData)) ?? [],
+    [tabsConfig, formData]
+  )
+
+  // If the active tab has been hidden by a condition, fall back to the first visible tab
+  const resolvedActiveTab =
+    hasTabs && visibleTabs.length > 0 && !visibleTabs.some((t) => t.name === activeTab)
+      ? (visibleTabs[0]?.name ?? activeTab)
+      : activeTab
+
+  // Split fields by tab and position.
+  // When tabs are configured, fields with no explicit tab assignment default to the first tab.
   const fieldPositions = adminConfig?.fields ?? {}
+  const firstTabName = tabsConfig?.[0]?.name
+
+  const fieldBelongsToActiveTab = (fieldName: string): boolean => {
+    if (!hasTabs) return true
+    const assignedTab = fieldPositions[fieldName]?.tab
+    const effectiveTab = assignedTab ?? firstTabName
+    return effectiveTab === resolvedActiveTab
+  }
+
   const defaultFields = fields.filter((f) => {
+    if (!fieldBelongsToActiveTab(f.name)) return false
     const pos = fieldPositions[f.name]?.position
     return pos == null || pos === 'default'
   })
-  const sidebarFields = fields.filter((f) => fieldPositions[f.name]?.position === 'sidebar')
+  const sidebarFields = fields.filter((f) => {
+    if (!fieldBelongsToActiveTab(f.name)) return false
+    return fieldPositions[f.name]?.position === 'sidebar'
+  })
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full flex flex-col">
@@ -346,6 +386,14 @@ const FormContent = ({
           />
         </div>
       </div>
+      {hasTabs && visibleTabs.length > 0 && (
+        <Tabs
+          tabs={visibleTabs}
+          activeTab={resolvedActiveTab}
+          onChange={setActiveTab}
+          className="mt-3"
+        />
+      )}
       <div className="page-layout--two-columns--right-sticky pt-4">
         <div className="content flex flex-col gap-4">
           {defaultFields.map((field) => (

@@ -228,9 +228,22 @@ const docsColumns: ColumnDefinition[] = [
 export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   useAsTitle: 'title',
   columns: docsColumns,
+  tabs: [
+    { name: 'details', label: 'Details' },
+    { name: 'content', label: 'Content' },
+    { name: 'reviews', label: 'Reviews & Links' },
+  ],
   fields: {
-    path: { position: 'sidebar' },
-    publishedOn: { position: 'sidebar' },
-    featured: { position: 'sidebar' },
+    // Details tab
+    title: { tab: 'details' },
+    summary: { tab: 'details' },
+    path: { tab: 'details', position: 'sidebar' },
+    publishedOn: { tab: 'details', position: 'sidebar' },
+    featured: { tab: 'details', position: 'sidebar' },
+    // Content tab
+    content: { tab: 'content' },
+    // Reviews & Links tab
+    reviews: { tab: 'reviews' },
+    links: { tab: 'reviews' },
   },
 })

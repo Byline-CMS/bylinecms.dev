@@ -1,0 +1,1 @@
+autocannon --renderStatusCodes --connections 20 --duration 15 -H "User-Agent: Mozilla" http://localhost:5173/admin/api/collections/docs
