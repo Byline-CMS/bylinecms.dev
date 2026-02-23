@@ -69,7 +69,7 @@ export const TextAreaField = ({
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange(e.target.value)}
         error={fieldError != null}
         errorText={fieldError}
-        className={isDirty ? 'border-blue-300' : ''}
+        // className={isDirty ? 'border-blue-300' : ''}
         rows={4}
       />
     </div>

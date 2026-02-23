@@ -381,6 +381,47 @@ export interface DeleteContext {
   collectionPath: string
 }
 
+/**
+ * Context passed to `beforeUpload` hooks.
+ *
+ * The hook may return a modified filename string to override the sanitised
+ * default, enabling custom file-naming strategies (e.g. slug-based names,
+ * content-hash prefixes). Returning `void` / `undefined` keeps the default.
+ */
+export interface BeforeUploadContext {
+  /** Sanitised filename that will be used by default. Hooks may return an override. */
+  filename: string
+  mimeType: string
+  fileSize: number
+  collectionPath: string
+}
+
+/**
+ * Context passed to `afterUpload` hooks.
+ *
+ * Fires after the file has been stored and image variants generated, but
+ * before the document version is created. Suitable for post-processing,
+ * CDN warm-up, audit logging, etc.
+ */
+export interface AfterUploadContext {
+  /** Storage path of the original uploaded file. */
+  storedFilePath: string
+  /** Storage paths of each generated image variant (may be empty). */
+  variantPaths: string[]
+  collectionPath: string
+}
+
+/**
+ * A `beforeUpload` hook function. May return a modified filename string to
+ * override the sanitised default; returning `void` keeps the default.
+ */
+export type BeforeUploadHookFn = (
+  ctx: BeforeUploadContext
+) => string | void | Promise<string | void>
+
+/** Slot type for `beforeUpload` — single function or ordered array. */
+export type BeforeUploadHookSlot = BeforeUploadHookFn | BeforeUploadHookFn[]
+
 // -- CollectionHooks interface ----------------------------------------------
 
 /**
@@ -443,11 +484,28 @@ export interface CollectionHooks {
   /** Runs after a published document has been unpublished.  */
   afterUnpublish?: CollectionHookSlot<AfterUnpublishContext>
 
-  // -- Document delete (future) ---------------------------------------------
+  // -- Document delete ------------------------------------------------------
   /** Runs before a document is deleted. */
   beforeDelete?: CollectionHookSlot<DeleteContext>
   /** Runs after a document is deleted. */
   afterDelete?: CollectionHookSlot<DeleteContext>
+
+  // -- File upload (upload-enabled collections only) ------------------------
+  /**
+   * Runs before a file is uploaded to the storage provider.
+   *
+   * The hook may return a modified filename string to override the sanitised
+   * default — this is the primary extension point for custom file-naming
+   * strategies (e.g. deriving a name from a content hash or a document slug).
+   * Returning `void` keeps the default sanitised filename.
+   */
+  beforeUpload?: BeforeUploadHookSlot
+  /**
+   * Runs after the file has been stored and image variants generated, but
+   * before the document version is created. Suitable for post-processing,
+   * CDN cache warm-up, or audit logging.
+   */
+  afterUpload?: CollectionHookSlot<AfterUploadContext>
 }
 
 export interface CollectionDefinition {

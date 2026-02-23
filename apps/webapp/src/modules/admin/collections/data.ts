@@ -225,8 +225,9 @@ export async function deleteDocument(collection: string, id: string) {
 // ---------------------------------------------------------------------------
 
 export interface UploadDocumentResult {
-  documentId: string
-  documentVersionId: string
+  /** Present when the upload endpoint created a document (createDocument=true, the default). */
+  documentId?: string
+  documentVersionId?: string
   storedFile: {
     file_id: string
     filename: string
@@ -252,16 +253,23 @@ export interface UploadDocumentResult {
  * The server stores the file, extracts image metadata, generates variants,
  * and creates a document version in one atomic request.
  *
- * @param collection  - collection path (e.g. `'media'`)
- * @param formData    - FormData with at minimum a `file` (File) field; may
- *                      also include `title`, `altText`, `caption`, `credit`,
- *                      `category`.
+ * @param collection      - collection path (e.g. `'media'`)
+ * @param formData        - FormData with at minimum a `file` (File) field; may
+ *                          also include `title`, `altText`, `caption`, `credit`,
+ *                          `category`.
+ * @param createDocument  - when `false`, the server stores the file and returns
+ *                          the StoredFileValue but does NOT create a document
+ *                          version. Use this when the upload is part of an
+ *                          in-form field widget — the form's own save will
+ *                          create the document. Defaults to `true`.
  */
 export async function uploadDocument(
   collection: string,
-  formData: FormData
+  formData: FormData,
+  createDocument = true
 ): Promise<UploadDocumentResult> {
-  const url = `${API_BASE_URL}/${collection}/upload`
+  const base = `${API_BASE_URL}/${collection}/upload`
+  const url = createDocument ? base : `${base}?createDocument=false`
   const response = await fetch(url, {
     method: 'POST',
     // Do NOT set Content-Type manually — the browser must set the multipart

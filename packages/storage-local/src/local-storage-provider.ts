@@ -57,16 +57,17 @@ function sanitiseFilename(filename: string): string {
 
 /**
  * Build a namespaced storage sub-path, e.g.:
- *   `media/2026/02/a1b2c3d4-e5f6-...-photo.jpg`
+ *   `media/a1b2c3d4-e5f6-...-photo.jpg`
+ *
+ * The UUIDv4 prefix is sufficient to prevent filename collisions without the
+ * extra year/month directory nesting, and it simplifies variant path derivation
+ * and cleanup on deletion.
  */
 function buildStoragePath(collection: string | undefined, filename: string): string {
-  const now = new Date()
-  const year = now.getUTCFullYear()
-  const month = String(now.getUTCMonth() + 1).padStart(2, '0')
   const uid = uuidv4()
   const safe = sanitiseFilename(filename)
   const prefix = collection ?? 'uploads'
-  return `${prefix}/${year}/${month}/${uid}-${safe}`
+  return `${prefix}/${uid}-${safe}`
 }
 
 // ---------------------------------------------------------------------------

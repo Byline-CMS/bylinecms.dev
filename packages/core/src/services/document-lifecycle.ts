@@ -26,10 +26,12 @@ import {
   type CollectionHookSlot,
   type CollectionHooks,
   type IDbAdapter,
+  type IStorageProvider,
   normalizeCollectionHook,
 } from '../@types/index.js'
 import { applyPatches } from '../patches/index.js'
 import { normaliseDateFields } from '../utils/normalise-dates.js'
+import { deriveVariantStoragePaths } from '../utils/storage-utils.js'
 import { getDefaultStatus, getWorkflow, validateStatusTransition } from '../workflow/workflow.js'
 import type { DocumentPatch, PatchError as PatchErrorInfo } from '../patches/index.js'
 
@@ -50,6 +52,16 @@ export interface DocumentLifecycleContext {
   collectionId: string
   /** The collection `path` string (e.g. `'docs'`, `'news'`). */
   collectionPath: string
+  /**
+   * Storage provider for this collection. Required for upload-enabled
+   * collections so that file cleanup can be performed on document deletion.
+   *
+   * Resolved by the route layer as:
+   *   `definition.upload?.storage ?? serverConfig.storage`
+   *
+   * Optional — existing callers that do not need file cleanup are unaffected.
+   */
+  storage?: IStorageProvider
 }
 
 // ---------------------------------------------------------------------------
@@ -452,10 +464,17 @@ export async function unpublishDocument(
  * document disappears from all list / page queries without physically
  * removing data.
  *
+ * For upload-enabled collections, when `ctx.storage` is provided, the
+ * original uploaded file and all Sharp-generated variants are also removed
+ * from storage after the DB soft-delete succeeds. File cleanup failures are
+ * logged but are non-fatal — they do not cause the delete to fail.
+ *
  * Flow:
- *   1. `hooks.beforeDelete({ documentId, collectionPath })`
- *   2. `db.commands.documents.softDeleteDocument({ document_id })`
- *   3. `hooks.afterDelete({ documentId, collectionPath })`
+ *   1. Fetch current document (reconstruct for upload collections to read field values)
+ *   2. `hooks.beforeDelete({ documentId, collectionPath })`
+ *   3. `db.commands.documents.softDeleteDocument({ document_id })`
+ *   4. Storage file + variant cleanup (upload collections only, non-fatal)
+ *   5. `hooks.afterDelete({ documentId, collectionPath })`
  */
 export async function deleteDocument(
   ctx: DocumentLifecycleContext,
@@ -463,18 +482,38 @@ export async function deleteDocument(
     documentId: string
   }
 ): Promise<DeleteDocumentResult> {
-  const { db, collectionPath } = ctx
-  const hooks: CollectionHooks | undefined = ctx.definition.hooks
+  const { db, collectionPath, definition } = ctx
+  const hooks: CollectionHooks | undefined = definition.hooks
 
   // 1. Verify the document exists.
+  //    For upload-enabled collections with storage, fetch with reconstruct: true
+  //    so we can read the stored file path from the primary image/file field
+  //    before the DB rows are deleted.
+  const isUploadCollection = !!definition.upload && !!ctx.storage
   const latest = await db.queries.documents.getDocumentById({
     collection_id: ctx.collectionId,
     document_id: params.documentId,
-    reconstruct: false,
+    reconstruct: isUploadCollection,
   })
 
   if (latest == null) {
     throw new DocumentNotFoundError(params.documentId)
+  }
+
+  // Extract the primary file's storage_path before deletion.
+  let primaryStoragePath: string | null = null
+  if (isUploadCollection) {
+    const primaryField = definition.fields.find((f) => f.type === 'image' || f.type === 'file')
+    if (primaryField) {
+      const fieldValue = (latest as Record<string, any>)[primaryField.name]
+      if (
+        fieldValue &&
+        typeof fieldValue === 'object' &&
+        typeof fieldValue.storage_path === 'string'
+      ) {
+        primaryStoragePath = fieldValue.storage_path
+      }
+    }
   }
 
   const hookCtx = {
@@ -490,7 +529,23 @@ export async function deleteDocument(
     document_id: params.documentId,
   })
 
-  // 4. afterDelete hook.
+  // 4. Clean up storage files. Runs only for upload-enabled collections when
+  //    ctx.storage is provided. Non-fatal: logs errors but does not throw.
+  if (primaryStoragePath && ctx.storage && definition.upload) {
+    const allPaths = [
+      primaryStoragePath,
+      ...deriveVariantStoragePaths(primaryStoragePath, definition.upload.sizes ?? []),
+    ]
+    for (const storagePath of allPaths) {
+      try {
+        await ctx.storage.delete(storagePath)
+      } catch (err: unknown) {
+        console.error(`[deleteDocument] Failed to delete storage file '${storagePath}':`, err)
+      }
+    }
+  }
+
+  // 5. afterDelete hook.
   await invokeHook(hooks?.afterDelete, hookCtx)
 
   return { deletedVersionCount }

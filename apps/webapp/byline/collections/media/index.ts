@@ -126,7 +126,7 @@ export const Media: CollectionDefinition = {
       name: 'altText',
       label: 'Alt Text',
       type: 'text',
-      required: false,
+      required: true,
       helpText: 'Descriptive text for screen readers and SEO. Recommended for images.',
     },
     {
@@ -153,7 +153,7 @@ const mediaColumns: ColumnDefinition[] = [
     fieldName: 'image' as keyof any,
     label: 'Preview',
     align: 'left',
-    className: 'w-[60px]',
+    className: 'w-[5%]',
     formatter: { component: MediaThumbnailCell },
   },
   {
@@ -161,7 +161,7 @@ const mediaColumns: ColumnDefinition[] = [
     label: 'Title',
     sortable: true,
     align: 'left',
-    className: 'w-[35%]',
+    className: 'w-[60%]',
   },
   {
     fieldName: 'status',

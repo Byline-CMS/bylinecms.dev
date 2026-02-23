@@ -644,6 +644,7 @@ export const FieldRenderer = ({
 
   switch (field.type) {
     case 'text':
+      console.log(field)
       return (
         <TextField
           field={hideLabel ? { ...field, label: undefined } : field}

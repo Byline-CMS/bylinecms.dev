@@ -52,7 +52,7 @@ export const ImageField = ({
     : incomingValue
 
   return (
-    <div className={isDirty ? 'border border-blue-300 rounded-md p-3' : ''}>
+    <div>
       <div className="flex items-baseline justify-between mb-1">
         <div>
           <div className="text-sm font-medium text-gray-100">
@@ -86,7 +86,7 @@ export const ImageField = ({
           <div className="text-xs text-gray-500 italic">No image selected</div>
         )
       ) : (
-        <div className="mt-1 space-y-2">
+        <div className="mt-1 space-y-2 flex gap-4">
           {/* Preview */}
           {effectiveValue.storage_url && (
             <img
@@ -129,7 +129,7 @@ export const ImageField = ({
             </div>
           </div>
           {/* Replace option */}
-          {collectionPath && (
+          {/* {collectionPath && (
             <ImageUploadField
               field={field}
               collectionPath={collectionPath}
@@ -138,7 +138,7 @@ export const ImageField = ({
               }}
               accept="image/*"
             />
-          )}
+          )} */}
         </div>
       )}
 

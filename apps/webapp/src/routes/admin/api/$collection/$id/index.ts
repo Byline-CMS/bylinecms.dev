@@ -148,12 +148,18 @@ export const Route = createFileRoute('/admin/api/$collection/$id/')({
           )
         }
 
-        const db = getServerConfig().db
+        const serverConfig = getServerConfig()
+        // Resolve the storage provider for this collection so the lifecycle
+        // service can clean up uploaded files (and variants) on deletion.
+        const storage = config.definition.upload?.storage ?? serverConfig.storage
+
+        const db = serverConfig.db
         const ctx: DocumentLifecycleContext = {
           db,
           definition: config.definition,
           collectionId: config.collection.id,
           collectionPath: path,
+          ...(storage ? { storage } : {}),
         }
 
         try {

@@ -70,7 +70,9 @@ export const ImageUploadField = ({
 
       let result: UploadDocumentResult
       try {
-        result = await uploadDocument(collectionPath, formData)
+        // Pass createDocument=false — this is an embedded field widget;
+        // the enclosing form's save action is responsible for document creation.
+        result = await uploadDocument(collectionPath, formData, false)
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Upload failed. Please try again.'
         setStatus('error')
@@ -166,8 +168,8 @@ export const ImageUploadField = ({
           'border-2 border-dashed rounded-lg px-4 py-6 text-center',
           'cursor-pointer select-none transition-colors duration-150',
           {
-            'border-blue-400 bg-blue-900/20 text-blue-300': isDragOver && !isUploading,
-            'border-gray-600 hover:border-blue-500 hover:bg-blue-900/10 text-gray-400':
+            'border-primary-400 bg-primary-900/20 text-primary-300': isDragOver && !isUploading,
+            'border-gray-600 hover:border-primary-500 hover:bg-primary-900/10 text-gray-400':
               !isDragOver && !isUploading,
             'border-gray-700 bg-gray-800/50 text-gray-600 cursor-not-allowed': isUploading,
           }
@@ -177,7 +179,7 @@ export const ImageUploadField = ({
           <>
             {/* Spinner */}
             <svg
-              className="animate-spin h-6 w-6 text-blue-400"
+              className="animate-spin h-6 w-6 text-primary-400"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -219,7 +221,7 @@ export const ImageUploadField = ({
             </svg>
             <span className="text-xs font-medium">
               Drop image here or{' '}
-              <span className="text-blue-400 underline underline-offset-2">browse</span>
+              <span className="text-primary-400 underline underline-offset-2">browse</span>
             </span>
             <span className="text-[0.65rem] text-gray-500">JPEG, PNG, WebP, GIF, SVG, AVIF</span>
           </>

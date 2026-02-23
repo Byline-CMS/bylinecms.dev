@@ -18,6 +18,11 @@
  * The collection must have an `upload` config block in its `CollectionDefinition`.
  * Returns 405 Method Not Allowed for collections without `upload` configured.
  *
+ * Query parameters:
+ *   - `createDocument` (boolean, default `true`) — when `false` the file is
+ *     stored and variants generated but no document version is created.
+ *     Use this from embedded image/file field widgets in collection forms.
+ *
  * Request: multipart/form-data
  *   - `file`       (File)   — binary file to upload           [required]
  *   - `title`      (string) — human title for the document    [optional; falls back to filename]
@@ -26,7 +31,8 @@
  *   - `credit`     (string) — photographer / attribution      [optional]
  *   - `category`   (string) — category select value           [optional]
  *
- * Response 201: { documentId, documentVersionId, storedFile, variants }
+ * Response 201 (createDocument=true):  { documentId, documentVersionId, storedFile, variants }
+ * Response 201 (createDocument=false): { storedFile, variants }
  * Response 400: { error: string }
  * Response 404: collection not found
  * Response 405: collection is not upload-enabled
@@ -38,8 +44,8 @@ import path from 'node:path'
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import type { StoredFileLocation } from '@byline/core'
-import { getServerConfig } from '@byline/core'
+import type { BeforeUploadContext, StoredFileLocation } from '@byline/core'
+import { deriveVariantStoragePaths, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import { createDocument } from '@byline/core/services'
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/storage-local'
@@ -96,6 +102,14 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
        */
       POST: async ({ request, params }) => {
         const { collection: collectionPath } = params
+
+        // Check whether the caller wants a document created automatically.
+        // When this endpoint is called from an embedded image/file field
+        // (ImageUploadField) within a document creation/edit form, passing
+        // `?createDocument=false` skips automatic document creation — the
+        // form's own save action is responsible for document persistence.
+        const url = new URL(request.url)
+        const shouldCreateDocument = url.searchParams.get('createDocument') !== 'false'
 
         // 1. Resolve collection definition.
         const config = await ensureCollection(collectionPath)
@@ -163,7 +177,23 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
         const credit = (formData.get('credit') as string | null)?.trim() || null
         const category = (formData.get('category') as string | null)?.trim() || null
 
-        // 5. Validate MIME type against the upload config.
+        // 5. Invoke beforeUpload hooks.
+        //    Hooks may return a modified filename string to override the
+        //    sanitised default (e.g. a slug-based or content-hash-based name).
+        let effectiveFilename = filename
+        const beforeUploadHook = config.definition.hooks?.beforeUpload
+        if (beforeUploadHook) {
+          const fns = Array.isArray(beforeUploadHook) ? beforeUploadHook : [beforeUploadHook]
+          const hookCtx: BeforeUploadContext = { filename, mimeType, fileSize, collectionPath }
+          for (const fn of fns) {
+            const override = await fn(hookCtx)
+            if (typeof override === 'string' && override.trim()) {
+              effectiveFilename = override.trim()
+            }
+          }
+        }
+
+        // 6. Validate MIME type against the upload config.
         if (upload.mimeTypes && upload.mimeTypes.length > 0) {
           if (!isMimeTypeAllowed(mimeType, upload.mimeTypes)) {
             return Response.json(
@@ -219,6 +249,7 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
         //     provider exposes an `uploadDir` (i.e. local provider), and the
         //     file is a processable image type.
         let variants: Array<{ name: string; url: string }> = []
+        let variantStoragePaths: string[] = []
         const isProcessableImage = mimeType.startsWith('image/') && !isBypassMimeType(mimeType)
 
         if (
@@ -242,16 +273,30 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
               name: v.name,
               url: storage.getUrl(v.storagePath),
             }))
+            variantStoragePaths = variantResults.map((v) => v.storagePath)
           } catch (err: unknown) {
             console.error('[upload] Image variant generation failed:', err)
             // Non-fatal: continue without variants.
           }
         }
 
-        // 11. Build the StoredFileValue for the primary image/file field.
+        // 11. Invoke afterUpload hooks.
+        const afterUploadHook = config.definition.hooks?.afterUpload
+        if (afterUploadHook) {
+          const fns = Array.isArray(afterUploadHook) ? afterUploadHook : [afterUploadHook]
+          for (const fn of fns) {
+            await fn({
+              storedFilePath: storedFile.storage_path,
+              variantPaths: variantStoragePaths,
+              collectionPath,
+            })
+          }
+        }
+
+        // 12. Build the StoredFileValue for the primary image/file field.
         const storedFileValue = {
           file_id: crypto.randomUUID(),
-          filename,
+          filename: effectiveFilename,
           original_filename: originalFilename,
           mime_type: mimeType,
           file_size: String(fileSize),
@@ -266,14 +311,24 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
           thumbnail_generated: variants.some((v) => v.name === 'thumbnail'),
         }
 
-        // 12. Find the primary image/file field in the collection definition.
+        // 13. Optionally create a document version.
+        //     Skipped when `?createDocument=false` is present (e.g. when the
+        //     upload is triggered by an embedded image field in a form — the
+        //     form submission will create the document with all field data).
+        if (!shouldCreateDocument) {
+          return Response.json({ storedFile: storedFileValue, variants }, { status: 201 })
+        }
+
+        // Find the primary image/file field in the collection definition.
         //     Convention: the first field of type 'image' or 'file'.
         const primaryField = config.definition.fields.find(
           (f) => f.type === 'image' || f.type === 'file'
         )
         const primaryFieldName = primaryField?.name ?? 'image'
 
-        // 13. Assemble document data and create the document version.
+        // 14. Assemble document data and create the document version.
+        //     On failure: roll back by deleting the stored file and any variants
+        //     so we don't leave orphaned files in storage.
         const documentData: Record<string, any> = {
           [primaryFieldName]: storedFileValue,
           title,
@@ -288,6 +343,7 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
           definition: config.definition,
           collectionId: config.collection.id,
           collectionPath,
+          storage,
         }
 
         let documentId: string
@@ -300,7 +356,19 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
           documentId = result.documentId
           documentVersionId = result.documentVersionId
         } catch (err: unknown) {
-          console.error('[upload] Document creation failed:', err)
+          console.error('[upload] Document creation failed — rolling back storage files:', err)
+          // Roll back: remove original file and any generated variants.
+          const allPaths = [
+            storedFile.storage_path,
+            ...deriveVariantStoragePaths(storedFile.storage_path, upload.sizes ?? []),
+          ]
+          for (const p of allPaths) {
+            try {
+              await storage.delete(p)
+            } catch (cleanupErr: unknown) {
+              console.error(`[upload] Rollback: failed to delete '${p}':`, cleanupErr)
+            }
+          }
           return Response.json(
             { error: 'File was stored but document creation failed. See server logs.' },
             { status: 500 }
