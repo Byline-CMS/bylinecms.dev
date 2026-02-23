@@ -102,13 +102,17 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
         }
 
         // 3. Resolve storage provider.
+        // Collection-level upload.storage takes precedence over the site-wide
+        // ServerConfig.storage default. This lets different collections target
+        // different backends (e.g. local for avatars, S3 for editorial images).
         const serverConfig = getServerConfig()
-        const storage = serverConfig.storage
+        const storage = upload.storage ?? serverConfig.storage
         if (!storage) {
           return Response.json(
             {
               error:
-                'No storage provider configured. Add a storage provider to ServerConfig (e.g. localStorageProvider).',
+                `No storage provider configured for collection '${collectionPath}'. ` +
+                'Set either collection.upload.storage or the site-wide ServerConfig.storage.',
             },
             { status: 500 }
           )

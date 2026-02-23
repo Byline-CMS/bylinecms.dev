@@ -33,11 +33,16 @@ export interface ClientConfig {
 export interface ServerConfig extends ClientConfig {
   db: IDbAdapter
   /**
-   * Pluggable file-storage provider.
+   * Site-wide default storage provider for upload-enabled collections.
    *
-   * Used by upload-enabled collections (`CollectionDefinition.upload`) to
-   * persist uploaded files. Defaults to a local-filesystem provider if
-   * omitted (when `@byline/storage-local` is available).
+   * This is the fallback used when a collection's own `UploadConfig.storage`
+   * is not set. Individual collections can override this by specifying
+   * `storage` inside their `upload` config block.
+   *
+   * Resolution order:
+   *   1. `collection.upload.storage`  — collection-level override
+   *   2. `ServerConfig.storage`        — site-wide default
+   *   3. 500 error if neither is set
    *
    * @example
    * ```ts

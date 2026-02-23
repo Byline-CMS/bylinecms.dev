@@ -7,6 +7,7 @@
  */
 
 import type { Field } from './field-types.js'
+import type { IStorageProvider } from './storage-types.js'
 
 // ---------------------------------------------------------------------------
 // Upload / media
@@ -84,6 +85,26 @@ export interface UploadConfig {
    * Omit to skip image processing (e.g. for a video or PDF collection).
    */
   sizes?: ImageSize[]
+  /**
+   * Storage provider for this collection.
+   *
+   * When set, this takes precedence over the site-wide `ServerConfig.storage`
+   * default. Use this to route different collections to different backends —
+   * for example, keep user avatars on local disk while sending editorial
+   * images to S3, or target separate S3 buckets per collection.
+   *
+   * Falls back to `ServerConfig.storage` when omitted.
+   *
+   * @example
+   * ```ts
+   * // Dedicated S3 bucket just for this collection:
+   * upload: {
+   *   mimeTypes: ['image/*'],
+   *   storage: s3StorageProvider({ bucket: 'my-photos', region: 'eu-west-1', ... }),
+   * }
+   * ```
+   */
+  storage?: IStorageProvider
 }
 
 // ---------------------------------------------------------------------------
