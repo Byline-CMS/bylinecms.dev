@@ -14,6 +14,8 @@ import {
   defineWorkflow,
 } from '@byline/core'
 
+import { MediaThumbnailCell } from './components/media-thumbnail-cell.js'
+
 // ---- Schema (server-safe, no UI concerns) ----
 
 /**
@@ -147,6 +149,13 @@ export const Media: CollectionDefinition = {
 // ---- Admin UI config (client-only, presentation concerns) ----
 
 const mediaColumns: ColumnDefinition[] = [
+  {
+    fieldName: 'image' as keyof any,
+    label: 'Preview',
+    align: 'left',
+    className: 'w-[60px]',
+    formatter: { component: MediaThumbnailCell },
+  },
   {
     fieldName: 'title',
     label: 'Title',

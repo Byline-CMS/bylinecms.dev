@@ -9,16 +9,24 @@
 /**
  * API Route: POST /admin/api/:collection/upload
  *
- * Upload a file to an upload-enabled collection.
+ * Upload a file to an upload-enabled collection. On success the file is
+ * stored via the resolved IStorageProvider, image variants are generated
+ * via Sharp (where applicable), and a new document version is created in
+ * the collection with the file metadata embedded in the primary image/file
+ * field.
  *
  * The collection must have an `upload` config block in its `CollectionDefinition`.
  * Returns 405 Method Not Allowed for collections without `upload` configured.
  *
  * Request: multipart/form-data
- *   - `file`  (File)     — the binary file to upload  [required]
- *   - `title` (string)   — human title for the media document [optional; falls back to filename]
+ *   - `file`       (File)   — binary file to upload           [required]
+ *   - `title`      (string) — human title for the document    [optional; falls back to filename]
+ *   - `altText`    (string) — alt text (image collections)    [optional]
+ *   - `caption`    (string) — caption text                    [optional]
+ *   - `credit`     (string) — photographer / attribution      [optional]
+ *   - `category`   (string) — category select value           [optional]
  *
- * Response 201: { documentId, storedFile: StoredFileLocation }
+ * Response 201: { documentId, documentVersionId, storedFile, variants }
  * Response 400: { error: string }
  * Response 404: collection not found
  * Response 405: collection is not upload-enabled
@@ -26,10 +34,15 @@
  * Response 415: MIME type not allowed
  */
 
+import path from 'node:path'
+
 import { createFileRoute } from '@tanstack/react-router'
 
 import type { StoredFileLocation } from '@byline/core'
 import { getServerConfig } from '@byline/core'
+import type { DocumentLifecycleContext } from '@byline/core/services'
+import { createDocument } from '@byline/core/services'
+import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/storage-local'
 
 import { ensureCollection } from '@/lib/api-utils'
 
@@ -143,6 +156,13 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
         const filename = sanitiseFilename(originalFilename)
         const fileSize = file.size
 
+        // Optional metadata fields from the form.
+        const title = (formData.get('title') as string | null)?.trim() || filename
+        const altText = (formData.get('altText') as string | null)?.trim() || null
+        const caption = (formData.get('caption') as string | null)?.trim() || null
+        const credit = (formData.get('credit') as string | null)?.trim() || null
+        const category = (formData.get('category') as string | null)?.trim() || null
+
         // 5. Validate MIME type against the upload config.
         if (upload.mimeTypes && upload.mimeTypes.length > 0) {
           if (!isMimeTypeAllowed(mimeType, upload.mimeTypes)) {
@@ -165,12 +185,18 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
           )
         }
 
-        // 7. Convert to Buffer and upload via the storage provider.
+        // 7. Read file into buffer (needed for metadata + variants).
+        let buffer: Buffer
+        try {
+          buffer = Buffer.from(await file.arrayBuffer())
+        } catch (err: unknown) {
+          console.error('[upload] Failed to read file buffer:', err)
+          return Response.json({ error: 'Failed to read uploaded file.' }, { status: 500 })
+        }
+
+        // 8. Upload original file via storage provider.
         let storedFile: StoredFileLocation
         try {
-          const arrayBuffer = await file.arrayBuffer()
-          const buffer = Buffer.from(arrayBuffer)
-
           storedFile = await storage.upload(buffer, {
             filename,
             mimeType,
@@ -185,18 +211,108 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
           )
         }
 
-        // 8. Return the stored file location.
-        // TODO: In a subsequent step this will also create a document version
-        // in the collection (via createDocumentVersion), associating the
-        // StoredFileLocation with the primary image/file field, and return the
-        // new documentId alongside the file metadata.
+        // 9. Extract image metadata (dimensions, format).
+        const imageMeta = await extractImageMeta(buffer, mimeType)
+
+        // 10. Generate image variants via Sharp (skip for SVG/GIF).
+        //     Only runs when: the collection defines `sizes`, the storage
+        //     provider exposes an `uploadDir` (i.e. local provider), and the
+        //     file is a processable image type.
+        let variants: Array<{ name: string; url: string }> = []
+        const isProcessableImage = mimeType.startsWith('image/') && !isBypassMimeType(mimeType)
+
+        if (
+          isProcessableImage &&
+          upload.sizes &&
+          upload.sizes.length > 0 &&
+          'uploadDir' in storage &&
+          typeof (storage as any).uploadDir === 'string'
+        ) {
+          try {
+            const uploadDir = (storage as any).uploadDir as string
+            const absoluteOriginalPath = path.join(uploadDir, storedFile.storage_path)
+            const variantResults = await generateImageVariants(
+              buffer,
+              mimeType,
+              absoluteOriginalPath,
+              uploadDir,
+              upload.sizes
+            )
+            variants = variantResults.map((v) => ({
+              name: v.name,
+              url: storage.getUrl(v.storagePath),
+            }))
+          } catch (err: unknown) {
+            console.error('[upload] Image variant generation failed:', err)
+            // Non-fatal: continue without variants.
+          }
+        }
+
+        // 11. Build the StoredFileValue for the primary image/file field.
+        const storedFileValue = {
+          file_id: crypto.randomUUID(),
+          filename,
+          original_filename: originalFilename,
+          mime_type: mimeType,
+          file_size: String(fileSize),
+          storage_provider: storedFile.storage_provider,
+          storage_path: storedFile.storage_path,
+          storage_url: storedFile.storage_url,
+          file_hash: null,
+          image_width: imageMeta.width,
+          image_height: imageMeta.height,
+          image_format: imageMeta.format,
+          processing_status: 'complete' as const,
+          thumbnail_generated: variants.some((v) => v.name === 'thumbnail'),
+        }
+
+        // 12. Find the primary image/file field in the collection definition.
+        //     Convention: the first field of type 'image' or 'file'.
+        const primaryField = config.definition.fields.find(
+          (f) => f.type === 'image' || f.type === 'file'
+        )
+        const primaryFieldName = primaryField?.name ?? 'image'
+
+        // 13. Assemble document data and create the document version.
+        const documentData: Record<string, any> = {
+          [primaryFieldName]: storedFileValue,
+          title,
+          ...(altText != null ? { altText } : {}),
+          ...(caption != null ? { caption } : {}),
+          ...(credit != null ? { credit } : {}),
+          ...(category != null ? { category } : {}),
+        }
+
+        const ctx: DocumentLifecycleContext = {
+          db: serverConfig.db,
+          definition: config.definition,
+          collectionId: config.collection.id,
+          collectionPath,
+        }
+
+        let documentId: string
+        let documentVersionId: string
+        try {
+          const result = await createDocument(ctx, {
+            data: documentData,
+            locale: 'en',
+          })
+          documentId = result.documentId
+          documentVersionId = result.documentVersionId
+        } catch (err: unknown) {
+          console.error('[upload] Document creation failed:', err)
+          return Response.json(
+            { error: 'File was stored but document creation failed. See server logs.' },
+            { status: 500 }
+          )
+        }
+
         return Response.json(
           {
-            storedFile,
-            filename,
-            originalFilename,
-            mimeType,
-            fileSize,
+            documentId,
+            documentVersionId,
+            storedFile: storedFileValue,
+            variants,
           },
           { status: 201 }
         )

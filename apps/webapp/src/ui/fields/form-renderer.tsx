@@ -169,6 +169,7 @@ const FormContent = ({
   adminConfig,
   headingLabel,
   headerSlot,
+  collectionPath,
 }: {
   fields: Field[]
   onSubmit: (data: any) => void
@@ -183,6 +184,8 @@ const FormContent = ({
   adminConfig?: CollectionAdminConfig
   headingLabel?: string
   headerSlot?: ReactNode
+  /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
+  collectionPath?: string
 }) => {
   const {
     getFieldValues,
@@ -416,6 +419,7 @@ const FormContent = ({
               key={field.name}
               field={field}
               defaultValue={initialData?.[field.name]}
+              collectionPath={collectionPath}
             />
           ))}
         </div>
@@ -425,6 +429,7 @@ const FormContent = ({
               key={field.name}
               field={field}
               defaultValue={initialData?.[field.name]}
+              collectionPath={collectionPath}
             />
           ))}
         </div>
@@ -469,6 +474,7 @@ export const FormRenderer = ({
   adminConfig,
   headingLabel,
   headerSlot,
+  collectionPath,
 }: {
   fields: Field[]
   onSubmit: (data: any) => void
@@ -483,6 +489,8 @@ export const FormRenderer = ({
   adminConfig?: CollectionAdminConfig
   headingLabel?: string
   headerSlot?: ReactNode
+  /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
+  collectionPath?: string
 }) => (
   <FormProvider initialData={initialData}>
     <FormContent
@@ -499,6 +507,7 @@ export const FormRenderer = ({
       adminConfig={adminConfig}
       headingLabel={headingLabel}
       headerSlot={headerSlot}
+      collectionPath={collectionPath}
     />
   </FormProvider>
 )

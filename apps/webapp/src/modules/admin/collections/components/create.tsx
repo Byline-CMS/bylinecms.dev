@@ -72,6 +72,7 @@ export const CreateView = ({
             }
             initialData={initialData}
             adminConfig={adminConfig}
+            collectionPath={path}
           />
         </Container>
       </Section>

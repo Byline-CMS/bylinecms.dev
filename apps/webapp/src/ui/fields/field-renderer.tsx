@@ -625,6 +625,8 @@ interface FieldRendererProps {
   basePath?: string
   disableSorting?: boolean
   hideLabel?: boolean
+  /** Collection path (e.g. `'media'`) forwarded to upload-capable fields. */
+  collectionPath?: string
 }
 
 export const FieldRenderer = ({
@@ -633,6 +635,7 @@ export const FieldRenderer = ({
   basePath,
   disableSorting,
   hideLabel,
+  collectionPath,
 }: FieldRendererProps) => {
   const path = basePath ? `${basePath}.${field.name}` : field.name
   const htmlId = path.replace(/[[\].]/g, '-')
@@ -726,6 +729,7 @@ export const FieldRenderer = ({
           defaultValue={defaultValue}
           onChange={handleChange}
           path={path}
+          collectionPath={collectionPath}
         />
       )
     case 'block':

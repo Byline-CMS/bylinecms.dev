@@ -184,6 +184,7 @@ export const EditView = ({
             onCancel={() =>
               navigate({ to: '/admin/collections/$collection', params: { collection: path } })
             }
+            collectionPath={path}
           />
         </Container>
       </Section>

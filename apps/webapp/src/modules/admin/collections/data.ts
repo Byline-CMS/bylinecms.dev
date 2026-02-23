@@ -219,3 +219,58 @@ export async function deleteDocument(collection: string, id: string) {
   }
   return response.json()
 }
+
+// ---------------------------------------------------------------------------
+// Upload
+// ---------------------------------------------------------------------------
+
+export interface UploadDocumentResult {
+  documentId: string
+  documentVersionId: string
+  storedFile: {
+    file_id: string
+    filename: string
+    original_filename: string
+    mime_type: string
+    file_size: string
+    storage_provider: string
+    storage_path: string
+    storage_url: string
+    file_hash: string | null
+    image_width: number | null
+    image_height: number | null
+    image_format: string | null
+    processing_status: 'complete' | 'pending' | 'failed'
+    thumbnail_generated: boolean
+  }
+  variants: Array<{ name: string; url: string }>
+}
+
+/**
+ * Upload a file to an upload-enabled collection.
+ *
+ * The server stores the file, extracts image metadata, generates variants,
+ * and creates a document version in one atomic request.
+ *
+ * @param collection  - collection path (e.g. `'media'`)
+ * @param formData    - FormData with at minimum a `file` (File) field; may
+ *                      also include `title`, `altText`, `caption`, `credit`,
+ *                      `category`.
+ */
+export async function uploadDocument(
+  collection: string,
+  formData: FormData
+): Promise<UploadDocumentResult> {
+  const url = `${API_BASE_URL}/${collection}/upload`
+  const response = await fetch(url, {
+    method: 'POST',
+    // Do NOT set Content-Type manually — the browser must set the multipart
+    // boundary automatically when body is FormData.
+    body: formData,
+  })
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}))
+    throw new Error((errorBody as any).error || `Upload failed with status ${response.status}`)
+  }
+  return response.json() as Promise<UploadDocumentResult>
+}

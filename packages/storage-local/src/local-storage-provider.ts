@@ -76,7 +76,7 @@ function buildStoragePath(collection: string | undefined, filename: string): str
 class LocalStorageProvider implements IStorageProvider {
   readonly providerName = 'local'
 
-  private readonly uploadDir: string
+  readonly uploadDir: string
   private readonly baseUrl: string
 
   constructor(config: LocalStorageConfig) {

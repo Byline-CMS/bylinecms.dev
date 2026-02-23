@@ -54,8 +54,13 @@ const _applyDateTimeValidation = (schema: z.ZodType, _field: DateTimeField): z.Z
   return validatedSchema
 }
 
-// Convert a single field to a Zod schema
-export const fieldToZodSchema = (field: Field): z.ZodType => {
+// Convert a single field to a Zod schema.
+// When strict=true (write operations: create/update), field.required is
+// enforced. When strict=false (read operations: list/get/history), all
+// fields are nullable+optional regardless — this means adding a required
+// field to an existing collection never breaks reads of older documents
+// that were stored before the field existed.
+export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
   let schema: z.ZodType
 
   switch (field.type) {
@@ -120,11 +125,68 @@ export const fieldToZodSchema = (field: Field): z.ZodType => {
       break
     }
 
+    case 'textArea': {
+      let textAreaSchema = z.string()
+      if (field.validation?.minLength) {
+        textAreaSchema = textAreaSchema.min(field.validation.minLength)
+      }
+      if (field.validation?.maxLength) {
+        textAreaSchema = textAreaSchema.max(field.validation.maxLength)
+      }
+      schema = textAreaSchema
+      break
+    }
+
+    case 'integer':
+      schema = z.number().int()
+      break
+
+    case 'float':
+    case 'decimal':
+      schema = z.number()
+      break
+
+    case 'image':
+    case 'file': {
+      // StoredFileValue — the object written by the upload endpoint and
+      // stored in the typed store_* tables. Use .passthrough() so schema
+      // evolution (new fields) doesn't break existing documents.
+      schema = z
+        .object({
+          file_id: z.string(),
+          filename: z.string(),
+          original_filename: z.string(),
+          mime_type: z.string(),
+          file_size: z.string(),
+          storage_provider: z.string(),
+          storage_path: z.string(),
+          storage_url: z.string().nullable(),
+          file_hash: z.string().nullable(),
+          image_width: z.number().nullable(),
+          image_height: z.number().nullable(),
+          image_format: z.string().nullable(),
+          processing_status: z.enum(['pending', 'processing', 'complete', 'failed']),
+          thumbnail_generated: z.boolean(),
+        })
+        .passthrough()
+      break
+    }
+
+    case 'block':
+    case 'relation':
+      // Blocks are complex nested structures validated at the field-renderer
+      // level. Relations store a document ID string or array; use z.any()
+      // so the schema does not constrain shape here.
+      schema = z.any()
+      break
+
     default:
       schema = z.string()
   }
 
-  return field.required ? schema : schema.nullable().optional()
+  // In strict mode respect field.required; in lenient mode always allow
+  // null/undefined so reads never fail on schema-evolved documents.
+  return strict && field.required ? schema : schema.nullable().optional()
 }
 
 // Create the base schema that all collections share.
@@ -147,12 +209,14 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
   })
 }
 
-// Create field schemas for a collection
-export const createFieldsSchema = (fields: Field[]) => {
+// Create field schemas for a collection.
+// strict=true  → required fields are non-nullable (write / validation use)
+// strict=false → all fields are nullable+optional (read / serialisation use)
+export const createFieldsSchema = (fields: Field[], strict = true) => {
   const fieldsSchemaShape: Record<string, z.ZodType> = {}
 
   for (const field of fields) {
-    fieldsSchemaShape[field.name] = fieldToZodSchema(field)
+    fieldsSchemaShape[field.name] = fieldToZodSchema(field, strict)
   }
 
   return z.object(fieldsSchemaShape)
@@ -191,10 +255,23 @@ export const createCollectionSchemasForPath = (path: string) => {
 // Main function to create all schemas for a collection
 export const createCollectionSchemas = (collection: CollectionDefinition) => {
   const baseSchema = createBaseSchema(collection)
-  const fieldsSchema = createFieldsSchema(collection.fields)
+
+  // Strict (write) — required fields are enforced.
+  const fieldsSchema = createFieldsSchema(collection.fields, true)
+
+  // Lenient (read) — all fields are nullable+optional so that older
+  // documents missing a newly-added required field never cause a parse
+  // error in list / get / history responses.
+  const fieldsSchemaLenient = createFieldsSchema(collection.fields, false)
+
   const fullSchema = z.object({
     ...baseSchema.shape,
     ...fieldsSchema.shape,
+  })
+
+  const fullSchemaLenient = z.object({
+    ...baseSchema.shape,
+    ...fieldsSchemaLenient.shape,
   })
 
   return {
@@ -202,18 +279,18 @@ export const createCollectionSchemas = (collection: CollectionDefinition) => {
     fields: fieldsSchema,
     full: fullSchema,
     list: z.object({
-      documents: z.array(fullSchema),
+      documents: z.array(fullSchemaLenient),
       meta: createListMetaSchema(),
       included: z.object({
         collection: createCollectionMetaSchema(collection),
       }),
     }),
     history: z.object({
-      documents: z.array(fullSchema),
+      documents: z.array(fullSchemaLenient),
       meta: createListMetaSchema(),
     }),
     create: fieldsSchema,
-    get: fullSchema,
+    get: fullSchemaLenient,
     update: fieldsSchema.partial(),
   }
 }
