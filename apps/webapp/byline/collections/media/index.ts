@@ -67,8 +67,8 @@ export const Media: CollectionDefinition = {
     sizes: [
       {
         name: 'thumbnail',
-        width: 300,
-        height: 300,
+        width: 400,
+        height: 400,
         fit: 'cover',
         format: 'webp',
         quality: 80,
@@ -96,7 +96,7 @@ export const Media: CollectionDefinition = {
       },
       {
         name: 'desktop',
-        width: 1920,
+        width: 2100,
         fit: 'inside',
         format: 'webp',
         quality: 85,
@@ -141,20 +141,6 @@ export const Media: CollectionDefinition = {
       required: false,
       helpText: 'Photographer, agency, or copyright holder.',
     },
-    {
-      name: 'category',
-      label: 'Category',
-      type: 'select',
-      required: false,
-      options: [
-        { label: 'Editorial', value: 'editorial' },
-        { label: 'Product', value: 'product' },
-        { label: 'People', value: 'people' },
-        { label: 'Places', value: 'places' },
-        { label: 'Events', value: 'events' },
-        { label: 'Other', value: 'other' },
-      ],
-    },
   ],
 }
 
@@ -167,12 +153,6 @@ const mediaColumns: ColumnDefinition[] = [
     sortable: true,
     align: 'left',
     className: 'w-[35%]',
-  },
-  {
-    fieldName: 'category',
-    label: 'Category',
-    align: 'left',
-    className: 'w-[15%]',
   },
   {
     fieldName: 'status',
