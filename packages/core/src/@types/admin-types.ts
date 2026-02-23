@@ -69,7 +69,7 @@ export interface TabDefinition {
  * within a tab (or the default layout when no tabs are configured).
  * Purely presentational — no storage or schema impact.
  */
-export interface FieldGroupDefinition {
+export interface GroupDefinition {
   /** Unique key used to reference this group in FieldAdminConfig. */
   name: string
   /** Optional heading rendered above the grouped fields. */
@@ -84,6 +84,8 @@ export interface FieldGroupDefinition {
  * vertical stack. Purely presentational.
  */
 export interface RowDefinition {
+  /** Unique key used to reference this row in FieldAdminConfig. */
+  name: string
   /** Ordered list of field names to render in a horizontal row. */
   fields: string[]
   /** When tabs are configured, restrict this row to a specific tab. */
@@ -109,6 +111,11 @@ export interface FieldAdminConfig {
    * Requires `groups` to be declared on the CollectionAdminConfig.
    */
   group?: string
+  /**
+   * Which row (by name) this field belongs to.
+   * Requires a matching entry in `rows` on the CollectionAdminConfig.
+   */
+  row?: string
   // Future: custom component overrides, editor config, etc.
 }
 
@@ -148,7 +155,7 @@ export interface CollectionAdminConfig<T = any> {
    * Named visual grouping sections within the form (or within a tab).
    * Assign fields to groups via `fields[fieldName].group`.
    */
-  groups?: FieldGroupDefinition[]
+  groups?: GroupDefinition[]
 
   /**
    * Horizontal row layouts — fields listed in each row are rendered
