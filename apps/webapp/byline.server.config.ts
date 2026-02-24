@@ -2,10 +2,28 @@ import { defineServerConfig } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
-import { config } from './byline.client.config.js'
+// Import collection definitions directly from schema files — NOT the full
+// client config or index barrels. The client config / index files pull in
+// admin configs (React components, CSS modules) that are not loadable
+// outside Vite (e.g. when running seeds via tsx).
+import { Docs } from './byline/collections/docs/schema.js'
+import { Media } from './byline/collections/media/schema.js'
+import { News } from './byline/collections/news/schema.js'
+import { Pages } from './byline/collections/pages/schema.js'
 
 defineServerConfig({
-  ...config,
+  serverURL: 'http://localhost:5173/',
+  i18n: {
+    interface: {
+      defaultLocale: 'en',
+      locales: ['en', 'es'],
+    },
+    content: {
+      defaultLocale: 'en',
+      locales: ['en', 'es'],
+    },
+  },
+  collections: [Docs, News, Pages, Media],
   db: pgAdapter({
     connectionString: process.env.DB_CONNECTION_STRING || '',
   }),
