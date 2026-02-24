@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
+import type { AfterUploadContext, BeforeUploadContext, CollectionDefinition } from '@byline/core'
 import {
   type CollectionAdminConfig,
   type ColumnDefinition,
@@ -105,6 +105,14 @@ export const Media: CollectionDefinition = {
         quality: 85,
       },
     ],
+  },
+  hooks: {
+    beforeUpload: (ctx: BeforeUploadContext) => {
+      console.log('beforeUpload hook called', ctx)
+    },
+    afterUpload: (ctx: AfterUploadContext) => {
+      console.log('afterUpload hook called', ctx)
+    },
   },
   fields: [
     // The primary file/image field — this is what gets populated by the
