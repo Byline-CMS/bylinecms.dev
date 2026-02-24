@@ -25,7 +25,7 @@ function deriveThumbnailUrl(storageUrl: string): string {
  * When the `thumbnail` variant has been generated, the smaller webp is used;
  * otherwise the original storage URL is shown.
  */
-export function MediaThumbnailCell({ record }: FormatterProps) {
+export function MediaThumbnail({ record }: FormatterProps) {
   const doc = record as Record<string, any>
   const img = doc.image as StoredFileValue | null | undefined
 

@@ -17,7 +17,7 @@ import {
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'
 import { formatSlug } from '../../utilities/format-slug.js'
-import { FeaturedCell } from './components/feature-cell.js'
+import { FeaturedFormatter } from './components/feature-formatter.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -215,7 +215,7 @@ const docsColumns: ColumnDefinition[] = [
     label: 'Featured',
     align: 'center',
     className: 'w-[10%]',
-    formatter: { component: FeaturedCell },
+    formatter: { component: FeaturedFormatter },
   },
   {
     fieldName: 'status',

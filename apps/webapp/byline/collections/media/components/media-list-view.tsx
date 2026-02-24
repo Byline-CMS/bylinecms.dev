@@ -248,7 +248,7 @@ export function MediaListView({
         {data.documents.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6 mt-4">
             {(data.documents as any[]).map((doc) => {
               const img = doc.image as StoredFileValue | null | undefined
               const thumbUrl = img?.storage_url

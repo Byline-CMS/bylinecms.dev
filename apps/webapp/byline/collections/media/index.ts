@@ -15,7 +15,7 @@ import {
 } from '@byline/core'
 
 import { MediaListView } from './components/media-list-view.js'
-import { MediaThumbnailCell } from './components/media-thumbnail-cell.js'
+import { MediaThumbnail } from './components/media-thumbnail.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -177,7 +177,7 @@ const mediaColumns: ColumnDefinition[] = [
     label: 'Preview',
     align: 'left',
     className: 'w-[5%]',
-    formatter: { component: MediaThumbnailCell },
+    formatter: { component: MediaThumbnail },
   },
   {
     fieldName: 'title',
