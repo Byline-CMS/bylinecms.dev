@@ -64,6 +64,21 @@ export const News: CollectionDefinition = {
 
 // ---- Admin UI config (client-only, presentation concerns) ----
 
+/**
+ * Column definitions for the default table-based list view.
+ *
+ * These are passed to the built-in `ListView` component and control which
+ * fields appear as columns, their labels, sort behaviour, and formatters.
+ *
+ * Note: when a custom `listView` component is registered on the
+ * `CollectionAdminConfig`, it receives the raw paginated data directly and
+ * is responsible for its own layout. These column definitions can still
+ * be used in a custom list view, but they are not automatically applied
+ * as they are with the default table-based `ListView`. You can import
+ * them if needed - for example if you wanted to create a toggled card/table
+ * custom view.
+ */
+
 const newsColumns: ColumnDefinition[] = [
   {
     fieldName: 'title',

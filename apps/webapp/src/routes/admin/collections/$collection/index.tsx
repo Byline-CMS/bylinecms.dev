@@ -73,6 +73,7 @@ function RouteComponent() {
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
   const adminConfig = getCollectionAdminConfig(collection)
   const columns = adminConfig?.columns || []
+  const workflowStatuses = getWorkflowStatuses(collectionDef)
   const [toastOpen, setToastOpen] = useState(false)
 
   useEffect(() => {
@@ -86,6 +87,8 @@ function RouteComponent() {
     }
   }, [search.action, navigate])
 
+  const CustomListView = adminConfig?.listView
+
   return (
     <>
       <BreadcrumbsClient
@@ -97,11 +100,15 @@ function RouteComponent() {
           },
         ]}
       />
-      <ListView
-        data={data}
-        columns={columns}
-        workflowStatuses={getWorkflowStatuses(collectionDef)}
-      />
+      {CustomListView ? (
+        <CustomListView data={data} workflowStatuses={workflowStatuses} />
+      ) : (
+        <ListView
+          data={data}
+          columns={columns}
+          workflowStatuses={workflowStatuses}
+        />
+      )}
       <Toast
         title={`${collectionDef.labels.singular} Created`}
         intent="success"

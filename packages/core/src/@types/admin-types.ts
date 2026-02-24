@@ -6,7 +6,22 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from './collection-types.js'
+import type { CollectionDefinition, WorkflowStatus } from './collection-types.js'
+
+/**
+ * Props passed to a custom list-view component registered via
+ * `CollectionAdminConfig.listView`.
+ *
+ * The `data` type mirrors the paginated API response shape
+ * (`AnyCollectionSchemaTypes['ListType']` in the webapp). It is kept generic
+ * here so that `@byline/core` remains React-free and framework-agnostic.
+ */
+export interface ListViewComponentProps<TData = any> {
+  /** Paginated API response — includes `documents`, `meta`, and `included`. */
+  data: TData
+  /** Resolved workflow statuses for the collection, used to render labels. */
+  workflowStatuses?: WorkflowStatus[]
+}
 
 /**
  * Props passed to a component-style column formatter.
@@ -165,6 +180,25 @@ export interface CollectionAdminConfig<T = any> {
 
   /** Preview URL builder for live preview links. */
   preview?: (doc: T, ctx: { locale?: string }) => string
+
+  /**
+   * Custom list-view component for this collection.
+   *
+   * When provided, this component completely replaces the default table-based
+   * `ListView` on the collection index route. It receives a `ListViewComponentProps`
+   * object and is responsible for rendering search, ordering, results, and
+   * pagination itself.
+   *
+   * This is the primary extensibility point for non-tabular layouts such as
+   * card grids, kanban boards, or calendar views.
+   *
+   * @example
+   * ```ts
+   * // In your CollectionAdminConfig:
+   * listView: MediaListView,
+   * ```
+   */
+  listView?: (props: ListViewComponentProps) => any
 }
 
 /**

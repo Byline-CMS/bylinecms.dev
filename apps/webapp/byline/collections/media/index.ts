@@ -14,6 +14,7 @@ import {
   defineWorkflow,
 } from '@byline/core'
 
+import { MediaListView } from './components/media-list-view.js'
 import { MediaThumbnailCell } from './components/media-thumbnail-cell.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -148,6 +149,20 @@ export const Media: CollectionDefinition = {
 
 // ---- Admin UI config (client-only, presentation concerns) ----
 
+/**
+ * Column definitions for the default table-based list view.
+ *
+ * These are passed to the built-in `ListView` component and control which
+ * fields appear as columns, their labels, sort behaviour, and formatters.
+ *
+ * Note: when a custom `listView` component is registered on the
+ * `CollectionAdminConfig`, it receives the raw paginated data directly and
+ * is responsible for its own layout. These column definitions can still
+ * be used in a custom list view, but they are not automatically applied
+ * as they are with the default table-based `ListView`. You can import
+ * them if needed - for example if you wanted to create a toggled card/table
+ * custom view.
+ */
 const mediaColumns: ColumnDefinition[] = [
   {
     fieldName: 'image' as keyof any,
@@ -189,4 +204,5 @@ const mediaColumns: ColumnDefinition[] = [
 export const MediaAdmin: CollectionAdminConfig = defineAdmin(Media, {
   useAsTitle: 'title',
   columns: mediaColumns,
+  listView: MediaListView,
 })
