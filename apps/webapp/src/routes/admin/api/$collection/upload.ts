@@ -170,13 +170,6 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
         const filename = sanitiseFilename(originalFilename)
         const fileSize = file.size
 
-        // Optional metadata fields from the form.
-        const title = (formData.get('title') as string | null)?.trim() || filename
-        const altText = (formData.get('altText') as string | null)?.trim() || null
-        const caption = (formData.get('caption') as string | null)?.trim() || null
-        const credit = (formData.get('credit') as string | null)?.trim() || null
-        const category = (formData.get('category') as string | null)?.trim() || null
-
         // 5. Invoke beforeUpload hooks.
         //    Hooks may return a modified filename string to override the
         //    sanitised default (e.g. a slug-based or content-hash-based name).
@@ -319,23 +312,26 @@ export const Route = createFileRoute('/admin/api/$collection/upload')({
           return Response.json({ storedFile: storedFileValue, variants }, { status: 201 })
         }
 
-        // Find the primary image/file field in the collection definition.
-        //     Convention: the first field of type 'image' or 'file'.
-        const primaryField = config.definition.fields.find(
-          (f) => f.type === 'image' || f.type === 'file'
-        )
-        const primaryFieldName = primaryField?.name ?? 'image'
-
-        // 14. Assemble document data and create the document version.
+        // 14. Assemble document data generically from the collection's field definitions.
         //     On failure: roll back by deleting the stored file and any variants
         //     so we don't leave orphaned files in storage.
-        const documentData: Record<string, any> = {
-          [primaryFieldName]: storedFileValue,
-          title,
-          ...(altText != null ? { altText } : {}),
-          ...(caption != null ? { caption } : {}),
-          ...(credit != null ? { credit } : {}),
-          ...(category != null ? { category } : {}),
+        //
+        //     - image/file fields → populated from the StoredFileValue.
+        //     - 'title' → read from form data; falls back to effectiveFilename so the
+        //       document always has a usable label even when the caller omits it.
+        //     - all other fields → read from form data by field name; omitted when empty.
+        const documentData: Record<string, any> = {}
+        for (const field of config.definition.fields) {
+          if (field.type === 'image' || field.type === 'file') {
+            documentData[field.name] = storedFileValue
+            continue
+          }
+          const rawValue = (formData.get(field.name) as string | null)?.trim() ?? ''
+          if (field.name === 'title') {
+            documentData.title = rawValue || effectiveFilename
+          } else if (rawValue !== '') {
+            documentData[field.name] = rawValue
+          }
         }
 
         const ctx: DocumentLifecycleContext = {

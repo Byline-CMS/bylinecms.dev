@@ -161,6 +161,7 @@ export const EditView = ({
       <Section>
         <Container>
           <FormRenderer
+            mode="edit"
             fields={fields}
             onSubmit={handleSubmit}
             initialData={initialData}

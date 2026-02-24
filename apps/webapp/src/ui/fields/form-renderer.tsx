@@ -156,6 +156,7 @@ function computeStatusTransitions(
 }
 
 const FormContent = ({
+  mode,
   fields,
   onSubmit,
   onCancel,
@@ -171,6 +172,7 @@ const FormContent = ({
   headerSlot,
   collectionPath,
 }: {
+  mode: 'create' | 'edit'
   fields: Field[]
   onSubmit: (data: any) => void
   onCancel: () => void
@@ -214,7 +216,7 @@ const FormContent = ({
   // Live document heading — tracks the useAsTitle field as the user types
   const titleFieldName = adminConfig?.useAsTitle
   const liveTitle = useFieldValue<string>(titleFieldName ?? '')
-  const heading = liveTitle || (headingLabel ? `Edit ${headingLabel}` : 'Edit')
+  const heading = liveTitle || (headingLabel ? `${mode === 'create' ? 'Create' : 'Edit'} ${headingLabel}` : mode === 'create' ? 'Create' : 'Edit')
 
   // Navigation guard — block TanStack Router navigation and browser unload when dirty
   const shouldBlockFn = useCallback(() => hasChanges, [hasChanges])
@@ -461,6 +463,7 @@ const FormContent = ({
 }
 
 export const FormRenderer = ({
+  mode,
   fields,
   onSubmit,
   onCancel,
@@ -476,6 +479,7 @@ export const FormRenderer = ({
   headerSlot,
   collectionPath,
 }: {
+  mode: 'create' | 'edit'
   fields: Field[]
   onSubmit: (data: any) => void
   onCancel: () => void
@@ -494,6 +498,7 @@ export const FormRenderer = ({
 }) => (
   <FormProvider initialData={initialData}>
     <FormContent
+      mode={mode}
       fields={fields}
       onSubmit={onSubmit}
       onCancel={onCancel}

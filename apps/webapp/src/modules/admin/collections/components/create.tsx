@@ -60,18 +60,20 @@ export const CreateView = ({
     <>
       <Section>
         <Container>
-          <h2 className="mb-2">Create {labels.singular}</h2>
+          {/* <h2 className="mb-2">Create {labels.singular}</h2> */}
           <FormRenderer
+            mode="create"
             fields={fields}
             onSubmit={handleSubmit}
+            initialData={initialData}
+            adminConfig={adminConfig}
+            headingLabel={labels.singular}
             onCancel={() =>
               navigate({
                 to: '/admin/collections/$collection',
                 params: { collection: path },
               })
             }
-            initialData={initialData}
-            adminConfig={adminConfig}
             collectionPath={path}
           />
         </Container>

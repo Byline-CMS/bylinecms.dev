@@ -18,8 +18,8 @@ export const config: ClientConfig = {
       locales: ['en', 'es'],
     },
   },
-  collections: [Docs, Media, News, Pages],
-  admin: [DocsAdmin, MediaAdmin, NewsAdmin, PagesAdmin],
+  collections: [Docs, News, Pages, Media],
+  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin],
 }
 
 defineClientConfig(config)
