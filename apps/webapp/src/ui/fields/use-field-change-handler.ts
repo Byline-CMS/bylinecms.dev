@@ -57,6 +57,15 @@ export function useFieldChangeHandler(field: Field, path: string) {
 
       clearFieldError(path)
 
+      // When there are only advisory beforeValidate hooks (no beforeChange that can
+      // block or transform the value), commit synchronously so that controlled inputs
+      // (e.g. <input value={...}>) receive the updated value before React's next
+      // render. Deferring even one microtask tick (via await) causes React to
+      // reconcile the stale value prop against the DOM and reset cursor position.
+      if (changeFns.length === 0) {
+        setFieldValue(path, value)
+      }
+
       void (async () => {
         try {
           // 1. beforeValidate (advisory — value is always committed)
@@ -83,7 +92,9 @@ export function useFieldChangeHandler(field: Field, path: string) {
             }
           }
 
-          // 3. commit the value, then surface any advisory error
+          // 3. commit the (possibly transformed) value and surface any advisory error.
+          // If there were no beforeChange hooks we already committed synchronously above;
+          // this call is a no-op if the value hasn't been altered by a hook.
           setFieldValue(path, ctx.value)
           if (advisoryError) {
             setFieldError(path, advisoryError)

@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 
 import type { TextField as FieldType } from '@byline/core'
 import { Input } from '@infonomic/uikit/react'
@@ -32,26 +32,12 @@ export const TextField = ({
   const fieldError = useFieldError(fieldPath)
   // const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<string | undefined>(fieldPath)
-  const dispatchFieldUpdateTask = useRef<number>(undefined)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
 
   const handleChange = useCallback(
     (value: string) => {
-      const updateFieldValue = (val: string) => {
-        if (onChange) {
-          onChange(val)
-        }
-      }
-
-      if (typeof window.requestIdleCallback === 'function') {
-        if (typeof window.cancelIdleCallback === 'function' && dispatchFieldUpdateTask.current) {
-          cancelIdleCallback(dispatchFieldUpdateTask.current)
-        }
-        dispatchFieldUpdateTask.current = requestIdleCallback(() => updateFieldValue(value), {
-          timeout: 500,
-        })
-      } else {
-        updateFieldValue(value)
+      if (onChange) {
+        onChange(value)
       }
     },
     [onChange]
