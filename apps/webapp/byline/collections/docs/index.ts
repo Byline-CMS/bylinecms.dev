@@ -198,7 +198,7 @@ export const Docs: CollectionDefinition = {
  * is responsible for its own layout. These column definitions can still
  * be used in a custom list view, but they are not automatically applied
  * as they are with the default table-based `ListView`. You can import
- * them if needed - for example if you wanted to create a toggled card/table
+ * them if needed - for example if you wanted to create a toggled grid/table
  * custom view.
  */
 
