@@ -59,9 +59,11 @@ export function DocumentActions({
                 <DropdownComponent.Separator />
               </>
             )}
-            <DropdownComponent.Item onSelect={() => {
-              setShowDeleteConfirm(true)
-            }}>
+            <DropdownComponent.Item
+              onSelect={() => {
+                setShowDeleteConfirm(true)
+              }}
+            >
               <div className="dropdown-item-content flex items-center ml-1">
                 <span className="dropdown-item-content-icon inline-block w-[28px]">
                   <DeleteIcon width="16px" height="16px" />
@@ -109,9 +111,13 @@ export function DocumentActions({
             <button data-autofocus type="button" tabIndex={0} className="sr-only">
               no action
             </button>
-            <Button size="sm" intent="noeffect" onClick={() => {
-              setShowDeleteConfirm(false)
-            }}>
+            <Button
+              size="sm"
+              intent="noeffect"
+              onClick={() => {
+                setShowDeleteConfirm(false)
+              }}
+            >
               Cancel
             </Button>
             <Button size="sm" intent="danger" onClick={handleOnDelete}>

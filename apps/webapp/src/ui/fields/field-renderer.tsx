@@ -84,7 +84,7 @@ const SortableItem = ({
           <GripperVerticalIcon className="w-4 h-4 text-primary-500 dark:text-primary-200" />
         </button>
         <div className="text-[1rem] font-medium flex-1 min-w-0 truncate">{label}</div>
-        <DraggableContextMenu lng='en' onAddBelow={onAddBelow} onRemove={onRemove} />
+        <DraggableContextMenu lng="en" onAddBelow={onAddBelow} onRemove={onRemove} />
         <button
           type="button"
           className="p-1 rounded hover:bg-gray-800 text-gray-400 flex items-center justify-center"
@@ -195,12 +195,12 @@ const ArrayField = ({
       const isBlockField = (field as any).type === 'block' && Array.isArray((field as any).fields)
       const normalized = isBlockField
         ? ((field as any).fields as Field[]).map((blockChildField) => {
-          const found = defaultValue.find(
-            (el: any) =>
-              el != null && typeof el === 'object' && Object.hasOwn(el, blockChildField.name)
-          )
-          return found ?? { [blockChildField.name]: placeholderForField(blockChildField) }
-        })
+            const found = defaultValue.find(
+              (el: any) =>
+                el != null && typeof el === 'object' && Object.hasOwn(el, blockChildField.name)
+            )
+            return found ?? { [blockChildField.name]: placeholderForField(blockChildField) }
+          })
         : defaultValue
 
       setItems(
@@ -341,17 +341,17 @@ const ArrayField = ({
     const newItem =
       variant.type === 'block'
         ? {
-          id: newId,
-          type: 'block',
-          name: variant.name,
-          fields: await defaultValueForVariant(variant),
-        }
+            id: newId,
+            type: 'block',
+            name: variant.name,
+            fields: await defaultValueForVariant(variant),
+          }
         : {
-          [variant.name]: await defaultValueForVariant(variant),
-        }
+            [variant.name]: await defaultValueForVariant(variant),
+          }
 
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
-    const insertAt = atIndex != null ? atIndex : (currentArray ? currentArray.length : 0)
+    const insertAt = atIndex != null ? atIndex : currentArray ? currentArray.length : 0
 
     // Add to local state at the correct position
     const newItemWrapper = { id: newId, data: newItem }

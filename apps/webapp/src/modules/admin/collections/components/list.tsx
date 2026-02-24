@@ -54,7 +54,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-        }`}
+      }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -189,11 +189,19 @@ export const ListView = ({
                             }}
                           >
                             {column.formatter
-                              ? renderFormatted((document as any)[column.fieldName], document, column.formatter)
+                              ? renderFormatted(
+                                  (document as any)[column.fieldName],
+                                  document,
+                                  column.formatter
+                                )
                               : ((document as any)[column.fieldName] ?? '------')}
                           </Link>
                         ) : column.formatter ? (
-                          renderFormatted((document as any)[column.fieldName], document, column.formatter)
+                          renderFormatted(
+                            (document as any)[column.fieldName],
+                            document,
+                            column.formatter
+                          )
                         ) : column.fieldName === 'status' && workflowStatuses ? (
                           <span className="inline-flex items-center gap-1">
                             {workflowStatuses.find((s) => s.name === (document as any).status)

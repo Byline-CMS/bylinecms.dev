@@ -73,13 +73,9 @@ export function DiffModal({
     }
   }, [isOpen, collection, documentId, versionId])
 
-  const currentStr = currentDocument
-    ? JSON.stringify(stripMeta(currentDocument), null, 2)
-    : ''
+  const currentStr = currentDocument ? JSON.stringify(stripMeta(currentDocument), null, 2) : ''
 
-  const historicalStr = historicalDoc
-    ? JSON.stringify(stripMeta(historicalDoc), null, 2)
-    : ''
+  const historicalStr = historicalDoc ? JSON.stringify(stripMeta(historicalDoc), null, 2) : ''
 
   return (
     <Modal isOpen={isOpen} closeOnOverlayClick={true} onDismiss={onDismiss}>
@@ -99,8 +95,8 @@ export function DiffModal({
             <h3 className="m-0 text-xl">Version Comparison</h3>
             <p className="m-0 text-sm text-gray-400">
               Comparing{' '}
-              <span className="font-mono text-xs bg-canvas-700 px-1 rounded">{versionLabel}</span>
-              {' '}(left) against current version (right)
+              <span className="font-mono text-xs bg-canvas-700 px-1 rounded">{versionLabel}</span>{' '}
+              (left) against current version (right)
             </p>
           </div>
           <IconButton onClick={onDismiss} size="xs" aria-label="Close comparison">
@@ -108,10 +104,7 @@ export function DiffModal({
           </IconButton>
         </Modal.Header>
 
-        <Modal.Content
-          className="flex-1 overflow-auto p-0"
-          style={{ minHeight: 0 }}
-        >
+        <Modal.Content className="flex-1 overflow-auto p-0" style={{ minHeight: 0 }}>
           {loading && (
             <div className="flex items-center justify-center h-full gap-3 text-gray-400">
               <LoaderRing size={28} color="#666666" />
@@ -120,9 +113,7 @@ export function DiffModal({
           )}
 
           {error && (
-            <div className="flex items-center justify-center h-full text-red-400">
-              {error}
-            </div>
+            <div className="flex items-center justify-center h-full text-red-400">{error}</div>
           )}
 
           {!loading && !error && historicalDoc && (

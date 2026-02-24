@@ -56,7 +56,11 @@ function RouteComponent() {
           },
         ]}
       />
-      <EditView collectionDefinition={collectionDef} adminConfig={adminConfig ?? undefined} initialData={data} />
+      <EditView
+        collectionDefinition={collectionDef}
+        adminConfig={adminConfig ?? undefined}
+        initialData={data}
+      />
     </>
   )
 }

@@ -30,7 +30,7 @@ export const TextAreaField = ({
 }) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
-  const isDirty = useIsDirty(fieldPath)
+  const _isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<string | undefined>(fieldPath)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
 

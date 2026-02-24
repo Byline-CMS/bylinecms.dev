@@ -103,11 +103,7 @@ function RouteComponent() {
       {CustomListView ? (
         <CustomListView data={data} workflowStatuses={workflowStatuses} />
       ) : (
-        <ListView
-          data={data}
-          columns={columns}
-          workflowStatuses={workflowStatuses}
-        />
+        <ListView data={data} columns={columns} workflowStatuses={workflowStatuses} />
       )}
       <Toast
         title={`${collectionDef.labels.singular} Created`}

@@ -470,7 +470,7 @@ export class DocumentCommands implements IDocumentCommands {
           if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
             const entries = Object.entries<string>(fieldValue.value)
             for (const [locale, localizedValue] of entries) {
-              buckets.get('text')!.push({
+              buckets.get('text')?.push({
                 ...baseData,
                 id: uuidv7(),
                 locale,
@@ -478,7 +478,7 @@ export class DocumentCommands implements IDocumentCommands {
               })
             }
           } else {
-            buckets.get('text')!.push({ ...baseData, value: fieldValue.value as string })
+            buckets.get('text')?.push({ ...baseData, value: fieldValue.value as string })
           }
           break
 
@@ -486,7 +486,7 @@ export class DocumentCommands implements IDocumentCommands {
         case 'integer':
         case 'decimal':
           if (isNumericStore(fieldValue)) {
-            buckets.get('numeric')!.push({
+            buckets.get('numeric')?.push({
               ...baseData,
               number_type: fieldValue.number_type,
               value_float: fieldValue.value_float,
@@ -500,13 +500,13 @@ export class DocumentCommands implements IDocumentCommands {
 
         case 'checkbox':
         case 'boolean':
-          buckets.get('boolean')!.push({ ...baseData, value: fieldValue.value })
+          buckets.get('boolean')?.push({ ...baseData, value: fieldValue.value })
           break
 
         case 'time':
         case 'date':
         case 'datetime':
-          buckets.get('datetime')!.push({
+          buckets.get('datetime')?.push({
             ...baseData,
             date_type: fieldValue.date_type || 'datetime',
             value_time: fieldValue.value_time,
@@ -518,7 +518,7 @@ export class DocumentCommands implements IDocumentCommands {
         case 'file':
         case 'image':
           if (isFileStore(fieldValue)) {
-            buckets.get('file')!.push({
+            buckets.get('file')?.push({
               ...baseData,
               file_id: fieldValue.file_id,
               filename: fieldValue.filename,
@@ -542,7 +542,7 @@ export class DocumentCommands implements IDocumentCommands {
 
         case 'relation':
           if (isRelationStore(fieldValue)) {
-            buckets.get('relation')!.push({
+            buckets.get('relation')?.push({
               ...baseData,
               target_document_id: fieldValue.target_document_id,
               target_collection_id: fieldValue.target_collection_id,
@@ -555,7 +555,7 @@ export class DocumentCommands implements IDocumentCommands {
           break
 
         case 'richText':
-          buckets.get('json')!.push({ ...baseData, value: fieldValue.value })
+          buckets.get('json')?.push({ ...baseData, value: fieldValue.value })
           break
 
         case 'json':
@@ -564,7 +564,7 @@ export class DocumentCommands implements IDocumentCommands {
             if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
               const entries = Object.entries<string>(fieldValue.value)
               for (const [locale, localizedValue] of entries) {
-                buckets.get('json')!.push({
+                buckets.get('json')?.push({
                   ...baseData,
                   id: uuidv7(),
                   locale,
@@ -572,7 +572,7 @@ export class DocumentCommands implements IDocumentCommands {
                 })
               }
             } else {
-              buckets.get('json')!.push({
+              buckets.get('json')?.push({
                 ...baseData,
                 value: fieldValue.value,
                 json_schema: fieldValue.json_schema,
@@ -590,174 +590,6 @@ export class DocumentCommands implements IDocumentCommands {
     }
 
     return buckets
-  }
-
-  /**
-   * insertFieldValueByType (legacy — kept for reference / single-row inserts)
-   *
-   * @deprecated Prefer groupFieldValuesByStore for batch inserts.
-   */
-  private async insertFieldValueByType(
-    tx: DatabaseConnection,
-    documentVersionId: string,
-    collectionId: string,
-    fieldValue: any
-  ): Promise<any> {
-    const baseData = {
-      id: uuidv7(),
-      document_version_id: documentVersionId,
-      collection_id: collectionId,
-      field_path: fieldValue.field_path,
-      field_name: fieldValue.field_name,
-      locale: fieldValue.locale,
-      parent_path: fieldValue.parent_path,
-    }
-
-    switch (fieldValue.field_type) {
-      case 'select':
-      case 'text':
-      case 'textArea':
-        // Handle both simple string values and localized object values
-        if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
-          const values: any[] = []
-          const entries = Object.entries<string>(fieldValue.value)
-          for (const [locale, localizedValue] of entries) {
-            values.push({
-              ...baseData,
-              id: uuidv7(), // we need a unique ID for each localized value
-              locale: locale,
-              value: localizedValue as string,
-            })
-          }
-          return await tx.insert(textStore).values(values)
-        }
-
-        // Simple string value
-        return await tx.insert(textStore).values({
-          ...baseData,
-          value: fieldValue.value as string,
-        })
-
-      case 'float':
-      case 'integer':
-      case 'decimal':
-        if (isNumericStore(fieldValue)) {
-          return await tx.insert(numericStore).values({
-            ...baseData,
-            number_type: fieldValue.number_type,
-            value_float: fieldValue.value_float, // For 'number' type
-            value_integer: fieldValue.value_integer,
-            value_decimal: fieldValue.value_decimal,
-          })
-        }
-        throw new Error(`Invalid numeric field value for ${baseData.field_path}`)
-
-      case 'checkbox':
-      case 'boolean':
-        return await tx.insert(booleanStore).values({
-          ...baseData,
-          value: fieldValue.value,
-        })
-
-      case 'time':
-      case 'date':
-      case 'datetime':
-        return await tx.insert(datetimeStore).values({
-          ...baseData,
-          date_type: fieldValue.date_type || 'datetime',
-          value_time: fieldValue.value_time,
-          value_date: fieldValue.value_date,
-          value_timestamp_tz: fieldValue.value_timestamp_tz,
-        })
-
-      case 'file':
-      case 'image':
-        if (isFileStore(fieldValue)) {
-          return await tx.insert(fileStore).values({
-            ...baseData,
-            file_id: fieldValue.file_id,
-            filename: fieldValue.filename,
-            original_filename: fieldValue.original_filename,
-            mime_type: fieldValue.mime_type,
-            file_size: fieldValue.file_size,
-            storage_provider: fieldValue.storage_provider,
-            storage_path: fieldValue.storage_path,
-            storage_url: fieldValue.storage_url,
-            file_hash: fieldValue.file_hash,
-            image_width: fieldValue.image_width,
-            image_height: fieldValue.image_height,
-            image_format: fieldValue.image_format,
-            processing_status: fieldValue.processing_status || 'pending',
-            thumbnail_generated: fieldValue.thumbnail_generated || false,
-          })
-        }
-        throw new Error(`Invalid file field value for ${baseData.field_path}`)
-
-      case 'relation':
-        if (isRelationStore(fieldValue)) {
-          return await tx.insert(relationStore).values({
-            ...baseData,
-            target_document_id: fieldValue.target_document_id,
-            target_collection_id: fieldValue.target_collection_id,
-            relationship_type: fieldValue.relationship_type || 'reference',
-            cascade_delete: fieldValue.cascade_delete || false,
-          })
-        }
-        throw new Error(`Invalid relation field value for ${baseData.field_path}`)
-
-      case 'richText':
-        // TODO: What does a localized version of rich text look like?
-
-        // // Handle both simple values and localized object values for rich text
-        // if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
-        //   const values: any[] = [];
-        //   const entries = Object.entries<string>(fieldValue.value);
-        //   for (const [locale, localizedValue] of entries) {
-        //     values.push({
-        //       ...baseData,
-        //       id: uuidv7(), // we need a unique ID for each localized value
-        //       locale: locale,
-        //       value: localizedValue as string,
-        //     })
-        //   }
-        //   return await tx.insert(jsonStore).values(values);
-        // }
-        // If not a localized object, treat as regular rich text content
-        return await tx.insert(jsonStore).values({
-          ...baseData,
-          value: fieldValue.value,
-        })
-
-      case 'json':
-      case 'object':
-        if (isJsonStore(fieldValue)) {
-          // Handle localized JSON/object fields
-          if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
-            const values: any[] = []
-            const entries = Object.entries<string>(fieldValue.value)
-            for (const [locale, localizedValue] of entries) {
-              values.push({
-                ...baseData,
-                id: uuidv7(), // we need a unique ID for each localized value
-                locale: locale,
-                value: localizedValue as string,
-              })
-            }
-            return await tx.insert(jsonStore).values(values)
-          }
-          // If not a localized object, treat as regular JSON content
-          return await tx.insert(jsonStore).values({
-            ...baseData,
-            value: fieldValue.value,
-            json_schema: fieldValue.json_schema,
-            object_keys: fieldValue.object_keys,
-          })
-        }
-        throw new Error(`Invalid JSON field value for ${baseData.field_path}`)
-
-      default:
-        throw new Error('Unsupported field type')
-    }
   }
 }
 

@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 
 import { EditorAnimation } from '@/modules/home/editor-animation'
 import { FeatureGrid } from '@/modules/home/feature-grid'

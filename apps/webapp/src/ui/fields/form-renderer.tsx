@@ -16,6 +16,7 @@ import { Tabs } from '../admin/tabs'
 import { LocalDateTime } from '../components/local-date-time'
 import { FieldRenderer } from '../fields/field-renderer'
 import { FormProvider, useFieldValue, useFormContext } from '../fields/form-context'
+import { executeUploads } from '../fields/upload-executor'
 import { DocumentActions } from './document-actions'
 
 /** Metadata about a previously published version that is still live. */
@@ -199,11 +200,16 @@ const FormContent = ({
     getPatches,
     subscribeErrors,
     subscribeMeta,
+    setFieldValue,
+    setFieldError,
+    getPendingUploads,
+    clearPendingUploads,
   } = useFormContext()
 
   const [errors, setErrors] = useState(initialErrors)
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
   // Tabs — initialise active tab to the first declared tab (empty string when no tabs configured)
   const tabsConfig = adminConfig?.tabs
@@ -216,7 +222,13 @@ const FormContent = ({
   // Live document heading — tracks the useAsTitle field as the user types
   const titleFieldName = adminConfig?.useAsTitle
   const liveTitle = useFieldValue<string>(titleFieldName ?? '')
-  const heading = liveTitle || (headingLabel ? `${mode === 'create' ? 'Create' : 'Edit'} ${headingLabel}` : mode === 'create' ? 'Create' : 'Edit')
+  const heading =
+    liveTitle ||
+    (headingLabel
+      ? `${mode === 'create' ? 'Create' : 'Edit'} ${headingLabel}`
+      : mode === 'create'
+        ? 'Create'
+        : 'Edit')
 
   // Navigation guard — block TanStack Router navigation and browser unload when dirty
   const shouldBlockFn = useCallback(() => hasChanges, [hasChanges])
@@ -265,6 +277,39 @@ const FormContent = ({
       if (allErrors.length > 0) {
         console.error('Form validation failed:', allErrors)
         return
+      }
+
+      // Execute any pending uploads before submitting
+      const pendingUploads = getPendingUploads()
+      if (pendingUploads.size > 0) {
+        setIsUploading(true)
+        try {
+          const uploadResult = await executeUploads(pendingUploads)
+
+          // Check for upload errors
+          if (!uploadResult.allSucceeded) {
+            // Set field-level errors for failed uploads
+            for (const [fieldPath, errorMessage] of uploadResult.errors.entries()) {
+              setFieldError(fieldPath, `Upload failed: ${errorMessage}`)
+            }
+            console.error('One or more uploads failed:', uploadResult.errors)
+            setIsUploading(false)
+            return
+          }
+
+          // Replace pending StoredFileValues with real ones in form data
+          for (const [fieldPath, storedFile] of uploadResult.successful.entries()) {
+            setFieldValue(fieldPath, storedFile)
+          }
+
+          // Clear pending uploads (blob URLs already revoked by clearPendingUploads)
+          clearPendingUploads()
+        } catch (err) {
+          console.error('Upload execution error:', err)
+          setIsUploading(false)
+          return
+        }
+        setIsUploading(false)
       }
 
       const data = getFieldValues()
@@ -360,8 +405,13 @@ const FormContent = ({
           >
             {hasChanges === false ? 'Close' : 'Cancel'}
           </Button>
-          <Button size="sm" type="submit" className="min-w-[70px]" disabled={hasChanges === false}>
-            Save
+          <Button
+            size="sm"
+            type="submit"
+            className="min-w-[70px]"
+            disabled={hasChanges === false || isUploading}
+          >
+            {isUploading ? 'Uploading…' : 'Save'}
           </Button>
           {primaryStatus && onStatusChange && (
             <div className="relative z-10">

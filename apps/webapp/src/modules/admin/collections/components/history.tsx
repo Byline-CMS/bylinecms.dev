@@ -11,7 +11,15 @@ import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-ro
 
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Container, IconButton, LoaderRing, Section, Select, SelectItem, Table } from '@infonomic/uikit/react'
+import {
+  Container,
+  IconButton,
+  LoaderRing,
+  Section,
+  Select,
+  SelectItem,
+  Table,
+} from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { RouterPager } from '@/ui/components/router-pager'
@@ -62,7 +70,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-        }`}
+      }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -88,7 +96,10 @@ export const HistoryView = ({
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
   const location = useRouterState({ select: (s) => s.location })
-  const [selectedVersion, setSelectedVersion] = useState<{ versionId: string; label: string } | null>(null)
+  const [selectedVersion, setSelectedVersion] = useState<{
+    versionId: string
+    label: string
+  } | null>(null)
 
   function handleOnPageSizeChange(value: string): void {
     if (value != null && value.length > 0) {
@@ -199,7 +210,11 @@ export const HistoryView = ({
                                 }
                               >
                                 {column.formatter
-                                  ? renderFormatted((document as any)[column.fieldName], document, column.formatter)
+                                  ? renderFormatted(
+                                      (document as any)[column.fieldName],
+                                      document,
+                                      column.formatter
+                                    )
                                   : ((document as any)[column.fieldName] ?? '------')}
                               </button>
                             ) : (
@@ -211,12 +226,20 @@ export const HistoryView = ({
                                 }}
                               >
                                 {column.formatter
-                                  ? renderFormatted((document as any)[column.fieldName], document, column.formatter)
+                                  ? renderFormatted(
+                                      (document as any)[column.fieldName],
+                                      document,
+                                      column.formatter
+                                    )
                                   : ((document as any)[column.fieldName] ?? '------')}
                               </Link>
                             )
                           ) : column.formatter ? (
-                            renderFormatted((document as any)[column.fieldName], document, column.formatter)
+                            renderFormatted(
+                              (document as any)[column.fieldName],
+                              document,
+                              column.formatter
+                            )
                           ) : column.fieldName === 'status' && workflowStatuses ? (
                             (workflowStatuses.find((s) => s.name === (document as any).status)
                               ?.label ?? String((document as any).status ?? ''))

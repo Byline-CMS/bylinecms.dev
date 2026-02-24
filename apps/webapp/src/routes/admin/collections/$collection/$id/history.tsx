@@ -9,12 +9,19 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { getCollectionAdminConfig, getCollectionDefinition, getWorkflowStatuses, } from '@byline/core'
+import {
+  getCollectionAdminConfig,
+  getCollectionDefinition,
+  getWorkflowStatuses,
+} from '@byline/core'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { HistoryView } from '@/modules/admin/collections/components/history'
-import { getCollectionDocument, getCollectionDocumentHistory } from '@/modules/admin/collections/data'
+import {
+  getCollectionDocument,
+  getCollectionDocumentHistory,
+} from '@/modules/admin/collections/data'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),

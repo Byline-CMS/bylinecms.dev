@@ -9,9 +9,10 @@
 /**
  * ImageUploadField
  *
- * A drag-and-drop / click-to-browse file picker that uploads an image to
- * the collection's /upload endpoint and emits the resulting StoredFileValue
- * back to the caller via `onUploaded`.
+ * A drag-and-drop / click-to-browse file picker that prepares an image for
+ * upload. The actual upload is deferred until form submission — this component
+ * stores the file in the form context's pending uploads and emits a placeholder
+ * StoredFileValue with a blob URL for immediate preview.
  *
  * Prototype: no chunk upload, no resumable uploads, single file only.
  */
@@ -19,11 +20,15 @@
 import type { ChangeEvent, DragEvent } from 'react'
 import { useCallback, useRef, useState } from 'react'
 
-import type { ImageField as FieldType, StoredFileValue } from '@byline/core'
+import {
+  createPendingStoredFileValue,
+  type ImageField as FieldType,
+  type PendingStoredFileValue,
+  type StoredFileValue,
+} from '@byline/core'
 import cx from 'classnames'
 
-import { uploadDocument } from '@/modules/admin/collections/data'
-import type { UploadDocumentResult } from '@/modules/admin/collections/data'
+import { useFormContext } from '../form-context'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,13 +38,15 @@ interface ImageUploadFieldProps {
   field: FieldType
   /** Collection path used to build the upload URL (e.g. `'media'`). */
   collectionPath: string
-  /** Called with the StoredFileValue returned by the server on success. */
-  onUploaded: (value: StoredFileValue) => void
+  /** Field path in the form (e.g. `'image'` or `'content.0.image'`). */
+  fieldPath: string
+  /** Called with the PendingStoredFileValue for immediate preview. */
+  onUploaded: (value: StoredFileValue | PendingStoredFileValue) => void
   /** Optional accepted-file MIME types string for the native file input. */
   accept?: string
 }
 
-type UploadStatus = 'idle' | 'uploading' | 'error'
+type SelectionStatus = 'idle' | 'processing' | 'error'
 
 // ---------------------------------------------------------------------------
 // Component
@@ -48,42 +55,63 @@ type UploadStatus = 'idle' | 'uploading' | 'error'
 export const ImageUploadField = ({
   field: _field,
   collectionPath,
+  fieldPath,
   onUploaded,
   accept = 'image/*',
 }: ImageUploadFieldProps) => {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [status, setStatus] = useState<UploadStatus>('idle')
+  const [status, setStatus] = useState<SelectionStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const { addPendingUpload } = useFormContext()
 
   // -------------------------------------------------------------------------
-  // Core upload logic
+  // Core file selection logic (deferred upload)
   // -------------------------------------------------------------------------
 
-  const doUpload = useCallback(
-    async (file: File) => {
-      setStatus('uploading')
+  const handleFileSelected = useCallback(
+    (file: File) => {
+      setStatus('processing')
       setErrorMessage(null)
 
-      const formData = new FormData()
-      formData.append('file', file)
-
-      let result: UploadDocumentResult
-      try {
-        // Pass createDocument=false — this is an embedded field widget;
-        // the enclosing form's save action is responsible for document creation.
-        result = await uploadDocument(collectionPath, formData, false)
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Upload failed. Please try again.'
+      // Basic client-side validation
+      if (!file.type.startsWith('image/')) {
         setStatus('error')
-        setErrorMessage(message)
+        setErrorMessage('Please select an image file.')
         return
       }
 
-      setStatus('idle')
-      onUploaded(result.storedFile)
+      // Create a blob URL for immediate preview
+      const previewUrl = URL.createObjectURL(file)
+
+      // Extract image dimensions for the pending value
+      const img = new Image()
+      img.onload = () => {
+        const dimensions = { width: img.naturalWidth, height: img.naturalHeight }
+
+        // Create the pending stored file value
+        const pendingValue = createPendingStoredFileValue(file, previewUrl, dimensions)
+
+        // Register the pending upload in form context
+        addPendingUpload(fieldPath, {
+          file,
+          previewUrl,
+          collectionPath,
+        })
+
+        setStatus('idle')
+        onUploaded(pendingValue)
+      }
+
+      img.onerror = () => {
+        URL.revokeObjectURL(previewUrl)
+        setStatus('error')
+        setErrorMessage('Could not read image. Please try a different file.')
+      }
+
+      img.src = previewUrl
     },
-    [collectionPath, onUploaded]
+    [collectionPath, fieldPath, addPendingUpload, onUploaded]
   )
 
   // -------------------------------------------------------------------------
@@ -93,11 +121,11 @@ export const ImageUploadField = ({
   const handleFileChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
-      if (file) doUpload(file)
+      if (file) handleFileSelected(file)
       // Reset so re-selecting the same file fires the event again.
       e.target.value = ''
     },
-    [doUpload]
+    [handleFileSelected]
   )
 
   const handleBrowseClick = useCallback(() => {
@@ -123,16 +151,16 @@ export const ImageUploadField = ({
       e.preventDefault()
       setIsDragOver(false)
       const file = e.dataTransfer.files?.[0]
-      if (file) doUpload(file)
+      if (file) handleFileSelected(file)
     },
-    [doUpload]
+    [handleFileSelected]
   )
 
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
-  const isUploading = status === 'uploading'
+  const isProcessing = status === 'processing'
 
   return (
     <div className="mt-1">
@@ -143,7 +171,7 @@ export const ImageUploadField = ({
         accept={accept}
         className="sr-only"
         onChange={handleFileChange}
-        disabled={isUploading}
+        disabled={isProcessing}
         aria-hidden="true"
         tabIndex={-1}
       />
@@ -168,14 +196,14 @@ export const ImageUploadField = ({
           'border-2 border-dashed rounded-lg px-4 py-6 text-center',
           'cursor-pointer select-none transition-colors duration-150',
           {
-            'border-primary-400 bg-primary-900/20 text-primary-300': isDragOver && !isUploading,
+            'border-primary-400 bg-primary-900/20 text-primary-300': isDragOver && !isProcessing,
             'border-gray-600 hover:border-primary-500 hover:bg-primary-900/10 text-gray-400':
-              !isDragOver && !isUploading,
-            'border-gray-700 bg-gray-800/50 text-gray-600 cursor-not-allowed': isUploading,
+              !isDragOver && !isProcessing,
+            'border-gray-700 bg-gray-800/50 text-gray-600 cursor-not-allowed': isProcessing,
           }
         )}
       >
-        {isUploading ? (
+        {isProcessing ? (
           <>
             {/* Spinner */}
             <svg
@@ -199,7 +227,7 @@ export const ImageUploadField = ({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
               />
             </svg>
-            <span className="text-xs font-medium">Uploading…</span>
+            <span className="text-xs font-medium">Processing…</span>
           </>
         ) : (
           <>

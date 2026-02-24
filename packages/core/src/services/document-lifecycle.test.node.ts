@@ -184,7 +184,7 @@ describe('Document lifecycle service', () => {
 
       await createDocument(ctx, { data: { title: 'Original', path: 'p' } })
 
-      const persistedData = createDocumentVersion.mock.calls[0]![0].documentData
+      const persistedData = createDocumentVersion.mock.calls[0]?.[0].documentData
       expect(persistedData.title).toBe('Mutated')
     })
 
@@ -194,7 +194,7 @@ describe('Document lifecycle service', () => {
 
       await createDocument(ctx, { data: { title: 'My Great Post' } })
 
-      const persistedData = createDocumentVersion.mock.calls[0]![0].documentData
+      const persistedData = createDocumentVersion.mock.calls[0]?.[0].documentData
       expect(persistedData.path).toBe('my-great-post')
     })
 
@@ -288,7 +288,7 @@ describe('Document lifecycle service', () => {
 
       await createDocument(ctx, { data: { title: 'Original', path: 'p' } })
 
-      const persistedData = createDocumentVersion.mock.calls[0]![0].documentData
+      const persistedData = createDocumentVersion.mock.calls[0]?.[0].documentData
       expect(persistedData.title).toBe('Original-A-B')
     })
   })
@@ -352,7 +352,7 @@ describe('Document lifecycle service', () => {
         data: { title: 'Updated', path: 'updated' },
       })
 
-      expect(createDocumentVersion.mock.calls[0]![0].status).toBe('draft')
+      expect(createDocumentVersion.mock.calls[0]?.[0].status).toBe('draft')
     })
 
     it('supports an array of beforeUpdate and afterUpdate hooks', async () => {
@@ -456,7 +456,7 @@ describe('Document lifecycle service', () => {
       })
 
       expect(createDocumentVersion).toHaveBeenCalledOnce()
-      const persistedData = createDocumentVersion.mock.calls[0]![0].documentData
+      const persistedData = createDocumentVersion.mock.calls[0]?.[0].documentData
       expect(persistedData.title).toBe('Patched')
 
       expect(afterUpdate).toHaveBeenCalledWith(

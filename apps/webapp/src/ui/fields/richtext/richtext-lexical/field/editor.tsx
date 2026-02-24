@@ -157,8 +157,9 @@ export const Editor = memo(function Editor({
       {tablePlugin && <PayloadTablePlugin />}
       {richText && <ToolbarPlugin />}
       <div
-        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${!richText ? 'plain-text' : ''
-          }`}
+        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
+          !richText ? 'plain-text' : ''
+        }`}
       >
         {/* <DragDropPaste /> */}
         {autoFocusPlugin && <AutoFocusPlugin />}

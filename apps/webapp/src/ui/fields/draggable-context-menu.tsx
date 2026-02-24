@@ -32,7 +32,11 @@ interface DraggableContextMenuProps {
   onRemove?: () => void
 }
 
-export function DraggableContextMenu({ lng, onAddBelow, onRemove }: DraggableContextMenuProps): React.JSX.Element {
+export function DraggableContextMenu({
+  lng,
+  onAddBelow,
+  onRemove,
+}: DraggableContextMenuProps): React.JSX.Element {
   return (
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
@@ -52,9 +56,7 @@ export function DraggableContextMenu({ lng, onAddBelow, onRemove }: DraggableCon
           )}
         >
           <DropdownMenu.Item className={menuItemClasses} onSelect={onAddBelow}>
-            <div
-              className="flex w-full items-center gap-1"
-            >
+            <div className="flex w-full items-center gap-1">
               <span className="inline-block w-[22px]">
                 <PlusIcon width="18px" height="18px" />
               </span>
@@ -65,9 +67,7 @@ export function DraggableContextMenu({ lng, onAddBelow, onRemove }: DraggableCon
           </DropdownMenu.Item>
           <DropdownMenu.Separator className="my-1 border-t border-t-gray-200 dark:border-t-gray-900 w-[90%] mx-auto" />
           <DropdownMenu.Item className={menuItemClasses} onSelect={onRemove}>
-            <div
-              className="flex w-full items-center gap-1"
-            >
+            <div className="flex w-full items-center gap-1">
               <div className="flex items-center gap-1">
                 <span className="inline-block w-[22px]">
                   <DeleteIcon

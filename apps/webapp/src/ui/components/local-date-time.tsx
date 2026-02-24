@@ -26,11 +26,11 @@ interface LocalDateTimeProps {
 
 /**
  * Client-side date/time formatter that displays dates in the user's local timezone.
- * 
+ *
  * This component avoids hydration mismatches by:
  * 1. Rendering a placeholder on the server/initial render
  * 2. Updating to the correctly formatted date after hydration
- * 
+ *
  * Use this instead of formatDateTime when you need to display dates
  * in the user's local timezone rather than UTC.
  */
@@ -68,7 +68,7 @@ export function LocalDateTime({
 
 /**
  * Formats a date string to the user's local timezone.
- * 
+ *
  * WARNING: Only use this in client components where hydration
  * mismatches are acceptable or managed. For most cases, prefer
  * the <LocalDateTime /> component.

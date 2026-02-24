@@ -19,6 +19,19 @@ interface FormError {
   message: string
 }
 
+/**
+ * Represents a file that has been selected but not yet uploaded.
+ * The file is held locally until form submission.
+ */
+export interface PendingUpload {
+  /** The actual File object to upload */
+  file: File
+  /** Blob URL for local preview (must be revoked on cleanup) */
+  previewUrl: string
+  /** The collection path for the upload endpoint */
+  collectionPath: string
+}
+
 type FieldListener = (value: any) => void
 type ErrorsListener = (errors: FormError[]) => void
 type MetaListener = () => void
@@ -43,6 +56,12 @@ interface FormContextType {
   subscribeField: (name: string, listener: FieldListener) => () => void
   subscribeErrors: (listener: ErrorsListener) => () => void
   subscribeMeta: (listener: MetaListener) => () => void
+  // Pending uploads (deferred until save)
+  addPendingUpload: (fieldPath: string, upload: PendingUpload) => void
+  removePendingUpload: (fieldPath: string) => void
+  getPendingUploads: () => Map<string, PendingUpload>
+  hasPendingUploads: () => boolean
+  clearPendingUploads: () => void
 }
 
 const FormContext = createContext<FormContextType | null>(null)
@@ -67,6 +86,7 @@ export const FormProvider = ({
   const errorsRef = useRef<FormError[]>([])
   const dirtyFields = useRef<Set<string>>(new Set())
   const patchesRef = useRef<DocumentPatch[]>([])
+  const pendingUploadsRef = useRef<Map<string, PendingUpload>>(new Map())
 
   const fieldListeners = useRef<Map<string, Set<FieldListener>>>(new Map())
   const errorListeners = useRef<Set<ErrorsListener>>(new Set())
@@ -296,6 +316,61 @@ export const FormProvider = ({
     return dirtyFields.current.has(fieldName)
   }, [])
 
+  // ---------------------------------------------------------------------------
+  // Pending uploads (deferred until save)
+  // ---------------------------------------------------------------------------
+
+  const addPendingUpload = useCallback(
+    (fieldPath: string, upload: PendingUpload) => {
+      // If there's an existing pending upload for this path, revoke its blob URL
+      const existing = pendingUploadsRef.current.get(fieldPath)
+      if (existing) {
+        URL.revokeObjectURL(existing.previewUrl)
+      }
+      pendingUploadsRef.current.set(fieldPath, upload)
+      dirtyFields.current.add(fieldPath)
+      notifyMetaListeners()
+    },
+    [notifyMetaListeners]
+  )
+
+  const removePendingUpload = useCallback(
+    (fieldPath: string) => {
+      const existing = pendingUploadsRef.current.get(fieldPath)
+      if (existing) {
+        URL.revokeObjectURL(existing.previewUrl)
+        pendingUploadsRef.current.delete(fieldPath)
+        notifyMetaListeners()
+      }
+    },
+    [notifyMetaListeners]
+  )
+
+  const getPendingUploads = useCallback(() => {
+    return new Map(pendingUploadsRef.current)
+  }, [])
+
+  const hasPendingUploads = useCallback(() => {
+    return pendingUploadsRef.current.size > 0
+  }, [])
+
+  const clearPendingUploads = useCallback(() => {
+    // Revoke all blob URLs to prevent memory leaks
+    for (const upload of pendingUploadsRef.current.values()) {
+      URL.revokeObjectURL(upload.previewUrl)
+    }
+    pendingUploadsRef.current.clear()
+  }, [])
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      for (const upload of pendingUploadsRef.current.values()) {
+        URL.revokeObjectURL(upload.previewUrl)
+      }
+    }
+  }, [])
+
   const validateForm = useCallback(
     (fields: Field[]): FormError[] => {
       const formErrors: FormError[] = []
@@ -468,6 +543,11 @@ export const FormProvider = ({
         subscribeField,
         subscribeErrors,
         subscribeMeta,
+        addPendingUpload,
+        removePendingUpload,
+        getPendingUploads,
+        hasPendingUploads,
+        clearPendingUploads,
       }}
     >
       {children}

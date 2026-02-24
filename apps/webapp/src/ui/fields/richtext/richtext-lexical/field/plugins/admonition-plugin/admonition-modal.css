@@ -15,8 +15,6 @@
 }
 
 @media screen and (min-width: 640px) {
-
-
   .admonition-modal-radio-group {
     flex-direction: row;
   }

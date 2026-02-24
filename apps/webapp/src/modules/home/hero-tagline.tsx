@@ -16,7 +16,9 @@ export function HeroTagline() {
           A modern, headless, fast, and AI-first content management system (CMS) for content-driven
           applications.
         </p>
-        <p className="m-0 mb-6 text-center underline"><Link to="/admin">Admin Dashboard</Link></p>
+        <p className="m-0 mb-6 text-center underline">
+          <Link to="/admin">Admin Dashboard</Link>
+        </p>
       </Container>
     </Section>
   )

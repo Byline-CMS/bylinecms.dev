@@ -35,10 +35,7 @@ export const Tabs = ({ tabs, activeTab, onChange, errorCounts, className }: Tabs
     <div
       role="tablist"
       aria-label="Form tabs"
-      className={cx(
-        'flex gap-4 border-b border-gray-200 dark:border-gray-700',
-        className,
-      )}
+      className={cx('flex gap-4 border-b border-gray-200 dark:border-gray-700', className)}
     >
       {tabs.map((tab) => {
         const isActive = tab.name === activeTab
@@ -54,11 +51,11 @@ export const Tabs = ({ tabs, activeTab, onChange, errorCounts, className }: Tabs
               isActive
                 ? 'border-primary-400 text-primary-600 dark:text-primary-200 dark:border-primary-400'
                 : [
-                  'border-transparent',
-                  'text-gray-500 dark:text-gray-400',
-                  'hover:text-gray-800 dark:hover:text-gray-200',
-                  'hover:border-gray-300 dark:hover:border-gray-600',
-                ],
+                    'border-transparent',
+                    'text-gray-500 dark:text-gray-400',
+                    'hover:text-gray-800 dark:hover:text-gray-200',
+                    'hover:border-gray-300 dark:hover:border-gray-600',
+                  ]
             )}
           >
             <span className="flex items-center gap-1.5">
@@ -68,7 +65,7 @@ export const Tabs = ({ tabs, activeTab, onChange, errorCounts, className }: Tabs
                   intent="danger"
                   className="text-[0.7rem] px-1.5 py-0 min-w-[1.25rem] h-[1.25rem] flex items-center justify-center"
                 >
-                  {errorCounts![tab.name]}
+                  {errorCounts?.[tab.name]}
                 </Badge>
               )}
             </span>
