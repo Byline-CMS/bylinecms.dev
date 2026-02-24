@@ -49,7 +49,7 @@ interface MetaRow {
  *
  * **block** — paths like `content.0.richTextBlock`. The array item is
  * transformed from the legacy `{ blockName: fields }` shape into the
- * normalised block shape: `{ id, type: 'block', name, fields, meta }`.
+ * normalised composite shape: `{ id, type: 'composite', name, fields, meta }`.
  *
  * **array_item** — paths like `tags.0`. A stable `_id` property is
  * injected into each array item so patches can target items by identity
@@ -67,23 +67,23 @@ function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
   }
 
   // Separate rows by type so we can handle each kind independently.
-  const blockRows: MetaRow[] = []
+  const compositeRows: MetaRow[] = []
   const arrayItemRows: MetaRow[] = []
   for (const row of metaRows) {
-    if (row.type === 'block') blockRows.push(row)
+    if (row.type === 'composite') compositeRows.push(row)
     else if (row.type === 'array_item') arrayItemRows.push(row)
   }
 
   const result: any = { ...document }
 
-  // --- Block enrichment ---
-  const blockFieldNames = new Set<string>()
-  for (const row of blockRows) {
+  // --- Composite enrichment ---
+  const compositeFieldNames = new Set<string>()
+  for (const row of compositeRows) {
     const topField = row.path.split('.')[0]
-    if (topField) blockFieldNames.add(topField)
+    if (topField) compositeFieldNames.add(topField)
   }
 
-  for (const fieldName of blockFieldNames) {
+  for (const fieldName of compositeFieldNames) {
     if (!Array.isArray(result[fieldName])) continue
 
     result[fieldName] = result[fieldName].map((item: any, index: number) => {
@@ -97,7 +97,7 @@ function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
 
       return {
         id: meta?.item_id ?? null,
-        type: 'block',
+        type: 'composite',
         name: blockName,
         fields: blockFields,
         meta: meta?.meta ?? null,
@@ -113,8 +113,8 @@ function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
   }
 
   for (const fieldName of arrayItemFieldNames) {
-    // Skip fields already handled as blocks.
-    if (blockFieldNames.has(fieldName)) continue
+    // Skip fields already handled as composites.
+    if (compositeFieldNames.has(fieldName)) continue
     if (!Array.isArray(result[fieldName])) continue
 
     result[fieldName] = result[fieldName].map((item: any, index: number) => {

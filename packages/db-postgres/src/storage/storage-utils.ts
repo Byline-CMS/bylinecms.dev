@@ -12,8 +12,9 @@ const DEFAULT_CONTENT_LOCALES = ['en', 'es', 'fr']
 
 import type {
   ArrayField,
-  BlockField,
+  BlocksField,
   CollectionDefinition,
+  CompositeField,
   DateTimeStore,
   Field,
   FileStore,
@@ -55,23 +56,23 @@ export function flattenFields(
 
       if (value === undefined || value === null) continue
 
-      if ((fieldConfig.type === 'array' || fieldConfig.type === 'block') && Array.isArray(value)) {
-        const containerField = fieldConfig as ArrayField | BlockField
+      if ((fieldConfig.type === 'array' || fieldConfig.type === 'blocks') && Array.isArray(value)) {
+        const containerField = fieldConfig as ArrayField | BlocksField
         value.forEach((item, index) => {
           const arrayElementPath = `${currentPath}.${index}`
 
           if (typeof item === 'object' && item !== null && containerField.fields) {
-            // Array-of-blocks + new block shape support.
-            // For the Docs collection, `content` is an array field whose
-            // items are blocks like richTextBlock and photoBlock.
-            if (item.type === 'block' && typeof item.name === 'string') {
+            // Blocks container + composite shape support.
+            // For the Docs collection, `content` is a blocks field whose
+            // items are composites like richTextBlock and photoBlock.
+            if (item.type === 'composite' && typeof item.name === 'string') {
               const blockName = item.name
               const blockFieldsArray = Array.isArray(item.fields) ? item.fields : []
               const blockFieldConfig = containerField.fields.find((f) => f.name === blockName)
 
               if (
                 blockFieldConfig &&
-                blockFieldConfig.type === 'block' &&
+                blockFieldConfig.type === 'composite' &&
                 Array.isArray(blockFieldConfig.fields)
               ) {
                 blockFieldsArray.forEach((subItem: any, idx: number) => {
@@ -97,7 +98,31 @@ export function flattenFields(
                 const fieldValue = item[fieldName]
                 const subField = containerField.fields.find((f) => f.name === fieldName)
                 if (subField) {
-                  flatten({ [fieldName]: fieldValue }, [subField], arrayElementPath)
+                  if (
+                    subField.type === 'composite' &&
+                    Array.isArray(fieldValue) &&
+                    Array.isArray(subField.fields)
+                  ) {
+                    // Legacy block/composite shape: { blockName: [ {field: val}, ... ] }
+                    // Iterate each sub-item and flatten using the composite's child fields.
+                    fieldValue.forEach((subItem: any, idx: number) => {
+                      if (subItem && typeof subItem === 'object') {
+                        const subFieldName = Object.keys(subItem).find((k) => k !== '_id')
+                        if (subFieldName != null) {
+                          const subFieldValue = subItem[subFieldName]
+                          const childField = subField.fields.find(
+                            (f: Field) => f.name === subFieldName
+                          )
+                          if (childField) {
+                            const compositePath = `${arrayElementPath}.${fieldName}.${idx}`
+                            flatten({ [subFieldName]: subFieldValue }, [childField], compositePath)
+                          }
+                        }
+                      }
+                    })
+                  } else {
+                    flatten({ [fieldName]: fieldValue }, [subField], arrayElementPath)
+                  }
                 }
               }
             }
@@ -142,9 +167,9 @@ export function flattenFields(
             )
           )
         }
-      } else if (fieldConfig.type !== 'block') {
+      } else if (fieldConfig.type !== 'composite') {
         // Only value-bearing field types are flattened directly. Structure
-        // fields like blocks are containers and should delegate to their
+        // fields like composites are containers and should delegate to their
         // nested value fields instead of being stored themselves.
         flattenedFields.push(
           createFlattenedStore(

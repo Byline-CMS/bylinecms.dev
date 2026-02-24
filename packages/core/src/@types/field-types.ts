@@ -8,7 +8,8 @@
 
 export type FieldType =
   | 'array'
-  | 'block'
+  | 'blocks'
+  | 'composite'
   | 'text'
   | 'textArea'
   | 'checkbox'
@@ -28,7 +29,7 @@ export type FieldType =
   | 'object'
 
 // Utility type to identify structure field types (fields that contain nested fields)
-export type StructureFieldType = 'array' | 'block'
+export type StructureFieldType = 'array' | 'blocks' | 'composite'
 
 // Utility type to identify value field types
 export type ValueFieldType = Exclude<FieldType, StructureFieldType>
@@ -180,9 +181,20 @@ export interface ArrayField extends BaseStructureField {
   type: 'array'
 }
 
-export interface BlockField extends BaseStructureField {
-  type: 'block'
+export interface BlocksField extends BaseStructureField {
+  type: 'blocks'
+  /** The composite field definitions available as block variants in this blocks container. */
+  fields: CompositeField[]
 }
+
+export interface CompositeField extends BaseStructureField {
+  type: 'composite'
+}
+
+/**
+ * @deprecated Use `CompositeField` instead. Alias kept for migration convenience.
+ */
+export type BlockField = CompositeField
 
 // Value field types (preserving existing properties)
 export interface TextField extends BaseValueField {
@@ -370,7 +382,7 @@ export interface ObjectField extends BaseValueField {
 }
 
 // Union of all structure fields
-export type StructureField = ArrayField | BlockField
+export type StructureField = ArrayField | BlocksField | CompositeField
 
 // Union of all value fields
 export type ValueField =
@@ -397,7 +409,15 @@ export type Field = StructureField | ValueField
 
 // Type guards for field identification
 export function isStructureField(field: Field): field is StructureField {
-  return ['array', 'block'].includes(field.type)
+  return ['array', 'blocks', 'composite'].includes(field.type)
+}
+
+export function isBlocksField(field: Field): field is BlocksField {
+  return field.type === 'blocks'
+}
+
+export function isCompositeField(field: Field): field is CompositeField {
+  return field.type === 'composite'
 }
 
 export function isValueField(field: Field): field is ValueField {

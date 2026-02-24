@@ -6,12 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { BlockField } from '@byline/core'
+import type { CompositeField } from '@byline/core'
 
-export const RichTextBlock: BlockField = {
+export const RichTextBlock: CompositeField = {
   name: 'richTextBlock',
   label: 'Richtext Block',
-  type: 'block',
+  type: 'composite',
   fields: [
     {
       name: 'richText',

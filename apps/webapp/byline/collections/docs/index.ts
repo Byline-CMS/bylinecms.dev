@@ -151,7 +151,7 @@ export const Docs: CollectionDefinition = {
     {
       name: 'content',
       label: 'Content',
-      type: 'array',
+      type: 'blocks',
       fields: [RichTextBlock, PhotoBlock],
     },
     {
@@ -162,7 +162,7 @@ export const Docs: CollectionDefinition = {
         {
           name: 'reviewItem',
           label: 'Review Item',
-          type: 'array',
+          type: 'composite',
           fields: [
             { name: 'rating', label: 'Rating', type: 'integer', required: true },
             {
