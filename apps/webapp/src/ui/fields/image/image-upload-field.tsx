@@ -87,7 +87,11 @@ export const ImageUploadField = ({
       // Extract image dimensions for the pending value
       const img = new Image()
       img.onload = () => {
-        const dimensions = { width: img.naturalWidth, height: img.naturalHeight }
+        // SVGs without explicit width/height attrs (viewBox-only) report naturalWidth/Height = 0.
+        // Skip dimensions when zero so they are stored as null (scalable, no fixed size).
+        const w = img.naturalWidth
+        const h = img.naturalHeight
+        const dimensions = w > 0 && h > 0 ? { width: w, height: h } : undefined
 
         // Create the pending stored file value
         const pendingValue = createPendingStoredFileValue(file, previewUrl, dimensions)

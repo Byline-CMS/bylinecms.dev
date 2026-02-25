@@ -21,6 +21,18 @@ function deriveThumbnailUrl(storageUrl: string): string {
 }
 
 /**
+ * FormatBadge renders a muted pill showing the image format (e.g. JPEG, PNG, SVG).
+ * Intended for use alongside the status badge in list-view card meta.
+ */
+export function FormatBadge({ format }: { format: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset bg-gray-500/10 text-gray-400 ring-gray-500/20">
+      {format.toUpperCase()}
+    </span>
+  )
+}
+
+/**
  * MediaThumbnailCell renders a small preview image in the Media list view.
  * When the `thumbnail` variant has been generated, the smaller webp is used;
  * otherwise the original storage URL is shown.

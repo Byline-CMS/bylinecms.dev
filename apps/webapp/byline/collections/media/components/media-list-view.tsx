@@ -36,6 +36,7 @@ import {
 
 import { RouterPager } from '@/ui/components/router-pager'
 import { formatNumber } from '@/utils/utils.general'
+import { FormatBadge } from './media-thumbnail'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -298,9 +299,12 @@ export function MediaListView({
                       {doc.title ?? '—'}
                     </span>
                     <div className="flex flex-wrap items-center justify-between gap-1">
-                      {doc.status && (
-                        <StatusBadge status={doc.status} workflowStatuses={workflowStatuses} />
-                      )}
+                      <div className="flex flex-wrap items-center gap-1">
+                        {doc.status && (
+                          <StatusBadge status={doc.status} workflowStatuses={workflowStatuses} />
+                        )}
+                        {img?.image_format && <FormatBadge format={img.image_format} />}
+                      </div>
                       {updatedAt && (
                         <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
                           {updatedAt}
