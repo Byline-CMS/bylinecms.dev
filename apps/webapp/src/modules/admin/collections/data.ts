@@ -282,3 +282,22 @@ export async function uploadDocument(
   }
   return response.json() as Promise<UploadDocumentResult>
 }
+
+export interface CollectionStatusCount {
+  status: string
+  count: number
+}
+
+/**
+ * Fetch per-status document counts for a collection from the stats endpoint.
+ * Returns an empty array on any error so the caller can degrade gracefully.
+ */
+export async function getCollectionStats(collection: string): Promise<CollectionStatusCount[]> {
+  const url = `${API_BASE_URL}/${collection}/stats`
+  const response = await fetch(url)
+  if (!response.ok) {
+    return []
+  }
+  const data = await response.json()
+  return (data.stats ?? []) as CollectionStatusCount[]
+}

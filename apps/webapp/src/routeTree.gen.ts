@@ -17,6 +17,7 @@ import { Route as AdminCollectionsCollectionIndexRouteImport } from './routes/ad
 import { Route as AdminApiCollectionIndexRouteImport } from './routes/admin/api/$collection/index'
 import { Route as AdminCollectionsCollectionCreateRouteImport } from './routes/admin/collections/$collection/create'
 import { Route as AdminApiCollectionUploadRouteImport } from './routes/admin/api/$collection/upload'
+import { Route as AdminApiCollectionStatsRouteImport } from './routes/admin/api/$collection/stats'
 import { Route as AdminCollectionsCollectionIdIndexRouteImport } from './routes/admin/collections/$collection/$id/index'
 import { Route as AdminApiCollectionIdIndexRouteImport } from './routes/admin/api/$collection/$id/index'
 import { Route as AdminCollectionsCollectionIdHistoryRouteImport } from './routes/admin/collections/$collection/$id/history'
@@ -68,6 +69,11 @@ const AdminApiCollectionUploadRoute =
     path: '/api/$collection/upload',
     getParentRoute: () => AdminRouteRoute,
   } as any)
+const AdminApiCollectionStatsRoute = AdminApiCollectionStatsRouteImport.update({
+  id: '/api/$collection/stats',
+  path: '/api/$collection/stats',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminCollectionsCollectionIdIndexRoute =
   AdminCollectionsCollectionIdIndexRouteImport.update({
     id: '/collections/$collection/$id/',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/': typeof PublicIndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/admin/api/$collection/stats': typeof AdminApiCollectionStatsRoute
   '/admin/api/$collection/upload': typeof AdminApiCollectionUploadRoute
   '/admin/collections/$collection/create': typeof AdminCollectionsCollectionCreateRoute
   '/admin/api/$collection/': typeof AdminApiCollectionIndexRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof PublicIndexRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/api/$collection/stats': typeof AdminApiCollectionStatsRoute
   '/admin/api/$collection/upload': typeof AdminApiCollectionUploadRoute
   '/admin/collections/$collection/create': typeof AdminCollectionsCollectionCreateRoute
   '/admin/api/$collection': typeof AdminApiCollectionIndexRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/_public/': typeof PublicIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/api/$collection/stats': typeof AdminApiCollectionStatsRoute
   '/admin/api/$collection/upload': typeof AdminApiCollectionUploadRoute
   '/admin/collections/$collection/create': typeof AdminCollectionsCollectionCreateRoute
   '/admin/api/$collection/': typeof AdminApiCollectionIndexRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin/'
+    | '/admin/api/$collection/stats'
     | '/admin/api/$collection/upload'
     | '/admin/collections/$collection/create'
     | '/admin/api/$collection/'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/admin/api/$collection/stats'
     | '/admin/api/$collection/upload'
     | '/admin/collections/$collection/create'
     | '/admin/api/$collection'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/_public/'
     | '/admin/'
+    | '/admin/api/$collection/stats'
     | '/admin/api/$collection/upload'
     | '/admin/collections/$collection/create'
     | '/admin/api/$collection/'
@@ -286,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminApiCollectionUploadRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/api/$collection/stats': {
+      id: '/admin/api/$collection/stats'
+      path: '/api/$collection/stats'
+      fullPath: '/admin/api/$collection/stats'
+      preLoaderRoute: typeof AdminApiCollectionStatsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/collections/$collection/$id/': {
       id: '/admin/collections/$collection/$id/'
       path: '/collections/$collection/$id'
@@ -359,6 +378,7 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
 
 interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminApiCollectionStatsRoute: typeof AdminApiCollectionStatsRoute
   AdminApiCollectionUploadRoute: typeof AdminApiCollectionUploadRoute
   AdminCollectionsCollectionCreateRoute: typeof AdminCollectionsCollectionCreateRoute
   AdminApiCollectionIndexRoute: typeof AdminApiCollectionIndexRoute
@@ -375,6 +395,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminApiCollectionStatsRoute: AdminApiCollectionStatsRoute,
   AdminApiCollectionUploadRoute: AdminApiCollectionUploadRoute,
   AdminCollectionsCollectionCreateRoute: AdminCollectionsCollectionCreateRoute,
   AdminApiCollectionIndexRoute: AdminApiCollectionIndexRoute,

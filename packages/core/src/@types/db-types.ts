@@ -168,4 +168,13 @@ export interface IDocumentQueries {
     created_at: Date
     updated_at: Date
   } | null>
+
+  /**
+   * Return a count of current documents grouped by status for a given
+   * collection. Uses the `current_documents` view so each logical document
+   * is counted once at its latest version.
+   */
+  getDocumentCountsByStatus(params: {
+    collection_id: string
+  }): Promise<Array<{ status: string; count: number }>>
 }

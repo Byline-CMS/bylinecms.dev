@@ -281,6 +281,15 @@ export class DocumentQueries implements IDocumentQueries {
   } | null> {
     throw new Error('db-remote method not implemented.')
   }
+
+  /**
+   * getDocumentCountsByStatus
+   */
+  async getDocumentCountsByStatus(_params: {
+    collection_id: string
+  }): Promise<Array<{ status: string; count: number }>> {
+    return []
+  }
 }
 
 /**

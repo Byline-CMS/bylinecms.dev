@@ -982,6 +982,33 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * getDocumentCountsByStatus
+   *
+   * Returns a count of current documents grouped by workflow status for a
+   * given collection. Uses the `current_documents` view so each logical
+   * document is counted once (at its latest/current version).
+   */
+  async getDocumentCountsByStatus({
+    collection_id,
+  }: {
+    collection_id: string
+  }): Promise<Array<{ status: string; count: number }>> {
+    const rows = await this.db
+      .select({
+        status: currentDocumentsView.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(currentDocumentsView)
+      .where(eq(currentDocumentsView.collection_id, collection_id))
+      .groupBy(currentDocumentsView.status)
+
+    return rows.map((r) => ({
+      status: r.status ?? 'unknown',
+      count: r.count,
+    }))
+  }
+
+  /**
    * reconstructDocuments (multiple)
    *
    * Retrieve field values and reconstruct multiple documents

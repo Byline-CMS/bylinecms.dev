@@ -524,6 +524,12 @@ export interface CollectionDefinition {
   upload?: UploadConfig
   /** Lifecycle hooks for server-side document operations. */
   hooks?: CollectionHooks
+  /**
+   * When `true`, the admin landing page displays a per-status document count
+   * inside the collection card. Requires a database round-trip per collection
+   * on every landing-page load, so opt in deliberately.
+   */
+  showStats?: boolean
 }
 
 /**
