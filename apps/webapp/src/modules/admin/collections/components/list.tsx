@@ -158,7 +158,7 @@ export const ListView = ({
               value={(location.search as { status?: string }).status ?? '_all'}
               onValueChange={handleOnStatusFilter}
             >
-              <SelectItem value="_all">All Statuses</SelectItem>
+              <SelectItem value="_all">All</SelectItem>
               {workflowStatuses.map((ws) => (
                 <SelectItem key={ws.name} value={ws.name}>
                   {ws.label ?? ws.name}
