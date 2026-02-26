@@ -19,7 +19,7 @@ import { SortableItem } from '@/ui/fields/sortable-item'
 
 // ---------------------------------------------------------------------------
 // BlocksField — renders `type: 'blocks'` fields. Children are heterogeneous
-// composites selected via a modal picker. Supports D&D.
+// group fields selected via a modal picker. Supports D&D.
 // ---------------------------------------------------------------------------
 
 export const BlocksField = ({
@@ -37,7 +37,7 @@ export const BlocksField = ({
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null)
 
   const compositeVariants = useMemo(
-    () => (field.fields ?? []).filter((subField) => subField.type === 'composite'),
+    () => (field.fields ?? []).filter((subField) => subField.type === 'group'),
     [field.fields]
   )
   const [selectedBlockName, setSelectedBlockName] = useState<string>(
@@ -107,7 +107,7 @@ export const BlocksField = ({
         ? compositeVariants.find((v) => v.name === forcedVariantName)
         : undefined) ?? compositeVariants[0]
 
-    if (!variant || variant.type !== 'composite') return
+    if (!variant || variant.type !== 'group') return
 
     const compositeFields = (variant.fields ?? []) as Field[]
     const fields = await Promise.all(
@@ -119,7 +119,7 @@ export const BlocksField = ({
     const newId = crypto.randomUUID()
     const newItem = {
       id: newId,
-      type: 'composite',
+      type: 'group',
       name: variant.name,
       fields,
     }
@@ -186,11 +186,11 @@ export const BlocksField = ({
     let initial: any
     let label: ReactNode | undefined
 
-    // Composite shape: { id, type: 'composite', name, fields }
+    // Group shape: { id, type: 'group', name, fields }
     if (
       item &&
       typeof item === 'object' &&
-      item.type === 'composite' &&
+      item.type === 'group' &&
       typeof item.name === 'string'
     ) {
       subField = field.fields?.find((f) => f.name === item.name)
@@ -232,7 +232,7 @@ export const BlocksField = ({
   }
 
   return (
-    <div className="">
+    <div className={`byline-blocks ${field.name}`}>
       {field.label && <h3 className="text-[1rem] font-medium mb-1">{field.label}</h3>}
       <DraggableSortable
         ids={items.map((i) => i.id)}

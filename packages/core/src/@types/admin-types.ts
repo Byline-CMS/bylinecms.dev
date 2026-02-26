@@ -80,16 +80,16 @@ export interface TabDefinition {
 }
 
 /**
- * A field group is a labelled visual section that clusters related fields
+ * A container is a labelled visual section that clusters related fields
  * within a tab (or the default layout when no tabs are configured).
  * Purely presentational — no storage or schema impact.
  */
-export interface GroupDefinition {
-  /** Unique key used to reference this group in FieldAdminConfig. */
+export interface ContainerDefinition {
+  /** Unique key used to reference this container in FieldAdminConfig. */
   name: string
-  /** Optional heading rendered above the grouped fields. */
+  /** Optional heading rendered above the contained fields. */
   label?: string
-  /** When tabs are configured, restrict this group to a specific tab. */
+  /** When tabs are configured, restrict this container to a specific tab. */
   tab?: string
 }
 
@@ -105,8 +105,8 @@ export interface RowDefinition {
   fields: string[]
   /** When tabs are configured, restrict this row to a specific tab. */
   tab?: string
-  /** When groups are configured, restrict this row to a specific group. */
-  group?: string
+  /** When containers are configured, restrict this row to a specific container. */
+  container?: string
 }
 
 /**
@@ -122,10 +122,10 @@ export interface FieldAdminConfig {
    */
   tab?: string
   /**
-   * Which field group (by name) this field belongs to.
-   * Requires `groups` to be declared on the CollectionAdminConfig.
+   * Which container (by name) this field belongs to.
+   * Requires `containers` to be declared on the CollectionAdminConfig.
    */
-  group?: string
+  container?: string
   /**
    * Which row (by name) this field belongs to.
    * Requires a matching entry in `rows` on the CollectionAdminConfig.
@@ -167,10 +167,10 @@ export interface CollectionAdminConfig<T = any> {
   tabs?: TabDefinition[]
 
   /**
-   * Named visual grouping sections within the form (or within a tab).
-   * Assign fields to groups via `fields[fieldName].group`.
+   * Named visual container sections within the form (or within a tab).
+   * Assign fields to containers via `fields[fieldName].container`.
    */
-  groups?: GroupDefinition[]
+  containers?: ContainerDefinition[]
 
   /**
    * Horizontal row layouts — fields listed in each row are rendered

@@ -44,7 +44,7 @@ export const TextAreaField = ({
   )
 
   return (
-    <div>
+    <div className={`byline-textArea ${field.name}`}>
       <TextArea
         id={id ?? fieldPath}
         name={field.name}

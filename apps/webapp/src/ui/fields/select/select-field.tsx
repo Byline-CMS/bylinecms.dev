@@ -33,7 +33,7 @@ export const SelectField = ({
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
 
   return (
-    <div>
+    <div className={`byline-select ${field.name}`}>
       <Select
         size="sm"
         id={id ?? fieldPath}

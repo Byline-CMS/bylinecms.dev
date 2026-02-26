@@ -6,18 +6,16 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useMemo } from 'react'
-
 import type {
   ArrayField as ArrayFieldType,
   BlocksField as BlocksFieldType,
-  CompositeField as CompositeFieldType,
   Field,
+  GroupField as GroupFieldType,
 } from '@byline/core'
 
 import { ArrayField } from '@/ui/fields/array/array-field'
 import { BlocksField } from '@/ui/fields/blocks/blocks-field'
-import { placeholderForField } from '@/ui/fields/field-helpers'
+import { GroupField } from '@/ui/fields/group/group-field'
 import { CheckboxField } from '../fields/checkbox/checkbox-field'
 import { RichTextField } from '../fields/richtext/richtext-lexical/richtext-field'
 import { SelectField } from '../fields/select/select-field'
@@ -28,60 +26,6 @@ import { DateTimeField } from './datetime/datetime-field'
 import { FileField } from './file/file-field'
 import { ImageField } from './image/image-field'
 import { NumericalField } from './numerical/numerical-field'
-
-// ---------------------------------------------------------------------------
-// CompositeFieldRenderer — renders a fixed-order group of child fields.
-// No drag-and-drop. No add/remove. Used both as a standalone field type
-// and internally by ArrayField / BlocksField when rendering composite items.
-// ---------------------------------------------------------------------------
-
-const CompositeFieldRenderer = ({
-  field,
-  defaultValue,
-  path,
-}: {
-  field: CompositeFieldType
-  defaultValue: any
-  path: string
-}) => {
-  // Default value for a composite is an array of single-key objects:
-  // [{ rating: 5 }, { comment: '...' }]
-  // Normalize sparse arrays (holes from flattening) into a per-field array.
-  const normalized = useMemo(() => {
-    if (!Array.isArray(defaultValue)) return []
-    return (field.fields as Field[]).map((childField) => {
-      const found = defaultValue.find(
-        (el: any) => el != null && typeof el === 'object' && Object.hasOwn(el, childField.name)
-      )
-      return found ?? { [childField.name]: placeholderForField(childField) }
-    })
-  }, [defaultValue, field.fields])
-
-  return (
-    <div className="flex flex-col gap-2">
-      {field.label && (
-        <div className="flex flex-col gap-0.5">
-          <h3 className="text-[1rem] font-medium">{field.label}</h3>
-          {field.helpText && (
-            <p className="text-xs text-muted">{field.helpText}</p>
-          )}
-        </div>
-      )}
-      <div className="flex flex-col gap-4">
-        {(field.fields as Field[]).map((innerField, idx) => {
-          const element = normalized[idx] ?? {}
-          return (
-            <FieldRenderer
-              key={innerField.name}
-              field={innerField}
-              defaultValue={element[innerField.name]}
-              basePath={`${path}[${idx}]`}
-              disableSorting={true}
-            />
-          )
-        })}      </div>    </div>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // FieldRenderer — the main field type switch. Delegates to the appropriate
@@ -113,7 +57,6 @@ export const FieldRenderer = ({
 
   switch (field.type) {
     case 'text':
-      console.log(field)
       return (
         <TextField
           field={hideLabel ? { ...field, label: undefined } : field}
@@ -202,11 +145,15 @@ export const FieldRenderer = ({
           collectionPath={collectionPath}
         />
       )
-    case 'composite':
-      // Render a composite as a fixed-order inline field group.
+    case 'group':
+      // Render a group field as a fixed-order inline field group.
       return (
-        <CompositeFieldRenderer
-          field={hideLabel ? { ...field, label: undefined } as unknown as CompositeFieldType : field as unknown as CompositeFieldType}
+        <GroupField
+          field={
+            hideLabel
+              ? ({ ...field, label: undefined } as unknown as GroupFieldType)
+              : (field as unknown as GroupFieldType)
+          }
           defaultValue={defaultValue}
           path={path}
         />

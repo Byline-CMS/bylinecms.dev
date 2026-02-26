@@ -158,7 +158,7 @@ export const Docs: CollectionDefinition = {
         {
           name: 'reviewItem',
           label: 'Review Item',
-          type: 'composite',
+          type: 'group',
           fields: [
             { name: 'rating', label: 'Rating', type: 'integer', required: true },
             {
@@ -181,7 +181,7 @@ export const Docs: CollectionDefinition = {
     {
       name: 'availableLanguages',
       label: 'Available Languages',
-      type: 'composite',
+      type: 'group',
       helpText: 'Select the languages this document is available in.',
       fields: contentLocales.map(({ code, label }) => ({
         name: code,

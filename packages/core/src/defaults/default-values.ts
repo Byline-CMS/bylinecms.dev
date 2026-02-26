@@ -71,8 +71,8 @@ export async function buildInitialDataFromFields(
 
     // If this is a structure field with child defaults, build a nested default.
     // For arrays we avoid guessing a default shape.
-    if (field.type === 'composite') {
-      // Composites are represented in the dashboard as an array of single-key objects.
+    if (field.type === 'group') {
+      // Group fields are represented in the dashboard as an array of single-key objects.
       const nested = await buildInitialDataFromFields(field.fields, {
         ...normalized,
         data: currentData,

@@ -9,7 +9,7 @@
 export type FieldType =
   | 'array'
   | 'blocks'
-  | 'composite'
+  | 'group'
   | 'text'
   | 'textArea'
   | 'checkbox'
@@ -29,7 +29,7 @@ export type FieldType =
   | 'object'
 
 // Utility type to identify structure field types (fields that contain nested fields)
-export type StructureFieldType = 'array' | 'blocks' | 'composite'
+export type StructureFieldType = 'array' | 'blocks' | 'group'
 
 // Utility type to identify value field types
 export type ValueFieldType = Exclude<FieldType, StructureFieldType>
@@ -165,10 +165,10 @@ interface BaseField {
   hooks?: FieldHooks
   /**
    * Optional submit-time validator. Called by `validateForm()` for every field
-   * type — including structure fields (composite, array, blocks).
+   * type — including structure fields (group, array, blocks).
    *
    * Receives the resolved field value (lodash `get` on the full form store, so
-   * composites arrive as their assembled value, e.g. `[{en:true},{fr:false}]`)
+   * group fields arrive as their assembled value, e.g. `[{en:true},{fr:false}]`)
    * and the complete form data snapshot.
    *
    * Return a non-empty string to block submission and display the message as a
@@ -195,18 +195,23 @@ export interface ArrayField extends BaseStructureField {
 
 export interface BlocksField extends BaseStructureField {
   type: 'blocks'
-  /** The composite field definitions available as block variants in this blocks container. */
-  fields: CompositeField[]
+  /** The group field definitions available as block variants in this blocks container. */
+  fields: GroupField[]
 }
 
-export interface CompositeField extends BaseStructureField {
-  type: 'composite'
+export interface GroupField extends BaseStructureField {
+  type: 'group'
 }
 
 /**
- * @deprecated Use `CompositeField` instead. Alias kept for migration convenience.
+ * @deprecated Use `GroupField` instead. Alias kept for migration convenience.
  */
-export type BlockField = CompositeField
+export type BlockField = GroupField
+
+/**
+ * @deprecated Use `GroupField` instead. Alias kept for migration convenience.
+ */
+export type CompositeField = GroupField
 
 // Value field types (preserving existing properties)
 export interface TextField extends BaseValueField {
@@ -394,7 +399,7 @@ export interface ObjectField extends BaseValueField {
 }
 
 // Union of all structure fields
-export type StructureField = ArrayField | BlocksField | CompositeField
+export type StructureField = ArrayField | BlocksField | GroupField
 
 // Union of all value fields
 export type ValueField =
@@ -421,15 +426,20 @@ export type Field = StructureField | ValueField
 
 // Type guards for field identification
 export function isStructureField(field: Field): field is StructureField {
-  return ['array', 'blocks', 'composite'].includes(field.type)
+  return ['array', 'blocks', 'group'].includes(field.type)
 }
 
 export function isBlocksField(field: Field): field is BlocksField {
   return field.type === 'blocks'
 }
 
-export function isCompositeField(field: Field): field is CompositeField {
-  return field.type === 'composite'
+export function isGroupField(field: Field): field is GroupField {
+  return field.type === 'group'
+}
+
+/** @deprecated Use `isGroupField` instead. */
+export function isCompositeField(field: Field): field is GroupField {
+  return field.type === 'group'
 }
 
 export function isValueField(field: Field): field is ValueField {

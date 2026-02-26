@@ -139,12 +139,7 @@ function getBySegments(
       // we remap the key to 'fields' to access the internal fields array.
       // This allows paths like `content[0].richTextBlock[0].richText` to map
       // to `content[0].fields[0].richText`.
-      if (
-        parent &&
-        typeof parent === 'object' &&
-        parent.type === 'composite' &&
-        parent.name === key
-      ) {
+      if (parent && typeof parent === 'object' && parent.type === 'group' && parent.name === key) {
         key = 'fields'
       }
 
@@ -197,12 +192,7 @@ function ensurePath(
       // Special handling for Block objects:
       // If we are traversing a block object and the key matches the block name,
       // we remap the key to 'fields' to access the internal fields array.
-      if (
-        parent &&
-        typeof parent === 'object' &&
-        parent.type === 'composite' &&
-        parent.name === key
-      ) {
+      if (parent && typeof parent === 'object' && parent.type === 'group' && parent.name === key) {
         key = 'fields'
       }
 
@@ -327,7 +317,7 @@ function applyBlockPatch(doc: any, patch: BlockPatch, definition: CollectionDefi
 
   if (patch.kind === 'block.add') {
     const id = crypto.randomUUID()
-    const base: any = { id, type: 'composite', name: patch.blockType }
+    const base: any = { id, type: 'group', name: patch.blockType }
     if (patch.initialValue && typeof patch.initialValue === 'object') {
       Object.assign(base, patch.initialValue)
     }

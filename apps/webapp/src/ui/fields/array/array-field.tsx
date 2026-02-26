@@ -19,7 +19,7 @@ import { SortableItem } from '@/ui/fields/sortable-item'
 
 // ---------------------------------------------------------------------------
 // ArrayField — renders `type: 'array'` fields. Children are homogeneous:
-// either single value fields or a single composite definition. Supports D&D.
+// either single value fields or a single group definition. Supports D&D.
 // ---------------------------------------------------------------------------
 
 export const ArrayField = ({
@@ -90,8 +90,8 @@ export const ArrayField = ({
     if (!variant) return
 
     const defaultValueForVariant = async (v: Field): Promise<any> => {
-      // Composite child — build array of single-key objects
-      if (v.type === 'composite' && v.fields && v.fields.length > 0) {
+      // Group child — build array of single-key objects
+      if (v.type === 'group' && v.fields && v.fields.length > 0) {
         const inner = await Promise.all(
           (v.fields as Field[]).map(async (innerField) => ({
             [innerField.name]: await defaultScalarForField(innerField, getFieldValues),
@@ -170,8 +170,8 @@ export const ArrayField = ({
 
     if (subField == null) return null
 
-    // Composite child — render its fields inline
-    if (subField.type === 'composite' && subField.fields && subField.fields.length > 0) {
+    // Group child — render its fields inline
+    if (subField.type === 'group' && subField.fields && subField.fields.length > 0) {
       const innerArray = Array.isArray(initial) ? initial : []
 
       const innerBody = (subField.fields as Field[]).map((innerField) => {
@@ -253,7 +253,7 @@ export const ArrayField = ({
   }
 
   return (
-    <div className="">
+    <div className={`byline-array ${field.name}`}>
       {!disableSorting && field.label && (
         <h3 className="text-[1rem] font-medium mb-1">{field.label}</h3>
       )}

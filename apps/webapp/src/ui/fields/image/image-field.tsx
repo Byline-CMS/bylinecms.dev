@@ -75,7 +75,7 @@ export const ImageField = ({
   }
 
   return (
-    <div>
+    <div className={`byline-image ${field.name}`}>
       <div className="flex items-baseline gap-2 mb-1">
         <div>
           <div className="text-sm font-medium text-gray-100">
@@ -118,8 +118,8 @@ export const ImageField = ({
                 src={incomingValue.storage_url}
                 alt={incomingValue.original_filename ?? incomingValue.filename}
                 className={`rounded border border-gray-600 object-contain ${incomingValue.mime_type === 'image/svg+xml'
-                    ? 'w-[271px] h-[159px]'
-                    : 'max-h-40 min-h-16 min-w-16'
+                  ? 'w-[271px] h-[159px]'
+                  : 'max-h-40 min-h-16 min-w-16'
                   }`}
               />
               {/* Pending upload badge */}

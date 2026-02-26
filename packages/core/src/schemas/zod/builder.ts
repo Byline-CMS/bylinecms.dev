@@ -176,9 +176,9 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       schema = z.any().array()
       break
 
-    case 'composite':
+    case 'group':
     case 'relation':
-      // Composites are complex nested structures validated at the field-renderer
+      // Group fields are complex nested structures validated at the field-renderer
       // level. Relations store a document ID string or array; use z.any()
       // so the schema does not constrain shape here.
       schema = z.any()

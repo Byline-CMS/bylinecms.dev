@@ -33,7 +33,7 @@ export const DateTimeField = ({
   const incomingValue = value ?? fieldValue ?? defaultValue ?? null
 
   return (
-    <div>
+    <div className={`byline-datetime ${field.name}`}>
       <DatePicker
         id={id ?? fieldPath}
         name={field.name}

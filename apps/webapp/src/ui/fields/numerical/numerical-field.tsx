@@ -33,7 +33,7 @@ export const NumericalField = ({
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
 
   return (
-    <div>
+    <div className={`byline-${field.type} ${field.name}`}>
       <Input
         type="number"
         id={id ?? fieldPath}

@@ -34,7 +34,7 @@ const DocsDefinition: CollectionDefinition = {
         {
           name: 'richTextBlock',
           label: 'Richtext Block',
-          type: 'composite',
+          type: 'group',
           fields: [
             {
               name: 'richText',
@@ -51,7 +51,7 @@ const DocsDefinition: CollectionDefinition = {
         {
           name: 'photoBlock',
           label: 'Photo Block',
-          type: 'composite',
+          type: 'group',
           fields: [
             { name: 'display', label: 'Display', type: 'text' },
             { name: 'photo', label: 'Photo', type: 'image' },
@@ -69,7 +69,7 @@ const DocsDefinition: CollectionDefinition = {
         {
           name: 'reviewItem',
           label: 'Review Item',
-          type: 'composite',
+          type: 'group',
           fields: [
             { name: 'rating', label: 'Rating', type: 'integer', required: true },
             { name: 'comment', label: 'Comments', type: 'richText' },
@@ -205,7 +205,7 @@ describe('applyPatches', () => {
 
     expect(withBlock.content).toHaveLength(1)
     const block = withBlock.content[0]
-    expect(block?.type).toBe('composite')
+    expect(block?.type).toBe('group')
     expect(block?.richText).toEqual({ ops: [{ insert: 'Hello' }] })
 
     const { doc: afterUpdate, errors: updateErrors } = applyPatches(DocsDefinition, withBlock, [

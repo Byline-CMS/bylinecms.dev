@@ -41,7 +41,7 @@ export const RichTextField = ({
   const incomingDefault = defaultValue
 
   return (
-    <div className={`flex flex-1 h-full`}>
+    <div className={`byline-richText ${field.name} flex flex-1 h-full`}>
       <div className="flex flex-1 flex-col gap-1">
         <EditorField
           onChange={onChange}

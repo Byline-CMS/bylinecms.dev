@@ -14,11 +14,11 @@ import type {
   ArrayField,
   BlocksField,
   CollectionDefinition,
-  CompositeField,
   DateTimeStore,
   Field,
   FileStore,
   FlattenedStore,
+  GroupField,
   NumericStore,
   RelationStore,
   ValueField,
@@ -62,17 +62,17 @@ export function flattenFields(
           const arrayElementPath = `${currentPath}.${index}`
 
           if (typeof item === 'object' && item !== null && containerField.fields) {
-            // Blocks container + composite shape support.
+            // Blocks container + group shape support.
             // For the Docs collection, `content` is a blocks field whose
-            // items are composites like richTextBlock and photoBlock.
-            if (item.type === 'composite' && typeof item.name === 'string') {
+            // items are group fields like richTextBlock and photoBlock.
+            if (item.type === 'group' && typeof item.name === 'string') {
               const blockName = item.name
               const blockFieldsArray = Array.isArray(item.fields) ? item.fields : []
               const blockFieldConfig = containerField.fields.find((f) => f.name === blockName)
 
               if (
                 blockFieldConfig &&
-                blockFieldConfig.type === 'composite' &&
+                blockFieldConfig.type === 'group' &&
                 Array.isArray(blockFieldConfig.fields)
               ) {
                 blockFieldsArray.forEach((subItem: any, idx: number) => {
@@ -99,11 +99,11 @@ export function flattenFields(
                 const subField = containerField.fields.find((f) => f.name === fieldName)
                 if (subField) {
                   if (
-                    subField.type === 'composite' &&
+                    subField.type === 'group' &&
                     Array.isArray(fieldValue) &&
                     Array.isArray(subField.fields)
                   ) {
-                    // Legacy block/composite shape: { blockName: [ {field: val}, ... ] }
+                    // Legacy block/group shape: { blockName: [ {field: val}, ... ] }
                     // Iterate each sub-item and flatten using the composite's child fields.
                     fieldValue.forEach((subItem: any, idx: number) => {
                       if (subItem && typeof subItem === 'object') {
@@ -168,11 +168,11 @@ export function flattenFields(
           )
         }
       } else if (
-        fieldConfig.type === 'composite' &&
+        fieldConfig.type === 'group' &&
         Array.isArray(value) &&
-        Array.isArray((fieldConfig as CompositeField).fields)
+        Array.isArray((fieldConfig as GroupField).fields)
       ) {
-        // Top-level composite: value is an array of single-key objects,
+        // Top-level group field: value is an array of single-key objects,
         // e.g. availableLanguages: [{ en: true }, { fr: false }, ...]
         // Recurse into each child value using its position index as the path segment.
         ;(value as any[]).forEach((subItem: any, idx: number) => {
@@ -180,7 +180,7 @@ export function flattenFields(
             const subFieldName = Object.keys(subItem).find((k) => k !== '_id')
             if (subFieldName != null) {
               const subFieldValue = subItem[subFieldName]
-              const childField = (fieldConfig as CompositeField).fields.find(
+              const childField = (fieldConfig as GroupField).fields.find(
                 (f: Field) => f.name === subFieldName
               )
               if (childField) {
@@ -189,9 +189,9 @@ export function flattenFields(
             }
           }
         })
-      } else if (fieldConfig.type !== 'composite') {
+      } else if (fieldConfig.type !== 'group') {
         // Only value-bearing field types are flattened directly. Structure
-        // fields like composites are containers and should delegate to their
+        // fields like group fields are containers and should delegate to their
         // nested value fields instead of being stored themselves.
         flattenedFields.push(
           createFlattenedStore(

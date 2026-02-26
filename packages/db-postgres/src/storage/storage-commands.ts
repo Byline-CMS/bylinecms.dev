@@ -8,8 +8,8 @@
 
 import type {
   CollectionDefinition,
-  CompositeField,
   Field,
+  GroupField,
   ICollectionCommands,
   IDocumentCommands,
 } from '@byline/core'
@@ -71,8 +71,8 @@ async function writeDocumentMeta({
     meta: unknown
   }[] = []
 
-  function isCompositeField(field: Field): field is CompositeField {
-    return field.type === 'composite'
+  function isGroupField(field: Field): field is GroupField {
+    return field.type === 'group'
   }
 
   function traverse(fields: Field[], data: any, basePath = '') {
@@ -88,8 +88,8 @@ async function writeDocumentMeta({
             let blockName: string | undefined
             let blockFieldsData: any
 
-            // Handle composite shape: { type: 'composite', name: '...', fields: [...] }
-            if (item.type === 'composite' && typeof item.name === 'string') {
+            // Handle group shape: { type: 'group', name: '...', fields: [...] }
+            if (item.type === 'group' && typeof item.name === 'string') {
               blockName = item.name
               blockFieldsData = item.fields
             } else {
@@ -103,7 +103,7 @@ async function writeDocumentMeta({
             if (!blockName) return
 
             const blockPath = `${currentPath}.${index}.${blockName}`
-            let itemId = existingByPath.get(`composite:${blockPath}`)
+            let itemId = existingByPath.get(`group:${blockPath}`)
 
             if (item.id) {
               itemId = item.id
@@ -111,7 +111,7 @@ async function writeDocumentMeta({
 
             if (!itemId) {
               // Check if we already assigned one in this transaction (unlikely for flat list)
-              itemId = existingByPath.get(`composite:${blockPath}`)
+              itemId = existingByPath.get(`group:${blockPath}`)
             }
 
             if (!itemId) {
@@ -123,14 +123,14 @@ async function writeDocumentMeta({
               id: uuidv7(),
               document_version_id: documentVersionId,
               collection_id: collectionId,
-              type: 'composite',
+              type: 'group',
               path: blockPath,
               item_id: itemId,
               meta: item.meta ?? null, // Preserve other meta if present
             })
 
             const subFieldConfig = fieldConfig.fields?.find(
-              (f): f is CompositeField => f.name === blockName && isCompositeField(f as Field)
+              (f): f is GroupField => f.name === blockName && isGroupField(f as Field)
             )
 
             // Recursion logic (best effort fix for now, focusing on top-level blocks)
@@ -154,7 +154,7 @@ async function writeDocumentMeta({
           if (
             item &&
             typeof item === 'object' &&
-            item.type === 'composite' &&
+            item.type === 'group' &&
             typeof item.name === 'string'
           ) {
             const blockName = item.name
@@ -162,22 +162,22 @@ async function writeDocumentMeta({
 
             // Generate/Retrieve ID
             let itemId = item.id
-            if (!itemId) itemId = existingByPath.get(`composite:${blockPath}`)
+            if (!itemId) itemId = existingByPath.get(`group:${blockPath}`)
             if (!itemId) itemId = uuidv7()
 
             metaInserts.push({
               id: uuidv7(),
               document_version_id: documentVersionId,
               collection_id: collectionId,
-              type: 'composite',
+              type: 'group',
               path: blockPath,
               item_id: itemId,
               meta: item.meta ?? null,
             })
 
-            // Recurse for fields inside the composite
+            // Recurse for fields inside the group
             const subField = fieldConfig.fields?.find((f) => f.name === blockName)
-            if (subField && subField.type === 'composite' && Array.isArray(item.fields)) {
+            if (subField && subField.type === 'group' && Array.isArray(item.fields)) {
               const syntheticData: any = {}
               item.fields.forEach((f: any) => {
                 if (f && typeof f === 'object') {

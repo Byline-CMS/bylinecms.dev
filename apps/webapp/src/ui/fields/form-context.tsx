@@ -172,7 +172,7 @@ export const FormProvider = ({
         if (
           current &&
           typeof current === 'object' &&
-          current.type === 'composite' &&
+          current.type === 'group' &&
           current.name === key
         ) {
           // We found a block traversal!

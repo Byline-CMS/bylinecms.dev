@@ -46,7 +46,7 @@ const DocsCollectionConfig: CollectionDefinition = {
       fields: [
         {
           name: 'richTextBlock',
-          type: 'composite',
+          type: 'group',
           fields: [
             { name: 'constrainedWidth', type: 'boolean', required: false },
             { name: 'richText', type: 'richText', required: true, localized: true },
@@ -54,7 +54,7 @@ const DocsCollectionConfig: CollectionDefinition = {
         },
         {
           name: 'photoBlock',
-          type: 'composite',
+          type: 'group',
           fields: [
             { name: 'display', type: 'text', required: false },
             { name: 'photo', type: 'image', required: true },
@@ -70,7 +70,7 @@ const DocsCollectionConfig: CollectionDefinition = {
       fields: [
         {
           name: 'reviewItem',
-          type: 'composite',
+          type: 'group',
           fields: [
             { name: 'rating', type: 'integer', required: true },
             { name: 'comment', type: 'richText', required: true, localized: false },

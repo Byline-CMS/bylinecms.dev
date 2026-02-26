@@ -49,7 +49,7 @@ interface MetaRow {
  *
  * **block** — paths like `content.0.richTextBlock`. The array item is
  * transformed from the legacy `{ blockName: fields }` shape into the
- * normalised composite shape: `{ id, type: 'composite', name, fields, meta }`.
+ * normalised group shape: `{ id, type: 'group', name, fields, meta }`.
  *
  * **array_item** — paths like `tags.0`. A stable `_id` property is
  * injected into each array item so patches can target items by identity
@@ -70,7 +70,7 @@ function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
   const compositeRows: MetaRow[] = []
   const arrayItemRows: MetaRow[] = []
   for (const row of metaRows) {
-    if (row.type === 'composite') compositeRows.push(row)
+    if (row.type === 'group') compositeRows.push(row)
     else if (row.type === 'array_item') arrayItemRows.push(row)
   }
 
@@ -97,7 +97,7 @@ function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
 
       return {
         id: meta?.item_id ?? null,
-        type: 'composite',
+        type: 'group',
         name: blockName,
         fields: blockFields,
         meta: meta?.meta ?? null,

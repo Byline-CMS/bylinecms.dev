@@ -23,15 +23,15 @@ export interface LocaleDefinition {
 /** Locales available in the CMS admin interface. */
 export const interfaceLocales: LocaleDefinition[] = [
   { code: 'en', label: 'English' },
-  { code: 'fr', label: 'French' },
+  { code: 'fr', label: 'Français' },
 ]
 
 /** Locales a document can be published in. */
 export const contentLocales: LocaleDefinition[] = [
   { code: 'en', label: 'English' },
-  { code: 'fr', label: 'French' },
-  { code: 'es', label: 'Spanish' },
-  { code: 'de', label: 'German' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'de', label: 'Deutsch' },
 ]
 
 /** Derived config object — passed directly to defineServerConfig / defineClientConfig. */
