@@ -19,8 +19,8 @@ import { Toast } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
+import { getCollectionDocuments } from '@/modules/admin/collections'
 import { ListView } from '@/modules/admin/collections/components/list'
-import { getCollectionDocuments } from '@/modules/admin/collections/data'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),

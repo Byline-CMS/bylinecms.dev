@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { Field } from './field-types.js'
+import type { DefaultValue, Field } from './field-types.js'
 import type { IStorageProvider } from './storage-types.js'
 
 // ---------------------------------------------------------------------------
@@ -538,4 +538,86 @@ export interface CollectionDefinition {
  */
 export function defineCollection(definition: CollectionDefinition): CollectionDefinition {
   return definition
+}
+
+// ---------------------------------------------------------------------------
+// Serializable types — safe for JSON wire transfer (SSR loaders, RSC, APIs)
+// ---------------------------------------------------------------------------
+
+/**
+ * A field definition with all function-valued properties stripped.
+ *
+ * Safe for JSON serialization — use for API responses, SSR loader return
+ * values, RSC props, mobile clients, and CLI introspection. The following
+ * are omitted:
+ * - `validate` — client UI concern, cannot cross a network boundary
+ * - `hooks`    — field-level hooks are always functions
+ * - `defaultValue` — only literal (non-function) defaults are preserved
+ *
+ * Nested `fields` (composite / array / blocks) are recursively serialized.
+ */
+export type SerializableField = Omit<Field, 'validate' | 'hooks' | 'defaultValue' | 'fields'> & {
+  /** Only literal defaults are serializable; function defaults are dropped. */
+  defaultValue?: Exclude<DefaultValue, (...args: any[]) => any>
+  /** Recursively serializable child fields. */
+  fields?: SerializableField[]
+}
+
+/**
+ * A collection definition with all function-valued properties stripped.
+ *
+ * Safe for JSON serialization — use for API schema endpoints, SSR loaders,
+ * RSC components, mobile clients, and any context where the full definition
+ * (with live functions) cannot be transmitted.
+ *
+ * - Collection-level `hooks` are entirely omitted (all entries are functions).
+ * - Field `validate`, `hooks`, and function `defaultValue` are stripped.
+ *
+ * On the receiving end, resolve the full `CollectionDefinition` from the
+ * local config store via `getCollectionDefinition(path)` to regain access
+ * to validators, hooks, and computed defaults.
+ */
+export type SerializableCollectionDefinition = Omit<CollectionDefinition, 'hooks' | 'fields'> & {
+  fields: SerializableField[]
+}
+
+/**
+ * Strips all function-valued properties from a `CollectionDefinition`,
+ * producing a version safe for JSON serialization.
+ *
+ * @example
+ * ```ts
+ * // In an API route:
+ * return Response.json(toSerializableCollection(collectionDef))
+ *
+ * // In an SSR loader:
+ * return { schema: toSerializableCollection(collectionDef), document: data }
+ * ```
+ */
+export function toSerializableCollection(
+  def: CollectionDefinition
+): SerializableCollectionDefinition {
+  function serializeField(field: Field): SerializableField {
+    // biome-ignore lint/suspicious/noExplicitAny: intentional structural spread
+    const { validate: _v, hooks: _h, defaultValue, fields, ...rest } = field as any
+    const serialized: SerializableField = { ...rest }
+
+    // Keep defaultValue only when it is a literal (not a factory function)
+    if (defaultValue !== undefined && typeof defaultValue !== 'function') {
+      serialized.defaultValue = defaultValue
+    }
+
+    // Recurse into nested child fields (composite / array / blocks)
+    if (Array.isArray(fields)) {
+      serialized.fields = fields.map(serializeField)
+    }
+
+    return serialized
+  }
+
+  const { hooks: _hooks, fields, ...rest } = def
+  return {
+    ...rest,
+    fields: fields.map(serializeField),
+  }
 }

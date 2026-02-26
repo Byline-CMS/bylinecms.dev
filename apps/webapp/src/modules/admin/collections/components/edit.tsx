@@ -20,7 +20,7 @@ import {
   unpublishDocument,
   updateCollectionDocumentWithPatches,
   updateDocumentStatus,
-} from '../data'
+} from '..'
 import { ViewMenu } from './view-menu'
 
 type EditState = {

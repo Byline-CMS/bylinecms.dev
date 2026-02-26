@@ -81,6 +81,7 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
     path: { position: 'sidebar' },
     publishedOn: { position: 'sidebar' },
     featured: { position: 'sidebar' },
+    availableLanguages: { position: 'sidebar' },
     // Content tab
     content: { tab: 'content' },
     // Reviews & Links tab

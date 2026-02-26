@@ -163,6 +163,18 @@ interface BaseField {
    * @see FieldHooks
    */
   hooks?: FieldHooks
+  /**
+   * Optional submit-time validator. Called by `validateForm()` for every field
+   * type — including structure fields (composite, array, blocks).
+   *
+   * Receives the resolved field value (lodash `get` on the full form store, so
+   * composites arrive as their assembled value, e.g. `[{en:true},{fr:false}]`)
+   * and the complete form data snapshot.
+   *
+   * Return a non-empty string to block submission and display the message as a
+   * field-level error. Return `undefined` (or nothing) to pass.
+   */
+  validate?: (value: any, data: Record<string, any>) => string | undefined
 }
 
 // Base for structure fields that contain nested fields

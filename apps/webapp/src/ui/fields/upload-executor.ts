@@ -16,7 +16,7 @@
 
 import type { StoredFileValue } from '@byline/core'
 
-import { uploadDocument } from '@/modules/admin/collections/data'
+import { uploadDocument } from '@/modules/admin/collections'
 import type { PendingUpload } from './form-context'
 
 export interface UploadResult {

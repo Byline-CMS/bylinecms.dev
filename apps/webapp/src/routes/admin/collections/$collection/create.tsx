@@ -19,9 +19,7 @@ import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { CreateView } from '@/modules/admin/collections/components/create'
 
 export const Route = createFileRoute('/admin/collections/$collection/create')({
-  loader: async ({
-    params,
-  }): Promise<{ collectionDef: CollectionDefinition; initialData: any }> => {
+  loader: async ({ params }): Promise<{ initialData: any }> => {
     const collectionDef = getCollectionDefinition(params.collection)
     if (!collectionDef) {
       throw notFound()
@@ -30,14 +28,15 @@ export const Route = createFileRoute('/admin/collections/$collection/create')({
       data: {},
       now: () => new Date(),
     })
-    return { collectionDef, initialData }
+    return { initialData }
   },
   component: RouteComponent,
 })
 
 function RouteComponent() {
   const { collection } = Route.useParams()
-  const { collectionDef, initialData } = Route.useLoaderData()
+  const { initialData } = Route.useLoaderData()
+  const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
   const adminConfig = getCollectionAdminConfig(collection)
   return (
     <>

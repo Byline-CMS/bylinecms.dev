@@ -12,8 +12,8 @@ import type { CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
+import { getCollectionDocument } from '@/modules/admin/collections'
 import { EditView } from '@/modules/admin/collections/components/edit'
-import { getCollectionDocument } from '@/modules/admin/collections/data'
 
 export const Route = createFileRoute('/admin/collections/$collection/$id/')({
   loader: async ({ params }) => {

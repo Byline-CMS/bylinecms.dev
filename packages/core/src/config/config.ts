@@ -20,14 +20,10 @@ export const getCollectionDefinition = (path: string): CollectionDefinition | nu
 }
 
 export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | null => {
-  const config = clientConfigInstance ?? serverConfigInstance
-  if (config == null) {
-    throw new Error(
-      'Byline has not been configured yet. Please call defineClientConfig or defineServerConfig first.'
-    )
-  }
-
-  return config.admin?.find((admin) => admin.slug === slug) ?? null
+  // Admin configs are a client-only concern — they contain React components and
+  // presentation logic that is never available in a server-only context.
+  if (clientConfigInstance == null) return null
+  return clientConfigInstance.admin?.find((admin) => admin.slug === slug) ?? null
 }
 
 export function defineClientConfig(config: ClientConfig) {

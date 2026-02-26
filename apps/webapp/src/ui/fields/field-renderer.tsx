@@ -58,20 +58,28 @@ const CompositeFieldRenderer = ({
   }, [defaultValue, field.fields])
 
   return (
-    <div className="flex flex-col gap-4">
-      {(field.fields as Field[]).map((innerField, idx) => {
-        const element = normalized[idx] ?? {}
-        return (
-          <FieldRenderer
-            key={innerField.name}
-            field={innerField}
-            defaultValue={element[innerField.name]}
-            basePath={`${path}[${idx}]`}
-            disableSorting={true}
-          />
-        )
-      })}
-    </div>
+    <div className="flex flex-col gap-2">
+      {field.label && (
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-[1rem] font-medium">{field.label}</h3>
+          {field.helpText && (
+            <p className="text-xs text-muted">{field.helpText}</p>
+          )}
+        </div>
+      )}
+      <div className="flex flex-col gap-4">
+        {(field.fields as Field[]).map((innerField, idx) => {
+          const element = normalized[idx] ?? {}
+          return (
+            <FieldRenderer
+              key={innerField.name}
+              field={innerField}
+              defaultValue={element[innerField.name]}
+              basePath={`${path}[${idx}]`}
+              disableSorting={true}
+            />
+          )
+        })}      </div>    </div>
   )
 }
 
@@ -198,7 +206,7 @@ export const FieldRenderer = ({
       // Render a composite as a fixed-order inline field group.
       return (
         <CompositeFieldRenderer
-          field={field as unknown as CompositeFieldType}
+          field={hideLabel ? { ...field, label: undefined } as unknown as CompositeFieldType : field as unknown as CompositeFieldType}
           defaultValue={defaultValue}
           path={path}
         />

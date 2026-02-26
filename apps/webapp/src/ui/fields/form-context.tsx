@@ -374,9 +374,8 @@ export const FormProvider = ({
   const validateForm = useCallback(
     (fields: Field[]): FormError[] => {
       const formErrors: FormError[] = []
+      const data = getFieldValues()
 
-      // This validation logic might need to be enhanced to handle nested fields.
-      // For now, it will validate top-level fields.
       for (const field of fields) {
         const value = getFieldValue(field.name)
 
@@ -428,13 +427,21 @@ export const FormProvider = ({
               break
           }
         }
+
+        // Custom validate function — applies to all field types including structure fields.
+        if (field.validate) {
+          const error = field.validate(value, data)
+          if (error) {
+            formErrors.push({ field: field.name, message: error })
+          }
+        }
       }
 
       errorsRef.current = formErrors
       notifyErrorListeners()
       return formErrors
     },
-    [getFieldValue, notifyErrorListeners]
+    [getFieldValue, getFieldValues, notifyErrorListeners]
   )
 
   const clearErrors = useCallback(() => {

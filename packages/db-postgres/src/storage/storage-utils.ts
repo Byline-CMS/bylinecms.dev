@@ -167,6 +167,28 @@ export function flattenFields(
             )
           )
         }
+      } else if (
+        fieldConfig.type === 'composite' &&
+        Array.isArray(value) &&
+        Array.isArray((fieldConfig as CompositeField).fields)
+      ) {
+        // Top-level composite: value is an array of single-key objects,
+        // e.g. availableLanguages: [{ en: true }, { fr: false }, ...]
+        // Recurse into each child value using its position index as the path segment.
+        ;(value as any[]).forEach((subItem: any, idx: number) => {
+          if (subItem && typeof subItem === 'object') {
+            const subFieldName = Object.keys(subItem).find((k) => k !== '_id')
+            if (subFieldName != null) {
+              const subFieldValue = subItem[subFieldName]
+              const childField = (fieldConfig as CompositeField).fields.find(
+                (f: Field) => f.name === subFieldName
+              )
+              if (childField) {
+                flatten({ [subFieldName]: subFieldValue }, [childField], `${currentPath}.${idx}`)
+              }
+            }
+          }
+        })
       } else if (fieldConfig.type !== 'composite') {
         // Only value-bearing field types are flattened directly. Structure
         // fields like composites are containers and should delegate to their

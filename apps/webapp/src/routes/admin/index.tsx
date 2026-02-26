@@ -13,7 +13,7 @@ import { getClientConfig, getWorkflowStatuses } from '@byline/core'
 import { Card, Container, Section } from '@infonomic/uikit/react'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
-import { type CollectionStatusCount, getCollectionStats } from '@/modules/admin/collections/data'
+import { type CollectionStatusCount, getCollectionStats } from '@/modules/admin/collections'
 
 // ---------------------------------------------------------------------------
 // Status colour palette

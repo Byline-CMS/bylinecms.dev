@@ -13,7 +13,12 @@ import type { IStorageProvider } from './storage-types.js'
 
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
 
-export interface ClientConfig {
+/**
+ * Common configuration shared by the server and client. Contains only
+ * serializable, framework-agnostic properties — no React components, no
+ * database adapters, no storage providers.
+ */
+export interface BaseConfig {
   serverURL: string
   i18n: {
     interface: {
@@ -26,11 +31,25 @@ export interface ClientConfig {
     }
   }
   collections: CollectionDefinition[]
+}
+
+/**
+ * Client-side configuration. Extends BaseConfig with admin UI presentation
+ * config (React components, formatters, column definitions, etc.).
+ *
+ * Used by `defineClientConfig()` and consumed by admin UI routes.
+ */
+export interface ClientConfig extends BaseConfig {
   /** Admin UI configuration for collections (client-side only). */
   admin?: CollectionAdminConfig[]
 }
 
-export interface ServerConfig extends ClientConfig {
+/**
+ * Server-side configuration. Extends BaseConfig with database and storage
+ * adapters. Deliberately does NOT extend ClientConfig — the server has no
+ * knowledge of React components or admin UI presentation logic.
+ */
+export interface ServerConfig extends BaseConfig {
   db: IDbAdapter
   /**
    * Site-wide default storage provider for upload-enabled collections.

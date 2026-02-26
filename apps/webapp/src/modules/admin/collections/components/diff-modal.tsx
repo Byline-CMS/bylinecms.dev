@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 import { CloseIcon, IconButton, LoaderRing, Modal } from '@infonomic/uikit/react'
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
 
-import { getCollectionDocumentVersion } from '@/modules/admin/collections/data'
+import { getCollectionDocumentVersion } from '@/modules/admin/collections'
 
 // Keys that are per-version metadata rather than content — strip before diffing
 // so the diff focuses on meaningful content changes.

@@ -10,19 +10,11 @@ import { Docs } from './byline/collections/docs/schema.js'
 import { Media } from './byline/collections/media/schema.js'
 import { News } from './byline/collections/news/schema.js'
 import { Pages } from './byline/collections/pages/schema.js'
+import { i18n } from './byline/i18n.js'
 
 defineServerConfig({
   serverURL: 'http://localhost:5173/',
-  i18n: {
-    interface: {
-      defaultLocale: 'en',
-      locales: ['en', 'es'],
-    },
-    content: {
-      defaultLocale: 'en',
-      locales: ['en', 'es'],
-    },
-  },
+  i18n,
   collections: [Docs, News, Pages, Media],
   db: pgAdapter({
     connectionString: process.env.DB_CONNECTION_STRING || '',
