@@ -54,7 +54,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-      }`}
+        }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -98,6 +98,21 @@ export const ListView = ({
     })
   }
 
+  const handleOnStatusFilter = (value: string): void => {
+    const params = structuredClone(location.search)
+    delete params.page
+    if (value === '_all') {
+      delete params.status
+    } else {
+      params.status = value
+    }
+    navigate({
+      to: '/admin/collections/$collection',
+      params: { collection: data.included.collection.path },
+      search: params,
+    })
+  }
+
   function handleOnPageSizeChange(value: string): void {
     if (value != null && value.length > 0) {
       const params = structuredClone(location.search)
@@ -134,6 +149,23 @@ export const ListView = ({
             placeholder="Search"
             className="mr-auto w-full max-w-[350px]"
           />
+
+          {workflowStatuses && workflowStatuses.length > 0 && (
+            <Select
+              id="status_filter"
+              name="status_filter"
+              size="sm"
+              value={(location.search as { status?: string }).status ?? '_all'}
+              onValueChange={handleOnStatusFilter}
+            >
+              <SelectItem value="_all">All Statuses</SelectItem>
+              {workflowStatuses.map((ws) => (
+                <SelectItem key={ws.name} value={ws.name}>
+                  {ws.label ?? ws.name}
+                </SelectItem>
+              ))}
+            </Select>
+          )}
 
           <RouterPager
             lng="en"
@@ -190,10 +222,10 @@ export const ListView = ({
                           >
                             {column.formatter
                               ? renderFormatted(
-                                  (document as any)[column.fieldName],
-                                  document,
-                                  column.formatter
-                                )
+                                (document as any)[column.fieldName],
+                                document,
+                                column.formatter
+                              )
                               : ((document as any)[column.fieldName] ?? '------')}
                           </Link>
                         ) : column.formatter ? (

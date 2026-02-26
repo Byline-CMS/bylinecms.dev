@@ -44,6 +44,7 @@ export const Media: CollectionDefinition = {
     published: { label: 'Active', verb: 'Activate' },
     archived: { label: 'Archived', verb: 'Archive' },
   }),
+  showStats: true,
   upload: {
     // Allow common image types. Extend with 'video/*', 'application/pdf' etc.
     // for a more general media collection.

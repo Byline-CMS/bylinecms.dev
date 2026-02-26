@@ -29,6 +29,7 @@ export const News: CollectionDefinition = {
     published: { label: 'Published', verb: 'Publish' },
     archived: { label: 'Archived', verb: 'Archive' },
   }),
+  showStats: true,
   fields: [
     {
       name: 'path',
