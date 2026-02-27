@@ -419,7 +419,7 @@ const FormContent = ({
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full flex flex-col">
-      <div className="item-view flex flex-col sm:flex-row justify-start sm:justify-between mb-3">
+      <div className="item-view grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-x-4 gap-y-1 mb-3">
         <h1 className="mb-1 text-[1.75rem]">{heading}</h1>
         {headerSlot}
       </div>
