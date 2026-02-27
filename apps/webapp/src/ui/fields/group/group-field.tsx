@@ -9,9 +9,11 @@
 import { useMemo } from 'react'
 
 import type { Field, GroupField as GroupFieldType } from '@byline/core'
+import { ErrorText } from '@infonomic/uikit/react'
 
 import { placeholderForField } from '@/ui/fields/field-helpers'
 import { FieldRenderer } from '@/ui/fields/field-renderer'
+import { useFieldError } from '@/ui/fields/form-context'
 
 // ---------------------------------------------------------------------------
 // GroupField — renders a fixed-order group of child fields wrapped in a
@@ -27,6 +29,7 @@ interface GroupFieldProps {
 }
 
 export const GroupField = ({ field, defaultValue, path }: GroupFieldProps) => {
+  const fieldError = useFieldError(field.name)
   // Default value for a group field is an array of single-key objects:
   // [{ rating: 5 }, { comment: '...' }]
   // Normalize sparse arrays (holes from flattening) into a per-field array.
@@ -62,6 +65,7 @@ export const GroupField = ({ field, defaultValue, path }: GroupFieldProps) => {
           )
         })}
       </div>
+      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
     </div>
   )
 }

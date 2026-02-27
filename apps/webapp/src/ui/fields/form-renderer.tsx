@@ -389,8 +389,11 @@ const FormContent = ({
     if (!hasTabs) return {}
     const counts: Record<string, number> = {}
     for (const err of errors) {
-      // err.field is the top-level field name; look up its tab assignment
-      const assignedTab = fieldPositions[err.field]?.tab ?? firstTabName
+      // err.field is the top-level field name; look up its tab assignment.
+      // Skip fields explicitly placed in the sidebar — they are not under any tab.
+      const fieldPos = fieldPositions[err.field]
+      if (fieldPos?.position === 'sidebar') continue
+      const assignedTab = fieldPos?.tab ?? firstTabName
       if (assignedTab) {
         counts[assignedTab] = (counts[assignedTab] ?? 0) + 1
       }

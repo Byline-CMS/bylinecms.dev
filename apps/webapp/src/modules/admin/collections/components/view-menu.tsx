@@ -81,7 +81,7 @@ export const ViewMenu = ({
 
   return (
     <div className="flex items-center gap-2 mt-2 mb-2">
-      <Label className="hidden sm:block muted text-gray-400 text-xs pt-[2px]" id="contentLocaleLabel" htmlFor="contentLocale" label="Content Locale:" />
+      <Label className="hidden lg:block muted text-gray-400 text-xs pt-[2px]" id="contentLocaleLabel" htmlFor="contentLocale" label="Content Locale:" />
       <Select
         name="contentLocale"
         id="contentLocale"
