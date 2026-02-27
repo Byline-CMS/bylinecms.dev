@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useBlocker } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
@@ -208,7 +208,13 @@ const FormContent = ({
   collectionPath,
   initialLocale,
   onLocaleChange,
-}: FormRendererProps) => {
+  _activeTab,
+  _onTabChange,
+}: FormRendererProps & {
+  /** Lifted tab state from FormRenderer — preserves the active tab across locale-change remounts. */
+  _activeTab?: string
+  _onTabChange?: (tab: string) => void
+}) => {
   const {
     getFieldValues,
     runFieldHooks,
@@ -236,10 +242,24 @@ const FormContent = ({
     if (initialLocale) setContentLocale(initialLocale)
   }, [initialLocale])
 
-  // Tabs — initialise active tab to the first declared tab (empty string when no tabs configured)
+  // Tabs — initialise from lifted parent state (preserves tab across locale-change remounts),
+  // falling back to the first declared tab (or empty string when no tabs are configured).
   const tabsConfig = adminConfig?.tabs
   const hasTabs = tabsConfig != null && tabsConfig.length > 0
-  const [activeTab, setActiveTab] = useState<string>(() => tabsConfig?.[0]?.name ?? '')
+  const [activeTab, setActiveTab] = useState<string>(
+    _activeTab && tabsConfig?.some((t) => t.name === _activeTab)
+      ? _activeTab
+      : (tabsConfig?.[0]?.name ?? '')
+  )
+
+  // Keep parent ref in sync whenever the user manually switches tabs.
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab)
+      _onTabChange?.(tab)
+    },
+    [_onTabChange]
+  )
 
   // Track live form data so TabDefinition.condition functions can react to field changes
   const [formData, setFormData] = useState<Record<string, any>>(() => getFieldValues())
@@ -473,7 +493,7 @@ const FormContent = ({
             <Tabs
               tabs={visibleTabs}
               activeTab={resolvedActiveTab}
-              onChange={setActiveTab}
+              onChange={handleTabChange}
               errorCounts={tabErrorCounts}
               className="-mt-4 mb-0"
             />
@@ -592,29 +612,37 @@ export const FormRenderer = ({
   collectionPath,
   initialLocale,
   onLocaleChange,
-}: FormRendererProps) => (
-  <FormProvider
-    key={`${initialLocale ?? 'default'}-${initialData?.document_version_id ?? ''}`}
-    initialData={initialData}
-  >
-    <FormContent
-      mode={mode}
-      fields={fields}
-      onSubmit={onSubmit}
-      onCancel={onCancel}
-      onStatusChange={onStatusChange}
-      onUnpublish={onUnpublish}
-      onDelete={onDelete}
-      nextStatus={nextStatus}
-      workflowStatuses={workflowStatuses}
-      publishedVersion={publishedVersion}
+}: FormRendererProps) => {
+  // Persists the active tab across locale-change remounts of FormContent.
+  // useRef so mutations never trigger a re-render of FormRenderer itself.
+  const savedTabRef = useRef<string>('')
+
+  return (
+    <FormProvider
+      key={`${initialLocale ?? 'default'}-${initialData?.document_version_id ?? ''}`}
       initialData={initialData}
-      adminConfig={adminConfig}
-      headingLabel={headingLabel}
-      headerSlot={headerSlot}
-      collectionPath={collectionPath}
-      initialLocale={initialLocale}
-      onLocaleChange={onLocaleChange}
-    />
-  </FormProvider>
-)
+    >
+      <FormContent
+        mode={mode}
+        fields={fields}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+        onStatusChange={onStatusChange}
+        onUnpublish={onUnpublish}
+        onDelete={onDelete}
+        nextStatus={nextStatus}
+        workflowStatuses={workflowStatuses}
+        publishedVersion={publishedVersion}
+        initialData={initialData}
+        adminConfig={adminConfig}
+        headingLabel={headingLabel}
+        headerSlot={headerSlot}
+        collectionPath={collectionPath}
+        initialLocale={initialLocale}
+        onLocaleChange={onLocaleChange}
+        _activeTab={savedTabRef.current}
+        _onTabChange={(tab) => { savedTabRef.current = tab }}
+      />
+    </FormProvider>
+  )
+}
