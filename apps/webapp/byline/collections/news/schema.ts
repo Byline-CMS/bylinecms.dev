@@ -31,6 +31,7 @@ export const News: CollectionDefinition = {
   }),
   showStats: true,
   fields: [
+    { name: 'title', label: 'Title', type: 'text', required: true, localized: true },
     {
       name: 'path',
       label: 'Path',
@@ -40,7 +41,6 @@ export const News: CollectionDefinition = {
         beforeValidate: formatSlug('title'),
       },
     },
-    { name: 'title', label: 'Title', type: 'text', required: true },
     {
       name: 'content',
       label: 'Content',

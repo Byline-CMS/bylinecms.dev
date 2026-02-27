@@ -112,6 +112,7 @@ export const Docs: CollectionDefinition = {
       label: 'Title',
       type: 'text',
       required: true,
+      localized: true,
       hooks: {
         // Advisory: flag leading whitespace without altering the value.
         beforeValidate: ({ value }) => {
