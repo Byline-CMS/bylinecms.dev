@@ -189,6 +189,7 @@ export const EditView = ({
                   collection={path}
                   documentId={String(initialData.document_id)}
                   activeView="edit"
+                  locale={locale}
                 />
               </div>
             }

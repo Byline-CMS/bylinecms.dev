@@ -10,19 +10,29 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
 import { getCollectionDefinition } from '@byline/core'
+import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { getCollectionDocument } from '@/modules/admin/collections'
 import { ApiView } from '@/modules/admin/collections/components/api'
 
+const searchSchema = z.object({
+  locale: z.string().optional(),
+})
+
 export const Route = createFileRoute('/admin/collections/$collection/$id/api')({
-  loader: async ({ params }) => {
+  validateSearch: searchSchema,
+  loaderDeps: ({ search: { locale } }) => ({ locale }),
+  loader: async ({ params, deps: { locale } }) => {
     const collectionDef = getCollectionDefinition(params.collection)
     if (!collectionDef) {
       throw notFound()
     }
 
-    const data = await getCollectionDocument(params.collection, params.id)
+    // No locale or 'all' → pass 'all' explicitly so the storage layer returns
+    // all locales (undefined would fall back to 'en' in the server fn).
+    const resolvedLocale = locale ?? 'all'
+    const data = await getCollectionDocument(params.collection, params.id, resolvedLocale)
 
     if (!data) {
       throw notFound()
@@ -41,7 +51,17 @@ export const Route = createFileRoute('/admin/collections/$collection/$id/api')({
 function RouteComponent() {
   const data = Route.useLoaderData()
   const { collection, id } = Route.useParams()
+  const { locale } = Route.useSearch()
+  const navigate = Route.useNavigate()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+
+  const handleLocaleChange = (newLocale: string) => {
+    navigate({
+      to: '/admin/collections/$collection/$id/api',
+      params: { collection, id },
+      search: { locale: newLocale === 'all' ? undefined : newLocale },
+    })
+  }
 
   return (
     <>
@@ -59,7 +79,12 @@ function RouteComponent() {
           },
         ]}
       />
-      <ApiView collectionDefinition={collectionDef} initialData={data} />
+      <ApiView
+        collectionDefinition={collectionDef}
+        initialData={data}
+        locale={locale}
+        onLocaleChange={handleLocaleChange}
+      />
     </>
   )
 }

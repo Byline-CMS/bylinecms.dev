@@ -32,6 +32,8 @@ export interface DiffModalProps {
   versionLabel: string
   /** The already-loaded current (latest) version of the document. */
   currentDocument: Record<string, unknown>
+  /** Content locale to compare — undefined / 'all' shows all locales. */
+  locale?: string
 }
 
 export function DiffModal({
@@ -42,6 +44,7 @@ export function DiffModal({
   versionId,
   versionLabel,
   currentDocument,
+  locale,
 }: DiffModalProps) {
   const [historicalDoc, setHistoricalDoc] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
@@ -55,7 +58,7 @@ export function DiffModal({
     setError(null)
     setHistoricalDoc(null)
 
-    getCollectionDocumentVersion(collection, documentId, versionId)
+    getCollectionDocumentVersion(collection, documentId, versionId, locale)
       .then((doc) => {
         if (cancelled) return
         setHistoricalDoc(doc)
@@ -71,7 +74,7 @@ export function DiffModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, collection, documentId, versionId])
+  }, [isOpen, collection, documentId, versionId, locale])
 
   const currentStr = currentDocument ? JSON.stringify(stripMeta(currentDocument), null, 2) : ''
 

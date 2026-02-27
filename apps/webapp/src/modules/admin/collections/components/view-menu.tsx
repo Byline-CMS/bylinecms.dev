@@ -21,6 +21,7 @@ export const ViewMenu = ({
   collection,
   documentId,
   activeView,
+  locale,
 }: {
   /** Collection path (e.g. "docs", "news"). */
   collection: string
@@ -28,6 +29,8 @@ export const ViewMenu = ({
   documentId: string
   /** Which view is currently active — used to style the active button. */
   activeView?: ViewMenuPaths
+  /** Current content locale — preserved when switching between views. */
+  locale?: string
 }) => {
   const navigate = useNavigate()
 
@@ -41,6 +44,7 @@ export const ViewMenu = ({
           navigate({
             to: '/admin/collections/$collection/$id/history',
             params: { collection, id: documentId },
+            search: locale ? { locale } : {},
           })
         }
       >
@@ -54,6 +58,7 @@ export const ViewMenu = ({
           navigate({
             to: '/admin/collections/$collection/$id',
             params: { collection, id: documentId },
+            search: locale ? { locale } : {},
           })
         }
       >
@@ -67,6 +72,7 @@ export const ViewMenu = ({
           navigate({
             to: '/admin/collections/$collection/$id/api',
             params: { collection, id: documentId },
+            search: locale ? { locale } : {},
           })
         }
       >

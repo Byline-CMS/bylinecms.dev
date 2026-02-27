@@ -147,9 +147,9 @@ export const getDocumentFn = createServerFn({ method: 'GET' })
 // ---------------------------------------------------------------------------
 
 export const getDocumentByVersionFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: { collection: string; versionId: string }) => input)
+  .inputValidator((input: { collection: string; versionId: string; locale?: string }) => input)
   .handler(async ({ data }) => {
-    const { collection: path, versionId } = data
+    const { collection: path, versionId, locale } = data
     // ensureCollection validates the path is known — not strictly needed for a
     // version fetch, but keeps auth/404 behaviour consistent.
     const config = await ensureCollection(path)
@@ -158,7 +158,7 @@ export const getDocumentByVersionFn = createServerFn({ method: 'GET' })
     const db = getServerConfig().db
     const document = await db.queries.documents.getDocumentByVersion({
       document_version_id: versionId,
-      locale: 'en',
+      locale: locale ?? 'all',
     })
 
     if (!document) throw new Error('Document version not found')

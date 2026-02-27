@@ -51,7 +51,9 @@ export const Route = createFileRoute('/admin/collections/$collection/$id/history
         desc,
         locale,
       }),
-      getCollectionDocument(params.collection, params.id),
+      // Fetch the current document with the same locale (or 'all') so diffs
+      // compare the same shape as what the user is viewing.
+      getCollectionDocument(params.collection, params.id, locale ?? 'all'),
     ])
 
     return { history, currentDocument }

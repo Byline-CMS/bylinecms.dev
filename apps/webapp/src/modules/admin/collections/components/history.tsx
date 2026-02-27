@@ -26,6 +26,7 @@ import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
+import { contentLocales } from '~/i18n'
 import { DiffModal } from './diff-modal'
 import { ViewMenu } from './view-menu'
 
@@ -70,7 +71,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-      }`}
+        }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -96,10 +97,20 @@ export const HistoryView = ({
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
   const location = useRouterState({ select: (s) => s.location })
+  const [contentLocale, setContentLocale] = useState<string>(location.search.locale ?? 'all')
   const [selectedVersion, setSelectedVersion] = useState<{
     versionId: string
     label: string
   } | null>(null)
+
+  const handleLocaleChange = (value: string) => {
+    setContentLocale(value)
+    navigate({
+      to: '/admin/collections/$collection/$id/history',
+      params: { collection, id },
+      search: (prev) => ({ ...prev, locale: value === 'all' ? undefined : value }),
+    })
+  }
 
   function handleOnPageSizeChange(value: string): void {
     if (value != null && value.length > 0) {
@@ -122,7 +133,28 @@ export const HistoryView = ({
             <h2 className="mb-2 flex items-center gap-2">
               {labels.singular} History <Stats total={data?.meta.total} />
             </h2>
-            <ViewMenu collection={collection} documentId={id} activeView="history" />
+            <ViewMenu collection={collection} documentId={id} activeView="history" locale={contentLocale === 'all' ? undefined : contentLocale} />
+          </div>
+          <div className="mb-4 flex items-center gap-3">
+            <span className="text-sm font-medium text-canvas-600 dark:text-canvas-400">
+              Content Language
+            </span>
+            <Select
+              name="contentLocale"
+              id="contentLocale"
+              className="min-w-[100px]"
+              size="xs"
+              variant="outlined"
+              value={contentLocale}
+              onValueChange={handleLocaleChange}
+            >
+              <SelectItem value="all">All</SelectItem>
+              {contentLocales.map((loc) => (
+                <SelectItem key={loc.code} value={loc.code}>
+                  {loc.label}
+                </SelectItem>
+              ))}
+            </Select>
           </div>
         </Container>
       </Section>
@@ -211,10 +243,10 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                      (document as any)[column.fieldName],
-                                      document,
-                                      column.formatter
-                                    )
+                                    (document as any)[column.fieldName],
+                                    document,
+                                    column.formatter
+                                  )
                                   : ((document as any)[column.fieldName] ?? '------')}
                               </button>
                             ) : (
@@ -227,10 +259,10 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                      (document as any)[column.fieldName],
-                                      document,
-                                      column.formatter
-                                    )
+                                    (document as any)[column.fieldName],
+                                    document,
+                                    column.formatter
+                                  )
                                   : ((document as any)[column.fieldName] ?? '------')}
                               </Link>
                             )
@@ -292,6 +324,7 @@ export const HistoryView = ({
           versionId={selectedVersion.versionId}
           versionLabel={selectedVersion.label}
           currentDocument={currentDocument}
+          locale={contentLocale === 'all' ? undefined : contentLocale}
         />
       )}
     </>
