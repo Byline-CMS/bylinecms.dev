@@ -63,6 +63,7 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
   columns: newsColumns,
   fields: {
     path: { position: 'sidebar' },
+    availableLanguages: { position: 'sidebar' },
     publishedOn: { position: 'sidebar' },
   },
 })

@@ -70,6 +70,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   columns: pagesColumns,
   fields: {
     path: { position: 'sidebar' },
+    availableLanguages: { position: 'sidebar' },
     publishedOn: { position: 'sidebar' },
     featured: { position: 'sidebar' },
   },

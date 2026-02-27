@@ -9,6 +9,7 @@
 import type { CollectionDefinition } from '@byline/core'
 import { defineWorkflow } from '@byline/core'
 
+import { availableLanguagesField } from '~/fields/available-languages-field.js'
 import { formatSlug } from '../../utilities/format-slug.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -55,5 +56,6 @@ export const News: CollectionDefinition = {
       mode: 'datetime',
       required: true,
     },
+    availableLanguagesField(),
   ],
 }

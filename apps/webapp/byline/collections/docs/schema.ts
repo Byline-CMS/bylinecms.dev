@@ -11,7 +11,7 @@ import { defineWorkflow } from '@byline/core'
 
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'
-import { contentLocales } from '../../i18n.js'
+import { availableLanguagesField } from '../../fields/available-languages-field.js'
 import { formatSlug } from '../../utilities/format-slug.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -179,23 +179,6 @@ export const Docs: CollectionDefinition = {
       type: 'array',
       fields: [{ name: 'link', label: 'Link', type: 'text' }],
     },
-    {
-      name: 'availableLanguages',
-      label: 'Published Languages',
-      type: 'group',
-      helpText: 'Select the languages this document is available in.',
-      fields: contentLocales.map(({ code, label }) => ({
-        name: code,
-        label,
-        type: 'checkbox' as const,
-      })),
-      validate: (value: Array<Record<string, boolean>> | undefined) => {
-        const hasSelection =
-          Array.isArray(value) && value.some((item) => Object.values(item).some(Boolean))
-        if (!hasSelection) {
-          return 'At least one language must be selected.'
-        }
-      },
-    },
+    availableLanguagesField(),
   ],
 }

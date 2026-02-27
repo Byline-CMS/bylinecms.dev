@@ -9,6 +9,7 @@
 import type { CollectionDefinition } from '@byline/core'
 import { defineWorkflow } from '@byline/core'
 
+import { availableLanguagesField } from '~/fields/available-languages-field.js'
 import { formatSlug } from '../../utilities/format-slug.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -72,5 +73,6 @@ export const Pages: CollectionDefinition = {
       type: 'checkbox',
       helpText: 'Feature this page.',
     },
+    availableLanguagesField(),
   ],
 }
