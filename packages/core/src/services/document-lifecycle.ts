@@ -238,6 +238,7 @@ export async function updateDocument(
     path: data.path ?? originalData.path ?? '/',
     status: defaultStatus,
     locale: params.locale ?? 'en',
+    previousVersionId: originalData.document_version_id as string | undefined,
   })
 
   const documentId = extractDocumentId(result.document) || params.documentId
@@ -328,6 +329,7 @@ export async function updateDocumentWithPatches(
     path: nextData.path ?? originalData.path ?? '/',
     status: defaultStatus,
     locale: params.locale ?? 'en',
+    previousVersionId: originalData.document_version_id as string | undefined,
   })
 
   const documentId = extractDocumentId(result.document) || params.documentId

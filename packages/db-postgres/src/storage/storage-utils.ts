@@ -193,13 +193,18 @@ export function flattenFields(
         // Only value-bearing field types are flattened directly. Structure
         // fields like group fields are containers and should delegate to their
         // nested value fields instead of being stored themselves.
+        //
+        // Non-localized fields are always stored with locale = 'all' so they
+        // are returned for every content-locale request. Localized fields
+        // use the caller-supplied locale (e.g. 'en', 'fr').
+        const effectiveLocale = (fieldConfig as any).localized === true ? locale : 'all'
         flattenedFields.push(
           createFlattenedStore(
             currentPath,
             fieldConfig.name,
             fieldConfig.type as ValueField['type'],
             value,
-            locale,
+            effectiveLocale,
             getParentPath(currentPath)
           )
         )

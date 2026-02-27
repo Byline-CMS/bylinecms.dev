@@ -10,8 +10,18 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { useBlocker } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
-import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
+import {
+  Button,
+  ComboButton,
+  Dropdown,
+  EllipsisIcon,
+  IconButton,
+  Modal,
+  Select,
+  SelectItem,
+} from '@infonomic/uikit/react'
 
+import { contentLocales, i18n } from '~/i18n'
 import { Tabs } from '../admin/tabs'
 import { LocalDateTime } from '../components/local-date-time'
 import { FieldRenderer } from '../fields/field-renderer'
@@ -26,6 +36,30 @@ export interface PublishedVersionInfo {
   status: string
   created_at: string | Date
   updated_at: string | Date
+}
+
+/** Props shared by both the public FormRenderer and its internal FormContent component. */
+export interface FormRendererProps {
+  mode: 'create' | 'edit'
+  fields: Field[]
+  onSubmit: (data: any) => void
+  onCancel: () => void
+  onStatusChange?: (nextStatus: string) => Promise<void>
+  onUnpublish?: () => Promise<void>
+  onDelete?: () => Promise<void>
+  nextStatus?: WorkflowStatus
+  workflowStatuses?: WorkflowStatus[]
+  publishedVersion?: PublishedVersionInfo | null
+  initialData?: Record<string, any>
+  adminConfig?: CollectionAdminConfig
+  headingLabel?: string
+  headerSlot?: ReactNode
+  /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
+  collectionPath?: string
+  /** The active content locale — initialised from the route query string. */
+  initialLocale?: string
+  /** Called when the user picks a different content locale. */
+  onLocaleChange?: (locale: string) => void
 }
 
 const FormStatusDisplay = ({
@@ -172,24 +206,9 @@ const FormContent = ({
   headingLabel,
   headerSlot,
   collectionPath,
-}: {
-  mode: 'create' | 'edit'
-  fields: Field[]
-  onSubmit: (data: any) => void
-  onCancel: () => void
-  onStatusChange?: (nextStatus: string) => Promise<void>
-  onUnpublish?: () => Promise<void>
-  onDelete?: () => Promise<void>
-  nextStatus?: WorkflowStatus
-  workflowStatuses?: WorkflowStatus[]
-  publishedVersion?: PublishedVersionInfo | null
-  initialData?: Record<string, any>
-  adminConfig?: CollectionAdminConfig
-  headingLabel?: string
-  headerSlot?: ReactNode
-  /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
-  collectionPath?: string
-}) => {
+  initialLocale,
+  onLocaleChange,
+}: FormRendererProps) => {
   const {
     getFieldValues,
     runFieldHooks,
@@ -210,6 +229,12 @@ const FormContent = ({
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [contentLocale, setContentLocale] = useState(initialLocale ?? i18n.content.defaultLocale)
+
+  // Sync contentLocale when the route re-fetches with a different locale.
+  useEffect(() => {
+    if (initialLocale) setContentLocale(initialLocale)
+  }, [initialLocale])
 
   // Tabs — initialise active tab to the first declared tab (empty string when no tabs configured)
   const tabsConfig = adminConfig?.tabs
@@ -375,19 +400,6 @@ const FormContent = ({
         <h1 className="mb-2">{heading}</h1>
         {headerSlot}
       </div>
-      {/* Will revisit */}
-      {/* {errors.length > 0 && (
-        <div className="mb-4 p-3 bg-canvas-25 dark:bg-canvas-800 border border-red-700 rounded">
-          <h4 className="text-red-800 font-medium">Please fix the following errors:</h4>
-          <ul className="mt-2 text-sm text-red-700">
-            {errors.map((error, index) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: index is okay here.
-              <li key={index}>• {error.message}</li>
-            ))}
-          </ul>
-        </div>
-      )} */}
-
       <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
         <FormStatusDisplay
           initialData={initialData}
@@ -472,16 +484,66 @@ const FormContent = ({
               field={field}
               defaultValue={initialData?.[field.name]}
               collectionPath={collectionPath}
+              contentLocale={contentLocale}
             />
           ))}
         </div>
         <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
+          <div className="content-locales relative z-10">
+            <h3 className="text-[1rem] font-medium mb-2">Content Language</h3>
+            <div className="content-locales-actions flex gap-2">
+              <Select
+                name="contentLocale"
+                id="contentLocale"
+                className="min-w-[140px]"
+                size="sm"
+                variant='outlined'
+                value={contentLocale}
+                onValueChange={(value) => {
+                  setContentLocale(value)
+                  onLocaleChange?.(value)
+                }}
+              >
+                {contentLocales.map((locale) => (
+                  <SelectItem key={locale.code} value={locale.code}>
+                    {locale.label}
+                  </SelectItem>
+                ))}
+              </Select>
+              <Dropdown.Root>
+                <Dropdown.Trigger asChild>
+                  <IconButton variant="text" intent="noeffect" size="sm">
+                    <EllipsisIcon className="rotate-90 text-primary-500" width="15px" height="15px" />
+                  </IconButton>
+                </Dropdown.Trigger>
+
+                <Dropdown.Portal>
+                  <Dropdown.Content
+                    className="min-w-[110px]"
+                    align="end"
+                    data-side="top"
+                    sideOffset={10}
+                  >
+                    <Dropdown.Item
+                    >
+                      <div className="dropdown-item-content flex items-center ml-1">
+                        <span className="dropdown-item-content-text text-left text-sm inline-block w-full">
+                          Copy to Locale
+                        </span>
+                      </div>
+                    </Dropdown.Item>
+                  </Dropdown.Content>
+                </Dropdown.Portal>
+              </Dropdown.Root>
+            </div>
+          </div>
           {sidebarFields.map((field) => (
             <FieldRenderer
               key={field.name}
               field={field}
               defaultValue={initialData?.[field.name]}
               collectionPath={collectionPath}
+              contentLocale={contentLocale}
             />
           ))}
         </div>
@@ -508,7 +570,7 @@ const FormContent = ({
           </Modal.Container>
         </Modal>
       )}
-    </form>
+    </form >
   )
 }
 
@@ -528,25 +590,13 @@ export const FormRenderer = ({
   headingLabel,
   headerSlot,
   collectionPath,
-}: {
-  mode: 'create' | 'edit'
-  fields: Field[]
-  onSubmit: (data: any) => void
-  onCancel: () => void
-  onStatusChange?: (nextStatus: string) => Promise<void>
-  onUnpublish?: () => Promise<void>
-  onDelete?: () => Promise<void>
-  nextStatus?: WorkflowStatus
-  workflowStatuses?: WorkflowStatus[]
-  publishedVersion?: PublishedVersionInfo | null
-  initialData?: Record<string, any>
-  adminConfig?: CollectionAdminConfig
-  headingLabel?: string
-  headerSlot?: ReactNode
-  /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
-  collectionPath?: string
-}) => (
-  <FormProvider initialData={initialData}>
+  initialLocale,
+  onLocaleChange,
+}: FormRendererProps) => (
+  <FormProvider
+    key={`${initialLocale ?? 'default'}-${initialData?.document_version_id ?? ''}`}
+    initialData={initialData}
+  >
     <FormContent
       mode={mode}
       fields={fields}
@@ -563,6 +613,8 @@ export const FormRenderer = ({
       headingLabel={headingLabel}
       headerSlot={headerSlot}
       collectionPath={collectionPath}
+      initialLocale={initialLocale}
+      onLocaleChange={onLocaleChange}
     />
   </FormProvider>
 )

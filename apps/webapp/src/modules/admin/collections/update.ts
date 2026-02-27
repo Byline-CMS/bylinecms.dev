@@ -11,7 +11,8 @@ export async function updateCollectionDocumentWithPatches(
   id: string,
   data: any,
   patches: DocumentPatch[],
-  document_version_id?: string
+  document_version_id?: string,
+  locale?: string
 ) {
-  return applyPatchesFn({ data: { collection, id, patches, document_version_id } })
+  return applyPatchesFn({ data: { collection, id, patches, document_version_id, locale } })
 }

@@ -14,7 +14,7 @@ import type {
   IDocumentCommands,
 } from '@byline/core'
 import { isFileStore, isJsonStore, isNumericStore, isRelationStore } from '@byline/core'
-import { and, eq, ne } from 'drizzle-orm'
+import { and, eq, ne, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -277,6 +277,7 @@ export class DocumentCommands implements IDocumentCommands {
     locale?: string
     status?: string
     createdBy?: string
+    previousVersionId?: string
   }) {
     return await this.db.transaction(async (tx) => {
       let documentId = params.documentId
@@ -347,6 +348,87 @@ export class DocumentCommands implements IDocumentCommands {
             await tx.insert(jsonStore).values(rows)
             break
         }
+      }
+
+      // 3b. Copy field-value rows for other locales from the previous version.
+      // When saving in a specific locale (e.g. 'fr'), only rows for that locale
+      // and locale='all' are written above. Any existing rows for other locales
+      // (e.g. 'en', 'es') from the previous version must be carried forward so
+      // per-locale content is not lost under immutable versioning.
+      if (params.previousVersionId && params.locale && params.locale !== 'all') {
+        const prevId = params.previousVersionId
+        const newId = documentVersion.id
+        const activeLoc = params.locale
+
+        await tx.execute(sql`
+          INSERT INTO store_text
+            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, word_count, created_at, updated_at)
+          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, value, word_count, NOW(), NOW()
+          FROM store_text
+          WHERE document_version_id = ${prevId}::uuid
+            AND locale NOT IN ('all', ${activeLoc})
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
+        `)
+
+        await tx.execute(sql`
+          INSERT INTO store_numeric
+            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, number_type, value_integer, value_decimal, value_float, created_at, updated_at)
+          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, number_type, value_integer, value_decimal, value_float, NOW(), NOW()
+          FROM store_numeric
+          WHERE document_version_id = ${prevId}::uuid
+            AND locale NOT IN ('all', ${activeLoc})
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
+        `)
+
+        await tx.execute(sql`
+          INSERT INTO store_boolean
+            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, created_at, updated_at)
+          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, value, NOW(), NOW()
+          FROM store_boolean
+          WHERE document_version_id = ${prevId}::uuid
+            AND locale NOT IN ('all', ${activeLoc})
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
+        `)
+
+        await tx.execute(sql`
+          INSERT INTO store_datetime
+            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, date_type, value_date, value_time, value_timestamp_tz, created_at, updated_at)
+          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, date_type, value_date, value_time, value_timestamp_tz, NOW(), NOW()
+          FROM store_datetime
+          WHERE document_version_id = ${prevId}::uuid
+            AND locale NOT IN ('all', ${activeLoc})
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
+        `)
+
+        await tx.execute(sql`
+          INSERT INTO store_json
+            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, json_schema, object_keys, created_at, updated_at)
+          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, value, json_schema, object_keys, NOW(), NOW()
+          FROM store_json
+          WHERE document_version_id = ${prevId}::uuid
+            AND locale NOT IN ('all', ${activeLoc})
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
+        `)
+
+        await tx.execute(sql`
+          INSERT INTO store_relation
+            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, target_document_id, target_collection_id, relationship_type, cascade_delete, created_at, updated_at)
+          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, target_document_id, target_collection_id, relationship_type, cascade_delete, NOW(), NOW()
+          FROM store_relation
+          WHERE document_version_id = ${prevId}::uuid
+            AND locale NOT IN ('all', ${activeLoc})
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
+        `)
+
+        await tx.execute(sql`
+          INSERT INTO store_file
+            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, created_at, updated_at)
+          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, NOW(), NOW()
+          FROM store_file
+          WHERE document_version_id = ${prevId}::uuid
+            AND locale NOT IN ('all', ${activeLoc})
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
+        `)
       }
 
       // 4. Write meta data (durable IDs for blocks and array items)

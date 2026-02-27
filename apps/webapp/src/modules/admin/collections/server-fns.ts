@@ -106,9 +106,9 @@ export const listDocumentsFn = createServerFn({ method: 'GET' })
 // ---------------------------------------------------------------------------
 
 export const getDocumentFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: { collection: string; id: string }) => input)
+  .inputValidator((input: { collection: string; id: string; locale?: string }) => input)
   .handler(async ({ data }) => {
-    const { collection: path, id } = data
+    const { collection: path, id, locale } = data
     const config = await ensureCollection(path)
     if (!config) throw new Error('Collection not found')
 
@@ -117,7 +117,7 @@ export const getDocumentFn = createServerFn({ method: 'GET' })
     const document = await db.queries.documents.getDocumentById({
       collection_id: config.collection.id,
       document_id: id,
-      locale: 'en',
+      locale: locale ?? 'en',
     })
 
     if (!document) throw new Error('Document not found')
@@ -256,10 +256,11 @@ export const applyPatchesFn = createServerFn({ method: 'POST' })
       id: string
       patches: DocumentPatch[]
       document_version_id?: string
+      locale?: string
     }) => input
   )
   .handler(async ({ data: input }) => {
-    const { collection: path, id, patches, document_version_id } = input
+    const { collection: path, id, patches, document_version_id, locale } = input
     const config = await ensureCollection(path)
     if (!config) throw new Error('Collection not found')
 
@@ -276,7 +277,7 @@ export const applyPatchesFn = createServerFn({ method: 'POST' })
         documentId: id,
         patches,
         documentVersionId: document_version_id,
-        locale: 'en',
+        locale: locale ?? 'en',
       })
     } catch (error) {
       if (error instanceof ConflictError) {

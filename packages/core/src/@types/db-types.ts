@@ -27,6 +27,13 @@ export interface IDocumentCommands {
     locale?: string
     status?: string
     createdBy?: string
+    /**
+     * When updating an existing document, the version ID of the version being
+     * replaced. If provided and `locale` is a specific locale (not 'all'),
+     * field-value rows for other locales are copied forward from this version
+     * into the new one so that per-locale content is not lost.
+     */
+    previousVersionId?: string
   }): Promise<{ document: any; fieldCount: number }>
 
   /**

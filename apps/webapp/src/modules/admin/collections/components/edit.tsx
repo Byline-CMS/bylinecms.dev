@@ -32,10 +32,12 @@ export const EditView = ({
   collectionDefinition,
   adminConfig,
   initialData,
+  locale,
 }: {
   collectionDefinition: CollectionDefinition
   adminConfig?: CollectionAdminConfig
   initialData: AnyCollectionSchemaTypes['UpdateType']
+  locale?: string
 }) => {
   const [toast, setToast] = useState(false)
   const [editState, setEditState] = useState<EditState>({
@@ -54,6 +56,14 @@ export const EditView = ({
       ? workflowStatuses[currentIndex + 1]
       : undefined
 
+  const handleLocaleChange = (newLocale: string) => {
+    navigate({
+      to: '/admin/collections/$collection/$id',
+      params: { collection: path, id: String(initialData.document_id) },
+      search: { locale: newLocale },
+    })
+  }
+
   const handleStatusChange = async (status: string) => {
     try {
       await updateDocumentStatus(path, String(initialData.document_id), status)
@@ -66,6 +76,7 @@ export const EditView = ({
       navigate({
         to: '/admin/collections/$collection/$id',
         params: { collection: path, id: String(initialData.document_id) },
+        search: (prev) => ({ ...prev }),
       })
     } catch (err) {
       console.error('Status change error:', err)
@@ -92,6 +103,7 @@ export const EditView = ({
       navigate({
         to: '/admin/collections/$collection/$id',
         params: { collection: path, id: String(initialData.document_id) },
+        search: (prev) => ({ ...prev }),
       })
     } catch (err) {
       console.error('Unpublish error:', err)
@@ -130,7 +142,8 @@ export const EditView = ({
         String(initialData.document_id),
         data,
         patches,
-        initialData.document_version_id as string | undefined
+        initialData.document_version_id as string | undefined,
+        locale
       )
 
       setEditState({
@@ -145,6 +158,7 @@ export const EditView = ({
       navigate({
         to: '/admin/collections/$collection/$id',
         params: { collection: path, id: String(initialData.document_id) },
+        search: (prev) => ({ ...prev }),
       })
     } catch (err) {
       console.error('Network error:', err)
@@ -167,6 +181,8 @@ export const EditView = ({
             initialData={initialData}
             adminConfig={adminConfig}
             headingLabel={labels.singular}
+            initialLocale={locale}
+            onLocaleChange={handleLocaleChange}
             headerSlot={
               <div className="flex items-center gap-2 pb-4 sm:pb-2">
                 <ViewMenu

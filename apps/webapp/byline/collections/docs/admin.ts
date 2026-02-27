@@ -77,10 +77,10 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   fields: {
     // Details tab
     title: { tab: 'details' },
+    path: { tab: 'details' },
     summary: { tab: 'details' },
-    path: { position: 'sidebar' },
-    publishedOn: { position: 'sidebar' },
-    featured: { position: 'sidebar' },
+    publishedOn: { tab: 'details' },
+    featured: { tab: 'details' },
     availableLanguages: { position: 'sidebar' },
     // Content tab
     content: { tab: 'content' },

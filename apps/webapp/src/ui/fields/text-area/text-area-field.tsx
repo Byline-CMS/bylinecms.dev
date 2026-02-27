@@ -9,9 +9,10 @@
 import { useCallback } from 'react'
 
 import type { TextAreaField as FieldType } from '@byline/core'
-import { TextArea } from '@infonomic/uikit/react'
+import { Label, TextArea } from '@infonomic/uikit/react'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../fields/form-context'
+import { LocaleBadge } from '../locale-badge'
 
 export const TextAreaField = ({
   field,
@@ -20,6 +21,7 @@ export const TextAreaField = ({
   onChange,
   id,
   path,
+  locale,
 }: {
   field: FieldType
   value?: string
@@ -27,6 +29,8 @@ export const TextAreaField = ({
   onChange?: (value: string) => void
   id?: string
   path?: string
+  /** When provided, renders a LocaleBadge next to the field label. */
+  locale?: string
 }) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
@@ -43,12 +47,22 @@ export const TextAreaField = ({
     [onChange]
   )
 
+  // When a locale is active, render a custom Label+badge and suppress the
+  // TextArea's own label so the locale indicator appears in the label row.
+  const showBadge = !!locale && !!field.label
+
   return (
     <div className={`byline-textArea ${field.name}`}>
+      {showBadge && (
+        <div className="flex items-center">
+          <Label id={`${id ?? fieldPath}-label`} htmlFor={id ?? fieldPath} label={field.label!} required={field.required} />
+          <LocaleBadge locale={locale} />
+        </div>
+      )}
       <TextArea
         id={id ?? fieldPath}
         name={field.name}
-        label={field.label}
+        label={showBadge ? undefined : field.label}
         required={field.required}
         helpText={field.helpText}
         value={incomingValue}

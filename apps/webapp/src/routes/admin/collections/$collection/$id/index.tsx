@@ -10,19 +10,26 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { getCollectionDocument } from '@/modules/admin/collections'
 import { EditView } from '@/modules/admin/collections/components/edit'
 
+const searchSchema = z.object({
+  locale: z.string().optional(),
+})
+
 export const Route = createFileRoute('/admin/collections/$collection/$id/')({
-  loader: async ({ params }) => {
+  validateSearch: searchSchema,
+  loaderDeps: ({ search: { locale } }) => ({ locale }),
+  loader: async ({ params, deps: { locale } }) => {
     const collectionDef = getCollectionDefinition(params.collection)
     if (!collectionDef) {
       throw notFound()
     }
 
-    const data = await getCollectionDocument(params.collection, params.id)
+    const data = await getCollectionDocument(params.collection, params.id, locale)
 
     if (!data) {
       throw notFound()
@@ -41,6 +48,7 @@ export const Route = createFileRoute('/admin/collections/$collection/$id/')({
 function RouteComponent() {
   const data = Route.useLoaderData()
   const { collection, id } = Route.useParams()
+  const { locale } = Route.useSearch()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
   const adminConfig = getCollectionAdminConfig(collection)
 
@@ -60,6 +68,7 @@ function RouteComponent() {
         collectionDefinition={collectionDef}
         adminConfig={adminConfig ?? undefined}
         initialData={data}
+        locale={locale}
       />
     </>
   )

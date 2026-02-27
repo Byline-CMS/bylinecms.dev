@@ -2,9 +2,9 @@ import { getCollectionSchemasForPath } from '@byline/core'
 
 import { getDocumentByVersionFn, getDocumentFn } from './server-fns'
 
-export async function getCollectionDocument(collection: string, id: string) {
+export async function getCollectionDocument(collection: string, id: string, locale?: string) {
   try {
-    const rawData = await getDocumentFn({ data: { collection, id } })
+    const rawData = await getDocumentFn({ data: { collection, id, locale } })
 
     // Validate with schema for runtime type safety.
     const { get } = getCollectionSchemasForPath(collection)

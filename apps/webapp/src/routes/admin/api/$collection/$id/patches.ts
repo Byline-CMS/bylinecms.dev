@@ -45,8 +45,9 @@ export const Route = createFileRoute('/admin/api/$collection/$id/patches')({
           data: Record<string, any>
           patches: DocumentPatch[]
           document_version_id?: string
+          locale?: string
         }
-        const { patches, document_version_id } = body
+        const { patches, document_version_id, locale } = body
 
         const db = getServerConfig().db
         const ctx: DocumentLifecycleContext = {
@@ -61,7 +62,7 @@ export const Route = createFileRoute('/admin/api/$collection/$id/patches')({
             documentId: id,
             patches,
             documentVersionId: document_version_id,
-            locale: 'en',
+            locale: locale ?? 'en',
           })
         } catch (error) {
           if (error instanceof DocumentNotFoundError) {

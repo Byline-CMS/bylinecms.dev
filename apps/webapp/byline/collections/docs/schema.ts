@@ -108,15 +108,6 @@ export const Docs: CollectionDefinition = {
   },
   fields: [
     {
-      name: 'path',
-      label: 'Path',
-      type: 'text',
-      required: true,
-      hooks: {
-        beforeValidate: formatSlug('title'),
-      },
-    },
-    {
       name: 'title',
       label: 'Title',
       type: 'text',
@@ -128,6 +119,15 @@ export const Docs: CollectionDefinition = {
             return { error: 'Title should not start with whitespace' }
           }
         },
+      },
+    },
+    {
+      name: 'path',
+      label: 'Path',
+      type: 'text',
+      required: true,
+      hooks: {
+        beforeValidate: formatSlug('title'),
       },
     },
     { name: 'summary', label: 'Summary', type: 'textArea', required: true, localized: true },
@@ -180,7 +180,7 @@ export const Docs: CollectionDefinition = {
     },
     {
       name: 'availableLanguages',
-      label: 'Available Languages',
+      label: 'Published Languages',
       type: 'group',
       helpText: 'Select the languages this document is available in.',
       fields: contentLocales.map(({ code, label }) => ({
