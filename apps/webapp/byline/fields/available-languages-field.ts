@@ -19,6 +19,12 @@ export interface LocaleEntry {
  * Returns a `GroupField` that renders one checkbox per locale entry.
  * Validation requires at least one language to be selected.
  *
+ * @description This field is intended for use in a document's "Edit" view
+ * to allow editors to specify which languages a document is available in.
+ * It is orthogonal to the defined workflow system and is here as a 'signal'
+ * to frontend websites / consumers - allowing them to implement their own
+ * logic around content availability per language.
+ *
  * @param locales - Array of locale entries (code + label) to build checkboxes from.
  * @param overrides - Optional partial overrides for the generated field (name, label, helpText, etc.).
  */
