@@ -12,7 +12,14 @@ export async function getCollectionDocumentHistory(
 ) {
   const rawData = await getDocumentHistoryFn({ data: { collection, id, params } })
 
-  // Validate with schema for runtime type safety.
   const { history } = getCollectionSchemasForPath(collection)
+
+  // When locale is 'all' the storage layer returns localized fields as
+  // locale-keyed objects which don't conform to the typed Zod schema — skip
+  // validation in that case, same as getCollectionDocument.
+  if (params.locale === 'all') {
+    return rawData as ReturnType<typeof history.parse>
+  }
+
   return history.parse(rawData)
 }

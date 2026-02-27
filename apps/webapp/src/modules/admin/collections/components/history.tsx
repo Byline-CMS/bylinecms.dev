@@ -26,24 +26,26 @@ import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
-import { contentLocales } from '~/i18n'
+import { i18n } from '~/i18n'
 import { DiffModal } from './diff-modal'
 import { ViewMenu } from './view-menu'
 
-function CompareSplitIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <rect x="1" y="2" width="6" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="9" y="2" width="6" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  )
+/**
+ * Safely extract a displayable string from a field value that may be a plain
+ * string or a locale-keyed object (when locale='all').
+ * Falls back to the content default locale, then the first available value.
+ */
+function resolveDisplayValue(value: unknown, locale: string | undefined): string {
+  if (value == null) return ''
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const map = value as Record<string, unknown>
+    const candidate =
+      locale && locale !== 'all'
+        ? map[locale]
+        : (map[i18n.content.defaultLocale] ?? Object.values(map)[0])
+    return candidate != null ? String(candidate) : ''
+  }
+  return String(value)
 }
 
 function Stats({ total }: { total: number }) {
@@ -97,20 +99,11 @@ export const HistoryView = ({
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
   const location = useRouterState({ select: (s) => s.location })
-  const [contentLocale, setContentLocale] = useState<string>(location.search.locale ?? 'all')
+  const locale = location.search.locale
   const [selectedVersion, setSelectedVersion] = useState<{
     versionId: string
     label: string
   } | null>(null)
-
-  const handleLocaleChange = (value: string) => {
-    setContentLocale(value)
-    navigate({
-      to: '/admin/collections/$collection/$id/history',
-      params: { collection, id },
-      search: (prev) => ({ ...prev, locale: value === 'all' ? undefined : value }),
-    })
-  }
 
   function handleOnPageSizeChange(value: string): void {
     if (value != null && value.length > 0) {
@@ -133,28 +126,7 @@ export const HistoryView = ({
             <h2 className="mb-2 flex items-center gap-2">
               {labels.singular} History <Stats total={data?.meta.total} />
             </h2>
-            <ViewMenu collection={collection} documentId={id} activeView="history" locale={contentLocale === 'all' ? undefined : contentLocale} />
-          </div>
-          <div className="mb-4 flex items-center gap-3">
-            <span className="text-sm font-medium text-canvas-600 dark:text-canvas-400">
-              Content Language
-            </span>
-            <Select
-              name="contentLocale"
-              id="contentLocale"
-              className="min-w-[100px]"
-              size="xs"
-              variant="outlined"
-              value={contentLocale}
-              onValueChange={handleLocaleChange}
-            >
-              <SelectItem value="all">All</SelectItem>
-              {contentLocales.map((loc) => (
-                <SelectItem key={loc.code} value={loc.code}>
-                  {loc.label}
-                </SelectItem>
-              ))}
-            </Select>
+            <ViewMenu collection={collection} documentId={id} activeView="history" locale={locale} />
           </div>
         </Container>
       </Section>
@@ -193,16 +165,23 @@ export const HistoryView = ({
               </Table.Header>
 
               <Table.Body>
-                {data?.documents?.map((document) => {
+                {data?.documents?.map((document, rowIndex) => {
                   const versionId = (document as any).document_version_id as string | undefined
+                  const { total, page, page_size, desc } = data.meta
+                  const versionNumber = desc
+                    ? total - (page - 1) * page_size - rowIndex
+                    : (page - 1) * page_size + rowIndex + 1
                   return (
                     <Table.Row key={document.document_id}>
                       <Table.Cell className="text-left">
                         {versionId && currentDocument ? (
                           <IconButton
                             size="xs"
+                            variant="outlined"
+                            intent="noeffect"
                             aria-label="Compare this version with the current version"
                             title="Compare with current"
+                            className="tabular-nums text-xs font-mono"
                             onClick={() =>
                               setSelectedVersion({
                                 versionId,
@@ -212,7 +191,7 @@ export const HistoryView = ({
                               })
                             }
                           >
-                            <CompareSplitIcon />
+                            {versionNumber}
                           </IconButton>
                         ) : null}
                       </Table.Cell>
@@ -247,7 +226,7 @@ export const HistoryView = ({
                                     document,
                                     column.formatter
                                   )
-                                  : ((document as any)[column.fieldName] ?? '------')}
+                                  : (resolveDisplayValue((document as any)[column.fieldName], locale) || '------')}
                               </button>
                             ) : (
                               <Link
@@ -263,7 +242,7 @@ export const HistoryView = ({
                                     document,
                                     column.formatter
                                   )
-                                  : ((document as any)[column.fieldName] ?? '------')}
+                                  : (resolveDisplayValue((document as any)[column.fieldName], locale) || '------')}
                               </Link>
                             )
                           ) : column.formatter ? (
@@ -276,7 +255,7 @@ export const HistoryView = ({
                             (workflowStatuses.find((s) => s.name === (document as any).status)
                               ?.label ?? String((document as any).status ?? ''))
                           ) : (
-                            String((document as any)[column.fieldName] ?? '')
+                            resolveDisplayValue((document as any)[column.fieldName], locale) || ''
                           )}
                         </Table.Cell>
                       ))}
@@ -324,7 +303,7 @@ export const HistoryView = ({
           versionId={selectedVersion.versionId}
           versionLabel={selectedVersion.label}
           currentDocument={currentDocument}
-          locale={contentLocale === 'all' ? undefined : contentLocale}
+          locale={locale}
         />
       )}
     </>

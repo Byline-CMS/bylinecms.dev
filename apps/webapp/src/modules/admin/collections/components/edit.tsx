@@ -184,14 +184,12 @@ export const EditView = ({
             initialLocale={locale}
             onLocaleChange={handleLocaleChange}
             headerSlot={
-              <div className="flex items-center gap-2 pb-4 sm:pb-2">
-                <ViewMenu
-                  collection={path}
-                  documentId={String(initialData.document_id)}
-                  activeView="edit"
-                  locale={locale}
-                />
-              </div>
+              <ViewMenu
+                collection={path}
+                documentId={String(initialData.document_id)}
+                activeView="edit"
+                locale={locale}
+              />
             }
             onStatusChange={handleStatusChange}
             onUnpublish={publishedVersion ? handleUnpublish : undefined}

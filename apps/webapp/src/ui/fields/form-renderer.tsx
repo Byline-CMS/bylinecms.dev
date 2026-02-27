@@ -509,7 +509,7 @@ const FormContent = ({
           ))}
         </div>
         <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
-          <div className="content-locales relative z-10">
+          {/* <div className="content-locales relative z-10">
             <h3 className="text-[1rem] font-medium mb-2">Content Language</h3>
             <div className="content-locales-actions flex gap-2">
               <Select
@@ -556,7 +556,7 @@ const FormContent = ({
                 </Dropdown.Portal>
               </Dropdown.Root>
             </div>
-          </div>
+          </div> */}
           {sidebarFields.map((field) => (
             <FieldRenderer
               key={field.name}

@@ -77,9 +77,9 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   fields: {
     // Details tab
     title: { tab: 'details' },
-    path: { tab: 'details' },
+    path: { position: 'sidebar' },
     summary: { tab: 'details' },
-    publishedOn: { tab: 'details' },
+    publishedOn: { position: 'sidebar' },
     featured: { tab: 'details' },
     availableLanguages: { position: 'sidebar' },
     // Content tab
