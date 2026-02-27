@@ -126,6 +126,7 @@ export const FieldRenderer = ({
             onChange={handleChange}
             path={path}
             instanceKey={htmlId}
+            locale={isLocalised ? contentLocale : undefined}
           />
         )
       case 'datetime':
@@ -206,7 +207,7 @@ export const FieldRenderer = ({
 
   // text and textArea render the badge inside their own Label row;
   // the outer wrapper is only needed for other field types.
-  const selfBadge = field.type === 'text' || field.type === 'textArea'
+  const selfBadge = field.type === 'text' || field.type === 'textArea' || field.type === 'richText'
 
   if (badge && !selfBadge) {
     return (

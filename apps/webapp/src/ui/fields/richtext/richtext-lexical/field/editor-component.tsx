@@ -162,7 +162,11 @@ export const EditorComponent = memo(function EditorComponent({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrap`}>
-        {label && <Label id="label" label={label} htmlFor={id} required={required} />}
+        {label != null && (
+          typeof label === 'string'
+            ? <Label id={`${id}-label`} label={label} htmlFor={id} required={required} />
+            : label
+        )}
         <ErrorBoundary fallbackRender={fallbackRender} onReset={() => { }}>
           <EditorContext
             composerKey={id}

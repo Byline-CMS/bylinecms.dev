@@ -10,7 +10,13 @@ export interface LexicalEditorProps {
 export type EditorFieldProps = {
   name: string
   id: string
-  label?: string
+  /**
+   * Accepts a plain string (EditorComponent wraps it in a Label with htmlFor/required)
+   * or a pre-composed ReactNode for callers that need to inject extra elements (e.g. a
+   * locale badge). When a ReactNode is passed, the caller is responsible for setting
+   * htmlFor and required on any Label it renders.
+   */
+  label?: React.ReactNode
   description?: string
   required?: boolean
   readonly?: boolean

@@ -13,15 +13,10 @@ import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
 import {
   Button,
   ComboButton,
-  Dropdown,
-  EllipsisIcon,
-  IconButton,
-  Modal,
-  Select,
-  SelectItem,
+  Modal
 } from '@infonomic/uikit/react'
 
-import { contentLocales, i18n } from '~/i18n'
+import { i18n } from '~/i18n'
 import { Tabs } from '../admin/tabs'
 import { LocalDateTime } from '../components/local-date-time'
 import { FieldRenderer } from '../fields/field-renderer'
@@ -419,11 +414,11 @@ const FormContent = ({
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full flex flex-col">
-      <div className="item-view grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-x-4 gap-y-1 mb-3">
-        <h1 className="mb-1 text-[1.75rem]">{heading}</h1>
+      <div className="item-view grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-x-4 gap-y-1 mb-2">
+        <h1 className="mb-0 text-[1.75rem]">{heading}</h1>
         {headerSlot}
       </div>
-      <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
+      <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-1 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
         <FormStatusDisplay
           initialData={initialData}
           workflowStatuses={workflowStatuses}
