@@ -420,7 +420,7 @@ const FormContent = ({
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full flex flex-col">
       <div className="item-view flex flex-col sm:flex-row justify-start sm:justify-between mb-3">
-        <h1 className="mb-2">{heading}</h1>
+        <h1 className="mb-1 text-[1.75rem]">{heading}</h1>
         {headerSlot}
       </div>
       <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-3 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
@@ -432,18 +432,19 @@ const FormContent = ({
         />
         <div className="form-actions flex items-center gap-2">
           <Button
+            className="min-w-[70px] min-h-[28px]"
             size="sm"
             intent="noeffect"
             type="button"
             onClick={handleCancel}
-            className="min-w-[70px]"
+
           >
             {hasChanges === false ? 'Close' : 'Cancel'}
           </Button>
           <Button
+            className="min-w-[70px] min-h-[28px]"
             size="sm"
             type="submit"
-            className="min-w-[70px]"
             disabled={hasChanges === false || isUploading}
           >
             {isUploading ? 'Uploading…' : 'Save'}
@@ -451,6 +452,8 @@ const FormContent = ({
           {primaryStatus && onStatusChange && (
             <div className="relative z-10">
               <ComboButton
+                buttonClassName="min-w-[100px] min-h-[28px]"
+                triggerClassName='min-h-[28px]'
                 options={secondaryStatuses.map((s) => ({
                   label: s.verb ?? s.label ?? s.name,
                   value: s.name,

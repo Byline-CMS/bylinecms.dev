@@ -39,6 +39,7 @@ export const CheckboxField = ({
         name={field.name}
         label={field.label}
         checked={checked}
+        size="sm"
         helpText={field.helpText}
         // TODO: Handle indeterminate state
         onCheckedChange={(value) => {

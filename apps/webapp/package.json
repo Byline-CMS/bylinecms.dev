@@ -38,7 +38,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@infonomic/schemas": "^2.4.0",
-    "@infonomic/uikit": "^5.39.1",
+    "@infonomic/uikit": "^5.41.0",
     "@lexical/clipboard": "0.41.0",
     "@lexical/code": "0.41.0",
     "@lexical/hashtag": "0.41.0",
