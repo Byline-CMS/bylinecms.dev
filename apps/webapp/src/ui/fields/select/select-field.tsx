@@ -7,7 +7,7 @@
  */
 
 import type { SelectField as FieldType } from '@byline/core'
-import { Select, SelectItem } from '@infonomic/uikit/react'
+import { ErrorText, Select, SelectItem } from '@infonomic/uikit/react'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../fields/form-context'
 
@@ -35,7 +35,7 @@ export const SelectField = ({
   return (
     <div className={`byline-select ${field.name}`}>
       <Select
-        size="sm"
+        size="xs"
         id={id ?? fieldPath}
         name={field.name}
         placeholder="Select an option"
@@ -51,7 +51,7 @@ export const SelectField = ({
           </SelectItem>
         ))}
       </Select>
-      {fieldError && <div className="mt-1 text-xs text-red-400">{fieldError}</div>}
+      {fieldError && <ErrorText className="mt-1 text-xs text-red-400" id={id ?? fieldPath} text={fieldError} />}
     </div>
   )
 }

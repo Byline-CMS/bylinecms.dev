@@ -59,6 +59,7 @@ export const Pages: CollectionDefinition = {
       type: 'richText',
       helpText: 'Enter the main content for this page.',
       required: true,
+      localized: true,
     },
     {
       name: 'publishedOn',
