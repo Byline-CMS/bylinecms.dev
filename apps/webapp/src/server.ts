@@ -9,10 +9,12 @@
 // Initialize Byline server config (DB adapter, etc.) before handling any requests.
 import '../byline.server.config.ts'
 
-// Initialize the client config so getClientConfig() and getCollectionAdminConfig()
-// work during SSR rendering. This is safe because Vite SSR handles the CSS
-// module / React component imports that admin configs may reference.
-import '../byline.client.config.ts'
+// NOTE: The client config (collection admin UI configs) is initialized in
+// src/config/init-client-config.ts, imported from __root.tsx. That module runs
+// in the SSR render context — the same Vite environment where route components
+// execute. Importing byline.client.config.ts HERE would only set it in the
+// server entry environment, which is isolated from the SSR render environment
+// in TanStack Start / Vite 6.
 
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 

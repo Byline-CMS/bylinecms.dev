@@ -5,11 +5,33 @@ import type {
   ServerConfig,
 } from '@/@types/index.js'
 
-let serverConfigInstance: ServerConfig | null = null
-let clientConfigInstance: ClientConfig | null = null
+// ---------------------------------------------------------------------------
+// Global config storage
+// ---------------------------------------------------------------------------
+// Store config instances on `globalThis` so that every copy of this module
+// (which can happen in Vite SSR when workspace-linked packages are resolved
+// through different module graphs) shares the same state.
+// ---------------------------------------------------------------------------
+
+const BYLINE_SERVER_CONFIG = Symbol.for('__byline_server_config__')
+const BYLINE_CLIENT_CONFIG = Symbol.for('__byline_client_config__')
+
+function getServerConfigInstance(): ServerConfig | null {
+  return (globalThis as any)[BYLINE_SERVER_CONFIG] ?? null
+}
+function setServerConfigInstance(config: ServerConfig) {
+  ;(globalThis as any)[BYLINE_SERVER_CONFIG] = config
+}
+
+function getClientConfigInstance(): ClientConfig | null {
+  return (globalThis as any)[BYLINE_CLIENT_CONFIG] ?? null
+}
+function setClientConfigInstance(config: ClientConfig) {
+  ;(globalThis as any)[BYLINE_CLIENT_CONFIG] = config
+}
 
 export const getCollectionDefinition = (path: string): CollectionDefinition | null => {
-  const config = clientConfigInstance ?? serverConfigInstance
+  const config = getClientConfigInstance() ?? getServerConfigInstance()
   if (config == null) {
     throw new Error(
       'Byline has not been configured yet. Please call defineClientConfig or defineServerConfig in byline.client.config.ts or byline.server.config.ts first.'
@@ -20,32 +42,33 @@ export const getCollectionDefinition = (path: string): CollectionDefinition | nu
 }
 
 export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | null => {
-  // Admin configs are a client-only concern — they contain React components and
-  // presentation logic that is never available in a server-only context.
-  if (clientConfigInstance == null) return null
-  return clientConfigInstance.admin?.find((admin) => admin.slug === slug) ?? null
+  const clientConfig = getClientConfigInstance()
+  if (clientConfig == null) return null
+  return clientConfig.admin?.find((admin) => admin.slug === slug) ?? null
 }
 
 export function defineClientConfig(config: ClientConfig) {
-  clientConfigInstance = config
+  setClientConfigInstance(config)
 }
 
 export function defineServerConfig(config: ServerConfig) {
-  serverConfigInstance = config
+  setServerConfigInstance(config)
 }
 
 export function getClientConfig(): ClientConfig {
-  if (clientConfigInstance != null) {
-    return clientConfigInstance
+  const clientConfig = getClientConfigInstance()
+  if (clientConfig != null) {
+    return clientConfig
   }
   // During SSR the client entry has not run yet, but the server config
   // carries the same collection definitions.  Return a compatible object
   // so route loaders and components work in both contexts.
-  if (serverConfigInstance != null) {
+  const serverConfig = getServerConfigInstance()
+  if (serverConfig != null) {
     return {
-      serverURL: serverConfigInstance.serverURL,
-      i18n: serverConfigInstance.i18n,
-      collections: serverConfigInstance.collections,
+      serverURL: serverConfig.serverURL,
+      i18n: serverConfig.i18n,
+      collections: serverConfig.collections,
       admin: [],
     } as ClientConfig
   }
@@ -58,10 +81,11 @@ export function getServerConfig(): ServerConfig {
   if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
     throw new Error('getServerConfig cannot be called on the client.')
   }
-  if (serverConfigInstance == null) {
+  const serverConfig = getServerConfigInstance()
+  if (serverConfig == null) {
     throw new Error(
       'Byline has not been configured yet. Please call defineServerConfig in byline.config.ts first.'
     )
   }
-  return serverConfigInstance
+  return serverConfig
 }

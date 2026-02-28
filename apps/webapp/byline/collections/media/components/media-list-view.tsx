@@ -34,6 +34,7 @@ import {
   SelectItem,
 } from '@infonomic/uikit/react'
 
+import { LocalDateTime } from '@/ui/components/local-date-time'
 import { RouterPager } from '@/ui/components/router-pager'
 import { formatNumber } from '@/utils/utils.general'
 import { FormatBadge } from './media-thumbnail'
@@ -259,13 +260,7 @@ export function MediaListView({
                   : img.storage_url
                 : null
 
-              const updatedAt = doc.updated_at
-                ? new Date(doc.updated_at).toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'short',
-                    day: '2-digit',
-                  })
-                : null
+              const updatedAt = doc.updated_at ?? null
 
               return (
                 <Link
@@ -307,7 +302,7 @@ export function MediaListView({
                       </div>
                       {updatedAt && (
                         <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
-                          {updatedAt}
+                          <LocalDateTime value={updatedAt} mode="date" />
                         </span>
                       )}
                     </div>

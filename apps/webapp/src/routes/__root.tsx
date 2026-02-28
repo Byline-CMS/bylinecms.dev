@@ -13,6 +13,10 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
 import { ToastProvider, ToastViewport } from '@infonomic/uikit/react'
 
+// Initialize Byline client config — must be imported here so it runs in both
+// the SSR rendering and client module graphs (see config/init-client-config.ts).
+import '@/config/init-client-config'
+
 import { BreadcrumbsProvider } from '@/context/breadcrumbs/breadcrumbs-provider'
 import { i18nConfig } from '@/i18n/i18n-config'
 import { EarlyThemeDetector } from '@/ui/theme/early-theme-detector'

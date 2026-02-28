@@ -8,6 +8,7 @@
 
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
+import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
 import { FeaturedFormatter } from './components/feature-formatter.js'
 import { Docs } from './schema.js'
 
@@ -55,14 +56,7 @@ const docsColumns: ColumnDefinition[] = [
     sortable: true,
     align: 'right',
     className: 'w-[20%]',
-    formatter: (value) =>
-      new Date(value).toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short', // <- short month text (locale-aware)
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+    formatter: { component: DateTimeFormatter },
   },
 ]
 

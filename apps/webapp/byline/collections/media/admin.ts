@@ -8,6 +8,7 @@
 
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
+import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
 import { MediaListView } from './components/media-list-view.js'
 import { MediaThumbnail } from './components/media-thumbnail.js'
 import { Media } from './schema.js'
@@ -55,14 +56,7 @@ const mediaColumns: ColumnDefinition[] = [
     sortable: true,
     align: 'right',
     className: 'w-[20%]',
-    formatter: (value) =>
-      new Date(value).toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+    formatter: { component: DateTimeFormatter },
   },
 ]
 

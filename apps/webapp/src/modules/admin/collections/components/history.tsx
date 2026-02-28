@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
@@ -28,8 +28,11 @@ import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
 import { i18n } from '~/i18n'
-import { DiffModal } from './diff-modal'
 import { ViewMenu } from './view-menu'
+
+// Lazy-load DiffModal because react-diff-viewer-continued uses a web worker
+// bundle that cannot be resolved by Node during SSR.
+const DiffModal = lazy(() => import('./diff-modal').then((m) => ({ default: m.DiffModal })))
 
 /**
  * Safely extract a displayable string from a field value that may be a plain
@@ -74,7 +77,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-      }`}
+        }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -96,7 +99,7 @@ export const HistoryView = ({
   currentDocument?: Record<string, unknown> | null
 }) => {
   const { id, collection } = useParams({
-    from: '/{-$lng}/admin/collections/$collection/$id/history',
+    from: '/{-$lng}/(byline)/admin/collections/$collection/$id/history',
   })
   const navigate = useNavigate()
   const uiLocale = useLocale()
@@ -181,7 +184,7 @@ export const HistoryView = ({
                     ? total - (page - 1) * page_size - rowIndex
                     : (page - 1) * page_size + rowIndex + 1
                   return (
-                    <Table.Row key={document.document_id}>
+                    <Table.Row key={versionId ?? document.document_id}>
                       <Table.Cell className="text-left">
                         {versionId && currentDocument ? (
                           <IconButton
@@ -231,14 +234,14 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                      (document as any)[column.fieldName],
-                                      document,
-                                      column.formatter
-                                    )
+                                    (document as any)[column.fieldName],
+                                    document,
+                                    column.formatter
+                                  )
                                   : resolveDisplayValue(
-                                      (document as any)[column.fieldName],
-                                      locale
-                                    ) || '------'}
+                                    (document as any)[column.fieldName],
+                                    locale
+                                  ) || '------'}
                               </button>
                             ) : (
                               <Link
@@ -251,14 +254,14 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                      (document as any)[column.fieldName],
-                                      document,
-                                      column.formatter
-                                    )
+                                    (document as any)[column.fieldName],
+                                    document,
+                                    column.formatter
+                                  )
                                   : resolveDisplayValue(
-                                      (document as any)[column.fieldName],
-                                      locale
-                                    ) || '------'}
+                                    (document as any)[column.fieldName],
+                                    locale
+                                  ) || '------'}
                               </Link>
                             )
                           ) : column.formatter ? (
@@ -311,16 +314,18 @@ export const HistoryView = ({
       </Section>
 
       {selectedVersion && currentDocument && (
-        <DiffModal
-          isOpen={true}
-          onDismiss={() => setSelectedVersion(null)}
-          collection={collection}
-          documentId={id}
-          versionId={selectedVersion.versionId}
-          versionLabel={selectedVersion.label}
-          currentDocument={currentDocument}
-          locale={locale}
-        />
+        <Suspense fallback={null}>
+          <DiffModal
+            isOpen={true}
+            onDismiss={() => setSelectedVersion(null)}
+            collection={collection}
+            documentId={id}
+            versionId={selectedVersion.versionId}
+            versionLabel={selectedVersion.label}
+            currentDocument={currentDocument}
+            locale={locale}
+          />
+        </Suspense>
       )}
     </>
   )

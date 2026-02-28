@@ -6,7 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-// Initialize Byline config by importing the browser-safe client config.
+// NOTE: Byline client config is now initialized in src/config/init-client-config.ts,
+// imported from __root.tsx, so it is available in both SSR and client contexts.
+// This legacy import is kept for safety but is no longer strictly necessary.
 import '../byline.client.config.ts'
 
 import { StrictMode } from 'react'

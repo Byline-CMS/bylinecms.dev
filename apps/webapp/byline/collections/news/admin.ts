@@ -8,6 +8,7 @@
 
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
+import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
 import { News } from './schema.js'
 
 // ---- Admin UI config (client-only, presentation concerns) ----
@@ -47,14 +48,7 @@ const newsColumns: ColumnDefinition[] = [
     sortable: true,
     align: 'right',
     className: 'w-[20%]',
-    formatter: (value) =>
-      new Date(value).toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short', // <- short month text (locale-aware)
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+    formatter: { component: DateTimeFormatter },
   },
 ]
 
