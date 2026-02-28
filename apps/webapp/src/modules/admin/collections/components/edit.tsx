@@ -68,7 +68,7 @@ export const EditView = ({
 
   const handleStatusChange = async (status: string) => {
     try {
-      await updateDocumentStatus(path, String(initialData.document_id), status)
+      await updateDocumentStatus({ data: { collection: path, id: String(initialData.document_id), status } })
       setEditState({
         status: 'success',
         message: `Status changed to "${status}"`,
@@ -96,7 +96,7 @@ export const EditView = ({
 
   const handleUnpublish = async () => {
     try {
-      await unpublishDocument(path, String(initialData.document_id))
+      await unpublishDocument({ data: { collection: path, id: String(initialData.document_id) } })
       setEditState({
         status: 'success',
         message: 'Published version has been taken offline.',
@@ -119,7 +119,7 @@ export const EditView = ({
 
   const handleDelete = async () => {
     try {
-      await deleteDocument(path, String(initialData.document_id))
+      await deleteDocument({ data: { collection: path, id: String(initialData.document_id) } })
       setEditState({
         status: 'success',
         message: `${labels.singular} has been deleted.`,
@@ -140,16 +140,17 @@ export const EditView = ({
     }
   }
 
-  const handleSubmit = async ({ data, patches }: { data: any; patches: any[] }) => {
+  const handleSubmit = async ({ data: _data, patches }: { data: any; patches: any[] }) => {
     try {
-      await updateCollectionDocumentWithPatches(
-        path,
-        String(initialData.document_id),
-        data,
-        patches,
-        initialData.document_version_id as string | undefined,
-        locale
-      )
+      await updateCollectionDocumentWithPatches({
+        data: {
+          collection: path,
+          id: String(initialData.document_id),
+          patches,
+          document_version_id: initialData.document_version_id as string | undefined,
+          locale,
+        },
+      })
 
       setEditState({
         status: 'success',

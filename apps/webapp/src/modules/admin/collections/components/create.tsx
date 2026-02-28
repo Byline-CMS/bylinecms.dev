@@ -42,7 +42,7 @@ export const CreateView = ({
 
   const handleSubmit = async ({ data }: { data: any }) => {
     try {
-      await createCollectionDocument(path, data)
+      await createCollectionDocument({ data: { collection: path, data } })
       navigate({
         to: '/{-$lng}/admin/collections/$collection',
         params: { ...lngParam(uiLocale), collection: path },

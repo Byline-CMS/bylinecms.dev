@@ -50,14 +50,18 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
       throw notFound()
     }
 
-    const data = await getCollectionDocuments(params.collection, {
-      page,
-      page_size,
-      order,
-      desc,
-      query,
-      locale,
-      status,
+    const data = await getCollectionDocuments({
+      data: {
+        collection: params.collection, params: {
+          page,
+          page_size,
+          order,
+          desc,
+          query,
+          locale,
+          status,
+        }
+      }
     })
 
     return data

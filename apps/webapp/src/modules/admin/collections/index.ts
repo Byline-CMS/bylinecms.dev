@@ -1,6 +1,10 @@
 /**
- * Barrel re-export — preserves backward compatibility for existing callers.
- * Import from the individual modules directly for new code.
+ * Barrel re-exports for admin collection operations.
+ *
+ * Each module is self-contained: it defines the TanStack Start server
+ * function and exports a clean public API. The upload module is the
+ * sole exception — it uses a raw fetch() wrapper because multipart
+ * FormData cannot be serialised through a createServerFn JSON-RPC body.
  */
 
 export * from './create'

@@ -45,12 +45,16 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
       }
 
       const [history, currentDocument] = await Promise.all([
-        getCollectionDocumentHistory(params.collection, params.id, {
-          page,
-          page_size,
-          order,
-          desc,
-          locale,
+        getCollectionDocumentHistory({
+          data: {
+            collection: params.collection, id: params.id, params: {
+              page,
+              page_size,
+              order,
+              desc,
+              locale,
+            }
+          }
         }),
         // Fetch the current document with the same locale (or 'all') so diffs
         // compare the same shape as what the user is viewing.
