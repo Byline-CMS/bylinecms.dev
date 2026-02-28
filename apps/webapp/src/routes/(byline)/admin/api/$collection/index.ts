@@ -26,7 +26,7 @@ import { createDocument } from '@byline/core/services'
 
 import { collectionListSchema, ensureCollection } from '@/lib/api-utils'
 
-export const Route = createFileRoute('/admin/api/$collection/')({
+export const Route = createFileRoute('/(byline)/admin/api/$collection/')({
   server: {
     handlers: {
       /**

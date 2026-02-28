@@ -9,174 +9,176 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as PublicIndexRouteImport } from './routes/_public/index'
-import { Route as AdminCollectionsCollectionIndexRouteImport } from './routes/admin/collections/$collection/index'
-import { Route as AdminApiCollectionIndexRouteImport } from './routes/admin/api/$collection/index'
-import { Route as AdminCollectionsCollectionCreateRouteImport } from './routes/admin/collections/$collection/create'
-import { Route as AdminApiCollectionUploadRouteImport } from './routes/admin/api/$collection/upload'
-import { Route as AdminApiCollectionStatsRouteImport } from './routes/admin/api/$collection/stats'
-import { Route as AdminCollectionsCollectionIdIndexRouteImport } from './routes/admin/collections/$collection/$id/index'
-import { Route as AdminApiCollectionIdIndexRouteImport } from './routes/admin/api/$collection/$id/index'
-import { Route as AdminCollectionsCollectionIdHistoryRouteImport } from './routes/admin/collections/$collection/$id/history'
-import { Route as AdminCollectionsCollectionIdApiRouteImport } from './routes/admin/collections/$collection/$id/api'
-import { Route as AdminApiCollectionIdUnpublishRouteImport } from './routes/admin/api/$collection/$id/unpublish'
-import { Route as AdminApiCollectionIdStatusRouteImport } from './routes/admin/api/$collection/$id/status'
-import { Route as AdminApiCollectionIdPatchesRouteImport } from './routes/admin/api/$collection/$id/patches'
-import { Route as AdminApiCollectionIdHistoryRouteImport } from './routes/admin/api/$collection/$id/history'
+import { Route as bylineAdminRouteRouteImport } from './routes/(byline)/admin/route'
+import { Route as bylineAdminIndexRouteImport } from './routes/(byline)/admin/index'
+import { Route as bylineAdminCollectionsCollectionIndexRouteImport } from './routes/(byline)/admin/collections/$collection/index'
+import { Route as bylineAdminApiCollectionIndexRouteImport } from './routes/(byline)/admin/api/$collection/index'
+import { Route as bylineAdminCollectionsCollectionCreateRouteImport } from './routes/(byline)/admin/collections/$collection/create'
+import { Route as bylineAdminApiCollectionUploadRouteImport } from './routes/(byline)/admin/api/$collection/upload'
+import { Route as bylineAdminApiCollectionStatsRouteImport } from './routes/(byline)/admin/api/$collection/stats'
+import { Route as bylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/(byline)/admin/collections/$collection/$id/index'
+import { Route as bylineAdminApiCollectionIdIndexRouteImport } from './routes/(byline)/admin/api/$collection/$id/index'
+import { Route as bylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/(byline)/admin/collections/$collection/$id/history'
+import { Route as bylineAdminCollectionsCollectionIdApiRouteImport } from './routes/(byline)/admin/collections/$collection/$id/api'
+import { Route as bylineAdminApiCollectionIdUnpublishRouteImport } from './routes/(byline)/admin/api/$collection/$id/unpublish'
+import { Route as bylineAdminApiCollectionIdStatusRouteImport } from './routes/(byline)/admin/api/$collection/$id/status'
+import { Route as bylineAdminApiCollectionIdPatchesRouteImport } from './routes/(byline)/admin/api/$collection/$id/patches'
+import { Route as bylineAdminApiCollectionIdHistoryRouteImport } from './routes/(byline)/admin/api/$collection/$id/history'
 
-const AdminRouteRoute = AdminRouteRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PublicRouteRoute = PublicRouteRouteImport.update({
   id: '/_public',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminRouteRoute,
 } as any)
 const PublicIndexRoute = PublicIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PublicRouteRoute,
 } as any)
-const AdminCollectionsCollectionIndexRoute =
-  AdminCollectionsCollectionIndexRouteImport.update({
+const bylineAdminRouteRoute = bylineAdminRouteRouteImport.update({
+  id: '/(byline)/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const bylineAdminIndexRoute = bylineAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => bylineAdminRouteRoute,
+} as any)
+const bylineAdminCollectionsCollectionIndexRoute =
+  bylineAdminCollectionsCollectionIndexRouteImport.update({
     id: '/collections/$collection/',
     path: '/collections/$collection/',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminApiCollectionIndexRoute = AdminApiCollectionIndexRouteImport.update({
-  id: '/api/$collection/',
-  path: '/api/$collection/',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminCollectionsCollectionCreateRoute =
-  AdminCollectionsCollectionCreateRouteImport.update({
+const bylineAdminApiCollectionIndexRoute =
+  bylineAdminApiCollectionIndexRouteImport.update({
+    id: '/api/$collection/',
+    path: '/api/$collection/',
+    getParentRoute: () => bylineAdminRouteRoute,
+  } as any)
+const bylineAdminCollectionsCollectionCreateRoute =
+  bylineAdminCollectionsCollectionCreateRouteImport.update({
     id: '/collections/$collection/create',
     path: '/collections/$collection/create',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminApiCollectionUploadRoute =
-  AdminApiCollectionUploadRouteImport.update({
+const bylineAdminApiCollectionUploadRoute =
+  bylineAdminApiCollectionUploadRouteImport.update({
     id: '/api/$collection/upload',
     path: '/api/$collection/upload',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminApiCollectionStatsRoute = AdminApiCollectionStatsRouteImport.update({
-  id: '/api/$collection/stats',
-  path: '/api/$collection/stats',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminCollectionsCollectionIdIndexRoute =
-  AdminCollectionsCollectionIdIndexRouteImport.update({
+const bylineAdminApiCollectionStatsRoute =
+  bylineAdminApiCollectionStatsRouteImport.update({
+    id: '/api/$collection/stats',
+    path: '/api/$collection/stats',
+    getParentRoute: () => bylineAdminRouteRoute,
+  } as any)
+const bylineAdminCollectionsCollectionIdIndexRoute =
+  bylineAdminCollectionsCollectionIdIndexRouteImport.update({
     id: '/collections/$collection/$id/',
     path: '/collections/$collection/$id/',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminApiCollectionIdIndexRoute =
-  AdminApiCollectionIdIndexRouteImport.update({
+const bylineAdminApiCollectionIdIndexRoute =
+  bylineAdminApiCollectionIdIndexRouteImport.update({
     id: '/api/$collection/$id/',
     path: '/api/$collection/$id/',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminCollectionsCollectionIdHistoryRoute =
-  AdminCollectionsCollectionIdHistoryRouteImport.update({
+const bylineAdminCollectionsCollectionIdHistoryRoute =
+  bylineAdminCollectionsCollectionIdHistoryRouteImport.update({
     id: '/collections/$collection/$id/history',
     path: '/collections/$collection/$id/history',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminCollectionsCollectionIdApiRoute =
-  AdminCollectionsCollectionIdApiRouteImport.update({
+const bylineAdminCollectionsCollectionIdApiRoute =
+  bylineAdminCollectionsCollectionIdApiRouteImport.update({
     id: '/collections/$collection/$id/api',
     path: '/collections/$collection/$id/api',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminApiCollectionIdUnpublishRoute =
-  AdminApiCollectionIdUnpublishRouteImport.update({
+const bylineAdminApiCollectionIdUnpublishRoute =
+  bylineAdminApiCollectionIdUnpublishRouteImport.update({
     id: '/api/$collection/$id/unpublish',
     path: '/api/$collection/$id/unpublish',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminApiCollectionIdStatusRoute =
-  AdminApiCollectionIdStatusRouteImport.update({
+const bylineAdminApiCollectionIdStatusRoute =
+  bylineAdminApiCollectionIdStatusRouteImport.update({
     id: '/api/$collection/$id/status',
     path: '/api/$collection/$id/status',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminApiCollectionIdPatchesRoute =
-  AdminApiCollectionIdPatchesRouteImport.update({
+const bylineAdminApiCollectionIdPatchesRoute =
+  bylineAdminApiCollectionIdPatchesRouteImport.update({
     id: '/api/$collection/$id/patches',
     path: '/api/$collection/$id/patches',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
-const AdminApiCollectionIdHistoryRoute =
-  AdminApiCollectionIdHistoryRouteImport.update({
+const bylineAdminApiCollectionIdHistoryRoute =
+  bylineAdminApiCollectionIdHistoryRouteImport.update({
     id: '/api/$collection/$id/history',
     path: '/api/$collection/$id/history',
-    getParentRoute: () => AdminRouteRoute,
+    getParentRoute: () => bylineAdminRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof PublicIndexRoute
-  '/admin': typeof AdminRouteRouteWithChildren
-  '/admin/': typeof AdminIndexRoute
-  '/admin/api/$collection/stats': typeof AdminApiCollectionStatsRoute
-  '/admin/api/$collection/upload': typeof AdminApiCollectionUploadRoute
-  '/admin/collections/$collection/create': typeof AdminCollectionsCollectionCreateRoute
-  '/admin/api/$collection/': typeof AdminApiCollectionIndexRoute
-  '/admin/collections/$collection/': typeof AdminCollectionsCollectionIndexRoute
-  '/admin/api/$collection/$id/history': typeof AdminApiCollectionIdHistoryRoute
-  '/admin/api/$collection/$id/patches': typeof AdminApiCollectionIdPatchesRoute
-  '/admin/api/$collection/$id/status': typeof AdminApiCollectionIdStatusRoute
-  '/admin/api/$collection/$id/unpublish': typeof AdminApiCollectionIdUnpublishRoute
-  '/admin/collections/$collection/$id/api': typeof AdminCollectionsCollectionIdApiRoute
-  '/admin/collections/$collection/$id/history': typeof AdminCollectionsCollectionIdHistoryRoute
-  '/admin/api/$collection/$id/': typeof AdminApiCollectionIdIndexRoute
-  '/admin/collections/$collection/$id/': typeof AdminCollectionsCollectionIdIndexRoute
+  '/admin': typeof bylineAdminRouteRouteWithChildren
+  '/admin/': typeof bylineAdminIndexRoute
+  '/admin/api/$collection/stats': typeof bylineAdminApiCollectionStatsRoute
+  '/admin/api/$collection/upload': typeof bylineAdminApiCollectionUploadRoute
+  '/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
+  '/admin/api/$collection/': typeof bylineAdminApiCollectionIndexRoute
+  '/admin/collections/$collection/': typeof bylineAdminCollectionsCollectionIndexRoute
+  '/admin/api/$collection/$id/history': typeof bylineAdminApiCollectionIdHistoryRoute
+  '/admin/api/$collection/$id/patches': typeof bylineAdminApiCollectionIdPatchesRoute
+  '/admin/api/$collection/$id/status': typeof bylineAdminApiCollectionIdStatusRoute
+  '/admin/api/$collection/$id/unpublish': typeof bylineAdminApiCollectionIdUnpublishRoute
+  '/admin/collections/$collection/$id/api': typeof bylineAdminCollectionsCollectionIdApiRoute
+  '/admin/collections/$collection/$id/history': typeof bylineAdminCollectionsCollectionIdHistoryRoute
+  '/admin/api/$collection/$id/': typeof bylineAdminApiCollectionIdIndexRoute
+  '/admin/collections/$collection/$id/': typeof bylineAdminCollectionsCollectionIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof PublicIndexRoute
-  '/admin': typeof AdminIndexRoute
-  '/admin/api/$collection/stats': typeof AdminApiCollectionStatsRoute
-  '/admin/api/$collection/upload': typeof AdminApiCollectionUploadRoute
-  '/admin/collections/$collection/create': typeof AdminCollectionsCollectionCreateRoute
-  '/admin/api/$collection': typeof AdminApiCollectionIndexRoute
-  '/admin/collections/$collection': typeof AdminCollectionsCollectionIndexRoute
-  '/admin/api/$collection/$id/history': typeof AdminApiCollectionIdHistoryRoute
-  '/admin/api/$collection/$id/patches': typeof AdminApiCollectionIdPatchesRoute
-  '/admin/api/$collection/$id/status': typeof AdminApiCollectionIdStatusRoute
-  '/admin/api/$collection/$id/unpublish': typeof AdminApiCollectionIdUnpublishRoute
-  '/admin/collections/$collection/$id/api': typeof AdminCollectionsCollectionIdApiRoute
-  '/admin/collections/$collection/$id/history': typeof AdminCollectionsCollectionIdHistoryRoute
-  '/admin/api/$collection/$id': typeof AdminApiCollectionIdIndexRoute
-  '/admin/collections/$collection/$id': typeof AdminCollectionsCollectionIdIndexRoute
+  '/admin': typeof bylineAdminIndexRoute
+  '/admin/api/$collection/stats': typeof bylineAdminApiCollectionStatsRoute
+  '/admin/api/$collection/upload': typeof bylineAdminApiCollectionUploadRoute
+  '/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
+  '/admin/api/$collection': typeof bylineAdminApiCollectionIndexRoute
+  '/admin/collections/$collection': typeof bylineAdminCollectionsCollectionIndexRoute
+  '/admin/api/$collection/$id/history': typeof bylineAdminApiCollectionIdHistoryRoute
+  '/admin/api/$collection/$id/patches': typeof bylineAdminApiCollectionIdPatchesRoute
+  '/admin/api/$collection/$id/status': typeof bylineAdminApiCollectionIdStatusRoute
+  '/admin/api/$collection/$id/unpublish': typeof bylineAdminApiCollectionIdUnpublishRoute
+  '/admin/collections/$collection/$id/api': typeof bylineAdminCollectionsCollectionIdApiRoute
+  '/admin/collections/$collection/$id/history': typeof bylineAdminCollectionsCollectionIdHistoryRoute
+  '/admin/api/$collection/$id': typeof bylineAdminApiCollectionIdIndexRoute
+  '/admin/collections/$collection/$id': typeof bylineAdminCollectionsCollectionIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_public': typeof PublicRouteRouteWithChildren
-  '/admin': typeof AdminRouteRouteWithChildren
+  '/(byline)/admin': typeof bylineAdminRouteRouteWithChildren
   '/_public/': typeof PublicIndexRoute
-  '/admin/': typeof AdminIndexRoute
-  '/admin/api/$collection/stats': typeof AdminApiCollectionStatsRoute
-  '/admin/api/$collection/upload': typeof AdminApiCollectionUploadRoute
-  '/admin/collections/$collection/create': typeof AdminCollectionsCollectionCreateRoute
-  '/admin/api/$collection/': typeof AdminApiCollectionIndexRoute
-  '/admin/collections/$collection/': typeof AdminCollectionsCollectionIndexRoute
-  '/admin/api/$collection/$id/history': typeof AdminApiCollectionIdHistoryRoute
-  '/admin/api/$collection/$id/patches': typeof AdminApiCollectionIdPatchesRoute
-  '/admin/api/$collection/$id/status': typeof AdminApiCollectionIdStatusRoute
-  '/admin/api/$collection/$id/unpublish': typeof AdminApiCollectionIdUnpublishRoute
-  '/admin/collections/$collection/$id/api': typeof AdminCollectionsCollectionIdApiRoute
-  '/admin/collections/$collection/$id/history': typeof AdminCollectionsCollectionIdHistoryRoute
-  '/admin/api/$collection/$id/': typeof AdminApiCollectionIdIndexRoute
-  '/admin/collections/$collection/$id/': typeof AdminCollectionsCollectionIdIndexRoute
+  '/(byline)/admin/': typeof bylineAdminIndexRoute
+  '/(byline)/admin/api/$collection/stats': typeof bylineAdminApiCollectionStatsRoute
+  '/(byline)/admin/api/$collection/upload': typeof bylineAdminApiCollectionUploadRoute
+  '/(byline)/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
+  '/(byline)/admin/api/$collection/': typeof bylineAdminApiCollectionIndexRoute
+  '/(byline)/admin/collections/$collection/': typeof bylineAdminCollectionsCollectionIndexRoute
+  '/(byline)/admin/api/$collection/$id/history': typeof bylineAdminApiCollectionIdHistoryRoute
+  '/(byline)/admin/api/$collection/$id/patches': typeof bylineAdminApiCollectionIdPatchesRoute
+  '/(byline)/admin/api/$collection/$id/status': typeof bylineAdminApiCollectionIdStatusRoute
+  '/(byline)/admin/api/$collection/$id/unpublish': typeof bylineAdminApiCollectionIdUnpublishRoute
+  '/(byline)/admin/collections/$collection/$id/api': typeof bylineAdminCollectionsCollectionIdApiRoute
+  '/(byline)/admin/collections/$collection/$id/history': typeof bylineAdminCollectionsCollectionIdHistoryRoute
+  '/(byline)/admin/api/$collection/$id/': typeof bylineAdminApiCollectionIdIndexRoute
+  '/(byline)/admin/collections/$collection/$id/': typeof bylineAdminCollectionsCollectionIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -217,51 +219,37 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_public'
-    | '/admin'
+    | '/(byline)/admin'
     | '/_public/'
-    | '/admin/'
-    | '/admin/api/$collection/stats'
-    | '/admin/api/$collection/upload'
-    | '/admin/collections/$collection/create'
-    | '/admin/api/$collection/'
-    | '/admin/collections/$collection/'
-    | '/admin/api/$collection/$id/history'
-    | '/admin/api/$collection/$id/patches'
-    | '/admin/api/$collection/$id/status'
-    | '/admin/api/$collection/$id/unpublish'
-    | '/admin/collections/$collection/$id/api'
-    | '/admin/collections/$collection/$id/history'
-    | '/admin/api/$collection/$id/'
-    | '/admin/collections/$collection/$id/'
+    | '/(byline)/admin/'
+    | '/(byline)/admin/api/$collection/stats'
+    | '/(byline)/admin/api/$collection/upload'
+    | '/(byline)/admin/collections/$collection/create'
+    | '/(byline)/admin/api/$collection/'
+    | '/(byline)/admin/collections/$collection/'
+    | '/(byline)/admin/api/$collection/$id/history'
+    | '/(byline)/admin/api/$collection/$id/patches'
+    | '/(byline)/admin/api/$collection/$id/status'
+    | '/(byline)/admin/api/$collection/$id/unpublish'
+    | '/(byline)/admin/collections/$collection/$id/api'
+    | '/(byline)/admin/collections/$collection/$id/history'
+    | '/(byline)/admin/api/$collection/$id/'
+    | '/(byline)/admin/collections/$collection/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
-  AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  bylineAdminRouteRoute: typeof bylineAdminRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_public': {
       id: '/_public'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof PublicRouteRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/admin/': {
-      id: '/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
     }
     '/_public/': {
       id: '/_public/'
@@ -270,96 +258,110 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicIndexRouteImport
       parentRoute: typeof PublicRouteRoute
     }
-    '/admin/collections/$collection/': {
-      id: '/admin/collections/$collection/'
+    '/(byline)/admin': {
+      id: '/(byline)/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof bylineAdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(byline)/admin/': {
+      id: '/(byline)/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof bylineAdminIndexRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
+    }
+    '/(byline)/admin/collections/$collection/': {
+      id: '/(byline)/admin/collections/$collection/'
       path: '/collections/$collection'
       fullPath: '/admin/collections/$collection/'
-      preLoaderRoute: typeof AdminCollectionsCollectionIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminCollectionsCollectionIndexRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/api/$collection/': {
-      id: '/admin/api/$collection/'
+    '/(byline)/admin/api/$collection/': {
+      id: '/(byline)/admin/api/$collection/'
       path: '/api/$collection'
       fullPath: '/admin/api/$collection/'
-      preLoaderRoute: typeof AdminApiCollectionIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminApiCollectionIndexRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/collections/$collection/create': {
-      id: '/admin/collections/$collection/create'
+    '/(byline)/admin/collections/$collection/create': {
+      id: '/(byline)/admin/collections/$collection/create'
       path: '/collections/$collection/create'
       fullPath: '/admin/collections/$collection/create'
-      preLoaderRoute: typeof AdminCollectionsCollectionCreateRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminCollectionsCollectionCreateRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/api/$collection/upload': {
-      id: '/admin/api/$collection/upload'
+    '/(byline)/admin/api/$collection/upload': {
+      id: '/(byline)/admin/api/$collection/upload'
       path: '/api/$collection/upload'
       fullPath: '/admin/api/$collection/upload'
-      preLoaderRoute: typeof AdminApiCollectionUploadRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminApiCollectionUploadRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/api/$collection/stats': {
-      id: '/admin/api/$collection/stats'
+    '/(byline)/admin/api/$collection/stats': {
+      id: '/(byline)/admin/api/$collection/stats'
       path: '/api/$collection/stats'
       fullPath: '/admin/api/$collection/stats'
-      preLoaderRoute: typeof AdminApiCollectionStatsRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminApiCollectionStatsRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/collections/$collection/$id/': {
-      id: '/admin/collections/$collection/$id/'
+    '/(byline)/admin/collections/$collection/$id/': {
+      id: '/(byline)/admin/collections/$collection/$id/'
       path: '/collections/$collection/$id'
       fullPath: '/admin/collections/$collection/$id/'
-      preLoaderRoute: typeof AdminCollectionsCollectionIdIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminCollectionsCollectionIdIndexRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/api/$collection/$id/': {
-      id: '/admin/api/$collection/$id/'
+    '/(byline)/admin/api/$collection/$id/': {
+      id: '/(byline)/admin/api/$collection/$id/'
       path: '/api/$collection/$id'
       fullPath: '/admin/api/$collection/$id/'
-      preLoaderRoute: typeof AdminApiCollectionIdIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminApiCollectionIdIndexRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/collections/$collection/$id/history': {
-      id: '/admin/collections/$collection/$id/history'
+    '/(byline)/admin/collections/$collection/$id/history': {
+      id: '/(byline)/admin/collections/$collection/$id/history'
       path: '/collections/$collection/$id/history'
       fullPath: '/admin/collections/$collection/$id/history'
-      preLoaderRoute: typeof AdminCollectionsCollectionIdHistoryRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminCollectionsCollectionIdHistoryRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/collections/$collection/$id/api': {
-      id: '/admin/collections/$collection/$id/api'
+    '/(byline)/admin/collections/$collection/$id/api': {
+      id: '/(byline)/admin/collections/$collection/$id/api'
       path: '/collections/$collection/$id/api'
       fullPath: '/admin/collections/$collection/$id/api'
-      preLoaderRoute: typeof AdminCollectionsCollectionIdApiRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminCollectionsCollectionIdApiRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/api/$collection/$id/unpublish': {
-      id: '/admin/api/$collection/$id/unpublish'
+    '/(byline)/admin/api/$collection/$id/unpublish': {
+      id: '/(byline)/admin/api/$collection/$id/unpublish'
       path: '/api/$collection/$id/unpublish'
       fullPath: '/admin/api/$collection/$id/unpublish'
-      preLoaderRoute: typeof AdminApiCollectionIdUnpublishRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminApiCollectionIdUnpublishRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/api/$collection/$id/status': {
-      id: '/admin/api/$collection/$id/status'
+    '/(byline)/admin/api/$collection/$id/status': {
+      id: '/(byline)/admin/api/$collection/$id/status'
       path: '/api/$collection/$id/status'
       fullPath: '/admin/api/$collection/$id/status'
-      preLoaderRoute: typeof AdminApiCollectionIdStatusRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminApiCollectionIdStatusRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/api/$collection/$id/patches': {
-      id: '/admin/api/$collection/$id/patches'
+    '/(byline)/admin/api/$collection/$id/patches': {
+      id: '/(byline)/admin/api/$collection/$id/patches'
       path: '/api/$collection/$id/patches'
       fullPath: '/admin/api/$collection/$id/patches'
-      preLoaderRoute: typeof AdminApiCollectionIdPatchesRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminApiCollectionIdPatchesRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
-    '/admin/api/$collection/$id/history': {
-      id: '/admin/api/$collection/$id/history'
+    '/(byline)/admin/api/$collection/$id/history': {
+      id: '/(byline)/admin/api/$collection/$id/history'
       path: '/api/$collection/$id/history'
       fullPath: '/admin/api/$collection/$id/history'
-      preLoaderRoute: typeof AdminApiCollectionIdHistoryRouteImport
-      parentRoute: typeof AdminRouteRoute
+      preLoaderRoute: typeof bylineAdminApiCollectionIdHistoryRouteImport
+      parentRoute: typeof bylineAdminRouteRoute
     }
   }
 }
@@ -376,49 +378,54 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
   PublicRouteRouteChildren,
 )
 
-interface AdminRouteRouteChildren {
-  AdminIndexRoute: typeof AdminIndexRoute
-  AdminApiCollectionStatsRoute: typeof AdminApiCollectionStatsRoute
-  AdminApiCollectionUploadRoute: typeof AdminApiCollectionUploadRoute
-  AdminCollectionsCollectionCreateRoute: typeof AdminCollectionsCollectionCreateRoute
-  AdminApiCollectionIndexRoute: typeof AdminApiCollectionIndexRoute
-  AdminCollectionsCollectionIndexRoute: typeof AdminCollectionsCollectionIndexRoute
-  AdminApiCollectionIdHistoryRoute: typeof AdminApiCollectionIdHistoryRoute
-  AdminApiCollectionIdPatchesRoute: typeof AdminApiCollectionIdPatchesRoute
-  AdminApiCollectionIdStatusRoute: typeof AdminApiCollectionIdStatusRoute
-  AdminApiCollectionIdUnpublishRoute: typeof AdminApiCollectionIdUnpublishRoute
-  AdminCollectionsCollectionIdApiRoute: typeof AdminCollectionsCollectionIdApiRoute
-  AdminCollectionsCollectionIdHistoryRoute: typeof AdminCollectionsCollectionIdHistoryRoute
-  AdminApiCollectionIdIndexRoute: typeof AdminApiCollectionIdIndexRoute
-  AdminCollectionsCollectionIdIndexRoute: typeof AdminCollectionsCollectionIdIndexRoute
+interface bylineAdminRouteRouteChildren {
+  bylineAdminIndexRoute: typeof bylineAdminIndexRoute
+  bylineAdminApiCollectionStatsRoute: typeof bylineAdminApiCollectionStatsRoute
+  bylineAdminApiCollectionUploadRoute: typeof bylineAdminApiCollectionUploadRoute
+  bylineAdminCollectionsCollectionCreateRoute: typeof bylineAdminCollectionsCollectionCreateRoute
+  bylineAdminApiCollectionIndexRoute: typeof bylineAdminApiCollectionIndexRoute
+  bylineAdminCollectionsCollectionIndexRoute: typeof bylineAdminCollectionsCollectionIndexRoute
+  bylineAdminApiCollectionIdHistoryRoute: typeof bylineAdminApiCollectionIdHistoryRoute
+  bylineAdminApiCollectionIdPatchesRoute: typeof bylineAdminApiCollectionIdPatchesRoute
+  bylineAdminApiCollectionIdStatusRoute: typeof bylineAdminApiCollectionIdStatusRoute
+  bylineAdminApiCollectionIdUnpublishRoute: typeof bylineAdminApiCollectionIdUnpublishRoute
+  bylineAdminCollectionsCollectionIdApiRoute: typeof bylineAdminCollectionsCollectionIdApiRoute
+  bylineAdminCollectionsCollectionIdHistoryRoute: typeof bylineAdminCollectionsCollectionIdHistoryRoute
+  bylineAdminApiCollectionIdIndexRoute: typeof bylineAdminApiCollectionIdIndexRoute
+  bylineAdminCollectionsCollectionIdIndexRoute: typeof bylineAdminCollectionsCollectionIdIndexRoute
 }
 
-const AdminRouteRouteChildren: AdminRouteRouteChildren = {
-  AdminIndexRoute: AdminIndexRoute,
-  AdminApiCollectionStatsRoute: AdminApiCollectionStatsRoute,
-  AdminApiCollectionUploadRoute: AdminApiCollectionUploadRoute,
-  AdminCollectionsCollectionCreateRoute: AdminCollectionsCollectionCreateRoute,
-  AdminApiCollectionIndexRoute: AdminApiCollectionIndexRoute,
-  AdminCollectionsCollectionIndexRoute: AdminCollectionsCollectionIndexRoute,
-  AdminApiCollectionIdHistoryRoute: AdminApiCollectionIdHistoryRoute,
-  AdminApiCollectionIdPatchesRoute: AdminApiCollectionIdPatchesRoute,
-  AdminApiCollectionIdStatusRoute: AdminApiCollectionIdStatusRoute,
-  AdminApiCollectionIdUnpublishRoute: AdminApiCollectionIdUnpublishRoute,
-  AdminCollectionsCollectionIdApiRoute: AdminCollectionsCollectionIdApiRoute,
-  AdminCollectionsCollectionIdHistoryRoute:
-    AdminCollectionsCollectionIdHistoryRoute,
-  AdminApiCollectionIdIndexRoute: AdminApiCollectionIdIndexRoute,
-  AdminCollectionsCollectionIdIndexRoute:
-    AdminCollectionsCollectionIdIndexRoute,
+const bylineAdminRouteRouteChildren: bylineAdminRouteRouteChildren = {
+  bylineAdminIndexRoute: bylineAdminIndexRoute,
+  bylineAdminApiCollectionStatsRoute: bylineAdminApiCollectionStatsRoute,
+  bylineAdminApiCollectionUploadRoute: bylineAdminApiCollectionUploadRoute,
+  bylineAdminCollectionsCollectionCreateRoute:
+    bylineAdminCollectionsCollectionCreateRoute,
+  bylineAdminApiCollectionIndexRoute: bylineAdminApiCollectionIndexRoute,
+  bylineAdminCollectionsCollectionIndexRoute:
+    bylineAdminCollectionsCollectionIndexRoute,
+  bylineAdminApiCollectionIdHistoryRoute:
+    bylineAdminApiCollectionIdHistoryRoute,
+  bylineAdminApiCollectionIdPatchesRoute:
+    bylineAdminApiCollectionIdPatchesRoute,
+  bylineAdminApiCollectionIdStatusRoute: bylineAdminApiCollectionIdStatusRoute,
+  bylineAdminApiCollectionIdUnpublishRoute:
+    bylineAdminApiCollectionIdUnpublishRoute,
+  bylineAdminCollectionsCollectionIdApiRoute:
+    bylineAdminCollectionsCollectionIdApiRoute,
+  bylineAdminCollectionsCollectionIdHistoryRoute:
+    bylineAdminCollectionsCollectionIdHistoryRoute,
+  bylineAdminApiCollectionIdIndexRoute: bylineAdminApiCollectionIdIndexRoute,
+  bylineAdminCollectionsCollectionIdIndexRoute:
+    bylineAdminCollectionsCollectionIdIndexRoute,
 }
 
-const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
-  AdminRouteRouteChildren,
-)
+const bylineAdminRouteRouteWithChildren =
+  bylineAdminRouteRoute._addFileChildren(bylineAdminRouteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   PublicRouteRoute: PublicRouteRouteWithChildren,
-  AdminRouteRoute: AdminRouteRouteWithChildren,
+  bylineAdminRouteRoute: bylineAdminRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

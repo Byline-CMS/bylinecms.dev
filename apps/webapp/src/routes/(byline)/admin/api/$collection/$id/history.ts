@@ -19,7 +19,7 @@ import { getServerConfig } from '@byline/core'
 
 import { ensureCollection, historySchema } from '@/lib/api-utils'
 
-export const Route = createFileRoute('/admin/api/$collection/$id/history')({
+export const Route = createFileRoute('/(byline)/admin/api/$collection/$id/history')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {

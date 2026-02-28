@@ -18,7 +18,7 @@ import {
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { CreateView } from '@/modules/admin/collections/components/create'
 
-export const Route = createFileRoute('/admin/collections/$collection/create')({
+export const Route = createFileRoute('/(byline)/admin/collections/$collection/create')({
   loader: async ({ params }): Promise<{ initialData: any }> => {
     const collectionDef = getCollectionDefinition(params.collection)
     if (!collectionDef) {

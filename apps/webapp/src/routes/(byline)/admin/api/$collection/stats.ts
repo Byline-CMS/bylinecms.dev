@@ -20,7 +20,7 @@ import { getServerConfig } from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
 
-export const Route = createFileRoute('/admin/api/$collection/stats')({
+export const Route = createFileRoute('/(byline)/admin/api/$collection/stats')({
   server: {
     handlers: {
       GET: async ({ params }) => {

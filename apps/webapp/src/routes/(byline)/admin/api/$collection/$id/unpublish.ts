@@ -27,7 +27,7 @@ import { unpublishDocument } from '@byline/core/services'
 
 import { ensureCollection } from '@/lib/api-utils'
 
-export const Route = createFileRoute('/admin/api/$collection/$id/unpublish')({
+export const Route = createFileRoute('/(byline)/admin/api/$collection/$id/unpublish')({
   server: {
     handlers: {
       POST: async ({ params }) => {

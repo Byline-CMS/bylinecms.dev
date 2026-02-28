@@ -20,7 +20,7 @@ const searchSchema = z.object({
   locale: z.string().optional(),
 })
 
-export const Route = createFileRoute('/admin/collections/$collection/$id/')({
+export const Route = createFileRoute('/(byline)/admin/collections/$collection/$id/')({
   validateSearch: searchSchema,
   loaderDeps: ({ search: { locale } }) => ({ locale }),
   loader: async ({ params, deps: { locale } }) => {

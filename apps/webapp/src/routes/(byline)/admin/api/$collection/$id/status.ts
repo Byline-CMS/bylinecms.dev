@@ -28,7 +28,7 @@ import {
 
 import { ensureCollection } from '@/lib/api-utils'
 
-export const Route = createFileRoute('/admin/api/$collection/$id/status')({
+export const Route = createFileRoute('/(byline)/admin/api/$collection/$id/status')({
   server: {
     handlers: {
       PATCH: async ({ request, params }) => {

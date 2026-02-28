@@ -22,7 +22,7 @@ import { deleteDocument, updateDocument } from '@byline/core/services'
 
 import { ensureCollection } from '@/lib/api-utils'
 
-export const Route = createFileRoute('/admin/api/$collection/$id/')({
+export const Route = createFileRoute('/(byline)/admin/api/$collection/$id/')({
   server: {
     handlers: {
       /**

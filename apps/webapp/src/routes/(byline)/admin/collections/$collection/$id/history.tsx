@@ -28,7 +28,7 @@ const searchSchema = z.object({
   locale: z.string().optional(),
 })
 
-export const Route = createFileRoute('/admin/collections/$collection/$id/history')({
+export const Route = createFileRoute('/(byline)/admin/collections/$collection/$id/history')({
   validateSearch: searchSchema,
   loaderDeps: ({ search: { page, page_size, order, desc, locale } }) => ({
     page,

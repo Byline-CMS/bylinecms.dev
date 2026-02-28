@@ -53,7 +53,7 @@ function statusTileColors(name: string) {
 
 // ---------------------------------------------------------------------------
 
-export const Route = createFileRoute('/admin/')({
+export const Route = createFileRoute('/(byline)/admin/')({
   loader: async () => {
     const { collections } = getClientConfig()
     const statsMap: Record<string, CollectionStatusCount[]> = {}
