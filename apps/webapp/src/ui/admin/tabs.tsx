@@ -47,15 +47,15 @@ export const Tabs = ({ tabs, activeTab, onChange, errorCounts, className }: Tabs
             aria-selected={isActive}
             onClick={() => onChange(tab.name)}
             className={cx(
-              'relative py-2.5 text-base font-medium -mb-px border-b-2 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+              'relative py-2.5 text-[1.1rem] font-medium -mb-px border-b-2 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
               isActive
                 ? 'border-primary-400 text-primary-600 dark:text-primary-200 dark:border-primary-400'
                 : [
-                    'border-transparent',
-                    'text-gray-500 dark:text-gray-400',
-                    'hover:text-gray-800 dark:hover:text-gray-200',
-                    'hover:border-gray-300 dark:hover:border-gray-600',
-                  ]
+                  'border-transparent',
+                  'text-gray-500 dark:text-gray-400',
+                  'hover:text-gray-800 dark:hover:text-gray-200',
+                  'hover:border-gray-300 dark:hover:border-gray-600',
+                ]
             )}
           >
             <span className="flex items-center gap-1.5">

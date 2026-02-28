@@ -36,6 +36,7 @@ export function availableLanguagesField(
     name: 'availableLanguages',
     label: 'Published Languages',
     type: 'group',
+    required: true,
     helpText: 'Select the languages this document is available in.',
     ...overrides,
     fields: locales.map(({ code, label }) => ({

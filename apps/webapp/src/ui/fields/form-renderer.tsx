@@ -72,8 +72,8 @@ const FormStatusDisplay = ({
   const statusLabel = workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
 
   return (
-    <div className="form-status text-sm flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+    <div className="form-status flex flex-col">
+      <div className="flex flex-col text-[0.8rem] md:mb-1 leading-5 md:leading-3 lg:flex-row lg:items-center sm:gap-2">
         <div className="published flex items-center gap-1 min-w-0">
           <span className="muted shrink-0">Status:</span>
           <span className="truncate overflow-hidden">{statusLabel}</span>
@@ -99,7 +99,7 @@ const FormStatusDisplay = ({
       </div>
 
       {publishedVersion != null && (
-        <div className="published-version-notice inline">
+        <div className="published-version-notice inline leading-4 md:leading-3.5">
           <span className="muted text-[0.8rem]">
             A published version is currently live.{' '}
             {publishedVersion.updated_at ? (
@@ -418,7 +418,7 @@ const FormContent = ({
         <h1 className="mb-0 text-[1.75rem]">{heading}</h1>
         {headerSlot}
       </div>
-      <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-1 lg:mb-0 flex flex-col lg:flex-row items-start lg:items-center gap-2 justify-start lg:justify-between border border-gray-800">
+      <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-1 lg:mb-0 grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-x-4 gap-y-1 border border-gray-800">
         <FormStatusDisplay
           initialData={initialData}
           workflowStatuses={workflowStatuses}

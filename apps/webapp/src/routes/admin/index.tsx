@@ -22,23 +22,20 @@ import { type CollectionStatusCount, getCollectionStats } from '@/modules/admin/
 // ---------------------------------------------------------------------------
 const STATUS_TILE_COLORS: Record<
   string,
-  { border: string; label: string; number: string; bg: string }
+  { label: string; number: string; bg: string }
 > = {
   draft: {
     bg: 'bg-amber-50 dark:bg-amber-900/20',
-    border: 'border-t-2 border-amber-400 dark:border-amber-500',
     label: 'text-amber-600 dark:text-amber-400',
     number: 'text-amber-700 dark:text-amber-300',
   },
   published: {
     bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-    border: 'border-t-2 border-emerald-500 dark:border-emerald-400',
     label: 'text-emerald-700 dark:text-emerald-400',
     number: 'text-emerald-700 dark:text-emerald-300',
   },
   archived: {
     bg: 'bg-sky-50 dark:bg-sky-900/20',
-    border: 'border-t-2 border-sky-500 dark:border-sky-400',
     label: 'text-sky-700 dark:text-sky-400',
     number: 'text-sky-700 dark:text-sky-300',
   },
@@ -46,7 +43,6 @@ const STATUS_TILE_COLORS: Record<
 
 const CUSTOM_TILE_COLORS = {
   bg: 'bg-violet-50 dark:bg-violet-900/20',
-  border: 'border-t-2 border-violet-500 dark:border-violet-400',
   label: 'text-violet-700 dark:text-violet-400',
   number: 'text-violet-700 dark:text-violet-300',
 }
@@ -91,10 +87,9 @@ function StatTile({
       params={{ collection: collectionPath }}
       search={{ status: ws.name }}
       className={[
-        'flex flex-col items-center justify-center rounded-md px-2 py-2.5 gap-0.5',
+        'flex flex-col items-center justify-center rounded px-2 pt-4 pb-2.5 gap-0.5',
         'transition-opacity hover:opacity-80',
         colors.bg,
-        colors.border,
       ].join(' ')}
     >
       <span
@@ -126,6 +121,7 @@ function Index() {
           <div className="grid grid-cols-auto-fit-320 gap-6">
             {config.collections.map((collection) => {
               const stats = statsMap[collection.path]
+              const total = stats?.reduce((sum, s) => sum + s.count, 0) ?? 0
               const workflowStatuses = getWorkflowStatuses(collection)
 
               return (
@@ -136,8 +132,13 @@ function Index() {
                     className="block hover:opacity-90"
                   >
                     <Card.Header>
-                      <Card.Title>{collection.labels.plural}</Card.Title>
-                      <Card.Description>{`${collection.labels.plural} collection`}</Card.Description>
+                      <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+                        <Card.Title className="flex justify-between items-center mb-1">
+                          <span className="text-[1.5rem]">{collection.labels.plural}</span>
+                          <span className="text-[0.9rem] muted font-sans font-normal">{total} total</span>
+                        </Card.Title>
+                        <Card.Description className="muted">{`${collection.labels.plural} collection`}</Card.Description>
+                      </div>
                     </Card.Header>
                   </Link>
                   <Card.Content>
