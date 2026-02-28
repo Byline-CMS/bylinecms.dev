@@ -91,7 +91,7 @@ function sanitiseFilename(filename: string): string {
 // Route handler
 // ---------------------------------------------------------------------------
 
-export const Route = createFileRoute('/(byline)/admin/api/$collection/upload')({
+export const Route = createFileRoute('/{-$lng}/(byline)/admin/api/$collection/upload')({
   server: {
     handlers: {
       /**

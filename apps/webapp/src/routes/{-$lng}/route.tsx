@@ -27,6 +27,20 @@ export const Route = createFileRoute('/{-$lng}')({
   beforeLoad: async ({ params, location }) => {
     const lng = params.lng as string | undefined
 
+    // -----------------------------------------------------------------------
+    // Guard: skip locale detection / redirect for server-handler API routes.
+    //
+    // Routes that define `server.handlers` (e.g. the upload endpoint) are
+    // processed as raw HTTP handlers and do NOT execute the React Router
+    // lifecycle (beforeLoad / loader / component).  This early-exit is a
+    // defensive measure in case a future TanStack version changes that
+    // behaviour — it ensures API responses are never redirected or delayed
+    // by locale negotiation.
+    // -----------------------------------------------------------------------
+    if (location.pathname.includes('/admin/api/')) {
+      return { locale: (lng as Locale) ?? i18nConfig.defaultLocale }
+    }
+
     // If a locale segment is present but invalid, throw a 404
     if (lng != null && !i18nConfig.locales.includes(lng as Locale)) {
       throw notFound()

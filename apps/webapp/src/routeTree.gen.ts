@@ -14,9 +14,9 @@ import { Route as Char123LngChar125PublicRouteRouteImport } from './routes/{-$ln
 import { Route as Char123LngChar125PublicIndexRouteImport } from './routes/{-$lng}/_public/index'
 import { Route as Char123LngChar125bylineAdminRouteRouteImport } from './routes/{-$lng}/(byline)/admin/route'
 import { Route as Char123LngChar125bylineAdminIndexRouteImport } from './routes/{-$lng}/(byline)/admin/index'
-import { Route as bylineAdminApiCollectionUploadRouteImport } from './routes/(byline)/admin/api/$collection/upload'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/index'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionCreateRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/create'
+import { Route as Char123LngChar125bylineAdminApiCollectionUploadRouteImport } from './routes/{-$lng}/(byline)/admin/api/$collection/upload'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/index'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/history'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdApiRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/api'
@@ -49,12 +49,6 @@ const Char123LngChar125bylineAdminIndexRoute =
     path: '/',
     getParentRoute: () => Char123LngChar125bylineAdminRouteRoute,
   } as any)
-const bylineAdminApiCollectionUploadRoute =
-  bylineAdminApiCollectionUploadRouteImport.update({
-    id: '/(byline)/admin/api/$collection/upload',
-    path: '/admin/api/$collection/upload',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const Char123LngChar125bylineAdminCollectionsCollectionIndexRoute =
   Char123LngChar125bylineAdminCollectionsCollectionIndexRouteImport.update({
     id: '/collections/$collection/',
@@ -65,6 +59,12 @@ const Char123LngChar125bylineAdminCollectionsCollectionCreateRoute =
   Char123LngChar125bylineAdminCollectionsCollectionCreateRouteImport.update({
     id: '/collections/$collection/create',
     path: '/collections/$collection/create',
+    getParentRoute: () => Char123LngChar125bylineAdminRouteRoute,
+  } as any)
+const Char123LngChar125bylineAdminApiCollectionUploadRoute =
+  Char123LngChar125bylineAdminApiCollectionUploadRouteImport.update({
+    id: '/api/$collection/upload',
+    path: '/api/$collection/upload',
     getParentRoute: () => Char123LngChar125bylineAdminRouteRoute,
   } as any)
 const Char123LngChar125bylineAdminCollectionsCollectionIdIndexRoute =
@@ -91,7 +91,7 @@ export interface FileRoutesByFullPath {
   '/{-$lng}/admin': typeof Char123LngChar125bylineAdminRouteRouteWithChildren
   '/{-$lng}/': typeof Char123LngChar125PublicIndexRoute
   '/{-$lng}/admin/': typeof Char123LngChar125bylineAdminIndexRoute
-  '/admin/api/$collection/upload': typeof bylineAdminApiCollectionUploadRoute
+  '/{-$lng}/admin/api/$collection/upload': typeof Char123LngChar125bylineAdminApiCollectionUploadRoute
   '/{-$lng}/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   '/{-$lng}/admin/collections/$collection/': typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
   '/{-$lng}/admin/collections/$collection/$id/api': typeof Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute
@@ -101,7 +101,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/{-$lng}': typeof Char123LngChar125PublicIndexRoute
   '/{-$lng}/admin': typeof Char123LngChar125bylineAdminIndexRoute
-  '/admin/api/$collection/upload': typeof bylineAdminApiCollectionUploadRoute
+  '/{-$lng}/admin/api/$collection/upload': typeof Char123LngChar125bylineAdminApiCollectionUploadRoute
   '/{-$lng}/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   '/{-$lng}/admin/collections/$collection': typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
   '/{-$lng}/admin/collections/$collection/$id/api': typeof Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute
@@ -115,7 +115,7 @@ export interface FileRoutesById {
   '/{-$lng}/(byline)/admin': typeof Char123LngChar125bylineAdminRouteRouteWithChildren
   '/{-$lng}/_public/': typeof Char123LngChar125PublicIndexRoute
   '/{-$lng}/(byline)/admin/': typeof Char123LngChar125bylineAdminIndexRoute
-  '/(byline)/admin/api/$collection/upload': typeof bylineAdminApiCollectionUploadRoute
+  '/{-$lng}/(byline)/admin/api/$collection/upload': typeof Char123LngChar125bylineAdminApiCollectionUploadRoute
   '/{-$lng}/(byline)/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   '/{-$lng}/(byline)/admin/collections/$collection/': typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
   '/{-$lng}/(byline)/admin/collections/$collection/$id/api': typeof Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute
@@ -129,7 +129,7 @@ export interface FileRouteTypes {
     | '/{-$lng}/admin'
     | '/{-$lng}/'
     | '/{-$lng}/admin/'
-    | '/admin/api/$collection/upload'
+    | '/{-$lng}/admin/api/$collection/upload'
     | '/{-$lng}/admin/collections/$collection/create'
     | '/{-$lng}/admin/collections/$collection/'
     | '/{-$lng}/admin/collections/$collection/$id/api'
@@ -139,7 +139,7 @@ export interface FileRouteTypes {
   to:
     | '/{-$lng}'
     | '/{-$lng}/admin'
-    | '/admin/api/$collection/upload'
+    | '/{-$lng}/admin/api/$collection/upload'
     | '/{-$lng}/admin/collections/$collection/create'
     | '/{-$lng}/admin/collections/$collection'
     | '/{-$lng}/admin/collections/$collection/$id/api'
@@ -152,7 +152,7 @@ export interface FileRouteTypes {
     | '/{-$lng}/(byline)/admin'
     | '/{-$lng}/_public/'
     | '/{-$lng}/(byline)/admin/'
-    | '/(byline)/admin/api/$collection/upload'
+    | '/{-$lng}/(byline)/admin/api/$collection/upload'
     | '/{-$lng}/(byline)/admin/collections/$collection/create'
     | '/{-$lng}/(byline)/admin/collections/$collection/'
     | '/{-$lng}/(byline)/admin/collections/$collection/$id/api'
@@ -162,7 +162,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   Char123LngChar125RouteRoute: typeof Char123LngChar125RouteRouteWithChildren
-  bylineAdminApiCollectionUploadRoute: typeof bylineAdminApiCollectionUploadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -202,13 +201,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LngChar125bylineAdminIndexRouteImport
       parentRoute: typeof Char123LngChar125bylineAdminRouteRoute
     }
-    '/(byline)/admin/api/$collection/upload': {
-      id: '/(byline)/admin/api/$collection/upload'
-      path: '/admin/api/$collection/upload'
-      fullPath: '/admin/api/$collection/upload'
-      preLoaderRoute: typeof bylineAdminApiCollectionUploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/{-$lng}/(byline)/admin/collections/$collection/': {
       id: '/{-$lng}/(byline)/admin/collections/$collection/'
       path: '/collections/$collection'
@@ -221,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/collections/$collection/create'
       fullPath: '/{-$lng}/admin/collections/$collection/create'
       preLoaderRoute: typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRouteImport
+      parentRoute: typeof Char123LngChar125bylineAdminRouteRoute
+    }
+    '/{-$lng}/(byline)/admin/api/$collection/upload': {
+      id: '/{-$lng}/(byline)/admin/api/$collection/upload'
+      path: '/api/$collection/upload'
+      fullPath: '/{-$lng}/admin/api/$collection/upload'
+      preLoaderRoute: typeof Char123LngChar125bylineAdminApiCollectionUploadRouteImport
       parentRoute: typeof Char123LngChar125bylineAdminRouteRoute
     }
     '/{-$lng}/(byline)/admin/collections/$collection/$id/': {
@@ -263,6 +262,7 @@ const Char123LngChar125PublicRouteRouteWithChildren =
 
 interface Char123LngChar125bylineAdminRouteRouteChildren {
   Char123LngChar125bylineAdminIndexRoute: typeof Char123LngChar125bylineAdminIndexRoute
+  Char123LngChar125bylineAdminApiCollectionUploadRoute: typeof Char123LngChar125bylineAdminApiCollectionUploadRoute
   Char123LngChar125bylineAdminCollectionsCollectionCreateRoute: typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   Char123LngChar125bylineAdminCollectionsCollectionIndexRoute: typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
   Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute: typeof Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute
@@ -274,6 +274,8 @@ const Char123LngChar125bylineAdminRouteRouteChildren: Char123LngChar125bylineAdm
   {
     Char123LngChar125bylineAdminIndexRoute:
       Char123LngChar125bylineAdminIndexRoute,
+    Char123LngChar125bylineAdminApiCollectionUploadRoute:
+      Char123LngChar125bylineAdminApiCollectionUploadRoute,
     Char123LngChar125bylineAdminCollectionsCollectionCreateRoute:
       Char123LngChar125bylineAdminCollectionsCollectionCreateRoute,
     Char123LngChar125bylineAdminCollectionsCollectionIndexRoute:
@@ -311,7 +313,6 @@ const Char123LngChar125RouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   Char123LngChar125RouteRoute: Char123LngChar125RouteRouteWithChildren,
-  bylineAdminApiCollectionUploadRoute: bylineAdminApiCollectionUploadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
