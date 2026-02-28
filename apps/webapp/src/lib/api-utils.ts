@@ -18,30 +18,6 @@
 
 import type { CollectionDefinition } from '@byline/core'
 import { getCollectionDefinition, getServerConfig } from '@byline/core'
-import { normaliseDateFields } from '@byline/core/services'
-import { booleanSchema } from '@infonomic/schemas'
-import * as z from 'zod'
-
-export { normaliseDateFields }
-
-export const collectionListSchema = z.object({
-  page: z.coerce.number().min(1).optional(),
-  page_size: z.coerce.number().min(1).max(100).optional(),
-  order: z.string().optional(),
-  desc: booleanSchema(true),
-  query: z.string().optional(),
-  locale: z.string().optional(),
-  status: z.string().optional(),
-})
-
-export const historySchema = z.object({
-  document_id: z.string(),
-  page: z.coerce.number().min(1).optional(),
-  page_size: z.coerce.number().min(1).max(100).optional(),
-  order: z.string().optional(),
-  desc: booleanSchema(true),
-  locale: z.string().optional(),
-})
 
 /**
  * ensureCollection
@@ -70,15 +46,4 @@ export async function ensureCollection(
   }
 
   return { definition: collectionDefinition, collection }
-}
-
-/**
- * Parse URL search params into a plain object.
- */
-export function searchParamsToObject(url: URL): Record<string, string> {
-  const obj: Record<string, string> = {}
-  url.searchParams.forEach((value, key) => {
-    obj[key] = value
-  })
-  return obj
 }

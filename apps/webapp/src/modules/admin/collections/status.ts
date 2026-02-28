@@ -1,7 +1,12 @@
 import { changeStatusFn, unpublishDocumentFn } from './server-fns'
 
-export async function updateDocumentStatus(collection: string, id: string, status: string) {
-  return changeStatusFn({ data: { collection, id, status } })
+export async function updateDocumentStatus(
+  collection: string,
+  id: string,
+  status: string,
+  locale?: string
+) {
+  return changeStatusFn({ data: { collection, id, status, locale } })
 }
 
 /**

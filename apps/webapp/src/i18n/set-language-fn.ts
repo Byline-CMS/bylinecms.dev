@@ -1,14 +1,18 @@
 /**
- * TanStack Start server function to persist the locale preference cookie.
+ * TanStack Start server functions for locale management.
  *
- * Replaces the Next.js server action (set-language-action.ts).
- * Uses createServerFn so the cookie is set via proper Set-Cookie headers,
+ * - setLanguageFn: persist the locale preference cookie.
+ * - detectLocaleFn: detect locale from cookie / Accept-Language header.
+ *
+ * Replaces the Next.js server actions and middleware locale detection.
+ * Uses createServerFn so cookies are set via proper Set-Cookie headers,
  * which is secure and SSR-compatible.
  */
 
 import { createServerFn } from '@tanstack/react-start'
-import { getCookie, setCookie } from '@tanstack/react-start/server'
+import { getCookie, getRequestHeader, setCookie } from '@tanstack/react-start/server'
 
+import { detectLocale } from '@/i18n/detect-locale'
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 
 export const setLanguageFn = createServerFn({ method: 'POST' })
@@ -30,10 +34,17 @@ export const setLanguageFn = createServerFn({ method: 'POST' })
   })
 
 /**
- * Server function to read the locale cookie from an incoming request.
- * Useful for first-visit locale detection when SSR is enabled.
+ * Server function to detect the best locale for the current request.
+ *
+ * Priority: cookie → Accept-Language header → default locale.
+ * The optional {-$lng} path parameter is validated upstream by the route
+ * itself, so it is not passed here.
  */
-export const getLanguageCookieFn = createServerFn({ method: 'GET' }).handler(async () => {
-  const lng = getCookie(i18nConfig.cookieName) as Locale | undefined
-  return { lng: lng ?? null }
+export const detectLocaleFn = createServerFn({ method: 'GET' }).handler(async () => {
+  const cookie = getCookie(i18nConfig.cookieName)
+  const acceptLanguage = getRequestHeader('accept-language')
+
+  const locale = detectLocale({ cookie, acceptLanguage })
+
+  return { locale }
 })

@@ -10,13 +10,19 @@
  * Server functions for admin collection operations.
  *
  * Each function runs on the server and queries the database directly
- * via the @byline/core services layer. In SPA mode, TanStack Start
- * compiles these to RPC endpoints automatically — semantically identical
- * to the REST routes in /admin/api/, without the HTTP round-trip overhead.
+ * via the @byline/core services layer. TanStack Start compiles these
+ * to RPC endpoints automatically.
  *
- * The public REST routes under /admin/api/ are kept intact as the
- * external API surface (for mobile clients, CLI tools, Next.js, etc.).
- * These server functions serve the internal admin dashboard UI.
+ * These are the primary data layer for the admin dashboard. The REST
+ * API routes under /admin/api/ have been removed — the upload endpoint
+ * is the sole remaining route (multipart FormData requires a raw HTTP
+ * handler). A public REST API for external consumers (mobile, CLI, etc.)
+ * will be extracted as a separate concern later.
+ *
+ * IMPORTANT: The `locale` parameter on these functions refers to
+ * **content** locale (i.e. which language version of a document to
+ * read/write), NOT the interface/i18n translation locale. Content
+ * locales may be a superset of UI locales.
  */
 
 import { createServerFn } from '@tanstack/react-start'
@@ -194,9 +200,9 @@ export const getDocumentHistoryFn = createServerFn({ method: 'GET' })
 // ---------------------------------------------------------------------------
 
 export const createDocumentFn = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; data: any }) => input)
+  .inputValidator((input: { collection: string; data: any; locale?: string }) => input)
   .handler(async ({ data: input }) => {
-    const { collection: path, data: documentData } = input
+    const { collection: path, data: documentData, locale } = input
     const config = await ensureCollection(path)
     if (!config) throw new Error('Collection not found')
 
@@ -211,7 +217,7 @@ export const createDocumentFn = createServerFn({ method: 'POST' })
     await createDocument(ctx, {
       data: structuredClone(documentData),
       status: documentData.status,
-      locale: 'en',
+      locale: locale ?? 'en',
     })
 
     return { status: 'ok' as const }
@@ -222,9 +228,9 @@ export const createDocumentFn = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const updateDocumentFn = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; id: string; data: any }) => input)
+  .inputValidator((input: { collection: string; id: string; data: any; locale?: string }) => input)
   .handler(async ({ data: input }) => {
-    const { collection: path, id, data: documentData } = input
+    const { collection: path, id, data: documentData, locale } = input
     const config = await ensureCollection(path)
     if (!config) throw new Error('Collection not found')
 
@@ -239,7 +245,7 @@ export const updateDocumentFn = createServerFn({ method: 'POST' })
     await updateDocument(ctx, {
       documentId: id,
       data: structuredClone(documentData),
-      locale: 'en',
+      locale: locale ?? 'en',
     })
 
     return { status: 'ok' as const }
@@ -303,9 +309,11 @@ export const applyPatchesFn = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const changeStatusFn = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; id: string; status: string }) => input)
+  .inputValidator(
+    (input: { collection: string; id: string; status: string; locale?: string }) => input
+  )
   .handler(async ({ data: input }) => {
-    const { collection: path, id, status: nextStatus } = input
+    const { collection: path, id, status: nextStatus, locale } = input
     const config = await ensureCollection(path)
     if (!config) throw new Error('Collection not found')
 
@@ -321,7 +329,7 @@ export const changeStatusFn = createServerFn({ method: 'POST' })
       const result = await changeDocumentStatus(ctx, {
         documentId: id,
         nextStatus,
-        locale: 'en',
+        locale: locale ?? 'en',
       })
       return {
         status: 'ok' as const,

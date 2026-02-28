@@ -35,12 +35,23 @@ export function defineServerConfig(config: ServerConfig) {
 }
 
 export function getClientConfig(): ClientConfig {
-  if (clientConfigInstance == null) {
-    throw new Error(
-      'Byline has not been configured yet. Please call defineClientConfig in byline.config.ts first.'
-    )
+  if (clientConfigInstance != null) {
+    return clientConfigInstance
   }
-  return clientConfigInstance
+  // During SSR the client entry has not run yet, but the server config
+  // carries the same collection definitions.  Return a compatible object
+  // so route loaders and components work in both contexts.
+  if (serverConfigInstance != null) {
+    return {
+      serverURL: serverConfigInstance.serverURL,
+      i18n: serverConfigInstance.i18n,
+      collections: serverConfigInstance.collections,
+      admin: [],
+    } as ClientConfig
+  }
+  throw new Error(
+    'Byline has not been configured yet. Please call defineClientConfig in byline.config.ts first.'
+  )
 }
 
 export function getServerConfig(): ServerConfig {

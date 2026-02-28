@@ -3,6 +3,12 @@
  * resolves the effective locale, loads translations, and provides them
  * to all descendant routes via TranslationsProvider + router context.
  *
+ * With SSR enabled, the `beforeLoad` hook runs on the server for the
+ * initial request. When no locale segment is in the URL it calls
+ * `detectLocaleFn` to read the cookie / Accept-Language header and, if
+ * the detected locale is not the default, **redirects** to the
+ * locale-prefixed path before any HTML is sent to the client.
+ *
  * URL patterns:
  *   /admin/...          → default locale (en)
  *   /es/admin/...       → Spanish
@@ -10,14 +16,15 @@
  *   /xyz/admin/...      → 404 (invalid locale)
  */
 
-import { createFileRoute, notFound, Outlet } from '@tanstack/react-router'
+import { createFileRoute, notFound, Outlet, redirect } from '@tanstack/react-router'
 
 import { TranslationsProvider } from '@/i18n/client/translations-provider'
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import { detectLocaleFn } from '@/i18n/set-language-fn'
 import { getTranslations } from '@/i18n/translations'
 
 export const Route = createFileRoute('/{-$lng}')({
-  beforeLoad: ({ params }) => {
+  beforeLoad: async ({ params, location }) => {
     const lng = params.lng as string | undefined
 
     // If a locale segment is present but invalid, throw a 404
@@ -25,8 +32,22 @@ export const Route = createFileRoute('/{-$lng}')({
       throw notFound()
     }
 
-    // Resolve the effective locale — undefined means we're on a clean URL
-    // (default locale)
+    // If no locale in the URL, detect from cookie / Accept-Language on the server
+    if (lng == null) {
+      const { locale: detected } = await detectLocaleFn()
+
+      // If the detected locale is not the default, redirect to the
+      // locale-prefixed URL so the user gets their preferred language.
+      if (detected !== i18nConfig.defaultLocale) {
+        throw redirect({
+          href: `/${detected}${location.pathname}`,
+          replace: true,
+          statusCode: 302,
+        })
+      }
+    }
+
+    // Resolve the effective locale
     const locale = (lng as Locale) ?? i18nConfig.defaultLocale
 
     return { locale }

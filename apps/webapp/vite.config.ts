@@ -21,12 +21,7 @@ export default defineConfig({
   },
   plugins: [
     tsConfigPaths(),
-    tanstackStart({
-      // Enable SPA mode – ideal for a CMS admin dashboard.
-      // Server routes and server functions still work in SPA mode.
-      // Remove or set to false to enable full SSR.
-      spa: { enabled: true },
-    }),
+    tanstackStart(),
     // NOTE: react() must come AFTER tanstackStart()
     react(),
     tailwindcss(),
