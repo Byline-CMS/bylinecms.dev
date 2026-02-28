@@ -10,11 +10,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useBlocker } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
-import {
-  Button,
-  ComboButton,
-  Modal
-} from '@infonomic/uikit/react'
+import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
 
 import { i18n } from '~/i18n'
 import { Tabs } from '../admin/tabs'
@@ -432,7 +428,6 @@ const FormContent = ({
             intent="noeffect"
             type="button"
             onClick={handleCancel}
-
           >
             {hasChanges === false ? 'Close' : 'Cancel'}
           </Button>
@@ -448,7 +443,7 @@ const FormContent = ({
             <div className="relative z-10">
               <ComboButton
                 buttonClassName="min-w-[100px] min-h-[28px]"
-                triggerClassName='min-h-[28px]'
+                triggerClassName="min-h-[28px]"
                 options={secondaryStatuses.map((s) => ({
                   label: s.verb ?? s.label ?? s.name,
                   value: s.name,
@@ -591,7 +586,7 @@ const FormContent = ({
           </Modal.Container>
         </Modal>
       )}
-    </form >
+    </form>
   )
 }
 
@@ -642,7 +637,9 @@ export const FormRenderer = ({
         initialLocale={initialLocale}
         onLocaleChange={onLocaleChange}
         _activeTab={savedTabRef.current}
-        _onTabChange={(tab) => { savedTabRef.current = tab }}
+        _onTabChange={(tab) => {
+          savedTabRef.current = tab
+        }}
       />
     </FormProvider>
   )

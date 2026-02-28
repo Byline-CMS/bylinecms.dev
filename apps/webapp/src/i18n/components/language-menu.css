@@ -1,0 +1,32 @@
+.component--language-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-sizing: border-box;
+  background-color: transparent;
+  outline: 0;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  color: var(--gray-900);
+  min-width: 32px;
+  padding: 4px 8px;
+  /* border-radius: 4px; */
+  border: solid 1px transparent;
+  transition: all 250ms ease;
+}
+
+.component--language-menu:active,
+.component--language-menu:focus {
+  outline: none;
+  border-style: solid;
+  border-width: 1.5px;
+  border-color: var(--canvas-900);
+  /* border-radius: 4px; */
+}
+
+.dark .component--language-menu:active,
+.dark .component--language-menu:focus {
+  border-color: var(--canvas-200);
+}

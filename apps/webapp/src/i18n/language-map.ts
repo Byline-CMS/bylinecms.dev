@@ -1,11 +1,3 @@
-/**
- * This Source Code is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/.
- *
- * Copyright (c) Infonomic Company Limited
- */
-
 export type LanguageMap = Record<string, { nativeName: string }>
 
 // Determines which languages the UI can switch between, and
@@ -21,7 +13,9 @@ export const interfaceLanguageMap: LanguageMap = {
 // will work.
 export const availableLanguageMap: LanguageMap = {
   en: { nativeName: 'English' },
+  fr: { nativeName: 'Français' },
   es: { nativeName: 'Español' },
+  de: { nativeName: 'Deutsch' },
 }
 
 export type AvailableLanguagesType = Record<string, boolean>

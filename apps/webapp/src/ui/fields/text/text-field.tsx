@@ -55,7 +55,12 @@ export const TextField = ({
     <div className={`byline-text ${field.name}`}>
       {showBadge && (
         <div className="flex items-center">
-          <Label id={`${id ?? fieldPath}-label`} htmlFor={id ?? fieldPath} label={field.label!} required={field.required} />
+          <Label
+            id={`${id ?? fieldPath}-label`}
+            htmlFor={id ?? fieldPath}
+            label={field.label!}
+            required={field.required}
+          />
           <LocaleBadge locale={locale} />
         </div>
       )}
@@ -69,7 +74,7 @@ export const TextField = ({
         onChange={(e) => handleChange(e.target.value)}
         error={fieldError != null}
         errorText={fieldError}
-      // className={isDirty ? 'border-yellow-300' : ''}
+        // className={isDirty ? 'border-yellow-300' : ''}
       />
     </div>
   )

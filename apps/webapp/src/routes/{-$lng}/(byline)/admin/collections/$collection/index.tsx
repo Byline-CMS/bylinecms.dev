@@ -33,7 +33,7 @@ const searchSchema = z.object({
   action: z.enum(['created']).optional(),
 })
 
-export const Route = createFileRoute('/(byline)/admin/collections/$collection/')({
+export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$collection/')({
   validateSearch: searchSchema,
   loaderDeps: ({ search: { page, page_size, order, desc, query, locale, status } }) => ({
     page,

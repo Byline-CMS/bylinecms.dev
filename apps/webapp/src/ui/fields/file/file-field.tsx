@@ -44,7 +44,9 @@ export const FileField = ({
     : incomingValue
 
   return (
-    <div className={`byline-file ${field.name}${isDirty ? ' border border-blue-300 rounded-md p-3' : ''}`}>
+    <div
+      className={`byline-file ${field.name}${isDirty ? ' border border-blue-300 rounded-md p-3' : ''}`}
+    >
       <div className="flex items-baseline justify-between mb-1">
         <div>
           <div className="text-sm font-medium text-gray-100">

@@ -1,8 +1,8 @@
 import type React from 'react'
-import { Link } from '@tanstack/react-router'
 
 import cx from 'classnames'
 
+import { LangLink } from '@/i18n/components/lang-link'
 import Logo from '@/images/byline-logo'
 import type { Locale } from '@/i18n/i18n-config'
 
@@ -25,10 +25,10 @@ export function Branding({
         brandingBackground
       )}
     >
-      <Link to="/" className="flex items-center gap-3">
+      <LangLink to="/" className="flex items-center gap-3">
         <Logo className="w-[29px] h-[29px]" />
         <span className="text-[1.4rem] font-bold whitespace-nowrap">Byline</span>
-      </Link>
+      </LangLink>
     </div>
   )
 }

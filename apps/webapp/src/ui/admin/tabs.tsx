@@ -51,11 +51,11 @@ export const Tabs = ({ tabs, activeTab, onChange, errorCounts, className }: Tabs
               isActive
                 ? 'border-primary-400 text-primary-600 dark:text-primary-200 dark:border-primary-400'
                 : [
-                  'border-transparent',
-                  'text-gray-500 dark:text-gray-400',
-                  'hover:text-gray-800 dark:hover:text-gray-200',
-                  'hover:border-gray-300 dark:hover:border-gray-600',
-                ]
+                    'border-transparent',
+                    'text-gray-500 dark:text-gray-400',
+                    'hover:text-gray-800 dark:hover:text-gray-200',
+                    'hover:border-gray-300 dark:hover:border-gray-600',
+                  ]
             )}
           >
             <span className="flex items-center gap-1.5">

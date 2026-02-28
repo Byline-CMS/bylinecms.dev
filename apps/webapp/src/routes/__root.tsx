@@ -8,13 +8,13 @@
 
 /// <reference types="vite/client" />
 import type { ReactNode } from 'react'
-import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router'
+import { createRootRoute, HeadContent, Outlet, Scripts, useParams } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
 import { ToastProvider, ToastViewport } from '@infonomic/uikit/react'
 
 import { BreadcrumbsProvider } from '@/context/breadcrumbs/breadcrumbs-provider'
-import { TranslationsProvider } from '@/i18n/client/translation-provider'
+import { i18nConfig } from '@/i18n/i18n-config'
 import { EarlyThemeDetector } from '@/ui/theme/early-theme-detector'
 import { ThemeProvider } from '@/ui/theme/provider'
 import { Theme } from '@/ui/theme/utils'
@@ -44,25 +44,27 @@ function RootComponent() {
   return (
     <RootDocument>
       <ThemeProvider force={Theme.DARK}>
-        <TranslationsProvider>
-          <ToastProvider swipeDirection="right" duration={5000}>
-            <BreadcrumbsProvider>
-              <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
-                <Outlet />
-              </div>
-              <TanStackRouterDevtools />
-            </BreadcrumbsProvider>
-            <ToastViewport className="toast-viewport" />
-          </ToastProvider>
-        </TranslationsProvider>
+        <ToastProvider swipeDirection="right" duration={5000}>
+          <BreadcrumbsProvider>
+            <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
+              <Outlet />
+            </div>
+            <TanStackRouterDevtools />
+          </BreadcrumbsProvider>
+          <ToastViewport className="toast-viewport" />
+        </ToastProvider>
       </ThemeProvider>
     </RootDocument>
   )
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
+  // Read the optional {-$lng} param to set the <html lang> attribute dynamically
+  const params = useParams({ strict: false }) as { lng?: string }
+  const lang = params.lng ?? i18nConfig.defaultLocale
+
   return (
-    <html className="dark" lang="en" suppressHydrationWarning>
+    <html className="dark" lang={lang} suppressHydrationWarning>
       <head>
         <EarlyThemeDetector />
         <HeadContent />

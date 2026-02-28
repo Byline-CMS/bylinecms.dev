@@ -13,6 +13,7 @@ import { getClientConfig, getWorkflowStatuses } from '@byline/core'
 import { Card, Container, Section } from '@infonomic/uikit/react'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { type CollectionStatusCount, getCollectionStats } from '@/modules/admin/collections'
 
 // ---------------------------------------------------------------------------
@@ -20,10 +21,7 @@ import { type CollectionStatusCount, getCollectionStats } from '@/modules/admin/
 // All classes must be written as full strings so Tailwind's scanner
 // includes them in the generated CSS bundle.
 // ---------------------------------------------------------------------------
-const STATUS_TILE_COLORS: Record<
-  string,
-  { label: string; number: string; bg: string }
-> = {
+const STATUS_TILE_COLORS: Record<string, { label: string; number: string; bg: string }> = {
   draft: {
     bg: 'bg-amber-50 dark:bg-amber-900/20',
     label: 'text-amber-600 dark:text-amber-400',
@@ -53,7 +51,7 @@ function statusTileColors(name: string) {
 
 // ---------------------------------------------------------------------------
 
-export const Route = createFileRoute('/(byline)/admin/')({
+export const Route = createFileRoute('/{-$lng}/(byline)/admin/')({
   loader: async () => {
     const { collections } = getClientConfig()
     const statsMap: Record<string, CollectionStatusCount[]> = {}
@@ -79,12 +77,17 @@ function StatTile({
   ws,
   count,
   collectionPath,
-}: { ws: WorkflowStatus; count: number; collectionPath: string }) {
+}: {
+  ws: WorkflowStatus
+  count: number
+  collectionPath: string
+}) {
   const colors = statusTileColors(ws.name)
+  const uiLocale = useLocale()
   return (
     <Link
-      to="/admin/collections/$collection"
-      params={{ collection: collectionPath }}
+      to="/{-$lng}/admin/collections/$collection"
+      params={{ ...lngParam(uiLocale), collection: collectionPath }}
       search={{ status: ws.name }}
       className={[
         'flex flex-col items-center justify-center rounded px-2 pt-4 pb-2.5 gap-0.5',
@@ -112,6 +115,7 @@ function StatTile({
 function Index() {
   const config = getClientConfig()
   const { statsMap } = Route.useLoaderData()
+  const uiLocale = useLocale()
 
   return (
     <>
@@ -127,15 +131,17 @@ function Index() {
               return (
                 <Card key={collection.path}>
                   <Link
-                    to="/admin/collections/$collection"
-                    params={{ collection: collection.path }}
+                    to="/{-$lng}/admin/collections/$collection"
+                    params={{ ...lngParam(uiLocale), collection: collection.path }}
                     className="block hover:opacity-90"
                   >
                     <Card.Header>
                       <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
                         <Card.Title className="flex justify-between items-center mb-1">
                           <span className="text-[1.5rem]">{collection.labels.plural}</span>
-                          <span className="text-[0.9rem] muted font-sans font-normal">{total} total</span>
+                          <span className="text-[0.9rem] muted font-sans font-normal">
+                            {total} total
+                          </span>
                         </Card.Title>
                         <Card.Description className="muted">{`${collection.labels.plural} collection`}</Card.Description>
                       </div>
@@ -158,8 +164,8 @@ function Index() {
                       </div>
                     ) : (
                       <Link
-                        to="/admin/collections/$collection"
-                        params={{ collection: collection.path }}
+                        to="/{-$lng}/admin/collections/$collection"
+                        params={{ ...lngParam(uiLocale), collection: collection.path }}
                         className="block"
                       >
                         <p>{collection.labels.plural} collection</p>

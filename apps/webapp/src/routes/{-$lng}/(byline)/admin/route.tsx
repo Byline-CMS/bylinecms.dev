@@ -2,7 +2,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { AdminAppBar } from '@/ui/components/admin-app-bar'
 
-export const Route = createFileRoute('/(byline)/admin')({
+export const Route = createFileRoute('/{-$lng}/(byline)/admin')({
   component: AdminLayoutComponent,
 })
 

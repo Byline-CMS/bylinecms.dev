@@ -14,6 +14,7 @@ import { getWorkflowStatuses } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { Container, Section, Toast } from '@infonomic/uikit/react'
 
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { FormRenderer } from '@/ui/fields/form-renderer'
 import {
   deleteDocument,
@@ -45,6 +46,7 @@ export const EditView = ({
     message: '',
   })
   const navigate = useNavigate()
+  const uiLocale = useLocale()
   const { labels, path, fields } = collectionDefinition
 
   // Compute the next forward workflow status for the status button.
@@ -58,8 +60,8 @@ export const EditView = ({
 
   const handleLocaleChange = (newLocale: string) => {
     navigate({
-      to: '/admin/collections/$collection/$id',
-      params: { collection: path, id: String(initialData.document_id) },
+      to: '/{-$lng}/admin/collections/$collection/$id',
+      params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
       search: { locale: newLocale },
     })
   }
@@ -74,8 +76,8 @@ export const EditView = ({
       setToast(true)
       // Refresh the page to reflect the new status.
       navigate({
-        to: '/admin/collections/$collection/$id',
-        params: { collection: path, id: String(initialData.document_id) },
+        to: '/{-$lng}/admin/collections/$collection/$id',
+        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
         search: (prev) => ({ ...prev }),
       })
     } catch (err) {
@@ -101,8 +103,8 @@ export const EditView = ({
       })
       setToast(true)
       navigate({
-        to: '/admin/collections/$collection/$id',
-        params: { collection: path, id: String(initialData.document_id) },
+        to: '/{-$lng}/admin/collections/$collection/$id',
+        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
         search: (prev) => ({ ...prev }),
       })
     } catch (err) {
@@ -124,7 +126,10 @@ export const EditView = ({
       })
       setToast(true)
       // Navigate back to the collection list after deletion.
-      navigate({ to: '/admin/collections/$collection', params: { collection: path } })
+      navigate({
+        to: '/{-$lng}/admin/collections/$collection',
+        params: { ...lngParam(uiLocale), collection: path },
+      })
     } catch (err) {
       console.error('Delete error:', err)
       setEditState({
@@ -156,8 +161,8 @@ export const EditView = ({
       // The new version will have a fresh version ID, draft status, and
       // updated publishedVersion metadata.
       navigate({
-        to: '/admin/collections/$collection/$id',
-        params: { collection: path, id: String(initialData.document_id) },
+        to: '/{-$lng}/admin/collections/$collection/$id',
+        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
         search: (prev) => ({ ...prev }),
       })
     } catch (err) {
@@ -198,7 +203,10 @@ export const EditView = ({
             nextStatus={nextStatus}
             workflowStatuses={workflowStatuses}
             onCancel={() =>
-              navigate({ to: '/admin/collections/$collection', params: { collection: path } })
+              navigate({
+                to: '/{-$lng}/admin/collections/$collection',
+                params: { ...lngParam(uiLocale), collection: path },
+              })
             }
             collectionPath={path}
           />

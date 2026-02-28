@@ -11,6 +11,7 @@ import { useNavigate } from '@tanstack/react-router'
 
 import { Button, HistoryIcon, IconButton, Label, Select, SelectItem } from '@infonomic/uikit/react'
 
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { contentLocales, i18n } from '~/i18n'
 
 export type ViewMenuPaths = 'edit' | 'history' | 'api'
@@ -38,21 +39,22 @@ export const ViewMenu = ({
   locale?: string
 }) => {
   const navigate = useNavigate()
+  const uiLocale = useLocale()
 
   // Edit view must never use 'all' locale — strip it from the URL and fall
   // back to the default locale if it somehow arrives via navigation.
   useEffect(() => {
     if (activeView === 'edit' && locale === 'all') {
       navigate({
-        to: '/admin/collections/$collection/$id',
-        params: { collection, id: documentId },
+        to: '/{-$lng}/admin/collections/$collection/$id',
+        params: { ...lngParam(uiLocale), collection, id: documentId },
         search: (prev: Record<string, unknown>) => ({
           ...prev,
           locale: i18n.content.defaultLocale,
         }),
       })
     }
-  }, [activeView, locale, collection, documentId, navigate])
+  }, [activeView, locale, collection, documentId, navigate, uiLocale])
 
   const handleLocaleChange = (value: string) => {
     // Always put locale explicitly in the URL — 'all' is stored as 'all',
@@ -60,20 +62,20 @@ export const ViewMenu = ({
     const search = (prev: Record<string, unknown>) => ({ ...prev, locale: value })
     if (activeView === 'api') {
       navigate({
-        to: '/admin/collections/$collection/$id/api',
-        params: { collection, id: documentId },
+        to: '/{-$lng}/admin/collections/$collection/$id/api',
+        params: { ...lngParam(uiLocale), collection, id: documentId },
         search: search as any,
       })
     } else if (activeView === 'history') {
       navigate({
-        to: '/admin/collections/$collection/$id/history',
-        params: { collection, id: documentId },
+        to: '/{-$lng}/admin/collections/$collection/$id/history',
+        params: { ...lngParam(uiLocale), collection, id: documentId },
         search: search as any,
       })
     } else {
       navigate({
-        to: '/admin/collections/$collection/$id',
-        params: { collection, id: documentId },
+        to: '/{-$lng}/admin/collections/$collection/$id',
+        params: { ...lngParam(uiLocale), collection, id: documentId },
         search: search as any,
       })
     }
@@ -81,7 +83,12 @@ export const ViewMenu = ({
 
   return (
     <div className="flex items-center gap-2 mt-2 mb-2">
-      <Label className="hidden lg:block muted text-gray-400 text-xs pt-[2px]" id="contentLocaleLabel" htmlFor="contentLocale" label="Content Locale:" />
+      <Label
+        className="hidden lg:block muted text-gray-400 text-xs pt-[2px]"
+        id="contentLocaleLabel"
+        htmlFor="contentLocale"
+        label="Content Locale:"
+      />
       <Select
         name="contentLocale"
         id="contentLocale"
@@ -104,8 +111,8 @@ export const ViewMenu = ({
         variant={activeView === 'history' ? 'filled' : 'text'}
         onClick={() =>
           navigate({
-            to: '/admin/collections/$collection/$id/history',
-            params: { collection, id: documentId },
+            to: '/{-$lng}/admin/collections/$collection/$id/history',
+            params: { ...lngParam(uiLocale), collection, id: documentId },
             search: locale ? { locale } : {},
           })
         }
@@ -118,8 +125,8 @@ export const ViewMenu = ({
         className="min-w-[50px]"
         onClick={() =>
           navigate({
-            to: '/admin/collections/$collection/$id',
-            params: { collection, id: documentId },
+            to: '/{-$lng}/admin/collections/$collection/$id',
+            params: { ...lngParam(uiLocale), collection, id: documentId },
             search: locale ? { locale } : {},
           })
         }
@@ -132,8 +139,8 @@ export const ViewMenu = ({
         className="min-w-[50px]"
         onClick={() =>
           navigate({
-            to: '/admin/collections/$collection/$id/api',
-            params: { collection, id: documentId },
+            to: '/{-$lng}/admin/collections/$collection/$id/api',
+            params: { ...lngParam(uiLocale), collection, id: documentId },
             search: locale ? { locale } : {},
           })
         }

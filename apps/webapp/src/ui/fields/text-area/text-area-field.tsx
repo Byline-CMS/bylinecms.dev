@@ -55,7 +55,12 @@ export const TextAreaField = ({
     <div className={`byline-textArea ${field.name}`}>
       {showBadge && (
         <div className="flex items-center">
-          <Label id={`${id ?? fieldPath}-label`} htmlFor={id ?? fieldPath} label={field.label!} required={field.required} />
+          <Label
+            id={`${id ?? fieldPath}-label`}
+            htmlFor={id ?? fieldPath}
+            label={field.label!}
+            required={field.required}
+          />
           <LocaleBadge locale={locale} />
         </div>
       )}

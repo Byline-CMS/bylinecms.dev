@@ -1,6 +1,6 @@
-import { Link } from '@tanstack/react-router'
-
 import { Container, Section } from '@infonomic/uikit/react'
+
+import { LangLink } from '@/i18n/components/lang-link'
 
 export function HeroTagline() {
   return (
@@ -17,7 +17,7 @@ export function HeroTagline() {
           applications.
         </p>
         <p className="m-0 mb-6 text-center underline">
-          <Link to="/admin">Admin Dashboard</Link>
+          <LangLink to="/admin">Admin Dashboard</LangLink>
         </p>
       </Container>
     </Section>

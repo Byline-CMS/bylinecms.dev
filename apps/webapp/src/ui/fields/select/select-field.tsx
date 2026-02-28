@@ -51,7 +51,9 @@ export const SelectField = ({
           </SelectItem>
         ))}
       </Select>
-      {fieldError && <ErrorText className="mt-1 text-xs text-red-400" id={id ?? fieldPath} text={fieldError} />}
+      {fieldError && (
+        <ErrorText className="mt-1 text-xs text-red-400" id={id ?? fieldPath} text={fieldError} />
+      )}
     </div>
   )
 }

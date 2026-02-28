@@ -5,7 +5,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBar } from '@/ui/components/app-bar'
 
-export const Route = createFileRoute('/_public')({
+export const Route = createFileRoute('/{-$lng}/_public')({
   component: PublicLayout,
 })
 

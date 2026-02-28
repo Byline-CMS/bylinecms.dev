@@ -1,11 +1,3 @@
-/**
- * This Source Code is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/.
- *
- * Copyright (c) Infonomic Company Limited
- */
-
 // https://github.com/vercel/next.js/tree/canary/examples/app-dir-i18n-routing
 import 'server-only'
 
@@ -17,7 +9,7 @@ import type { Locale } from '@/i18n/i18n-config'
 // We also get the default import for cleaner types
 const translations = {
   en: () => import('../translations/en.json').then((module) => module.default),
-  es: () => import('../translations/es.json').then((module) => module.default),
+  th: () => import('../translations/th.json').then((module) => module.default),
 }
 
 export const getTranslations = async (lng: Locale) => translations[lng]?.() ?? translations.en()

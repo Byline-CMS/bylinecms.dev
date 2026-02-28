@@ -261,10 +261,10 @@ export function MediaListView({
 
               const updatedAt = doc.updated_at
                 ? new Date(doc.updated_at).toLocaleDateString(undefined, {
-                  year: 'numeric',
-                  month: 'short',
-                  day: '2-digit',
-                })
+                    year: 'numeric',
+                    month: 'short',
+                    day: '2-digit',
+                  })
                 : null
 
               return (

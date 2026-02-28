@@ -51,14 +51,20 @@ export const RichTextField = ({
 
   // Assemble the label node here (a Byline-level concern) so that the editor
   // component itself stays free of any Byline-specific dependencies.
-  const labelNode: React.ReactNode = locale && field.label
-    ? (
+  const labelNode: React.ReactNode =
+    locale && field.label ? (
       <div className="flex items-center">
-        <Label id={`${fieldId}-label`} label={field.label} htmlFor={fieldId} required={field.required} />
+        <Label
+          id={`${fieldId}-label`}
+          label={field.label}
+          htmlFor={fieldId}
+          required={field.required}
+        />
         <LocaleBadge locale={locale} />
       </div>
+    ) : (
+      field.label
     )
-    : field.label
 
   return (
     <div className={`byline-richText ${field.name} flex flex-1 h-full`}>

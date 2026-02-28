@@ -65,11 +65,13 @@
     "lodash-es": "^4.17.23",
     "lucide-react": "^0.575.0",
     "react": "19.2.4",
+    "react-cookie": "^8.0.1",
     "react-diff-viewer-continued": "^4.1.2",
     "react-dom": "19.2.4",
     "react-error-boundary": "^6.1.1",
     "react-hook-form": "^7.71.2",
     "react-json-view-lite": "^2.5.0",
+    "react-swipeable": "^7.0.2",
     "uuid": "^13.0.0",
     "zod": "^4.3.6",
     "zod-form-data": "^3.0.1"

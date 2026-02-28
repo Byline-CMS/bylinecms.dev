@@ -24,6 +24,7 @@ import {
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
@@ -54,7 +55,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-        }`}
+      }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -72,6 +73,7 @@ export const ListView = ({
   workflowStatuses?: WorkflowStatus[]
 }) => {
   const navigate = useNavigate()
+  const uiLocale = useLocale()
   const location = useRouterState({ select: (s) => s.location })
 
   const handleOnSearch = (query: string): void => {
@@ -80,8 +82,8 @@ export const ListView = ({
       delete params.page
       params.query = query
       navigate({
-        to: '/admin/collections/$collection',
-        params: { collection: data.included.collection.path },
+        to: '/{-$lng}/admin/collections/$collection',
+        params: { ...lngParam(uiLocale), collection: data.included.collection.path },
         search: params,
       })
     }
@@ -92,8 +94,8 @@ export const ListView = ({
     delete params.page
     delete params.query
     navigate({
-      to: '/admin/collections/$collection',
-      params: { collection: data.included.collection.path },
+      to: '/{-$lng}/admin/collections/$collection',
+      params: { ...lngParam(uiLocale), collection: data.included.collection.path },
       search: params,
     })
   }
@@ -107,8 +109,8 @@ export const ListView = ({
       params.status = value
     }
     navigate({
-      to: '/admin/collections/$collection',
-      params: { collection: data.included.collection.path },
+      to: '/{-$lng}/admin/collections/$collection',
+      params: { ...lngParam(uiLocale), collection: data.included.collection.path },
       search: params,
     })
   }
@@ -119,8 +121,8 @@ export const ListView = ({
       delete params.page
       params.page_size = Number.parseInt(value, 10)
       navigate({
-        to: '/admin/collections/$collection',
-        params: { collection: data.included.collection.path },
+        to: '/{-$lng}/admin/collections/$collection',
+        params: { ...lngParam(uiLocale), collection: data.included.collection.path },
         search: params,
       })
     }
@@ -134,8 +136,8 @@ export const ListView = ({
           <Stats total={data?.meta.total} />
           <IconButton aria-label="Create New" asChild>
             <Link
-              to="/admin/collections/$collection/create"
-              params={{ collection: data.included.collection.path }}
+              to="/{-$lng}/admin/collections/$collection/create"
+              params={{ ...lngParam(uiLocale), collection: data.included.collection.path }}
             >
               <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
             </Link>
@@ -214,18 +216,19 @@ export const ListView = ({
                       >
                         {column.fieldName === 'title' ? (
                           <Link
-                            to="/admin/collections/$collection/$id"
+                            to="/{-$lng}/admin/collections/$collection/$id"
                             params={{
+                              ...lngParam(uiLocale),
                               collection: data.included.collection.path,
                               id: document.document_id,
                             }}
                           >
                             {column.formatter
                               ? renderFormatted(
-                                (document as any)[column.fieldName],
-                                document,
-                                column.formatter
-                              )
+                                  (document as any)[column.fieldName],
+                                  document,
+                                  column.formatter
+                                )
                               : ((document as any)[column.fieldName] ?? '------')}
                           </Link>
                         ) : column.formatter ? (

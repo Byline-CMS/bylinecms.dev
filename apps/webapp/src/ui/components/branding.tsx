@@ -6,17 +6,16 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { Link } from '@tanstack/react-router'
-
+import { LangLink } from '@/i18n/components/lang-link'
 import Logo from '@/images/byline-logo'
 // import logo from '../../images/byline-logo.svg'
 
 export function Branding() {
   return (
     <div className="flex items-center space-x-2">
-      <Link to="/">
+      <LangLink to="/">
         <Logo className="w-[24px] h-[24px]" />
-      </Link>
+      </LangLink>
     </div>
   )
 }

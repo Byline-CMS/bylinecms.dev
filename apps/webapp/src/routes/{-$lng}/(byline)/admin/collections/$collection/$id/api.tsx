@@ -9,18 +9,19 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
-import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { getCollectionDefinition } from '@byline/core'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { getCollectionDocument } from '@/modules/admin/collections'
-import { EditView } from '@/modules/admin/collections/components/edit'
+import { ApiView } from '@/modules/admin/collections/components/api'
+import { i18n } from '~/i18n'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
 })
 
-export const Route = createFileRoute('/(byline)/admin/collections/$collection/$id/')({
+export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$collection/$id/api')({
   validateSearch: searchSchema,
   loaderDeps: ({ search: { locale } }) => ({ locale }),
   loader: async ({ params, deps: { locale } }) => {
@@ -29,7 +30,11 @@ export const Route = createFileRoute('/(byline)/admin/collections/$collection/$i
       throw notFound()
     }
 
-    const data = await getCollectionDocument(params.collection, params.id, locale)
+    // 'all' is now always explicit in the URL when the user picks it.
+    // No locale param means the user hasn't made a selection yet — default
+    // to the content default locale (same as History and Edit behaviours).
+    const resolvedLocale = locale ?? i18n.content.defaultLocale
+    const data = await getCollectionDocument(params.collection, params.id, resolvedLocale)
 
     if (!data) {
       throw notFound()
@@ -50,7 +55,6 @@ function RouteComponent() {
   const { collection, id } = Route.useParams()
   const { locale } = Route.useSearch()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
-  const adminConfig = getCollectionAdminConfig(collection)
 
   return (
     <>
@@ -62,14 +66,13 @@ function RouteComponent() {
             label: 'Edit',
             href: `/admin/collections/${collection}/${id}`,
           },
+          {
+            label: 'API',
+            href: `/admin/collections/${collection}/${id}/api`,
+          },
         ]}
       />
-      <EditView
-        collectionDefinition={collectionDef}
-        adminConfig={adminConfig ?? undefined}
-        initialData={data}
-        locale={locale}
-      />
+      <ApiView collectionDefinition={collectionDef} initialData={data} locale={locale} />
     </>
   )
 }

@@ -9,7 +9,7 @@ export async function updateCollectionDocument(collection: string, id: string, d
 export async function updateCollectionDocumentWithPatches(
   collection: string,
   id: string,
-  data: any,
+  _data: any,
   patches: DocumentPatch[],
   document_version_id?: string,
   locale?: string

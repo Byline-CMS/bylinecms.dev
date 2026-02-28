@@ -22,6 +22,7 @@ import {
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
@@ -73,7 +74,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-        }`}
+      }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -94,8 +95,11 @@ export const HistoryView = ({
   workflowStatuses?: WorkflowStatus[]
   currentDocument?: Record<string, unknown> | null
 }) => {
-  const { id, collection } = useParams({ from: '/admin/collections/$collection/$id/history' })
+  const { id, collection } = useParams({
+    from: '/{-$lng}/admin/collections/$collection/$id/history',
+  })
   const navigate = useNavigate()
+  const uiLocale = useLocale()
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
   const location = useRouterState({ select: (s) => s.location })
@@ -111,8 +115,8 @@ export const HistoryView = ({
       delete params.page
       params.page_size = Number.parseInt(value, 10)
       navigate({
-        to: '/admin/collections/$collection',
-        params: { collection },
+        to: '/{-$lng}/admin/collections/$collection',
+        params: { ...lngParam(uiLocale), collection },
         search: params,
       })
     }
@@ -126,7 +130,12 @@ export const HistoryView = ({
             <h2 className="mb-2 flex items-center gap-2">
               {labels.singular} History <Stats total={data?.meta.total} />
             </h2>
-            <ViewMenu collection={collection} documentId={id} activeView="history" locale={locale} />
+            <ViewMenu
+              collection={collection}
+              documentId={id}
+              activeView="history"
+              locale={locale}
+            />
           </div>
         </Container>
       </Section>
@@ -222,27 +231,34 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                    (document as any)[column.fieldName],
-                                    document,
-                                    column.formatter
-                                  )
-                                  : (resolveDisplayValue((document as any)[column.fieldName], locale) || '------')}
+                                      (document as any)[column.fieldName],
+                                      document,
+                                      column.formatter
+                                    )
+                                  : resolveDisplayValue(
+                                      (document as any)[column.fieldName],
+                                      locale
+                                    ) || '------'}
                               </button>
                             ) : (
                               <Link
-                                to="/admin/collections/$collection/$id"
+                                to="/{-$lng}/admin/collections/$collection/$id"
                                 params={{
+                                  ...lngParam(uiLocale),
                                   collection,
                                   id: document.document_id,
                                 }}
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                    (document as any)[column.fieldName],
-                                    document,
-                                    column.formatter
-                                  )
-                                  : (resolveDisplayValue((document as any)[column.fieldName], locale) || '------')}
+                                      (document as any)[column.fieldName],
+                                      document,
+                                      column.formatter
+                                    )
+                                  : resolveDisplayValue(
+                                      (document as any)[column.fieldName],
+                                      locale
+                                    ) || '------'}
                               </Link>
                             )
                           ) : column.formatter ? (

@@ -12,6 +12,7 @@ import { useNavigate } from '@tanstack/react-router'
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { Container, Section, Toast } from '@infonomic/uikit/react'
 
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { FormRenderer } from '@/ui/fields/form-renderer'
 import { createCollectionDocument } from '..'
 
@@ -35,6 +36,7 @@ export const CreateView = ({
     message: '',
   })
   const navigate = useNavigate()
+  const uiLocale = useLocale()
   const { labels, path, fields } = collectionDefinition
   // const location = useRouterState({ select: (s) => s.location })
 
@@ -42,8 +44,8 @@ export const CreateView = ({
     try {
       await createCollectionDocument(path, data)
       navigate({
-        to: '/admin/collections/$collection',
-        params: { collection: path },
+        to: '/{-$lng}/admin/collections/$collection',
+        params: { ...lngParam(uiLocale), collection: path },
         search: { action: 'created' },
       })
     } catch (err) {
@@ -70,8 +72,8 @@ export const CreateView = ({
             headingLabel={labels.singular}
             onCancel={() =>
               navigate({
-                to: '/admin/collections/$collection',
-                params: { collection: path },
+                to: '/{-$lng}/admin/collections/$collection',
+                params: { ...lngParam(uiLocale), collection: path },
               })
             }
             collectionPath={path}

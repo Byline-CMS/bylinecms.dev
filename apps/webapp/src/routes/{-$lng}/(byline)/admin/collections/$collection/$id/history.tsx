@@ -28,41 +28,43 @@ const searchSchema = z.object({
   locale: z.string().optional(),
 })
 
-export const Route = createFileRoute('/(byline)/admin/collections/$collection/$id/history')({
-  validateSearch: searchSchema,
-  loaderDeps: ({ search: { page, page_size, order, desc, locale } }) => ({
-    page,
-    page_size,
-    order,
-    desc,
-    locale,
-  }),
-  loader: async ({ params, deps: { page, page_size, order, desc, locale } }) => {
-    const collectionDef = getCollectionDefinition(params.collection)
-    if (!collectionDef) {
-      throw notFound()
-    }
+export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$collection/$id/history')(
+  {
+    validateSearch: searchSchema,
+    loaderDeps: ({ search: { page, page_size, order, desc, locale } }) => ({
+      page,
+      page_size,
+      order,
+      desc,
+      locale,
+    }),
+    loader: async ({ params, deps: { page, page_size, order, desc, locale } }) => {
+      const collectionDef = getCollectionDefinition(params.collection)
+      if (!collectionDef) {
+        throw notFound()
+      }
 
-    const [history, currentDocument] = await Promise.all([
-      getCollectionDocumentHistory(params.collection, params.id, {
-        page,
-        page_size,
-        order,
-        desc,
-        locale,
-      }),
-      // Fetch the current document with the same locale (or 'all') so diffs
-      // compare the same shape as what the user is viewing.
-      getCollectionDocument(params.collection, params.id, locale ?? 'all'),
-    ])
+      const [history, currentDocument] = await Promise.all([
+        getCollectionDocumentHistory(params.collection, params.id, {
+          page,
+          page_size,
+          order,
+          desc,
+          locale,
+        }),
+        // Fetch the current document with the same locale (or 'all') so diffs
+        // compare the same shape as what the user is viewing.
+        getCollectionDocument(params.collection, params.id, locale ?? 'all'),
+      ])
 
-    return { history, currentDocument }
-  },
-  staleTime: 0,
-  gcTime: 0,
-  shouldReload: true,
-  component: RouteComponent,
-})
+      return { history, currentDocument }
+    },
+    staleTime: 0,
+    gcTime: 0,
+    shouldReload: true,
+    component: RouteComponent,
+  }
+)
 
 function RouteComponent() {
   const { history, currentDocument } = Route.useLoaderData()

@@ -1,10 +1,5 @@
 import { isStructureField } from '../@types/field-types.js'
-import type {
-  DefaultValue,
-  DefaultValueContext,
-  Field,
-  StructureField,
-} from '../@types/field-types.js'
+import type { DefaultValue, DefaultValueContext, Field } from '../@types/field-types.js'
 
 function normalizeCtx(ctx?: Partial<DefaultValueContext>): DefaultValueContext {
   return {
