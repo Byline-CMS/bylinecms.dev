@@ -7,6 +7,7 @@
  */
 
 import type { CollectionDefinition, WorkflowStatus } from './collection-types.js'
+import type { FieldComponentSlots } from './field-types.js'
 
 /**
  * Props passed to a custom list-view component registered via
@@ -131,7 +132,12 @@ export interface FieldAdminConfig {
    * Requires a matching entry in `rows` on the CollectionAdminConfig.
    */
   row?: string
-  // Future: custom component overrides, editor config, etc.
+  /**
+   * Optional UI component overrides for this field's rendering.
+   * Only meaningful for value fields (not array, blocks, or group).
+   * @see FieldComponentSlots
+   */
+  components?: FieldComponentSlots
 }
 
 /**

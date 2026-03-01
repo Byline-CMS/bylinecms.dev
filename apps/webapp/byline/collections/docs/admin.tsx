@@ -60,6 +60,34 @@ const docsColumns: ColumnDefinition[] = [
   },
 ]
 
+// export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
+//   useAsTitle: 'title',
+//   columns: docsColumns,
+//   fields: {
+//     title: {
+//       tab: 'details',
+//       components: {
+//         Label: ({ label, required }) => (
+//           <h3>{label}{required && ' *'}</h3>
+//         ),
+//         afterField: ({ value }) => (
+//           <p className="text-xs text-muted">{(value as string)?.length ?? 0} chars</p>
+//         ),
+//       },
+//     },
+//     path: { position: 'sidebar' },
+//     summary: { tab: 'details' },
+//     publishedOn: { position: 'sidebar' },
+//     featured: { tab: 'details' },
+//     availableLanguages: { position: 'sidebar' },
+//     // Content tab
+//     content: { tab: 'content' },
+//     // Reviews & Links tab
+//     reviews: { tab: 'reviews' },
+//     links: { tab: 'reviews' },
+//   },
+// })
+
 export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   useAsTitle: 'title',
   columns: docsColumns,

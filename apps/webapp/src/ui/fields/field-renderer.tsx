@@ -10,6 +10,7 @@ import type {
   ArrayField as ArrayFieldType,
   BlocksField as BlocksFieldType,
   Field,
+  FieldComponentSlots,
   GroupField as GroupFieldType,
 } from '@byline/core'
 
@@ -47,6 +48,11 @@ interface FieldRendererProps {
    * knows they are working on a localised field in the current language.
    */
   contentLocale?: string
+  /**
+   * Optional UI component slot overrides from the admin config.
+   * Forwarded to value-field widgets that support custom slots.
+   */
+  components?: FieldComponentSlots
 }
 
 export const FieldRenderer = ({
@@ -57,6 +63,7 @@ export const FieldRenderer = ({
   hideLabel,
   collectionPath,
   contentLocale,
+  components,
 }: FieldRendererProps) => {
   const path = basePath ? `${basePath}.${field.name}` : field.name
   const htmlId = path.replace(/[[\].]/g, '-')
@@ -85,6 +92,7 @@ export const FieldRenderer = ({
             path={path}
             id={htmlId}
             locale={isLocalised ? contentLocale : undefined}
+            components={components}
           />
         )
       case 'textArea':

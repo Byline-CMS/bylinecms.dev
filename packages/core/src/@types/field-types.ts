@@ -143,6 +143,131 @@ export function normalizeHooks(hook: FieldHookFn | FieldHookFn[] | undefined): F
   return Array.isArray(hook) ? hook : [hook]
 }
 
+// ---------------------------------------------------------------------------
+// Component slots for value fields (UI extensibility)
+// ---------------------------------------------------------------------------
+
+/**
+ * A framework-agnostic component type. In practice will be a React
+ * `ComponentType<P>`, but defined here without importing React so that
+ * `@byline/core` stays server-safe.
+ */
+export type SlotComponent<P = Record<string, unknown>> = (props: P) => any
+
+/**
+ * Base props passed to every custom slot component.
+ * Slot components also have access to form context via hooks
+ * (`useFieldValue`, `useFieldError`, `useFormContext`, etc.) since
+ * they render inside the `FormProvider`.
+ */
+export interface FieldSlotBaseProps {
+  /** The field definition this slot belongs to. */
+  field: Field
+  /** Dot-path of the field in the document, e.g. `"content.0.richText"`. */
+  path: string
+  /** Current field value (snapshot at render time). */
+  value: any
+  /** Current field error message, if any. */
+  error?: string
+  /** HTML `id` for the field element (useful for `htmlFor`). */
+  id: string
+}
+
+/**
+ * Props passed to a custom **Label** slot component.
+ *
+ * @example
+ * ```tsx
+ * const MyLabel: SlotComponent<FieldLabelSlotProps> = ({ label, required }) => (
+ *   <span>{label}{required && ' *'}</span>
+ * )
+ * ```
+ */
+export interface FieldLabelSlotProps extends FieldSlotBaseProps {
+  /** The label string from the field definition. */
+  label?: string
+  /** Whether the field is required. */
+  required?: boolean
+}
+
+/**
+ * Props passed to a custom **HelpText** slot component.
+ */
+export interface FieldHelpTextSlotProps extends FieldSlotBaseProps {
+  /** The help-text string from the field definition. */
+  helpText?: string
+}
+
+/**
+ * Props passed to a custom **Field** (input replacement) slot component.
+ *
+ * When a `Field` slot is provided it **completely replaces** the default
+ * input widget. The component must call `onChange` to commit value changes
+ * back to the form store.
+ */
+export interface FieldInputSlotProps extends FieldSlotBaseProps {
+  /** Call this to write a new value to the form store (runs the hook pipeline). */
+  onChange: (value: any) => void
+  /** Default value for the field. */
+  defaultValue?: any
+  /** Placeholder text from the field definition. */
+  placeholder?: string
+}
+
+/**
+ * Props passed to **beforeField** / **afterField** adornment slot components.
+ */
+export interface FieldAdornmentSlotProps extends FieldSlotBaseProps {}
+
+/**
+ * Optional UI component overrides that can be attached to any **value field**.
+ *
+ * Each slot receives typed props (see individual `*SlotProps` interfaces) and
+ * can also use form-context hooks for reactive data.
+ *
+ * @example
+ * ```ts
+ * {
+ *   name: 'title',
+ *   type: 'text',
+ *   label: 'Title',
+ *   components: {
+ *     Label: ({ label }) => <h3>{label}</h3>,
+ *     afterField: ({ value }) => (
+ *       <p className="text-xs text-gray-400">{value?.length ?? 0} chars</p>
+ *     ),
+ *   },
+ * }
+ * ```
+ */
+export interface FieldComponentSlots {
+  /**
+   * Replaces the default label. Receives `FieldLabelSlotProps`.
+   * When provided, the built-in `<Label>` is **not** rendered.
+   */
+  Label?: SlotComponent<FieldLabelSlotProps>
+  /**
+   * Replaces the default help text. Receives `FieldHelpTextSlotProps`.
+   * When provided, the built-in help-text string is **not** rendered.
+   */
+  HelpText?: SlotComponent<FieldHelpTextSlotProps>
+  /**
+   * Completely replaces the default field input. Receives `FieldInputSlotProps`.
+   * When provided the default `<Input>` (or equivalent) is **not** rendered.
+   */
+  Field?: SlotComponent<FieldInputSlotProps>
+  /**
+   * Rendered **before** the field input (between the label and the input).
+   * Receives `FieldAdornmentSlotProps`.
+   */
+  beforeField?: SlotComponent<FieldAdornmentSlotProps>
+  /**
+   * Rendered **after** the field input (between the input and any help text).
+   * Receives `FieldAdornmentSlotProps`.
+   */
+  afterField?: SlotComponent<FieldAdornmentSlotProps>
+}
+
 // Base properties that all fields share
 interface BaseField {
   name: string

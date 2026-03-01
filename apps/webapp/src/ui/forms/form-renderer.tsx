@@ -507,6 +507,7 @@ const FormContent = ({
               defaultValue={initialData?.[field.name]}
               collectionPath={collectionPath}
               contentLocale={contentLocale}
+              components={fieldPositions[field.name]?.components}
             />
           ))}
         </div>
@@ -566,6 +567,7 @@ const FormContent = ({
               defaultValue={initialData?.[field.name]}
               collectionPath={collectionPath}
               contentLocale={contentLocale}
+              components={fieldPositions[field.name]?.components}
             />
           ))}
         </div>

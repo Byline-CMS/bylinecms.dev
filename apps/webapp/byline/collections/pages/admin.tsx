@@ -9,7 +9,7 @@
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
 import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
-import { News } from './schema.js'
+import { Pages } from './schema.js'
 
 // ---- Admin UI config (client-only, presentation concerns) ----
 
@@ -28,13 +28,20 @@ import { News } from './schema.js'
  * custom view.
  */
 
-const newsColumns: ColumnDefinition[] = [
+const pagesColumns: ColumnDefinition[] = [
   {
     fieldName: 'title',
     label: 'Title',
     sortable: true,
     align: 'left',
-    className: 'w-[25%]',
+    className: 'w-[30%]',
+  },
+  {
+    fieldName: 'featured',
+    label: 'Featured',
+    align: 'center',
+    className: 'w-[10%]',
+    formatter: (value) => (value ? '★' : ''),
   },
   {
     fieldName: 'status',
@@ -52,12 +59,32 @@ const newsColumns: ColumnDefinition[] = [
   },
 ]
 
-export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
+// export const PagesAdmin: CollectionAdminConfig = defineAdmin(Docs, {
+//   useAsTitle: 'title',
+//   columns: pagesColumns,
+//   fields: {
+//     title: {
+//       components: {
+//         Label: ({ label, required }) => (
+//           <h3>{label}{required && ' *'}</h3>
+//         ),
+//         afterField: ({ value }) => (
+//           <p className="text-xs text-muted">{(value as string)?.length ?? 0} chars</p>
+//         ),
+//       },
+//     },
+//     path: { position: 'sidebar' },
+//     // ...
+//   },
+// })
+
+export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   useAsTitle: 'title',
-  columns: newsColumns,
+  columns: pagesColumns,
   fields: {
     path: { position: 'sidebar' },
     availableLanguages: { position: 'sidebar' },
     publishedOn: { position: 'sidebar' },
+    featured: { position: 'sidebar' },
   },
 })
