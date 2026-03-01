@@ -9,7 +9,7 @@
 import type React from 'react'
 
 import type { RichTextField as FieldType } from '@byline/core'
-import { Label } from '@infonomic/uikit/react'
+import { ErrorText, Label } from '@infonomic/uikit/react'
 
 import { useFieldError, useFieldValue } from '../../form-context'
 import { LocaleBadge } from '../../locale-badge'
@@ -83,7 +83,7 @@ export const RichTextField = ({
           // Ensure React fully remounts when instanceKey changes
           key={fieldId}
         />
-        {fieldError && <div className="text-xs text-red-400 px-0.5">{fieldError}</div>}
+        {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
       </div>
     </div>
   )

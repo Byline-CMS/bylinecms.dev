@@ -28,7 +28,7 @@ export const NumericalField = ({
 }) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
-  const isDirty = useIsDirty(fieldPath)
+  // const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<string | number | undefined>(fieldPath)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
 
@@ -45,7 +45,6 @@ export const NumericalField = ({
         onChange={(e) => onChange?.(e.target.value)}
         error={fieldError != null}
         errorText={fieldError}
-        className={isDirty ? 'border-blue-300' : ''}
       />
     </div>
   )

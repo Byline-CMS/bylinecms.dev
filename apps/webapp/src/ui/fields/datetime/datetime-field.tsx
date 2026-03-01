@@ -7,7 +7,7 @@
  */
 
 import type { DateTimeField as FieldType } from '@byline/core'
-import { DatePicker } from '@infonomic/uikit/react'
+import { DatePicker, ErrorText } from '@infonomic/uikit/react'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../fields/form-context'
 
@@ -46,7 +46,7 @@ export const DateTimeField = ({
         onDateChange={(date) => onChange?.(date)}
         className={isDirty ? 'border-blue-300' : ''}
       />
-      {fieldError && <div className="mt-1 text-xs text-red-400">{fieldError}</div>}
+      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
     </div>
   )
 }

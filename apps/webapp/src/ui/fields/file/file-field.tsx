@@ -7,6 +7,7 @@
  */
 
 import type { FileField as FieldType, StoredFileValue } from '@byline/core'
+import { ErrorText } from '@infonomic/uikit/react'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../form-context'
 
@@ -90,7 +91,7 @@ export const FileField = ({
         </div>
       )}
 
-      {fieldError && <div className="mt-1 text-xs text-red-400">{fieldError}</div>}
+      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
     </div>
   )
 }
