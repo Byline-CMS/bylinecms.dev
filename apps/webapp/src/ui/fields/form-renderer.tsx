@@ -266,11 +266,16 @@ const FormContent = ({
         ? 'Create'
         : 'Edit')
 
-  // Navigation guard — block TanStack Router navigation and browser unload when dirty
+  // Navigation guard — block TanStack Router navigation and browser unload when dirty.
+  // enableBeforeUnload must be reactive (not a static `true`) so the browser's
+  // native "beforeunload" handler is only registered when the form actually has
+  // unsaved changes.  A static `true` causes the history blocker to *always*
+  // prevent unload — even when shouldBlockFn would return false — because the
+  // history layer checks enableBeforeUnload independently of shouldBlockFn.
   const shouldBlockFn = useCallback(() => hasChanges, [hasChanges])
   const blocker = useBlocker({
     shouldBlockFn,
-    enableBeforeUnload: true,
+    enableBeforeUnload: hasChanges,
     withResolver: true,
   })
 
