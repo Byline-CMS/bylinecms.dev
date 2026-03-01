@@ -28,7 +28,7 @@
   "include": [
     "src",
     "byline",
-    "byline.client.config.ts",
+    "byline.admin.config.ts",
     "byline.server.config.ts",
     "vite.config.ts"
   ],

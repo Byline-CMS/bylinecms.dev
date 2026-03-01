@@ -1,3 +1,15 @@
+/**
+ * This module ensures Byline client config (including admin UI config) is
+ * registered in the current module graph. Import this file as a side-effect
+ * from any module that needs access to collection admin configurations.
+ *
+ * In TanStack Start with Vite 6, the server entry (server.ts) and the SSR
+ * rendering context run in separate Vite environments. Side-effect imports
+ * in server.ts do not propagate into the SSR render module graph, we
+ * import this config in __root.tsx to ensure it's available in both contexts.
+ *
+ */
+
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
 

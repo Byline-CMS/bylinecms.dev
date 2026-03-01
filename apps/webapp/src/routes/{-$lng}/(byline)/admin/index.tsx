@@ -119,7 +119,7 @@ function Index() {
 
   return (
     <>
-      <BreadcrumbsClient breadcrumbs={[{ label: 'Admin', href: `/admin` }]} />
+      <BreadcrumbsClient breadcrumbs={[{ label: 'Dashboard', href: `/admin` }]} />
       <Section className="py-6">
         <Container>
           <div className="grid grid-cols-auto-fit-320 gap-6">
