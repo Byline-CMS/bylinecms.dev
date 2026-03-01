@@ -16,6 +16,7 @@ import { Container, Section, Toast } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { FormRenderer } from '@/ui/forms/form-renderer'
+import { useTanStackNavigationGuard } from '@/ui/forms/tanstack-navigation-guard'
 import {
   deleteDocument,
   unpublishDocument,
@@ -189,6 +190,7 @@ export const EditView = ({
             headingLabel={labels.singular}
             initialLocale={locale}
             onLocaleChange={handleLocaleChange}
+            useNavigationGuard={useTanStackNavigationGuard}
             headerSlot={
               <ViewMenu
                 collection={path}

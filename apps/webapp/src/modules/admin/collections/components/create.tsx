@@ -14,6 +14,7 @@ import { Container, Section, Toast } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { FormRenderer } from '@/ui/forms/form-renderer'
+import { useTanStackNavigationGuard } from '@/ui/forms/tanstack-navigation-guard'
 import { createCollectionDocument } from '..'
 
 type CreateState = {
@@ -70,6 +71,7 @@ export const CreateView = ({
             initialData={initialData}
             adminConfig={adminConfig}
             headingLabel={labels.singular}
+            useNavigationGuard={useTanStackNavigationGuard}
             onCancel={() =>
               navigate({
                 to: '/{-$lng}/admin/collections/$collection',

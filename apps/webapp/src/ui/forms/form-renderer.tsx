@@ -7,7 +7,6 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useBlocker } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
 import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
@@ -18,7 +17,9 @@ import { Tabs } from '../admin/tabs'
 import { LocalDateTime } from '../components/local-date-time'
 import { DocumentActions } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
+import { useNavigationGuardAdapter } from './navigation-guard'
 import { executeUploads } from './upload-executor'
+import type { UseNavigationGuard } from './navigation-guard'
 
 /** Metadata about a previously published version that is still live. */
 export interface PublishedVersionInfo {
@@ -51,6 +52,12 @@ export interface FormRendererProps {
   initialLocale?: string
   /** Called when the user picks a different content locale. */
   onLocaleChange?: (locale: string) => void
+  /**
+   * Framework-specific navigation guard hook.
+   * When provided, this overrides the adapter from `NavigationGuardProvider` context.
+   * If neither is set, a no-op `beforeunload`-only guard is used.
+   */
+  useNavigationGuard?: UseNavigationGuard
 }
 
 const FormStatusDisplay = ({
@@ -199,6 +206,7 @@ const FormContent = ({
   collectionPath,
   initialLocale,
   onLocaleChange,
+  useNavigationGuard: useNavigationGuardProp,
   _activeTab,
   _onTabChange,
 }: FormRendererProps & {
@@ -266,18 +274,11 @@ const FormContent = ({
         ? 'Create'
         : 'Edit')
 
-  // Navigation guard — block TanStack Router navigation and browser unload when dirty.
-  // enableBeforeUnload must be reactive (not a static `true`) so the browser's
-  // native "beforeunload" handler is only registered when the form actually has
-  // unsaved changes.  A static `true` causes the history blocker to *always*
-  // prevent unload — even when shouldBlockFn would return false — because the
-  // history layer checks enableBeforeUnload independently of shouldBlockFn.
-  const shouldBlockFn = useCallback(() => hasChanges, [hasChanges])
-  const blocker = useBlocker({
-    shouldBlockFn,
-    enableBeforeUnload: hasChanges,
-    withResolver: true,
-  })
+  // Navigation guard — block router navigation and browser unload when dirty.
+  // The guard hook is injected by the consuming framework (prop > context > no-op fallback).
+  const guardFromContext = useNavigationGuardAdapter()
+  const useGuard = useNavigationGuardProp ?? guardFromContext
+  const guard = useGuard(hasChanges)
 
   // Compute available status transitions
   const currentStatus = initialData?.status
@@ -569,8 +570,8 @@ const FormContent = ({
           ))}
         </div>
       </div>
-      {blocker.status === 'blocked' && (
-        <Modal isOpen={true} closeOnOverlayClick={false} onDismiss={blocker.reset}>
+      {guard.isBlocked && (
+        <Modal isOpen={true} closeOnOverlayClick={false} onDismiss={guard.stay}>
           <Modal.Container style={{ maxWidth: '460px' }}>
             <Modal.Header className="pt-4 mb-2">
               <h3 className="m-0 mb-2 text-2xl">Leave without saving?</h3>
@@ -581,10 +582,10 @@ const FormContent = ({
               </p>
             </Modal.Content>
             <Modal.Actions>
-              <Button size="sm" intent="noeffect" type="button" onClick={blocker.reset}>
+              <Button size="sm" intent="noeffect" type="button" onClick={guard.stay}>
                 Stay on this page
               </Button>
-              <Button size="sm" intent="danger" type="button" onClick={blocker.proceed}>
+              <Button size="sm" intent="danger" type="button" onClick={guard.proceed}>
                 Leave anyway
               </Button>
             </Modal.Actions>
@@ -613,6 +614,7 @@ export const FormRenderer = ({
   collectionPath,
   initialLocale,
   onLocaleChange,
+  useNavigationGuard,
 }: FormRendererProps) => {
   // Persists the active tab across locale-change remounts of FormContent.
   // useRef so mutations never trigger a re-render of FormRenderer itself.
@@ -641,6 +643,7 @@ export const FormRenderer = ({
         collectionPath={collectionPath}
         initialLocale={initialLocale}
         onLocaleChange={onLocaleChange}
+        useNavigationGuard={useNavigationGuard}
         _activeTab={savedTabRef.current}
         _onTabChange={(tab) => {
           savedTabRef.current = tab
