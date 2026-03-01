@@ -14,8 +14,8 @@ import { IconButton, PlusIcon } from '@infonomic/uikit/react'
 import { DraggableSortable, moveItem } from '@/ui/dnd/draggable-sortable'
 import { defaultScalarForField } from '@/ui/fields/field-helpers'
 import { FieldRenderer } from '@/ui/fields/field-renderer'
-import { useFormContext } from '@/ui/fields/form-context'
 import { SortableItem } from '@/ui/fields/sortable-item'
+import { useFormContext } from '@/ui/forms/form-context'
 
 // ---------------------------------------------------------------------------
 // ArrayField — renders `type: 'array'` fields. Children are homogeneous:

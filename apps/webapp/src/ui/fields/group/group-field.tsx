@@ -13,7 +13,7 @@ import { ErrorText } from '@infonomic/uikit/react'
 
 import { placeholderForField } from '@/ui/fields/field-helpers'
 import { FieldRenderer } from '@/ui/fields/field-renderer'
-import { useFieldError } from '@/ui/fields/form-context'
+import { useFieldError } from '@/ui/forms/form-context'
 
 // ---------------------------------------------------------------------------
 // GroupField — renders a fixed-order group of child fields wrapped in a

@@ -11,7 +11,7 @@ import { useCallback } from 'react'
 import type { TextField as FieldType } from '@byline/core'
 import { Input, Label } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue } from '../../fields/form-context'
+import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { LocaleBadge } from '../locale-badge'
 
 export const TextField = ({
@@ -74,7 +74,7 @@ export const TextField = ({
         onChange={(e) => handleChange(e.target.value)}
         error={fieldError != null}
         errorText={fieldError}
-        // className={isDirty ? 'border-yellow-300' : ''}
+      // className={isDirty ? 'border-yellow-300' : ''}
       />
     </div>
   )

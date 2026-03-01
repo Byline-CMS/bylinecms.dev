@@ -9,7 +9,7 @@
 import type { DecimalField, FloatField, IntegerField } from '@byline/core'
 import { Input } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue, useIsDirty } from '../form-context'
+import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
 
 export const NumericalField = ({
   field,

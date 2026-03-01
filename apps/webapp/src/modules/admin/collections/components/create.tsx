@@ -13,7 +13,7 @@ import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { Container, Section, Toast } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
-import { FormRenderer } from '@/ui/fields/form-renderer'
+import { FormRenderer } from '@/ui/forms/form-renderer'
 import { createCollectionDocument } from '..'
 
 type CreateState = {

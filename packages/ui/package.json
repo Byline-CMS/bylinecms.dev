@@ -1,0 +1,89 @@
+{
+  "name": "@byline/ui",
+  "private": false,
+  "type": "module",
+  "license": "MPL-2.0",
+  "version": "0.1.0",
+  "description": "Byline CMS core package",
+  "keywords": [
+    "cms",
+    "headless cms",
+    "content management"
+  ],
+  "homepage": "https://github.com/Byline-CMS/bylinecms.dev",
+  "bugs": {
+    "url": "https://github.com/Byline-CMS/bylinecms.dev/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
+    "directory": "packages/byline"
+  },
+  "scripts": {
+    "dev": "run-p dev:*",
+    "dev:code": "rslib build --watch",
+    "build": "run-s build:*",
+    "build:clean": "rimraf dist build",
+    "build:code": "rslib build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf node_modules dist build types .turbo",
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "test": "vitest"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "types": "./dist/react.d.ts",
+  "module": "./dist/react.js",
+  "main": "./dist/react.js",
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "exports": {
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "main": "./dist/react.js",
+      "default": "./dist/react.js"
+    }
+  },
+  "dependencies": {
+    "classnames": "^2.5.1",
+    "npm-run-all": "^4.1.5",
+    "prism-react-renderer": "^2.4.1",
+    "zod": "^4.3.6",
+    "zod-form-data": "^3.0.1"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.3",
+    "@rsbuild/plugin-react": "^1.4.5",
+    "@rslib/core": "^0.19.6",
+    "@types/lodash": "^4.17.23",
+    "@types/node": "^25.3.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "chokidar": "^5.0.0",
+    "lightningcss": "^1.31.1",
+    "lightningcss-cli": "^1.31.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "rimraf": "^6.1.3",
+    "typescript": "5.9.3",
+    "typescript-plugin-css-modules": "^5.2.0",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "files": [
+      "dist/",
+      "src/"
+    ]
+  }
+}

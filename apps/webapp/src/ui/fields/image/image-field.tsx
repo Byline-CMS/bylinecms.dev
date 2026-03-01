@@ -13,7 +13,7 @@ import {
 } from '@byline/core'
 import { ErrorText } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../form-context'
+import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../../forms/form-context'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import { ImageUploadField } from './image-upload-field'
 
@@ -119,8 +119,8 @@ export const ImageField = ({
                 src={incomingValue.storage_url}
                 alt={incomingValue.original_filename ?? incomingValue.filename}
                 className={`rounded border border-gray-600 object-contain ${incomingValue.mime_type === 'image/svg+xml'
-                    ? 'w-[271px] h-[159px]'
-                    : 'max-h-40 min-h-16 min-w-16'
+                  ? 'w-[271px] h-[159px]'
+                  : 'max-h-40 min-h-16 min-w-16'
                   }`}
               />
               {/* Pending upload badge */}

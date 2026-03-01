@@ -9,7 +9,7 @@
 import type { CheckboxField as FieldType } from '@byline/core'
 import { Checkbox } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue } from '../../fields/form-context'
+import { useFieldError, useFieldValue } from '../../forms/form-context'
 
 export const CheckboxField = ({
   field,

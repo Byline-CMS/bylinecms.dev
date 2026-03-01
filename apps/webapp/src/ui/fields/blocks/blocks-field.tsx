@@ -14,8 +14,8 @@ import { Card, CloseIcon, IconButton, Modal, PlusIcon } from '@infonomic/uikit/r
 import { DraggableSortable, moveItem } from '@/ui/dnd/draggable-sortable'
 import { defaultScalarForField } from '@/ui/fields/field-helpers'
 import { FieldRenderer } from '@/ui/fields/field-renderer'
-import { useFormContext } from '@/ui/fields/form-context'
 import { SortableItem } from '@/ui/fields/sortable-item'
+import { useFormContext } from '@/ui/forms/form-context'
 
 // ---------------------------------------------------------------------------
 // BlocksField — renders `type: 'blocks'` fields. Children are heterogeneous

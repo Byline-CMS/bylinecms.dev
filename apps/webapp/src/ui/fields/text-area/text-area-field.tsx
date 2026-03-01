@@ -11,7 +11,7 @@ import { useCallback } from 'react'
 import type { TextAreaField as FieldType } from '@byline/core'
 import { Label, TextArea } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue, useIsDirty } from '../../fields/form-context'
+import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
 import { LocaleBadge } from '../locale-badge'
 
 export const TextAreaField = ({

@@ -9,7 +9,7 @@
 import type { SelectField as FieldType } from '@byline/core'
 import { ErrorText, Select, SelectItem } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue, useIsDirty } from '../../fields/form-context'
+import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
 
 export const SelectField = ({
   field,

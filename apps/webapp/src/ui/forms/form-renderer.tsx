@@ -12,13 +12,13 @@ import { useBlocker } from '@tanstack/react-router'
 import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
 import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
 
+import { FieldRenderer } from '@/ui/fields/field-renderer'
 import { i18n } from '~/i18n'
 import { Tabs } from '../admin/tabs'
 import { LocalDateTime } from '../components/local-date-time'
-import { FieldRenderer } from '../fields/field-renderer'
-import { FormProvider, useFieldValue, useFormContext } from '../fields/form-context'
-import { executeUploads } from '../fields/upload-executor'
 import { DocumentActions } from './document-actions'
+import { FormProvider, useFieldValue, useFormContext } from './form-context'
+import { executeUploads } from './upload-executor'
 
 /** Metadata about a previously published version that is still live. */
 export interface PublishedVersionInfo {

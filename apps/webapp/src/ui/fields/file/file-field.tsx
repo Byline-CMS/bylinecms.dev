@@ -9,7 +9,7 @@
 import type { FileField as FieldType, StoredFileValue } from '@byline/core'
 import { ErrorText } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue, useIsDirty } from '../form-context'
+import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
 
 interface FileFieldProps {
   field: FieldType

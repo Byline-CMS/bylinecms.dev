@@ -11,7 +11,7 @@ import { useCallback } from 'react'
 import type { Field, FieldBeforeChangeResult, FieldHookContext } from '@byline/core'
 import { normalizeHooks } from '@byline/core'
 
-import { useFormContext } from './form-context'
+import { useFormContext } from '../forms/form-context'
 
 /**
  * Returns a change handler for the given field that runs through the

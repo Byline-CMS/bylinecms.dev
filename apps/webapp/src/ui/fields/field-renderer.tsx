@@ -16,17 +16,17 @@ import type {
 import { ArrayField } from '@/ui/fields/array/array-field'
 import { BlocksField } from '@/ui/fields/blocks/blocks-field'
 import { GroupField } from '@/ui/fields/group/group-field'
-import { CheckboxField } from '../fields/checkbox/checkbox-field'
-import { RichTextField } from '../fields/richtext/richtext-lexical/richtext-field'
-import { SelectField } from '../fields/select/select-field'
-import { TextField } from '../fields/text/text-field'
-import { TextAreaField } from '../fields/text-area/text-area-field'
-import { useFieldChangeHandler } from '../fields/use-field-change-handler'
+import { CheckboxField } from './checkbox/checkbox-field'
 import { DateTimeField } from './datetime/datetime-field'
 import { FileField } from './file/file-field'
 import { ImageField } from './image/image-field'
 import { LocaleBadge } from './locale-badge'
 import { NumericalField } from './numerical/numerical-field'
+import { RichTextField } from './richtext/richtext-lexical/richtext-field'
+import { SelectField } from './select/select-field'
+import { TextField } from './text/text-field'
+import { TextAreaField } from './text-area/text-area-field'
+import { useFieldChangeHandler } from './use-field-change-handler'
 
 // ---------------------------------------------------------------------------
 // FieldRenderer — the main field type switch. Delegates to the appropriate
