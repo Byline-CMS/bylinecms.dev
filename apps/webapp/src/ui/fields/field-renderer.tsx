@@ -104,6 +104,7 @@ export const FieldRenderer = ({
             path={path}
             id={htmlId}
             locale={isLocalised ? contentLocale : undefined}
+            components={components}
           />
         )
       case 'checkbox':
@@ -155,6 +156,7 @@ export const FieldRenderer = ({
             onChange={handleChange}
             path={path}
             id={htmlId}
+            components={components}
           />
         )
       case 'file':
