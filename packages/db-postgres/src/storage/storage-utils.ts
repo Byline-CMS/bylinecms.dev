@@ -90,11 +90,12 @@ export function flattenFields(
                 })
               }
             } else {
-              // Legacy / generic array item shape: { fieldName: value }
+              // Array item is a plain object whose keys correspond to the
+              // container's child field definitions.
               // Skip `_id` — it's a stable identity injected during read by
               // attachMetaToDocument and is not a real data field.
-              const fieldName = Object.keys(item).find((k) => k !== '_id')
-              if (fieldName != null) {
+              const itemKeys = Object.keys(item).filter((k) => k !== '_id')
+              for (const fieldName of itemKeys) {
                 const fieldValue = item[fieldName]
                 const subField = containerField.fields.find((f) => f.name === fieldName)
                 if (subField) {
