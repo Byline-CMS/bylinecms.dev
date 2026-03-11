@@ -85,25 +85,25 @@ export const ArrayField = ({
   }
 
   const handleAddItem = async (atIndex?: number) => {
-    const variants = field.fields ?? []
-    const variant = variants[0]
-    if (!variant) return
-
-    const defaultValueForVariant = async (v: Field): Promise<any> => {
-      // Group child — build array of single-key objects
-      if (v.type === 'group' && v.fields && v.fields.length > 0) {
-        const inner = await Promise.all(
-          (v.fields as Field[]).map(async (innerField) => ({
-            [innerField.name]: await defaultScalarForField(innerField, getFieldValues),
-          }))
-        )
-        return inner
-      }
-      return defaultScalarForField(v, getFieldValues)
-    }
+    const childFields = field.fields ?? []
+    if (childFields.length === 0) return
 
     const newId = crypto.randomUUID()
-    const newItem = { [variant.name]: await defaultValueForVariant(variant) }
+
+    // Build a new item with default values for ALL child fields
+    const newItem: Record<string, any> = {}
+    for (const childField of childFields) {
+      if (childField.type === 'group' && childField.fields && childField.fields.length > 0) {
+        // Group child — build a nested object with defaults for each inner field
+        const groupObj: Record<string, any> = {}
+        for (const innerField of childField.fields as Field[]) {
+          groupObj[innerField.name] = await defaultScalarForField(innerField, getFieldValues)
+        }
+        newItem[childField.name] = groupObj
+      } else {
+        newItem[childField.name] = await defaultScalarForField(childField, getFieldValues)
+      }
+    }
 
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
     const insertAt = atIndex != null ? atIndex : currentArray ? currentArray.length : 0
@@ -160,72 +160,44 @@ export const ArrayField = ({
 
     if (!item || typeof item !== 'object') return null
 
-    // Skip _id (stable identity injected during read)
-    const outerKey = Object.keys(item).find((k) => k !== '_id')
-    if (outerKey == null) return null
+    const childFields = field.fields ?? []
+    if (childFields.length === 0) return null
 
-    const subField = field.fields?.find((f) => f.name === outerKey)
-    const initial = item[subField?.name ?? outerKey]
-    const label = subField?.label ?? outerKey
+    // Render ALL child fields defined in the array's field schema
+    const innerBody = childFields.map((childField) => {
+      const initial = item[childField.name]
 
-    if (subField == null) return null
-
-    // Group child — render its fields inline
-    if (subField.type === 'group' && subField.fields && subField.fields.length > 0) {
-      const innerArray = Array.isArray(initial) ? initial : []
-
-      const innerBody = (subField.fields as Field[]).map((innerField) => {
-        const idx = innerArray.findIndex((el: any) => el && innerField.name in el)
-        const elementIndex = idx >= 0 ? idx : 0
-        const element = innerArray[elementIndex] ?? {}
-
+      if (childField.type === 'group' && childField.fields && childField.fields.length > 0) {
+        // Group child — render its inner fields with the group's sub-object
+        const groupData = initial && typeof initial === 'object' ? initial : {}
         return (
-          <FieldRenderer
-            key={innerField.name}
-            field={innerField}
-            defaultValue={element[innerField.name]}
-            basePath={`${arrayElementPath}.${subField.name}[${elementIndex}]`}
-            disableSorting={true}
-          />
-        )
-      })
-
-      if (disableSorting) {
-        return (
-          <div
-            key={itemWrapper.id}
-            className="p-4 border border-dashed border-gray-600 rounded-md flex flex-col gap-4"
-          >
-            {subField.label && <h3 className="text-[1rem] font-medium mb-1">{subField.label}</h3>}
-            <div className="flex flex-col gap-4">{innerBody}</div>
+          <div key={childField.name} className="flex flex-col gap-4">
+            {childField.label && <h4 className="text-[0.9rem] font-medium">{childField.label}</h4>}
+            {(childField.fields as Field[]).map((innerField) => (
+              <FieldRenderer
+                key={innerField.name}
+                field={innerField}
+                defaultValue={groupData[innerField.name]}
+                basePath={`${arrayElementPath}.${childField.name}`}
+                disableSorting={true}
+              />
+            ))}
           </div>
         )
       }
 
       return (
-        <SortableItem
-          key={itemWrapper.id}
-          id={itemWrapper.id}
-          label={subField.label ?? ''}
-          onAddBelow={() => handleInsertBelow(index)}
-          onRemove={() => handleRemoveItem(index)}
-        >
-          <div className="flex flex-col gap-4">{innerBody}</div>
-        </SortableItem>
+        <FieldRenderer
+          key={childField.name}
+          field={childField}
+          defaultValue={initial}
+          basePath={arrayElementPath}
+          disableSorting={true}
+        />
       )
-    }
+    })
 
-    // Simple value field child
-    const body = (
-      <FieldRenderer
-        key={subField.name}
-        field={subField}
-        defaultValue={initial}
-        basePath={arrayElementPath}
-        disableSorting={true}
-        hideLabel={true}
-      />
-    )
+    const label = field.label ?? field.name
 
     if (disableSorting) {
       return (
@@ -233,8 +205,7 @@ export const ArrayField = ({
           key={itemWrapper.id}
           className="p-4 border border-dashed border-gray-600 rounded-md flex flex-col gap-4"
         >
-          {label && <h3 className="text-[1rem] font-medium mb-1">{label}</h3>}
-          {body}
+          <div className="flex flex-col gap-4">{innerBody}</div>
         </div>
       )
     }
@@ -243,11 +214,11 @@ export const ArrayField = ({
       <SortableItem
         key={itemWrapper.id}
         id={itemWrapper.id}
-        label={label ?? subField.name}
+        label={label}
         onAddBelow={() => handleInsertBelow(index)}
         onRemove={() => handleRemoveItem(index)}
       >
-        {body}
+        <div className="flex flex-col gap-4">{innerBody}</div>
       </SortableItem>
     )
   }
