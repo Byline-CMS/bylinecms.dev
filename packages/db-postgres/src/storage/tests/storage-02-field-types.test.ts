@@ -24,7 +24,7 @@ const FieldTypesCollectionConfig: CollectionDefinition = {
     plural: 'FieldType',
   },
   fields: [
-    { name: 'path', type: 'text', required: true, unique: true },
+    { name: 'path', type: 'text', required: true /* unique: true */ },
     { name: 'title', type: 'text', required: true, localized: true },
     { name: 'summary', type: 'text', required: true, localized: true },
     { name: 'publishedOn', type: 'datetime', required: false },

@@ -25,7 +25,7 @@ const ComplexCollectionConfig: CollectionDefinition = {
     plural: 'Products',
   },
   fields: [
-    { name: 'sku', type: 'text', required: true, unique: true },
+    { name: 'sku', type: 'text', required: true /* unique: true */ },
     { name: 'name', type: 'text', required: true, localized: true },
     { name: 'description', type: 'richText', required: true, localized: true },
     { name: 'price', type: 'decimal', required: true },

@@ -21,7 +21,7 @@ const DocsCollectionConfig: CollectionDefinition = {
     plural: 'Documents',
   },
   fields: [
-    { name: 'path', type: 'text', required: true, unique: true },
+    { name: 'path', type: 'text', required: true /* unique: true */ },
     { name: 'title', type: 'text', required: true, localized: true },
     { name: 'summary', type: 'text', required: true, localized: true },
     { name: 'category', type: 'relation', targetCollection: 'categories', required: false },

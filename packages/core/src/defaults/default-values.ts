@@ -28,7 +28,7 @@ export async function resolveDefaultValue<T>(
 }
 
 export async function resolveFieldDefaultValue(
-  field: { defaultValue?: DefaultValue },
+  field: { defaultValue?: DefaultValue } & Record<string, any>,
   ctx?: Partial<DefaultValueContext>
 ): Promise<unknown | undefined> {
   return resolveDefaultValue(field.defaultValue, ctx)
