@@ -302,30 +302,21 @@ interface BaseField {
   validate?: (value: any, data: Record<string, any>) => string | undefined
 }
 
-// Base for structure fields that contain nested fields
-interface BaseStructureField extends BaseField {
-  type: StructureFieldType
+// Structure field types
+export interface ArrayField extends BaseField {
+  type: 'array'
   fields: Field[]
 }
 
-// Base for value-containing fields
-interface BaseValueField extends BaseField {
-  type: ValueFieldType
-}
-
-// Structure field types
-export interface ArrayField extends BaseStructureField {
-  type: 'array'
-}
-
-export interface BlocksField extends BaseStructureField {
+export interface BlocksField extends BaseField {
   type: 'blocks'
   /** The group field definitions available as block variants in this blocks container. */
   fields: GroupField[]
 }
 
-export interface GroupField extends BaseStructureField {
+export interface GroupField extends BaseField {
   type: 'group'
+  fields: Field[]
 }
 
 /**
@@ -339,7 +330,7 @@ export type BlockField = GroupField
 export type CompositeField = GroupField
 
 // Value field types (preserving existing properties)
-export interface TextField extends BaseValueField {
+export interface TextField extends BaseField {
   type: 'text'
   validation?: {
     minLength?: number
@@ -349,7 +340,7 @@ export interface TextField extends BaseValueField {
   }
 }
 
-export interface TextAreaField extends BaseValueField {
+export interface TextAreaField extends BaseField {
   type: 'textArea'
   validation?: {
     minLength?: number
@@ -359,20 +350,20 @@ export interface TextAreaField extends BaseValueField {
   }
 }
 
-export interface CheckboxField extends BaseValueField {
+export interface CheckboxField extends BaseField {
   type: 'checkbox'
 }
 
-export interface BooleanField extends BaseValueField {
+export interface BooleanField extends BaseField {
   type: 'boolean'
 }
 
-export interface SelectField extends BaseValueField {
+export interface SelectField extends BaseField {
   type: 'select'
   options: { label: string; value: string }[]
 }
 
-export interface RichTextField extends BaseValueField {
+export interface RichTextField extends BaseField {
   type: 'richText'
   validation?: {
     minLength?: number
@@ -380,17 +371,17 @@ export interface RichTextField extends BaseValueField {
   }
 }
 
-export interface TimeField extends BaseValueField {
+export interface TimeField extends BaseField {
   type: 'time'
   defaultValue?: DefaultValue<'00:00' | string> // Default to midnight
 }
 
-export interface DateField extends BaseValueField {
+export interface DateField extends BaseField {
   type: 'date'
   defaultValue?: DefaultValue<Date>
 }
 
-export interface DateTimeField extends BaseValueField {
+export interface DateTimeField extends BaseField {
   type: 'datetime'
   mode?: 'date' | 'datetime'
   yearsInFuture?: number
@@ -472,31 +463,31 @@ export function createPendingStoredFileValue(
   }
 }
 
-export interface FileField extends BaseValueField {
+export interface FileField extends BaseField {
   // Note - same as Image field for now.
   type: 'file'
   // value: StoredFileValue | null // (document value shape / for future helpers)
 }
 
-export interface ImageField extends BaseValueField {
+export interface ImageField extends BaseField {
   // Note - same as FileField for now.
   type: 'image'
   // value: StoredFileValue | null // (document value shape / for future helpers)
 }
 
-export interface FloatField extends BaseValueField {
+export interface FloatField extends BaseField {
   type: 'float'
 }
 
-export interface IntegerField extends BaseValueField {
+export interface IntegerField extends BaseField {
   type: 'integer'
 }
 
-export interface DecimalField extends BaseValueField {
+export interface DecimalField extends BaseField {
   type: 'decimal'
 }
 
-export interface RelationField extends BaseValueField {
+export interface RelationField extends BaseField {
   type: 'relation'
   /**
    * The `path` of the target collection (e.g. `'media'`, `'authors'`).
@@ -515,11 +506,11 @@ export interface RelationField extends BaseValueField {
   displayField?: string
 }
 
-export interface JsonField extends BaseValueField {
+export interface JsonField extends BaseField {
   type: 'json'
 }
 
-export interface ObjectField extends BaseValueField {
+export interface ObjectField extends BaseField {
   type: 'object'
 }
 
