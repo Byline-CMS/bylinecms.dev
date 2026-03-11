@@ -84,93 +84,12 @@ async function writeDocumentMeta({
 
       if (fieldConfig.type === 'blocks' && Array.isArray(value)) {
         value.forEach((item: any, index: number) => {
-          if (item && typeof item === 'object') {
-            let blockName: string | undefined
-            let blockFieldsData: any
-
-            // Handle group shape: { type: 'group', name: '...', fields: [...] }
-            if (item.type === 'group' && typeof item.name === 'string') {
-              blockName = item.name
-              blockFieldsData = item.fields
-            } else {
-              // Legacy shape: { richTextBlock: [...] }
-              blockName = Object.keys(item)[0]
-              if (blockName) {
-                blockFieldsData = item[blockName]
-              }
-            }
-
-            if (!blockName) return
-
+          if (item && typeof item === 'object' && typeof item._type === 'string') {
+            const blockName = item._type
             const blockPath = `${currentPath}.${index}.${blockName}`
-            let itemId = existingByPath.get(`group:${blockPath}`)
 
-            if (item.id) {
-              itemId = item.id
-            }
-
-            if (!itemId) {
-              // Check if we already assigned one in this transaction (unlikely for flat list)
-              itemId = existingByPath.get(`group:${blockPath}`)
-            }
-
-            if (!itemId) {
-              itemId = uuidv7()
-            }
-
-            // Always write to metaStore for the new version
-            metaInserts.push({
-              id: uuidv7(),
-              document_version_id: documentVersionId,
-              collection_id: collectionId,
-              type: 'group',
-              path: blockPath,
-              item_id: itemId,
-              meta: item.meta ?? null, // Preserve other meta if present
-            })
-
-            const subFieldConfig = fieldConfig.fields?.find(
-              (f): f is GroupField => f.name === blockName && isGroupField(f as Field)
-            )
-
-            // Recurse into block child fields
-            if (subFieldConfig) {
-              if (
-                typeof blockFieldsData === 'object' &&
-                !Array.isArray(blockFieldsData) &&
-                blockFieldsData !== null
-              ) {
-                // New shape: fields is a plain object
-                traverse(subFieldConfig.fields, blockFieldsData, `${currentPath}.${index}`)
-              } else if (Array.isArray(blockFieldsData)) {
-                // Legacy shape: fields is array of single-key objects
-                const syntheticData: any = {}
-                blockFieldsData.forEach((f: any) => {
-                  if (f && typeof f === 'object') {
-                    Object.assign(syntheticData, f)
-                  }
-                })
-                traverse(subFieldConfig.fields, syntheticData, `${currentPath}.${index}`)
-              }
-            }
-          }
-        })
-      } else if (fieldConfig.type === 'array' && Array.isArray(value)) {
-        value.forEach((item: any, index: number) => {
-          const arrayElementPath = `${currentPath}.${index}`
-
-          // Handle composite shape inside array
-          if (
-            item &&
-            typeof item === 'object' &&
-            item.type === 'group' &&
-            typeof item.name === 'string'
-          ) {
-            const blockName = item.name
-            const blockPath = `${arrayElementPath}.${blockName}`
-
-            // Generate/Retrieve ID
-            let itemId = item.id
+            // Resolve or generate stable identity
+            let itemId = item._id
             if (!itemId) itemId = existingByPath.get(`group:${blockPath}`)
             if (!itemId) itemId = uuidv7()
 
@@ -181,31 +100,25 @@ async function writeDocumentMeta({
               type: 'group',
               path: blockPath,
               item_id: itemId,
-              meta: item.meta ?? null,
+              meta: null,
             })
 
-            // Recurse for fields inside the group
-            const subField = fieldConfig.fields?.find((f) => f.name === blockName)
-            if (subField && subField.type === 'group') {
-              if (
-                typeof item.fields === 'object' &&
-                !Array.isArray(item.fields) &&
-                item.fields !== null
-              ) {
-                // New shape: fields is a plain object
-                traverse(subField.fields as Field[], item.fields, blockPath)
-              } else if (Array.isArray(item.fields)) {
-                // Legacy shape: fields is array of single-key objects
-                const syntheticData: any = {}
-                item.fields.forEach((f: any) => {
-                  if (f && typeof f === 'object') {
-                    Object.assign(syntheticData, f)
-                  }
-                })
-                traverse(subField.fields as Field[], syntheticData, blockPath)
-              }
+            const subFieldConfig = fieldConfig.fields?.find(
+              (f): f is GroupField => f.name === blockName && isGroupField(f as Field)
+            )
+
+            // Recurse into block child fields
+            if (subFieldConfig) {
+              const { _id, _type, ...fieldData } = item
+              traverse(subFieldConfig.fields, fieldData, `${currentPath}.${index}`)
             }
-          } else if (typeof item === 'object' && item !== null) {
+          }
+        })
+      } else if (fieldConfig.type === 'array' && Array.isArray(value)) {
+        value.forEach((item: any, index: number) => {
+          const arrayElementPath = `${currentPath}.${index}`
+
+          if (typeof item === 'object' && item !== null) {
             // Non-block array item — assign a stable identity via array_item meta.
             let itemId = item._id
             if (!itemId) itemId = existingByPath.get(`array_item:${arrayElementPath}`)

@@ -148,8 +148,8 @@ describe('applyPatches', () => {
   it('supports array.insert and array.move with stable ids', () => {
     const original = {
       reviews: [
-        { id: 'a', rating: 3 },
-        { id: 'b', rating: 4 },
+        { _id: 'a', rating: 3 },
+        { _id: 'b', rating: 4 },
       ],
     }
 
@@ -158,14 +158,14 @@ describe('applyPatches', () => {
         kind: 'array.insert',
         path: 'reviews',
         index: 1,
-        item: { id: 'c', rating: 5 },
+        item: { _id: 'c', rating: 5 },
       },
     ])
 
     expect(insertErrors).toHaveLength(0)
 
-    const inserted = afterInsert as { reviews: { id: string; rating: number }[] }
-    expect(inserted.reviews.map((r) => r.id)).toEqual(['a', 'c', 'b'])
+    const inserted = afterInsert as { reviews: { _id: string; rating: number }[] }
+    expect(inserted.reviews.map((r) => r._id)).toEqual(['a', 'c', 'b'])
 
     const { doc: afterMove, errors: moveErrors } = applyPatches(DocsDefinition, inserted, [
       {
@@ -177,8 +177,8 @@ describe('applyPatches', () => {
     ])
 
     expect(moveErrors).toHaveLength(0)
-    const moved = afterMove as { reviews: { id: string; rating: number }[] }
-    expect(moved.reviews.map((r) => r.id)).toEqual(['c', 'a', 'b'])
+    const moved = afterMove as { reviews: { _id: string; rating: number }[] }
+    expect(moved.reviews.map((r) => r._id)).toEqual(['c', 'a', 'b'])
   })
 
   it('supports block.add and block.updateField on content blocks', () => {
@@ -200,19 +200,19 @@ describe('applyPatches', () => {
     expect(addErrors).toHaveLength(0)
 
     const withBlock = afterAdd as {
-      content: [{ id: string; type: string; richText?: unknown }]
+      content: [{ _id: string; _type: string; richText?: unknown }]
     }
 
     expect(withBlock.content).toHaveLength(1)
     const block = withBlock.content[0]
-    expect(block?.type).toBe('group')
+    expect(block?._type).toBe('richTextBlock')
     expect(block?.richText).toEqual({ ops: [{ insert: 'Hello' }] })
 
     const { doc: afterUpdate, errors: updateErrors } = applyPatches(DocsDefinition, withBlock, [
       {
         kind: 'block.updateField',
         path: 'content',
-        blockId: block.id,
+        blockId: block._id,
         fieldPath: 'constrainedWidth',
         value: true,
       },
@@ -220,7 +220,7 @@ describe('applyPatches', () => {
 
     expect(updateErrors).toHaveLength(0)
     const updated = afterUpdate as {
-      content: { id: string; type: string; constrainedWidth?: boolean }[]
+      content: { _id: string; _type: string; constrainedWidth?: boolean }[]
     }
 
     expect(updated.content[0]?.constrainedWidth).toBe(true)

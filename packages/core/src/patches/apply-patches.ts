@@ -133,16 +133,6 @@ function getBySegments(
 
     if (segment.kind === 'field') {
       key = segment.key
-
-      // Special handling for Block objects:
-      // If we are traversing a block object and the key matches the block name,
-      // we remap the key to 'fields' to access the internal fields array.
-      // This allows paths like `content[0].richTextBlock[0].richText` to map
-      // to `content[0].fields[0].richText`.
-      if (parent && typeof parent === 'object' && parent.type === 'group' && parent.name === key) {
-        key = 'fields'
-      }
-
       current = parent[key]
     } else if (segment.kind === 'index') {
       if (!Array.isArray(parent)) {
@@ -154,7 +144,7 @@ function getBySegments(
       if (!Array.isArray(parent)) {
         throw new Error(`Expected array when resolving id segment in path`)
       }
-      const foundIndex = parent.findIndex((item: any) => item && item.id === segment.id)
+      const foundIndex = parent.findIndex((item: any) => item && item._id === segment.id)
       if (foundIndex === -1) {
         throw new Error(`Item with id=${segment.id} not found in array`)
       }
@@ -189,13 +179,6 @@ function ensurePath(
         throw new Error('ensurePath encountered null/undefined parent before field segment')
       }
 
-      // Special handling for Block objects:
-      // If we are traversing a block object and the key matches the block name,
-      // we remap the key to 'fields' to access the internal fields array.
-      if (parent && typeof parent === 'object' && parent.type === 'group' && parent.name === key) {
-        key = 'fields'
-      }
-
       // If this field is followed by an index/id segment, it represents
       // an array-like field (e.g. "content[0]", "reviews[id=...]"),
       // so initialise it as [] when missing. Otherwise initialise as {}.
@@ -223,10 +206,10 @@ function ensurePath(
       if (!Array.isArray(parent)) {
         throw new Error('ensurePath expected array parent for id segment')
       }
-      let idx = parent.findIndex((item: any) => item && item.id === segment.id)
+      let idx = parent.findIndex((item: any) => item && item._id === segment.id)
       if (idx === -1) {
         idx = parent.length
-        parent.push({ id: segment.id })
+        parent.push({ _id: segment.id })
       }
       key = idx
       current = parent[idx]
@@ -277,7 +260,7 @@ function applyArrayPatch(doc: any, patch: ArrayPatch, definition: CollectionDefi
     const index = patch.index ?? array.length
     array.splice(index, 0, patch.item)
   } else if (patch.kind === 'array.move') {
-    const currentIndex = array.findIndex((item) => item && item.id === patch.itemId)
+    const currentIndex = array.findIndex((item) => item && item._id === patch.itemId)
 
     // Fallback for arrays without stable ids: treat itemId as an index
     const index = currentIndex === -1 ? Number.parseInt(patch.itemId, 10) : currentIndex
@@ -290,13 +273,13 @@ function applyArrayPatch(doc: any, patch: ArrayPatch, definition: CollectionDefi
     const toIndex = patch.toIndex ?? array.length
     array.splice(toIndex, 0, moved)
   } else if (patch.kind === 'array.remove') {
-    const index = array.findIndex((item) => item && item.id === patch.itemId)
+    const index = array.findIndex((item) => item && item._id === patch.itemId)
     if (index === -1) {
       return
     }
     array.splice(index, 1)
   } else if (patch.kind === 'array.updateItem') {
-    const index = array.findIndex((item) => item && item.id === patch.itemId)
+    const index = array.findIndex((item) => item && item._id === patch.itemId)
     if (index === -1) {
       throw new Error(`array.updateItem: item with id=${patch.itemId} not found`)
     }
@@ -316,15 +299,15 @@ function applyBlockPatch(doc: any, patch: BlockPatch, definition: CollectionDefi
   const array = resolveArrayAtPath(doc, patch.path)
 
   if (patch.kind === 'block.add') {
-    const id = crypto.randomUUID()
-    const base: any = { id, type: 'group', name: patch.blockType }
+    const _id = crypto.randomUUID()
+    const base: any = { _id, _type: patch.blockType }
     if (patch.initialValue && typeof patch.initialValue === 'object') {
       Object.assign(base, patch.initialValue)
     }
     const index = patch.index ?? array.length
     array.splice(index, 0, base)
   } else if (patch.kind === 'block.move') {
-    const index = array.findIndex((item) => item && item.id === patch.blockId)
+    const index = array.findIndex((item) => item && item._id === patch.blockId)
     if (index === -1) {
       throw new Error(`block.move: block with id=${patch.blockId} not found`)
     }
@@ -332,13 +315,13 @@ function applyBlockPatch(doc: any, patch: BlockPatch, definition: CollectionDefi
     const toIndex = Math.max(0, Math.min(patch.toIndex, array.length))
     array.splice(toIndex, 0, item)
   } else if (patch.kind === 'block.remove') {
-    const index = array.findIndex((item) => item && item.id === patch.blockId)
+    const index = array.findIndex((item) => item && item._id === patch.blockId)
     if (index === -1) {
       return
     }
     array.splice(index, 1)
   } else if (patch.kind === 'block.updateField') {
-    const index = array.findIndex((item) => item && item.id === patch.blockId)
+    const index = array.findIndex((item) => item && item._id === patch.blockId)
     if (index === -1) {
       throw new Error(`block.updateField: block with id=${patch.blockId} not found`)
     }

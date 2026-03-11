@@ -48,8 +48,8 @@ interface MetaRow {
  * Handles two types of meta rows:
  *
  * **block** — paths like `content.0.richTextBlock`. The array item is
- * transformed from the legacy `{ blockName: fields }` shape into the
- * normalised group shape: `{ id, type: 'group', name, fields, meta }`.
+ * transformed from the reconstructed `{ blockName: { ...fields } }` wrapper
+ * into the flat block shape: `{ _id, _type, ...fields }`.
  *
  * **array_item** — paths like `tags.0`. A stable `_id` property is
  * injected into each array item so patches can target items by identity
@@ -76,7 +76,9 @@ function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
 
   const result: any = { ...document }
 
-  // --- Composite enrichment ---
+  // --- Composite (blocks) enrichment ---
+  // reconstructFields produces items as { blockName: { ...fields } }.
+  // We unwrap that into { _id, _type, ...fields }.
   const compositeFieldNames = new Set<string>()
   for (const row of compositeRows) {
     const topField = row.path.split('.')[0]
@@ -96,11 +98,9 @@ function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
       const meta = metaByPath.get(blockPath)
 
       return {
-        id: meta?.item_id ?? null,
-        type: 'group',
-        name: blockName,
-        fields: blockFields,
-        meta: meta?.meta ?? null,
+        _id: meta?.item_id ?? null,
+        _type: blockName,
+        ...(typeof blockFields === 'object' && blockFields !== null ? blockFields : {}),
       }
     })
   }

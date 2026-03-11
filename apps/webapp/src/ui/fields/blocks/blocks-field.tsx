@@ -6,14 +6,14 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-import type { BlocksField as BlocksFieldType, Field } from '@byline/core'
+import type { BlocksField as BlocksFieldType, Field, GroupField as GroupFieldType } from '@byline/core'
 import { Card, CloseIcon, IconButton, Modal, PlusIcon } from '@infonomic/uikit/react'
 
 import { DraggableSortable, moveItem } from '@/ui/dnd/draggable-sortable'
 import { defaultScalarForField } from '@/ui/fields/field-helpers'
-import { FieldRenderer } from '@/ui/fields/field-renderer'
+import { GroupField } from '@/ui/fields/group/group-field'
 import { SortableItem } from '@/ui/fields/sortable-item'
 import { useFormContext } from '@/ui/forms/form-context'
 
@@ -55,11 +55,9 @@ export const BlocksField = ({
       setItems(
         defaultValue.map((item: any) => ({
           id:
-            item && typeof item === 'object' && 'id' in item
-              ? String((item as { id: string }).id)
-              : item && typeof item === 'object' && '_id' in item
-                ? String((item as { _id: string })._id)
-                : crypto.randomUUID(),
+            item && typeof item === 'object' && '_id' in item
+              ? String((item as { _id: string })._id)
+              : crypto.randomUUID(),
           data: item,
         }))
       )
@@ -85,8 +83,8 @@ export const BlocksField = ({
 
       const item = currentArray[clampedFrom]
       const itemId =
-        item && typeof item === 'object' && 'id' in item
-          ? String((item as { id: string }).id)
+        item && typeof item === 'object' && '_id' in item
+          ? String((item as { _id: string })._id)
           : String(clampedFrom)
 
       appendPatch({
@@ -110,17 +108,14 @@ export const BlocksField = ({
     if (!variant || variant.type !== 'group') return
 
     const compositeFields = (variant.fields ?? []) as Field[]
-    const fields: Record<string, any> = {}
-    for (const f of compositeFields) {
-      fields[f.name] = await defaultScalarForField(f, getFieldValues)
-    }
 
     const newId = crypto.randomUUID()
-    const newItem = {
-      id: newId,
-      type: 'group',
-      name: variant.name,
-      fields,
+    const newItem: Record<string, any> = {
+      _id: newId,
+      _type: variant.name,
+    }
+    for (const f of compositeFields) {
+      newItem[f.name] = await defaultScalarForField(f, getFieldValues)
     }
 
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
@@ -151,8 +146,8 @@ export const BlocksField = ({
 
     const item = currentArray[index]
     const itemId =
-      item && typeof item === 'object' && 'id' in item
-        ? String((item as { id: string }).id)
+      item && typeof item === 'object' && '_id' in item
+        ? String((item as { _id: string })._id)
         : String(index)
 
     setItems((prev) => prev.filter((_, i) => i !== index))
@@ -181,39 +176,27 @@ export const BlocksField = ({
     const item = itemWrapper.data
     const arrayElementPath = `${path}[${index}]`
 
-    let subField: Field | undefined
-    let initial: any
-    let label: ReactNode | undefined
+    if (!item || typeof item !== 'object' || typeof item._type !== 'string') return null
 
-    // Group shape: { id, type: 'group', name, fields }
-    if (
-      item &&
-      typeof item === 'object' &&
-      item.type === 'group' &&
-      typeof item.name === 'string'
-    ) {
-      subField = field.fields?.find((f) => f.name === item.name)
-      initial = item.fields
-      label = subField?.label ?? item.name
-    } else if (item && typeof item === 'object') {
-      // Legacy shape: { blockName: [ { fieldName: value }, ... ] }
-      const outerKey = Object.keys(item).find((k) => k !== '_id')
-      if (outerKey == null) return null
-      subField = field.fields?.find((f) => f.name === outerKey)
-      initial = item[subField?.name ?? outerKey]
-      label = subField?.label ?? outerKey
-    }
-
+    const subField = field.fields?.find((f) => f.name === item._type)
     if (subField == null) return null
 
+    // Extract field data (everything except _id and _type)
+    const { _id, _type, ...fieldData } = item
+    const label = subField.label ?? _type
+
+    // Render the group's children directly with arrayElementPath as the
+    // path (not basePath).  FieldRenderer would append the group name
+    // (e.g. "richTextBlock") producing paths like
+    // "content[0].richTextBlock.constrainedWidth", but the flat block
+    // shape stores fields directly on the item so the correct path is
+    // "content[0].constrainedWidth".
     const body = (
-      <FieldRenderer
+      <GroupField
         key={subField.name}
-        field={subField}
-        defaultValue={initial}
-        basePath={arrayElementPath}
-        disableSorting={true}
-        hideLabel={true}
+        field={{ ...subField, label: undefined } as unknown as GroupFieldType}
+        defaultValue={fieldData}
+        path={arrayElementPath}
       />
     )
 

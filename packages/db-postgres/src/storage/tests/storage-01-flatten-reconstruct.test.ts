@@ -88,7 +88,8 @@ const DocsCollectionConfig: CollectionDefinition = {
 
 const filedId = uuidv7()
 
-// Complex test document with many fields and arrays
+// Complex test document using the flat blocks shape: { _type, ...fields }
+// This is the shape used by the application layer (forms, patches, API).
 const sampleDocument = {
   path: 'my-first-document',
   title: {
@@ -101,11 +102,68 @@ const sampleDocument = {
     es: 'Este es un documento de muestra para fines de prueba.',
     fr: "Il s'agit d'un document d'exemple à des fins de test.",
   },
-  // category: {
-  //   target_collection_id: "cat-123",
-  //   target_document_id: "electronics-audio"
-  // },
   publishedOn: new Date('2024-01-15T10:00:00'),
+  featured: true,
+  views: 100,
+  price: '19.99',
+  content: [
+    {
+      _type: 'richTextBlock',
+      constrainedWidth: true,
+      richText: {
+        en: { root: { paragraph: 'Some text here...' } },
+        es: { root: { paragraph: 'Some spanish text here' } },
+      },
+    },
+    {
+      _type: 'photoBlock',
+      display: 'wide',
+      photo: {
+        file_id: filedId,
+        filename: 'docs-photo-01.jpg',
+        original_filename: 'some-original-filename.jpg',
+        mime_type: 'image/jpeg',
+        file_size: 123456,
+        storage_provider: 'local',
+        storage_path: 'uploads/docs-photo-01.jpg',
+      },
+      alt: 'Some alt text here',
+      caption: {
+        en: { root: { paragraph: 'Some text here...' } },
+        es: { root: { paragraph: 'Some spanish text here...' } },
+      },
+    },
+  ],
+  reviews: [
+    {
+      reviewItem: { rating: 6, comment: { root: { paragraph: 'Some review text here...' } } },
+    },
+    {
+      reviewItem: {
+        rating: 2,
+        comment: { root: { paragraph: 'Some more reviews here...' } },
+      },
+    },
+  ],
+  links: [{ link: 'https://example.com' }, { link: 'https://another-example.com' }],
+}
+
+// reconstructFields produces the DB-native wrapper shape: { blockName: { ...fields } }.
+// The flat shape ({ _id, _type, ...fields }) is produced later by attachMetaToDocument.
+// This expected document reflects the wrapper shape that reconstructFields returns.
+const expectedReconstructed = {
+  path: 'my-first-document',
+  title: {
+    en: 'My First Document',
+    es: 'Mi Primer Documento',
+    fr: 'Mon Premier Document',
+  },
+  summary: {
+    en: 'This is a sample document for testing purposes.',
+    es: 'Este es un documento de muestra para fines de prueba.',
+    fr: "Il s'agit d'un document d'exemple à des fins de test.",
+  },
+  publishedOn: '2024-01-15T03:00:00.000Z',
   featured: true,
   views: 100,
   price: '19.99',
@@ -165,13 +223,15 @@ describe('01 Document Flattening and Reconstruction', () => {
     const reconstructedJson = JSON.stringify(reconstructed, null, 2)
     // console.log('Reconstructed document:', reconstructedJson)
 
-    // A simplified version of the sample document for deep equality check
-    const sampleDocumentJson = JSON.stringify(sampleDocument, null, 2)
+    // reconstructFields produces the DB-native wrapper shape ({ blockName: { ...fields } }),
+    // not the flat application shape ({ _type, ...fields }). The flat shape is produced
+    // later by attachMetaToDocument when reading from the database.
+    const expectedJson = JSON.stringify(expectedReconstructed, null, 2)
 
     assert.deepStrictEqual(
       JSON.parse(reconstructedJson),
-      JSON.parse(sampleDocumentJson),
-      'Reconstructed document should match the original structure'
+      JSON.parse(expectedJson),
+      'Reconstructed document should match the expected DB-native wrapper shape'
     )
   })
 })

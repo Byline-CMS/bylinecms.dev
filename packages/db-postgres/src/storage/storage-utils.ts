@@ -62,12 +62,9 @@ export function flattenFields(
           const arrayElementPath = `${currentPath}.${index}`
 
           if (typeof item === 'object' && item !== null && containerField.fields) {
-            // Blocks container + group shape support.
-            // For the Docs collection, `content` is a blocks field whose
-            // items are group fields like richTextBlock and photoBlock.
-            if (item.type === 'group' && typeof item.name === 'string') {
-              const blockName = item.name
-              const blockFieldsArray = Array.isArray(item.fields) ? item.fields : []
+            // Blocks item — flat shape: { _id, _type, ...fieldData }
+            if (fieldConfig.type === 'blocks' && typeof item._type === 'string') {
+              const blockName = item._type
               const blockFieldConfig = containerField.fields.find((f) => f.name === blockName)
 
               if (
@@ -75,33 +72,9 @@ export function flattenFields(
                 blockFieldConfig.type === 'group' &&
                 Array.isArray(blockFieldConfig.fields)
               ) {
-                if (
-                  typeof blockFieldsArray === 'object' &&
-                  !Array.isArray(blockFieldsArray) &&
-                  blockFieldsArray !== null
-                ) {
-                  // New shape: fields is a plain object, e.g. { richText: ..., constrainedWidth: true }
-                  flatten(
-                    blockFieldsArray,
-                    blockFieldConfig.fields,
-                    `${arrayElementPath}.${blockName}`
-                  )
-                } else if (Array.isArray(blockFieldsArray)) {
-                  // Legacy shape: fields is an array of single-key objects
-                  blockFieldsArray.forEach((subItem: any, idx: number) => {
-                    if (subItem && typeof subItem === 'object') {
-                      const fieldName = Object.keys(subItem)[0]
-                      if (fieldName != null) {
-                        const fieldValue = subItem[fieldName]
-                        const subField = blockFieldConfig.fields.find((f) => f.name === fieldName)
-                        if (subField) {
-                          const blockElementPath = `${arrayElementPath}.${blockName}.${idx}`
-                          flatten({ [fieldName]: fieldValue }, [subField], blockElementPath)
-                        }
-                      }
-                    }
-                  })
-                }
+                // Build a plain object of just the field data (exclude _id, _type)
+                const { _id, _type, ...fieldData } = item
+                flatten(fieldData, blockFieldConfig.fields, `${arrayElementPath}.${blockName}`)
               }
             } else {
               // Array item is a plain object whose keys correspond to the
