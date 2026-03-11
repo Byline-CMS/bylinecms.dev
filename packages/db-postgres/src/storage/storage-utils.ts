@@ -12,11 +12,10 @@ const DEFAULT_CONTENT_LOCALES = ['en', 'es', 'fr']
 
 import type {
   ArrayField,
-  Block,
   BlocksField,
   CollectionDefinition,
   DateTimeStore,
-  Field,
+  FieldSet,
   FileStore,
   FlattenedStore,
   GroupField,
@@ -50,7 +49,7 @@ export function flattenFields(
     return parts.join('.')
   }
 
-  function flatten(obj: any, fieldConfigs: Field[], basePath = '') {
+  function flatten(obj: any, fieldConfigs: FieldSet, basePath = '') {
     for (const fieldConfig of fieldConfigs) {
       const currentPath = basePath ? `${basePath}.${fieldConfig.name}` : fieldConfig.name
       const value = obj[fieldConfig.name]
@@ -68,10 +67,7 @@ export function flattenFields(
               const blockName = item._type
               const blockConfig = blocksField.blocks?.find((b) => b.blockType === blockName)
 
-              if (
-                blockConfig &&
-                Array.isArray(blockConfig.fields)
-              ) {
+              if (blockConfig && Array.isArray(blockConfig.fields)) {
                 // Build a plain object of just the field data (exclude _id, _type)
                 const { _id, _type, ...fieldData } = item
                 flatten(fieldData, blockConfig.fields, `${arrayElementPath}.${blockName}`)

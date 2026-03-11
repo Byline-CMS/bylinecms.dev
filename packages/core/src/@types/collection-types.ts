@@ -6,8 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { FieldSetData, FieldSetDataAllLocales } from './field-data-types.js'
 import type { Block, DefaultValue, Field } from './field-types.js'
 import type { IStorageProvider } from './storage-types.js'
+import type { Prettify } from './type-utils.js'
 
 // ---------------------------------------------------------------------------
 // Upload / media
@@ -541,6 +543,30 @@ export function defineCollection<const C extends CollectionDefinition>(
 ): C {
   return definition
 }
+
+export type CollectionFieldData<C extends CollectionDefinition> = FieldSetData<C['fields']>
+export type CollectionFieldDataAllLocales<C extends CollectionDefinition> = FieldSetDataAllLocales<
+  C['fields']
+>
+
+export type CollectionData<C extends CollectionDefinition> = Prettify<
+  {
+    document_id: string
+    document_version_id: string
+    status: string
+    created_at: Date
+    updated_at: Date
+  } & CollectionFieldData<C>
+>
+export type CollectionDataAllLocales<C extends CollectionDefinition> = Prettify<
+  {
+    document_id: string
+    document_version_id: string
+    status: string
+    created_at: Date
+    updated_at: Date
+  } & CollectionFieldDataAllLocales<C>
+>
 
 // ---------------------------------------------------------------------------
 // Serializable types — safe for JSON wire transfer (SSR loaders, RSC, APIs)

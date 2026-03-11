@@ -6,13 +6,35 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { GroupField } from '@byline/core'
+import { contentLocales, type LocaleDefinition } from '../i18n.js'
 
-import { contentLocales } from '../i18n.js'
+type Options = {
+  name?: string
+  label?: string
+  helpText?: string
+  locales?: LocaleDefinition[]
+}
 
-export interface LocaleEntry {
-  code: string
-  label: string
+type LocaleFields<T extends readonly LocaleDefinition[]> = {
+  [K in keyof T]: {
+    name: T[K]['code']
+    label: T[K]['label']
+    type: 'checkbox'
+  }
+}
+
+type WithOverride<O, K extends string, V, D> = O extends { [P in K]: V } ? O[K] : D
+
+type AvailableLanguagesField<Opts> = {
+  readonly name: WithOverride<Opts, 'name', string, 'availableLanguages'>
+  readonly label: string
+  readonly helpText: string
+  readonly type: 'group'
+  readonly required: true
+  readonly fields: LocaleFields<
+    WithOverride<Opts, 'locales', LocaleDefinition[], typeof contentLocales>
+  >
+  readonly validate: (value: Record<string, boolean> | undefined) => string | undefined
 }
 
 /**
@@ -25,25 +47,22 @@ export interface LocaleEntry {
  * to frontend websites / consumers - allowing them to implement their own
  * logic around content availability per language.
  *
- * @param locales - Array of locale entries (code + label) to build checkboxes from.
- * @param overrides - Optional partial overrides for the generated field (name, label, helpText, etc.).
+ * @param options - Optional overrides for the generated field (name, label, helpText, locales).
  */
-export function availableLanguagesField(
-  locales: LocaleEntry[] = contentLocales,
-  overrides: Partial<Pick<GroupField, 'name' | 'label' | 'helpText'>> = {}
-): GroupField {
+export function availableLanguagesField<const Opts extends Options>(
+  options: Opts = {} as Opts
+): AvailableLanguagesField<Opts> {
   return {
-    name: 'availableLanguages',
-    label: 'Published Languages',
+    name: (options.name ?? 'availableLanguages') as any,
+    label: options.label ?? 'Published Languages',
+    helpText: options.helpText ?? 'Select the languages this document is available in.',
     type: 'group',
     required: true,
-    helpText: 'Select the languages this document is available in.',
-    ...overrides,
-    fields: locales.map(({ code, label }) => ({
+    fields: (options.locales ?? contentLocales).map(({ code, label }) => ({
       name: code,
       label,
       type: 'checkbox' as const,
-    })),
+    })) as any,
     validate: (value: Record<string, boolean> | undefined) => {
       const hasSelection =
         value != null &&

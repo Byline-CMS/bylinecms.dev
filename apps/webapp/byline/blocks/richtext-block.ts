@@ -8,7 +8,7 @@
 
 import type { Block } from '@byline/core'
 
-export const RichTextBlock: Block = {
+export const RichTextBlock = {
   blockType: 'richTextBlock',
   label: 'Richtext Block',
   fields: [
@@ -29,4 +29,4 @@ export const RichTextBlock: Block = {
         'If enabled, the richtext content will be constrained to a maximum width for better readability.',
     },
   ],
-}
+} as const satisfies Block

@@ -9,7 +9,7 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
 
-import { defineCollection } from '@byline/core'
+import { type CollectionFieldDataAllLocales, defineCollection } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
 import { flattenFields, reconstructFields } from '../storage-utils.js'
@@ -84,11 +84,13 @@ const DocsCollectionConfig = defineCollection({
   ],
 })
 
+type DocsFields = CollectionFieldDataAllLocales<typeof DocsCollectionConfig>
+
 const filedId = uuidv7()
 
 // Complex test document using the flat blocks shape: { _type, ...fields }
 // This is the shape used by the application layer (forms, patches, API).
-const sampleDocument = {
+const sampleDocument: DocsFields = {
   path: 'my-first-document',
   title: {
     en: 'My First Document',
@@ -106,6 +108,7 @@ const sampleDocument = {
   price: '19.99',
   content: [
     {
+      _id: 'block1',
       _type: 'richTextBlock',
       constrainedWidth: true,
       richText: {
@@ -114,16 +117,24 @@ const sampleDocument = {
       },
     },
     {
+      _id: 'block2',
       _type: 'photoBlock',
       display: 'wide',
       photo: {
+        file_hash: undefined,
         file_id: filedId,
         filename: 'docs-photo-01.jpg',
+        image_format: undefined,
+        image_height: undefined,
+        image_width: undefined,
         original_filename: 'some-original-filename.jpg',
         mime_type: 'image/jpeg',
         file_size: 123456,
         storage_provider: 'local',
         storage_path: 'uploads/docs-photo-01.jpg',
+        processing_status: 'pending',
+        storage_url: undefined,
+        thumbnail_generated: undefined,
       },
       alt: 'Some alt text here',
       caption: {
@@ -134,16 +145,21 @@ const sampleDocument = {
   ],
   reviews: [
     {
+      _id: 'review1',
       reviewItem: { rating: 6, comment: { root: { paragraph: 'Some review text here...' } } },
     },
     {
+      _id: 'review2',
       reviewItem: {
         rating: 2,
         comment: { root: { paragraph: 'Some more reviews here...' } },
       },
     },
   ],
-  links: [{ link: 'https://example.com' }, { link: 'https://another-example.com' }],
+  links: [
+    { _id: 'link1', link: 'https://example.com' },
+    { _id: 'link2', link: 'https://another-example.com' },
+  ],
 }
 
 // reconstructFields produces the DB-native wrapper shape: { blockName: { ...fields } }.
@@ -179,13 +195,20 @@ const expectedReconstructed = {
       photoBlock: {
         display: 'wide',
         photo: {
+          file_hash: undefined,
           file_id: filedId,
           filename: 'docs-photo-01.jpg',
+          image_format: undefined,
+          image_height: undefined,
+          image_width: undefined,
           original_filename: 'some-original-filename.jpg',
           mime_type: 'image/jpeg',
           file_size: 123456,
           storage_provider: 'local',
           storage_path: 'uploads/docs-photo-01.jpg',
+          processing_status: 'pending',
+          storage_url: undefined,
+          thumbnail_generated: undefined,
         },
         alt: 'Some alt text here',
         caption: {
@@ -225,6 +248,12 @@ describe('01 Document Flattening and Reconstruction', () => {
     // not the flat application shape ({ _type, ...fields }). The flat shape is produced
     // later by attachMetaToDocument when reading from the database.
     const expectedJson = JSON.stringify(expectedReconstructed, null, 2)
+
+    assert.deepStrictEqual(
+      reconstructed.content,
+      expectedReconstructed.content,
+      'Reconstructed content field should match expected shape'
+    )
 
     assert.deepStrictEqual(
       JSON.parse(reconstructedJson),

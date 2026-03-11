@@ -8,7 +8,7 @@
 
 import type { Block } from '@byline/core'
 
-export const PhotoBlock: Block = {
+export const PhotoBlock = {
   blockType: 'photoBlock',
   label: 'Photo Block',
   fields: [
@@ -34,4 +34,4 @@ export const PhotoBlock: Block = {
       localized: true,
     },
   ],
-}
+} as const satisfies Block

@@ -321,7 +321,6 @@ export interface Block {
 export interface BlocksField extends NonlocalizableField {
   type: 'blocks'
   blocks: Block[]
-  // fields: GroupField[]
 }
 
 // ---------------------------------------------------------------------------
@@ -554,14 +553,14 @@ export type ValueField =
 
 export type Field = StructureField | ValueField
 
-export type FieldSet = Field[]
+export type FieldSet = readonly Field[]
 
 export type ValueFieldType = ValueField['type']
 export type StructureFieldType = StructureField['type']
 export type FieldType = Field['type']
 
 export type LocalizedField = { localized: true }
-export type OptionalField = { required?: false }
+export type RequiredField = { required: true }
 
 // Type guards for field identification
 export function isStructureField(field: Field): field is StructureField {

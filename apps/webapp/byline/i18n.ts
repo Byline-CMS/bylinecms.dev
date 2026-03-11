@@ -27,12 +27,12 @@ export const interfaceLocales: LocaleDefinition[] = [
 ]
 
 /** Locales a document can be published in. */
-export const contentLocales: LocaleDefinition[] = [
+export const contentLocales = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
   { code: 'es', label: 'Español' },
   { code: 'de', label: 'Deutsch' },
-]
+] as const
 
 /** Derived config object — passed directly to defineServerConfig / defineClientConfig. */
 export const i18n = {

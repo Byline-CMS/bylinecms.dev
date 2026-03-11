@@ -10,6 +10,7 @@ import type {
   ArrayField,
   BlocksField,
   Field,
+  FieldSet,
   FileStore,
   GroupField,
   ValueField,
@@ -123,7 +124,7 @@ export const flattenFieldSetData = (
 }
 
 function* flattenFieldSetDataGen(
-  fields: Field[],
+  fields: FieldSet,
   data: unknown,
   locale: string,
   parent_path: string[] = []

@@ -1,5 +1,5 @@
 import { isStructureField } from '../@types/field-types.js'
-import type { DefaultValue, DefaultValueContext, Field } from '../@types/field-types.js'
+import type { DefaultValue, DefaultValueContext, FieldSet } from '../@types/field-types.js'
 
 function normalizeCtx(ctx?: Partial<DefaultValueContext>): DefaultValueContext {
   return {
@@ -41,7 +41,7 @@ export async function resolveFieldDefaultValue(
  * (either via `defaultValue` or via nested structure fields that have child defaults).
  */
 export async function buildInitialDataFromFields(
-  fields: Field[],
+  fields: FieldSet,
   ctx?: Partial<DefaultValueContext>
 ): Promise<Record<string, any>> {
   const normalized = normalizeCtx(ctx)

@@ -6,7 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { defineCollection, defineWorkflow } from '@byline/core'
+import {
+  type CollectionData,
+  type CollectionFieldData,
+  defineCollection,
+  defineWorkflow,
+} from '@byline/core'
 
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'

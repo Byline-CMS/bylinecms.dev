@@ -10,10 +10,10 @@ import type {
   BlocksField,
   CollectionDefinition,
   Field,
+  FieldSet,
   ICollectionCommands,
   IDocumentCommands,
 } from '@byline/core'
-import { isFileStore, isJsonStore, isNumericStore, isRelationStore } from '@byline/core'
 import { and, eq, ne, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
@@ -72,7 +72,7 @@ async function writeDocumentMeta({
     meta: unknown
   }[] = []
 
-  function traverse(fields: Field[], data: any, basePath = '') {
+  function traverse(fields: FieldSet, data: any, basePath = '') {
     for (const fieldConfig of fields) {
       const currentPath = basePath ? `${basePath}.${fieldConfig.name}` : fieldConfig.name
       const value = data?.[fieldConfig.name]
