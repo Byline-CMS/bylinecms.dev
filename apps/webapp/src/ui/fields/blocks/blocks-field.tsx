@@ -110,11 +110,10 @@ export const BlocksField = ({
     if (!variant || variant.type !== 'group') return
 
     const compositeFields = (variant.fields ?? []) as Field[]
-    const fields = await Promise.all(
-      compositeFields.map(async (f) => ({
-        [f.name]: await defaultScalarForField(f, getFieldValues),
-      }))
-    )
+    const fields: Record<string, any> = {}
+    for (const f of compositeFields) {
+      fields[f.name] = await defaultScalarForField(f, getFieldValues)
+    }
 
     const newId = crypto.randomUUID()
     const newItem = {

@@ -75,19 +75,33 @@ export function flattenFields(
                 blockFieldConfig.type === 'group' &&
                 Array.isArray(blockFieldConfig.fields)
               ) {
-                blockFieldsArray.forEach((subItem: any, idx: number) => {
-                  if (subItem && typeof subItem === 'object') {
-                    const fieldName = Object.keys(subItem)[0]
-                    if (fieldName != null) {
-                      const fieldValue = subItem[fieldName]
-                      const subField = blockFieldConfig.fields.find((f) => f.name === fieldName)
-                      if (subField) {
-                        const blockElementPath = `${arrayElementPath}.${blockName}.${idx}`
-                        flatten({ [fieldName]: fieldValue }, [subField], blockElementPath)
+                if (
+                  typeof blockFieldsArray === 'object' &&
+                  !Array.isArray(blockFieldsArray) &&
+                  blockFieldsArray !== null
+                ) {
+                  // New shape: fields is a plain object, e.g. { richText: ..., constrainedWidth: true }
+                  flatten(
+                    blockFieldsArray,
+                    blockFieldConfig.fields,
+                    `${arrayElementPath}.${blockName}`
+                  )
+                } else if (Array.isArray(blockFieldsArray)) {
+                  // Legacy shape: fields is an array of single-key objects
+                  blockFieldsArray.forEach((subItem: any, idx: number) => {
+                    if (subItem && typeof subItem === 'object') {
+                      const fieldName = Object.keys(subItem)[0]
+                      if (fieldName != null) {
+                        const fieldValue = subItem[fieldName]
+                        const subField = blockFieldConfig.fields.find((f) => f.name === fieldName)
+                        if (subField) {
+                          const blockElementPath = `${arrayElementPath}.${blockName}.${idx}`
+                          flatten({ [fieldName]: fieldValue }, [subField], blockElementPath)
+                        }
                       }
                     }
-                  }
-                })
+                  })
+                }
               }
             } else {
               // Array item is a plain object whose keys correspond to the
@@ -100,27 +114,15 @@ export function flattenFields(
                 const subField = containerField.fields.find((f) => f.name === fieldName)
                 if (subField) {
                   if (
-                    subField.type === 'group' &&
-                    Array.isArray(fieldValue) &&
+                    (subField.type === 'group' || subField.type === 'array') &&
+                    typeof fieldValue === 'object' &&
+                    !Array.isArray(fieldValue) &&
+                    fieldValue !== null &&
                     Array.isArray(subField.fields)
                   ) {
-                    // Legacy block/group shape: { blockName: [ {field: val}, ... ] }
-                    // Iterate each sub-item and flatten using the composite's child fields.
-                    fieldValue.forEach((subItem: any, idx: number) => {
-                      if (subItem && typeof subItem === 'object') {
-                        const subFieldName = Object.keys(subItem).find((k) => k !== '_id')
-                        if (subFieldName != null) {
-                          const subFieldValue = subItem[subFieldName]
-                          const childField = subField.fields.find(
-                            (f: Field) => f.name === subFieldName
-                          )
-                          if (childField) {
-                            const compositePath = `${arrayElementPath}.${fieldName}.${idx}`
-                            flatten({ [subFieldName]: subFieldValue }, [childField], compositePath)
-                          }
-                        }
-                      }
-                    })
+                    // Group (or array-as-group) child inside array item:
+                    // value is a plain object, e.g. { rating: 5, comment: '...' }
+                    flatten(fieldValue, subField.fields, `${arrayElementPath}.${fieldName}`)
                   } else {
                     flatten({ [fieldName]: fieldValue }, [subField], arrayElementPath)
                   }
@@ -170,26 +172,13 @@ export function flattenFields(
         }
       } else if (
         fieldConfig.type === 'group' &&
-        Array.isArray(value) &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
         Array.isArray((fieldConfig as GroupField).fields)
       ) {
-        // Top-level group field: value is an array of single-key objects,
-        // e.g. availableLanguages: [{ en: true }, { fr: false }, ...]
-        // Recurse into each child value using its position index as the path segment.
-        ;(value as any[]).forEach((subItem: any, idx: number) => {
-          if (subItem && typeof subItem === 'object') {
-            const subFieldName = Object.keys(subItem).find((k) => k !== '_id')
-            if (subFieldName != null) {
-              const subFieldValue = subItem[subFieldName]
-              const childField = (fieldConfig as GroupField).fields.find(
-                (f: Field) => f.name === subFieldName
-              )
-              if (childField) {
-                flatten({ [subFieldName]: subFieldValue }, [childField], `${currentPath}.${idx}`)
-              }
-            }
-          }
-        })
+        // Group field: value is a plain object, e.g. { en: true, fr: false }
+        // Recurse into each child field.
+        flatten(value, (fieldConfig as GroupField).fields, currentPath)
       } else if (fieldConfig.type !== 'group') {
         // Only value-bearing field types are flattened directly. Structure
         // fields like group fields are containers and should delegate to their

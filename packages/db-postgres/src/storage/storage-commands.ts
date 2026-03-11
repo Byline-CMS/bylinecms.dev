@@ -133,16 +133,25 @@ async function writeDocumentMeta({
               (f): f is GroupField => f.name === blockName && isGroupField(f as Field)
             )
 
-            // Recursion logic (best effort fix for now, focusing on top-level blocks)
-            if (subFieldConfig && Array.isArray(blockFieldsData)) {
-              const syntheticData: any = {}
-              blockFieldsData.forEach((f: any) => {
-                if (f && typeof f === 'object') {
-                  Object.assign(syntheticData, f)
-                }
-              })
-
-              traverse(subFieldConfig.fields, syntheticData, `${currentPath}.${index}`)
+            // Recurse into block child fields
+            if (subFieldConfig) {
+              if (
+                typeof blockFieldsData === 'object' &&
+                !Array.isArray(blockFieldsData) &&
+                blockFieldsData !== null
+              ) {
+                // New shape: fields is a plain object
+                traverse(subFieldConfig.fields, blockFieldsData, `${currentPath}.${index}`)
+              } else if (Array.isArray(blockFieldsData)) {
+                // Legacy shape: fields is array of single-key objects
+                const syntheticData: any = {}
+                blockFieldsData.forEach((f: any) => {
+                  if (f && typeof f === 'object') {
+                    Object.assign(syntheticData, f)
+                  }
+                })
+                traverse(subFieldConfig.fields, syntheticData, `${currentPath}.${index}`)
+              }
             }
           }
         })
@@ -177,17 +186,24 @@ async function writeDocumentMeta({
 
             // Recurse for fields inside the group
             const subField = fieldConfig.fields?.find((f) => f.name === blockName)
-            if (subField && subField.type === 'group' && Array.isArray(item.fields)) {
-              const syntheticData: any = {}
-              item.fields.forEach((f: any) => {
-                if (f && typeof f === 'object') {
-                  Object.assign(syntheticData, f)
-                }
-              })
-              // subField is the composite definition (e.g. richTextBlock).
-              // Its fields are e.g. richText.
-              // traverse expects data to contain richText.
-              traverse(subField.fields as Field[], syntheticData, blockPath)
+            if (subField && subField.type === 'group') {
+              if (
+                typeof item.fields === 'object' &&
+                !Array.isArray(item.fields) &&
+                item.fields !== null
+              ) {
+                // New shape: fields is a plain object
+                traverse(subField.fields as Field[], item.fields, blockPath)
+              } else if (Array.isArray(item.fields)) {
+                // Legacy shape: fields is array of single-key objects
+                const syntheticData: any = {}
+                item.fields.forEach((f: any) => {
+                  if (f && typeof f === 'object') {
+                    Object.assign(syntheticData, f)
+                  }
+                })
+                traverse(subField.fields as Field[], syntheticData, blockPath)
+              }
             }
           } else if (typeof item === 'object' && item !== null) {
             // Non-block array item — assign a stable identity via array_item meta.
@@ -207,12 +223,26 @@ async function writeDocumentMeta({
 
             // Recurse into sub-fields for nested structures
             if (fieldConfig.fields) {
-              const fieldName = Object.keys(item).filter((k) => k !== '_id')[0]
-              if (fieldName != null) {
+              const itemKeys = Object.keys(item).filter((k) => k !== '_id')
+              for (const fieldName of itemKeys) {
                 const fieldValue = item[fieldName]
                 const subField = fieldConfig.fields.find((f) => f.name === fieldName)
                 if (subField) {
-                  traverse([subField], { [fieldName]: fieldValue }, arrayElementPath)
+                  if (
+                    (subField.type === 'group' || subField.type === 'array') &&
+                    typeof fieldValue === 'object' &&
+                    !Array.isArray(fieldValue) &&
+                    fieldValue !== null &&
+                    Array.isArray(subField.fields)
+                  ) {
+                    traverse(
+                      subField.fields as Field[],
+                      fieldValue,
+                      `${arrayElementPath}.${fieldName}`
+                    )
+                  } else {
+                    traverse([subField], { [fieldName]: fieldValue }, arrayElementPath)
+                  }
                 }
               }
             }

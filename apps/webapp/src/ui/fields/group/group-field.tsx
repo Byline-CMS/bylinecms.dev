@@ -30,17 +30,18 @@ interface GroupFieldProps {
 
 export const GroupField = ({ field, defaultValue, path }: GroupFieldProps) => {
   const fieldError = useFieldError(field.name)
-  // Default value for a group field is an array of single-key objects:
-  // [{ rating: 5 }, { comment: '...' }]
-  // Normalize sparse arrays (holes from flattening) into a per-field array.
-  const normalized = useMemo(() => {
-    if (!Array.isArray(defaultValue)) return []
-    return (field.fields as Field[]).map((childField) => {
-      const found = defaultValue.find(
-        (el: any) => el != null && typeof el === 'object' && Object.hasOwn(el, childField.name)
-      )
-      return found ?? { [childField.name]: placeholderForField(childField) }
-    })
+  // Default value for a group field is a plain object: { rating: 5, comment: '...' }
+  // Normalize to a plain object if not already one.
+  const groupData = useMemo(() => {
+    if (defaultValue && typeof defaultValue === 'object' && !Array.isArray(defaultValue)) {
+      return defaultValue
+    }
+    // Fallback: build a placeholder object from child field definitions
+    const placeholder: Record<string, any> = {}
+    for (const childField of field.fields as Field[]) {
+      placeholder[childField.name] = placeholderForField(childField)
+    }
+    return placeholder
   }, [defaultValue, field.fields])
 
   return (
@@ -54,14 +55,13 @@ export const GroupField = ({ field, defaultValue, path }: GroupFieldProps) => {
         </div>
       )}
       <div className="flex flex-col gap-2">
-        {(field.fields as Field[]).map((innerField, idx) => {
-          const element = normalized[idx] ?? {}
+        {(field.fields as Field[]).map((innerField) => {
           return (
             <FieldRenderer
               key={innerField.name}
               field={innerField}
-              defaultValue={element[innerField.name]}
-              basePath={`${path}[${idx}]`}
+              defaultValue={groupData[innerField.name]}
+              basePath={path}
               disableSorting={true}
             />
           )

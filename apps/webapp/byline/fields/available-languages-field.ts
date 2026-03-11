@@ -44,9 +44,12 @@ export function availableLanguagesField(
       label,
       type: 'checkbox' as const,
     })),
-    validate: (value: Array<Record<string, boolean>> | undefined) => {
+    validate: (value: Record<string, boolean> | undefined) => {
       const hasSelection =
-        Array.isArray(value) && value.some((item) => Object.values(item).some(Boolean))
+        value != null &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        Object.values(value).some(Boolean)
       if (!hasSelection) {
         return 'At least one language must be selected.'
       }

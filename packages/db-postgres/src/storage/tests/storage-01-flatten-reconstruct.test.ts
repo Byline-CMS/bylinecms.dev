@@ -111,49 +111,43 @@ const sampleDocument = {
   price: '19.99',
   content: [
     {
-      richTextBlock: [
-        { constrainedWidth: true },
-        {
-          richText: {
-            en: { root: { paragraph: 'Some text here...' } },
-            es: { root: { paragraph: 'Some spanish text here' } },
-          },
+      richTextBlock: {
+        constrainedWidth: true,
+        richText: {
+          en: { root: { paragraph: 'Some text here...' } },
+          es: { root: { paragraph: 'Some spanish text here' } },
         },
-      ],
+      },
     },
     {
-      photoBlock: [
-        { display: 'wide' },
-        {
-          photo: {
-            file_id: filedId,
-            filename: 'docs-photo-01.jpg',
-            original_filename: 'some-original-filename.jpg',
-            mime_type: 'image/jpeg',
-            file_size: 123456,
-            storage_provider: 'local',
-            storage_path: 'uploads/docs-photo-01.jpg',
-          },
+      photoBlock: {
+        display: 'wide',
+        photo: {
+          file_id: filedId,
+          filename: 'docs-photo-01.jpg',
+          original_filename: 'some-original-filename.jpg',
+          mime_type: 'image/jpeg',
+          file_size: 123456,
+          storage_provider: 'local',
+          storage_path: 'uploads/docs-photo-01.jpg',
         },
-        { alt: 'Some alt text here' },
-        {
-          caption: {
-            en: { root: { paragraph: 'Some text here...' } },
-            es: { root: { paragraph: 'Some spanish text here...' } },
-          },
+        alt: 'Some alt text here',
+        caption: {
+          en: { root: { paragraph: 'Some text here...' } },
+          es: { root: { paragraph: 'Some spanish text here...' } },
         },
-      ],
+      },
     },
   ],
   reviews: [
     {
-      reviewItem: [{ rating: 6 }, { comment: { root: { paragraph: 'Some review text here...' } } }],
+      reviewItem: { rating: 6, comment: { root: { paragraph: 'Some review text here...' } } },
     },
     {
-      reviewItem: [
-        { rating: 2 },
-        { comment: { root: { paragraph: 'Some more reviews here...' } } },
-      ],
+      reviewItem: {
+        rating: 2,
+        comment: { root: { paragraph: 'Some more reviews here...' } },
+      },
     },
   ],
   links: [{ link: 'https://example.com' }, { link: 'https://another-example.com' }],

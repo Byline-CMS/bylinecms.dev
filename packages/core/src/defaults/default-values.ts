@@ -67,13 +67,13 @@ export async function buildInitialDataFromFields(
     // If this is a structure field with child defaults, build a nested default.
     // For arrays we avoid guessing a default shape.
     if (field.type === 'group') {
-      // Group fields are represented in the dashboard as an array of single-key objects.
+      // Group fields are represented as a plain object keyed by child field names.
       const nested = await buildInitialDataFromFields(field.fields, {
         ...normalized,
         data: currentData,
       })
       if (Object.keys(nested).length > 0) {
-        out[field.name] = field.fields.map((child) => ({ [child.name]: nested[child.name] }))
+        out[field.name] = nested
       }
     }
   }

@@ -293,7 +293,7 @@ interface BaseField {
    * type — including structure fields (group, array, blocks).
    *
    * Receives the resolved field value (lodash `get` on the full form store, so
-   * group fields arrive as their assembled value, e.g. `[{en:true},{fr:false}]`)
+   * group fields arrive as their assembled value, e.g. `{en:true, fr:false}`)
    * and the complete form data snapshot.
    *
    * Return a non-empty string to block submission and display the message as a

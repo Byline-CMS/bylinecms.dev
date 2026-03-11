@@ -110,138 +110,108 @@ const complexProductDocument = {
   releaseDate: new Date('2024-01-15T10:00:00Z'),
   images: [
     {
-      imageItem: [
-        {
-          image: {
-            file_id: '018dd0b2-9a2a-7f01-b8b2-a0c719d0f5b3',
-            filename: 'headphones-main.jpg',
-            original_filename: 'wireless-headphones.jpg',
-            mime_type: 'image/jpeg',
-            file_size: 2048000,
-            storage_provider: 's3',
-            storage_path: '/products/img-001.jpg',
-          },
+      imageItem: {
+        image: {
+          file_id: '018dd0b2-9a2a-7f01-b8b2-a0c719d0f5b3',
+          filename: 'headphones-main.jpg',
+          original_filename: 'wireless-headphones.jpg',
+          mime_type: 'image/jpeg',
+          file_size: 2048000,
+          storage_provider: 's3',
+          storage_path: '/products/img-001.jpg',
         },
-        {
-          alt: {
-            en: 'Premium wireless headphones front view',
-            es: 'Vista frontal de auriculares inalámbricos premium',
-            fr: 'Vue de face du casque sans fil premium',
-          },
+        alt: {
+          en: 'Premium wireless headphones front view',
+          es: 'Vista frontal de auriculares inalámbricos premium',
+          fr: 'Vue de face du casque sans fil premium',
         },
-        {
-          caption: {
-            en: 'Sleek design with premium materials',
-            es: 'Diseño elegante con materiales premium',
-            fr: 'Design élégant avec des matériaux premium',
-          },
+        caption: {
+          en: 'Sleek design with premium materials',
+          es: 'Diseño elegante con materiales premium',
+          fr: 'Design élégant avec des matériaux premium',
         },
-      ],
+      },
     },
     {
-      imageItem: [
-        {
-          image: {
-            file_id: '018dd0b2-9a2a-7f02-8e73-f4c5a9e3d6b8',
-            filename: 'headphones-side.jpg',
-            original_filename: 'side-view.jpg',
-            mime_type: 'image/jpeg',
-            file_size: 1536000,
-            storage_provider: 's3',
-            storage_path: '/products/img-002.jpg',
-          },
+      imageItem: {
+        image: {
+          file_id: '018dd0b2-9a2a-7f02-8e73-f4c5a9e3d6b8',
+          filename: 'headphones-side.jpg',
+          original_filename: 'side-view.jpg',
+          mime_type: 'image/jpeg',
+          file_size: 1536000,
+          storage_provider: 's3',
+          storage_path: '/products/img-002.jpg',
         },
-        {
-          alt: {
-            en: 'Side view showing comfort padding',
-            es: 'Vista lateral mostrando acolchado cómodo',
-            fr: 'Vue de côté montrant le rembourrage confortable',
-          },
+        alt: {
+          en: 'Side view showing comfort padding',
+          es: 'Vista lateral mostrando acolchado cómodo',
+          fr: 'Vue de côté montrant le rembourrage confortable',
         },
-        {
-          caption: {
-            en: 'Side view showing comfort padding',
-            es: 'Vista lateral mostrando acolchado cómodo',
-            fr: 'Vue de côté montrant le rembourrage confortable',
-          },
+        caption: {
+          en: 'Side view showing comfort padding',
+          es: 'Vista lateral mostrando acolchado cómodo',
+          fr: 'Vue de côté montrant le rembourrage confortable',
         },
-      ],
+      },
     },
   ],
   specifications: [
     {
-      specificationItem: [
-        {
-          key: {
-            en: 'Battery Life',
-            es: 'Duración de la Batería',
-            fr: 'Autonomie de la Batterie',
-          },
+      specificationItem: {
+        key: {
+          en: 'Battery Life',
+          es: 'Duración de la Batería',
+          fr: 'Autonomie de la Batterie',
         },
-        {
-          value: {
-            en: '30 hours',
-            es: '30 horas',
-            fr: '30 heures',
-          },
+        value: {
+          en: '30 hours',
+          es: '30 horas',
+          fr: '30 heures',
         },
-        {
-          unit: 'hours',
-        },
-      ],
+        unit: 'hours',
+      },
     },
     {
-      specificationItem: [
-        {
-          key: {
-            en: 'Weight',
-            es: 'Peso',
-            fr: 'Poids',
-          },
+      specificationItem: {
+        key: {
+          en: 'Weight',
+          es: 'Peso',
+          fr: 'Poids',
         },
-        {
-          value: {
-            en: '250g',
-            es: '250g',
-            fr: '250g',
-          },
+        value: {
+          en: '250g',
+          es: '250g',
+          fr: '250g',
         },
-        {
-          unit: 'grams',
-        },
-      ],
+        unit: 'grams',
+      },
     },
     {
-      specificationItem: [
-        {
-          key: {
-            en: 'Driver Size',
-            es: 'Tamaño del Driver',
-            fr: 'Taille du Haut-parleur',
-          },
+      specificationItem: {
+        key: {
+          en: 'Driver Size',
+          es: 'Tamaño del Driver',
+          fr: 'Taille du Haut-parleur',
         },
-        {
-          value: {
-            en: '40mm',
-            es: '40mm',
-            fr: '40mm',
-          },
+        value: {
+          en: '40mm',
+          es: '40mm',
+          fr: '40mm',
         },
-        {
-          unit: 'mm',
-        },
-      ],
+        unit: 'mm',
+      },
     },
   ],
   reviews: [
     {
-      reviewItem: [{ rating: 5 }, { comment: { root: { paragraph: 'Some review text here...' } } }],
+      reviewItem: { rating: 5, comment: { root: { paragraph: 'Some review text here...' } } },
     },
     {
-      reviewItem: [
-        { rating: 3 },
-        { comment: { root: { paragraph: 'Some more reviews here...' } } },
-      ],
+      reviewItem: {
+        rating: 3,
+        comment: { root: { paragraph: 'Some more reviews here...' } },
+      },
     },
   ],
 }

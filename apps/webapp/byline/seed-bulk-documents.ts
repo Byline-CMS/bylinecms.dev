@@ -32,236 +32,226 @@ const sampleDocument = {
   publishedOn: new Date('2024-01-15T10:00:00'),
   content: [
     {
-      richTextBlock: [
-        {
-          richText: {
-            en: {
-              root: {
-                children: [
-                  {
-                    children: [
-                      {
-                        detail: 0,
-                        format: 0,
-                        mode: 'normal',
-                        style: '',
-                        text: 'Some richtext here...',
-                        type: 'text',
-                        version: 1,
-                      },
-                    ],
-                    direction: 'ltr',
-                    format: '',
-                    indent: 0,
-                    type: 'paragraph',
-                    version: 1,
-                    textFormat: 0,
-                    textStyle: '',
-                  },
-                ],
-                direction: 'ltr',
-                format: '',
-                indent: 0,
-                type: 'root',
-                version: 1,
-              },
+      richTextBlock: {
+        richText: {
+          en: {
+            root: {
+              children: [
+                {
+                  children: [
+                    {
+                      detail: 0,
+                      format: 0,
+                      mode: 'normal',
+                      style: '',
+                      text: 'Some richtext here...',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  type: 'paragraph',
+                  version: 1,
+                  textFormat: 0,
+                  textStyle: '',
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              type: 'root',
+              version: 1,
             },
-            es: {
-              root: {
-                children: [
-                  {
-                    children: [
-                      {
-                        detail: 0,
-                        format: 0,
-                        mode: 'normal',
-                        style: '',
-                        text: 'Aquí hay un campo de texto enriquecido...',
-                        type: 'text',
-                        version: 1,
-                      },
-                    ],
-                    direction: 'ltr',
-                    format: '',
-                    indent: 0,
-                    type: 'paragraph',
-                    version: 1,
-                    textFormat: 0,
-                    textStyle: '',
-                  },
-                ],
-                direction: 'ltr',
-                format: '',
-                indent: 0,
-                type: 'root',
-                version: 1,
-              },
+          },
+          es: {
+            root: {
+              children: [
+                {
+                  children: [
+                    {
+                      detail: 0,
+                      format: 0,
+                      mode: 'normal',
+                      style: '',
+                      text: 'Aquí hay un campo de texto enriquecido...',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  type: 'paragraph',
+                  version: 1,
+                  textFormat: 0,
+                  textStyle: '',
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              type: 'root',
+              version: 1,
             },
           },
         },
-        { constrainedWidth: true },
-      ],
+        constrainedWidth: true,
+      },
     },
     {
-      photoBlock: [
-        { display: 'wide' },
-        {
-          photo: {
-            file_id: uuidv7(),
-            filename: 'docs-photo-01.jpg',
-            original_filename: 'some-original-filename.jpg',
-            mime_type: 'image/jpeg',
-            file_size: 123456,
-            storage_provider: 'local',
-            storage_path: 'uploads/docs-photo-01.jpg',
-          },
+      photoBlock: {
+        display: 'wide',
+        photo: {
+          file_id: uuidv7(),
+          filename: 'docs-photo-01.jpg',
+          original_filename: 'some-original-filename.jpg',
+          mime_type: 'image/jpeg',
+          file_size: 123456,
+          storage_provider: 'local',
+          storage_path: 'uploads/docs-photo-01.jpg',
         },
-        { alt: 'Some alt text here' },
-        {
-          caption: {
-            en: {
-              root: {
-                children: [
-                  {
-                    children: [
-                      {
-                        detail: 0,
-                        format: 0,
-                        mode: 'normal',
-                        style: '',
-                        text: 'Here is a richtext field Here is a richtext field Here is a richtext field Here is a rich text field.',
-                        type: 'text',
-                        version: 1,
-                      },
-                    ],
-                    direction: 'ltr',
-                    format: '',
-                    indent: 0,
-                    type: 'paragraph',
-                    version: 1,
-                    textFormat: 0,
-                    textStyle: '',
-                  },
-                ],
-                direction: 'ltr',
-                format: '',
-                indent: 0,
-                type: 'root',
-                version: 1,
-              },
+        alt: 'Some alt text here',
+        caption: {
+          en: {
+            root: {
+              children: [
+                {
+                  children: [
+                    {
+                      detail: 0,
+                      format: 0,
+                      mode: 'normal',
+                      style: '',
+                      text: 'Here is a richtext field Here is a richtext field Here is a richtext field Here is a rich text field.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  type: 'paragraph',
+                  version: 1,
+                  textFormat: 0,
+                  textStyle: '',
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              type: 'root',
+              version: 1,
             },
-            es: {
-              root: {
-                children: [
-                  {
-                    children: [
-                      {
-                        detail: 0,
-                        format: 0,
-                        mode: 'normal',
-                        style: '',
-                        text: 'Aquí hay un campo de texto enriquecido. Aquí hay un campo de texto enriquecido. Aquí hay un campo de texto enriquecido. Aquí hay un campo de texto enriquecido.',
-                        type: 'text',
-                        version: 1,
-                      },
-                    ],
-                    direction: 'ltr',
-                    format: '',
-                    indent: 0,
-                    type: 'paragraph',
-                    version: 1,
-                    textFormat: 0,
-                    textStyle: '',
-                  },
-                ],
-                direction: 'ltr',
-                format: '',
-                indent: 0,
-                type: 'root',
-                version: 1,
-              },
+          },
+          es: {
+            root: {
+              children: [
+                {
+                  children: [
+                    {
+                      detail: 0,
+                      format: 0,
+                      mode: 'normal',
+                      style: '',
+                      text: 'Aquí hay un campo de texto enriquecido. Aquí hay un campo de texto enriquecido. Aquí hay un campo de texto enriquecido. Aquí hay un campo de texto enriquecido.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  type: 'paragraph',
+                  version: 1,
+                  textFormat: 0,
+                  textStyle: '',
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              type: 'root',
+              version: 1,
             },
           },
         },
-      ],
+      },
     },
   ],
   reviews: [
     {
-      reviewItem: [
-        { rating: 5 },
-        {
-          comment: {
-            root: {
-              children: [
-                {
-                  children: [
-                    {
-                      detail: 0,
-                      format: 0,
-                      mode: 'normal',
-                      style: '',
-                      text: 'Some review text here...',
-                      type: 'text',
-                      version: 1,
-                    },
-                  ],
-                  direction: 'ltr',
-                  format: '',
-                  indent: 0,
-                  type: 'paragraph',
-                  version: 1,
-                  textFormat: 0,
-                  textStyle: '',
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              type: 'root',
-              version: 1,
-            },
+      reviewItem: {
+        rating: 5,
+        comment: {
+          root: {
+            children: [
+              {
+                children: [
+                  {
+                    detail: 0,
+                    format: 0,
+                    mode: 'normal',
+                    style: '',
+                    text: 'Some review text here...',
+                    type: 'text',
+                    version: 1,
+                  },
+                ],
+                direction: 'ltr',
+                format: '',
+                indent: 0,
+                type: 'paragraph',
+                version: 1,
+                textFormat: 0,
+                textStyle: '',
+              },
+            ],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            type: 'root',
+            version: 1,
           },
         },
-      ],
+      },
     },
     {
-      reviewItem: [
-        { rating: 3 },
-        {
-          comment: {
-            root: {
-              children: [
-                {
-                  children: [
-                    {
-                      detail: 0,
-                      format: 0,
-                      mode: 'normal',
-                      style: '',
-                      text: 'Some review text here...',
-                      type: 'text',
-                      version: 1,
-                    },
-                  ],
-                  direction: 'ltr',
-                  format: '',
-                  indent: 0,
-                  type: 'paragraph',
-                  version: 1,
-                  textFormat: 0,
-                  textStyle: '',
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              type: 'root',
-              version: 1,
-            },
+      reviewItem: {
+        rating: 3,
+        comment: {
+          root: {
+            children: [
+              {
+                children: [
+                  {
+                    detail: 0,
+                    format: 0,
+                    mode: 'normal',
+                    style: '',
+                    text: 'Some review text here...',
+                    type: 'text',
+                    version: 1,
+                  },
+                ],
+                direction: 'ltr',
+                format: '',
+                indent: 0,
+                type: 'paragraph',
+                version: 1,
+                textFormat: 0,
+                textStyle: '',
+              },
+            ],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            type: 'root',
+            version: 1,
           },
         },
-      ],
+      },
     },
   ],
   links: [{ link: 'https://example.com' }, { link: 'https://another-example.com' }],
