@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { DefaultValue, Field } from './field-types.js'
+import type { Block, DefaultValue, Field } from './field-types.js'
 import type { IStorageProvider } from './storage-types.js'
 
 // ---------------------------------------------------------------------------
@@ -556,11 +556,23 @@ export function defineCollection(definition: CollectionDefinition): CollectionDe
  *
  * Nested `fields` (composite / array / blocks) are recursively serialized.
  */
-export type SerializableField = Omit<Field, 'validate' | 'hooks' | 'defaultValue' | 'fields'> & {
+export type SerializableField = Omit<
+  Field,
+  'validate' | 'hooks' | 'defaultValue' | 'fields' | 'blocks'
+> & {
   /** Only literal defaults are serializable; function defaults are dropped. */
   defaultValue?: Exclude<DefaultValue, (...args: any[]) => any>
-  /** Recursively serializable child fields. */
+  /** Recursively serializable child fields (group / array). */
   fields?: SerializableField[]
+  /** Recursively serializable blocks (blocks field). */
+  blocks?: SerializableBlock[]
+}
+
+/**
+ * A block definition with all function-valued properties stripped.
+ */
+export type SerializableBlock = Omit<Block, 'validate' | 'hooks' | 'fields'> & {
+  fields: SerializableField[]
 }
 
 /**
@@ -599,7 +611,7 @@ export function toSerializableCollection(
 ): SerializableCollectionDefinition {
   function serializeField(field: Field): SerializableField {
     // biome-ignore lint/suspicious/noExplicitAny: intentional structural spread
-    const { validate: _v, hooks: _h, defaultValue, fields, ...rest } = field as any
+    const { validate: _v, hooks: _h, defaultValue, fields, blocks, ...rest } = field as any
     const serialized: SerializableField = { ...rest }
 
     // Keep defaultValue only when it is a literal (not a factory function)
@@ -607,12 +619,25 @@ export function toSerializableCollection(
       serialized.defaultValue = defaultValue
     }
 
-    // Recurse into nested child fields (composite / array / blocks)
+    // Recurse into nested child fields (group / array)
     if (Array.isArray(fields)) {
       serialized.fields = fields.map(serializeField)
     }
 
+    // Recurse into blocks (blocks field)
+    if (Array.isArray(blocks)) {
+      serialized.blocks = blocks.map(serializeBlock)
+    }
+
     return serialized
+  }
+
+  function serializeBlock(block: Block): SerializableBlock {
+    const { validate: _v, hooks: _h, fields, ...rest } = block
+    return {
+      ...rest,
+      fields: fields.map(serializeField),
+    }
   }
 
   const { hooks: _hooks, fields, ...rest } = def

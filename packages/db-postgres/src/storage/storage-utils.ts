@@ -12,6 +12,7 @@ const DEFAULT_CONTENT_LOCALES = ['en', 'es', 'fr']
 
 import type {
   ArrayField,
+  Block,
   BlocksField,
   CollectionDefinition,
   DateTimeStore,
@@ -57,34 +58,34 @@ export function flattenFields(
       if (value === undefined || value === null) continue
 
       if ((fieldConfig.type === 'array' || fieldConfig.type === 'blocks') && Array.isArray(value)) {
-        const containerField = fieldConfig as ArrayField | BlocksField
         value.forEach((item, index) => {
           const arrayElementPath = `${currentPath}.${index}`
 
-          if (typeof item === 'object' && item !== null && containerField.fields) {
+          if (typeof item === 'object' && item !== null) {
             // Blocks item — flat shape: { _id, _type, ...fieldData }
             if (fieldConfig.type === 'blocks' && typeof item._type === 'string') {
+              const blocksField = fieldConfig as BlocksField
               const blockName = item._type
-              const blockFieldConfig = containerField.fields.find((f) => f.name === blockName)
+              const blockConfig = blocksField.blocks?.find((b) => b.blockType === blockName)
 
               if (
-                blockFieldConfig &&
-                blockFieldConfig.type === 'group' &&
-                Array.isArray(blockFieldConfig.fields)
+                blockConfig &&
+                Array.isArray(blockConfig.fields)
               ) {
                 // Build a plain object of just the field data (exclude _id, _type)
                 const { _id, _type, ...fieldData } = item
-                flatten(fieldData, blockFieldConfig.fields, `${arrayElementPath}.${blockName}`)
+                flatten(fieldData, blockConfig.fields, `${arrayElementPath}.${blockName}`)
               }
             } else {
               // Array item is a plain object whose keys correspond to the
               // container's child field definitions.
               // Skip `_id` — it's a stable identity injected during read by
               // attachMetaToDocument and is not a real data field.
+              const arrayField = fieldConfig as ArrayField
               const itemKeys = Object.keys(item).filter((k) => k !== '_id')
               for (const fieldName of itemKeys) {
                 const fieldValue = item[fieldName]
-                const subField = containerField.fields.find((f) => f.name === fieldName)
+                const subField = arrayField.fields.find((f) => f.name === fieldName)
                 if (subField) {
                   if (
                     (subField.type === 'group' || subField.type === 'array') &&

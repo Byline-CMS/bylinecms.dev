@@ -192,7 +192,7 @@ export const FieldRenderer = ({
           />
         )
       case 'blocks':
-        if (!field.fields) return null
+        if (!field.blocks) return null
         return (
           <BlocksField
             field={field as unknown as BlocksFieldType}

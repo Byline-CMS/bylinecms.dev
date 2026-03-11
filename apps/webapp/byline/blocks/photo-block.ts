@@ -6,12 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { GroupField } from '@byline/core'
+import type { Block } from '@byline/core'
 
-export const PhotoBlock: GroupField = {
-  name: 'photoBlock',
+export const PhotoBlock: Block = {
+  blockType: 'photoBlock',
   label: 'Photo Block',
-  type: 'group',
   fields: [
     {
       name: 'display',

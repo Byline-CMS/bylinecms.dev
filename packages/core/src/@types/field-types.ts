@@ -308,20 +308,20 @@ export interface ArrayField extends NonlocalizableField {
 // Blocks field
 // ---------------------------------------------------------------------------
 
-// export interface Block {
-//   blockType: string
-//   fields: Field[]
+export interface Block {
+  blockType: string
+  fields: Field[]
 
-//   label?: string
-//   helpText?: string
-//   hooks?: FieldHooks
-//   validate?: FieldValidateFn
-// }
+  label?: string
+  helpText?: string
+  hooks?: FieldHooks
+  validate?: FieldValidateFn
+}
 
 export interface BlocksField extends NonlocalizableField {
   type: 'blocks'
-  // blocks: Block[]
-  fields: GroupField[]
+  blocks: Block[]
+  // fields: GroupField[]
 }
 
 // ---------------------------------------------------------------------------

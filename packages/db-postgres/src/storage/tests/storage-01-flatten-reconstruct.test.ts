@@ -43,18 +43,16 @@ const DocsCollectionConfig: CollectionDefinition = {
     {
       name: 'content',
       type: 'blocks',
-      fields: [
+      blocks: [
         {
-          name: 'richTextBlock',
-          type: 'group',
+          blockType: 'richTextBlock',
           fields: [
             { name: 'constrainedWidth', type: 'boolean', required: false },
             { name: 'richText', type: 'richText', required: true, localized: true },
           ],
         },
         {
-          name: 'photoBlock',
-          type: 'group',
+          blockType: 'photoBlock',
           fields: [
             { name: 'display', type: 'text', required: false },
             { name: 'photo', type: 'image', required: true },

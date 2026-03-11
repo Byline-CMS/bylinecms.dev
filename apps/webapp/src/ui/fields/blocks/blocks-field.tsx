@@ -8,7 +8,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-import type { BlocksField as BlocksFieldType, Field, GroupField as GroupFieldType } from '@byline/core'
+import type {
+  Block,
+  BlocksField as BlocksFieldType,
+  Field,
+  GroupField as GroupFieldType,
+} from '@byline/core'
 import { Card, CloseIcon, IconButton, Modal, PlusIcon } from '@infonomic/uikit/react'
 
 import { DraggableSortable, moveItem } from '@/ui/dnd/draggable-sortable'
@@ -36,17 +41,17 @@ export const BlocksField = ({
   const [showAddBlockModal, setShowAddBlockModal] = useState(false)
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null)
 
-  const compositeVariants = useMemo(
-    () => (field.fields ?? []).filter((subField) => subField.type === 'group'),
-    [field.fields]
-  )
+  const compositeVariants = useMemo(() => field.blocks ?? [], [field.blocks])
   const [selectedBlockName, setSelectedBlockName] = useState<string>(
-    () => compositeVariants[0]?.name
+    () => compositeVariants[0]?.blockType
   )
 
   useEffect(() => {
-    if (selectedBlockName == null || !compositeVariants.some((b) => b.name === selectedBlockName)) {
-      setSelectedBlockName(compositeVariants[0]?.name)
+    if (
+      selectedBlockName == null ||
+      !compositeVariants.some((b) => b.blockType === selectedBlockName)
+    ) {
+      setSelectedBlockName(compositeVariants[0]?.blockType)
     }
   }, [compositeVariants, selectedBlockName])
 
@@ -102,17 +107,17 @@ export const BlocksField = ({
 
     const variant =
       (forcedVariantName != null
-        ? compositeVariants.find((v) => v.name === forcedVariantName)
+        ? compositeVariants.find((v) => v.blockType === forcedVariantName)
         : undefined) ?? compositeVariants[0]
 
-    if (!variant || variant.type !== 'group') return
+    if (!variant) return
 
     const compositeFields = (variant.fields ?? []) as Field[]
 
     const newId = crypto.randomUUID()
     const newItem: Record<string, any> = {
       _id: newId,
-      _type: variant.name,
+      _type: variant.blockType,
     }
     for (const f of compositeFields) {
       newItem[f.name] = await defaultScalarForField(f, getFieldValues)
@@ -178,14 +183,14 @@ export const BlocksField = ({
 
     if (!item || typeof item !== 'object' || typeof item._type !== 'string') return null
 
-    const subField = field.fields?.find((f) => f.name === item._type)
+    const subField = field.blocks?.find((b) => b.blockType === item._type)
     if (subField == null) return null
 
     // Extract field data (everything except _id and _type)
     const { _id, _type, ...fieldData } = item
     const label = subField.label ?? _type
 
-    // Render the group's children directly with arrayElementPath as the
+    // Render the block's children directly with arrayElementPath as the
     // path (not basePath).  FieldRenderer would append the group name
     // (e.g. "richTextBlock") producing paths like
     // "content[0].richTextBlock.constrainedWidth", but the flat block
@@ -193,8 +198,15 @@ export const BlocksField = ({
     // "content[0].constrainedWidth".
     const body = (
       <GroupField
-        key={subField.name}
-        field={{ ...subField, label: undefined } as unknown as GroupFieldType}
+        key={subField.blockType}
+        field={
+          {
+            type: 'group',
+            name: subField.blockType,
+            fields: subField.fields,
+            label: undefined,
+          } as GroupFieldType
+        }
         defaultValue={fieldData}
         path={arrayElementPath}
       />
@@ -204,7 +216,7 @@ export const BlocksField = ({
       <SortableItem
         key={itemWrapper.id}
         id={itemWrapper.id}
-        label={label ?? subField.name}
+        label={label ?? subField.blockType}
         onAddBelow={() => handleInsertBelow(index)}
         onRemove={() => handleRemoveItem(index)}
       >
@@ -261,15 +273,15 @@ export const BlocksField = ({
             <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
               {compositeVariants.map((b) => (
                 <Card
-                  key={b.name}
+                  key={b.blockType}
                   hover
-                  onClick={() => void handleAddItem(b.name, pendingInsertIndex ?? undefined)}
+                  onClick={() => void handleAddItem(b.blockType, pendingInsertIndex ?? undefined)}
                   className="mb-2"
                 >
                   <Card.Header>
-                    <Card.Title className="text-xl">{b.label ?? b.name}</Card.Title>
+                    <Card.Title className="text-xl">{b.label ?? b.blockType}</Card.Title>
                   </Card.Header>
-                  <Card.Content>{b.label ?? b.name}</Card.Content>
+                  <Card.Content>{b.label ?? b.blockType}</Card.Content>
                 </Card>
               ))}
             </div>

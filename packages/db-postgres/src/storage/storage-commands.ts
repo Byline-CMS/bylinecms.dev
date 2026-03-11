@@ -7,9 +7,9 @@
  */
 
 import type {
+  BlocksField,
   CollectionDefinition,
   Field,
-  GroupField,
   ICollectionCommands,
   IDocumentCommands,
 } from '@byline/core'
@@ -71,10 +71,6 @@ async function writeDocumentMeta({
     meta: unknown
   }[] = []
 
-  function isGroupField(field: Field): field is GroupField {
-    return field.type === 'group'
-  }
-
   function traverse(fields: Field[], data: any, basePath = '') {
     for (const fieldConfig of fields) {
       const currentPath = basePath ? `${basePath}.${fieldConfig.name}` : fieldConfig.name
@@ -83,6 +79,7 @@ async function writeDocumentMeta({
       if (value == null) continue
 
       if (fieldConfig.type === 'blocks' && Array.isArray(value)) {
+        const blocksField = fieldConfig as BlocksField
         value.forEach((item: any, index: number) => {
           if (item && typeof item === 'object' && typeof item._type === 'string') {
             const blockName = item._type
@@ -103,14 +100,14 @@ async function writeDocumentMeta({
               meta: null,
             })
 
-            const subFieldConfig = fieldConfig.fields?.find(
-              (f): f is GroupField => f.name === blockName && isGroupField(f as Field)
+            const blockConfig = blocksField.blocks?.find(
+              (b) => b.blockType === blockName
             )
 
             // Recurse into block child fields
-            if (subFieldConfig) {
+            if (blockConfig) {
               const { _id, _type, ...fieldData } = item
-              traverse(subFieldConfig.fields, fieldData, `${currentPath}.${index}`)
+              traverse(blockConfig.fields, fieldData, `${currentPath}.${index}`)
             }
           }
         })

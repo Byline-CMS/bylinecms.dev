@@ -149,7 +149,7 @@ export const Docs: CollectionDefinition = {
       name: 'content',
       label: 'Content',
       type: 'blocks',
-      fields: [RichTextBlock, PhotoBlock],
+      blocks: [RichTextBlock, PhotoBlock],
     },
     {
       name: 'reviews',

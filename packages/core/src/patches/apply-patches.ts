@@ -1,8 +1,8 @@
 // Core implementation of the patch engine
 
-import { isStructureField } from '../@types/field-types.js'
+import { isBlocksField, isStructureField } from '../@types/field-types.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
-import type { Field } from '../@types/field-types.js'
+import type { BlocksField, Field } from '../@types/field-types.js'
 import type {
   ApplyPatchesResult,
   ArrayPatch,
@@ -92,22 +92,32 @@ export function resolveFieldForPath(
 
     if (segment.kind === 'index') {
       // Index segments step into array/block children
-      if (isStructureField(current) && current.fields) {
-        // For array fields with a single item schema, stay at the array level
+      if (isStructureField(current)) {
+        // For array/blocks fields, stay at the container level
         // so the next field segment can find a child field.
         continue
       }
       return null
     } else if (segment.kind === 'field') {
-      if (isStructureField(current) && current.fields) {
-        // Search child fields — handles array and block
+      if (isBlocksField(current)) {
+        // BlocksField: search across all blocks' child fields by name.
+        // The segment may match a field in any of the block variants.
+        const blocksField = current as BlocksField
+        let found: Field | undefined
+        for (const block of blocksField.blocks ?? []) {
+          found = block.fields.find((f) => f.name === segment.key)
+          if (found) break
+        }
+        current = found
+      } else if (isStructureField(current) && current.fields) {
+        // Search child fields — handles array and group
         current = current.fields.find((f) => f.name === segment.key)
       } else {
         return null
       }
     } else if (segment.kind === 'id') {
       // ID-addressed arrays/blocks — stay at current level
-      if (isStructureField(current) && current.fields) {
+      if (isStructureField(current)) {
         continue
       }
       return null

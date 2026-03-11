@@ -30,11 +30,10 @@ const DocsDefinition: CollectionDefinition = {
       name: 'content',
       label: 'Content',
       type: 'blocks',
-      fields: [
+      blocks: [
         {
-          name: 'richTextBlock',
+          blockType: 'richTextBlock',
           label: 'Richtext Block',
-          type: 'group',
           fields: [
             {
               name: 'richText',
@@ -49,9 +48,8 @@ const DocsDefinition: CollectionDefinition = {
           ],
         },
         {
-          name: 'photoBlock',
+          blockType: 'photoBlock',
           label: 'Photo Block',
-          type: 'group',
           fields: [
             { name: 'display', label: 'Display', type: 'text' },
             { name: 'photo', label: 'Photo', type: 'image' },

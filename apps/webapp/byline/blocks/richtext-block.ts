@@ -6,12 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { GroupField } from '@byline/core'
+import type { Block } from '@byline/core'
 
-export const RichTextBlock: GroupField = {
-  name: 'richTextBlock',
+export const RichTextBlock: Block = {
+  blockType: 'richTextBlock',
   label: 'Richtext Block',
-  type: 'group',
   fields: [
     {
       name: 'richText',
