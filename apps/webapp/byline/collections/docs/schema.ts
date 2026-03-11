@@ -6,8 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
-import { defineWorkflow } from '@byline/core'
+import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'
@@ -16,7 +15,7 @@ import { formatSlug } from '../../utilities/format-slug.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
-export const Docs: CollectionDefinition = {
+export const Docs = defineCollection({
   path: 'docs',
   labels: {
     singular: 'Document',
@@ -181,4 +180,4 @@ export const Docs: CollectionDefinition = {
     },
     availableLanguagesField(),
   ],
-}
+})

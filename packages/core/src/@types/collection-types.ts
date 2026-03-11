@@ -536,7 +536,9 @@ export interface CollectionDefinition {
  * Type-safe factory for creating a CollectionDefinition.
  * Returns the definition as-is but provides type checking.
  */
-export function defineCollection(definition: CollectionDefinition): CollectionDefinition {
+export function defineCollection<const C extends CollectionDefinition>(
+  definition: C & CollectionDefinition
+): C {
   return definition
 }
 

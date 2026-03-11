@@ -9,12 +9,12 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
 
-import type { CollectionDefinition } from '@byline/core'
+import { defineCollection } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
 import { flattenFields, reconstructFields } from '../storage-utils.js'
 
-const DocsCollectionConfig: CollectionDefinition = {
+const DocsCollectionConfig = defineCollection({
   path: 'docs',
   labels: {
     singular: 'Document',
@@ -24,7 +24,7 @@ const DocsCollectionConfig: CollectionDefinition = {
     { name: 'path', type: 'text', required: true /* unique: true */ },
     { name: 'title', type: 'text', required: true, localized: true },
     { name: 'summary', type: 'text', required: true, localized: true },
-    { name: 'category', type: 'relation', targetCollection: 'categories', required: false },
+    // { name: 'category', type: 'relation', targetCollection: 'categories', required: false },
     {
       name: 'publishedOn',
       type: 'datetime',
@@ -82,7 +82,7 @@ const DocsCollectionConfig: CollectionDefinition = {
       fields: [{ name: 'link', type: 'text' }],
     },
   ],
-}
+})
 
 const filedId = uuidv7()
 
