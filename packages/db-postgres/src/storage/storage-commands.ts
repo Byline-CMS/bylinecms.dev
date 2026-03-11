@@ -31,7 +31,8 @@ import {
   relationStore,
   textStore,
 } from '../database/schema/index.js'
-import { flattenFields, getFirstOrThrow } from './storage-utils.js'
+import { flattenFieldSetData, groupAndNormalizeFlattenedFields } from './new-storage-utils.js'
+import { getFirstOrThrow } from './storage-utils.js'
 import type * as schema from '../database/schema/index.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
@@ -100,9 +101,7 @@ async function writeDocumentMeta({
               meta: null,
             })
 
-            const blockConfig = blocksField.blocks?.find(
-              (b) => b.blockType === blockName
-            )
+            const blockConfig = blocksField.blocks?.find((b) => b.blockType === blockName)
 
             // Recurse into block child fields
             if (blockConfig) {
@@ -250,44 +249,49 @@ export class DocumentCommands implements IDocumentCommands {
         .then(getFirstOrThrow('Failed to create document version'))
 
       // 2. Flatten the document data to field values
-      const flattenedFields = flattenFields(
+      const flattenedFields = flattenFieldSetData(
+        params.collectionConfig.fields,
         params.documentData,
-        params.collectionConfig,
         params.locale ?? 'all'
       )
 
       // 3. Batch-insert all field values, grouped by store type
-      const storeBuckets = this.groupFieldValuesByStore(
+      const storeBuckets = groupAndNormalizeFlattenedFields(
         flattenedFields,
         documentVersion.id,
         params.collectionId
       )
 
-      for (const [store, rows] of storeBuckets) {
-        if (rows.length === 0) continue
-        switch (store) {
-          case 'text':
-            await tx.insert(textStore).values(rows)
-            break
-          case 'numeric':
-            await tx.insert(numericStore).values(rows)
-            break
-          case 'boolean':
-            await tx.insert(booleanStore).values(rows)
-            break
-          case 'datetime':
-            await tx.insert(datetimeStore).values(rows)
-            break
-          case 'file':
-            await tx.insert(fileStore).values(rows)
-            break
-          case 'relation':
-            await tx.insert(relationStore).values(rows)
-            break
-          case 'json':
-            await tx.insert(jsonStore).values(rows)
-            break
-        }
+      if (storeBuckets.text.length > 0) {
+        await tx.insert(textStore).values(storeBuckets.text)
+      }
+
+      if (storeBuckets.numeric.length > 0) {
+        await tx.insert(numericStore).values(storeBuckets.numeric)
+      }
+
+      if (storeBuckets.boolean.length > 0) {
+        await tx.insert(booleanStore).values(storeBuckets.boolean)
+      }
+
+      if (storeBuckets.datetime.length > 0) {
+        await tx.insert(datetimeStore).values(storeBuckets.datetime)
+      }
+
+      if (storeBuckets.file.length > 0) {
+        await tx.insert(fileStore).values(storeBuckets.file)
+      }
+
+      if (storeBuckets.relation.length > 0) {
+        await tx.insert(relationStore).values(storeBuckets.relation)
+      }
+
+      if (storeBuckets.json.length > 0) {
+        await tx.insert(jsonStore).values(storeBuckets.json)
+      }
+
+      if (storeBuckets.meta.length > 0) {
+        await tx.insert(metaStore).values(storeBuckets.meta)
       }
 
       // 3b. Copy field-value rows for other locales from the previous version.
@@ -371,14 +375,14 @@ export class DocumentCommands implements IDocumentCommands {
         `)
       }
 
-      // 4. Write meta data (durable IDs for blocks and array items)
-      await writeDocumentMeta({
-        tx,
-        documentVersionId: documentVersion.id,
-        collectionId: params.collectionId,
-        collectionConfig: params.collectionConfig,
-        documentData: params.documentData,
-      })
+      // // 4. Write meta data (durable IDs for blocks and array items)
+      // await writeDocumentMeta({
+      //   tx,
+      //   documentVersionId: documentVersion.id,
+      //   collectionId: params.collectionId,
+      //   collectionConfig: params.collectionConfig,
+      //   documentData: params.documentData,
+      // })
 
       return {
         document: documentVersion,
@@ -451,167 +455,6 @@ export class DocumentCommands implements IDocumentCommands {
       })
       .where(eq(documentVersions.document_id, params.document_id))
     return (result as any).rowCount ?? 0
-  }
-
-  /**
-   * groupFieldValuesByStore
-   *
-   * Groups flattened field values into per-store-type buckets so they can be
-   * batch-inserted with a single multi-row INSERT per store.
-   */
-  private groupFieldValuesByStore(
-    flattenedFields: any[],
-    documentVersionId: string,
-    collectionId: string
-  ): Map<string, any[]> {
-    const buckets = new Map<string, any[]>([
-      ['text', []],
-      ['numeric', []],
-      ['boolean', []],
-      ['datetime', []],
-      ['file', []],
-      ['relation', []],
-      ['json', []],
-    ])
-
-    for (const fieldValue of flattenedFields) {
-      const baseData = {
-        id: uuidv7(),
-        document_version_id: documentVersionId,
-        collection_id: collectionId,
-        field_path: fieldValue.field_path,
-        field_name: fieldValue.field_name,
-        locale: fieldValue.locale,
-        parent_path: fieldValue.parent_path,
-      }
-
-      switch (fieldValue.field_type) {
-        case 'select':
-        case 'text':
-        case 'textArea':
-          if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
-            const entries = Object.entries<string>(fieldValue.value)
-            for (const [locale, localizedValue] of entries) {
-              buckets.get('text')?.push({
-                ...baseData,
-                id: uuidv7(),
-                locale,
-                value: localizedValue,
-              })
-            }
-          } else {
-            buckets.get('text')?.push({ ...baseData, value: fieldValue.value as string })
-          }
-          break
-
-        case 'float':
-        case 'integer':
-        case 'decimal':
-          if (isNumericStore(fieldValue)) {
-            buckets.get('numeric')?.push({
-              ...baseData,
-              number_type: fieldValue.number_type,
-              value_float: fieldValue.value_float,
-              value_integer: fieldValue.value_integer,
-              value_decimal: fieldValue.value_decimal,
-            })
-          } else {
-            throw new Error(`Invalid numeric field value for ${baseData.field_path}`)
-          }
-          break
-
-        case 'checkbox':
-        case 'boolean':
-          buckets.get('boolean')?.push({ ...baseData, value: fieldValue.value })
-          break
-
-        case 'time':
-        case 'date':
-        case 'datetime':
-          buckets.get('datetime')?.push({
-            ...baseData,
-            date_type: fieldValue.date_type || 'datetime',
-            value_time: fieldValue.value_time,
-            value_date: fieldValue.value_date,
-            value_timestamp_tz: fieldValue.value_timestamp_tz,
-          })
-          break
-
-        case 'file':
-        case 'image':
-          if (isFileStore(fieldValue)) {
-            buckets.get('file')?.push({
-              ...baseData,
-              file_id: fieldValue.file_id,
-              filename: fieldValue.filename,
-              original_filename: fieldValue.original_filename,
-              mime_type: fieldValue.mime_type,
-              file_size: fieldValue.file_size,
-              storage_provider: fieldValue.storage_provider,
-              storage_path: fieldValue.storage_path,
-              storage_url: fieldValue.storage_url,
-              file_hash: fieldValue.file_hash,
-              image_width: fieldValue.image_width,
-              image_height: fieldValue.image_height,
-              image_format: fieldValue.image_format,
-              processing_status: fieldValue.processing_status || 'pending',
-              thumbnail_generated: fieldValue.thumbnail_generated || false,
-            })
-          } else {
-            throw new Error(`Invalid file field value for ${baseData.field_path}`)
-          }
-          break
-
-        case 'relation':
-          if (isRelationStore(fieldValue)) {
-            buckets.get('relation')?.push({
-              ...baseData,
-              target_document_id: fieldValue.target_document_id,
-              target_collection_id: fieldValue.target_collection_id,
-              relationship_type: fieldValue.relationship_type || 'reference',
-              cascade_delete: fieldValue.cascade_delete || false,
-            })
-          } else {
-            throw new Error(`Invalid relation field value for ${baseData.field_path}`)
-          }
-          break
-
-        case 'richText':
-          buckets.get('json')?.push({ ...baseData, value: fieldValue.value })
-          break
-
-        case 'json':
-        case 'object':
-          if (isJsonStore(fieldValue)) {
-            if (typeof fieldValue.value === 'object' && fieldValue.value != null) {
-              const entries = Object.entries<string>(fieldValue.value)
-              for (const [locale, localizedValue] of entries) {
-                buckets.get('json')?.push({
-                  ...baseData,
-                  id: uuidv7(),
-                  locale,
-                  value: localizedValue,
-                })
-              }
-            } else {
-              buckets.get('json')?.push({
-                ...baseData,
-                value: fieldValue.value,
-                json_schema: fieldValue.json_schema,
-                object_keys: fieldValue.object_keys,
-              })
-            }
-          } else {
-            throw new Error(`Invalid JSON field value for ${baseData.field_path}`)
-          }
-          break
-
-        default:
-          throw new Error(`Unsupported field type: ${fieldValue.field_type}`)
-      }
-    }
-
-    return buckets
   }
 }
 
