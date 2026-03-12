@@ -72,7 +72,7 @@ export const NumericalField = ({
         <CustomLabel
           {...slotBaseProps}
           label={field.label}
-          required={field.required}
+          required={!field.optional}
         />
       )
     }
@@ -97,7 +97,7 @@ export const NumericalField = ({
         id={htmlId}
         name={field.name}
         label={suppressInputLabel ? undefined : field.label}
-        required={field.required}
+        required={!field.optional}
         helpText={suppressInputHelpText ? undefined : field.helpText}
         value={displayValue}
         onChange={(e) => onChange?.(e.target.value)}

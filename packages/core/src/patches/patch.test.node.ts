@@ -11,25 +11,26 @@ const DocsDefinition: CollectionDefinition = {
     plural: 'Documents',
   },
   fields: [
-    { name: 'path', label: 'Path', type: 'text', required: true },
-    { name: 'title', label: 'Title', type: 'text', required: true },
-    { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
+    { name: 'path', label: 'Path', type: 'text' },
+    { name: 'title', label: 'Title', type: 'text' },
+    { name: 'summary', label: 'Summary', type: 'textArea', optional: true, localized: true },
     {
       name: 'publishedOn',
       label: 'Published On',
       type: 'datetime',
       mode: 'datetime',
-      required: true,
     },
     {
       name: 'featured',
       label: 'Featured',
       type: 'checkbox',
+      optional: true,
     },
     {
       name: 'content',
       label: 'Content',
       type: 'blocks',
+      optional: true,
       blocks: [
         {
           blockType: 'richTextBlock',
@@ -39,11 +40,13 @@ const DocsDefinition: CollectionDefinition = {
               name: 'richText',
               label: 'Richtext',
               type: 'richText',
+              optional: true,
             },
             {
               name: 'constrainedWidth',
               label: 'Constrained Width',
               type: 'checkbox',
+              optional: true,
             },
           ],
         },
@@ -51,10 +54,10 @@ const DocsDefinition: CollectionDefinition = {
           blockType: 'photoBlock',
           label: 'Photo Block',
           fields: [
-            { name: 'display', label: 'Display', type: 'text' },
+            { name: 'display', label: 'Display', type: 'text', optional: true },
             { name: 'photo', label: 'Photo', type: 'image' },
             { name: 'alt', label: 'Alt', type: 'text' },
-            { name: 'caption', label: 'Caption', type: 'richText' },
+            { name: 'caption', label: 'Caption', type: 'richText', optional: true },
           ],
         },
       ],
@@ -63,14 +66,15 @@ const DocsDefinition: CollectionDefinition = {
       name: 'reviews',
       label: 'Reviews',
       type: 'array',
+      optional: true,
       fields: [
         {
           name: 'reviewItem',
           label: 'Review Item',
           type: 'group',
           fields: [
-            { name: 'rating', label: 'Rating', type: 'integer', required: true },
-            { name: 'comment', label: 'Comments', type: 'richText' },
+            { name: 'rating', label: 'Rating', type: 'integer' },
+            { name: 'comment', label: 'Comments', type: 'richText', optional: true },
           ],
         },
       ],
@@ -79,6 +83,7 @@ const DocsDefinition: CollectionDefinition = {
       name: 'links',
       label: 'Links',
       type: 'array',
+      optional: true,
       fields: [{ name: 'link', label: 'Link', type: 'text' }],
     },
   ],

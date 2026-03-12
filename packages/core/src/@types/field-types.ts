@@ -226,10 +226,12 @@ interface BaseField {
   // unique?: boolean
 
   /**
-   * Is this field required?  If `true`, a value must be provided (possibly via
-   * `defaultValue` or a hook) for the document to be considered valid.
+   * Is this field optional or required?  Fields are required by default; set
+   * this to `true` to make the field optional.  If the field is required, a
+   * value must be provided (possibly via a default value or hook) for the
+   * document to be considered valid.
    */
-  required?: boolean
+  optional?: boolean
 
   /**
    * Optional field-level hooks that run on the client during editing.
@@ -560,7 +562,7 @@ export type StructureFieldType = StructureField['type']
 export type FieldType = Field['type']
 
 export type LocalizedField = { localized: true }
-export type RequiredField = { required: true }
+export type OptionalField = { optional: true }
 
 // Type guards for field identification
 export function isStructureField(field: Field): field is StructureField {

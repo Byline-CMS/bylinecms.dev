@@ -86,7 +86,7 @@ export const TextField = ({
           <CustomLabel
             {...slotBaseProps}
             label={field.label}
-            required={field.required}
+            required={!field.optional}
           />
           {showBadge && <LocaleBadge locale={locale!} />}
         </div>
@@ -99,7 +99,7 @@ export const TextField = ({
             id={`${htmlId}-label`}
             htmlFor={htmlId}
             label={field.label!}
-            required={field.required}
+            required={!field.optional}
           />
           <LocaleBadge locale={locale!} />
         </div>
@@ -125,7 +125,7 @@ export const TextField = ({
         id={htmlId}
         name={field.name}
         label={suppressInputLabel ? undefined : field.label}
-        required={field.required}
+        required={!field.optional}
         helpText={suppressInputHelpText ? undefined : field.helpText}
         value={incomingValue}
         onChange={(e) => handleChange(e.target.value)}

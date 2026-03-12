@@ -39,7 +39,7 @@ export const SelectField = ({
         id={id ?? fieldPath}
         name={field.name}
         placeholder="Select an option"
-        required={field.required}
+        required={!field.optional}
         value={incomingValue}
         helpText={field.helpText}
         onValueChange={(value) => onChange?.(value)}

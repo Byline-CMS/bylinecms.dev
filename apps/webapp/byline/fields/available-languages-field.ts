@@ -20,21 +20,19 @@ type LocaleFields<T extends readonly LocaleDefinition[]> = {
     name: T[K]['code']
     label: T[K]['label']
     type: 'checkbox'
+    optional: true
   }
 }
 
 type WithOverride<O, K extends string, V, D> = O extends { [P in K]: V } ? O[K] : D
 
 type AvailableLanguagesField<Opts> = {
-  readonly name: WithOverride<Opts, 'name', string, 'availableLanguages'>
-  readonly label: string
-  readonly helpText: string
-  readonly type: 'group'
-  readonly required: true
-  readonly fields: LocaleFields<
-    WithOverride<Opts, 'locales', LocaleDefinition[], typeof contentLocales>
-  >
-  readonly validate: (value: Record<string, boolean> | undefined) => string | undefined
+  name: WithOverride<Opts, 'name', string, 'availableLanguages'>
+  label: string
+  helpText: string
+  type: 'group'
+  fields: LocaleFields<WithOverride<Opts, 'locales', LocaleDefinition[], typeof contentLocales>>
+  validate: (value: Record<string, boolean> | undefined) => string | undefined
 }
 
 /**
@@ -57,11 +55,11 @@ export function availableLanguagesField<const Opts extends Options>(
     label: options.label ?? 'Published Languages',
     helpText: options.helpText ?? 'Select the languages this document is available in.',
     type: 'group',
-    required: true,
     fields: (options.locales ?? contentLocales).map(({ code, label }) => ({
       name: code,
       label,
       type: 'checkbox' as const,
+      optional: true,
     })) as any,
     validate: (value: Record<string, boolean> | undefined) => {
       const hasSelection =

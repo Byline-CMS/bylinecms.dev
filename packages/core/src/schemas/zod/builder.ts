@@ -55,11 +55,12 @@ const _applyDateTimeValidation = (schema: z.ZodType, _field: DateTimeField): z.Z
 }
 
 // Convert a single field to a Zod schema.
-// When strict=true (write operations: create/update), field.required is
-// enforced. When strict=false (read operations: list/get/history), all
-// fields are nullable+optional regardless — this means adding a required
-// field to an existing collection never breaks reads of older documents
-// that were stored before the field existed.
+// When strict=true (write operations: create/update), field.optional is
+// respected (required fields are actually required).
+// When strict=false (read operations: list/get/history), all fields are
+// nullable+optional regardless — this means adding a required field to an
+// existing collection never breaks reads of older documents that were
+// stored before the field existed.
 export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
   let schema: z.ZodType
 
@@ -188,9 +189,9 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       schema = z.string()
   }
 
-  // In strict mode respect field.required; in lenient mode always allow
-  // null/undefined so reads never fail on schema-evolved documents.
-  return strict && field.required ? schema : schema.nullable().optional()
+  // In strict mode respect field.optional; in lenient mode always allow null/undefined so reads
+  // never fail on schema-evolved documents.
+  return strict && !field.optional ? schema : schema.nullable().optional()
 }
 
 // Create the base schema that all collections share.

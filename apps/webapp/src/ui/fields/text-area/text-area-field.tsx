@@ -86,7 +86,7 @@ export const TextAreaField = ({
           <CustomLabel
             {...slotBaseProps}
             label={field.label}
-            required={field.required}
+            required={!field.optional}
           />
           {showBadge && <LocaleBadge locale={locale!} />}
         </div>
@@ -99,7 +99,7 @@ export const TextAreaField = ({
             id={`${htmlId}-label`}
             htmlFor={htmlId}
             label={field.label!}
-            required={field.required}
+            required={!field.optional}
           />
           <LocaleBadge locale={locale!} />
         </div>
@@ -125,7 +125,7 @@ export const TextAreaField = ({
         id={htmlId}
         name={field.name}
         label={suppressInputLabel ? undefined : field.label}
-        required={field.required}
+        required={!field.optional}
         helpText={suppressInputHelpText ? undefined : field.helpText}
         value={incomingValue}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange(e.target.value)}

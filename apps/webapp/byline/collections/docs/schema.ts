@@ -6,12 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import {
-  type CollectionData,
-  type CollectionFieldData,
-  defineCollection,
-  defineWorkflow,
-} from '@byline/core'
+import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'
@@ -115,7 +110,6 @@ export const Docs = defineCollection({
       name: 'title',
       label: 'Title',
       type: 'text',
-      required: true,
       localized: true,
       hooks: {
         // Advisory: flag leading whitespace without altering the value.
@@ -130,47 +124,47 @@ export const Docs = defineCollection({
       name: 'path',
       label: 'Path',
       type: 'text',
-      required: true,
       hooks: {
         beforeValidate: formatSlug('title'),
       },
     },
-    { name: 'summary', label: 'Summary', type: 'textArea', required: true, localized: true },
+    { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
     {
       name: 'publishedOn',
       label: 'Published On',
       type: 'datetime',
       mode: 'datetime',
-      required: true,
     },
     {
       name: 'featured',
       label: 'Featured',
       type: 'checkbox',
+      optional: true,
       helpText: 'Feature this document.',
     },
     {
       name: 'content',
       label: 'Content',
       type: 'blocks',
+      optional: true,
       blocks: [RichTextBlock, PhotoBlock],
     },
     {
       name: 'reviews',
       label: 'Reviews',
       type: 'array',
+      optional: true,
       fields: [
         {
           name: 'reviewItem',
           label: 'Review Item',
           type: 'group',
           fields: [
-            { name: 'rating', label: 'Rating', type: 'integer', required: true },
+            { name: 'rating', label: 'Rating', type: 'integer' },
             {
               name: 'comment',
               label: 'Comments',
               type: 'richText',
-              required: true,
               localized: false,
             },
           ],
@@ -181,6 +175,7 @@ export const Docs = defineCollection({
       name: 'links',
       label: 'Links',
       type: 'array',
+      optional: true,
       fields: [{ name: 'link', label: 'Link', type: 'text' }],
     },
     availableLanguagesField(),

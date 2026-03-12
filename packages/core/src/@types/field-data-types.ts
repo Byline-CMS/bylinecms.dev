@@ -13,7 +13,7 @@ import type {
   FieldSet,
   GroupField,
   LocalizedField,
-  RequiredField,
+  OptionalField,
   SelectField,
 } from './field-types.js'
 import type { StoredFileValue } from './stored-file-types.js'
@@ -50,7 +50,7 @@ type BaseFieldDataTypes = {
 // -----------------------------------------------------------------------------
 
 // The base data type corresponding to a BlocksField definition, not considering
-// the 'required' modifier'.
+// the 'optional' modifier.
 type BlocksFieldData<T extends BlocksField> = Array<
   Prettify<
     ValueUnion<{
@@ -65,7 +65,7 @@ type BlocksFieldData<T extends BlocksField> = Array<
 >
 
 // The data type corresponding to the given Field definition, without
-// considering the 'required' modifier.
+// considering the 'optional' modifier.
 type BaseFieldData<T extends Field> = T extends ArrayField
   ? Array<Prettify<{ _id: string } & FieldSetData<T['fields']>>>
   : T extends BlocksField
@@ -77,19 +77,19 @@ type BaseFieldData<T extends Field> = T extends ArrayField
         : BaseFieldDataTypes[T['type']]
 
 // The data type corresponding to the given Field definition, taking into
-// account the 'required' modifier.
-export type FieldData<T extends Field = Field> = T extends RequiredField
-  ? BaseFieldData<T>
-  : BaseFieldData<T> | undefined
+// account the 'optional' modifier.
+export type FieldData<T extends Field = Field> = T extends OptionalField
+  ? BaseFieldData<T> | undefined
+  : BaseFieldData<T>
 
 // The data type corresponding to the given array of fields (i.e. the fields at
 // top-level in a collection, or the fields within a group, array item, or
 // block).
 export type FieldSetData<T extends FieldSet = FieldSet> = Prettify<
   {
-    -readonly [F in T[number] as F extends RequiredField ? F['name'] : never]: FieldData<F>
+    -readonly [F in T[number] as F extends OptionalField ? never : F['name']]: FieldData<F>
   } & {
-    -readonly [F in T[number] as F extends RequiredField ? never : F['name']]?: FieldData<F>
+    -readonly [F in T[number] as F extends OptionalField ? F['name'] : never]?: FieldData<F>
   }
 >
 
@@ -126,18 +126,18 @@ type LocalizedFieldDataAllLocales<T extends Field> = T extends LocalizedField
   ? PerLocale<BaseFieldDataAllLocales<T>>
   : BaseFieldDataAllLocales<T>
 
-export type FieldDataAllLocales<T extends Field = Field> = T extends RequiredField
-  ? LocalizedFieldDataAllLocales<T>
-  : LocalizedFieldDataAllLocales<T> | undefined
+export type FieldDataAllLocales<T extends Field = Field> = T extends OptionalField
+  ? LocalizedFieldDataAllLocales<T> | undefined
+  : LocalizedFieldDataAllLocales<T>
 
 export type FieldSetDataAllLocales<T extends FieldSet = FieldSet> = Prettify<
   {
-    -readonly [F in T[number] as F extends RequiredField
-      ? F['name']
-      : never]: FieldDataAllLocales<F>
-  } & {
-    -readonly [F in T[number] as F extends RequiredField
+    -readonly [F in T[number] as F extends OptionalField
       ? never
-      : F['name']]?: FieldDataAllLocales<F>
+      : F['name']]: FieldDataAllLocales<F>
+  } & {
+    -readonly [F in T[number] as F extends OptionalField
+      ? F['name']
+      : never]?: FieldDataAllLocales<F>
   }
 >

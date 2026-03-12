@@ -32,12 +32,11 @@ export const News: CollectionDefinition = {
   }),
   showStats: true,
   fields: [
-    { name: 'title', label: 'Title', type: 'text', required: true, localized: true },
+    { name: 'title', label: 'Title', type: 'text', localized: true },
     {
       name: 'path',
       label: 'Path',
       type: 'text',
-      required: true,
       hooks: {
         beforeValidate: formatSlug('title'),
       },
@@ -47,7 +46,6 @@ export const News: CollectionDefinition = {
       label: 'Content',
       type: 'richText',
       helpText: 'Enter the main content for this page.',
-      required: true,
       localized: true,
     },
     {
@@ -55,7 +53,6 @@ export const News: CollectionDefinition = {
       label: 'Published On',
       type: 'datetime',
       mode: 'datetime',
-      required: true,
     },
     availableLanguagesField(),
   ],

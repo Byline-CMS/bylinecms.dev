@@ -305,7 +305,7 @@ export const FormProvider = ({
         const value = getFieldValue(field.name)
 
         // Required field validation
-        if (field.required && (value == null || value === '')) {
+        if (!field.optional && (value == null || value === '')) {
           formErrors.push({
             field: field.name,
             message: `${field.label} is required`,

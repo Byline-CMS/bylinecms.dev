@@ -52,7 +52,7 @@ export const FileField = ({
         <div>
           <div className="text-sm font-medium text-gray-100">
             {field.label ?? field.name}
-            {field.required ? ' *' : ''}
+            {field.optional ? '' : ' *'}
           </div>
           {field.helpText && <div className="mt-0.5 text-xs text-gray-400">{field.helpText}</div>}
         </div>

@@ -16,14 +16,13 @@ export const RichTextBlock = {
       name: 'richText',
       label: 'Richtext',
       type: 'richText',
-      required: true,
       localized: true,
     },
     {
       name: 'constrainedWidth',
       label: 'Constrained Width',
       type: 'checkbox',
-      required: false,
+      optional: true,
       defaultValue: true,
       helpText:
         'If enabled, the richtext content will be constrained to a maximum width for better readability.',

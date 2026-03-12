@@ -32,12 +32,11 @@ export const Pages: CollectionDefinition = {
   }),
   showStats: true,
   fields: [
-    { name: 'title', label: 'Title', type: 'text', required: true, localized: true },
+    { name: 'title', label: 'Title', type: 'text', localized: true },
     {
       name: 'path',
       label: 'Path',
       type: 'text',
-      required: true,
       hooks: {
         beforeValidate: formatSlug('title'),
       },
@@ -46,6 +45,7 @@ export const Pages: CollectionDefinition = {
       name: 'category',
       label: 'Category',
       type: 'select',
+      optional: true,
       helpText: 'Select a category for this page',
       options: [
         { label: 'Foo', value: 'foo' },
@@ -58,7 +58,6 @@ export const Pages: CollectionDefinition = {
       label: 'Content',
       type: 'richText',
       helpText: 'Enter the main content for this page.',
-      required: true,
       localized: true,
     },
     {
@@ -66,12 +65,12 @@ export const Pages: CollectionDefinition = {
       label: 'Published On',
       type: 'datetime',
       mode: 'datetime',
-      required: true,
     },
     {
       name: 'featured',
       label: 'Featured',
       type: 'checkbox',
+      optional: true,
       helpText: 'Feature this page.',
     },
     availableLanguagesField(),

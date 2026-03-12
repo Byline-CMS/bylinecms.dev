@@ -81,7 +81,7 @@ export const ImageField = ({
         <div>
           <div className="text-sm font-medium text-gray-100">
             {field.label ?? field.name}
-            {field.required ? ' *' : ''}
+            {field.optional ? '' : ' *'}
           </div>
           {field.helpText && <div className="mt-0.5 text-xs text-gray-400">{field.helpText}</div>}
         </div>
@@ -118,10 +118,11 @@ export const ImageField = ({
               <img
                 src={incomingValue.storage_url}
                 alt={incomingValue.original_filename ?? incomingValue.filename}
-                className={`rounded border border-gray-600 object-contain ${incomingValue.mime_type === 'image/svg+xml'
-                  ? 'w-[271px] h-[159px]'
-                  : 'max-h-40 min-h-16 min-w-16'
-                  }`}
+                className={`rounded border border-gray-600 object-contain ${
+                  incomingValue.mime_type === 'image/svg+xml'
+                    ? 'w-[271px] h-[159px]'
+                    : 'max-h-40 min-h-16 min-w-16'
+                }`}
               />
               {/* Pending upload badge */}
               {isPending && (

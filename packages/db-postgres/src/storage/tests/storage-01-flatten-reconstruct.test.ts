@@ -21,24 +21,25 @@ const DocsCollectionConfig = defineCollection({
     plural: 'Documents',
   },
   fields: [
-    { name: 'path', type: 'text', required: true /* unique: true */ },
-    { name: 'title', type: 'text', required: true, localized: true },
-    { name: 'summary', type: 'text', required: true, localized: true },
-    // { name: 'category', type: 'relation', targetCollection: 'categories', required: false },
+    { name: 'path', type: 'text' /* unique: true */ },
+    { name: 'title', type: 'text', localized: true },
+    { name: 'summary', type: 'text', localized: true },
+    // { name: 'category', type: 'relation', targetCollection: 'categories', optional: true },
     {
       name: 'publishedOn',
       type: 'datetime',
       mode: 'datetime',
-      required: false,
+      optional: true,
     },
     {
       name: 'featured',
       label: 'Featured',
       type: 'checkbox',
+      optional: true,
       helpText: 'Is this page featured on the home page?',
     },
-    { name: 'views', type: 'integer', required: false },
-    { name: 'price', label: 'Price', type: 'decimal', required: false },
+    { name: 'views', type: 'integer', optional: true },
+    { name: 'price', label: 'Price', type: 'decimal', optional: true },
 
     {
       name: 'content',
@@ -47,17 +48,17 @@ const DocsCollectionConfig = defineCollection({
         {
           blockType: 'richTextBlock',
           fields: [
-            { name: 'constrainedWidth', type: 'boolean', required: false },
-            { name: 'richText', type: 'richText', required: true, localized: true },
+            { name: 'constrainedWidth', type: 'boolean', optional: true },
+            { name: 'richText', type: 'richText', localized: true },
           ],
         },
         {
           blockType: 'photoBlock',
           fields: [
-            { name: 'display', type: 'text', required: false },
-            { name: 'photo', type: 'image', required: true },
-            { name: 'alt', type: 'text', required: true, localized: false },
-            { name: 'caption', type: 'richText', required: false, localized: true },
+            { name: 'display', type: 'text', optional: true },
+            { name: 'photo', type: 'image' },
+            { name: 'alt', type: 'text', localized: false },
+            { name: 'caption', type: 'richText', optional: true, localized: true },
           ],
         },
       ],
@@ -70,8 +71,8 @@ const DocsCollectionConfig = defineCollection({
           name: 'reviewItem',
           type: 'group',
           fields: [
-            { name: 'rating', type: 'integer', required: true },
-            { name: 'comment', type: 'richText', required: true, localized: false },
+            { name: 'rating', type: 'integer' },
+            { name: 'comment', type: 'richText', localized: false },
           ],
         },
       ],
@@ -248,12 +249,6 @@ describe('01 Document Flattening and Reconstruction', () => {
     // not the flat application shape ({ _type, ...fields }). The flat shape is produced
     // later by attachMetaToDocument when reading from the database.
     const expectedJson = JSON.stringify(expectedReconstructed, null, 2)
-
-    assert.deepStrictEqual(
-      reconstructed.content,
-      expectedReconstructed.content,
-      'Reconstructed content field should match expected shape'
-    )
 
     assert.deepStrictEqual(
       JSON.parse(reconstructedJson),

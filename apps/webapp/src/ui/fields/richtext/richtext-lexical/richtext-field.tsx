@@ -58,7 +58,7 @@ export const RichTextField = ({
           id={`${fieldId}-label`}
           label={field.label}
           htmlFor={fieldId}
-          required={field.required}
+          required={!field.optional}
         />
         <LocaleBadge locale={locale} />
       </div>
@@ -77,7 +77,7 @@ export const RichTextField = ({
           description={field.helpText}
           readonly={readonly}
           label={labelNode}
-          required={field.required}
+          required={!field.optional}
           value={incomingValue}
           defaultValue={incomingDefault}
           // Ensure React fully remounts when instanceKey changes

@@ -49,7 +49,7 @@ export const GroupField = ({ field, defaultValue, path }: GroupFieldProps) => {
       {field.label && (
         <div className="flex flex-col gap-0.5 mb-2">
           <h3 className="text-[1rem] font-medium">
-            {field.label} {field.required && <span className="text-red-500">*</span>}
+            {field.label} {!field.optional && <span className="text-red-500">*</span>}
           </h3>
           {field.helpText && <p className="muted text-xs text-muted">{field.helpText}</p>}
         </div>

@@ -24,13 +24,13 @@ const FieldTypesCollectionConfig: CollectionDefinition = {
     plural: 'FieldType',
   },
   fields: [
-    { name: 'path', type: 'text', required: true /* unique: true */ },
-    { name: 'title', type: 'text', required: true, localized: true },
-    { name: 'summary', type: 'text', required: true, localized: true },
-    { name: 'publishedOn', type: 'datetime', required: false },
-    { name: 'views', type: 'integer', required: false },
-    { name: 'price', type: 'decimal', required: false },
-    { name: 'attachment', type: 'file', required: false },
+    { name: 'path', type: 'text' /* unique: true */ },
+    { name: 'title', type: 'text', localized: true },
+    { name: 'summary', type: 'text', localized: true },
+    { name: 'publishedOn', type: 'datetime', optional: true },
+    { name: 'views', type: 'integer', optional: true },
+    { name: 'price', type: 'decimal', optional: true },
+    { name: 'attachment', type: 'file', optional: true },
   ],
 }
 
