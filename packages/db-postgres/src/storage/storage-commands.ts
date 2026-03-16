@@ -31,7 +31,7 @@ import {
   relationStore,
   textStore,
 } from '../database/schema/index.js'
-import { flattenFieldSetData, groupAndNormalizeFlattenedFields } from './new-storage-utils.js'
+import { flattenFieldSetData, prepareFieldInsertBuckets } from './new-storage-utils.js'
 import { getFirstOrThrow } from './storage-utils.js'
 import type * as schema from '../database/schema/index.js'
 
@@ -256,7 +256,7 @@ export class DocumentCommands implements IDocumentCommands {
       )
 
       // 3. Batch-insert all field values, grouped by store type
-      const storeBuckets = groupAndNormalizeFlattenedFields(
+      const storeBuckets = prepareFieldInsertBuckets(
         flattenedFields,
         documentVersion.id,
         params.collectionId
