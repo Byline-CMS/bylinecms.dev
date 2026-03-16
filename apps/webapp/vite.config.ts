@@ -3,7 +3,6 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-import tsConfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
   server: {
@@ -11,6 +10,9 @@ export default defineConfig({
   },
   // Bundle these packages during SSR so Vite handles their CSS module imports
   // (Node.js can't natively process .css files).
+  resolve: {
+    tsconfigPaths: true,
+  },
   ssr: {
     noExternal: ['@infonomic/uikit'],
     // Sharp loads a platform-specific native .node binary at runtime via a
@@ -20,7 +22,6 @@ export default defineConfig({
     external: ['sharp', '@byline/storage-local'],
   },
   plugins: [
-    tsConfigPaths(),
     tanstackStart(),
     // NOTE: react() must come AFTER tanstackStart()
     react(),

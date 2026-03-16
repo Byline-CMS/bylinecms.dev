@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.30.1",
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
     "clean": "turbo run clean && rimraf node_modules",
     "db:init": "TURBO_UI=true turbo run db:init",
@@ -20,10 +20,10 @@
     "test": "turbo run test"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.4"
+    "@biomejs/biome": "2.4.7"
   },
   "dependencies": {
-    "turbo": "^2.8.12",
+    "turbo": "^2.8.17",
     "typescript": "5.9.3"
   },
   "engines": {
