@@ -30,6 +30,17 @@ import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
 
+/**
+ * Resolve a column value from a document, checking `fields` first (user-defined
+ * collection fields) then the root (metadata like status, updated_at).
+ */
+function getColumnValue(document: any, fieldName: string): any {
+  if (document.fields && fieldName in document.fields) {
+    return document.fields[fieldName]
+  }
+  return document[fieldName]
+}
+
 function Stats({ total }: { total: number }) {
   const [showLoader, _] = useState(false)
 
@@ -225,15 +236,15 @@ export const ListView = ({
                           >
                             {column.formatter
                               ? renderFormatted(
-                                  (document as any)[column.fieldName],
+                                  getColumnValue(document, column.fieldName as string),
                                   document,
                                   column.formatter
                                 )
-                              : ((document as any)[column.fieldName] ?? '------')}
+                              : (getColumnValue(document, column.fieldName as string) ?? '------')}
                           </Link>
                         ) : column.formatter ? (
                           renderFormatted(
-                            (document as any)[column.fieldName],
+                            getColumnValue(document, column.fieldName as string),
                             document,
                             column.formatter
                           )
@@ -250,7 +261,7 @@ export const ListView = ({
                               )}
                           </span>
                         ) : (
-                          String((document as any)[column.fieldName] ?? '')
+                          String(getColumnValue(document, column.fieldName as string) ?? '')
                         )}
                       </Table.Cell>
                     ))}

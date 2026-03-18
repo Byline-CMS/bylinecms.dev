@@ -302,8 +302,12 @@ export async function updateDocumentWithPatches(
     throw new ConflictError(originalData.document_version_id, params.documentVersionId)
   }
 
-  // 3. Apply patches.
-  const { doc: patchedDocument, errors } = applyPatches(definition, originalData, params.patches)
+  // 3. Apply patches (patches operate on flat field data, not the full envelope).
+  const { doc: patchedDocument, errors } = applyPatches(
+    definition,
+    originalData.fields ?? {},
+    params.patches
+  )
 
   if (errors.length > 0) {
     throw new PatchApplicationError(errors)
@@ -507,7 +511,7 @@ export async function deleteDocument(
   if (isUploadCollection) {
     const primaryField = definition.fields.find((f) => f.type === 'image' || f.type === 'file')
     if (primaryField) {
-      const fieldValue = (latest as Record<string, any>)[primaryField.name]
+      const fieldValue = (latest as Record<string, any>)?.fields?.[primaryField.name]
       if (
         fieldValue &&
         typeof fieldValue === 'object' &&

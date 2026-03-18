@@ -218,7 +218,10 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
 // strict=true  → required fields are non-nullable (write / validation use)
 // strict=false → all fields are nullable+optional (read / serialisation use)
 export const createFieldsSchema = (fields: Field[], strict = true) => {
-  const fieldsSchemaShape: Record<string, z.ZodType> = {}
+  // Use ZodType<any> so the inferred object output is { [x: string]: any }
+  // rather than { [x: string]: unknown } (Zod v4 defaults ZodType to <unknown>).
+  // This keeps the schema assignable through TanStack Start's serialisation boundary.
+  const fieldsSchemaShape: Record<string, z.ZodType<any>> = {}
 
   for (const field of fields) {
     fieldsSchemaShape[field.name] = fieldToZodSchema(field, strict)
@@ -271,12 +274,12 @@ export const createCollectionSchemas = (collection: CollectionDefinition) => {
 
   const fullSchema = z.object({
     ...baseSchema.shape,
-    ...fieldsSchema.shape,
+    fields: fieldsSchema,
   })
 
   const fullSchemaLenient = z.object({
     ...baseSchema.shape,
-    ...fieldsSchemaLenient.shape,
+    fields: fieldsSchemaLenient,
   })
 
   return {

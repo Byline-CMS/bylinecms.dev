@@ -585,7 +585,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
-        ...enrichedDocument,
+        fields: enrichedDocument,
       }
     }
     return {
@@ -662,7 +662,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
-        ...enrichedDocument,
+        fields: enrichedDocument,
       }
     }
     return {
@@ -717,7 +717,6 @@ export class DocumentQueries implements IDocumentQueries {
 
     const enrichedDocument = attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
-    // Add document properties at root level
     const documentWithFields = {
       document_version_id: document.id,
       document_id: document.document_id,
@@ -725,7 +724,7 @@ export class DocumentQueries implements IDocumentQueries {
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
-      ...enrichedDocument,
+      fields: enrichedDocument,
     }
 
     return documentWithFields
@@ -821,7 +820,6 @@ export class DocumentQueries implements IDocumentQueries {
         (metaByVersion.get(doc.document_version_id) ?? []) as MetaRow[]
       )
 
-      // Add document data at root level
       const documentWithFields = {
         document_version_id: doc.document_version_id,
         document_id: doc.document_id,
@@ -829,7 +827,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: doc.status,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
-        ...enrichedDocument,
+        fields: enrichedDocument,
       }
 
       result.push(documentWithFields)
@@ -1046,7 +1044,6 @@ export class DocumentQueries implements IDocumentQueries {
 
       const reconstructedFields = reconstructFields(flattenedFieldValues, locale)
 
-      // Add document data at root level
       const documentWithFields = {
         document_version_id: doc.id,
         document_id: doc.document_id,
@@ -1054,7 +1051,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: doc.status,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
-        ...reconstructedFields,
+        fields: reconstructedFields,
       }
 
       result.push(documentWithFields)
@@ -1155,7 +1152,7 @@ export class DocumentQueries implements IDocumentQueries {
 
       const document = reconstructFields(flattenedFieldValues, locale)
 
-      result.push({ ...head, ...document })
+      result.push({ ...head, fields: document })
     }
 
     // Sort by document path for consistent ordering

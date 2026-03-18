@@ -504,7 +504,7 @@ const FormContent = ({
             <FieldRenderer
               key={field.name}
               field={field}
-              defaultValue={initialData?.[field.name]}
+              defaultValue={initialData?.fields?.[field.name]}
               collectionPath={collectionPath}
               contentLocale={contentLocale}
               components={fieldPositions[field.name]?.components}
@@ -564,7 +564,7 @@ const FormContent = ({
             <FieldRenderer
               key={field.name}
               field={field}
-              defaultValue={initialData?.[field.name]}
+              defaultValue={initialData?.fields?.[field.name]}
               collectionPath={collectionPath}
               contentLocale={contentLocale}
               components={fieldPositions[field.name]?.components}

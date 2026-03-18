@@ -81,8 +81,8 @@ export const FormProvider = ({
   children: React.ReactNode
   initialData?: Record<string, any>
 }) => {
-  const fieldValues = useRef<Record<string, any>>(JSON.parse(JSON.stringify(initialData)))
-  const initialValues = useRef<Record<string, any>>(initialData)
+  const fieldValues = useRef<Record<string, any>>(JSON.parse(JSON.stringify(initialData?.fields ?? initialData)))
+  const initialValues = useRef<Record<string, any>>(initialData?.fields ?? initialData)
   const errorsRef = useRef<FormError[]>([])
   const dirtyFields = useRef<Set<string>>(new Set())
   const patchesRef = useRef<DocumentPatch[]>([])

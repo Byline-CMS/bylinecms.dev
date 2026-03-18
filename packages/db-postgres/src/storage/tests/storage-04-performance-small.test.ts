@@ -287,13 +287,13 @@ describe('04 Performance Small Sets', () => {
 
       console.log(`Optimized approach: ${duration.toFixed(2)}ms`)
       console.log('Document structure:', Object.keys(document))
-      console.log('Images array length:', document.images?.length)
-      console.log('Specifications array length:', document.specifications?.length)
-      console.log('Reviews array length:', document.reviews?.length)
+      console.log('Images array length:', document.fields?.images?.length)
+      console.log('Specifications array length:', document.fields?.specifications?.length)
+      console.log('Reviews array length:', document.fields?.reviews?.length)
 
       // Verify we got the complete document
-      console.log('Sample name localization:', document.name)
-      console.log('Sample specification:', document.specifications?.[0])
+      console.log('Sample name localization:', document.fields?.name)
+      console.log('Sample specification:', document.fields?.specifications?.[0])
     })
 
     it('should compare single document performance over multiple runs', async () => {

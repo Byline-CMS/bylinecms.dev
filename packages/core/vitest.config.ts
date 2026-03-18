@@ -1,4 +1,3 @@
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
@@ -9,7 +8,7 @@ export default defineConfig(({ mode }) => {
       : ['**/*.test.ts', '**/*.test.tsx']
 
   return {
-    plugins: [tsconfigPaths()],
+    plugins: [],
     test: {
       setupFiles: './vitest.setup.node.ts',
       environment: mode === 'node' ? 'node' : 'jsdom',

@@ -30,6 +30,17 @@ import { formatNumber } from '@/utils/utils.general.ts'
 import { i18n } from '~/i18n'
 import { ViewMenu } from './view-menu'
 
+/**
+ * Resolve a column value from a document, checking `fields` first (user-defined
+ * collection fields) then the root (metadata like status, updated_at).
+ */
+function getColumnValue(document: any, fieldName: string): any {
+  if (document.fields && fieldName in document.fields) {
+    return document.fields[fieldName]
+  }
+  return document[fieldName]
+}
+
 // Lazy-load DiffModal because react-diff-viewer-continued uses a web worker
 // bundle that cannot be resolved by Node during SSR.
 const DiffModal = lazy(() => import('./diff-modal').then((m) => ({ default: m.DiffModal })))
@@ -234,12 +245,12 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                    (document as any)[column.fieldName],
+                                    getColumnValue(document, column.fieldName as string),
                                     document,
                                     column.formatter
                                   )
                                   : resolveDisplayValue(
-                                    (document as any)[column.fieldName],
+                                    getColumnValue(document, column.fieldName as string),
                                     locale
                                   ) || '------'}
                               </button>
@@ -254,19 +265,19 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                    (document as any)[column.fieldName],
+                                    getColumnValue(document, column.fieldName as string),
                                     document,
                                     column.formatter
                                   )
                                   : resolveDisplayValue(
-                                    (document as any)[column.fieldName],
+                                    getColumnValue(document, column.fieldName as string),
                                     locale
                                   ) || '------'}
                               </Link>
                             )
                           ) : column.formatter ? (
                             renderFormatted(
-                              (document as any)[column.fieldName],
+                              getColumnValue(document, column.fieldName as string),
                               document,
                               column.formatter
                             )
@@ -274,7 +285,7 @@ export const HistoryView = ({
                             (workflowStatuses.find((s) => s.name === (document as any).status)
                               ?.label ?? String((document as any).status ?? ''))
                           ) : (
-                            resolveDisplayValue((document as any)[column.fieldName], locale) || ''
+                            resolveDisplayValue(getColumnValue(document, column.fieldName as string), locale) || ''
                           )}
                         </Table.Cell>
                       ))}

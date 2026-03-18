@@ -18,6 +18,10 @@ import { getCollectionDocumentVersion } from '@/modules/admin/collections'
 const STRIP_KEYS = new Set(['document_version_id', 'created_at', 'updated_at', '_publishedVersion'])
 
 function stripMeta(doc: Record<string, unknown>): Record<string, unknown> {
+  // With the nested document shape, extract just the fields for diffing.
+  if (doc.fields && typeof doc.fields === 'object') {
+    return doc.fields as Record<string, unknown>
+  }
   return Object.fromEntries(Object.entries(doc).filter(([k]) => !STRIP_KEYS.has(k)))
 }
 
