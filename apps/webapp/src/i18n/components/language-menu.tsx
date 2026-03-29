@@ -1,3 +1,5 @@
+'use client'
+
 import { CheckIcon, Dropdown as DropdownMenu, GlobeIcon } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
@@ -12,34 +14,31 @@ interface LanguageMenuProps extends LanguageMenuIntrinsicProps {
   className?: string
   shiftMenu?: boolean
   color?: string
+  lng: Locale
 }
 
 export function LanguageMenu({
   className,
+  lng,
   color,
   shiftMenu = true,
 }: LanguageMenuProps): React.JSX.Element {
   const { switchLanguage, currentLocale } = useLanguageSwitcher()
 
-  const handleOnSelect = (event: Event) => {
-    const lng = (event.target as HTMLElement)?.dataset.language as Locale
-    if (lng) switchLanguage(lng)
-  }
-
   return (
     <div className={className}>
       <DropdownMenu.Root modal={false}>
-        <DropdownMenu.Trigger asChild>
+        <DropdownMenu.Trigger render={
           <button
             type="button"
-            aria-label={languageMap[currentLocale]?.nativeName}
+            aria-label={languageMap[lng]?.nativeName}
             className="component--language-menu rounded flex items-center justify-between gap-1 outline-none"
-          >
-            <GlobeIcon svgClassName={color} />
-            <span className={cx(color, 'hidden sm:inline mr-[4px]')}>
-              {languageMap[currentLocale]?.nativeName}
-            </span>
-          </button>
+          />
+        }>
+          <GlobeIcon svgClassName={color} />
+          <span className={cx(color, 'hidden sm:inline mr-[4px]')}>
+            {languageMap[lng]?.nativeName}
+          </span>
         </DropdownMenu.Trigger>
 
         <DropdownMenu.Portal>
@@ -57,8 +56,7 @@ export function LanguageMenu({
               return (
                 <DropdownMenu.Item
                   key={language}
-                  onSelect={handleOnSelect}
-                  data-language={language}
+                  onClick={() => switchLanguage(language as Locale)}
                 >
                   <div className="flex">
                     <span className="inline-block w-[22px]">

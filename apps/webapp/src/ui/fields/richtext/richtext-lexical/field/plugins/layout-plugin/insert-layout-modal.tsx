@@ -25,7 +25,6 @@ import {
   IconButton,
   Modal,
   Select,
-  SelectItem,
   type SelectValue,
 } from '@infonomic/uikit/react'
 
@@ -73,19 +72,14 @@ export function InsertLayoutModal({
           </IconButton>
         </Modal.Header>
         <Modal.Content>
-          <Select
+          <Select<string>
             containerClassName="insert-layout-modal-select"
+            items={layouts}
             onValueChange={(value) => {
-              setLayout(value)
+              if (value != null) setLayout(value)
             }}
             placeholder="Select a layout"
-          >
-            {layouts.map(({ label, value }) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </Select>
+          />
         </Modal.Content>
         <Modal.Actions className="insert-layout-modal-actions">
           <Button size="sm" intent="noeffect" onClick={handleOnCancel} data-autofocus>

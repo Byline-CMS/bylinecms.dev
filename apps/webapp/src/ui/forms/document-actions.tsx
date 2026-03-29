@@ -33,10 +33,8 @@ export function DocumentActions({
   return (
     <>
       <DropdownComponent.Root>
-        <DropdownComponent.Trigger asChild>
-          <IconButton variant="text" intent="noeffect" size="sm">
-            <EllipsisIcon className="rotate-90 text-primary-500" width="15px" height="15px" />
-          </IconButton>
+        <DropdownComponent.Trigger render={<IconButton variant="text" intent="noeffect" size="sm" />}>
+          <EllipsisIcon className="rotate-90 text-primary-500" width="15px" height="15px" />
         </DropdownComponent.Trigger>
 
         <DropdownComponent.Portal>
@@ -48,7 +46,7 @@ export function DocumentActions({
           >
             {publishedVersion && (
               <>
-                <DropdownComponent.Item onSelect={onUnpublish}>
+                <DropdownComponent.Item onClick={onUnpublish}>
                   <div className="dropdown-item-content flex items-center ml-2">
                     <span className="dropdown-item-content-icon">
                       {/* <UserIcon width="22px" height="22px" /> */}
@@ -60,7 +58,7 @@ export function DocumentActions({
               </>
             )}
             <DropdownComponent.Item
-              onSelect={() => {
+              onClick={() => {
                 setShowDeleteConfirm(true)
               }}
             >

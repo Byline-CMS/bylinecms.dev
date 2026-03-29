@@ -19,7 +19,6 @@ import {
   Search,
   Section,
   Select,
-  SelectItem,
   Table,
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
@@ -66,7 +65,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-      }`}
+        }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -111,7 +110,8 @@ export const ListView = ({
     })
   }
 
-  const handleOnStatusFilter = (value: string): void => {
+  const handleOnStatusFilter = (value: string | null): void => {
+    if (typeof value !== 'string' || value.length === 0) return
     const params = structuredClone(location.search)
     delete params.page
     if (value === '_all') {
@@ -126,17 +126,16 @@ export const ListView = ({
     })
   }
 
-  function handleOnPageSizeChange(value: string): void {
-    if (value != null && value.length > 0) {
-      const params = structuredClone(location.search)
-      delete params.page
-      params.page_size = Number.parseInt(value, 10)
-      navigate({
-        to: '/{-$lng}/admin/collections/$collection',
-        params: { ...lngParam(uiLocale), collection: data.included.collection.path },
-        search: params,
-      })
-    }
+  function handleOnPageSizeChange(value: string | null): void {
+    if (typeof value !== 'string' || value.length === 0) return
+    const params = structuredClone(location.search)
+    delete params.page
+    params.page_size = Number.parseInt(value, 10)
+    navigate({
+      to: '/{-$lng}/admin/collections/$collection',
+      params: { ...lngParam(uiLocale), collection: data.included.collection.path },
+      search: params,
+    })
   }
 
   return (
@@ -145,13 +144,14 @@ export const ListView = ({
         <div className="flex items-center gap-3 py-[2px]">
           <h1 className="!m-0 pb-[2px]">{data.included.collection.labels.plural as string}</h1>
           <Stats total={data?.meta.total} />
-          <IconButton aria-label="Create New" asChild>
+          <IconButton aria-label="Create New" render={
             <Link
               to="/{-$lng}/admin/collections/$collection/create"
               params={{ ...lngParam(uiLocale), collection: data.included.collection.path }}
-            >
-              <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
-            </Link>
+            />
+          }>
+            <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
+
           </IconButton>
         </div>
         <div className="options flex flex-col gap-2 sm:flex-row items-start sm:items-center mt-3 mb-3">
@@ -164,20 +164,17 @@ export const ListView = ({
           />
 
           {workflowStatuses && workflowStatuses.length > 0 && (
-            <Select
+            <Select<string>
               id="status_filter"
               name="status_filter"
               size="sm"
               value={(location.search as { status?: string }).status ?? '_all'}
+              items={[
+                { value: '_all', label: 'All' },
+                ...workflowStatuses.map((ws) => ({ value: ws.name, label: ws.label ?? ws.name })),
+              ]}
               onValueChange={handleOnStatusFilter}
-            >
-              <SelectItem value="_all">All</SelectItem>
-              {workflowStatuses.map((ws) => (
-                <SelectItem key={ws.name} value={ws.name}>
-                  {ws.label ?? ws.name}
-                </SelectItem>
-              ))}
-            </Select>
+            />
           )}
 
           <RouterPager
@@ -236,10 +233,10 @@ export const ListView = ({
                           >
                             {column.formatter
                               ? renderFormatted(
-                                  getColumnValue(document, column.fieldName as string),
-                                  document,
-                                  column.formatter
-                                )
+                                getColumnValue(document, column.fieldName as string),
+                                document,
+                                column.formatter
+                              )
                               : (getColumnValue(document, column.fieldName as string) ?? '------')}
                           </Link>
                         ) : column.formatter ? (
@@ -273,19 +270,20 @@ export const ListView = ({
           {padRows(6 - (data?.documents?.length ?? 0))}
         </Table.Container>
         <div className="options flex flex-col gap-2 sm:flex-row items-start sm:items-center mb-5">
-          <Select
+          <Select<string>
             containerClassName="sm:ml-auto"
             id="page_size"
             name="page_size"
             size="sm"
             defaultValue="15"
+            items={[
+              { value: '15', label: '15' },
+              { value: '30', label: '30' },
+              { value: '50', label: '50' },
+              { value: '100', label: '100' },
+            ]}
             onValueChange={handleOnPageSizeChange}
-          >
-            <SelectItem value="15">15</SelectItem>
-            <SelectItem value="30">30</SelectItem>
-            <SelectItem value="50">50</SelectItem>
-            <SelectItem value="100">100</SelectItem>
-          </Select>
+          />
           <RouterPager
             smoothScrollToTop={true}
             lng="en"

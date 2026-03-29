@@ -60,9 +60,9 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.7",
+    "@biomejs/biome": "2.4.9",
     "@rsbuild/plugin-react": "^1.4.6",
-    "@rslib/core": "^0.20.0",
+    "@rslib/core": "^0.20.1",
     "@types/lodash": "^4.17.24",
     "@types/node": "^25.5.0",
     "@types/react": "19.2.14",
@@ -74,10 +74,10 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "rimraf": "^6.1.3",
-    "typescript": "5.9.3",
+    "typescript": "6.0.2",
     "typescript-plugin-css-modules": "^5.2.0",
-    "vite": "^8.0.0",
-    "vitest": "^4.1.0"
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
   },
   "publishConfig": {
     "access": "public",

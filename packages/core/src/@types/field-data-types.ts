@@ -19,7 +19,7 @@ import type {
 import type { Prettify, ValueUnion } from './type-utils.js'
 
 // The base data type for each field -- group, array, blocks and select are
-// handled seprately (so the corresponding type here is `never`), but for the
+// handled separately (so the corresponding type here is `never`), but for the
 // other leaf field types this is the underlying non-localized JS type.
 type BaseFieldDataTypes = {
   array: never

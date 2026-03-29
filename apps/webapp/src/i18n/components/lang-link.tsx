@@ -25,13 +25,15 @@ export interface LangLinkProps
   lng?: Locale
   /** Additional route params besides lng */
   params?: Record<string, string | undefined>
+  /** Search / query string parameters */
+  search?: true | Record<string, unknown> | ((current: Record<string, unknown>) => Record<string, unknown>)
   /** Trigger a full-page reload instead of client-side navigation */
   forceReload?: boolean
   /** Whether to scroll to top on navigation (default: true) */
   scroll?: boolean
   /** Replace the current history entry */
   replace?: boolean
-  children: React.ReactNode
+  children?: React.ReactNode
 }
 
 /**
@@ -45,7 +47,7 @@ function toLocaleRoute(path: string): string {
 
 export const LangLink = React.forwardRef<HTMLAnchorElement, LangLinkProps>(
   (
-    { to, children, lng, params = {}, forceReload, scroll = true, replace = false, ...rest },
+    { to, children, lng, params = {}, search, forceReload, scroll = true, replace = false, ...rest },
     ref
   ) => {
     const currentLocale = useLocale()
@@ -70,6 +72,7 @@ export const LangLink = React.forwardRef<HTMLAnchorElement, LangLinkProps>(
       <Link
         to={toLocaleRoute(to)}
         params={{ ...params, ...localeParam } as never}
+        search={search}
         replace={replace}
         resetScroll={scroll}
         ref={ref}

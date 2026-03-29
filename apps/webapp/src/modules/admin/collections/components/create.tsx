@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
-import { Container, Section, Toast } from '@infonomic/uikit/react'
+import { Container, Section, useToastManager } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { FormRenderer } from '@/ui/forms/form-renderer'
@@ -31,15 +31,14 @@ export const CreateView = ({
   adminConfig?: CollectionAdminConfig
   initialData?: Record<string, any>
 }) => {
-  const [toast, setToast] = useState(false)
-  const [createState, setCreateState] = useState<CreateState>({
+  const toastManager = useToastManager()
+  const [_createState, setCreateState] = useState<CreateState>({
     status: 'idle',
     message: '',
   })
   const navigate = useNavigate()
   const uiLocale = useLocale()
   const { labels, path, fields } = collectionDefinition
-  // const location = useRouterState({ select: (s) => s.location })
 
   const handleSubmit = async ({ data }: { data: any }) => {
     try {
@@ -51,46 +50,46 @@ export const CreateView = ({
       })
     } catch (err) {
       console.error(err)
+
+      toastManager.add({
+        title: `${labels.singular} Creation`,
+        description: `An error occurred while creating ${labels.singular.toLowerCase()}`,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
+
       setCreateState({
         status: 'failed',
         message: `An error occurred while creating ${labels.singular.toLowerCase()}`,
       })
-      setToast(true)
     }
   }
 
   return (
-    <>
-      <Section>
-        <Container>
-          {/* <h2 className="mb-2">Create {labels.singular}</h2> */}
-          <FormRenderer
-            mode="create"
-            fields={fields}
-            onSubmit={handleSubmit}
-            initialData={initialData}
-            adminConfig={adminConfig}
-            headingLabel={labels.singular}
-            useNavigationGuard={useTanStackNavigationGuard}
-            onCancel={() =>
-              navigate({
-                to: '/{-$lng}/admin/collections/$collection',
-                params: { ...lngParam(uiLocale), collection: path },
-              })
-            }
-            collectionPath={path}
-          />
-        </Container>
-      </Section>
-      <Toast
-        title={`${labels.singular} Creation`}
-        iconType={createState.status === 'success' ? 'success' : 'danger'}
-        intent={createState.status === 'success' ? 'success' : 'danger'}
-        position="bottom-right"
-        message={createState.message}
-        open={toast}
-        onOpenChange={setToast}
-      />
-    </>
+    <Section>
+      <Container>
+        {/* <h2 className="mb-2">Create {labels.singular}</h2> */}
+        <FormRenderer
+          mode="create"
+          fields={fields}
+          onSubmit={handleSubmit}
+          initialData={initialData}
+          adminConfig={adminConfig}
+          headingLabel={labels.singular}
+          useNavigationGuard={useTanStackNavigationGuard}
+          onCancel={() =>
+            navigate({
+              to: '/{-$lng}/admin/collections/$collection',
+              params: { ...lngParam(uiLocale), collection: path },
+            })
+          }
+          collectionPath={path}
+        />
+      </Container>
+    </Section>
   )
 }

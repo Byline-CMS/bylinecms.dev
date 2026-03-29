@@ -48,13 +48,13 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.7",
+    "@biomejs/biome": "2.4.9",
     "@types/node": "^25.5.0",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
-    "typescript": "5.9.3"
+    "typescript": "6.0.2"
   },
   "publishConfig": {
     "access": "public",

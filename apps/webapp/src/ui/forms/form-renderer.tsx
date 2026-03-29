@@ -512,54 +512,6 @@ const FormContent = ({
           ))}
         </div>
         <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
-          {/* <div className="content-locales relative z-10">
-            <h3 className="text-[1rem] font-medium mb-2">Content Language</h3>
-            <div className="content-locales-actions flex gap-2">
-              <Select
-                name="contentLocale"
-                id="contentLocale"
-                className="min-w-[140px]"
-                size="sm"
-                variant='outlined'
-                value={contentLocale}
-                onValueChange={(value) => {
-                  setContentLocale(value)
-                  onLocaleChange?.(value)
-                }}
-              >
-                {contentLocales.map((locale) => (
-                  <SelectItem key={locale.code} value={locale.code}>
-                    {locale.label}
-                  </SelectItem>
-                ))}
-              </Select>
-              <Dropdown.Root>
-                <Dropdown.Trigger asChild>
-                  <IconButton variant="text" intent="noeffect" size="sm">
-                    <EllipsisIcon className="rotate-90 text-primary-500" width="15px" height="15px" />
-                  </IconButton>
-                </Dropdown.Trigger>
-
-                <Dropdown.Portal>
-                  <Dropdown.Content
-                    className="min-w-[110px]"
-                    align="end"
-                    data-side="top"
-                    sideOffset={10}
-                  >
-                    <Dropdown.Item
-                    >
-                      <div className="dropdown-item-content flex items-center ml-1">
-                        <span className="dropdown-item-content-text text-left text-sm inline-block w-full">
-                          Copy to Locale
-                        </span>
-                      </div>
-                    </Dropdown.Item>
-                  </Dropdown.Content>
-                </Dropdown.Portal>
-              </Dropdown.Root>
-            </div>
-          </div> */}
           {sidebarFields.map((field) => (
             <FieldRenderer
               key={field.name}

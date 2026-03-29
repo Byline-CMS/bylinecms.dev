@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { createFileRoute, notFound, useNavigate } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
@@ -15,7 +15,7 @@ import {
   getCollectionDefinition,
   getWorkflowStatuses,
 } from '@byline/core'
-import { Toast } from '@infonomic/uikit/react'
+import { useToastManager } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
@@ -70,6 +70,7 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
 })
 
 function RouteComponent() {
+  const toastManager = useToastManager()
   const data = Route.useLoaderData()
   const { collection } = Route.useParams()
   const search = Route.useSearch()
@@ -78,18 +79,26 @@ function RouteComponent() {
   const adminConfig = getCollectionAdminConfig(collection)
   const columns = adminConfig?.columns || []
   const workflowStatuses = getWorkflowStatuses(collectionDef)
-  const [toastOpen, setToastOpen] = useState(false)
 
   useEffect(() => {
     if (search.action === 'created') {
-      setToastOpen(true)
+      toastManager.add({
+        title: `${collectionDef.labels.singular} Created`,
+        description: `Successfully created ${collectionDef.labels.singular.toLowerCase()}`,
+        data: {
+          intent: 'success',
+          iconType: 'success',
+          icon: true,
+          close: true,
+        },
+      })
       navigate({
         to: '.',
         search: (prev) => ({ ...prev, action: undefined }),
         replace: true,
       })
     }
-  }, [search.action, navigate])
+  }, [search.action, navigate, toastManager, collectionDef.labels.singular])
 
   const CustomListView = adminConfig?.listView
 
@@ -109,14 +118,6 @@ function RouteComponent() {
       ) : (
         <ListView data={data} columns={columns} workflowStatuses={workflowStatuses} />
       )}
-      <Toast
-        title={`${collectionDef.labels.singular} Created`}
-        intent="success"
-        message={`Successfully created ${collectionDef.labels.singular.toLowerCase()}`}
-        open={toastOpen}
-        onOpenChange={setToastOpen}
-        position="bottom-right"
-      />
     </>
   )
 }

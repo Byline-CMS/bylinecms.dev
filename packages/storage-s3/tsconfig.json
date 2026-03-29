@@ -3,7 +3,7 @@
     /* Base Options: */
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "target": "es2022",
+    "target": "es2024",
     "allowJs": true,
     "resolveJsonModule": true,
     "moduleDetection": "force",
@@ -25,7 +25,8 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "lib": ["es2022"], // No DOM or browser libraries
+    "lib": ["es2024"], // No DOM or browser libraries
+    "types": ["node"],
 
     "paths": {
       "@/*": ["./src/*"]

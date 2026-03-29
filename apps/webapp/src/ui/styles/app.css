@@ -5,6 +5,10 @@ body {
   background-color: white;
 }
 
+.root {
+  isolation: isolate;
+}
+
 .dark,
 [data-theme="dark"] {
   body {

@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { Link, useRouterState } from '@tanstack/react-router'
+import { useRouterState } from '@tanstack/react-router'
 
 import type { PaginationProps } from '@infonomic/uikit/react'
 import {
@@ -17,8 +17,11 @@ import {
   Pagination,
 } from '@infonomic/uikit/react'
 
+import { LangLink } from '@/i18n/components/lang-link'
+import type { Locale } from '@/i18n/i18n-config'
+
 interface RouterPageProps extends PaginationProps {
-  lng?: string
+  lng?: Locale
   smoothScrollToTop?: boolean
 }
 
@@ -46,16 +49,23 @@ export function RouterPager({
             const params = structuredClone(location.search)
             delete params.page
             return (
-              <Pagination.First asChild key={key} disabled={item.disabled}>
-                {item.disabled === true ? (
-                  <div>
-                    <ChevronLeftDoubleIcon />
-                  </div>
-                ) : (
-                  <Link to={location.pathname} search={params}>
-                    <ChevronLeftDoubleIcon />
-                  </Link>
-                )}
+              <Pagination.First
+                render={
+                  item.disabled ? (
+                    <div />
+                  ) : (
+                    <LangLink
+                      lng={lng}
+                      scroll={true}
+                      to={location.pathname}
+                      search={params}
+                    />
+                  )
+                }
+                key={key}
+                disabled={item.disabled}
+              >
+                <ChevronLeftDoubleIcon />
               </Pagination.First>
             )
           }}
@@ -65,16 +75,23 @@ export function RouterPager({
               params.page = item.page
             }
             return (
-              <Pagination.Previous asChild key={key} disabled={item.disabled}>
-                {item.disabled === true ? (
-                  <div>
-                    <ChevronLeftIcon />
-                  </div>
-                ) : (
-                  <Link to={location.pathname} search={params}>
-                    <ChevronLeftIcon />
-                  </Link>
-                )}
+              <Pagination.Previous
+                render={
+                  item.disabled ? (
+                    <div />
+                  ) : (
+                    <LangLink
+                      lng={lng}
+                      scroll={true}
+                      to={location.pathname}
+                      search={params}
+                    />
+                  )
+                }
+                key={key}
+                disabled={item.disabled}
+              >
+                <ChevronLeftIcon />
               </Pagination.Previous>
             )
           }}
@@ -87,19 +104,24 @@ export function RouterPager({
             }
             return (
               <Pagination.Number
-                asChild
+                render={
+                  item.disabled ? (
+                    <div />
+                  ) : (
+                    <LangLink
+                      lng={lng}
+                      scroll={true}
+                      to={location.pathname}
+                      search={params}
+                    />
+                  )
+                }
                 key={key}
                 page={item.page}
                 selected={item.selected}
                 disabled={item.disabled}
               >
-                {item.disabled === true ? (
-                  <div>{item.page}</div>
-                ) : (
-                  <Link to={location.pathname} search={params}>
-                    {item.page}
-                  </Link>
-                )}
+                {item.page}
               </Pagination.Number>
             )
           }}
@@ -109,16 +131,24 @@ export function RouterPager({
               params.page = item.page
             }
             return (
-              <Pagination.Next asChild key={key} page={item.page} disabled={item.disabled}>
-                {item.disabled === true ? (
-                  <div>
-                    <ChevronRightIcon />
-                  </div>
-                ) : (
-                  <Link to={location.pathname} search={params}>
-                    <ChevronRightIcon />
-                  </Link>
-                )}
+              <Pagination.Next
+                render={
+                  item.disabled ? (
+                    <div />
+                  ) : (
+                    <LangLink
+                      lng={lng}
+                      scroll={true}
+                      to={location.pathname}
+                      search={params}
+                    />
+                  )
+                }
+                key={key}
+                page={item.page}
+                disabled={item.disabled}
+              >
+                <ChevronRightIcon />
               </Pagination.Next>
             )
           }}
@@ -128,16 +158,24 @@ export function RouterPager({
               params.page = count
             }
             return (
-              <Pagination.Last asChild key={key} disabled={item.disabled} count={count}>
-                {item.disabled === true ? (
-                  <div>
-                    <ChevronRightDoubleIcon />
-                  </div>
-                ) : (
-                  <Link to={location.pathname} search={params}>
-                    <ChevronRightDoubleIcon />
-                  </Link>
-                )}
+              <Pagination.Last
+                render={
+                  item.disabled ? (
+                    <div />
+                  ) : (
+                    <LangLink
+                      lng={lng}
+                      scroll={true}
+                      to={location.pathname}
+                      search={params}
+                    />
+                  )
+                }
+                key={key}
+                disabled={item.disabled}
+                count={count}
+              >
+                <ChevronRightDoubleIcon />
               </Pagination.Last>
             )
           }}

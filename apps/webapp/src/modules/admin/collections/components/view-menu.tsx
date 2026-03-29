@@ -9,7 +9,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
-import { Button, HistoryIcon, IconButton, Label, Select, SelectItem } from '@infonomic/uikit/react'
+import { Button, HistoryIcon, IconButton, Label, Select } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { contentLocales, i18n } from '~/i18n'
@@ -56,7 +56,8 @@ export const ViewMenu = ({
     }
   }, [activeView, locale, collection, documentId, navigate, uiLocale])
 
-  const handleLocaleChange = (value: string) => {
+  const handleLocaleChange = (value: string | null) => {
+    if (value == null) return
     // Always put locale explicitly in the URL — 'all' is stored as 'all',
     // never as undefined, so the loader knows the intent unambiguously.
     const search = (prev: Record<string, unknown>) => ({ ...prev, locale: value })
@@ -89,22 +90,19 @@ export const ViewMenu = ({
         htmlFor="contentLocale"
         label="Content Locale:"
       />
-      <Select
+      <Select<string>
         name="contentLocale"
         id="contentLocale"
         className="min-w-[100px]"
         size="xs"
         variant="outlined"
         value={locale ?? i18n.content.defaultLocale}
+        items={[
+          ...(activeView !== 'edit' ? [{ value: 'all', label: 'All' }] : []),
+          ...contentLocales.map((loc) => ({ value: loc.code, label: loc.label })),
+        ]}
         onValueChange={handleLocaleChange}
-      >
-        {activeView !== 'edit' && <SelectItem value="all">All</SelectItem>}
-        {contentLocales.map((loc) => (
-          <SelectItem key={loc.code} value={loc.code}>
-            {loc.label}
-          </SelectItem>
-        ))}
-      </Select>
+      />
       <IconButton
         className="min-w-[24px]"
         size="xs"

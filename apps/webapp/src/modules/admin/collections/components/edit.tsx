@@ -12,7 +12,7 @@ import { useNavigate } from '@tanstack/react-router'
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getWorkflowStatuses } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Container, Section, Toast } from '@infonomic/uikit/react'
+import { Container, Section, useToastManager } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { FormRenderer } from '@/ui/forms/form-renderer'
@@ -41,7 +41,7 @@ export const EditView = ({
   initialData: AnyCollectionSchemaTypes['UpdateType']
   locale?: string
 }) => {
-  const [toast, setToast] = useState(false)
+  const toastManager = useToastManager()
   const [editState, setEditState] = useState<EditState>({
     status: 'idle',
     message: '',
@@ -70,11 +70,20 @@ export const EditView = ({
   const handleStatusChange = async (status: string) => {
     try {
       await updateDocumentStatus({ data: { collection: path, id: String(initialData.document_id), status } })
+      toastManager.add({
+        title: `${labels.singular} Status Update`,
+        description: `Status changed to "${status}"`,
+        data: {
+          intent: 'success',
+          iconType: 'success',
+          icon: true,
+          close: true,
+        },
+      })
       setEditState({
         status: 'success',
         message: `Status changed to "${status}"`,
       })
-      setToast(true)
       // Refresh the page to reflect the new status.
       navigate({
         to: '/{-$lng}/admin/collections/$collection/$id',
@@ -83,11 +92,20 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Status change error:', err)
+      toastManager.add({
+        title: `${labels.singular} Status Update`,
+        description: `Failed to change status: ${(err as Error).message}`,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
       setEditState({
         status: 'failed',
         message: `Failed to change status: ${(err as Error).message}`,
       })
-      setToast(true)
     }
   }
 
@@ -98,11 +116,20 @@ export const EditView = ({
   const handleUnpublish = async () => {
     try {
       await unpublishDocument({ data: { collection: path, id: String(initialData.document_id) } })
+      toastManager.add({
+        title: `${labels.singular} Unpublish`,
+        description: 'Published version has been taken offline.',
+        data: {
+          intent: 'success',
+          iconType: 'success',
+          icon: true,
+          close: true,
+        },
+      })
       setEditState({
         status: 'success',
         message: 'Published version has been taken offline.',
       })
-      setToast(true)
       navigate({
         to: '/{-$lng}/admin/collections/$collection/$id',
         params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
@@ -110,22 +137,40 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Unpublish error:', err)
+      toastManager.add({
+        title: `${labels.singular} Unpublish`,
+        description: `Failed to unpublish: ${(err as Error).message}`,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
       setEditState({
         status: 'failed',
         message: `Failed to unpublish: ${(err as Error).message}`,
       })
-      setToast(true)
     }
   }
 
   const handleDelete = async () => {
     try {
       await deleteDocument({ data: { collection: path, id: String(initialData.document_id) } })
+      toastManager.add({
+        title: `${labels.singular} Deletion`,
+        description: `${labels.singular} has been deleted.`,
+        data: {
+          intent: 'success',
+          iconType: 'success',
+          icon: true,
+          close: true,
+        },
+      })
       setEditState({
         status: 'success',
         message: `${labels.singular} has been deleted.`,
       })
-      setToast(true)
       // Navigate back to the collection list after deletion.
       navigate({
         to: '/{-$lng}/admin/collections/$collection',
@@ -133,11 +178,20 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Delete error:', err)
+      toastManager.add({
+        title: `${labels.singular} Deletion`,
+        description: `Failed to delete: ${(err as Error).message}`,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
       setEditState({
         status: 'failed',
         message: `Failed to delete: ${(err as Error).message}`,
       })
-      setToast(true)
     }
   }
 
@@ -153,11 +207,21 @@ export const EditView = ({
         },
       })
 
+      toastManager.add({
+        title: `${labels.singular} Update`,
+        description: `Successfully updated ${labels.singular.toLowerCase()}`,
+        data: {
+          intent: 'success',
+          iconType: 'success',
+          icon: true,
+          close: true,
+        },
+      })
+
       setEditState({
         status: 'success',
         message: `Successfully updated ${labels.singular.toLowerCase()}`,
       })
-      setToast(true)
 
       // Re-navigate to the same route so the loader re-fetches the document.
       // The new version will have a fresh version ID, draft status, and
@@ -169,61 +233,60 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Network error:', err)
+      toastManager.add({
+        title: `${labels.singular} Update`,
+        description: `An error occurred while updating ${labels.singular.toLowerCase()}`,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
+
       setEditState({
         status: 'failed',
         message: `An error occurred while updating ${labels.singular.toLowerCase()}`,
       })
-      setToast(true)
     }
   }
 
   return (
-    <>
-      <Section>
-        <Container>
-          <FormRenderer
-            mode="edit"
-            fields={fields}
-            onSubmit={handleSubmit}
-            initialData={initialData}
-            adminConfig={adminConfig}
-            headingLabel={labels.singular}
-            initialLocale={locale}
-            onLocaleChange={handleLocaleChange}
-            useNavigationGuard={useTanStackNavigationGuard}
-            headerSlot={
-              <ViewMenu
-                collection={path}
-                documentId={String(initialData.document_id)}
-                activeView="edit"
-                locale={locale}
-              />
-            }
-            onStatusChange={handleStatusChange}
-            onUnpublish={publishedVersion ? handleUnpublish : undefined}
-            onDelete={handleDelete}
-            publishedVersion={publishedVersion}
-            nextStatus={nextStatus}
-            workflowStatuses={workflowStatuses}
-            onCancel={() =>
-              navigate({
-                to: '/{-$lng}/admin/collections/$collection',
-                params: { ...lngParam(uiLocale), collection: path },
-              })
-            }
-            collectionPath={path}
-          />
-        </Container>
-      </Section>
-      <Toast
-        title={`${labels.singular} Update`}
-        iconType={editState.status === 'success' ? 'success' : 'danger'}
-        intent={editState.status === 'success' ? 'success' : 'danger'}
-        position="bottom-right"
-        message={editState.message}
-        open={toast}
-        onOpenChange={setToast}
-      />
-    </>
+    <Section>
+      <Container>
+        <FormRenderer
+          mode="edit"
+          fields={fields}
+          onSubmit={handleSubmit}
+          initialData={initialData}
+          adminConfig={adminConfig}
+          headingLabel={labels.singular}
+          initialLocale={locale}
+          onLocaleChange={handleLocaleChange}
+          useNavigationGuard={useTanStackNavigationGuard}
+          headerSlot={
+            <ViewMenu
+              collection={path}
+              documentId={String(initialData.document_id)}
+              activeView="edit"
+              locale={locale}
+            />
+          }
+          onStatusChange={handleStatusChange}
+          onUnpublish={publishedVersion ? handleUnpublish : undefined}
+          onDelete={handleDelete}
+          publishedVersion={publishedVersion}
+          nextStatus={nextStatus}
+          workflowStatuses={workflowStatuses}
+          onCancel={() =>
+            navigate({
+              to: '/{-$lng}/admin/collections/$collection',
+              params: { ...lngParam(uiLocale), collection: path },
+            })
+          }
+          collectionPath={path}
+        />
+      </Container>
+    </Section>
   )
 }

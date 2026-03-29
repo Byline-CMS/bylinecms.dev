@@ -48,14 +48,14 @@ function RootComponent() {
   return (
     <RootDocument>
       <ThemeProvider force={Theme.DARK}>
-        <ToastProvider swipeDirection="right" duration={5000}>
+        <ToastProvider timeout={5000}>
           <BreadcrumbsProvider>
             <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
               <Outlet />
             </div>
             <TanStackRouterDevtools />
           </BreadcrumbsProvider>
-          <ToastViewport className="toast-viewport" />
+          <ToastViewport position="bottom-right" />
         </ToastProvider>
       </ThemeProvider>
     </RootDocument>
@@ -74,7 +74,9 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <div className="layout-container root flex min-h-screen flex-col">
+          {children}
+        </div>
         <Scripts />
       </body>
     </html>

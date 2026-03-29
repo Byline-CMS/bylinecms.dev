@@ -17,7 +17,6 @@ import {
   LoaderRing,
   Section,
   Select,
-  SelectItem,
   Table,
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
@@ -123,17 +122,16 @@ export const HistoryView = ({
     label: string
   } | null>(null)
 
-  function handleOnPageSizeChange(value: string): void {
-    if (value != null && value.length > 0) {
-      const params = structuredClone(location.search)
-      delete params.page
-      params.page_size = Number.parseInt(value, 10)
-      navigate({
-        to: '/{-$lng}/admin/collections/$collection',
-        params: { ...lngParam(uiLocale), collection },
-        search: params,
-      })
-    }
+  function handleOnPageSizeChange(value: string | null): void {
+    if (typeof value !== 'string' || value.length === 0) return
+    const params = structuredClone(location.search)
+    delete params.page
+    params.page_size = Number.parseInt(value, 10)
+    navigate({
+      to: '/{-$lng}/admin/collections/$collection',
+      params: { ...lngParam(uiLocale), collection },
+      search: params,
+    })
   }
 
   return (
@@ -297,19 +295,20 @@ export const HistoryView = ({
             {padRows(6 - (data?.documents?.length ?? 0))}
           </Table.Container>
           <div className="options flex flex-col gap-2 sm:flex-row items-start sm:items-center mb-5">
-            <Select
+            <Select<string>
               containerClassName="sm:ml-auto"
               id="page_size"
               name="page_size"
               size="sm"
               defaultValue="15"
+              items={[
+                { value: '15', label: '15' },
+                { value: '30', label: '30' },
+                { value: '50', label: '50' },
+                { value: '100', label: '100' },
+              ]}
               onValueChange={handleOnPageSizeChange}
-            >
-              <SelectItem value="15">15</SelectItem>
-              <SelectItem value="30">30</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
-            </Select>
+            />
             <RouterPager
               smoothScrollToTop={true}
               lng="en"

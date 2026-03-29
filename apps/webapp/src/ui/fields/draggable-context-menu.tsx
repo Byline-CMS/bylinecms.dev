@@ -39,10 +39,8 @@ export function DraggableContextMenu({
 }: DraggableContextMenuProps): React.JSX.Element {
   return (
     <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger asChild>
-        <IconButton variant="text" size="sm">
-          <EllipsisIcon width="16px" height="16px" />
-        </IconButton>
+      <DropdownMenu.Trigger render={<IconButton variant="text" size="sm" />}>
+        <EllipsisIcon width="16px" height="16px" />
       </DropdownMenu.Trigger>
 
       <DropdownMenu.Portal>
@@ -55,7 +53,7 @@ export function DraggableContextMenu({
             'bg-white dark:bg-canvas-800 border dark:border-canvas-700 shadow'
           )}
         >
-          <DropdownMenu.Item className={menuItemClasses} onSelect={onAddBelow}>
+          <DropdownMenu.Item className={menuItemClasses} onClick={onAddBelow}>
             <div className="flex w-full items-center gap-1">
               <span className="inline-block w-[22px]">
                 <PlusIcon width="18px" height="18px" />
@@ -66,7 +64,7 @@ export function DraggableContextMenu({
             </div>
           </DropdownMenu.Item>
           <DropdownMenu.Separator className="my-1 border-t border-t-gray-200 dark:border-t-gray-900 w-[90%] mx-auto" />
-          <DropdownMenu.Item className={menuItemClasses} onSelect={onRemove}>
+          <DropdownMenu.Item className={menuItemClasses} onClick={onRemove}>
             <div className="flex w-full items-center gap-1">
               <div className="flex items-center gap-1">
                 <span className="inline-block w-[22px]">
