@@ -11,7 +11,7 @@
  * triggering a full page navigation.
  */
 
-import React from 'react'
+import type React from 'react'
 import { Link } from '@tanstack/react-router'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
@@ -26,13 +26,17 @@ export interface LangLinkProps
   /** Additional route params besides lng */
   params?: Record<string, string | undefined>
   /** Search / query string parameters */
-  search?: true | Record<string, unknown> | ((current: Record<string, unknown>) => Record<string, unknown>)
+  search?:
+  | true
+  | Record<string, unknown>
+  | ((current: Record<string, unknown>) => Record<string, unknown>)
   /** Trigger a full-page reload instead of client-side navigation */
   forceReload?: boolean
   /** Whether to scroll to top on navigation (default: true) */
   scroll?: boolean
   /** Replace the current history entry */
   replace?: boolean
+  ref?: React.Ref<HTMLAnchorElement>
   children?: React.ReactNode
 }
 
@@ -45,43 +49,47 @@ function toLocaleRoute(path: string): string {
   return path === '/' ? '/{-$lng}' : `/{-$lng}${path}`
 }
 
-export const LangLink = React.forwardRef<HTMLAnchorElement, LangLinkProps>(
-  (
-    { to, children, lng, params = {}, search, forceReload, scroll = true, replace = false, ...rest },
-    ref
-  ) => {
-    const currentLocale = useLocale()
-    const targetLocale = lng ?? currentLocale
-    const localeParam = lngParam(targetLocale)
+export function LangLink({
+  to,
+  children,
+  lng,
+  params = {},
+  search,
+  forceReload,
+  scroll = true,
+  replace = false,
+  ref,
+  ...rest
+}: LangLinkProps) {
+  const currentLocale = useLocale()
+  const targetLocale = lng ?? currentLocale
+  const localeParam = lngParam(targetLocale)
 
-    if (forceReload === true) {
-      // Build a simple href string for full-page navigation
-      const prefix = targetLocale !== i18nConfig.defaultLocale ? `/${targetLocale}` : ''
-      return (
-        <a
-          href={`${prefix}${to}`}
-          ref={ref}
-          {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
-        >
-          {children}
-        </a>
-      )
-    }
-
+  if (forceReload === true) {
+    // Build a simple href string for full-page navigation
+    const prefix = targetLocale !== i18nConfig.defaultLocale ? `/${targetLocale}` : ''
     return (
-      <Link
-        to={toLocaleRoute(to)}
-        params={{ ...params, ...localeParam } as never}
-        search={search}
-        replace={replace}
-        resetScroll={scroll}
+      <a
+        href={`${prefix}${to}`}
         ref={ref}
-        {...rest}
+        {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
       >
         {children}
-      </Link>
+      </a>
     )
   }
-)
 
-LangLink.displayName = 'LangLink'
+  return (
+    <Link
+      to={toLocaleRoute(to)}
+      params={{ ...params, ...localeParam } as never}
+      search={search}
+      replace={replace}
+      resetScroll={scroll}
+      ref={ref}
+      {...rest}
+    >
+      {children}
+    </Link>
+  )
+}
