@@ -1,5 +1,5 @@
 {
-  "name": "@byline/dev",
+  "name": "@byline/root",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -20,10 +20,10 @@
     "test": "turbo run test"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.9"
+    "@biomejs/biome": "2.4.10"
   },
   "dependencies": {
-    "turbo": "^2.8.21",
+    "turbo": "^2.9.3",
     "typescript": "6.0.2"
   },
   "engines": {
