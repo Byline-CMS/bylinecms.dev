@@ -1,4 +1,4 @@
-import { defineServerConfig } from '@byline/core'
+import { initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
@@ -12,12 +12,15 @@ import { News } from './byline/collections/news/schema.js'
 import { Pages } from './byline/collections/pages/schema.js'
 import { i18n } from './byline/i18n.js'
 
-defineServerConfig({
+const collections = [Docs, News, Pages, Media]
+
+export const bylineCore = initBylineCore({
   serverURL: 'http://localhost:5173/',
   i18n,
-  collections: [Docs, News, Pages, Media],
+  collections,
   db: pgAdapter({
     connectionString: process.env.DB_CONNECTION_STRING || '',
+    collections,
   }),
   // Site-wide default storage provider — used by any upload collection that
   // does not specify its own `upload.storage` override.
