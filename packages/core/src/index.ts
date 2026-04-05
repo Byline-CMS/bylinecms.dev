@@ -7,6 +7,7 @@ export {
   getCollectionDefinition,
   getServerConfig,
 } from './config/config.js'
+export { type BylineCore, initBylineCore } from './core.js'
 export * from './defaults/default-values.js'
 export { AsyncRegistry, type RegisteredServices, Registry } from './lib/registry.js'
 export * from './patches/index.js'
