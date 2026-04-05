@@ -40,3 +40,7 @@ yarn-error.log*
 # Ignore our local postgres data directory
 postgres/data
 postgres/backups
+
+# Claude Code local/personal config
+.claude/settings.local.json
+.claude/.mcp.local.json
