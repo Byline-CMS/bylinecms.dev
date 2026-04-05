@@ -24,7 +24,6 @@ type Document = Omit<typeof documentVersions.$inferSelect, 'doc'>
 
 import type { CollectionDefinition, FlattenedStore, UnionRowValue } from '@byline/core'
 
-import { extractFlattenedFieldValue, restoreFieldSetData } from './new-storage-utils.js'
 import {
   booleanFields,
   datetimeFields,
@@ -34,6 +33,7 @@ import {
   relationFields,
   textFields,
 } from './storage-template-queries.js'
+import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-utils.js'
 import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 
 interface MetaRow {
