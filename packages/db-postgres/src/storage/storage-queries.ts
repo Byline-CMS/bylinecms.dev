@@ -24,6 +24,7 @@ type Document = Omit<typeof documentVersions.$inferSelect, 'doc'>
 
 import type { CollectionDefinition, FlattenedStore, UnionRowValue } from '@byline/core'
 
+import { extractFlattenedFieldValue, restoreFieldSetData } from './new-storage-utils.js'
 import {
   booleanFields,
   datetimeFields,
@@ -34,6 +35,7 @@ import {
   textFields,
 } from './storage-template-queries.js'
 import { reconstructFields } from './storage-utils.js'
+import type { UnifiedFieldValue } from './@types.js'
 
 interface MetaRow {
   type: string
@@ -169,7 +171,56 @@ export class CollectionQueries implements ICollectionQueries {
  * DocumentQueries
  */
 export class DocumentQueries implements IDocumentQueries {
-  constructor(private db: DatabaseConnection) {}
+  private db: DatabaseConnection
+  private collections?: CollectionDefinition[]
+  private collectionPathCache = new Map<string, string>()
+
+  constructor(db: DatabaseConnection, collections?: CollectionDefinition[]) {
+    this.db = db
+    this.collections = collections
+  }
+
+  /**
+   * Resolve a collection UUID to its CollectionDefinition by looking up the
+   * collection's path in the DB and matching it against the injected array.
+   */
+  private async getDefinitionForCollection(
+    collectionId: string
+  ): Promise<CollectionDefinition | null> {
+    if (!this.collections?.length) return null
+
+    let path = this.collectionPathCache.get(collectionId)
+    if (!path) {
+      const row = await this.db.query.collections.findFirst({
+        where: eq(collections.id, collectionId),
+      })
+      if (!row) return null
+      path = row.path
+      this.collectionPathCache.set(collectionId, path)
+    }
+
+    return this.collections.find((c) => c.path === path) ?? null
+  }
+
+  /**
+   * Reconstruct document fields from unified row values, using the
+   * schema-aware path when a CollectionDefinition is available, falling
+   * back to the legacy schema-agnostic reconstructFields otherwise.
+   */
+  private reconstructFromUnifiedRows(
+    unifiedFieldValues: UnionRowValue[],
+    definition: CollectionDefinition | null,
+    locale: string
+  ): any {
+    if (definition) {
+      const flattenedData = unifiedFieldValues.map((row) =>
+        extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
+      )
+      return restoreFieldSetData(definition.fields, flattenedData)
+    }
+    const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
+    return reconstructFields(fieldValues, locale)
+  }
 
   /**
    * getAllDocuments
@@ -290,7 +341,7 @@ export class DocumentQueries implements IDocumentQueries {
 
     const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(query)
 
-    return this.groupAndReconstructDocuments(rows, locale)
+    return this.groupAndReconstructDocuments(rows, locale, collection_id)
   }
 
   /**
@@ -559,12 +610,14 @@ export class DocumentQueries implements IDocumentQueries {
     // 2. Get all field values for this document
     const unifiedFieldValues = await this.getAllFieldValues(document.id, locale)
 
-    // 3. Convert unified values back to FlattenedStore format
-    const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
-
-    // 4. If reconstruct is true, reconstruct the fields and attach meta
+    // 3. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
-      const reconstructedFields = reconstructFields(fieldValues, locale)
+      const definition = await this.getDefinitionForCollection(collection_id)
+      const reconstructedFields = this.reconstructFromUnifiedRows(
+        unifiedFieldValues,
+        definition,
+        locale
+      )
 
       const metaRows = await this.db
         .select({
@@ -588,6 +641,8 @@ export class DocumentQueries implements IDocumentQueries {
         fields: enrichedDocument,
       }
     }
+    // Non-reconstructed: return raw flattened values
+    const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
     return {
       document_version_id: document.id,
       document_id: document.document_id,
@@ -635,13 +690,14 @@ export class DocumentQueries implements IDocumentQueries {
     // 2. Get all field values for this document
     const unifiedFieldValues = await this.getAllFieldValues(document.id, locale)
 
-    // 3. Convert unified values back to FlattenedStore format
-    const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
-
-    // 4. If reconstruct is true, reconstruct the fields and attach meta
+    // 3. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
-      // 4. Reconstruct field values for document
-      const reconstructedFields = reconstructFields(fieldValues, locale)
+      const definition = await this.getDefinitionForCollection(collection_id)
+      const reconstructedFields = this.reconstructFromUnifiedRows(
+        unifiedFieldValues,
+        definition,
+        locale
+      )
 
       const metaRows = await this.db
         .select({
@@ -665,6 +721,8 @@ export class DocumentQueries implements IDocumentQueries {
         fields: enrichedDocument,
       }
     }
+    // Non-reconstructed: return raw flattened values
+    const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
     return {
       document_version_id: document.id,
       document_id: document.document_id,
@@ -700,10 +758,13 @@ export class DocumentQueries implements IDocumentQueries {
     // 2. Get all field values in a single query using UNION ALL
     const unifiedFieldValues = await this.getAllFieldValues(document.id, locale)
 
-    // 3. Convert unified values back to FlattenedStore format
-    const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
-
-    const reconstructedFields = reconstructFields(fieldValues, locale)
+    // 3. Schema-aware reconstruction with meta enrichment
+    const definition = await this.getDefinitionForCollection(document.collection_id)
+    const reconstructedFields = this.reconstructFromUnifiedRows(
+      unifiedFieldValues,
+      definition,
+      locale
+    )
 
     const metaRows = await this.db
       .select({
@@ -758,6 +819,7 @@ export class DocumentQueries implements IDocumentQueries {
       .select({
         document_version_id: documentVersions.id,
         document_id: documentVersions.document_id,
+        collection_id: documentVersions.collection_id,
         path: documentVersions.path,
         status: documentVersions.status,
         created_at: documentVersions.created_at,
@@ -781,6 +843,12 @@ export class DocumentQueries implements IDocumentQueries {
       }
       fieldValuesByVersion.get(fieldValue.document_version_id)?.push(fieldValue)
     }
+
+    // Resolve definition once for the batch (all docs share the same collection)
+    const firstDoc = docs[0]
+    const definition = firstDoc
+      ? await this.getDefinitionForCollection(firstDoc.collection_id ?? '')
+      : null
 
     // Reconstruct each document with document data at root level and attach meta
     const allMetaRows = await this.db
@@ -811,9 +879,11 @@ export class DocumentQueries implements IDocumentQueries {
     const result: any[] = []
     for (const doc of docs) {
       const versionFieldValues = fieldValuesByVersion.get(doc.document_version_id) || []
-      const flattenedFieldValues = this.convertUnionRowToFlattenedStores(versionFieldValues)
-
-      const reconstructedFields = reconstructFields(flattenedFieldValues, locale)
+      const reconstructedFields = this.reconstructFromUnifiedRows(
+        versionFieldValues,
+        definition,
+        locale
+      )
 
       const enrichedDocument = attachMetaToDocument(
         reconstructedFields,
@@ -1024,6 +1094,13 @@ export class DocumentQueries implements IDocumentQueries {
   }): Promise<any[]> {
     if (documents.length === 0) return []
     const versionIds = documents.map((v) => v.id)
+
+    // Resolve definition once for the batch
+    const firstDoc = documents[0]
+    const definition = firstDoc
+      ? await this.getDefinitionForCollection(firstDoc.collection_id)
+      : null
+
     // Get all field values for all versions in one query
     const allFieldValues = await this.getAllFieldValuesForMultipleVersions(versionIds, locale)
 
@@ -1040,9 +1117,11 @@ export class DocumentQueries implements IDocumentQueries {
     const result: any[] = []
     for (const doc of documents) {
       const versionFieldValues = fieldValuesByVersion.get(doc.id) || []
-      const flattenedFieldValues = this.convertUnionRowToFlattenedStores(versionFieldValues)
-
-      const reconstructedFields = reconstructFields(flattenedFieldValues, locale)
+      const reconstructedFields = this.reconstructFromUnifiedRows(
+        versionFieldValues,
+        definition,
+        locale
+      )
 
       const documentWithFields = {
         document_version_id: doc.id,
@@ -1064,7 +1143,11 @@ export class DocumentQueries implements IDocumentQueries {
    * Helper method to group results by document and reconstruct each document
    * Returns an array of complete documents
    */
-  private groupAndReconstructDocuments(rows: Record<string, unknown>[], locale: string): any[] {
+  private async groupAndReconstructDocuments(
+    rows: Record<string, unknown>[],
+    locale: string,
+    collection_id?: string
+  ): Promise<any[]> {
     // Group rows by document ID
     const documentGroups = new Map<
       string,
@@ -1137,12 +1220,13 @@ export class DocumentQueries implements IDocumentQueries {
       }
     }
 
+    // Resolve definition once for the batch
+    const definition = collection_id ? await this.getDefinitionForCollection(collection_id) : null
+
     // Reconstruct each document and return as array
     const result: any[] = []
 
     for (const [_documentId, group] of documentGroups) {
-      const flattenedFieldValues = this.convertUnionRowToFlattenedStores(group.fieldValues)
-
       const head = {
         document_version_id: group.document.document_version_id,
         document_id: group.document.document_id,
@@ -1150,7 +1234,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: group.document.status,
       }
 
-      const document = reconstructFields(flattenedFieldValues, locale)
+      const document = this.reconstructFromUnifiedRows(group.fieldValues, definition, locale)
 
       result.push({ ...head, fields: document })
     }
@@ -1412,9 +1496,9 @@ export class DocumentQueries implements IDocumentQueries {
  * @param db
  * @returns
  */
-export function createQueryBuilders(db: DatabaseConnection) {
+export function createQueryBuilders(db: DatabaseConnection, collections?: CollectionDefinition[]) {
   return {
     collections: new CollectionQueries(db),
-    documents: new DocumentQueries(db),
+    documents: new DocumentQueries(db, collections),
   }
 }

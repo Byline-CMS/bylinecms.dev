@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { IDbAdapter } from '@byline/core'
+import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
@@ -14,7 +14,13 @@ import * as schema from './database/schema/index.js'
 import { createCommandBuilders } from './storage/storage-commands.js'
 import { createQueryBuilders } from './storage/storage-queries.js'
 
-export const pgAdapter = ({ connectionString }: { connectionString: string }): IDbAdapter => {
+export const pgAdapter = ({
+  connectionString,
+  collections,
+}: {
+  connectionString: string
+  collections?: CollectionDefinition[]
+}): IDbAdapter => {
   const pool = new pg.Pool({
     connectionString: connectionString,
     max: 20,
@@ -25,7 +31,7 @@ export const pgAdapter = ({ connectionString }: { connectionString: string }): I
   const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema })
 
   const commandBuilders = createCommandBuilders(db)
-  const queryBuilders = createQueryBuilders(db)
+  const queryBuilders = createQueryBuilders(db, collections)
 
   return { commands: commandBuilders, queries: queryBuilders }
 }
