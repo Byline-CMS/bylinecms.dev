@@ -12,7 +12,7 @@ Byline CMS — an open-source, AI-first headless CMS. Currently a prototype/PoC.
 
 | Package | Import alias | Purpose |
 |---|---|---|
-| `apps/webapp` | `@byline/webapp` | TanStack Start (SPA mode) + React admin UI. Vite dev server on `:5173`, API on `:3001` |
+| `apps/webapp` | `@byline/webapp` | TanStack Start (SSR mode) + React admin UI. Vite dev server on `:5173`, API on `:3001` |
 | `packages/core` | `@byline/core` | Types, config, patch logic, workflow, Zod schema builder |
 | `packages/db-postgres` | `@byline/db-postgres` | Postgres adapter (Drizzle ORM) |
 | `packages/db-remote` | `@byline/db-remote` | Remote/stub adapter (placeholder) |
