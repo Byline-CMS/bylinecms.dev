@@ -814,6 +814,7 @@ export const extractFlattenedFieldValue = (
         cascade_delete: orUndefined(unifiedValue.cascade_delete),
       }
 
+    case 'richText':
     case 'json':
       return {
         ...baseValue,
