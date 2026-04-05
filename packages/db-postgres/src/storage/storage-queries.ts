@@ -35,7 +35,7 @@ import {
   textFields,
 } from './storage-template-queries.js'
 import { reconstructFields } from './storage-utils.js'
-import type { UnifiedFieldValue } from './@types.js'
+import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 
 interface MetaRow {
   type: string
@@ -206,21 +206,51 @@ export class DocumentQueries implements IDocumentQueries {
    * Reconstruct document fields from unified row values, using the
    * schema-aware path when a CollectionDefinition is available, falling
    * back to the legacy schema-agnostic reconstructFields otherwise.
+   *
+   * When using the schema-aware path, meta rows (from store_meta) are
+   * converted to FlattenedFieldValue entries so that restoreFieldSetData
+   * can inject _id and _type for blocks and array items inline —
+   * eliminating the need for the separate attachMetaToDocument step.
+   *
+   * Returns `{ fields, schemaAware }` so callers know whether
+   * attachMetaToDocument is still needed.
    */
   private reconstructFromUnifiedRows(
     unifiedFieldValues: UnionRowValue[],
     definition: CollectionDefinition | null,
-    locale: string
-  ): any {
+    locale: string,
+    metaRows?: MetaRow[]
+  ): { fields: any; schemaAware: boolean } {
     if (definition) {
-      const flattenedData = unifiedFieldValues.map((row) =>
+      const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
         extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
       )
+
+      // Convert meta rows to FlattenedFieldValue entries so the schema-aware
+      // restoration can inject _id and _type for blocks and array items.
+      if (metaRows) {
+        for (const meta of metaRows) {
+          flattenedData.push({
+            locale: 'all',
+            field_path: meta.path.split('.'),
+            field_type: 'meta',
+            type: meta.type as 'group' | 'array_item',
+            item_id: meta.item_id,
+          })
+        }
+      }
+
       const resolveLocale = locale !== 'all' ? locale : undefined
-      return restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
+      return {
+        fields: restoreFieldSetData(definition.fields, flattenedData, resolveLocale),
+        schemaAware: true,
+      }
     }
     const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
-    return reconstructFields(fieldValues, locale)
+    return {
+      fields: reconstructFields(fieldValues, locale),
+      schemaAware: false,
+    }
   }
 
   /**
@@ -614,11 +644,6 @@ export class DocumentQueries implements IDocumentQueries {
     // 3. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
       const definition = await this.getDefinitionForCollection(collection_id)
-      const reconstructedFields = this.reconstructFromUnifiedRows(
-        unifiedFieldValues,
-        definition,
-        locale
-      )
 
       const metaRows = await this.db
         .select({
@@ -630,7 +655,16 @@ export class DocumentQueries implements IDocumentQueries {
         .from(metaStore)
         .where(eq(metaStore.document_version_id, document.id))
 
-      const enrichedDocument = attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
+      const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
+        unifiedFieldValues,
+        definition,
+        locale,
+        metaRows as MetaRow[]
+      )
+
+      const fields = schemaAware
+        ? reconstructedFields
+        : attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
       return {
         document_version_id: document.id,
@@ -639,7 +673,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
-        fields: enrichedDocument,
+        fields,
       }
     }
     // Non-reconstructed: return raw flattened values
@@ -694,11 +728,6 @@ export class DocumentQueries implements IDocumentQueries {
     // 3. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
       const definition = await this.getDefinitionForCollection(collection_id)
-      const reconstructedFields = this.reconstructFromUnifiedRows(
-        unifiedFieldValues,
-        definition,
-        locale
-      )
 
       const metaRows = await this.db
         .select({
@@ -710,7 +739,16 @@ export class DocumentQueries implements IDocumentQueries {
         .from(metaStore)
         .where(eq(metaStore.document_version_id, document.id))
 
-      const enrichedDocument = attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
+      const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
+        unifiedFieldValues,
+        definition,
+        locale,
+        metaRows as MetaRow[]
+      )
+
+      const fields = schemaAware
+        ? reconstructedFields
+        : attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
       return {
         document_version_id: document.id,
@@ -719,7 +757,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
-        fields: enrichedDocument,
+        fields,
       }
     }
     // Non-reconstructed: return raw flattened values
@@ -761,11 +799,6 @@ export class DocumentQueries implements IDocumentQueries {
 
     // 3. Schema-aware reconstruction with meta enrichment
     const definition = await this.getDefinitionForCollection(document.collection_id)
-    const reconstructedFields = this.reconstructFromUnifiedRows(
-      unifiedFieldValues,
-      definition,
-      locale
-    )
 
     const metaRows = await this.db
       .select({
@@ -777,7 +810,16 @@ export class DocumentQueries implements IDocumentQueries {
       .from(metaStore)
       .where(eq(metaStore.document_version_id, document.id))
 
-    const enrichedDocument = attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
+    const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
+      unifiedFieldValues,
+      definition,
+      locale,
+      metaRows as MetaRow[]
+    )
+
+    const enrichedDocument = schemaAware
+      ? reconstructedFields
+      : attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
     const documentWithFields = {
       document_version_id: document.id,
@@ -880,16 +922,17 @@ export class DocumentQueries implements IDocumentQueries {
     const result: any[] = []
     for (const doc of docs) {
       const versionFieldValues = fieldValuesByVersion.get(doc.document_version_id) || []
-      const reconstructedFields = this.reconstructFromUnifiedRows(
+      const docMetaRows = (metaByVersion.get(doc.document_version_id) ?? []) as MetaRow[]
+      const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
         versionFieldValues,
         definition,
-        locale
+        locale,
+        docMetaRows
       )
 
-      const enrichedDocument = attachMetaToDocument(
-        reconstructedFields,
-        (metaByVersion.get(doc.document_version_id) ?? []) as MetaRow[]
-      )
+      const fields = schemaAware
+        ? reconstructedFields
+        : attachMetaToDocument(reconstructedFields, docMetaRows)
 
       const documentWithFields = {
         document_version_id: doc.document_version_id,
@@ -898,7 +941,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: doc.status,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
-        fields: enrichedDocument,
+        fields,
       }
 
       result.push(documentWithFields)
@@ -1114,15 +1157,47 @@ export class DocumentQueries implements IDocumentQueries {
       fieldValuesByVersion.get(fieldValue.document_version_id)?.push(fieldValue)
     }
 
+    // Fetch meta rows for all versions in one query
+    const allMetaRows = await this.db
+      .select({
+        document_version_id: metaStore.document_version_id,
+        type: metaStore.type,
+        path: metaStore.path,
+        item_id: metaStore.item_id,
+        meta: metaStore.meta,
+      })
+      .from(metaStore)
+      .where(inArray(metaStore.document_version_id, versionIds))
+
+    const metaByVersion = new Map<string, MetaRow[]>()
+    for (const row of allMetaRows) {
+      const list = metaByVersion.get(row.document_version_id) ?? []
+      list.push({
+        type: row.type,
+        path: row.path,
+        item_id: row.item_id,
+        meta: row.meta as Record<string, any> | null,
+      })
+      if (!metaByVersion.has(row.document_version_id)) {
+        metaByVersion.set(row.document_version_id, list)
+      }
+    }
+
     // Reconstruct each document with document data at root level
     const result: any[] = []
     for (const doc of documents) {
       const versionFieldValues = fieldValuesByVersion.get(doc.id) || []
-      const reconstructedFields = this.reconstructFromUnifiedRows(
+      const docMetaRows = (metaByVersion.get(doc.id) ?? []) as MetaRow[]
+      const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
         versionFieldValues,
         definition,
-        locale
+        locale,
+        docMetaRows
       )
+
+      const fields = schemaAware
+        ? reconstructedFields
+        : attachMetaToDocument(reconstructedFields, docMetaRows)
 
       const documentWithFields = {
         document_version_id: doc.id,
@@ -1131,7 +1206,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: doc.status,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
-        fields: reconstructedFields,
+        fields,
       }
 
       result.push(documentWithFields)
@@ -1235,9 +1310,9 @@ export class DocumentQueries implements IDocumentQueries {
         status: group.document.status,
       }
 
-      const document = this.reconstructFromUnifiedRows(group.fieldValues, definition, locale)
+      const { fields } = this.reconstructFromUnifiedRows(group.fieldValues, definition, locale)
 
-      result.push({ ...head, fields: document })
+      result.push({ ...head, fields })
     }
 
     // Sort by document path for consistent ordering
