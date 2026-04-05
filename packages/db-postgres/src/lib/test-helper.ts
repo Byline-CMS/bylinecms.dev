@@ -29,7 +29,7 @@ export function setupTestDB() {
   }
 
   if (!queryBuilders) {
-    queryBuilders = createQueryBuilders(db)
+    queryBuilders = createQueryBuilders(db, [])
   }
 
   return { pool, db, commandBuilders, queryBuilders }

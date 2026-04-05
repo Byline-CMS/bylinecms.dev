@@ -34,7 +34,6 @@ import {
   relationFields,
   textFields,
 } from './storage-template-queries.js'
-import { reconstructFields } from './storage-utils.js'
 import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 
 interface MetaRow {
@@ -42,93 +41,6 @@ interface MetaRow {
   path: string
   item_id: string
   meta: Record<string, any> | null
-}
-
-/**
- * Enrich a reconstructed document with stable IDs from store_meta.
- *
- * Handles two types of meta rows:
- *
- * **block** — paths like `content.0.richTextBlock`. The array item is
- * transformed from the reconstructed `{ blockName: { ...fields } }` wrapper
- * into the flat block shape: `{ _id, _type, ...fields }`.
- *
- * **array_item** — paths like `tags.0`. A stable `_id` property is
- * injected into each array item so patches can target items by identity
- * rather than fragile index.
- *
- * Discovery is fully generic — top-level array fields are discovered from
- * the meta row paths themselves, not from hard-coded field names.
- */
-function attachMetaToDocument(document: any, metaRows: MetaRow[]): any {
-  if (!document || typeof document !== 'object' || metaRows.length === 0) return document
-
-  const metaByPath = new Map<string, MetaRow>()
-  for (const row of metaRows) {
-    metaByPath.set(row.path, row)
-  }
-
-  // Separate rows by type so we can handle each kind independently.
-  const compositeRows: MetaRow[] = []
-  const arrayItemRows: MetaRow[] = []
-  for (const row of metaRows) {
-    if (row.type === 'group') compositeRows.push(row)
-    else if (row.type === 'array_item') arrayItemRows.push(row)
-  }
-
-  const result: any = { ...document }
-
-  // --- Composite (blocks) enrichment ---
-  // reconstructFields produces items as { blockName: { ...fields } }.
-  // We unwrap that into { _id, _type, ...fields }.
-  const compositeFieldNames = new Set<string>()
-  for (const row of compositeRows) {
-    const topField = row.path.split('.')[0]
-    if (topField) compositeFieldNames.add(topField)
-  }
-
-  for (const fieldName of compositeFieldNames) {
-    if (!Array.isArray(result[fieldName])) continue
-
-    result[fieldName] = result[fieldName].map((item: any, index: number) => {
-      if (!item || typeof item !== 'object') return item
-      const blockName = Object.keys(item)[0]
-      if (!blockName) return item
-
-      const blockFields = item[blockName]
-      const blockPath = `${fieldName}.${index}.${blockName}`
-      const meta = metaByPath.get(blockPath)
-
-      return {
-        _id: meta?.item_id ?? null,
-        _type: blockName,
-        ...(typeof blockFields === 'object' && blockFields !== null ? blockFields : {}),
-      }
-    })
-  }
-
-  // --- Array-item enrichment ---
-  const arrayItemFieldNames = new Set<string>()
-  for (const row of arrayItemRows) {
-    const topField = row.path.split('.')[0]
-    if (topField) arrayItemFieldNames.add(topField)
-  }
-
-  for (const fieldName of arrayItemFieldNames) {
-    // Skip fields already handled as composites.
-    if (compositeFieldNames.has(fieldName)) continue
-    if (!Array.isArray(result[fieldName])) continue
-
-    result[fieldName] = result[fieldName].map((item: any, index: number) => {
-      if (!item || typeof item !== 'object') return item
-      const itemPath = `${fieldName}.${index}`
-      const meta = metaByPath.get(itemPath)
-      if (!meta) return item
-      return { _id: meta.item_id, ...item }
-    })
-  }
-
-  return result
 }
 
 /**
@@ -172,10 +84,10 @@ export class CollectionQueries implements ICollectionQueries {
  */
 export class DocumentQueries implements IDocumentQueries {
   private db: DatabaseConnection
-  private collections?: CollectionDefinition[]
+  private collections: CollectionDefinition[]
   private collectionPathCache = new Map<string, string>()
 
-  constructor(db: DatabaseConnection, collections?: CollectionDefinition[]) {
+  constructor(db: DatabaseConnection, collections: CollectionDefinition[]) {
     this.db = db
     this.collections = collections
   }
@@ -184,73 +96,56 @@ export class DocumentQueries implements IDocumentQueries {
    * Resolve a collection UUID to its CollectionDefinition by looking up the
    * collection's path in the DB and matching it against the injected array.
    */
-  private async getDefinitionForCollection(
-    collectionId: string
-  ): Promise<CollectionDefinition | null> {
-    if (!this.collections?.length) return null
-
+  private async getDefinitionForCollection(collectionId: string): Promise<CollectionDefinition> {
     let path = this.collectionPathCache.get(collectionId)
     if (!path) {
       const row = await this.db.query.collections.findFirst({
         where: eq(collections.id, collectionId),
       })
-      if (!row) return null
+      if (!row) {
+        throw new Error(`Collection not found in database: ${collectionId}`)
+      }
       path = row.path
       this.collectionPathCache.set(collectionId, path)
     }
 
-    return this.collections.find((c) => c.path === path) ?? null
+    const definition = this.collections.find((c) => c.path === path)
+    if (!definition) {
+      throw new Error(`No CollectionDefinition found for path: ${path}`)
+    }
+    return definition
   }
 
   /**
-   * Reconstruct document fields from unified row values, using the
-   * schema-aware path when a CollectionDefinition is available, falling
-   * back to the legacy schema-agnostic reconstructFields otherwise.
-   *
-   * When using the schema-aware path, meta rows (from store_meta) are
-   * converted to FlattenedFieldValue entries so that restoreFieldSetData
-   * can inject _id and _type for blocks and array items inline —
-   * eliminating the need for the separate attachMetaToDocument step.
-   *
-   * Returns `{ fields, schemaAware }` so callers know whether
-   * attachMetaToDocument is still needed.
+   * Reconstruct document fields from unified row values using schema-aware
+   * restoration. Meta rows (from store_meta) are converted to
+   * FlattenedFieldValue entries so that restoreFieldSetData can inject
+   * _id and _type for blocks and array items inline.
    */
   private reconstructFromUnifiedRows(
     unifiedFieldValues: UnionRowValue[],
-    definition: CollectionDefinition | null,
+    definition: CollectionDefinition,
     locale: string,
     metaRows?: MetaRow[]
-  ): { fields: any; schemaAware: boolean } {
-    if (definition) {
-      const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
-        extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
-      )
+  ): any {
+    const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
+      extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
+    )
 
-      // Convert meta rows to FlattenedFieldValue entries so the schema-aware
-      // restoration can inject _id and _type for blocks and array items.
-      if (metaRows) {
-        for (const meta of metaRows) {
-          flattenedData.push({
-            locale: 'all',
-            field_path: meta.path.split('.'),
-            field_type: 'meta',
-            type: meta.type as 'group' | 'array_item',
-            item_id: meta.item_id,
-          })
-        }
-      }
-
-      const resolveLocale = locale !== 'all' ? locale : undefined
-      return {
-        fields: restoreFieldSetData(definition.fields, flattenedData, resolveLocale),
-        schemaAware: true,
+    if (metaRows) {
+      for (const meta of metaRows) {
+        flattenedData.push({
+          locale: 'all',
+          field_path: meta.path.split('.'),
+          field_type: 'meta',
+          type: meta.type as 'group' | 'array_item',
+          item_id: meta.item_id,
+        })
       }
     }
-    const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
-    return {
-      fields: reconstructFields(fieldValues, locale),
-      schemaAware: false,
-    }
+
+    const resolveLocale = locale !== 'all' ? locale : undefined
+    return restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
   }
 
   /**
@@ -655,16 +550,12 @@ export class DocumentQueries implements IDocumentQueries {
         .from(metaStore)
         .where(eq(metaStore.document_version_id, document.id))
 
-      const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
+      const fields = this.reconstructFromUnifiedRows(
         unifiedFieldValues,
         definition,
         locale,
         metaRows as MetaRow[]
       )
-
-      const fields = schemaAware
-        ? reconstructedFields
-        : attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
       return {
         document_version_id: document.id,
@@ -739,16 +630,12 @@ export class DocumentQueries implements IDocumentQueries {
         .from(metaStore)
         .where(eq(metaStore.document_version_id, document.id))
 
-      const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
+      const fields = this.reconstructFromUnifiedRows(
         unifiedFieldValues,
         definition,
         locale,
         metaRows as MetaRow[]
       )
-
-      const fields = schemaAware
-        ? reconstructedFields
-        : attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
       return {
         document_version_id: document.id,
@@ -810,16 +697,12 @@ export class DocumentQueries implements IDocumentQueries {
       .from(metaStore)
       .where(eq(metaStore.document_version_id, document.id))
 
-    const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
+    const enrichedDocument = this.reconstructFromUnifiedRows(
       unifiedFieldValues,
       definition,
       locale,
       metaRows as MetaRow[]
     )
-
-    const enrichedDocument = schemaAware
-      ? reconstructedFields
-      : attachMetaToDocument(reconstructedFields, metaRows as MetaRow[])
 
     const documentWithFields = {
       document_version_id: document.id,
@@ -887,11 +770,9 @@ export class DocumentQueries implements IDocumentQueries {
       fieldValuesByVersion.get(fieldValue.document_version_id)?.push(fieldValue)
     }
 
-    // Resolve definition once for the batch (all docs share the same collection)
-    const firstDoc = docs[0]
-    const definition = firstDoc
-      ? await this.getDefinitionForCollection(firstDoc.collection_id ?? '')
-      : null
+    // Resolve definition once for the batch (safe — early return above guarantees length > 0)
+    const firstDoc = docs[0]!
+    const definition = await this.getDefinitionForCollection(firstDoc.collection_id ?? '')
 
     // Reconstruct each document with document data at root level and attach meta
     const allMetaRows = await this.db
@@ -923,16 +804,12 @@ export class DocumentQueries implements IDocumentQueries {
     for (const doc of docs) {
       const versionFieldValues = fieldValuesByVersion.get(doc.document_version_id) || []
       const docMetaRows = (metaByVersion.get(doc.document_version_id) ?? []) as MetaRow[]
-      const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
+      const fields = this.reconstructFromUnifiedRows(
         versionFieldValues,
         definition,
         locale,
         docMetaRows
       )
-
-      const fields = schemaAware
-        ? reconstructedFields
-        : attachMetaToDocument(reconstructedFields, docMetaRows)
 
       const documentWithFields = {
         document_version_id: doc.document_version_id,
@@ -1139,11 +1016,9 @@ export class DocumentQueries implements IDocumentQueries {
     if (documents.length === 0) return []
     const versionIds = documents.map((v) => v.id)
 
-    // Resolve definition once for the batch
-    const firstDoc = documents[0]
-    const definition = firstDoc
-      ? await this.getDefinitionForCollection(firstDoc.collection_id)
-      : null
+    // Resolve definition once for the batch (safe — early return above guarantees length > 0)
+    const firstDoc = documents[0]!
+    const definition = await this.getDefinitionForCollection(firstDoc.collection_id)
 
     // Get all field values for all versions in one query
     const allFieldValues = await this.getAllFieldValuesForMultipleVersions(versionIds, locale)
@@ -1188,16 +1063,12 @@ export class DocumentQueries implements IDocumentQueries {
     for (const doc of documents) {
       const versionFieldValues = fieldValuesByVersion.get(doc.id) || []
       const docMetaRows = (metaByVersion.get(doc.id) ?? []) as MetaRow[]
-      const { fields: reconstructedFields, schemaAware } = this.reconstructFromUnifiedRows(
+      const fields = this.reconstructFromUnifiedRows(
         versionFieldValues,
         definition,
         locale,
         docMetaRows
       )
-
-      const fields = schemaAware
-        ? reconstructedFields
-        : attachMetaToDocument(reconstructedFields, docMetaRows)
 
       const documentWithFields = {
         document_version_id: doc.id,
@@ -1222,7 +1093,7 @@ export class DocumentQueries implements IDocumentQueries {
   private async groupAndReconstructDocuments(
     rows: Record<string, unknown>[],
     locale: string,
-    collection_id?: string
+    collection_id: string
   ): Promise<any[]> {
     // Group rows by document ID
     const documentGroups = new Map<
@@ -1297,7 +1168,7 @@ export class DocumentQueries implements IDocumentQueries {
     }
 
     // Resolve definition once for the batch
-    const definition = collection_id ? await this.getDefinitionForCollection(collection_id) : null
+    const definition = await this.getDefinitionForCollection(collection_id)
 
     // Reconstruct each document and return as array
     const result: any[] = []
@@ -1310,7 +1181,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: group.document.status,
       }
 
-      const { fields } = this.reconstructFromUnifiedRows(group.fieldValues, definition, locale)
+      const fields = this.reconstructFromUnifiedRows(group.fieldValues, definition, locale)
 
       result.push({ ...head, fields })
     }
@@ -1572,7 +1443,7 @@ export class DocumentQueries implements IDocumentQueries {
  * @param db
  * @returns
  */
-export function createQueryBuilders(db: DatabaseConnection, collections?: CollectionDefinition[]) {
+export function createQueryBuilders(db: DatabaseConnection, collections: CollectionDefinition[]) {
   return {
     collections: new CollectionQueries(db),
     documents: new DocumentQueries(db, collections),

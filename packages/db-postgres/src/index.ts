@@ -19,7 +19,7 @@ export const pgAdapter = ({
   collections,
 }: {
   connectionString: string
-  collections?: CollectionDefinition[]
+  collections: CollectionDefinition[]
 }): IDbAdapter => {
   const pool = new pg.Pool({
     connectionString: connectionString,
