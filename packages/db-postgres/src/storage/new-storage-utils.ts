@@ -336,7 +336,8 @@ export class ReconstructionError extends Error {
  */
 export const restoreFieldSetData = (
   fields: FieldSet,
-  flattenedData: FlattenedFieldValue[]
+  flattenedData: FlattenedFieldValue[],
+  resolveLocale?: string
 ): any => {
   const result: any = {}
   const warnings: string[] = []
@@ -348,7 +349,14 @@ export const restoreFieldSetData = (
     if (!field) {
       warnings.push(`Field ${fieldName} not found`)
     } else {
-      result[fieldName] = restoreFieldData(field, result[fieldName], item, 1, warnings)
+      result[fieldName] = restoreFieldData(
+        field,
+        result[fieldName],
+        item,
+        1,
+        warnings,
+        resolveLocale
+      )
     }
   }
 
@@ -373,14 +381,15 @@ const restoreFieldData = (
   target: any,
   data: FlattenedFieldValue,
   pathIndex: number,
-  warnings: string[]
+  warnings: string[],
+  resolveLocale?: string
 ): any => {
   if (field.type === 'group') {
-    return restoreGroupFieldData(field, target, data, pathIndex, warnings)
+    return restoreGroupFieldData(field, target, data, pathIndex, warnings, resolveLocale)
   } else if (field.type === 'array') {
-    return restoreArrayFieldData(field, target, data, pathIndex, warnings)
+    return restoreArrayFieldData(field, target, data, pathIndex, warnings, resolveLocale)
   } else if (field.type === 'blocks') {
-    return restoreBlocksFieldData(field, target, data, pathIndex, warnings)
+    return restoreBlocksFieldData(field, target, data, pathIndex, warnings, resolveLocale)
   }
 
   if (field.localized) {
@@ -388,6 +397,10 @@ const restoreFieldData = (
       warnings.push(
         `Received non-localized data for localized field at path ${data.field_path.join('.')}`
       )
+    } else if (resolveLocale) {
+      // When resolving a specific locale, set the value directly
+      // instead of wrapping in { locale: value }.
+      target = extractValueFieldData(data)
     } else {
       target = target || {}
       target[data.locale] = extractValueFieldData(data)
@@ -410,7 +423,8 @@ const restoreGroupFieldData = (
   target: any,
   data: FlattenedFieldValue,
   pathIndex: number,
-  warnings: string[]
+  warnings: string[],
+  resolveLocale?: string
 ): any => {
   if (pathIndex >= data.field_path.length) {
     warnings.push(`Path ended unexpectedly while restoring group: ${data.field_path.join('.')}`)
@@ -427,7 +441,14 @@ const restoreGroupFieldData = (
   }
 
   target = target || {}
-  target[fieldName] = restoreFieldData(subField, target[fieldName], data, pathIndex + 1, warnings)
+  target[fieldName] = restoreFieldData(
+    subField,
+    target[fieldName],
+    data,
+    pathIndex + 1,
+    warnings,
+    resolveLocale
+  )
   return target
 }
 
@@ -436,7 +457,8 @@ const restoreArrayFieldData = (
   target: any,
   data: FlattenedFieldValue,
   pathIndex: number,
-  warnings: string[]
+  warnings: string[],
+  resolveLocale?: string
 ): any => {
   if (pathIndex >= data.field_path.length) {
     warnings.push(`Path ended unexpectedly while restoring array: ${data.field_path.join('.')}`)
@@ -480,7 +502,8 @@ const restoreArrayFieldData = (
     target[arrayIndex][fieldName],
     data,
     pathIndex + 2,
-    warnings
+    warnings,
+    resolveLocale
   )
   return target
 }
@@ -490,7 +513,8 @@ const restoreBlocksFieldData = (
   target: any,
   data: FlattenedFieldValue,
   pathIndex: number,
-  warnings: string[]
+  warnings: string[],
+  resolveLocale?: string
 ): any => {
   const arrayIndex = Number.parseInt(data.field_path[pathIndex] ?? '', 10)
   if (Number.isNaN(arrayIndex) || arrayIndex < 0) {
@@ -544,7 +568,8 @@ const restoreBlocksFieldData = (
     target[arrayIndex][fieldName],
     data,
     pathIndex + 3,
-    warnings
+    warnings,
+    resolveLocale
   )
   return target
 }

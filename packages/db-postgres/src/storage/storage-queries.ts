@@ -216,7 +216,8 @@ export class DocumentQueries implements IDocumentQueries {
       const flattenedData = unifiedFieldValues.map((row) =>
         extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
       )
-      return restoreFieldSetData(definition.fields, flattenedData)
+      const resolveLocale = locale !== 'all' ? locale : undefined
+      return restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
     }
     const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
     return reconstructFields(fieldValues, locale)
