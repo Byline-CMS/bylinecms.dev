@@ -1,6 +1,6 @@
 # Universal Storage (EAV-per-type) — Strategic Analysis
 
-> Last updated: 2026-04-05
+> Last updated: 2026-04-06
 
 ## What we've built
 
@@ -28,10 +28,12 @@ Every single-document read executes a 7-way `UNION ALL` with 41 columns each (mo
 **Mitigation options to evaluate:** (a) a materialized "current document JSONB" cache column that's rebuilt on write — reads become trivial, the EAV remains the source of truth for queries/indexing; (b) `EXPLAIN ANALYZE` benchmarks with seed data at 10k, 50k, 100k documents to find the actual inflection point.
 
 ### 2. The template queries (`storage-template-queries.ts`) are a maintenance hazard
-Every store table addition or column change requires updating 7 synchronized SQL template fragments, each with 41 positional columns padded with NULLs. This is the single most fragile file in the codebase. One positional mismatch silently corrupts data. We've already started a refactored path in `new-storage-utils.ts`, but the read path still depends on the old template approach.
+Every store table addition or column change requires updating 7 synchronized SQL template fragments, each with 41 positional columns padded with NULLs. This is the single most fragile file in the codebase. One positional mismatch silently corrupts data. The read path now uses schema-aware reconstruction via `restoreFieldSetData`, but the UNION ALL templates still power the raw SQL queries that feed it.
 
-### 3. Two parallel flatten/reconstruct implementations
-`storage-utils.ts` (original) and `new-storage-utils.ts` (generator-based refactor) coexist. The write path uses the new one (`flattenFieldSetData` + `prepareFieldInsertBuckets`), but the read path still uses the old `reconstructFields` from `storage-utils.ts`. This split creates a real risk that flatten and reconstruct drift out of sync — they're not mirror implementations of the same code.
+### 3. ~~Two parallel flatten/reconstruct implementations~~ **RESOLVED**
+~~`storage-utils.ts` (original) and `new-storage-utils.ts` (generator-based refactor) coexist. The write path uses the new one (`flattenFieldSetData` + `prepareFieldInsertBuckets`), but the read path still uses the old `reconstructFields` from `storage-utils.ts`. This split creates a real risk that flatten and reconstruct drift out of sync — they're not mirror implementations of the same code.~~
+
+Both the write path (`flattenFieldSetData` + `prepareFieldInsertBuckets`) and the read path (`extractFlattenedFieldValue` + `restoreFieldSetData`) now use `new-storage-utils.ts`. The old `reconstructFields` and `attachMetaToDocument` have been removed. Collection definitions are injected into `DocumentQueries` via the typed `Registry` DI pattern, giving the read path the schema context it needs for correct reconstruction including locale resolution, block/array `_id`/`_type` injection, and field-type-aware value extraction. The legacy `storage-utils.ts` is retained only for `getFirstOrThrow` (used by commands) and `flattenFields` (used by an older test).
 
 ### 4. The locale-copy-forward on versioned writes is O(7 x stores)
 The `createDocumentVersion` method runs 7 separate `INSERT ... SELECT` statements to carry forward non-active locale rows from the previous version. This is correct but expensive — for a document with content in 5 locales, saving one locale triggers 7 full-table INSERT-SELECTs filtered by version ID. At scale this will dominate write latency. Consider a single raw SQL statement that does this in one pass, or a stored procedure.
@@ -56,18 +58,39 @@ Run `EXPLAIN ANALYZE` on the 7-way UNION ALL with realistic data volumes (10k+ d
 ### 2. Consider a read cache
 A `jsonb` column on `document_versions` (we already have a `doc` column marked "optionally store the original document") could serve as a write-through cache. Reads hit the JSONB; field-level queries still hit the typed stores. This gives us O(1) document reads while preserving all the EAV benefits for indexing and querying.
 
-### 3. Unify flatten/reconstruct
-The `new-storage-utils.ts` generator approach is cleaner. Finish migrating the read path to use `restoreFieldSetData` and retire the old `reconstructFields` + `storage-template-queries.ts`. This is the highest-priority technical debt.
+### 3. ~~Unify flatten/reconstruct~~ **DONE**
+~~The `new-storage-utils.ts` generator approach is cleaner. Finish migrating the read path to use `restoreFieldSetData` and retire the old `reconstructFields` + `storage-template-queries.ts`. This is the highest-priority technical debt.~~
+
+Completed 2026-04-06. Both read and write paths now use `new-storage-utils.ts`. Collection definitions flow from `initBylineCore()` → `pgAdapter()` → `DocumentQueries` via the typed `Registry` DI pattern ported from the Modulus project. The remaining cleanup target is `storage-template-queries.ts` — the 7-way UNION ALL templates are still in use but no longer coupled to the reconstruction logic.
 
 ### 4. Invest in selective field loading
 The EAV structure naturally supports fetching only specific fields — this should be a first-class capability in the query layer, not a future TODO.
 
 ## Bottom line
 
-The architecture is defensible and genuinely interesting. The implementation is honest prototype code — it works, it's reasonably well-organized, and the refactoring trajectory (old -> new storage utils) shows good judgment about what needs to improve. The main risk isn't the EAV decision itself — it's that the 7-table UNION ALL read path and the dual flatten/reconstruct implementations will silently accumulate cost as the project grows. Address those two things and the foundation is solid.
+The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `new-storage-utils.ts` implementation. The remaining risks are the 7-table UNION ALL read performance at scale and the fragile `storage-template-queries.ts` templates. Addressing read-performance caching and selective field loading are the next strategic priorities.
+
+## Architecture changes (2026-04-06)
+
+### Registry / Dependency Injection
+A typed `Registry`/`AsyncRegistry` DI container was ported from the Modulus project to `@byline/core`. This provides compile-time dependency graph validation via TypeScript conditional types. The webapp now initializes via `initBylineCore()` which composes the dependency graph and bridges backward compatibility with the existing `getServerConfig()` global.
+
+### Schema-aware reconstruction
+`DocumentQueries` receives `CollectionDefinition[]` at construction time (injected via the registry through `pgAdapter`). On read, it resolves a document's collection UUID to its definition via a cached DB lookup, then passes the schema to `restoreFieldSetData` for type-correct reconstruction. This eliminates the old two-step process (`reconstructFields` + `attachMetaToDocument`) — meta rows (`_id`, `_type` for blocks/arrays) are now converted to `FlattenedFieldValue` entries and handled inline during restoration. Locale resolution (unwrapping `{ en: value }` to `value` for single-locale queries) is also handled inline via the `resolveLocale` parameter.
+
+### Files removed
+- `storage-utils-annotated.ts` — unused reference copy
+- `attachMetaToDocument` function — meta handled inline by `restoreFieldSetData`
+- `reconstructFields` usage in query path — replaced by `restoreFieldSetData`
+- Fallback reconstruction path — `CollectionDefinition` is now required, not optional
+
+### Files added
+- `packages/core/src/lib/registry.ts` — typed DI container
+- `packages/core/src/core.ts` — `initBylineCore()` entry point
 
 ## Progress log
 
 | Date | Change | Notes |
 |------|--------|-------|
 | 2026-04-05 | Initial analysis | Reviewed full storage layer: schema, flatten, reconstruct, queries, commands |
+| 2026-04-06 | Registry/DI + schema-aware reconstruction | Ported Registry from Modulus, unified read/write on new-storage-utils, removed legacy fallback |
