@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Note: See STORAGE-ANALYSIS.md for ongoing work on the storage system.
+
 ## Project Overview
 
 Byline CMS — an open-source, AI-first headless CMS. Currently a prototype/PoC. Licensed MPL-2.0.
