@@ -36,7 +36,7 @@ import {
   storeSelectList,
   storeTableNames,
   textFields,
-} from './storage-template-queries.js'
+} from './storage-store-manifest.js'
 import {
   extractFlattenedFieldValue,
   resolveStoreTypes,

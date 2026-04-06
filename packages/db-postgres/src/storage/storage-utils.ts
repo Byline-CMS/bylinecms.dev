@@ -17,7 +17,7 @@ import type {
 } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
-import { fieldTypeToStoreType, type StoreType } from './storage-template-queries.js'
+import { fieldTypeToStoreType, type StoreType } from './storage-store-manifest.js'
 import type {
   booleanStore,
   datetimeStore,

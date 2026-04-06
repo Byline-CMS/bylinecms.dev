@@ -90,7 +90,7 @@ Selective field loading operates at two levels:
 
 Each collection field type maps to one of the 7 typed store tables. When a caller requests specific fields (e.g. `title` + `views`), the system resolves those field names to the set of store types they require (`text` + `numeric`) and builds a UNION ALL that queries only those tables — skipping the rest entirely. For a list view that only needs text fields, this eliminates 6 of 7 table scans.
 
-The mapping lives in `storage-template-queries.ts` as `fieldTypeToStoreType`:
+The mapping lives in `storage-store-manifest.ts` as `fieldTypeToStoreType`:
 
 | Field type | Store table |
 |---|---|
@@ -141,7 +141,7 @@ Route loader
 
 | File | Role |
 |---|---|
-| `storage-template-queries.ts` | `fieldTypeToStoreType` mapping, `storeSelectList()` generator |
+| `storage-store-manifest.ts` | `fieldTypeToStoreType` mapping, `storeSelectList()` generator |
 | `storage-utils.ts` | `resolveStoreTypes()`, recursive `collectStoreTypes()` |
 | `storage-queries.ts` | Partial UNION ALL builder, field trimming in `reconstructDocuments` |
 | `core/@types/db-types.ts` | `fields?: string[]` on `IDocumentQueries.getDocumentsByPage` |

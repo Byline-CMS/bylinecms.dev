@@ -15,7 +15,7 @@ import {
   columns,
   fieldTypeLiterals,
   UNIFIED_COLUMN_COUNT,
-} from '../storage-template-queries.js'
+} from '../storage-store-manifest.js'
 
 /**
  * Parse a generated SELECT list into individual column expressions.
@@ -42,7 +42,7 @@ function extractAlias(expr: string): string {
   return expr.replace(/^NULL::\S+/, '').trim() || expr
 }
 
-describe('storage-template-queries', () => {
+describe('storage-store-manifest', () => {
   describe('column count', () => {
     it('UNIFIED_COLUMN_COUNT matches manifest', () => {
       // columns array has all columns except field_type, which is added during generation
