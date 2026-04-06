@@ -52,7 +52,8 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
 
     const data = await getCollectionDocuments({
       data: {
-        collection: params.collection, params: {
+        collection: params.collection,
+        params: {
           page,
           page_size,
           order,
@@ -60,8 +61,8 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
           query,
           locale,
           status,
-        }
-      }
+        },
+      },
     })
 
     return data

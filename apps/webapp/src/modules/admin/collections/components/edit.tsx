@@ -42,7 +42,7 @@ export const EditView = ({
   locale?: string
 }) => {
   const toastManager = useToastManager()
-  const [editState, setEditState] = useState<EditState>({
+  const [_editState, setEditState] = useState<EditState>({
     status: 'idle',
     message: '',
   })
@@ -69,7 +69,9 @@ export const EditView = ({
 
   const handleStatusChange = async (status: string) => {
     try {
-      await updateDocumentStatus({ data: { collection: path, id: String(initialData.document_id), status } })
+      await updateDocumentStatus({
+        data: { collection: path, id: String(initialData.document_id), status },
+      })
       toastManager.add({
         title: `${labels.singular} Status Update`,
         description: `Status changed to "${status}"`,

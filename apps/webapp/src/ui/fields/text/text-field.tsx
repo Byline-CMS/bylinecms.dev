@@ -83,11 +83,7 @@ export const TextField = ({
     if (hasCustomLabel) {
       return (
         <div className="flex items-center">
-          <CustomLabel
-            {...slotBaseProps}
-            label={field.label}
-            required={!field.optional}
-          />
+          <CustomLabel {...slotBaseProps} label={field.label} required={!field.optional} />
           {showBadge && <LocaleBadge locale={locale!} />}
         </div>
       )
@@ -131,7 +127,7 @@ export const TextField = ({
         onChange={(e) => handleChange(e.target.value)}
         error={fieldError != null}
         errorText={fieldError}
-      // className={isDirty ? 'border-yellow-300' : ''}
+        // className={isDirty ? 'border-yellow-300' : ''}
       />
     )
   }
@@ -142,12 +138,7 @@ export const TextField = ({
       {BeforeField && <BeforeField {...slotBaseProps} />}
       {renderInput()}
       {AfterField && <AfterField {...slotBaseProps} />}
-      {CustomHelpText && (
-        <CustomHelpText
-          {...slotBaseProps}
-          helpText={field.helpText}
-        />
-      )}
+      {CustomHelpText && <CustomHelpText {...slotBaseProps} helpText={field.helpText} />}
     </div>
   )
 }

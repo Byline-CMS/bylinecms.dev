@@ -9,7 +9,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import type {
-  Block,
   BlocksField as BlocksFieldType,
   Field,
   GroupField as GroupFieldType,

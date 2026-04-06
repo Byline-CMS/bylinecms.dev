@@ -54,12 +54,7 @@ export function RouterPager({
                   item.disabled ? (
                     <div />
                   ) : (
-                    <LangLink
-                      lng={lng}
-                      scroll={true}
-                      to={location.pathname}
-                      search={params}
-                    />
+                    <LangLink lng={lng} scroll={true} to={location.pathname} search={params} />
                   )
                 }
                 key={key}
@@ -80,12 +75,7 @@ export function RouterPager({
                   item.disabled ? (
                     <div />
                   ) : (
-                    <LangLink
-                      lng={lng}
-                      scroll={true}
-                      to={location.pathname}
-                      search={params}
-                    />
+                    <LangLink lng={lng} scroll={true} to={location.pathname} search={params} />
                   )
                 }
                 key={key}
@@ -108,12 +98,7 @@ export function RouterPager({
                   item.disabled ? (
                     <div />
                   ) : (
-                    <LangLink
-                      lng={lng}
-                      scroll={true}
-                      to={location.pathname}
-                      search={params}
-                    />
+                    <LangLink lng={lng} scroll={true} to={location.pathname} search={params} />
                   )
                 }
                 key={key}
@@ -136,12 +121,7 @@ export function RouterPager({
                   item.disabled ? (
                     <div />
                   ) : (
-                    <LangLink
-                      lng={lng}
-                      scroll={true}
-                      to={location.pathname}
-                      search={params}
-                    />
+                    <LangLink lng={lng} scroll={true} to={location.pathname} search={params} />
                   )
                 }
                 key={key}
@@ -163,12 +143,7 @@ export function RouterPager({
                   item.disabled ? (
                     <div />
                   ) : (
-                    <LangLink
-                      lng={lng}
-                      scroll={true}
-                      to={location.pathname}
-                      search={params}
-                    />
+                    <LangLink lng={lng} scroll={true} to={location.pathname} search={params} />
                   )
                 }
                 key={key}

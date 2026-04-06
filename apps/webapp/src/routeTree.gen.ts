@@ -9,46 +9,42 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as Char123LngChar125RouteRouteImport } from './routes/{-$lng}/route'
-import { Route as Char123LngChar125PublicRouteRouteImport } from './routes/{-$lng}/_public/route'
 import { Route as Char123LngChar125PublicIndexRouteImport } from './routes/{-$lng}/_public/index'
-import { Route as Char123LngChar125bylineAdminRouteRouteImport } from './routes/{-$lng}/(byline)/admin/route'
-import { Route as Char123LngChar125bylineAdminIndexRouteImport } from './routes/{-$lng}/(byline)/admin/index'
-import { Route as Char123LngChar125bylineAdminCollectionsCollectionIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/index'
-import { Route as Char123LngChar125bylineAdminCollectionsCollectionCreateRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/create'
+import { Route as Char123LngChar125PublicRouteRouteImport } from './routes/{-$lng}/_public/route'
 import { Route as Char123LngChar125bylineAdminApiCollectionUploadRouteImport } from './routes/{-$lng}/(byline)/admin/api/$collection/upload'
-import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/index'
-import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/history'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdApiRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/api'
+import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/history'
+import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/index'
+import { Route as Char123LngChar125bylineAdminCollectionsCollectionCreateRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/create'
+import { Route as Char123LngChar125bylineAdminCollectionsCollectionIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/index'
+import { Route as Char123LngChar125bylineAdminIndexRouteImport } from './routes/{-$lng}/(byline)/admin/index'
+import { Route as Char123LngChar125bylineAdminRouteRouteImport } from './routes/{-$lng}/(byline)/admin/route'
+import { Route as Char123LngChar125RouteRouteImport } from './routes/{-$lng}/route'
 
 const Char123LngChar125RouteRoute = Char123LngChar125RouteRouteImport.update({
   id: '/{-$lng}',
   path: '/{-$lng}',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char123LngChar125PublicRouteRoute =
-  Char123LngChar125PublicRouteRouteImport.update({
-    id: '/_public',
-    getParentRoute: () => Char123LngChar125RouteRoute,
-  } as any)
-const Char123LngChar125PublicIndexRoute =
-  Char123LngChar125PublicIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => Char123LngChar125PublicRouteRoute,
-  } as any)
-const Char123LngChar125bylineAdminRouteRoute =
-  Char123LngChar125bylineAdminRouteRouteImport.update({
-    id: '/(byline)/admin',
-    path: '/admin',
-    getParentRoute: () => Char123LngChar125RouteRoute,
-  } as any)
-const Char123LngChar125bylineAdminIndexRoute =
-  Char123LngChar125bylineAdminIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => Char123LngChar125bylineAdminRouteRoute,
-  } as any)
+const Char123LngChar125PublicRouteRoute = Char123LngChar125PublicRouteRouteImport.update({
+  id: '/_public',
+  getParentRoute: () => Char123LngChar125RouteRoute,
+} as any)
+const Char123LngChar125PublicIndexRoute = Char123LngChar125PublicIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => Char123LngChar125PublicRouteRoute,
+} as any)
+const Char123LngChar125bylineAdminRouteRoute = Char123LngChar125bylineAdminRouteRouteImport.update({
+  id: '/(byline)/admin',
+  path: '/admin',
+  getParentRoute: () => Char123LngChar125RouteRoute,
+} as any)
+const Char123LngChar125bylineAdminIndexRoute = Char123LngChar125bylineAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => Char123LngChar125bylineAdminRouteRoute,
+} as any)
 const Char123LngChar125bylineAdminCollectionsCollectionIndexRoute =
   Char123LngChar125bylineAdminCollectionsCollectionIndexRouteImport.update({
     id: '/collections/$collection/',
@@ -250,15 +246,12 @@ interface Char123LngChar125PublicRouteRouteChildren {
   Char123LngChar125PublicIndexRoute: typeof Char123LngChar125PublicIndexRoute
 }
 
-const Char123LngChar125PublicRouteRouteChildren: Char123LngChar125PublicRouteRouteChildren =
-  {
-    Char123LngChar125PublicIndexRoute: Char123LngChar125PublicIndexRoute,
-  }
+const Char123LngChar125PublicRouteRouteChildren: Char123LngChar125PublicRouteRouteChildren = {
+  Char123LngChar125PublicIndexRoute: Char123LngChar125PublicIndexRoute,
+}
 
 const Char123LngChar125PublicRouteRouteWithChildren =
-  Char123LngChar125PublicRouteRoute._addFileChildren(
-    Char123LngChar125PublicRouteRouteChildren,
-  )
+  Char123LngChar125PublicRouteRoute._addFileChildren(Char123LngChar125PublicRouteRouteChildren)
 
 interface Char123LngChar125bylineAdminRouteRouteChildren {
   Char123LngChar125bylineAdminIndexRoute: typeof Char123LngChar125bylineAdminIndexRoute
@@ -272,8 +265,7 @@ interface Char123LngChar125bylineAdminRouteRouteChildren {
 
 const Char123LngChar125bylineAdminRouteRouteChildren: Char123LngChar125bylineAdminRouteRouteChildren =
   {
-    Char123LngChar125bylineAdminIndexRoute:
-      Char123LngChar125bylineAdminIndexRoute,
+    Char123LngChar125bylineAdminIndexRoute: Char123LngChar125bylineAdminIndexRoute,
     Char123LngChar125bylineAdminApiCollectionUploadRoute:
       Char123LngChar125bylineAdminApiCollectionUploadRoute,
     Char123LngChar125bylineAdminCollectionsCollectionCreateRoute:
@@ -290,7 +282,7 @@ const Char123LngChar125bylineAdminRouteRouteChildren: Char123LngChar125bylineAdm
 
 const Char123LngChar125bylineAdminRouteRouteWithChildren =
   Char123LngChar125bylineAdminRouteRoute._addFileChildren(
-    Char123LngChar125bylineAdminRouteRouteChildren,
+    Char123LngChar125bylineAdminRouteRouteChildren
   )
 
 interface Char123LngChar125RouteRouteChildren {
@@ -298,18 +290,14 @@ interface Char123LngChar125RouteRouteChildren {
   Char123LngChar125bylineAdminRouteRoute: typeof Char123LngChar125bylineAdminRouteRouteWithChildren
 }
 
-const Char123LngChar125RouteRouteChildren: Char123LngChar125RouteRouteChildren =
-  {
-    Char123LngChar125PublicRouteRoute:
-      Char123LngChar125PublicRouteRouteWithChildren,
-    Char123LngChar125bylineAdminRouteRoute:
-      Char123LngChar125bylineAdminRouteRouteWithChildren,
-  }
+const Char123LngChar125RouteRouteChildren: Char123LngChar125RouteRouteChildren = {
+  Char123LngChar125PublicRouteRoute: Char123LngChar125PublicRouteRouteWithChildren,
+  Char123LngChar125bylineAdminRouteRoute: Char123LngChar125bylineAdminRouteRouteWithChildren,
+}
 
-const Char123LngChar125RouteRouteWithChildren =
-  Char123LngChar125RouteRoute._addFileChildren(
-    Char123LngChar125RouteRouteChildren,
-  )
+const Char123LngChar125RouteRouteWithChildren = Char123LngChar125RouteRoute._addFileChildren(
+  Char123LngChar125RouteRouteChildren
+)
 
 const rootRouteChildren: RootRouteChildren = {
   Char123LngChar125RouteRoute: Char123LngChar125RouteRouteWithChildren,
@@ -319,7 +307,7 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true

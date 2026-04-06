@@ -33,7 +33,9 @@ export function DocumentActions({
   return (
     <>
       <DropdownComponent.Root>
-        <DropdownComponent.Trigger render={<IconButton variant="text" intent="noeffect" size="sm" />}>
+        <DropdownComponent.Trigger
+          render={<IconButton variant="text" intent="noeffect" size="sm" />}
+        >
           <EllipsisIcon className="rotate-90 text-primary-500" width="15px" height="15px" />
         </DropdownComponent.Trigger>
 

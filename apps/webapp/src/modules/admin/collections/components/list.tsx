@@ -65,7 +65,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-        }`}
+      }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -144,14 +144,16 @@ export const ListView = ({
         <div className="flex items-center gap-3 py-[2px]">
           <h1 className="!m-0 pb-[2px]">{data.included.collection.labels.plural as string}</h1>
           <Stats total={data?.meta.total} />
-          <IconButton aria-label="Create New" render={
-            <Link
-              to="/{-$lng}/admin/collections/$collection/create"
-              params={{ ...lngParam(uiLocale), collection: data.included.collection.path }}
-            />
-          }>
+          <IconButton
+            aria-label="Create New"
+            render={
+              <Link
+                to="/{-$lng}/admin/collections/$collection/create"
+                params={{ ...lngParam(uiLocale), collection: data.included.collection.path }}
+              />
+            }
+          >
             <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
-
           </IconButton>
         </div>
         <div className="options flex flex-col gap-2 sm:flex-row items-start sm:items-center mt-3 mb-3">
@@ -233,10 +235,10 @@ export const ListView = ({
                           >
                             {column.formatter
                               ? renderFormatted(
-                                getColumnValue(document, column.fieldName as string),
-                                document,
-                                column.formatter
-                              )
+                                  getColumnValue(document, column.fieldName as string),
+                                  document,
+                                  column.formatter
+                                )
                               : (getColumnValue(document, column.fieldName as string) ?? '------')}
                           </Link>
                         ) : column.formatter ? (

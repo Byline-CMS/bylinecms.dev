@@ -13,9 +13,9 @@ import type {
   FloatField,
   IntegerField,
 } from '@byline/core'
-import { Input, Label } from '@infonomic/uikit/react'
+import { Input } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import { useFieldError, useFieldValue } from '../../forms/form-context'
 
 export const NumericalField = ({
   field,
@@ -68,13 +68,7 @@ export const NumericalField = ({
   // ── Label rendering ──────────────────────────────────────────
   const renderLabel = () => {
     if (hasCustomLabel) {
-      return (
-        <CustomLabel
-          {...slotBaseProps}
-          label={field.label}
-          required={!field.optional}
-        />
-      )
+      return <CustomLabel {...slotBaseProps} label={field.label} required={!field.optional} />
     }
     return null
   }
@@ -113,12 +107,7 @@ export const NumericalField = ({
       {BeforeField && <BeforeField {...slotBaseProps} />}
       {renderInput()}
       {AfterField && <AfterField {...slotBaseProps} />}
-      {CustomHelpText && (
-        <CustomHelpText
-          {...slotBaseProps}
-          helpText={field.helpText}
-        />
-      )}
+      {CustomHelpText && <CustomHelpText {...slotBaseProps} helpText={field.helpText} />}
     </div>
   )
 }

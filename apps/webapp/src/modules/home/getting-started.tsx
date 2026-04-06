@@ -28,18 +28,19 @@ export function GettingStarted() {
               variant="outlined"
               className="group not-dark text-lg px-5 py-2 text-white border-white hover:bg-white hover:text-purple-600 bg-transparent"
               // biome-ignore lint/a11y/useAnchorContent: Anchor text is present in the button label
-              render={<a
-                href="https://github.com/Byline-CMS/bylinecms.dev"
-                target="_blank"
-                rel="noopener noreferrer"
-              />}
+              render={
+                <a
+                  href="https://github.com/Byline-CMS/bylinecms.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              }
             >
               Follow Updates
               <GithubIcon
                 className="ml-2 w-5 h-5"
                 svgClassName="fill-white group-hover:fill-purple-600"
               />
-
             </Button>
           </div>
         </div>

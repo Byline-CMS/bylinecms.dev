@@ -105,16 +105,16 @@ function isTheme(value: unknown): value is Theme {
 }
 
 export {
-  Theme,
-  ThemeSource,
-  DEFAULT_THEME,
   DEFAULT_COLOR_SCHEME,
-  PREFERS_DARK_MQ,
+  DEFAULT_THEME,
   getPrefers,
-  getPrefersTheme,
-  setPrefersTheme,
   getPrefersColorScheme,
+  getPrefersTheme,
+  isTheme,
+  PREFERS_DARK_MQ,
   setPrefersColorScheme,
   setPrefersSystem,
-  isTheme,
+  setPrefersTheme,
+  Theme,
+  ThemeSource,
 }

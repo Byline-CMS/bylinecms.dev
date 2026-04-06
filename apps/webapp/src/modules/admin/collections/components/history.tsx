@@ -11,14 +11,7 @@ import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-ro
 
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import {
-  Container,
-  IconButton,
-  LoaderRing,
-  Section,
-  Select,
-  Table,
-} from '@infonomic/uikit/react'
+import { Container, IconButton, LoaderRing, Section, Select, Table } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
@@ -87,7 +80,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-        }`}
+      }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -243,14 +236,14 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                    getColumnValue(document, column.fieldName as string),
-                                    document,
-                                    column.formatter
-                                  )
+                                      getColumnValue(document, column.fieldName as string),
+                                      document,
+                                      column.formatter
+                                    )
                                   : resolveDisplayValue(
-                                    getColumnValue(document, column.fieldName as string),
-                                    locale
-                                  ) || '------'}
+                                      getColumnValue(document, column.fieldName as string),
+                                      locale
+                                    ) || '------'}
                               </button>
                             ) : (
                               <Link
@@ -263,14 +256,14 @@ export const HistoryView = ({
                               >
                                 {column.formatter
                                   ? renderFormatted(
-                                    getColumnValue(document, column.fieldName as string),
-                                    document,
-                                    column.formatter
-                                  )
+                                      getColumnValue(document, column.fieldName as string),
+                                      document,
+                                      column.formatter
+                                    )
                                   : resolveDisplayValue(
-                                    getColumnValue(document, column.fieldName as string),
-                                    locale
-                                  ) || '------'}
+                                      getColumnValue(document, column.fieldName as string),
+                                      locale
+                                    ) || '------'}
                               </Link>
                             )
                           ) : column.formatter ? (
@@ -283,7 +276,10 @@ export const HistoryView = ({
                             (workflowStatuses.find((s) => s.name === (document as any).status)
                               ?.label ?? String((document as any).status ?? ''))
                           ) : (
-                            resolveDisplayValue(getColumnValue(document, column.fieldName as string), locale) || ''
+                            resolveDisplayValue(
+                              getColumnValue(document, column.fieldName as string),
+                              locale
+                            ) || ''
                           )}
                         </Table.Cell>
                       ))}

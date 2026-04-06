@@ -27,9 +27,9 @@ export interface LangLinkProps
   params?: Record<string, string | undefined>
   /** Search / query string parameters */
   search?:
-  | true
-  | Record<string, unknown>
-  | ((current: Record<string, unknown>) => Record<string, unknown>)
+    | true
+    | Record<string, unknown>
+    | ((current: Record<string, unknown>) => Record<string, unknown>)
   /** Trigger a full-page reload instead of client-side navigation */
   forceReload?: boolean
   /** Whether to scroll to top on navigation (default: true) */

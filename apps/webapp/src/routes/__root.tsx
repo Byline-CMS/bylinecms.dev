@@ -74,9 +74,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body>
-        <div className="layout-container root flex min-h-screen flex-col">
-          {children}
-        </div>
+        <div className="layout-container root flex min-h-screen flex-col">{children}</div>
         <Scripts />
       </body>
     </html>

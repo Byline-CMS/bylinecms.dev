@@ -43,7 +43,9 @@ export const SelectField = ({
         value={incomingValue}
         helpText={field.helpText}
         items={field.options.map((opt) => ({ value: opt.value, label: opt.label }))}
-        onValueChange={(value) => { if (value != null) onChange?.(value) }}
+        onValueChange={(value) => {
+          if (value != null) onChange?.(value)
+        }}
         className={isDirty ? 'border-blue-300' : ''}
       />
       {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}

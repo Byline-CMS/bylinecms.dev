@@ -83,11 +83,7 @@ export const TextAreaField = ({
     if (hasCustomLabel) {
       return (
         <div className="flex items-center">
-          <CustomLabel
-            {...slotBaseProps}
-            label={field.label}
-            required={!field.optional}
-          />
+          <CustomLabel {...slotBaseProps} label={field.label} required={!field.optional} />
           {showBadge && <LocaleBadge locale={locale!} />}
         </div>
       )
@@ -143,12 +139,7 @@ export const TextAreaField = ({
       {BeforeField && <BeforeField {...slotBaseProps} />}
       {renderInput()}
       {AfterField && <AfterField {...slotBaseProps} />}
-      {CustomHelpText && (
-        <CustomHelpText
-          {...slotBaseProps}
-          helpText={field.helpText}
-        />
-      )}
+      {CustomHelpText && <CustomHelpText {...slotBaseProps} helpText={field.helpText} />}
     </div>
   )
 }

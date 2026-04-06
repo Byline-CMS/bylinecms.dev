@@ -61,7 +61,7 @@ export const useBeforeUnloadGuard: UseNavigationGuard = (shouldBlock) => {
     return () => window.removeEventListener('beforeunload', handler)
   }, [shouldBlock])
 
-  return { isBlocked: false, stay: () => { }, proceed: () => { } }
+  return { isBlocked: false, stay: () => {}, proceed: () => {} }
 }
 
 // ---------------------------------------------------------------------------

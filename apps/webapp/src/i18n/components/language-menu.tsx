@@ -28,13 +28,15 @@ export function LanguageMenu({
   return (
     <div className={className}>
       <DropdownMenu.Root modal={false}>
-        <DropdownMenu.Trigger render={
-          <button
-            type="button"
-            aria-label={languageMap[lng]?.nativeName}
-            className="component--language-menu rounded flex items-center justify-between gap-1 outline-none"
-          />
-        }>
+        <DropdownMenu.Trigger
+          render={
+            <button
+              type="button"
+              aria-label={languageMap[lng]?.nativeName}
+              className="component--language-menu rounded flex items-center justify-between gap-1 outline-none"
+            />
+          }
+        >
           <GlobeIcon svgClassName={color} />
           <span className={cx(color, 'hidden sm:inline mr-[4px]')}>
             {languageMap[lng]?.nativeName}
