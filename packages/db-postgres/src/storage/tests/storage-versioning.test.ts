@@ -17,12 +17,13 @@ import { setupTestDB, teardownTestDB } from '../../lib/test-helper.js'
 let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
 let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
 
-// Complex test collection configuration
-const ComplexCollectionConfig: CollectionDefinition = {
-  path: 'products',
+const timestamp = Date.now()
+
+const VersionsCollectionConfig: CollectionDefinition = {
+  path: `versioning-${timestamp}`,
   labels: {
-    singular: 'Product',
-    plural: 'Products',
+    singular: 'Version',
+    plural: 'Versions',
   },
   fields: [
     { name: 'sku', type: 'text' /* unique: true */ },
@@ -40,7 +41,7 @@ const ComplexCollectionConfig: CollectionDefinition = {
           name: 'imageItem',
           type: 'array',
           fields: [
-            { name: 'url', type: 'file' },
+            { name: 'image', type: 'file' },
             { name: 'alt', type: 'text', localized: true },
             { name: 'caption', type: 'text', optional: true, localized: true },
           ],
@@ -81,7 +82,7 @@ const ComplexCollectionConfig: CollectionDefinition = {
 
 // Complex test document with many fields and arrays
 const complexProductDocument = {
-  sku: 'PROD-12345',
+  sku: 'FOO-12345',
   name: {
     en: 'Premium Wireless Headphones',
     es: 'Auriculares Inalámbricos Premium',
@@ -209,7 +210,7 @@ const complexProductDocument = {
     },
     {
       reviewItem: {
-        rating: 3,
+        rating: 6,
         comment: { root: { paragraph: 'Some more reviews here...' } },
       },
     },
@@ -218,20 +219,18 @@ const complexProductDocument = {
 
 // Global test variables
 let testCollection: { id: string; name: string } = {} as any
-const testDocumentsVersionIds: string[] = []
 
-describe('04 Performance Small Sets', () => {
+describe('03 Document Creation and Versioning', () => {
   before(async () => {
     // Connect to test database
-    const testDB = setupTestDB()
+    const testDB = setupTestDB([VersionsCollectionConfig])
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
 
-    // Create test collection
-    const timestamp = Date.now()
+    // Create test collection — use config.path so it matches the definition
     const result = await commandBuilders.collections.create(
-      `products_collection_${timestamp}`,
-      ComplexCollectionConfig
+      VersionsCollectionConfig.path,
+      VersionsCollectionConfig
     )
 
     const collection = result[0]
@@ -241,24 +240,7 @@ describe('04 Performance Small Sets', () => {
     }
 
     testCollection = { id: collection.id, name: collection.path }
-    console.log('Test product collection created:', testCollection)
-
-    // Create multiple test documents for batch testing
-    for (let i = 0; i < 10; i++) {
-      const docData = structuredClone(complexProductDocument)
-      docData.sku = `PROD-${12345 + i}`
-      docData.name.en = `Product ${i + 1}`
-
-      const result = await commandBuilders.documents.createDocumentVersion({
-        collectionId: testCollection.id,
-        collectionConfig: ComplexCollectionConfig,
-        action: 'create',
-        documentData: docData,
-        path: docData.sku,
-      })
-
-      testDocumentsVersionIds.push(result.document.id)
-    }
+    console.log('Test collection created:', testCollection)
   })
 
   after(async () => {
@@ -273,159 +255,115 @@ describe('04 Performance Small Sets', () => {
     await teardownTestDB()
   })
 
-  describe('Single Document Retrieval Performance', () => {
-    it('should retrieve document using optimized approach', async () => {
-      const startTime = performance.now()
+  describe('Should create documents and document versions', () => {
+    it('should create a document', async () => {
+      const timestamp = Date.now()
 
-      const document = await queryBuilders.documents.getDocumentByVersion({
-        document_version_id: testDocumentsVersionIds[0] as string,
+      const docData = structuredClone(complexProductDocument)
+      docData.sku = `PROD-${timestamp}`
+      docData.name.en = `Product ${timestamp}`
+
+      const result = await commandBuilders.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionConfig: VersionsCollectionConfig,
+        action: 'create',
+        documentData: docData,
+        path: docData.sku,
         locale: 'all',
+        status: 'draft',
       })
 
-      const endTime = performance.now()
-      const duration = endTime - startTime
+      console.log('Document created:', result)
 
-      console.log(`Optimized approach: ${duration.toFixed(2)}ms`)
-      console.log('Document structure:', Object.keys(document))
-      console.log('Images array length:', document.fields?.images?.length)
-      console.log('Specifications array length:', document.fields?.specifications?.length)
-      console.log('Reviews array length:', document.fields?.reviews?.length)
-
-      // Verify we got the complete document
-      console.log('Sample name localization:', document.fields?.name)
-      console.log('Sample specification:', document.fields?.specifications?.[0])
+      assert.notStrictEqual(result.document.document_id, null, 'Document creation failed')
     })
 
-    it('should compare single document performance over multiple runs', async () => {
-      const runs = 5
-      let optimizedTotal = 0
+    it('should create a document and document version with the same path', async () => {
+      const timestamp = Date.now()
 
-      console.log(`\nRunning ${runs} performance tests...`)
+      const docData = structuredClone(complexProductDocument)
+      docData.sku = `PROD-${timestamp}`
+      docData.name.en = `Product ${timestamp}`
 
-      for (let i = 0; i < runs; i++) {
-        // Test optimized approach
-        const optimizedStart = performance.now()
-        await queryBuilders.documents.getDocumentByVersion({
-          document_version_id: testDocumentsVersionIds[
-            i % testDocumentsVersionIds.length
-          ] as string,
-          locale: 'all',
-        })
-        const optimizedEnd = performance.now()
-        optimizedTotal += optimizedEnd - optimizedStart
-      }
-
-      const optimizedAvg = optimizedTotal / runs
-
-      console.log(`\nPerformance Results (${runs} runs):`)
-      console.log(`Optimized average: ${optimizedAvg.toFixed(2)}ms`)
-    })
-  })
-
-  describe('Batch Document Retrieval Performance', () => {
-    it('should retrieve multiple documents using optimized batch approach', async () => {
-      const batchSize = 5
-      const documentVersionIds = testDocumentsVersionIds.slice(0, batchSize)
-
-      const startTime = performance.now()
-
-      const documents = await queryBuilders.documents.getDocuments({
-        document_version_ids: documentVersionIds,
+      const firstVersion = await commandBuilders.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionConfig: VersionsCollectionConfig,
+        action: 'create',
+        documentData: docData,
+        path: docData.sku,
         locale: 'all',
+        status: 'draft',
       })
 
-      const endTime = performance.now()
-      const duration = endTime - startTime
+      console.log('firstVersion created:', firstVersion)
 
-      console.log(`Optimized batch (${batchSize} docs): ${duration.toFixed(2)}ms`)
-      console.log(`Average per document: ${(duration / batchSize).toFixed(2)}ms`)
-      console.log('Retrieved documents:', Object.keys(documents).length)
+      assert.notStrictEqual(firstVersion.document.document_id, null, 'Document creation failed')
 
-      assert.strictEqual(
-        documents.length,
-        batchSize,
-        'Batch retrieval should return correct number of documents'
-      )
+      const secondVersion = await commandBuilders.documents.createDocumentVersion({
+        documentId: firstVersion.document.document_id,
+        collectionId: testCollection.id,
+        collectionConfig: VersionsCollectionConfig,
+        action: 'update',
+        documentData: docData,
+        path: docData.sku,
+        locale: 'all',
+        status: 'draft',
+      })
+
+      console.log('secondVersion created:', secondVersion)
     })
 
-    it('should compare batch retrieval performance', async () => {
-      const batchSizes = [3, 5, 10]
+    it('should create multiple versions of a document and return a version history', async () => {
+      const timestamp = Date.now()
 
-      console.log('\nBatch Performance Comparison:')
-      console.log('Batch Size | Performance')
-      console.log('-----------|----------')
+      const docData = structuredClone(complexProductDocument)
+      docData.sku = `PROD-${timestamp}`
+      docData.name.en = `Product ${timestamp}`
 
-      for (const batchSize of batchSizes) {
-        const documentIds = testDocumentsVersionIds.slice(
-          0,
-          Math.min(batchSize, testDocumentsVersionIds.length)
-        )
+      const firstVersion = await commandBuilders.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionConfig: VersionsCollectionConfig,
+        action: 'create',
+        documentData: docData,
+        path: docData.sku,
+        locale: 'all',
+        status: 'draft',
+      })
 
-        // Optimized approach (batch)
-        const optimizedStart = performance.now()
-        await queryBuilders.documents.getDocuments({
-          document_version_ids: documentIds,
-          locale: 'all',
-        })
-        const optimizedEnd = performance.now()
-        const optimizedDuration = optimizedEnd - optimizedStart
+      assert.notStrictEqual(firstVersion.document.document_id, null, 'Document creation failed')
 
-        console.log(
-          `${batchSize.toString().padStart(10)} | ${optimizedDuration.toFixed(0).padStart(9)}ms`
-        )
-      }
-    })
-  })
+      const secondVersion = await commandBuilders.documents.createDocumentVersion({
+        documentId: firstVersion.document.document_id,
+        collectionId: testCollection.id,
+        collectionConfig: VersionsCollectionConfig,
+        action: 'update',
+        documentData: docData,
+        path: docData.sku,
+        locale: 'all',
+        status: 'draft',
+      })
 
-  describe('Locale-Specific Retrieval Performance', () => {
-    it('should test locale-specific retrieval performance', async () => {
-      const locales = ['en', 'es', 'fr', 'all']
+      assert.notStrictEqual(secondVersion.document.document_id, null, 'Document creation failed')
 
-      console.log('\nLocale Performance Comparison:')
-      console.log('Locale | Performance')
-      console.log('-------|----------')
+      const thirdVersion = await commandBuilders.documents.createDocumentVersion({
+        documentId: firstVersion.document.document_id,
+        collectionId: testCollection.id,
+        collectionConfig: VersionsCollectionConfig,
+        action: 'update',
+        documentData: docData,
+        path: docData.sku,
+        locale: 'all',
+        status: 'draft',
+      })
 
-      for (const locale of locales) {
-        // Optimized approach
-        const optimizedStart = performance.now()
-        await queryBuilders.documents.getDocumentByVersion({
-          document_version_id: testDocumentsVersionIds[0] as string, // Use first document for testing
-          locale,
-        })
-        const optimizedEnd = performance.now()
-        const optimizedDuration = optimizedEnd - optimizedStart
+      assert.notStrictEqual(thirdVersion.document.document_id, null, 'Document creation failed')
 
-        console.log(`${locale.padStart(6)} | ${optimizedDuration.toFixed(0).padStart(9)}ms`)
-      }
-    })
-  })
+      const versionHistory = await queryBuilders.documents.getDocumentHistory({
+        collection_id: testCollection.id,
+        document_id: firstVersion.document.document_id,
+      })
 
-  describe('Memory Usage and Result Verification', () => {
-    it('should estimate memory usage difference', async () => {
-      const memBefore = process.memoryUsage()
-
-      // Load multiple documents to see memory impact
-      const documents: any[] = []
-      for (let i = 0; i < 5; i++) {
-        const doc = await queryBuilders.documents.getDocumentByVersion({
-          document_version_id: testDocumentsVersionIds[i] as string,
-          locale: 'all',
-        })
-        documents.push(doc)
-      }
-
-      const memAfter = process.memoryUsage()
-
-      console.log('Memory usage for 5 complex documents:')
-      console.log(
-        `Heap used: ${((memAfter.heapUsed - memBefore.heapUsed) / 1024 / 1024).toFixed(2)} MB`
-      )
-      console.log(
-        `External: ${((memAfter.external - memBefore.external) / 1024 / 1024).toFixed(2)} MB`
-      )
-      console.log(
-        `Approx per document: ${((memAfter.heapUsed - memBefore.heapUsed) / 1024 / 1024 / 5).toFixed(2)} MB`
-      )
+      console.log('Version history:', versionHistory)
     })
   })
 })

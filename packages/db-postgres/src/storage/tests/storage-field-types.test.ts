@@ -17,8 +17,10 @@ import { setupTestDB, teardownTestDB } from '../../lib/test-helper.js'
 let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
 let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
 
+const timestamp = Date.now()
+
 const FieldTypesCollectionConfig: CollectionDefinition = {
-  path: 'field-types',
+  path: `field-types-${timestamp}`,
   labels: {
     singular: 'FieldTypes',
     plural: 'FieldType',
@@ -73,14 +75,13 @@ let testCollection: { id: string; name: string } = {} as any
 describe('02 Field Types', () => {
   before(async () => {
     // Connect to test database
-    const testDB = setupTestDB()
+    const testDB = setupTestDB([FieldTypesCollectionConfig])
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
 
-    // Create test collection
-    const timestamp = Date.now()
+    // Create test collection — use config.path so it matches the definition
     const result = await commandBuilders.collections.create(
-      `field_types_collection_${timestamp}`,
+      FieldTypesCollectionConfig.path,
       FieldTypesCollectionConfig
     )
 

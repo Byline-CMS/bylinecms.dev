@@ -1,3 +1,4 @@
+import type { CollectionDefinition } from '@byline/core'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
@@ -10,7 +11,7 @@ let db: NodePgDatabase<typeof schema>
 let commandBuilders: ReturnType<typeof createCommandBuilders>
 let queryBuilders: ReturnType<typeof createQueryBuilders>
 
-export function setupTestDB() {
+export function setupTestDB(collections: CollectionDefinition[] = []) {
   if (!pool) {
     pool = new pg.Pool({
       connectionString: process.env.POSTGRES_CONNECTION_STRING,
@@ -28,9 +29,9 @@ export function setupTestDB() {
     commandBuilders = createCommandBuilders(db)
   }
 
-  if (!queryBuilders) {
-    queryBuilders = createQueryBuilders(db, [])
-  }
+  // Recreate queryBuilders when collections are provided so that
+  // DocumentQueries can resolve collection definitions by path.
+  queryBuilders = createQueryBuilders(db, collections)
 
   return { pool, db, commandBuilders, queryBuilders }
 }
