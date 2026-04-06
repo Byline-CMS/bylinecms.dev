@@ -25,6 +25,7 @@ export interface CollectionSearchParams {
   query?: string
   locale?: string
   status?: string
+  fields?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,7 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       desc: params.desc,
       query: params.query,
       status: params.status,
+      fields: params.fields,
     })
 
     const serialised = serialise(result)

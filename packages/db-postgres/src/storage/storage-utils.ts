@@ -17,6 +17,7 @@ import type {
 } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
+import { fieldTypeToStoreType, type StoreType } from './storage-template-queries.js'
 import type {
   booleanStore,
   datetimeStore,
@@ -864,6 +865,61 @@ export const extractFlattenedFieldValue = (
 
 const orUndefined = <T>(value: T | null): T | undefined => {
   return value === null ? undefined : value
+}
+
+// ------------------------------------------------------------------------------
+// Field name → store type resolution
+// ------------------------------------------------------------------------------
+
+/**
+ * Given a CollectionDefinition and a list of field names, determine which
+ * StoreTypes are needed to satisfy the query. This enables selective field
+ * loading — instead of a 7-table UNION ALL, we query only the relevant stores.
+ *
+ * Field names that don't match a collection field (e.g. 'status', 'updated_at')
+ * are silently ignored — they come from the document version row, not EAV stores.
+ *
+ * Structure fields (array, blocks) recursively include all their children's
+ * store types plus 'meta' for _id/_type tracking.
+ */
+export function resolveStoreTypes(fields: FieldSet, fieldNames: string[]): Set<StoreType> {
+  const stores = new Set<StoreType>()
+
+  for (const name of fieldNames) {
+    const field = fields.find((f) => f.name === name)
+    if (!field) continue
+    collectStoreTypes(field, stores)
+  }
+
+  return stores
+}
+
+function collectStoreTypes(field: Field, stores: Set<StoreType>): void {
+  const mapped = fieldTypeToStoreType[field.type]
+
+  if (mapped === 'meta') {
+    // Structure field — recurse into children and include meta for _id/_type
+    if (field.type === 'array') {
+      for (const child of field.fields) {
+        collectStoreTypes(child, stores)
+      }
+    } else if (field.type === 'blocks') {
+      for (const block of field.blocks) {
+        for (const child of block.fields) {
+          collectStoreTypes(child, stores)
+        }
+      }
+    }
+    // Meta rows are fetched separately (not via UNION ALL), so no store type to add
+  } else if (mapped) {
+    stores.add(mapped)
+  }
+  // undefined (group) or unrecognized — recurse if group
+  if (field.type === 'group') {
+    for (const child of (field as GroupField).fields) {
+      collectStoreTypes(child, stores)
+    }
+  }
 }
 
 export const getFirstOrThrow =

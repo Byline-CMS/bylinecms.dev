@@ -94,6 +94,7 @@ export interface IDocumentQueries {
     desc?: boolean
     query?: string
     status?: string
+    fields?: string[]
   }): Promise<{
     documents: any[]
     meta: {

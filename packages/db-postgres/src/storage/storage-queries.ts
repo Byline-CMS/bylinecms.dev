@@ -7,7 +7,7 @@
  */
 
 import type { ICollectionQueries, IDocumentQueries } from '@byline/core'
-import { and, eq, ilike, inArray, sql } from 'drizzle-orm'
+import { and, eq, ilike, inArray, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import {
@@ -25,15 +25,23 @@ type Document = Omit<typeof documentVersions.$inferSelect, 'doc'>
 import type { CollectionDefinition, FlattenedStore, UnionRowValue } from '@byline/core'
 
 import {
+  allStoreTypes,
   booleanFields,
   datetimeFields,
   fileFields,
   jsonFields,
   numericFields,
   relationFields,
+  type StoreType,
+  storeSelectList,
+  storeTableNames,
   textFields,
 } from './storage-template-queries.js'
-import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-utils.js'
+import {
+  extractFlattenedFieldValue,
+  resolveStoreTypes,
+  restoreFieldSetData,
+} from './storage-utils.js'
 import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 
 interface MetaRow {
@@ -339,6 +347,7 @@ export class DocumentQueries implements IDocumentQueries {
     desc = true,
     query,
     status,
+    fields,
   }: {
     collection_id: string
     locale?: string
@@ -348,6 +357,7 @@ export class DocumentQueries implements IDocumentQueries {
     desc?: boolean
     query?: string
     status?: string
+    fields?: string[]
   }): Promise<{
     documents: any[]
     meta: {
@@ -454,7 +464,11 @@ export class DocumentQueries implements IDocumentQueries {
         .offset(offset)
     }
 
-    const documents = await this.reconstructDocuments({ documents: currentDocuments, locale })
+    const documents = await this.reconstructDocuments({
+      documents: currentDocuments,
+      locale,
+      fields,
+    })
 
     // Determine which documents in this page have a published version anywhere
     // in their version history. This powers the "live" indicator in the list UI.
@@ -1009,9 +1023,11 @@ export class DocumentQueries implements IDocumentQueries {
   private async reconstructDocuments({
     documents,
     locale = 'all',
+    fields: requestedFields,
   }: {
     documents: Document[]
     locale?: string
+    fields?: string[]
   }): Promise<any[]> {
     if (documents.length === 0) return []
     const versionIds = documents.map((v) => v.id)
@@ -1020,8 +1036,18 @@ export class DocumentQueries implements IDocumentQueries {
     const firstDoc = documents[0]!
     const definition = await this.getDefinitionForCollection(firstDoc.collection_id)
 
-    // Get all field values for all versions in one query
-    const allFieldValues = await this.getAllFieldValuesForMultipleVersions(versionIds, locale)
+    // When specific fields are requested, resolve which store tables we need
+    // and query only those — skipping irrelevant tables entirely.
+    const storeTypes = requestedFields?.length
+      ? resolveStoreTypes(definition.fields, requestedFields)
+      : undefined
+
+    // Get field values for all versions in one query
+    const allFieldValues = await this.getAllFieldValuesForMultipleVersions(
+      versionIds,
+      locale,
+      storeTypes
+    )
 
     // Group field values by document version
     const fieldValuesByVersion = new Map<string, UnionRowValue[]>()
@@ -1070,6 +1096,14 @@ export class DocumentQueries implements IDocumentQueries {
         docMetaRows
       )
 
+      // When specific fields were requested, trim the reconstructed object
+      // to only those fields. Store-level filtering avoids querying unused
+      // tables, but fields sharing a store (e.g. price + views in numeric)
+      // still appear — this final pass removes them.
+      const trimmedFields = requestedFields?.length
+        ? Object.fromEntries(Object.entries(fields).filter(([k]) => requestedFields.includes(k)))
+        : fields
+
       const documentWithFields = {
         document_version_id: doc.id,
         document_id: doc.document_id,
@@ -1077,7 +1111,7 @@ export class DocumentQueries implements IDocumentQueries {
         status: doc.status,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
-        fields,
+        fields: trimmedFields,
       }
 
       result.push(documentWithFields)
@@ -1263,11 +1297,16 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Gets field values for multiple versions in a single query
+   * Gets field values for multiple versions in a single query.
+   *
+   * When `storeTypes` is provided, only those store tables are included in
+   * the UNION ALL — this is the selective field loading optimisation for
+   * list views that only need a subset of fields.
    */
   private async getAllFieldValuesForMultipleVersions(
     documentVersionIds: string[],
-    locale = 'all'
+    locale = 'all',
+    storeTypes?: Set<StoreType>
   ): Promise<UnionRowValue[]> {
     if (documentVersionIds.length === 0) return []
 
@@ -1279,64 +1318,26 @@ export class DocumentQueries implements IDocumentQueries {
       sql`, `
     )}])`
 
-    // Use the same UNION ALL query but with IN clause for multiple versions
-    const query = sql`
-      -- Text fields (41 columns total)
-      SELECT 
-         ${textFields}
-      FROM store_text 
-      WHERE ${documentCondition} ${localeCondition}
+    const typesToQuery = storeTypes ?? new Set(allStoreTypes)
 
-      UNION ALL
+    // Build UNION ALL from only the required store tables.
+    const fragments: SQL[] = []
+    for (const st of allStoreTypes) {
+      if (!typesToQuery.has(st)) continue
+      fragments.push(
+        sql`SELECT ${storeSelectList(st)} FROM ${sql.raw(storeTableNames[st])} WHERE ${documentCondition} ${localeCondition}`
+      )
+    }
 
-      -- Numeric fields (41 columns total - SAME ORDER)
-      SELECT 
-         ${numericFields}
-      FROM store_numeric 
-      WHERE ${documentCondition} ${localeCondition}
+    if (fragments.length === 0) return []
 
-      UNION ALL
+    // Join with UNION ALL
+    let unionQuery = fragments[0]!
+    for (let i = 1; i < fragments.length; i++) {
+      unionQuery = sql`${unionQuery} UNION ALL ${fragments[i]}`
+    }
 
-      -- Boolean fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${booleanFields}
-      FROM store_boolean 
-      WHERE ${documentCondition} ${localeCondition}
-
-      UNION ALL
-
-      -- DateTime fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${datetimeFields}
-      FROM store_datetime 
-      WHERE ${documentCondition} ${localeCondition}
-
-      UNION ALL
-
-     -- JSON fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${jsonFields}
-      FROM store_json 
-      WHERE ${documentCondition} ${localeCondition}
-
-      UNION ALL
-
-      -- Relation fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${relationFields}
-      FROM store_relation 
-      WHERE ${documentCondition} ${localeCondition}
-
-      UNION ALL
-
-      -- File fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${fileFields}
-      FROM store_file 
-      WHERE ${documentCondition} ${localeCondition}
-
-      ORDER BY document_version_id, field_path, locale
-    `
+    const query = sql`${unionQuery} ORDER BY document_version_id, field_path, locale`
 
     const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(query)
     return rows as unknown as UnionRowValue[]

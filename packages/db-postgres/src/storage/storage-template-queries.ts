@@ -290,7 +290,6 @@ function buildSelectList(storeType: StoreType): string {
       // This store doesn't provide this column — emit typed NULL.
       parts.push(`NULL::${col.nullCast} as "${col.name}"`)
     }
-
   }
 
   // Insert field_type after the base columns. The base columns are the first
@@ -342,6 +341,53 @@ export const datetimeFields = storeSelectList('datetime')
 export const jsonFields = storeSelectList('json')
 export const relationFields = storeSelectList('relation')
 export const fileFields = storeSelectList('file')
+
+// ---------------------------------------------------------------------------
+// Field type → store type mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps collection field types (from CollectionDefinition) to the EAV store
+ * table type that holds their data. Structure fields (group, array, blocks)
+ * don't map to a single store — their children do — plus they need meta.
+ */
+export const fieldTypeToStoreType: Record<string, StoreType | 'meta' | undefined> = {
+  // Text store
+  text: 'text',
+  textArea: 'text',
+  select: 'text',
+
+  // Numeric store
+  float: 'numeric',
+  integer: 'numeric',
+  decimal: 'numeric',
+
+  // Boolean store
+  boolean: 'boolean',
+  checkbox: 'boolean',
+
+  // DateTime store
+  time: 'datetime',
+  date: 'datetime',
+  datetime: 'datetime',
+
+  // JSON store
+  richText: 'json',
+  json: 'json',
+  object: 'json',
+
+  // File store
+  file: 'file',
+  image: 'file',
+
+  // Relation store
+  relation: 'relation',
+
+  // Structure types — need meta store for _id/_type, plus children's stores
+  array: 'meta',
+  blocks: 'meta',
+  group: undefined,
+}
 
 // ---------------------------------------------------------------------------
 // Exported for testing

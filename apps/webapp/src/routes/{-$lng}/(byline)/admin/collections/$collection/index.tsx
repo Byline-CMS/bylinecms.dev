@@ -50,6 +50,13 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
       throw notFound()
     }
 
+    // Derive the field names the list view needs from the admin column config.
+    // This lets getDocumentsByPage query only the relevant store tables.
+    const adminConfig = getCollectionAdminConfig(params.collection)
+    const fields = adminConfig?.columns
+      ?.map((c) => String(c.fieldName))
+      .filter((name) => collectionDef.fields.some((f) => f.name === name))
+
     const data = await getCollectionDocuments({
       data: {
         collection: params.collection,
@@ -61,6 +68,7 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
           query,
           locale,
           status,
+          fields,
         },
       },
     })

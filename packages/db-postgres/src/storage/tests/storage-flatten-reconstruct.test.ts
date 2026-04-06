@@ -12,7 +12,7 @@ import { describe, it } from 'node:test'
 import { type CollectionFieldDataAllLocales, defineCollection } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
-import { flattenFieldSetData, restoreFieldSetData } from '../storage-utils.js'
+import { flattenFieldSetData, resolveStoreTypes, restoreFieldSetData } from '../storage-utils.js'
 
 const DocsCollectionConfig = defineCollection({
   path: 'docs',
@@ -261,5 +261,53 @@ describe('01 Document Flattening and Reconstruction', () => {
     const restored = restoreFieldSetData(DocsCollectionConfig.fields, flattened, 'en')
     assert.strictEqual(restored.title, 'My First Document')
     assert.strictEqual(restored.summary, 'This is a sample document for testing purposes.')
+  })
+})
+
+describe('resolveStoreTypes', () => {
+  it('should resolve text fields to text store', () => {
+    const stores = resolveStoreTypes(DocsCollectionConfig.fields, ['path', 'title', 'summary'])
+    assert.deepStrictEqual([...stores].sort(), ['text'])
+  })
+
+  it('should resolve mixed field types to their respective stores', () => {
+    const stores = resolveStoreTypes(DocsCollectionConfig.fields, [
+      'title',
+      'publishedOn',
+      'featured',
+      'views',
+      'price',
+    ])
+    assert.deepStrictEqual([...stores].sort(), ['boolean', 'datetime', 'numeric', 'text'])
+  })
+
+  it('should resolve blocks field to all child store types', () => {
+    const stores = resolveStoreTypes(DocsCollectionConfig.fields, ['content'])
+    // content blocks contain: richText (json), boolean, text, image (file)
+    assert.ok(stores.has('json'), 'should include json for richText')
+    assert.ok(stores.has('boolean'), 'should include boolean for constrainedWidth')
+    assert.ok(stores.has('text'), 'should include text for display/alt')
+    assert.ok(stores.has('file'), 'should include file for photo/image')
+  })
+
+  it('should resolve array field to child store types', () => {
+    const stores = resolveStoreTypes(DocsCollectionConfig.fields, ['reviews'])
+    // reviews array contains group with: integer (numeric), richText (json)
+    assert.ok(stores.has('numeric'), 'should include numeric for rating')
+    assert.ok(stores.has('json'), 'should include json for comment richText')
+  })
+
+  it('should ignore field names that do not exist in the collection', () => {
+    const stores = resolveStoreTypes(DocsCollectionConfig.fields, [
+      'status',
+      'updated_at',
+      'nonexistent',
+    ])
+    assert.strictEqual(stores.size, 0, 'metadata fields should not resolve to any store')
+  })
+
+  it('should return empty set for empty field list', () => {
+    const stores = resolveStoreTypes(DocsCollectionConfig.fields, [])
+    assert.strictEqual(stores.size, 0)
   })
 })

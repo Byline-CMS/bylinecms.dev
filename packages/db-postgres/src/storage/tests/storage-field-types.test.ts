@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import assert from 'node:assert'
 import { after, before, describe, it } from 'node:test'
 
 import type { CollectionDefinition } from '@byline/core'
@@ -126,5 +127,54 @@ describe('02 Field Types', () => {
     })
 
     console.log('Retrieved document:', document)
+  })
+
+  it('should return only requested fields with selective field loading', async () => {
+    const sourceDocument = structuredClone(sampleDocument)
+    sourceDocument.path = `selective-loading-${Date.now()}`
+
+    await commandBuilders.documents.createDocumentVersion({
+      collectionId: testCollection.id,
+      collectionConfig: FieldTypesCollectionConfig,
+      action: 'create',
+      documentData: sourceDocument,
+      path: sourceDocument.path,
+    })
+
+    // Request only title and views — should query only text + numeric stores
+    const result = await queryBuilders.documents.getDocumentsByPage({
+      collection_id: testCollection.id,
+      locale: 'en',
+      fields: ['title', 'views'],
+    })
+
+    assert.ok(result.documents.length > 0, 'should return at least one document')
+
+    const doc = result.documents[0]
+    assert.ok(doc.fields, 'document should have fields')
+    assert.ok(doc.fields.title, 'should include title field')
+    assert.strictEqual(doc.fields.views, 100, 'should include views field')
+
+    // Fields not requested should be absent or empty
+    assert.strictEqual(doc.fields.price, undefined, 'should not include unrequested decimal field')
+    assert.strictEqual(
+      doc.fields.attachment,
+      undefined,
+      'should not include unrequested file field'
+    )
+  })
+
+  it('should return all fields when no fields parameter is provided', async () => {
+    const result = await queryBuilders.documents.getDocumentsByPage({
+      collection_id: testCollection.id,
+      locale: 'en',
+    })
+
+    assert.ok(result.documents.length > 0, 'should return at least one document')
+
+    const doc = result.documents[0]
+    assert.ok(doc.fields, 'document should have fields')
+    assert.ok(doc.fields.title, 'should include title')
+    assert.ok(doc.fields.path, 'should include path')
   })
 })
