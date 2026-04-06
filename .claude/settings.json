@@ -38,24 +38,6 @@
       "Bash(wc *)",
       "Bash(curl -s *)"
     ],
-    "deny": [
-      "Bash(rm -rf /)*",
-      "Bash(git push --force*)",
-      "Bash(git reset --hard*)"
-    ]
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.file_path // empty' | grep -E '\\.(ts|tsx|js|jsx|json|css)$' | head -1 | xargs -I {} npx biome check --write --unsafe {} 2>/dev/null || true",
-            "timeout": 15
-          }
-        ]
-      }
-    ]
+    "deny": ["Bash(rm -rf /)*", "Bash(git push --force*)", "Bash(git reset --hard*)"]
   }
 }
