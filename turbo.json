@@ -4,23 +4,13 @@
   "tasks": {
     "build": {
       "cache": false,
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**",
-        "build/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**"]
     },
     "dev": {
       "cache": false,
-      "dependsOn": [
-        "^dev"
-      ],
       "outputs": [],
-      "env": [
-        "NODE_ENV"
-      ],
+      "env": ["NODE_ENV"],
       "persistent": true
     },
     "db:init": {
@@ -54,15 +44,11 @@
     },
     "start": {
       "cache": false,
-      "dependsOn": [
-        "^start"
-      ]
+      "dependsOn": ["^start"]
     },
     "preview": {
       "cache": false,
-      "dependsOn": [
-        "^preview"
-      ],
+      "dependsOn": ["^preview"],
       "persistent": true
     }
   },
