@@ -27,14 +27,14 @@ Every single-document read executes a 7-way `UNION ALL` with 41 columns each (mo
 
 **Mitigation options to evaluate:** (a) a materialized "current document JSONB" cache column that's rebuilt on write — reads become trivial, the EAV remains the source of truth for queries/indexing; (b) `EXPLAIN ANALYZE` benchmarks with seed data at 10k, 50k, 100k documents to find the actual inflection point.
 
-### 2. The template queries (`storage-template-queries.ts`) are a maintenance hazard
-Every store table addition or column change requires updating 7 synchronized SQL template fragments, each with 41 positional columns padded with NULLs. This is the single most fragile file in the codebase. One positional mismatch silently corrupts data. The read path now uses schema-aware reconstruction via `restoreFieldSetData`, but the UNION ALL templates still power the raw SQL queries that feed it.
+### 2. ~~The template queries are a maintenance hazard~~ — Resolved
+Replaced on 2026-04-06 with a generated column manifest. A declarative array of column definitions generates the per-store SELECT lists at runtime. Adding a column is a one-line change; positional mismatches are structurally impossible.
 
 ### 3. The locale-copy-forward on versioned writes is O(7 x stores)
 The `createDocumentVersion` method runs 7 separate `INSERT ... SELECT` statements to carry forward non-active locale rows from the previous version. This is correct but expensive — for a document with content in 5 locales, saving one locale triggers 7 full-table INSERT-SELECTs filtered by version ID. At scale this will dominate write latency. Consider a single raw SQL statement that does this in one pass, or a stored procedure.
 
-### 4. No query-side field filtering yet
-The README mentions Design Goal #5 (reduced field selection for list views). The current implementation always reconstructs the full document. For a list view showing just `title` + `status` + `publishedOn`, we're still fetching and reconstructing every field across all 7 store tables. This is where EAV normally shines (you *can* query just `store_text WHERE field_name = 'title'`) — but the architecture isn't leveraging it yet.
+### 4. ~~No query-side field filtering yet~~ — Resolved
+See [Selective Field Loading](#selective-field-loading-2026-04-06) below.
 
 ### 5. Searching is hard-coded to `title`
 The `getDocumentsByPage` search path joins `textStore` and filters on `field_name = 'title'` with `ilike`. This will need to become configurable per-collection (searchable fields), and extending it to multi-field search across store types will compound the UNION ALL complexity.
@@ -53,12 +53,12 @@ Run `EXPLAIN ANALYZE` on the 7-way UNION ALL with realistic data volumes (10k+ d
 ### 2. Consider a read cache
 A `jsonb` column on `document_versions` (we already have a `doc` column marked "optionally store the original document") could serve as a write-through cache. Reads hit the JSONB; field-level queries still hit the typed stores. This gives us O(1) document reads while preserving all the EAV benefits for indexing and querying.
 
-### 3. Invest in selective field loading
-The EAV structure naturally supports fetching only specific fields — this should be a first-class capability in the query layer, not a future TODO.
+### 3. ~~Invest in selective field loading~~ — Done
+Implemented 2026-04-06. See [Selective Field Loading](#selective-field-loading-2026-04-06) below.
 
 ## Bottom line
 
-The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `new-storage-utils.ts` implementation. The remaining risks are the 7-table UNION ALL read performance at scale and the fragile `storage-template-queries.ts` templates. Addressing read-performance caching and selective field loading are the next strategic priorities.
+The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. The remaining strategic priority is benchmarking the UNION ALL read performance at scale and evaluating a read cache if needed.
 
 ## Architecture changes (2026-04-06)
 
@@ -78,9 +78,84 @@ A typed `Registry`/`AsyncRegistry` DI container was ported from another project 
 - `packages/core/src/lib/registry.ts` — typed DI container
 - `packages/core/src/core.ts` — `initBylineCore()` entry point
 
+### Selective field loading (2026-04-06)
+
+One of the key advantages of EAV over monolithic JSONB storage is that you can read only the fields you need. Selective field loading makes this a first-class capability in the query layer, significantly reducing I/O for list views and API responses that only need a subset of a document's fields.
+
+#### How it works
+
+Selective field loading operates at two levels:
+
+**1. Store-level filtering — skip entire tables**
+
+Each collection field type maps to one of the 7 typed store tables. When a caller requests specific fields (e.g. `title` + `views`), the system resolves those field names to the set of store types they require (`text` + `numeric`) and builds a UNION ALL that queries only those tables — skipping the rest entirely. For a list view that only needs text fields, this eliminates 6 of 7 table scans.
+
+The mapping lives in `storage-template-queries.ts` as `fieldTypeToStoreType`:
+
+| Field type | Store table |
+|---|---|
+| `text`, `textArea`, `select` | `store_text` |
+| `integer`, `float`, `decimal` | `store_numeric` |
+| `boolean`, `checkbox` | `store_boolean` |
+| `date`, `time`, `datetime` | `store_datetime` |
+| `richText`, `json`, `object` | `store_json` |
+| `file`, `image` | `store_file` |
+| `relation` | `store_relation` |
+
+Compound field types (`blocks`, `array`, `group`) are walked recursively to collect all child store types. Requesting `content` (a blocks field containing richText, boolean, text, and image sub-fields) correctly resolves to `{ json, boolean, text, file }`.
+
+**2. Field-level trimming — remove sibling fields**
+
+Store-level filtering is coarse-grained. If you request `views` (numeric) but not `price` (also numeric), both come back from `store_numeric`. A post-reconstruction pass trims the document's `fields` object to include only the requested field names. This gives callers a precise projection without building per-field SQL conditions.
+
+#### Where field names come from
+
+The admin list view is the primary consumer. Each collection's `defineAdmin()` config declares which columns appear in the list table. The route loader extracts those field names automatically:
+
+```typescript
+// Route loader — apps/webapp/src/routes/.../collections/$collection/index.tsx
+const adminConfig = getCollectionAdminConfig(params.collection)
+const fields = adminConfig?.columns
+  ?.map((c) => String(c.fieldName))
+  .filter((name) => collectionDef.fields.some((f) => f.name === name))
+```
+
+This respects the schema/admin split: `CollectionDefinition` defines what fields exist; `CollectionAdminConfig` defines which ones the list view needs. Metadata fields like `status` and `updated_at` live on the document version row itself — they don't need store queries.
+
+When no `fields` parameter is provided, the full 7-table UNION ALL executes as before. This keeps single-document reads (edit view, API detail endpoints) unchanged.
+
+#### The data flow
+
+```
+Route loader
+  → extracts field names from admin column config
+  → passes fields[] to server function
+    → getDocumentsByPage({ ..., fields })
+      → resolveStoreTypes(collectionDef.fields, fields)  → Set<StoreType>
+      → getAllFieldValuesForMultipleVersions(ids, locale, storeTypes)
+        → builds partial UNION ALL (only needed tables)
+      → reconstructDocuments trims output to requested fields
+```
+
+#### Key files
+
+| File | Role |
+|---|---|
+| `storage-template-queries.ts` | `fieldTypeToStoreType` mapping, `storeSelectList()` generator |
+| `storage-utils.ts` | `resolveStoreTypes()`, recursive `collectStoreTypes()` |
+| `storage-queries.ts` | Partial UNION ALL builder, field trimming in `reconstructDocuments` |
+| `core/@types/db-types.ts` | `fields?: string[]` on `IDocumentQueries.getDocumentsByPage` |
+
+#### Test coverage
+
+- **Unit tests** (`storage-flatten-reconstruct.test.ts`): 6 tests covering `resolveStoreTypes` — text-only fields, mixed types, recursive blocks, recursive arrays, non-existent fields, empty input.
+- **Integration tests** (`storage-field-types.test.ts`): Selective loading verifies unrequested fields are absent from the response; full loading verifies all fields present when no filter is applied.
+
 ## Progress log
 
 | Date | Change | Notes |
 |------|--------|-------|
 | 2026-04-05 | Initial analysis | Reviewed full storage layer: schema, flatten, reconstruct, queries, commands |
 | 2026-04-06 | Registry/DI + schema-aware reconstruction | Ported Registry from Modulus, unified read/write on new-storage-utils, removed legacy fallback |
+| 2026-04-06 | Generated column manifest | Replaced 7 hand-maintained SQL template fragments with declarative column manifest |
+| 2026-04-06 | Selective field loading | Store-level UNION ALL filtering + field-level trimming, driven by admin column config |
