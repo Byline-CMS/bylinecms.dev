@@ -40,9 +40,7 @@
 .custom-select:hover,
 .custom-select:focus {
   outline: none;
-  border: none;
   border: 2px solid var(--theme-300);
-  /* box-shadow: inset 0 0 1px 1px var(--theme-300); */
 }
 
 .custom-select::-ms-value {
