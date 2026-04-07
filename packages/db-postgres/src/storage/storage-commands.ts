@@ -6,14 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type {
-  BlocksField,
-  CollectionDefinition,
-  Field,
-  FieldSet,
-  ICollectionCommands,
-  IDocumentCommands,
-} from '@byline/core'
+import type { CollectionDefinition, ICollectionCommands, IDocumentCommands } from '@byline/core'
 import { and, eq, ne, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
@@ -35,137 +28,6 @@ import { flattenFieldSetData, getFirstOrThrow, prepareFieldInsertBuckets } from 
 import type * as schema from '../database/schema/index.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
-
-interface WriteDocumentMetaParams {
-  tx: DatabaseConnection
-  documentVersionId: string
-  collectionId: string
-  collectionConfig: CollectionDefinition
-  documentData: any
-}
-
-async function _writeDocumentMeta({
-  tx,
-  documentVersionId,
-  collectionId,
-  collectionConfig,
-  documentData,
-}: WriteDocumentMetaParams) {
-  const existingMeta = await tx
-    .select({ type: metaStore.type, path: metaStore.path, item_id: metaStore.item_id })
-    .from(metaStore)
-    .where(eq(metaStore.document_version_id, documentVersionId))
-
-  const existingByPath = new Map<string, string>()
-  for (const row of existingMeta) {
-    existingByPath.set(`${row.type}:${row.path}`, row.item_id)
-  }
-
-  const metaInserts: {
-    id: string
-    document_version_id: string
-    collection_id: string
-    type: string
-    path: string
-    item_id: string
-    meta: unknown
-  }[] = []
-
-  function traverse(fields: FieldSet, data: any, basePath = '') {
-    for (const fieldConfig of fields) {
-      const currentPath = basePath ? `${basePath}.${fieldConfig.name}` : fieldConfig.name
-      const value = data?.[fieldConfig.name]
-
-      if (value == null) continue
-
-      if (fieldConfig.type === 'blocks' && Array.isArray(value)) {
-        const blocksField = fieldConfig as BlocksField
-        value.forEach((item: any, index: number) => {
-          if (item && typeof item === 'object' && typeof item._type === 'string') {
-            const blockName = item._type
-            const blockPath = `${currentPath}.${index}.${blockName}`
-
-            // Resolve or generate stable identity
-            let itemId = item._id
-            if (!itemId) itemId = existingByPath.get(`group:${blockPath}`)
-            if (!itemId) itemId = uuidv7()
-
-            metaInserts.push({
-              id: uuidv7(),
-              document_version_id: documentVersionId,
-              collection_id: collectionId,
-              type: 'group',
-              path: blockPath,
-              item_id: itemId,
-              meta: null,
-            })
-
-            const blockConfig = blocksField.blocks?.find((b) => b.blockType === blockName)
-
-            // Recurse into block child fields
-            if (blockConfig) {
-              const { _id, _type, ...fieldData } = item
-              traverse(blockConfig.fields, fieldData, `${currentPath}.${index}`)
-            }
-          }
-        })
-      } else if (fieldConfig.type === 'array' && Array.isArray(value)) {
-        value.forEach((item: any, index: number) => {
-          const arrayElementPath = `${currentPath}.${index}`
-
-          if (typeof item === 'object' && item !== null) {
-            // Non-block array item — assign a stable identity via array_item meta.
-            let itemId = item._id
-            if (!itemId) itemId = existingByPath.get(`array_item:${arrayElementPath}`)
-            if (!itemId) itemId = uuidv7()
-
-            metaInserts.push({
-              id: uuidv7(),
-              document_version_id: documentVersionId,
-              collection_id: collectionId,
-              type: 'array_item',
-              path: arrayElementPath,
-              item_id: itemId,
-              meta: null,
-            })
-
-            // Recurse into sub-fields for nested structures
-            if (fieldConfig.fields) {
-              const itemKeys = Object.keys(item).filter((k) => k !== '_id')
-              for (const fieldName of itemKeys) {
-                const fieldValue = item[fieldName]
-                const subField = fieldConfig.fields.find((f) => f.name === fieldName)
-                if (subField) {
-                  if (
-                    (subField.type === 'group' || subField.type === 'array') &&
-                    typeof fieldValue === 'object' &&
-                    !Array.isArray(fieldValue) &&
-                    fieldValue !== null &&
-                    Array.isArray(subField.fields)
-                  ) {
-                    traverse(
-                      subField.fields as Field[],
-                      fieldValue,
-                      `${arrayElementPath}.${fieldName}`
-                    )
-                  } else {
-                    traverse([subField], { [fieldName]: fieldValue }, arrayElementPath)
-                  }
-                }
-              }
-            }
-          }
-        })
-      }
-    }
-  }
-
-  traverse(collectionConfig.fields as Field[], documentData)
-
-  if (metaInserts.length > 0) {
-    await tx.insert(metaStore).values(metaInserts)
-  }
-}
 
 /**
  * CollectionCommands
@@ -247,14 +109,14 @@ export class DocumentCommands implements IDocumentCommands {
         .returning()
         .then(getFirstOrThrow('Failed to create document version'))
 
-      // 2. Flatten the document data to field values
+      // 3. Flatten the document data to field values
       const flattenedFields = flattenFieldSetData(
         params.collectionConfig.fields,
         params.documentData,
         params.locale ?? 'all'
       )
 
-      // 3. Batch-insert all field values, grouped by store type
+      // 4. Batch-insert all field values, grouped by store type
       const storeBuckets = prepareFieldInsertBuckets(
         flattenedFields,
         documentVersion.id,
@@ -293,7 +155,7 @@ export class DocumentCommands implements IDocumentCommands {
         await tx.insert(metaStore).values(storeBuckets.meta)
       }
 
-      // 3b. Copy field-value rows for other locales from the previous version.
+      // 5. Copy field-value rows for other locales from the previous version.
       // When saving in a specific locale (e.g. 'fr'), only rows for that locale
       // and locale='all' are written above. Any existing rows for other locales
       // (e.g. 'en', 'es') from the previous version must be carried forward so
@@ -364,15 +226,6 @@ export class DocumentCommands implements IDocumentCommands {
           ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
         `)
       }
-
-      // // 4. Write meta data (durable IDs for blocks and array items)
-      // await writeDocumentMeta({
-      //   tx,
-      //   documentVersionId: documentVersion.id,
-      //   collectionId: params.collectionId,
-      //   collectionConfig: params.collectionConfig,
-      //   documentData: params.documentData,
-      // })
 
       return {
         document: documentVersion,
@@ -448,12 +301,6 @@ export class DocumentCommands implements IDocumentCommands {
   }
 }
 
-/**
- * Factory function
- * @param siteConfig
- * @param db
- * @returns
- */
 export function createCommandBuilders(db: DatabaseConnection) {
   return {
     collections: new CollectionCommands(db),

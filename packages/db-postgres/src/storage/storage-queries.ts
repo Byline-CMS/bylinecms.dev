@@ -6,7 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { ICollectionQueries, IDocumentQueries } from '@byline/core'
+import type {
+  CollectionDefinition,
+  FlattenedStore,
+  ICollectionQueries,
+  IDocumentQueries,
+  UnionRowValue,
+} from '@byline/core'
 import { and, eq, ilike, inArray, or, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
@@ -21,8 +27,6 @@ import type * as schema from '../database/schema/index.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
 type Document = Omit<typeof documentVersions.$inferSelect, 'doc'>
-
-import type { CollectionDefinition, FlattenedStore, UnionRowValue } from '@byline/core'
 
 import {
   allStoreTypes,
@@ -50,31 +54,14 @@ interface MetaRow {
 export class CollectionQueries implements ICollectionQueries {
   constructor(private db: DatabaseConnection) {}
 
-  /**
-   * getAllCollections
-   *
-   * @returns
-   */
   async getAllCollections() {
     return await this.db.select().from(collections)
   }
 
-  /**
-   * getCollectionByPath
-   *
-   * @param path
-   * @returns
-   */
   async getCollectionByPath(path: string) {
     return this.db.query.collections.findFirst({ where: eq(collections.path, path) })
   }
 
-  /**
-   * getCollectionById
-   *
-   * @param id
-   * @returns
-   */
   async getCollectionById(id: string) {
     return this.db.query.collections.findFirst({ where: eq(collections.id, id) })
   }
@@ -150,13 +137,7 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * getAllDocuments
-   *
-   * Unlikely to use this. Here mainly for testing.
-   *
-   * @param collectionId
-   * @param locale
-   * @returns
+   * getAllDocuments — mainly for testing.
    */
   async getAllDocuments({
     collection_id,
@@ -197,14 +178,7 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * getDocumentsByBatch
-   *
-   * Also unlikely to use often. Mainly for testing and perhaps migration scripts.
-   *
-   * @param collectionId
-   * @param locale
-   * @param batchSize
-   * @returns
+   * getDocumentsByBatch — mainly for testing and migration scripts.
    */
   async getDocumentsByBatch({
     collection_id,
@@ -435,13 +409,7 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * getDocumentById
-   *
-   * Get's the current version of a document by its logical document ID.
-   *
-   * @param collection_id
-   * @param document_id
-   * @returns
+   * getDocumentById — gets the current version of a document by its logical document ID.
    */
   async getDocumentById({
     collection_id,
@@ -516,13 +484,6 @@ export class DocumentQueries implements IDocumentQueries {
     }
   }
 
-  /**
-   * getDocumentByPath
-   *
-   * @param collection_id
-   * @param path
-   * @returns
-   */
   async getDocumentByPath({
     collection_id,
     path,
@@ -597,7 +558,7 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * getCurrentDocument
+   * getDocumentByVersion — fetches a specific version and reconstructs its fields.
    */
   async getDocumentByVersion({
     document_version_id,
@@ -606,9 +567,6 @@ export class DocumentQueries implements IDocumentQueries {
     document_version_id: string
     locale?: string
   }): Promise<any> {
-    // 1. Get current version. We can query the documents table directly
-    // since its primary key is the document version (no need to use
-    // the currentDocumentsView).
     const document = await this.db.query.documentVersions.findFirst({
       where: eq(documentVersions.id, document_version_id),
     })
@@ -617,10 +575,7 @@ export class DocumentQueries implements IDocumentQueries {
       throw new Error(`No current version found for document ${document_version_id}`)
     }
 
-    // 2. Get all field values in a single query using UNION ALL
     const unifiedFieldValues = await this.getAllFieldValues(document.id, locale)
-
-    // 3. Schema-aware reconstruction with meta enrichment
     const definition = await this.getDefinitionForCollection(document.collection_id)
 
     const metaRows = await this.db
@@ -654,14 +609,8 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * getDocuments (multiple)
-   *
-   * Primary used to get documents that have been selected by page,
-   * batch, or cursor.
-   *
-   * @param documentVersionIds
-   * @param locale
-   * @returns
+   * getDocuments — fetches and reconstructs multiple documents by version ID.
+   * Primarily used for documents selected by page, batch, or cursor.
    */
   async getDocuments({
     document_version_ids,
@@ -672,11 +621,6 @@ export class DocumentQueries implements IDocumentQueries {
   }): Promise<any[]> {
     if (document_version_ids.length === 0) return []
 
-    // Get current documents
-    // Again here we can use the documents table directly
-    // since its primary key is the document version, and we are
-    // supplying an array of document version IDs (as opposed to
-    // logical document IDs).
     const docs = await this.db
       .select({
         document_version_id: documentVersions.id,
@@ -764,14 +708,8 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * getDocumentHistory
-   *
-   * Gets the history of a document version by its logical document ID. This will
-   * included any 'soft deleted' documents as well.
-   *
-   * @param documentId
-   * @param collectionId
-   * @returns
+   * getDocumentHistory — paginated version history for a document,
+   * including soft-deleted versions.
    */
   async getDocumentHistory({
     collection_id,
@@ -808,8 +746,6 @@ export class DocumentQueries implements IDocumentQueries {
     if (collection == null || collection.config == null) {
       throw new Error(`Collection with ID ${collection_id} not found or missing collection config.`)
     }
-
-    // const config = collection.config as CollectionDefinition;
 
     const totalResult: { count: number }[] = await this.db
       .select({
@@ -934,13 +870,8 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * reconstructDocuments (multiple)
-   *
-   * Retrieve field values and reconstruct multiple documents
-   *
-   * @param documents
-   * @param locale
-   * @returns
+   * reconstructDocuments — retrieve field values and reconstruct multiple documents.
+   * Supports selective field loading via the `fields` parameter.
    */
   private async reconstructDocuments({
     documents,
@@ -1143,7 +1074,7 @@ export class DocumentQueries implements IDocumentQueries {
     }
 
     // Sort by document path for consistent ordering
-    return result.sort((a, b) => (a.__meta?.path || '').localeCompare(b.__meta?.path || ''))
+    return result.sort((a, b) => (a.path || '').localeCompare(b.path || ''))
   }
 
   /**
@@ -1299,12 +1230,6 @@ export class DocumentQueries implements IDocumentQueries {
   }
 }
 
-/**
- * Factory function
- * @param siteConfig
- * @param db
- * @returns
- */
 export function createQueryBuilders(db: DatabaseConnection, collections: CollectionDefinition[]) {
   return {
     collections: new CollectionQueries(db),
