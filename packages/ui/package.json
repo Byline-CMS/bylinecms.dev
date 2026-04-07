@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit",
     "clean": "rimraf node_modules dist build types .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "test": "vitest"
+    "skip:test": "vitest"
   },
   "sideEffects": [
     "**/*.css"

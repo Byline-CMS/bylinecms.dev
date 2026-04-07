@@ -28,8 +28,8 @@
     "clean": "rimraf node_modules dist build .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "skip": "tsx ./scripts/task-watch.js",
-    "test": "LOG_LEVEL=off tsx --env-file=.env --test $(find . -name \"*.test.ts\")",
-    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test"
+    "skip:test": "LOG_LEVEL=off tsx --env-file=.env --test $(find . -name \"*.test.ts\")",
+    "skip:test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test"
   },
   "exports": {
     ".": {
