@@ -341,15 +341,33 @@ coupling, but more flexible.
 packages/client/
 ├── package.json              # @byline/client
 ├── tsconfig.json
+├── vitest.config.ts          # --mode=node (unit) / --mode=integration
+├── .env.example              # Postgres connection string for integration tests
+├── DESIGN.md                 # This file
 ├── src/
 │   ├── index.ts              # createBylineClient(), re-exports
 │   ├── client.ts             # BylineClient class
 │   ├── collection-handle.ts  # CollectionHandle (scoped operations)
+│   ├── types.ts              # WhereClause, FilterOperator, SortSpec, etc.
+│   └── response.ts           # Response shaping (internal → public format)
+├── tests/
+│   ├── fixtures/
+│   │   ├── collections.ts    # Test collection definitions + sample data
+│   │   └── setup.ts          # BylineClient wired to real Postgres
+│   ├── unit/
+│   │   ├── response.test.node.ts
+│   │   └── sort.test.node.ts
+│   └── integration/
+│       └── client-read.integration.test.ts
+```
+
+Future additions (Phase 2+):
+
+```
+├── src/
 │   ├── query/
-│   │   ├── types.ts          # WhereClause, FilterOperator, SortSpec, etc.
 │   │   ├── parse-where.ts    # where clause → FieldFilter[] normalisation
 │   │   └── populate.ts       # Post-query relationship population
-│   └── response.ts           # Response shaping (internal → public format)
 ```
 
 ---
@@ -369,14 +387,14 @@ The client receives an `IDbAdapter` at construction time. It never imports
 
 ## Phased Implementation
 
-### Phase 1 — Read path (no field-level filters)
+### ~~Phase 1 — Read path (no field-level filters)~~ — Done (2026-04-08)
 
-Wire up `find()`, `findOne()`, `findById()`, `findByPath()`, `count()` using
-the **existing** `IDocumentQueries` methods. `find()` delegates to
-`getDocumentsByPage()` — which already supports status filter, text search,
-pagination, ordering, and selective field loading.
+`find()`, `findOne()`, `findById()`, `findByPath()`, `count()` implemented,
+delegating to existing `IDocumentQueries` methods. `find()` uses
+`getDocumentsByPage()` for status filter, text search, pagination, ordering,
+and selective field loading. Response shaping maps snake_case → camelCase.
 
-This gets a working, useful client API shipped with no changes to existing code.
+10 unit tests + 16 integration tests (against real Postgres) passing.
 
 ### Phase 2 — Field-level filters and sorting
 
@@ -397,21 +415,24 @@ through `document-lifecycle` functions.
 
 ---
 
+## Resolved Decisions
+
+1. **`$or` / `$and` at the top level** — Deferred. All `where` keys are
+   implicitly AND'd. Add `$or` only when a real use case demands it.
+
+2. **Cursor-based pagination** — Deferred. Page-based only for now. Cursor
+   pagination is a pure additive change later (UUIDv7 IDs are time-ordered).
+
+3. **Response format** — **camelCase.** The client API is the external boundary.
+   `shapeDocument()` in `response.ts` maps `document_id` → `id`,
+   `document_version_id` → `versionId`, `created_at` → `createdAt`, etc.
+
+4. **Access control** — Deferred. The `DocumentLifecycleContext` pattern
+   (per-request context) extends naturally to carrying auth info later.
+
 ## Open Questions
 
-1. **Should `find()` support `$or` / `$and` at the top level?** The current
-   proposal treats all `where` keys as AND. Explicit `$or` adds query builder
-   complexity. Defer until needed?
-
-2. **Cursor-based pagination vs page-based?** The existing infrastructure is
-   page-based. UUIDv7 version IDs are time-ordered so cursor pagination is
-   feasible. Worth adding as an alternative?
-
-3. **Response format — camelCase vs snake_case?** The storage layer returns
-   `document_version_id`, `created_at`, etc. The client API proposal uses
-   `versionId`, `createdAt`. Should the client API normalise to camelCase, or
-   match the internal format?
-
-4. **Access control hook point.** The design mentions "eventually access control"
-   but doesn't define where it plugs in. A `beforeQuery` / `beforeMutate` hook
-   on the client, or a middleware layer?
+1. **DSL evolution.** The where clause DSL is intentionally minimal — the real
+   value is the field-to-store-table resolver, not the operator syntax. If the
+   operator set ever grows complex enough that we're reimplementing Drizzle's
+   expression tree, reconsider the approach.

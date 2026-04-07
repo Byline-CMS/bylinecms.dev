@@ -222,3 +222,4 @@ Route loader
 | 2026-04-08 | Doc refresh + near-term roadmap | Updated CLAUDE.md and STORAGE-ANALYSIS.md; prioritized query unification, configurable search, locale copy-forward optimization |
 | 2026-04-08 | Implemented near-term items | Unified query paths, configurable search via `CollectionDefinition.search`, locale copy-forward in single round trip |
 | 2026-04-08 | Client API analysis | Documented planned client API layer, query builder needs, relationship population strategy |
+| 2026-04-08 | @byline/client Phase 1 | New `packages/client` package with read API: find, findOne, findById, findByPath, count. Delegates to existing IDocumentQueries. Unit + integration tests passing. |
