@@ -31,6 +31,7 @@ export const News: CollectionDefinition = {
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   showStats: true,
+  search: { fields: ['title'] },
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {

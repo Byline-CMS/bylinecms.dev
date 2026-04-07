@@ -45,6 +45,7 @@ export const Media: CollectionDefinition = {
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   showStats: true,
+  search: { fields: ['title', 'caption'] },
   upload: {
     // Allow common image types. Extend with 'video/*', 'application/pdf' etc.
     // for a more general media collection.

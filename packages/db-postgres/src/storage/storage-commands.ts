@@ -298,6 +298,9 @@ export class DocumentCommands implements IDocumentCommands {
       // and locale='all' are written above. Any existing rows for other locales
       // (e.g. 'en', 'es') from the previous version must be carried forward so
       // per-locale content is not lost under immutable versioning.
+      //
+      // All 7 store tables are copied in a single db.execute() call to avoid
+      // 7 separate round trips to the database.
       if (params.previousVersionId && params.locale && params.locale !== 'all') {
         const prevId = params.previousVersionId
         const newId = documentVersion.id
@@ -310,60 +313,48 @@ export class DocumentCommands implements IDocumentCommands {
           FROM store_text
           WHERE document_version_id = ${prevId}::uuid
             AND locale NOT IN ('all', ${activeLoc})
-          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
-        `)
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING;
 
-        await tx.execute(sql`
           INSERT INTO store_numeric
             (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, number_type, value_integer, value_decimal, value_float, created_at, updated_at)
           SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, number_type, value_integer, value_decimal, value_float, NOW(), NOW()
           FROM store_numeric
           WHERE document_version_id = ${prevId}::uuid
             AND locale NOT IN ('all', ${activeLoc})
-          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
-        `)
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING;
 
-        await tx.execute(sql`
           INSERT INTO store_boolean
             (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, created_at, updated_at)
           SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, value, NOW(), NOW()
           FROM store_boolean
           WHERE document_version_id = ${prevId}::uuid
             AND locale NOT IN ('all', ${activeLoc})
-          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
-        `)
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING;
 
-        await tx.execute(sql`
           INSERT INTO store_datetime
             (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, date_type, value_date, value_time, value_timestamp_tz, created_at, updated_at)
           SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, date_type, value_date, value_time, value_timestamp_tz, NOW(), NOW()
           FROM store_datetime
           WHERE document_version_id = ${prevId}::uuid
             AND locale NOT IN ('all', ${activeLoc})
-          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
-        `)
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING;
 
-        await tx.execute(sql`
           INSERT INTO store_json
             (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, json_schema, object_keys, created_at, updated_at)
           SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, value, json_schema, object_keys, NOW(), NOW()
           FROM store_json
           WHERE document_version_id = ${prevId}::uuid
             AND locale NOT IN ('all', ${activeLoc})
-          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
-        `)
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING;
 
-        await tx.execute(sql`
           INSERT INTO store_relation
             (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, target_document_id, target_collection_id, relationship_type, cascade_delete, created_at, updated_at)
           SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, target_document_id, target_collection_id, relationship_type, cascade_delete, NOW(), NOW()
           FROM store_relation
           WHERE document_version_id = ${prevId}::uuid
             AND locale NOT IN ('all', ${activeLoc})
-          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING
-        `)
+          ON CONFLICT (document_version_id, field_path, locale) DO NOTHING;
 
-        await tx.execute(sql`
           INSERT INTO store_file
             (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, created_at, updated_at)
           SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, NOW(), NOW()

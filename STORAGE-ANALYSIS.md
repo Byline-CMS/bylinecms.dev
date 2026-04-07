@@ -1,6 +1,6 @@
 # Universal Storage (EAV-per-type) — Strategic Analysis
 
-> Last updated: 2026-04-06
+> Last updated: 2026-04-08
 
 ## What we've built
 
@@ -47,18 +47,31 @@ However, we need to plan for the read-performance ceiling before it becomes load
 
 ## Recommended actions
 
-### 1. Benchmark now
-Run `EXPLAIN ANALYZE` on the 7-way UNION ALL with realistic data volumes (10k+ documents, 20+ fields each). Know our numbers.
+### Near-term (in progress)
 
-### 2. Consider a read cache
-A `jsonb` column on `document_versions` (we already have a `doc` column marked "optionally store the original document") could serve as a write-through cache. Reads hit the JSONB; field-level queries still hit the typed stores. This gives us O(1) document reads while preserving all the EAV benefits for indexing and querying.
+#### 1. Unify query paths
+`getAllFieldValues()` (single-document) still uses a hardcoded 7-way UNION ALL. `getAllFieldValuesForMultipleVersions()` already has a dynamic builder that respects `storeTypes`. Refactor the single-document path to use the same builder for consistency and to enable future selective field loading on single-document reads.
 
-### 3. ~~Invest in selective field loading~~ — Done
+#### 2. Configurable per-collection search
+Search is hardcoded to `field_name = 'title'` with `ilike` on `store_text`. Add `search?: { fields: string[] }` to `CollectionDefinition` and update `getDocumentsByPage()` to build a dynamic OR across the specified text fields. Fall back to `['title']` when not configured.
+
+#### 3. Locale copy-forward optimization
+The `createDocumentVersion` method runs 7 separate `INSERT ... SELECT` statements to carry forward non-active locale rows. Consolidate into a single `db.execute()` call to reduce 7 DB round trips to 1.
+
+### Strategic (future)
+
+#### 4. Benchmark the UNION ALL at scale
+Run `EXPLAIN ANALYZE` on the 7-way UNION ALL with realistic data volumes (10k+ documents, 20+ fields each). Know our numbers. The selective field loading work (done) mitigates this for list views, but single-document reads still hit all stores.
+
+#### 5. Consider a read cache
+A `jsonb` column on `document_versions` (we already have a `doc` column marked "optionally store the original document") could serve as a write-through cache. Reads hit the JSONB; field-level queries still hit the typed stores. This gives us O(1) document reads while preserving all the EAV benefits for indexing and querying. Evaluate after benchmarking.
+
+### ~~6. Invest in selective field loading~~ — Done
 Implemented 2026-04-06. See [Selective Field Loading](#selective-field-loading-2026-04-06) below.
 
 ## Bottom line
 
-The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. The remaining strategic priority is benchmarking the UNION ALL read performance at scale and evaluating a read cache if needed.
+The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. Near-term work focuses on unifying the single-document and multi-document query paths, making search configurable per collection, and optimizing the locale copy-forward to a single DB round trip. The remaining strategic priority is benchmarking the UNION ALL read performance at scale and evaluating a read cache if needed.
 
 ## Architecture changes (2026-04-06)
 
@@ -159,3 +172,4 @@ Route loader
 | 2026-04-06 | Registry/DI + schema-aware reconstruction | Ported Registry from Modulus, unified read/write on new-storage-utils, removed legacy fallback |
 | 2026-04-06 | Generated column manifest | Replaced 7 hand-maintained SQL template fragments with declarative column manifest |
 | 2026-04-06 | Selective field loading | Store-level UNION ALL filtering + field-level trimming, driven by admin column config |
+| 2026-04-08 | Doc refresh + near-term roadmap | Updated CLAUDE.md and STORAGE-ANALYSIS.md; prioritized query unification, configurable search, locale copy-forward optimization |

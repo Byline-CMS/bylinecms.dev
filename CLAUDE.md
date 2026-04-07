@@ -70,11 +70,13 @@ Env files: `apps/webapp/.env` and `packages/db-postgres/.env` (copy from `.env.e
 
 ### Universal Storage (EAV-per-type)
 
-Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `store_boolean`, `store_datetime`, `store_json`, etc.) rather than one JSONB column. A custom path notation (e.g. `content.1.photoBlock.0.display`) addresses each value.
+Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `store_boolean`, `store_datetime`, `store_json`, `store_file`, `store_relation`) plus `store_meta` for stable block/array-item identities. A custom path notation (e.g. `content.1.photoBlock.0.display`) addresses each value.
 
-- **Flatten** (write): `packages/db-postgres/src/storage/storage-utils.ts` → `flattenFields()`
-- **Reconstruct** (read): `packages/db-postgres/src/storage/storage-queries.ts` → `reconstructFields()`
-- Block/array items carry a stable `_id` (UUIDv7) in `store_meta` for identity tracking. The `_id` is synthetic metadata — **never persist it via `flattenFields`**, never treat it as a data key in renderers.
+- **Flatten** (write): `packages/db-postgres/src/storage/storage-utils.ts` → `flattenFieldSetData()`
+- **Reconstruct** (read): `packages/db-postgres/src/storage/storage-utils.ts` → `restoreFieldSetData()` — schema-aware, handles meta rows (`_id`, `_type`), locale resolution, and type-correct value extraction inline
+- **Store manifest**: `packages/db-postgres/src/storage/storage-store-manifest.ts` — declarative column manifest generates per-store SELECT lists for the UNION ALL. Adding a column is a one-line change; positional mismatches are structurally impossible. Also contains `fieldTypeToStoreType` mapping (collection field types → EAV store tables).
+- **Selective field loading**: For list views, `resolveStoreTypes()` determines which store tables are needed for the requested fields, builds a partial UNION ALL (skipping irrelevant tables), and trims the reconstructed output to only the requested fields. Driven by `CollectionAdminConfig.columns`.
+- Block/array items carry a stable `_id` (UUIDv7) in `store_meta` for identity tracking. The `_id` is synthetic metadata — **never persist it via `flattenFieldSetData`**, never treat it as a data key in renderers.
 
 ### Immutable Versioning
 
@@ -96,10 +98,14 @@ Client accumulates `DocumentPatch[]` and POSTs `{ data, patches }`. Server appli
 - API route: `PATCH /admin/api/$collection/$id/status`
 - Zod schema builder derives `status` enum dynamically from workflow config
 
+### Registry / Dependency Injection
+
+A typed `Registry`/`AsyncRegistry` DI container in `packages/core/src/lib/registry.ts` provides compile-time dependency graph validation. The server-side entry point `initBylineCore()` (`packages/core/src/core.ts`) composes config, collections, DB adapter, and storage provider into a `BylineCore` instance.
+
 ### Config Loading
 
 - Browser: `apps/webapp/src/client.tsx` imports `../byline.client.config.ts`
-- Server: API routes import `../byline.server.config.*`
+- Server: `apps/webapp/byline.server.config.ts` calls `initBylineCore()` with the full `ServerConfig`
 
 ### Routing & API
 

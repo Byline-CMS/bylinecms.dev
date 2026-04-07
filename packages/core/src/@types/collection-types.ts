@@ -527,6 +527,12 @@ export interface CollectionDefinition {
   /** Lifecycle hooks for server-side document operations. */
   hooks?: CollectionHooks
   /**
+   * Configures which text fields are searched when the admin list view's
+   * search box is used. Only `store_text` fields are supported for now.
+   * Falls back to `{ fields: ['title'] }` when omitted.
+   */
+  search?: { fields: string[] }
+  /**
    * When `true`, the admin landing page displays a per-status document count
    * inside the collection card. Requires a database round-trip per collection
    * on every landing-page load, so opt in deliberately.

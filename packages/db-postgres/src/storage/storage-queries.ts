@@ -7,7 +7,7 @@
  */
 
 import type { ICollectionQueries, IDocumentQueries } from '@byline/core'
-import { and, eq, ilike, inArray, type SQL, sql } from 'drizzle-orm'
+import { and, eq, ilike, inArray, or, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import {
@@ -26,16 +26,9 @@ import type { CollectionDefinition, FlattenedStore, UnionRowValue } from '@bylin
 
 import {
   allStoreTypes,
-  booleanFields,
-  datetimeFields,
-  fileFields,
-  jsonFields,
-  numericFields,
-  relationFields,
   type StoreType,
   storeSelectList,
   storeTableNames,
-  textFields,
 } from './storage-store-manifest.js'
 import {
   extractFlattenedFieldValue,
@@ -175,100 +168,25 @@ export class DocumentQueries implements IDocumentQueries {
     const localeCondition =
       locale === 'all' ? sql`TRUE` : sql`(fv.locale = ${locale} OR fv.locale = 'all')`
 
+    // Build the UNION ALL subquery dynamically from the store manifest
+    const unionFragments: SQL[] = allStoreTypes.map(
+      (st) => sql`SELECT ${storeSelectList(st)} FROM ${sql.raw(storeTableNames[st])}`
+    )
+    let unionAll = unionFragments[0]!
+    for (let i = 1; i < unionFragments.length; i++) {
+      unionAll = sql`${unionAll} UNION ALL ${unionFragments[i]}`
+    }
+
     // Optimized single query with direct JOINs
     const query = sql`
-    SELECT 
+    SELECT
       d.id as document_version_id,
       d.document_id as document_id,
       d.path as document_path,
       d.status as document_status,
-      fv.id,
-      fv.collection_id,
-      fv.field_type,
-      fv.field_path,
-      fv.field_name,
-      fv.locale,
-      fv.parent_path,
-      fv.text_value,
-      fv.boolean_value,
-      fv.json_value,
-      fv.date_type,
-      fv.value_date,
-      fv.value_time,
-      fv.value_timestamp_tz,
-      fv.file_id,
-      fv.filename,
-      fv.original_filename,
-      fv.mime_type,
-      fv.file_size,
-      fv.storage_provider,
-      fv.storage_path,
-      fv.storage_url,
-      fv.file_hash,
-      fv.image_width,
-      fv.image_height,
-      fv.image_format,
-      fv.processing_status,
-      fv.thumbnail_generated,
-      fv.target_document_id,
-      fv.target_collection_id,
-      fv.relationship_type,
-      fv.cascade_delete,
-      fv.json_schema,
-      fv.object_keys,
-      fv.number_type,
-      fv.value_integer,
-      fv.value_decimal,
-      fv.value_float
+      fv.*
     FROM current_documents d
-    LEFT JOIN (
-      -- Text fields
-      SELECT 
-        ${textFields}
-      FROM store_text
-
-      UNION ALL
-
-      -- Numeric fields
-      SELECT 
-        ${numericFields}
-      FROM store_numeric
-
-      UNION ALL
-
-      -- Boolean fields
-      SELECT 
-        ${booleanFields}
-      FROM store_boolean
-
-      UNION ALL
-
-      -- DateTime fields
-      SELECT 
-        ${datetimeFields}
-      FROM store_datetime
-
-      UNION ALL
-
-      -- JSON fields
-      SELECT 
-        ${jsonFields}
-      FROM store_json
-
-      UNION ALL
-
-      -- Relation fields
-      SELECT 
-        ${relationFields}
-      FROM store_relation
-
-      UNION ALL
-
-      -- File fields
-      SELECT 
-        ${fileFields}
-      FROM store_file
-    ) fv ON d.id = fv.document_version_id AND ${localeCondition}
+    LEFT JOIN (${unionAll}) fv ON d.id = fv.document_version_id AND ${localeCondition}
     WHERE d.collection_id = ${collection_id}
     ORDER BY d.id, fv.field_path NULLS LAST, fv.locale
   `
@@ -329,14 +247,8 @@ export class DocumentQueries implements IDocumentQueries {
   /**
    * getDocumentsByPage
    *
-   * Paginated query to get current documents for a collection
-   *
-   * TODO: We're currently hard coding the query parameter to search by title.
-   * However, we can pass the field store name and field_name as options
-   *
-   * @param collectionId
-   * @param options
-   * @returns
+   * Paginated query to get current documents for a collection.
+   * Search is driven by `CollectionDefinition.search.fields` (defaults to ['title']).
    */
   async getDocumentsByPage({
     collection_id,
@@ -393,6 +305,18 @@ export class DocumentQueries implements IDocumentQueries {
     // Build reusable WHERE conditions.
     const statusCondition = status ? eq(currentDocumentsView.status, status) : undefined
 
+    // Resolve which text fields are searchable for this collection.
+    const searchFields = config.search?.fields ?? ['title']
+
+    // Build a search condition that ORs across all configured search fields.
+    // Each field becomes: (field_name = 'x' AND value ILIKE '%query%')
+    const buildSearchCondition = (q: string) =>
+      or(
+        ...searchFields.map((fieldName) =>
+          and(eq(textStore.field_name, fieldName), ilike(textStore.value, `%${q}%`))
+        )
+      )
+
     let totalResult: { count: number }[]
     if (query) {
       totalResult = await this.db
@@ -404,8 +328,7 @@ export class DocumentQueries implements IDocumentQueries {
         .where(
           and(
             eq(currentDocumentsView.collection_id, collection_id),
-            eq(textStore.field_name, 'title'),
-            ilike(textStore.value, `%${query}%`),
+            buildSearchCondition(query),
             statusCondition
           )
         )
@@ -446,8 +369,7 @@ export class DocumentQueries implements IDocumentQueries {
         .where(
           and(
             eq(currentDocumentsView.collection_id, collection_id),
-            eq(textStore.field_name, 'title'),
-            ilike(textStore.value, `%${query}%`),
+            buildSearchCondition(query),
             statusCondition
           )
         )
@@ -1225,75 +1147,14 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Gets all field values using a single UNION ALL query
+   * Gets all field values for a single document version.
+   * Delegates to the multi-version dynamic UNION ALL builder.
    */
   private async getAllFieldValues(
     documentVersionId: string,
     locale = 'all'
   ): Promise<UnionRowValue[]> {
-    const localeCondition =
-      locale === 'all' ? sql`` : sql`AND (locale = ${locale} OR locale = 'all')`
-
-    const query = sql`
-      -- Text fields (41 columns total)
-      SELECT 
-        ${textFields}
-      FROM store_text 
-      WHERE document_version_id = ${documentVersionId} ${localeCondition}
-
-      UNION ALL
-
-      -- Numeric fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${numericFields}
-      FROM store_numeric 
-      WHERE document_version_id = ${documentVersionId} ${localeCondition}
-
-      UNION ALL
-
-      -- Boolean fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${booleanFields}
-      FROM store_boolean 
-      WHERE document_version_id = ${documentVersionId} ${localeCondition}
-
-      UNION ALL
-
-      -- DateTime fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${datetimeFields}
-      FROM store_datetime 
-      WHERE document_version_id = ${documentVersionId} ${localeCondition}
-
-      UNION ALL
-
-      -- JSON fields (41 columns total - SAME ORDER)
-      SELECT 
-       ${jsonFields}
-      FROM store_json 
-      WHERE document_version_id = ${documentVersionId} ${localeCondition}
-
-      UNION ALL
-
-      -- Relation fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${relationFields}
-      FROM store_relation 
-      WHERE document_version_id = ${documentVersionId} ${localeCondition}
-
-      UNION ALL
-
-      -- File fields (41 columns total - SAME ORDER)
-      SELECT 
-        ${fileFields}
-      FROM store_file 
-      WHERE document_version_id = ${documentVersionId} ${localeCondition}
-
-      ORDER BY field_path, locale
-    `
-
-    const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(query)
-    return rows as unknown as UnionRowValue[]
+    return this.getAllFieldValuesForMultipleVersions([documentVersionId], locale)
   }
 
   /**

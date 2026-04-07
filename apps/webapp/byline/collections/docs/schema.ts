@@ -33,6 +33,7 @@ export const Docs = defineCollection({
     customStatuses: [{ name: 'needs_review', label: 'Needs Review', verb: 'Request Review' }],
   }),
   showStats: true,
+  search: { fields: ['title'] },
   // All hooks can be a single function or an array of functions.
   // If an array is provided, the functions will be executed in sequence.
   hooks: {
