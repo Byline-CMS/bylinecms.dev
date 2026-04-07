@@ -1,0 +1,73 @@
+{
+  "name": "@byline/client",
+  "private": false,
+  "license": "MPL-2.0",
+  "version": "0.1.0",
+  "description": "Byline CMS client API — DSL-like query and mutation layer",
+  "keywords": [
+    "cms",
+    "headless cms",
+    "content management"
+  ],
+  "homepage": "https://github.com/Byline-CMS/bylinecms.dev",
+  "bugs": {
+    "url": "https://github.com/Byline-CMS/bylinecms.dev/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
+    "directory": "packages/client"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "index": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "chokidar 'src/**/*' -c 'npm-run-all build'",
+    "build": "tsc -p tsconfig.json && tsc-alias",
+    "clean": "rimraf node_modules dist build .turbo",
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "test": "vitest run --mode=node",
+    "test:watch": "vitest --mode=node"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@byline/core": "workspace:*",
+    "npm-run-all": "^4.1.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.10",
+    "@types/node": "^25.5.0",
+    "chokidar": "^5.0.0",
+    "chokidar-cli": "^3.0.0",
+    "tsc-alias": "^1.8.16",
+    "tsx": "^4.21.0",
+    "typescript": "6.0.2",
+    "vitest": "^4.1.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.js"
+      },
+      "./package.json": "./package.json"
+    },
+    "main": "dist/index.js",
+    "index": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
