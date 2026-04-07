@@ -192,7 +192,7 @@ export class CollectionHandle {
  * Phase 1 only supports document-level sort columns (created_at, path).
  * Field-level sorting requires the query builder (Phase 2).
  */
-function resolveSortSpec(sort?: SortSpec): { order: string; desc: boolean } {
+export function resolveSortSpec(sort?: SortSpec): { order: string; desc: boolean } {
   if (!sort) {
     return { order: 'created_at', desc: true }
   }

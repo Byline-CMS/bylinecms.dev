@@ -230,6 +230,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.4.10
         version: 2.4.10
+      '@byline/db-postgres':
+        specifier: workspace:*
+        version: link:../db-postgres
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.0
@@ -239,6 +242,9 @@ importers:
       chokidar-cli:
         specifier: ^3.0.0
         version: 3.0.0
+      dotenv:
+        specifier: ^17.4.0
+        version: 17.4.0
       tsc-alias:
         specifier: ^1.8.16
         version: 1.8.16
