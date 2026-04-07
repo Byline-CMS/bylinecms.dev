@@ -113,6 +113,16 @@ A typed `Registry`/`AsyncRegistry` DI container in `packages/core/src/lib/regist
 - **Admin API routes**: `apps/webapp/src/routes/admin/api/$collection/` — RESTful endpoints for CRUD, patches, status transitions, and version history
 - **Validation**: Zod via schema builder in `packages/core/src/schemas/zod/builder.ts`
 
+### Client API (planned)
+
+A higher-level, DSL-like API for querying and updating documents from outside the admin UI. Intended to sit above the existing storage primitives (commands/queries classes), not replace them. Key design points:
+
+- **Two-layer architecture**: Storage primitives handle direct DB operations; the client API owns query DSL translation, relationship population, access control, and response shaping.
+- **Patches stay admin-internal**: The patch system (`field.*`, `array.*`, `block.*`) is tied to UI intent (reordering, block insertion). The client API does whole-document or field-level writes via `createDocumentVersion()`.
+- **Relationship population**: `store_relation` stores links but nothing populates them on read yet. The client API will need `populate` and `depth` parameters to control recursive fetching of related documents.
+- **Query builder needed**: A new layer that translates field-level filters and sorts into the correct store table joins, building on `resolveStoreTypes()` and `fieldTypeToStoreType`.
+- **Selective field loading maps directly**: A `select`/`fields` parameter in the client API maps to the existing partial UNION ALL pipeline.
+
 ### Collections → Forms → Patches → Storage
 
 - Form state + patch accumulation: `apps/webapp/src/ui/fields/form-context.tsx`

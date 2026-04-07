@@ -69,9 +69,56 @@ A `jsonb` column on `document_versions` (we already have a `doc` column marked "
 ### ~~6. Invest in selective field loading~~ — Done
 Implemented 2026-04-06. See [Selective Field Loading](#selective-field-loading-2026-04-06) below.
 
+## Client API — impact on the storage system (2026-04-08)
+
+The next major milestone is a client-facing API layer (`find`, `findAll`, `update`, `delete`, etc.) that sits above the current storage primitives. This section captures how the planned API interacts with the existing EAV architecture.
+
+### What the storage system already provides
+
+- **Selective field loading** maps directly to a `select`/`fields` parameter. The `resolveStoreTypes()` → partial UNION ALL → field trimming pipeline is the right primitive.
+- **Schema/presentation split** means `CollectionDefinition` is the server-safe authority for validation, field resolution, and relationship metadata. The client API doesn't need to touch `CollectionAdminConfig`.
+- **Immutable versioning is invisible** to clients. The `current_documents` view resolves "latest version" — a `find()` call doesn't need version IDs. Version history is a separate, opt-in concern.
+- **Patch-based updates stay admin-internal.** The patch system is tied to UI intent (array reordering, block insertion, field-level change tracking). The client API does whole-document or field-level writes, mapping to `createDocumentVersion()` directly.
+
+### What's missing
+
+#### 1. Query builder layer
+The current `getDocumentsByPage()` accepts raw SQL-shaped parameters. A client API wants a declarative spec:
+
+```typescript
+byline.collection('docs').find({
+  where: { status: 'published', fields: { featured: true } },
+  select: ['title', 'summary'],
+  sort: { created_at: 'desc' },
+  limit: 10,
+  populate: { author: { select: ['name', 'avatar'] } },
+})
+```
+
+This needs an intermediate query builder that translates field-level filters (e.g. `featured = true` hitting `store_boolean`) into the right store table joins. The `fieldTypeToStoreType` mapping and `resolveStoreTypes()` are the foundation, but field-level WHERE clauses against typed stores don't exist yet.
+
+#### 2. Relationship population (`populate` / `depth`)
+`store_relation` stores the link but nothing populates it on read. A `populate` parameter requires:
+- Resolving relation fields to target collections
+- Recursively fetching target documents (with their own selective field loading)
+- A `depth` parameter to control recursion and prevent infinite loops
+- Batch-loading related documents to avoid N+1 (the existing `getAllFieldValuesForMultipleVersions()` pattern — batch by version ID — extends naturally to this)
+
+#### 3. Two-layer architecture
+The storage primitives (commands/queries classes) remain the low-level DB interface. The client API sits above them, owning:
+- Query DSL parsing → storage primitive calls
+- Relationship population orchestration
+- Access control (future)
+- Response shaping (sparse fieldsets, includes/sideloading)
+
+This mirrors Payload's Local API vs database adapters, and Strapi's Entity Service vs query engine.
+
+### Impact on current storage code
+The storage primitives don't need to change much. The main new work is the query builder layer and the relationship population orchestration — both are new code, not rewrites.
+
 ## Bottom line
 
-The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. Near-term work focuses on unifying the single-document and multi-document query paths, making search configurable per collection, and optimizing the locale copy-forward to a single DB round trip. The remaining strategic priority is benchmarking the UNION ALL read performance at scale and evaluating a read cache if needed.
+The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. Query paths have been unified, search is now configurable per collection, and locale copy-forward runs in a single DB round trip. The next major milestone is a client-facing API layer with a query builder and relationship population — both build on existing storage primitives rather than requiring a rewrite. The remaining strategic priority is benchmarking the UNION ALL read performance at scale and evaluating a read cache if needed.
 
 ## Architecture changes (2026-04-06)
 
@@ -173,3 +220,5 @@ Route loader
 | 2026-04-06 | Generated column manifest | Replaced 7 hand-maintained SQL template fragments with declarative column manifest |
 | 2026-04-06 | Selective field loading | Store-level UNION ALL filtering + field-level trimming, driven by admin column config |
 | 2026-04-08 | Doc refresh + near-term roadmap | Updated CLAUDE.md and STORAGE-ANALYSIS.md; prioritized query unification, configurable search, locale copy-forward optimization |
+| 2026-04-08 | Implemented near-term items | Unified query paths, configurable search via `CollectionDefinition.search`, locale copy-forward in single round trip |
+| 2026-04-08 | Client API analysis | Documented planned client API layer, query builder needs, relationship population strategy |

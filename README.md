@@ -154,13 +154,13 @@ Prior art for this split:
 
 Here's a list of things that will need to be done, in no particular order:
 
-1. API: A published API specification with client libraries.
+1. API: A published API specification with client libraries. We're planning a DSL-like client API (`find`, `findAll`, `update`, `delete`) that sits above our storage primitives, with support for selective field loading, relationship population (with depth control), and a query builder that leverages our typed EAV stores for field-level filtering and sorting. See [STORAGE-ANALYSIS.md](STORAGE-ANALYSIS.md) for the full analysis.
 
 1. Field and Form APIs: Assuming we're going to build at least one implementation of an admin dashboard, we'll need APIs for generating admin app field and form UIs from collection definitions (what's here at the moment is a naïve implementation hacked together over a weekend). Think Drupal render arrays or Payload forms.
 
 1. Compositional Block Strategy: As above, we need a strategy for block composition. Blocks are small(er) units of 'Field API' that can be reused, reordered, and specified as part of a collection's field definition.
 
-1. Data Storage: We're working on what we think is a pretty good (and very fast) storage API. See above Architectural Decisions.
+1. Data Storage: We're working on what we think is a pretty good (and very fast) storage API. See above Architectural Decisions. Our typed EAV system now features a declarative column manifest, selective field loading for list views (querying only the store tables you need), configurable per-collection search, and a single-round-trip locale copy-forward for immutable versioning. For a deep dive, including our strategic analysis and roadmap, see [STORAGE-ANALYSIS.md](STORAGE-ANALYSIS.md).
 
 1. Security: Authentication (AuthN) and authorization (AuthZ) for the above including roles, abilities, admin account user management etc.
 
