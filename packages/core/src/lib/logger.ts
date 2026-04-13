@@ -7,20 +7,31 @@
  *
  * Structured logging for Byline CMS.
  *
- * Pino-based logger with AsyncLocalStorage context propagation, following
- * the same pattern as the Modulus project. Call-site context (domain, module,
- * class, function) is merged into every log entry as flat JSON fields.
+ * ## Architecture
+ *
+ * This module defines two layers:
+ *
+ * 1. **Transport-agnostic interface** — `BylineLogger`, `LogLevel`, `LogData`,
+ *    `LogContext`, `withLogContext`. These have zero dependency on any logging
+ *    library. All consumer code (services, db adapters, route handlers, errors)
+ *    depends only on this layer.
+ *
+ * 2. **Pino transport** — `createBylineLogger` + `BylineLoggerImpl`. This is
+ *    the default implementation registered in the DI graph via `core.ts`. To
+ *    swap transports (e.g. for Cloudflare Workers or edge runtimes), provide a
+ *    different factory that produces a `BylineLogger` and register it in the
+ *    Registry instead of `createBylineLogger`.
+ *
+ * Context propagation uses `AsyncLocalStorage` (Node/Bun/Deno/Workers) with a
+ * no-op fallback for environments that don't support it (browser bundles).
+ * When TC39 `AsyncContext` reaches Stage 3+, this can be swapped transparently.
  *
  * Primary access is via the typed Registry (see core.ts). A globalThis
- * singleton (defineLogger / getLogger) provides a backward-compat escape
- * hatch for code outside the DI graph (e.g. API route handlers).
+ * singleton (defineLogger / getLogger) provides an escape hatch for code
+ * outside the DI graph (e.g. API route handlers, db adapters).
  */
 
-import type {
-  Level as PinoLevel,
-  LevelWithSilent as PinoLevelWithSilent,
-  Logger as PinoLogger,
-} from 'pino'
+import type { Logger as PinoLogger } from 'pino'
 
 // ---------------------------------------------------------------------------
 // Log context — stored in AsyncLocalStorage (server-only)
@@ -65,11 +76,11 @@ export const withLogContext = <T>(context: LogContext, fn: () => T): T => {
 }
 
 // ---------------------------------------------------------------------------
-// Logger types and interface
+// Logger types and interface (transport-agnostic)
 // ---------------------------------------------------------------------------
 
-export type LogLevel = PinoLevel
-export type LogLevelWithSilent = PinoLevelWithSilent
+export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
+export type LogLevelWithSilent = LogLevel | 'silent'
 
 export type LogData = Record<string, unknown>
 
@@ -89,16 +100,17 @@ export interface BylineLogger {
 }
 
 // ---------------------------------------------------------------------------
-// Factory — registry-compatible signature
+// Pino transport (swappable — see module docblock)
+//
+// Everything below this line depends on pino. To use a different logging
+// backend, replace `createBylineLogger` with a factory that accepts your
+// transport and returns a `BylineLogger`. Register it in the DI graph
+// (core.ts) instead of the default.
 // ---------------------------------------------------------------------------
 
 export const createBylineLogger = (deps: { pinoLogger: PinoLogger }): BylineLogger => {
   return new BylineLoggerImpl(deps.pinoLogger)
 }
-
-// ---------------------------------------------------------------------------
-// Implementation
-// ---------------------------------------------------------------------------
 
 class BylineLoggerImpl implements BylineLogger {
   constructor(private pinoLogger: PinoLogger) {}
