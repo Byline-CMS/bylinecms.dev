@@ -16,8 +16,6 @@
  * hatch for code outside the DI graph (e.g. API route handlers).
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks'
-
 import type {
   Level as PinoLevel,
   LevelWithSilent as PinoLevelWithSilent,
@@ -25,7 +23,7 @@ import type {
 } from 'pino'
 
 // ---------------------------------------------------------------------------
-// Log context — stored in AsyncLocalStorage
+// Log context — stored in AsyncLocalStorage (server-only)
 // ---------------------------------------------------------------------------
 
 export interface LogContext {
@@ -35,7 +33,32 @@ export interface LogContext {
   function?: string
 }
 
-const logContextStore = new AsyncLocalStorage<LogContext>()
+// AsyncLocalStorage is a Node-only API. In browser bundles (e.g. Vite client),
+// we use a no-op fallback so that code importing from @byline/core doesn't
+// crash. Context propagation is only meaningful on the server anyway.
+//
+// A dynamic `import('node:async_hooks')` is used instead of a static import
+// to prevent Vite from externalising the module at bundle time. Top-level
+// await is supported by the project's ES2024 target.
+interface LogContextStoreCompat {
+  getStore(): LogContext | undefined
+  run<T>(store: LogContext, fn: () => T): T
+}
+
+const noopStore: LogContextStoreCompat = {
+  getStore: () => undefined,
+  run: <T>(_store: LogContext, fn: () => T) => fn(),
+}
+
+let logContextStore: LogContextStoreCompat
+
+try {
+  const { AsyncLocalStorage } = await import('node:async_hooks')
+  logContextStore = new AsyncLocalStorage<LogContext>()
+} catch {
+  logContextStore = noopStore
+}
+
 export const getLogContext = () => logContextStore.getStore() ?? {}
 export const withLogContext = <T>(context: LogContext, fn: () => T): T => {
   return logContextStore.run({ ...getLogContext(), ...context }, fn)
