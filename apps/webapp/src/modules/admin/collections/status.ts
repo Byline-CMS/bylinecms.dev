@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getServerConfig } from '@byline/core'
+import { getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import {
   changeDocumentStatus,
@@ -38,6 +38,7 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
+      logger: getLogger(),
     }
 
     try {
@@ -76,6 +77,7 @@ export const unpublishDocument = createServerFn({ method: 'POST' })
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
+      logger: getLogger(),
     }
 
     const result = await unpublishDocumentService(ctx, { documentId: id })

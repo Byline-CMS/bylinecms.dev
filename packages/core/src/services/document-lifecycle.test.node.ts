@@ -20,6 +20,7 @@ import {
   updateDocumentWithPatches,
 } from './document-lifecycle.js'
 import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
+import type { BylineLogger } from '../lib/logger.js'
 import type { DocumentLifecycleContext } from './document-lifecycle.js'
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,17 @@ function createMockDb() {
   }
 }
 
+const noopLogger: BylineLogger = {
+  log: vi.fn(),
+  fatal: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+  trace: vi.fn(),
+  silent: vi.fn(),
+}
+
 function buildCtx(
   db: IDbAdapter,
   definition: CollectionDefinition = minimalCollection
@@ -101,6 +113,7 @@ function buildCtx(
     definition,
     collectionId: 'col-1',
     collectionPath: definition.path,
+    logger: noopLogger,
   }
 }
 

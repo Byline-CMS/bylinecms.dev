@@ -1,4 +1,5 @@
 export * from './@types/index.js'
+export { type BylineLogger, getLogger } from './lib/logger.js'
 export {
   defineClientConfig,
   defineServerConfig,

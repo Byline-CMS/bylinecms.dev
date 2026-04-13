@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getServerConfig } from '@byline/core'
+import { getLogger, getServerConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import {
@@ -44,6 +44,7 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
+      logger: getLogger(),
     }
 
     try {

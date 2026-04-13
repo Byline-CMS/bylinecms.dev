@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getServerConfig } from '@byline/core'
+import { getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import { createDocument } from '@byline/core/services'
 
@@ -31,6 +31,7 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
+      logger: getLogger(),
     }
 
     await createDocument(ctx, {

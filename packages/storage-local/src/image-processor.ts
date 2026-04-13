@@ -9,7 +9,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import type { ImageSize } from '@byline/core'
+import type { BylineLogger, ImageSize } from '@byline/core'
 // Sharp ships its own types; no @types/sharp needed.
 import sharp from 'sharp'
 
@@ -111,7 +111,8 @@ export async function generateImageVariants(
   mimeType: string,
   absoluteOriginalPath: string,
   storageBaseDir: string,
-  sizes: ImageSize[]
+  sizes: ImageSize[],
+  logger?: BylineLogger
 ): Promise<ImageVariantResult[]> {
   if (isBypassMimeType(mimeType) || sizes.length === 0) {
     return []
@@ -177,7 +178,7 @@ export async function generateImageVariants(
         format: outputFormat,
       })
     } catch (err: unknown) {
-      console.error(`[image-processor] Failed to generate variant '${size.name}':`, err)
+      logger?.error({ err, variant: size.name }, 'failed to generate image variant')
       // Non-fatal: skip this variant but continue with others.
     }
   }

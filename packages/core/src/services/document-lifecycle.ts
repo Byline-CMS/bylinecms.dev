@@ -29,6 +29,8 @@ import {
   type IStorageProvider,
   normalizeCollectionHook,
 } from '../@types/index.js'
+import type { BylineLogger } from '../lib/logger.js'
+import { withLogContext } from '../lib/logger.js'
 import { applyPatches } from '../patches/index.js'
 import { normaliseDateFields } from '../utils/normalise-dates.js'
 import { deriveVariantStoragePaths } from '../utils/storage-utils.js'
@@ -62,6 +64,8 @@ export interface DocumentLifecycleContext {
    * Optional — existing callers that do not need file cleanup are unaffected.
    */
   storage?: IStorageProvider
+  /** Structured logger instance. Provided via the DI registry. */
+  logger: BylineLogger
 }
 
 // ---------------------------------------------------------------------------
@@ -488,73 +492,80 @@ export async function deleteDocument(
     documentId: string
   }
 ): Promise<DeleteDocumentResult> {
-  const { db, collectionPath, definition } = ctx
-  const hooks: CollectionHooks | undefined = definition.hooks
+  return withLogContext(
+    { domain: 'services', module: 'lifecycle', function: 'deleteDocument' },
+    async () => {
+      const { db, collectionPath, definition, logger } = ctx
+      const hooks: CollectionHooks | undefined = definition.hooks
 
-  // 1. Verify the document exists.
-  //    For upload-enabled collections with storage, fetch with reconstruct: true
-  //    so we can read the stored file path from the primary image/file field
-  //    before the DB rows are deleted.
-  const isUploadCollection = !!definition.upload && !!ctx.storage
-  const latest = await db.queries.documents.getDocumentById({
-    collection_id: ctx.collectionId,
-    document_id: params.documentId,
-    reconstruct: isUploadCollection,
-  })
+      // 1. Verify the document exists.
+      //    For upload-enabled collections with storage, fetch with reconstruct: true
+      //    so we can read the stored file path from the primary image/file field
+      //    before the DB rows are deleted.
+      const isUploadCollection = !!definition.upload && !!ctx.storage
+      const latest = await db.queries.documents.getDocumentById({
+        collection_id: ctx.collectionId,
+        document_id: params.documentId,
+        reconstruct: isUploadCollection,
+      })
 
-  if (latest == null) {
-    throw new DocumentNotFoundError(params.documentId)
-  }
-
-  // Extract the primary file's storage_path before deletion.
-  let primaryStoragePath: string | null = null
-  if (isUploadCollection) {
-    const primaryField = definition.fields.find((f) => f.type === 'image' || f.type === 'file')
-    if (primaryField) {
-      const fieldValue = (latest as Record<string, any>)?.fields?.[primaryField.name]
-      if (
-        fieldValue &&
-        typeof fieldValue === 'object' &&
-        typeof fieldValue.storage_path === 'string'
-      ) {
-        primaryStoragePath = fieldValue.storage_path
+      if (latest == null) {
+        throw new DocumentNotFoundError(params.documentId)
       }
-    }
-  }
 
-  const hookCtx = {
-    documentId: params.documentId,
-    collectionPath,
-  }
-
-  // 2. beforeDelete hook.
-  await invokeHook(hooks?.beforeDelete, hookCtx)
-
-  // 3. Soft-delete all versions.
-  const deletedVersionCount = await db.commands.documents.softDeleteDocument({
-    document_id: params.documentId,
-  })
-
-  // 4. Clean up storage files. Runs only for upload-enabled collections when
-  //    ctx.storage is provided. Non-fatal: logs errors but does not throw.
-  if (primaryStoragePath && ctx.storage && definition.upload) {
-    const allPaths = [
-      primaryStoragePath,
-      ...deriveVariantStoragePaths(primaryStoragePath, definition.upload.sizes ?? []),
-    ]
-    for (const storagePath of allPaths) {
-      try {
-        await ctx.storage.delete(storagePath)
-      } catch (err: unknown) {
-        console.error(`[deleteDocument] Failed to delete storage file '${storagePath}':`, err)
+      // Extract the primary file's storage_path before deletion.
+      let primaryStoragePath: string | null = null
+      if (isUploadCollection) {
+        const primaryField = definition.fields.find(
+          (f) => f.type === 'image' || f.type === 'file'
+        )
+        if (primaryField) {
+          const fieldValue = (latest as Record<string, any>)?.fields?.[primaryField.name]
+          if (
+            fieldValue &&
+            typeof fieldValue === 'object' &&
+            typeof fieldValue.storage_path === 'string'
+          ) {
+            primaryStoragePath = fieldValue.storage_path
+          }
+        }
       }
+
+      const hookCtx = {
+        documentId: params.documentId,
+        collectionPath,
+      }
+
+      // 2. beforeDelete hook.
+      await invokeHook(hooks?.beforeDelete, hookCtx)
+
+      // 3. Soft-delete all versions.
+      const deletedVersionCount = await db.commands.documents.softDeleteDocument({
+        document_id: params.documentId,
+      })
+
+      // 4. Clean up storage files. Runs only for upload-enabled collections when
+      //    ctx.storage is provided. Non-fatal: logs errors but does not throw.
+      if (primaryStoragePath && ctx.storage && definition.upload) {
+        const allPaths = [
+          primaryStoragePath,
+          ...deriveVariantStoragePaths(primaryStoragePath, definition.upload.sizes ?? []),
+        ]
+        for (const storagePath of allPaths) {
+          try {
+            await ctx.storage.delete(storagePath)
+          } catch (err: unknown) {
+            logger.error({ err, storagePath }, 'failed to delete storage file')
+          }
+        }
+      }
+
+      // 5. afterDelete hook.
+      await invokeHook(hooks?.afterDelete, hookCtx)
+
+      return { deletedVersionCount }
     }
-  }
-
-  // 5. afterDelete hook.
-  await invokeHook(hooks?.afterDelete, hookCtx)
-
-  return { deletedVersionCount }
+  )
 }
 
 // ---------------------------------------------------------------------------

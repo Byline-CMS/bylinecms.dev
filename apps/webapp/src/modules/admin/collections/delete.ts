@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getServerConfig } from '@byline/core'
+import { getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import { deleteDocument as deleteDocumentService } from '@byline/core/services'
 
@@ -36,6 +36,7 @@ export const deleteDocument = createServerFn({ method: 'POST' })
       collectionId: config.collection.id,
       collectionPath: path,
       ...(storage ? { storage } : {}),
+      logger: getLogger(),
     }
 
     try {
