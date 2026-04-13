@@ -2,7 +2,7 @@
 
 Welcome to Byline CMS. We're new!
 
-We're hoping to build a developer-friendly, open-source and community-driven AI-first headless CMS.
+We're hoping to build a developer-friendly, open-source and community-driven headless CMS.
 
 <img width="734" alt="byline-screeenshot-03" src="https://github.com/user-attachments/assets/c7d6efa1-71bb-4add-b0a2-34611f17be4c" />
 
@@ -12,31 +12,33 @@ We're hoping to build a developer-friendly, open-source and community-driven AI-
  
 ### Why Byline Exists
  
-Byline grew out of a frustration that we suspect many projects share. In our experience, most content management systems struggle with at least one of three fundamental concerns: versioning, workflow, or content translation. Many struggle with all three. And when they try to support all three at the same time, they tend to break — sometimes silently, sometimes structurally, often in ways that don't surface until you're deep into a real project with real stakes.
+Byline grew out of a frustration that we suspect many projects share. In our experience, most content management systems struggle with at least one of three fundamental concerns: versioning, workflow, or content translation. Many struggle with all three. And when they try to support all three at the same time, they tend to break — sometimes obviously, or more commonly, in ways that don't surface until you're deep into a real project with real stakes.
  
 ### The Three Pillars
  
-We believe that content management rests on three pillars, and that these pillars must coexist without creating mutually exclusive states, and never forcing trade-offs between one and another.
+We believe that content management rests on three pillars, and that these pillars can coexist without creating mutually exclusive states or trade-offs between one and another.
  
-**Content translation is not interface translation.** The language you write your content in is not the same as the language you administer your system in. Most CMS platforms conflate these concerns. Byline separates them at the data model level.
+**Content translation is not interface translation:** The language you write your content in is not the same as the language you administer your system in. Most CMS platforms conflate these concerns. Byline separates them at the data model level.
  
-**Versioning must be immutable and enabled by default.** Every change creates a new version. The current state of a document is a pointer, not a mutation. Versioning is not a feature; it's foundational.
+**Versioning should be immutable and enabled by default:** Every change creates a new version. The current state of a document is a pointer, not a mutation. Versioning is not a feature; it's foundational.
  
-**Workflow must be enabled by default.** Editorial workflow should be a first-class concern, not an afterthought bolted on through plugins or configuration.
+**Workflow should be enabled by default:** Editorial workflow should be a first-class concern, not an afterthought bolted on through plugins or configuration.
  
-These three concerns must work together. A translated document should have its own version history. Each version should carry its own workflow state. Nothing should be silently overwritten or implicitly invalidated. If your data model can't support that, everything built on top of it is a compromise.
+And these three concerns should all work together.
  
 ### Data Ownership
  
-We believe that if you create and store content, you should be able to get it back out. Not through an export plugin that sort of works. Not through an API that gives you 80% of what you stored. Your data should be portable, extractable, and workable — in full — at any time.
+We believe that if you create and store content, you should be able to get it back out. Not through an export plugin that sort of works. Not through an API that gives you 80% of what you stored. Your data should be portable, extractable, and workable in full and at any time.
  
-This isn't an ideological position. It's a practical one. We've worked with enough organisations who've been locked into platforms, or who've lost content in migrations, or who've discovered too late that their CMS stored things in a way that made extraction painful and lossy. Data ownership shouldn't require heroics.
+This isn't an ideological position. It's a practical one. We've worked with enough organisations who've been locked into platforms, or who've lost content in migrations, or who've discovered too late that their CMS stored things in a way that made extraction painful and lossy.
  
 ### What Byline Is — and Isn't
  
 Byline is a headless CMS that manages content with a correct structural foundation. It's opinionated about the things that matter — how versioning, workflow, and translation interact — and flexible about the things that don't.
  
-We're not trying to be the next WordPress or the next Contentful. We're not building a platform that does everything for everyone. And we're not pretending we have all the answers. Byline is early-stage. The architecture is solid, but there's a lot of work ahead — on the plugin system, on the developer experience, on documentation, and on the AI-native features we have planned.
+We're not trying to be the next WordPress or the next Contentful. We're not building a platform that does everything for everyone. And we're not pretending we have all the answers. Byline is early-stage and there's a lot of work ahead.
+ 
+### Building in the Open
  
 The developers of Byline have worked extensively with non-profits and NGOs, and this work has shown us the value of certain freedoms: the freedom to own, control, and share content that deserves to be seen. We're building in the open because we think the problems we're solving are shared problems, and because we'd rather build with people who understand them than in isolation.
 
