@@ -7,6 +7,7 @@
  */
 
 import type { CollectionDefinition, IDbAdapter, IStorageProvider } from '@byline/core'
+import { ERR_NOT_FOUND } from '@byline/core'
 
 import { CollectionHandle } from './collection-handle.js'
 import type { BylineClientConfig } from './types.js'
@@ -37,9 +38,13 @@ export class BylineClient {
   collection(path: string): CollectionHandle {
     const definition = this.collections.find((c) => c.path === path)
     if (!definition) {
-      throw new Error(
-        `Collection not found: '${path}'. Available: ${this.collections.map((c) => c.path).join(', ')}`
-      )
+      throw ERR_NOT_FOUND({
+        message: `Collection not found: '${path}'`,
+        details: {
+          collectionPath: path,
+          available: this.collections.map((c) => c.path),
+        },
+      })
     }
     return new CollectionHandle(this, definition)
   }
@@ -54,7 +59,10 @@ export class BylineClient {
 
     const row = await this.db.queries.collections.getCollectionByPath(path)
     if (!row) {
-      throw new Error(`Collection '${path}' not found in database.`)
+      throw ERR_NOT_FOUND({
+        message: `Collection '${path}' not found in database`,
+        details: { collectionPath: path },
+      })
     }
 
     const id = row.id as string

@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
+import { BylineError, type CollectionDefinition, ErrorCodes } from '@byline/core'
 
 import { parseSort, parseWhere } from './query/parse-where.js'
 import { shapeDocument } from './response.js'
@@ -149,9 +149,9 @@ export class CollectionHandle {
       }
 
       return doc
-    } catch {
-      // getDocumentByPath throws when not found rather than returning null
-      return null
+    } catch (err) {
+      if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) return null
+      throw err
     }
   }
 
