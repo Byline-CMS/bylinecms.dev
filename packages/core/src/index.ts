@@ -1,5 +1,4 @@
 export * from './@types/index.js'
-export { type BylineLogger, getLogger } from './lib/logger.js'
 export {
   defineClientConfig,
   defineServerConfig,
@@ -10,6 +9,8 @@ export {
 } from './config/config.js'
 export { type BylineCore, initBylineCore } from './core.js'
 export * from './defaults/default-values.js'
+export { BylineError, ErrorCodes, type ErrorReport } from './lib/errors.js'
+export { type BylineLogger, getLogger } from './lib/logger.js'
 export { AsyncRegistry, type RegisteredServices, Registry } from './lib/registry.js'
 export * from './patches/index.js'
 export { getCollectionSchemasForPath } from './schemas/zod/cache.js'

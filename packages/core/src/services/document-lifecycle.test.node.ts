@@ -8,13 +8,10 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { BylineError, ErrorCodes } from '../lib/errors.js'
 import {
-  ConflictError,
   changeDocumentStatus,
   createDocument,
-  DocumentNotFoundError,
-  InvalidTransitionError,
-  PatchApplicationError,
   unpublishDocument,
   updateDocument,
   updateDocumentWithPatches,
@@ -414,7 +411,7 @@ describe('Document lifecycle service', () => {
   // updateDocumentWithPatches
   // -----------------------------------------------------------------------
   describe('updateDocumentWithPatches', () => {
-    it('throws DocumentNotFoundError when document is missing', async () => {
+    it('throws ERR_NOT_FOUND when document is missing', async () => {
       const { db, getDocumentById } = createMockDb()
       getDocumentById.mockResolvedValue(null)
       const ctx = buildCtx(db)
@@ -424,10 +421,12 @@ describe('Document lifecycle service', () => {
           documentId: 'doc-missing',
           patches: [],
         })
-      ).rejects.toThrow(DocumentNotFoundError)
+      ).rejects.toSatisfy(
+        (err: BylineError) => err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND
+      )
     })
 
-    it('throws ConflictError on version mismatch', async () => {
+    it('throws ERR_CONFLICT on version mismatch', async () => {
       const { db, getDocumentById } = createMockDb()
       getDocumentById.mockResolvedValue({
         document_version_id: 'ver-current',
@@ -441,10 +440,12 @@ describe('Document lifecycle service', () => {
           patches: [],
           documentVersionId: 'ver-stale',
         })
-      ).rejects.toThrow(ConflictError)
+      ).rejects.toSatisfy(
+        (err: BylineError) => err instanceof BylineError && err.code === ErrorCodes.CONFLICT
+      )
     })
 
-    it('throws PatchApplicationError when applyPatches returns errors', async () => {
+    it('throws ERR_PATCH_FAILED when applyPatches returns errors', async () => {
       const { db, getDocumentById } = createMockDb()
       getDocumentById.mockResolvedValue({ fields: { title: 'Old', path: 'old' } })
       const ctx = buildCtx(db)
@@ -455,7 +456,9 @@ describe('Document lifecycle service', () => {
           documentId: 'doc-1',
           patches: [{ kind: 'array.move', path: 'title', itemId: 'x', toIndex: 0 }],
         })
-      ).rejects.toThrow(PatchApplicationError)
+      ).rejects.toSatisfy(
+        (err: BylineError) => err instanceof BylineError && err.code === ErrorCodes.PATCH_FAILED
+      )
     })
 
     it('persists patched data and invokes hooks', async () => {
@@ -509,17 +512,19 @@ describe('Document lifecycle service', () => {
       expect(result.newStatus).toBe('published')
     })
 
-    it('throws DocumentNotFoundError when document is missing', async () => {
+    it('throws ERR_NOT_FOUND when document is missing', async () => {
       const { db, getDocumentById } = createMockDb()
       getDocumentById.mockResolvedValue(null)
       const ctx = buildCtx(db)
 
       await expect(
         changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
-      ).rejects.toThrow(DocumentNotFoundError)
+      ).rejects.toSatisfy(
+        (err: BylineError) => err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND
+      )
     })
 
-    it('throws InvalidTransitionError for an invalid transition', async () => {
+    it('throws ERR_INVALID_TRANSITION for an invalid transition', async () => {
       const { db, getDocumentById } = createMockDb()
       getDocumentById.mockResolvedValue({
         status: 'draft',
@@ -530,7 +535,10 @@ describe('Document lifecycle service', () => {
       // draft → archived skips 'published', which is not ±1
       await expect(
         changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'archived' })
-      ).rejects.toThrow(InvalidTransitionError)
+      ).rejects.toSatisfy(
+        (err: BylineError) =>
+          err instanceof BylineError && err.code === ErrorCodes.INVALID_TRANSITION
+      )
     })
 
     it('invokes beforeStatusChange and afterStatusChange hooks', async () => {
@@ -580,7 +588,10 @@ describe('Document lifecycle service', () => {
 
       await expect(
         changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'archived' })
-      ).rejects.toThrow(InvalidTransitionError)
+      ).rejects.toSatisfy(
+        (err: BylineError) =>
+          err instanceof BylineError && err.code === ErrorCodes.INVALID_TRANSITION
+      )
 
       expect(hooks.beforeStatusChange).not.toHaveBeenCalled()
       expect(hooks.afterStatusChange).not.toHaveBeenCalled()

@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getLogger, getServerConfig } from '@byline/core'
+import { BylineError, ErrorCodes, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import { deleteDocument as deleteDocumentService } from '@byline/core/services'
 
@@ -42,8 +42,8 @@ export const deleteDocument = createServerFn({ method: 'POST' })
     try {
       const result = await deleteDocumentService(ctx, { documentId: id })
       return { status: 'ok' as const, deletedVersionCount: result.deletedVersionCount }
-    } catch (err: any) {
-      if (err.name === 'DocumentNotFoundError') throw new Error('Document not found')
+    } catch (err) {
+      if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) throw err
       throw err
     }
   })

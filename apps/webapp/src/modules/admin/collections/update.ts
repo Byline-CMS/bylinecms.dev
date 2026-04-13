@@ -8,14 +8,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getLogger, getServerConfig } from '@byline/core'
+import { BylineError, ErrorCodes, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import type { DocumentLifecycleContext } from '@byline/core/services'
-import {
-  ConflictError,
-  PatchApplicationError,
-  updateDocumentWithPatches,
-} from '@byline/core/services'
+import { updateDocumentWithPatches } from '@byline/core/services'
 
 import { ensureCollection } from '@/lib/api-utils'
 
@@ -55,17 +51,10 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
         locale: locale ?? 'en',
       })
     } catch (error) {
-      if (error instanceof ConflictError) {
-        const err = new Error(`Conflict: ${error.message}`) as Error & {
-          currentVersionId?: string
-          yourVersionId?: string
+      if (error instanceof BylineError) {
+        if (error.code === ErrorCodes.CONFLICT || error.code === ErrorCodes.PATCH_FAILED) {
+          throw error
         }
-        err.currentVersionId = error.currentVersionId
-        err.yourVersionId = error.yourVersionId
-        throw err
-      }
-      if (error instanceof PatchApplicationError) {
-        throw new Error(`Failed to apply patches: ${(error.errors ?? []).join(', ')}`)
       }
       throw error
     }

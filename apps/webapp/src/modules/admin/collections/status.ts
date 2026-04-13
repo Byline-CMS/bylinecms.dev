@@ -8,12 +8,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getLogger, getServerConfig } from '@byline/core'
+import { BylineError, ErrorCodes, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import {
   changeDocumentStatus,
-  DocumentNotFoundError,
-  InvalidTransitionError,
   unpublishDocument as unpublishDocumentService,
 } from '@byline/core/services'
 
@@ -53,9 +51,11 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
         newStatus: result.newStatus,
       }
     } catch (error) {
-      if (error instanceof DocumentNotFoundError) throw new Error('Document not found')
-      if (error instanceof InvalidTransitionError)
-        throw new Error(`Invalid transition: ${error.message}`)
+      if (error instanceof BylineError) {
+        if (error.code === ErrorCodes.NOT_FOUND || error.code === ErrorCodes.INVALID_TRANSITION) {
+          throw error
+        }
+      }
       throw error
     }
   })

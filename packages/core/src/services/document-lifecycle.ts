@@ -29,13 +29,19 @@ import {
   type IStorageProvider,
   normalizeCollectionHook,
 } from '../@types/index.js'
-import type { BylineLogger } from '../lib/logger.js'
+import {
+  ERR_CONFLICT,
+  ERR_INVALID_TRANSITION,
+  ERR_NOT_FOUND,
+  ERR_PATCH_FAILED,
+} from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
 import { applyPatches } from '../patches/index.js'
 import { normaliseDateFields } from '../utils/normalise-dates.js'
 import { deriveVariantStoragePaths } from '../utils/storage-utils.js'
 import { getDefaultStatus, getWorkflow, validateStatusTransition } from '../workflow/workflow.js'
-import type { DocumentPatch, PatchError as PatchErrorInfo } from '../patches/index.js'
+import type { BylineLogger } from '../lib/logger.js'
+import type { DocumentPatch } from '../patches/index.js'
 
 // ---------------------------------------------------------------------------
 // Context shared by all lifecycle functions
@@ -148,47 +154,52 @@ export async function createDocument(
     status?: string
   }
 ): Promise<CreateDocumentResult> {
-  const { db, definition, collectionId, collectionPath } = ctx
-  const hooks: CollectionHooks | undefined = definition.hooks
-  const data = params.data
+  return withLogContext(
+    { domain: 'services', module: 'lifecycle', function: 'createDocument' },
+    async () => {
+      const { db, definition, collectionId, collectionPath } = ctx
+      const hooks: CollectionHooks | undefined = definition.hooks
+      const data = params.data
 
-  normaliseDateFields(data)
+      normaliseDateFields(data)
 
-  await invokeHook(hooks?.beforeCreate, { data, collectionPath })
+      await invokeHook(hooks?.beforeCreate, { data, collectionPath })
 
-  // Ensure path is present. If not, generate one from title or random UUID.
-  if (!data.path) {
-    if (data.title) {
-      data.path = data.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '')
-    } else {
-      data.path = crypto.randomUUID()
+      // Ensure path is present. If not, generate one from title or random UUID.
+      if (!data.path) {
+        if (data.title) {
+          data.path = data.title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, '')
+        } else {
+          data.path = crypto.randomUUID()
+        }
+      }
+
+      const result = await db.commands.documents.createDocumentVersion({
+        collectionId,
+        collectionConfig: definition,
+        action: 'create',
+        documentData: data,
+        path: data.path,
+        status: params.status ?? data.status,
+        locale: params.locale ?? 'en',
+      })
+
+      const documentId = extractDocumentId(result.document)
+      const documentVersionId = extractVersionId(result.document)
+
+      await invokeHook(hooks?.afterCreate, {
+        data,
+        collectionPath,
+        documentId,
+        documentVersionId,
+      })
+
+      return { documentId, documentVersionId }
     }
-  }
-
-  const result = await db.commands.documents.createDocumentVersion({
-    collectionId,
-    collectionConfig: definition,
-    action: 'create',
-    documentData: data,
-    path: data.path,
-    status: params.status ?? data.status,
-    locale: params.locale ?? 'en',
-  })
-
-  const documentId = extractDocumentId(result.document)
-  const documentVersionId = extractVersionId(result.document)
-
-  await invokeHook(hooks?.afterCreate, {
-    data,
-    collectionPath,
-    documentId,
-    documentVersionId,
-  })
-
-  return { documentId, documentVersionId }
+  )
 }
 
 /**
@@ -212,51 +223,56 @@ export async function updateDocument(
     locale?: string
   }
 ): Promise<UpdateDocumentResult> {
-  const { db, definition, collectionId, collectionPath } = ctx
-  const hooks: CollectionHooks | undefined = definition.hooks
-  const data = params.data
+  return withLogContext(
+    { domain: 'services', module: 'lifecycle', function: 'updateDocument' },
+    async () => {
+      const { db, definition, collectionId, collectionPath } = ctx
+      const hooks: CollectionHooks | undefined = definition.hooks
+      const data = params.data
 
-  // Fetch the real original so hooks get accurate originalData (fixes the
-  // PUT handler bug where originalData === data).
-  const latest = await db.queries.documents.getDocumentById({
-    collection_id: collectionId,
-    document_id: params.documentId,
-    locale: params.locale ?? 'en',
-    reconstruct: true,
-  })
+      // Fetch the real original so hooks get accurate originalData (fixes the
+      // PUT handler bug where originalData === data).
+      const latest = await db.queries.documents.getDocumentById({
+        collection_id: collectionId,
+        document_id: params.documentId,
+        locale: params.locale ?? 'en',
+        reconstruct: true,
+      })
 
-  const originalData: Record<string, any> = (latest as Record<string, any>) ?? {}
+      const originalData: Record<string, any> = (latest as Record<string, any>) ?? {}
 
-  normaliseDateFields(data)
+      normaliseDateFields(data)
 
-  await invokeHook(hooks?.beforeUpdate, { data, originalData, collectionPath })
+      await invokeHook(hooks?.beforeUpdate, { data, originalData, collectionPath })
 
-  const defaultStatus = getDefaultStatus(definition)
+      const defaultStatus = getDefaultStatus(definition)
 
-  const result = await db.commands.documents.createDocumentVersion({
-    documentId: params.documentId,
-    collectionId,
-    collectionConfig: definition,
-    action: 'update',
-    documentData: data,
-    path: data.path ?? originalData.path ?? '/',
-    status: defaultStatus,
-    locale: params.locale ?? 'en',
-    previousVersionId: originalData.document_version_id as string | undefined,
-  })
+      const result = await db.commands.documents.createDocumentVersion({
+        documentId: params.documentId,
+        collectionId,
+        collectionConfig: definition,
+        action: 'update',
+        documentData: data,
+        path: data.path ?? originalData.path ?? '/',
+        status: defaultStatus,
+        locale: params.locale ?? 'en',
+        previousVersionId: originalData.document_version_id as string | undefined,
+      })
 
-  const documentId = extractDocumentId(result.document) || params.documentId
-  const documentVersionId = extractVersionId(result.document)
+      const documentId = extractDocumentId(result.document) || params.documentId
+      const documentVersionId = extractVersionId(result.document)
 
-  await invokeHook(hooks?.afterUpdate, {
-    data,
-    originalData,
-    collectionPath,
-    documentId,
-    documentVersionId,
-  })
+      await invokeHook(hooks?.afterUpdate, {
+        data,
+        originalData,
+        collectionPath,
+        documentId,
+        documentVersionId,
+      })
 
-  return { documentId, documentVersionId }
+      return { documentId, documentVersionId }
+    }
+  )
 }
 
 /**
@@ -271,8 +287,8 @@ export async function updateDocument(
  *   6. `db.commands.documents.createDocumentVersion(...)` (action = 'update')
  *   7. `hooks.afterUpdate({ data: nextData, originalData, collectionPath, documentId, documentVersionId })`
  *
- * @throws {ConflictError} if the supplied `documentVersionId` does not match the current version.
- * @throws {PatchError} if `applyPatches` fails.
+ * @throws {BylineError} ERR_CONFLICT if the supplied `documentVersionId` does not match the current version.
+ * @throws {BylineError} ERR_PATCH_FAILED if `applyPatches` fails.
  */
 export async function updateDocumentWithPatches(
   ctx: DocumentLifecycleContext,
@@ -284,75 +300,95 @@ export async function updateDocumentWithPatches(
     locale?: string
   }
 ): Promise<UpdateDocumentWithPatchesResult> {
-  const { db, definition, collectionId, collectionPath } = ctx
-  const hooks: CollectionHooks | undefined = definition.hooks
+  return withLogContext(
+    { domain: 'services', module: 'lifecycle', function: 'updateDocumentWithPatches' },
+    async () => {
+      const { db, definition, collectionId, collectionPath } = ctx
+      const hooks: CollectionHooks | undefined = definition.hooks
 
-  // 1. Fetch current document.
-  const latest = await db.queries.documents.getDocumentById({
-    collection_id: collectionId,
-    document_id: params.documentId,
-    locale: params.locale ?? 'en',
-    reconstruct: true,
-  })
+      // 1. Fetch current document.
+      const latest = await db.queries.documents.getDocumentById({
+        collection_id: collectionId,
+        document_id: params.documentId,
+        locale: params.locale ?? 'en',
+        reconstruct: true,
+      })
 
-  if (latest == null) {
-    throw new DocumentNotFoundError(params.documentId)
-  }
+      if (latest == null) {
+        throw ERR_NOT_FOUND({
+          message: 'document not found',
+          details: { documentId: params.documentId },
+        }).log(ctx.logger)
+      }
 
-  const originalData = latest as Record<string, any>
+      const originalData = latest as Record<string, any>
 
-  // 2. Optimistic concurrency check.
-  if (params.documentVersionId && params.documentVersionId !== originalData.document_version_id) {
-    throw new ConflictError(originalData.document_version_id, params.documentVersionId)
-  }
+      // 2. Optimistic concurrency check.
+      if (
+        params.documentVersionId &&
+        params.documentVersionId !== originalData.document_version_id
+      ) {
+        throw ERR_CONFLICT({
+          message: 'document has been modified since you loaded it',
+          details: {
+            currentVersionId: originalData.document_version_id,
+            yourVersionId: params.documentVersionId,
+          },
+        }).log(ctx.logger)
+      }
 
-  // 3. Apply patches (patches operate on flat field data, not the full envelope).
-  const { doc: patchedDocument, errors } = applyPatches(
-    definition,
-    originalData.fields ?? {},
-    params.patches
+      // 3. Apply patches (patches operate on flat field data, not the full envelope).
+      const { doc: patchedDocument, errors } = applyPatches(
+        definition,
+        originalData.fields ?? {},
+        params.patches
+      )
+
+      if (errors.length > 0) {
+        throw ERR_PATCH_FAILED({
+          message: `failed to apply patches: ${errors.map((e) => e.message).join('; ')}`,
+          details: { errors },
+        }).log(ctx.logger)
+      }
+
+      const nextData = patchedDocument as Record<string, any>
+
+      // 4. Normalise dates.
+      normaliseDateFields(nextData)
+
+      // 5. beforeUpdate hook.
+      await invokeHook(hooks?.beforeUpdate, { data: nextData, originalData, collectionPath })
+
+      // 6. Persist.
+      const defaultStatus = getDefaultStatus(definition)
+
+      const result = await db.commands.documents.createDocumentVersion({
+        documentId: params.documentId,
+        collectionId,
+        collectionConfig: definition,
+        action: 'update',
+        documentData: nextData,
+        path: nextData.path ?? originalData.path ?? '/',
+        status: defaultStatus,
+        locale: params.locale ?? 'en',
+        previousVersionId: originalData.document_version_id as string | undefined,
+      })
+
+      const documentId = extractDocumentId(result.document) || params.documentId
+      const documentVersionId = extractVersionId(result.document)
+
+      // 7. afterUpdate hook.
+      await invokeHook(hooks?.afterUpdate, {
+        data: nextData,
+        originalData,
+        collectionPath,
+        documentId,
+        documentVersionId,
+      })
+
+      return { documentId, documentVersionId }
+    }
   )
-
-  if (errors.length > 0) {
-    throw new PatchApplicationError(errors)
-  }
-
-  const nextData = patchedDocument as Record<string, any>
-
-  // 4. Normalise dates.
-  normaliseDateFields(nextData)
-
-  // 5. beforeUpdate hook.
-  await invokeHook(hooks?.beforeUpdate, { data: nextData, originalData, collectionPath })
-
-  // 6. Persist.
-  const defaultStatus = getDefaultStatus(definition)
-
-  const result = await db.commands.documents.createDocumentVersion({
-    documentId: params.documentId,
-    collectionId,
-    collectionConfig: definition,
-    action: 'update',
-    documentData: nextData,
-    path: nextData.path ?? originalData.path ?? '/',
-    status: defaultStatus,
-    locale: params.locale ?? 'en',
-    previousVersionId: originalData.document_version_id as string | undefined,
-  })
-
-  const documentId = extractDocumentId(result.document) || params.documentId
-  const documentVersionId = extractVersionId(result.document)
-
-  // 7. afterUpdate hook.
-  await invokeHook(hooks?.afterUpdate, {
-    data: nextData,
-    originalData,
-    collectionPath,
-    documentId,
-    documentVersionId,
-  })
-
-  return { documentId, documentVersionId }
 }
 
 /**
@@ -374,61 +410,74 @@ export async function changeDocumentStatus(
     locale?: string
   }
 ): Promise<ChangeStatusResult> {
-  const { db, definition, collectionId, collectionPath } = ctx
-  const hooks: CollectionHooks | undefined = definition.hooks
+  return withLogContext(
+    { domain: 'services', module: 'lifecycle', function: 'changeDocumentStatus' },
+    async () => {
+      const { db, definition, collectionId, collectionPath } = ctx
+      const hooks: CollectionHooks | undefined = definition.hooks
 
-  // 1. Fetch current document to read its status.
-  const latest = await db.queries.documents.getDocumentById({
-    collection_id: collectionId,
-    document_id: params.documentId,
-    locale: params.locale ?? 'en',
-    reconstruct: false,
-  })
+      // 1. Fetch current document to read its status.
+      const latest = await db.queries.documents.getDocumentById({
+        collection_id: collectionId,
+        document_id: params.documentId,
+        locale: params.locale ?? 'en',
+        reconstruct: false,
+      })
 
-  if (latest == null) {
-    throw new DocumentNotFoundError(params.documentId)
-  }
+      if (latest == null) {
+        throw ERR_NOT_FOUND({
+          message: 'document not found',
+          details: { documentId: params.documentId },
+        }).log(ctx.logger)
+      }
 
-  const currentStatus: string = (latest as any).status ?? 'draft'
-  const documentVersionId: string = (latest as any).document_version_id ?? ''
+      const currentStatus: string = (latest as any).status ?? 'draft'
+      const documentVersionId: string = (latest as any).document_version_id ?? ''
 
-  // 2. Validate transition.
-  const workflow = getWorkflow(definition)
-  const result = validateStatusTransition(workflow, currentStatus, params.nextStatus)
+      // 2. Validate transition.
+      const workflow = getWorkflow(definition)
+      const result = validateStatusTransition(workflow, currentStatus, params.nextStatus)
 
-  if (!result.valid) {
-    throw new InvalidTransitionError(currentStatus, params.nextStatus, result.reason)
-  }
+      if (!result.valid) {
+        throw ERR_INVALID_TRANSITION({
+          message:
+            result.reason ??
+            `invalid status transition from '${currentStatus}' to '${params.nextStatus}'`,
+          details: { currentStatus, nextStatus: params.nextStatus },
+        }).log(ctx.logger)
+      }
 
-  const hookCtx = {
-    documentId: params.documentId,
-    documentVersionId,
-    collectionPath,
-    previousStatus: currentStatus,
-    nextStatus: params.nextStatus,
-  }
+      const hookCtx = {
+        documentId: params.documentId,
+        documentVersionId,
+        collectionPath,
+        previousStatus: currentStatus,
+        nextStatus: params.nextStatus,
+      }
 
-  // 3. beforeStatusChange hook.
-  await invokeHook(hooks?.beforeStatusChange, hookCtx)
+      // 3. beforeStatusChange hook.
+      await invokeHook(hooks?.beforeStatusChange, hookCtx)
 
-  // 4. Mutate status in-place.
-  await db.commands.documents.setDocumentStatus({
-    document_version_id: documentVersionId,
-    status: params.nextStatus,
-  })
+      // 4. Mutate status in-place.
+      await db.commands.documents.setDocumentStatus({
+        document_version_id: documentVersionId,
+        status: params.nextStatus,
+      })
 
-  // 5. Auto-archive previous published versions.
-  if (params.nextStatus === 'published') {
-    await db.commands.documents.archivePublishedVersions({
-      document_id: params.documentId,
-      excludeVersionId: documentVersionId,
-    })
-  }
+      // 5. Auto-archive previous published versions.
+      if (params.nextStatus === 'published') {
+        await db.commands.documents.archivePublishedVersions({
+          document_id: params.documentId,
+          excludeVersionId: documentVersionId,
+        })
+      }
 
-  // 6. afterStatusChange hook.
-  await invokeHook(hooks?.afterStatusChange, hookCtx)
+      // 6. afterStatusChange hook.
+      await invokeHook(hooks?.afterStatusChange, hookCtx)
 
-  return { previousStatus: currentStatus, newStatus: params.nextStatus }
+      return { previousStatus: currentStatus, newStatus: params.nextStatus }
+    }
+  )
 }
 
 /**
@@ -445,25 +494,30 @@ export async function unpublishDocument(
     documentId: string
   }
 ): Promise<UnpublishResult> {
-  const { db, collectionPath } = ctx
-  const hooks: CollectionHooks | undefined = ctx.definition.hooks
+  return withLogContext(
+    { domain: 'services', module: 'lifecycle', function: 'unpublishDocument' },
+    async () => {
+      const { db, collectionPath } = ctx
+      const hooks: CollectionHooks | undefined = ctx.definition.hooks
 
-  await invokeHook(hooks?.beforeUnpublish, {
-    documentId: params.documentId,
-    collectionPath,
-  })
+      await invokeHook(hooks?.beforeUnpublish, {
+        documentId: params.documentId,
+        collectionPath,
+      })
 
-  const archivedCount = await db.commands.documents.archivePublishedVersions({
-    document_id: params.documentId,
-  })
+      const archivedCount = await db.commands.documents.archivePublishedVersions({
+        document_id: params.documentId,
+      })
 
-  await invokeHook(hooks?.afterUnpublish, {
-    documentId: params.documentId,
-    collectionPath,
-    archivedCount,
-  })
+      await invokeHook(hooks?.afterUnpublish, {
+        documentId: params.documentId,
+        collectionPath,
+        archivedCount,
+      })
 
-  return { archivedCount }
+      return { archivedCount }
+    }
+  )
 }
 
 /**
@@ -510,15 +564,16 @@ export async function deleteDocument(
       })
 
       if (latest == null) {
-        throw new DocumentNotFoundError(params.documentId)
+        throw ERR_NOT_FOUND({
+          message: 'document not found',
+          details: { documentId: params.documentId },
+        }).log(ctx.logger)
       }
 
       // Extract the primary file's storage_path before deletion.
       let primaryStoragePath: string | null = null
       if (isUploadCollection) {
-        const primaryField = definition.fields.find(
-          (f) => f.type === 'image' || f.type === 'file'
-        )
+        const primaryField = definition.fields.find((f) => f.type === 'image' || f.type === 'file')
         if (primaryField) {
           const fieldValue = (latest as Record<string, any>)?.fields?.[primaryField.name]
           if (
@@ -566,60 +621,4 @@ export async function deleteDocument(
       return { deletedVersionCount }
     }
   )
-}
-
-// ---------------------------------------------------------------------------
-// Error classes
-// ---------------------------------------------------------------------------
-
-/**
- * Thrown when a document cannot be found by ID.
- */
-export class DocumentNotFoundError extends Error {
-  public readonly documentId: string
-  constructor(documentId: string) {
-    super(`Document not found: ${documentId}`)
-    this.name = 'DocumentNotFoundError'
-    this.documentId = documentId
-  }
-}
-
-/**
- * Thrown when an optimistic concurrency check fails.
- */
-export class ConflictError extends Error {
-  public readonly currentVersionId: string
-  public readonly yourVersionId: string
-  constructor(currentVersionId: string, yourVersionId: string) {
-    super('The document has been modified since you loaded it. Please refresh and try again.')
-    this.name = 'ConflictError'
-    this.currentVersionId = currentVersionId
-    this.yourVersionId = yourVersionId
-  }
-}
-
-/**
- * Thrown when `applyPatches` returns errors.
- */
-export class PatchApplicationError extends Error {
-  public readonly errors: PatchErrorInfo[]
-  constructor(errors: PatchErrorInfo[]) {
-    super(`Failed to apply patches: ${errors.map((e) => e.message).join('; ')}`)
-    this.name = 'PatchApplicationError'
-    this.errors = errors
-  }
-}
-
-/**
- * Thrown when a workflow status transition is invalid.
- */
-export class InvalidTransitionError extends Error {
-  public readonly currentStatus: string
-  public readonly nextStatus: string
-  constructor(currentStatus: string, nextStatus: string, reason?: string) {
-    super(reason ?? `Invalid status transition from '${currentStatus}' to '${nextStatus}'.`)
-    this.name = 'InvalidTransitionError'
-    this.currentStatus = currentStatus
-    this.nextStatus = nextStatus
-  }
 }
