@@ -1,6 +1,5 @@
 # Byline CMS
 
-
 Welcome to Byline CMS. We're new!
 
 We're hoping to build a developer-friendly, open-source and community-driven AI-first headless CMS.
@@ -9,49 +8,73 @@ We're hoping to build a developer-friendly, open-source and community-driven AI-
 
 <p style="font-size: 0.8rem;"><em>Tiny steps - the Byline prototype.</em></p>
 
-## Mission / Vision
-The developers of Byline CMS have worked extensively with non-profits and NGOs, and this work has shown us the profound value of certain freedoms: the freedom to own, control, and share content that deserves to be seen — freedoms that align perfectly with our vision for an open-source, community-driven platform for content management.
+## Mission & Vision
+ 
+### Why Byline Exists
+ 
+Byline grew out of a frustration that we suspect many projects share. In our experience, most content management systems struggle with at least one of three fundamental concerns: versioning, workflow, or content translation. Many struggle with all three. And when they try to support all three at the same time, they tend to break — sometimes silently, sometimes structurally, often in ways that don't surface until you're deep into a real project with real stakes.
+ 
+### The Three Pillars
+ 
+We believe that content management rests on three pillars, and that these pillars must coexist without creating mutually exclusive states, and never forcing trade-offs between one and another.
+ 
+**Content translation is not interface translation.** The language you write your content in is not the same as the language you administer your system in. Most CMS platforms conflate these concerns. Byline separates them at the data model level.
+ 
+**Versioning must be immutable and enabled by default.** Every change creates a new version. The current state of a document is a pointer, not a mutation. Versioning is not a feature; it's foundational.
+ 
+**Workflow must be enabled by default.** Editorial workflow should be a first-class concern, not an afterthought bolted on through plugins or configuration.
+ 
+These three concerns must work together. A translated document should have its own version history. Each version should carry its own workflow state. Nothing should be silently overwritten or implicitly invalidated. If your data model can't support that, everything built on top of it is a compromise.
+ 
+### Data Ownership
+ 
+We believe that if you create and store content, you should be able to get it back out. Not through an export plugin that sort of works. Not through an API that gives you 80% of what you stored. Your data should be portable, extractable, and workable — in full — at any time.
+ 
+This isn't an ideological position. It's a practical one. We've worked with enough organisations who've been locked into platforms, or who've lost content in migrations, or who've discovered too late that their CMS stored things in a way that made extraction painful and lossy. Data ownership shouldn't require heroics.
+ 
+### What Byline Is — and Isn't
+ 
+Byline is a headless CMS that manages content with a correct structural foundation. It's opinionated about the things that matter — how versioning, workflow, and translation interact — and flexible about the things that don't.
+ 
+We're not trying to be the next WordPress or the next Contentful. We're not building a platform that does everything for everyone. And we're not pretending we have all the answers. Byline is early-stage. The architecture is solid, but there's a lot of work ahead — on the plugin system, on the developer experience, on documentation, and on the AI-native features we have planned.
+ 
+The developers of Byline have worked extensively with non-profits and NGOs, and this work has shown us the value of certain freedoms: the freedom to own, control, and share content that deserves to be seen. We're building in the open because we think the problems we're solving are shared problems, and because we'd rather build with people who understand them than in isolation.
 
 ## FAQ
 
 <details>
-<summary>1. Why are you doing this?</summary>
-Our mission statement pretty much sums up the 'why', but we also think there's a need. We're convinced that the three pillars of content management: 1) Workflow (draft, needs review, published, archived, etc.), 2) Versioning / history, and 3) Content language translation, are not mutually exclusive and that we can build a core framework that offers a foundation for all three without compromise. A 'headless' and 'structured content' architecture will also give developers (and ultimately users) the freedom to choose a framework or implementation approach that best suits their needs.
-</details>
-
-<details>
-<summary>2. Who are you?</summary>
+<summary>1. Who are you?</summary>
 We’re pretty much nobody — at least not within the usual spheres of influence. We're an agency based in Southeast Asia, and we're fairly certain you've never heard of us. That said, we have a lot of experience building content solutions for clients — and we’re tired of fighting frameworks for core features our clients need and expect.
 </details>
 
 <details>
-<summary>3. Will this work?</summary>
+<summary>2. Will this work?</summary>
 We hope so - but at this early stage, we have no idea.
 </details>
 
 
 <details>
-<summary>4. What governance structures are you considering? </summary> 
+<summary>3. What governance structures are you considering? </summary> 
 We really like the governance structure of [Penpot](https://community.penpot.app/t/penpots-upcoming-business-model-for-2025/7328). We're committed to 100% open-source software, with no "open core" or "freemium" gotchas.
 </details>
 
 <details>
-<summary>5. Would you accept sponsorship?</summary>
+<summary>4. Would you accept sponsorship?</summary>
 Yes!
 </details>
 
 <details>
-<summary>6. Would you accept venture or seed-round investment?</summary>
+<summary>5. Would you accept venture or seed-round investment?</summary>
 We’re not certain yet, and likely not at this early stage. Our priority is to figure out key aspects of the project first. What we feel strongly about, however, is that community contributions should remain accessible — not locked behind an enterprise or paywalled solution. Ultimately, our governance structure and commitment to being community‑driven will guide any financial decisions we make.
 </details>
 
 <details>
-<summary>7. What's here now?</summary>
-We're working on a prototype as a 'proof of concept' for our design goals. It runs, and you're more than welcome to follow along, but it will almost certain change significantly over time.
+<summary>6. What's here now?</summary>
+We're working on a prototype as a 'proof of concept' for our design goals. It runs, and you're more than welcome to follow along, but it will almost certainly change significantly over time.
 </details>
 
 <details>
-<summary>8. Why the Mozilla Public License (MPL-2.0) Version 2.0?</summary>
+<summary>7. Why the Mozilla Public License (MPL-2.0) Version 2.0?</summary>
 
 We chose the MPL as we feel this represents the best balance between community-driven open source software, and allowing commercial value-based services to flourish.
 
@@ -67,7 +90,7 @@ We feel the MPL will help to encourage collaboration and shared maintenance of t
 ## Design Goals
 1. We aim to create an extensible, plugin-based framework for our headless CMS — enabling users to easily build custom admin dashboards and UI rendering frameworks for front-end clients.
    
-2. We'd like to create an immutable 'versioned-by-default' document store; which means document history by default, and tombstones (soft deletes) by default (including user restoration of tombstoned documents).
+2. We're creating an immutable 'versioned-by-default' document store; which means document history by default, and tombstones (soft deletes) by default (including user restoration of tombstoned documents).
 
 3. We'd like to do the same for collection definitions - 'versioned-by-default' with a superb migration experience. Imagine being able to query data on v1 of your collection definition, migrate the data in memory, and then save your migrated documents against v2 of your collection definition. Zero hoops and zero field wrangling.
 
@@ -83,9 +106,9 @@ We feel the MPL will help to encourage collaboration and shared maintenance of t
    
 9. While we’ll be focused on a small, opinionated core, we’re thinking big — offering enterprise-grade features like built-in content versioning (as described above), along with callbacks and webhooks support for consumer cache invalidation strategies (to name just a few).
 
-7. For our admin dashboards, it should be easy to create content editors with your favorite editor, whether [CKEditor](https://ckeditor.com/), [Lexical](https://lexical.dev/), [TipTap](https://tiptap.dev/), [ProseMirror](https://prosemirror.net/) or other. We've spent years working with [contenteditable](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/contenteditable) editors - like CKeditor, and more recently Lexical. Implementing a good editing experience, [including mobile support on Android](https://discuss.prosemirror.net/t/contenteditable-on-android-is-the-absolute-worst/3810) - is a significant task. Fortunately, we have a 'pretty good' and 'ready to go' opinionated Lexical implementation that will allow us to get off to a great start quickly with a suite of commonly requested editor features.
+10. For our admin dashboards, it should be easy to create content editors with your favorite editor, whether [CKEditor](https://ckeditor.com/), [Lexical](https://lexical.dev/), [TipTap](https://tiptap.dev/), [ProseMirror](https://prosemirror.net/) or other. We've spent years working with [contenteditable](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/contenteditable) editors - like CKeditor, and more recently Lexical. Implementing a good editing experience, [including mobile support on Android](https://discuss.prosemirror.net/t/contenteditable-on-android-is-the-absolute-worst/3810) - is a significant task. Fortunately, we have a 'pretty good' and 'ready to go' opinionated Lexical implementation that will allow us to get off to a great start quickly with a suite of commonly requested editor features.
 
-8. And more....
+11. And more....
 
 ## Key Architectural Decisions
 
