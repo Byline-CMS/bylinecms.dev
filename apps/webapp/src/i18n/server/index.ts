@@ -1,5 +1,5 @@
 // https://github.com/vercel/next.js/tree/canary/examples/app-dir-i18n-routing
-import 'server-only'
+// import 'server-only' // Next.js-only; not available under TanStack Start
 
 import { IntlMessageFormat } from 'intl-messageformat'
 
@@ -9,7 +9,7 @@ import type { Locale } from '@/i18n/i18n-config'
 // We also get the default import for cleaner types
 const translations = {
   en: () => import('../translations/en.json').then((module) => module.default),
-  th: () => import('../translations/th.json').then((module) => module.default),
+  es: () => import('../translations/es.json').then((module) => module.default),
 }
 
 export const getTranslations = async (lng: Locale) => translations[lng]?.() ?? translations.en()

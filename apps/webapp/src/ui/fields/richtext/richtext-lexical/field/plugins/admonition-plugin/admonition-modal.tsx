@@ -134,13 +134,13 @@ export function AdmonitionModal({
             name="admonitionType"
             aria-label="Admonition Type"
             value={synchronizedFormState?.admonitionType.value ?? 'note'}
-            onValueChange={(value: AdmonitionType) => {
+            onValueChange={(value: unknown) => {
               if (synchronizedFormState != null) {
                 const newState = {
                   ...synchronizedFormState,
                   admonitionType: {
                     ...synchronizedFormState.admonitionType,
-                    value,
+                    value: value as AdmonitionType,
                   },
                 }
                 handleOnChange({ formState: newState }).then((newFormState) => {

@@ -147,7 +147,7 @@ export function MediaListView({
       delete params.page
       params.query = query
       navigate({
-        to: '/admin/collections/$collection',
+        to: '/{-$lng}/admin/collections/$collection',
         params: { collection: collectionPath },
         search: params,
       })
@@ -159,7 +159,7 @@ export function MediaListView({
     delete params.page
     delete params.query
     navigate({
-      to: '/admin/collections/$collection',
+      to: '/{-$lng}/admin/collections/$collection',
       params: { collection: collectionPath },
       search: params,
     })
@@ -169,14 +169,15 @@ export function MediaListView({
 
   const currentOrder = parseOrderValue(search.order, search.desc)
 
-  const handleOrderChange = (value: string): void => {
+  const handleOrderChange = (value: string | null): void => {
+    if (value == null) return
     const { order, desc } = splitOrderValue(value as OrderValue)
     const params = structuredClone(search)
     delete params.page
     params.order = order
     params.desc = desc
     navigate({
-      to: '/admin/collections/$collection',
+      to: '/{-$lng}/admin/collections/$collection',
       params: { collection: collectionPath },
       search: params,
     })
@@ -191,14 +192,17 @@ export function MediaListView({
         <div className="flex items-center gap-3 py-0.5">
           <h1 className="m-0! pb-0.5">{data.included.collection.labels.plural as string}</h1>
           <Stats total={data.meta.total} />
-          <IconButton aria-label="Upload New Media" asChild>
-            <Link
-              className="ml-auto"
-              to="/admin/collections/$collection/create"
-              params={{ collection: collectionPath }}
-            >
-              <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
-            </Link>
+          <IconButton
+            aria-label="Upload New Media"
+            render={
+              <Link
+                className="ml-auto"
+                to="/{-$lng}/admin/collections/$collection/create"
+                params={{ collection: collectionPath }}
+              />
+            }
+          >
+            <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
           </IconButton>
         </div>
 
@@ -265,7 +269,7 @@ export function MediaListView({
               return (
                 <Link
                   key={doc.document_id}
-                  to="/admin/collections/$collection/$id"
+                  to="/{-$lng}/admin/collections/$collection/$id"
                   params={{ collection: collectionPath, id: doc.document_id }}
                   className="group flex flex-col overflow-hidden rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-canvas-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors no-underline"
                 >

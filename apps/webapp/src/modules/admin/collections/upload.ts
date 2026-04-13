@@ -1,23 +1,10 @@
+import type { StoredFileValue } from '@byline/core'
+
 export interface UploadDocumentResult {
   /** Present when the upload endpoint created a document (createDocument=true, the default). */
   documentId?: string
   documentVersionId?: string
-  storedFile: {
-    file_id: string
-    filename: string
-    original_filename: string
-    mime_type: string
-    file_size: string
-    storage_provider: string
-    storage_path: string
-    storage_url: string
-    file_hash: string | null
-    image_width: number | null
-    image_height: number | null
-    image_format: string | null
-    processing_status: 'complete' | 'pending' | 'failed'
-    thumbnail_generated: boolean
-  }
+  storedFile: StoredFileValue
   variants: Array<{ name: string; url: string }>
 }
 

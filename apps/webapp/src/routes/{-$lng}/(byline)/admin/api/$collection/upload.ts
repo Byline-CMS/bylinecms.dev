@@ -292,7 +292,7 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/api/$collection/up
           filename: effectiveFilename,
           original_filename: originalFilename,
           mime_type: mimeType,
-          file_size: String(fileSize),
+          file_size: fileSize,
           storage_provider: storedFile.storage_provider,
           storage_path: storedFile.storage_path,
           storage_url: storedFile.storage_url,

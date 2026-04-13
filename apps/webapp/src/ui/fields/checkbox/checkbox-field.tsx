@@ -42,7 +42,7 @@ export const CheckboxField = ({
         size="sm"
         helpText={field.helpText}
         // TODO: Handle indeterminate state
-        onCheckedChange={(value) => {
+        onCheckedChange={(value: boolean | 'indeterminate') => {
           const next = value === 'indeterminate' ? false : Boolean(value)
           onChange?.(next)
         }}
