@@ -8,6 +8,8 @@
 
 import type {
   CollectionDefinition,
+  FieldFilter,
+  FieldSort,
   FlattenedStore,
   ICollectionQueries,
   IDocumentQueries,
@@ -209,7 +211,10 @@ export class DocumentQueries implements IDocumentQueries {
 
     for (let i = 0; i < documentVersionIds.length; i += batch_size) {
       const batch = documentVersionIds.slice(i, i + batch_size)
-      const batchResults = await this.getDocuments({ document_version_ids: batch, locale })
+      const batchResults = await this.getDocumentsByVersionIds({
+        document_version_ids: batch,
+        locale,
+      })
 
       // Add batch results to final result array
       result.push(...batchResults)
@@ -609,10 +614,10 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * getDocuments — fetches and reconstructs multiple documents by version ID.
-   * Primarily used for documents selected by page, batch, or cursor.
+   * getDocumentsByVersionIds — fetches and reconstructs multiple documents by
+   * version ID. Used for batch loading (e.g. relationship population).
    */
-  async getDocuments({
+  async getDocumentsByVersionIds({
     document_version_ids,
     locale = 'all',
   }: {
@@ -1133,6 +1138,233 @@ export class DocumentQueries implements IDocumentQueries {
 
     const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(query)
     return rows as unknown as UnionRowValue[]
+  }
+
+  /**
+   * findDocuments — field-level filtered, sorted, paginated query.
+   *
+   * Each FieldFilter becomes an EXISTS subquery against the appropriate EAV
+   * store table. A FieldSort becomes a LEFT JOIN LATERAL to pull the sort
+   * value into the outer query. Document-level conditions (status, path)
+   * are applied directly on the current_documents view.
+   */
+  async findDocuments({
+    collection_id,
+    filters = [],
+    status,
+    pathFilter,
+    query,
+    sort,
+    orderBy = 'created_at',
+    orderDirection = 'desc',
+    locale = 'en',
+    page = 1,
+    pageSize = 20,
+    fields: requestedFields,
+  }: {
+    collection_id: string
+    filters?: FieldFilter[]
+    status?: string
+    pathFilter?: { operator: string; value: string }
+    query?: string
+    sort?: FieldSort
+    orderBy?: string
+    orderDirection?: 'asc' | 'desc'
+    locale?: string
+    page?: number
+    pageSize?: number
+    fields?: string[]
+  }): Promise<{ documents: any[]; total: number }> {
+    const offset = (page - 1) * pageSize
+
+    // -- Build WHERE conditions -----------------------------------------------
+    const conditions: SQL[] = [sql`d.collection_id = ${collection_id}`]
+
+    if (status) {
+      conditions.push(sql`d.status = ${status}`)
+    }
+
+    if (pathFilter) {
+      conditions.push(
+        this.buildDocumentLevelCondition('d.path', pathFilter.operator, pathFilter.value)
+      )
+    }
+
+    // Text search across configured search fields via EXISTS on store_text.
+    if (query) {
+      const definition = await this.getDefinitionForCollection(collection_id)
+      const searchFields = definition.search?.fields ?? ['title']
+      const searchConditions = searchFields.map(
+        (fieldName) => sql`(field_name = ${fieldName} AND value ILIKE ${`%${query}%`})`
+      )
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM store_text
+        WHERE document_version_id = d.id
+          AND (locale = ${locale} OR locale = 'all')
+          AND (${sql.join(searchConditions, sql` OR `)})
+      )`)
+    }
+
+    // Field-level EXISTS subqueries
+    for (const filter of filters) {
+      conditions.push(this.buildExistsSubquery(filter, locale))
+    }
+
+    const whereClause = sql.join(conditions, sql` AND `)
+
+    // -- Build ORDER BY -------------------------------------------------------
+    let orderClause: SQL
+    let sortJoin: SQL = sql``
+
+    if (sort) {
+      // Field-level sort via LEFT JOIN LATERAL
+      const storeTable = storeTableNames[sort.storeType as StoreType]
+      if (storeTable) {
+        sortJoin = sql`LEFT JOIN LATERAL (
+          SELECT ${sql.raw(sort.valueColumn)} AS _sort_value
+          FROM ${sql.raw(storeTable)}
+          WHERE document_version_id = d.id
+            AND field_name = ${sort.fieldName}
+            AND (locale = ${locale} OR locale = 'all')
+          LIMIT 1
+        ) _sort ON true`
+        orderClause =
+          sort.direction === 'desc'
+            ? sql`_sort._sort_value DESC NULLS LAST`
+            : sql`_sort._sort_value ASC NULLS LAST`
+      } else {
+        // Unrecognised store type — fall back to document-level sort
+        orderClause = this.buildDocumentOrderClause(orderBy, orderDirection)
+      }
+    } else {
+      orderClause = this.buildDocumentOrderClause(orderBy, orderDirection)
+    }
+
+    // -- Count query ----------------------------------------------------------
+    const countQuery = sql`
+      SELECT count(*)::int AS total
+      FROM current_documents d
+      ${sortJoin}
+      WHERE ${whereClause}
+    `
+    const countResult: { rows: { total: number }[] } = await this.db.execute(countQuery)
+    const total = countResult.rows[0]?.total ?? 0
+
+    if (total === 0) {
+      return { documents: [], total: 0 }
+    }
+
+    // -- Main query -----------------------------------------------------------
+    const mainQuery = sql`
+      SELECT d.*
+      FROM current_documents d
+      ${sortJoin}
+      WHERE ${whereClause}
+      ORDER BY ${orderClause}
+      LIMIT ${pageSize}
+      OFFSET ${offset}
+    `
+    const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(mainQuery)
+
+    const currentDocuments: Document[] = rows.map((row) => ({
+      id: row.id as string,
+      document_id: row.document_id as string,
+      collection_id: row.collection_id as string,
+      path: row.path as string,
+      event_type: row.event_type as string,
+      status: row.status as string,
+      is_deleted: row.is_deleted as boolean,
+      created_at: row.created_at as Date,
+      updated_at: row.updated_at as Date,
+      created_by: row.created_by as string,
+      change_summary: row.change_summary as string,
+    }))
+
+    const documents = await this.reconstructDocuments({
+      documents: currentDocuments,
+      locale,
+      fields: requestedFields,
+    })
+
+    return { documents, total }
+  }
+
+  /**
+   * Build an EXISTS subquery for a single field-level filter.
+   */
+  private buildExistsSubquery(filter: FieldFilter, locale: string): SQL {
+    const storeTable = storeTableNames[filter.storeType as StoreType]
+    if (!storeTable) {
+      throw new Error(`Unknown store type: ${filter.storeType}`)
+    }
+
+    const valueCol = sql.raw(filter.valueColumn)
+    const condition = this.buildFilterCondition(valueCol, filter.operator, filter.value)
+
+    return sql`EXISTS (
+      SELECT 1 FROM ${sql.raw(storeTable)}
+      WHERE document_version_id = d.id
+        AND field_name = ${filter.fieldName}
+        AND (locale = ${locale} OR locale = 'all')
+        AND ${condition}
+    )`
+  }
+
+  /**
+   * Build a comparison condition for a filter operator.
+   */
+  private buildFilterCondition(
+    column: SQL,
+    operator: string,
+    value: string | number | boolean | null | Array<string | number>
+  ): SQL {
+    switch (operator) {
+      case '$eq':
+        return value === null ? sql`${column} IS NULL` : sql`${column} = ${value}`
+      case '$ne':
+        return value === null ? sql`${column} IS NOT NULL` : sql`${column} != ${value}`
+      case '$gt':
+        return sql`${column} > ${value}`
+      case '$gte':
+        return sql`${column} >= ${value}`
+      case '$lt':
+        return sql`${column} < ${value}`
+      case '$lte':
+        return sql`${column} <= ${value}`
+      case '$contains':
+        return sql`${column} ILIKE ${`%${String(value)}%`}`
+      case '$in': {
+        const arr = value as Array<string | number>
+        return sql`${column} = ANY(${arr})`
+      }
+      case '$nin': {
+        const arr = value as Array<string | number>
+        return sql`${column} != ALL(${arr})`
+      }
+      default:
+        throw new Error(`Unsupported filter operator: ${operator}`)
+    }
+  }
+
+  /**
+   * Build a condition for a document-level column (status, path).
+   */
+  private buildDocumentLevelCondition(column: string, operator: string, value: string): SQL {
+    const col = sql.raw(column)
+    return this.buildFilterCondition(col, operator, value)
+  }
+
+  /**
+   * Build an ORDER BY clause for a document-level column.
+   */
+  private buildDocumentOrderClause(orderBy: string, direction: 'asc' | 'desc'): SQL {
+    const columnMap: Record<string, string> = {
+      created_at: 'd.created_at',
+      updated_at: 'd.updated_at',
+      path: 'd.path',
+    }
+    const col = columnMap[orderBy] ?? 'd.created_at'
+    return direction === 'desc' ? sql`${sql.raw(col)} DESC` : sql`${sql.raw(col)} ASC`
   }
 
   /**

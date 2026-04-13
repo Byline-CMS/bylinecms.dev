@@ -8,6 +8,7 @@
 
 import type { CollectionDefinition } from '@byline/core'
 
+import { parseSort, parseWhere } from './query/parse-where.js'
 import { shapeDocument } from './response.js'
 import type { BylineClient } from './client.js'
 import type {
@@ -17,7 +18,6 @@ import type {
   FindOneOptions,
   FindOptions,
   FindResult,
-  SortSpec,
 } from './types.js'
 
 /**
@@ -39,44 +39,40 @@ export class CollectionHandle {
    * Find documents with optional filtering, sorting, pagination, and field
    * selection.
    *
-   * Phase 1 supports:
-   * - `where.status` — filter by workflow status
-   * - `where.query` — text search across configured search fields
-   * - `select` — selective field loading
-   * - `sort` — single-field sort (document-level columns only in Phase 1)
-   * - `page` / `pageSize` — pagination
-   * - `locale` — field value locale resolution
+   * All queries are routed through `findDocuments()` which supports
+   * document-level conditions (status, text search), field-level filters
+   * (EXISTS subqueries against EAV store tables), and field-level sorting
+   * (LATERAL JOINs).
    */
   async find(options: FindOptions = {}): Promise<FindResult> {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { where, select, sort, locale = 'en', page = 1, pageSize = 20 } = options
 
-    // Extract supported where conditions.
-    const status = typeof where?.status === 'string' ? where.status : undefined
-    const query = typeof where?.query === 'string' ? where.query : undefined
+    const parsedWhere = parseWhere(where, this.definition)
+    const parsedSort = parseSort(sort, this.definition)
 
-    // Resolve sort — Phase 1 supports document-level columns only.
-    const { order, desc } = resolveSortSpec(sort)
-
-    const result = await this.client.db.queries.documents.getDocumentsByPage({
+    const result = await this.client.db.queries.documents.findDocuments({
       collection_id: collectionId,
+      filters: parsedWhere.fieldFilters,
+      status: parsedWhere.status,
+      pathFilter: parsedWhere.pathFilter,
+      query: parsedWhere.query,
+      sort: parsedSort.fieldSort,
+      orderBy: parsedSort.orderBy,
+      orderDirection: parsedSort.orderDirection,
       locale,
       page,
-      page_size: pageSize,
-      order,
-      desc,
-      query,
-      status,
+      pageSize,
       fields: select,
     })
 
     return {
       docs: result.documents.map(shapeDocument),
       meta: {
-        total: result.meta.total,
-        page: result.meta.page,
-        pageSize: result.meta.page_size,
-        totalPages: result.meta.total_pages,
+        total: result.total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(result.total / pageSize),
       },
     }
   }
@@ -180,41 +176,4 @@ export class CollectionHandle {
     // No status filter — sum all statuses.
     return counts.reduce((sum, c) => sum + c.count, 0)
   }
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Convert a SortSpec to the order/desc pair that getDocumentsByPage expects.
- *
- * Phase 1 only supports document-level sort columns (created_at, path).
- * Field-level sorting requires the query builder (Phase 2).
- */
-export function resolveSortSpec(sort?: SortSpec): { order: string; desc: boolean } {
-  if (!sort) {
-    return { order: 'created_at', desc: true }
-  }
-
-  const entries = Object.entries(sort)
-  if (entries.length === 0) {
-    return { order: 'created_at', desc: true }
-  }
-
-  // Use the first sort key. Map camelCase client names to storage column names.
-  const [field, direction] = entries[0]!
-  const columnMap: Record<string, string> = {
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
-    path: 'path',
-    // Pass through storage-format names as well.
-    created_at: 'created_at',
-    updated_at: 'updated_at',
-  }
-
-  const order = columnMap[field] ?? 'created_at'
-  const desc = direction === 'desc'
-
-  return { order, desc }
 }

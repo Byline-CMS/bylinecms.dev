@@ -396,17 +396,90 @@ and selective field loading. Response shaping maps snake_case → camelCase.
 
 10 unit tests + 16 integration tests (against real Postgres) passing.
 
-### Phase 2 — Field-level filters and sorting
+### ~~Phase 2 — Field-level filters and sorting~~ — Done (2026-04-13)
 
-Add `findDocuments()` to `IDbAdapter` / implement in `db-postgres`. Build the
-`parse-where` → `FieldFilter[]` pipeline. Replace `find()`'s delegation to
-`getDocumentsByPage()` with the new path when `where` contains field-level
-conditions.
+Added `FieldFilter`, `FieldSort`, and `FieldFilterOperator` types to
+`@byline/core`. Added `findDocuments()` to `IDocumentQueries` and implemented
+in `db-postgres` with EXISTS subqueries for field-level filters and LEFT JOIN
+LATERAL for field-level sorting.
 
-### Phase 3 — Relationship population
+Built `parse-where.ts` in `@byline/client/src/query/` — normalises `WhereClause`
+into document-level conditions + `FieldFilter[]` using a field-type-to-store-type
+mapping. `CollectionHandle.find()` detects field-level conditions and routes to
+`findDocuments()` automatically; simple queries still use `getDocumentsByPage()`.
+
+24 unit tests + 18 integration tests (against real Postgres) passing.
+
+### Phase 3 — Relationship population and `depth`
 
 Implement the `populate` post-query pass. Batch-load related documents, handle
 `select` and `depth`.
+
+#### `depth` semantics
+
+A `depth` property on the top-level query options sets the maximum recursion
+depth for all populated relations:
+
+```ts
+const result = await client.collection('posts').find({
+  populate: { author: true, category: true },
+  depth: 2,
+})
+```
+
+- `depth: 0` — no population (ignore `populate` entirely)
+- `depth: 1` — populate the named relations but don't recurse into their
+  relations (**default** when `populate` is present)
+- `depth: 2` — populate named relations, then populate *their* relation fields
+  one more level
+- No `depth` specified → default to 1
+
+#### Efficient batch-by-level strategy
+
+The key insight is **batch by depth level, not by individual relation**:
+
+1. **Level 0**: Run the primary query → get N documents. Scan their
+   reconstructed `fields` for relation field values (`target_document_id` /
+   `target_collection_id`). Relation fields are identified from the collection's
+   `CollectionDefinition.fields`.
+
+2. **Level 1**: Collect all `target_document_id` values across all documents.
+   Group by `target_collection_id` (each target collection needs its own
+   `CollectionDefinition` for reconstruction). Batch-fetch all targets in a
+   single `IN(...)` query + UNION ALL reconstruction. Replace each raw relation
+   value with the populated `ClientDocument`.
+
+3. **Level 2+**: Repeat — scan the just-populated documents for their relation
+   fields, collect IDs, batch-fetch, replace. Stop at `depth`.
+
+This gives **one DB round-trip per depth level**, not one per relation field.
+For `depth: 2` with 20 documents, at most 3 DB queries total (primary query +
+2 population rounds), regardless of how many relation fields exist.
+
+#### Implementation details
+
+**Circular reference protection.** Track visited `document_id` values across
+levels. If a document was already populated, reference the existing object (or
+skip) rather than re-fetching. Prevents infinite loops when e.g.
+`author.organization.members` includes the same author.
+
+**`select` inside `populate`.** When
+`populate: { author: { select: ['name', 'avatar'] } }`, the populated document
+should use selective field loading. This requires adding `fields?: string[]`
+support to the batch-fetch path (currently only `getDocumentsByPage()` supports
+selective loading).
+
+**Document ID → version ID resolution.** `store_relation` stores
+`target_document_id` (logical document ID), but `getDocuments()` takes version
+IDs. Population needs either: (a) a new query method
+`getDocumentsByDocumentIds()` that queries `current_documents` by `document_id`,
+or (b) a lookup against `current_documents` to resolve version IDs first. Option
+(a) is cleaner.
+
+**Where `populate` runs in the pipeline.** After `shapeDocument()` (response
+shaping), replacing the raw `{ target_document_id, target_collection_id }`
+relation value with a shaped `ClientDocument`. This keeps populate logic in
+`@byline/client`, not in the DB adapter.
 
 ### Phase 4 — Write path
 

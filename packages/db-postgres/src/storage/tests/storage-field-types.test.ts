@@ -142,7 +142,7 @@ describe('02 Field Types', () => {
     })
 
     // Request only title and views — should query only text + numeric stores
-    const result = await queryBuilders.documents.getDocumentsByPage({
+    const result = await queryBuilders.documents.findDocuments({
       collection_id: testCollection.id,
       locale: 'en',
       fields: ['title', 'views'],
@@ -165,7 +165,7 @@ describe('02 Field Types', () => {
   })
 
   it('should return all fields when no fields parameter is provided', async () => {
-    const result = await queryBuilders.documents.getDocumentsByPage({
+    const result = await queryBuilders.documents.findDocuments({
       collection_id: testCollection.id,
       locale: 'en',
     })

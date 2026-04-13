@@ -70,16 +70,14 @@ function createMockDb() {
         getCollectionById: vi.fn(),
       },
       documents: {
-        getAllDocuments: vi.fn(),
-        getDocumentsByBatch: vi.fn(),
-        getDocumentsByPage: vi.fn(),
         getDocumentById,
         getDocumentByPath: vi.fn(),
         getDocumentByVersion: vi.fn(),
-        getDocuments: vi.fn(),
+        getDocumentsByVersionIds: vi.fn(),
         getDocumentHistory: vi.fn(),
         getPublishedVersion: vi.fn(),
         getDocumentCountsByStatus: vi.fn(),
+        findDocuments: vi.fn(),
       },
     },
   }

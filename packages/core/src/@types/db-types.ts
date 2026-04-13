@@ -1,5 +1,55 @@
 import type { CollectionDefinition } from '@byline/core'
 
+// ---------------------------------------------------------------------------
+// Field-level filter and sort descriptors
+// ---------------------------------------------------------------------------
+
+/** Operators supported by field-level WHERE clauses. */
+export type FieldFilterOperator =
+  | '$eq'
+  | '$ne'
+  | '$gt'
+  | '$gte'
+  | '$lt'
+  | '$lte'
+  | '$contains'
+  | '$in'
+  | '$nin'
+
+/**
+ * A single field-level filter, pre-resolved to the correct EAV store table
+ * and value column. The client API's `parse-where` module produces these;
+ * the DB adapter consumes them to build EXISTS subqueries.
+ */
+export interface FieldFilter {
+  /** The field name as declared in CollectionDefinition (e.g. 'title'). */
+  fieldName: string
+  /** Which EAV store table holds this field's data (e.g. 'text', 'numeric'). */
+  storeType: string
+  /** The column within the store table that holds the value (e.g. 'value', 'value_integer'). */
+  valueColumn: string
+  /** The comparison operator. */
+  operator: FieldFilterOperator
+  /** The value(s) to compare against. */
+  value: string | number | boolean | null | Array<string | number>
+}
+
+/**
+ * A field-level sort descriptor, pre-resolved to the correct EAV store
+ * table and value column. Used for sorting by field values (as opposed to
+ * document-level columns like created_at).
+ */
+export interface FieldSort {
+  /** The field name as declared in CollectionDefinition. */
+  fieldName: string
+  /** Which EAV store table holds this field's data. */
+  storeType: string
+  /** The column within the store table that holds the sortable value. */
+  valueColumn: string
+  /** Sort direction. */
+  direction: 'asc' | 'desc'
+}
+
 export interface IDbAdapter {
   commands: {
     collections: ICollectionCommands
@@ -68,8 +118,6 @@ export interface IDocumentCommands {
   softDeleteDocument(params: { document_id: string }): Promise<number>
 }
 
-// From: /apps/dashboard/server/storage/storage-queries.ts
-
 export interface ICollectionQueries {
   getAllCollections(): Promise<any[]>
   getCollectionByPath(path: string): Promise<any>
@@ -77,47 +125,6 @@ export interface ICollectionQueries {
 }
 
 export interface IDocumentQueries {
-  getAllDocuments(params: { collection_id: string; locale?: string }): Promise<any[]>
-
-  getDocumentsByBatch(params: {
-    collection_id: string
-    batch_size?: number
-    locale?: string
-  }): Promise<any[]>
-
-  getDocumentsByPage(params: {
-    collection_id: string
-    locale?: string
-    page?: number
-    page_size?: number
-    order?: string
-    desc?: boolean
-    query?: string
-    status?: string
-    fields?: string[]
-  }): Promise<{
-    documents: any[]
-    meta: {
-      total: number
-      page: number
-      page_size: number
-      total_pages: number
-      order: string
-      desc: boolean
-      query?: string
-    }
-    included: {
-      collection: {
-        id: string
-        path: string
-        labels: {
-          singular: string
-          plural: string
-        }
-      }
-    }
-  }>
-
   getDocumentById(params: {
     collection_id: string
     document_id: string
@@ -134,7 +141,10 @@ export interface IDocumentQueries {
 
   getDocumentByVersion(params: { document_version_id: string; locale?: string }): Promise<any>
 
-  getDocuments(params: { document_version_ids: string[]; locale?: string }): Promise<any[]>
+  getDocumentsByVersionIds(params: {
+    document_version_ids: string[]
+    locale?: string
+  }): Promise<any[]>
 
   getDocumentHistory(params: {
     collection_id: string
@@ -185,4 +195,33 @@ export interface IDocumentQueries {
   getDocumentCountsByStatus(params: {
     collection_id: string
   }): Promise<Array<{ status: string; count: number }>>
+
+  /**
+   * Execute a filtered, sorted, paginated query against current documents
+   * using field-level EAV filters and optional field-level sorting.
+   *
+   * Used by the client API's query builder (Phase 2). Each FieldFilter
+   * becomes an EXISTS subquery against the appropriate store table; a
+   * FieldSort becomes a LATERAL JOIN to pull the sort value into the
+   * outer query.
+   */
+  findDocuments(params: {
+    collection_id: string
+    filters?: FieldFilter[]
+    status?: string
+    pathFilter?: { operator: FieldFilterOperator; value: string }
+    /** Text search across the collection's configured search fields. */
+    query?: string
+    sort?: FieldSort
+    /** Document-level sort column (created_at, updated_at, path). Used when sort is not a field-level sort. */
+    orderBy?: string
+    orderDirection?: 'asc' | 'desc'
+    locale?: string
+    page?: number
+    pageSize?: number
+    fields?: string[]
+  }): Promise<{
+    documents: any[]
+    total: number
+  }>
 }
