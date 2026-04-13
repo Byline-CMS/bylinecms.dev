@@ -161,13 +161,13 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
           file_size: z.string(),
           storage_provider: z.string(),
           storage_path: z.string(),
-          storage_url: z.string().nullable(),
-          file_hash: z.string().nullable(),
-          image_width: z.number().nullable(),
-          image_height: z.number().nullable(),
-          image_format: z.string().nullable(),
+          storage_url: z.string().nullable().optional(),
+          file_hash: z.string().nullable().optional(),
+          image_width: z.number().nullable().optional(),
+          image_height: z.number().nullable().optional(),
+          image_format: z.string().nullable().optional(),
           processing_status: z.enum(['pending', 'processing', 'complete', 'failed']),
-          thumbnail_generated: z.boolean(),
+          thumbnail_generated: z.boolean().optional(),
         })
         .passthrough()
       break

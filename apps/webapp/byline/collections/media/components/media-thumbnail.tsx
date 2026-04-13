@@ -39,7 +39,8 @@ export function FormatBadge({ format }: { format: string }) {
  */
 export function MediaThumbnail({ record }: FormatterProps) {
   const doc = record as Record<string, any>
-  const img = doc.image as StoredFileValue | null | undefined
+  const fields = doc.fields ?? {}
+  const img = fields.image as StoredFileValue | null | undefined
 
   if (!img?.storage_url) {
     return (

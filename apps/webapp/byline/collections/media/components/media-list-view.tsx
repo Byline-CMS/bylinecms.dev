@@ -257,7 +257,8 @@ export function MediaListView({
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6 mt-4">
             {(data.documents as any[]).map((doc) => {
-              const img = doc.image as StoredFileValue | null | undefined
+              const fields = doc.fields ?? {}
+              const img = fields.image as StoredFileValue | null | undefined
               const thumbUrl = img?.storage_url
                 ? img.thumbnail_generated
                   ? deriveThumbnailUrl(img.storage_url)
@@ -278,7 +279,7 @@ export function MediaListView({
                     {thumbUrl ? (
                       <img
                         src={thumbUrl}
-                        alt={doc.altText ?? img?.original_filename ?? ''}
+                        alt={fields.altText ?? img?.original_filename ?? ''}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         loading="lazy"
                       />
@@ -293,9 +294,9 @@ export function MediaListView({
                   <div className="flex flex-col gap-1.5 p-2 min-w-0">
                     <span
                       className="truncate text-sm font-medium leading-snug"
-                      title={doc.title ?? ''}
+                      title={fields.title ?? ''}
                     >
-                      {doc.title ?? '—'}
+                      {fields.title ?? '—'}
                     </span>
                     <div className="flex flex-wrap items-center justify-between gap-1">
                       <div className="flex flex-wrap items-center gap-1">
