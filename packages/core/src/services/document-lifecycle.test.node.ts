@@ -74,6 +74,7 @@ function createMockDb() {
         getDocumentsByVersionIds: vi.fn(),
         getDocumentHistory: vi.fn(),
         getPublishedVersion: vi.fn(),
+        getPublishedDocumentIds: vi.fn(),
         getDocumentCountsByStatus: vi.fn(),
         findDocuments: vi.fn(),
       },

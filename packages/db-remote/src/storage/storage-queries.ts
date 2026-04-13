@@ -99,6 +99,14 @@ export class DocumentQueries implements IDocumentQueries {
     throw new Error('db-remote method not implemented.')
   }
 
+  async getPublishedDocumentIds(_params: {
+    collection_id: string
+    document_ids: string[]
+    status?: string
+  }): Promise<Set<string>> {
+    return new Set()
+  }
+
   async getDocumentCountsByStatus(_params: {
     collection_id: string
   }): Promise<Array<{ status: string; count: number }>> {

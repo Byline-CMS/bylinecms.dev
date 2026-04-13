@@ -871,6 +871,40 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * getPublishedDocumentIds
+   *
+   * Given a list of document IDs, return the subset that have at least one
+   * version with the requested status (defaults to 'published'). Uses a
+   * single batch query instead of per-document lookups.
+   */
+  async getPublishedDocumentIds({
+    collection_id,
+    document_ids,
+    status = 'published',
+  }: {
+    collection_id: string
+    document_ids: string[]
+    status?: string
+  }): Promise<Set<string>> {
+    if (document_ids.length === 0) return new Set()
+
+    const rows = await this.db
+      .select({ document_id: documentVersions.document_id })
+      .from(documentVersions)
+      .where(
+        and(
+          inArray(documentVersions.document_id, document_ids),
+          eq(documentVersions.collection_id, collection_id),
+          eq(documentVersions.status, status),
+          eq(documentVersions.is_deleted, false)
+        )
+      )
+      .groupBy(documentVersions.document_id)
+
+    return new Set(rows.map((r) => r.document_id))
+  }
+
+  /**
    * getDocumentCountsByStatus
    *
    * Returns a count of current documents grouped by workflow status for a

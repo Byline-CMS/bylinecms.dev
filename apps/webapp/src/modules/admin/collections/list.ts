@@ -64,25 +64,18 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       fields: params.fields,
     })
 
-    // Determine which documents in this page have a published version
-    // anywhere in their version history. Powers the "live" indicator in the list UI.
+    // Determine which documents on this page have a published version anywhere
+    // in their version history (even if the current version is a newer draft).
+    // This powers the green "live" indicator dot in the list UI, so editors can
+    // see at a glance which documents are publicly visible.
     const documentIds = result.documents.map((d: any) => d.document_id)
-    const publishedSet = new Set<string>()
-    if (documentIds.length > 0) {
-      const allCounts = await Promise.all(
-        [...new Set(documentIds)].map(async (docId: string) => {
-          const pv = await db.queries.documents.getPublishedVersion({
+    const publishedSet =
+      documentIds.length > 0
+        ? await db.queries.documents.getPublishedDocumentIds({
             collection_id: config.collection.id,
-            document_id: docId,
-            status: 'published',
+            document_ids: documentIds,
           })
-          return { docId, hasPublished: pv != null }
-        })
-      )
-      for (const { docId, hasPublished } of allCounts) {
-        if (hasPublished) publishedSet.add(docId)
-      }
-    }
+        : new Set<string>()
 
     for (const doc of result.documents) {
       ;(doc as any).has_published_version = publishedSet.has((doc as any).document_id)

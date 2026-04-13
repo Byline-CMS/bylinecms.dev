@@ -28,6 +28,7 @@ import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
+import { StatusBadge } from './status-badge'
 
 /**
  * Resolve a column value from a document, checking `fields` first (user-defined
@@ -248,17 +249,11 @@ export const ListView = ({
                             column.formatter
                           )
                         ) : column.fieldName === 'status' && workflowStatuses ? (
-                          <span className="inline-flex items-center gap-1">
-                            {workflowStatuses.find((s) => s.name === (document as any).status)
-                              ?.label ?? String((document as any).status ?? '')}
-                            {(document as any).has_published_version === true &&
-                              (document as any).status !== 'published' && (
-                                <span
-                                  title="A published version is live"
-                                  className="inline-block w-2 h-2 rounded-full bg-emerald-500"
-                                />
-                              )}
-                          </span>
+                          <StatusBadge
+                            status={(document as any).status}
+                            workflowStatuses={workflowStatuses}
+                            hasPublishedVersion={(document as any).has_published_version}
+                          />
                         ) : (
                           String(getColumnValue(document, column.fieldName as string) ?? '')
                         )}

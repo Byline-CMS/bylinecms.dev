@@ -20,6 +20,7 @@ import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
 import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
 import { i18n } from '~/i18n'
+import { StatusBadge } from './status-badge'
 import { ViewMenu } from './view-menu'
 
 /**
@@ -273,8 +274,10 @@ export const HistoryView = ({
                               column.formatter
                             )
                           ) : column.fieldName === 'status' && workflowStatuses ? (
-                            (workflowStatuses.find((s) => s.name === (document as any).status)
-                              ?.label ?? String((document as any).status ?? ''))
+                            <StatusBadge
+                              status={(document as any).status}
+                              workflowStatuses={workflowStatuses}
+                            />
                           ) : (
                             resolveDisplayValue(
                               getColumnValue(document, column.fieldName as string),

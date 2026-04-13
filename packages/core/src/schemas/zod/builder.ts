@@ -209,6 +209,7 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
     document_version_id: z.uuid().optional(),
     document_id: z.uuid(),
     status: statusEnum,
+    has_published_version: z.boolean().optional(),
     created_at: z.iso.datetime(),
     updated_at: z.iso.datetime(),
   })

@@ -188,6 +188,17 @@ export interface IDocumentQueries {
   } | null>
 
   /**
+   * Return the set of document IDs (from the provided list) that have at
+   * least one version with the given status. Used to efficiently annotate
+   * list views with a "published version exists" flag.
+   */
+  getPublishedDocumentIds(params: {
+    collection_id: string
+    document_ids: string[]
+    status?: string
+  }): Promise<Set<string>>
+
+  /**
    * Return a count of current documents grouped by status for a given
    * collection. Uses the `current_documents` view so each logical document
    * is counted once at its latest version.
