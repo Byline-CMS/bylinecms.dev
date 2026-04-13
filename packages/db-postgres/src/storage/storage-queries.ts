@@ -1274,8 +1274,8 @@ export class DocumentQueries implements IDocumentQueries {
       event_type: row.event_type as string,
       status: row.status as string,
       is_deleted: row.is_deleted as boolean,
-      created_at: row.created_at as Date,
-      updated_at: row.updated_at as Date,
+      created_at: new Date(row.created_at as string | number),
+      updated_at: new Date(row.updated_at as string | number),
       created_by: row.created_by as string,
       change_summary: row.change_summary as string,
     }))
