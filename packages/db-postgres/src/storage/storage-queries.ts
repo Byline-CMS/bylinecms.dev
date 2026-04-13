@@ -15,6 +15,11 @@ import type {
   IDocumentQueries,
   UnionRowValue,
 } from '@byline/core'
+// TODO: getLogger() is used here as a global escape hatch because pgAdapter()
+// constructs query/command classes before initBylineCore() wires up the Pino
+// logger. A future refactor could inject the logger at construction time by
+// either deferring adapter construction or accepting a lazy logger parameter.
+import { ERR_DATABASE, ERR_NOT_FOUND, getLogger } from '@byline/core'
 import { and, eq, ilike, inArray, or, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
@@ -93,7 +98,10 @@ export class DocumentQueries implements IDocumentQueries {
         where: eq(collections.id, collectionId),
       })
       if (!row) {
-        throw new Error(`Collection not found in database: ${collectionId}`)
+        throw ERR_NOT_FOUND({
+          message: `collection not found in database: ${collectionId}`,
+          details: { collectionId },
+        }).log(getLogger())
       }
       path = row.path
       this.collectionPathCache.set(collectionId, path)
@@ -101,7 +109,10 @@ export class DocumentQueries implements IDocumentQueries {
 
     const definition = this.collections.find((c) => c.path === path)
     if (!definition) {
-      throw new Error(`No CollectionDefinition found for path: ${path}`)
+      throw ERR_NOT_FOUND({
+        message: `no CollectionDefinition found for path: ${path}`,
+        details: { collectionPath: path },
+      }).log(getLogger())
     }
     return definition
   }
@@ -276,7 +287,10 @@ export class DocumentQueries implements IDocumentQueries {
     })
 
     if (collection == null || collection.config == null) {
-      throw new Error(`Collection with ID ${collection_id} not found or missing collection config.`)
+      throw ERR_NOT_FOUND({
+        message: `collection not found or missing config: ${collection_id}`,
+        details: { collectionId: collection_id },
+      }).log(getLogger())
     }
 
     const config = collection.config as CollectionDefinition
@@ -512,7 +526,10 @@ export class DocumentQueries implements IDocumentQueries {
       )
 
     if (document == null) {
-      throw new Error(`Document not found at path: ${path}`)
+      throw ERR_NOT_FOUND({
+        message: `document not found at path: ${path}`,
+        details: { documentPath: path },
+      }).log(getLogger())
     }
 
     // 2. Get all field values for this document
@@ -577,7 +594,10 @@ export class DocumentQueries implements IDocumentQueries {
     })
 
     if (document == null) {
-      throw new Error(`No current version found for document ${document_version_id}`)
+      throw ERR_NOT_FOUND({
+        message: `no current version found for document ${document_version_id}`,
+        details: { documentVersionId: document_version_id },
+      }).log(getLogger())
     }
 
     const unifiedFieldValues = await this.getAllFieldValues(document.id, locale)
@@ -749,7 +769,10 @@ export class DocumentQueries implements IDocumentQueries {
     })
 
     if (collection == null || collection.config == null) {
-      throw new Error(`Collection with ID ${collection_id} not found or missing collection config.`)
+      throw ERR_NOT_FOUND({
+        message: `collection not found or missing config: ${collection_id}`,
+        details: { collectionId: collection_id },
+      }).log(getLogger())
     }
 
     const totalResult: { count: number }[] = await this.db
@@ -1295,7 +1318,10 @@ export class DocumentQueries implements IDocumentQueries {
   private buildExistsSubquery(filter: FieldFilter, locale: string): SQL {
     const storeTable = storeTableNames[filter.storeType as StoreType]
     if (!storeTable) {
-      throw new Error(`Unknown store type: ${filter.storeType}`)
+      throw ERR_DATABASE({
+        message: `unknown store type: ${filter.storeType}`,
+        details: { storeType: filter.storeType },
+      }).log(getLogger())
     }
 
     const valueCol = sql.raw(filter.valueColumn)
@@ -1342,7 +1368,10 @@ export class DocumentQueries implements IDocumentQueries {
         return sql`${column} != ALL(${arr})`
       }
       default:
-        throw new Error(`Unsupported filter operator: ${operator}`)
+        throw ERR_DATABASE({
+          message: `unsupported filter operator: ${operator}`,
+          details: { operator },
+        }).log(getLogger())
     }
   }
 
@@ -1456,7 +1485,10 @@ export class DocumentQueries implements IDocumentQueries {
           }
 
         default:
-          throw new Error(`Unknown field type: ${row.field_type}`)
+          throw ERR_DATABASE({
+            message: `unknown field type: ${row.field_type}`,
+            details: { fieldType: row.field_type },
+          }).log(getLogger())
       }
     }) as FlattenedStore[]
   }

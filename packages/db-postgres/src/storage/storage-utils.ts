@@ -15,6 +15,7 @@ import type {
   GroupField,
   ValueField,
 } from '@byline/core'
+import { ERR_DATABASE, getLogger } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
 import { fieldTypeToStoreType, type StoreType } from './storage-store-manifest.js'
@@ -136,7 +137,10 @@ function* flattenFieldDataGen(
 
       const block = field.blocks.find((f) => f.blockType === _type)
       if (!block) {
-        throw new Error(`Invalid block type: ${_type}`)
+        throw ERR_DATABASE({
+          message: `invalid block type: ${_type}`,
+          details: { blockType: _type },
+        }).log(getLogger())
       }
 
       yield {
@@ -311,7 +315,10 @@ const flattenValueFieldData = (
       }
 
     default:
-      throw new Error(`Unsupported field type: ${field_type}`)
+      throw ERR_DATABASE({
+        message: `unsupported field type: ${field_type}`,
+        details: { fieldType: field_type },
+      }).log(getLogger())
   }
 }
 
@@ -319,14 +326,6 @@ const flattenValueFieldData = (
 // Restoration logic: take flattened field data and restore it to the original
 // nested structure.
 // ------------------------------------------------------------------------------
-
-export class ReconstructionError extends Error {
-  warnings: string[]
-  constructor(warnings: string[]) {
-    super(`Document reconstruction failed with ${warnings.length} warnings`)
-    this.warnings = warnings
-  }
-}
 
 /**
  * Main entrypoint for restoring a document's field data from flattened form
@@ -371,7 +370,10 @@ export const restoreFieldSetData = (
   }
 
   if (warnings.length > 0) {
-    throw new ReconstructionError(warnings)
+    throw ERR_DATABASE({
+      message: `document reconstruction failed with ${warnings.length} warnings`,
+      details: { warnings },
+    }).log(getLogger())
   }
 
   return result
@@ -596,7 +598,10 @@ const extractValueFieldData = (data: FlattenedFieldValue): unknown => {
       } else if (data.number_type === 'decimal') {
         return data.value_decimal
       } else {
-        throw new Error(`Unsupported number type: ${data.number_type}`)
+        throw ERR_DATABASE({
+          message: `unsupported number type: ${data.number_type}`,
+          details: { numberType: data.number_type },
+        }).log(getLogger())
       }
     }
 
@@ -608,7 +613,10 @@ const extractValueFieldData = (data: FlattenedFieldValue): unknown => {
       } else if (data.date_type === 'datetime') {
         return data.value_timestamp_tz
       } else {
-        throw new Error(`Unsupported date type: ${data.date_type}`)
+        throw ERR_DATABASE({
+          message: `unsupported date type: ${data.date_type}`,
+          details: { dateType: data.date_type },
+        }).log(getLogger())
       }
     }
 
@@ -762,7 +770,10 @@ export const prepareFieldInsertBuckets = (
         continue
 
       default:
-        throw new Error(`Unexpected field type: ${field_type}`)
+        throw ERR_DATABASE({
+          message: `unexpected field type: ${field_type}`,
+          details: { fieldType: field_type },
+        }).log(getLogger())
     }
   }
 
@@ -859,7 +870,10 @@ export const extractFlattenedFieldValue = (
       }
 
     default:
-      throw new Error(`Unexpected field type: ${unifiedValue.field_type}`)
+      throw ERR_DATABASE({
+        message: `unexpected field type: ${unifiedValue.field_type}`,
+        details: { fieldType: unifiedValue.field_type },
+      }).log(getLogger())
   }
 }
 
@@ -927,7 +941,7 @@ export const getFirstOrThrow =
   (values: T[]): T => {
     const value = values[0]
     if (value == null) {
-      throw new Error(message)
+      throw ERR_DATABASE({ message }).log(getLogger())
     }
     return value
   }
