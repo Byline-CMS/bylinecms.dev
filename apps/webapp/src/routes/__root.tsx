@@ -19,6 +19,7 @@ import '../../byline.admin.config'
 
 import { BreadcrumbsProvider } from '@/context/breadcrumbs/breadcrumbs-provider'
 import { i18nConfig } from '@/i18n/i18n-config'
+import { RootError, RouteNotFound } from '@/ui/components/route-error'
 import { EarlyThemeDetector } from '@/ui/theme/early-theme-detector'
 import { ThemeProvider } from '@/ui/theme/provider'
 import { Theme } from '@/ui/theme/utils'
@@ -42,6 +43,8 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootComponent,
+  errorComponent: RootError,
+  notFoundComponent: RouteNotFound,
 })
 
 function RootComponent() {
@@ -65,7 +68,10 @@ function RootComponent() {
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   // Read the optional {-$lng} param to set the <html lang> attribute dynamically
   const params = useParams({ strict: false }) as { lng?: string }
-  const lang = params.lng ?? i18nConfig.defaultLocale
+  const lang =
+    params.lng != null && i18nConfig.locales.includes(params.lng as any)
+      ? params.lng
+      : i18nConfig.defaultLocale
 
   return (
     <html className="dark" lang={lang} suppressHydrationWarning>

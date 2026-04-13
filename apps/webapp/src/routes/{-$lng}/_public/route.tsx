@@ -4,9 +4,12 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBar } from '@/ui/components/app-bar'
+import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
 export const Route = createFileRoute('/{-$lng}/_public')({
   component: PublicLayout,
+  errorComponent: RouteError,
+  notFoundComponent: RouteNotFound,
 })
 
 function PublicLayout() {
