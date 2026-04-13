@@ -8,7 +8,14 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getCollectionSchemasForPath, getServerConfig } from '@byline/core'
+import {
+  BylineError,
+  ERR_NOT_FOUND,
+  ErrorCodes,
+  getCollectionSchemasForPath,
+  getLogger,
+  getServerConfig,
+} from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
 import { serialise } from './utils'
@@ -21,8 +28,14 @@ const getDocumentFn = createServerFn({ method: 'GET' })
   .inputValidator((input: { collection: string; id: string; locale?: string }) => input)
   .handler(async ({ data }) => {
     const { collection: path, id, locale } = data
+    const logger = getLogger()
     const config = await ensureCollection(path)
-    if (!config) throw new Error('Collection not found')
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(logger)
+    }
 
     const db = getServerConfig().db
 
@@ -32,7 +45,12 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       locale: locale ?? 'en',
     })
 
-    if (!rawDocument) throw new Error('Document not found')
+    if (!rawDocument) {
+      throw ERR_NOT_FOUND({
+        message: 'Document not found',
+        details: { documentId: id, collectionPath: path },
+      }).log(logger)
+    }
 
     const serialised = serialise(rawDocument)
 
@@ -76,8 +94,14 @@ const getDocumentByVersionFn = createServerFn({ method: 'GET' })
 
     // ensureCollection validates the path is known — not strictly needed for a
     // version fetch, but keeps auth/404 behaviour consistent.
+    const logger = getLogger()
     const config = await ensureCollection(path)
-    if (!config) throw new Error('Collection not found')
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(logger)
+    }
 
     const db = getServerConfig().db
     const rawDocument = await db.queries.documents.getDocumentByVersion({
@@ -85,7 +109,12 @@ const getDocumentByVersionFn = createServerFn({ method: 'GET' })
       locale: resolvedLocale,
     })
 
-    if (!rawDocument) throw new Error('Document version not found')
+    if (!rawDocument) {
+      throw ERR_NOT_FOUND({
+        message: 'Document version not found',
+        details: { documentVersionId: versionId, collectionPath: path },
+      }).log(logger)
+    }
 
     const serialised = serialise(rawDocument)
 
@@ -110,8 +139,8 @@ const getDocumentByVersionFn = createServerFn({ method: 'GET' })
 export async function getCollectionDocument(collection: string, id: string, locale?: string) {
   try {
     return await getDocumentFn({ data: { collection, id, locale } })
-  } catch (err: any) {
-    if (err?.message === 'Document not found') return null
+  } catch (err) {
+    if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) return null
     throw err
   }
 }
@@ -130,8 +159,8 @@ export async function getCollectionDocumentVersion(
     return await getDocumentByVersionFn({
       data: { collection, versionId, locale },
     })
-  } catch (err: any) {
-    if (err?.message === 'Document version not found') return null
+  } catch (err) {
+    if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) return null
     throw err
   }
 }

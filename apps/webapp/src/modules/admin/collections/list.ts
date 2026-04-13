@@ -8,7 +8,12 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getCollectionSchemasForPath, getServerConfig } from '@byline/core'
+import {
+  ERR_NOT_FOUND,
+  getCollectionSchemasForPath,
+  getLogger,
+  getServerConfig,
+} from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
 import { serialise } from './utils'
@@ -37,7 +42,12 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
   .handler(async ({ data }) => {
     const { collection: path, params } = data
     const config = await ensureCollection(path)
-    if (!config) throw new Error('Collection not found')
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(getLogger())
+    }
 
     const db = getServerConfig().db
     const pageSize = params.page_size ?? 20

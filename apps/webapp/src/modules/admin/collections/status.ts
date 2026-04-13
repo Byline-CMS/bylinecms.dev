@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { BylineError, ErrorCodes, getLogger, getServerConfig } from '@byline/core'
+import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import {
   changeDocumentStatus,
@@ -27,8 +27,14 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
   )
   .handler(async ({ data: input }) => {
     const { collection: path, id, status: nextStatus, locale } = input
+    const logger = getLogger()
     const config = await ensureCollection(path)
-    if (!config) throw new Error('Collection not found')
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(logger)
+    }
 
     const db = getServerConfig().db
     const ctx: DocumentLifecycleContext = {
@@ -36,27 +42,18 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
-      logger: getLogger(),
+      logger,
     }
 
-    try {
-      const result = await changeDocumentStatus(ctx, {
-        documentId: id,
-        nextStatus,
-        locale: locale ?? 'en',
-      })
-      return {
-        status: 'ok' as const,
-        previousStatus: result.previousStatus,
-        newStatus: result.newStatus,
-      }
-    } catch (error) {
-      if (error instanceof BylineError) {
-        if (error.code === ErrorCodes.NOT_FOUND || error.code === ErrorCodes.INVALID_TRANSITION) {
-          throw error
-        }
-      }
-      throw error
+    const result = await changeDocumentStatus(ctx, {
+      documentId: id,
+      nextStatus,
+      locale: locale ?? 'en',
+    })
+    return {
+      status: 'ok' as const,
+      previousStatus: result.previousStatus,
+      newStatus: result.newStatus,
     }
   })
 
@@ -68,8 +65,14 @@ export const unpublishDocument = createServerFn({ method: 'POST' })
   .inputValidator((input: { collection: string; id: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, id } = input
+    const logger = getLogger()
     const config = await ensureCollection(path)
-    if (!config) throw new Error('Collection not found')
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(logger)
+    }
 
     const db = getServerConfig().db
     const ctx: DocumentLifecycleContext = {
@@ -77,12 +80,17 @@ export const unpublishDocument = createServerFn({ method: 'POST' })
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
-      logger: getLogger(),
+      logger,
     }
 
     const result = await unpublishDocumentService(ctx, { documentId: id })
 
-    if (result.archivedCount === 0) throw new Error('No published version found for this document')
+    if (result.archivedCount === 0) {
+      throw ERR_NOT_FOUND({
+        message: 'No published version found for this document',
+        details: { documentId: id, collectionPath: path },
+      }).log(logger)
+    }
 
     return { status: 'ok' as const, archivedCount: result.archivedCount }
   })

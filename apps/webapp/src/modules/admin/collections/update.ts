@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { BylineError, ErrorCodes, getLogger, getServerConfig } from '@byline/core'
+import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import { updateDocumentWithPatches } from '@byline/core/services'
@@ -31,8 +31,14 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
   )
   .handler(async ({ data: input }) => {
     const { collection: path, id, patches, document_version_id, locale } = input
+    const logger = getLogger()
     const config = await ensureCollection(path)
-    if (!config) throw new Error('Collection not found')
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(logger)
+    }
 
     const db = getServerConfig().db
     const ctx: DocumentLifecycleContext = {
@@ -40,24 +46,15 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
-      logger: getLogger(),
+      logger,
     }
 
-    try {
-      await updateDocumentWithPatches(ctx, {
-        documentId: id,
-        patches,
-        documentVersionId: document_version_id,
-        locale: locale ?? 'en',
-      })
-    } catch (error) {
-      if (error instanceof BylineError) {
-        if (error.code === ErrorCodes.CONFLICT || error.code === ErrorCodes.PATCH_FAILED) {
-          throw error
-        }
-      }
-      throw error
-    }
+    await updateDocumentWithPatches(ctx, {
+      documentId: id,
+      patches,
+      documentVersionId: document_version_id,
+      locale: locale ?? 'en',
+    })
 
     return { status: 'ok' as const }
   })

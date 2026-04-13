@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getLogger, getServerConfig } from '@byline/core'
+import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import { createDocument } from '@byline/core/services'
 
@@ -22,8 +22,14 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
   .inputValidator((input: { collection: string; data: any; locale?: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, data: documentData, locale } = input
+    const logger = getLogger()
     const config = await ensureCollection(path)
-    if (!config) throw new Error('Collection not found')
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(logger)
+    }
 
     const db = getServerConfig().db
     const ctx: DocumentLifecycleContext = {
@@ -31,7 +37,7 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
-      logger: getLogger(),
+      logger,
     }
 
     await createDocument(ctx, {

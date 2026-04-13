@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { BylineError, ErrorCodes, getLogger, getServerConfig } from '@byline/core'
+import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import { deleteDocument as deleteDocumentService } from '@byline/core/services'
 
@@ -22,8 +22,14 @@ export const deleteDocument = createServerFn({ method: 'POST' })
   .inputValidator((input: { collection: string; id: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, id } = input
+    const logger = getLogger()
     const config = await ensureCollection(path)
-    if (!config) throw new Error('Collection not found')
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(logger)
+    }
 
     const serverConfig = getServerConfig()
     // Resolve the storage provider so the lifecycle service can clean up
@@ -36,14 +42,9 @@ export const deleteDocument = createServerFn({ method: 'POST' })
       collectionId: config.collection.id,
       collectionPath: path,
       ...(storage ? { storage } : {}),
-      logger: getLogger(),
+      logger,
     }
 
-    try {
-      const result = await deleteDocumentService(ctx, { documentId: id })
-      return { status: 'ok' as const, deletedVersionCount: result.deletedVersionCount }
-    } catch (err) {
-      if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) throw err
-      throw err
-    }
+    const result = await deleteDocumentService(ctx, { documentId: id })
+    return { status: 'ok' as const, deletedVersionCount: result.deletedVersionCount }
   })
