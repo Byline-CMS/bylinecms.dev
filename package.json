@@ -20,10 +20,10 @@
     "test": "turbo run test"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.10"
+    "@biomejs/biome": "2.4.11"
   },
   "dependencies": {
-    "turbo": "^2.9.3",
+    "turbo": "^2.9.6",
     "typescript": "6.0.2"
   },
   "engines": {
@@ -35,7 +35,9 @@
       "domexception": "4"
     },
     "overrides": {
-      "typescript": "$typescript"
+      "typescript": "$typescript",
+      "react": "19.2.5",
+      "react-dom": "19.2.5"
     },
     "onlyBuiltDependencies": [
       "@parcel/watcher",
