@@ -26,6 +26,7 @@
     "declaration": true,
     "declarationMap": true,
     "lib": ["es2024"],
+    "types": ["node"],
 
     "paths": {
       "@/*": ["./src/*"]
