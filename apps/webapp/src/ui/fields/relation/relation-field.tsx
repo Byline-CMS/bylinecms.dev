@@ -14,7 +14,7 @@ import type {
   RelatedDocumentValue,
 } from '@byline/core'
 import { getCollectionDefinition } from '@byline/core'
-import { Button, ErrorText } from '@infonomic/uikit/react'
+import { Button, ErrorText, Label } from '@infonomic/uikit/react'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { RelationPicker } from './relation-picker'
@@ -74,17 +74,12 @@ export const RelationField = ({
   return (
     <div className={`byline-relation ${field.name}`}>
       <div className="flex items-baseline gap-2 mb-1">
-        <div>
-          <label
-            htmlFor={htmlId}
-            id={`${htmlId}-label`}
-            className="text-sm font-medium text-gray-100"
-          >
-            {field.label ?? field.name}
-            {field.optional ? '' : ' *'}
-          </label>
-          {field.helpText && <div className="mt-0.5 text-xs text-gray-400">{field.helpText}</div>}
-        </div>
+        <Label
+          id={`${htmlId}-label`}
+          htmlFor={htmlId}
+          label={field.label ?? field.name}
+          required={!field.optional}
+        />
         {incomingValue && !isUnknown && (
           <button
             type="button"
@@ -95,6 +90,7 @@ export const RelationField = ({
           </button>
         )}
       </div>
+      {field.helpText && <div className="mb-1 text-xs text-gray-400">{field.helpText}</div>}
 
       {isUnknown ? (
         <div className="mt-1 flex flex-col gap-1 border border-red-700 bg-red-900/20 p-2 rounded-md text-xs text-red-200">
