@@ -55,6 +55,18 @@ export const News: CollectionDefinition = {
       type: 'datetime',
       mode: 'datetime',
     },
+    // Relation field demo (Phase 3). Points at the Media upload collection
+    // so editors can choose a hero image via the relation picker widget.
+    // Set `displayField: 'title'` so the picker's row label reads from the
+    // uploaded item's `title` field rather than falling back to its path.
+    {
+      name: 'heroImage',
+      label: 'Hero Image',
+      type: 'relation',
+      targetCollection: 'media',
+      displayField: 'title',
+      optional: true,
+    },
     availableLanguagesField(),
   ],
 }
