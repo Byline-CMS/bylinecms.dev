@@ -21,9 +21,12 @@ function toDate(value: unknown, fieldName: string): Date {
 
 /**
  * Shape an internal document (snake_case, storage layer format) into the
- * public ClientDocument format (camelCase).
+ * public ClientDocument format (camelCase). The generic `F` types the
+ * `fields` property for callers that know their collection's shape.
  */
-export function shapeDocument(raw: Record<string, any>): ClientDocument {
+export function shapeDocument<F = Record<string, any>>(
+  raw: Record<string, any>
+): ClientDocument<F> {
   return {
     id: raw.document_id ?? '',
     versionId: raw.document_version_id ?? '',
@@ -31,6 +34,6 @@ export function shapeDocument(raw: Record<string, any>): ClientDocument {
     status: raw.status ?? '',
     createdAt: toDate(raw.created_at, 'created_at'),
     updatedAt: toDate(raw.updated_at, 'updated_at'),
-    fields: raw.fields ?? {},
+    fields: (raw.fields ?? {}) as F,
   }
 }

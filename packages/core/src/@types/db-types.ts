@@ -132,18 +132,56 @@ export interface IDocumentQueries {
     reconstruct?: boolean
   }): Promise<any | null>
 
+  /**
+   * Fetch only the current version's metadata row (no field reconstruction).
+   *
+   * Use this when the caller only needs `{document_version_id, status,
+   * path, ...}` — for example, workflow transitions that read the current
+   * status and version ID before mutating. Skipping reconstruction avoids
+   * the full 7-way UNION ALL and the meta-row fetch.
+   *
+   * Returns `null` when the document does not exist (or has been soft-deleted).
+   */
+  getCurrentVersionMetadata(params: { collection_id: string; document_id: string }): Promise<{
+    document_version_id: string
+    document_id: string
+    collection_id: string
+    path: string
+    status: string
+    created_at: Date
+    updated_at: Date
+  } | null>
+
   getDocumentByPath(params: {
     collection_id: string
     path: string
     locale?: string
     reconstruct: boolean
-  }): Promise<any>
+  }): Promise<any | null>
 
   getDocumentByVersion(params: { document_version_id: string; locale?: string }): Promise<any>
 
   getDocumentsByVersionIds(params: {
     document_version_ids: string[]
     locale?: string
+  }): Promise<any[]>
+
+  /**
+   * Batch-fetch current versions for a list of logical document IDs.
+   *
+   * Used by the client API's relationship populate pass: `store_relation`
+   * rows carry `target_document_id` values (not version IDs), so populate
+   * collects those IDs and resolves them to fully reconstructed documents
+   * in a single round trip. Supports selective field loading via `fields`.
+   *
+   * Only returns current (non-soft-deleted) versions. Missing IDs are
+   * silently omitted from the result.
+   */
+  getDocumentsByDocumentIds(params: {
+    collection_id: string
+    document_ids: string[]
+    locale?: string
+    fields?: string[]
   }): Promise<any[]>
 
   getDocumentHistory(params: {

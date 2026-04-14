@@ -37,11 +37,9 @@ beforeAll(async () => {
 
   // Publish the first article so we can test status filtering.
   const firstDocVersionId = (
-    await ctx.db.queries.documents.getDocumentById({
+    await ctx.db.queries.documents.getCurrentVersionMetadata({
       collection_id: ctx.collectionId,
       document_id: createdDocIds[0]!,
-      locale: 'en',
-      reconstruct: false,
     })
   )?.document_version_id as string
 

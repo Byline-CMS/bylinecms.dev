@@ -22,11 +22,9 @@ import { ensureCollection } from '@/lib/api-utils'
 // ---------------------------------------------------------------------------
 
 export const updateDocumentStatus = createServerFn({ method: 'POST' })
-  .inputValidator(
-    (input: { collection: string; id: string; status: string; locale?: string }) => input
-  )
+  .inputValidator((input: { collection: string; id: string; status: string }) => input)
   .handler(async ({ data: input }) => {
-    const { collection: path, id, status: nextStatus, locale } = input
+    const { collection: path, id, status: nextStatus } = input
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -48,7 +46,6 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
     const result = await changeDocumentStatus(ctx, {
       documentId: id,
       nextStatus,
-      locale: locale ?? 'en',
     })
     return {
       status: 'ok' as const,

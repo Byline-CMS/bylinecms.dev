@@ -25,11 +25,11 @@ export interface BylineClientConfig {
 // Query options
 // ---------------------------------------------------------------------------
 
-export interface FindOptions {
+export interface FindOptions<F = Record<string, any>> {
   /** Filter documents. Keys are field names or reserved names (status, path). */
   where?: WhereClause
   /** Return only these fields. Omit for all fields. */
-  select?: string[]
+  select?: (keyof F & string)[] | string[]
   /** Sort specification. Keys are field names or document-level columns. */
   sort?: SortSpec
   /** Locale for field value resolution. Defaults to 'en'. */
@@ -40,19 +40,19 @@ export interface FindOptions {
   pageSize?: number
 }
 
-export interface FindOneOptions {
+export interface FindOneOptions<F = Record<string, any>> {
   where?: WhereClause
-  select?: string[]
+  select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
-export interface FindByIdOptions {
-  select?: string[]
+export interface FindByIdOptions<F = Record<string, any>> {
+  select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
-export interface FindByPathOptions {
-  select?: string[]
+export interface FindByPathOptions<F = Record<string, any>> {
+  select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
@@ -99,7 +99,21 @@ export type SortSpec = Record<string, SortDirection>
 // Response types
 // ---------------------------------------------------------------------------
 
-export interface ClientDocument {
+/**
+ * Shape of a document returned by the client API.
+ *
+ * The generic parameter `F` types the `fields` object. Callers that know
+ * their collection's shape can narrow it:
+ *
+ * ```ts
+ * interface Post { title: string; body: string }
+ * const post = await client.collection('posts').findById<Post>(id)
+ * post?.fields.title // typed as string
+ * ```
+ *
+ * Defaults to `Record<string, any>` when no shape is provided.
+ */
+export interface ClientDocument<F = Record<string, any>> {
   /** Logical document ID. */
   id: string
   /** The specific version ID for this document. */
@@ -113,11 +127,11 @@ export interface ClientDocument {
   /** When this version was last updated. */
   updatedAt: Date
   /** Reconstructed field data. */
-  fields: Record<string, any>
+  fields: F
 }
 
-export interface FindResult {
-  docs: ClientDocument[]
+export interface FindResult<F = Record<string, any>> {
+  docs: ClientDocument<F>[]
   meta: {
     total: number
     page: number

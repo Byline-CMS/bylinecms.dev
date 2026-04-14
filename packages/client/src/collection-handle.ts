@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { BylineError, type CollectionDefinition, ErrorCodes } from '@byline/core'
+import type { CollectionDefinition } from '@byline/core'
 
 import { parseSort, parseWhere } from './query/parse-where.js'
 import { shapeDocument } from './response.js'
@@ -44,7 +44,7 @@ export class CollectionHandle {
    * (EXISTS subqueries against EAV store tables), and field-level sorting
    * (LATERAL JOINs).
    */
-  async find(options: FindOptions = {}): Promise<FindResult> {
+  async find<F = Record<string, any>>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { where, select, sort, locale = 'en', page = 1, pageSize = 20 } = options
 
@@ -63,11 +63,11 @@ export class CollectionHandle {
       locale,
       page,
       pageSize,
-      fields: select,
+      fields: select as string[] | undefined,
     })
 
     return {
-      docs: result.documents.map(shapeDocument),
+      docs: result.documents.map((d) => shapeDocument<F>(d)),
       meta: {
         total: result.total,
         page,
@@ -81,8 +81,10 @@ export class CollectionHandle {
    * Find a single document matching the given options. Returns `null` if no
    * document matches.
    */
-  async findOne(options: FindOneOptions = {}): Promise<ClientDocument | null> {
-    const result = await this.find({
+  async findOne<F = Record<string, any>>(
+    options: FindOneOptions<F> = {}
+  ): Promise<ClientDocument<F> | null> {
+    const result = await this.find<F>({
       where: options.where,
       select: options.select,
       locale: options.locale,
@@ -95,10 +97,10 @@ export class CollectionHandle {
   /**
    * Find a document by its logical document ID.
    */
-  async findById(
+  async findById<F = Record<string, any>>(
     documentId: string,
-    options: FindByIdOptions = {}
-  ): Promise<ClientDocument | null> {
+    options: FindByIdOptions<F> = {}
+  ): Promise<ClientDocument<F> | null> {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
 
@@ -111,48 +113,50 @@ export class CollectionHandle {
 
     if (raw == null) return null
 
-    const doc = shapeDocument(raw as Record<string, any>)
+    const doc = shapeDocument<F>(raw as Record<string, any>)
 
     // Trim to selected fields if requested.
     if (options.select?.length) {
+      const allowed = new Set<string>(options.select as string[])
       doc.fields = Object.fromEntries(
-        Object.entries(doc.fields).filter(([k]) => options.select?.includes(k))
-      )
+        Object.entries(doc.fields as Record<string, any>).filter(([k]) => allowed.has(k))
+      ) as F
     }
 
     return doc
   }
 
   /**
-   * Find a document by its URL path/slug.
+   * Find a document by its URL path/slug. Returns `null` when no document
+   * exists at the given path (the storage adapter resolves missing paths
+   * to `null` rather than throwing).
    */
-  async findByPath(path: string, options: FindByPathOptions = {}): Promise<ClientDocument | null> {
+  async findByPath<F = Record<string, any>>(
+    path: string,
+    options: FindByPathOptions<F> = {}
+  ): Promise<ClientDocument<F> | null> {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
 
-    try {
-      const raw = await this.client.db.queries.documents.getDocumentByPath({
-        collection_id: collectionId,
-        path,
-        locale,
-        reconstruct: true,
-      })
+    const raw = await this.client.db.queries.documents.getDocumentByPath({
+      collection_id: collectionId,
+      path,
+      locale,
+      reconstruct: true,
+    })
 
-      if (raw == null) return null
+    if (raw == null) return null
 
-      const doc = shapeDocument(raw as Record<string, any>)
+    const doc = shapeDocument<F>(raw as Record<string, any>)
 
-      if (options.select?.length) {
-        doc.fields = Object.fromEntries(
-          Object.entries(doc.fields).filter(([k]) => options.select?.includes(k))
-        )
-      }
-
-      return doc
-    } catch (err) {
-      if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) return null
-      throw err
+    if (options.select?.length) {
+      const allowed = new Set<string>(options.select as string[])
+      doc.fields = Object.fromEntries(
+        Object.entries(doc.fields as Record<string, any>).filter(([k]) => allowed.has(k))
+      ) as F
     }
+
+    return doc
   }
 
   /**

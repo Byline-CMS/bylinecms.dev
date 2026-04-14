@@ -47,6 +47,7 @@ function createMockDb() {
   const archivePublishedVersions = vi.fn().mockResolvedValue(0)
   const softDeleteDocument = vi.fn().mockResolvedValue(1)
   const getDocumentById = vi.fn().mockResolvedValue(null)
+  const getCurrentVersionMetadata = vi.fn().mockResolvedValue(null)
 
   const db: IDbAdapter = {
     commands: {
@@ -69,9 +70,11 @@ function createMockDb() {
       },
       documents: {
         getDocumentById,
+        getCurrentVersionMetadata,
         getDocumentByPath: vi.fn(),
         getDocumentByVersion: vi.fn(),
         getDocumentsByVersionIds: vi.fn(),
+        getDocumentsByDocumentIds: vi.fn(),
         getDocumentHistory: vi.fn(),
         getPublishedVersion: vi.fn(),
         getPublishedDocumentIds: vi.fn(),
@@ -88,6 +91,7 @@ function createMockDb() {
     archivePublishedVersions,
     softDeleteDocument,
     getDocumentById,
+    getCurrentVersionMetadata,
   }
 }
 
@@ -492,12 +496,19 @@ describe('Document lifecycle service', () => {
   // changeDocumentStatus
   // -----------------------------------------------------------------------
   describe('changeDocumentStatus', () => {
+    const metadataRow = {
+      document_version_id: 'ver-1',
+      document_id: 'doc-1',
+      collection_id: 'col-1',
+      path: 'hello',
+      status: 'draft',
+      created_at: new Date(),
+      updated_at: new Date(),
+    }
+
     it('validates and applies a valid transition', async () => {
-      const { db, getDocumentById, setDocumentStatus } = createMockDb()
-      getDocumentById.mockResolvedValue({
-        status: 'draft',
-        document_version_id: 'ver-1',
-      })
+      const { db, getCurrentVersionMetadata, setDocumentStatus } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
       const ctx = buildCtx(db)
 
       const result = await changeDocumentStatus(ctx, {
@@ -514,8 +525,8 @@ describe('Document lifecycle service', () => {
     })
 
     it('throws ERR_NOT_FOUND when document is missing', async () => {
-      const { db, getDocumentById } = createMockDb()
-      getDocumentById.mockResolvedValue(null)
+      const { db, getCurrentVersionMetadata } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue(null)
       const ctx = buildCtx(db)
 
       await expect(
@@ -526,11 +537,8 @@ describe('Document lifecycle service', () => {
     })
 
     it('throws ERR_INVALID_TRANSITION for an invalid transition', async () => {
-      const { db, getDocumentById } = createMockDb()
-      getDocumentById.mockResolvedValue({
-        status: 'draft',
-        document_version_id: 'ver-1',
-      })
+      const { db, getCurrentVersionMetadata } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
       const ctx = buildCtx(db)
 
       // draft → archived skips 'published', which is not ±1
@@ -553,8 +561,8 @@ describe('Document lifecycle service', () => {
         }),
       }
 
-      const { db, getDocumentById, setDocumentStatus } = createMockDb()
-      getDocumentById.mockResolvedValue({ status: 'draft', document_version_id: 'ver-1' })
+      const { db, getCurrentVersionMetadata, setDocumentStatus } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
       setDocumentStatus.mockImplementation(async () => {
         callOrder.push('persist')
       })
@@ -581,8 +589,8 @@ describe('Document lifecycle service', () => {
         afterStatusChange: vi.fn(),
       }
 
-      const { db, getDocumentById } = createMockDb()
-      getDocumentById.mockResolvedValue({ status: 'draft', document_version_id: 'ver-1' })
+      const { db, getCurrentVersionMetadata } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
 
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
@@ -599,8 +607,8 @@ describe('Document lifecycle service', () => {
     })
 
     it('auto-archives other published versions when publishing', async () => {
-      const { db, getDocumentById, archivePublishedVersions } = createMockDb()
-      getDocumentById.mockResolvedValue({ status: 'draft', document_version_id: 'ver-1' })
+      const { db, getCurrentVersionMetadata, archivePublishedVersions } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
       const ctx = buildCtx(db)
 
       await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
@@ -633,8 +641,8 @@ describe('Document lifecycle service', () => {
         ],
       }
 
-      const { db, getDocumentById, setDocumentStatus } = createMockDb()
-      getDocumentById.mockResolvedValue({ status: 'draft', document_version_id: 'ver-1' })
+      const { db, getCurrentVersionMetadata, setDocumentStatus } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
       setDocumentStatus.mockImplementation(async () => {
         callOrder.push('persist')
       })

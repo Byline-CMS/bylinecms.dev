@@ -149,6 +149,60 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * getCurrentVersionMetadata — narrow metadata fetch for the current version.
+   *
+   * Hits `current_documents` only; no field reconstruction, no meta fetch.
+   * Used by lifecycle operations (status changes, delete checks) that need
+   * `document_version_id` / `status` / `path` but not the document body.
+   */
+  async getCurrentVersionMetadata({
+    collection_id,
+    document_id,
+  }: {
+    collection_id: string
+    document_id: string
+  }): Promise<{
+    document_version_id: string
+    document_id: string
+    collection_id: string
+    path: string
+    status: string
+    created_at: Date
+    updated_at: Date
+  } | null> {
+    const [row] = await this.db
+      .select({
+        document_version_id: currentDocumentsView.id,
+        document_id: currentDocumentsView.document_id,
+        collection_id: currentDocumentsView.collection_id,
+        path: currentDocumentsView.path,
+        status: currentDocumentsView.status,
+        created_at: currentDocumentsView.created_at,
+        updated_at: currentDocumentsView.updated_at,
+      })
+      .from(currentDocumentsView)
+      .where(
+        and(
+          eq(currentDocumentsView.collection_id, collection_id),
+          eq(currentDocumentsView.document_id, document_id)
+        )
+      )
+      .limit(1)
+
+    if (!row) return null
+
+    return {
+      document_version_id: row.document_version_id,
+      document_id: row.document_id,
+      collection_id: row.collection_id ?? '',
+      path: row.path,
+      status: row.status ?? 'draft',
+      created_at: row.created_at ?? new Date(),
+      updated_at: row.updated_at ?? new Date(),
+    }
+  }
+
+  /**
    * getDocumentById — gets the current version of a document by its logical document ID.
    */
   async getDocumentById({
@@ -247,10 +301,7 @@ export class DocumentQueries implements IDocumentQueries {
       )
 
     if (document == null) {
-      throw ERR_NOT_FOUND({
-        message: `document not found at path: ${path}`,
-        details: { documentPath: path },
-      }).log(getLogger())
+      return null
     }
 
     // 2. Get all field values for this document
@@ -356,7 +407,8 @@ export class DocumentQueries implements IDocumentQueries {
 
   /**
    * getDocumentsByVersionIds — fetches and reconstructs multiple documents by
-   * version ID. Used for batch loading (e.g. relationship population).
+   * version ID. Used for batch loading a known set of versions (e.g.
+   * migration scripts, tests).
    */
   async getDocumentsByVersionIds({
     document_version_ids,
@@ -373,6 +425,45 @@ export class DocumentQueries implements IDocumentQueries {
       .where(inArray(documentVersions.id, document_version_ids))
 
     return this.reconstructDocuments({ documents: docs as Document[], locale })
+  }
+
+  /**
+   * getDocumentsByDocumentIds — batch-fetch current versions for a list of
+   * logical document IDs, with optional selective field loading.
+   *
+   * Resolves each document_id to its current version via the
+   * `current_documents` view (soft-deleted documents are excluded by the
+   * view definition), then delegates to `reconstructDocuments` for the
+   * shared field + meta reconstruction path.
+   *
+   * Primary consumer is the client API's relationship populate pass —
+   * `store_relation` rows carry `target_document_id` (not version ID), so
+   * populate collects those IDs and resolves them here in one round trip.
+   */
+  async getDocumentsByDocumentIds({
+    collection_id,
+    document_ids,
+    locale = 'all',
+    fields,
+  }: {
+    collection_id: string
+    document_ids: string[]
+    locale?: string
+    fields?: string[]
+  }): Promise<any[]> {
+    if (document_ids.length === 0) return []
+
+    const docs = await this.db
+      .select()
+      .from(currentDocumentsView)
+      .where(
+        and(
+          eq(currentDocumentsView.collection_id, collection_id),
+          inArray(currentDocumentsView.document_id, document_ids)
+        )
+      )
+
+    return this.reconstructDocuments({ documents: docs as Document[], locale, fields })
   }
 
   /**

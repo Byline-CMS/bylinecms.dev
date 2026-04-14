@@ -407,7 +407,6 @@ export async function changeDocumentStatus(
   params: {
     documentId: string
     nextStatus: string
-    locale?: string
   }
 ): Promise<ChangeStatusResult> {
   return withLogContext(
@@ -416,12 +415,11 @@ export async function changeDocumentStatus(
       const { db, definition, collectionId, collectionPath } = ctx
       const hooks: CollectionHooks | undefined = definition.hooks
 
-      // 1. Fetch current document to read its status.
-      const latest = await db.queries.documents.getDocumentById({
+      // 1. Fetch current version metadata. No field reconstruction needed —
+      //    status transitions only touch the document_versions.status column.
+      const latest = await db.queries.documents.getCurrentVersionMetadata({
         collection_id: collectionId,
         document_id: params.documentId,
-        locale: params.locale ?? 'en',
-        reconstruct: false,
       })
 
       if (latest == null) {
@@ -431,8 +429,8 @@ export async function changeDocumentStatus(
         }).log(ctx.logger)
       }
 
-      const currentStatus: string = (latest as any).status ?? 'draft'
-      const documentVersionId: string = (latest as any).document_version_id ?? ''
+      const currentStatus = latest.status ?? 'draft'
+      const documentVersionId = latest.document_version_id
 
       // 2. Validate transition.
       const workflow = getWorkflow(definition)

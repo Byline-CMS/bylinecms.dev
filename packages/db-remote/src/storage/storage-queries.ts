@@ -39,6 +39,21 @@ export class DocumentQueries implements IDocumentQueries {
     throw new Error('db-remote method not implemented.')
   }
 
+  async getCurrentVersionMetadata(_params: {
+    collection_id: string
+    document_id: string
+  }): Promise<{
+    document_version_id: string
+    document_id: string
+    collection_id: string
+    path: string
+    status: string
+    created_at: Date
+    updated_at: Date
+  } | null> {
+    throw new Error('db-remote method not implemented.')
+  }
+
   async getDocumentByPath(_params: {
     collection_id: string
     path: string
@@ -58,6 +73,15 @@ export class DocumentQueries implements IDocumentQueries {
   async getDocumentsByVersionIds(_params: {
     document_version_ids: string[]
     locale?: string
+  }): Promise<any[]> {
+    throw new Error('db-remote method not implemented.')
+  }
+
+  async getDocumentsByDocumentIds(_params: {
+    collection_id: string
+    document_ids: string[]
+    locale?: string
+    fields?: string[]
   }): Promise<any[]> {
     throw new Error('db-remote method not implemented.')
   }
