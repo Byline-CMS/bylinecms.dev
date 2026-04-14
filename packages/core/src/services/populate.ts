@@ -180,7 +180,18 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
     return
   }
 
-  const sourceDef = findDef(opts.collections, opts.collectionId)
+  // Per-call cache: collection lookup key → resolved CollectionDefinition.
+  // Populated on first hit via synthetic match, path match, or a one-time
+  // `db.queries.collections.getCollectionById` fallback. Negative results
+  // are cached too (null) so we never double-query a missing target.
+  const defCache: CollectionDefCache = new Map()
+
+  const sourceDef = await resolveCollectionDef(
+    opts.db,
+    opts.collections,
+    opts.collectionId,
+    defCache
+  )
   if (!sourceDef) {
     // Cannot walk without field definitions; leave documents untouched.
     return
@@ -227,7 +238,12 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
     const queuedForNext = new Set<string>()
 
     for (const [targetCollectionId, leaves] of byTarget) {
-      const targetDef = findDef(opts.collections, targetCollectionId)
+      const targetDef = await resolveCollectionDef(
+        opts.db,
+        opts.collections,
+        targetCollectionId,
+        defCache
+      )
       const selectList = buildBatchSelect(leaves, targetDef)
 
       // Only fetch IDs we haven't materialised earlier in this request.
@@ -331,17 +347,56 @@ function visitedKey(collectionId: string, documentId: string): string {
   return `${collectionId}:${documentId}`
 }
 
-function findDef(
+/** Per-call cache of collection-id → definition (or null for missing). */
+type CollectionDefCache = Map<string, CollectionDefinition | null>
+
+/**
+ * Resolve a collection reference (DB UUID *or* path) to its
+ * `CollectionDefinition`. Tries in order:
+ *
+ *   1. Synthetic `.id` match on the collections array — supports unit
+ *      tests that attach a synthetic id, and is a cheap win when the
+ *      caller has pre-decorated collections with DB UUIDs.
+ *   2. Direct `.path` match — the public API of CollectionDefinition.
+ *   3. DB fallback via `getCollectionById(id)` — resolves a real DB
+ *      UUID to its path, then matches on the path. This is the
+ *      production path for the admin server fn and `@byline/client`,
+ *      which both pass DB UUIDs as `collectionId` / `target_collection_id`.
+ *
+ * Results (including misses) are cached in `cache` for the duration of
+ * the current populate call.
+ */
+async function resolveCollectionDef(
+  db: IDbAdapter,
   collections: CollectionDefinition[],
-  id: string
-): CollectionDefinition | undefined {
-  // `id` is the collection's database UUID, not its path. The adapter
-  // already resolves path → UUID elsewhere; this service receives UUIDs
-  // via `collection_id` on stored rows and via `target_collection_id` on
-  // relation values. We match on `path` as a fallback when UUIDs aren't
-  // available (e.g. unit tests with synthetic fixtures that use the path
-  // string as the id).
-  return collections.find((c) => (c as any).id === id) ?? collections.find((c) => c.path === id)
+  id: string,
+  cache: CollectionDefCache
+): Promise<CollectionDefinition | undefined> {
+  if (cache.has(id)) {
+    return cache.get(id) ?? undefined
+  }
+
+  // 1. Synthetic `.id` (tests, pre-decorated arrays)
+  let def: CollectionDefinition | undefined =
+    collections.find((c) => (c as any).id === id) ??
+    // 2. Path match
+    collections.find((c) => c.path === id)
+
+  // 3. DB fallback
+  if (!def) {
+    try {
+      const row = await db.queries.collections.getCollectionById(id)
+      if (row && typeof row.path === 'string') {
+        def = collections.find((c) => c.path === row.path)
+      }
+    } catch {
+      // Missing target collection is handled by the caller via the
+      // unresolved-stub path — swallow lookup errors here.
+    }
+  }
+
+  cache.set(id, def ?? null)
+  return def
 }
 
 /**

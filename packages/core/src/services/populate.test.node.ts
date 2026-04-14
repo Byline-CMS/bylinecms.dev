@@ -121,8 +121,12 @@ type FetchMap = Record<string, Record<string, any>>
 /**
  * Build a mock IDbAdapter where `getDocumentsByDocumentIds` returns
  * documents from a pre-seeded `store[collectionId][documentId]` map.
+ *
+ * An optional `pathByCollectionId` map simulates the production case
+ * where populate is called with DB UUIDs and must fall back to
+ * `getCollectionById(id)` to resolve them to a path.
  */
-function makeMockAdapter(store: FetchMap = {}) {
+function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string, string> = {}) {
   const getDocumentsByDocumentIds = vi.fn(
     async (params: {
       collection_id: string
@@ -134,6 +138,11 @@ function makeMockAdapter(store: FetchMap = {}) {
       return params.document_ids.map((id) => bucket[id]).filter((d) => d != null)
     }
   )
+
+  const getCollectionById = vi.fn(async (id: string) => {
+    const path = pathByCollectionId[id]
+    return path ? { id, path } : null
+  })
 
   const db = {
     commands: {
@@ -149,7 +158,7 @@ function makeMockAdapter(store: FetchMap = {}) {
       collections: {
         getAllCollections: vi.fn(),
         getCollectionByPath: vi.fn(),
-        getCollectionById: vi.fn(),
+        getCollectionById,
       },
       documents: {
         getDocumentById: vi.fn(),
@@ -167,7 +176,7 @@ function makeMockAdapter(store: FetchMap = {}) {
     },
   } satisfies IDbAdapter
 
-  return { db, getDocumentsByDocumentIds }
+  return { db, getDocumentsByDocumentIds, getCollectionById }
 }
 
 function shapedDoc(
@@ -752,6 +761,74 @@ describe('populateDocuments', () => {
 // ---------------------------------------------------------------------------
 // Interaction with unknown target collections
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// DB-UUID resolution — the production case
+// ---------------------------------------------------------------------------
+
+describe('populateDocuments — DB UUID → path resolution', () => {
+  it('falls back to getCollectionById when collectionId is a DB UUID', async () => {
+    // Production flow: admin server fn passes DB UUIDs as collectionId and
+    // target_collection_id. The collections array carries CollectionDefinition
+    // objects keyed by path, not UUID. Without the DB fallback, populate
+    // early-exits because findDef can't resolve the UUID.
+    const postsUuid = '019d3acf-aaaa-aaaa-aaaa-000000000001'
+    const authorsUuid = '019d3acf-bbbb-bbbb-bbbb-000000000002'
+
+    const author = shapedDoc(authorsUuid, 'a1', { name: 'Nora' })
+    const { db, getDocumentsByDocumentIds, getCollectionById } = makeMockAdapter(
+      { [authorsUuid]: { a1: author } },
+      { [postsUuid]: 'posts', [authorsUuid]: 'authors' }
+    )
+
+    const doc = shapedDoc(postsUuid, 'p1', {
+      author: { target_document_id: 'a1', target_collection_id: authorsUuid },
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: postsUuid,
+      documents: [doc],
+      populate: { author: true },
+    })
+
+    // Both UUIDs got resolved via getCollectionById.
+    expect(getCollectionById).toHaveBeenCalledWith(postsUuid)
+    expect(getCollectionById).toHaveBeenCalledWith(authorsUuid)
+    // And the populated document is in place.
+    expect(doc.fields.author).toBe(author)
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+  })
+
+  it('caches collection resolution across multiple leaves in one call', async () => {
+    const authorsUuid = '019d3acf-cccc-cccc-cccc-000000000003'
+    const a1 = shapedDoc(authorsUuid, 'a1', { name: 'Nora' })
+    const a2 = shapedDoc(authorsUuid, 'a2', { name: 'Ava' })
+    const { db, getCollectionById } = makeMockAdapter(
+      { [authorsUuid]: { a1, a2 } },
+      { posts: 'posts', [authorsUuid]: 'authors' }
+    )
+
+    const doc = shapedDoc('posts', 'p1', {
+      author: { target_document_id: 'a1', target_collection_id: authorsUuid },
+      secondaryAuthor: { target_document_id: 'a2', target_collection_id: authorsUuid },
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: true,
+    })
+
+    // 'posts' resolved via path match (no DB query). 'authorsUuid' resolved
+    // once via the DB fallback and reused for both leaves.
+    const authorCalls = getCollectionById.mock.calls.filter(([arg]) => arg === authorsUuid).length
+    expect(authorCalls).toBe(1)
+  })
+})
 
 describe('populateDocuments — unknown target collection', () => {
   it('renders an unresolved stub when target collection is unregistered', async () => {
