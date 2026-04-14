@@ -24,5 +24,6 @@ export { AsyncRegistry, type RegisteredServices, Registry } from './lib/registry
 export * from './patches/index.js'
 export { getCollectionSchemasForPath } from './schemas/zod/cache.js'
 export * from './services/index.js'
+export * from './storage/index.js'
 export { deriveVariantStoragePaths } from './utils/storage-utils.js'
 export * from './workflow/index.js'

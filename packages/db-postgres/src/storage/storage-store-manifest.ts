@@ -11,9 +11,26 @@
  * positional columns each, we define a single column manifest and
  * generate the SELECT list for each store table from it. Adding a
  * column or a new store table is a one-line change in the manifest.
+ *
+ * The adapter-agnostic pieces (`StoreType`, `ALL_STORE_TYPES`,
+ * `fieldTypeToStore`, `fieldTypeToStoreType`) live in `@byline/core`
+ * so `@byline/client` can consume the same mapping without taking a
+ * dependency on this Postgres adapter.
  */
 
+import { ALL_STORE_TYPES, type StoreType } from '@byline/core'
 import { type SQL, sql } from 'drizzle-orm'
+
+// Re-export for adapter-internal consumers.
+export {
+  ALL_STORE_TYPES,
+  fieldTypeToStore,
+  fieldTypeToStoreType,
+  type StoreType,
+} from '@byline/core'
+
+/** Short-form alias used by adapter-internal call sites. */
+export const allStoreTypes = ALL_STORE_TYPES
 
 // ---------------------------------------------------------------------------
 // Column manifest
@@ -36,9 +53,6 @@ interface ColumnDef {
   nullCast: string
   sources?: Partial<Record<StoreType, string>>
 }
-
-/** The 7 EAV store table types, keyed by their short name. */
-export type StoreType = 'text' | 'numeric' | 'boolean' | 'datetime' | 'json' | 'relation' | 'file'
 
 /** Store table names in Postgres, keyed by StoreType. */
 export const storeTableNames: Record<StoreType, string> = {
@@ -315,64 +329,6 @@ export function storeSelectList(storeType: StoreType): SQL {
     selectListCache.set(storeType, cached)
   }
   return cached
-}
-
-/** All store types in canonical UNION ALL order. */
-export const allStoreTypes: StoreType[] = [
-  'text',
-  'numeric',
-  'boolean',
-  'datetime',
-  'json',
-  'relation',
-  'file',
-]
-
-// ---------------------------------------------------------------------------
-// Field type → store type mapping
-// ---------------------------------------------------------------------------
-
-/**
- * Maps collection field types (from CollectionDefinition) to the EAV store
- * table type that holds their data. Structure fields (group, array, blocks)
- * don't map to a single store — their children do — plus they need meta.
- */
-export const fieldTypeToStoreType: Record<string, StoreType | 'meta' | undefined> = {
-  // Text store
-  text: 'text',
-  textArea: 'text',
-  select: 'text',
-
-  // Numeric store
-  float: 'numeric',
-  integer: 'numeric',
-  decimal: 'numeric',
-
-  // Boolean store
-  boolean: 'boolean',
-  checkbox: 'boolean',
-
-  // DateTime store
-  time: 'datetime',
-  date: 'datetime',
-  datetime: 'datetime',
-
-  // JSON store
-  richText: 'json',
-  json: 'json',
-  object: 'json',
-
-  // File store
-  file: 'file',
-  image: 'file',
-
-  // Relation store
-  relation: 'relation',
-
-  // Structure types — need meta store for _id/_type, plus children's stores
-  array: 'meta',
-  blocks: 'meta',
-  group: undefined,
 }
 
 // ---------------------------------------------------------------------------

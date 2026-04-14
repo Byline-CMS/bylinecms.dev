@@ -7,6 +7,7 @@
  */
 
 import type { CollectionDefinition, FieldFilter, FieldFilterOperator } from '@byline/core'
+import { fieldTypeToStore } from '@byline/core'
 
 import type { FilterOperators, SortSpec, WhereClause, WhereValue } from '../types.js'
 
@@ -16,48 +17,6 @@ import type { FilterOperators, SortSpec, WhereClause, WhereValue } from '../type
 
 /** Where clause keys that map to document-level columns, not EAV stores. */
 const DOCUMENT_LEVEL_KEYS = new Set(['status', 'path', 'query'])
-
-// ---------------------------------------------------------------------------
-// Field type → store type + value column mapping
-// ---------------------------------------------------------------------------
-
-/**
- * Maps collection field types to the EAV store type and the column within
- * that store table that holds the scalar value. This mirrors the canonical
- * mapping in `db-postgres/storage-store-manifest.ts`.
- */
-const fieldTypeToStore: Record<string, { storeType: string; valueColumn: string } | undefined> = {
-  // Text store
-  text: { storeType: 'text', valueColumn: 'value' },
-  textArea: { storeType: 'text', valueColumn: 'value' },
-  select: { storeType: 'text', valueColumn: 'value' },
-
-  // Numeric store
-  integer: { storeType: 'numeric', valueColumn: 'value_integer' },
-  float: { storeType: 'numeric', valueColumn: 'value_float' },
-  decimal: { storeType: 'numeric', valueColumn: 'value_decimal' },
-
-  // Boolean store
-  boolean: { storeType: 'boolean', valueColumn: 'value' },
-  checkbox: { storeType: 'boolean', valueColumn: 'value' },
-
-  // DateTime store
-  date: { storeType: 'datetime', valueColumn: 'value_date' },
-  time: { storeType: 'datetime', valueColumn: 'value_time' },
-  datetime: { storeType: 'datetime', valueColumn: 'value_timestamp_tz' },
-
-  // JSON store
-  richText: { storeType: 'json', valueColumn: 'value' },
-  json: { storeType: 'json', valueColumn: 'value' },
-  object: { storeType: 'json', valueColumn: 'value' },
-
-  // File store
-  file: { storeType: 'file', valueColumn: 'file_id' },
-  image: { storeType: 'file', valueColumn: 'file_id' },
-
-  // Relation store
-  relation: { storeType: 'relation', valueColumn: 'target_document_id' },
-}
 
 // ---------------------------------------------------------------------------
 // Parsed result
@@ -248,4 +207,4 @@ function normaliseToOperator(raw: WhereValue): NormalisedOperator | undefined {
 }
 
 /** Exported for testing. */
-export { DOCUMENT_LEVEL_KEYS, DOCUMENT_SORT_COLUMNS, fieldTypeToStore }
+export { DOCUMENT_LEVEL_KEYS, DOCUMENT_SORT_COLUMNS }
