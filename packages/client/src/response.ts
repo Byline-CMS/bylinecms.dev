@@ -37,3 +37,48 @@ export function shapeDocument<F = Record<string, any>>(
     fields: (raw.fields ?? {}) as F,
   }
 }
+
+/**
+ * Detect a raw (storage-shape) document vs a shaped `ClientDocument` vs a
+ * plain object. Raw docs carry `document_id` + `fields` and have NOT yet
+ * been through `shapeDocument` (no `versionId`).
+ */
+function isRawDocument(v: unknown): v is Record<string, any> {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return false
+  const o = v as Record<string, any>
+  return typeof o.document_id === 'string' && typeof o.fields === 'object' && !('versionId' in o)
+}
+
+/**
+ * After `populateDocuments` replaces relation leaves with raw
+ * storage-shape documents, walk the tree and convert each one to a
+ * `ClientDocument` in place. Preserves reference equality for
+ * non-document values so stubs (`_resolved: false`, `_cycle: true`) and
+ * rich-text blobs are not rewritten.
+ *
+ * Call on `shaped.fields` after the top-level doc has already been
+ * shaped. The function mutates arrays in place (replacing populated
+ * entries) and returns the possibly-rewritten value for scalar inputs.
+ */
+export function shapePopulatedInPlace(value: unknown): unknown {
+  if (value == null) return value
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      value[i] = shapePopulatedInPlace(value[i])
+    }
+    return value
+  }
+  if (typeof value !== 'object') return value
+
+  if (isRawDocument(value)) {
+    const shaped = shapeDocument(value)
+    shaped.fields = shapePopulatedInPlace(shaped.fields) as Record<string, any>
+    return shaped
+  }
+
+  const obj = value as Record<string, any>
+  for (const k of Object.keys(obj)) {
+    obj[k] = shapePopulatedInPlace(obj[k])
+  }
+  return obj
+}

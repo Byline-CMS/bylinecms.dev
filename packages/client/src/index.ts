@@ -6,6 +6,16 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+export {
+  type CycleRelationValue,
+  createReadContext,
+  type PopulateFieldOptions,
+  type PopulateMap,
+  type PopulateSpec,
+  type ReadContext,
+  type UnresolvedRelationValue,
+} from '@byline/core'
+
 export { BylineClient, createBylineClient } from './client.js'
 export { CollectionHandle } from './collection-handle.js'
 export type {

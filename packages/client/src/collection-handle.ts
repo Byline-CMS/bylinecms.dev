@@ -6,10 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
+import type { CollectionDefinition, PopulateSpec, ReadContext } from '@byline/core'
+import { populateDocuments } from '@byline/core'
 
 import { parseSort, parseWhere } from './query/parse-where.js'
-import { shapeDocument } from './response.js'
+import { shapeDocument, shapePopulatedInPlace } from './response.js'
 import type { BylineClient } from './client.js'
 import type {
   ClientDocument,
@@ -66,8 +67,10 @@ export class CollectionHandle {
       fields: select as string[] | undefined,
     })
 
+    await this.populateIfRequested(collectionId, result.documents, locale, options)
+
     return {
-      docs: result.documents.map((d) => shapeDocument<F>(d)),
+      docs: result.documents.map((d) => this.shapeWithPopulated<F>(d)),
       meta: {
         total: result.total,
         page,
@@ -90,6 +93,9 @@ export class CollectionHandle {
       locale: options.locale,
       page: 1,
       pageSize: 1,
+      populate: options.populate,
+      depth: options.depth,
+      _readContext: options._readContext,
     })
     return result.docs[0] ?? null
   }
@@ -113,17 +119,15 @@ export class CollectionHandle {
 
     if (raw == null) return null
 
-    const doc = shapeDocument<F>(raw as Record<string, any>)
-
-    // Trim to selected fields if requested.
+    // Trim to selected fields BEFORE populate so populate doesn't waste work
+    // on relations the caller filtered out. Mutates `raw.fields` in place.
     if (options.select?.length) {
-      const allowed = new Set<string>(options.select as string[])
-      doc.fields = Object.fromEntries(
-        Object.entries(doc.fields as Record<string, any>).filter(([k]) => allowed.has(k))
-      ) as F
+      trimFields(raw as Record<string, any>, options.select as string[])
     }
 
-    return doc
+    await this.populateIfRequested(collectionId, [raw as Record<string, any>], locale, options)
+
+    return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
 
   /**
@@ -147,16 +151,13 @@ export class CollectionHandle {
 
     if (raw == null) return null
 
-    const doc = shapeDocument<F>(raw as Record<string, any>)
-
     if (options.select?.length) {
-      const allowed = new Set<string>(options.select as string[])
-      doc.fields = Object.fromEntries(
-        Object.entries(doc.fields as Record<string, any>).filter(([k]) => allowed.has(k))
-      ) as F
+      trimFields(raw as Record<string, any>, options.select as string[])
     }
 
-    return doc
+    await this.populateIfRequested(collectionId, [raw as Record<string, any>], locale, options)
+
+    return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
 
   /**
@@ -179,5 +180,59 @@ export class CollectionHandle {
 
     // No status filter — sum all statuses.
     return counts.reduce((sum, c) => sum + c.count, 0)
+  }
+
+  // -------------------------------------------------------------------------
+  // Internals
+  // -------------------------------------------------------------------------
+
+  /**
+   * Invoke `populateDocuments` on a freshly-read (raw, storage-shape) set
+   * of documents when the caller asked for populate. No-op otherwise.
+   *
+   * Runs BEFORE `shapeDocument` so the populate service sees the raw
+   * `{document_id, fields}` shape it expects. The shape pass
+   * (`shapeWithPopulated`) then walks the mutated tree and converts every
+   * newly-inserted raw sub-document into a `ClientDocument`.
+   */
+  private async populateIfRequested(
+    collectionId: string,
+    rawDocs: Record<string, any>[],
+    locale: string,
+    options: { populate?: PopulateSpec; depth?: number; _readContext?: ReadContext }
+  ): Promise<void> {
+    if (options.populate === undefined) return
+    await populateDocuments({
+      db: this.client.db,
+      collections: this.client.collections,
+      collectionId,
+      documents: rawDocs,
+      populate: options.populate,
+      depth: options.depth,
+      locale,
+      readContext: options._readContext,
+    })
+  }
+
+  /**
+   * Shape a raw doc to `ClientDocument<F>`, then recursively shape any
+   * populated raw sub-documents inside its `fields`. Stubs
+   * (`_resolved: false` / `_cycle: true`) and plain field values are
+   * preserved by reference.
+   */
+  private shapeWithPopulated<F>(raw: Record<string, any>): ClientDocument<F> {
+    const shaped = shapeDocument<F>(raw)
+    shaped.fields = shapePopulatedInPlace(shaped.fields) as F
+    return shaped
+  }
+}
+
+/** Mutate `raw.fields` to retain only the entries matching `select`. */
+function trimFields(raw: Record<string, any>, select: string[]): void {
+  const fields = raw.fields
+  if (fields == null || typeof fields !== 'object') return
+  const allowed = new Set(select)
+  for (const k of Object.keys(fields)) {
+    if (!allowed.has(k)) delete fields[k]
   }
 }

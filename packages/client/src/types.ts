@@ -6,7 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, IDbAdapter, IStorageProvider } from '@byline/core'
+import type {
+  CollectionDefinition,
+  IDbAdapter,
+  IStorageProvider,
+  PopulateSpec,
+  ReadContext,
+} from '@byline/core'
 
 // ---------------------------------------------------------------------------
 // Client construction
@@ -25,7 +31,27 @@ export interface BylineClientConfig {
 // Query options
 // ---------------------------------------------------------------------------
 
-export interface FindOptions<F = Record<string, any>> {
+/**
+ * Common populate options shared by every read method. `populate` names
+ * the relations (or passes `true` for all) to replace with their target
+ * documents; `depth` caps the traversal (default 1 when populate is set,
+ * 0 otherwise). Clamped to the request's internal `ReadContext.maxDepth`.
+ */
+interface PopulateControls {
+  populate?: PopulateSpec
+  depth?: number
+  /**
+   * Internal plumbing for future read-side hook re-entry. Public callers
+   * should leave this undefined; a fresh context is created per top-level
+   * call. If provided, it is threaded through populate to preserve the
+   * visited set and read budget across nested reads.
+   *
+   * @internal
+   */
+  _readContext?: ReadContext
+}
+
+export interface FindOptions<F = Record<string, any>> extends PopulateControls {
   /** Filter documents. Keys are field names or reserved names (status, path). */
   where?: WhereClause
   /** Return only these fields. Omit for all fields. */
@@ -40,18 +66,18 @@ export interface FindOptions<F = Record<string, any>> {
   pageSize?: number
 }
 
-export interface FindOneOptions<F = Record<string, any>> {
+export interface FindOneOptions<F = Record<string, any>> extends PopulateControls {
   where?: WhereClause
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
-export interface FindByIdOptions<F = Record<string, any>> {
+export interface FindByIdOptions<F = Record<string, any>> extends PopulateControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
-export interface FindByPathOptions<F = Record<string, any>> {
+export interface FindByPathOptions<F = Record<string, any>> extends PopulateControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
