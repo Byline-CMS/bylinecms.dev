@@ -631,7 +631,10 @@ cd packages/client && pnpm test:integration
   in `packages/db-postgres/src/storage/storage-utils.ts`. If the two
   diverge, relations inside blocks won't populate. Consider extracting
   a shared walker into `@byline/core` when the storage-utils walker is
-  next touched.
+  next touched. Create a shared walkFieldTree(fields, data, visitor) in @byline/core the next time anything needs to touch
+  a walker — whether that's adding a new compound field type, implementing hasMany, shipping rich-text document links, or adding the first afterRead
+  hook that needs to visit leaves. At that point you're already paying the cognitive cost of understanding all three walkers, and the shared
+  abstraction is a near-free extraction. Doing it speculatively now means inventing the right shape with only three consumers — easy to over-fit. One more consumer, and the right shape declares itself.
 - **Select + displayField pairing.** When the client provides
   `populate: { author: { select: ['body'] } }` without including the
   display field, downstream UI that renders a label will break.
