@@ -1,4 +1,4 @@
-# @byline/client — Design Proposal
+# @byline/client — Design
 
 ## Purpose
 
@@ -6,6 +6,19 @@ A higher-level, DSL-like API for querying and mutating documents from outside th
 admin UI. Sits above the existing storage primitives (`IDbAdapter`) and the
 `document-lifecycle` service, adding: query DSL translation, relationship
 population, field selection, response shaping, and (eventually) access control.
+
+---
+
+## Status snapshot (2026-04-14)
+
+| Phase | Scope | State |
+|---|---|---|
+| 1 | Read path — `find`, `findOne`, `findById`, `findByPath`, `count`; camelCase response shaping; `ClientDocument<F>` generic | **Shipped** |
+| 2 | Field-level filters + sorting via `IDocumentQueries.findDocuments()` (EXISTS + `LEFT JOIN LATERAL`) | **Shipped** |
+| 3 | Relationship population (`populate`, `depth`) | Planned — primitive `getDocumentsByDocumentIds()` shipped; orchestration pending |
+| 4 | Write path (`create`, `update`, `delete`, `changeStatus`, `unpublish`) delegating to `document-lifecycle` | Planned |
+
+Shared mapping between client DSL parsing and db-postgres SQL generation lives in `@byline/core/storage/field-store-map.ts` (single source of truth + contract test).
 
 ---
 
@@ -278,60 +291,24 @@ This is a post-query pass — the primary query shape is unaffected.
 
 ---
 
-## What Needs to Change in Existing Primitives
+## Storage primitives the client depends on
 
-### IDbAdapter / IDocumentQueries — probably nothing
+The client has **no direct DB dependency** — it receives an `IDbAdapter` at
+construction time and calls into it. Relevant methods it uses today:
 
-The existing `getDocumentsByPage()` method handles its own SQL building. The
-client API's query builder would bypass it and build SQL directly, similar to
-how `getDocumentsByPage` already does internally. The client would still use:
+- `getDocumentById()` — `findById()`
+- `getDocumentByPath()` — `findByPath()` (returns `null` on miss; client no longer wraps in try/catch)
+- `findDocuments({ filters, sort, ... })` — the filtered/sorted/paginated path that powers `find()` / `findOne()` / `count()`
+- `getDocumentCountsByStatus()` — `count()` groupings
+- `getDocumentsByDocumentIds()` — Phase 3 populate batch fetch (primitive shipped, orchestration pending)
+- `getCurrentVersionMetadata()` — unused by the client today, but available for future lightweight existence checks
 
-- `getDocumentById()` — for `findById()`
-- `getDocumentByPath()` — for `findByPath()`
-- `getDocuments()` — for relationship population batch loading
-- `getDocumentCountsByStatus()` — could power `count()` for status filters
-
-For the general `find()` with field-level filters, the client API needs to
-build its own SQL. **This is the one place where `@byline/client` needs raw
-database access** — it can't express field-level WHERE clauses through the
-current `IDocumentQueries` interface.
-
-### Options for the query builder's database access
-
-**Option A: Extend `IDbAdapter` with a lower-level query method.**
-
-Add something like:
-
-```ts
-interface IDocumentQueries {
-  // ... existing methods ...
-
-  /**
-   * Execute a filtered, paginated query against current documents.
-   * Used by the client API's query builder.
-   */
-  findDocuments(params: {
-    collection_id: string
-    filters: FieldFilter[]     // field_name + operator + value + store table
-    sort?: FieldSort           // field_name + direction + store table
-    locale?: string
-    page?: number
-    pageSize?: number
-  }): Promise<{ documents: any[]; total: number }>
-}
-```
-
-This keeps SQL generation inside the DB adapter where it belongs, and the client
-API stays database-agnostic.
-
-**Option B: Pass a raw SQL executor to the client.**
-
-The client generates SQL fragments and passes them to a thin executor. Tighter
-coupling, but more flexible.
-
-**Recommendation: Option A.** It maintains the adapter boundary and means
-`@byline/client` has zero dependency on Drizzle or Postgres. The MySQL adapter
-(when real) would implement the same interface.
+`@byline/client` does not generate SQL. All SQL for field-level filters and
+sorts lives in the DB adapter behind `findDocuments()`; the client compiles
+the DSL into `FieldFilter[]` / `FieldSort` descriptors (typed in
+`@byline/core`) and passes them through. The MySQL adapter, when real, will
+implement the same `IDocumentQueries` contract and reuse the same
+descriptors.
 
 ---
 
@@ -348,26 +325,28 @@ packages/client/
 │   ├── index.ts              # createBylineClient(), re-exports
 │   ├── client.ts             # BylineClient class
 │   ├── collection-handle.ts  # CollectionHandle (scoped operations)
-│   ├── types.ts              # WhereClause, FilterOperator, SortSpec, etc.
-│   └── response.ts           # Response shaping (internal → public format)
+│   ├── types.ts              # WhereClause, FilterOperators, SortSpec, ClientDocument<F>, …
+│   ├── response.ts           # shapeDocument<F>() — snake_case → camelCase
+│   └── query/
+│       └── parse-where.ts    # WhereClause → FieldFilter[] / FieldSort via @byline/core mapping
 ├── tests/
 │   ├── fixtures/
 │   │   ├── collections.ts    # Test collection definitions + sample data
 │   │   └── setup.ts          # BylineClient wired to real Postgres
 │   ├── unit/
-│   │   ├── response.test.node.ts
-│   │   └── sort.test.node.ts
+│   │   ├── parse-where.test.node.ts
+│   │   └── response.test.node.ts
 │   └── integration/
+│       ├── client-field-filters.integration.test.ts
 │       └── client-read.integration.test.ts
 ```
 
-Future additions (Phase 2+):
+Planned additions for Phase 3:
 
 ```
 ├── src/
-│   ├── query/
-│   │   ├── parse-where.ts    # where clause → FieldFilter[] normalisation
-│   │   └── populate.ts       # Post-query relationship population
+│   └── query/
+│       └── populate.ts       # Post-query relationship population (by depth level)
 ```
 
 ---
@@ -387,28 +366,31 @@ The client receives an `IDbAdapter` at construction time. It never imports
 
 ## Phased Implementation
 
-### ~~Phase 1 — Read path (no field-level filters)~~ — Done (2026-04-08)
+### ~~Phase 1 — Read path~~ — Done (2026-04-08)
 
 `find()`, `findOne()`, `findById()`, `findByPath()`, `count()` implemented,
-delegating to existing `IDocumentQueries` methods. `find()` uses
-`getDocumentsByPage()` for status filter, text search, pagination, ordering,
-and selective field loading. Response shaping maps snake_case → camelCase.
-
-10 unit tests + 16 integration tests (against real Postgres) passing.
+delegating to `IDocumentQueries` methods on the injected adapter. Response
+shaping maps snake_case → camelCase via `shapeDocument()`. `ClientDocument<F>`
+was later made generic (2026-04-14) so callers can narrow the `fields` shape
+per-collection (e.g. `findById<Post>(id)`).
 
 ### ~~Phase 2 — Field-level filters and sorting~~ — Done (2026-04-13)
 
 Added `FieldFilter`, `FieldSort`, and `FieldFilterOperator` types to
 `@byline/core`. Added `findDocuments()` to `IDocumentQueries` and implemented
-in `db-postgres` with EXISTS subqueries for field-level filters and LEFT JOIN
-LATERAL for field-level sorting.
+in `db-postgres` with EXISTS subqueries for field-level filters and
+`LEFT JOIN LATERAL` for field-level sorting.
 
-Built `parse-where.ts` in `@byline/client/src/query/` — normalises `WhereClause`
-into document-level conditions + `FieldFilter[]` using a field-type-to-store-type
-mapping. `CollectionHandle.find()` detects field-level conditions and routes to
-`findDocuments()` automatically; simple queries still use `getDocumentsByPage()`.
+Built `parse-where.ts` in `@byline/client/src/query/` — normalises
+`WhereClause` into document-level conditions + `FieldFilter[]` using the
+shared `fieldTypeToStore` mapping in `@byline/core`.
+`CollectionHandle.find()` routes **all** queries through `findDocuments()`
+(status, text search, path filter, field-level filters, field-level sort,
+selective fields, pagination — one code path).
 
-24 unit tests + 18 integration tests (against real Postgres) passing.
+25 client unit tests pass (response shaping + `parse-where`); client
+integration tests run against real Postgres. The field→store mapping has a
+core-level contract test that enumerates every declared field type.
 
 ### Phase 3 — Relationship population and `depth`
 
@@ -465,16 +447,16 @@ skip) rather than re-fetching. Prevents infinite loops when e.g.
 
 **`select` inside `populate`.** When
 `populate: { author: { select: ['name', 'avatar'] } }`, the populated document
-should use selective field loading. This requires adding `fields?: string[]`
-support to the batch-fetch path (currently only `getDocumentsByPage()` supports
-selective loading).
+should use selective field loading. `IDocumentQueries.getDocumentsByDocumentIds()`
+already accepts `fields?: string[]` and wires through
+`resolveStoreTypes()` → partial UNION ALL — Phase 3 orchestration just needs
+to forward the nested `select` into this param.
 
-**Document ID → version ID resolution.** `store_relation` stores
-`target_document_id` (logical document ID), but `getDocuments()` takes version
-IDs. Population needs either: (a) a new query method
-`getDocumentsByDocumentIds()` that queries `current_documents` by `document_id`,
-or (b) a lookup against `current_documents` to resolve version IDs first. Option
-(a) is cleaner.
+**Document ID → version ID resolution.** Resolved. `store_relation` stores
+`target_document_id`; `IDocumentQueries.getDocumentsByDocumentIds()`
+(shipped 2026-04-14) queries `current_documents` by `document_id` in a
+single batch with optional selective field loading. Phase 3 orchestration
+consumes this primitive directly.
 
 **Where `populate` runs in the pipeline.** After `shapeDocument()` (response
 shaping), replacing the raw `{ target_document_id, target_collection_id }`

@@ -1,6 +1,6 @@
 # Universal Storage (EAV-per-type) — Strategic Analysis
 
-> Last updated: 2026-04-08
+> Last updated: 2026-04-14
 
 ## What we've built
 
@@ -23,21 +23,21 @@ Because field values are linked to a `document_version_id`, creating a new versi
 ## Where it's costing us
 
 ### 1. The 7-table UNION ALL is our biggest long-term risk
-Every single-document read executes a 7-way `UNION ALL` with 41 columns each (most `NULL`). For list pages, the paginated query in `getDocumentsByPage` first selects current document IDs, then calls `reconstructDocuments` -> `getAllFieldValuesForMultipleVersions`, which runs the same 7-way UNION ALL with `document_version_id = ANY(...)`. This is fine at prototype scale. At 100k documents with 20-30 fields each (2-3M store rows), Postgres will need to scan 7 tables per query even if only 2-3 contain data for a given collection. The query planner can't skip tables in a `UNION ALL`.
+Every single-document read executes a 7-way `UNION ALL` with 41 columns each (most `NULL`). List pages run the same UNION ALL (store-filtered when selective field loading kicks in) via `reconstructDocuments` → `getAllFieldValuesForMultipleVersions` with `document_version_id = ANY(...)`. This is fine at prototype scale. At 100k documents with 20-30 fields each (2-3M store rows), Postgres will need to scan the required tables per query even if only 2-3 contain data for a given field subset. Selective loading reduces the fan-out for list views, but single-document reads still hit all seven.
 
 **Mitigation options to evaluate:** (a) a materialized "current document JSONB" cache column that's rebuilt on write — reads become trivial, the EAV remains the source of truth for queries/indexing; (b) `EXPLAIN ANALYZE` benchmarks with seed data at 10k, 50k, 100k documents to find the actual inflection point.
 
 ### 2. ~~The template queries are a maintenance hazard~~ — Resolved
 Replaced on 2026-04-06 with a generated column manifest. A declarative array of column definitions generates the per-store SELECT lists at runtime. Adding a column is a one-line change; positional mismatches are structurally impossible.
 
-### 3. The locale-copy-forward on versioned writes is O(7 x stores)
-The `createDocumentVersion` method runs 7 separate `INSERT ... SELECT` statements to carry forward non-active locale rows from the previous version. This is correct but expensive — for a document with content in 5 locales, saving one locale triggers 7 full-table INSERT-SELECTs filtered by version ID. At scale this will dominate write latency. Consider a single raw SQL statement that does this in one pass, or a stored procedure.
+### 3. ~~The locale-copy-forward on versioned writes is O(7 x stores)~~ — Resolved
+Resolved 2026-04-08. The per-store `INSERT ... SELECT`s for carrying forward non-active locale rows now run in a single transaction batch — one round trip instead of seven.
 
 ### 4. ~~No query-side field filtering yet~~ — Resolved
 See [Selective Field Loading](#selective-field-loading-2026-04-06) below.
 
-### 5. Searching is hard-coded to `title`
-The `getDocumentsByPage` search path joins `textStore` and filters on `field_name = 'title'` with `ilike`. This will need to become configurable per-collection (searchable fields), and extending it to multi-field search across store types will compound the UNION ALL complexity.
+### 5. ~~Searching is hard-coded to `title`~~ — Resolved
+Resolved 2026-04-08. `CollectionDefinition.search.fields` drives the text-search OR; falls back to `['title']` when not configured.
 
 ## The strategic question: should we keep it?
 
@@ -47,31 +47,26 @@ However, we need to plan for the read-performance ceiling before it becomes load
 
 ## Recommended actions
 
-### Near-term (in progress)
+### ~~Near-term — all shipped 2026-04-08~~
 
-#### 1. Unify query paths
-`getAllFieldValues()` (single-document) still uses a hardcoded 7-way UNION ALL. `getAllFieldValuesForMultipleVersions()` already has a dynamic builder that respects `storeTypes`. Refactor the single-document path to use the same builder for consistency and to enable future selective field loading on single-document reads.
+1. **Unify query paths** — `getAllFieldValues()` now delegates to the dynamic `getAllFieldValuesForMultipleVersions()` builder; a single-document read uses the same store-filtered UNION ALL as the batch path.
+2. **Configurable per-collection search** — `CollectionDefinition.search.fields` drives the text-search OR in `findDocuments()` (falls back to `['title']`).
+3. **Locale copy-forward optimization** — the seven per-store `INSERT ... SELECT`s in `createDocumentVersion` now run as a single transaction batch.
 
-#### 2. Configurable per-collection search
-Search is hardcoded to `field_name = 'title'` with `ilike` on `store_text`. Add `search?: { fields: string[] }` to `CollectionDefinition` and update `getDocumentsByPage()` to build a dynamic OR across the specified text fields. Fall back to `['title']` when not configured.
+### Strategic (open)
 
-#### 3. Locale copy-forward optimization
-The `createDocumentVersion` method runs 7 separate `INSERT ... SELECT` statements to carry forward non-active locale rows. Consolidate into a single `db.execute()` call to reduce 7 DB round trips to 1.
-
-### Strategic (future)
-
-#### 4. Benchmark the UNION ALL at scale
+#### Benchmark the UNION ALL at scale
 Run `EXPLAIN ANALYZE` on the 7-way UNION ALL with realistic data volumes (10k+ documents, 20+ fields each). Know our numbers. The selective field loading work (done) mitigates this for list views, but single-document reads still hit all stores.
 
-#### 5. Consider a read cache
+#### Consider a read cache
 A `jsonb` column on `document_versions` (we already have a `doc` column marked "optionally store the original document") could serve as a write-through cache. Reads hit the JSONB; field-level queries still hit the typed stores. This gives us O(1) document reads while preserving all the EAV benefits for indexing and querying. Evaluate after benchmarking.
 
-### ~~6. Invest in selective field loading~~ — Done
+### ~~Selective field loading~~ — Done
 Implemented 2026-04-06. See [Selective Field Loading](#selective-field-loading-2026-04-06) below.
 
-## Client API — impact on the storage system (2026-04-08)
+## Client API — status (2026-04-14)
 
-The next major milestone is a client-facing API layer (`find`, `findAll`, `update`, `delete`, etc.) that sits above the current storage primitives. This section captures how the planned API interacts with the existing EAV architecture.
+The client API layer (`@byline/client`, `packages/client/DESIGN.md`) lives above the storage primitives. Design-time interactions with the EAV layer are captured here.
 
 ### What the storage system already provides
 
@@ -80,45 +75,36 @@ The next major milestone is a client-facing API layer (`find`, `findAll`, `updat
 - **Immutable versioning is invisible** to clients. The `current_documents` view resolves "latest version" — a `find()` call doesn't need version IDs. Version history is a separate, opt-in concern.
 - **Patch-based updates stay admin-internal.** The patch system is tied to UI intent (array reordering, block insertion, field-level change tracking). The client API does whole-document or field-level writes, mapping to `createDocumentVersion()` directly.
 
-### What's missing
+### Shipped
 
-#### 1. Query builder layer
-The current `getDocumentsByPage()` accepts raw SQL-shaped parameters. A client API wants a declarative spec:
+#### Query builder layer (Phase 2)
+`IDocumentQueries.findDocuments()` accepts a declarative spec (document-level filters, `FieldFilter[]` compiled into EXISTS subqueries, `FieldSort` compiled into `LEFT JOIN LATERAL`, and selective field loading). `@byline/client`'s `parse-where.ts` translates the client DSL into these descriptors via the shared `fieldTypeToStore` mapping in `@byline/core`.
 
-```typescript
-byline.collection('docs').find({
-  where: { status: 'published', fields: { featured: true } },
-  select: ['title', 'summary'],
-  sort: { created_at: 'desc' },
-  limit: 10,
-  populate: { author: { select: ['name', 'avatar'] } },
-})
-```
+#### Shared field→store mapping
+`packages/core/src/storage/field-store-map.ts` is the single source of truth: `StoreType`, `ALL_STORE_TYPES`, `fieldTypeToStore` (rich — includes value column), `fieldTypeToStoreType` (derived — adds structure categories). Both the client DSL parser and the db-postgres adapter consume it; a contract test enumerates every declared field type.
 
-This needs an intermediate query builder that translates field-level filters (e.g. `featured = true` hitting `store_boolean`) into the right store table joins. The `fieldTypeToStoreType` mapping and `resolveStoreTypes()` are the foundation, but field-level WHERE clauses against typed stores don't exist yet.
+#### Narrow metadata + populate primitives
+- `IDocumentQueries.getCurrentVersionMetadata()` — hits `current_documents` only for lifecycle operations (status changes) that need `{document_version_id, status, path}` but not the document body.
+- `IDocumentQueries.getDocumentsByDocumentIds()` — batch-fetch current versions by logical `document_id`, with optional selective field loading. Scaffolds Phase 3 populate (`store_relation` rows carry `target_document_id`).
 
-#### 2. Relationship population (`populate` / `depth`)
-`store_relation` stores the link but nothing populates it on read. A `populate` parameter requires:
+### What's still missing
+
+#### Relationship population (Phase 3 — `populate` / `depth`)
+`store_relation` stores the link and `getDocumentsByDocumentIds()` is in place, but the orchestration layer is not. Phase 3 adds:
 - Resolving relation fields to target collections
-- Recursively fetching target documents (with their own selective field loading)
-- A `depth` parameter to control recursion and prevent infinite loops
-- Batch-loading related documents to avoid N+1 (the existing `getAllFieldValuesForMultipleVersions()` pattern — batch by version ID — extends naturally to this)
+- A post-query pass that batches populated documents by depth level (one DB round trip per level, not per relation field)
+- `depth` control to prevent runaway recursion and circular-reference tracking
+- `populate` nested `select` → forwards to the batch fetch's `fields` param
 
-#### 3. Two-layer architecture
-The storage primitives (commands/queries classes) remain the low-level DB interface. The client API sits above them, owning:
-- Query DSL parsing → storage primitive calls
-- Relationship population orchestration
-- Access control (future)
-- Response shaping (sparse fieldsets, includes/sideloading)
-
-This mirrors Payload's Local API vs database adapters, and Strapi's Entity Service vs query engine.
+#### Write path (Phase 4)
+`create`, `update`, `delete`, `changeStatus`, `unpublish` — delegate to `document-lifecycle` functions from `@byline/core/services`. No storage changes required; the client handle is a thin shim.
 
 ### Impact on current storage code
-The storage primitives don't need to change much. The main new work is the query builder layer and the relationship population orchestration — both are new code, not rewrites.
+The storage primitives have already absorbed what Phases 2 + 3 need. Remaining Phase 3 work is pure client-side orchestration (no rewrites).
 
 ## Bottom line
 
-The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. Query paths have been unified, search is now configurable per collection, and locale copy-forward runs in a single DB round trip. The next major milestone is a client-facing API layer with a query builder and relationship population — both build on existing storage primitives rather than requiring a rewrite. The remaining strategic priority is benchmarking the UNION ALL read performance at scale and evaluating a read cache if needed.
+The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. Query paths have been unified, search is now configurable per collection, and locale copy-forward runs in a single DB round trip. Phases 1 and 2 of the client API have shipped (read, filter, sort); the field→store mapping is consolidated in `@byline/core` with a contract test. The next client API milestone is relationship population; the next strategic storage priority is benchmarking the UNION ALL and evaluating a read cache.
 
 ## Architecture changes (2026-04-06)
 
@@ -223,3 +209,7 @@ Route loader
 | 2026-04-08 | Implemented near-term items | Unified query paths, configurable search via `CollectionDefinition.search`, locale copy-forward in single round trip |
 | 2026-04-08 | Client API analysis | Documented planned client API layer, query builder needs, relationship population strategy |
 | 2026-04-08 | @byline/client Phase 1 | New `packages/client` package with read API: find, findOne, findById, findByPath, count. Delegates to existing IDocumentQueries. Unit + integration tests passing. |
+| 2026-04-13 | @byline/client Phase 2 | Field-level filters + sorting via `IDocumentQueries.findDocuments()`. `parse-where.ts` compiles `WhereClause` → `FieldFilter[]`; adapter emits EXISTS subqueries + LEFT JOIN LATERAL. 24 unit + 18 integration tests. |
+| 2026-04-14 | Pre-relationships cleanup | Deleted `getDocumentsByPage`, `getAllDocuments`, `getDocumentsByBatch`, `groupAndReconstructDocuments`, backward-compat store manifest exports, `hasFieldLevelConditions`, `CountResult`. Unified `getDocumentsByVersionIds` through `reconstructDocuments`. Tightened `shapeDocument` to throw on missing dates. −506 net lines. |
+| 2026-04-14 | Field → store mapping consolidation | Moved `StoreType`, `ALL_STORE_TYPES`, `fieldTypeToStore`, `fieldTypeToStoreType` into `@byline/core` (`src/storage/field-store-map.ts`). db-postgres and @byline/client both consume the shared module; 11 contract tests enumerate every declared field type to prevent drift. |
+| 2026-04-14 | Narrow metadata + populate primitives | Added `IDocumentQueries.getCurrentVersionMetadata()` (lifecycle status transitions no longer pay for UNION ALL + meta fetch) and `IDocumentQueries.getDocumentsByDocumentIds()` (batch fetch by logical id — scaffold for Phase 3 populate). Aligned `getDocumentByPath` to return `null` on miss; made `ClientDocument<F>` generic. |

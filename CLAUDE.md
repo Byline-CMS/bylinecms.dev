@@ -74,7 +74,7 @@ Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `
 
 - **Flatten** (write): `packages/db-postgres/src/storage/storage-utils.ts` → `flattenFieldSetData()`
 - **Reconstruct** (read): `packages/db-postgres/src/storage/storage-utils.ts` → `restoreFieldSetData()` — schema-aware, handles meta rows (`_id`, `_type`), locale resolution, and type-correct value extraction inline
-- **Store manifest**: `packages/db-postgres/src/storage/storage-store-manifest.ts` — declarative column manifest generates per-store SELECT lists for the UNION ALL. Adding a column is a one-line change; positional mismatches are structurally impossible. Also contains `fieldTypeToStoreType` mapping (collection field types → EAV store tables).
+- **Store manifest**: `packages/db-postgres/src/storage/storage-store-manifest.ts` — declarative column manifest generates per-store SELECT lists for the UNION ALL. Adding a column is a one-line change; positional mismatches are structurally impossible. The adapter-agnostic `fieldTypeToStore` / `fieldTypeToStoreType` mappings live in `@byline/core` (see "Field → Store Mapping" below) and are re-exported here for adapter-internal use.
 - **Selective field loading**: For list views, `resolveStoreTypes()` determines which store tables are needed for the requested fields, builds a partial UNION ALL (skipping irrelevant tables), and trims the reconstructed output to only the requested fields. Driven by `CollectionAdminConfig.columns`.
 - Block/array items carry a stable `_id` (UUIDv7) in `store_meta` for identity tracking. The `_id` is synthetic metadata — **never persist it via `flattenFieldSetData`**, never treat it as a data key in renderers.
 
@@ -113,15 +113,20 @@ A typed `Registry`/`AsyncRegistry` DI container in `packages/core/src/lib/regist
 - **Admin API routes**: `apps/webapp/src/routes/admin/api/$collection/` — RESTful endpoints for CRUD, patches, status transitions, and version history
 - **Validation**: Zod via schema builder in `packages/core/src/schemas/zod/builder.ts`
 
-### Client API (planned)
+### Client API (`@byline/client`)
 
-A higher-level, DSL-like API for querying and updating documents from outside the admin UI. Intended to sit above the existing storage primitives (commands/queries classes), not replace them. Key design points:
+A higher-level, DSL-like API for querying documents from outside the admin UI. Sits above the storage primitives (`IDbAdapter`) and the `document-lifecycle` service. See `packages/client/DESIGN.md` for the full design and phase breakdown.
 
-- **Two-layer architecture**: Storage primitives handle direct DB operations; the client API owns query DSL translation, relationship population, access control, and response shaping.
+- **Two-layer architecture**: Storage primitives handle direct DB operations; the client API owns query DSL translation, response shaping, and (planned) relationship population and access control.
 - **Patches stay admin-internal**: The patch system (`field.*`, `array.*`, `block.*`) is tied to UI intent (reordering, block insertion). The client API does whole-document or field-level writes via `createDocumentVersion()`.
-- **Relationship population**: `store_relation` stores links but nothing populates them on read yet. The client API will need `populate` and `depth` parameters to control recursive fetching of related documents.
-- **Query builder needed**: A new layer that translates field-level filters and sorts into the correct store table joins, building on `resolveStoreTypes()` and `fieldTypeToStoreType`.
-- **Selective field loading maps directly**: A `select`/`fields` parameter in the client API maps to the existing partial UNION ALL pipeline.
+- **Phase 1 — read path (shipped)**: `find()`, `findOne()`, `findById()`, `findByPath()`, `count()`. Results are camelCase-shaped through `shapeDocument()`. `ClientDocument<F>` is generic so callers can narrow the `fields` shape per-collection.
+- **Phase 2 — field-level filters and sorting (shipped)**: `where`/`sort` on collection field values compile to EXISTS subqueries + `LEFT JOIN LATERAL` against the EAV store tables via `IDocumentQueries.findDocuments()`. `CollectionHandle.find()` routes all queries through this path.
+- **Phase 3 — relationship population (planned)**: `populate` + `depth` for `store_relation` targets. Batches by depth level via `IDocumentQueries.getDocumentsByDocumentIds()` (primitive already shipped; populate orchestration is the remaining work).
+- **Phase 4 — write path (planned)**: `create()`, `update()`, `delete()`, `changeStatus()`, `unpublish()` delegating to `document-lifecycle` functions.
+
+### Field → Store Mapping
+
+The single source of truth for collection-field-type → EAV store table + value column lives in `packages/core/src/storage/field-store-map.ts`. Both `@byline/client` (where-clause parsing) and `@byline/db-postgres` (UNION ALL + filter SQL generation) consume it. A contract test (`field-store-map.test.node.ts`) enumerates every declared field type to prevent drift.
 
 ### Collections → Forms → Patches → Storage
 
