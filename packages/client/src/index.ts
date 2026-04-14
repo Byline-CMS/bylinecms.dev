@@ -9,7 +9,9 @@
 export {
   type CycleRelationValue,
   createReadContext,
+  type PopulatedRelationValue,
   type PopulateFieldOptions,
+  type PopulateFieldSpec,
   type PopulateMap,
   type PopulateSpec,
   type ReadContext,

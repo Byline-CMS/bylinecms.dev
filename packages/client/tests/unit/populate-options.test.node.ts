@@ -166,13 +166,19 @@ describe('CollectionHandle.find populate integration', () => {
       expect.objectContaining({ collection_id: 'authors', document_ids: ['a1'] })
     )
 
-    const populated = result.docs[0]?.fields.author
-    // Populated sub-doc is shaped to ClientDocument (camelCase id / versionId).
+    const populated = result.docs[0]?.fields.author as any
+    // Populated leaf is an envelope — target_*_id preserved, _resolved flag set,
+    // and the shaped ClientDocument lives under `document`.
     expect(populated).toEqual(
       expect.objectContaining({
-        id: 'a1',
-        versionId: 'ver:a1',
-        fields: expect.objectContaining({ name: 'Nora' }),
+        target_document_id: 'a1',
+        target_collection_id: 'authors',
+        _resolved: true,
+        document: expect.objectContaining({
+          id: 'a1',
+          versionId: 'ver:a1',
+          fields: expect.objectContaining({ name: 'Nora' }),
+        }),
       })
     )
   })
@@ -219,8 +225,12 @@ describe('CollectionHandle.find populate integration', () => {
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
     const populatedAuthor = result.docs[0]?.fields.author as any
-    expect(populatedAuthor?.id).toBe('a1')
-    expect(populatedAuthor?.fields?.employer?.id).toBe('o1')
+    expect(populatedAuthor?._resolved).toBe(true)
+    expect(populatedAuthor?.document?.id).toBe('a1')
+    // The nested employer leaf is also wrapped in an envelope whose
+    // `document` is the shaped target.
+    expect(populatedAuthor?.document?.fields?.employer?._resolved).toBe(true)
+    expect(populatedAuthor?.document?.fields?.employer?.document?.id).toBe('o1')
   })
 
   it('nested select forwards to batch fetch and unions with the target first text field', async () => {
@@ -271,7 +281,8 @@ describe('CollectionHandle.findById populate integration', () => {
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
     expect(doc?.id).toBe('p1')
-    expect((doc?.fields.author as any)?.id).toBe('a1')
+    expect((doc?.fields.author as any)?._resolved).toBe(true)
+    expect((doc?.fields.author as any)?.document?.id).toBe('a1')
   })
 
   it('select + populate trims before populate runs', async () => {
@@ -335,7 +346,8 @@ describe('CollectionHandle.findByPath populate integration', () => {
     const doc = await client.collection('posts').findByPath('p1', { populate: { author: true } })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
-    expect((doc?.fields.author as any)?.id).toBe('a1')
+    expect((doc?.fields.author as any)?._resolved).toBe(true)
+    expect((doc?.fields.author as any)?.document?.id).toBe('a1')
   })
 
   it('returns null when path is missing (no populate invocation)', async () => {

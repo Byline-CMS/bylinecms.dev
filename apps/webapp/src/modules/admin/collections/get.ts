@@ -59,9 +59,11 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     // Populate relation leaves when the caller requested a depth. Runs on
     // the raw storage shape (before serialisation / Zod parse) so the
     // populate walker sees the expected `{document_id, fields}` structure.
-    // Applies the `true` spec — populate every relation — which matches
-    // what the admin API preview (the sole caller with depth > 0 today)
-    // wants the reader to see.
+    // Uses the top-level `'*'` spec — walk every relation with the full
+    // document projection at every depth — which gives the admin API
+    // preview (the sole caller with depth > 0 today) the whole tree the
+    // reader expects to see. `populate: true` would only fetch identity
+    // fields, which is not useful for a debug/preview view.
     const populateRequested = typeof depth === 'number' && depth > 0
     if (populateRequested) {
       await populateDocuments({
@@ -69,7 +71,8 @@ const getDocumentFn = createServerFn({ method: 'GET' })
         collections: serverConfig.collections,
         collectionId: config.collection.id,
         documents: [rawDocument as Record<string, any>],
-        populate: true,
+        populate: '*',
+        // populate: true,
         depth,
         locale: locale ?? 'en',
       })

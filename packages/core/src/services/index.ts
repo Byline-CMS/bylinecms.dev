@@ -13,7 +13,9 @@ export * from './document-lifecycle.js'
 export {
   type CycleRelationValue,
   createReadContext,
+  type PopulatedRelationValue,
   type PopulateFieldOptions,
+  type PopulateFieldSpec,
   type PopulateMap,
   type PopulateOptions,
   type PopulateSpec,

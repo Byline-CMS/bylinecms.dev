@@ -26,7 +26,108 @@
  * documents. The guard is in place from day one so that the hook work
  * in Phase 4+ cannot reintroduce the problem.
  *
- * See RELATIONSHIPS.md for the full design rationale.
+ * See RELATIONSHIPS-ANALYSIS.md for the full design rationale.
+ *
+ * ---------------------------------------------------------------------
+ * DSL summary
+ * ---------------------------------------------------------------------
+ *
+ * The populate DSL has two independent axes:
+ *
+ *   1. **Scope** — which relations in the *source* document to walk.
+ *   2. **Projection** — which fields of each *target* document to load.
+ *
+ * The top-level `populate` value selects scope + (optionally) a uniform
+ * projection across the whole tree:
+ *
+ *   - `populate: true`                  → walk every relation leaf,
+ *                                         default projection at every
+ *                                         depth. See below for exactly
+ *                                         what the default projection
+ *                                         returns.
+ *   - `populate: '*'`                   → walk every relation leaf, full
+ *                                         document projection at every
+ *                                         depth. Symmetric with the
+ *                                         sub-spec shorthand and intended
+ *                                         for tools like the admin API
+ *                                         preview where the whole tree
+ *                                         should be visible.
+ *   - `populate: { name: … }`           → walk only the named relations.
+ *   - `populate: undefined`             → skip populate entirely (no-op).
+ *
+ * Default projection — exactly what comes back for `true` (and for any
+ * sub-spec whose `select` is omitted):
+ *
+ *   - **Document row metadata, always present** (lives on the
+ *     `document_versions` row, not in the `store_*` tables, so it is
+ *     returned regardless of the `fields` projection):
+ *       `document_version_id`, `document_id`, `collection_id`, `path`,
+ *       `status`, `created_at`, `updated_at`.
+ *   - **The `useAsTitle` field** (schema-declared identity field;
+ *     falls back to the first declared text field when `useAsTitle`
+ *     is not set on the `CollectionDefinition`). This is the one
+ *     entry added to the `fields` object.
+ *
+ * In effect "default projection" is "enough to identify and label the
+ * target" — document metadata for wiring, plus one user-defined field
+ * (typically `title`) for a human-readable label. Callers wanting more
+ * use `'*'` (full doc) or `{ select: [...] }` (explicit fields).
+ *
+ * Each matched leaf carries a `PopulateFieldSpec` that selects projection:
+ *
+ *   - `true`                            → default projection: the target's
+ *                                         identity field (`useAsTitle`,
+ *                                         falling back to the first text
+ *                                         field). Document metadata
+ *                                         (`document_id`, `collection_id`,
+ *                                         `path`, `status`, timestamps) is
+ *                                         always included for free — it
+ *                                         lives on the row, not in the
+ *                                         store_* tables.
+ *   - `'*'`                             → full document: every field of
+ *                                         the target is loaded.
+ *   - `{ select: [...] }`               → explicit field list, merged with
+ *                                         the identity field so downstream
+ *                                         UI always has a label to render.
+ *   - `{ populate: {...} }`             → nested populate for the next
+ *                                         depth level. Combinable with
+ *                                         `select`.
+ *
+ * Examples:
+ *
+ *   populate: true
+ *     → every relation, default projection at every depth level.
+ *
+ *   populate: '*'
+ *     → every relation, full projection at every depth level
+ *       (use for API previews / debug views that want the whole tree).
+ *
+ *   populate: { heroImage: true }
+ *     → only heroImage, default projection. If heroImage's own
+ *       relations exist, they populate at the next depth with `true`.
+ *
+ *   populate: { heroImage: '*' }
+ *     → only heroImage, full document. If heroImage's own relations
+ *       exist, they populate at the next depth with `'*'` (consistent
+ *       with how `true` propagates).
+ *
+ *   populate: { author: { select: ['name'] } }
+ *     → only author; fetch `name` + identity field.
+ *
+ *   populate: { author: { select: ['name'], populate: { employer: '*' } } }
+ *     → author with `name` at depth 1; employer fully populated at depth 2.
+ *
+ * Notes:
+ *
+ *   - `'*'` belongs on the sub-spec (or as the whole top-level spec),
+ *     not inside `select`. `select` is always an explicit field list.
+ *   - Projection defaults are transitive at every depth: `true` propagates
+ *     `true` into nested levels; `'*'` propagates `'*'`. Explicit
+ *     `{ populate: {...} }` maps take precedence when declared.
+ *   - Multiple leaves pointing at the same target document are batched
+ *     into a single fetch; their projection specs are merged (any `'*'`
+ *     wins; otherwise selects union together, identity field is always
+ *     added).
  */
 
 import { ERR_READ_BUDGET_EXCEEDED } from '../lib/errors.js'
@@ -82,7 +183,11 @@ export function createReadContext(overrides?: Partial<ReadContext>): ReadContext
 
 /**
  * Per-field populate options. `select` names the target's fields to
- * load; `populate` nests for deeper relations.
+ * load (merged with the target's identity field so UI always has a
+ * label to render); `populate` nests for deeper relations.
+ *
+ * Use the `'*'` sub-spec shorthand instead when you want the full
+ * target document — `select` is strictly for explicit field lists.
  */
 export interface PopulateFieldOptions {
   select?: string[]
@@ -90,18 +195,35 @@ export interface PopulateFieldOptions {
 }
 
 /**
+ * Per-relation projection selector.
+ *
+ * - `true` → default projection (identity field only; metadata is free).
+ * - `'*'`  → full document (every field loaded).
+ * - `{ select: [...] }` or `{ populate: {...} }` → explicit options.
+ *
+ * See the DSL summary at the top of this file for the full semantics.
+ */
+export type PopulateFieldSpec = true | '*' | PopulateFieldOptions
+
+/**
  * Top-level populate spec. Keys are relation field names (matched
  * anywhere in the source document's field tree, including inside
  * `group` / `array` / `blocks` structures).
  */
-export type PopulateMap = Record<string, true | PopulateFieldOptions>
+export type PopulateMap = Record<string, PopulateFieldSpec>
 
 /**
- * `true` → populate every relation leaf encountered, recursively.
- * `PopulateMap` → populate only the named relations, with optional
- * per-field `select` / nested `populate`.
+ * Top-level populate spec. Three shapes:
+ *
+ *   - `true`        → populate every relation leaf encountered, with
+ *                     default projection (identity only) at every level.
+ *   - `'*'`         → populate every relation leaf, with full projection
+ *                     at every level. Symmetric with the sub-spec `'*'`
+ *                     shorthand.
+ *   - `PopulateMap` → populate only the named relations, with per-field
+ *                     projection selectors.
  */
-export type PopulateSpec = true | PopulateMap
+export type PopulateSpec = true | '*' | PopulateMap
 
 // ---------------------------------------------------------------------------
 // PopulateOptions — the public entry
@@ -115,9 +237,13 @@ export interface PopulateOptions {
   collectionId: string
   /**
    * Documents to populate, as returned from a read operation. Must carry
-   * `document_id` and `fields`. Mutated in place — relation leaves in
-   * `fields` are replaced with populated documents or cycle / unresolved
-   * stubs.
+   * `document_id` and `fields`. Mutated in place — every relation leaf
+   * in `fields` that is walked becomes an envelope: the original
+   * `{ target_document_id, target_collection_id, relationship_type?,
+   * cascade_delete? }` refs are preserved, and discriminator fields
+   * (`_resolved`, `_cycle`) plus an optional `document` property are
+   * layered on top. See the `PopulatedRelationValue` /
+   * `UnresolvedRelationValue` / `CycleRelationValue` interfaces below.
    */
   documents: Array<Record<string, any>>
   /** What to populate. Omit to no-op. */
@@ -138,18 +264,54 @@ export interface PopulateOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Markers — replacement shapes for leaves we can't populate
+// Relation envelope — the shared shape across all four relation states
 // ---------------------------------------------------------------------------
+//
+// Every relation leaf — whether an unpopulated ref, a successfully populated
+// link, a deleted target, or a cycle stop — shares the `RelatedDocumentValue`
+// base (`target_document_id`, `target_collection_id`, and optional link
+// metadata `relationship_type` / `cascade_delete`). The `_resolved` /
+// `_cycle` / `document` properties discriminate the four states:
+//
+//   Unpopulated (no populate pass, or this leaf not in scope)
+//     { target_document_id, target_collection_id, relationship_type?, cascade_delete? }
+//
+//   Populated (target fetched and attached)
+//     { ..., _resolved: true, document: { ...fetched target doc } }
+//
+//   Unresolved (target not found — usually deleted)
+//     { ..., _resolved: false }
+//
+//   Cycle (target already materialised earlier in this request)
+//     { ..., _resolved: true, _cycle: true }
+//
+// Narrowing at the call site is straightforward:
+//
+//   if (v._cycle)                             → cycle
+//   else if (v._resolved === false)           → unresolved (deleted)
+//   else if (v._resolved === true && v.document) → populated — read v.document
+//   else                                       → unpopulated raw ref
+
+/** Marker placed in a relation leaf when the target was already materialised earlier in this request. */
+export interface CycleRelationValue extends RelatedDocumentValue {
+  _resolved: true
+  _cycle: true
+}
 
 /** Marker placed in a relation leaf when the target was not found (deleted). */
 export interface UnresolvedRelationValue extends RelatedDocumentValue {
   _resolved: false
 }
 
-/** Marker placed in a relation leaf when the target was already materialised earlier in this request. */
-export interface CycleRelationValue extends RelatedDocumentValue {
+/**
+ * Envelope placed in a relation leaf when populate successfully fetched
+ * the target document. The `document` field carries the raw storage-shape
+ * doc (`@byline/client` then reshapes it to `ClientDocument` during
+ * response shaping).
+ */
+export interface PopulatedRelationValue extends RelatedDocumentValue {
   _resolved: true
-  _cycle: true
+  document: Record<string, any>
 }
 
 // ---------------------------------------------------------------------------
@@ -272,15 +434,18 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
         if (typeof d?.document_id === 'string') byId.set(d.document_id, d)
       }
 
-      // First pass: replace leaves (reading visited state before we update it).
+      // First pass: replace leaves with envelopes (reading visited state
+      // before we update it). Each envelope preserves the original link
+      // metadata (`target_document_id`, `target_collection_id`, and any
+      // `relationship_type` / `cascade_delete`) so consumers can
+      // round-trip or inspect the relationship regardless of outcome.
       for (const leaf of leaves) {
         const { target_document_id, target_collection_id } = leaf.value
         const key = visitedKey(target_collection_id, target_document_id)
 
         if (ctx.visited.has(key)) {
           leaf.parent[leaf.key as any] = {
-            target_document_id,
-            target_collection_id,
+            ...leaf.value,
             _resolved: true,
             _cycle: true,
           } satisfies CycleRelationValue
@@ -290,14 +455,17 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
         const fetchedDoc = byId.get(target_document_id)
         if (fetchedDoc === undefined) {
           leaf.parent[leaf.key as any] = {
-            target_document_id,
-            target_collection_id,
+            ...leaf.value,
             _resolved: false,
           } satisfies UnresolvedRelationValue
           continue
         }
 
-        leaf.parent[leaf.key as any] = fetchedDoc
+        leaf.parent[leaf.key as any] = {
+          ...leaf.value,
+          _resolved: true,
+          document: fetchedDoc,
+        } satisfies PopulatedRelationValue
       }
 
       // Second pass: mark freshly fetched docs visited, update readCount,
@@ -410,11 +578,13 @@ interface RelationLeafRef {
   field: RelationField
   value: RelatedDocumentValue
   /**
-   * Per-leaf populate sub-spec resolved from the PopulateMap. `true` means
-   * "populate this leaf with default select"; an object carries optional
-   * nested `select` / `populate`.
+   * Per-leaf populate sub-spec resolved from the PopulateMap.
+   *
+   * - `true`  → default projection (identity field only).
+   * - `'*'`   → full document (all fields).
+   * - object → explicit `select` and/or nested `populate`.
    */
-  sub: true | PopulateFieldOptions
+  sub: PopulateFieldSpec
 }
 
 /**
@@ -487,11 +657,9 @@ function collectRelationLeaves(
   }
 }
 
-function matchesPopulate(
-  fieldName: string,
-  populate: PopulateSpec
-): true | PopulateFieldOptions | undefined {
+function matchesPopulate(fieldName: string, populate: PopulateSpec): PopulateFieldSpec | undefined {
   if (populate === true) return true
+  if (populate === '*') return '*'
   const spec = populate[fieldName]
   return spec
 }
@@ -507,32 +675,32 @@ function isRelatedDocumentValue(v: unknown): v is RelatedDocumentValue {
 
 /**
  * Build the `fields` array for a batch fetch against a single target
- * collection. Unions the explicit `select` lists from all leaves pointing
- * at this collection; returns `undefined` (fetch all fields) if any leaf
- * is `populate: true` or omits `select`. Always includes the target's
- * identity field (`useAsTitle`, falling back to the first text field) so
- * downstream UI has a default label to render, even when the caller's
- * explicit `select` omits it.
+ * collection.
+ *
+ *   - Any leaf with `sub === '*'` → `undefined` (fetch all fields).
+ *   - Otherwise → union of explicit `select` lists from each leaf,
+ *     merged with the target's identity field (`useAsTitle`, falling
+ *     back to the first text field). `sub === true` contributes no
+ *     selects, so a batch of only-`true` leaves collapses to the
+ *     identity field alone — the default projection.
+ *
+ * Document metadata (`document_id`, `collection_id`, `path`, `status`,
+ * timestamps) lives on the row itself and is always returned — it does
+ * not need to appear in the `fields` list.
  */
 function buildBatchSelect(
   leaves: RelationLeafRef[],
   targetDef: CollectionDefinition | undefined
 ): string[] | undefined {
-  let wantAll = false
   const union = new Set<string>()
   for (const leaf of leaves) {
-    if (leaf.sub === true) {
-      wantAll = true
-      break
-    }
+    if (leaf.sub === '*') return undefined
+    if (leaf.sub === true) continue
     const select = leaf.sub.select
-    if (!select || select.length === 0) {
-      wantAll = true
-      break
+    if (select) {
+      for (const name of select) union.add(name)
     }
-    for (const name of select) union.add(name)
   }
-  if (wantAll) return undefined
   if (targetDef) {
     const identity = resolveIdentityField(targetDef)
     if (identity) union.add(identity)
@@ -557,19 +725,32 @@ function resolveIdentityField(def: CollectionDefinition): string | undefined {
  * the next level's walk of that document. Returns `undefined` if the
  * leaves don't request any nested population (in which case the populated
  * document's own relations stay as raw refs).
+ *
+ * Sub-spec semantics at the next level:
+ *   - `'*'`  → propagate `'*'` (scope=all, full projection, recursive).
+ *              `'*'` wins over `true` when both appear in the same batch
+ *              so the caller's "full document" intent is preserved.
+ *   - `true` → recurse into every relation of the target (scope=all,
+ *              default projection).
+ *   - object → forward any nested `populate` map; ignore `select`.
  */
 function reduceChildPopulate(
   leaves: RelationLeafRef[],
   targetDocumentId: string
 ): PopulateSpec | undefined {
+  let anyStar = false
   let anyTrue = false
   const merged: PopulateMap = {}
   let hasMerged = false
   for (const l of leaves) {
     if (l.value.target_document_id !== targetDocumentId) continue
+    if (l.sub === '*') {
+      anyStar = true
+      break
+    }
     if (l.sub === true) {
       anyTrue = true
-      break
+      continue
     }
     if (l.sub.populate !== undefined) {
       for (const [k, v] of Object.entries(l.sub.populate)) {
@@ -578,6 +759,7 @@ function reduceChildPopulate(
       }
     }
   }
+  if (anyStar) return '*'
   if (anyTrue) return true
   if (hasMerged) return merged
   return undefined

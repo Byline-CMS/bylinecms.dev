@@ -116,6 +116,20 @@ function relationRef(collectionId: string, documentId: string) {
   }
 }
 
+/**
+ * Build the expected envelope shape for a successfully populated leaf.
+ * Mirrors `PopulatedRelationValue` — `leaf.value` metadata plus
+ * `_resolved: true` and the attached `document`.
+ */
+function populatedEnvelope(collectionId: string, documentId: string, document: any) {
+  return {
+    target_document_id: documentId,
+    target_collection_id: collectionId,
+    _resolved: true,
+    document,
+  }
+}
+
 type FetchMap = Record<string, Record<string, any>>
 
 /**
@@ -207,11 +221,21 @@ describe('matchesPopulate', () => {
     expect(matchesPopulate('anything', true)).toBe(true)
   })
 
+  it("returns '*' when top-level populate is '*'", () => {
+    // Top-level '*' matches every relation name with the '*' sub-spec,
+    // so every leaf is fetched with the full document projection.
+    expect(matchesPopulate('anything', '*')).toBe('*')
+  })
+
   it('returns the field value from a PopulateMap', () => {
     expect(matchesPopulate('author', { author: true })).toBe(true)
     expect(matchesPopulate('author', { author: { select: ['name'] } })).toEqual({
       select: ['name'],
     })
+  })
+
+  it("returns '*' when a field selects the full document", () => {
+    expect(matchesPopulate('author', { author: '*' })).toBe('*')
   })
 
   it('returns undefined for fields not in the map', () => {
@@ -316,21 +340,54 @@ describe('buildBatchSelect', () => {
     field: {} as any,
   })
 
-  it('returns undefined when any leaf is populate: true', () => {
-    expect(buildBatchSelect([makeLeaf(true)], authorsCollection)).toBeUndefined()
+  it("returns undefined when any leaf is '*' (full document)", () => {
+    expect(buildBatchSelect([makeLeaf('*')], authorsCollection)).toBeUndefined()
   })
 
-  it('unions explicit selects and adds the first text field', () => {
+  it("'*' on any leaf dominates mixed inputs", () => {
+    // A '*' leaf in the batch forces full-document fetch even when a
+    // sibling leaf has an explicit select.
+    expect(
+      buildBatchSelect([makeLeaf({ select: ['employer'] }), makeLeaf('*')], authorsCollection)
+    ).toBeUndefined()
+  })
+
+  it('returns identity-only for populate: true (default projection)', () => {
+    // A bare `true` sub contributes no selects; the only entry in the
+    // union comes from the target's identity field.
+    expect(buildBatchSelect([makeLeaf(true)], authorsCollection)).toEqual(['name'])
+  })
+
+  it('unions explicit selects and adds the identity field', () => {
     const result = buildBatchSelect(
       [makeLeaf({ select: ['employer'] }), makeLeaf({ select: ['employer'] })],
       authorsCollection
     )
-    // Union of selects + first text field ('name')
     expect(result?.sort()).toEqual(['employer', 'name'])
   })
 
-  it('falls back to undefined when a sub has no select', () => {
-    expect(buildBatchSelect([makeLeaf({ populate: {} })], authorsCollection)).toBeUndefined()
+  it('returns identity-only when sub has no select (just populate)', () => {
+    // { populate: {} } is scope+depth forwarding, not a projection opt-in —
+    // it should behave like `true` at this level.
+    expect(buildBatchSelect([makeLeaf({ populate: {} })], authorsCollection)).toEqual(['name'])
+  })
+
+  it('merges true + explicit select: identity plus the explicit field', () => {
+    const result = buildBatchSelect(
+      [makeLeaf(true), makeLeaf({ select: ['employer'] })],
+      authorsCollection
+    )
+    expect(result?.sort()).toEqual(['employer', 'name'])
+  })
+
+  it('uses useAsTitle when declared (preferred over first text field)', () => {
+    const def: CollectionDefinition = {
+      ...authorsCollection,
+      useAsTitle: 'employer',
+    }
+    // Identity resolves to `employer` (useAsTitle) instead of `name`
+    // (first text field).
+    expect(buildBatchSelect([makeLeaf(true)], def)).toEqual(['employer'])
   })
 })
 
@@ -386,7 +443,39 @@ describe('populateDocuments', () => {
     })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
-    expect(doc.fields.author).toBe(author)
+    expect(doc.fields.author).toEqual(populatedEnvelope('authors', 'a1', author))
+  })
+
+  it('populated envelope preserves relationship_type and cascade_delete', async () => {
+    // Link metadata on the original relation value (e.g. a weak-ref flag
+    // or cascade-delete directive) must survive the populate pass so
+    // callers can inspect or round-trip the relation.
+    const author = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const { db } = makeMockAdapter({ authors: { a1: author } })
+    const doc = shapedDoc('posts', 'p1', {
+      author: {
+        ...relationRef('authors', 'a1'),
+        relationship_type: 'weak',
+        cascade_delete: true,
+      },
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: true },
+    })
+
+    expect(doc.fields.author).toEqual({
+      target_document_id: 'a1',
+      target_collection_id: 'authors',
+      relationship_type: 'weak',
+      cascade_delete: true,
+      _resolved: true,
+      document: author,
+    })
   })
 
   it('groups by target collection: one query per target per level', async () => {
@@ -444,8 +533,8 @@ describe('populateDocuments', () => {
 
     // One query per level.
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
-    expect(doc.fields.author).toBe(author)
-    expect(author.fields.employer).toBe(org)
+    expect(doc.fields.author.document).toBe(author)
+    expect(author.fields.employer.document).toBe(org)
   })
 
   it('populate: true recursively populates at depth 2', async () => {
@@ -471,8 +560,8 @@ describe('populateDocuments', () => {
     })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
-    expect(doc.fields.author).toBe(author)
-    expect(author.fields.employer).toBe(org)
+    expect(doc.fields.author.document).toBe(author)
+    expect(author.fields.employer.document).toBe(org)
   })
 
   it('marks deleted targets with _resolved: false', async () => {
@@ -524,7 +613,7 @@ describe('populateDocuments', () => {
       depth: 3,
     })
 
-    expect(post.fields.author).toBe(author)
+    expect(post.fields.author.document).toBe(author)
     expect(author.fields.employer).toEqual({
       target_document_id: 'p1',
       target_collection_id: 'posts',
@@ -552,7 +641,7 @@ describe('populateDocuments', () => {
       populate: { author: true },
       readContext: ctx,
     })
-    expect(doc1.fields.author).toBe(author)
+    expect(doc1.fields.author.document).toBe(author)
 
     const doc2 = shapedDoc('posts', 'p2', { author: relationRef('authors', 'a1') })
     await populateDocuments({
@@ -624,8 +713,123 @@ describe('populateDocuments', () => {
 
     // Only one level: author fetched, but employer stays as a raw ref.
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
-    expect(doc.fields.author).toBe(author)
+    expect(doc.fields.author.document).toBe(author)
     expect(author.fields.employer).toEqual(relationRef('orgs', 'o1'))
+  })
+
+  it("populate: '*' fetches full documents at every depth (recursive)", async () => {
+    // Top-level '*' = scope: all + full projection, transitive. At depth 2
+    // both the author and its employer should come back with no fields
+    // projection (fields: undefined → fetch all).
+    const org = shapedDoc('orgs', 'o1', { name: 'Acme' })
+    const author = shapedDoc('authors', 'a1', {
+      name: 'Nora',
+      employer: relationRef('orgs', 'o1'),
+    })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+      orgs: { o1: org },
+    })
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: '*',
+      depth: 2,
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
+    // Both level-1 and level-2 calls fetch with no fields projection.
+    for (const call of getDocumentsByDocumentIds.mock.calls) {
+      expect(call[0]).toEqual(expect.objectContaining({ fields: undefined }))
+    }
+    expect(doc.fields.author.document).toBe(author)
+    expect(author.fields.employer.document).toBe(org)
+  })
+
+  it("{ author: '*' } propagates '*' to nested relations at deeper levels", async () => {
+    // Sub-spec '*' is symmetric with `true` — both propagate their
+    // projection choice to the next level when the caller doesn't
+    // specify explicit nested populate. So { author: '*' } at depth 2
+    // fetches author full AND author's own relations full.
+    const org = shapedDoc('orgs', 'o1', { name: 'Acme' })
+    const author = shapedDoc('authors', 'a1', {
+      name: 'Nora',
+      employer: relationRef('orgs', 'o1'),
+    })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+      orgs: { o1: org },
+    })
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: '*' },
+      depth: 2,
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
+    for (const call of getDocumentsByDocumentIds.mock.calls) {
+      expect(call[0]).toEqual(expect.objectContaining({ fields: undefined }))
+    }
+    expect(author.fields.employer.document).toBe(org)
+  })
+
+  it("'*' sub-spec fetches the full target document (no fields projection)", async () => {
+    const author = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+    })
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: '*' },
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection_id: 'authors',
+        fields: undefined,
+      })
+    )
+    expect(doc.fields.author.document).toBe(author)
+  })
+
+  it('default projection sends identity-only fields list', async () => {
+    // `populate: { author: true }` uses the default projection: the
+    // target's identity field (`name` for authorsCollection) — no full
+    // fetch, no explicit select.
+    const author = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+    })
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: true },
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection_id: 'authors',
+        fields: ['name'],
+      })
+    )
   })
 
   it('forwards nested select + adds first text field for display', async () => {
@@ -667,7 +871,7 @@ describe('populateDocuments', () => {
     })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
-    expect(doc.fields.related[0].person).toBe(a4)
+    expect(doc.fields.related[0].person.document).toBe(a4)
   })
 
   it('populates relations inside blocks items', async () => {
@@ -686,7 +890,7 @@ describe('populateDocuments', () => {
     })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
-    expect(doc.fields.content[0].attributedTo).toBe(a6)
+    expect(doc.fields.content[0].attributedTo.document).toBe(a6)
   })
 
   it('populates relations inside group fields', async () => {
@@ -705,7 +909,7 @@ describe('populateDocuments', () => {
     })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
-    expect(doc.fields.meta.editor).toBe(a3)
+    expect(doc.fields.meta.editor.document).toBe(a3)
   })
 
   it('de-duplicates IDs at a single level (one fetch for two references)', async () => {
@@ -729,9 +933,9 @@ describe('populateDocuments', () => {
     expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
       expect.objectContaining({ collection_id: 'authors', document_ids: ['a1'] })
     )
-    // Both leaves get the same populated object.
-    expect(doc.fields.author).toBe(a1)
-    expect(doc.fields.secondaryAuthor).toBe(a1)
+    // Both leaves get their own envelope, each wrapping the same fetched doc.
+    expect(doc.fields.author.document).toBe(a1)
+    expect(doc.fields.secondaryAuthor.document).toBe(a1)
   })
 
   it('uses composite (collection, document) keys so same id across collections stays distinct', async () => {
@@ -754,7 +958,7 @@ describe('populateDocuments', () => {
 
     // Post p1 was marked visited with key 'posts:p1'. Author p1 uses
     // 'authors:p1' — distinct. Author populates normally.
-    expect(post.fields.author).toBe(authorWithSameId)
+    expect(post.fields.author.document).toBe(authorWithSameId)
   })
 })
 
@@ -797,7 +1001,7 @@ describe('populateDocuments — DB UUID → path resolution', () => {
     expect(getCollectionById).toHaveBeenCalledWith(postsUuid)
     expect(getCollectionById).toHaveBeenCalledWith(authorsUuid)
     // And the populated document is in place.
-    expect(doc.fields.author).toBe(author)
+    expect(doc.fields.author.document).toBe(author)
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
   })
 
@@ -866,6 +1070,14 @@ describe('PopulateSpec typing', () => {
     const spec: PopulateSpec = {
       author: { select: ['name'], populate: { employer: true } },
       editor: true,
+    }
+    expect(spec).toBeDefined()
+  })
+
+  it("accepts the '*' full-document shorthand at any leaf", () => {
+    const spec: PopulateSpec = {
+      author: '*',
+      editor: { populate: { employer: '*' } },
     }
     expect(spec).toBeDefined()
   })

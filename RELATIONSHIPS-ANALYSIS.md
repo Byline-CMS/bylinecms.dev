@@ -307,23 +307,41 @@ freshly-shaped copies). Returns void.
 3. Group by `target_collection_id`, call `getDocumentsByDocumentIds`
    once per target collection with the appropriate `fields` array for
    selective loading.
-4. Replace each `leaf_ref` in place with the populated document (or a
-   marker — see below).
+4. Replace each `leaf_ref` in place with a **relation envelope** (see
+   below) — populated, unresolved, or cycle — all sharing the same
+   base shape.
 5. If `depth > 1`, repeat against the newly-populated documents, with
    the `populate[fieldName].populate` nested map as the next level's
    spec.
 
-**Deleted-target placeholder** (missing from batch result):
+**Relation envelope — the shared shape across all four states.**
+
+Every relation leaf shares the `RelatedDocumentValue` base
+(`target_document_id`, `target_collection_id`, optional
+`relationship_type` / `cascade_delete`). The discriminators
+`_resolved` / `_cycle` / `document` identify which of the four
+states the leaf is in:
 
 ```ts
-{ target_document_id, target_collection_id, _resolved: false }
+// Unpopulated — no populate pass ran, or this leaf wasn't in scope
+{ target_document_id, target_collection_id, relationship_type?, cascade_delete? }
+
+// Populated — target fetched and attached
+{ ..., _resolved: true, document: { ...fetched target doc } }
+
+// Unresolved — target not found (usually deleted)
+{ ..., _resolved: false }
+
+// Cycle — target already materialised earlier in this request
+{ ..., _resolved: true, _cycle: true }
 ```
 
-**Cycle marker** (target `document_id` already in visited set):
-
-```ts
-{ target_document_id, target_collection_id, _resolved: true, _cycle: true }
-```
+The envelope guarantees the same narrowing logic at every relation
+leaf (`if (v._cycle) { … } else if (v._resolved === false) { … }
+else if (v._resolved === true && v.document) { … } else { /* raw ref */ }`)
+and preserves the link metadata (`relationship_type`, `cascade_delete`)
+through populate rather than throwing it away when the target is
+successfully fetched.
 
 Visited set is the `ReadContext.visited` set — maintained across the
 whole request, not just the current walk — so future `afterRead`-hook
