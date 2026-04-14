@@ -8,7 +8,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import type { CollectionDefinition } from '@byline/core'
+import type { CollectionAdminConfig, CollectionDefinition, ColumnDefinition } from '@byline/core'
+import { getCollectionAdminConfig } from '@byline/core'
 import { Button, LoaderRing, Modal, Search } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
@@ -19,11 +20,16 @@ import { getCollectionDocuments } from '@/modules/admin/collections'
 // ---------------------------------------------------------------------------
 
 /**
- * Name of the field on the target document to render as each row's primary
- * label. Caller resolves this from `RelationField.displayField` or the
- * target collection's first text field; the picker renders
- * `doc.fields[displayField]` and falls back through `title` / `path` /
- * `document_id` if the chosen key is absent on a given row.
+ * Row rendering strategy, in priority order:
+ *   1. `CollectionAdminConfig.picker` — a ColumnDefinition[] from the target
+ *      admin config. Each row renders the declared columns side-by-side,
+ *      reusing any column formatters (thumbnail, date, etc).
+ *   2. Explicit `displayField` prop on this component (forwarded from
+ *      `RelationField.displayField`).
+ *   3. `CollectionDefinition.useAsTitle` on the target.
+ *   4. First top-level `text` field on the target.
+ *
+ * Paths 2–4 render a single-line label (primary) + `path` (secondary).
  */
 interface RelationPickerProps {
   /** The target collection path (e.g. `'media'`). */
@@ -59,6 +65,10 @@ export const RelationPicker = ({
   const [totalPages, setTotalPages] = useState<number>(1)
   const [collectionId, setCollectionId] = useState<string | null>(null)
 
+  const targetAdminConfig: CollectionAdminConfig | null =
+    getCollectionAdminConfig(targetCollectionPath)
+  const pickerColumns = targetAdminConfig?.picker
+
   // Reset local state each time the modal opens so prior queries don't leak.
   useEffect(() => {
     if (isOpen) {
@@ -74,7 +84,7 @@ export const RelationPicker = ({
     if (!isOpen) return
     let cancelled = false
 
-    const selectFields = resolveSelectFields(targetDefinition, displayField)
+    const selectFields = resolveSelectFields(targetDefinition, displayField, pickerColumns)
 
     setLoading(true)
     setError(null)
@@ -106,9 +116,13 @@ export const RelationPicker = ({
     return () => {
       cancelled = true
     }
-  }, [isOpen, targetCollectionPath, query, page, displayField, targetDefinition])
+  }, [isOpen, targetCollectionPath, query, page, displayField, targetDefinition, pickerColumns])
 
-  const resolvedDisplayField = displayField ?? resolveFallbackDisplayField(targetDefinition) ?? null
+  const resolvedDisplayField =
+    displayField ??
+    targetDefinition?.useAsTitle ??
+    resolveFallbackDisplayField(targetDefinition) ??
+    null
 
   const handleSelect = useCallback(() => {
     if (!selectedDocumentId || !collectionId) return
@@ -162,22 +176,32 @@ export const RelationPicker = ({
                   {documents.map((doc) => {
                     const id = doc.document_id as string
                     const selected = selectedDocumentId === id
-                    const primary = resolveRowLabel(doc, resolvedDisplayField) || id
-                    const secondary = doc.path as string | undefined
                     return (
                       <li key={id}>
                         <button
                           type="button"
                           className={cx(
-                            'w-full text-left px-3 py-2 flex flex-col gap-0.5',
+                            'w-full text-left px-3 py-2',
                             'hover:bg-gray-800 transition-colors',
                             selected && 'bg-primary-900/30 border-l-2 border-primary-400'
                           )}
                           onClick={() => setSelectedDocumentId(id)}
                         >
-                          <span className="text-sm text-gray-100 truncate">{primary}</span>
-                          {secondary && (
-                            <span className="text-xs text-gray-500 truncate">{secondary}</span>
+                          {pickerColumns && pickerColumns.length > 0 ? (
+                            <div className="flex items-center gap-3">
+                              {pickerColumns.map((col) => (
+                                <PickerCell key={String(col.fieldName)} column={col} record={doc} />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-sm text-gray-100 truncate">
+                                {resolveRowLabel(doc, resolvedDisplayField) || id}
+                              </span>
+                              {typeof doc.path === 'string' && doc.path.length > 0 && (
+                                <span className="text-xs text-gray-500 truncate">{doc.path}</span>
+                              )}
+                            </div>
                           )}
                         </button>
                       </li>
@@ -247,22 +271,36 @@ function resolveFallbackDisplayField(def: CollectionDefinition | null | undefine
 }
 
 /**
- * Build the `fields` projection for the picker listing. We want the display
- * field (so rows can render their label), plus common metadata columns that
- * the fallback row-label resolver reads (`title` and `path`).
+ * Build the `fields` projection for the picker listing. Unions:
+ *   - caller-supplied `displayField`
+ *   - target schema's `useAsTitle`
+ *   - every `fieldName` declared in the admin config's `picker` columns
+ *   - `title` (metadata fallback for rows with no explicit picker columns)
+ *
+ * Returns `undefined` when no target definition is available, leaving the
+ * listing endpoint to decide its own default projection.
  */
 function resolveSelectFields(
   def: CollectionDefinition | null | undefined,
-  displayField: string | undefined
+  displayField: string | undefined,
+  pickerColumns: ColumnDefinition[] | undefined
 ): string[] | undefined {
   if (!def) return undefined
   const out = new Set<string>()
-  const fallback = resolveFallbackDisplayField(def)
   if (displayField) out.add(displayField)
+  if (def.useAsTitle) out.add(def.useAsTitle)
+  const fallback = resolveFallbackDisplayField(def)
   if (fallback) out.add(fallback)
-  // Only include `title` when it's actually a declared field (most
-  // collections have one but not all — relying on metadata `path` alone
-  // is also fine).
+  if (pickerColumns) {
+    for (const col of pickerColumns) {
+      const name = String(col.fieldName)
+      // `status` / `updated_at` etc. are metadata columns on the row — only
+      // include names that correspond to actual schema fields so we don't
+      // request non-existent store data.
+      if (def.fields.some((f) => f.name === name)) out.add(name)
+    }
+  }
+  // Only include `title` when it's actually a declared field.
   if (def.fields.some((f) => f.name === 'title')) out.add('title')
   if (out.size === 0) return undefined
   return Array.from(out)
@@ -277,4 +315,48 @@ function resolveRowLabel(doc: any, displayField: string | null): string | null {
   if (typeof doc.fields?.title === 'string' && doc.fields.title.length > 0) return doc.fields.title
   if (typeof doc.path === 'string' && doc.path.length > 0) return doc.path
   return null
+}
+
+/**
+ * Render a single picker-row cell using a shared `ColumnDefinition`.
+ *
+ * - Reads the field value from `record.fields[fieldName]`, falling back to
+ *   top-level metadata on the document (so status/updated_at/path all work
+ *   out of the box).
+ * - Honours both formatter shapes: plain function → its return value; or
+ *   `{ component }` → the component is rendered.
+ * - Respects `align` and `className` from the column definition.
+ */
+function PickerCell({ column, record }: { column: ColumnDefinition; record: Record<string, any> }) {
+  const name = String(column.fieldName)
+  const value = record?.fields?.[name] ?? record?.[name]
+
+  let content: any
+  if (column.formatter) {
+    if (typeof column.formatter === 'function') {
+      content = column.formatter(value, record)
+    } else {
+      const Comp = column.formatter.component
+      content = <Comp value={value} record={record} />
+    }
+  } else if (value == null) {
+    content = null
+  } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    content = String(value)
+  } else {
+    content = null
+  }
+
+  return (
+    <div
+      className={cx(
+        'min-w-0 text-sm text-gray-100 truncate',
+        column.align === 'center' && 'text-center',
+        column.align === 'right' && 'text-right',
+        column.className
+      )}
+    >
+      {content}
+    </div>
+  )
 }

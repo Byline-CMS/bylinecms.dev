@@ -29,7 +29,7 @@ import { Media } from './schema.js'
  * them if needed - for example if you wanted to create a toggled grid/table
  * custom view.
  */
-const mediaColumns: ColumnDefinition[] = [
+const listViewColumns: ColumnDefinition[] = [
   {
     fieldName: 'image' as keyof any,
     label: 'Preview',
@@ -60,8 +60,35 @@ const mediaColumns: ColumnDefinition[] = [
   },
 ]
 
+/**
+ * Columns rendered per row when Media appears as the target of a relation
+ * picker (e.g. News → `heroImage` → Media). Narrower than the list view —
+ * just enough to identify the right media item at a glance.
+ */
+const pickerViewColumns: ColumnDefinition[] = [
+  {
+    fieldName: 'image' as keyof any,
+    label: 'Preview',
+    align: 'left',
+    className: 'w-[50px] shrink-0',
+    formatter: { component: MediaThumbnail },
+  },
+  {
+    fieldName: 'title',
+    label: 'Title',
+    align: 'left',
+    className: 'flex-1',
+  },
+  {
+    fieldName: 'status',
+    label: 'Status',
+    align: 'right',
+    className: 'w-[80px] shrink-0 text-xs text-gray-500',
+  },
+]
+
 export const MediaAdmin: CollectionAdminConfig = defineAdmin(Media, {
-  useAsTitle: 'title',
-  columns: mediaColumns,
+  columns: listViewColumns,
+  picker: pickerViewColumns,
   listView: MediaListView,
 })

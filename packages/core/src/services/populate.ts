@@ -509,8 +509,10 @@ function isRelatedDocumentValue(v: unknown): v is RelatedDocumentValue {
  * Build the `fields` array for a batch fetch against a single target
  * collection. Unions the explicit `select` lists from all leaves pointing
  * at this collection; returns `undefined` (fetch all fields) if any leaf
- * is `populate: true` or omits `select`. Always includes the collection's
- * first text field so that downstream UI has a default label to render.
+ * is `populate: true` or omits `select`. Always includes the target's
+ * identity field (`useAsTitle`, falling back to the first text field) so
+ * downstream UI has a default label to render, even when the caller's
+ * explicit `select` omits it.
  */
 function buildBatchSelect(
   leaves: RelationLeafRef[],
@@ -532,10 +534,21 @@ function buildBatchSelect(
   }
   if (wantAll) return undefined
   if (targetDef) {
-    const firstText = targetDef.fields.find((f) => f.type === 'text')
-    if (firstText) union.add(firstText.name)
+    const identity = resolveIdentityField(targetDef)
+    if (identity) union.add(identity)
   }
   return Array.from(union)
+}
+
+/**
+ * The field that represents a target document's identity for populate's
+ * default projection. Prefers `useAsTitle` (server-safe schema-level
+ * config), falling back to the first declared text field.
+ */
+function resolveIdentityField(def: CollectionDefinition): string | undefined {
+  if (def.useAsTitle) return def.useAsTitle
+  const firstText = def.fields.find((f) => f.type === 'text')
+  return firstText?.name
 }
 
 /**

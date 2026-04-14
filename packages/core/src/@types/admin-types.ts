@@ -151,14 +151,24 @@ export interface CollectionAdminConfig<T = any> {
   /** Must match the `path` of the corresponding CollectionDefinition. */
   slug: string
 
-  /** Which field to use as the document title in list views. */
-  useAsTitle?: string
-
   /** Group name for organizing collections in the admin sidebar. */
   group?: string
 
   /** Column definitions for the collection list view. */
   columns?: ColumnDefinition<T>[]
+
+  /**
+   * Column definitions for this collection when it appears as the target
+   * of a relation picker (the modal opened from a `relation` field widget).
+   *
+   * Shape matches `ColumnDefinition` so formatters like a thumbnail cell or
+   * date formatter can be reused across list and picker. Omit to fall back
+   * to a single-line render of `useAsTitle` + `path`.
+   *
+   * Purely a UI concern — does not affect populate's default projection,
+   * which uses `CollectionDefinition.useAsTitle` server-side.
+   */
+  picker?: ColumnDefinition<T>[]
 
   /** Default columns to show when no explicit column config is provided. */
   defaultColumns?: string[]

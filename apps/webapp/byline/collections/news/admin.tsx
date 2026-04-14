@@ -28,7 +28,7 @@ import { News } from './schema.js'
  * custom view.
  */
 
-const newsColumns: ColumnDefinition[] = [
+const listViewColumns: ColumnDefinition[] = [
   {
     fieldName: 'title',
     label: 'Title',
@@ -53,7 +53,6 @@ const newsColumns: ColumnDefinition[] = [
 ]
 
 // export const NewsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
-//   useAsTitle: 'title',
 //   columns: newsColumns,
 //   fields: {
 //     title: {
@@ -72,8 +71,7 @@ const newsColumns: ColumnDefinition[] = [
 // })
 
 export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
-  useAsTitle: 'title',
-  columns: newsColumns,
+  columns: listViewColumns,
   fields: {
     path: { position: 'sidebar' },
     availableLanguages: { position: 'sidebar' },

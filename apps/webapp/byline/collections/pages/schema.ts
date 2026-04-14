@@ -32,6 +32,7 @@ export const Pages: CollectionDefinition = {
   }),
   showStats: true,
   search: { fields: ['title'] },
+  useAsTitle: 'title',
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {

@@ -28,7 +28,7 @@ import { Pages } from './schema.js'
  * custom view.
  */
 
-const pagesColumns: ColumnDefinition[] = [
+const listViewColumns: ColumnDefinition[] = [
   {
     fieldName: 'title',
     label: 'Title',
@@ -60,7 +60,6 @@ const pagesColumns: ColumnDefinition[] = [
 ]
 
 // export const PagesAdmin: CollectionAdminConfig = defineAdmin(Docs, {
-//   useAsTitle: 'title',
 //   columns: pagesColumns,
 //   fields: {
 //     title: {
@@ -79,8 +78,7 @@ const pagesColumns: ColumnDefinition[] = [
 // })
 
 export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
-  useAsTitle: 'title',
-  columns: pagesColumns,
+  columns: listViewColumns,
   fields: {
     path: { position: 'sidebar' },
     availableLanguages: { position: 'sidebar' },

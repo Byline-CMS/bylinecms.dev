@@ -44,6 +44,11 @@ export interface FormRendererProps {
   publishedVersion?: PublishedVersionInfo | null
   initialData?: Record<string, any>
   adminConfig?: CollectionAdminConfig
+  /**
+   * Name of the schema field to render as the live form heading.
+   * Sourced from `CollectionDefinition.useAsTitle` by the caller.
+   */
+  useAsTitle?: string
   headingLabel?: string
   headerSlot?: ReactNode
   /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
@@ -201,6 +206,7 @@ const FormContent = ({
   publishedVersion,
   initialData,
   adminConfig,
+  useAsTitle,
   headingLabel,
   headerSlot,
   collectionPath,
@@ -264,8 +270,7 @@ const FormContent = ({
   const [formData, setFormData] = useState<Record<string, any>>(() => getFieldValues())
 
   // Live document heading — tracks the useAsTitle field as the user types
-  const titleFieldName = adminConfig?.useAsTitle
-  const liveTitle = useFieldValue<string>(titleFieldName ?? '')
+  const liveTitle = useFieldValue<string>(useAsTitle ?? '')
   const heading =
     liveTitle ||
     (headingLabel
@@ -563,6 +568,7 @@ export const FormRenderer = ({
   publishedVersion,
   initialData,
   adminConfig,
+  useAsTitle,
   headingLabel,
   headerSlot,
   collectionPath,
@@ -592,6 +598,7 @@ export const FormRenderer = ({
         publishedVersion={publishedVersion}
         initialData={initialData}
         adminConfig={adminConfig}
+        useAsTitle={useAsTitle}
         headingLabel={headingLabel}
         headerSlot={headerSlot}
         collectionPath={collectionPath}

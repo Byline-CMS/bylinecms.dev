@@ -533,6 +533,17 @@ export interface CollectionDefinition {
    */
   search?: { fields: string[] }
   /**
+   * The field that represents this document's identity — used anywhere a
+   * single-line label for the document is needed: form headings, relation
+   * widget summaries, populate's default projection, future `afterRead`
+   * hooks, logs, etc.
+   *
+   * Lives on the schema (not admin config) so server-side consumers like
+   * `populateDocuments` and the client API can read it without taking a
+   * dependency on UI concerns. Analogous to Django's `Model.__str__`.
+   */
+  useAsTitle?: string
+  /**
    * When `true`, the admin landing page displays a per-status document count
    * inside the collection card. Requires a database round-trip per collection
    * on every landing-page load, so opt in deliberately.

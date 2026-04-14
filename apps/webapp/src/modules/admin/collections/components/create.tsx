@@ -79,6 +79,7 @@ export const CreateView = ({
           onSubmit={handleSubmit}
           initialData={initialData}
           adminConfig={adminConfig}
+          useAsTitle={collectionDefinition.useAsTitle}
           headingLabel={labels.singular}
           useNavigationGuard={useTanStackNavigationGuard}
           onCancel={() =>

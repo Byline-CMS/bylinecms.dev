@@ -262,6 +262,7 @@ export const EditView = ({
           onSubmit={handleSubmit}
           initialData={initialData}
           adminConfig={adminConfig}
+          useAsTitle={collectionDefinition.useAsTitle}
           headingLabel={labels.singular}
           initialLocale={locale}
           onLocaleChange={handleLocaleChange}

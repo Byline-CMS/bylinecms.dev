@@ -39,6 +39,7 @@ export const Media: CollectionDefinition = {
     singular: 'Media Item',
     plural: 'Media',
   },
+  useAsTitle: 'title',
   workflow: defineWorkflow({
     draft: { label: 'Draft', verb: 'Revert to Draft' },
     published: { label: 'Active', verb: 'Activate' },

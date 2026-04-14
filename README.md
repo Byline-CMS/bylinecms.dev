@@ -126,6 +126,7 @@ We feel the MPL will help to encourage collaboration and shared maintenance of t
 // collections/pages.schema.ts  (server-only, no UI concerns)
 export const PagesSchema = defineCollection({
   slug: 'pages',
+  useAsTitle: 'title',
   fields: [
     { name: 'title', type: 'text', required: true, localized: true },
     { name: 'sub', type: 'textarea', localized: true },
@@ -143,7 +144,6 @@ export const PagesSchema = defineCollection({
 import { PagesSchema } from './pages.schema'
 
 export const PagesAdmin = defineAdmin(PagesSchema, {
-  useAsTitle: 'title',
   group: 'Content',
   defaultColumns: ['title', 'publishedOn', '_status'],
   preview: (doc, { locale }) => `http://localhost:3000/${doc.slug}?locale=${locale}`,
@@ -155,6 +155,11 @@ export const PagesAdmin = defineAdmin(PagesSchema, {
   },
 })
 ```
+
+> `useAsTitle` lives on the schema (not admin config) because it names the
+> field that represents a document's identity — used by the admin heading,
+> the relation picker summary, populate's default projection, and any other
+> server-side consumer. Analogous to Django's `Model.__str__`.
 The advantages of this approach:
 
 - Schema definitions become truly server-only — no import-map strings, no admin blocks, no client components anywhere near them. They're plain data, trivially serializable, testable, and publishable as an API contract.
