@@ -1,73 +1,83 @@
-# Relationships — Phase 3 Analysis & Plan
+# Relationships — Analysis & Plan
 
 > Last updated: 2026-04-15
 > Companion to [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md) —
 > captures the design approach for the first consumer of the EAV layer
 > that spans collections at read time.
 
+This document is a guide for two audiences: newcomers who want to
+understand how document relationships are modelled, written, and read
+in Byline; and future contributors (human or agent) designing the
+work that builds on this foundation — read-side hooks, richtext
+document links, `hasMany` relations, cascade behaviour. Each section
+states what shipped, why it was shaped this way, and what's still
+open.
+
 ## Context
 
-The storage layer already models relations: `store_relation` holds
-`target_document_id` + `target_collection_id` per row, `RelationField`
-(`targetCollection`, `displayField`) is defined, and the flatten/reconstruct
-code round-trips the reference object. What is still missing are the three
-consumer-facing pieces that make relations useful:
+The storage layer has always modelled relations natively:
+`store_relation` holds `target_document_id` + `target_collection_id`
+per row, `RelationField` (`targetCollection`, `displayField`) is
+declared in `packages/core/src/@types/field-types.ts`, and the
+flatten/reconstruct code in
+`packages/db-postgres/src/storage/storage-utils.ts` round-trips the
+reference object. What had been missing until this work were the
+three consumer-facing pieces that make relations useful in practice
+— now delivered:
 
-1. **Populate on read** — walk a reconstructed document's relation leaves,
-   batch-fetch the targets, and embed them in place. The batch primitive
-   (`IDocumentQueries.getDocumentsByDocumentIds`) already exists; no
-   caller uses it yet.
-2. **Admin API preview `depth` control** — editors should be able to
-   preview what a client library `find({ populate, depth })` call would
-   return for the current document (route:
-   `apps/webapp/src/routes/{-$lng}/(byline)/admin/collections/$collection/$id/api.tsx`).
-3. **Relation field admin widget** — a field of `type: 'relation'` has no
-   UI today. Editors need a picker that lists documents of the configured
-   `targetCollection`, lets them select one, and funnels the selection
-   into the form's pending-patch pipeline.
+1. **Populate on read — shipped.** `populateDocuments` in
+   `packages/core/src/services/populate.ts` walks a reconstructed
+   document's relation leaves, batch-fetches the targets via
+   `IDocumentQueries.getDocumentsByDocumentIds`, and embeds them in
+   place. One DB round-trip per depth level per target collection.
+   Consumed by both `@byline/client` and the admin API-preview server
+   fn.
+2. **Admin API preview `depth` control — shipped.** Editors on
+   `apps/webapp/src/routes/{-$lng}/(byline)/admin/collections/$collection/$id/api.tsx`
+   pick a depth (0–3) from the ViewMenu Select and see the populated
+   JSON live. `?depth=N` is in the URL so each level is a distinct
+   cache entry.
+3. **Relation field admin widget — shipped.**
+   `apps/webapp/src/ui/fields/relation/relation-field.tsx` renders a
+   compact summary card with a Modal picker
+   (`relation-picker.tsx`) listing documents from the configured
+   `targetCollection`. Selection flows through the standard
+   `setFieldValue` → `FieldSetPatch` pipeline — no new patch family
+   required.
 
-No collection currently declares a relation field (only a doc-comment
-example in `apps/webapp/byline/collections/media/schema.ts`), and the Zod
-schema for `'relation'` is `z.any()` — so this phase is also the first
-time the relation pipe gets real-world exercise.
-
-### Outcomes
-
-- `client.collection('posts').find({ populate: { author: true }, depth: 2 })`
-  returns nested `ClientDocument` objects with cycle protection and
-  unresolved-target markers.
-- The admin API preview gains a Depth selector next to the locale picker
-  and updates live.
-- Editors can pick a target document via a modal or drawer picker; the
-  selection rides the normal `field.set` / `field.clear` patch path.
-- The real app has at least one relation field (News → Media) wired up
-  end-to-end, with a hardened Zod schema.
+The real app now has its first production relation: News →
+`heroImage` → Media
+(`apps/webapp/byline/collections/news/schema.ts`). The full pipeline
+— picker → patch → write → reconstruct → populate → API preview —
+is exercised end-to-end any time an editor sets a hero image on a
+news item.
 
 ### Framing
 
-Phase 3 is the first consumer of the EAV storage layer that spans
-collections at read time. It is deliberately a stress test: populate
+This work was the first consumer of the EAV storage layer that spans
+collections at read time. It was deliberately a stress test: populate
 walks, batch-by-depth, cycles, deleted targets, and cross-collection
-field resolution will exercise assumptions that single-collection reads
-never did. Surfacing storage weaknesses (UNION ALL cost at depth, fan-out
-in `IN(...)` lists, `displayField` projection semantics, cascade-delete
-ambiguity) is a legitimate output of this phase, not a distraction.
-Integration-test perf assertions and the risk list below capture where
-we expect to find pressure.
+field resolution exercise assumptions that single-collection reads
+never did. Surfacing storage weaknesses (UNION ALL cost at depth,
+fan-out in `IN(...)` lists, `displayField` projection semantics,
+cascade-delete ambiguity) was treated as a legitimate output of the
+work, not a distraction. The risks list below captures pressure
+points observed during implementation and still-open performance
+questions.
 
 ---
 
 ## Resolved design decisions
 
-1. **Single-target relations only in Phase 3.** `hasMany: true` is
-   deferred to Phase 3.5. Picker UX, schema, and populate output stay
-   single-valued for now.
+1. **Single-target relations only for now.** `hasMany: true` is
+   deferred to a later phase. Picker UX, schema, and populate output
+   stay single-valued.
 2. **Populate lives in `@byline/core/services/populate.ts`.** Both
    `@byline/client` (external consumers) and the admin server fns
    (preview route) call the same orchestration. The admin webapp does
    not take a runtime dependency on `@byline/client`.
-3. **Demo wiring included (sub-phase 3e).** A real relation field on
-   News → Media, plus Zod hardening, lands as part of this phase.
+3. **Demo wiring included.** A real relation field on News → Media,
+   plus Zod hardening, landed as part of this work.
 4. **Recursive-read safety is engineered in from day one.** Populate
    accepts an explicit `ReadContext` that persists across nested reads
    and is the future binding point for read-side hooks (see next
@@ -134,29 +144,31 @@ export function createReadContext(overrides?: Partial<ReadContext>): ReadContext
 
 **Enforcement points:**
 
-1. **Populate walk (ships now, Phase 3).** Each populate level
-   pre-filters target IDs against `visited`. Already-visited IDs are
-   replaced with the `_cycle: true` stub rather than re-fetched. The set
-   keys combine collection + document id so two distinct collections
-   with the same UUID (shouldn't happen, but UUIDv7 with external
-   imports makes it thinkable) stay distinct.
-2. **Read budget (ships now).** Each materialised document increments
-   `readCount`. Crossing `maxReads` throws `ERR_READ_BUDGET_EXCEEDED`
-   with the partial result attached. This is defensive cheap insurance:
-   even with perfect cycle detection, a malformed collection graph or a
-   buggy future hook can't take down the process.
-3. **Hook entry point (future Phase 4+).** When `afterRead` lands, the
-   `DocumentLifecycleContext` exposed to hooks gains a `readContext`
-   field. If a hook calls back into `client.collection().find()`, the
-   client handle threads the same `ReadContext` through (via an internal
-   opt-in param — the public API stays context-free for non-hook
-   callers). A hook re-reading a document that's already in `visited`
-   short-circuits with the cached materialised value; no second pass, no
-   second hook fire. This is the single most important semantic rule:
-   **within one logical request, each document is materialised and run
-   through `afterRead` at most once.**
+1. **Populate walk — in place today.** Each populate level pre-filters
+   target IDs against `visited`. Already-visited IDs are replaced with
+   the `_cycle: true` stub rather than re-fetched. The set keys combine
+   collection + document id so two distinct collections with the same
+   UUID (shouldn't happen, but UUIDv7 with external imports makes it
+   thinkable) stay distinct.
+2. **Read budget — in place today.** Each materialised document
+   increments `readCount`. Crossing `maxReads` throws
+   `ERR_READ_BUDGET_EXCEEDED` with the partial result attached. This is
+   defensive cheap insurance: even with perfect cycle detection, a
+   malformed collection graph or a buggy future hook can't take down the
+   process.
+3. **Hook entry point — to be wired by the next phase.** When
+   `afterRead` lands, the `DocumentLifecycleContext` exposed to hooks
+   gains a `readContext` field. If a hook calls back into
+   `client.collection().find()`, the client handle threads the same
+   `ReadContext` through (via an internal opt-in param — the public API
+   stays context-free for non-hook callers). A hook re-reading a
+   document that's already in `visited` short-circuits with the cached
+   materialised value; no second pass, no second hook fire. This is the
+   single most important semantic rule: **within one logical request,
+   each document is materialised and run through `afterRead` at most
+   once.**
 
-**Client handle wiring (ships now):**
+**Client handle wiring — in place today:**
 
 - `CollectionHandle` accepts a private `_readContext?: ReadContext` on
   its read methods. When omitted, a fresh context is created for the
@@ -166,13 +178,13 @@ export function createReadContext(overrides?: Partial<ReadContext>): ReadContext
   concern, not part of the DSL. Tests assert the fresh-context default
   path so external callers never need to know it exists.
 
-**AsyncLocalStorage alternative (not in Phase 3).** A cleaner future
+**AsyncLocalStorage alternative — not adopted now.** A cleaner future
 option is to carry `ReadContext` via Node's `AsyncLocalStorage` so hooks
 never have to thread it manually. That can layer over the explicit
 parameter later without breaking the contract; the parameter is the
 source of truth.
 
-### Constraints this imposes on Phase 3
+### Constraints this imposes
 
 - Populate always creates or threads a `ReadContext`. Never operates
   ungoverned.
@@ -196,9 +208,9 @@ source of truth.
   (writes to another service, etc.) per invocation is still free to
   misbehave. `ReadContext` only guards reads.
 - The `DocumentLifecycleContext` proliferation risk ("context sprawl")
-  is real but not a Phase 3 decision — when `afterRead` lands, it should
-  inherit from the same context type rather than introduce a parallel
-  one. Flagged for Phase 4 design review.
+  is real but not a decision for this work — when `afterRead` lands,
+  it should inherit from the same context type rather than introduce a
+  parallel one. Flagged for the next phase's design review.
 - Populate from outside the hook path (e.g. parallel requests from
   different users) is correctly independent — each top-level call gets
   its own context. No accidental cross-request leakage.
@@ -209,7 +221,7 @@ source of truth.
 
 ```
                  ┌────────────────────────────────────────┐
-                 │   @byline/core/services/populate.ts    │   ← NEW (3a)
+                 │   @byline/core/services/populate.ts    │
                  │   populateDocuments({ db, collections, │
                  │      docs, collectionId, populate,     │
                  │      depth, locale, readContext })     │
@@ -230,11 +242,14 @@ source of truth.
 
 ---
 
-## Sub-phase breakdown
+## Implementation stages
 
-Ordered by dependency. Each lands as a separate commit.
+The work landed as a sequence of self-contained commits, each with
+its own testable goal. They are preserved here as a historical
+record and a reference for where each piece of the architecture
+lives on disk.
 
-### 3a — Core populate service
+### a. Core populate service
 
 **Goal:** `populateDocuments(...)` replaces relation leaves with full
 documents, one DB round-trip per depth level, with cycle and
@@ -326,7 +341,7 @@ the batch call for the author's target collection uses
 first text field) implicitly so the widget summary keeps working — the
 client library can override.
 
-### 3b — Client library integration
+### b. Client library integration
 
 **Goal:** `client.collection('posts').find({ populate, depth })` returns
 populated documents typed by the `F` generic.
@@ -344,7 +359,7 @@ populated documents typed by the `F` generic.
   `collections` array, and the same locale. Default `depth` to 1 when
   `populate` is present, `0` skips.
 - `packages/client/DESIGN.md` — bump the status-snapshot table
-  (Phase 3 → Shipped) after landing.
+  after landing.
 
 **New files:**
 
@@ -356,7 +371,7 @@ populated documents typed by the `F` generic.
   asserts at depth 0 / 1 / 2 / 3, includes a manufactured cycle fixture
   and a deleted-target fixture.
 
-### 3c — Relation widget (admin)
+### c. Relation widget (admin)
 
 **Goal:** Editing a relation field opens a picker listing documents from
 `targetCollection`. Selection → `field.set` patch with the
@@ -401,7 +416,7 @@ is `null`, render an inline error ("Relation field `{name}` targets
 unknown collection `{targetCollection}`") and a disabled picker button.
 No throw.
 
-### 3d — Admin API preview depth control
+### d. Admin API preview depth control
 
 **Goal:** A Depth `Select` next to the Content Locale picker on
 `.../$id/api`. Changing it re-runs the loader with a new `depth` param
@@ -434,7 +449,7 @@ and re-renders the JSON.
 **Cap:** 3. Enough to exercise cycles; avoids runaway on wide graphs.
 Programmatic client callers can go deeper.
 
-### 3e — Demo collection wiring
+### e. Demo collection wiring
 
 **Goal:** A real collection declares a `relation` field so the whole
 pipeline (widget → patch → write → reconstruct → populate → preview) is
@@ -460,7 +475,7 @@ exercised in the running app.
   with `heroImage` set to an existing Media `document_id` /
   `target_collection_id`.
 
-### 3f — Zod schema hardening
+### f. Zod schema hardening
 
 **Goal:** Replace `z.any()` for relation fields with a proper object
 shape now that real collections use the field. Prevents silent form-save
@@ -515,7 +530,7 @@ breakage.
 - `apps/webapp/src/ui/fields/field-renderer.tsx` — `case 'relation':`
 - `apps/webapp/byline/collections/news/schema.ts` — heroImage field
 - `apps/webapp/byline/seed-bulk-documents.ts` — demo relation value
-- `packages/client/DESIGN.md` — status snapshot (Phase 3 → Shipped)
+- `packages/client/DESIGN.md` — status snapshot update
 
 **Reused (no edits):**
 
@@ -597,7 +612,8 @@ cd packages/client && pnpm test:integration
   `group` / `array` / `blocks` exactly like the flatten/reconstruct code
   in `packages/db-postgres/src/storage/storage-utils.ts`. If the two
   diverge, relations inside blocks won't populate. Consider extracting
-  a shared walker into `@byline/core` during 3a.
+  a shared walker into `@byline/core` when the storage-utils walker is
+  next touched.
 - **Select + displayField pairing.** When the client provides
   `populate: { author: { select: ['body'] } }` without including the
   display field, downstream UI that renders a label will break.
@@ -617,19 +633,19 @@ cd packages/client && pnpm test:integration
   test that query counts match the batch-per-level expectation.
 - **Recursive read hooks (A→B→A).** Addressed by the request-scoped
   `ReadContext` described in its own section above. Not currently
-  reachable (no `afterRead` yet), but the contract is in place so that
-  Phase 4+ read-hook work cannot re-introduce the problem without
-  explicitly opting out of the guard. Integration test includes a
-  synthetic "hook that re-reads A" fixture to lock the contract even
-  before real hooks exist — the hook is simulated by making two
-  top-level `findById` calls that share a `ReadContext`.
+  reachable (no `afterRead` yet), but the contract is in place so
+  future read-hook work cannot re-introduce the problem without
+  explicitly opting out of the guard. The integration-test plan
+  includes a synthetic "hook that re-reads A" fixture to lock the
+  contract even before real hooks exist — simulated by two top-level
+  `findById` calls that share a `ReadContext`.
 - **Zod schema change breaks seed/test data.** Any existing fixture
-  that passed a string ID or partial object for a relation will start
-  failing validation in 3f. Run the full test suite and audit seed
-  files before merging.
+  that passed a string ID or partial object for a relation would have
+  started failing validation when stage f landed. Run the full test
+  suite and audit seed files after any further tightening.
 - **`cascade_delete` semantics.** The column round-trips but isn't
-  acted on. Phase 3 stays read-only for this; defer cascade behaviour
-  to the Phase 4 write path.
+  acted on. This work stayed read-focused for cascade; acting on the
+  flag belongs to the future write-path work.
 - **ViewMenu depth selector leaks into other routes if mis-conditioned.**
   Gate on `activeView === 'api'`. Keep `loaderDeps` narrow on the api
   route so `?depth=N` cache keys don't bleed into edit/history.
@@ -669,7 +685,7 @@ Insertion flow in the admin editor:
 Editor toolbar
     │  user clicks "Insert document link"
     ▼
-RelationPicker (reused from Phase 3c)
+RelationPicker (reused from the relation-widget work)
     │  restricted to the collections allowed by
     │  the editor's config
     ▼
@@ -684,9 +700,9 @@ cached display data with the rest of the serialised editor state, or
 carries only its `{target_document_id, target_collection_id}` pair and
 is hydrated with `title` / `path` / … on the fly.
 
-### Relation to the existing Phase 3 picker
+### Relation to the existing picker
 
-The Phase 3 `RelationPicker` component (`apps/webapp/src/ui/fields/
+The `RelationPicker` component (`apps/webapp/src/ui/fields/
 relation/relation-picker.tsx`) already:
 
 - renders a search+paginated list over `getCollectionDocuments`,
@@ -747,7 +763,7 @@ render time on the client.
 - A follow-on "refresh links" maintenance hook is worth offering —
   a collection-level job or a per-document button that rewalks every
   DocumentLinkNode and re-fetches `cached`. Bulk refresh is a
-  natural Phase 4+ admin command.
+  natural follow-on admin command.
 
 #### Mode 2 — read-time hydration (`embed.mode: 'read'`)
 
@@ -758,7 +774,7 @@ render time on the client.
   JSON of the emerging response, collects every link's
   `{target_collection_id, target_document_id}`, groups them, and
   batches via `IDocumentQueries.getDocumentsByDocumentIds({ fields })`
-  — exactly the same primitive Phase 3 populate uses.
+  — exactly the same primitive the relation-field populate uses.
 - The hydrated fields are **attached to the node at response time**
   (not persisted to storage): a `hydrated?: Record<string, unknown>`
   or inlined `cached`-shaped envelope, whichever is cleaner at
@@ -818,7 +834,7 @@ field" rule from populate).
 The A→B→A loop described earlier for relation fields applies just as
 much to document links: a News doc's body richtext links to a Page; the
 Page's body links back; Mode 2 hydration blows the stack. The fix is
-the **same `ReadContext`** we ship in Phase 3:
+the **same `ReadContext`** already in place for relation populate:
 
 - `hydrateDocumentLinks()` receives (or creates) a `ReadContext` and
   threads it through nested hydrations.
@@ -837,7 +853,7 @@ needlessly, or re-fetch the target twice. The unified context gives
 editors a defensible "this request materialised N documents, full
 stop" guarantee.
 
-When the first real `afterRead` hook lands (Phase 4+), it should
+When the first real `afterRead` hook lands, it should
 receive the same context too, per the "Recursive-read safety"
 section above.
 
@@ -877,24 +893,24 @@ section above.
 
 ---
 
-## Deferred (out of scope for Phase 3)
+## Deferred (out of scope for this work)
 
-- **`hasMany: true` on RelationField** — deferred to Phase 3.5. Needs:
-  new prop on `RelationField`, multi-select picker UX
-  (add/remove/reorder), Zod array-of-object schema, populate array
-  output, tests.
-- **`afterRead` / `beforeRead` hooks themselves** — not implemented in
-  Phase 3. Populate ships with a `ReadContext` contract specifically so
+- **`hasMany: true` on RelationField** — follow-on work. Needs a new
+  prop on `RelationField`, multi-select picker UX
+  (add/remove/reorder), an array-of-object Zod schema, an array
+  populate output, and tests.
+- **`afterRead` / `beforeRead` hooks themselves** — not implemented
+  yet. Populate ships with a `ReadContext` contract specifically so
   that when these hooks land, they thread the same context and the
-  A→B→A recursion class is already foreclosed. The hook work itself is
-  Phase 4+.
+  A→B→A recursion class is already foreclosed. The hook work itself
+  is its own track.
 - **AsyncLocalStorage-based context propagation** — explicit threading
-  of `ReadContext` through the client handle is the Phase 3 contract.
+  of `ReadContext` through the client handle is the contract today.
   An `AsyncLocalStorage` wrapper can layer over this later without
   breaking it.
-- **Cascade delete acted on** — Phase 4 write path.
+- **Cascade delete acted on** — belongs to the future write-path work.
 - **Access control on populate** (e.g. "don't populate private target
-  docs") — Phase 4 access-control concern.
+  docs") — belongs to the future access-control work.
 - **Relation column formatter** in list views — currently no column
   renderer exists for relation field values; list views only show
   `target_document_id`. Useful but out of scope here.
