@@ -9,6 +9,17 @@
 import type { ClientDocument } from './types.js'
 
 /**
+ * Coerce a storage-layer date value into a Date. Throws when the value is
+ * missing — every document version row carries created_at/updated_at, so a
+ * nullish value here indicates a malformed row (not a shaping concern).
+ */
+function toDate(value: unknown, fieldName: string): Date {
+  if (value instanceof Date) return value
+  if (typeof value === 'string' || typeof value === 'number') return new Date(value)
+  throw new Error(`shapeDocument: missing or invalid ${fieldName}`)
+}
+
+/**
  * Shape an internal document (snake_case, storage layer format) into the
  * public ClientDocument format (camelCase).
  */
@@ -18,8 +29,8 @@ export function shapeDocument(raw: Record<string, any>): ClientDocument {
     versionId: raw.document_version_id ?? '',
     path: raw.path ?? '',
     status: raw.status ?? '',
-    createdAt: raw.created_at instanceof Date ? raw.created_at : new Date(raw.created_at ?? 0),
-    updatedAt: raw.updated_at instanceof Date ? raw.updated_at : new Date(raw.updated_at ?? 0),
+    createdAt: toDate(raw.created_at, 'created_at'),
+    updatedAt: toDate(raw.updated_at, 'updated_at'),
     fields: raw.fields ?? {},
   }
 }

@@ -62,13 +62,14 @@ export interface FindByPathOptions {
 
 /**
  * A where clause maps field names (or reserved document-level names like
- * `status` and `path`) to either a bare value (equality) or an operator object.
+ * `status` and `path`) to either a bare value (equality) or an operator
+ * object. Reserved keys:
+ *   - `status` — exact match on document version status column
+ *   - `query`  — text search across the collection's configured search fields
+ *   - `path`   — document version path column (supports operators)
  *
- * Phase 1 supports:
- * - `status` (exact match on document status column)
- * - `query` (text search across collection's configured search fields)
- *
- * Field-level operators ($gt, $contains, etc.) are deferred to Phase 2.
+ * All other keys are resolved against the collection's field definitions
+ * and compiled into EXISTS subqueries over the EAV store tables.
  */
 export type WhereClause = Record<string, WhereValue>
 
@@ -123,8 +124,4 @@ export interface FindResult {
     pageSize: number
     totalPages: number
   }
-}
-
-export interface CountResult {
-  total: number
 }

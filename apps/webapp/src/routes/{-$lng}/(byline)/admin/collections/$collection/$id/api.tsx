@@ -40,8 +40,6 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
       throw notFound()
     }
 
-    // console.log('Fetched data:', JSON.stringify(data, null, 2))
-
     return data
   },
   staleTime: 0,

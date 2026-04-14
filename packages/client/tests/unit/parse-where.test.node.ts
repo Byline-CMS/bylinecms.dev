@@ -9,7 +9,7 @@
 import { defineCollection, defineWorkflow } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
-import { hasFieldLevelConditions, parseSort, parseWhere } from '../../src/query/parse-where.js'
+import { parseSort, parseWhere } from '../../src/query/parse-where.js'
 
 const testCollection = defineCollection({
   path: 'test-articles',
@@ -174,27 +174,6 @@ describe('parseWhere', () => {
     expect(result.fieldFilters).toHaveLength(1)
     expect(result.fieldFilters[0]?.operator).toBe('$eq')
     expect(result.fieldFilters[0]?.value).toBeNull()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// hasFieldLevelConditions
-// ---------------------------------------------------------------------------
-
-describe('hasFieldLevelConditions', () => {
-  it('should return false for document-level only conditions', () => {
-    const parsed = parseWhere({ status: 'draft', query: 'test' }, testCollection)
-    expect(hasFieldLevelConditions(parsed)).toBe(false)
-  })
-
-  it('should return true when field filters are present', () => {
-    const parsed = parseWhere({ title: { $contains: 'hello' } }, testCollection)
-    expect(hasFieldLevelConditions(parsed)).toBe(true)
-  })
-
-  it('should return true when path filter is present', () => {
-    const parsed = parseWhere({ path: { $contains: 'news' } }, testCollection)
-    expect(hasFieldLevelConditions(parsed)).toBe(true)
   })
 })
 

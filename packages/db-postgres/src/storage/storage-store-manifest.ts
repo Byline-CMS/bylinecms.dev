@@ -329,20 +329,6 @@ export const allStoreTypes: StoreType[] = [
 ]
 
 // ---------------------------------------------------------------------------
-// Backward-compatible named exports
-// ---------------------------------------------------------------------------
-// These match the old API so existing imports continue to work during
-// migration. They can be removed once all call sites use storeSelectList().
-
-export const textFields = storeSelectList('text')
-export const numericFields = storeSelectList('numeric')
-export const booleanFields = storeSelectList('boolean')
-export const datetimeFields = storeSelectList('datetime')
-export const jsonFields = storeSelectList('json')
-export const relationFields = storeSelectList('relation')
-export const fileFields = storeSelectList('file')
-
-// ---------------------------------------------------------------------------
 // Field type → store type mapping
 // ---------------------------------------------------------------------------
 

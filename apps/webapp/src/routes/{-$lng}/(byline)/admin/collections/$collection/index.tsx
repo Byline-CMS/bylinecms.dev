@@ -51,7 +51,7 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
     }
 
     // Derive the field names the list view needs from the admin column config.
-    // This lets getDocumentsByPage query only the relevant store tables.
+    // This lets findDocuments query only the relevant store tables.
     const adminConfig = getCollectionAdminConfig(params.collection)
     const fields = adminConfig?.columns
       ?.map((c) => String(c.fieldName))

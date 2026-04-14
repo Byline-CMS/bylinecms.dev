@@ -33,16 +33,12 @@ describe('shapeDocument', () => {
     expect(result.fields).toEqual({ title: 'Hello World', summary: 'A test document.' })
   })
 
-  it('should handle missing fields with sensible defaults', () => {
-    const result = shapeDocument({})
+  it('should throw when created_at is missing', () => {
+    expect(() => shapeDocument({ updated_at: new Date() })).toThrow(/created_at/)
+  })
 
-    expect(result.id).toBe('')
-    expect(result.versionId).toBe('')
-    expect(result.path).toBe('')
-    expect(result.status).toBe('')
-    expect(result.fields).toEqual({})
-    expect(result.createdAt).toBeInstanceOf(Date)
-    expect(result.updatedAt).toBeInstanceOf(Date)
+  it('should throw when updated_at is missing', () => {
+    expect(() => shapeDocument({ created_at: new Date() })).toThrow(/updated_at/)
   })
 
   it('should coerce string dates to Date objects', () => {

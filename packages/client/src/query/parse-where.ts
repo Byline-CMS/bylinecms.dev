@@ -210,15 +210,6 @@ export function parseSort(
   }
 }
 
-/**
- * Returns true when the parsed where clause contains field-level filters,
- * field-level path operators (beyond bare equality), or a text query —
- * i.e. conditions that require the `findDocuments()` code path.
- */
-export function hasFieldLevelConditions(parsed: ParsedWhere): boolean {
-  return parsed.fieldFilters.length > 0 || parsed.pathFilter !== undefined
-}
-
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------

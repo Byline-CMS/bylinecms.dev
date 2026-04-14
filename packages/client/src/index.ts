@@ -11,7 +11,6 @@ export { CollectionHandle } from './collection-handle.js'
 export type {
   BylineClientConfig,
   ClientDocument,
-  CountResult,
   FilterOperators,
   FindByIdOptions,
   FindByPathOptions,
