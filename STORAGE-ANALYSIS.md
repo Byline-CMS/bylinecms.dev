@@ -1,6 +1,6 @@
 # Universal Storage (EAV-per-type) — Strategic Analysis
 
-> Last updated: 2026-04-15
+> Last updated: 2026-04-16
 > Companion: [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) —
 > the first consumer of the EAV layer that spans collections at read time.
 
@@ -66,7 +66,7 @@ A `jsonb` column on `document_versions` (we already have a `doc` column marked "
 ### ~~Selective field loading~~ — Done
 Implemented 2026-04-06. See [Selective Field Loading](#selective-field-loading-2026-04-06) below.
 
-## Client API — status (2026-04-15)
+## Client API — status (2026-04-16)
 
 The client API layer (`@byline/client`, `packages/client/DESIGN.md`) lives above the storage primitives. Design-time interactions with the EAV layer are captured here.
 
@@ -90,15 +90,22 @@ The client API layer (`@byline/client`, `packages/client/DESIGN.md`) lives above
 - `IDocumentQueries.getDocumentsByDocumentIds()` — batch-fetch current versions by logical `document_id`, with optional selective field loading. Consumed by the populate orchestration shipped in Phase 3.
 
 #### Relationship population (Phase 3)
-Shipped 2026-04-15. See [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) for the full design.
-- `packages/core/src/services/populate.ts` exposes `populateDocuments()` — batch-by-depth walk over a reconstructed document's relation leaves, replacing each leaf with the populated target (or a marker) in place. One DB round-trip per depth level per target collection.
+Shipped 2026-04-15, refined 2026-04-16. See [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) for the full design.
+- `packages/core/src/services/populate.ts` exposes `populateDocuments()` — batch-by-depth walk over a reconstructed document's relation leaves, replacing each leaf with a **relation envelope** in place. One DB round-trip per depth level per target collection.
 - `walkRelationLeaves()` recurses through `group` / `array` / `blocks` the same way `storage-utils.ts` does — relations nested inside compound fields populate correctly.
 - `populate` / `depth` threaded through `@byline/client` `CollectionHandle` (`find`, `findOne`, `findById`, `findByPath`) and through the admin `getCollectionDocument` server fn. Both call the same core service; the webapp does not take a runtime dep on `@byline/client`.
-- Nested `populate[field].select` forwards to the batch fetch's `fields` param; the target's `displayField` is always included so downstream UI labels survive.
-- Deleted targets surface as `{ _resolved: false }` (preserves array position); cycles surface as `{ _resolved: true, _cycle: true }`.
+- **Populate DSL** — two axes (scope + projection):
+  - Top-level: `populate: true` (all relations, default projection), `populate: '*'` (all relations, full projection, recursive), `populate: { name: … }` (named relations only).
+  - Sub-spec: `true` (default projection), `'*'` (full document, propagates), `{ select: [...] }` (explicit fields + identity), nested `{ populate: {...} }` for deeper levels.
+  - Default projection = document row metadata (always free: `document_id`, `path`, `status`, timestamps) + the schema-declared `useAsTitle` field (fallback: first text field). `'*'` wins when any leaf in a batch requests it.
+- **Relation envelope** — same shape across all four states (unpopulated ref / populated / unresolved / cycle), so every relation leaf narrows the same way and link metadata (`relationship_type`, `cascade_delete`) is preserved through populate instead of thrown away when the target is successfully fetched. See RELATIONSHIPS-ANALYSIS.md § "Relation envelope".
 - Admin API preview (`.../$id/api`) ships a ViewMenu depth selector (0–3) that threads `?depth=N` through `loaderDeps` so each depth is a distinct cache entry. The programmatic client ceiling is 8.
 - Relation field admin widget (`apps/webapp/src/ui/fields/relation/`) renders a summary card + Modal picker listing documents from the configured `targetCollection`. Selection flows through `setFieldValue` → `FieldSetPatch` — no new patch family.
 - Zod schema builder now emits a typed object (`target_document_id`, `target_collection_id`, optional `relationship_type`, `cascade_delete`) for relation fields; the old `z.any()` is gone.
+
+#### Schema vs admin split — `useAsTitle` + `picker`
+- `CollectionDefinition.useAsTitle` (schema, server-safe) — names the field that represents a document's identity. Consumed server-side by populate's default projection and the admin form heading; any future `afterRead` / access-control consumer can read it without a UI dependency. Django `Model.__str__` analogue.
+- `CollectionAdminConfig.picker` (admin, UI-only) — an optional `ColumnDefinition[]` that drives rich row rendering in the relation picker modal (e.g. thumbnail + title + status for Media). Separate from `columns` (list view) by design. Formatters are reusable across list and picker.
 
 #### Recursive-read safety primitive
 Populate ships with a request-scoped `ReadContext` (`visited` set keyed by `${collection_id}:${document_id}`, `readCount` / `maxReads` budget, `maxDepth` clamp) even though no `afterRead` hook consumes it yet. This pre-empts the A→B→A recursion class so the future read-hook work can thread the same context without retrofitting. `ERR_READ_BUDGET_EXCEEDED` carries the partial result on overflow.
@@ -107,6 +114,9 @@ Populate ships with a request-scoped `ReadContext` (`visited` set keyed by `${co
 
 #### Write path (Phase 4)
 `create`, `update`, `delete`, `changeStatus`, `unpublish` — delegate to `document-lifecycle` functions from `@byline/core/services`. No storage changes required; the client handle is a thin shim.
+
+#### Status-aware reads (populate + `find`)
+Populate and `findDocuments` currently query `current_documents`, which returns the latest version of a document regardless of workflow status — a draft saved over a published version will surface in a populated relation, and a public consumer of `@byline/client` can see archived or draft targets. The likely shape is a `status?: 'published' | 'any'` option on `FindOptions` / `PopulateOptions`, plumbed through to `getDocumentsByDocumentIds` as a new filter; `@byline/client` defaults to `'published'`, admin server fns pass `'any'`. Pairs naturally with the future access-control track and is the next read-side gap once Phase 4 lands.
 
 #### `hasMany` relations
 Populate, picker, and Zod schema are single-target only. Multi-target needs a new prop on `RelationField`, multi-select picker UX, array-of-object Zod shape, and array populate output. Deferred.
@@ -119,7 +129,7 @@ The storage primitives absorbed what Phases 2 + 3 needed with no rewrites. Popul
 
 ## Bottom line
 
-The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. Query paths have been unified, search is now configurable per collection, and locale copy-forward runs in a single DB round trip. Phases 1, 2, and 3 of the client API have shipped (read, filter, sort, populate); the field→store mapping is consolidated in `@byline/core` with a contract test; populate's `ReadContext` primitive pre-empts the A→B→A recursion class ahead of the future `afterRead` hook work. The next client API milestone is the write path (Phase 4); the next strategic storage priority is benchmarking the UNION ALL and evaluating a read cache — now more pressing since populate amplifies fan-out at depth.
+The architecture is defensible and genuinely interesting. The dual flatten/reconstruct issue has been resolved — both paths now use the same schema-aware `storage-utils.ts` implementation. The template queries have been replaced with a generated column manifest, and selective field loading is now a first-class capability. Query paths have been unified, search is now configurable per collection, and locale copy-forward runs in a single DB round trip. Phases 1, 2, and 3 of the client API have shipped (read, filter, sort, populate); the populate DSL is a two-axis scope + projection model (`true` / `'*'` / `PopulateMap` at every level) with a unified relation envelope that preserves link metadata through populate; `useAsTitle` lives on the schema so server-side consumers can read a document's identity without a UI dependency. The `ReadContext` primitive pre-empts the A→B→A recursion class ahead of the future `afterRead` hook work. The next client API milestone is the write path (Phase 4), closely followed by status-aware reads for public consumers; the next strategic storage priority is benchmarking the UNION ALL and evaluating a read cache — now more pressing since populate amplifies fan-out at depth.
 
 ## Architecture changes (2026-04-06)
 
@@ -229,3 +239,4 @@ Route loader
 | 2026-04-14 | Field → store mapping consolidation | Moved `StoreType`, `ALL_STORE_TYPES`, `fieldTypeToStore`, `fieldTypeToStoreType` into `@byline/core` (`src/storage/field-store-map.ts`). db-postgres and @byline/client both consume the shared module; 11 contract tests enumerate every declared field type to prevent drift. |
 | 2026-04-14 | Narrow metadata + populate primitives | Added `IDocumentQueries.getCurrentVersionMetadata()` (lifecycle status transitions no longer pay for UNION ALL + meta fetch) and `IDocumentQueries.getDocumentsByDocumentIds()` (batch fetch by logical id — scaffold for Phase 3 populate). Aligned `getDocumentByPath` to return `null` on miss; made `ClientDocument<F>` generic. |
 | 2026-04-15 | @byline/client Phase 3 — relationship population | `packages/core/src/services/populate.ts` batches by depth level via `getDocumentsByDocumentIds`; `@byline/client` + admin API preview both consume it. Request-scoped `ReadContext` (visited set, read budget, depth clamp) ships with populate to pre-empt A→B→A recursion ahead of future `afterRead` hooks. Relation field admin widget + Modal picker; News → Media `heroImage` demo relation; Zod typed object for relation fields replacing `z.any()`. See RELATIONSHIPS-ANALYSIS.md for the full design. |
+| 2026-04-16 | Populate DSL refinements + unified envelope + schema-level identity | `useAsTitle` moved from `CollectionAdminConfig` to `CollectionDefinition` so populate's default projection is schema-aware without a UI dependency; new `picker?: ColumnDefinition[]` on admin config drives rich relation-picker rows. Populate DSL extended to two-axis `true` / `'*'` / `PopulateMap` (scope × projection) — `'*'` at top level or sub-spec fetches full documents and propagates recursively. Unified relation envelope (`PopulatedRelationValue` / `UnresolvedRelationValue` / `CycleRelationValue`) gives every leaf the same narrowable shape and preserves `relationship_type` / `cascade_delete` through populate. Admin API preview remains on `populate: true` (identity-only) by default. |
