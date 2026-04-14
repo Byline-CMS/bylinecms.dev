@@ -1,6 +1,6 @@
 # Relationships — Phase 3 Analysis & Plan
 
-> Last updated: 2026-04-14
+> Last updated: 2026-04-15
 > Companion to [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md) —
 > captures the design approach for the first consumer of the EAV layer
 > that spans collections at read time.
@@ -644,6 +644,239 @@ cd packages/client && pnpm test:integration
 
 ---
 
+---
+
+## Future work: rich-text document links
+
+A richtext editor (Lexical, in our case) frequently needs to insert
+links to *other Byline documents* — e.g. a News article linking to a
+related Page, Doc, or another News item. This is a second application
+of the same "relationship" primitive, just embedded *inside a rich-text
+field value* rather than as a discrete field on the collection. The
+storage model, the picker UX, and the recursion guards all carry
+over, but there are enough editor-specific concerns to warrant its own
+design track.
+
+This section scopes the feature. Implementation is deferred to a
+later phase (likely alongside the first `afterRead` hook work, since
+Mode 2 below depends on it).
+
+### Overview
+
+Insertion flow in the admin editor:
+
+```
+Editor toolbar
+    │  user clicks "Insert document link"
+    ▼
+RelationPicker (reused from Phase 3c)
+    │  restricted to the collections allowed by
+    │  the editor's config
+    ▼
+DocumentLinkNode (new Lexical node)
+    │  stored in the editor's serialised state
+    ▼
+richText field → store_json
+```
+
+On read, depending on the chosen mode, the link node either carries
+cached display data with the rest of the serialised editor state, or
+carries only its `{target_document_id, target_collection_id}` pair and
+is hydrated with `title` / `path` / … on the fly.
+
+### Relation to the existing Phase 3 picker
+
+The Phase 3 `RelationPicker` component (`apps/webapp/src/ui/fields/
+relation/relation-picker.tsx`) already:
+
+- renders a search+paginated list over `getCollectionDocuments`,
+- resolves the `displayField` per target collection,
+- returns `{target_document_id, target_collection_id}` to its caller.
+
+The richtext toolbar plugin should **reuse** that picker verbatim,
+parameterising it by the editor-config's list of allowed target
+collections. No second picker implementation. The single difference:
+the picker is opened from a Lexical `INSERT_DOCUMENT_LINK_COMMAND`
+handler rather than from a form-field widget.
+
+### Storage shape — `DocumentLinkNode`
+
+A new custom Lexical node (analogous to the existing link node but
+distinct). Minimum payload:
+
+```ts
+interface DocumentLinkNodePayload {
+  /** The target document's logical id. */
+  target_document_id: string
+  /** The target's collection id (DB UUID). */
+  target_collection_id: string
+  /**
+   * Cached target fields (Mode 1 only). Omitted in Mode 2. Keys here
+   * are whatever the editor config nominated in `embed.fields`.
+   */
+  cached?: Record<string, unknown>
+  /**
+   * Monotonic marker set at save time. Used to detect / age out stale
+   * caches when the editor config later flips to Mode 2 or when a
+   * refresh job is run.
+   */
+  cachedAt?: string // ISO 8601
+}
+```
+
+Inline link text is stored as the Lexical node's children (as with
+the existing `LinkNode`). Callers can render it, override it with the
+cached `title`, or — in Mode 2 — substitute the hydrated title at
+render time on the client.
+
+### Two modes of operation
+
+#### Mode 1 — save-time embedding (`embed.mode: 'save'`)
+
+- At `beforeCreate` / `beforeUpdate` the richtext value is walked
+  for `DocumentLinkNode` instances. For each, the adapter's
+  `getCurrentVersionMetadata()` + a tiny `fields` read resolves the
+  target, and the chosen fields (`title`, `path`, …) are written into
+  `cached`. `cachedAt` is stamped.
+- Reads are fast — the rich-text JSON already carries everything a
+  frontend consumer needs to build a link.
+- **Tradeoff: stale data.** If the target's title or path changes,
+  the cached copy diverges until the next save of the referencing
+  document. Acceptable for most editorial flows; editors expect
+  "refresh" affordances if they need absolute freshness.
+- A follow-on "refresh links" maintenance hook is worth offering —
+  a collection-level job or a per-document button that rewalks every
+  DocumentLinkNode and re-fetches `cached`. Bulk refresh is a
+  natural Phase 4+ admin command.
+
+#### Mode 2 — read-time hydration (`embed.mode: 'read'`)
+
+- `DocumentLinkNode` stores only the id pair. The `cached` key is
+  absent on the stored side.
+- A richtext-aware `afterRead` hook (or a dedicated
+  `hydrateDocumentLinks` service) walks the reconstructed rich-text
+  JSON of the emerging response, collects every link's
+  `{target_collection_id, target_document_id}`, groups them, and
+  batches via `IDocumentQueries.getDocumentsByDocumentIds({ fields })`
+  — exactly the same primitive Phase 3 populate uses.
+- The hydrated fields are **attached to the node at response time**
+  (not persisted to storage): a `hydrated?: Record<string, unknown>`
+  or inlined `cached`-shaped envelope, whichever is cleaner at
+  render time. The storage row is untouched.
+- Handles missing / deleted targets the same way populate does:
+  a `_resolved: false` marker on the node so the rendering frontend
+  can swap it for plain text or a broken-link indicator instead of
+  crashing.
+
+Collections / editors can mix modes — one collection's editor can be
+`embed.mode: 'save'`, another `'read'`. The two aren't exclusive at
+the CMS level.
+
+### Configurable field projection
+
+Editors almost always want *title* + *path* and nothing else, but the
+set should be configurable so a collection that needs, say, an author
+name or a publication date on the cached / hydrated form can get it.
+Proposed config shape on the richtext field definition:
+
+```ts
+{
+  name: 'body',
+  type: 'richText',
+  documentLinks: {
+    /** Target collections the picker will list. */
+    allowedCollections: ['pages', 'news', 'docs'],
+    /** Save-time vs read-time hydration. */
+    embed: {
+      mode: 'save' | 'read',
+      /** Fields copied into `cached` (save) or hydrated on read. */
+      fields: ['title', 'path'],
+      /**
+       * Optional per-target overrides — useful when different target
+       * collections carry different display fields.
+       */
+      fieldsPerCollection?: Record<string, string[]>,
+    },
+    /**
+     * Maximum depth when a hydrated target's own richtext contains
+     * further document links. Default 1 (shallow); higher values use
+     * the same ReadContext cycle guard as populate.
+     */
+    hydrateDepth?: number,
+  },
+}
+```
+
+Defaults stay frugal: `fields: ['title', 'path']`, `hydrateDepth: 1`.
+This is what a frontend needs to build a `<a href={path}>{title}</a>`
+in 95% of cases, and it keeps the UNION ALL projection per hydration
+level tight (mirrors the `buildBatchSelect` "always include display
+field" rule from populate).
+
+### Recursive-read safety (Mode 2)
+
+The A→B→A loop described earlier for relation fields applies just as
+much to document links: a News doc's body richtext links to a Page; the
+Page's body links back; Mode 2 hydration blows the stack. The fix is
+the **same `ReadContext`** we ship in Phase 3:
+
+- `hydrateDocumentLinks()` receives (or creates) a `ReadContext` and
+  threads it through nested hydrations.
+- Every hydrated node increments `ctx.readCount` against `maxReads`.
+- Already-visited targets (`${target_collection_id}:${target_document_id}`
+  in `ctx.visited`) are replaced with a `_cycle: true` marker rather
+  than re-hydrated.
+- `hydrateDepth` is clamped to `ctx.maxDepth` on entry.
+
+Crucially, when a document is loaded with *both* a populate pass (for
+its relation fields) and a richtext-link hydration pass (for its
+richtext field), **they must share a single `ReadContext`**. Otherwise
+a relation field and a richtext link pointing at the same target would
+each count as a separate materialisation and could blow the budget
+needlessly, or re-fetch the target twice. The unified context gives
+editors a defensible "this request materialised N documents, full
+stop" guarantee.
+
+When the first real `afterRead` hook lands (Phase 4+), it should
+receive the same context too, per the "Recursive-read safety"
+section above.
+
+### Lexical implementation notes (to consult at build time)
+
+- New node type: `DocumentLinkNode` extending `ElementNode` (or
+  `TextNode` if the link should be a pure inline, no children — we
+  want inline children for the visible label so extend `ElementNode`
+  like the existing `LinkNode`).
+- New command: `INSERT_DOCUMENT_LINK_COMMAND` dispatched from the
+  toolbar button. Its payload opens the shared `RelationPicker`.
+- Serialisation: the node's `exportJSON` persists the full
+  `DocumentLinkNodePayload`. `importJSON` is its inverse.
+- Theme hook: register the node in the editor theme so targets can
+  override rendering (e.g. showing a stale-link badge when
+  `_resolved === false` on the hydrated path).
+- Existing richtext fixtures and seed data are unaffected — old
+  documents have no `DocumentLinkNode` instances.
+
+### Deferred within this track
+
+- **Cross-document link integrity on delete.** Mode 1 captures
+  `cached` at save time, so deleting the target leaves the cache in
+  place but stale; Mode 2 yields `_resolved: false` at render time.
+  Neither mode actively rewrites referrers. A future job could scan
+  all richtext fields for broken links and surface them in an admin
+  "broken links" view — a natural analogue of the future relation
+  cascade-check story.
+- **Bulk "refresh cached links" admin command** for Mode 1.
+- **Mixed editor configs** — supporting per-link choice (save vs
+  read) inside the same editor, rather than per-editor. Almost
+  certainly not worth the complexity until a real use case demands
+  it.
+- **Anchor / fragment targeting.** A link may point at a specific
+  heading inside the target document; that is editor-feature work,
+  orthogonal to the storage shape.
+
+---
+
 ## Deferred (out of scope for Phase 3)
 
 - **`hasMany: true` on RelationField** — deferred to Phase 3.5. Needs:
@@ -665,3 +898,9 @@ cd packages/client && pnpm test:integration
 - **Relation column formatter** in list views — currently no column
   renderer exists for relation field values; list views only show
   `target_document_id`. Useful but out of scope here.
+- **Rich-text document links** (Lexical `DocumentLinkNode`, toolbar
+  plugin reusing the existing RelationPicker, save-time vs read-time
+  hydration modes, configurable field projection, shared
+  `ReadContext` for recursion safety). See the
+  [Future work: rich-text document links](#future-work-rich-text-document-links)
+  section above for the full design.
