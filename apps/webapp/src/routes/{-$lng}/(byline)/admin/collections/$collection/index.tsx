@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { createFileRoute, notFound, useNavigate } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
@@ -89,25 +89,45 @@ function RouteComponent() {
   const columns = adminConfig?.columns || []
   const workflowStatuses = getWorkflowStatuses(collectionDef)
 
+  // Ref-guarded so the post-create toast fires exactly once per arrival with
+  // ?action=created. Base UI's useToastManager returns a new memoized object
+  // whenever its internal toasts array changes — depending on `toastManager`
+  // (the object) in the deps array would create a loop: add() updates toasts
+  // → new toastManager identity → effect re-fires → add again. We depend on
+  // `toastManager.add` (the underlying store method, which is stable), and
+  // the ref is belt-and-suspenders protection against any re-fire that
+  // observes `search.action === 'created'` before navigate clears it.
+  const createdToastFiredRef = useRef(false)
   useEffect(() => {
-    if (search.action === 'created') {
-      toastManager.add({
-        title: `${collectionDef.labels.singular} Created`,
-        description: `Successfully created ${collectionDef.labels.singular.toLowerCase()}`,
-        data: {
-          intent: 'success',
-          iconType: 'success',
-          icon: true,
-          close: true,
-        },
-      })
-      navigate({
-        to: '.',
-        search: (prev) => ({ ...prev, action: undefined }),
-        replace: true,
-      })
+    if (search.action !== 'created') {
+      createdToastFiredRef.current = false
+      return
     }
-  }, [search.action, navigate, toastManager, collectionDef.labels.singular])
+    if (createdToastFiredRef.current) return
+    createdToastFiredRef.current = true
+
+    toastManager.add({
+      title: `${collectionDef.labels.singular} Created`,
+      description: `Successfully created ${collectionDef.labels.singular.toLowerCase()}`,
+      data: {
+        intent: 'success',
+        iconType: 'success',
+        icon: true,
+        close: true,
+      },
+    })
+    navigate({
+      to: '.',
+      search: (prev) => ({ ...prev, action: undefined }),
+      replace: true,
+    })
+  }, [
+    search.action,
+    navigate,
+    toastManager.add,
+    collectionDef.labels.singular.toLowerCase,
+    collectionDef.labels.singular,
+  ])
 
   const CustomListView = adminConfig?.listView
 
