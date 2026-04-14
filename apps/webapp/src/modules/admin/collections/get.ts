@@ -15,6 +15,7 @@ import {
   getCollectionSchemasForPath,
   getLogger,
   getServerConfig,
+  populateDocuments,
 } from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
@@ -25,9 +26,11 @@ import { serialise } from './utils'
 // ---------------------------------------------------------------------------
 
 const getDocumentFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: { collection: string; id: string; locale?: string }) => input)
+  .inputValidator(
+    (input: { collection: string; id: string; locale?: string; depth?: number }) => input
+  )
   .handler(async ({ data }) => {
-    const { collection: path, id, locale } = data
+    const { collection: path, id, locale, depth } = data
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -37,7 +40,8 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       }).log(logger)
     }
 
-    const db = getServerConfig().db
+    const serverConfig = getServerConfig()
+    const db = serverConfig.db
 
     const rawDocument = await db.queries.documents.getDocumentById({
       collection_id: config.collection.id,
@@ -52,13 +56,33 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       }).log(logger)
     }
 
+    // Populate relation leaves when the caller requested a depth. Runs on
+    // the raw storage shape (before serialisation / Zod parse) so the
+    // populate walker sees the expected `{document_id, fields}` structure.
+    // Applies the `true` spec — populate every relation — which matches
+    // what the admin API preview (the sole caller with depth > 0 today)
+    // wants the reader to see.
+    const populateRequested = typeof depth === 'number' && depth > 0
+    if (populateRequested) {
+      await populateDocuments({
+        db,
+        collections: serverConfig.collections,
+        collectionId: config.collection.id,
+        documents: [rawDocument as Record<string, any>],
+        populate: true,
+        depth,
+        locale: locale ?? 'en',
+      })
+    }
+
     const serialised = serialise(rawDocument)
 
-    // When fetching all locales the storage layer returns localized fields as
-    // locale-keyed objects (e.g. { en: '...', fr: '...' }) which do not
-    // conform to the typed per-locale Zod schema — skip validation in that case.
+    // Skip the strict per-locale Zod parse when:
+    //   - locale === 'all' (fields are locale-keyed objects, not per-locale values)
+    //   - populated (the tree now contains nested populated documents that
+    //     don't match the raw relation-ref shape the schema expects)
     const document =
-      locale === 'all'
+      locale === 'all' || populateRequested
         ? (serialised as Record<string, any>)
         : (() => {
             const { get } = getCollectionSchemasForPath(path)
@@ -135,10 +159,21 @@ const getDocumentByVersionFn = createServerFn({ method: 'GET' })
 /**
  * Fetch a single document by ID. Returns `null` when the document is not found
  * so callers can degrade gracefully (e.g. `notFound()`).
+ *
+ * When `depth > 0` is supplied, relation leaves are populated via
+ * `populateDocuments` before the response is returned — this is the hook
+ * that powers the admin API-preview Depth selector. The returned tree
+ * then contains nested raw documents at relation sites instead of bare
+ * `{target_document_id, target_collection_id}` refs.
  */
-export async function getCollectionDocument(collection: string, id: string, locale?: string) {
+export async function getCollectionDocument(
+  collection: string,
+  id: string,
+  locale?: string,
+  depth?: number
+) {
   try {
-    return await getDocumentFn({ data: { collection, id, locale } })
+    return await getDocumentFn({ data: { collection, id, locale, depth } })
   } catch (err) {
     if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) return null
     throw err

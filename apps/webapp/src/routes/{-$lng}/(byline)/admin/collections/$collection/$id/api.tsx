@@ -19,12 +19,18 @@ import { i18n } from '~/i18n'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
+  /**
+   * Populate depth for relation fields. Capped at 3 to avoid runaway
+   * fan-out in the admin preview. Programmatic callers via
+   * `@byline/client` can go deeper.
+   */
+  depth: z.coerce.number().int().min(0).max(3).optional(),
 })
 
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$collection/$id/api')({
   validateSearch: searchSchema,
-  loaderDeps: ({ search: { locale } }) => ({ locale }),
-  loader: async ({ params, deps: { locale } }) => {
+  loaderDeps: ({ search: { locale, depth } }) => ({ locale, depth }),
+  loader: async ({ params, deps: { locale, depth } }) => {
     const collectionDef = getCollectionDefinition(params.collection)
     if (!collectionDef) {
       throw notFound()
@@ -34,7 +40,7 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
     // No locale param means the user hasn't made a selection yet — default
     // to the content default locale (same as History and Edit behaviours).
     const resolvedLocale = locale ?? i18n.content.defaultLocale
-    const data = await getCollectionDocument(params.collection, params.id, resolvedLocale)
+    const data = await getCollectionDocument(params.collection, params.id, resolvedLocale, depth)
 
     if (!data) {
       throw notFound()
@@ -51,7 +57,7 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
 function RouteComponent() {
   const data = Route.useLoaderData()
   const { collection, id } = Route.useParams()
-  const { locale } = Route.useSearch()
+  const { locale, depth } = Route.useSearch()
   const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
 
   return (
@@ -70,7 +76,12 @@ function RouteComponent() {
           },
         ]}
       />
-      <ApiView collectionDefinition={collectionDef} initialData={data} locale={locale} />
+      <ApiView
+        collectionDefinition={collectionDef}
+        initialData={data}
+        locale={locale}
+        depth={depth}
+      />
     </>
   )
 }

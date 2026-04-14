@@ -18,11 +18,14 @@ export const ApiView = ({
   collectionDefinition,
   initialData,
   locale,
+  depth,
 }: {
   collectionDefinition: CollectionDefinition
   initialData: AnyCollectionSchemaTypes['UpdateType']
   /** Currently active locale from the route search param (undefined → all). */
   locale?: string
+  /** Populate depth from the route search param (undefined → 0, no populate). */
+  depth?: number
 }) => {
   const { labels, path } = collectionDefinition
 
@@ -36,6 +39,7 @@ export const ApiView = ({
             documentId={String(initialData.document_id)}
             activeView="api"
             locale={locale}
+            depth={depth}
           />
         </div>
         <div className="border bg-canvas-800 rounded p-1 font-mono text-sm font-weight-normal">
