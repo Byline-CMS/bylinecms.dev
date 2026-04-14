@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 
 import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
@@ -86,6 +86,18 @@ export const ListView = ({
   const navigate = useNavigate()
   const uiLocale = useLocale()
   const location = useRouterState({ select: (s) => s.location })
+
+  // Memoized so Base UI's SelectRoot doesn't see a fresh items identity on
+  // every render — a non-stable items array combined with a controlled value
+  // trips an internal store sync loop (manifests as "Maximum update depth
+  // exceeded" inside SelectRoot after navigations that cause a re-render).
+  const statusItems = useMemo(
+    () => [
+      { value: '_all', label: 'All' },
+      ...(workflowStatuses?.map((ws) => ({ value: ws.name, label: ws.label ?? ws.name })) ?? []),
+    ],
+    [workflowStatuses]
+  )
 
   const handleOnSearch = (query: string): void => {
     if (query != null && query.length > 0) {
@@ -172,10 +184,7 @@ export const ListView = ({
               name="status_filter"
               size="sm"
               value={(location.search as { status?: string }).status ?? '_all'}
-              items={[
-                { value: '_all', label: 'All' },
-                ...workflowStatuses.map((ws) => ({ value: ws.name, label: ws.label ?? ws.name })),
-              ]}
+              items={statusItems}
               onValueChange={handleOnStatusFilter}
             />
           )}
