@@ -178,11 +178,30 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       break
 
     case 'group':
-    case 'relation':
-      // Group fields are complex nested structures validated at the field-renderer
-      // level. Relations store a document ID string or array; use z.any()
-      // so the schema does not constrain shape here.
+      // Group fields are complex nested structures validated at the
+      // field-renderer level. The shape depends on the group's child fields
+      // (recursive) and is not constrained here.
       schema = z.any()
+      break
+
+    case 'relation':
+      // Relation values are `RelatedDocumentValue` objects:
+      //   { target_document_id, target_collection_id,
+      //     relationship_type?, cascade_delete? }
+      // Values come from the picker (UUIDs) or from DB reads (also UUIDs),
+      // but tests may use shorter strings — keep the schema shape-strict
+      // without enforcing UUID format so synthetic fixtures still validate.
+      //
+      // Populated responses (depth > 0) skip this schema in the route layer
+      // because the tree then contains nested documents, not bare refs.
+      schema = z
+        .object({
+          target_document_id: z.string(),
+          target_collection_id: z.string(),
+          relationship_type: z.string().optional(),
+          cascade_delete: z.boolean().optional(),
+        })
+        .nullable()
       break
 
     default:
