@@ -159,6 +159,7 @@ export const ErrorCodes = {
   PATCH_FAILED: 'ERR_PATCH_FAILED',
   DATABASE: 'ERR_DATABASE',
   STORAGE: 'ERR_STORAGE',
+  READ_BUDGET_EXCEEDED: 'ERR_READ_BUDGET_EXCEEDED',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -173,3 +174,4 @@ export const ERR_INVALID_TRANSITION = createErrorType(ErrorCodes.INVALID_TRANSIT
 export const ERR_PATCH_FAILED = createErrorType(ErrorCodes.PATCH_FAILED)
 export const ERR_DATABASE = createErrorType(ErrorCodes.DATABASE)
 export const ERR_STORAGE = createErrorType(ErrorCodes.STORAGE)
+export const ERR_READ_BUDGET_EXCEEDED = createErrorType(ErrorCodes.READ_BUDGET_EXCEEDED)

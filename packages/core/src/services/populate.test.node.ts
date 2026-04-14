@@ -1,0 +1,795 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+import { describe, expect, it, vi } from 'vitest'
+
+import { BylineError, ErrorCodes } from '../lib/errors.js'
+import { __internal, createReadContext, type PopulateSpec, populateDocuments } from './populate.js'
+import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+const postsCollection: CollectionDefinition = {
+  path: 'posts',
+  labels: { singular: 'Post', plural: 'Posts' },
+  fields: [
+    { name: 'title', type: 'text', label: 'Title' },
+    {
+      name: 'author',
+      type: 'relation',
+      label: 'Author',
+      targetCollection: 'authors',
+      optional: true,
+    },
+    {
+      name: 'secondaryAuthor',
+      type: 'relation',
+      label: 'Secondary Author',
+      targetCollection: 'authors',
+      optional: true,
+    },
+    {
+      name: 'related',
+      type: 'array',
+      label: 'Related',
+      fields: [
+        {
+          name: 'person',
+          type: 'relation',
+          label: 'Person',
+          targetCollection: 'authors',
+          optional: true,
+        },
+      ],
+    },
+    {
+      name: 'meta',
+      type: 'group',
+      label: 'Meta',
+      fields: [
+        {
+          name: 'editor',
+          type: 'relation',
+          label: 'Editor',
+          targetCollection: 'authors',
+          optional: true,
+        },
+      ],
+    },
+    {
+      name: 'content',
+      type: 'blocks',
+      label: 'Content',
+      blocks: [
+        {
+          blockType: 'quote',
+          fields: [
+            { name: 'body', type: 'text', label: 'Body' },
+            {
+              name: 'attributedTo',
+              type: 'relation',
+              label: 'Attributed',
+              targetCollection: 'authors',
+              optional: true,
+            },
+          ],
+        },
+      ],
+    },
+  ],
+}
+
+const authorsCollection: CollectionDefinition = {
+  path: 'authors',
+  labels: { singular: 'Author', plural: 'Authors' },
+  fields: [
+    { name: 'name', type: 'text', label: 'Name' },
+    {
+      name: 'employer',
+      type: 'relation',
+      label: 'Employer',
+      targetCollection: 'orgs',
+      optional: true,
+    },
+  ],
+}
+
+const orgsCollection: CollectionDefinition = {
+  path: 'orgs',
+  labels: { singular: 'Org', plural: 'Orgs' },
+  fields: [{ name: 'name', type: 'text', label: 'Name' }],
+}
+
+const allCollections = [postsCollection, authorsCollection, orgsCollection]
+
+function relationRef(collectionId: string, documentId: string) {
+  return {
+    target_document_id: documentId,
+    target_collection_id: collectionId,
+  }
+}
+
+type FetchMap = Record<string, Record<string, any>>
+
+/**
+ * Build a mock IDbAdapter where `getDocumentsByDocumentIds` returns
+ * documents from a pre-seeded `store[collectionId][documentId]` map.
+ */
+function makeMockAdapter(store: FetchMap = {}) {
+  const getDocumentsByDocumentIds = vi.fn(
+    async (params: {
+      collection_id: string
+      document_ids: string[]
+      locale?: string
+      fields?: string[]
+    }) => {
+      const bucket = store[params.collection_id] ?? {}
+      return params.document_ids.map((id) => bucket[id]).filter((d) => d != null)
+    }
+  )
+
+  const db = {
+    commands: {
+      collections: { create: vi.fn(), delete: vi.fn() },
+      documents: {
+        createDocumentVersion: vi.fn(),
+        setDocumentStatus: vi.fn(),
+        archivePublishedVersions: vi.fn(),
+        softDeleteDocument: vi.fn(),
+      },
+    },
+    queries: {
+      collections: {
+        getAllCollections: vi.fn(),
+        getCollectionByPath: vi.fn(),
+        getCollectionById: vi.fn(),
+      },
+      documents: {
+        getDocumentById: vi.fn(),
+        getCurrentVersionMetadata: vi.fn(),
+        getDocumentByPath: vi.fn(),
+        getDocumentByVersion: vi.fn(),
+        getDocumentsByVersionIds: vi.fn(),
+        getDocumentsByDocumentIds,
+        getDocumentHistory: vi.fn(),
+        getPublishedVersion: vi.fn(),
+        getPublishedDocumentIds: vi.fn(),
+        getDocumentCountsByStatus: vi.fn(),
+        findDocuments: vi.fn(),
+      },
+    },
+  } satisfies IDbAdapter
+
+  return { db, getDocumentsByDocumentIds }
+}
+
+function shapedDoc(
+  collectionId: string,
+  documentId: string,
+  fields: Record<string, any>
+): Record<string, any> {
+  return {
+    document_version_id: `ver:${documentId}`,
+    document_id: documentId,
+    path: documentId,
+    status: 'published',
+    created_at: new Date('2026-01-01'),
+    updated_at: new Date('2026-01-01'),
+    _collection_id: collectionId,
+    fields,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Internals
+// ---------------------------------------------------------------------------
+
+describe('matchesPopulate', () => {
+  const { matchesPopulate } = __internal
+
+  it('returns true when populate is true', () => {
+    expect(matchesPopulate('anything', true)).toBe(true)
+  })
+
+  it('returns the field value from a PopulateMap', () => {
+    expect(matchesPopulate('author', { author: true })).toBe(true)
+    expect(matchesPopulate('author', { author: { select: ['name'] } })).toEqual({
+      select: ['name'],
+    })
+  })
+
+  it('returns undefined for fields not in the map', () => {
+    expect(matchesPopulate('author', { editor: true })).toBeUndefined()
+  })
+})
+
+describe('collectRelationLeaves', () => {
+  const { collectRelationLeaves } = __internal
+
+  it('finds top-level relations when populate: true', () => {
+    const fields = {
+      title: 'hi',
+      author: relationRef('authors', 'a1'),
+    }
+    const leaves: any[] = []
+    collectRelationLeaves(fields, postsCollection.fields, true, leaves)
+    expect(leaves).toHaveLength(1)
+    expect(leaves[0].value.target_document_id).toBe('a1')
+    expect(leaves[0].sub).toBe(true)
+  })
+
+  it('only matches named relations in a PopulateMap', () => {
+    const fields = {
+      author: relationRef('authors', 'a1'),
+      secondaryAuthor: relationRef('authors', 'a2'),
+    }
+    const leaves: any[] = []
+    collectRelationLeaves(fields, postsCollection.fields, { author: true }, leaves)
+    expect(leaves).toHaveLength(1)
+    expect(leaves[0].key).toBe('author')
+  })
+
+  it('recurses into group fields', () => {
+    const fields = {
+      meta: { editor: relationRef('authors', 'a3') },
+    }
+    const leaves: any[] = []
+    collectRelationLeaves(fields, postsCollection.fields, true, leaves)
+    expect(leaves.map((l) => l.value.target_document_id)).toEqual(['a3'])
+  })
+
+  it('recurses into array items', () => {
+    const fields = {
+      related: [{ person: relationRef('authors', 'a4') }, { person: relationRef('authors', 'a5') }],
+    }
+    const leaves: any[] = []
+    collectRelationLeaves(fields, postsCollection.fields, true, leaves)
+    expect(leaves.map((l) => l.value.target_document_id).sort()).toEqual(['a4', 'a5'])
+  })
+
+  it('recurses into blocks items, matching _type to blockType', () => {
+    const fields = {
+      content: [
+        {
+          _type: 'quote',
+          body: 'hello',
+          attributedTo: relationRef('authors', 'a6'),
+        },
+      ],
+    }
+    const leaves: any[] = []
+    collectRelationLeaves(fields, postsCollection.fields, true, leaves)
+    expect(leaves.map((l) => l.value.target_document_id)).toEqual(['a6'])
+  })
+
+  it('skips unknown block types silently', () => {
+    const fields = {
+      content: [
+        {
+          _type: 'nonExistent',
+          attributedTo: relationRef('authors', 'a7'),
+        },
+      ],
+    }
+    const leaves: any[] = []
+    collectRelationLeaves(fields, postsCollection.fields, true, leaves)
+    expect(leaves).toEqual([])
+  })
+
+  it('skips leaves already replaced with resolved stubs', () => {
+    const fields = {
+      author: {
+        ...relationRef('authors', 'a1'),
+        _resolved: false,
+      },
+    }
+    const leaves: any[] = []
+    collectRelationLeaves(fields, postsCollection.fields, true, leaves)
+    expect(leaves).toEqual([])
+  })
+})
+
+describe('buildBatchSelect', () => {
+  const { buildBatchSelect } = __internal
+
+  const makeLeaf = (sub: any): any => ({
+    sub,
+    value: relationRef('authors', 'x'),
+    parent: {},
+    key: 'k',
+    field: {} as any,
+  })
+
+  it('returns undefined when any leaf is populate: true', () => {
+    expect(buildBatchSelect([makeLeaf(true)], authorsCollection)).toBeUndefined()
+  })
+
+  it('unions explicit selects and adds the first text field', () => {
+    const result = buildBatchSelect(
+      [makeLeaf({ select: ['employer'] }), makeLeaf({ select: ['employer'] })],
+      authorsCollection
+    )
+    // Union of selects + first text field ('name')
+    expect(result?.sort()).toEqual(['employer', 'name'])
+  })
+
+  it('falls back to undefined when a sub has no select', () => {
+    expect(buildBatchSelect([makeLeaf({ populate: {} })], authorsCollection)).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// populateDocuments — behaviour
+// ---------------------------------------------------------------------------
+
+describe('populateDocuments', () => {
+  it('is a no-op when populate is omitted', async () => {
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter()
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+    })
+
+    expect(getDocumentsByDocumentIds).not.toHaveBeenCalled()
+    expect(doc.fields.author).toEqual(relationRef('authors', 'a1'))
+  })
+
+  it('is a no-op when depth: 0', async () => {
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter()
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: true,
+      depth: 0,
+    })
+
+    expect(getDocumentsByDocumentIds).not.toHaveBeenCalled()
+    expect(doc.fields.author).toEqual(relationRef('authors', 'a1'))
+  })
+
+  it('populates a single top-level relation at depth 1', async () => {
+    const author = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({ authors: { a1: author } })
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: true },
+      depth: 1,
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(doc.fields.author).toBe(author)
+  })
+
+  it('groups by target collection: one query per target per level', async () => {
+    const a1 = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const a2 = shapedDoc('authors', 'a2', { name: 'Ava' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1, a2 },
+    })
+
+    const doc = shapedDoc('posts', 'p1', {
+      author: relationRef('authors', 'a1'),
+      secondaryAuthor: relationRef('authors', 'a2'),
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: true,
+      depth: 1,
+    })
+
+    // Both relations target 'authors' → single query with [a1, a2].
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection_id: 'authors',
+        document_ids: expect.arrayContaining(['a1', 'a2']),
+      })
+    )
+  })
+
+  it('recurses at depth: 2 with nested populate', async () => {
+    const org = shapedDoc('orgs', 'o1', { name: 'Acme' })
+    const author = shapedDoc('authors', 'a1', {
+      name: 'Nora',
+      employer: relationRef('orgs', 'o1'),
+    })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+      orgs: { o1: org },
+    })
+
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: { populate: { employer: true } } },
+      depth: 2,
+    })
+
+    // One query per level.
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
+    expect(doc.fields.author).toBe(author)
+    expect(author.fields.employer).toBe(org)
+  })
+
+  it('populate: true recursively populates at depth 2', async () => {
+    const org = shapedDoc('orgs', 'o1', { name: 'Acme' })
+    const author = shapedDoc('authors', 'a1', {
+      name: 'Nora',
+      employer: relationRef('orgs', 'o1'),
+    })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+      orgs: { o1: org },
+    })
+
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: true,
+      depth: 2,
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
+    expect(doc.fields.author).toBe(author)
+    expect(author.fields.employer).toBe(org)
+  })
+
+  it('marks deleted targets with _resolved: false', async () => {
+    const { db } = makeMockAdapter({ authors: {} }) // nothing there
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'gone') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: true },
+    })
+
+    expect(doc.fields.author).toEqual({
+      target_document_id: 'gone',
+      target_collection_id: 'authors',
+      _resolved: false,
+    })
+  })
+
+  it('marks cycle targets with _cycle: true', async () => {
+    // A → B → A. At depth 2, populate reaches A, materialises it, walks its
+    // fields looking for further relations, finds a relation back to the
+    // source document (already in `visited` because it was the input doc),
+    // and replaces the leaf with the cycle marker instead of re-fetching.
+    const post = shapedDoc('posts', 'p1', {})
+    const author = shapedDoc('authors', 'a1', {
+      name: 'Nora',
+      // Synthetic cycle: author has a relation field into posts. Use the
+      // `employer` relation slot but point at posts instead of orgs to
+      // simulate the shape; the walker keys on whatever collection the
+      // value declares.
+      employer: relationRef('posts', 'p1'),
+    })
+    const { db } = makeMockAdapter({
+      authors: { a1: author },
+      posts: { p1: post },
+    })
+
+    post.fields.author = relationRef('authors', 'a1')
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [post],
+      populate: true,
+      depth: 3,
+    })
+
+    expect(post.fields.author).toBe(author)
+    expect(author.fields.employer).toEqual({
+      target_document_id: 'p1',
+      target_collection_id: 'posts',
+      _resolved: true,
+      _cycle: true,
+    })
+  })
+
+  it('persists visited across calls that share a ReadContext', async () => {
+    // First call loads author a1; second call (sharing the same context)
+    // sees a1 as already-visited and renders the cycle marker.
+    const author = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+    })
+
+    const ctx = createReadContext()
+
+    const doc1 = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc1],
+      populate: { author: true },
+      readContext: ctx,
+    })
+    expect(doc1.fields.author).toBe(author)
+
+    const doc2 = shapedDoc('posts', 'p2', { author: relationRef('authors', 'a1') })
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc2],
+      populate: { author: true },
+      readContext: ctx,
+    })
+
+    // Second call sees a1 already visited → skips fetch, renders cycle.
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(doc2.fields.author).toEqual({
+      target_document_id: 'a1',
+      target_collection_id: 'authors',
+      _resolved: true,
+      _cycle: true,
+    })
+  })
+
+  it('throws ERR_READ_BUDGET_EXCEEDED when maxReads is exceeded', async () => {
+    const author = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const { db } = makeMockAdapter({ authors: { a1: author } })
+
+    const ctx = createReadContext({ maxReads: 0 })
+
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await expect(
+      populateDocuments({
+        db,
+        collections: allCollections,
+        collectionId: 'posts',
+        documents: [doc],
+        populate: { author: true },
+        readContext: ctx,
+      })
+    ).rejects.toSatisfy(
+      (err: BylineError) =>
+        err instanceof BylineError && err.code === ErrorCodes.READ_BUDGET_EXCEEDED
+    )
+  })
+
+  it('clamps depth to readContext.maxDepth', async () => {
+    // maxDepth: 1 should stop after the first level even if depth: 5
+    // is requested.
+    const org = shapedDoc('orgs', 'o1', { name: 'Acme' })
+    const author = shapedDoc('authors', 'a1', {
+      name: 'Nora',
+      employer: relationRef('orgs', 'o1'),
+    })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+      orgs: { o1: org },
+    })
+
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: true,
+      depth: 5,
+      readContext: createReadContext({ maxDepth: 1 }),
+    })
+
+    // Only one level: author fetched, but employer stays as a raw ref.
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(doc.fields.author).toBe(author)
+    expect(author.fields.employer).toEqual(relationRef('orgs', 'o1'))
+  })
+
+  it('forwards nested select + adds first text field for display', async () => {
+    const author = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({
+      authors: { a1: author },
+    })
+    const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: { select: ['employer'] } },
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection_id: 'authors',
+        fields: expect.arrayContaining(['employer', 'name']),
+      })
+    )
+  })
+
+  it('populates relations inside array items', async () => {
+    const a4 = shapedDoc('authors', 'a4', { name: 'Ivan' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({ authors: { a4 } })
+    const doc = shapedDoc('posts', 'p1', {
+      related: [{ person: relationRef('authors', 'a4') }],
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { person: true },
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(doc.fields.related[0].person).toBe(a4)
+  })
+
+  it('populates relations inside blocks items', async () => {
+    const a6 = shapedDoc('authors', 'a6', { name: 'Quinn' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({ authors: { a6 } })
+    const doc = shapedDoc('posts', 'p1', {
+      content: [{ _type: 'quote', body: 'hello', attributedTo: relationRef('authors', 'a6') }],
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { attributedTo: true },
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(doc.fields.content[0].attributedTo).toBe(a6)
+  })
+
+  it('populates relations inside group fields', async () => {
+    const a3 = shapedDoc('authors', 'a3', { name: 'Editor' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({ authors: { a3 } })
+    const doc = shapedDoc('posts', 'p1', {
+      meta: { editor: relationRef('authors', 'a3') },
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { editor: true },
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(doc.fields.meta.editor).toBe(a3)
+  })
+
+  it('de-duplicates IDs at a single level (one fetch for two references)', async () => {
+    const a1 = shapedDoc('authors', 'a1', { name: 'Nora' })
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter({ authors: { a1 } })
+
+    const doc = shapedDoc('posts', 'p1', {
+      author: relationRef('authors', 'a1'),
+      secondaryAuthor: relationRef('authors', 'a1'),
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: true,
+    })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
+      expect.objectContaining({ collection_id: 'authors', document_ids: ['a1'] })
+    )
+    // Both leaves get the same populated object.
+    expect(doc.fields.author).toBe(a1)
+    expect(doc.fields.secondaryAuthor).toBe(a1)
+  })
+
+  it('uses composite (collection, document) keys so same id across collections stays distinct', async () => {
+    // p1 is a post id; a different collection (authors) could theoretically
+    // have a document with id 'p1' too. They must not collide in visited.
+    const authorWithSameId = shapedDoc('authors', 'p1', { name: 'Nora' })
+    const { db } = makeMockAdapter({
+      authors: { p1: authorWithSameId },
+    })
+
+    const post = shapedDoc('posts', 'p1', { author: relationRef('authors', 'p1') })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [post],
+      populate: { author: true },
+    })
+
+    // Post p1 was marked visited with key 'posts:p1'. Author p1 uses
+    // 'authors:p1' — distinct. Author populates normally.
+    expect(post.fields.author).toBe(authorWithSameId)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Interaction with unknown target collections
+// ---------------------------------------------------------------------------
+
+describe('populateDocuments — unknown target collection', () => {
+  it('renders an unresolved stub when target collection is unregistered', async () => {
+    // `weirdCollection` id has no matching CollectionDefinition.
+    const { db } = makeMockAdapter({
+      /* weirdCollection not present: batch will return empty */
+      weirdCollection: {},
+    })
+    const doc = shapedDoc('posts', 'p1', {
+      author: relationRef('weirdCollection', 'a1'),
+    })
+
+    await populateDocuments({
+      db,
+      collections: allCollections,
+      collectionId: 'posts',
+      documents: [doc],
+      populate: { author: true },
+    })
+
+    expect(doc.fields.author).toEqual({
+      target_document_id: 'a1',
+      target_collection_id: 'weirdCollection',
+      _resolved: false,
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// PopulateSpec type sanity (compile-time more than behaviour)
+// ---------------------------------------------------------------------------
+
+describe('PopulateSpec typing', () => {
+  it('accepts nested populate and select options', () => {
+    const spec: PopulateSpec = {
+      author: { select: ['name'], populate: { employer: true } },
+      editor: true,
+    }
+    expect(spec).toBeDefined()
+  })
+})
