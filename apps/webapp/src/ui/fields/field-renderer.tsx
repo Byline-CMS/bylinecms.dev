@@ -23,6 +23,7 @@ import { FileField } from './file/file-field'
 import { ImageField } from './image/image-field'
 import { LocaleBadge } from './locale-badge'
 import { NumericalField } from './numerical/numerical-field'
+import { RelationField } from './relation/relation-field'
 import { RichTextField } from './richtext/richtext-lexical/richtext-field'
 import { SelectField } from './select/select-field'
 import { TextField } from './text/text-field'
@@ -176,6 +177,16 @@ export const FieldRenderer = ({
             onChange={handleChange}
             path={path}
             collectionPath={collectionPath}
+          />
+        )
+      case 'relation':
+        return (
+          <RelationField
+            field={hideLabel ? { ...field, label: undefined } : field}
+            defaultValue={defaultValue}
+            onChange={handleChange}
+            path={path}
+            id={htmlId}
           />
         )
       case 'group':

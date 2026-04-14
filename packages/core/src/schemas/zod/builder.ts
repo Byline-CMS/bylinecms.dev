@@ -245,6 +245,7 @@ export const createListMetaSchema = () =>
 // Create collection metadata schema
 export const createCollectionMetaSchema = (collection: CollectionDefinition) =>
   z.object({
+    id: z.string(),
     labels: z.object({
       singular: z.string(),
       plural: z.string(),
