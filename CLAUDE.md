@@ -110,7 +110,8 @@ A typed `Registry`/`AsyncRegistry` DI container in `packages/core/src/lib/regist
 ### Routing & API
 
 - **Dashboard routing**: `@tanstack/react-router` file-based routes under `apps/webapp/src/routes`, generates `src/routeTree.gen.ts`
-- **Admin API routes**: `apps/webapp/src/routes/admin/api/$collection/` — RESTful endpoints for CRUD, patches, status transitions, and version history
+- **Current transport phase**: the app currently exposes **no stable/public HTTP API transport** for document or upload operations. The only client today is the admin UI, so collection operations are intentionally handled through TanStack Start server functions under `apps/webapp/src/modules/admin/collections` rather than through framework-agnostic HTTP endpoints.
+- **Deferred stable HTTP boundary**: stable HTTP endpoints for uploads, reads, creates, and updates are intentionally deferred until the first non-admin client arrives (for example mobile, desktop, or another remote consumer). At that point the transport boundary should be designed across the full surface area, not just uploads. See `ROUTING-API-ANALYSIS.md`.
 - **Validation**: Zod via schema builder in `packages/core/src/schemas/zod/builder.ts`
 
 ### Client API (`@byline/client`)
