@@ -4,9 +4,43 @@ Welcome to Byline CMS. We're new!
 
 We're hoping to build a developer-friendly, open-source and community-driven headless CMS.
 
+## Table of Contents
+
+- [Docs](#docs)
+- [Mission & Vision](#mission--vision)
+- [FAQ](#faq)
+- [Design Goals](#design-goals)
+- [Key Architectural Decisions](#key-architectural-decisions)
+- [Current Analysis Documents](#current-analysis-documents)
+- [Getting Started](#getting-started)
+- [Content Management in the Time of AI (An Addendum)](#content-management-in-the-time-of-ai-an-addendum)
+- [License](#license)
+
 <img width="734" alt="byline-screeenshot-03" src="https://github.com/user-attachments/assets/c7d6efa1-71bb-4add-b0a2-34611f17be4c" />
 
 <p style="font-size: 0.8rem;"><em>Tiny steps - the Byline prototype.</em></p>
+
+## Docs
+
+We use a few different kinds of documentation, and they serve different jobs.
+
+- Analysis docs in [docs/analysis](docs/analysis/README.md) capture phases of work, active architectural thinking, deferred boundaries, and strategic design notes.
+- Implementation docs describe how something currently works in code, usually close to the package or subsystem they belong to.
+- Package design docs, such as [packages/client/DESIGN.md](packages/client/DESIGN.md), describe the intended API and roadmap for a specific package rather than the broader project phase.
+
+If a document is mostly about an active architecture question or a current design phase, it should usually live under [docs/analysis](docs/analysis/README.md).
+
+## Current Analysis Documents
+
+We now keep active architecture and design analysis documents together under
+[`docs/analysis`](docs/analysis/README.md).
+
+Current in-progress or strategic documents:
+
+- [Storage analysis](docs/analysis/STORAGE-ANALYSIS.md)
+- [Relationships analysis](docs/analysis/RELATIONSHIPS-ANALYSIS.md)
+- [Routing and API analysis](docs/analysis/ROUTING-API-ANALYSIS.md)
+- [Client in-process SDK analysis](docs/analysis/CLIENT-IN-PROCESS-SDK-ANALYSIS.md)
 
 ## Mission & Vision
  
@@ -184,13 +218,13 @@ Prior art for this split:
 
 Here's a list of things that will need to be done, in no particular order:
 
-1. API: A published API specification with client libraries. We're planning a DSL-like client API (`find`, `findAll`, `update`, `delete`) that sits above our storage primitives, with support for selective field loading, relationship population (with depth control), and a query builder that leverages our typed EAV stores for field-level filtering and sorting. See [STORAGE-ANALYSIS.md](STORAGE-ANALYSIS.md) for the full analysis.
+1. API: A published API specification with client libraries. We're planning a DSL-like client API (`find`, `findAll`, `update`, `delete`) that sits above our storage primitives, with support for selective field loading, relationship population (with depth control), and a query builder that leverages our typed EAV stores for field-level filtering and sorting. See [docs/analysis/STORAGE-ANALYSIS.md](docs/analysis/STORAGE-ANALYSIS.md) for the full analysis.
 
 1. Field and Form APIs: Assuming we're going to build at least one implementation of an admin dashboard, we'll need APIs for generating admin app field and form UIs from collection definitions.
 
 1. Compositional Block Strategy: As above, we need a strategy for block composition. Blocks are small(er) units of 'Field API' that can be reused, reordered, and specified as part of a collection's field definition.
 
-1. Data Storage: We're working on what we think is a pretty good (and very fast) storage API. See above Architectural Decisions. Our typed EAV system now features a declarative column manifest, selective field loading for list views (querying only the store tables you need), configurable per-collection search, and a single-round-trip locale copy-forward for immutable versioning. For a deep dive, including our strategic analysis and roadmap, see [STORAGE-ANALYSIS.md](STORAGE-ANALYSIS.md).
+1. Data Storage: We're working on what we think is a pretty good (and very fast) storage API. See above Architectural Decisions. Our typed EAV system now features a declarative column manifest, selective field loading for list views (querying only the store tables you need), configurable per-collection search, and a single-round-trip locale copy-forward for immutable versioning. For a deep dive, including our strategic analysis and roadmap, see [docs/analysis/STORAGE-ANALYSIS.md](docs/analysis/STORAGE-ANALYSIS.md).
 
 1. Security: Authentication (AuthN) and authorization (AuthZ) for the above including roles, abilities, admin account user management etc.
 
