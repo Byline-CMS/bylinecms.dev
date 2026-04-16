@@ -10,6 +10,7 @@ export {
 } from '../lib/errors.js'
 export { normaliseDateFields } from '../utils/normalise-dates.js'
 export * from './document-lifecycle.js'
+export * from './document-upload.js'
 export {
   type CycleRelationValue,
   createReadContext,
