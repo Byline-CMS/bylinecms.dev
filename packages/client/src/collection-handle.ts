@@ -6,19 +6,38 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, PopulateSpec, ReadContext } from '@byline/core'
-import { populateDocuments } from '@byline/core'
+import type {
+  ChangeStatusResult,
+  CollectionDefinition,
+  CreateDocumentResult,
+  DeleteDocumentResult,
+  DocumentLifecycleContext,
+  PopulateSpec,
+  ReadContext,
+  UnpublishResult,
+  UpdateDocumentResult,
+} from '@byline/core'
+import {
+  changeDocumentStatus,
+  createDocument,
+  deleteDocument,
+  populateDocuments,
+  unpublishDocument,
+  updateDocument,
+} from '@byline/core'
 
 import { parseSort, parseWhere } from './query/parse-where.js'
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
 import type { BylineClient } from './client.js'
 import type {
   ClientDocument,
+  CreateOptions,
   FindByIdOptions,
   FindByPathOptions,
   FindOneOptions,
   FindOptions,
   FindResult,
+  UpdateOptions,
 } from './types.js'
 
 /**
@@ -160,6 +179,87 @@ export class CollectionHandle {
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
 
+  // -------------------------------------------------------------------------
+  // Write path
+  //
+  // Each method resolves the collection id, builds a DocumentLifecycleContext,
+  // and delegates to the corresponding `document-lifecycle` service. Hooks
+  // declared on the collection definition (beforeCreate, afterCreate, …) run
+  // inside those services — no separate wiring is needed here.
+  //
+  // Patches stay admin-internal: the client API does whole-document writes
+  // only. UI-level intent (array reordering, block insertion) belongs to the
+  // admin route layer, not to a framework-agnostic SDK.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Create a new document in this collection.
+   *
+   * `data` is a plain object matching the collection's field shape. When
+   * `options.status` is omitted the collection's default status (from its
+   * workflow definition) is used.
+   */
+  async create(
+    data: Record<string, any>,
+    options: CreateOptions = {}
+  ): Promise<CreateDocumentResult> {
+    const ctx = await this.buildLifecycleContext()
+    return createDocument(ctx, {
+      data,
+      locale: options.locale,
+      status: options.status,
+    })
+  }
+
+  /**
+   * Update an existing document via full replacement (PUT semantics).
+   * Creates a new immutable version row. Hooks receive the real previous
+   * version as `originalData`.
+   */
+  async update(
+    documentId: string,
+    data: Record<string, any>,
+    options: UpdateOptions = {}
+  ): Promise<UpdateDocumentResult> {
+    const ctx = await this.buildLifecycleContext()
+    return updateDocument(ctx, {
+      documentId,
+      data,
+      locale: options.locale,
+    })
+  }
+
+  /**
+   * Change a document's workflow status. The transition is validated
+   * against the collection's declared workflow (±1 step or reset-to-first);
+   * transitioning to `'published'` auto-archives any other published
+   * versions of the same document.
+   */
+  async changeStatus(documentId: string, nextStatus: string): Promise<ChangeStatusResult> {
+    const ctx = await this.buildLifecycleContext()
+    return changeDocumentStatus(ctx, { documentId, nextStatus })
+  }
+
+  /**
+   * Archive the currently-published version(s) of a document.
+   */
+  async unpublish(documentId: string): Promise<UnpublishResult> {
+    const ctx = await this.buildLifecycleContext()
+    return unpublishDocument(ctx, { documentId })
+  }
+
+  /**
+   * Soft-delete a document. All versions are flagged `is_deleted = true`
+   * and disappear from read paths (the `current_documents` view filters
+   * them out). For upload-enabled collections with a storage provider,
+   * the primary file and its Sharp-generated variants are also removed
+   * after the DB soft-delete — failures there are logged but non-fatal.
+   */
+  async delete(documentId: string): Promise<DeleteDocumentResult> {
+    const ctx = await this.buildLifecycleContext()
+    return deleteDocument(ctx, { documentId })
+  }
+
   /**
    * Count documents, optionally filtered by status.
    *
@@ -185,6 +285,23 @@ export class CollectionHandle {
   // -------------------------------------------------------------------------
   // Internals
   // -------------------------------------------------------------------------
+
+  /**
+   * Build a fresh `DocumentLifecycleContext` for a write call. Pulls the
+   * resolved collection id, inherits the client-wide logger and storage
+   * provider, and includes the collection definition so hooks can observe it.
+   */
+  private async buildLifecycleContext(): Promise<DocumentLifecycleContext> {
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    return {
+      db: this.client.db,
+      definition: this.definition,
+      collectionId,
+      collectionPath: this.definition.path,
+      storage: this.client.storage,
+      logger: this.client.logger,
+    }
+  }
 
   /**
    * Invoke `populateDocuments` on a freshly-read (raw, storage-shape) set

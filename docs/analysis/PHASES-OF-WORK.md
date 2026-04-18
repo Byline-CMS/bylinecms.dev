@@ -1,6 +1,6 @@
 # Phases of Work — Strategic Roadmap
 
-> Last updated: 2026-04-18
+> Last updated: 2026-04-18 (post-Phase 4)
 > Companion to [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md),
 > [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md),
 > [ROUTING-API-ANALYSIS.md](./ROUTING-API-ANALYSIS.md), and
@@ -16,29 +16,19 @@ behind them in priority order.
 
 ---
 
-## 1. Client API Phase 4 — write path
+## ~~1. Client API Phase 4 — write path~~ — shipped 2026-04-18
 
-**Scope.** `create`, `update`, `delete`, `changeStatus`, `unpublish` on
-`@byline/client` `CollectionHandle`, delegating to the existing
-`document-lifecycle` service in `packages/core/src/services/`.
-
-**Why now.** This is the smallest piece of work with the largest
-unlock. It makes `@byline/client` viable for migrations, seeders,
-import jobs, and trusted server-side write paths — exactly the use
-cases [ROUTING-API-ANALYSIS](./ROUTING-API-ANALYSIS.md) and
-[CLIENT-IN-PROCESS-SDK-ANALYSIS](./CLIENT-IN-PROCESS-SDK-ANALYSIS.md)
-call out as appropriate before any HTTP transport phase.
-
-**Shape.** No storage changes required. The handle is a thin shim
-over `document-lifecycle` functions, mirroring the pattern Phase 1–3
-established for reads. Patches stay admin-internal — the client API
-does whole-document or field-level writes via `createDocumentVersion`.
-
-**Pairs naturally with item 2.**
+`CollectionHandle.create` / `update` / `delete` / `changeStatus` /
+`unpublish` landed as thin shims over `document-lifecycle`, with the
+`BylineClient` resolving a `BylineLogger` in priority order (explicit
+config → `getLogger()` → silent no-op) so migration scripts and
+seeders don't need to call `initBylineCore()`. 11 unit + 11
+integration tests. No storage-layer changes. Patches remain
+admin-internal; public writes are whole-document.
 
 ---
 
-## 2. Status-aware reads
+## 1. Status-aware reads
 
 **Scope.** Add a `status?: 'published' | 'any'` option to
 `FindOptions` and `PopulateOptions`, plumbed through to
@@ -56,13 +46,13 @@ consumers, and it is a precondition for any future public HTTP
 boundary.
 
 **Shape.** Mostly a query-builder option propagated through the read
-path. Pairs naturally with Phase 4 — once writes ship, the SDK is
-exercised in non-admin contexts and the status filter becomes
-load-bearing.
+path. Now the top-priority client-API item with Phase 4 shipped — the
+SDK is actively being exercised in non-admin contexts, so the status
+filter is load-bearing.
 
 ---
 
-## 3. Benchmark the UNION ALL at scale
+## 2. Benchmark the UNION ALL at scale
 
 **Scope.** Run `EXPLAIN ANALYZE` on the 7-way UNION ALL with realistic
 seed data at 10k, 50k, and 100k documents (20–30 fields each). Find
@@ -82,7 +72,7 @@ read cache is gated on the benchmark numbers, not on intuition.
 
 ---
 
-## 4. `afterRead` hook
+## 3. `afterRead` hook
 
 **Scope.** Implement the first read-side hook in the
 `document-lifecycle` family. Thread the existing
@@ -105,7 +95,7 @@ Both are architecturally blocked on `afterRead` existing.
 
 ---
 
-## 5. `hasMany` relations
+## 4. `hasMany` relations
 
 **Scope.** Multi-target relation fields. Needs:
 - new `hasMany: true` prop on `RelationField`,
@@ -116,26 +106,26 @@ Both are architecturally blocked on `afterRead` existing.
 
 **Why this slot.** Commonly requested, well-scoped in
 [RELATIONSHIPS-ANALYSIS § "Deferred"](./RELATIONSHIPS-ANALYSIS.md), and
-a good user-visible feature once items 1–2 land. Not blocking; not
+a good user-visible feature once earlier items land. Not blocking; not
 load-bearing for any earlier item.
 
 ---
 
-## 6. Richtext document links
+## 5. Richtext document links
 
 **Scope.** Lexical `DocumentLinkNode`, toolbar plugin reusing the
 existing `RelationPicker`, save-time vs read-time hydration modes,
 configurable field projection, shared `ReadContext` for recursion
 safety.
 
-**Why this slot.** Larger track that depends on item 4 (`afterRead`)
+**Why this slot.** Larger track that depends on item 3 (`afterRead`)
 for Mode 2 hydration. Designed in detail in
 [RELATIONSHIPS-ANALYSIS § "Future work: rich-text document
 links"](./RELATIONSHIPS-ANALYSIS.md). Defer until `afterRead` ships.
 
 ---
 
-## 7. Stable HTTP transport — explicitly NOT next
+## 6. Stable HTTP transport — explicitly NOT next
 
 The trigger for a stable/public HTTP API is **not** "the client SDK
 gained more methods." It is **the first real client that cannot
@@ -159,19 +149,20 @@ Until that arrives, hold the line per
 
 ## Sequencing notes
 
-- **Items 1 + 2 are tied for highest priority** and can land in either
-  order or together. Together they make `@byline/client` viable for
-  trusted external write/read scenarios.
-- **Item 3 (benchmark) can run in parallel** with items 1–2; it is
+- **Item 1 (status-aware reads)** is the top priority now that Phase 4
+  has shipped. Without it, `@byline/client` public consumers see
+  drafts through populate.
+- **Item 2 (benchmark) can run in parallel** with item 1; it is
   measurement work, not implementation work, and the result feeds
   every subsequent decision about read performance.
-- **Item 4 (`afterRead`) gates items 6 and the access-control track**
-  but does not block 1, 2, 3, or 5.
-- **Item 7 (HTTP transport) stays deferred** regardless of progress on
-  1–6 unless an external-client trigger fires.
+- **Item 3 (`afterRead`) gates item 5 and the access-control track**
+  but does not block 1, 2, or 4.
+- **Item 6 (HTTP transport) stays deferred** regardless of progress on
+  1–5 unless an external-client trigger fires.
 
 ## Progress log
 
 | Date | Change |
 |------|--------|
 | 2026-04-18 | Initial roadmap captured from strategic review. |
+| 2026-04-18 | Phase 4 (client-API write path) shipped. Renumbered remaining items; status-aware reads promoted to item 1. |

@@ -6,11 +6,41 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, IDbAdapter, IStorageProvider } from '@byline/core'
-import { ERR_NOT_FOUND } from '@byline/core'
+import type { BylineLogger, CollectionDefinition, IDbAdapter, IStorageProvider } from '@byline/core'
+import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { CollectionHandle } from './collection-handle.js'
 import type { BylineClientConfig } from './types.js'
+
+/**
+ * Resolve a logger for the client in priority order:
+ *   1. explicit `config.logger`
+ *   2. `getLogger()` if `initBylineCore()` registered one
+ *   3. silent no-op fallback
+ *
+ * Keeps the SDK usable from migration scripts and tests without any
+ * setup while still picking up the real logger in fully-wired runtimes.
+ */
+function resolveLogger(provided: BylineLogger | undefined): BylineLogger {
+  if (provided) return provided
+  try {
+    return getLogger()
+  } catch {
+    return silentLogger
+  }
+}
+
+const noop = () => {}
+const silentLogger: BylineLogger = {
+  log: noop,
+  fatal: noop,
+  error: noop,
+  warn: noop,
+  info: noop,
+  debug: noop,
+  trace: noop,
+  silent: noop,
+}
 
 /**
  * The main Byline client instance. Holds the database adapter, collection
@@ -21,6 +51,7 @@ export class BylineClient {
   readonly db: IDbAdapter
   readonly collections: CollectionDefinition[]
   readonly storage: IStorageProvider | undefined
+  readonly logger: BylineLogger
 
   /** Cache: collection path → database row ID. */
   private collectionIdCache = new Map<string, string>()
@@ -29,6 +60,7 @@ export class BylineClient {
     this.db = config.db
     this.collections = config.collections
     this.storage = config.storage
+    this.logger = resolveLogger(config.logger)
   }
 
   /**

@@ -7,6 +7,7 @@
  */
 
 import type {
+  BylineLogger,
   CollectionDefinition,
   IDbAdapter,
   IStorageProvider,
@@ -25,6 +26,13 @@ export interface BylineClientConfig {
   collections: CollectionDefinition[]
   /** Optional storage provider — needed for delete file cleanup. */
   storage?: IStorageProvider
+  /**
+   * Optional logger. Used by the write path to emit structured events
+   * from `document-lifecycle`. When omitted, the client falls back to
+   * `getLogger()` if `initBylineCore()` has registered one, else uses a
+   * silent no-op logger so scripts and tests run without setup.
+   */
+  logger?: BylineLogger
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +87,25 @@ export interface FindByIdOptions<F = Record<string, any>> extends PopulateContro
 
 export interface FindByPathOptions<F = Record<string, any>> extends PopulateControls {
   select?: (keyof F & string)[] | string[]
+  locale?: string
+}
+
+// ---------------------------------------------------------------------------
+// Write options
+// ---------------------------------------------------------------------------
+
+export interface CreateOptions {
+  /** Locale for field value resolution. Defaults to 'en'. */
+  locale?: string
+  /**
+   * Initial workflow status. When omitted, `document-lifecycle` derives
+   * the collection's default (usually `'draft'`).
+   */
+  status?: string
+}
+
+export interface UpdateOptions {
+  /** Locale for field value resolution. Defaults to 'en'. */
   locale?: string
 }
 

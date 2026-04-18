@@ -9,14 +9,15 @@ population, field selection, response shaping, and (eventually) access control.
 
 ---
 
-## Status snapshot (2026-04-14)
+## Status snapshot (2026-04-18)
 
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Read path — `find`, `findOne`, `findById`, `findByPath`, `count`; camelCase response shaping; `ClientDocument<F>` generic | **Shipped** |
 | 2 | Field-level filters + sorting via `IDocumentQueries.findDocuments()` (EXISTS + `LEFT JOIN LATERAL`) | **Shipped** |
-| 3 | Relationship population (`populate`, `depth`) | Planned — primitive `getDocumentsByDocumentIds()` shipped; orchestration pending |
-| 4 | Write path (`create`, `update`, `delete`, `changeStatus`, `unpublish`) delegating to `document-lifecycle` | Planned |
+| 3 | Relationship population (`populate`, `depth`) — two-axis DSL, unified relation envelope, request-scoped `ReadContext` | **Shipped** |
+| 4 | Write path (`create`, `update`, `delete`, `changeStatus`, `unpublish`) delegating to `document-lifecycle` | **Shipped** |
+| 5 | Status-aware reads (`status?: 'published' \| 'any'` defaulting to `'published'` in-client) | Planned |
 
 Shared mapping between client DSL parsing and db-postgres SQL generation lives in `@byline/core/storage/field-store-map.ts` (single source of truth + contract test).
 
