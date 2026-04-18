@@ -1,0 +1,23 @@
+{
+  "name": "@byline/bench-storage",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Storage-layer benchmarks for Byline — seed harness, query measurement, and reproducible results.",
+  "license": "MPL-2.0",
+  "type": "module",
+  "scripts": {
+    "seed": "tsx --env-file=../../packages/db-postgres/.env harness/seed.ts",
+    "bench": "tsx --env-file=../../packages/db-postgres/.env harness/run-bench.ts"
+  },
+  "dependencies": {
+    "@byline/core": "workspace:*",
+    "@byline/db-postgres": "workspace:*",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/pg": "^8.20.0",
+    "tsx": "^4.21.0",
+    "typescript": "6.0.2"
+  }
+}

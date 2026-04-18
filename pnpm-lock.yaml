@@ -220,6 +220,31 @@ importers:
         specifier: ^4.1.4
         version: 4.1.4(@types/node@25.6.0)(happy-dom@20.8.9)(jsdom@29.0.2)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0)(yaml@2.8.0))
 
+  benchmarks/storage:
+    dependencies:
+      '@byline/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@byline/db-postgres':
+        specifier: workspace:*
+        version: link:../../packages/db-postgres
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: ^25.6.0
+        version: 25.6.0
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+
   packages/client:
     dependencies:
       '@byline/core':
