@@ -1,6 +1,6 @@
 # Phases of Work — Strategic Roadmap
 
-> Last updated: 2026-04-18 (post-Phase 4)
+> Last updated: 2026-04-18 (post-Phase 5)
 > Companion to [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md),
 > [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md),
 > [ROUTING-API-ANALYSIS.md](./ROUTING-API-ANALYSIS.md), and
@@ -28,31 +28,23 @@ admin-internal; public writes are whole-document.
 
 ---
 
-## 1. Status-aware reads
+## ~~1. Status-aware reads~~ — shipped 2026-04-18
 
-**Scope.** Add a `status?: 'published' | 'any'` option to
-`FindOptions` and `PopulateOptions`, plumbed through to
-`getDocumentsByDocumentIds` and `findDocuments` as a new filter.
-`@byline/client` defaults to `'published'`; admin server fns pass
-`'any'`.
-
-**Why now.** `find` and populate currently both read through
-`current_documents`, which surfaces the latest version of a document
-regardless of workflow status. A draft saved over a published version
-will leak into populated relations and any public consumer of
-`@byline/client` can see archived or draft targets. This is the only
-meaningful read-side gap before the SDK is safe for non-admin
-consumers, and it is a precondition for any future public HTTP
-boundary.
-
-**Shape.** Mostly a query-builder option propagated through the read
-path. Now the top-priority client-API item with Phase 4 shipped — the
-SDK is actively being exercised in non-admin contexts, so the status
-filter is load-bearing.
+`status?: 'published' | 'any'` on `FindOptions` / `FindOneOptions` /
+`FindByIdOptions` / `FindByPathOptions`, defaulting to `'published'`
+in-client. Threaded through `populateDocuments` as `readMode` so
+populated relation targets follow the same rule. Backed by a new
+`current_published_documents` Postgres view that applies
+`ROW_NUMBER() PARTITION BY document_id` after filtering to
+`status = 'published'` — so draft-over-published documents keep
+returning the published content (v1) until the draft (v2) is itself
+published, matching the user mental model. Admin continues to pass
+through the adapter default of `'any'`. 10 unit + 7 integration tests;
+one migration (`0001_demonic_joseph.sql`).
 
 ---
 
-## 2. Benchmark the UNION ALL at scale
+## 1. Benchmark the UNION ALL at scale
 
 **Scope.** Run `EXPLAIN ANALYZE` on the 7-way UNION ALL with realistic
 seed data at 10k, 50k, and 100k documents (20–30 fields each). Find
@@ -72,7 +64,7 @@ read cache is gated on the benchmark numbers, not on intuition.
 
 ---
 
-## 3. `afterRead` hook
+## 2. `afterRead` hook
 
 **Scope.** Implement the first read-side hook in the
 `document-lifecycle` family. Thread the existing
@@ -95,7 +87,7 @@ Both are architecturally blocked on `afterRead` existing.
 
 ---
 
-## 4. `hasMany` relations
+## 3. `hasMany` relations
 
 **Scope.** Multi-target relation fields. Needs:
 - new `hasMany: true` prop on `RelationField`,
@@ -111,21 +103,21 @@ load-bearing for any earlier item.
 
 ---
 
-## 5. Richtext document links
+## 4. Richtext document links
 
 **Scope.** Lexical `DocumentLinkNode`, toolbar plugin reusing the
 existing `RelationPicker`, save-time vs read-time hydration modes,
 configurable field projection, shared `ReadContext` for recursion
 safety.
 
-**Why this slot.** Larger track that depends on item 3 (`afterRead`)
+**Why this slot.** Larger track that depends on item 2 (`afterRead`)
 for Mode 2 hydration. Designed in detail in
 [RELATIONSHIPS-ANALYSIS § "Future work: rich-text document
 links"](./RELATIONSHIPS-ANALYSIS.md). Defer until `afterRead` ships.
 
 ---
 
-## 6. Stable HTTP transport — explicitly NOT next
+## 5. Stable HTTP transport — explicitly NOT next
 
 The trigger for a stable/public HTTP API is **not** "the client SDK
 gained more methods." It is **the first real client that cannot
@@ -149,16 +141,13 @@ Until that arrives, hold the line per
 
 ## Sequencing notes
 
-- **Item 1 (status-aware reads)** is the top priority now that Phase 4
-  has shipped. Without it, `@byline/client` public consumers see
-  drafts through populate.
-- **Item 2 (benchmark) can run in parallel** with item 1; it is
-  measurement work, not implementation work, and the result feeds
-  every subsequent decision about read performance.
-- **Item 3 (`afterRead`) gates item 5 and the access-control track**
-  but does not block 1, 2, or 4.
-- **Item 6 (HTTP transport) stays deferred** regardless of progress on
-  1–5 unless an external-client trigger fires.
+- **Item 1 (benchmark)** is measurement work, not implementation;
+  the result feeds every subsequent decision about read performance.
+  Safe to run anytime.
+- **Item 2 (`afterRead`) gates item 4 and the access-control track**
+  but does not block 1 or 3.
+- **Item 5 (HTTP transport) stays deferred** regardless of progress on
+  1–4 unless an external-client trigger fires.
 
 ## Progress log
 
@@ -166,3 +155,4 @@ Until that arrives, hold the line per
 |------|--------|
 | 2026-04-18 | Initial roadmap captured from strategic review. |
 | 2026-04-18 | Phase 4 (client-API write path) shipped. Renumbered remaining items; status-aware reads promoted to item 1. |
+| 2026-04-18 | Phase 5 (status-aware reads) shipped. Item list renumbered; benchmark promoted to item 1. |

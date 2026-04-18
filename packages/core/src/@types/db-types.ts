@@ -1,5 +1,21 @@
 import type { CollectionDefinition } from '@byline/core'
 
+/**
+ * Read mode for document queries.
+ *
+ *   - `'any'`       — return the latest version of each document regardless
+ *                     of its workflow status (the standard `current_documents`
+ *                     view semantics). Default when omitted; used by admin
+ *                     UIs that need to surface in-progress drafts.
+ *   - `'published'` — return the latest *published* version of each
+ *                     document, falling back past newer drafts to the
+ *                     previously-published content. A document with no
+ *                     published version is invisible in this mode.
+ *                     Used by public read consumers (`@byline/client`
+ *                     defaults to this).
+ */
+export type ReadMode = 'any' | 'published'
+
 // ---------------------------------------------------------------------------
 // Field-level filter and sort descriptors
 // ---------------------------------------------------------------------------
@@ -130,6 +146,8 @@ export interface IDocumentQueries {
     document_id: string
     locale?: string
     reconstruct?: boolean
+    /** See `ReadMode`. Defaults to `'any'`. */
+    readMode?: ReadMode
   }): Promise<any | null>
 
   /**
@@ -157,6 +175,8 @@ export interface IDocumentQueries {
     path: string
     locale?: string
     reconstruct: boolean
+    /** See `ReadMode`. Defaults to `'any'`. */
+    readMode?: ReadMode
   }): Promise<any | null>
 
   getDocumentByVersion(params: { document_version_id: string; locale?: string }): Promise<any>
@@ -182,6 +202,8 @@ export interface IDocumentQueries {
     document_ids: string[]
     locale?: string
     fields?: string[]
+    /** See `ReadMode`. Defaults to `'any'`. */
+    readMode?: ReadMode
   }): Promise<any[]>
 
   getDocumentHistory(params: {
@@ -257,6 +279,12 @@ export interface IDocumentQueries {
   findDocuments(params: {
     collection_id: string
     filters?: FieldFilter[]
+    /**
+     * Exact-match filter on the current version's `status` column. Used by
+     * admin UIs that filter the list view by a specific status ("show me
+     * all drafts"). Distinct from `readMode`, which selects the *source
+     * view* — see `ReadMode`.
+     */
     status?: string
     pathFilter?: { operator: FieldFilterOperator; value: string }
     /** Text search across the collection's configured search fields. */
@@ -269,6 +297,8 @@ export interface IDocumentQueries {
     page?: number
     pageSize?: number
     fields?: string[]
+    /** See `ReadMode`. Defaults to `'any'`. */
+    readMode?: ReadMode
   }): Promise<{
     documents: any[]
     total: number

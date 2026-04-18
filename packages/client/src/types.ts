@@ -13,6 +13,7 @@ import type {
   IStorageProvider,
   PopulateSpec,
   ReadContext,
+  ReadMode,
 } from '@byline/core'
 
 // ---------------------------------------------------------------------------
@@ -59,7 +60,28 @@ interface PopulateControls {
   _readContext?: ReadContext
 }
 
-export interface FindOptions<F = Record<string, any>> extends PopulateControls {
+/**
+ * Read-mode selector shared by every read method.
+ *
+ *   - `'published'` (client default) — return the latest *published*
+ *     version of each document, falling back past newer drafts so public
+ *     readers keep seeing previously-published content while editors
+ *     work on an unpublished draft. A document with no published
+ *     version is invisible in this mode. Populated relation targets
+ *     follow the same rule.
+ *   - `'any'` — return the latest version regardless of status.
+ *     Admin UIs (which surface in-progress drafts) should pass this
+ *     explicitly.
+ *
+ * Distinct from `where.status`, which is an *exact-match filter* on the
+ * selected version's status column ("show me all drafts"). `status` is
+ * the *source view* selector.
+ */
+interface StatusControls {
+  status?: ReadMode
+}
+
+export interface FindOptions<F = Record<string, any>> extends PopulateControls, StatusControls {
   /** Filter documents. Keys are field names or reserved names (status, path). */
   where?: WhereClause
   /** Return only these fields. Omit for all fields. */
@@ -74,18 +96,20 @@ export interface FindOptions<F = Record<string, any>> extends PopulateControls {
   pageSize?: number
 }
 
-export interface FindOneOptions<F = Record<string, any>> extends PopulateControls {
+export interface FindOneOptions<F = Record<string, any>> extends PopulateControls, StatusControls {
   where?: WhereClause
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
-export interface FindByIdOptions<F = Record<string, any>> extends PopulateControls {
+export interface FindByIdOptions<F = Record<string, any>> extends PopulateControls, StatusControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
-export interface FindByPathOptions<F = Record<string, any>> extends PopulateControls {
+export interface FindByPathOptions<F = Record<string, any>>
+  extends PopulateControls,
+    StatusControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
 }

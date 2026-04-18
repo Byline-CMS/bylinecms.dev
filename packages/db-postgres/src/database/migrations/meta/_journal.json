@@ -8,6 +8,13 @@
       "when": 1765101029419,
       "tag": "0000_dizzy_sheva_callister",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776508798594,
+      "tag": "0001_demonic_joseph",
+      "breakpoints": true
     }
   ]
 }

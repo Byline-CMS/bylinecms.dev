@@ -17,7 +17,32 @@ population, field selection, response shaping, and (eventually) access control.
 | 2 | Field-level filters + sorting via `IDocumentQueries.findDocuments()` (EXISTS + `LEFT JOIN LATERAL`) | **Shipped** |
 | 3 | Relationship population (`populate`, `depth`) — two-axis DSL, unified relation envelope, request-scoped `ReadContext` | **Shipped** |
 | 4 | Write path (`create`, `update`, `delete`, `changeStatus`, `unpublish`) delegating to `document-lifecycle` | **Shipped** |
-| 5 | Status-aware reads (`status?: 'published' \| 'any'` defaulting to `'published'` in-client) | Planned |
+| 5 | Status-aware reads (`status?: 'published' \| 'any'` defaulting to `'published'` in-client), backed by `current_published_documents` view | **Shipped** |
+
+### Phase 5 semantics
+
+The client-level `status` option on every read method selects the **source
+view**, not an exact-status filter:
+
+- `'published'` (default) — resolve each document to its latest version
+  whose status is `'published'`. If a newer draft exists over a
+  previously-published version, readers still see the published content
+  (backed by the `current_published_documents` Postgres view, which
+  filters `document_versions` to `status = 'published'` *before* the
+  `ROW_NUMBER() PARTITION BY document_id` window). A document with no
+  published version is invisible in this mode.
+- `'any'` — resolve to the latest version of each document regardless of
+  status (backed by `current_documents`). Admin UIs use this mode.
+
+Distinct from `where.status`, which is a literal filter on the selected
+version's status column: `find({ where: { status: 'draft' } })` still
+means "show me rows with status=draft" — combining it with `status: 'any'`
+at the top level is the common admin pattern.
+
+`populate` + `depth` inherit the outer read's mode: when reading in
+`'published'` mode, populated relation targets also resolve to their
+`current_published_documents` rows, so draft leaks can't happen through
+relations either.
 
 Shared mapping between client DSL parsing and db-postgres SQL generation lives in `@byline/core/storage/field-store-map.ts` (single source of truth + contract test).
 

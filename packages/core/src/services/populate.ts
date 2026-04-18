@@ -135,6 +135,7 @@ import type {
   CollectionDefinition,
   FieldSet,
   IDbAdapter,
+  ReadMode,
   RelatedDocumentValue,
   RelationField,
 } from '../@types/index.js'
@@ -255,6 +256,15 @@ export interface PopulateOptions {
   depth?: number
   /** Locale forwarded to the batch fetch. */
   locale?: string
+  /**
+   * Read mode forwarded to `getDocumentsByDocumentIds`. Selects whether
+   * populated targets are resolved from `current_documents` (default,
+   * `'any'`) or `current_published_documents` (`'published'`). Public
+   * consumers of `@byline/client` typically want `'published'` so a
+   * populated target that currently has a newer draft still resolves to
+   * its last published version rather than leaking a draft.
+   */
+  readMode?: ReadMode
   /**
    * Request-scoped recursion guard. Omit to create a fresh context for
    * this top-level call. Threaded through by future read-side hooks to
@@ -426,6 +436,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
           document_ids: idsToFetch,
           locale: opts.locale,
           fields: selectList,
+          readMode: opts.readMode,
         })
       }
 

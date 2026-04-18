@@ -53,9 +53,16 @@ afterAll(async () => {
   await teardownTestClient(ctx)
 })
 
+// Most of these tests seed a mix of drafts and one published doc. The Phase
+// 5 client default is `status: 'published'` (fall back past drafts to the
+// last published version), so tests that want to exercise read mechanics
+// across the whole fixture pass `status: 'any'` explicitly. Tests that are
+// specifically about the published/draft distinction omit it.
+const any = { status: 'any' as const }
+
 describe('client.collection().find()', () => {
   it('should return all seeded documents', async () => {
-    const result = await ctx.client.collection(ctx.definition.path).find()
+    const result = await ctx.client.collection(ctx.definition.path).find(any)
 
     expect(result.docs.length).toBe(sampleArticles.length)
     expect(result.meta.total).toBe(sampleArticles.length)
@@ -64,7 +71,7 @@ describe('client.collection().find()', () => {
   })
 
   it('should return camelCase shaped documents', async () => {
-    const result = await ctx.client.collection(ctx.definition.path).find()
+    const result = await ctx.client.collection(ctx.definition.path).find(any)
     const doc = result.docs[0]!
 
     expect(doc.id).toBeDefined()
@@ -86,7 +93,7 @@ describe('client.collection().find()', () => {
 
     const drafts = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { status: 'draft' } })
+      .find({ where: { status: 'draft' }, ...any })
 
     expect(drafts.docs.length).toBe(sampleArticles.length - 1)
   })
@@ -94,25 +101,31 @@ describe('client.collection().find()', () => {
   it('should support text search via where.query', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { query: 'Storage' } })
+      .find({ where: { query: 'Storage' }, ...any })
 
     expect(result.docs.length).toBe(1)
     expect(result.docs[0]?.fields.title).toContain('Storage')
   })
 
   it('should support pagination', async () => {
-    const page1 = await ctx.client.collection(ctx.definition.path).find({ pageSize: 2, page: 1 })
+    const page1 = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ pageSize: 2, page: 1, ...any })
 
     expect(page1.docs.length).toBe(2)
     expect(page1.meta.totalPages).toBe(2)
 
-    const page2 = await ctx.client.collection(ctx.definition.path).find({ pageSize: 2, page: 2 })
+    const page2 = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ pageSize: 2, page: 2, ...any })
 
     expect(page2.docs.length).toBe(1)
   })
 
   it('should support selective field loading', async () => {
-    const result = await ctx.client.collection(ctx.definition.path).find({ select: ['title'] })
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ select: ['title'], ...any })
 
     const doc = result.docs[0]!
     expect(doc.fields.title).toBeDefined()

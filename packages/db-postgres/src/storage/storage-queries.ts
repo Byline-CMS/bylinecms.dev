@@ -13,6 +13,7 @@ import type {
   FlattenedStore,
   ICollectionQueries,
   IDocumentQueries,
+  ReadMode,
   UnionRowValue,
 } from '@byline/core'
 // TODO: getLogger() is used here as a global escape hatch because pgAdapter()
@@ -26,6 +27,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import {
   collections,
   currentDocumentsView,
+  currentPublishedDocumentsView,
   documentVersions,
   metaStore,
 } from '../database/schema/index.js'
@@ -114,6 +116,25 @@ export class DocumentQueries implements IDocumentQueries {
       }).log(getLogger())
     }
     return definition
+  }
+
+  /**
+   * Pick the Drizzle view reference to read from based on `readMode`.
+   *
+   *   - `'any'` (default) → `current_documents` — the latest version of
+   *     each logical document, regardless of status.
+   *   - `'published'`     → `current_published_documents` — the latest
+   *     version whose status is `'published'`, falling back past newer
+   *     drafts so public readers keep seeing previously-published
+   *     content while editors work on an unpublished draft.
+   *
+   * Both views share the same row shape, so the returned reference is
+   * drop-in substitutable at every select/where site.
+   */
+  private pickCurrentView(
+    readMode: ReadMode | undefined
+  ): typeof currentDocumentsView | typeof currentPublishedDocumentsView {
+    return readMode === 'published' ? currentPublishedDocumentsView : currentDocumentsView
   }
 
   /**
@@ -210,22 +231,20 @@ export class DocumentQueries implements IDocumentQueries {
     document_id,
     locale = 'en',
     reconstruct = true,
+    readMode,
   }: {
     collection_id: string
     document_id: string
     locale?: string
     reconstruct?: boolean
+    readMode?: ReadMode
   }) {
-    // 1. Get current version
+    const view = this.pickCurrentView(readMode)
+    // 1. Get current version (or current published version, per readMode)
     const [document] = await this.db
       .select()
-      .from(currentDocumentsView)
-      .where(
-        and(
-          eq(currentDocumentsView.collection_id, collection_id),
-          eq(currentDocumentsView.document_id, document_id)
-        )
-      )
+      .from(view)
+      .where(and(eq(view.collection_id, collection_id), eq(view.document_id, document_id)))
 
     if (document == null) {
       return null
@@ -283,22 +302,20 @@ export class DocumentQueries implements IDocumentQueries {
     path,
     locale = 'en',
     reconstruct = true,
+    readMode,
   }: {
     collection_id: string
     path: string
     locale?: string
     reconstruct: boolean
+    readMode?: ReadMode
   }) {
-    // 1. Get current version
+    const view = this.pickCurrentView(readMode)
+    // 1. Get current version (or current published version, per readMode)
     const [document] = await this.db
       .select()
-      .from(currentDocumentsView)
-      .where(
-        and(
-          eq(currentDocumentsView.collection_id, collection_id),
-          eq(currentDocumentsView.path, path)
-        )
-      )
+      .from(view)
+      .where(and(eq(view.collection_id, collection_id), eq(view.path, path)))
 
     if (document == null) {
       return null
@@ -445,23 +462,21 @@ export class DocumentQueries implements IDocumentQueries {
     document_ids,
     locale = 'all',
     fields,
+    readMode,
   }: {
     collection_id: string
     document_ids: string[]
     locale?: string
     fields?: string[]
+    readMode?: ReadMode
   }): Promise<any[]> {
     if (document_ids.length === 0) return []
 
+    const view = this.pickCurrentView(readMode)
     const docs = await this.db
       .select()
-      .from(currentDocumentsView)
-      .where(
-        and(
-          eq(currentDocumentsView.collection_id, collection_id),
-          inArray(currentDocumentsView.document_id, document_ids)
-        )
-      )
+      .from(view)
+      .where(and(eq(view.collection_id, collection_id), inArray(view.document_id, document_ids)))
 
     return this.reconstructDocuments({ documents: docs as Document[], locale, fields })
   }
@@ -848,6 +863,7 @@ export class DocumentQueries implements IDocumentQueries {
     page = 1,
     pageSize = 20,
     fields: requestedFields,
+    readMode,
   }: {
     collection_id: string
     filters?: FieldFilter[]
@@ -861,8 +877,13 @@ export class DocumentQueries implements IDocumentQueries {
     page?: number
     pageSize?: number
     fields?: string[]
+    readMode?: ReadMode
   }): Promise<{ documents: any[]; total: number }> {
     const offset = (page - 1) * pageSize
+    const sourceTable =
+      readMode === 'published'
+        ? sql.raw('current_published_documents')
+        : sql.raw('current_documents')
 
     // -- Build WHERE conditions -----------------------------------------------
     const conditions: SQL[] = [sql`d.collection_id = ${collection_id}`]
@@ -930,7 +951,7 @@ export class DocumentQueries implements IDocumentQueries {
     // -- Count query ----------------------------------------------------------
     const countQuery = sql`
       SELECT count(*)::int AS total
-      FROM current_documents d
+      FROM ${sourceTable} d
       ${sortJoin}
       WHERE ${whereClause}
     `
@@ -944,7 +965,7 @@ export class DocumentQueries implements IDocumentQueries {
     // -- Main query -----------------------------------------------------------
     const mainQuery = sql`
       SELECT d.*
-      FROM current_documents d
+      FROM ${sourceTable} d
       ${sortJoin}
       WHERE ${whereClause}
       ORDER BY ${orderClause}

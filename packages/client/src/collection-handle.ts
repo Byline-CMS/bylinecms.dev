@@ -14,6 +14,7 @@ import type {
   DocumentLifecycleContext,
   PopulateSpec,
   ReadContext,
+  ReadMode,
   UnpublishResult,
   UpdateDocumentResult,
 } from '@byline/core'
@@ -67,6 +68,7 @@ export class CollectionHandle {
   async find<F = Record<string, any>>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { where, select, sort, locale = 'en', page = 1, pageSize = 20 } = options
+    const readMode = resolveReadMode(options.status)
 
     const parsedWhere = parseWhere(where, this.definition)
     const parsedSort = parseSort(sort, this.definition)
@@ -84,9 +86,10 @@ export class CollectionHandle {
       page,
       pageSize,
       fields: select as string[] | undefined,
+      readMode,
     })
 
-    await this.populateIfRequested(collectionId, result.documents, locale, options)
+    await this.populateIfRequested(collectionId, result.documents, locale, readMode, options)
 
     return {
       docs: result.documents.map((d) => this.shapeWithPopulated<F>(d)),
@@ -114,6 +117,7 @@ export class CollectionHandle {
       pageSize: 1,
       populate: options.populate,
       depth: options.depth,
+      status: options.status,
       _readContext: options._readContext,
     })
     return result.docs[0] ?? null
@@ -128,12 +132,14 @@ export class CollectionHandle {
   ): Promise<ClientDocument<F> | null> {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
+    const readMode = resolveReadMode(options.status)
 
     const raw = await this.client.db.queries.documents.getDocumentById({
       collection_id: collectionId,
       document_id: documentId,
       locale,
       reconstruct: true,
+      readMode,
     })
 
     if (raw == null) return null
@@ -144,7 +150,13 @@ export class CollectionHandle {
       trimFields(raw as Record<string, any>, options.select as string[])
     }
 
-    await this.populateIfRequested(collectionId, [raw as Record<string, any>], locale, options)
+    await this.populateIfRequested(
+      collectionId,
+      [raw as Record<string, any>],
+      locale,
+      readMode,
+      options
+    )
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
@@ -160,12 +172,14 @@ export class CollectionHandle {
   ): Promise<ClientDocument<F> | null> {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
+    const readMode = resolveReadMode(options.status)
 
     const raw = await this.client.db.queries.documents.getDocumentByPath({
       collection_id: collectionId,
       path,
       locale,
       reconstruct: true,
+      readMode,
     })
 
     if (raw == null) return null
@@ -174,7 +188,13 @@ export class CollectionHandle {
       trimFields(raw as Record<string, any>, options.select as string[])
     }
 
-    await this.populateIfRequested(collectionId, [raw as Record<string, any>], locale, options)
+    await this.populateIfRequested(
+      collectionId,
+      [raw as Record<string, any>],
+      locale,
+      readMode,
+      options
+    )
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
@@ -316,6 +336,7 @@ export class CollectionHandle {
     collectionId: string,
     rawDocs: Record<string, any>[],
     locale: string,
+    readMode: ReadMode,
     options: { populate?: PopulateSpec; depth?: number; _readContext?: ReadContext }
   ): Promise<void> {
     if (options.populate === undefined) return
@@ -327,6 +348,7 @@ export class CollectionHandle {
       populate: options.populate,
       depth: options.depth,
       locale,
+      readMode,
       readContext: options._readContext,
     })
   }
@@ -342,6 +364,19 @@ export class CollectionHandle {
     shaped.fields = shapePopulatedInPlace(shaped.fields) as F
     return shaped
   }
+}
+
+/**
+ * Resolve the client-facing `status` option to an adapter `readMode`.
+ *
+ * Public @byline/client consumers default to `'published'` — safer for
+ * non-admin use because a newer draft won't leak through populate or
+ * over-write the previously-published content a reader expects to see.
+ * Callers (typically admin server fns) pass `'any'` explicitly when
+ * they want the current version regardless of status.
+ */
+function resolveReadMode(status: ReadMode | undefined): ReadMode {
+  return status ?? 'published'
 }
 
 /** Mutate `raw.fields` to retain only the entries matching `select`. */

@@ -14,6 +14,12 @@ import { setupTestClient, type TestContext, teardownTestClient } from '../fixtur
 let ctx: TestContext
 const testSuffix = `field-filter-${Date.now()}`
 
+// Phase 5 defaults reads to `status: 'published'`. This suite seeds a mix
+// of drafts + one published doc and then exercises filter/sort mechanics
+// across the whole fixture — so every find() in it explicitly opts into
+// `status: 'any'`.
+const any = { status: 'any' as const }
+
 beforeAll(async () => {
   const definition = createTestArticlesCollection(testSuffix)
   ctx = await setupTestClient(definition)
@@ -32,7 +38,8 @@ beforeAll(async () => {
   }
 
   // Publish the first article so we can test mixed status + field filters.
-  const firstDoc = await ctx.client.collection(ctx.definition.path).findOne()
+  // Fixture seeds drafts → needs `any` to find the first one.
+  const firstDoc = await ctx.client.collection(ctx.definition.path).findOne(any)
   if (firstDoc) {
     await ctx.db.commands.documents.setDocumentStatus({
       document_version_id: firstDoc.versionId,
@@ -53,7 +60,7 @@ describe('field-level filters via find()', () => {
   it('should filter by text field with $contains', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { title: { $contains: 'Storage' } } })
+      .find({ status: 'any', where: { title: { $contains: 'Storage' } } })
 
     expect(result.docs.length).toBe(1)
     expect(result.docs[0]?.fields.title).toContain('Storage')
@@ -62,7 +69,7 @@ describe('field-level filters via find()', () => {
   it('should filter by text field with exact $eq', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { title: 'Building a Client API' } })
+      .find({ status: 'any', where: { title: 'Building a Client API' } })
 
     expect(result.docs.length).toBe(1)
     expect(result.docs[0]?.fields.title).toBe('Building a Client API')
@@ -71,7 +78,7 @@ describe('field-level filters via find()', () => {
   it('should filter by integer field with $gte', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { views: { $gte: 100 } } })
+      .find({ status: 'any', where: { views: { $gte: 100 } } })
 
     // Only "Getting Started" has views=150
     expect(result.docs.length).toBe(1)
@@ -81,7 +88,7 @@ describe('field-level filters via find()', () => {
   it('should filter by integer field with $lte', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { views: { $lte: 42 } } })
+      .find({ status: 'any', where: { views: { $lte: 42 } } })
 
     // "Advanced Storage" (42) and "Building a Client API" (0)
     expect(result.docs.length).toBe(2)
@@ -93,7 +100,7 @@ describe('field-level filters via find()', () => {
   it('should filter by boolean/checkbox field', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { featured: true } })
+      .find({ status: 'any', where: { featured: true } })
 
     // Only "Getting Started" is featured
     expect(result.docs.length).toBe(1)
@@ -102,6 +109,7 @@ describe('field-level filters via find()', () => {
 
   it('should combine multiple field filters (AND)', async () => {
     const result = await ctx.client.collection(ctx.definition.path).find({
+      status: 'any',
       where: {
         views: { $gte: 10 },
         featured: false,
@@ -115,6 +123,7 @@ describe('field-level filters via find()', () => {
 
   it('should combine document-level status with field-level filters', async () => {
     const result = await ctx.client.collection(ctx.definition.path).find({
+      status: 'any',
       where: {
         status: 'draft',
         views: { $lte: 42 },
@@ -131,7 +140,7 @@ describe('field-level filters via find()', () => {
   it('should return correct total count with field filters', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { featured: true } })
+      .find({ status: 'any', where: { featured: true } })
 
     expect(result.meta.total).toBe(1)
     expect(result.meta.totalPages).toBe(1)
@@ -140,17 +149,16 @@ describe('field-level filters via find()', () => {
   it('should return empty result when no documents match', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ where: { views: { $gte: 9999 } } })
+      .find({ status: 'any', where: { views: { $gte: 9999 } } })
 
     expect(result.docs).toEqual([])
     expect(result.meta.total).toBe(0)
   })
 
   it('should support selective field loading with field filters', async () => {
-    const result = await ctx.client.collection(ctx.definition.path).find({
-      where: { featured: true },
-      select: ['title'],
-    })
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', where: { featured: true }, select: ['title'] })
 
     expect(result.docs.length).toBe(1)
     expect(result.docs[0]?.fields.title).toBeDefined()
@@ -158,11 +166,9 @@ describe('field-level filters via find()', () => {
   })
 
   it('should support pagination with field filters', async () => {
-    const result = await ctx.client.collection(ctx.definition.path).find({
-      where: { views: { $lte: 150 } },
-      pageSize: 2,
-      page: 1,
-    })
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', where: { views: { $lte: 150 } }, pageSize: 2, page: 1 })
 
     expect(result.docs.length).toBe(2)
     expect(result.meta.total).toBe(3)
@@ -176,7 +182,9 @@ describe('field-level filters via find()', () => {
 
 describe('field-level sorting via find()', () => {
   it('should sort by text field ascending', async () => {
-    const result = await ctx.client.collection(ctx.definition.path).find({ sort: { title: 'asc' } })
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', sort: { title: 'asc' } })
 
     const titles = result.docs.map((d) => d.fields.title)
     const sorted = [...titles].sort()
@@ -186,7 +194,7 @@ describe('field-level sorting via find()', () => {
   it('should sort by text field descending', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ sort: { title: 'desc' } })
+      .find({ status: 'any', sort: { title: 'desc' } })
 
     const titles = result.docs.map((d) => d.fields.title)
     const sorted = [...titles].sort().reverse()
@@ -194,7 +202,9 @@ describe('field-level sorting via find()', () => {
   })
 
   it('should sort by integer field ascending', async () => {
-    const result = await ctx.client.collection(ctx.definition.path).find({ sort: { views: 'asc' } })
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', sort: { views: 'asc' } })
 
     const views = result.docs.map((d) => d.fields.views as number)
     for (let i = 1; i < views.length; i++) {
@@ -205,7 +215,7 @@ describe('field-level sorting via find()', () => {
   it('should sort by integer field descending', async () => {
     const result = await ctx.client
       .collection(ctx.definition.path)
-      .find({ sort: { views: 'desc' } })
+      .find({ status: 'any', sort: { views: 'desc' } })
 
     const views = result.docs.map((d) => d.fields.views as number)
     for (let i = 1; i < views.length; i++) {
@@ -214,10 +224,9 @@ describe('field-level sorting via find()', () => {
   })
 
   it('should combine field-level filter with field-level sort', async () => {
-    const result = await ctx.client.collection(ctx.definition.path).find({
-      where: { views: { $gte: 1 } },
-      sort: { views: 'asc' },
-    })
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', where: { views: { $gte: 1 } }, sort: { views: 'asc' } })
 
     // Should only include docs with views >= 1 (excludes views=0)
     expect(result.docs.length).toBe(2)
@@ -233,7 +242,7 @@ describe('findOne with field-level filters', () => {
   it('should return a single matching document', async () => {
     const doc = await ctx.client
       .collection(ctx.definition.path)
-      .findOne({ where: { featured: true } })
+      .findOne({ status: 'any', where: { featured: true } })
 
     expect(doc).not.toBeNull()
     expect(doc?.fields.featured).toBe(true)
@@ -242,7 +251,7 @@ describe('findOne with field-level filters', () => {
   it('should return null when no document matches', async () => {
     const doc = await ctx.client
       .collection(ctx.definition.path)
-      .findOne({ where: { views: { $gte: 9999 } } })
+      .findOne({ status: 'any', where: { views: { $gte: 9999 } } })
 
     expect(doc).toBeNull()
   })

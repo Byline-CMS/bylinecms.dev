@@ -198,6 +198,54 @@ export const currentDocumentsView = pgView('current_documents').as((qb) => {
     .where(eq(sq.rn, 1))
 })
 
+// Current Published Documents View - gets the latest version of each logical
+// document whose status is 'published', regardless of whether a newer draft
+// version exists. Used by `readMode: 'published'` on reads so public
+// consumers keep seeing the last published content while editors work on
+// drafts. Row-wise shape is identical to `current_documents`.
+export const currentPublishedDocumentsView = pgView('current_published_documents').as((qb) => {
+  const sq = qb.$with('sq').as(
+    qb
+      .select({
+        id: documentVersions.id,
+        document_id: documentVersions.document_id,
+        collection_id: documentVersions.collection_id,
+        path: documentVersions.path,
+        event_type: documentVersions.event_type,
+        status: documentVersions.status,
+        is_deleted: documentVersions.is_deleted,
+        created_at: documentVersions.created_at,
+        updated_at: documentVersions.updated_at,
+        created_by: documentVersions.created_by,
+        change_summary: documentVersions.change_summary,
+        rn: sql<number>`row_number() OVER (PARTITION BY ${documentVersions.document_id} ORDER BY ${documentVersions.id} DESC)`.as(
+          'rn'
+        ),
+      })
+      .from(documentVersions)
+      .where(
+        sql`${documentVersions.is_deleted} = false AND ${documentVersions.status} = 'published'`
+      )
+  )
+  return qb
+    .with(sq)
+    .select({
+      id: sq.id,
+      document_id: sq.document_id,
+      collection_id: sq.collection_id,
+      path: sq.path,
+      event_type: sq.event_type,
+      status: sq.status,
+      is_deleted: sq.is_deleted,
+      created_at: sq.created_at,
+      updated_at: sq.updated_at,
+      created_by: sq.created_by,
+      change_summary: sq.change_summary,
+    })
+    .from(sq)
+    .where(eq(sq.rn, 1))
+})
+
 // Base field values structure
 const baseStoreColumns = {
   id: uuid('id').primaryKey(),

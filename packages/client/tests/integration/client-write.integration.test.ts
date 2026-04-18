@@ -11,6 +11,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createTestArticlesCollection } from '../fixtures/collections.js'
 import { setupTestClient, type TestContext, teardownTestClient } from '../fixtures/setup.js'
 
+// Phase 5 default is `status: 'published'`. The write-path tests here seed
+// drafts and immediately read them back to verify write semantics, so they
+// explicitly opt into `status: 'any'` — consistent with how an admin
+// caller would exercise these APIs.
+const any = { status: 'any' as const }
+
 let ctx: TestContext
 // Append a random discriminator so parallel test files that both initialise
 // at the same millisecond can't collide on the `collections.path` unique key.
@@ -44,11 +50,11 @@ describe('client.collection().create()', () => {
     expect(documentId).toBeTruthy()
     expect(documentVersionId).toBeTruthy()
 
-    const byId = await ctx.client.collection(ctx.definition.path).findById(documentId)
+    const byId = await ctx.client.collection(ctx.definition.path).findById(documentId, any)
     expect(byId?.id).toBe(documentId)
     expect(byId?.fields.title).toBe('Hello from Phase 4')
 
-    const byPath = await ctx.client.collection(ctx.definition.path).findByPath('hello-phase-4')
+    const byPath = await ctx.client.collection(ctx.definition.path).findByPath('hello-phase-4', any)
     expect(byPath?.id).toBe(documentId)
   })
 
@@ -57,7 +63,7 @@ describe('client.collection().create()', () => {
       .collection(ctx.definition.path)
       .create({ title: 'Auto Path Article', summary: 's' })
 
-    const doc = await ctx.client.collection(ctx.definition.path).findById(documentId)
+    const doc = await ctx.client.collection(ctx.definition.path).findById(documentId, any)
     expect(doc?.path).toBe('auto-path-article')
   })
 })
@@ -87,7 +93,7 @@ describe('client.collection().update()', () => {
     expect(updated.documentId).toBe(created.documentId)
     expect(updated.documentVersionId).not.toBe(created.documentVersionId)
 
-    const doc = await handle.findById(created.documentId)
+    const doc = await handle.findById(created.documentId, any)
     expect(doc?.fields.title).toBe('Revised')
     expect(doc?.fields.summary).toBe('revised summary')
     expect(doc?.fields.views).toBe(2)
@@ -111,6 +117,8 @@ describe('client.collection().changeStatus()', () => {
     const result = await handle.changeStatus(documentId, 'published')
     expect(result).toEqual({ previousStatus: 'draft', newStatus: 'published' })
 
+    // No `any` here — the doc is now published, so the default
+    // status-aware read should find it.
     const doc = await handle.findById(documentId)
     expect(doc?.status).toBe('published')
   })
@@ -149,7 +157,9 @@ describe('client.collection().unpublish()', () => {
     const result = await handle.unpublish(documentId)
     expect(result.archivedCount).toBeGreaterThan(0)
 
-    const after = await handle.findById(documentId)
+    // After unpublish the doc is archived — no longer published, so pass
+    // `any` to still find it in the archived state.
+    const after = await handle.findById(documentId, any)
     expect(after?.status).toBe('archived')
   })
 })
@@ -168,18 +178,18 @@ describe('client.collection().delete()', () => {
       summary: 's',
     })
 
-    // Confirm it's readable first.
-    const before = await handle.findById(documentId)
+    // Confirm it's readable first (draft — needs `any`).
+    const before = await handle.findById(documentId, any)
     expect(before?.id).toBe(documentId)
 
     const result = await handle.delete(documentId)
     expect(result.deletedVersionCount).toBeGreaterThan(0)
 
-    // current_documents view filters soft-deleted rows.
-    const after = await handle.findById(documentId)
+    // Both views filter soft-deleted rows, so neither mode returns the doc.
+    const after = await handle.findById(documentId, any)
     expect(after).toBeNull()
 
-    const byPath = await handle.findByPath('to-delete')
+    const byPath = await handle.findByPath('to-delete', any)
     expect(byPath).toBeNull()
   })
 

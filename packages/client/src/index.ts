@@ -23,6 +23,7 @@ export {
   type PopulateMap,
   type PopulateSpec,
   type ReadContext,
+  type ReadMode,
   type UnpublishResult,
   type UnresolvedRelationValue,
   type UpdateDocumentResult,
