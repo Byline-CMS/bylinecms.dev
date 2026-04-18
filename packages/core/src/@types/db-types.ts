@@ -16,6 +16,40 @@ import type { CollectionDefinition } from '@byline/core'
  */
 export type ReadMode = 'any' | 'published'
 
+/**
+ * Request-scoped context shared across every read and populate walk in one
+ * logical request. Threaded through populate, `afterRead` hooks, and any
+ * nested reads the hook itself performs — the visited set and read budget
+ * survive across these calls to prevent A→B→A infinite loops.
+ *
+ * Lives in `@types` (not `services/`) so collection-hook type definitions
+ * can reference it without a layer violation. The `createReadContext()`
+ * factory stays in `services/populate.ts`.
+ */
+export interface ReadContext {
+  /**
+   * Composite keys (`${target_collection_id}:${document_id}`) for every
+   * document populate has materialised during this request. Used by the
+   * populate walk to skip re-fetching a target it has already expanded
+   * (the cycle-stub path).
+   */
+  visited: Set<string>
+  /**
+   * Composite keys (`${collection_path}:${document_id}`) for every
+   * document whose `afterRead` hook has fired during this request. Used
+   * to enforce "each document runs through `afterRead` at most once per
+   * logical request" — the rule that forecloses the A→B→A loop when a
+   * hook performs its own reads.
+   */
+  afterReadFired: Set<string>
+  /** Monotonic count of document materialisations; compared against `maxReads`. */
+  readCount: number
+  /** Hard ceiling on materialisations per request. Default 500. */
+  maxReads: number
+  /** Hard ceiling on populate depth per request. Default 8. */
+  maxDepth: number
+}
+
 // ---------------------------------------------------------------------------
 // Field-level filter and sort descriptors
 // ---------------------------------------------------------------------------

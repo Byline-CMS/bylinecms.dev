@@ -87,13 +87,21 @@ questions.
 
 ## Special consideration: recursive-read safety
 
+> **Update 2026-04-18.** `afterRead` has now shipped. `ReadContext`
+> grew an `afterReadFired: Set<string>` that enforces "each document
+> runs through `afterRead` at most once per logical request" — the
+> concrete mechanism that turns the design response below into an
+> active guarantee. The narrative preserved here is the original
+> rationale for why the context was wired in ahead of the hook.
+
 ### The problem
 
-Byline's lifecycle today carries write-side hooks only (`beforeCreate`,
+Byline's lifecycle originally carried write-side hooks only (`beforeCreate`,
 `afterCreate`, `beforeUpdate`, `afterUpdate`, `beforeStatusChange`,
 `afterStatusChange`, `beforeUnpublish`, `afterUnpublish`, `beforeDelete`,
 `afterDelete` — declared in `packages/core/src/@types/collection-types.ts`).
-Read-side hooks (`afterRead` in particular) are an anticipated addition.
+`afterRead` landed on 2026-04-18 and sits in the same `CollectionHooks`
+interface.
 
 When read hooks and populate coexist, a well-documented failure mode in
 other headless CMSs appears: document A relates to document B; B has an

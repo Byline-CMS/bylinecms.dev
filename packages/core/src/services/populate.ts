@@ -135,35 +135,21 @@ import type {
   CollectionDefinition,
   FieldSet,
   IDbAdapter,
+  ReadContext,
   ReadMode,
   RelatedDocumentValue,
   RelationField,
 } from '../@types/index.js'
+import { applyAfterRead } from './document-read.js'
+
+// Re-export for back-compat with consumers that import ReadContext from
+// @byline/core/services (the type itself now lives in `@types/db-types.ts`
+// to keep it reachable from collection-hook typings).
+export type { ReadContext } from '../@types/index.js'
 
 // ---------------------------------------------------------------------------
 // ReadContext — recursion guard
 // ---------------------------------------------------------------------------
-
-/**
- * Request-scoped context shared across all reads and populate walks in
- * one logical request. Future read-side hooks (`afterRead` etc.) will
- * thread the same context to prevent A→B→A cycles through hook-triggered
- * reads that populate's own visited set cannot otherwise see.
- */
-export interface ReadContext {
-  /**
-   * Composite keys (`${target_collection_id}:${document_id}`) for every
-   * document materialised during this request. Survives across nested
-   * populate levels and, once wired, across hook-triggered reads.
-   */
-  visited: Set<string>
-  /** Monotonic count of document materialisations; compared against `maxReads`. */
-  readCount: number
-  /** Hard ceiling on materialisations per request. Default 500. */
-  maxReads: number
-  /** Hard ceiling on populate depth per request. Default 8. */
-  maxDepth: number
-}
 
 const DEFAULT_MAX_READS = 500
 const DEFAULT_MAX_DEPTH = 8
@@ -172,6 +158,7 @@ const DEFAULT_MAX_DEPTH = 8
 export function createReadContext(overrides?: Partial<ReadContext>): ReadContext {
   return {
     visited: overrides?.visited ?? new Set(),
+    afterReadFired: overrides?.afterReadFired ?? new Set(),
     readCount: overrides?.readCount ?? 0,
     maxReads: overrides?.maxReads ?? DEFAULT_MAX_READS,
     maxDepth: overrides?.maxDepth ?? DEFAULT_MAX_DEPTH,
@@ -480,7 +467,15 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
       }
 
       // Second pass: mark freshly fetched docs visited, update readCount,
-      // enforce the budget, and queue them for the next level (dedup by id).
+      // fire `afterRead`, enforce the budget, and queue them for the next
+      // level (dedup by id).
+      //
+      // `afterRead` fires here rather than after the full walk so the hook
+      // can mutate targets before their envelopes land in the source tree.
+      // A target's own direct relations may still be raw refs at this point
+      // (they populate on the next depth level); a hook that wants to
+      // observe populated grandchildren should run at the outer / source
+      // level where populate has fully returned.
       for (const d of fetched) {
         const id = d.document_id as string
         const key = visitedKey(targetCollectionId, id)
@@ -497,6 +492,10 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
               targetDocumentId: id,
             },
           })
+        }
+
+        if (targetDef) {
+          await applyAfterRead({ doc: d, definition: targetDef, readContext: ctx })
         }
 
         if (!targetDef || queuedForNext.has(key)) continue

@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { ReadContext } from './db-types.js'
 import type { FieldSetData, FieldSetDataAllLocales } from './field-data-types.js'
 import type { Block, DefaultValue, Field } from './field-types.js'
 import type { IStorageProvider } from './storage-types.js'
@@ -414,6 +415,40 @@ export interface AfterUploadContext {
 }
 
 /**
+ * Context passed to `afterRead` hooks.
+ *
+ * Fires once per materialised document on every read path that runs through
+ * `@byline/client` or `populateDocuments`:
+ *   - `find`, `findOne`, `findById`, `findByPath` on `CollectionHandle`
+ *     (once per returned source document)
+ *   - Each populated relation target across every depth level
+ *
+ * The hook receives the **raw storage shape** (`{document_version_id,
+ * document_id, path, status, created_at, updated_at, fields, …}`), not
+ * the camelCase `ClientDocument` — afterRead runs *before* the client's
+ * response shaping pass so mutations to `fields` propagate cleanly.
+ * Mutations persist in place; there is no return value.
+ *
+ * Fires **after** populate on the source document, so hooks can observe
+ * (and mutate) the fully populated tree.
+ *
+ * Recursion safety: `readContext` is the same request-scoped context used
+ * by populate. A hook that performs its own reads should thread this
+ * context back in via `client.collection(...).findById(id, { _readContext:
+ * readContext })` so the visited set and read budget are preserved —
+ * essential to foreclose the A→B→A loop (see
+ * `docs/analysis/RELATIONSHIPS-ANALYSIS.md` § "Special consideration:
+ * recursive-read safety").
+ */
+export interface AfterReadContext {
+  /** The raw reconstructed document. Mutate in place — changes persist. */
+  doc: Record<string, any>
+  collectionPath: string
+  /** Thread this into any nested reads the hook performs. */
+  readContext: ReadContext
+}
+
+/**
  * A `beforeUpload` hook function. May return a modified filename string to
  * override the sanitised default; returning `void` keeps the default.
  */
@@ -491,6 +526,18 @@ export interface CollectionHooks {
   beforeDelete?: CollectionHookSlot<DeleteContext>
   /** Runs after a document is deleted. */
   afterDelete?: CollectionHookSlot<DeleteContext>
+
+  // -- Document read --------------------------------------------------------
+  /**
+   * Runs once per materialised document on every read path that flows
+   * through `@byline/client` or `populateDocuments`. Can mutate
+   * `ctx.doc.fields` in place — mutations propagate back through the
+   * response. Fires after populate on the source document, so hooks see
+   * the fully populated tree. Hooks that perform their own reads should
+   * thread `ctx.readContext` through to preserve the visited set and
+   * read budget (A→B→A safety).
+   */
+  afterRead?: CollectionHookSlot<AfterReadContext>
 
   // -- File upload (upload-enabled collections only) ------------------------
   /**

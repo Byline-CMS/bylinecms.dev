@@ -19,8 +19,10 @@ import type {
   UpdateDocumentResult,
 } from '@byline/core'
 import {
+  applyAfterRead,
   changeDocumentStatus,
   createDocument,
+  createReadContext,
   deleteDocument,
   populateDocuments,
   unpublishDocument,
@@ -69,6 +71,7 @@ export class CollectionHandle {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { where, select, sort, locale = 'en', page = 1, pageSize = 20 } = options
     const readMode = resolveReadMode(options.status)
+    const readCtx = options._readContext ?? createReadContext()
 
     const parsedWhere = parseWhere(where, this.definition)
     const parsedSort = parseSort(sort, this.definition)
@@ -89,7 +92,17 @@ export class CollectionHandle {
       readMode,
     })
 
-    await this.populateIfRequested(collectionId, result.documents, locale, readMode, options)
+    await this.populateIfRequested(collectionId, result.documents, locale, readMode, {
+      ...options,
+      _readContext: readCtx,
+    })
+
+    // Fire afterRead for each source document AFTER populate so the hook
+    // sees the fully populated tree. Targets were already fired inside
+    // populate. applyAfterRead deduplicates via readCtx.afterReadFired.
+    for (const d of result.documents) {
+      await applyAfterRead({ doc: d, definition: this.definition, readContext: readCtx })
+    }
 
     return {
       docs: result.documents.map((d) => this.shapeWithPopulated<F>(d)),
@@ -133,6 +146,7 @@ export class CollectionHandle {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
     const readMode = resolveReadMode(options.status)
+    const readCtx = options._readContext ?? createReadContext()
 
     const raw = await this.client.db.queries.documents.getDocumentById({
       collection_id: collectionId,
@@ -150,13 +164,16 @@ export class CollectionHandle {
       trimFields(raw as Record<string, any>, options.select as string[])
     }
 
-    await this.populateIfRequested(
-      collectionId,
-      [raw as Record<string, any>],
-      locale,
-      readMode,
-      options
-    )
+    await this.populateIfRequested(collectionId, [raw as Record<string, any>], locale, readMode, {
+      ...options,
+      _readContext: readCtx,
+    })
+
+    await applyAfterRead({
+      doc: raw as Record<string, any>,
+      definition: this.definition,
+      readContext: readCtx,
+    })
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
@@ -173,6 +190,7 @@ export class CollectionHandle {
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
     const readMode = resolveReadMode(options.status)
+    const readCtx = options._readContext ?? createReadContext()
 
     const raw = await this.client.db.queries.documents.getDocumentByPath({
       collection_id: collectionId,
@@ -188,13 +206,16 @@ export class CollectionHandle {
       trimFields(raw as Record<string, any>, options.select as string[])
     }
 
-    await this.populateIfRequested(
-      collectionId,
-      [raw as Record<string, any>],
-      locale,
-      readMode,
-      options
-    )
+    await this.populateIfRequested(collectionId, [raw as Record<string, any>], locale, readMode, {
+      ...options,
+      _readContext: readCtx,
+    })
+
+    await applyAfterRead({
+      doc: raw as Record<string, any>,
+      definition: this.definition,
+      readContext: readCtx,
+    })
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }

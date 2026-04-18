@@ -1,6 +1,6 @@
 # Phases of Work — Strategic Roadmap
 
-> Last updated: 2026-04-18 (post-Phase 5 + storage benchmark)
+> Last updated: 2026-04-18 (post-afterRead hook)
 > Companion to [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md),
 > [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md),
 > [ROUTING-API-ANALYSIS.md](./ROUTING-API-ANALYSIS.md), and
@@ -59,30 +59,22 @@ idea for the day a real workload at 100k+ demands it.
 
 ---
 
-## 1. `afterRead` hook
+## ~~1. `afterRead` hook~~ — shipped 2026-04-18
 
-**Scope.** Implement the first read-side hook in the
-`document-lifecycle` family. Thread the existing
-request-scoped `ReadContext` (already shipped with populate) through
-the hook entry point so re-entry stays safe.
-
-**Why now.** `ReadContext` was deliberately wired in ahead of this
-work (see [RELATIONSHIPS-ANALYSIS § "Special consideration:
-recursive-read safety"](./RELATIONSHIPS-ANALYSIS.md)) so the bulk of
-the work is contract + plumbing, not redesign. The A→B→A recursion
-class is already foreclosed.
-
-**Why high leverage.** This is the binding point for two future
-tracks:
-- **Access control** (per-document or per-field read filtering).
-- **Richtext document links Mode 2** (read-time hydration of
-  `DocumentLinkNode` payloads).
-
-Both are architecturally blocked on `afterRead` existing.
+`CollectionHooks.afterRead` fires once per materialised document on
+every `@byline/client` read path and once per populated relation
+target. The hook receives a mutable raw-shape `doc`, the collection
+path, and the shared `ReadContext`. Mutations to `doc.fields`
+propagate into the shaped response; hooks performing nested reads
+thread `readContext` back in via `{ _readContext }` on the client
+read options. `ReadContext` grew an `afterReadFired` set so each
+document runs through `afterRead` at most once per logical request —
+the A→B→A guard. Unlocks both future tracks that were blocked on
+it: access-control mask-on-read and richtext Mode 2 hydration.
 
 ---
 
-## 2. `hasMany` relations
+## 1. `hasMany` relations
 
 **Scope.** Multi-target relation fields. Needs:
 - new `hasMany: true` prop on `RelationField`,
@@ -98,17 +90,32 @@ load-bearing for any earlier item.
 
 ---
 
-## 3. Richtext document links
+## 2. Richtext document links
 
 **Scope.** Lexical `DocumentLinkNode`, toolbar plugin reusing the
 existing `RelationPicker`, save-time vs read-time hydration modes,
 configurable field projection, shared `ReadContext` for recursion
 safety.
 
-**Why this slot.** Larger track that depends on item 1 (`afterRead`)
-for Mode 2 hydration. Designed in detail in
-[RELATIONSHIPS-ANALYSIS § "Future work: rich-text document
-links"](./RELATIONSHIPS-ANALYSIS.md). Defer until `afterRead` ships.
+**Why this slot.** Larger track. `afterRead` has now shipped so Mode 2
+hydration is unblocked — but this still sits behind `hasMany`
+priority-wise (smaller unit, more commonly requested). Designed in
+detail in [RELATIONSHIPS-ANALYSIS § "Future work: rich-text document
+links"](./RELATIONSHIPS-ANALYSIS.md).
+
+---
+
+## 3. Access control (read-side)
+
+**Scope.** Use the newly-shipped `afterRead` hook as the enforcement
+point for read-time field masking / document filtering. Probably
+pairs with a `beforeRead` hook (for query-level filtering) once the
+concrete access-model requirements are known.
+
+**Why this slot.** `afterRead` unblocked it, but shipping useful
+access control is a substantial design track in its own right
+(actor model, permissions DSL, propagation through populate). Not
+building until there's a concrete requirement to design against.
 
 ---
 
@@ -136,10 +143,11 @@ Until that arrives, hold the line per
 
 ## Sequencing notes
 
-- **Item 1 (`afterRead`) gates item 3 and the access-control track**
-  but does not block item 2.
 - **Item 4 (HTTP transport) stays deferred** regardless of progress on
   1–3 unless an external-client trigger fires.
+- **Item 3 (access control)** is unblocked now that `afterRead` ships
+  but is deliberately un-scoped until a concrete access-model
+  requirement exists to design against.
 
 ## Progress log
 
@@ -149,3 +157,4 @@ Until that arrives, hold the line per
 | 2026-04-18 | Phase 4 (client-API write path) shipped. Renumbered remaining items; status-aware reads promoted to item 1. |
 | 2026-04-18 | Phase 5 (status-aware reads) shipped. Item list renumbered; benchmark promoted to item 1. |
 | 2026-04-18 | Storage benchmark sweep run and published; "consider a read cache" item closed. Items renumbered; `afterRead` promoted to item 1. |
+| 2026-04-18 | `afterRead` hook shipped. Items renumbered; `hasMany` promoted to item 1; added access-control track as a newly unblocked (but unscoped) item 3. |
