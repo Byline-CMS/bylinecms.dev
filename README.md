@@ -222,11 +222,11 @@ Prior art for this split:
 
 Here's a list of things that will need to be done, in no particular order:
 
-1. API: A published API specification with client libraries. We're planning a DSL-like client API (`find`, `findAll`, `update`, `delete`) that sits above our storage primitives, with support for selective field loading, relationship population (with depth control), and a query builder that leverages our typed EAV stores for field-level filtering and sorting. See [docs/analysis/STORAGE-ANALYSIS.md](docs/analysis/STORAGE-ANALYSIS.md) for the full analysis.
+1. API: A published API specification with client libraries. We're planning a DSL-like client API (`find`, `findAll`, `created`, `update`, `delete`) that sits above our storage primitives, with support for selective field loading, relationship population (with depth control), and a query builder that leverages our typed EAV stores for field-level filtering and sorting. See [docs/analysis/STORAGE-ANALYSIS.md](docs/analysis/STORAGE-ANALYSIS.md) for the full analysis and [docs/analysis/CLIENT-IN-PROCESS-SDK-ANALYSIS.md](docs/analysis/CLIENT-IN-PROCESS-SDK-ANALYSIS.md) for current progress.
 
-1. Field and Form APIs: Assuming we're going to build at least one implementation of an admin dashboard, we'll need APIs for generating admin app field and form UIs from collection definitions.
+1. Field and Form APIs: Assuming we're going to build at least one implementation of an admin dashboard, we'll develop APIs for generating admin app field and form UIs from collection definitions.
 
-1. Compositional Block Strategy: As above, we need a strategy for block composition. Blocks are small(er) units of 'Field API' that can be reused, reordered, and specified as part of a collection's field definition.
+1. Compositional Block Strategy: As above, we'll implement a strategy for block composition. Blocks are small(er) units of 'Field API' that can be reused, reordered, and specified as part of a collection's field definition.
 
 1. Data Storage: We're working on what we think is a pretty good (and very fast) storage API. See above Architectural Decisions. Our typed EAV system now features a declarative column manifest, selective field loading for list views (querying only the store tables you need), configurable per-collection search, and a single-round-trip locale copy-forward for immutable versioning. For a deep dive, including our strategic analysis and roadmap, see [docs/analysis/STORAGE-ANALYSIS.md](docs/analysis/STORAGE-ANALYSIS.md).
 
@@ -238,17 +238,15 @@ Here's a list of things that will need to be done, in no particular order:
 
 1. Media: We need a media strategy - generation, storage, serving.
 
-1. AI Native: It would be great if we could build this as AI native - meaning fields, agents, 'assistants' are baked in from the start.
-
 1. Packages and Distribution Strategy: We'll need to extract and prepare packages in the monorepo for distribution.
 
-1. UI Kit: The current UI kit is based on Infonomic's agency 'CSS Module / CSS only' UI kit. Some components are rolled from scratch. Others abstract / wrap publicly available components. Several components are based on Radix UI which is a great project. The kit is not complete and Radix-based components are being migrated to [Base UI](https://base-ui.com/). The style system has minimal theme / token definitions. Our preference for the moment is to continue with [@infonomic/uikit](https://github.com/infonomic/uikit) - but consider alternatives as appropriate.
+1. UI Kit: The current UI kit is based on Infonomic's agency 'CSS Module / CSS only' UI kit. Some components are rolled from scratch. Others abstract / wrap publicly available components. Many components are based on [Base UI](https://base-ui.com/) which is a great project. Our preference for the moment is to continue with [@infonomic/uikit](https://github.com/infonomic/uikit) - but consider alternatives as appropriate.
 
 1. And last but not least - AI/MCP integration: Once we feel the core is stable, we'll turn on the taps for AI integration (content translation, rephrasing, clarity etc.,) and first-class MCP support.
 
 ## Getting Started
 
-At the moment, the project is a prototype, but it builds and runs if you wanted to poke around or follow along.
+Byline is in active development. It builds and runs if you wanted to poke around or follow along.
 
 ### 1. Clone and install dependencies
 
@@ -267,7 +265,7 @@ pnpm build
 
 ### 2 Setup your database. 
 
-The prototype currently requires PostgreSQL. There is a docker-compose.yml in the root postgres directory. Note that the default root password is set to 'test' in docker-compose.yml.
+Byline currently requires PostgreSQL. There is a docker-compose.yml in the root postgres directory. Note that the default root password is set to 'test' in docker-compose.yml.
 
 2.1. Create the 'data' subdirectory first, and then start postgres.
 
