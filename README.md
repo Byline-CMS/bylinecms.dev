@@ -1,8 +1,12 @@
 # Byline CMS
 
-Welcome to Byline CMS. We're new!
+Welcome to Byline CMS.
 
 We're hoping to build a developer-friendly, open-source and community-driven headless CMS.
+
+### A note about AI usage in the development of Byline CMS. 
+
+The core storage model, early UI, and schema / admin configuration system were all developed by hand, drawing on years of experience building solutions on top of other frameworks. Once our core model settled down, and following the 'big leap' in AI coding assistants around December 2025, we have increasingly adopted a 'guided' approach to using LLM-based generative AI to design and plan phases of work. It's been a remarkable journey. The marginal cost of developing Byline has dropped significantly as a result — enough that, with just a 2-person team, we'll likely get to a 'pretty good' v1 release on our own. Our hunch is that even within the rapidly evolving world of LLM-based AI, a content management system like Byline will remain a useful tool for our work and for the organizations we support. We're also excited by the potential for building higher-level AI-enabled services on top of Byline. It's hard to predict how this will all play out in a world of software development that is changing fast, though again we believe that our [Mission & Vision](#mission--vision) statement below, along with our note about [Content Management in the Time of AI (An Addendum)](#content-management-in-the-time-of-ai-an-addendum) further below, holds true. Time will tell whether we've guessed right, or not. ;-)
 
 ## Table of Contents
 
