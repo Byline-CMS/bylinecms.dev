@@ -118,12 +118,12 @@ A typed `Registry`/`AsyncRegistry` DI container in `packages/core/src/lib/regist
 
 A higher-level, DSL-like API for querying documents from outside the admin UI. Sits above the storage primitives (`IDbAdapter`) and the `document-lifecycle` service. See `packages/client/DESIGN.md` for the full design and phase breakdown.
 
-- **Two-layer architecture**: Storage primitives handle direct DB operations; the client API owns query DSL translation, response shaping, and (planned) relationship population and access control.
+- **Two-layer architecture**: Storage primitives handle direct DB operations; the client API owns query DSL translation, response shaping, relationship population, and (planned) access control.
 - **Patches stay admin-internal**: The patch system (`field.*`, `array.*`, `block.*`) is tied to UI intent (reordering, block insertion). The client API does whole-document or field-level writes via `createDocumentVersion()`.
 - **Phase 1 — read path (shipped)**: `find()`, `findOne()`, `findById()`, `findByPath()`, `count()`. Results are camelCase-shaped through `shapeDocument()`. `ClientDocument<F>` is generic so callers can narrow the `fields` shape per-collection.
 - **Phase 2 — field-level filters and sorting (shipped)**: `where`/`sort` on collection field values compile to EXISTS subqueries + `LEFT JOIN LATERAL` against the EAV store tables via `IDocumentQueries.findDocuments()`. `CollectionHandle.find()` routes all queries through this path.
-- **Phase 3 — relationship population (planned)**: `populate` + `depth` for `store_relation` targets. Batches by depth level via `IDocumentQueries.getDocumentsByDocumentIds()` (primitive already shipped; populate orchestration is the remaining work).
-- **Phase 4 — write path (planned)**: `create()`, `update()`, `delete()`, `changeStatus()`, `unpublish()` delegating to `document-lifecycle` functions.
+- **Phase 3 — relationship population (shipped)**: `populate` + `depth` for `store_relation` targets, orchestrated by `populateDocuments()` in `packages/core/src/services/populate.ts`. Batches by depth level per target collection via `IDocumentQueries.getDocumentsByDocumentIds()`. Two-axis DSL (`true` / `'*'` / `PopulateMap`), unified relation envelope across populated/unresolved/cycle states, and a request-scoped `ReadContext` that pre-empts A→B→A recursion ahead of the future `afterRead` hook. Consumed by both `@byline/client` and the admin API preview route. See `docs/analysis/RELATIONSHIPS-ANALYSIS.md`.
+- **Phase 4 — write path (planned)**: `create()`, `update()`, `delete()`, `changeStatus()`, `unpublish()` delegating to `document-lifecycle` functions. Status-aware reads (`status?: 'published' | 'any'` on `FindOptions` / `PopulateOptions`) are the next read-side gap and pair naturally with this phase.
 
 ### Field → Store Mapping
 
