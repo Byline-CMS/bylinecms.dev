@@ -6,13 +6,14 @@ import { localStorageProvider } from '@byline/storage-local'
 // client config or index barrels. The client config / index files pull in
 // admin configs (React components, CSS modules) that are not loadable
 // outside Vite (e.g. when running seeds via tsx).
+import { Categories } from './byline/collections/categories/schema.js'
 import { Docs } from './byline/collections/docs/schema.js'
 import { Media } from './byline/collections/media/schema.js'
 import { News } from './byline/collections/news/schema.js'
 import { Pages } from './byline/collections/pages/schema.js'
 import { i18n } from './byline/i18n.js'
 
-const collections = [Docs, News, Pages, Media]
+const collections = [Categories, Docs, News, Pages, Media]
 
 export const bylineCore = initBylineCore({
   serverURL: 'http://localhost:5173/',
