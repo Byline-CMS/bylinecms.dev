@@ -138,6 +138,13 @@ export const Docs = defineCollection({
       mode: 'datetime',
     },
     {
+      name: 'category',
+      label: 'Category',
+      type: 'relation',
+      targetCollection: 'categories',
+      displayField: 'name',
+    },
+    {
       name: 'featured',
       label: 'Featured',
       type: 'checkbox',

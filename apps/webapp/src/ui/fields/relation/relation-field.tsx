@@ -9,15 +9,28 @@
 import { useState } from 'react'
 
 import type {
+  CollectionAdminConfig,
   CollectionDefinition,
   RelationField as FieldType,
   RelatedDocumentValue,
 } from '@byline/core'
-import { getCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 import { Button, ErrorText, Label } from '@infonomic/uikit/react'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { RelationPicker } from './relation-picker'
+import { RelationSummary } from './relation-summary'
+
+// The raw form value for a relation field is `RelatedDocumentValue`, but
+// when the edit loader runs server-side populate the value arrives as a
+// `PopulatedRelationValue` (same base shape, plus `_resolved` / `document`
+// discriminator keys). We accept both here and let `RelationSummary`
+// narrow internally.
+type IncomingRelationValue = RelatedDocumentValue & {
+  _resolved?: boolean
+  _cycle?: boolean
+  document?: Record<string, any>
+}
 
 // ---------------------------------------------------------------------------
 // RelationField — widget for `type: 'relation'` fields
@@ -43,22 +56,45 @@ export const RelationField = ({
   const fieldPath = path ?? field.name
   const htmlId = id ?? fieldPath
   const fieldError = useFieldError(fieldPath)
-  const fieldValue = useFieldValue<RelatedDocumentValue | null | undefined>(fieldPath)
+  const fieldValue = useFieldValue<IncomingRelationValue | null | undefined>(fieldPath)
 
-  const incomingValue: RelatedDocumentValue | null =
-    fieldValue !== undefined ? (fieldValue ?? null) : (value ?? defaultValue ?? null)
+  const incomingValue: IncomingRelationValue | null =
+    fieldValue !== undefined
+      ? ((fieldValue as IncomingRelationValue | null) ?? null)
+      : ((value as IncomingRelationValue | null) ??
+        (defaultValue as IncomingRelationValue | null) ??
+        null)
 
-  // Resolve the target collection definition for labels + displayField fallback.
-  // Missing target → render an inline error and disable the picker.
+  // Resolve the target collection definition + admin config. The admin
+  // config drives the picker-column rendering inside RelationSummary so
+  // the selected tile matches the picker row exactly. Missing target →
+  // render an inline error and disable the picker.
   const targetDef: CollectionDefinition | null = getCollectionDefinition(field.targetCollection)
+  const targetAdminConfig: CollectionAdminConfig | null = getCollectionAdminConfig(
+    field.targetCollection
+  )
 
   const [pickerOpen, setPickerOpen] = useState(false)
+  // Cached target document from the most recent picker selection. Lets the
+  // tile render real display data (name, thumbnail) immediately after a
+  // pick without a round trip. Cleared via the `target_document_id`
+  // comparison in the render path.
+  const [pickedRecord, setPickedRecord] = useState<{
+    id: string
+    record: Record<string, any>
+  } | null>(null)
 
   const handleSelect = (selection: {
     target_document_id: string
     target_collection_id: string
+    record?: Record<string, any>
   }) => {
     setPickerOpen(false)
+    if (selection.record) {
+      setPickedRecord({ id: selection.target_document_id, record: selection.record })
+    } else {
+      setPickedRecord(null)
+    }
     onChange?.({
       target_document_id: selection.target_document_id,
       target_collection_id: selection.target_collection_id,
@@ -66,8 +102,17 @@ export const RelationField = ({
   }
 
   const handleRemove = () => {
+    setPickedRecord(null)
     onChange?.(null)
   }
+
+  // Only carry the cached picker record through to the summary when it
+  // still matches the current value — guards against a stale cache after
+  // an external value change (e.g. patch rollback).
+  const cachedRecord =
+    pickedRecord && incomingValue && pickedRecord.id === incomingValue.target_document_id
+      ? pickedRecord.record
+      : null
 
   const isUnknown = targetDef == null
 
@@ -104,10 +149,13 @@ export const RelationField = ({
         </div>
       ) : incomingValue ? (
         <div className="mt-1 flex items-center justify-between gap-2 border border-primary-500 p-2 rounded-md text-xs text-gray-200">
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-gray-500">{targetDef.labels.singular}</span>
-            <span className="font-mono truncate">{incomingValue.target_document_id}</span>
-          </div>
+          <RelationSummary
+            targetDefinition={targetDef}
+            targetAdminConfig={targetAdminConfig}
+            displayField={field.displayField}
+            value={incomingValue}
+            cachedRecord={cachedRecord}
+          />
           <Button
             id={htmlId}
             size="xs"

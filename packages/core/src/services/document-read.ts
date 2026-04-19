@@ -22,18 +22,15 @@
  * `beforeCreate` / `afterCreate` hooks.
  */
 
+import { normalizeCollectionHook } from '../@types/index.js'
 import type {
   AfterReadContext,
   CollectionDefinition,
   CollectionHookSlot,
   ReadContext,
 } from '../@types/index.js'
-import { normalizeCollectionHook } from '../@types/index.js'
 
-async function invokeHook<Ctx>(
-  hook: CollectionHookSlot<Ctx> | undefined,
-  ctx: Ctx
-): Promise<void> {
+async function invokeHook<Ctx>(hook: CollectionHookSlot<Ctx> | undefined, ctx: Ctx): Promise<void> {
   const fns = normalizeCollectionHook(hook)
   for (const fn of fns) {
     await fn(ctx)

@@ -131,6 +131,7 @@
  */
 
 import { ERR_READ_BUDGET_EXCEEDED } from '../lib/errors.js'
+import { applyAfterRead } from './document-read.js'
 import type {
   CollectionDefinition,
   FieldSet,
@@ -140,7 +141,6 @@ import type {
   RelatedDocumentValue,
   RelationField,
 } from '../@types/index.js'
-import { applyAfterRead } from './document-read.js'
 
 // Re-export for back-compat with consumers that import ReadContext from
 // @byline/core/services (the type itself now lives in `@types/db-types.ts`

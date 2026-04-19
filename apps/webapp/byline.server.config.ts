@@ -13,7 +13,7 @@ import { News } from './byline/collections/news/schema.js'
 import { Pages } from './byline/collections/pages/schema.js'
 import { i18n } from './byline/i18n.js'
 
-const collections = [Categories, Docs, News, Pages, Media]
+const collections = [Docs, News, Pages, Media, Categories]
 
 export const bylineCore = initBylineCore({
   serverURL: 'http://localhost:5173/',

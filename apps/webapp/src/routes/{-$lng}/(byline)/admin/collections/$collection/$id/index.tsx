@@ -29,7 +29,11 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/collections/$colle
       throw notFound()
     }
 
-    const data = await getCollectionDocument(params.collection, params.id, locale)
+    // Auto-populate direct relation fields (depth 1) so the edit form's
+    // relation-summary tiles render with target data (category name, media
+    // thumbnail, etc.) on first paint. Projection is derived from each
+    // target's `CollectionAdminConfig.picker` columns.
+    const data = await getCollectionDocument(params.collection, params.id, locale, undefined, true)
 
     if (!data) {
       throw notFound()

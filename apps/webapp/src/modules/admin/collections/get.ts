@@ -10,8 +10,11 @@ import { createServerFn } from '@tanstack/react-start'
 
 import {
   BylineError,
+  buildRelationSummaryPopulateMap,
   ERR_NOT_FOUND,
   ErrorCodes,
+  getCollectionAdminConfig,
+  getCollectionDefinition,
   getCollectionSchemasForPath,
   getLogger,
   getServerConfig,
@@ -27,10 +30,16 @@ import { serialise } from './utils'
 
 const getDocumentFn = createServerFn({ method: 'GET' })
   .inputValidator(
-    (input: { collection: string; id: string; locale?: string; depth?: number }) => input
+    (input: {
+      collection: string
+      id: string
+      locale?: string
+      depth?: number
+      populateRelations?: boolean
+    }) => input
   )
   .handler(async ({ data }) => {
-    const { collection: path, id, locale, depth } = data
+    const { collection: path, id, locale, depth, populateRelations } = data
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -65,6 +74,15 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     // reader expects to see. `populate: true` would only fetch identity
     // fields, which is not useful for a debug/preview view.
     const populateRequested = typeof depth === 'number' && depth > 0
+    // When the caller opts in to `populateRelations` (the admin edit loader
+    // does this by default), auto-build a depth-1 projection from the
+    // schema's relation fields — each target gets just its picker columns +
+    // useAsTitle fetched, so relation-summary tiles render on first paint
+    // without a per-tile client fetch. Only active when the caller did not
+    // already request an explicit `depth` (the API-preview / debug path,
+    // which uses `populate: '*'` to pull the whole tree).
+    const autoRelationsActive = !populateRequested && populateRelations === true
+
     if (populateRequested) {
       await populateDocuments({
         db,
@@ -76,6 +94,25 @@ const getDocumentFn = createServerFn({ method: 'GET' })
         depth,
         locale: locale ?? 'en',
       })
+    } else if (autoRelationsActive) {
+      const populateMap = buildRelationSummaryPopulateMap(
+        config.definition.fields,
+        (targetPath) => ({
+          def: getCollectionDefinition(targetPath),
+          admin: getCollectionAdminConfig(targetPath),
+        })
+      )
+      if (Object.keys(populateMap).length > 0) {
+        await populateDocuments({
+          db,
+          collections: serverConfig.collections,
+          collectionId: config.collection.id,
+          documents: [rawDocument as Record<string, any>],
+          populate: populateMap,
+          depth: 1,
+          locale: locale ?? 'en',
+        })
+      }
     }
 
     const serialised = serialise(rawDocument)
@@ -83,9 +120,12 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     // Skip the strict per-locale Zod parse when:
     //   - locale === 'all' (fields are locale-keyed objects, not per-locale values)
     //   - populated (the tree now contains nested populated documents that
-    //     don't match the raw relation-ref shape the schema expects)
+    //     don't match the raw relation-ref shape the schema expects —
+    //     applies equally to the depth-based preview path and the
+    //     admin-edit relation-summary path)
+    const populatedTree = populateRequested || autoRelationsActive
     const document =
-      locale === 'all' || populateRequested
+      locale === 'all' || populatedTree
         ? (serialised as Record<string, any>)
         : (() => {
             const { get } = getCollectionSchemasForPath(path)
@@ -173,10 +213,13 @@ export async function getCollectionDocument(
   collection: string,
   id: string,
   locale?: string,
-  depth?: number
+  depth?: number,
+  populateRelations?: boolean
 ) {
   try {
-    return await getDocumentFn({ data: { collection, id, locale, depth } })
+    return await getDocumentFn({
+      data: { collection, id, locale, depth, populateRelations },
+    })
   } catch (err) {
     if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) return null
     throw err

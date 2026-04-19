@@ -23,8 +23,8 @@ import { i18n } from './byline/i18n.js'
 export const config: ClientConfig = {
   serverURL: 'http://localhost:5173/',
   i18n,
-  collections: [Categories, Docs, News, Pages, Media],
-  admin: [CategoriesAdmin, DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin],
+  collections: [Docs, News, Pages, Media, Categories],
+  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, CategoriesAdmin],
 }
 
 defineClientConfig(config)

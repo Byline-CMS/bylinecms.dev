@@ -8,12 +8,18 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import type { CollectionAdminConfig, CollectionDefinition, ColumnDefinition } from '@byline/core'
+import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig } from '@byline/core'
 import { Button, LoaderRing, Modal, Search } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { getCollectionDocuments } from '@/modules/admin/collections'
+import {
+  PickerCell,
+  resolveFallbackDisplayField,
+  resolveRowLabel,
+  resolveSelectFields,
+} from './relation-display'
 
 // ---------------------------------------------------------------------------
 // RelationPicker — modal listing for selecting a target document
@@ -40,8 +46,21 @@ interface RelationPickerProps {
   displayField?: string
   /** Modal open/close state. */
   isOpen: boolean
-  /** Called with the picked selection when the user confirms. */
-  onSelect: (selection: { target_document_id: string; target_collection_id: string }) => void
+  /**
+   * Called with the picked selection when the user confirms.
+   *
+   * `record` is the raw document the picker row rendered — the caller can
+   * use it to show the selected value in its own tile without a refetch.
+   * The fields available on `record` are whatever `resolveSelectFields`
+   * asked the listing endpoint for (picker columns + `useAsTitle` +
+   * `displayField`), so any display surface downstream of the picker that
+   * also renders from those same columns will find the data it needs.
+   */
+  onSelect: (selection: {
+    target_document_id: string
+    target_collection_id: string
+    record?: Record<string, any>
+  }) => void
   /** Called when the user dismisses the modal. */
   onDismiss: () => void
 }
@@ -126,11 +145,13 @@ export const RelationPicker = ({
 
   const handleSelect = useCallback(() => {
     if (!selectedDocumentId || !collectionId) return
+    const record = documents.find((d) => d?.document_id === selectedDocumentId)
     onSelect({
       target_document_id: selectedDocumentId,
       target_collection_id: collectionId,
+      record,
     })
-  }, [selectedDocumentId, collectionId, onSelect])
+  }, [selectedDocumentId, collectionId, documents, onSelect])
 
   const title = targetDefinition
     ? `Select ${targetDefinition.labels.singular}`
@@ -256,107 +277,5 @@ export const RelationPicker = ({
         </Modal.Actions>
       </Modal.Container>
     </Modal>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** First top-level `text` field name on a collection, or null. */
-function resolveFallbackDisplayField(def: CollectionDefinition | null | undefined): string | null {
-  if (!def) return null
-  const textField = def.fields.find((f) => f.type === 'text')
-  return textField?.name ?? null
-}
-
-/**
- * Build the `fields` projection for the picker listing. Unions:
- *   - caller-supplied `displayField`
- *   - target schema's `useAsTitle`
- *   - every `fieldName` declared in the admin config's `picker` columns
- *   - `title` (metadata fallback for rows with no explicit picker columns)
- *
- * Returns `undefined` when no target definition is available, leaving the
- * listing endpoint to decide its own default projection.
- */
-function resolveSelectFields(
-  def: CollectionDefinition | null | undefined,
-  displayField: string | undefined,
-  pickerColumns: ColumnDefinition[] | undefined
-): string[] | undefined {
-  if (!def) return undefined
-  const out = new Set<string>()
-  if (displayField) out.add(displayField)
-  if (def.useAsTitle) out.add(def.useAsTitle)
-  const fallback = resolveFallbackDisplayField(def)
-  if (fallback) out.add(fallback)
-  if (pickerColumns) {
-    for (const col of pickerColumns) {
-      const name = String(col.fieldName)
-      // `status` / `updated_at` etc. are metadata columns on the row — only
-      // include names that correspond to actual schema fields so we don't
-      // request non-existent store data.
-      if (def.fields.some((f) => f.name === name)) out.add(name)
-    }
-  }
-  // Only include `title` when it's actually a declared field.
-  if (def.fields.some((f) => f.name === 'title')) out.add('title')
-  if (out.size === 0) return undefined
-  return Array.from(out)
-}
-
-/** Resolve the row's primary label text from the document. */
-function resolveRowLabel(doc: any, displayField: string | null): string | null {
-  if (displayField) {
-    const v = doc.fields?.[displayField]
-    if (typeof v === 'string' && v.length > 0) return v
-  }
-  if (typeof doc.fields?.title === 'string' && doc.fields.title.length > 0) return doc.fields.title
-  if (typeof doc.path === 'string' && doc.path.length > 0) return doc.path
-  return null
-}
-
-/**
- * Render a single picker-row cell using a shared `ColumnDefinition`.
- *
- * - Reads the field value from `record.fields[fieldName]`, falling back to
- *   top-level metadata on the document (so status/updated_at/path all work
- *   out of the box).
- * - Honours both formatter shapes: plain function → its return value; or
- *   `{ component }` → the component is rendered.
- * - Respects `align` and `className` from the column definition.
- */
-function PickerCell({ column, record }: { column: ColumnDefinition; record: Record<string, any> }) {
-  const name = String(column.fieldName)
-  const value = record?.fields?.[name] ?? record?.[name]
-
-  let content: any
-  if (column.formatter) {
-    if (typeof column.formatter === 'function') {
-      content = column.formatter(value, record)
-    } else {
-      const Comp = column.formatter.component
-      content = <Comp value={value} record={record} />
-    }
-  } else if (value == null) {
-    content = null
-  } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    content = String(value)
-  } else {
-    content = null
-  }
-
-  return (
-    <div
-      className={cx(
-        'min-w-0 text-sm text-gray-100 truncate',
-        column.align === 'center' && 'text-center',
-        column.align === 'right' && 'text-right',
-        column.className
-      )}
-    >
-      {content}
-    </div>
   )
 }

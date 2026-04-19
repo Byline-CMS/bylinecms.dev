@@ -25,3 +25,8 @@ export {
   type ReadContext,
   type UnresolvedRelationValue,
 } from './populate.js'
+export {
+  buildRelationSummaryPopulateMap,
+  type RelationTargetResolver,
+  resolveRelationProjection,
+} from './relation-projection.js'
