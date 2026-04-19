@@ -341,10 +341,6 @@ cd ../..
 # name other than byline_dev - change the last line in common.sh, 
 # as well as your corresponding .env settings.
 
-# NOTE: While this project is in prototype development,
-# you can optionally skip drizzle:generate since the latest
-# migration will be included in the repo.
-
 # You can optionally run pnpm drizzle:generate, although since 
 # this is a development repo - migrations have already been generated 
 # and committed.
