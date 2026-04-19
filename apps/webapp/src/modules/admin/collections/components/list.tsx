@@ -78,10 +78,12 @@ export const ListView = ({
   data,
   columns,
   workflowStatuses,
+  useAsTitle,
 }: {
   data: AnyCollectionSchemaTypes['ListType']
   columns: ColumnDefinition[]
   workflowStatuses?: WorkflowStatus[]
+  useAsTitle?: string
 }) => {
   const navigate = useNavigate()
   const uiLocale = useLocale()
@@ -234,7 +236,7 @@ export const ListView = ({
                               : ''
                         }
                       >
-                        {column.fieldName === 'title' ? (
+                        {useAsTitle && column.fieldName === useAsTitle ? (
                           <Link
                             to="/{-$lng}/admin/collections/$collection/$id"
                             params={{

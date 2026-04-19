@@ -145,7 +145,12 @@ function RouteComponent() {
       {CustomListView ? (
         <CustomListView data={data} workflowStatuses={workflowStatuses} />
       ) : (
-        <ListView data={data} columns={columns} workflowStatuses={workflowStatuses} />
+        <ListView
+          data={data}
+          columns={columns}
+          workflowStatuses={workflowStatuses}
+          useAsTitle={collectionDef.useAsTitle}
+        />
       )}
     </>
   )
