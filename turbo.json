@@ -37,7 +37,9 @@
       "outputs": []
     },
     "typecheck": {
-      "outputs": []
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "tsconfig.json"]
     },
     "test": {
       "outputs": []

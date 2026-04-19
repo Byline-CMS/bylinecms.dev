@@ -27,7 +27,8 @@
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --mode=jsdom",
     "test:jsdom": "vitest run --mode=jsdom",
-    "test:node": "vitest run --mode=node"
+    "test:node": "vitest run --mode=node",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@byline/core": "workspace:*",

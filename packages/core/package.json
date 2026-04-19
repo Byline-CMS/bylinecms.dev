@@ -29,7 +29,8 @@
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "skip": "tsx ./scripts/task-watch.js",
     "test": "vitest run --mode=node",
-    "test:watch": "vitest --mode=node"
+    "test:watch": "vitest --mode=node",
+    "typecheck": "tsc --noEmit"
   },
   "exports": {
     ".": {

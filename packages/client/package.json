@@ -29,7 +29,8 @@
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --mode=node",
     "test:watch": "vitest --mode=node",
-    "test:integration": "vitest run --mode=integration"
+    "test:integration": "vitest run --mode=integration",
+    "typecheck": "tsc --noEmit"
   },
   "exports": {
     ".": {

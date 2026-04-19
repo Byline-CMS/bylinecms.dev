@@ -35,7 +35,8 @@
     "drizzle:drop": "drizzle-kit drop --config=drizzle.config.ts",
     "drizzle:seed": "tsx --no-warnings --env-file=.env ./src/database/seeds/index.ts",
     "test": "LOG_LEVEL=off tsx --env-file=.env --test $(find . -name \"*.test.ts\")",
-    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test"
+    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test",
+    "typecheck": "tsc --noEmit"
   },
   "exports": {
     ".": {
