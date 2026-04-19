@@ -161,43 +161,80 @@ We feel the MPL will help to encourage collaboration and shared maintenance of t
 4. Separate schema (collection schema) and 'presentation' configuration systems: We're fairly sure that a split schema from presentation concerns is the right way to go. The core idea is to have schema/data config defined separately from admin UI config (which references the schema). Something like this:
 
 ```ts
-// collections/pages.schema.ts  (server-only, no UI concerns)
-export const PagesSchema = defineCollection({
-  slug: 'pages',
+// collections/pages/schema.ts  (server-safe, no UI concerns)
+import type { CollectionDefinition } from '@byline/core'
+import { defineWorkflow } from '@byline/core'
+
+import { availableLanguagesField } from '~/fields/available-languages-field.js'
+import { formatSlug } from '../../utilities/format-slug.js'
+
+export const Pages: CollectionDefinition = {
+  path: 'pages',
+  labels: { singular: 'Page', plural: 'Pages' },
+  workflow: defineWorkflow({
+    draft: { label: 'Draft', verb: 'Revert to Draft' },
+    published: { label: 'Published', verb: 'Publish' },
+    archived: { label: 'Archived', verb: 'Archive' },
+  }),
   useAsTitle: 'title',
+  search: { fields: ['title'] },
   fields: [
-    { name: 'title', type: 'text', required: true, localized: true },
-    { name: 'sub', type: 'textarea', localized: true },
-    { name: 'content', type: 'blocks', blocks: ['richtext', 'photo'], required: true },
-    slugField(),
-    publishedOn(),
+    { name: 'title', label: 'Title', type: 'text', localized: true },
+    {
+      name: 'path',
+      label: 'Path',
+      type: 'text',
+      hooks: { beforeValidate: formatSlug('title') },
+    },
+    { name: 'content', label: 'Content', type: 'richText', localized: true },
+    { name: 'publishedOn', label: 'Published On', type: 'datetime', mode: 'datetime' },
+    { name: 'featured', label: 'Featured', type: 'checkbox', optional: true },
+    availableLanguagesField(),
   ],
-  access: { create: isAdminOrEditor, read: publishedOnly, /* ... */ },
-  hooks: { /* ... */ }
-})
+}
 ```
 
-```ts
-// collections/pages.admin.tsx  (client-safe, UI-only)
-import { PagesSchema } from './pages.schema'
+```tsx
+// collections/pages/admin.tsx  (client-safe, presentation only)
+import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
-export const PagesAdmin = defineAdmin(PagesSchema, {
-  group: 'Content',
-  defaultColumns: ['title', 'publishedOn', '_status'],
-  preview: (doc, { locale }) => `http://localhost:3000/${doc.slug}?locale=${locale}`,
+import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
+import { Pages } from './schema.js'
+
+const listViewColumns: ColumnDefinition[] = [
+  { fieldName: 'title', label: 'Title', sortable: true, align: 'left', className: 'w-[30%]' },
+  {
+    fieldName: 'featured',
+    label: 'Featured',
+    align: 'center',
+    formatter: (value) => (value ? '★' : ''),
+  },
+  { fieldName: 'status', label: 'Status', align: 'center' },
+  {
+    fieldName: 'updated_at',
+    label: 'Last Updated',
+    sortable: true,
+    align: 'right',
+    formatter: { component: DateTimeFormatter },
+  },
+]
+
+export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
+  columns: listViewColumns,
   fields: {
-    title: { /* custom component overrides */ },
-    content: {
-      editor: <LexicalEditor settings={minimalSettings} />,
-    },
+    path: { position: 'sidebar' },
+    availableLanguages: { position: 'sidebar' },
+    publishedOn: { position: 'sidebar' },
+    featured: { position: 'sidebar' },
   },
 })
 ```
 
-> `useAsTitle` lives on the schema (not admin config) because it names the
-> field that represents a document's identity — used by the admin heading,
-> the relation picker summary, populate's default projection, and any other
-> server-side consumer. Analogous to Django's `Model.__str__`.
+> `useAsTitle`, `search`, and `workflow` live on the schema (not the admin
+> config) because they describe the document itself, not how it's rendered.
+> `useAsTitle` names the field that represents a document's identity —
+> used by the relation picker summary, populate's default projection, and
+> any other server-side consumer. Analogous to Django's `Model.__str__`.
 The advantages of this approach:
 
 - Schema definitions become truly server-only — no import-map strings, no admin blocks, no client components anywhere near them. They're plain data, trivially serializable, testable, and publishable as an API contract.
