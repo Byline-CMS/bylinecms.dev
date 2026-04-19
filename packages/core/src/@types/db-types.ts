@@ -72,6 +72,7 @@ export type FieldFilterOperator =
  * the DB adapter consumes them to build EXISTS subqueries.
  */
 export interface FieldFilter {
+  kind: 'field'
   /** The field name as declared in CollectionDefinition (e.g. 'title'). */
   fieldName: string
   /** Which EAV store table holds this field's data (e.g. 'text', 'numeric'). */
@@ -83,6 +84,37 @@ export interface FieldFilter {
   /** The value(s) to compare against. */
   value: string | number | boolean | null | Array<string | number>
 }
+
+/**
+ * A cross-collection relation filter. Matches documents whose relation
+ * field `fieldName` points at a target document that itself satisfies
+ * `nested` filters. Produced by `parse-where` when a where value under
+ * a relation field is a plain object of target-field predicates, e.g.
+ * `{ category: { path: 'news' } }`. The adapter compiles this into a
+ * nested EXISTS joining `store_relation` to the target collection's
+ * current-documents view and recursing into `nested` against the
+ * target's own EAV stores.
+ *
+ * The nesting is finite — user-written `where` clauses cannot cycle
+ * because the structure itself is finite — so no cycle guard is needed
+ * on this path (unlike populate, which traverses implicitly).
+ */
+export interface RelationFilter {
+  kind: 'relation'
+  /** The relation field name on the source collection (e.g. 'category'). */
+  fieldName: string
+  /** The target collection's id (resolved at parse time). */
+  targetCollectionId: string
+  /** Filters applied to the target document. Recursive. */
+  nested: DocumentFilter[]
+}
+
+/**
+ * Any filter that can appear in a `findDocuments` call — either a
+ * direct field predicate (`FieldFilter`) or a cross-collection hop
+ * through a relation (`RelationFilter`).
+ */
+export type DocumentFilter = FieldFilter | RelationFilter
 
 /**
  * A field-level sort descriptor, pre-resolved to the correct EAV store
@@ -307,12 +339,14 @@ export interface IDocumentQueries {
    *
    * Used by the client API's query builder (Phase 2). Each FieldFilter
    * becomes an EXISTS subquery against the appropriate store table; a
-   * FieldSort becomes a LATERAL JOIN to pull the sort value into the
-   * outer query.
+   * RelationFilter becomes a nested EXISTS that joins through
+   * `store_relation` to the target collection's current-documents view
+   * and recurses into its own filters. A FieldSort becomes a LATERAL
+   * JOIN to pull the sort value into the outer query.
    */
   findDocuments(params: {
     collection_id: string
-    filters?: FieldFilter[]
+    filters?: DocumentFilter[]
     /**
      * Exact-match filter on the current version's `status` column. Used by
      * admin UIs that filter the list view by a specific status ("show me

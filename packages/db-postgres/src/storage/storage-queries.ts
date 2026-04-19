@@ -8,12 +8,14 @@
 
 import type {
   CollectionDefinition,
+  DocumentFilter,
   FieldFilter,
   FieldSort,
   FlattenedStore,
   ICollectionQueries,
   IDocumentQueries,
   ReadMode,
+  RelationFilter,
   UnionRowValue,
 } from '@byline/core'
 // TODO: getLogger() is used here as a global escape hatch because pgAdapter()
@@ -845,10 +847,14 @@ export class DocumentQueries implements IDocumentQueries {
   /**
    * findDocuments — field-level filtered, sorted, paginated query.
    *
-   * Each FieldFilter becomes an EXISTS subquery against the appropriate EAV
-   * store table. A FieldSort becomes a LEFT JOIN LATERAL to pull the sort
-   * value into the outer query. Document-level conditions (status, path)
-   * are applied directly on the current_documents view.
+   * Each `FieldFilter` becomes an EXISTS subquery against the appropriate EAV
+   * store table. A `RelationFilter` becomes a nested EXISTS that joins
+   * `store_relation` to the target collection's current-documents view
+   * (selected by `readMode` so draft leaks can't happen through filter
+   * predicates) and recurses into its own `nested` filters. A `FieldSort`
+   * becomes a LEFT JOIN LATERAL to pull the sort value into the outer query.
+   * Document-level conditions (status, path) are applied directly on the
+   * current_documents view.
    */
   async findDocuments({
     collection_id,
@@ -866,7 +872,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode,
   }: {
     collection_id: string
-    filters?: FieldFilter[]
+    filters?: DocumentFilter[]
     status?: string
     pathFilter?: { operator: string; value: string }
     query?: string
@@ -913,9 +919,11 @@ export class DocumentQueries implements IDocumentQueries {
       )`)
     }
 
-    // Field-level EXISTS subqueries
+    // Field-level / relation-level EXISTS subqueries. Each relation hop
+    // introduces its own alias scope (`r${depth}`, `td${depth}`) so nested
+    // EXISTS clauses don't shadow their outer relation's aliases.
     for (const filter of filters) {
-      conditions.push(this.buildExistsSubquery(filter, locale))
+      conditions.push(this.buildFilterExists(filter, locale, sql`d.id`, readMode, 0))
     }
 
     const whereClause = sql.join(conditions, sql` AND `)
@@ -998,9 +1006,36 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * Build an EXISTS subquery for a single DocumentFilter. Dispatches on
+   * `kind` — field filters emit a direct EXISTS against the field's EAV
+   * store; relation filters emit a nested EXISTS that joins through
+   * `store_relation` to the target collection's current-documents view
+   * and recurses against the target's own stores.
+   *
+   * `outerDocVersionId` is the SQL reference to the document_version_id
+   * on the enclosing scope — `d.id` for top-level filters, `td${n}.id`
+   * for filters inside a relation hop at depth n. `depth` is the current
+   * nesting level; each relation hop bumps it so aliases stay unique
+   * across nested EXISTS scopes (Postgres would otherwise resolve
+   * `td.id` to the innermost `td`, silently producing the wrong rows).
+   */
+  private buildFilterExists(
+    filter: DocumentFilter,
+    locale: string,
+    outerDocVersionId: SQL,
+    readMode: ReadMode | undefined,
+    depth: number
+  ): SQL {
+    if (filter.kind === 'relation') {
+      return this.buildRelationExists(filter, locale, outerDocVersionId, readMode, depth)
+    }
+    return this.buildFieldExists(filter, locale, outerDocVersionId)
+  }
+
+  /**
    * Build an EXISTS subquery for a single field-level filter.
    */
-  private buildExistsSubquery(filter: FieldFilter, locale: string): SQL {
+  private buildFieldExists(filter: FieldFilter, locale: string, outerDocVersionId: SQL): SQL {
     const storeTable = storeTableNames[filter.storeType as StoreType]
     if (!storeTable) {
       throw ERR_DATABASE({
@@ -1014,10 +1049,62 @@ export class DocumentQueries implements IDocumentQueries {
 
     return sql`EXISTS (
       SELECT 1 FROM ${sql.raw(storeTable)}
-      WHERE document_version_id = d.id
+      WHERE document_version_id = ${outerDocVersionId}
         AND field_name = ${filter.fieldName}
         AND (locale = ${locale} OR locale = 'all')
         AND ${condition}
+    )`
+  }
+
+  /**
+   * Build a nested EXISTS subquery for a cross-collection relation filter.
+   *
+   * Joins `store_relation` to the target collection's current-documents
+   * view (`current_published_documents` under `readMode: 'published'`,
+   * `current_documents` otherwise — so a draft target doesn't leak when
+   * the outer read is in published mode), then recurses each nested
+   * filter against the target version's own `td.id`.
+   *
+   * With no nested filters this reduces to "source has any relation row
+   * at all on this field pointing at a target that resolves in the
+   * selected view" — useful as a base case but more typically the
+   * nested list carries a predicate.
+   */
+  private buildRelationExists(
+    filter: RelationFilter,
+    locale: string,
+    outerDocVersionId: SQL,
+    readMode: ReadMode | undefined,
+    depth: number
+  ): SQL {
+    const targetView =
+      readMode === 'published'
+        ? sql.raw('current_published_documents')
+        : sql.raw('current_documents')
+
+    // Use depth-scoped aliases so nested relations don't shadow their
+    // outer scope. e.g. outer relation gets `r0`/`td0`; a relation filter
+    // nested inside that gets `r1`/`td1`.
+    const rAlias = sql.raw(`r${depth}`)
+    const tdAlias = sql.raw(`td${depth}`)
+    const tdId = sql.raw(`td${depth}.id`)
+
+    const nestedConditions: SQL[] = filter.nested.map((nested) =>
+      this.buildFilterExists(nested, locale, tdId, readMode, depth + 1)
+    )
+
+    const nestedAnd =
+      nestedConditions.length > 0 ? sql` AND ${sql.join(nestedConditions, sql` AND `)}` : sql``
+
+    return sql`EXISTS (
+      SELECT 1 FROM store_relation ${rAlias}
+      JOIN ${targetView} ${tdAlias}
+        ON ${tdAlias}.document_id = ${rAlias}.target_document_id
+       AND ${tdAlias}.collection_id = ${rAlias}.target_collection_id
+      WHERE ${rAlias}.document_version_id = ${outerDocVersionId}
+        AND ${rAlias}.field_name = ${filter.fieldName}
+        AND ${rAlias}.target_collection_id = ${filter.targetCollectionId}
+        AND (${rAlias}.locale = ${locale} OR ${rAlias}.locale = 'all')${nestedAnd}
     )`
   }
 

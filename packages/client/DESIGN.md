@@ -9,7 +9,7 @@ population, field selection, response shaping, and (eventually) access control.
 
 ---
 
-## Status snapshot (2026-04-18)
+## Status snapshot (2026-04-19)
 
 | Phase | Scope | State |
 |---|---|---|
@@ -18,6 +18,7 @@ population, field selection, response shaping, and (eventually) access control.
 | 3 | Relationship population (`populate`, `depth`) — two-axis DSL, unified relation envelope, request-scoped `ReadContext` | **Shipped** |
 | 4 | Write path (`create`, `update`, `delete`, `changeStatus`, `unpublish`) delegating to `document-lifecycle` | **Shipped** |
 | 5 | Status-aware reads (`status?: 'published' \| 'any'` defaulting to `'published'` in-client), backed by `current_published_documents` view | **Shipped** |
+| 6 | Cross-collection relation filters — nested-object where DSL over a relation field compiles to nested EXISTS through `store_relation` | **Shipped** |
 
 ### Phase 5 semantics
 
@@ -45,6 +46,72 @@ at the top level is the common admin pattern.
 relations either.
 
 Shared mapping between client DSL parsing and db-postgres SQL generation lives in `@byline/core/storage/field-store-map.ts` (single source of truth + contract test).
+
+### Phase 6 semantics — cross-collection relation filters
+
+Where a relation field's value in the `where` clause is a plain object
+with no `$`-prefixed top-level keys, it is interpreted as a **nested
+where against the target collection**:
+
+```ts
+// Docs whose category's `path` text equals 'news'.
+await client.collection('docs').find({
+  where: { category: { path: 'news' } },
+})
+
+// Composable with ordinary field filters, at any depth.
+await client.collection('docs').find({
+  where: {
+    title: { $contains: 'launch' },
+    category: { parent: { path: 'news' } },  // 2-hop
+  },
+})
+```
+
+Disambiguation rule (mechanical):
+
+| Value under a relation field | Meaning |
+|---|---|
+| bare string / number / null | `$eq` on the relation's own `target_document_id` |
+| `{ $eq, $in, … }` (operator object, all keys `$`-prefixed) | that operator on `target_document_id` |
+| `{ <fieldName>: … }` (plain object, no `$`-prefixed keys) | nested where against the target collection |
+
+`parse-where.ts` is async when a `ParseContext` (`collections` +
+`resolveCollectionId`) is threaded in — the context is populated by the
+collection handle from the client's cached path→id resolver. Without
+the context, nested sub-wheres are silently ignored; with it, they
+compile to `RelationFilter` descriptors carrying the resolved
+`targetCollectionId` and a recursive `nested: DocumentFilter[]`.
+
+On the adapter side each `RelationFilter` emits a nested
+`EXISTS` joining `store_relation` to the target collection's
+current-documents view (`current_published_documents` under
+`readMode: 'published'`, `current_documents` otherwise — so drafts
+can't leak through the filter predicate any more than they can
+through populate). Nested filters recurse against the target
+version's own `td${depth}.id`. Aliases are depth-scoped (`r0`/`td0`,
+`r1`/`td1`, …) so nested EXISTS never shadow their outer scope.
+
+Document-level reserved keys (`status`, `query`, `path`) are
+top-level only. Inside a nested sub-where they fall through to
+ordinary field resolution on the target — so `{ category: { path: 'news' } }`
+filters on the target's `path` *field*, not the target version's
+path *column*. Target-side document-level conditions can be added
+later if needed; the current phase keeps scope tight.
+
+`hasMany` semantics (`$some` / `$every` / `$none`) are out of scope
+for this phase. When `hasMany: true` lands on `RelationField`, the
+nested-object form on single-target relations remains valid and
+explicit quantifiers cover the multi-target case.
+
+The adapter-facing filter type is a discriminated union in
+`@byline/core`:
+
+```ts
+type DocumentFilter =
+  | { kind: 'field'; fieldName; storeType; valueColumn; operator; value }
+  | { kind: 'relation'; fieldName; targetCollectionId; nested: DocumentFilter[] }
+```
 
 ---
 
@@ -230,6 +297,11 @@ where: {
 `status` and `path` are reserved names that filter on document metadata columns
 rather than EAV stores. All other keys are resolved against the collection's
 field definitions.
+
+**Cross-collection filters.** On relation fields, a plain-object value with
+no `$`-prefixed keys is a nested where against the target collection. See
+[Phase 6 semantics](#phase-6-semantics--cross-collection-relation-filters)
+above for the full rule.
 
 ---
 
@@ -493,6 +565,30 @@ relation value with a shaped `ClientDocument`. This keeps populate logic in
 
 Wire up `create()`, `update()`, `delete()`, `changeStatus()`, `unpublish()`
 through `document-lifecycle` functions.
+
+### ~~Phase 6 — Cross-collection relation filters~~ — Done (2026-04-19)
+
+`FieldFilter` became a discriminated union in `@byline/core`
+(`DocumentFilter = FieldFilter | RelationFilter`). `parse-where.ts`
+recognises plain-object sub-wheres on relation fields, resolves the
+target's collection id via a threaded `ParseContext`, and emits
+`RelationFilter` entries with recursive `nested: DocumentFilter[]`.
+The db-postgres adapter's `buildFilterExists` dispatches on `kind`;
+relation filters emit a depth-scoped nested `EXISTS` through
+`store_relation` joined to the target's `current(_published)_documents`
+view, honouring `readMode` on every hop.
+
+Rationale for the nested-object DSL over dot-notation
+(`'category.path'` — Payload style) is covered in the design notes
+above: it composes with TypeScript generics, doesn't collide with
+Byline's internal EAV dot-path notation, and absorbs the future
+`hasMany` quantifiers (`$some`/`$every`/`$none`) without needing a
+parallel escape hatch.
+
+18 new unit tests (parse-where relation branches) + 8 integration
+tests (single-hop, $contains, composition, id-equality fallback,
+published draft-leak guard, `status: 'any'` override, no-match,
+2-hop recursion) pass.
 
 ---
 

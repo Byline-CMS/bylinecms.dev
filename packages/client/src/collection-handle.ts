@@ -73,12 +73,15 @@ export class CollectionHandle {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
 
-    const parsedWhere = parseWhere(where, this.definition)
+    const parsedWhere = await parseWhere(where, this.definition, {
+      collections: this.client.collections,
+      resolveCollectionId: (path) => this.client.resolveCollectionId(path),
+    })
     const parsedSort = parseSort(sort, this.definition)
 
     const result = await this.client.db.queries.documents.findDocuments({
       collection_id: collectionId,
-      filters: parsedWhere.fieldFilters,
+      filters: parsedWhere.filters,
       status: parsedWhere.status,
       pathFilter: parsedWhere.pathFilter,
       query: parsedWhere.query,

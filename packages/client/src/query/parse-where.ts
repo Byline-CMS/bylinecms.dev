@@ -6,7 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, FieldFilter, FieldFilterOperator } from '@byline/core'
+import type {
+  CollectionDefinition,
+  DocumentFilter,
+  FieldFilter,
+  FieldFilterOperator,
+  RelationFilter,
+} from '@byline/core'
 import { fieldTypeToStore } from '@byline/core'
 
 import type { FilterOperators, SortSpec, WhereClause, WhereValue } from '../types.js'
@@ -19,6 +25,31 @@ import type { FilterOperators, SortSpec, WhereClause, WhereValue } from '../type
 const DOCUMENT_LEVEL_KEYS = new Set(['status', 'path', 'query'])
 
 // ---------------------------------------------------------------------------
+// Parse context
+// ---------------------------------------------------------------------------
+
+/**
+ * Optional context used to resolve cross-collection relation filters.
+ *
+ * When the `where` clause traverses a relation field with a nested
+ * sub-clause (e.g. `{ category: { path: 'news' } }`), the parser needs
+ * (a) the target collection's definition to resolve nested field types
+ * and (b) the target collection's DB row id to emit the adapter-facing
+ * `RelationFilter.targetCollectionId`.
+ *
+ * When `ctx` is omitted, nested relation sub-clauses are silently
+ * skipped — bare-value or operator-object values on relation fields
+ * still produce ordinary `$eq`-style filters against
+ * `store_relation.target_document_id`.
+ */
+export interface ParseContext {
+  /** All registered collection definitions. */
+  collections: CollectionDefinition[]
+  /** Resolve a collection path → DB row id. */
+  resolveCollectionId: (path: string) => Promise<string>
+}
+
+// ---------------------------------------------------------------------------
 // Parsed result
 // ---------------------------------------------------------------------------
 
@@ -29,8 +60,12 @@ export interface ParsedWhere {
   query?: string
   /** Filter on document_versions.path with an operator. */
   pathFilter?: { operator: FieldFilterOperator; value: string }
-  /** Field-level filters resolved to store types. */
-  fieldFilters: FieldFilter[]
+  /**
+   * Adapter-facing filter list: ordinary field filters and cross-collection
+   * relation filters, intermixed. Consumed by
+   * `IDocumentQueries.findDocuments({ filters })`.
+   */
+  filters: DocumentFilter[]
 }
 
 export interface ParsedSort {
@@ -64,46 +99,102 @@ const DOCUMENT_SORT_COLUMNS: Record<string, string> = {
 
 /**
  * Parse a client API `where` clause into document-level conditions and
- * field-level FieldFilter descriptors.
+ * adapter-facing DocumentFilter descriptors. When `ctx` is provided,
+ * nested relation sub-clauses (e.g. `{ category: { path: 'news' } }`)
+ * are resolved into `RelationFilter` entries; otherwise only
+ * direct/operator predicates against the relation's own
+ * `target_document_id` are emitted.
  */
-export function parseWhere(
+export async function parseWhere(
   where: WhereClause | undefined,
-  definition: CollectionDefinition
-): ParsedWhere {
-  const result: ParsedWhere = { fieldFilters: [] }
+  definition: CollectionDefinition,
+  ctx?: ParseContext
+): Promise<ParsedWhere> {
+  return parseWhereInternal(where, definition, ctx, { isNested: false })
+}
+
+/**
+ * Recursion entry point. `isNested: true` disables the top-level reserved
+ * keys (`status`, `query`, `path`) so that on a nested sub-where, those
+ * names resolve as ordinary fields on the target collection (where `path`
+ * and `status` are typically real text fields).
+ */
+async function parseWhereInternal(
+  where: WhereClause | undefined,
+  definition: CollectionDefinition,
+  ctx: ParseContext | undefined,
+  { isNested }: { isNested: boolean }
+): Promise<ParsedWhere> {
+  const result: ParsedWhere = { filters: [] }
 
   if (!where) return result
 
   for (const [key, rawValue] of Object.entries(where)) {
-    // --- Document-level keys -----------------------------------------------
-    if (key === 'status') {
-      if (typeof rawValue === 'string') {
-        result.status = rawValue
-      }
-      continue
-    }
-
-    if (key === 'query') {
-      if (typeof rawValue === 'string') {
-        result.query = rawValue
-      }
-      continue
-    }
-
-    if (key === 'path') {
-      const parsed = normaliseToOperator(rawValue)
-      if (parsed) {
-        result.pathFilter = {
-          operator: parsed.operator,
-          value: String(parsed.value),
+    // --- Document-level reserved keys (top-level only) ---------------------
+    if (!isNested) {
+      if (key === 'status') {
+        if (typeof rawValue === 'string') {
+          result.status = rawValue
         }
+        continue
       }
-      continue
+
+      if (key === 'query') {
+        if (typeof rawValue === 'string') {
+          result.query = rawValue
+        }
+        continue
+      }
+
+      if (key === 'path') {
+        const parsed = normaliseToOperator(rawValue)
+        if (parsed) {
+          result.pathFilter = {
+            operator: parsed.operator,
+            value: String(parsed.value),
+          }
+        }
+        continue
+      }
     }
 
     // --- Field-level keys --------------------------------------------------
     const field = definition.fields.find((f) => f.name === key)
     if (!field) continue // Unknown field — skip silently
+
+    // Relation field with a plain-object sub-clause → cross-collection filter.
+    // A "plain object with no $-prefixed top-level keys" is unambiguously a
+    // nested where; anything else (bare value, operator object) stays in the
+    // ordinary field-filter path below and matches the relation's
+    // target_document_id column directly.
+    if (field.type === 'relation' && isPlainSubWhere(rawValue)) {
+      if (!ctx) continue // No way to resolve target — skip silently.
+
+      const relation = field as { targetCollection?: string }
+      const targetPath = relation.targetCollection
+      if (!targetPath) continue
+
+      const targetDef = ctx.collections.find((c) => c.path === targetPath)
+      if (!targetDef) continue
+
+      const targetCollectionId = await ctx.resolveCollectionId(targetPath)
+      const nested = await parseWhereInternal(rawValue as WhereClause, targetDef, ctx, {
+        isNested: true,
+      })
+
+      // Flatten nested: only field-level / relation-level conditions make
+      // sense inside a relation subclause. Document-level keys (status,
+      // path, query) on the target are deliberately out of scope for this
+      // first phase — they can be added later by promoting them into
+      // the nested filter list here.
+      result.filters.push({
+        kind: 'relation',
+        fieldName: key,
+        targetCollectionId,
+        nested: nested.filters,
+      } satisfies RelationFilter)
+      continue
+    }
 
     const storeInfo = fieldTypeToStore[field.type]
     if (!storeInfo) continue // Structure fields can't be filtered directly
@@ -111,13 +202,14 @@ export function parseWhere(
     const parsed = normaliseToOperator(rawValue)
     if (!parsed) continue
 
-    result.fieldFilters.push({
+    result.filters.push({
+      kind: 'field',
       fieldName: key,
       storeType: storeInfo.storeType,
       valueColumn: storeInfo.valueColumn,
       operator: parsed.operator,
       value: parsed.value,
-    })
+    } satisfies FieldFilter)
   }
 
   return result
@@ -176,6 +268,24 @@ export function parseSort(
 interface NormalisedOperator {
   operator: FieldFilterOperator
   value: string | number | boolean | null | Array<string | number>
+}
+
+/**
+ * A "plain sub-where" is a non-null, non-array object whose top-level keys
+ * are all field names (no `$`-prefixed operator keys). Used to disambiguate
+ * `{ category: { path: 'news' } }` (nested where against the target) from
+ * `{ category: { $eq: 'abc-id' } }` (operator object on the relation's own
+ * `target_document_id`).
+ */
+function isPlainSubWhere(raw: unknown): raw is Record<string, unknown> {
+  if (raw === null || typeof raw !== 'object') return false
+  if (Array.isArray(raw)) return false
+  for (const k of Object.keys(raw as Record<string, unknown>)) {
+    if (k.startsWith('$')) return false
+  }
+  // An empty object is not a meaningful sub-where; treat as non-match
+  // (ordinary field-filter path will then reject it via normaliseToOperator).
+  return Object.keys(raw as Record<string, unknown>).length > 0
 }
 
 /**

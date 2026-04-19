@@ -139,18 +139,32 @@ export interface UpdateOptions {
 
 /**
  * A where clause maps field names (or reserved document-level names like
- * `status` and `path`) to either a bare value (equality) or an operator
- * object. Reserved keys:
+ * `status` and `path`) to either a bare value (equality), an operator
+ * object, or — for relation fields — a nested where clause against the
+ * target collection. Reserved keys:
  *   - `status` — exact match on document version status column
  *   - `query`  — text search across the collection's configured search fields
  *   - `path`   — document version path column (supports operators)
  *
  * All other keys are resolved against the collection's field definitions
- * and compiled into EXISTS subqueries over the EAV store tables.
+ * and compiled into EXISTS subqueries over the EAV store tables. When a
+ * relation field's value is a plain object with no `$`-prefixed keys it
+ * is treated as a nested where against the target collection — the
+ * adapter emits a nested EXISTS through `store_relation`, recursing into
+ * the target's own EAV stores:
+ *
+ * ```ts
+ * where: {
+ *   category: { path: 'news' },       // → docs whose category's path is 'news'
+ *   title: { $contains: 'launch' },    // ordinary field filter
+ * }
+ * ```
  */
-export type WhereClause = Record<string, WhereValue>
+export interface WhereClause {
+  [key: string]: WhereValue
+}
 
-export type WhereValue = string | number | boolean | null | FilterOperators
+export type WhereValue = string | number | boolean | null | FilterOperators | WhereClause
 
 export interface FilterOperators {
   $eq?: string | number | boolean | null
