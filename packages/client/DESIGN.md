@@ -490,7 +490,7 @@ selective fields, pagination — one code path).
 integration tests run against real Postgres. The field→store mapping has a
 core-level contract test that enumerates every declared field type.
 
-### Phase 3 — Relationship population and `depth`
+### ~~Phase 3 — Relationship population and `depth`~~ — Done
 
 Implement the `populate` post-query pass. Batch-load related documents, handle
 `select` and `depth`.
@@ -561,7 +561,7 @@ shaping), replacing the raw `{ target_document_id, target_collection_id }`
 relation value with a shaped `ClientDocument`. This keeps populate logic in
 `@byline/client`, not in the DB adapter.
 
-### Phase 4 — Write path
+### ~~Phase 4 — Write path~~ — Done
 
 Wire up `create()`, `update()`, `delete()`, `changeStatus()`, `unpublish()`
 through `document-lifecycle` functions.

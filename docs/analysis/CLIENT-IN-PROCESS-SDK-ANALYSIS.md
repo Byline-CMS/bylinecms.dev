@@ -161,7 +161,7 @@ services.
 This means:
 
 - read methods compile DSL into adapter-consumable descriptors
-- future write methods should delegate to framework-agnostic core services
+- write methods delegate to framework-agnostic core services
 - upload-related operations, if added for trusted in-process use, should call
   core upload services rather than inventing their own orchestration
 
