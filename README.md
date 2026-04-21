@@ -70,10 +70,6 @@ We believe that if you create and store content, you should be able to get it ba
  
 This isn't an ideological position. It's a practical one. We've worked with enough organisations who've been locked into platforms, or who've lost content in migrations, or who've discovered too late that their CMS stored things in a way that made extraction painful and lossy.
  
-### What Byline Is — and Isn't
- 
-Byline is a headless CMS that manages content with a correct structural foundation. It's opinionated about the things that matter — how versioning, workflow, and translation interact — and flexible about the things that don't.
- 
 We're not trying to be the next WordPress or the next Contentful. We're not building a platform that does everything for everyone. And we're not pretending we have all the answers. Byline is early-stage and there's a lot of work ahead.
  
 ### Building in the Open
@@ -126,29 +122,6 @@ Practically speaking, if someone uses MPL-licensed software in a commercial prod
 
 We feel the MPL will help to encourage collaboration and shared maintenance of the core platform, while still supporting sustainable commercial ecosystems — which is why many teams see MPL-2.0 as a pragmatic middle path between fully permissive and strongly reciprocal open-source licenses.
 </details>
-
-## Design Goals
-1. We aim to create an extensible, plugin-based framework for our headless CMS — enabling users to easily build custom admin dashboards and UI rendering frameworks for front-end clients.
-   
-2. We're creating an immutable 'versioned-by-default' document store; which means document history by default, and tombstones (soft deletes) by default (including user restoration of tombstoned documents).
-
-3. We'd like to do the same for collection definitions - 'versioned-by-default' with a superb migration experience. Imagine being able to query data on v1 of your collection definition, migrate the data in memory, and then save your migrated documents against v2 of your collection definition. Zero hoops and zero field wrangling.
-
-4. We plan to support separate localization for the default admin dashboard interface and for content. In our past work, we’ve often built solutions where content is available in multiple languages, while the admin dashboard remains in just one or two locales. More importantly, changing a content field from non-localized to localized should not require a document collection migration.
-
-5. We’ll make it easy to create alternative collection list views — whether for regular collections or media. You’ll also be able to reduce the selected fields for any list view, so there’s no need to retrieve full collection documents just to render a paginated list in the admin dashboard.
-
-6. We're going to enable parent / child document relationships by default — ideal for creating documentation sites, or sub-areas in a site where navigation components can be built from child documents.
-
-7. We're going to create a native 'file' field type that can be used in any collection definition, and separately from any defined media or upload collections (think Drupal files).
-
-8. We'd like everything to be fast — like really fast — from admin bundle compile times to API responses.
-   
-9. While we’ll be focused on a small, opinionated core, we’re thinking big — offering enterprise-grade features like built-in content versioning (as described above), along with callbacks and webhooks support for consumer cache invalidation strategies (to name just a few).
-
-10. For our admin dashboards, it should be easy to create content editors with your favorite editor, whether [CKEditor](https://ckeditor.com/), [Lexical](https://lexical.dev/), [TipTap](https://tiptap.dev/), [ProseMirror](https://prosemirror.net/) or other. We've spent years working with [contenteditable](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/contenteditable) editors - like CKeditor, and more recently Lexical. Implementing a good editing experience, [including mobile support on Android](https://discuss.prosemirror.net/t/contenteditable-on-android-is-the-absolute-worst/3810) - is a significant task. Fortunately, we have a 'pretty good' and 'ready to go' opinionated Lexical implementation that will allow us to get off to a great start quickly with a suite of commonly requested editor features.
-
-11. And more....
 
 ## Key Architectural Decisions
 
