@@ -6,12 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-// Initialize Byline config by importing the server config
-import 'dotenv/config'
-import '../byline.server.config.js'
-
-import { getCollectionDefinition, getServerConfig } from '@byline/core'
-import { v7 as uuidv7 } from 'uuid'
+import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
 
 // Complex test document with many fields and arrays. The system `path`
 // is supplied separately to `createDocumentVersion` as a top-level
@@ -103,15 +98,6 @@ const sampleDocument = {
     {
       _type: 'photoBlock',
       display: 'wide',
-      photo: {
-        file_id: uuidv7(),
-        filename: 'docs-photo-01.jpg',
-        original_filename: 'some-original-filename.jpg',
-        mime_type: 'image/jpeg',
-        file_size: 123456,
-        storage_provider: 'local',
-        storage_path: 'uploads/docs-photo-01.jpg',
-      },
       alt: 'Some alt text here',
       caption: {
         en: {
@@ -256,7 +242,7 @@ const sampleDocument = {
   links: [{ link: 'https://example.com' }, { link: 'https://another-example.com' }],
 }
 
-async function run() {
+export async function seedDocuments(count = 1000) {
   const db = getServerConfig().db
 
   const collectionDefinition = getCollectionDefinition('docs')
@@ -266,7 +252,6 @@ async function run() {
     return
   }
 
-  // Create bulk documents to populate the database.
   const bulkDocsCollectionResult = await db.commands.collections.create(
     'docs',
     collectionDefinition
@@ -277,12 +262,15 @@ async function run() {
     name: bulkDocsCollectionResult[0].path,
   }
 
-  console.log(`Created Bulk Docs Collection ${bulkDocsCollection}`)
+  console.log(`Created Docs Collection ${bulkDocsCollection.name}`)
 
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < count; i++) {
     const docData = structuredClone(sampleDocument)
-    const seedPath = `my-first-bulk-document-${12345 + i}`
     docData.title.en = `A bulk created document. ${i + 1}` // Ensure unique names
+    const seedPath = slugify(docData.title.en, {
+      locale: 'en',
+      collectionPath: 'docs',
+    })
     await db.commands.documents.createDocumentVersion({
       collectionId: bulkDocsCollection.id,
       collectionConfig: collectionDefinition,
@@ -291,6 +279,6 @@ async function run() {
       path: seedPath,
     })
   }
-}
 
-run()
+  console.log(`  - seeded ${count} docs`)
+}

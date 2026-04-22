@@ -501,7 +501,7 @@ exercised in the running app.
   ```
 - Update the News admin column definitions if appropriate (probably not
   — the column formatter doesn't support relation preview yet).
-- `apps/webapp/byline/seed-bulk-documents.ts` — one seeded News doc
+- `apps/webapp/byline/seeds/documents.ts` — one seeded News doc
   with `heroImage` set to an existing Media `document_id` /
   `target_collection_id`.
 
@@ -559,7 +559,7 @@ breakage.
   depth selector
 - `apps/webapp/src/ui/fields/field-renderer.tsx` — `case 'relation':`
 - `apps/webapp/byline/collections/news/schema.ts` — heroImage field
-- `apps/webapp/byline/seed-bulk-documents.ts` — demo relation value
+- `apps/webapp/byline/seeds/documents.ts` — demo relation value
 - `packages/client/DESIGN.md` — status snapshot update
 
 **Reused (no edits):**

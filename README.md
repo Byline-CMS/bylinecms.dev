@@ -316,12 +316,13 @@ cd ../..
 # pnpm drizzle:generate
 pnpm drizzle:migrate
 
-# Optionally seed the database with documents.
-# from /apps/webapp. Note that our seed script is in 
-# apps/webapp (for now and for 'reasons')
+# Optionally seed the database with categories and documents.
+# From /apps/webapp. Note that our seed scripts live in
+# apps/webapp/byline/seeds, orchestrated by apps/webapp/byline/seed.ts
+# (for now and for 'reasons').
 cd apps/webapp
 cp .env.example .env
-pnpm tsx --env-file=.env byline/seed-bulk-documents.ts
+pnpm tsx --env-file=.env byline/seed.ts
 ```
 
 ### 3. Start dev mode
