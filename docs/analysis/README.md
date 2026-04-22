@@ -17,6 +17,7 @@ Current documents:
 - [Relationships analysis](./RELATIONSHIPS-ANALYSIS.md)
 - [Routing and API analysis](./ROUTING-API-ANALYSIS.md)
 - [Client in-process SDK analysis](./CLIENT-IN-PROCESS-SDK-ANALYSIS.md)
+- [Document path analysis](./DOCUMENT-PATH-ANALYSIS.md)
 - [Phases of work](./PHASES-OF-WORK.md)
 
 These are intentionally working documents. Some describe shipped decisions,
