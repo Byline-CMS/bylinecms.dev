@@ -1,8 +1,14 @@
 # Universal Storage (EAV-per-type) — Strategic Analysis
 
-> Last updated: 2026-04-16
-> Companion: [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) —
-> the first consumer of the EAV layer that spans collections at read time.
+> Last updated: 2026-04-22
+> Companions:
+> - [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) — the
+>   first consumer of the EAV layer that spans collections at read
+>   time.
+> - [DOCUMENT-PATH-ANALYSIS.md](./DOCUMENT-PATH-ANALYSIS.md) — the
+>   first system attribute promoted out of the EAV layer onto
+>   `documentVersions`; establishes the pattern for reserved-name
+>   handling and system widgets in the admin form.
 
 ## What we've built
 
@@ -248,3 +254,4 @@ Route loader
 | 2026-04-18 | Storage benchmark sweep (1k → 100k) | Harness + results at `benchmarks/storage/`. Closes the long-standing "benchmark the UNION ALL at scale" strategic item and its follow-on "consider a read cache" item. Single-doc reads stay flat at ~3 ms full reconstruct across all scales; populate batch fetches stay flat at ~7 ms (50-doc batch); list-view query is the only N-scaling path. Fit-for-purpose story is strong at the scales Byline is designed for. |
 | 2026-04-18 | `afterRead` collection hook | New `AfterReadContext` and `afterRead?: CollectionHookSlot<…>` on `CollectionHooks`. Fires once per materialised document on every `@byline/client` read path and once per populated relation target in `populateDocuments`. `ReadContext.afterReadFired: Set<string>` enforces the "once per doc per logical request" rule so A→B→A re-entry is foreclosed. `ReadContext` type moved to `@types/db-types.ts` so hook context typings can reference it. 11 unit + 5 integration tests. Unlocks the access-control and richtext-Mode-2-hydration tracks that were both architecturally waiting on this. |
 | 2026-04-19 | @byline/client Phase 6 — cross-collection relation filters | `FieldFilter` became a discriminated union with `RelationFilter` under a shared `DocumentFilter` type in `@byline/core`. `parse-where.ts` recognises nested-object sub-wheres on relation fields (`{ category: { path: 'news' } }`) and emits `RelationFilter` entries with recursive `nested: DocumentFilter[]`; the db-postgres adapter's `buildFilterExists` dispatches on `kind` and emits a depth-scoped nested EXISTS through `store_relation` joined to the target's `current(_published)_documents` view (so `readMode` propagates through the filter predicate, no draft leaks at the target side either). Nested-object DSL chosen over Payload's `'category.path'` dot notation — the latter collides with Byline's internal EAV dot paths and doesn't absorb the future `hasMany` quantifiers. 18 new unit + 8 integration tests. |
+| 2026-04-22 | `path` promoted to system attribute | `documentVersions.path` is now authoritative, derived in core via `useAsPath` + an installation-wide `SlugifierFn`, and edited via a dedicated sidebar widget on a `systemPath` form-context slot. Collection schemas no longer declare a `path` text field; `RESERVED_FIELD_NAMES` (exported from `@byline/core`) is validated at config load and honoured by `restoreFieldSetData` as a tolerance for pre-migration `store_text` orphan rows. Establishes the pattern for promoting further system metadata out of the EAV layer. Full design and deferred workstreams (uniqueness, per-locale paths) in [DOCUMENT-PATH-ANALYSIS.md](./DOCUMENT-PATH-ANALYSIS.md). |

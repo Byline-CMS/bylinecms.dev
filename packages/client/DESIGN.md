@@ -9,7 +9,7 @@ population, field selection, response shaping, and (eventually) access control.
 
 ---
 
-## Status snapshot (2026-04-19)
+## Status snapshot (2026-04-22)
 
 | Phase | Scope | State |
 |---|---|---|
@@ -19,6 +19,8 @@ population, field selection, response shaping, and (eventually) access control.
 | 4 | Write path (`create`, `update`, `delete`, `changeStatus`, `unpublish`) delegating to `document-lifecycle` | **Shipped** |
 | 5 | Status-aware reads (`status?: 'published' \| 'any'` defaulting to `'published'` in-client), backed by `current_published_documents` view | **Shipped** |
 | 6 | Cross-collection relation filters — nested-object where DSL over a relation field compiles to nested EXISTS through `store_relation` | **Shipped** |
+| — | `afterRead` collection hook — fires once per materialised document on every read path and once per populated relation target; `ReadContext.afterReadFired` enforces "at most once per logical request" (A→B→A foreclosure) | **Shipped** |
+| — | `path` as system attribute — `CreateOptions.path` / `UpdateOptions.path` forward to the lifecycle; see [DOCUMENT-PATH-ANALYSIS.md](../../docs/analysis/DOCUMENT-PATH-ANALYSIS.md) | **Shipped** |
 
 ### Phase 5 semantics
 
@@ -44,6 +46,14 @@ at the top level is the common admin pattern.
 `'published'` mode, populated relation targets also resolve to their
 `current_published_documents` rows, so draft leaks can't happen through
 relations either.
+
+`findByPath` follows the same rule: the resolver hits
+`current_published_documents` under `'published'` mode and
+`current_documents` under `'any'`. A document with a newer unpublished
+draft over a previously-published version keeps resolving to the
+published path/content for public readers, and becomes invisible at
+that path only once the draft is itself published (moving the
+published row forward).
 
 Shared mapping between client DSL parsing and db-postgres SQL generation lives in `@byline/core/storage/field-store-map.ts` (single source of truth + contract test).
 
@@ -112,6 +122,38 @@ type DocumentFilter =
   | { kind: 'field'; fieldName; storeType; valueColumn; operator; value }
   | { kind: 'relation'; fieldName; targetCollectionId; nested: DocumentFilter[] }
 ```
+
+### `afterRead` collection hook
+
+`CollectionHooks.afterRead` fires once per materialised document on
+every `@byline/client` read path and once per populated relation target
+in `populateDocuments`. Hooks see the raw storage shape; mutations to
+`doc.fields` propagate into the shaped response. Fires **after**
+populate on the source document, so hooks observe the fully populated
+tree.
+
+Every top-level read allocates a fresh request-scoped `ReadContext`
+carrying a visited set, a depth clamp, and
+`afterReadFired: Set<string>` — the last enforces "each document runs
+through `afterRead` at most once per logical request", foreclosing
+A→B→A re-entry when a hook triggers its own reads.
+
+**Hook re-entry.** A hook that needs to query the client must thread
+its `readContext` back in so the visited/fired state is preserved:
+
+```ts
+afterRead: async ({ doc, readContext }) => {
+  const related = await client.collection('categories').findById(
+    doc.fields.categoryId,
+    { _readContext: readContext }   // @internal — propagate, don't fabricate
+  )
+  // …
+}
+```
+
+External callers never set `_readContext`. It is the only supported
+escape hatch for re-entry; creating a fresh context inside a hook
+would bypass the A→B→A guard and risk unbounded re-firing.
 
 ---
 
@@ -218,6 +260,14 @@ const doc = await client.collection('posts').findByPath('hello-world', {
 ```ts
 const n = await client.collection('posts').count({ status: 'published' })
 ```
+
+**Intentional limitation.** `count()` accepts only `{ status?: string }`
+today — it routes through `getDocumentCountsByStatus()`, not the full
+`findDocuments()` path. Arbitrary field-level filters (e.g.
+`count({ title: { $contains: 'launch' } })`) are not supported. When a
+real use case needs filtered counts, either lift the implementation
+onto `findDocuments()` or surface a dedicated aggregate primitive on
+`IDocumentQueries`; either is a small additive change.
 
 ---
 

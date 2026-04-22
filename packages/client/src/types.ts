@@ -61,10 +61,23 @@ interface PopulateControls {
   populate?: PopulateSpec
   depth?: number
   /**
-   * Internal plumbing for future read-side hook re-entry. Public callers
-   * should leave this undefined; a fresh context is created per top-level
-   * call. If provided, it is threaded through populate to preserve the
-   * visited set and read budget across nested reads.
+   * Escape hatch for read-side hook re-entry. Carries the visited set,
+   * depth clamp, and `afterReadFired` set across nested reads so the
+   * A→B→A recursion guard stays intact.
+   *
+   * Threading rules:
+   *
+   *   - **Public callers**: leave undefined. A fresh context is created
+   *     per top-level read.
+   *   - **Inside `afterRead` / lifecycle hooks**: if the hook calls back
+   *     into the client, pass `readContext` through as `_readContext`
+   *     verbatim. Do not fabricate a new one — doing so bypasses the
+   *     "once per document per logical request" guard and risks
+   *     unbounded hook re-firing.
+   *   - **Don't reuse across top-level calls**: a context from a
+   *     previous `find()` still carries that request's visited set, so
+   *     reusing it will silently suppress `afterRead` on documents
+   *     already seen. Contexts are per-request, not per-client.
    *
    * @internal
    */

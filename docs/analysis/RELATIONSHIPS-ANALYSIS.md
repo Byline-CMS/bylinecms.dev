@@ -1,9 +1,13 @@
 # Relationships — Analysis & Plan
 
 > Last updated: 2026-04-15
-> Companion to [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md) —
-> captures the design approach for the first consumer of the EAV layer
-> that spans collections at read time.
+> Companions:
+> - [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md) — the foundational
+>   EAV layer these relations read and write against.
+> - [DOCUMENT-PATH-ANALYSIS.md](./DOCUMENT-PATH-ANALYSIS.md) — `path`
+>   on `documentVersions` is a first-class column used by relation
+>   filters (`where: { category: { path: 'news' } }`) and resolved
+>   via `findByPath` under the same `readMode` rule populate honours.
 
 This document is a guide for two audiences: newcomers who want to
 understand how document relationships are modelled, written, and read

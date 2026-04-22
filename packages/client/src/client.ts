@@ -24,8 +24,13 @@ import type { BylineClientConfig } from './types.js'
  *   2. `getLogger()` if `initBylineCore()` registered one
  *   3. silent no-op fallback
  *
- * Keeps the SDK usable from migration scripts and tests without any
- * setup while still picking up the real logger in fully-wired runtimes.
+ * The silent fallback is deliberate: `@byline/client` is also the path
+ * by which migration scripts, seeders, and one-off tests talk to the
+ * storage layer, and those contexts don't run `initBylineCore()`.
+ * Throwing here (or logging a warning every time) would force every
+ * such script to register a logger they don't care about. Fully-wired
+ * runtimes still get the real logger via step 2; callers that want
+ * loud logging in a script just pass `config.logger` explicitly.
  */
 function resolveLogger(provided: BylineLogger | undefined): BylineLogger {
   if (provided) return provided
