@@ -20,6 +20,7 @@ import type {
   UploadConfig,
 } from '../@types/index.js'
 import type { BylineLogger } from '../lib/logger.js'
+import type { SlugifierFn } from '../utils/slugify.js'
 
 export interface UploadImageMeta {
   width: number | null
@@ -53,6 +54,10 @@ export interface DocumentUploadContext {
   storage: IStorageProvider
   logger: BylineLogger
   imageProcessor?: UploadImageProcessor
+  /** Default content locale, forwarded to the lifecycle context. */
+  defaultLocale: string
+  /** Optional installation slugifier, forwarded to the lifecycle context. */
+  slugifier?: SlugifierFn
 }
 
 export interface UploadDocumentParams {
@@ -298,12 +303,14 @@ export async function uploadDocument(
         collectionPath,
         storage,
         logger,
+        defaultLocale: ctx.defaultLocale,
+        slugifier: ctx.slugifier,
       }
 
       try {
         const result = await createDocument(lifecycleCtx, {
           data: buildDocumentData(definition, storedFileValue, fields, effectiveFilename),
-          locale: locale ?? 'en',
+          locale: locale ?? ctx.defaultLocale,
         })
 
         return {

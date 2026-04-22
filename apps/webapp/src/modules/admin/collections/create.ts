@@ -19,9 +19,11 @@ import { ensureCollection } from '@/lib/api-utils'
 // ---------------------------------------------------------------------------
 
 export const createCollectionDocument = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; data: any; locale?: string }) => input)
+  .inputValidator(
+    (input: { collection: string; data: any; locale?: string; path?: string }) => input
+  )
   .handler(async ({ data: input }) => {
-    const { collection: path, data: documentData, locale } = input
+    const { collection: path, data: documentData, locale, path: explicitPath } = input
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -31,19 +33,22 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       }).log(logger)
     }
 
-    const db = getServerConfig().db
+    const serverConfig = getServerConfig()
     const ctx: DocumentLifecycleContext = {
-      db,
+      db: serverConfig.db,
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
       logger,
+      defaultLocale: serverConfig.i18n.content.defaultLocale,
+      slugifier: serverConfig.slugifier,
     }
 
     await createDocument(ctx, {
       data: structuredClone(documentData),
       status: documentData.status,
-      locale: locale ?? 'en',
+      locale: locale ?? serverConfig.i18n.content.defaultLocale,
+      path: explicitPath,
     })
 
     return { status: 'ok' as const }

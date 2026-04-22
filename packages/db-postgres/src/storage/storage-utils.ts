@@ -15,7 +15,7 @@ import type {
   GroupField,
   ValueField,
 } from '@byline/core'
-import { ERR_DATABASE, getLogger } from '@byline/core'
+import { ERR_DATABASE, getLogger, RESERVED_FIELD_NAMES } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
 import { fieldTypeToStoreType, type StoreType } from './storage-store-manifest.js'
@@ -345,6 +345,13 @@ export const restoreFieldSetData = (
   for (const item of flattenedData) {
     // biome-ignore lint/style/noNonNullAssertion: TODO: put in a proper check here?
     const fieldName = item.field_path[0]!
+    // Reserved system attributes (e.g. `path`) live on `documentVersions`,
+    // not in the schema field tree. Silently skip orphan rows that may
+    // remain in store_* tables from earlier schemas where these names
+    // were declared as user fields.
+    if (RESERVED_FIELD_NAMES.has(fieldName)) {
+      continue
+    }
     const field = fields.find((f) => f.name === fieldName)
     if (!field) {
       warnings.push(`Field ${fieldName} not found`)

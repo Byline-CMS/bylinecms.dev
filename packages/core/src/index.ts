@@ -7,6 +7,7 @@ export {
   getCollectionDefinition,
   getServerConfig,
 } from './config/config.js'
+export { RESERVED_FIELD_NAMES } from './config/validate-collections.js'
 export { type BylineCore, initBylineCore } from './core.js'
 export * from './defaults/default-values.js'
 export {
@@ -26,5 +27,12 @@ export * from './patches/index.js'
 export { getCollectionSchemasForPath } from './schemas/zod/cache.js'
 export * from './services/index.js'
 export * from './storage/index.js'
+export {
+  formatTextValue,
+  looksLikeISODate,
+  type SlugifierFn,
+  type SlugifyContext,
+  slugify,
+} from './utils/slugify.js'
 export { deriveVariantStoragePaths } from './utils/storage-utils.js'
 export * from './workflow/index.js'

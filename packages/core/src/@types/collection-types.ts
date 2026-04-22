@@ -591,6 +591,18 @@ export interface CollectionDefinition {
    */
   useAsTitle?: string
   /**
+   * Names the field whose value initialises this collection's
+   * `documentVersions.path` column. The value is slugified (in the
+   * default content locale) using the installation slugifier and stored
+   * as system metadata — `path` itself is a reserved name and cannot be
+   * declared as a field.
+   *
+   * `path` is sticky after creation: subsequent updates do not
+   * re-derive. Users edit it via the system path widget; collections
+   * without `useAsPath` receive a UUID `path` instead.
+   */
+  useAsPath?: string
+  /**
    * When `true`, the admin landing page displays a per-status document count
    * inside the collection card. Requires a database round-trip per collection
    * on every landing-page load, so opt in deliberately.

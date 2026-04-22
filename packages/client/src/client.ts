@@ -6,7 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { BylineLogger, CollectionDefinition, IDbAdapter, IStorageProvider } from '@byline/core'
+import type {
+  BylineLogger,
+  CollectionDefinition,
+  IDbAdapter,
+  IStorageProvider,
+  SlugifierFn,
+} from '@byline/core'
 import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { CollectionHandle } from './collection-handle.js'
@@ -52,6 +58,8 @@ export class BylineClient {
   readonly collections: CollectionDefinition[]
   readonly storage: IStorageProvider | undefined
   readonly logger: BylineLogger
+  readonly defaultLocale: string
+  readonly slugifier: SlugifierFn | undefined
 
   /** Cache: collection path → database row ID. */
   private collectionIdCache = new Map<string, string>()
@@ -61,6 +69,8 @@ export class BylineClient {
     this.collections = config.collections
     this.storage = config.storage
     this.logger = resolveLogger(config.logger)
+    this.defaultLocale = config.defaultLocale ?? 'en'
+    this.slugifier = config.slugifier
   }
 
   /**

@@ -9,8 +9,6 @@
 import type { CollectionDefinition } from '@byline/core'
 import { defineWorkflow } from '@byline/core'
 
-import { formatSlug } from '../../utilities/format-slug.js'
-
 // ---- Schema (server-safe, no UI concerns) ----
 
 export const Categories: CollectionDefinition = {
@@ -32,15 +30,8 @@ export const Categories: CollectionDefinition = {
   showStats: true,
   search: { fields: ['name'] },
   useAsTitle: 'name',
+  useAsPath: 'name',
   fields: [
-    {
-      name: 'path',
-      label: 'Path',
-      type: 'text',
-      hooks: {
-        beforeValidate: formatSlug('name'),
-      },
-    },
     { name: 'name', label: 'Name', type: 'text', localized: true },
     { name: 'description', label: 'Description', type: 'textArea', localized: true },
   ],

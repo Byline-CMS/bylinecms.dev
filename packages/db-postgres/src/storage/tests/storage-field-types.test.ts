@@ -27,7 +27,6 @@ const FieldTypesCollectionConfig: CollectionDefinition = {
     plural: 'FieldType',
   },
   fields: [
-    { name: 'path', type: 'text' /* unique: true */ },
     { name: 'title', type: 'text', localized: true },
     { name: 'summary', type: 'text', localized: true },
     { name: 'publishedOn', type: 'datetime', optional: true },
@@ -39,7 +38,9 @@ const FieldTypesCollectionConfig: CollectionDefinition = {
 
 const filedId = uuidv7()
 
-// Complex test document with many fields and arrays
+// Complex test document with many fields and arrays. The top-level `path`
+// is the system attribute on `documentVersions`, supplied separately to
+// `createDocumentVersion`, not via field data.
 const sampleDocument = {
   path: 'my-first-document',
   title: {
@@ -175,6 +176,6 @@ describe('02 Field Types', () => {
     const doc = result.documents[0]
     assert.ok(doc.fields, 'document should have fields')
     assert.ok(doc.fields.title, 'should include title')
-    assert.ok(doc.fields.path, 'should include path')
+    assert.ok(doc.path, 'should include the system path on the document envelope')
   })
 })

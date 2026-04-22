@@ -18,10 +18,8 @@ import { createBylineClient } from '../../src/index.js'
 const postsCollection: CollectionDefinition = {
   path: 'posts',
   labels: { singular: 'Post', plural: 'Posts' },
-  fields: [
-    { name: 'title', type: 'text', label: 'Title' },
-    { name: 'path', type: 'text', label: 'Path' },
-  ],
+  useAsPath: 'title',
+  fields: [{ name: 'title', type: 'text', label: 'Title' }],
 }
 
 const allCollections = [postsCollection]
@@ -129,14 +127,14 @@ describe('CollectionHandle.create', () => {
 
     const result = await client
       .collection('posts')
-      .create({ title: 'Hello', path: 'hello' }, { locale: 'en', status: 'draft' })
+      .create({ title: 'Hello' }, { locale: 'en', status: 'draft', path: 'hello' })
 
     expect(createDocumentVersion).toHaveBeenCalledTimes(1)
     expect(createDocumentVersion).toHaveBeenCalledWith(
       expect.objectContaining({
         collectionId: 'col:posts',
         action: 'create',
-        documentData: expect.objectContaining({ title: 'Hello', path: 'hello' }),
+        documentData: expect.objectContaining({ title: 'Hello' }),
         path: 'hello',
         status: 'draft',
         locale: 'en',
@@ -174,7 +172,7 @@ describe('CollectionHandle.create', () => {
     )
   })
 
-  it('auto-generates a path when none is supplied', async () => {
+  it('derives a path from the useAsPath source field when no override is supplied', async () => {
     const { db, createDocumentVersion } = makeAdapter()
     const client = createBylineClient({ db, collections: allCollections })
 

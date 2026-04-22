@@ -252,6 +252,7 @@ export class CollectionHandle {
       data,
       locale: options.locale,
       status: options.status,
+      path: options.path,
     })
   }
 
@@ -270,6 +271,7 @@ export class CollectionHandle {
       documentId,
       data,
       locale: options.locale,
+      path: options.path,
     })
   }
 
@@ -344,6 +346,8 @@ export class CollectionHandle {
       collectionPath: this.definition.path,
       storage: this.client.storage,
       logger: this.client.logger,
+      defaultLocale: this.client.defaultLocale,
+      slugifier: this.client.slugifier,
     }
   }
 

@@ -1,3 +1,4 @@
+import { validateCollections } from './validate-collections.js'
 import type {
   ClientConfig,
   CollectionAdminConfig,
@@ -48,10 +49,12 @@ export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | 
 }
 
 export function defineClientConfig(config: ClientConfig) {
+  validateCollections(config.collections)
   setClientConfigInstance(config)
 }
 
 export function defineServerConfig(config: ServerConfig) {
+  validateCollections(config.collections)
   setServerConfigInstance(config)
 }
 

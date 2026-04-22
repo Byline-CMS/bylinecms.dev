@@ -116,6 +116,7 @@ function buildCtx(
     collectionId: 'col-1',
     collectionPath: definition.path,
     logger: noopLogger,
+    defaultLocale: 'en',
   }
 }
 
@@ -202,14 +203,52 @@ describe('Document lifecycle service', () => {
       expect(persistedData.title).toBe('Mutated')
     })
 
-    it('auto-generates path from title when missing', async () => {
+    it('derives path from useAsPath source field via the slugifier', async () => {
       const { db, createDocumentVersion } = createMockDb()
-      const ctx = buildCtx(db)
+      const definition: CollectionDefinition = { ...minimalCollection, useAsPath: 'title' }
+      const ctx = buildCtx(db, definition)
 
       await createDocument(ctx, { data: { title: 'My Great Post' } })
 
-      const persistedData = createDocumentVersion.mock.calls[0]?.[0].documentData
-      expect(persistedData.path).toBe('my-great-post')
+      const persistedPath = createDocumentVersion.mock.calls[0]?.[0].path
+      expect(persistedPath).toBe('my-great-post')
+    })
+
+    it('uses an explicit params.path verbatim, bypassing derivation', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const definition: CollectionDefinition = { ...minimalCollection, useAsPath: 'title' }
+      const ctx = buildCtx(db, definition)
+
+      await createDocument(ctx, {
+        data: { title: 'Will Be Ignored' },
+        path: 'custom/route',
+      })
+
+      const persistedPath = createDocumentVersion.mock.calls[0]?.[0].path
+      expect(persistedPath).toBe('custom/route')
+    })
+
+    it('falls back to a UUID when no useAsPath and no explicit path', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const ctx = buildCtx(db) // minimalCollection has no useAsPath
+
+      await createDocument(ctx, { data: { title: 'Anything' } })
+
+      const persistedPath = createDocumentVersion.mock.calls[0]?.[0].path
+      expect(persistedPath).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      )
+    })
+
+    it('rejects creates in any non-default locale', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const ctx = buildCtx(db)
+
+      await expect(
+        createDocument(ctx, { data: { title: 'Hello' }, locale: 'fr' })
+      ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
+
+      expect(createDocumentVersion).not.toHaveBeenCalled()
     })
 
     it('works when no hooks are defined', async () => {
@@ -356,6 +395,45 @@ describe('Document lifecycle service', () => {
           documentVersionId: 'ver-1',
         })
       )
+    })
+
+    it('keeps path sticky from the previous version when no explicit path is supplied', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'original-path',
+        status: 'draft',
+        fields: { title: 'Old' },
+      })
+      const definition: CollectionDefinition = { ...minimalCollection, useAsPath: 'title' }
+      const ctx = buildCtx(db, definition)
+
+      await updateDocument(ctx, {
+        documentId: 'doc-1',
+        data: { title: 'Brand New Title' },
+      })
+
+      // Path is NOT re-derived from the now-changed title
+      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBe('original-path')
+    })
+
+    it('uses an explicit params.path verbatim on update, overriding the sticky value', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'original-path',
+        status: 'draft',
+        fields: { title: 'Old' },
+      })
+      const ctx = buildCtx(db)
+
+      await updateDocument(ctx, {
+        documentId: 'doc-1',
+        data: { title: 'New' },
+        path: 'manually-set',
+      })
+
+      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBe('manually-set')
     })
 
     it('sets status to the default status (draft)', async () => {

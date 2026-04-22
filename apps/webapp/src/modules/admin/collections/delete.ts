@@ -43,6 +43,8 @@ export const deleteDocument = createServerFn({ method: 'POST' })
       collectionPath: path,
       ...(storage ? { storage } : {}),
       logger,
+      defaultLocale: serverConfig.i18n.content.defaultLocale,
+      slugifier: serverConfig.slugifier,
     }
 
     const result = await deleteDocumentService(ctx, { documentId: id })

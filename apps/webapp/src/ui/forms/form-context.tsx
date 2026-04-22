@@ -35,6 +35,7 @@ export interface PendingUpload {
 type FieldListener = (value: any) => void
 type ErrorsListener = (errors: FormError[]) => void
 type MetaListener = () => void
+type SystemPathListener = (value: string | null) => void
 
 interface FormContextType {
   setFieldValue: (name: string, value: any) => void
@@ -62,6 +63,12 @@ interface FormContextType {
   getPendingUploads: () => Map<string, PendingUpload>
   hasPendingUploads: () => boolean
   clearPendingUploads: () => void
+  // System-managed `documentVersions.path` slot, edited by the path widget.
+  // `null` means the widget will fall back to live-derived preview / the
+  // server-side default; a non-null value is sent verbatim to the server.
+  getSystemPath: () => string | null
+  setSystemPath: (value: string | null) => void
+  subscribeSystemPath: (listener: SystemPathListener) => () => void
 }
 
 const FormContext = createContext<FormContextType | null>(null)
@@ -93,6 +100,17 @@ export const FormProvider = ({
   const fieldListeners = useRef<Map<string, Set<FieldListener>>>(new Map())
   const errorListeners = useRef<Set<ErrorsListener>>(new Set())
   const metaListeners = useRef<Set<MetaListener>>(new Set())
+
+  // System path slot — initialised from the loaded version's top-level
+  // `path` (edit mode) or `null` (create mode). Edits via `setSystemPath`
+  // mark the form dirty so the Save button enables.
+  const systemPathRef = useRef<string | null>(
+    typeof initialData?.path === 'string' && (initialData.path as string).length > 0
+      ? (initialData.path as string)
+      : null
+  )
+  const initialSystemPath = useRef<string | null>(systemPathRef.current)
+  const systemPathListeners = useRef<Set<SystemPathListener>>(new Set())
 
   const subscribeField = useCallback((name: string, listener: FieldListener) => {
     if (!fieldListeners.current.has(name)) {
@@ -236,11 +254,41 @@ export const FormProvider = ({
   const resetHasChanges = useCallback(() => {
     dirtyFields.current.clear()
     patchesRef.current = []
+    initialSystemPath.current = systemPathRef.current
     notifyMetaListeners()
   }, [notifyMetaListeners])
 
   const isDirty = useCallback((fieldName: string) => {
     return dirtyFields.current.has(fieldName)
+  }, [])
+
+  // -------------------------------------------------------------------------
+  // System path slot
+  // -------------------------------------------------------------------------
+
+  const getSystemPath = useCallback(() => systemPathRef.current, [])
+
+  const setSystemPath = useCallback(
+    (value: string | null) => {
+      systemPathRef.current = value
+      if (value !== initialSystemPath.current) {
+        dirtyFields.current.add('__systemPath__')
+      } else {
+        dirtyFields.current.delete('__systemPath__')
+      }
+      systemPathListeners.current.forEach((listener) => {
+        listener(value)
+      })
+      notifyMetaListeners()
+    },
+    [notifyMetaListeners]
+  )
+
+  const subscribeSystemPath = useCallback((listener: SystemPathListener) => {
+    systemPathListeners.current.add(listener)
+    return () => {
+      systemPathListeners.current.delete(listener)
+    }
   }, [])
 
   // ---------------------------------------------------------------------------
@@ -482,11 +530,29 @@ export const FormProvider = ({
         getPendingUploads,
         hasPendingUploads,
         clearPendingUploads,
+        getSystemPath,
+        setSystemPath,
+        subscribeSystemPath,
       }}
     >
       {children}
     </FormContext.Provider>
   )
+}
+
+/**
+ * Subscribe to the system `path` slot edited by the path widget.
+ * Returns the current value (or `null` when no override is set).
+ */
+export const useSystemPath = (): string | null => {
+  const { getSystemPath, subscribeSystemPath } = useFormContext()
+  const [value, setValue] = useState<string | null>(() => getSystemPath())
+
+  useEffect(() => {
+    return subscribeSystemPath((next) => setValue(next))
+  }, [subscribeSystemPath])
+
+  return value
 }
 
 export const useFormStore = () => {

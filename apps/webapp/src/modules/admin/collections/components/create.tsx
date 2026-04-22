@@ -40,9 +40,15 @@ export const CreateView = ({
   const uiLocale = useLocale()
   const { labels, path, fields } = collectionDefinition
 
-  const handleSubmit = async ({ data }: { data: any }) => {
+  const handleSubmit = async ({ data, systemPath }: { data: any; systemPath?: string | null }) => {
     try {
-      await createCollectionDocument({ data: { collection: path, data } })
+      await createCollectionDocument({
+        data: {
+          collection: path,
+          data,
+          ...(systemPath ? { path: systemPath } : {}),
+        },
+      })
       navigate({
         to: '/{-$lng}/admin/collections/$collection',
         params: { ...lngParam(uiLocale), collection: path },
@@ -80,6 +86,7 @@ export const CreateView = ({
           initialData={initialData}
           adminConfig={adminConfig}
           useAsTitle={collectionDefinition.useAsTitle}
+          useAsPath={collectionDefinition.useAsPath}
           headingLabel={labels.singular}
           useNavigationGuard={useTanStackNavigationGuard}
           onCancel={() =>

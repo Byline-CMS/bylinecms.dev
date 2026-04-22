@@ -10,7 +10,6 @@ import type { CollectionDefinition } from '@byline/core'
 import { defineWorkflow } from '@byline/core'
 
 import { availableLanguagesField } from '~/fields/available-languages-field.js'
-import { formatSlug } from '../../utilities/format-slug.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -33,16 +32,9 @@ export const News: CollectionDefinition = {
   showStats: true,
   search: { fields: ['title'] },
   useAsTitle: 'title',
+  useAsPath: 'title',
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
-    {
-      name: 'path',
-      label: 'Path',
-      type: 'text',
-      hooks: {
-        beforeValidate: formatSlug('title'),
-      },
-    },
     {
       name: 'content',
       label: 'Content',

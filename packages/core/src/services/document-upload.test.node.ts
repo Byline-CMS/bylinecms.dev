@@ -125,6 +125,7 @@ function buildCtx(overrides?: Partial<DocumentUploadContext>) {
     storage,
     logger: noopLogger,
     imageProcessor,
+    defaultLocale: 'en',
     ...overrides,
   }
 
@@ -220,6 +221,7 @@ describe('uploadDocument service', () => {
           { name: 'card', storagePath: 'media/card.webp' },
         ]),
       }),
+      defaultLocale: 'en',
     }
 
     let error: unknown

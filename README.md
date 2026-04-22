@@ -139,7 +139,6 @@ import type { CollectionDefinition } from '@byline/core'
 import { defineWorkflow } from '@byline/core'
 
 import { availableLanguagesField } from '~/fields/available-languages-field.js'
-import { formatSlug } from '../../utilities/format-slug.js'
 
 export const Pages: CollectionDefinition = {
   path: 'pages',
@@ -150,15 +149,12 @@ export const Pages: CollectionDefinition = {
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   useAsTitle: 'title',
+  // `path` is a reserved system attribute on documentVersions; opt into
+  // automatic derivation by naming the source field with useAsPath.
+  useAsPath: 'title',
   search: { fields: ['title'] },
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
-    {
-      name: 'path',
-      label: 'Path',
-      type: 'text',
-      hooks: { beforeValidate: formatSlug('title') },
-    },
     { name: 'content', label: 'Content', type: 'richText', localized: true },
     { name: 'publishedOn', label: 'Published On', type: 'datetime', mode: 'datetime' },
     { name: 'featured', label: 'Featured', type: 'checkbox', optional: true },

@@ -18,6 +18,7 @@ import { LocalDateTime } from '../components/local-date-time'
 import { DocumentActions } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import { useNavigationGuardAdapter } from './navigation-guard'
+import { PathWidget } from './path-widget'
 import { executeUploads } from './upload-executor'
 import type { UseNavigationGuard } from './navigation-guard'
 
@@ -49,6 +50,12 @@ export interface FormRendererProps {
    * Sourced from `CollectionDefinition.useAsTitle` by the caller.
    */
   useAsTitle?: string
+  /**
+   * Name of the schema field that initialises the system path.
+   * Sourced from `CollectionDefinition.useAsPath` by the caller. When
+   * present the path widget renders in the sidebar.
+   */
+  useAsPath?: string
   headingLabel?: string
   headerSlot?: ReactNode
   /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
@@ -207,6 +214,7 @@ const FormContent = ({
   initialData,
   adminConfig,
   useAsTitle,
+  useAsPath,
   headingLabel,
   headerSlot,
   collectionPath,
@@ -228,6 +236,7 @@ const FormContent = ({
     hasChanges: hasChangesFn,
     resetHasChanges,
     getPatches,
+    getSystemPath,
     subscribeErrors,
     subscribeMeta,
     setFieldValue,
@@ -361,9 +370,10 @@ const FormContent = ({
 
       const data = getFieldValues()
       const patches = getPatches()
+      const systemPath = getSystemPath()
 
       if (onSubmit && typeof onSubmit === 'function') {
-        onSubmit({ data, patches })
+        onSubmit({ data, patches, systemPath })
         resetHasChanges()
       }
     })()
@@ -517,6 +527,15 @@ const FormContent = ({
           ))}
         </div>
         <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
+          {(useAsPath ||
+            (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
+            <PathWidget
+              useAsPath={useAsPath}
+              collectionPath={collectionPath ?? ''}
+              defaultLocale={i18n.content.defaultLocale}
+              mode={mode}
+            />
+          )}
           {sidebarFields.map((field) => (
             <FieldRenderer
               key={field.name}
@@ -569,6 +588,7 @@ export const FormRenderer = ({
   initialData,
   adminConfig,
   useAsTitle,
+  useAsPath,
   headingLabel,
   headerSlot,
   collectionPath,
@@ -599,6 +619,7 @@ export const FormRenderer = ({
         initialData={initialData}
         adminConfig={adminConfig}
         useAsTitle={useAsTitle}
+        useAsPath={useAsPath}
         headingLabel={headingLabel}
         headerSlot={headerSlot}
         collectionPath={collectionPath}

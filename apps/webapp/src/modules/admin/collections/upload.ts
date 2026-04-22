@@ -109,6 +109,8 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
           collectionPath,
           storage,
           logger,
+          defaultLocale: serverConfig.i18n.content.defaultLocale,
+          slugifier: serverConfig.slugifier,
           imageProcessor: {
             extractMeta: extractImageMeta,
             isBypassMimeType,
@@ -139,7 +141,7 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
           fileSize: file.size,
           fields,
           shouldCreateDocument,
-          locale: 'en',
+          locale: serverConfig.i18n.content.defaultLocale,
         })
       }
     )

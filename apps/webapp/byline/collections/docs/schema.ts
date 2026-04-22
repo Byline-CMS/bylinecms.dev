@@ -11,7 +11,6 @@ import { defineCollection, defineWorkflow } from '@byline/core'
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'
 import { availableLanguagesField } from '../../fields/available-languages-field.js'
-import { formatSlug } from '../../utilities/format-slug.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -35,6 +34,7 @@ export const Docs = defineCollection({
   showStats: true,
   search: { fields: ['title'] },
   useAsTitle: 'title',
+  useAsPath: 'title',
   // All hooks can be a single function or an array of functions.
   // If an array is provided, the functions will be executed in sequence.
   hooks: {
@@ -120,14 +120,6 @@ export const Docs = defineCollection({
             return { error: 'Title should not start with whitespace' }
           }
         },
-      },
-    },
-    {
-      name: 'path',
-      label: 'Path',
-      type: 'text',
-      hooks: {
-        beforeValidate: formatSlug('title'),
       },
     },
     { name: 'summary', label: 'Summary', type: 'textArea', localized: true },

@@ -13,9 +13,10 @@ import '../byline.server.config.js'
 import { getCollectionDefinition, getServerConfig } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
-// Complex test document with many fields and arrays
+// Complex test document with many fields and arrays. The system `path`
+// is supplied separately to `createDocumentVersion` as a top-level
+// argument — it is no longer a user-defined field.
 const sampleDocument = {
-  path: 'my-first-bulk-document',
   title: {
     en: 'My First Document',
     es: 'Mi Primer Documento',
@@ -280,14 +281,14 @@ async function run() {
 
   for (let i = 0; i < 1000; i++) {
     const docData = structuredClone(sampleDocument)
-    docData.path = `my-first-bulk-document-${12345 + i}`
+    const seedPath = `my-first-bulk-document-${12345 + i}`
     docData.title.en = `A bulk created document. ${i + 1}` // Ensure unique names
     await db.commands.documents.createDocumentVersion({
       collectionId: bulkDocsCollection.id,
       collectionConfig: collectionDefinition,
       action: 'create',
       documentData: docData,
-      path: docData.path,
+      path: seedPath,
     })
   }
 }

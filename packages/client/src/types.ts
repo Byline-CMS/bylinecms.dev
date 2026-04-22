@@ -14,6 +14,7 @@ import type {
   PopulateSpec,
   ReadContext,
   ReadMode,
+  SlugifierFn,
 } from '@byline/core'
 
 // ---------------------------------------------------------------------------
@@ -34,6 +35,16 @@ export interface BylineClientConfig {
    * silent no-op logger so scripts and tests run without setup.
    */
   logger?: BylineLogger
+  /**
+   * Default content locale. Forwarded to `DocumentLifecycleContext` and
+   * used to anchor `path` derivation. Defaults to `'en'` when omitted.
+   */
+  defaultLocale?: string
+  /**
+   * Optional installation slugifier, forwarded to the lifecycle. When
+   * omitted, the lifecycle uses the default `slugify` from `@byline/core`.
+   */
+  slugifier?: SlugifierFn
 }
 
 // ---------------------------------------------------------------------------
@@ -126,11 +137,21 @@ export interface CreateOptions {
    * the collection's default (usually `'draft'`).
    */
   status?: string
+  /**
+   * Explicit `documentVersions.path` override. When omitted the lifecycle
+   * derives a path from `definition.useAsPath` (or falls back to a UUID).
+   */
+  path?: string
 }
 
 export interface UpdateOptions {
   /** Locale for field value resolution. Defaults to 'en'. */
   locale?: string
+  /**
+   * Explicit path override. When omitted, the previous version's path
+   * carries forward unchanged (sticky).
+   */
+  path?: string
 }
 
 // ---------------------------------------------------------------------------

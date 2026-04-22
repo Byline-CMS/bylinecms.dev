@@ -21,7 +21,6 @@ const DocsCollectionConfig = defineCollection({
     plural: 'Documents',
   },
   fields: [
-    { name: 'path', type: 'text' /* unique: true */ },
     { name: 'title', type: 'text', localized: true },
     { name: 'summary', type: 'text', localized: true },
     {
@@ -91,7 +90,6 @@ const fileId = uuidv7()
 // Test document using the flat blocks shape: { _type, ...fields }
 // This is the shape used by the application layer (forms, patches, API).
 const sampleDocument: DocsFields = {
-  path: 'my-first-document',
   title: {
     en: 'My First Document',
     es: 'Mi Primer Documento',
@@ -165,7 +163,6 @@ const sampleDocument: DocsFields = {
 // restoreFieldSetData produces the flat block shape directly: { _id, _type, ...fields }
 // This matches the application layer shape — no separate attachMetaToDocument step needed.
 const expectedRestored = {
-  path: 'my-first-document',
   title: {
     en: 'My First Document',
     es: 'Mi Primer Documento',

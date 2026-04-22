@@ -197,7 +197,15 @@ export const EditView = ({
     }
   }
 
-  const handleSubmit = async ({ data: _data, patches }: { data: any; patches: any[] }) => {
+  const handleSubmit = async ({
+    data: _data,
+    patches,
+    systemPath,
+  }: {
+    data: any
+    patches: any[]
+    systemPath?: string | null
+  }) => {
     try {
       await updateCollectionDocumentWithPatches({
         data: {
@@ -206,6 +214,7 @@ export const EditView = ({
           patches,
           document_version_id: initialData.document_version_id as string | undefined,
           locale,
+          ...(systemPath ? { path: systemPath } : {}),
         },
       })
 
@@ -263,6 +272,7 @@ export const EditView = ({
           initialData={initialData}
           adminConfig={adminConfig}
           useAsTitle={collectionDefinition.useAsTitle}
+          useAsPath={collectionDefinition.useAsPath}
           headingLabel={labels.singular}
           initialLocale={locale}
           onLocaleChange={handleLocaleChange}

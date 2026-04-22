@@ -34,13 +34,15 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
       }).log(logger)
     }
 
-    const db = getServerConfig().db
+    const serverConfig = getServerConfig()
     const ctx: DocumentLifecycleContext = {
-      db,
+      db: serverConfig.db,
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
       logger,
+      defaultLocale: serverConfig.i18n.content.defaultLocale,
+      slugifier: serverConfig.slugifier,
     }
 
     const result = await changeDocumentStatus(ctx, {
@@ -71,13 +73,15 @@ export const unpublishDocument = createServerFn({ method: 'POST' })
       }).log(logger)
     }
 
-    const db = getServerConfig().db
+    const serverConfig = getServerConfig()
     const ctx: DocumentLifecycleContext = {
-      db,
+      db: serverConfig.db,
       definition: config.definition,
       collectionId: config.collection.id,
       collectionPath: path,
       logger,
+      defaultLocale: serverConfig.i18n.content.defaultLocale,
+      slugifier: serverConfig.slugifier,
     }
 
     const result = await unpublishDocumentService(ctx, { documentId: id })

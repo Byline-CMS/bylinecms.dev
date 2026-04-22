@@ -34,10 +34,12 @@ import {
   ERR_INVALID_TRANSITION,
   ERR_NOT_FOUND,
   ERR_PATCH_FAILED,
+  ERR_VALIDATION,
 } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
 import { applyPatches } from '../patches/index.js'
 import { normaliseDateFields } from '../utils/normalise-dates.js'
+import { type SlugifierFn, slugify } from '../utils/slugify.js'
 import { deriveVariantStoragePaths } from '../utils/storage-utils.js'
 import { getDefaultStatus, getWorkflow, validateStatusTransition } from '../workflow/workflow.js'
 import type { BylineLogger } from '../lib/logger.js'
@@ -72,6 +74,20 @@ export interface DocumentLifecycleContext {
   storage?: IStorageProvider
   /** Structured logger instance. Provided via the DI registry. */
   logger: BylineLogger
+  /**
+   * The default content locale (e.g. `'en'`). Used to anchor `path`
+   * derivation: the slugifier always runs against the default-locale
+   * source value, and creating a brand-new document in any other locale
+   * is rejected.
+   *
+   * Sourced by callers from `ServerConfig.i18n.content.defaultLocale`.
+   */
+  defaultLocale: string
+  /**
+   * Installation slugifier. When omitted, the lifecycle falls back to
+   * the default `slugify` exported from `@byline/core`.
+   */
+  slugifier?: SlugifierFn
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +148,38 @@ function extractDocumentId(document: any): string {
   return document?.document_id ?? ''
 }
 
+/**
+ * Derive a `documentVersions.path` value at create time.
+ *
+ *   1. `definition.useAsPath` set → slugify the named source field's value
+ *      in the default content locale.
+ *   2. Source field absent / empty → fall back to `crypto.randomUUID()`.
+ *
+ * Caller passes explicit overrides separately; this helper only handles
+ * the auto-derivation cascade.
+ */
+function derivePath(
+  definition: CollectionDefinition,
+  data: Record<string, any>,
+  defaultLocale: string,
+  slugifier: SlugifierFn
+): string {
+  if (definition.useAsPath != null) {
+    const sourceValue = data[definition.useAsPath]
+    if (sourceValue != null) {
+      const asString = sourceValue instanceof Date ? sourceValue.toISOString() : String(sourceValue)
+      if (asString.length > 0) {
+        const slug = slugifier(asString, {
+          locale: defaultLocale,
+          collectionPath: definition.path,
+        })
+        if (slug.length > 0) return slug
+      }
+    }
+  }
+  return crypto.randomUUID()
+}
+
 // ---------------------------------------------------------------------------
 // Lifecycle functions
 // ---------------------------------------------------------------------------
@@ -140,11 +188,15 @@ function extractDocumentId(document: any): string {
  * Create a new document.
  *
  * Flow:
- *   1. `normaliseDateFields(data)`
- *   2. `hooks.beforeCreate({ data, collectionPath })`
- *   3. Auto-generate `path` from title (if missing)
- *   4. `db.commands.documents.createDocumentVersion(...)` (action = 'create')
- *   5. `hooks.afterCreate({ data, collectionPath, documentId, documentVersionId })`
+ *   1. Default-locale enforcement: reject if `params.locale` is anything
+ *      other than the configured default content locale (a brand-new
+ *      document's canonical `path` lives in the default locale).
+ *   2. `normaliseDateFields(data)`
+ *   3. `hooks.beforeCreate({ data, collectionPath })`
+ *   4. Resolve `path` — explicit `params.path` → derive via `useAsPath`
+ *      → UUID fallback.
+ *   5. `db.commands.documents.createDocumentVersion(...)` (action = 'create')
+ *   6. `hooks.afterCreate({ data, collectionPath, documentId, documentVersionId })`
  */
 export async function createDocument(
   ctx: DocumentLifecycleContext,
@@ -152,39 +204,45 @@ export async function createDocument(
     data: Record<string, any>
     locale?: string
     status?: string
+    /**
+     * Explicit, user-supplied path (e.g. from the admin sidebar widget
+     * or an SDK caller importing legacy content). When omitted, the
+     * lifecycle derives the value from `definition.useAsPath`.
+     */
+    path?: string
   }
 ): Promise<CreateDocumentResult> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'createDocument' },
     async () => {
-      const { db, definition, collectionId, collectionPath } = ctx
+      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
+      const slugifier = ctx.slugifier ?? slugify
       const hooks: CollectionHooks | undefined = definition.hooks
       const data = params.data
+
+      if (params.locale != null && params.locale !== defaultLocale) {
+        throw ERR_VALIDATION({
+          message: `documents must be created in the default content locale ('${defaultLocale}'); received '${params.locale}'. Create the default-locale version first, then add localised versions via update.`,
+          details: { defaultLocale, providedLocale: params.locale, collectionPath },
+        }).log(ctx.logger)
+      }
 
       normaliseDateFields(data)
 
       await invokeHook(hooks?.beforeCreate, { data, collectionPath })
 
-      // Ensure path is present. If not, generate one from title or random UUID.
-      if (!data.path) {
-        if (data.title) {
-          data.path = data.title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/(^-|-$)+/g, '')
-        } else {
-          data.path = crypto.randomUUID()
-        }
-      }
+      const explicitPath =
+        typeof params.path === 'string' && params.path.length > 0 ? params.path : null
+      const resolvedPath = explicitPath ?? derivePath(definition, data, defaultLocale, slugifier)
 
       const result = await db.commands.documents.createDocumentVersion({
         collectionId,
         collectionConfig: definition,
         action: 'create',
         documentData: data,
-        path: data.path,
+        path: resolvedPath,
         status: params.status ?? data.status,
-        locale: params.locale ?? 'en',
+        locale: params.locale ?? defaultLocale,
       })
 
       const documentId = extractDocumentId(result.document)
@@ -221,12 +279,19 @@ export async function updateDocument(
     documentId: string
     data: Record<string, any>
     locale?: string
+    /**
+     * Explicit path override. When omitted, the previous version's path
+     * carries forward unchanged (sticky). The lifecycle never re-derives
+     * `path` from the source field on update — that is an explicit user
+     * action driven by the admin path widget.
+     */
+    path?: string
   }
 ): Promise<UpdateDocumentResult> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'updateDocument' },
     async () => {
-      const { db, definition, collectionId, collectionPath } = ctx
+      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       const hooks: CollectionHooks | undefined = definition.hooks
       const data = params.data
 
@@ -235,7 +300,7 @@ export async function updateDocument(
       const latest = await db.queries.documents.getDocumentById({
         collection_id: collectionId,
         document_id: params.documentId,
-        locale: params.locale ?? 'en',
+        locale: params.locale ?? defaultLocale,
         reconstruct: true,
       })
 
@@ -247,15 +312,20 @@ export async function updateDocument(
 
       const defaultStatus = getDefaultStatus(definition)
 
+      const explicitPath =
+        typeof params.path === 'string' && params.path.length > 0 ? params.path : null
+      const resolvedPath =
+        explicitPath ?? (originalData.path as string | undefined) ?? crypto.randomUUID()
+
       const result = await db.commands.documents.createDocumentVersion({
         documentId: params.documentId,
         collectionId,
         collectionConfig: definition,
         action: 'update',
         documentData: data,
-        path: data.path ?? originalData.path ?? '/',
+        path: resolvedPath,
         status: defaultStatus,
-        locale: params.locale ?? 'en',
+        locale: params.locale ?? defaultLocale,
         previousVersionId: originalData.document_version_id as string | undefined,
       })
 
@@ -298,19 +368,25 @@ export async function updateDocumentWithPatches(
     /** Client-supplied version ID for optimistic concurrency. */
     documentVersionId?: string
     locale?: string
+    /**
+     * Explicit path override (typically supplied alongside patches when
+     * the admin path widget has been edited). When omitted, sticky from
+     * the previous version.
+     */
+    path?: string
   }
 ): Promise<UpdateDocumentWithPatchesResult> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'updateDocumentWithPatches' },
     async () => {
-      const { db, definition, collectionId, collectionPath } = ctx
+      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       const hooks: CollectionHooks | undefined = definition.hooks
 
       // 1. Fetch current document.
       const latest = await db.queries.documents.getDocumentById({
         collection_id: collectionId,
         document_id: params.documentId,
-        locale: params.locale ?? 'en',
+        locale: params.locale ?? defaultLocale,
         reconstruct: true,
       })
 
@@ -362,15 +438,20 @@ export async function updateDocumentWithPatches(
       // 6. Persist.
       const defaultStatus = getDefaultStatus(definition)
 
+      const explicitPath =
+        typeof params.path === 'string' && params.path.length > 0 ? params.path : null
+      const resolvedPath =
+        explicitPath ?? (originalData.path as string | undefined) ?? crypto.randomUUID()
+
       const result = await db.commands.documents.createDocumentVersion({
         documentId: params.documentId,
         collectionId,
         collectionConfig: definition,
         action: 'update',
         documentData: nextData,
-        path: nextData.path ?? originalData.path ?? '/',
+        path: resolvedPath,
         status: defaultStatus,
-        locale: params.locale ?? 'en',
+        locale: params.locale ?? defaultLocale,
         previousVersionId: originalData.document_version_id as string | undefined,
       })
 

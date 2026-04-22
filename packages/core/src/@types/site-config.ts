@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { SlugifierFn } from '../utils/slugify.js'
 import type { CollectionAdminConfig } from './admin-types.js'
 import type { CollectionDefinition } from './collection-types.js'
 import type { IDbAdapter } from './db-types.js'
@@ -70,4 +71,13 @@ export interface ServerConfig extends BaseConfig {
    * ```
    */
   storage?: IStorageProvider
+  /**
+   * Installation-wide slugifier used to derive `documentVersions.path`
+   * from the field named by `CollectionDefinition.useAsPath`.
+   *
+   * Falls back to the default `slugify` from `@byline/core` when not set.
+   * Must be pure and synchronous — it runs server-side at write time and
+   * client-side for live form preview, and the two must agree on output.
+   */
+  slugifier?: SlugifierFn
 }
