@@ -7,6 +7,7 @@
  */
 
 import type {
+  BylineLogger,
   CollectionDefinition,
   DocumentFilter,
   FieldFilter,
@@ -47,6 +48,12 @@ export interface ParseContext {
   collections: CollectionDefinition[]
   /** Resolve a collection path → DB row id. */
   resolveCollectionId: (path: string) => Promise<string>
+  /**
+   * Optional logger. When provided, dropped nested relation sub-clauses
+   * (unknown target collection, misconfigured relation field) emit a
+   * `debug` line so a regression is observable. Safe to omit.
+   */
+  logger?: BylineLogger
 }
 
 // ---------------------------------------------------------------------------
@@ -168,14 +175,31 @@ async function parseWhereInternal(
     // ordinary field-filter path below and matches the relation's
     // target_document_id column directly.
     if (field.type === 'relation' && isPlainSubWhere(rawValue)) {
-      if (!ctx) continue // No way to resolve target — skip silently.
+      if (!ctx) {
+        // No way to resolve the target without a ParseContext. Direct
+        // callers of `parseWhere` (tests, tooling) can legitimately hit
+        // this path; CollectionHandle always provides one.
+        continue
+      }
 
       const relation = field as { targetCollection?: string }
       const targetPath = relation.targetCollection
-      if (!targetPath) continue
+      if (!targetPath) {
+        ctx.logger?.debug(
+          { fieldName: key, collection: definition.path },
+          'parse-where: dropping nested relation sub-clause — relation field has no targetCollection'
+        )
+        continue
+      }
 
       const targetDef = ctx.collections.find((c) => c.path === targetPath)
-      if (!targetDef) continue
+      if (!targetDef) {
+        ctx.logger?.debug(
+          { fieldName: key, targetPath, collection: definition.path },
+          'parse-where: dropping nested relation sub-clause — target collection not registered'
+        )
+        continue
+      }
 
       const targetCollectionId = await ctx.resolveCollectionId(targetPath)
       const nested = await parseWhereInternal(rawValue as WhereClause, targetDef, ctx, {

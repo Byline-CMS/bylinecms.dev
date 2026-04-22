@@ -212,17 +212,7 @@ describe('find with draft-over-published versions', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Populate — relation targets respect readMode
-// ---------------------------------------------------------------------------
-
-describe('populate inherits readMode from the outer read', () => {
-  it("populated relations fall back to the target's published version by default", async () => {
-    // This test needs two collections with a relation between them. The
-    // test harness only registers one collection, so we skip the deep
-    // population scenario here — populate.readMode is already covered at
-    // the unit level (status-aware-reads.test.node.ts). The integration
-    // check above (findById/findByPath/find) covers the primary flow.
-    expect(true).toBe(true)
-  })
-})
+// Populate + readMode end-to-end coverage lives in
+// `client-populate-status.integration.test.ts` (separate file because it
+// needs two collections and the shared `setupTestClient` fixture only
+// registers one). Unit coverage: `tests/unit/status-aware-reads.test.node.ts`.

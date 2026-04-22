@@ -1,3 +1,20 @@
+// ---------------------------------------------------------------------------
+// @byline/core public surface.
+//
+// Subpath exports (see `package.json`):
+//   - `.`             — main entry (this file); published
+//   - `./zod-schemas`, `./logger`, `./package.json` — published
+//   - `./patches`, `./workflow`, `./services` — NOT published
+//
+// The three unpublished subpaths are in-monorepo boundaries used by
+// the admin server fns and the `@byline/client` SDK. They are
+// registered in the main `exports` map (so workspace consumers and
+// `tsc` can resolve them) but deliberately omitted from
+// `publishConfig.exports` — they are not stable surface and should
+// not be imported by external npm consumers. External access goes
+// through this main entry or `@byline/client`.
+// ---------------------------------------------------------------------------
+
 export * from './@types/index.js'
 export {
   defineClientConfig,

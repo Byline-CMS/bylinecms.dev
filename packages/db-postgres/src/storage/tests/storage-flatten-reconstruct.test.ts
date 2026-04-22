@@ -310,3 +310,57 @@ describe('resolveStoreTypes', () => {
     assert.strictEqual(stores.size, 0)
   })
 })
+
+describe('reserved field-name tolerance on restore', () => {
+  // Installations that declared `path` as a user field before the
+  // promotion to a system attribute may have left orphan rows in
+  // `store_text` with `field_name = 'path'`. Those rows are not
+  // referenced by any current collection schema, but they are still
+  // read back by the UNION ALL. `restoreFieldSetData` must silently
+  // skip them — the alternative would be a hard
+  // "Field path not found" reconstruction failure that lights up
+  // every read.
+  it('silently skips orphan rows whose field_name is a reserved system attribute', () => {
+    const orphanPathRow = {
+      locale: 'all',
+      field_path: ['path'],
+      field_type: 'text',
+      value: 'leftover-from-legacy-schema',
+    } as const
+
+    // A normal row alongside the orphan so we can prove reconstruction
+    // succeeded rather than returning early.
+    const titleRow = {
+      locale: 'en',
+      field_path: ['title'],
+      field_type: 'text',
+      value: 'Hello',
+    } as const
+
+    const restored = restoreFieldSetData(
+      DocsCollectionConfig.fields,
+      [orphanPathRow, titleRow] as any,
+      'en'
+    )
+
+    assert.strictEqual(
+      restored.path,
+      undefined,
+      'reserved-name row must not land on the reconstructed document'
+    )
+    assert.strictEqual(restored.title, 'Hello', 'non-reserved rows must still be restored')
+  })
+
+  it('does not throw when the only row present is a reserved-name orphan', () => {
+    const orphanPathRow = {
+      locale: 'all',
+      field_path: ['path'],
+      field_type: 'text',
+      value: 'whatever',
+    } as const
+
+    assert.doesNotThrow(() => {
+      restoreFieldSetData(DocsCollectionConfig.fields, [orphanPathRow] as any)
+    }, 'a reserved-name orphan must not be treated as an unknown field')
+  })
+})

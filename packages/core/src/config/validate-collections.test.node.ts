@@ -101,4 +101,65 @@ describe('validateCollections', () => {
     }
     expect(() => validateCollections([collection])).not.toThrow()
   })
+
+  // useAsPath deliberately resolves against top-level fields only. A
+  // nested source (inside a group, array, or block) isn't addressable
+  // in the derivation cascade — path is a singular identity anchor, not
+  // a per-item or per-locale derivation — so the validator rejects it
+  // at startup rather than silently falling through to a UUID.
+  it('rejects useAsPath pointing at a field nested inside a group', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'meta',
+          label: 'Meta',
+          type: 'group',
+          fields: [{ name: 'slugSource', label: 'Slug source', type: 'text' }],
+        },
+      ],
+      useAsPath: 'slugSource',
+    }
+    expect(() => validateCollections([collection])).toThrow(/no top-level field with that name/)
+  })
+
+  it('rejects useAsPath pointing at a field nested inside an array', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'variants',
+          label: 'Variants',
+          type: 'array',
+          fields: [{ name: 'slugSource', label: 'Slug source', type: 'text' }],
+        },
+      ],
+      useAsPath: 'slugSource',
+    }
+    expect(() => validateCollections([collection])).toThrow(/no top-level field with that name/)
+  })
+
+  it('rejects useAsPath pointing at a field nested inside a block', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'content',
+          label: 'Content',
+          type: 'blocks',
+          blocks: [
+            {
+              blockType: 'hero',
+              fields: [{ name: 'slugSource', label: 'Slug source', type: 'text' }],
+            },
+          ],
+        },
+      ],
+      useAsPath: 'slugSource',
+    }
+    expect(() => validateCollections([collection])).toThrow(/no top-level field with that name/)
+  })
 })

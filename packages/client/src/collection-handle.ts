@@ -76,6 +76,7 @@ export class CollectionHandle {
     const parsedWhere = await parseWhere(where, this.definition, {
       collections: this.client.collections,
       resolveCollectionId: (path) => this.client.resolveCollectionId(path),
+      logger: this.client.logger,
     })
     const parsedSort = parseSort(sort, this.definition)
 

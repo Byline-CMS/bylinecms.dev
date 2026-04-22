@@ -11,8 +11,9 @@ import type { CollectionDefinition, Field, FieldType } from '../@types/index.js'
 /**
  * Field names that cannot be declared in a collection schema because they
  * collide with system-managed attributes on `documentVersions`. Exported
- * so storage-layer reconstruction can skip orphan rows left behind by
- * earlier schemas (e.g. legacy `path` fields predating `useAsPath`).
+ * so storage-layer reconstruction can skip orphan rows that may exist in
+ * store tables from installations whose schemas declared these names as
+ * user fields before they were promoted to system attributes.
  */
 export const RESERVED_FIELD_NAMES: ReadonlySet<string> = new Set(['path'])
 

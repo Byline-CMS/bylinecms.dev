@@ -92,12 +92,30 @@ export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: P
   const placeholder =
     mode === 'create' && livePreview.length > 0 ? `Will be saved as "${livePreview}"` : undefined
 
+  // Screen-reader description. The input's base purpose ("System-managed
+  // URL path") plus whichever of the visible hints (placeholder preview
+  // in create mode, "Suggested" validation hint) currently applies. The
+  // visible helpText/placeholder cover sighted users; this element makes
+  // the same information addressable via aria-describedby for AT.
+  const srDescription = [
+    'System-managed URL path for this document.',
+    placeholder,
+    hint,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <div className="byline-path">
       <div className="flex items-center justify-between gap-2">
         <Label id="system-path-label" htmlFor="system-path" label="Path" />
         {useAsPath && livePreview.length > 0 && livePreview !== systemPath && (
-          <button type="button" onClick={handleRegenerate} className="text-[0.8rem] underline">
+          <button
+            type="button"
+            onClick={handleRegenerate}
+            className="text-[0.8rem] underline"
+            aria-label={`Regenerate path from ${useAsPath} field`}
+          >
             Regenerate from {useAsPath}
           </button>
         )}
@@ -109,7 +127,11 @@ export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: P
         placeholder={placeholder}
         onChange={(e) => handleChange(e.target.value)}
         helpText={hint}
+        aria-describedby="system-path-description"
       />
+      <span id="system-path-description" className="sr-only">
+        {srDescription}
+      </span>
     </div>
   )
 }
