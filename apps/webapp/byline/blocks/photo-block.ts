@@ -25,7 +25,14 @@ export const PhotoBlock = {
         { label: 'Full Width', value: 'full_width' },
       ],
     },
-    { name: 'photo', label: 'Photo', type: 'image' },
+    {
+      name: 'photo',
+      label: 'Photo',
+      type: 'relation',
+      targetCollection: 'media',
+      displayField: 'title',
+      optional: true,
+    },
     { name: 'alt', label: 'Alt', type: 'text', localized: false },
     {
       name: 'caption',
