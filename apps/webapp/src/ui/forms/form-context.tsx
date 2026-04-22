@@ -211,7 +211,6 @@ export const FormProvider = ({
         errorsRef.current = errorsRef.current.filter((error) => error.field !== name)
         notifyErrorListeners()
       }
-      console.log('Current patch list:', patchesRef.current)
     },
     [updateFieldStoreInternal, notifyErrorListeners]
   )

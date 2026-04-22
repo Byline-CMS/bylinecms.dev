@@ -134,7 +134,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       const result = await createDocument(ctx, {
-        data: { title: 'Hello', path: 'hello' },
+        data: { title: 'Hello' },
         locale: 'en',
       })
 
@@ -164,7 +164,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await createDocument(ctx, { data: { title: 'Test', path: 'test' } })
+      await createDocument(ctx, { data: { title: 'Test' } })
 
       expect(callOrder).toEqual(['before', 'persist', 'after'])
     })
@@ -175,7 +175,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks: { afterCreate } }
       const ctx = buildCtx(db, definition)
 
-      await createDocument(ctx, { data: { title: 'X', path: 'x' } })
+      await createDocument(ctx, { data: { title: 'X' } })
 
       expect(afterCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -197,7 +197,7 @@ describe('Document lifecycle service', () => {
       }
       const ctx = buildCtx(db, definition)
 
-      await createDocument(ctx, { data: { title: 'Original', path: 'p' } })
+      await createDocument(ctx, { data: { title: 'Original' } })
 
       const persistedData = createDocumentVersion.mock.calls[0]?.[0].documentData
       expect(persistedData.title).toBe('Mutated')
@@ -256,7 +256,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       // Should not throw
-      const result = await createDocument(ctx, { data: { title: 'OK', path: 'ok' } })
+      const result = await createDocument(ctx, { data: { title: 'OK' } })
       expect(result.documentId).toBe('doc-1')
     })
 
@@ -286,7 +286,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await createDocument(ctx, { data: { title: 'Test', path: 'test' } })
+      await createDocument(ctx, { data: { title: 'Test' } })
 
       expect(callOrder).toEqual(['hook-1', 'hook-2', 'hook-3', 'persist'])
       for (const fn of hooks.beforeCreate) {
@@ -317,7 +317,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await createDocument(ctx, { data: { title: 'Test', path: 'test' } })
+      await createDocument(ctx, { data: { title: 'Test' } })
 
       expect(callOrder).toEqual(['persist', 'after-1', 'after-2'])
     })
@@ -339,7 +339,7 @@ describe('Document lifecycle service', () => {
       }
       const ctx = buildCtx(db, definition)
 
-      await createDocument(ctx, { data: { title: 'Original', path: 'p' } })
+      await createDocument(ctx, { data: { title: 'Original' } })
 
       const persistedData = createDocumentVersion.mock.calls[0]?.[0].documentData
       expect(persistedData.title).toBe('Original-A-B')
@@ -352,7 +352,7 @@ describe('Document lifecycle service', () => {
   describe('updateDocument', () => {
     it('fetches the original before calling hooks', async () => {
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
-      getDocumentById.mockResolvedValue({ status: 'draft', fields: { title: 'Old', path: 'old' } })
+      getDocumentById.mockResolvedValue({ status: 'draft', fields: { title: 'Old' } })
 
       const beforeUpdate = vi.fn()
       const definition = { ...minimalCollection, hooks: { beforeUpdate } }
@@ -360,7 +360,7 @@ describe('Document lifecycle service', () => {
 
       await updateDocument(ctx, {
         documentId: 'doc-1',
-        data: { title: 'New', path: 'new' },
+        data: { title: 'New' },
       })
 
       // The hook should receive the REAL original, not the incoming data
@@ -379,14 +379,14 @@ describe('Document lifecycle service', () => {
     it('afterUpdate receives documentId and documentVersionId', async () => {
       const afterUpdate = vi.fn()
       const { db, getDocumentById } = createMockDb()
-      getDocumentById.mockResolvedValue({ fields: { title: 'Old', path: 'old' } })
+      getDocumentById.mockResolvedValue({ fields: { title: 'Old' } })
 
       const definition = { ...minimalCollection, hooks: { afterUpdate } }
       const ctx = buildCtx(db, definition)
 
       await updateDocument(ctx, {
         documentId: 'doc-1',
-        data: { title: 'New', path: 'new' },
+        data: { title: 'New' },
       })
 
       expect(afterUpdate).toHaveBeenCalledWith(
@@ -440,13 +440,13 @@ describe('Document lifecycle service', () => {
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
       getDocumentById.mockResolvedValue({
         status: 'published',
-        fields: { title: 'Old', path: 'old' },
+        fields: { title: 'Old' },
       })
       const ctx = buildCtx(db)
 
       await updateDocument(ctx, {
         documentId: 'doc-1',
-        data: { title: 'Updated', path: 'updated' },
+        data: { title: 'Updated' },
       })
 
       expect(createDocumentVersion.mock.calls[0]?.[0].status).toBe('draft')
@@ -475,7 +475,7 @@ describe('Document lifecycle service', () => {
       }
 
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
-      getDocumentById.mockResolvedValue({ status: 'draft', fields: { title: 'Old', path: 'old' } })
+      getDocumentById.mockResolvedValue({ status: 'draft', fields: { title: 'Old' } })
       createDocumentVersion.mockImplementation(async () => {
         callOrder.push('persist')
         return { document: { id: 'ver-1', document_id: 'doc-1' }, fieldCount: 1 }
@@ -484,7 +484,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await updateDocument(ctx, { documentId: 'doc-1', data: { title: 'New', path: 'new' } })
+      await updateDocument(ctx, { documentId: 'doc-1', data: { title: 'New' } })
 
       expect(callOrder).toEqual(['before-1', 'before-2', 'persist', 'after-1', 'after-2'])
     })
@@ -513,7 +513,7 @@ describe('Document lifecycle service', () => {
       const { db, getDocumentById } = createMockDb()
       getDocumentById.mockResolvedValue({
         document_version_id: 'ver-current',
-        fields: { title: 'Old', path: 'old' },
+        fields: { title: 'Old' },
       })
       const ctx = buildCtx(db)
 
@@ -530,7 +530,7 @@ describe('Document lifecycle service', () => {
 
     it('throws ERR_PATCH_FAILED when applyPatches returns errors', async () => {
       const { db, getDocumentById } = createMockDb()
-      getDocumentById.mockResolvedValue({ fields: { title: 'Old', path: 'old' } })
+      getDocumentById.mockResolvedValue({ fields: { title: 'Old' } })
       const ctx = buildCtx(db)
 
       // array.move on a top-level (non-array) field should produce an error
@@ -546,7 +546,7 @@ describe('Document lifecycle service', () => {
 
     it('persists patched data and invokes hooks', async () => {
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
-      getDocumentById.mockResolvedValue({ fields: { title: 'Old', path: 'old' } })
+      getDocumentById.mockResolvedValue({ fields: { title: 'Old' } })
 
       const afterUpdate = vi.fn()
       const definition = { ...minimalCollection, hooks: { afterUpdate } }

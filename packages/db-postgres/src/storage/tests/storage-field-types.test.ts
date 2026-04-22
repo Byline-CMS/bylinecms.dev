@@ -38,11 +38,10 @@ const FieldTypesCollectionConfig: CollectionDefinition = {
 
 const filedId = uuidv7()
 
-// Complex test document with many fields and arrays. The top-level `path`
-// is the system attribute on `documentVersions`, supplied separately to
-// `createDocumentVersion`, not via field data.
+// Complex test document with many fields and arrays. `path` is a
+// system attribute on `documentVersions`, supplied separately to
+// `createDocumentVersion` — not part of field data.
 const sampleDocument = {
-  path: 'my-first-document',
   title: {
     en: 'My First Document',
     es: 'Mi Primer Documento',
@@ -111,14 +110,14 @@ describe('02 Field Types', () => {
 
   it('should create and return a field type document', async () => {
     const sourceDocument = structuredClone(sampleDocument)
-    sourceDocument.path = `my-first-field-types-document-${Date.now()}` // Ensure unique path
+    const path = `my-first-field-types-document-${Date.now()}`
 
     const result = await commandBuilders.documents.createDocumentVersion({
       collectionId: testCollection.id,
       collectionConfig: FieldTypesCollectionConfig,
       action: 'create',
       documentData: sourceDocument,
-      path: sourceDocument.path,
+      path,
     })
 
     console.log('Created document:', result)
@@ -132,14 +131,14 @@ describe('02 Field Types', () => {
 
   it('should return only requested fields with selective field loading', async () => {
     const sourceDocument = structuredClone(sampleDocument)
-    sourceDocument.path = `selective-loading-${Date.now()}`
+    const path = `selective-loading-${Date.now()}`
 
     await commandBuilders.documents.createDocumentVersion({
       collectionId: testCollection.id,
       collectionConfig: FieldTypesCollectionConfig,
       action: 'create',
       documentData: sourceDocument,
-      path: sourceDocument.path,
+      path,
     })
 
     // Request only title and views — should query only text + numeric stores
