@@ -99,8 +99,10 @@ export const documentVersions = pgTable(
     index('idx_documents_created_at').on(table.created_at),
     // Ensure logical document belongs to only one collection
     index('idx_documents_document_collection').on(table.document_id, table.collection_id),
-    // Ensure unique path per collection (for undeleted documents)
-    // unique('unique_document_path').on(table.collection_id, table.document_id, table.path, table.is_deleted),
+    // Per-collection path uniqueness is a DEFERRED design decision — it
+    // depends on a collision-handling policy (reject vs auto-suffix) and
+    // is planned to land alongside preview-link UX. See
+    // `docs/analysis/DOCUMENT-PATH-ANALYSIS.md` § "Path uniqueness".
   ]
 )
 
@@ -127,36 +129,10 @@ export const documentRelationships = pgTable(
   ]
 )
 
-// Current Documents View - gets latest version of each logical document
-// NOTE: This does not work as selectDistinct is based on the entire row,
-// and not just the document_id.
-// export const currentDocumentsView = pgView("current_documents").as((qb) => {
-//   return qb
-//     .selectDistinct({
-//       id: documents.id, // Version ID
-//       document_id: documents.document_id, // Logical document ID
-//       collection_id: documents.collection_id,
-//       path: documents.path,
-//       event_type: documents.event_type,
-//       status: documents.status,
-//       is_deleted: documents.is_deleted,
-//       created_at: documents.created_at,
-//       updated_at: documents.updated_at,
-//       created_by: documents.created_by,
-//       change_summary: documents.change_summary,
-//     })
-//     .from(documents)
-//     .where(eq(documents.is_deleted, false))
-//     .orderBy(
-//       documents.collection_id,
-//       documents.document_id,
-//       desc(documents.id) // Latest version (UUIDv7) first
-//     );
-// });
-
-// Current Documents View - gets latest version of each logical document
-// based on ROW_NUMBER() window function.
-// Or would this be better implemented as raw DISTINCT ON?
+// Current Documents View — latest version of each logical document via
+// `ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY id DESC)`.
+// `selectDistinct` is not an option here: it distincts on the whole row,
+// not on `document_id`.
 export const currentDocumentsView = pgView('current_documents').as((qb) => {
   const sq = qb.$with('sq').as(
     qb

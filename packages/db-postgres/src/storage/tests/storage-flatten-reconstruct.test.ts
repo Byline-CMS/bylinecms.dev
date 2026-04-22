@@ -12,7 +12,9 @@ import { describe, it } from 'node:test'
 import { type CollectionFieldDataAllLocales, defineCollection } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
-import { flattenFieldSetData, resolveStoreTypes, restoreFieldSetData } from '../storage-utils.js'
+import { flattenFieldSetData } from '../storage-flatten.js'
+import { restoreFieldSetData } from '../storage-restore.js'
+import { resolveStoreTypes } from '../storage-utils.js'
 
 const DocsCollectionConfig = defineCollection({
   path: 'docs',

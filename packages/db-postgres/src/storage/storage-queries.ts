@@ -44,11 +44,8 @@ import {
   storeSelectList,
   storeTableNames,
 } from './storage-store-manifest.js'
-import {
-  extractFlattenedFieldValue,
-  resolveStoreTypes,
-  restoreFieldSetData,
-} from './storage-utils.js'
+import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-restore.js'
+import { resolveStoreTypes } from './storage-utils.js'
 import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 
 interface MetaRow {
