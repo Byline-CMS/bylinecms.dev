@@ -53,9 +53,10 @@ function RootComponent() {
       <ThemeProvider force={Theme.DARK}>
         <ToastProvider timeout={5000}>
           <BreadcrumbsProvider>
-            <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
+            <Outlet />
+            {/* <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
               <Outlet />
-            </div>
+            </div> */}
             <TanStackRouterDevtools />
           </BreadcrumbsProvider>
           <ToastViewport position="bottom-right" />
@@ -80,7 +81,9 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body>
-        <div className="layout-container root flex min-h-screen flex-col">{children}</div>
+        <div className="layout-container root flex min-h-screen flex-col w-full max-w-full h-full selection:text-white selection:bg-primary-400">
+          {children}
+        </div>
         <Scripts />
       </body>
     </html>
