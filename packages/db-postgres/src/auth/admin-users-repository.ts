@@ -10,7 +10,7 @@ import { eq, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
-import { bylineAdminUsers } from '../database/schema/auth.js'
+import { adminUsers } from '../database/schema/auth.js'
 import { hashPassword } from './password.js'
 import type * as schema from '../database/schema/index.js'
 
@@ -46,20 +46,20 @@ export interface AdminUserWithPasswordRow extends AdminUserRow {
 }
 
 const PUBLIC_COLUMNS = {
-  id: bylineAdminUsers.id,
-  given_name: bylineAdminUsers.given_name,
-  family_name: bylineAdminUsers.family_name,
-  username: bylineAdminUsers.username,
-  email: bylineAdminUsers.email,
-  remember_me: bylineAdminUsers.remember_me,
-  last_login: bylineAdminUsers.last_login,
-  last_login_ip: bylineAdminUsers.last_login_ip,
-  failed_login_attempts: bylineAdminUsers.failed_login_attempts,
-  is_super_admin: bylineAdminUsers.is_super_admin,
-  is_enabled: bylineAdminUsers.is_enabled,
-  is_email_verified: bylineAdminUsers.is_email_verified,
-  created_at: bylineAdminUsers.created_at,
-  updated_at: bylineAdminUsers.updated_at,
+  id: adminUsers.id,
+  given_name: adminUsers.given_name,
+  family_name: adminUsers.family_name,
+  username: adminUsers.username,
+  email: adminUsers.email,
+  remember_me: adminUsers.remember_me,
+  last_login: adminUsers.last_login,
+  last_login_ip: adminUsers.last_login_ip,
+  failed_login_attempts: adminUsers.failed_login_attempts,
+  is_super_admin: adminUsers.is_super_admin,
+  is_enabled: adminUsers.is_enabled,
+  is_email_verified: adminUsers.is_email_verified,
+  created_at: adminUsers.created_at,
+  updated_at: adminUsers.updated_at,
 } as const
 
 export interface CreateAdminUserInput {
@@ -90,7 +90,7 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
     async create(input: CreateAdminUserInput): Promise<AdminUserRow> {
       const passwordHash = await hashPassword(input.password)
       const [row] = await db
-        .insert(bylineAdminUsers)
+        .insert(adminUsers)
         .values({
           id: uuidv7(),
           email: input.email.toLowerCase(),
@@ -108,26 +108,23 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
     },
 
     async getById(id: string): Promise<AdminUserRow | null> {
-      const [row] = await db
-        .select(PUBLIC_COLUMNS)
-        .from(bylineAdminUsers)
-        .where(eq(bylineAdminUsers.id, id))
+      const [row] = await db.select(PUBLIC_COLUMNS).from(adminUsers).where(eq(adminUsers.id, id))
       return row ?? null
     },
 
     async getByEmail(email: string): Promise<AdminUserRow | null> {
       const [row] = await db
         .select(PUBLIC_COLUMNS)
-        .from(bylineAdminUsers)
-        .where(eq(bylineAdminUsers.email, email.toLowerCase()))
+        .from(adminUsers)
+        .where(eq(adminUsers.email, email.toLowerCase()))
       return row ?? null
     },
 
     async getByUsername(username: string): Promise<AdminUserRow | null> {
       const [row] = await db
         .select(PUBLIC_COLUMNS)
-        .from(bylineAdminUsers)
-        .where(eq(bylineAdminUsers.username, username))
+        .from(adminUsers)
+        .where(eq(adminUsers.username, username))
       return row ?? null
     },
 
@@ -138,9 +135,9 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
      */
     async getByEmailForSignIn(email: string): Promise<AdminUserWithPasswordRow | null> {
       const [row] = await db
-        .select({ ...PUBLIC_COLUMNS, password: bylineAdminUsers.password })
-        .from(bylineAdminUsers)
-        .where(eq(bylineAdminUsers.email, email.toLowerCase()))
+        .select({ ...PUBLIC_COLUMNS, password: adminUsers.password })
+        .from(adminUsers)
+        .where(eq(adminUsers.email, email.toLowerCase()))
       return row ?? null
     },
 
@@ -157,9 +154,9 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
       if (patch.remember_me !== undefined) updateSet.remember_me = patch.remember_me
 
       const [row] = await db
-        .update(bylineAdminUsers)
+        .update(adminUsers)
         .set(updateSet)
-        .where(eq(bylineAdminUsers.id, id))
+        .where(eq(adminUsers.id, id))
         .returning(PUBLIC_COLUMNS)
       if (!row) throw new Error(`updateAdminUser: no row found for id ${id}`)
       return row
@@ -168,42 +165,42 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
     async setPassword(id: string, plaintext: string): Promise<void> {
       const passwordHash = await hashPassword(plaintext)
       await db
-        .update(bylineAdminUsers)
+        .update(adminUsers)
         .set({ password: passwordHash, updated_at: new Date() })
-        .where(eq(bylineAdminUsers.id, id))
+        .where(eq(adminUsers.id, id))
     },
 
     async setEnabled(id: string, enabled: boolean): Promise<void> {
       await db
-        .update(bylineAdminUsers)
+        .update(adminUsers)
         .set({ is_enabled: enabled, updated_at: new Date() })
-        .where(eq(bylineAdminUsers.id, id))
+        .where(eq(adminUsers.id, id))
     },
 
     async recordLoginSuccess(id: string, ip: string | null): Promise<void> {
       await db
-        .update(bylineAdminUsers)
+        .update(adminUsers)
         .set({
           last_login: new Date(),
           last_login_ip: ip,
           failed_login_attempts: 0,
           updated_at: new Date(),
         })
-        .where(eq(bylineAdminUsers.id, id))
+        .where(eq(adminUsers.id, id))
     },
 
     async recordLoginFailure(id: string): Promise<void> {
       await db
-        .update(bylineAdminUsers)
+        .update(adminUsers)
         .set({
-          failed_login_attempts: sql`${bylineAdminUsers.failed_login_attempts} + 1`,
+          failed_login_attempts: sql`${adminUsers.failed_login_attempts} + 1`,
           updated_at: new Date(),
         })
-        .where(eq(bylineAdminUsers.id, id))
+        .where(eq(adminUsers.id, id))
     },
 
     async delete(id: string): Promise<void> {
-      await db.delete(bylineAdminUsers).where(eq(bylineAdminUsers.id, id))
+      await db.delete(adminUsers).where(eq(adminUsers.id, id))
     },
   }
 }

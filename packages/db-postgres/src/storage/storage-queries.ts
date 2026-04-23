@@ -885,8 +885,8 @@ export class DocumentQueries implements IDocumentQueries {
     const offset = (page - 1) * pageSize
     const sourceTable =
       readMode === 'published'
-        ? sql.raw('current_published_documents')
-        : sql.raw('current_documents')
+        ? sql.raw('byline_current_published_documents')
+        : sql.raw('byline_current_documents')
 
     // -- Build WHERE conditions -----------------------------------------------
     const conditions: SQL[] = [sql`d.collection_id = ${collection_id}`]
@@ -909,7 +909,7 @@ export class DocumentQueries implements IDocumentQueries {
         (fieldName) => sql`(field_name = ${fieldName} AND value ILIKE ${`%${query}%`})`
       )
       conditions.push(sql`EXISTS (
-        SELECT 1 FROM store_text
+        SELECT 1 FROM byline_store_text
         WHERE document_version_id = d.id
           AND (locale = ${locale} OR locale = 'all')
           AND (${sql.join(searchConditions, sql` OR `)})
@@ -1077,8 +1077,8 @@ export class DocumentQueries implements IDocumentQueries {
   ): SQL {
     const targetView =
       readMode === 'published'
-        ? sql.raw('current_published_documents')
-        : sql.raw('current_documents')
+        ? sql.raw('byline_current_published_documents')
+        : sql.raw('byline_current_documents')
 
     // Use depth-scoped aliases so nested relations don't shadow their
     // outer scope. e.g. outer relation gets `r0`/`td0`; a relation filter
@@ -1095,7 +1095,7 @@ export class DocumentQueries implements IDocumentQueries {
       nestedConditions.length > 0 ? sql` AND ${sql.join(nestedConditions, sql` AND `)}` : sql``
 
     return sql`EXISTS (
-      SELECT 1 FROM store_relation ${rAlias}
+      SELECT 1 FROM byline_store_relation ${rAlias}
       JOIN ${targetView} ${tdAlias}
         ON ${tdAlias}.document_id = ${rAlias}.target_document_id
        AND ${tdAlias}.collection_id = ${rAlias}.target_collection_id

@@ -13,11 +13,11 @@ import { AdminAuth, AuthError, AuthErrorCodes } from '@byline/auth'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import {
-  bylineAdminPermissions,
-  bylineAdminRefreshTokens,
-  bylineAdminRoleAdminUser,
-  bylineAdminRoles,
-  bylineAdminUsers,
+  adminPermissions,
+  adminRefreshTokens,
+  adminRoleAdminUser,
+  adminRoles,
+  adminUsers,
 } from '../../database/schema/auth.js'
 import { setupTestDB, teardownTestDB } from '../../lib/test-helper.js'
 import { createAdminUsersRepository } from '../admin-users-repository.js'
@@ -48,11 +48,11 @@ function makeProvider(options?: {
 }
 
 async function cleanAuthTables() {
-  await db.delete(bylineAdminRefreshTokens)
-  await db.delete(bylineAdminPermissions)
-  await db.delete(bylineAdminRoleAdminUser)
-  await db.delete(bylineAdminRoles)
-  await db.delete(bylineAdminUsers)
+  await db.delete(adminRefreshTokens)
+  await db.delete(adminPermissions)
+  await db.delete(adminRoleAdminUser)
+  await db.delete(adminRoles)
+  await db.delete(adminUsers)
 }
 
 async function createEnabledUser(email: string, password: string) {

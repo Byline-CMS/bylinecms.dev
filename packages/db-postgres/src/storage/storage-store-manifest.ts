@@ -56,13 +56,13 @@ interface ColumnDef {
 
 /** Store table names in Postgres, keyed by StoreType. */
 export const storeTableNames: Record<StoreType, string> = {
-  text: 'store_text',
-  numeric: 'store_numeric',
-  boolean: 'store_boolean',
-  datetime: 'store_datetime',
-  json: 'store_json',
-  relation: 'store_relation',
-  file: 'store_file',
+  text: 'byline_store_text',
+  numeric: 'byline_store_numeric',
+  boolean: 'byline_store_boolean',
+  datetime: 'byline_store_datetime',
+  json: 'byline_store_json',
+  relation: 'byline_store_relation',
+  file: 'byline_store_file',
 }
 
 /** The field_type literal emitted for each store table in the UNION ALL. */

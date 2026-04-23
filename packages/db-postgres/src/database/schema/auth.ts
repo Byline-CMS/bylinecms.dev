@@ -10,10 +10,9 @@
  * Auth schema — admin identity, roles, role-user assignment, and per-role
  * ability grants.
  *
- * All four tables carry the `byline_` prefix so Byline can coexist with
- * other schemas in a shared database. Content-side tables (documents,
- * document_versions, store_*) are unprefixed today and will be renamed in
- * a dedicated follow-up migration.
+ * All tables carry the `byline_` prefix so Byline can coexist with other
+ * schemas in a shared database. The TypeScript exports are unprefixed —
+ * the prefix is a DB-side concern.
  *
  * Shape mirrors the mature Modulus Learning implementation with minor
  * Byline conventions:
@@ -44,7 +43,7 @@ import {
 // byline_admin_users
 // ---------------------------------------------------------------------------
 
-export const bylineAdminUsers = pgTable(
+export const adminUsers = pgTable(
   'byline_admin_users',
   {
     id: uuid('id').primaryKey(),
@@ -83,7 +82,7 @@ export const bylineAdminUsers = pgTable(
 // byline_admin_roles
 // ---------------------------------------------------------------------------
 
-export const bylineAdminRoles = pgTable(
+export const adminRoles = pgTable(
   'byline_admin_roles',
   {
     id: uuid('id').primaryKey(),
@@ -105,15 +104,15 @@ export const bylineAdminRoles = pgTable(
 // byline_admin_role_admin_user — many-to-many join
 // ---------------------------------------------------------------------------
 
-export const bylineAdminRoleAdminUser = pgTable(
+export const adminRoleAdminUser = pgTable(
   'byline_admin_role_admin_user',
   {
     admin_role_id: uuid('admin_role_id')
       .notNull()
-      .references(() => bylineAdminRoles.id, { onDelete: 'cascade' }),
+      .references(() => adminRoles.id, { onDelete: 'cascade' }),
     admin_user_id: uuid('admin_user_id')
       .notNull()
-      .references(() => bylineAdminUsers.id, { onDelete: 'cascade' }),
+      .references(() => adminUsers.id, { onDelete: 'cascade' }),
     created_at: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
@@ -126,14 +125,14 @@ export const bylineAdminRoleAdminUser = pgTable(
 // byline_admin_permissions — one row per (role, ability) grant
 // ---------------------------------------------------------------------------
 
-export const bylineAdminPermissions = pgTable(
+export const adminPermissions = pgTable(
   'byline_admin_permissions',
   {
     id: uuid('id').primaryKey(),
     vid: integer('vid').notNull().default(1),
     admin_role_id: uuid('admin_role_id')
       .notNull()
-      .references(() => bylineAdminRoles.id, { onDelete: 'cascade' }),
+      .references(() => adminRoles.id, { onDelete: 'cascade' }),
     /** Flat dotted ability key — see `@byline/auth` AbilityRegistry. */
     ability: varchar('ability', { length: 128 }).notNull(),
     created_at: timestamp('created_at').notNull().defaultNow(),
@@ -156,13 +155,13 @@ export const bylineAdminPermissions = pgTable(
  * at the replacement row; presenting a rotated token is treated as replay
  * and revokes the whole chain.
  */
-export const bylineAdminRefreshTokens = pgTable(
+export const adminRefreshTokens = pgTable(
   'byline_admin_refresh_tokens',
   {
     id: uuid('id').primaryKey(),
     admin_user_id: uuid('admin_user_id')
       .notNull()
-      .references(() => bylineAdminUsers.id, { onDelete: 'cascade' }),
+      .references(() => adminUsers.id, { onDelete: 'cascade' }),
     /** SHA-256 hex digest of the raw refresh-token string. 64 chars. */
     token_hash: varchar('token_hash', { length: 64 }).notNull().unique(),
     issued_at: timestamp('issued_at', { precision: 6, withTimezone: true }).notNull().defaultNow(),
@@ -189,37 +188,37 @@ export const bylineAdminRefreshTokens = pgTable(
 // Relations (drizzle query helpers)
 // ---------------------------------------------------------------------------
 
-export const bylineAdminUsersRelations = relations(bylineAdminUsers, ({ many }) => ({
-  roleAssignments: many(bylineAdminRoleAdminUser),
-  refreshTokens: many(bylineAdminRefreshTokens),
+export const adminUsersRelations = relations(adminUsers, ({ many }) => ({
+  roleAssignments: many(adminRoleAdminUser),
+  refreshTokens: many(adminRefreshTokens),
 }))
 
-export const bylineAdminRolesRelations = relations(bylineAdminRoles, ({ many }) => ({
-  userAssignments: many(bylineAdminRoleAdminUser),
-  permissions: many(bylineAdminPermissions),
+export const adminRolesRelations = relations(adminRoles, ({ many }) => ({
+  userAssignments: many(adminRoleAdminUser),
+  permissions: many(adminPermissions),
 }))
 
-export const bylineAdminRoleAdminUserRelations = relations(bylineAdminRoleAdminUser, ({ one }) => ({
-  role: one(bylineAdminRoles, {
-    fields: [bylineAdminRoleAdminUser.admin_role_id],
-    references: [bylineAdminRoles.id],
+export const adminRoleAdminUserRelations = relations(adminRoleAdminUser, ({ one }) => ({
+  role: one(adminRoles, {
+    fields: [adminRoleAdminUser.admin_role_id],
+    references: [adminRoles.id],
   }),
-  user: one(bylineAdminUsers, {
-    fields: [bylineAdminRoleAdminUser.admin_user_id],
-    references: [bylineAdminUsers.id],
-  }),
-}))
-
-export const bylineAdminPermissionsRelations = relations(bylineAdminPermissions, ({ one }) => ({
-  role: one(bylineAdminRoles, {
-    fields: [bylineAdminPermissions.admin_role_id],
-    references: [bylineAdminRoles.id],
+  user: one(adminUsers, {
+    fields: [adminRoleAdminUser.admin_user_id],
+    references: [adminUsers.id],
   }),
 }))
 
-export const bylineAdminRefreshTokensRelations = relations(bylineAdminRefreshTokens, ({ one }) => ({
-  user: one(bylineAdminUsers, {
-    fields: [bylineAdminRefreshTokens.admin_user_id],
-    references: [bylineAdminUsers.id],
+export const adminPermissionsRelations = relations(adminPermissions, ({ one }) => ({
+  role: one(adminRoles, {
+    fields: [adminPermissions.admin_role_id],
+    references: [adminRoles.id],
+  }),
+}))
+
+export const adminRefreshTokensRelations = relations(adminRefreshTokens, ({ one }) => ({
+  user: one(adminUsers, {
+    fields: [adminRefreshTokens.admin_user_id],
+    references: [adminUsers.id],
   }),
 }))

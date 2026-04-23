@@ -27,7 +27,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 // Collections table
-export const collections = pgTable('collections', {
+export const collections = pgTable('byline_collections', {
   id: uuid('id').primaryKey(),
   path: varchar('path', { length: 255 }).unique().notNull(),
   singular: text('singular').notNull(), // Singular label for the collection
@@ -48,7 +48,7 @@ export const collections = pgTable('collections', {
 
 // Documents table
 export const documents = pgTable(
-  'documents',
+  'byline_documents',
   {
     id: uuid('id').primaryKey(),
     collection_id: uuid('collection_id')
@@ -62,7 +62,7 @@ export const documents = pgTable(
 
 // Document versions table
 export const documentVersions = pgTable(
-  'document_versions',
+  'byline_document_versions',
   {
     id: uuid('id').primaryKey(), // UUIDv7 versioning by default
     document_id: uuid('document_id')
@@ -122,7 +122,7 @@ export const documentVersions = pgTable(
 
 // Document Relationships (Parent/Child) - Many-to-Many
 export const documentRelationships = pgTable(
-  'document_relationships',
+  'byline_document_relationships',
   {
     // Note: These reference the logical `document_id`, not the version `id`.
     // Foreign key constraints are not used; integrity is handled at the application layer.
@@ -147,7 +147,7 @@ export const documentRelationships = pgTable(
 // `ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY id DESC)`.
 // `selectDistinct` is not an option here: it distincts on the whole row,
 // not on `document_id`.
-export const currentDocumentsView = pgView('current_documents').as((qb) => {
+export const currentDocumentsView = pgView('byline_current_documents').as((qb) => {
   const sq = qb.$with('sq').as(
     qb
       .select({
@@ -195,50 +195,52 @@ export const currentDocumentsView = pgView('current_documents').as((qb) => {
 // version exists. Used by `readMode: 'published'` on reads so public
 // consumers keep seeing the last published content while editors work on
 // drafts. Row-wise shape is identical to `current_documents`.
-export const currentPublishedDocumentsView = pgView('current_published_documents').as((qb) => {
-  const sq = qb.$with('sq').as(
-    qb
+export const currentPublishedDocumentsView = pgView('byline_current_published_documents').as(
+  (qb) => {
+    const sq = qb.$with('sq').as(
+      qb
+        .select({
+          id: documentVersions.id,
+          document_id: documentVersions.document_id,
+          collection_id: documentVersions.collection_id,
+          collection_version: documentVersions.collection_version,
+          path: documentVersions.path,
+          event_type: documentVersions.event_type,
+          status: documentVersions.status,
+          is_deleted: documentVersions.is_deleted,
+          created_at: documentVersions.created_at,
+          updated_at: documentVersions.updated_at,
+          created_by: documentVersions.created_by,
+          change_summary: documentVersions.change_summary,
+          rn: sql<number>`row_number() OVER (PARTITION BY ${documentVersions.document_id} ORDER BY ${documentVersions.id} DESC)`.as(
+            'rn'
+          ),
+        })
+        .from(documentVersions)
+        .where(
+          sql`${documentVersions.is_deleted} = false AND ${documentVersions.status} = 'published'`
+        )
+    )
+    return qb
+      .with(sq)
       .select({
-        id: documentVersions.id,
-        document_id: documentVersions.document_id,
-        collection_id: documentVersions.collection_id,
-        collection_version: documentVersions.collection_version,
-        path: documentVersions.path,
-        event_type: documentVersions.event_type,
-        status: documentVersions.status,
-        is_deleted: documentVersions.is_deleted,
-        created_at: documentVersions.created_at,
-        updated_at: documentVersions.updated_at,
-        created_by: documentVersions.created_by,
-        change_summary: documentVersions.change_summary,
-        rn: sql<number>`row_number() OVER (PARTITION BY ${documentVersions.document_id} ORDER BY ${documentVersions.id} DESC)`.as(
-          'rn'
-        ),
+        id: sq.id,
+        document_id: sq.document_id,
+        collection_id: sq.collection_id,
+        collection_version: sq.collection_version,
+        path: sq.path,
+        event_type: sq.event_type,
+        status: sq.status,
+        is_deleted: sq.is_deleted,
+        created_at: sq.created_at,
+        updated_at: sq.updated_at,
+        created_by: sq.created_by,
+        change_summary: sq.change_summary,
       })
-      .from(documentVersions)
-      .where(
-        sql`${documentVersions.is_deleted} = false AND ${documentVersions.status} = 'published'`
-      )
-  )
-  return qb
-    .with(sq)
-    .select({
-      id: sq.id,
-      document_id: sq.document_id,
-      collection_id: sq.collection_id,
-      collection_version: sq.collection_version,
-      path: sq.path,
-      event_type: sq.event_type,
-      status: sq.status,
-      is_deleted: sq.is_deleted,
-      created_at: sq.created_at,
-      updated_at: sq.updated_at,
-      created_by: sq.created_by,
-      change_summary: sq.change_summary,
-    })
-    .from(sq)
-    .where(eq(sq.rn, 1))
-})
+      .from(sq)
+      .where(eq(sq.rn, 1))
+  }
+)
 
 // Base field values structure
 const baseStoreColumns = {
@@ -259,7 +261,7 @@ const baseStoreColumns = {
 
 // 1. TEXT FIELDS TABLE
 export const textStore = pgTable(
-  'store_text',
+  'byline_store_text',
   {
     ...baseStoreColumns,
 
@@ -279,7 +281,7 @@ export const textStore = pgTable(
 
 // 2. NUMERIC FIELDS TABLE
 export const numericStore = pgTable(
-  'store_numeric',
+  'byline_store_numeric',
   {
     ...baseStoreColumns,
 
@@ -306,7 +308,7 @@ export const numericStore = pgTable(
 
 // 3. BOOLEAN FIELDS TABLE
 export const booleanStore = pgTable(
-  'store_boolean',
+  'byline_store_boolean',
   {
     ...baseStoreColumns,
 
@@ -323,7 +325,7 @@ export const booleanStore = pgTable(
 
 // 4. DATE/TIME FIELDS TABLE
 export const datetimeStore = pgTable(
-  'store_datetime',
+  'byline_store_datetime',
   {
     ...baseStoreColumns,
 
@@ -347,7 +349,7 @@ export const datetimeStore = pgTable(
 
 // 5. RELATION FIELDS TABLE
 export const relationStore = pgTable(
-  'store_relation',
+  'byline_store_relation',
   {
     ...baseStoreColumns,
 
@@ -386,7 +388,7 @@ export const relationStore = pgTable(
 // This allows attaching durable IDs and arbitrary metadata to any node
 // in a document tree, keyed by document version and path.
 export const metaStore = pgTable(
-  'store_meta',
+  'byline_store_meta',
   {
     id: uuid('id').primaryKey(),
     document_version_id: uuid('document_version_id')
@@ -426,7 +428,7 @@ export const metaStore = pgTable(
 
 // 6. FILE FIELDS TABLE (Your composite type example)
 export const fileStore = pgTable(
-  'store_file',
+  'byline_store_file',
   {
     ...baseStoreColumns,
 
@@ -474,7 +476,7 @@ export const fileStore = pgTable(
 
 // 7. JSON/STRUCTURED DATA FIELDS TABLE
 export const jsonStore = pgTable(
-  'store_json',
+  'byline_store_json',
   {
     ...baseStoreColumns,
 
@@ -636,14 +638,14 @@ export const jsonStoreRelations = relations(jsonStore, ({ one }) => ({
 // ---------------------------------------------------------------------------
 
 export {
-  bylineAdminPermissions,
-  bylineAdminPermissionsRelations,
-  bylineAdminRefreshTokens,
-  bylineAdminRefreshTokensRelations,
-  bylineAdminRoleAdminUser,
-  bylineAdminRoleAdminUserRelations,
-  bylineAdminRoles,
-  bylineAdminRolesRelations,
-  bylineAdminUsers,
-  bylineAdminUsersRelations,
+  adminPermissions,
+  adminPermissionsRelations,
+  adminRefreshTokens,
+  adminRefreshTokensRelations,
+  adminRoleAdminUser,
+  adminRoleAdminUserRelations,
+  adminRoles,
+  adminRolesRelations,
+  adminUsers,
+  adminUsersRelations,
 } from './auth.js'

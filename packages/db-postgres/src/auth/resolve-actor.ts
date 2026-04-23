@@ -10,11 +10,7 @@ import { AdminAuth } from '@byline/auth'
 import { eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
-import {
-  bylineAdminPermissions,
-  bylineAdminRoleAdminUser,
-  bylineAdminUsers,
-} from '../database/schema/auth.js'
+import { adminPermissions, adminRoleAdminUser, adminUsers } from '../database/schema/auth.js'
 import type * as schema from '../database/schema/index.js'
 
 /**
@@ -38,25 +34,25 @@ export async function resolveActor(
 ): Promise<AdminAuth | null> {
   const [user] = await db
     .select({
-      id: bylineAdminUsers.id,
-      is_super_admin: bylineAdminUsers.is_super_admin,
-      is_enabled: bylineAdminUsers.is_enabled,
+      id: adminUsers.id,
+      is_super_admin: adminUsers.is_super_admin,
+      is_enabled: adminUsers.is_enabled,
     })
-    .from(bylineAdminUsers)
-    .where(eq(bylineAdminUsers.id, adminUserId))
+    .from(adminUsers)
+    .where(eq(adminUsers.id, adminUserId))
 
   if (!user) return null
   if (!user.is_enabled) return null
 
   // Pull the distinct abilities across all roles held by this user.
   const abilityRows = await db
-    .selectDistinct({ ability: bylineAdminPermissions.ability })
-    .from(bylineAdminPermissions)
+    .selectDistinct({ ability: adminPermissions.ability })
+    .from(adminPermissions)
     .innerJoin(
-      bylineAdminRoleAdminUser,
-      eq(bylineAdminRoleAdminUser.admin_role_id, bylineAdminPermissions.admin_role_id)
+      adminRoleAdminUser,
+      eq(adminRoleAdminUser.admin_role_id, adminPermissions.admin_role_id)
     )
-    .where(eq(bylineAdminRoleAdminUser.admin_user_id, adminUserId))
+    .where(eq(adminRoleAdminUser.admin_user_id, adminUserId))
 
   return new AdminAuth({
     id: user.id,

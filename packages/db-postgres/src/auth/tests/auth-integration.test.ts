@@ -13,10 +13,10 @@ import { AdminAuth } from '@byline/auth'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import {
-  bylineAdminPermissions,
-  bylineAdminRoleAdminUser,
-  bylineAdminRoles,
-  bylineAdminUsers,
+  adminPermissions,
+  adminRoleAdminUser,
+  adminRoles,
+  adminUsers,
 } from '../../database/schema/auth.js'
 import { setupTestDB, teardownTestDB } from '../../lib/test-helper.js'
 import { createAdminRolesRepository } from '../admin-roles-repository.js'
@@ -35,10 +35,10 @@ let db: NodePgDatabase<typeof schema>
 async function cleanAuthTables() {
   // Order matters: permissions / role-user assignments reference roles and
   // users via ON DELETE CASCADE, but we're explicit here for clarity.
-  await db.delete(bylineAdminPermissions)
-  await db.delete(bylineAdminRoleAdminUser)
-  await db.delete(bylineAdminRoles)
-  await db.delete(bylineAdminUsers)
+  await db.delete(adminPermissions)
+  await db.delete(adminRoleAdminUser)
+  await db.delete(adminRoles)
+  await db.delete(adminUsers)
 }
 
 // ---------------------------------------------------------------------------
@@ -236,10 +236,10 @@ describe('auth integration', () => {
       // The role is gone…
       assert.strictEqual(await roles.getById(role.id), null)
       // …and all grants are gone…
-      const permRows = await db.select().from(bylineAdminPermissions)
+      const permRows = await db.select().from(adminPermissions)
       assert.strictEqual(permRows.length, 0)
       // …and no assignment remains.
-      const assignRows = await db.select().from(bylineAdminRoleAdminUser)
+      const assignRows = await db.select().from(adminRoleAdminUser)
       assert.strictEqual(assignRows.length, 0)
       // The user still exists.
       assert.ok(await users.getById(user.id))

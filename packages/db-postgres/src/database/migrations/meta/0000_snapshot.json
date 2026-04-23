@@ -1,11 +1,563 @@
 {
-  "id": "aa7bb2f6-629a-4391-963b-f3ce1c7bd67c",
+  "id": "96854562-b1af-417c-87a1-1de8ce996f67",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.store_boolean": {
-      "name": "store_boolean",
+    "public.byline_admin_permissions": {
+      "name": "byline_admin_permissions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "vid": {
+          "name": "vid",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "admin_role_id": {
+          "name": "admin_role_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ability": {
+          "name": "ability",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_byline_admin_permissions_role": {
+          "name": "idx_byline_admin_permissions_role",
+          "columns": [
+            {
+              "expression": "admin_role_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "byline_admin_permissions_admin_role_id_byline_admin_roles_id_fk": {
+          "name": "byline_admin_permissions_admin_role_id_byline_admin_roles_id_fk",
+          "tableFrom": "byline_admin_permissions",
+          "tableTo": "byline_admin_roles",
+          "columnsFrom": [
+            "admin_role_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uq_byline_admin_permissions_role_ability": {
+          "name": "uq_byline_admin_permissions_role_ability",
+          "nullsNotDistinct": false,
+          "columns": [
+            "admin_role_id",
+            "ability"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.byline_admin_refresh_tokens": {
+      "name": "byline_admin_refresh_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "admin_user_id": {
+          "name": "admin_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rotated_to_id": {
+          "name": "rotated_to_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip": {
+          "name": "ip",
+          "type": "varchar(45)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_byline_admin_refresh_tokens_user": {
+          "name": "idx_byline_admin_refresh_tokens_user",
+          "columns": [
+            {
+              "expression": "admin_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_byline_admin_refresh_tokens_token_hash": {
+          "name": "idx_byline_admin_refresh_tokens_token_hash",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "byline_admin_refresh_tokens_admin_user_id_byline_admin_users_id_fk": {
+          "name": "byline_admin_refresh_tokens_admin_user_id_byline_admin_users_id_fk",
+          "tableFrom": "byline_admin_refresh_tokens",
+          "tableTo": "byline_admin_users",
+          "columnsFrom": [
+            "admin_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "byline_admin_refresh_tokens_token_hash_unique": {
+          "name": "byline_admin_refresh_tokens_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.byline_admin_role_admin_user": {
+      "name": "byline_admin_role_admin_user",
+      "schema": "",
+      "columns": {
+        "admin_role_id": {
+          "name": "admin_role_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "admin_user_id": {
+          "name": "admin_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_byline_admin_role_admin_user_user": {
+          "name": "idx_byline_admin_role_admin_user_user",
+          "columns": [
+            {
+              "expression": "admin_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "byline_admin_role_admin_user_admin_role_id_byline_admin_roles_id_fk": {
+          "name": "byline_admin_role_admin_user_admin_role_id_byline_admin_roles_id_fk",
+          "tableFrom": "byline_admin_role_admin_user",
+          "tableTo": "byline_admin_roles",
+          "columnsFrom": [
+            "admin_role_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "byline_admin_role_admin_user_admin_user_id_byline_admin_users_id_fk": {
+          "name": "byline_admin_role_admin_user_admin_user_id_byline_admin_users_id_fk",
+          "tableFrom": "byline_admin_role_admin_user",
+          "tableTo": "byline_admin_users",
+          "columnsFrom": [
+            "admin_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "byline_admin_role_admin_user_admin_role_id_admin_user_id_pk": {
+          "name": "byline_admin_role_admin_user_admin_role_id_admin_user_id_pk",
+          "columns": [
+            "admin_role_id",
+            "admin_user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.byline_admin_roles": {
+      "name": "byline_admin_roles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "vid": {
+          "name": "vid",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "machine_name": {
+          "name": "machine_name",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_byline_admin_roles_machine_name": {
+          "name": "idx_byline_admin_roles_machine_name",
+          "columns": [
+            {
+              "expression": "machine_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "byline_admin_roles_machine_name_unique": {
+          "name": "byline_admin_roles_machine_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "machine_name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.byline_admin_users": {
+      "name": "byline_admin_users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "vid": {
+          "name": "vid",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "given_name": {
+          "name": "given_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "family_name": {
+          "name": "family_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(254)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password": {
+          "name": "password",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "remember_me": {
+          "name": "remember_me",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "last_login": {
+          "name": "last_login",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_login_ip": {
+          "name": "last_login_ip",
+          "type": "varchar(45)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failed_login_attempts": {
+          "name": "failed_login_attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "is_super_admin": {
+          "name": "is_super_admin",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_enabled": {
+          "name": "is_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_email_verified": {
+          "name": "is_email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_byline_admin_users_email": {
+          "name": "idx_byline_admin_users_email",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "byline_admin_users_username_unique": {
+          "name": "byline_admin_users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
+          ]
+        },
+        "byline_admin_users_email_unique": {
+          "name": "byline_admin_users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.byline_store_boolean": {
+      "name": "byline_store_boolean",
       "schema": "",
       "columns": {
         "id": {
@@ -138,21 +690,29 @@
         }
       },
       "foreignKeys": {
-        "store_boolean_document_version_id_document_versions_id_fk": {
-          "name": "store_boolean_document_version_id_document_versions_id_fk",
-          "tableFrom": "store_boolean",
-          "tableTo": "document_versions",
-          "columnsFrom": ["document_version_id"],
-          "columnsTo": ["id"],
+        "byline_store_boolean_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_store_boolean_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_store_boolean",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_boolean_collection_id_collections_id_fk": {
-          "name": "store_boolean_collection_id_collections_id_fk",
-          "tableFrom": "store_boolean",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_boolean_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_boolean_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_boolean",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -162,15 +722,19 @@
         "unique_boolean_field": {
           "name": "unique_boolean_field",
           "nullsNotDistinct": false,
-          "columns": ["document_version_id", "field_path", "locale"]
+          "columns": [
+            "document_version_id",
+            "field_path",
+            "locale"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.collections": {
-      "name": "collections",
+    "public.byline_collections": {
+      "name": "byline_collections",
       "schema": "",
       "columns": {
         "id": {
@@ -203,6 +767,19 @@
           "primaryKey": false,
           "notNull": true
         },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "schema_hash": {
+          "name": "schema_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -222,18 +799,20 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "collections_path_unique": {
-          "name": "collections_path_unique",
+        "byline_collections_path_unique": {
+          "name": "byline_collections_path_unique",
           "nullsNotDistinct": false,
-          "columns": ["path"]
+          "columns": [
+            "path"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.store_datetime": {
-      "name": "store_datetime",
+    "public.byline_store_datetime": {
+      "name": "byline_store_datetime",
       "schema": "",
       "columns": {
         "id": {
@@ -393,21 +972,29 @@
         }
       },
       "foreignKeys": {
-        "store_datetime_document_version_id_document_versions_id_fk": {
-          "name": "store_datetime_document_version_id_document_versions_id_fk",
-          "tableFrom": "store_datetime",
-          "tableTo": "document_versions",
-          "columnsFrom": ["document_version_id"],
-          "columnsTo": ["id"],
+        "byline_store_datetime_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_store_datetime_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_store_datetime",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_datetime_collection_id_collections_id_fk": {
-          "name": "store_datetime_collection_id_collections_id_fk",
-          "tableFrom": "store_datetime",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_datetime_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_datetime_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_datetime",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -417,15 +1004,19 @@
         "unique_datetime_field": {
           "name": "unique_datetime_field",
           "nullsNotDistinct": false,
-          "columns": ["document_version_id", "field_path", "locale"]
+          "columns": [
+            "document_version_id",
+            "field_path",
+            "locale"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.document_relationships": {
-      "name": "document_relationships",
+    "public.byline_document_relationships": {
+      "name": "byline_document_relationships",
       "schema": "",
       "columns": {
         "parent_document_id": {
@@ -481,39 +1072,50 @@
         }
       },
       "foreignKeys": {
-        "document_relationships_parent_document_id_documents_id_fk": {
-          "name": "document_relationships_parent_document_id_documents_id_fk",
-          "tableFrom": "document_relationships",
-          "tableTo": "documents",
-          "columnsFrom": ["parent_document_id"],
-          "columnsTo": ["id"],
+        "byline_document_relationships_parent_document_id_byline_documents_id_fk": {
+          "name": "byline_document_relationships_parent_document_id_byline_documents_id_fk",
+          "tableFrom": "byline_document_relationships",
+          "tableTo": "byline_documents",
+          "columnsFrom": [
+            "parent_document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "document_relationships_child_document_id_documents_id_fk": {
-          "name": "document_relationships_child_document_id_documents_id_fk",
-          "tableFrom": "document_relationships",
-          "tableTo": "documents",
-          "columnsFrom": ["child_document_id"],
-          "columnsTo": ["id"],
+        "byline_document_relationships_child_document_id_byline_documents_id_fk": {
+          "name": "byline_document_relationships_child_document_id_byline_documents_id_fk",
+          "tableFrom": "byline_document_relationships",
+          "tableTo": "byline_documents",
+          "columnsFrom": [
+            "child_document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "document_relationships_parent_document_id_child_document_id_unique": {
-          "name": "document_relationships_parent_document_id_child_document_id_unique",
+        "byline_document_relationships_parent_document_id_child_document_id_unique": {
+          "name": "byline_document_relationships_parent_document_id_child_document_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["parent_document_id", "child_document_id"]
+          "columns": [
+            "parent_document_id",
+            "child_document_id"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.document_versions": {
-      "name": "document_versions",
+    "public.byline_document_versions": {
+      "name": "byline_document_versions",
       "schema": "",
       "columns": {
         "id": {
@@ -531,6 +1133,12 @@
         "collection_id": {
           "name": "collection_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection_version": {
+          "name": "collection_version",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
@@ -750,21 +1358,29 @@
         }
       },
       "foreignKeys": {
-        "document_versions_document_id_documents_id_fk": {
-          "name": "document_versions_document_id_documents_id_fk",
-          "tableFrom": "document_versions",
-          "tableTo": "documents",
-          "columnsFrom": ["document_id"],
-          "columnsTo": ["id"],
+        "byline_document_versions_document_id_byline_documents_id_fk": {
+          "name": "byline_document_versions_document_id_byline_documents_id_fk",
+          "tableFrom": "byline_document_versions",
+          "tableTo": "byline_documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "document_versions_collection_id_collections_id_fk": {
-          "name": "document_versions_collection_id_collections_id_fk",
-          "tableFrom": "document_versions",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_document_versions_collection_id_byline_collections_id_fk": {
+          "name": "byline_document_versions_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_document_versions",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -775,8 +1391,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.documents": {
-      "name": "documents",
+    "public.byline_documents": {
+      "name": "byline_documents",
       "schema": "",
       "columns": {
         "id": {
@@ -824,12 +1440,16 @@
         }
       },
       "foreignKeys": {
-        "documents_collection_id_collections_id_fk": {
-          "name": "documents_collection_id_collections_id_fk",
-          "tableFrom": "documents",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_documents_collection_id_byline_collections_id_fk": {
+          "name": "byline_documents_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_documents",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -840,8 +1460,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.store_file": {
-      "name": "store_file",
+    "public.byline_store_file": {
+      "name": "byline_store_file",
       "schema": "",
       "columns": {
         "id": {
@@ -1102,21 +1722,29 @@
         }
       },
       "foreignKeys": {
-        "store_file_document_version_id_document_versions_id_fk": {
-          "name": "store_file_document_version_id_document_versions_id_fk",
-          "tableFrom": "store_file",
-          "tableTo": "document_versions",
-          "columnsFrom": ["document_version_id"],
-          "columnsTo": ["id"],
+        "byline_store_file_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_store_file_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_store_file",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_file_collection_id_collections_id_fk": {
-          "name": "store_file_collection_id_collections_id_fk",
-          "tableFrom": "store_file",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_file_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_file_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_file",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1126,15 +1754,19 @@
         "unique_file_field": {
           "name": "unique_file_field",
           "nullsNotDistinct": false,
-          "columns": ["document_version_id", "field_path", "locale"]
+          "columns": [
+            "document_version_id",
+            "field_path",
+            "locale"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.store_json": {
-      "name": "store_json",
+    "public.byline_store_json": {
+      "name": "byline_store_json",
       "schema": "",
       "columns": {
         "id": {
@@ -1261,21 +1893,29 @@
         }
       },
       "foreignKeys": {
-        "store_json_document_version_id_document_versions_id_fk": {
-          "name": "store_json_document_version_id_document_versions_id_fk",
-          "tableFrom": "store_json",
-          "tableTo": "document_versions",
-          "columnsFrom": ["document_version_id"],
-          "columnsTo": ["id"],
+        "byline_store_json_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_store_json_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_store_json",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_json_collection_id_collections_id_fk": {
-          "name": "store_json_collection_id_collections_id_fk",
-          "tableFrom": "store_json",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_json_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_json_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_json",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1285,15 +1925,19 @@
         "unique_json_field": {
           "name": "unique_json_field",
           "nullsNotDistinct": false,
-          "columns": ["document_version_id", "field_path", "locale"]
+          "columns": [
+            "document_version_id",
+            "field_path",
+            "locale"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.store_meta": {
-      "name": "store_meta",
+    "public.byline_store_meta": {
+      "name": "byline_store_meta",
       "schema": "",
       "columns": {
         "id": {
@@ -1419,21 +2063,29 @@
         }
       },
       "foreignKeys": {
-        "store_meta_document_version_id_document_versions_id_fk": {
-          "name": "store_meta_document_version_id_document_versions_id_fk",
-          "tableFrom": "store_meta",
-          "tableTo": "document_versions",
-          "columnsFrom": ["document_version_id"],
-          "columnsTo": ["id"],
+        "byline_store_meta_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_store_meta_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_store_meta",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_meta_collection_id_collections_id_fk": {
-          "name": "store_meta_collection_id_collections_id_fk",
-          "tableFrom": "store_meta",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_meta_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_meta_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_meta",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1443,15 +2095,19 @@
         "unique_meta_node": {
           "name": "unique_meta_node",
           "nullsNotDistinct": false,
-          "columns": ["document_version_id", "type", "path"]
+          "columns": [
+            "document_version_id",
+            "type",
+            "path"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.store_numeric": {
-      "name": "store_numeric",
+    "public.byline_store_numeric": {
+      "name": "byline_store_numeric",
       "schema": "",
       "columns": {
         "id": {
@@ -1626,21 +2282,29 @@
         }
       },
       "foreignKeys": {
-        "store_numeric_document_version_id_document_versions_id_fk": {
-          "name": "store_numeric_document_version_id_document_versions_id_fk",
-          "tableFrom": "store_numeric",
-          "tableTo": "document_versions",
-          "columnsFrom": ["document_version_id"],
-          "columnsTo": ["id"],
+        "byline_store_numeric_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_store_numeric_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_store_numeric",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_numeric_collection_id_collections_id_fk": {
-          "name": "store_numeric_collection_id_collections_id_fk",
-          "tableFrom": "store_numeric",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_numeric_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_numeric_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_numeric",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1650,15 +2314,19 @@
         "unique_numeric_field": {
           "name": "unique_numeric_field",
           "nullsNotDistinct": false,
-          "columns": ["document_version_id", "field_path", "locale"]
+          "columns": [
+            "document_version_id",
+            "field_path",
+            "locale"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.store_relation": {
-      "name": "store_relation",
+    "public.byline_store_relation": {
+      "name": "byline_store_relation",
       "schema": "",
       "columns": {
         "id": {
@@ -1835,39 +2503,55 @@
         }
       },
       "foreignKeys": {
-        "store_relation_document_version_id_document_versions_id_fk": {
-          "name": "store_relation_document_version_id_document_versions_id_fk",
-          "tableFrom": "store_relation",
-          "tableTo": "document_versions",
-          "columnsFrom": ["document_version_id"],
-          "columnsTo": ["id"],
+        "byline_store_relation_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_store_relation_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_store_relation",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_relation_collection_id_collections_id_fk": {
-          "name": "store_relation_collection_id_collections_id_fk",
-          "tableFrom": "store_relation",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_relation_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_relation_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_relation",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_relation_target_document_id_documents_id_fk": {
-          "name": "store_relation_target_document_id_documents_id_fk",
-          "tableFrom": "store_relation",
-          "tableTo": "documents",
-          "columnsFrom": ["target_document_id"],
-          "columnsTo": ["id"],
+        "byline_store_relation_target_document_id_byline_documents_id_fk": {
+          "name": "byline_store_relation_target_document_id_byline_documents_id_fk",
+          "tableFrom": "byline_store_relation",
+          "tableTo": "byline_documents",
+          "columnsFrom": [
+            "target_document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "store_relation_target_collection_id_collections_id_fk": {
-          "name": "store_relation_target_collection_id_collections_id_fk",
-          "tableFrom": "store_relation",
-          "tableTo": "collections",
-          "columnsFrom": ["target_collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_relation_target_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_relation_target_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_relation",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "target_collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1877,15 +2561,19 @@
         "unique_relation_field": {
           "name": "unique_relation_field",
           "nullsNotDistinct": false,
-          "columns": ["document_version_id", "field_path", "locale"]
+          "columns": [
+            "document_version_id",
+            "field_path",
+            "locale"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.store_text": {
-      "name": "store_text",
+    "public.byline_store_text": {
+      "name": "byline_store_text",
       "schema": "",
       "columns": {
         "id": {
@@ -2033,21 +2721,29 @@
         }
       },
       "foreignKeys": {
-        "store_text_document_version_id_document_versions_id_fk": {
-          "name": "store_text_document_version_id_document_versions_id_fk",
-          "tableFrom": "store_text",
-          "tableTo": "document_versions",
-          "columnsFrom": ["document_version_id"],
-          "columnsTo": ["id"],
+        "byline_store_text_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_store_text_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_store_text",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "store_text_collection_id_collections_id_fk": {
-          "name": "store_text_collection_id_collections_id_fk",
-          "tableFrom": "store_text",
-          "tableTo": "collections",
-          "columnsFrom": ["collection_id"],
-          "columnsTo": ["id"],
+        "byline_store_text_collection_id_byline_collections_id_fk": {
+          "name": "byline_store_text_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_store_text",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2057,7 +2753,11 @@
         "unique_text_field": {
           "name": "unique_text_field",
           "nullsNotDistinct": false,
-          "columns": ["document_version_id", "field_path", "locale"]
+          "columns": [
+            "document_version_id",
+            "field_path",
+            "locale"
+          ]
         }
       },
       "policies": {},
@@ -2071,7 +2771,7 @@
   "roles": {},
   "policies": {},
   "views": {
-    "public.current_documents": {
+    "public.byline_current_documents": {
       "columns": {
         "id": {
           "name": "id",
@@ -2088,6 +2788,12 @@
         "collection_id": {
           "name": "collection_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection_version": {
+          "name": "collection_version",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
@@ -2145,8 +2851,94 @@
           "notNull": false
         }
       },
-      "definition": "with \"sq\" as (select \"id\", \"document_id\", \"collection_id\", \"path\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\", row_number() OVER (PARTITION BY \"document_id\" ORDER BY \"id\" DESC) as \"rn\" from \"document_versions\" where \"document_versions\".\"is_deleted\" = false) select \"id\", \"document_id\", \"collection_id\", \"path\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\" from \"sq\" where \"rn\" = 1",
-      "name": "current_documents",
+      "definition": "with \"sq\" as (select \"id\", \"document_id\", \"collection_id\", \"collection_version\", \"path\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\", row_number() OVER (PARTITION BY \"document_id\" ORDER BY \"id\" DESC) as \"rn\" from \"byline_document_versions\" where \"byline_document_versions\".\"is_deleted\" = false) select \"id\", \"document_id\", \"collection_id\", \"collection_version\", \"path\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\" from \"sq\" where \"rn\" = 1",
+      "name": "byline_current_documents",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.byline_current_published_documents": {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection_id": {
+          "name": "collection_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection_version": {
+          "name": "collection_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "name": "path",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'create'"
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'draft'"
+        },
+        "is_deleted": {
+          "name": "is_deleted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "change_summary": {
+          "name": "change_summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "with \"sq\" as (select \"id\", \"document_id\", \"collection_id\", \"collection_version\", \"path\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\", row_number() OVER (PARTITION BY \"document_id\" ORDER BY \"id\" DESC) as \"rn\" from \"byline_document_versions\" where \"byline_document_versions\".\"is_deleted\" = false AND \"byline_document_versions\".\"status\" = 'published') select \"id\", \"document_id\", \"collection_id\", \"collection_version\", \"path\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\" from \"sq\" where \"rn\" = 1",
+      "name": "byline_current_published_documents",
       "schema": "public",
       "isExisting": false,
       "materialized": false

@@ -9,7 +9,7 @@
 import { and, eq, isNull, lt } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
-import { bylineAdminRefreshTokens } from '../database/schema/auth.js'
+import { adminRefreshTokens } from '../database/schema/auth.js'
 import type * as schema from '../database/schema/index.js'
 
 /**
@@ -44,7 +44,7 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
     /** Insert a new refresh-token row. `id` is supplied by the caller (UUIDv7). */
     async issue(input: IssueRefreshTokenInput): Promise<RefreshTokenRow> {
       const [row] = await db
-        .insert(bylineAdminRefreshTokens)
+        .insert(adminRefreshTokens)
         .values({
           id: input.id,
           admin_user_id: input.admin_user_id,
@@ -61,25 +61,22 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
     async findByHash(tokenHash: string): Promise<RefreshTokenRow | null> {
       const [row] = await db
         .select()
-        .from(bylineAdminRefreshTokens)
-        .where(eq(bylineAdminRefreshTokens.token_hash, tokenHash))
+        .from(adminRefreshTokens)
+        .where(eq(adminRefreshTokens.token_hash, tokenHash))
       return row ?? null
     },
 
     async findById(id: string): Promise<RefreshTokenRow | null> {
-      const [row] = await db
-        .select()
-        .from(bylineAdminRefreshTokens)
-        .where(eq(bylineAdminRefreshTokens.id, id))
+      const [row] = await db.select().from(adminRefreshTokens).where(eq(adminRefreshTokens.id, id))
       return row ?? null
     },
 
     /** Stamp `last_used_at` for observability. */
     async touch(id: string, at: Date = new Date()): Promise<void> {
       await db
-        .update(bylineAdminRefreshTokens)
+        .update(adminRefreshTokens)
         .set({ last_used_at: at, updated_at: new Date() })
-        .where(eq(bylineAdminRefreshTokens.id, id))
+        .where(eq(adminRefreshTokens.id, id))
     },
 
     /**
@@ -90,19 +87,17 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
      */
     async markRotated(oldId: string, newId: string, at: Date = new Date()): Promise<void> {
       await db
-        .update(bylineAdminRefreshTokens)
+        .update(adminRefreshTokens)
         .set({ revoked_at: at, rotated_to_id: newId, updated_at: new Date() })
-        .where(eq(bylineAdminRefreshTokens.id, oldId))
+        .where(eq(adminRefreshTokens.id, oldId))
     },
 
     /** Revoke a single token. Idempotent. */
     async revoke(id: string, at: Date = new Date()): Promise<void> {
       await db
-        .update(bylineAdminRefreshTokens)
+        .update(adminRefreshTokens)
         .set({ revoked_at: at, updated_at: new Date() })
-        .where(
-          and(eq(bylineAdminRefreshTokens.id, id), isNull(bylineAdminRefreshTokens.revoked_at))
-        )
+        .where(and(eq(adminRefreshTokens.id, id), isNull(adminRefreshTokens.revoked_at)))
     },
 
     /**
@@ -119,19 +114,19 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
       for (let step = 0; cursor != null && step < 1000; step++) {
         const [row] = await db
           .select({
-            id: bylineAdminRefreshTokens.id,
-            rotated_to_id: bylineAdminRefreshTokens.rotated_to_id,
-            revoked_at: bylineAdminRefreshTokens.revoked_at,
+            id: adminRefreshTokens.id,
+            rotated_to_id: adminRefreshTokens.rotated_to_id,
+            revoked_at: adminRefreshTokens.revoked_at,
           })
-          .from(bylineAdminRefreshTokens)
-          .where(eq(bylineAdminRefreshTokens.id, cursor))
+          .from(adminRefreshTokens)
+          .where(eq(adminRefreshTokens.id, cursor))
         if (!row) break
 
         if (row.revoked_at == null) {
           await db
-            .update(bylineAdminRefreshTokens)
+            .update(adminRefreshTokens)
             .set({ revoked_at: at, updated_at: new Date() })
-            .where(eq(bylineAdminRefreshTokens.id, row.id))
+            .where(eq(adminRefreshTokens.id, row.id))
           touched++
         }
 
@@ -143,24 +138,24 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
     /** Revoke every non-revoked token for a user. Used on password change / sign-out everywhere. */
     async revokeAllForUser(adminUserId: string, at: Date = new Date()): Promise<number> {
       const result = await db
-        .update(bylineAdminRefreshTokens)
+        .update(adminRefreshTokens)
         .set({ revoked_at: at, updated_at: new Date() })
         .where(
           and(
-            eq(bylineAdminRefreshTokens.admin_user_id, adminUserId),
-            isNull(bylineAdminRefreshTokens.revoked_at)
+            eq(adminRefreshTokens.admin_user_id, adminUserId),
+            isNull(adminRefreshTokens.revoked_at)
           )
         )
-        .returning({ id: bylineAdminRefreshTokens.id })
+        .returning({ id: adminRefreshTokens.id })
       return result.length
     },
 
     /** Remove rows whose `expires_at` is in the past. Housekeeping. */
     async purgeExpired(now: Date = new Date()): Promise<number> {
       const result = await db
-        .delete(bylineAdminRefreshTokens)
-        .where(lt(bylineAdminRefreshTokens.expires_at, now))
-        .returning({ id: bylineAdminRefreshTokens.id })
+        .delete(adminRefreshTokens)
+        .where(lt(adminRefreshTokens.expires_at, now))
+        .returning({ id: adminRefreshTokens.id })
       return result.length
     },
 
@@ -168,11 +163,11 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
     async listActiveForUser(adminUserId: string): Promise<RefreshTokenRow[]> {
       return db
         .select()
-        .from(bylineAdminRefreshTokens)
+        .from(adminRefreshTokens)
         .where(
           and(
-            eq(bylineAdminRefreshTokens.admin_user_id, adminUserId),
-            isNull(bylineAdminRefreshTokens.revoked_at)
+            eq(adminRefreshTokens.admin_user_id, adminUserId),
+            isNull(adminRefreshTokens.revoked_at)
           )
         )
     },
@@ -181,9 +176,9 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
     async listAllForUser(adminUserId: string): Promise<RefreshTokenRow[]> {
       return db
         .select()
-        .from(bylineAdminRefreshTokens)
-        .where(eq(bylineAdminRefreshTokens.admin_user_id, adminUserId))
-        .orderBy(bylineAdminRefreshTokens.issued_at)
+        .from(adminRefreshTokens)
+        .where(eq(adminRefreshTokens.admin_user_id, adminUserId))
+        .orderBy(adminRefreshTokens.issued_at)
     },
 
     /** All tokens descended from `startId` via the rotation chain. Utility for tests. */
@@ -195,8 +190,8 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
       for (let step = 0; cursor != null && step < 1000; step++) {
         const [row] = await db
           .select()
-          .from(bylineAdminRefreshTokens)
-          .where(eq(bylineAdminRefreshTokens.id, cursor))
+          .from(adminRefreshTokens)
+          .where(eq(adminRefreshTokens.id, cursor))
         if (!row) break
         chain.push(row)
         cursor = row.rotated_to_id

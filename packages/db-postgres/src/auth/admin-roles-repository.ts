@@ -10,11 +10,7 @@ import { and, eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
-import {
-  bylineAdminPermissions,
-  bylineAdminRoleAdminUser,
-  bylineAdminRoles,
-} from '../database/schema/auth.js'
+import { adminPermissions, adminRoleAdminUser, adminRoles } from '../database/schema/auth.js'
 import type * as schema from '../database/schema/index.js'
 
 export interface AdminRoleRow {
@@ -41,13 +37,13 @@ export interface UpdateAdminRoleInput {
 }
 
 const PUBLIC_ROLE_COLUMNS = {
-  id: bylineAdminRoles.id,
-  name: bylineAdminRoles.name,
-  machine_name: bylineAdminRoles.machine_name,
-  description: bylineAdminRoles.description,
-  order: bylineAdminRoles.order,
-  created_at: bylineAdminRoles.created_at,
-  updated_at: bylineAdminRoles.updated_at,
+  id: adminRoles.id,
+  name: adminRoles.name,
+  machine_name: adminRoles.machine_name,
+  description: adminRoles.description,
+  order: adminRoles.order,
+  created_at: adminRoles.created_at,
+  updated_at: adminRoles.updated_at,
 } as const
 
 export function createAdminRolesRepository(db: NodePgDatabase<typeof schema>) {
@@ -58,7 +54,7 @@ export function createAdminRolesRepository(db: NodePgDatabase<typeof schema>) {
 
     async create(input: CreateAdminRoleInput): Promise<AdminRoleRow> {
       const [row] = await db
-        .insert(bylineAdminRoles)
+        .insert(adminRoles)
         .values({
           id: uuidv7(),
           name: input.name,
@@ -74,21 +70,21 @@ export function createAdminRolesRepository(db: NodePgDatabase<typeof schema>) {
     async getById(id: string): Promise<AdminRoleRow | null> {
       const [row] = await db
         .select(PUBLIC_ROLE_COLUMNS)
-        .from(bylineAdminRoles)
-        .where(eq(bylineAdminRoles.id, id))
+        .from(adminRoles)
+        .where(eq(adminRoles.id, id))
       return row ?? null
     },
 
     async getByMachineName(machineName: string): Promise<AdminRoleRow | null> {
       const [row] = await db
         .select(PUBLIC_ROLE_COLUMNS)
-        .from(bylineAdminRoles)
-        .where(eq(bylineAdminRoles.machine_name, machineName))
+        .from(adminRoles)
+        .where(eq(adminRoles.machine_name, machineName))
       return row ?? null
     },
 
     async list(): Promise<AdminRoleRow[]> {
-      return db.select(PUBLIC_ROLE_COLUMNS).from(bylineAdminRoles).orderBy(bylineAdminRoles.order)
+      return db.select(PUBLIC_ROLE_COLUMNS).from(adminRoles).orderBy(adminRoles.order)
     },
 
     async update(id: string, patch: UpdateAdminRoleInput): Promise<AdminRoleRow> {
@@ -98,9 +94,9 @@ export function createAdminRolesRepository(db: NodePgDatabase<typeof schema>) {
       if (patch.order !== undefined) updateSet.order = patch.order
 
       const [row] = await db
-        .update(bylineAdminRoles)
+        .update(adminRoles)
         .set(updateSet)
-        .where(eq(bylineAdminRoles.id, id))
+        .where(eq(adminRoles.id, id))
         .returning(PUBLIC_ROLE_COLUMNS)
       if (!row) throw new Error(`updateAdminRole: no row found for id ${id}`)
       return row
@@ -108,7 +104,7 @@ export function createAdminRolesRepository(db: NodePgDatabase<typeof schema>) {
 
     async delete(id: string): Promise<void> {
       // Cascades remove role ↔ user assignments and per-role permissions.
-      await db.delete(bylineAdminRoles).where(eq(bylineAdminRoles.id, id))
+      await db.delete(adminRoles).where(eq(adminRoles.id, id))
     },
 
     // -----------------------------------------------------------------
@@ -118,45 +114,40 @@ export function createAdminRolesRepository(db: NodePgDatabase<typeof schema>) {
     /** Grant an ability to a role. Idempotent via the unique constraint. */
     async grantAbility(roleId: string, ability: string): Promise<void> {
       await db
-        .insert(bylineAdminPermissions)
+        .insert(adminPermissions)
         .values({ id: uuidv7(), admin_role_id: roleId, ability })
         .onConflictDoNothing({
-          target: [bylineAdminPermissions.admin_role_id, bylineAdminPermissions.ability],
+          target: [adminPermissions.admin_role_id, adminPermissions.ability],
         })
     },
 
     async revokeAbility(roleId: string, ability: string): Promise<void> {
       await db
-        .delete(bylineAdminPermissions)
+        .delete(adminPermissions)
         .where(
-          and(
-            eq(bylineAdminPermissions.admin_role_id, roleId),
-            eq(bylineAdminPermissions.ability, ability)
-          )
+          and(eq(adminPermissions.admin_role_id, roleId), eq(adminPermissions.ability, ability))
         )
     },
 
     async listAbilities(roleId: string): Promise<string[]> {
       const rows = await db
-        .select({ ability: bylineAdminPermissions.ability })
-        .from(bylineAdminPermissions)
-        .where(eq(bylineAdminPermissions.admin_role_id, roleId))
+        .select({ ability: adminPermissions.ability })
+        .from(adminPermissions)
+        .where(eq(adminPermissions.admin_role_id, roleId))
       return rows.map((r) => r.ability)
     },
 
     /** Replace the ability set for a role wholesale. Runs inside a transaction. */
     async setAbilities(roleId: string, abilities: readonly string[]): Promise<void> {
       await db.transaction(async (tx) => {
-        await tx
-          .delete(bylineAdminPermissions)
-          .where(eq(bylineAdminPermissions.admin_role_id, roleId))
+        await tx.delete(adminPermissions).where(eq(adminPermissions.admin_role_id, roleId))
         if (abilities.length === 0) return
         const rows = abilities.map((ability) => ({
           id: uuidv7(),
           admin_role_id: roleId,
           ability,
         }))
-        await tx.insert(bylineAdminPermissions).values(rows)
+        await tx.insert(adminPermissions).values(rows)
       })
     },
 
@@ -167,20 +158,20 @@ export function createAdminRolesRepository(db: NodePgDatabase<typeof schema>) {
     /** Assign a role to a user. Idempotent via the composite primary key. */
     async assignToUser(roleId: string, userId: string): Promise<void> {
       await db
-        .insert(bylineAdminRoleAdminUser)
+        .insert(adminRoleAdminUser)
         .values({ admin_role_id: roleId, admin_user_id: userId })
         .onConflictDoNothing({
-          target: [bylineAdminRoleAdminUser.admin_role_id, bylineAdminRoleAdminUser.admin_user_id],
+          target: [adminRoleAdminUser.admin_role_id, adminRoleAdminUser.admin_user_id],
         })
     },
 
     async unassignFromUser(roleId: string, userId: string): Promise<void> {
       await db
-        .delete(bylineAdminRoleAdminUser)
+        .delete(adminRoleAdminUser)
         .where(
           and(
-            eq(bylineAdminRoleAdminUser.admin_role_id, roleId),
-            eq(bylineAdminRoleAdminUser.admin_user_id, userId)
+            eq(adminRoleAdminUser.admin_role_id, roleId),
+            eq(adminRoleAdminUser.admin_user_id, userId)
           )
         )
     },
@@ -188,20 +179,17 @@ export function createAdminRolesRepository(db: NodePgDatabase<typeof schema>) {
     async listRolesForUser(userId: string): Promise<AdminRoleRow[]> {
       return db
         .select(PUBLIC_ROLE_COLUMNS)
-        .from(bylineAdminRoles)
-        .innerJoin(
-          bylineAdminRoleAdminUser,
-          eq(bylineAdminRoleAdminUser.admin_role_id, bylineAdminRoles.id)
-        )
-        .where(eq(bylineAdminRoleAdminUser.admin_user_id, userId))
-        .orderBy(bylineAdminRoles.order)
+        .from(adminRoles)
+        .innerJoin(adminRoleAdminUser, eq(adminRoleAdminUser.admin_role_id, adminRoles.id))
+        .where(eq(adminRoleAdminUser.admin_user_id, userId))
+        .orderBy(adminRoles.order)
     },
 
     async listUsersForRole(roleId: string): Promise<string[]> {
       const rows = await db
-        .select({ admin_user_id: bylineAdminRoleAdminUser.admin_user_id })
-        .from(bylineAdminRoleAdminUser)
-        .where(eq(bylineAdminRoleAdminUser.admin_role_id, roleId))
+        .select({ admin_user_id: adminRoleAdminUser.admin_user_id })
+        .from(adminRoleAdminUser)
+        .where(eq(adminRoleAdminUser.admin_role_id, roleId))
       return rows.map((r) => r.admin_user_id)
     },
   }
