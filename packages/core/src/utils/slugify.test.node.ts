@@ -21,16 +21,45 @@ describe('formatTextValue', () => {
     expect(formatTextValue('<p>Hello <em>World</em></p>')).toBe('hello-world')
   })
 
-  it('preserves Thai script (U+0E00–U+0E7F)', () => {
-    expect(formatTextValue('สวัสดี ครับ')).toBe('สวัสดี-ครับ')
+  it('folds accented Latin to ASCII', () => {
+    expect(formatTextValue('café')).toBe('cafe')
+    expect(formatTextValue('Zürich')).toBe('zurich')
+    expect(formatTextValue('São Paulo')).toBe('sao-paulo')
+    expect(formatTextValue('naïve')).toBe('naive')
+    // Decomposed input: 'cafe' + combining acute (U+0301)
+    expect(formatTextValue('café')).toBe('cafe')
   })
 
-  it('strips accented Latin characters (current behaviour: only ASCII word chars + Thai survive)', () => {
-    // NFC normalisation runs first, but the final character class permits
-    // only \w + Thai + '-', so accented characters fall away. If multilingual
-    // slugs ever need to retain these, broaden the character class.
-    const decomposed = 'cafe' + '́'
-    expect(formatTextValue(decomposed)).toBe('caf')
+  it('preserves Thai including tone marks', () => {
+    expect(formatTextValue('สวัสดี ครับ')).toBe('สวัสดี-ครับ')
+    expect(formatTextValue('ก้าวไกล')).toBe('ก้าวไกล')
+  })
+
+  it('preserves CJK, Kana, and Hangul', () => {
+    expect(formatTextValue('你好 世界')).toBe('你好-世界')
+    expect(formatTextValue('こんにちは')).toBe('こんにちは')
+    expect(formatTextValue('안녕하세요')).toBe('안녕하세요')
+  })
+
+  it('preserves Cyrillic and Arabic', () => {
+    expect(formatTextValue('Привет мир')).toBe('привет-мир')
+    expect(formatTextValue('مرحبا بالعالم')).toBe('مرحبا-بالعالم')
+  })
+
+  it('preserves Greek tonos (non-Latin diacritics are not folded)', () => {
+    expect(formatTextValue('Καλημέρα')).toBe('καλημέρα')
+  })
+
+  it('preserves Devanagari matras (non-Latin combining marks)', () => {
+    expect(formatTextValue('हिन्दी')).toBe('हिन्दी')
+  })
+
+  it('handles mixed-script input', () => {
+    expect(formatTextValue('Hello 世界 café')).toBe('hello-世界-cafe')
+  })
+
+  it('converts underscores to hyphens', () => {
+    expect(formatTextValue('foo_bar')).toBe('foo-bar')
   })
 
   it('collapses runs of separators into a single hyphen', () => {

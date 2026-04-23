@@ -48,10 +48,32 @@ function formatDateValue(value: string): string {
 }
 
 /**
- * Default slug formatter. Unicode-aware (NFC), strips HTML, replaces
- * whitespace and punctuation with hyphens, and preserves Latin and Thai
- * letters plus digits and underscores. Output is lowercase, with
- * collapsed and trimmed hyphens.
+ * Decomposes `value` (NFKD), drops combining marks whose preceding base
+ * character is Latin script, and recomposes to NFC. Folds accented Latin
+ * to ASCII (`café` → `cafe`, `Zürich` → `Zurich`) while preserving marks
+ * that are structurally significant in other scripts — Thai tone marks,
+ * Arabic harakat, Devanagari matras, Hebrew niqqud, etc.
+ */
+function foldLatinDiacritics(value: string): string {
+  const decomposed = value.normalize('NFKD')
+  let lastBaseIsLatin = false
+  let result = ''
+  for (const ch of decomposed) {
+    if (/\p{M}/u.test(ch)) {
+      if (!lastBaseIsLatin) result += ch
+    } else {
+      lastBaseIsLatin = /\p{Script=Latin}/u.test(ch)
+      result += ch
+    }
+  }
+  return result.normalize('NFC')
+}
+
+/**
+ * Default slug formatter. Strips HTML, folds accented Latin to ASCII
+ * while preserving letters and digits across all other scripts (CJK,
+ * Cyrillic, Arabic, Thai, Devanagari, Greek, Kana, Hangul, …), replaces
+ * whitespace and punctuation with hyphens, and lowercases the result.
  *
  * Used by core when no installation slugifier is configured on
  * `ServerConfig.slugifier`.
@@ -64,17 +86,18 @@ export function formatTextValue(value: string): string {
   // Remove HTML tags
   let formatted = value.replace(/<[^>]*>/g, '')
 
-  // Normalise to NFC (composed form) without affecting complex Unicode
-  formatted = formatted.normalize('NFC')
+  // Fold Latin diacritics to ASCII; leave non-Latin combining marks intact
+  formatted = foldLatinDiacritics(formatted)
 
-  // Lowercase Latin characters
+  // Lowercase (affects cased scripts — Latin, Greek, Cyrillic, Armenian, …)
   formatted = formatted.toLowerCase()
 
   // Replace spaces and punctuation-like separators with a hyphen
   formatted = formatted.replace(/[\s\p{Z}\p{P}]+/gu, '-')
 
-  // Strip anything that isn't a Thai letter (U+0E00–U+0E7F), word char, or hyphen
-  formatted = formatted.replace(/[^฀-๿\w-]+/gu, '')
+  // Keep letters and numbers across scripts, plus any combining marks that
+  // survived the Latin fold (Thai vowel/tone marks, Devanagari matras, etc.)
+  formatted = formatted.replace(/[^\p{L}\p{N}\p{M}-]+/gu, '')
 
   // Collapse runs of hyphens
   formatted = formatted.replace(/-+/g, '-')
