@@ -245,6 +245,40 @@ importers:
         specifier: 6.0.2
         version: 6.0.2
 
+  packages/auth:
+    dependencies:
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      uuid:
+        specifier: ^13.0.0
+        version: 13.0.0
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 2.4.11
+        version: 2.4.11
+      '@types/node':
+        specifier: ^25.6.0
+        version: 25.6.0
+      chokidar:
+        specifier: ^5.0.0
+        version: 5.0.0
+      chokidar-cli:
+        specifier: ^3.0.0
+        version: 3.0.0
+      tsc-alias:
+        specifier: ^1.8.16
+        version: 1.8.16
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.4(@types/node@25.6.0)(happy-dom@20.8.9)(jsdom@29.0.2)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0)(yaml@2.8.0))
+
   packages/client:
     dependencies:
       '@byline/core':
@@ -287,6 +321,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@byline/auth':
+        specifier: workspace:*
+        version: link:../auth
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2

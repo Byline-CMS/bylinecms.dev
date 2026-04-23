@@ -1,3 +1,4 @@
+import type { RequestContext } from '@byline/auth'
 import type { CollectionDefinition } from '@byline/core'
 
 /**
@@ -244,6 +245,13 @@ export interface IDocumentQueries {
     reconstruct?: boolean
     /** See `ReadMode`. Defaults to `'any'`. */
     readMode?: ReadMode
+    /**
+     * Request-scoped auth context. Plumbing only in Phase 0 — adapters
+     * currently ignore it. Phase 4 uses it for `collections.<path>.read`
+     * ability assertion and for `beforeRead`-hook query scoping.
+     * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md.
+     */
+    requestContext?: RequestContext
   }): Promise<any | null>
 
   /**
@@ -273,6 +281,8 @@ export interface IDocumentQueries {
     reconstruct: boolean
     /** See `ReadMode`. Defaults to `'any'`. */
     readMode?: ReadMode
+    /** See `getDocumentById.requestContext`. */
+    requestContext?: RequestContext
   }): Promise<any | null>
 
   getDocumentByVersion(params: { document_version_id: string; locale?: string }): Promise<any>
@@ -300,6 +310,8 @@ export interface IDocumentQueries {
     fields?: string[]
     /** See `ReadMode`. Defaults to `'any'`. */
     readMode?: ReadMode
+    /** See `getDocumentById.requestContext`. */
+    requestContext?: RequestContext
   }): Promise<any[]>
 
   getDocumentHistory(params: {
@@ -397,6 +409,8 @@ export interface IDocumentQueries {
     fields?: string[]
     /** See `ReadMode`. Defaults to `'any'`. */
     readMode?: ReadMode
+    /** See `getDocumentById.requestContext`. */
+    requestContext?: RequestContext
   }): Promise<{
     documents: any[]
     total: number

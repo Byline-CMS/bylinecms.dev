@@ -1,13 +1,15 @@
 {
-  "name": "@byline/core",
+  "name": "@byline/auth",
   "private": false,
   "license": "MPL-2.0",
   "version": "0.1.0",
-  "description": "Byline CMS core package",
+  "description": "Byline CMS auth primitives — actors, abilities, request context, session provider interface",
   "keywords": [
     "cms",
     "headless cms",
-    "content management"
+    "content management",
+    "authentication",
+    "authorization"
   ],
   "homepage": "https://github.com/Byline-CMS/bylinecms.dev",
   "bugs": {
@@ -16,7 +18,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
-    "directory": "packages/byline"
+    "directory": "packages/auth"
   },
   "type": "module",
   "main": "dist/index.js",
@@ -27,7 +29,6 @@
     "build": "tsc -p tsconfig.json && tsc-alias",
     "clean": "rimraf node_modules dist build .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "skip": "tsx ./scripts/task-watch.js",
     "test": "vitest run --mode=node",
     "test:watch": "vitest --mode=node",
     "typecheck": "tsc --noEmit"
@@ -38,44 +39,14 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
-    "./zod-schemas": {
-      "types": "./dist/schemas/zod/index.d.ts",
-      "import": "./dist/schemas/zod/index.js",
-      "require": "./dist/schemas/zod/index.js"
-    },
-    "./patches": {
-      "types": "./dist/patches/index.d.ts",
-      "import": "./dist/patches/index.js",
-      "require": "./dist/patches/index.js"
-    },
-    "./workflow": {
-      "types": "./dist/workflow/index.d.ts",
-      "import": "./dist/workflow/index.js",
-      "require": "./dist/workflow/index.js"
-    },
-    "./services": {
-      "types": "./dist/services/index.d.ts",
-      "import": "./dist/services/index.js",
-      "require": "./dist/services/index.js"
-    },
-    "./logger": {
-      "types": "./dist/logger/index.d.ts",
-      "import": "./dist/logger/index.js",
-      "require": "./dist/logger/index.js"
-    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
   "dependencies": {
-    "@byline/auth": "workspace:*",
-    "dotenv": "^17.4.2",
-    "jose": "^6.2.2",
     "npm-run-all": "^4.1.5",
-    "pino": "^10.3.1",
-    "uuid": "^13.0.0",
-    "zod": "^4.3.6"
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.11",
@@ -94,16 +65,6 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "require": "./dist/index.js"
-      },
-      "./zod-schemas": {
-        "types": "./dist/schemas/zod/index.d.ts",
-        "import": "./dist/schemas/zod/index.js",
-        "require": "./dist/schemas/zod/index.js"
-      },
-      "./logger": {
-        "types": "./dist/logger/index.d.ts",
-        "import": "./dist/logger/index.js",
-        "require": "./dist/logger/index.js"
       },
       "./package.json": "./package.json"
     },

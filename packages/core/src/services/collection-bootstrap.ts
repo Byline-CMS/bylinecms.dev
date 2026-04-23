@@ -84,9 +84,7 @@ async function reconcileCollection(
     const row = Array.isArray(inserted) ? inserted[0] : inserted
     const collectionId = row?.id as string | undefined
     if (!collectionId) {
-      throw new Error(
-        `ensureCollections: insert for '${definition.path}' did not return a row id`
-      )
+      throw new Error(`ensureCollections: insert for '${definition.path}' did not return a row id`)
     }
     logger?.info(
       { collectionPath: definition.path, version: initialVersion },

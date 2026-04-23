@@ -1,18 +1,19 @@
 # Phases of Work — Strategic Roadmap
 
-> Last updated: 2026-04-18 (post-afterRead hook)
+> Last updated: 2026-04-23 (auth phase queued)
 > Companion to [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md),
 > [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md),
-> [ROUTING-API-ANALYSIS.md](./ROUTING-API-ANALYSIS.md), and
-> [CLIENT-IN-PROCESS-SDK-ANALYSIS.md](./CLIENT-IN-PROCESS-SDK-ANALYSIS.md).
+> [ROUTING-API-ANALYSIS.md](./ROUTING-API-ANALYSIS.md),
+> [CLIENT-IN-PROCESS-SDK-ANALYSIS.md](./CLIENT-IN-PROCESS-SDK-ANALYSIS.md), and
+> [AUTHN-AUTHZ-ANALYSIS.md](./AUTHN-AUTHZ-ANALYSIS.md).
 
 This document captures the recommended sequencing of work across the
 project as of April 2026. It is intentionally a living document —
 priorities shift as phases land, benchmarks return numbers, and real
 external clients arrive.
 
-The two highest-leverage items are roughly tied; the remainder queue
-behind them in priority order.
+AuthN / AuthZ (item 1) is the active next phase; remaining items
+queue behind it in priority order.
 
 ---
 
@@ -74,7 +75,34 @@ it: access-control mask-on-read and richtext Mode 2 hydration.
 
 ---
 
-## 1. `hasMany` relations
+## 1. AuthN / AuthZ — active next
+
+**Scope.** Admin authentication and authorization as a first-class
+subsystem. New `@byline/auth` package; `admin_users` /
+`admin_roles` / `admin_permissions` schema; ability registry with
+auto-registration from collections; `SessionProvider` interface
+with a built-in JWT implementation; `RequestContext`-based actor
+threading; enforcement at the `document-lifecycle` /
+`IDocumentQueries` service boundary; admin UI for sign-in, users,
+roles, and role-ability editor. Full strategic rationale and an
+eight-phase implementation plan live in
+**[AUTHN-AUTHZ-ANALYSIS.md](./AUTHN-AUTHZ-ANALYSIS.md)**.
+
+**Why this slot.** Byline today has no authentication and no
+authorization — every admin server function is effectively open.
+This is the biggest structural gap between the current prototype
+and anything that can be deployed responsibly, and it is a
+prerequisite for the `packages/ui` extraction (which benefits from
+having a stable actor / context model to thread through the
+extracted components).
+
+**Subsumes.** What was previously item 3 ("access control
+(read-side)") is folded in as Phase 7 of the auth plan
+(`beforeRead` hook + query-level filtering).
+
+---
+
+## 2. `hasMany` relations
 
 **Scope.** Multi-target relation fields. Needs:
 - new `hasMany: true` prop on `RelationField`,
@@ -86,11 +114,12 @@ it: access-control mask-on-read and richtext Mode 2 hydration.
 **Why this slot.** Commonly requested, well-scoped in
 [RELATIONSHIPS-ANALYSIS § "Deferred"](./RELATIONSHIPS-ANALYSIS.md), and
 a good user-visible feature once earlier items land. Not blocking; not
-load-bearing for any earlier item.
+load-bearing for any earlier item. Can interleave with the auth
+phases if priorities shift.
 
 ---
 
-## 2. Richtext document links
+## 3. Richtext document links
 
 **Scope.** Lexical `DocumentLinkNode`, toolbar plugin reusing the
 existing `RelationPicker`, save-time vs read-time hydration modes,
@@ -102,20 +131,6 @@ hydration is unblocked — but this still sits behind `hasMany`
 priority-wise (smaller unit, more commonly requested). Designed in
 detail in [RELATIONSHIPS-ANALYSIS § "Future work: rich-text document
 links"](./RELATIONSHIPS-ANALYSIS.md).
-
----
-
-## 3. Access control (read-side)
-
-**Scope.** Use the newly-shipped `afterRead` hook as the enforcement
-point for read-time field masking / document filtering. Probably
-pairs with a `beforeRead` hook (for query-level filtering) once the
-concrete access-model requirements are known.
-
-**Why this slot.** `afterRead` unblocked it, but shipping useful
-access control is a substantial design track in its own right
-(actor model, permissions DSL, propagation through populate). Not
-building until there's a concrete requirement to design against.
 
 ---
 
@@ -143,11 +158,17 @@ Until that arrives, hold the line per
 
 ## Sequencing notes
 
-- **Item 4 (HTTP transport) stays deferred** regardless of progress on
-  1–3 unless an external-client trigger fires.
-- **Item 3 (access control)** is unblocked now that `afterRead` ships
-  but is deliberately un-scoped until a concrete access-model
-  requirement exists to design against.
+- **Item 1 (auth)** is the active next phase. Read-side access
+  control (previously its own item) is folded in as Phase 7 of the
+  auth plan.
+- **Item 4 (HTTP transport) stays deferred** regardless of progress
+  on items 1–3 unless an external-client trigger fires. Whenever it
+  does fire, it will inherit the `RequestContext` / `Actor`
+  contract established by item 1.
+- **`packages/ui` extraction** (not listed above as a standalone
+  item) is the logical phase *after* auth — extracting
+  `apps/webapp/src/ui/fields` and `ui/forms` is cleaner once the
+  actor/context model is stable.
 
 ## Progress log
 
@@ -158,3 +179,4 @@ Until that arrives, hold the line per
 | 2026-04-18 | Phase 5 (status-aware reads) shipped. Item list renumbered; benchmark promoted to item 1. |
 | 2026-04-18 | Storage benchmark sweep run and published; "consider a read cache" item closed. Items renumbered; `afterRead` promoted to item 1. |
 | 2026-04-18 | `afterRead` hook shipped. Items renumbered; `hasMany` promoted to item 1; added access-control track as a newly unblocked (but unscoped) item 3. |
+| 2026-04-23 | AuthN / AuthZ promoted to item 1 with a full phased plan in [AUTHN-AUTHZ-ANALYSIS.md](./AUTHN-AUTHZ-ANALYSIS.md). Previous item 3 (access control) folded in as Phase 7 of the auth plan. `hasMany` and richtext document links shifted to items 2 and 3. |

@@ -21,6 +21,8 @@
  * dependency on any specific database adapter.
  */
 
+import type { RequestContext } from '@byline/auth'
+
 import {
   type CollectionDefinition,
   type CollectionHookSlot,
@@ -96,6 +98,22 @@ export interface DocumentLifecycleContext {
    * the default `slugify` exported from `@byline/core`.
    */
   slugifier?: SlugifierFn
+  /**
+   * Request-scoped context carrying the authenticated actor, request id,
+   * and related per-request metadata.
+   *
+   * Plumbing only in Phase 0 of the auth roadmap — present on the context
+   * so every lifecycle service can accept and forward it, but no ability
+   * assertions are performed yet. Phase 4 turns enforcement on: lifecycle
+   * entry points will call `context.requestContext?.actor?.assertAbility(...)`
+   * before any storage mutation.
+   *
+   * Optional in Phase 0 so that existing callers (admin server fns, seed
+   * scripts, tests) continue to compile. Phase 4 tightens the type.
+   *
+   * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md.
+   */
+  requestContext?: RequestContext
 }
 
 // ---------------------------------------------------------------------------
