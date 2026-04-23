@@ -70,7 +70,7 @@ function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
 
   const db = {
     commands: {
-      collections: { create: vi.fn(), delete: vi.fn() },
+      collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
         createDocumentVersion: vi.fn(),
         setDocumentStatus: vi.fn(),

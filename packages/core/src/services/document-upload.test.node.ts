@@ -39,6 +39,7 @@ function createMockDb() {
     commands: {
       collections: {
         create: vi.fn(),
+        update: vi.fn(),
         delete: vi.fn(),
       },
       documents: {
@@ -121,6 +122,7 @@ function buildCtx(overrides?: Partial<DocumentUploadContext>) {
     db,
     definition: uploadCollection,
     collectionId: 'col-1',
+    collectionVersion: 1,
     collectionPath: uploadCollection.path,
     storage,
     logger: noopLogger,
@@ -212,6 +214,7 @@ describe('uploadDocument service', () => {
       db,
       definition: uploadCollection,
       collectionId: 'col-1',
+      collectionVersion: 1,
       collectionPath: uploadCollection.path,
       storage,
       logger: noopLogger,

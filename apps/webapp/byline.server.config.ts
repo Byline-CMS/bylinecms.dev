@@ -15,7 +15,7 @@ import { i18n } from './byline/i18n.js'
 
 const collections = [Docs, News, Pages, Media, Categories]
 
-export const bylineCore = initBylineCore({
+export const bylineCore = await initBylineCore({
   serverURL: 'http://localhost:5173/',
   i18n,
   collections,

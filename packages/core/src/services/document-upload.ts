@@ -50,6 +50,12 @@ export interface DocumentUploadContext {
   db: IDbAdapter
   definition: CollectionDefinition
   collectionId: string
+  /**
+   * Current schema version for this collection. Forwarded into the
+   * lifecycle context so the `documentVersions` row created by the upload
+   * flow is stamped consistently with direct writes.
+   */
+  collectionVersion: number
   collectionPath: string
   storage: IStorageProvider
   logger: BylineLogger
@@ -300,6 +306,7 @@ export async function uploadDocument(
         db,
         definition,
         collectionId,
+        collectionVersion: ctx.collectionVersion,
         collectionPath,
         storage,
         logger,

@@ -37,7 +37,11 @@ type DatabaseConnection = NodePgDatabase<typeof schema>
 export class CollectionCommands implements ICollectionCommands {
   constructor(private db: DatabaseConnection) {}
 
-  async create(path: string, config: CollectionDefinition) {
+  async create(
+    path: string,
+    config: CollectionDefinition,
+    opts?: { version?: number; schemaHash?: string }
+  ) {
     return await this.db
       .insert(collections)
       .values({
@@ -46,8 +50,25 @@ export class CollectionCommands implements ICollectionCommands {
         singular: config.labels.singular || path, // Default to path if singular not provided
         plural: config.labels.plural || `${path}s`, // Default to pluralized path if not
         config,
+        ...(opts?.version !== undefined ? { version: opts.version } : {}),
+        ...(opts?.schemaHash !== undefined ? { schema_hash: opts.schemaHash } : {}),
       })
       .returning()
+  }
+
+  async update(
+    id: string,
+    patch: {
+      config?: CollectionDefinition
+      version?: number
+      schemaHash?: string
+    }
+  ) {
+    const set: Record<string, unknown> = { updated_at: new Date() }
+    if (patch.config !== undefined) set.config = patch.config
+    if (patch.version !== undefined) set.version = patch.version
+    if (patch.schemaHash !== undefined) set.schema_hash = patch.schemaHash
+    return await this.db.update(collections).set(set).where(eq(collections.id, id)).returning()
   }
 
   async delete(id: string) {
@@ -72,6 +93,7 @@ export class DocumentCommands implements IDocumentCommands {
   async createDocumentVersion(params: {
     documentId?: string // Optional logical document ID when creating a new version for the same logical document
     collectionId: string
+    collectionVersion: number
     collectionConfig: CollectionDefinition
     action: string
     documentData: any
@@ -104,6 +126,7 @@ export class DocumentCommands implements IDocumentCommands {
           id: uuidv7(), // Document version id
           document_id: documentId,
           collection_id: params.collectionId,
+          collection_version: params.collectionVersion,
           path: params.path,
           event_type: params.action ?? 'create',
           status: params.status ?? 'draft',

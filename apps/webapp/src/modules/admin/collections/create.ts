@@ -38,6 +38,7 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       db: serverConfig.db,
       definition: config.definition,
       collectionId: config.collection.id,
+      collectionVersion: config.collection.version,
       collectionPath: path,
       logger,
       defaultLocale: serverConfig.i18n.content.defaultLocale,

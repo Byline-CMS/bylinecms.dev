@@ -75,7 +75,7 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
 
   const db = {
     commands: {
-      collections: { create: vi.fn(), delete: vi.fn() },
+      collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
         createDocumentVersion,
         setDocumentStatus,

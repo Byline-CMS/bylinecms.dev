@@ -265,6 +265,7 @@ describe('03 Document Creation and Versioning', () => {
 
       const result = await commandBuilders.documents.createDocumentVersion({
         collectionId: testCollection.id,
+        collectionVersion: 1,
         collectionConfig: VersionsCollectionConfig,
         action: 'create',
         documentData: docData,
@@ -287,6 +288,7 @@ describe('03 Document Creation and Versioning', () => {
 
       const firstVersion = await commandBuilders.documents.createDocumentVersion({
         collectionId: testCollection.id,
+        collectionVersion: 1,
         collectionConfig: VersionsCollectionConfig,
         action: 'create',
         documentData: docData,
@@ -302,6 +304,7 @@ describe('03 Document Creation and Versioning', () => {
       const secondVersion = await commandBuilders.documents.createDocumentVersion({
         documentId: firstVersion.document.document_id,
         collectionId: testCollection.id,
+        collectionVersion: 1,
         collectionConfig: VersionsCollectionConfig,
         action: 'update',
         documentData: docData,
@@ -322,6 +325,7 @@ describe('03 Document Creation and Versioning', () => {
 
       const firstVersion = await commandBuilders.documents.createDocumentVersion({
         collectionId: testCollection.id,
+        collectionVersion: 1,
         collectionConfig: VersionsCollectionConfig,
         action: 'create',
         documentData: docData,
@@ -335,6 +339,7 @@ describe('03 Document Creation and Versioning', () => {
       const secondVersion = await commandBuilders.documents.createDocumentVersion({
         documentId: firstVersion.document.document_id,
         collectionId: testCollection.id,
+        collectionVersion: 1,
         collectionConfig: VersionsCollectionConfig,
         action: 'update',
         documentData: docData,
@@ -348,6 +353,7 @@ describe('03 Document Creation and Versioning', () => {
       const thirdVersion = await commandBuilders.documents.createDocumentVersion({
         documentId: firstVersion.document.document_id,
         collectionId: testCollection.id,
+        collectionVersion: 1,
         collectionConfig: VersionsCollectionConfig,
         action: 'update',
         documentData: docData,

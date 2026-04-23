@@ -66,8 +66,8 @@ export class BylineClient {
   readonly defaultLocale: string
   readonly slugifier: SlugifierFn | undefined
 
-  /** Cache: collection path → database row ID. */
-  private collectionIdCache = new Map<string, string>()
+  /** Cache: collection path → database row id + schema version. */
+  private collectionRecordCache = new Map<string, { id: string; version: number }>()
 
   constructor(config: BylineClientConfig) {
     this.db = config.db
@@ -97,11 +97,12 @@ export class BylineClient {
   }
 
   /**
-   * Resolve a collection path to its database row ID. Cached for the
-   * lifetime of this client instance.
+   * Resolve a collection path to its database row id and current schema
+   * version. Cached for the lifetime of this client instance. The version
+   * is required to stamp `documentVersions.collection_version` on writes.
    */
-  async resolveCollectionId(path: string): Promise<string> {
-    const cached = this.collectionIdCache.get(path)
+  async resolveCollectionRecord(path: string): Promise<{ id: string; version: number }> {
+    const cached = this.collectionRecordCache.get(path)
     if (cached) return cached
 
     const row = await this.db.queries.collections.getCollectionByPath(path)
@@ -112,8 +113,17 @@ export class BylineClient {
       })
     }
 
-    const id = row.id as string
-    this.collectionIdCache.set(path, id)
+    const record = { id: row.id as string, version: (row.version as number) ?? 1 }
+    this.collectionRecordCache.set(path, record)
+    return record
+  }
+
+  /**
+   * Resolve a collection path to its database row ID. Convenience wrapper
+   * over `resolveCollectionRecord` — reads still care only about the id.
+   */
+  async resolveCollectionId(path: string): Promise<string> {
+    const { id } = await this.resolveCollectionRecord(path)
     return id
   }
 }

@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+export { fingerprintCollection } from './collection-fingerprint.js'
 export {
   ALL_STORE_TYPES,
   type FieldStoreKind,

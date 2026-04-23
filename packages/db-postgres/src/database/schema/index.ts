@@ -33,6 +33,15 @@ export const collections = pgTable('collections', {
   singular: text('singular').notNull(), // Singular label for the collection
   plural: text('plural').notNull(), // Plural label for the collection
   config: jsonb('config').notNull(), // Store CollectionConfig
+  // Monotonically-increasing schema version. Incremented by the startup
+  // bootstrap whenever `schema_hash` changes (or to a value pinned
+  // explicitly via `CollectionDefinition.version`).
+  version: integer('version').notNull().default(1),
+  // SHA-256 fingerprint of the data-shape-relevant portion of the
+  // collection's definition. Nullable in Phase 1 — populated on first
+  // `ensureCollections()` run post-migration, tightens to NOT NULL when
+  // the `collection_versions` history table lands.
+  schema_hash: varchar('schema_hash', { length: 64 }),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
 })
@@ -62,6 +71,11 @@ export const documentVersions = pgTable(
     collection_id: uuid('collection_id')
       .notNull()
       .references(() => collections.id, { onDelete: 'cascade' }),
+    // Collection schema version this row was authored against. Used by
+    // future in-memory migration code to resolve historical document
+    // shapes. Phase 1 records the number; no composite FK yet — that
+    // anchors in Phase 2 alongside the history table.
+    collection_version: integer('collection_version').notNull(),
     path: varchar('path', { length: 255 }).notNull(), // Can change between versions
     doc: jsonb('doc'), // optionally store the original document
     event_type: varchar('event_type', { length: 20 }).notNull().default('create'), // 'create', 'update', 'delete'
@@ -140,6 +154,7 @@ export const currentDocumentsView = pgView('current_documents').as((qb) => {
         id: documentVersions.id,
         document_id: documentVersions.document_id,
         collection_id: documentVersions.collection_id,
+        collection_version: documentVersions.collection_version,
         path: documentVersions.path,
         event_type: documentVersions.event_type,
         status: documentVersions.status,
@@ -161,6 +176,7 @@ export const currentDocumentsView = pgView('current_documents').as((qb) => {
       id: sq.id,
       document_id: sq.document_id,
       collection_id: sq.collection_id,
+      collection_version: sq.collection_version,
       path: sq.path,
       event_type: sq.event_type,
       status: sq.status,
@@ -186,6 +202,7 @@ export const currentPublishedDocumentsView = pgView('current_published_documents
         id: documentVersions.id,
         document_id: documentVersions.document_id,
         collection_id: documentVersions.collection_id,
+        collection_version: documentVersions.collection_version,
         path: documentVersions.path,
         event_type: documentVersions.event_type,
         status: documentVersions.status,
@@ -209,6 +226,7 @@ export const currentPublishedDocumentsView = pgView('current_published_documents
       id: sq.id,
       document_id: sq.document_id,
       collection_id: sq.collection_id,
+      collection_version: sq.collection_version,
       path: sq.path,
       event_type: sq.event_type,
       status: sq.status,

@@ -608,6 +608,17 @@ export interface CollectionDefinition {
    * on every landing-page load, so opt in deliberately.
    */
   showStats?: boolean
+  /**
+   * Optional explicit version pin. When omitted, the startup bootstrap
+   * auto-increments the collection's stored version any time the schema
+   * fingerprint changes. When set, the value is used verbatim as long as it
+   * is >= the currently-stored version; pinning backwards throws at startup.
+   *
+   * The stamped version is written onto every `documentVersions` row so that
+   * a document can later be resolved against the schema shape it was
+   * authored under.
+   */
+  version?: number
 }
 
 /**

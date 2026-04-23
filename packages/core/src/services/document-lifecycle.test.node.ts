@@ -53,6 +53,7 @@ function createMockDb() {
     commands: {
       collections: {
         create: vi.fn(),
+        update: vi.fn(),
         delete: vi.fn(),
       },
       documents: {
@@ -114,6 +115,7 @@ function buildCtx(
     db,
     definition,
     collectionId: 'col-1',
+    collectionVersion: 1,
     collectionPath: definition.path,
     logger: noopLogger,
     defaultLocale: 'en',

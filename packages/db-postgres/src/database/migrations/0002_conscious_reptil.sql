@@ -1,0 +1,9 @@
+DROP VIEW "public"."current_documents";--> statement-breakpoint
+DROP VIEW "public"."current_published_documents";--> statement-breakpoint
+ALTER TABLE "collections" ADD COLUMN "version" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "collections" ADD COLUMN "schema_hash" varchar(64);--> statement-breakpoint
+ALTER TABLE "document_versions" ADD COLUMN "collection_version" integer;--> statement-breakpoint
+UPDATE "document_versions" SET "collection_version" = 1 WHERE "collection_version" IS NULL;--> statement-breakpoint
+ALTER TABLE "document_versions" ALTER COLUMN "collection_version" SET NOT NULL;--> statement-breakpoint
+CREATE VIEW "public"."current_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "path", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "document_versions" where "document_versions"."is_deleted" = false) select "id", "document_id", "collection_id", "collection_version", "path", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary" from "sq" where "rn" = 1);--> statement-breakpoint
+CREATE VIEW "public"."current_published_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "path", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "document_versions" where "document_versions"."is_deleted" = false AND "document_versions"."status" = 'published') select "id", "document_id", "collection_id", "collection_version", "path", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary" from "sq" where "rn" = 1);

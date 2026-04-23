@@ -16,34 +16,51 @@
 // src/server.ts (TanStack Start server entry point) before any
 // requests are handled. No need to import it here.
 
-import type { CollectionDefinition } from '@byline/core'
-import { getCollectionDefinition, getServerConfig } from '@byline/core'
+import type { CollectionDefinition, CollectionRecord } from '@byline/core'
+import { getCollectionDefinition } from '@byline/core'
+
+import { bylineCore } from '../../byline.server.config.js'
+
+export interface EnsuredCollection {
+  definition: CollectionDefinition
+  collection: {
+    id: string
+    path: string
+    version: number
+    schemaHash: string
+  }
+}
 
 /**
- * ensureCollection
+ * Resolve a collection for an admin API request.
  *
- * Ensures that a collection exists in the database.
- * If it doesn't exist, creates it based on the collection definition from the registry.
+ * Collections are reconciled with the database once at startup by
+ * `initBylineCore()` (see `packages/core/src/services/collection-bootstrap.ts`).
+ * This helper is a per-request cache lookup against the resulting in-memory
+ * registry — no DB I/O, no hash work.
  *
- * @param {string} path - The path of the collection to ensure.
- * @returns The existing or newly created collection, or null if not found in registry.
+ * Returns `null` when the path is not registered in the client/server config.
  */
-export async function ensureCollection(
-  path: string
-): Promise<{ definition: CollectionDefinition; collection: any } | null> {
-  const collectionDefinition = getCollectionDefinition(path)
-  if (collectionDefinition == null) {
+export async function ensureCollection(path: string): Promise<EnsuredCollection | null> {
+  const definition = getCollectionDefinition(path)
+  if (definition == null) {
     return null
   }
 
-  const db = getServerConfig().db
-
-  let collection = await db.queries.collections.getCollectionByPath(collectionDefinition.path)
-  if (collection == null) {
-    // Collection doesn't exist in database yet, create it
-    await db.commands.collections.create(collectionDefinition.path, collectionDefinition)
-    collection = await db.queries.collections.getCollectionByPath(collectionDefinition.path)
+  let record: CollectionRecord
+  try {
+    record = bylineCore.getCollectionRecord(path)
+  } catch {
+    return null
   }
 
-  return { definition: collectionDefinition, collection }
+  return {
+    definition,
+    collection: {
+      id: record.collectionId,
+      path,
+      version: record.version,
+      schemaHash: record.schemaHash,
+    },
+  }
 }

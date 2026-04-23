@@ -114,6 +114,7 @@ describe('02 Field Types', () => {
 
     const result = await commandBuilders.documents.createDocumentVersion({
       collectionId: testCollection.id,
+      collectionVersion: 1,
       collectionConfig: FieldTypesCollectionConfig,
       action: 'create',
       documentData: sourceDocument,
@@ -135,6 +136,7 @@ describe('02 Field Types', () => {
 
     await commandBuilders.documents.createDocumentVersion({
       collectionId: testCollection.id,
+      collectionVersion: 1,
       collectionConfig: FieldTypesCollectionConfig,
       action: 'create',
       documentData: sourceDocument,

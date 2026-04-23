@@ -12,7 +12,18 @@ import type { CollectionDefinition, ICollectionCommands, IDocumentCommands } fro
  * CollectionCommands
  */
 export class CollectionCommands implements ICollectionCommands {
-  async create(_path: string, _config: CollectionDefinition) {
+  async create(
+    _path: string,
+    _config: CollectionDefinition,
+    _opts?: { version?: number; schemaHash?: string }
+  ) {
+    throw new Error('db-remote method not implemented')
+  }
+
+  async update(
+    _id: string,
+    _patch: { config?: CollectionDefinition; version?: number; schemaHash?: string }
+  ) {
     throw new Error('db-remote method not implemented')
   }
 
@@ -37,6 +48,7 @@ export class DocumentCommands implements IDocumentCommands {
   async createDocumentVersion(_params: {
     documentId?: string // Optional logical document ID when creating a new version for the same logical document
     collectionId: string
+    collectionVersion: number
     collectionConfig: CollectionDefinition
     action: string
     documentData: any

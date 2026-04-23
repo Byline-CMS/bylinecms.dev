@@ -46,6 +46,7 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       db: serverConfig.db,
       definition: config.definition,
       collectionId: config.collection.id,
+      collectionVersion: config.collection.version,
       collectionPath: path,
       logger,
       defaultLocale: serverConfig.i18n.content.defaultLocale,

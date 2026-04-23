@@ -11,6 +11,7 @@ import { type Logger as PinoLogger, pino } from 'pino'
 import { defineServerConfig } from './config/config.js'
 import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logger.js'
 import { Registry } from './lib/registry.js'
+import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
 import type {
   CollectionDefinition,
   IDbAdapter,
@@ -24,6 +25,18 @@ export interface BylineCore {
   db: IDbAdapter
   storage: IStorageProvider | undefined
   logger: BylineLogger
+  /**
+   * Registered collections, keyed by `path`, with their current DB row id,
+   * schema version, and fingerprint. Populated by `ensureCollections()` at
+   * startup. Prefer `getCollectionRecord(path)` for lookups.
+   */
+  collectionRecords: Map<string, CollectionRecord>
+  /**
+   * Throwing lookup for a collection's registration record. Use this
+   * wherever you need `(collectionId, collectionVersion)` — callers that
+   * hit this accessor do not need a DB round-trip.
+   */
+  getCollectionRecord: (path: string) => CollectionRecord
 }
 
 /**
@@ -36,10 +49,10 @@ export interface BylineCore {
  * @param config - Server configuration (collections, db, storage, i18n).
  * @param pinoLogger - Optional raw Pino instance. Defaults to `pino({ level: 'info' })`.
  */
-export const initBylineCore = (
+export const initBylineCore = async (
   config: ServerConfig,
   pinoLogger: PinoLogger = pino({ level: 'info' })
-): BylineCore => {
+): Promise<BylineCore> => {
   const registry = new Registry()
     .addValue('config', config)
     .addValue('collections', config.collections)
@@ -53,11 +66,33 @@ export const initBylineCore = (
   defineServerConfig(config)
   defineLogger(composed.logger)
 
+  // Reconcile collection definitions with the database: insert new rows,
+  // bump schema versions when the fingerprint has drifted, and build the
+  // in-memory record cache used by the lifecycle/upload/client paths.
+  const collectionRecords = await ensureCollections({
+    definitions: composed.collections,
+    db: composed.db,
+    logger: composed.logger,
+  })
+
+  const getCollectionRecord = (path: string): CollectionRecord => {
+    const record = collectionRecords.get(path)
+    if (!record) {
+      throw new Error(
+        `BylineCore.getCollectionRecord: no record for collection '${path}'. ` +
+          `Known paths: ${Array.from(collectionRecords.keys()).join(', ') || '(none)'}`
+      )
+    }
+    return record
+  }
+
   return {
     config: composed.config,
     collections: composed.collections,
     db: composed.db,
     storage: composed.storage,
     logger: composed.logger,
+    collectionRecords,
+    getCollectionRecord,
   }
 }

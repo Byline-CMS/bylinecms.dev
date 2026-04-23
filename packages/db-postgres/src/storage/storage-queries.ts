@@ -983,6 +983,7 @@ export class DocumentQueries implements IDocumentQueries {
       id: row.id as string,
       document_id: row.document_id as string,
       collection_id: row.collection_id as string,
+      collection_version: row.collection_version as number,
       path: row.path as string,
       event_type: row.event_type as string,
       status: row.status as string,

@@ -144,7 +144,30 @@ export interface IDbAdapter {
 }
 
 export interface ICollectionCommands {
-  create(path: string, config: CollectionDefinition): Promise<any>
+  /**
+   * Insert a new collection row. `opts.version` and `opts.schemaHash` are
+   * used by the startup bootstrap to anchor initial values; omitted by
+   * legacy seed scripts that rely on the DB-level `version` default.
+   */
+  create(
+    path: string,
+    config: CollectionDefinition,
+    opts?: { version?: number; schemaHash?: string }
+  ): Promise<any>
+  /**
+   * Partial update for the collection row. Only fields supplied in `patch`
+   * are written — other columns are left untouched. Used by the startup
+   * bootstrap to record schema version bumps alongside a refreshed
+   * config/hash.
+   */
+  update(
+    id: string,
+    patch: {
+      config?: CollectionDefinition
+      version?: number
+      schemaHash?: string
+    }
+  ): Promise<any>
   delete(id: string): Promise<any>
 }
 
@@ -152,6 +175,13 @@ export interface IDocumentCommands {
   createDocumentVersion(params: {
     documentId?: string
     collectionId: string
+    /**
+     * The collection's schema version at the time of this write. Stamped
+     * onto the `documentVersions` row so that Phase-2 in-memory migration
+     * can later resolve each document against the shape it was authored
+     * under. Resolved by the caller from the core registry.
+     */
+    collectionVersion: number
     collectionConfig: CollectionDefinition
     action: string
     documentData: any

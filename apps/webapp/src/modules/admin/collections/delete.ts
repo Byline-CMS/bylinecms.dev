@@ -40,6 +40,7 @@ export const deleteDocument = createServerFn({ method: 'POST' })
       db,
       definition: config.definition,
       collectionId: config.collection.id,
+      collectionVersion: config.collection.version,
       collectionPath: path,
       ...(storage ? { storage } : {}),
       logger,

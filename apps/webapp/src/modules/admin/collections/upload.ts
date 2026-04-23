@@ -106,6 +106,7 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
           db: serverConfig.db,
           definition: config.definition,
           collectionId: config.collection.id,
+          collectionVersion: config.collection.version,
           collectionPath,
           storage,
           logger,

@@ -339,11 +339,13 @@ export class CollectionHandle {
    * provider, and includes the collection definition so hooks can observe it.
    */
   private async buildLifecycleContext(): Promise<DocumentLifecycleContext> {
-    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const { id: collectionId, version: collectionVersion } =
+      await this.client.resolveCollectionRecord(this.definition.path)
     return {
       db: this.client.db,
       definition: this.definition,
       collectionId,
+      collectionVersion,
       collectionPath: this.definition.path,
       storage: this.client.storage,
       logger: this.client.logger,

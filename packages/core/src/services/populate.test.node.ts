@@ -160,7 +160,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
 
   const db = {
     commands: {
-      collections: { create: vi.fn(), delete: vi.fn() },
+      collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
         createDocumentVersion: vi.fn(),
         setDocumentStatus: vi.fn(),

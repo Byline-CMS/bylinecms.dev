@@ -60,6 +60,14 @@ export interface DocumentLifecycleContext {
   definition: CollectionDefinition
   /** The database-level collection row ID. */
   collectionId: string
+  /**
+   * The collection's current schema version. Stamped onto every
+   * `documentVersions` row written during the lifecycle call so that
+   * Phase-2 in-memory migration can later resolve each document against
+   * the shape it was authored under. Callers resolve this from the core
+   * registry (`core.getCollectionRecord(path).version`).
+   */
+  collectionVersion: number
   /** The collection `path` string (e.g. `'docs'`, `'news'`). */
   collectionPath: string
   /**
@@ -237,6 +245,7 @@ export async function createDocument(
 
       const result = await db.commands.documents.createDocumentVersion({
         collectionId,
+        collectionVersion: ctx.collectionVersion,
         collectionConfig: definition,
         action: 'create',
         documentData: data,
@@ -320,6 +329,7 @@ export async function updateDocument(
       const result = await db.commands.documents.createDocumentVersion({
         documentId: params.documentId,
         collectionId,
+        collectionVersion: ctx.collectionVersion,
         collectionConfig: definition,
         action: 'update',
         documentData: data,
@@ -446,6 +456,7 @@ export async function updateDocumentWithPatches(
       const result = await db.commands.documents.createDocumentVersion({
         documentId: params.documentId,
         collectionId,
+        collectionVersion: ctx.collectionVersion,
         collectionConfig: definition,
         action: 'update',
         documentData: nextData,

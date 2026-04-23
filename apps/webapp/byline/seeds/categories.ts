@@ -41,6 +41,7 @@ export async function seedCategories() {
   const categoriesCollection = {
     id: categoriesCollectionResult[0].id,
     name: categoriesCollectionResult[0].path,
+    version: (categoriesCollectionResult[0].version as number | undefined) ?? 1,
   }
 
   console.log(`Created Categories Collection ${categoriesCollection.name}`)
@@ -52,6 +53,7 @@ export async function seedCategories() {
     })
     await db.commands.documents.createDocumentVersion({
       collectionId: categoriesCollection.id,
+      collectionVersion: categoriesCollection.version,
       collectionConfig: collectionDefinition,
       action: 'create',
       documentData: category,

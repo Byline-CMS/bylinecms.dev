@@ -260,6 +260,7 @@ export async function seedDocuments(count = 1000) {
   const bulkDocsCollection = {
     id: bulkDocsCollectionResult[0].id,
     name: bulkDocsCollectionResult[0].path,
+    version: (bulkDocsCollectionResult[0].version as number | undefined) ?? 1,
   }
 
   console.log(`Created Docs Collection ${bulkDocsCollection.name}`)
@@ -273,6 +274,7 @@ export async function seedDocuments(count = 1000) {
     })
     await db.commands.documents.createDocumentVersion({
       collectionId: bulkDocsCollection.id,
+      collectionVersion: bulkDocsCollection.version,
       collectionConfig: collectionDefinition,
       action: 'create',
       documentData: docData,
