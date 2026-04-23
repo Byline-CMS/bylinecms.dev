@@ -25,7 +25,7 @@
     "preview": "vite preview",
     "clean": "rimraf node_modules dist build .output .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "test": "vitest run --mode=jsdom",
+    "test": "vitest run --mode=jsdom && vitest run --mode=node",
     "test:jsdom": "vitest run --mode=jsdom",
     "test:node": "vitest run --mode=node",
     "typecheck": "tsc --noEmit"
