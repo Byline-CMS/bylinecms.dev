@@ -252,18 +252,24 @@ export async function seedDocuments(count = 1000) {
     return
   }
 
-  const bulkDocsCollectionResult = await db.commands.collections.create(
-    'docs',
-    collectionDefinition
-  )
-
-  const bulkDocsCollection = {
-    id: bulkDocsCollectionResult[0].id,
-    name: bulkDocsCollectionResult[0].path,
-    version: (bulkDocsCollectionResult[0].version as number | undefined) ?? 1,
+  // `initBylineCore` already registered the collection row via
+  // `ensureCollections()` when byline.server.config was imported, so we
+  // look the row up rather than re-inserting (which would violate the
+  // unique-path constraint).
+  const existing = await db.queries.collections.getCollectionByPath('docs')
+  if (!existing) {
+    throw new Error(
+      "seedDocuments: expected the 'docs' collection to be registered by initBylineCore()"
+    )
   }
 
-  console.log(`Created Docs Collection ${bulkDocsCollection.name}`)
+  const bulkDocsCollection = {
+    id: existing.id as string,
+    name: existing.path as string,
+    version: (existing.version as number | undefined) ?? 1,
+  }
+
+  console.log(`Seeding into Docs collection (${bulkDocsCollection.name})`)
 
   for (let i = 0; i < count; i++) {
     const docData = structuredClone(sampleDocument)

@@ -33,18 +33,24 @@ export async function seedCategories() {
     return
   }
 
-  const categoriesCollectionResult = await db.commands.collections.create(
-    'categories',
-    collectionDefinition
-  )
-
-  const categoriesCollection = {
-    id: categoriesCollectionResult[0].id,
-    name: categoriesCollectionResult[0].path,
-    version: (categoriesCollectionResult[0].version as number | undefined) ?? 1,
+  // `initBylineCore` already registered the collection row via
+  // `ensureCollections()` when byline.server.config was imported, so we
+  // look the row up rather than re-inserting (which would violate the
+  // unique-path constraint).
+  const existing = await db.queries.collections.getCollectionByPath('categories')
+  if (!existing) {
+    throw new Error(
+      "seedCategories: expected the 'categories' collection to be registered by initBylineCore()"
+    )
   }
 
-  console.log(`Created Categories Collection ${categoriesCollection.name}`)
+  const categoriesCollection = {
+    id: existing.id as string,
+    name: existing.path as string,
+    version: (existing.version as number | undefined) ?? 1,
+  }
+
+  console.log(`Seeding into Categories collection (${categoriesCollection.name})`)
 
   for (const category of categories) {
     const seedPath = slugify(category.name.en, {

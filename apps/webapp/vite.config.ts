@@ -15,11 +15,15 @@ export default defineConfig({
   },
   ssr: {
     noExternal: ['@infonomic/uikit'],
-    // Sharp loads a platform-specific native .node binary at runtime via a
-    // dynamic require(), which Rollup cannot bundle. Keep sharp (and the
-    // storage-local package that imports it) as external so Node.js resolves
-    // them at runtime from node_modules instead.
-    external: ['sharp', '@byline/storage-local'],
+    // Packages that load platform-specific native `.node` binaries at
+    // runtime via dynamic require(). Rollup cannot bundle these, so we
+    // keep them external and let Node.js resolve them from node_modules
+    // at runtime.
+    //   - sharp + @byline/storage-local — image processing
+    //   - @node-rs/argon2 + @byline/db-postgres — password hashing
+    //     (reached through @byline/db-postgres/auth from the admin
+    //     server fns)
+    external: ['sharp', '@byline/storage-local', '@node-rs/argon2', '@byline/db-postgres'],
   },
   plugins: [
     tanstackStart(),

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as Char123LngChar125RouteRouteImport } from './routes/{-$lng}/route'
 import { Route as Char123LngChar125PublicRouteRouteImport } from './routes/{-$lng}/_public/route'
 import { Route as Char123LngChar125PublicIndexRouteImport } from './routes/{-$lng}/_public/index'
+import { Route as Char123LngChar125bylineSignInRouteImport } from './routes/{-$lng}/(byline)/sign-in'
 import { Route as Char123LngChar125bylineAdminRouteRouteImport } from './routes/{-$lng}/(byline)/admin/route'
 import { Route as Char123LngChar125bylineAdminIndexRouteImport } from './routes/{-$lng}/(byline)/admin/index'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/index'
@@ -35,6 +36,12 @@ const Char123LngChar125PublicIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
+  } as any)
+const Char123LngChar125bylineSignInRoute =
+  Char123LngChar125bylineSignInRouteImport.update({
+    id: '/(byline)/sign-in',
+    path: '/sign-in',
+    getParentRoute: () => Char123LngChar125RouteRoute,
   } as any)
 const Char123LngChar125bylineAdminRouteRoute =
   Char123LngChar125bylineAdminRouteRouteImport.update({
@@ -82,6 +89,7 @@ const Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute =
 export interface FileRoutesByFullPath {
   '/{-$lng}': typeof Char123LngChar125PublicRouteRouteWithChildren
   '/{-$lng}/admin': typeof Char123LngChar125bylineAdminRouteRouteWithChildren
+  '/{-$lng}/sign-in': typeof Char123LngChar125bylineSignInRoute
   '/{-$lng}/': typeof Char123LngChar125PublicIndexRoute
   '/{-$lng}/admin/': typeof Char123LngChar125bylineAdminIndexRoute
   '/{-$lng}/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
@@ -92,6 +100,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/{-$lng}': typeof Char123LngChar125PublicIndexRoute
+  '/{-$lng}/sign-in': typeof Char123LngChar125bylineSignInRoute
   '/{-$lng}/admin': typeof Char123LngChar125bylineAdminIndexRoute
   '/{-$lng}/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   '/{-$lng}/admin/collections/$collection': typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
@@ -104,6 +113,7 @@ export interface FileRoutesById {
   '/{-$lng}': typeof Char123LngChar125RouteRouteWithChildren
   '/{-$lng}/_public': typeof Char123LngChar125PublicRouteRouteWithChildren
   '/{-$lng}/(byline)/admin': typeof Char123LngChar125bylineAdminRouteRouteWithChildren
+  '/{-$lng}/(byline)/sign-in': typeof Char123LngChar125bylineSignInRoute
   '/{-$lng}/_public/': typeof Char123LngChar125PublicIndexRoute
   '/{-$lng}/(byline)/admin/': typeof Char123LngChar125bylineAdminIndexRoute
   '/{-$lng}/(byline)/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/{-$lng}'
     | '/{-$lng}/admin'
+    | '/{-$lng}/sign-in'
     | '/{-$lng}/'
     | '/{-$lng}/admin/'
     | '/{-$lng}/admin/collections/$collection/create'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/{-$lng}'
+    | '/{-$lng}/sign-in'
     | '/{-$lng}/admin'
     | '/{-$lng}/admin/collections/$collection/create'
     | '/{-$lng}/admin/collections/$collection'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
     | '/{-$lng}'
     | '/{-$lng}/_public'
     | '/{-$lng}/(byline)/admin'
+    | '/{-$lng}/(byline)/sign-in'
     | '/{-$lng}/_public/'
     | '/{-$lng}/(byline)/admin/'
     | '/{-$lng}/(byline)/admin/collections/$collection/create'
@@ -173,6 +186,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/{-$lng}/'
       preLoaderRoute: typeof Char123LngChar125PublicIndexRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
+    }
+    '/{-$lng}/(byline)/sign-in': {
+      id: '/{-$lng}/(byline)/sign-in'
+      path: '/sign-in'
+      fullPath: '/{-$lng}/sign-in'
+      preLoaderRoute: typeof Char123LngChar125bylineSignInRouteImport
+      parentRoute: typeof Char123LngChar125RouteRoute
     }
     '/{-$lng}/(byline)/admin': {
       id: '/{-$lng}/(byline)/admin'
@@ -273,6 +293,7 @@ const Char123LngChar125bylineAdminRouteRouteWithChildren =
 interface Char123LngChar125RouteRouteChildren {
   Char123LngChar125PublicRouteRoute: typeof Char123LngChar125PublicRouteRouteWithChildren
   Char123LngChar125bylineAdminRouteRoute: typeof Char123LngChar125bylineAdminRouteRouteWithChildren
+  Char123LngChar125bylineSignInRoute: typeof Char123LngChar125bylineSignInRoute
 }
 
 const Char123LngChar125RouteRouteChildren: Char123LngChar125RouteRouteChildren =
@@ -281,6 +302,7 @@ const Char123LngChar125RouteRouteChildren: Char123LngChar125RouteRouteChildren =
       Char123LngChar125PublicRouteRouteWithChildren,
     Char123LngChar125bylineAdminRouteRoute:
       Char123LngChar125bylineAdminRouteRouteWithChildren,
+    Char123LngChar125bylineSignInRoute: Char123LngChar125bylineSignInRoute,
   }
 
 const Char123LngChar125RouteRouteWithChildren =
