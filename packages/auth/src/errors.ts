@@ -24,6 +24,10 @@
 export const AuthErrorCodes = {
   UNAUTHENTICATED: 'ERR_UNAUTHENTICATED',
   FORBIDDEN: 'ERR_FORBIDDEN',
+  INVALID_CREDENTIALS: 'ERR_INVALID_CREDENTIALS',
+  INVALID_TOKEN: 'ERR_INVALID_TOKEN',
+  REVOKED_TOKEN: 'ERR_REVOKED_TOKEN',
+  ACCOUNT_DISABLED: 'ERR_ACCOUNT_DISABLED',
 } as const
 
 export type AuthErrorCode = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes]
@@ -52,3 +56,30 @@ export const ERR_UNAUTHENTICATED = createAuthErrorType(AuthErrorCodes.UNAUTHENTI
 
 /** Throw when the actor is known but lacks the required ability. */
 export const ERR_FORBIDDEN = createAuthErrorType(AuthErrorCodes.FORBIDDEN)
+
+/**
+ * Throw on sign-in when the email/password combination does not match a
+ * known account. Message is intentionally generic — callers should not
+ * distinguish "unknown email" from "wrong password" at this layer.
+ */
+export const ERR_INVALID_CREDENTIALS = createAuthErrorType(AuthErrorCodes.INVALID_CREDENTIALS)
+
+/**
+ * Throw when an access or refresh token is malformed, has a bad signature,
+ * has expired, or otherwise cannot be verified.
+ */
+export const ERR_INVALID_TOKEN = createAuthErrorType(AuthErrorCodes.INVALID_TOKEN)
+
+/**
+ * Throw when a refresh token has been revoked — either explicitly, or
+ * because it was rotated and the caller is presenting a stale copy
+ * (replay). Presenting a rotated token additionally revokes the entire
+ * chain descended from it.
+ */
+export const ERR_REVOKED_TOKEN = createAuthErrorType(AuthErrorCodes.REVOKED_TOKEN)
+
+/**
+ * Throw when credentials / token are valid but the account has been
+ * disabled (`is_enabled = false`).
+ */
+export const ERR_ACCOUNT_DISABLED = createAuthErrorType(AuthErrorCodes.ACCOUNT_DISABLED)

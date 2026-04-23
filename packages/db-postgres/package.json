@@ -34,7 +34,7 @@
     "drizzle:push": "tsc -p tsconfig.json && drizzle-kit push --config=drizzle.config.ts",
     "drizzle:drop": "drizzle-kit drop --config=drizzle.config.ts",
     "drizzle:seed": "tsx --no-warnings --env-file=.env ./src/database/seeds/index.ts",
-    "test": "LOG_LEVEL=off tsx --env-file=.env --test $(find . -name \"*.test.ts\")",
+    "test": "LOG_LEVEL=off tsx --env-file=.env --test --test-concurrency=1 $(find . -name \"*.test.ts\")",
     "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test",
     "typecheck": "tsc --noEmit"
   },
@@ -44,13 +44,25 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js",
+      "require": "./dist/auth/index.js"
+    },
+    "./schema": {
+      "types": "./dist/database/schema/index.d.ts",
+      "import": "./dist/database/schema/index.js",
+      "require": "./dist/database/schema/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
   "dependencies": {
+    "@byline/auth": "workspace:*",
     "@byline/core": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.2",
     "npm-run-all": "^4.1.5",

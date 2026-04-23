@@ -629,3 +629,21 @@ export const jsonStoreRelations = relations(jsonStore, ({ one }) => ({
     references: [collections.id],
   }),
 }))
+
+// ---------------------------------------------------------------------------
+// Auth schema — byline_admin_users, byline_admin_roles, etc.
+// See ./auth.ts for definitions and rationale.
+// ---------------------------------------------------------------------------
+
+export {
+  bylineAdminPermissions,
+  bylineAdminPermissionsRelations,
+  bylineAdminRefreshTokens,
+  bylineAdminRefreshTokensRelations,
+  bylineAdminRoleAdminUser,
+  bylineAdminRoleAdminUserRelations,
+  bylineAdminRoles,
+  bylineAdminRolesRelations,
+  bylineAdminUsers,
+  bylineAdminUsersRelations,
+} from './auth.js'

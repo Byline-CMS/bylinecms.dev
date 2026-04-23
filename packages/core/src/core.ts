@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { type AbilityDescriptor, AbilityRegistry } from '@byline/auth'
+import { type AbilityDescriptor, AbilityRegistry, type SessionProvider } from '@byline/auth'
 import { type Logger as PinoLogger, pino } from 'pino'
 
 import { registerCollectionAbilities } from './auth/register-collection-abilities.js'
@@ -59,6 +59,12 @@ export interface BylineCore {
   listAbilities: () => AbilityDescriptor[]
   /** Convenience wrapper around `abilities.byGroup()`. */
   getAbilitiesByGroup: () => Map<string, AbilityDescriptor[]>
+  /**
+   * Configured session provider. Phase 3 leaves this optional — the admin
+   * server-fn middleware wired in Phase 5 will tighten the contract where
+   * authentication is required.
+   */
+  sessionProvider: SessionProvider | undefined
 }
 
 /**
@@ -128,5 +134,6 @@ export const initBylineCore = async (
     registerAbility: (descriptor) => abilities.register(descriptor),
     listAbilities: () => abilities.list(),
     getAbilitiesByGroup: () => abilities.byGroup(),
+    sessionProvider: composed.config.sessionProvider,
   }
 }

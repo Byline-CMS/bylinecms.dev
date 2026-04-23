@@ -27,6 +27,19 @@ export {
   type AuthErrorCode,
   AuthErrorCodes,
   type AuthErrorOptions,
+  ERR_ACCOUNT_DISABLED,
   ERR_FORBIDDEN,
+  ERR_INVALID_CREDENTIALS,
+  ERR_INVALID_TOKEN,
+  ERR_REVOKED_TOKEN,
   ERR_UNAUTHENTICATED,
 } from './errors.js'
+export type {
+  AccessTokenPayload,
+  RefreshSessionArgs,
+  SessionProvider,
+  SessionProviderCapabilities,
+  SessionTokens,
+  SignInResult,
+  SignInWithPasswordArgs,
+} from './session-provider.js'

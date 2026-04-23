@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { SessionProvider } from '@byline/auth'
+
 import type { SlugifierFn } from '../utils/slugify.js'
 import type { CollectionAdminConfig } from './admin-types.js'
 import type { CollectionDefinition } from './collection-types.js'
@@ -80,4 +82,26 @@ export interface ServerConfig extends BaseConfig {
    * client-side for live form preview, and the two must agree on output.
    */
   slugifier?: SlugifierFn
+  /**
+   * Session provider for admin authentication. Optional in Phase 3 —
+   * installations without a provider configured simply can't sign in
+   * (sign-in / verify / refresh / revoke all require one); everything
+   * else continues to work. Phase 5 wires the admin server-fn middleware
+   * and will tighten this where authentication is required.
+   *
+   * The built-in `JwtSessionProvider` from `@byline/db-postgres/auth`
+   * covers the default case. Alternative providers can adapt Lucia,
+   * better-auth, WorkOS, Clerk, or institutional SSO by implementing the
+   * `SessionProvider` interface from `@byline/auth`.
+   *
+   * @example
+   * ```ts
+   * import { JwtSessionProvider } from '@byline/db-postgres/auth'
+   * sessionProvider: new JwtSessionProvider({
+   *   db: drizzleDb,
+   *   signingSecret: process.env.BYLINE_JWT_SECRET!,
+   * })
+   * ```
+   */
+  sessionProvider?: SessionProvider
 }
