@@ -7,6 +7,7 @@ import { uploadDocument as coreUploadDocument } from '@byline/core/services'
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/storage-local'
 
 import { ensureCollection } from '@/lib/api-utils'
+import { getAdminRequestContext } from '@/lib/auth-context'
 
 export interface UploadDocumentResult {
   /** Present when the upload endpoint created a document (createDocument=true, the default). */
@@ -112,6 +113,7 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
           logger,
           defaultLocale: serverConfig.i18n.content.defaultLocale,
           slugifier: serverConfig.slugifier,
+          requestContext: await getAdminRequestContext(),
           imageProcessor: {
             extractMeta: extractImageMeta,
             isBypassMimeType,

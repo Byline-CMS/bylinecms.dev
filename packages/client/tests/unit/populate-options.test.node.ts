@@ -6,10 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+
+const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
 // ---------------------------------------------------------------------------
 // Fixtures — three collections to exercise populate plumbing end-to-end.
@@ -136,7 +139,11 @@ describe('CollectionHandle.find populate integration', () => {
       total: 1,
     })
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     await client.collection('posts').find()
 
     expect(getDocumentsByDocumentIds).not.toHaveBeenCalled()
@@ -158,7 +165,11 @@ describe('CollectionHandle.find populate integration', () => {
       total: 1,
     })
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     const result = await client.collection('posts').find({ populate: { author: true }, depth: 1 })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
@@ -194,7 +205,11 @@ describe('CollectionHandle.find populate integration', () => {
       total: 1,
     })
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     await client.collection('posts').find({ populate: { author: true }, depth: 0 })
 
     expect(getDocumentsByDocumentIds).not.toHaveBeenCalled()
@@ -220,7 +235,11 @@ describe('CollectionHandle.find populate integration', () => {
       total: 1,
     })
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     const result = await client.collection('posts').find({ populate: true, depth: 2 })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
@@ -247,7 +266,11 @@ describe('CollectionHandle.find populate integration', () => {
       total: 1,
     })
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     await client.collection('posts').find({ populate: { author: { select: ['employer'] } } })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
@@ -276,7 +299,11 @@ describe('CollectionHandle.findById populate integration', () => {
       })
     )
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     const doc = await client.collection('posts').findById('p1', { populate: { author: true } })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
@@ -297,7 +324,11 @@ describe('CollectionHandle.findById populate integration', () => {
       })
     )
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     // Select excludes `author` → populate has nothing to resolve.
     const doc = await client
       .collection('posts')
@@ -315,7 +346,11 @@ describe('CollectionHandle.findById populate integration', () => {
       })
     )
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     const doc = await client.collection('posts').findById('p1', { populate: { author: true } })
 
     expect(doc?.fields.author).toEqual({
@@ -342,7 +377,11 @@ describe('CollectionHandle.findByPath populate integration', () => {
       })
     )
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     const doc = await client.collection('posts').findByPath('p1', { populate: { author: true } })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
@@ -354,7 +393,11 @@ describe('CollectionHandle.findByPath populate integration', () => {
     const { db, getDocumentByPath, getDocumentsByDocumentIds } = makeAdapter()
     getDocumentByPath.mockResolvedValueOnce(null)
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     const doc = await client
       .collection('posts')
       .findByPath('missing', { populate: { author: true } })

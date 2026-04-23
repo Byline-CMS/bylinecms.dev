@@ -20,6 +20,7 @@
  *  - 2-hop recursion (category → parent → path)
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
@@ -28,6 +29,8 @@ import 'dotenv/config'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { type BylineClient, createBylineClient } from '../../src/index.js'
+
+const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -98,7 +101,7 @@ async function setup(): Promise<Ctx> {
 
   const collections = [categoriesDefinition, articlesDefinition]
   const db = pgAdapter({ connectionString, collections })
-  const client = createBylineClient({ db, collections })
+  const client = createBylineClient({ db, collections, requestContext: superAdmin })
 
   const [catRow] = await db.commands.collections.create(
     categoriesDefinition.path,

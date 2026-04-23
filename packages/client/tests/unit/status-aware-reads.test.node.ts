@@ -6,10 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+
+const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
 // ---------------------------------------------------------------------------
 // Fixtures — two collections so we can exercise populate+readMode too.
@@ -100,7 +103,11 @@ function makeAdapter() {
 describe("CollectionHandle defaults to readMode: 'published'", () => {
   it('passes readMode: "published" to findDocuments by default', async () => {
     const { db, findDocuments } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').find()
 
@@ -109,7 +116,11 @@ describe("CollectionHandle defaults to readMode: 'published'", () => {
 
   it('passes readMode: "published" to getDocumentById by default', async () => {
     const { db, getDocumentById } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').findById('p1')
 
@@ -118,7 +129,11 @@ describe("CollectionHandle defaults to readMode: 'published'", () => {
 
   it('passes readMode: "published" to getDocumentByPath by default', async () => {
     const { db, getDocumentByPath } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').findByPath('hello')
 
@@ -135,7 +150,11 @@ describe("CollectionHandle defaults to readMode: 'published'", () => {
 describe("status: 'any' override", () => {
   it('forwards readMode: "any" to the adapter on find', async () => {
     const { db, findDocuments } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').find({ status: 'any' })
 
@@ -144,7 +163,11 @@ describe("status: 'any' override", () => {
 
   it('forwards readMode: "any" to the adapter on findById', async () => {
     const { db, getDocumentById } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').findById('p1', { status: 'any' })
 
@@ -153,7 +176,11 @@ describe("status: 'any' override", () => {
 
   it('forwards readMode: "any" to the adapter on findByPath', async () => {
     const { db, getDocumentByPath } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').findByPath('hello', { status: 'any' })
 
@@ -162,7 +189,11 @@ describe("status: 'any' override", () => {
 
   it('findOne forwards the status option through to find', async () => {
     const { db, findDocuments } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').findOne({ status: 'any' })
 
@@ -177,7 +208,11 @@ describe("status: 'any' override", () => {
 describe('top-level status is distinct from where.status', () => {
   it('passes where.status as the exact-filter status, and client default as readMode', async () => {
     const { db, findDocuments } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').find({ where: { status: 'draft' } })
 
@@ -203,7 +238,11 @@ describe('populate forwards readMode to the batch fetch', () => {
       total: 1,
     })
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     await client.collection('posts').find({ populate: { author: true } })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
@@ -226,7 +265,11 @@ describe('populate forwards readMode to the batch fetch', () => {
       total: 1,
     })
 
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     await client.collection('posts').find({ populate: { author: true }, status: 'any' })
 
     expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(

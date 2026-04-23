@@ -13,6 +13,7 @@ import type { DocumentLifecycleContext } from '@byline/core/services'
 import { createDocument } from '@byline/core/services'
 
 import { ensureCollection } from '@/lib/api-utils'
+import { getAdminRequestContext } from '@/lib/auth-context'
 
 // ---------------------------------------------------------------------------
 // Create document
@@ -43,6 +44,7 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       logger,
       defaultLocale: serverConfig.i18n.content.defaultLocale,
       slugifier: serverConfig.slugifier,
+      requestContext: await getAdminRequestContext(),
     }
 
     await createDocument(ctx, {

@@ -26,6 +26,9 @@ importers:
 
   apps/webapp:
     dependencies:
+      '@byline/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@byline/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -281,6 +284,9 @@ importers:
 
   packages/client:
     dependencies:
+      '@byline/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@byline/core':
         specifier: workspace:*
         version: link:../core

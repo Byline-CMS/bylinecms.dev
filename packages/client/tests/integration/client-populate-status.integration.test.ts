@@ -21,6 +21,7 @@
  * inline in the same shape as `client-relation-filters`.
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
@@ -29,6 +30,8 @@ import 'dotenv/config'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { type BylineClient, createBylineClient } from '../../src/index.js'
+
+const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
 const suffix = `${Date.now()}-pop-status-${Math.floor(Math.random() * 1e6)}`
 
@@ -87,7 +90,7 @@ async function setup(): Promise<Ctx> {
 
   const collections: CollectionDefinition[] = [authorsDefinition, postsDefinition]
   const db = pgAdapter({ connectionString, collections })
-  const client = createBylineClient({ db, collections })
+  const client = createBylineClient({ db, collections, requestContext: superAdmin })
 
   const [authorsRow] = await db.commands.collections.create(
     authorsDefinition.path,

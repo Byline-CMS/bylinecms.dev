@@ -17,6 +17,7 @@
 
 export * from './@types/index.js'
 export {
+  assertActorCanPerform,
   COLLECTION_ABILITY_VERBS,
   type CollectionAbilityVerb,
   collectionAbilityKey,

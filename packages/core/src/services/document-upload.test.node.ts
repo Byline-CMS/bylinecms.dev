@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BylineError, ErrorCodes } from '../lib/errors.js'
@@ -128,6 +129,7 @@ function buildCtx(overrides?: Partial<DocumentUploadContext>) {
     logger: noopLogger,
     imageProcessor,
     defaultLocale: 'en',
+    requestContext: createSuperAdminContext({ id: 'test-super-admin' }),
     ...overrides,
   }
 
@@ -225,6 +227,7 @@ describe('uploadDocument service', () => {
         ]),
       }),
       defaultLocale: 'en',
+      requestContext: createSuperAdminContext({ id: 'test-super-admin' }),
     }
 
     let error: unknown

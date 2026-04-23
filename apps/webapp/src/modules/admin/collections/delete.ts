@@ -13,6 +13,7 @@ import type { DocumentLifecycleContext } from '@byline/core/services'
 import { deleteDocument as deleteDocumentService } from '@byline/core/services'
 
 import { ensureCollection } from '@/lib/api-utils'
+import { getAdminRequestContext } from '@/lib/auth-context'
 
 // ---------------------------------------------------------------------------
 // Delete document (soft-delete — marks all versions as deleted)
@@ -46,6 +47,7 @@ export const deleteDocument = createServerFn({ method: 'POST' })
       logger,
       defaultLocale: serverConfig.i18n.content.defaultLocale,
       slugifier: serverConfig.slugifier,
+      requestContext: await getAdminRequestContext(),
     }
 
     const result = await deleteDocumentService(ctx, { documentId: id })

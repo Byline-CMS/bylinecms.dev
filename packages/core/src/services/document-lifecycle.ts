@@ -31,6 +31,7 @@ import {
   type IStorageProvider,
   normalizeCollectionHook,
 } from '../@types/index.js'
+import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import {
   ERR_CONFLICT,
   ERR_INVALID_TRANSITION,
@@ -242,6 +243,7 @@ export async function createDocument(
     { domain: 'services', module: 'lifecycle', function: 'createDocument' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
       const slugifier = ctx.slugifier ?? slugify
       const hooks: CollectionHooks | undefined = definition.hooks
       const data = params.data
@@ -319,6 +321,7 @@ export async function updateDocument(
     { domain: 'services', module: 'lifecycle', function: 'updateDocument' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
       const hooks: CollectionHooks | undefined = definition.hooks
       const data = params.data
 
@@ -408,6 +411,7 @@ export async function updateDocumentWithPatches(
     { domain: 'services', module: 'lifecycle', function: 'updateDocumentWithPatches' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
       const hooks: CollectionHooks | undefined = definition.hooks
 
       // 1. Fetch current document.
@@ -523,6 +527,15 @@ export async function changeDocumentStatus(
     { domain: 'services', module: 'lifecycle', function: 'changeDocumentStatus' },
     async () => {
       const { db, definition, collectionId, collectionPath } = ctx
+      // Every transition requires the general changeStatus ability.
+      // Transitions that target the `published` status additionally
+      // require the narrower `publish` ability — so installations can
+      // grant "move things through the workflow" without also granting
+      // "flip the final publish switch".
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'changeStatus')
+      if (params.nextStatus === 'published') {
+        assertActorCanPerform(ctx.requestContext, collectionPath, 'publish')
+      }
       const hooks: CollectionHooks | undefined = definition.hooks
 
       // 1. Fetch current version metadata. No field reconstruction needed —
@@ -606,6 +619,9 @@ export async function unpublishDocument(
     { domain: 'services', module: 'lifecycle', function: 'unpublishDocument' },
     async () => {
       const { db, collectionPath } = ctx
+      // Unpublish is a workflow transition out of `published` — reuse the
+      // changeStatus gate rather than a separate ability.
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'changeStatus')
       const hooks: CollectionHooks | undefined = ctx.definition.hooks
 
       await invokeHook(hooks?.beforeUnpublish, {
@@ -658,6 +674,7 @@ export async function deleteDocument(
     { domain: 'services', module: 'lifecycle', function: 'deleteDocument' },
     async () => {
       const { db, collectionPath, definition, logger } = ctx
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'delete')
       const hooks: CollectionHooks | undefined = definition.hooks
 
       // 1. Verify the document exists.

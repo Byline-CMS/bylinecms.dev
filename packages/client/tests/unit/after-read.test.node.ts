@@ -6,11 +6,14 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { createReadContext } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+
+const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
 // ---------------------------------------------------------------------------
 // Fixtures — two collections so we can exercise populate + afterRead too.
@@ -122,7 +125,11 @@ describe('afterRead — basic firing', () => {
       total: 2,
     })
 
-    const client = createBylineClient({ db, collections: [posts, authors] })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [posts, authors],
+    })
     await client.collection('posts').find()
 
     expect(hook).toHaveBeenCalledTimes(2)
@@ -142,14 +149,14 @@ describe('afterRead — basic firing', () => {
     const { db, getDocumentById, getDocumentByPath, findDocuments } = makeAdapter()
 
     getDocumentById.mockResolvedValueOnce(rawDoc('posts', 'p1', { title: 'A' }))
-    await createBylineClient({ db, collections: [posts, authors] })
+    await createBylineClient({ db, requestContext: superAdmin, collections: [posts, authors] })
       .collection('posts')
       .findById('p1')
     expect(hook).toHaveBeenCalledTimes(1)
 
     hook.mockClear()
     getDocumentByPath.mockResolvedValueOnce(rawDoc('posts', 'p2', { title: 'B' }))
-    await createBylineClient({ db, collections: [posts, authors] })
+    await createBylineClient({ db, requestContext: superAdmin, collections: [posts, authors] })
       .collection('posts')
       .findByPath('p2')
     expect(hook).toHaveBeenCalledTimes(1)
@@ -159,7 +166,7 @@ describe('afterRead — basic firing', () => {
       documents: [rawDoc('posts', 'p3', { title: 'C' })],
       total: 1,
     })
-    await createBylineClient({ db, collections: [posts, authors] })
+    await createBylineClient({ db, requestContext: superAdmin, collections: [posts, authors] })
       .collection('posts')
       .findOne()
     expect(hook).toHaveBeenCalledTimes(1)
@@ -172,7 +179,7 @@ describe('afterRead — basic firing', () => {
     getDocumentById.mockResolvedValueOnce(rawDoc('posts', 'p1', { title: 'A' }))
 
     await expect(
-      createBylineClient({ db, collections: [posts, authors] })
+      createBylineClient({ db, requestContext: superAdmin, collections: [posts, authors] })
         .collection('posts')
         .findById('p1')
     ).resolves.toMatchObject({ id: 'p1', fields: { title: 'A' } })
@@ -193,7 +200,11 @@ describe('afterRead — mutation', () => {
     const { db, getDocumentById } = makeAdapter()
     getDocumentById.mockResolvedValueOnce(rawDoc('posts', 'p1', { title: 'Hello' }))
 
-    const client = createBylineClient({ db, collections: [posts, authors] })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [posts, authors],
+    })
     const doc = await client.collection('posts').findById('p1')
 
     expect(doc?.fields.title).toBe('Hello')
@@ -209,7 +220,11 @@ describe('afterRead — mutation', () => {
     const { db, getDocumentById } = makeAdapter()
     getDocumentById.mockResolvedValueOnce(rawDoc('posts', 'p1', { title: 'Secret' }))
 
-    const doc = await createBylineClient({ db, collections: [posts, authors] })
+    const doc = await createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [posts, authors],
+    })
       .collection('posts')
       .findById('p1')
 
@@ -240,7 +255,11 @@ describe('afterRead — populate interaction', () => {
       total: 1,
     })
 
-    const client = createBylineClient({ db, collections: [posts, authors] })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [posts, authors],
+    })
     await client.collection('posts').find({ populate: { author: true } })
 
     expect(postsHook).toHaveBeenCalledTimes(1)
@@ -273,7 +292,7 @@ describe('afterRead — populate interaction', () => {
       total: 1,
     })
 
-    await createBylineClient({ db, collections: [posts, authors] })
+    await createBylineClient({ db, requestContext: superAdmin, collections: [posts, authors] })
       .collection('posts')
       .find({ populate: { author: true } })
 
@@ -295,7 +314,11 @@ describe('afterRead — A→B→A safety', () => {
     const { db, getDocumentById } = makeAdapter()
     getDocumentById.mockResolvedValue(rawDoc('posts', 'p1', { title: 'A' }))
 
-    const client = createBylineClient({ db, collections: [posts, authors] })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [posts, authors],
+    })
     const ctx = createReadContext()
 
     // Two separate top-level calls sharing the same ReadContext — mimics
@@ -313,7 +336,11 @@ describe('afterRead — A→B→A safety', () => {
     const { db, getDocumentById } = makeAdapter()
     getDocumentById.mockResolvedValue(rawDoc('posts', 'p1', { title: 'A' }))
 
-    const client = createBylineClient({ db, collections: [posts, authors] })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [posts, authors],
+    })
     await client.collection('posts').findById('p1')
     await client.collection('posts').findById('p1')
 
@@ -350,7 +377,11 @@ describe('afterRead — A→B→A safety', () => {
       return null
     })
 
-    const client = createBylineClient({ db, collections: [posts, authors] })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [posts, authors],
+    })
     const result = await client.collection('posts').findById('p1')
 
     expect(result?.fields.authorName).toBe('Nora')
@@ -386,7 +417,7 @@ describe('afterRead — array of hook functions', () => {
     const { db, getDocumentById } = makeAdapter()
     getDocumentById.mockResolvedValueOnce(rawDoc('posts', 'p1', { title: 'A' }))
 
-    const doc = await createBylineClient({ db, collections: [posts] })
+    const doc = await createBylineClient({ db, requestContext: superAdmin, collections: [posts] })
       .collection('posts')
       .findById('p1')
 

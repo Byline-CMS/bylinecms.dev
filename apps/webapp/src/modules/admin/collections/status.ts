@@ -16,6 +16,7 @@ import {
 } from '@byline/core/services'
 
 import { ensureCollection } from '@/lib/api-utils'
+import { getAdminRequestContext } from '@/lib/auth-context'
 
 // ---------------------------------------------------------------------------
 // Change document workflow status
@@ -44,6 +45,7 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
       logger,
       defaultLocale: serverConfig.i18n.content.defaultLocale,
       slugifier: serverConfig.slugifier,
+      requestContext: await getAdminRequestContext(),
     }
 
     const result = await changeDocumentStatus(ctx, {
@@ -84,6 +86,7 @@ export const unpublishDocument = createServerFn({ method: 'POST' })
       logger,
       defaultLocale: serverConfig.i18n.content.defaultLocale,
       slugifier: serverConfig.slugifier,
+      requestContext: await getAdminRequestContext(),
     }
 
     const result = await unpublishDocumentService(ctx, { documentId: id })

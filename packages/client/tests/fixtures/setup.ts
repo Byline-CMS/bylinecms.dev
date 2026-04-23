@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import 'dotenv/config'
@@ -37,7 +38,11 @@ export async function setupTestClient(definition: CollectionDefinition): Promise
 
   const db = pgAdapter({ connectionString, collections })
 
-  const client = createBylineClient({ db, collections })
+  const client = createBylineClient({
+    db,
+    collections,
+    requestContext: createSuperAdminContext({ id: 'test-super-admin' }),
+  })
 
   // Register the collection in the database.
   const result = await db.commands.collections.create(definition.path, definition)

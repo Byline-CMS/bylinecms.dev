@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { RequestContext } from '@byline/auth'
 import type {
   BylineLogger,
   CollectionDefinition,
@@ -45,6 +46,23 @@ export interface BylineClientConfig {
    * omitted, the lifecycle uses the default `slugify` from `@byline/core`.
    */
   slugifier?: SlugifierFn
+  /**
+   * Request-scoped auth context. Required in practice — every read and
+   * write call from this client resolves a context and enforces
+   * `collections.<path>.<verb>` at the service boundary.
+   *
+   * Accepts either:
+   *   - a static `RequestContext` — convenient for long-lived processes
+   *     that authenticate once (seeds, migrations, CLI tooling); or
+   *   - a factory `() => RequestContext | Promise<RequestContext>` —
+   *     resolved per-call so each operation picks up the current
+   *     authenticated request (the pattern Phase 5's admin webapp will
+   *     use to thread middleware-derived actors).
+   *
+   * When omitted, calls fail closed with `ERR_UNAUTHENTICATED`. Scripts
+   * and tests pass `createSuperAdminContext()` from `@byline/auth`.
+   */
+  requestContext?: RequestContext | (() => RequestContext | Promise<RequestContext>)
 }
 
 // ---------------------------------------------------------------------------

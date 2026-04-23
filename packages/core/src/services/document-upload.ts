@@ -6,7 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { RequestContext } from '@byline/auth'
+
 import { normalizeCollectionHook } from '../@types/index.js'
+import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_DATABASE, ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
 import { createDocument, type DocumentLifecycleContext } from './document-lifecycle.js'
@@ -64,6 +67,13 @@ export interface DocumentUploadContext {
   defaultLocale: string
   /** Optional installation slugifier, forwarded to the lifecycle context. */
   slugifier?: SlugifierFn
+  /**
+   * Request-scoped auth context. Forwarded to the internal
+   * `DocumentLifecycleContext` when an upload creates a document, and
+   * consulted directly at the upload entry for the `create` ability
+   * check. Optional in Phase 4 plumbing; Phase 5 tightens.
+   */
+  requestContext?: RequestContext
 }
 
 export interface UploadDocumentParams {
@@ -162,6 +172,10 @@ export async function uploadDocument(
     { domain: 'services', module: 'upload', function: 'uploadDocument' },
     async () => {
       const { definition, collectionPath, storage, db, collectionId, logger, imageProcessor } = ctx
+      // Upload is effectively a write under collection scope — enforce
+      // the `create` ability even when `shouldCreateDocument: false` so
+      // anonymous callers cannot push bytes into storage.
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
       const upload = definition.upload
 
       if (!upload) {
@@ -312,6 +326,7 @@ export async function uploadDocument(
         logger,
         defaultLocale: ctx.defaultLocale,
         slugifier: ctx.slugifier,
+        requestContext: ctx.requestContext,
       }
 
       try {

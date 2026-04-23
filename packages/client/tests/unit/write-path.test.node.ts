@@ -6,10 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+
+const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -123,7 +126,11 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
 describe('CollectionHandle.create', () => {
   it('delegates to createDocumentVersion with action=create and the resolved collection id', async () => {
     const { db, createDocumentVersion } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     const result = await client
       .collection('posts')
@@ -151,7 +158,7 @@ describe('CollectionHandle.create', () => {
       hooks: { beforeCreate, afterCreate },
     }
     const { db } = makeAdapter()
-    const client = createBylineClient({ db, collections: [collection] })
+    const client = createBylineClient({ db, requestContext: superAdmin, collections: [collection] })
 
     await client.collection('posts').create({ title: 'Hook test' })
 
@@ -174,7 +181,11 @@ describe('CollectionHandle.create', () => {
 
   it('derives a path from the useAsPath source field when no override is supplied', async () => {
     const { db, createDocumentVersion } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').create({ title: 'Hello World' })
 
@@ -193,7 +204,11 @@ describe('CollectionHandle.update', () => {
     const { db, createDocumentVersion, getDocumentById } = makeAdapter({
       currentVersionId: 'ver:old',
     })
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await client.collection('posts').update('doc:1', { title: 'Updated', path: 'updated' })
 
@@ -225,7 +240,7 @@ describe('CollectionHandle.update', () => {
         fields: { title: 'Before' },
       },
     })
-    const client = createBylineClient({ db, collections: [collection] })
+    const client = createBylineClient({ db, requestContext: superAdmin, collections: [collection] })
 
     await client.collection('posts').update('doc:1', { title: 'After' })
 
@@ -249,7 +264,11 @@ describe('CollectionHandle.changeStatus', () => {
       currentStatus: 'draft',
       currentVersionId: 'ver:current',
     })
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     const result = await client.collection('posts').changeStatus('doc:1', 'published')
 
@@ -271,7 +290,11 @@ describe('CollectionHandle.changeStatus', () => {
     const { db, archivePublishedVersions } = makeAdapter({
       currentStatus: 'draft',
     })
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     // draft → draft is a no-op but a valid transition (reset-to-first).
     // Use an invalid direction-sensitive path: draft → archived skipping published
@@ -294,7 +317,11 @@ describe('CollectionHandle.changeStatus', () => {
 describe('CollectionHandle.unpublish', () => {
   it('archives published versions and returns the count', async () => {
     const { db, archivePublishedVersions } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     const result = await client.collection('posts').unpublish('doc:1')
 
@@ -310,7 +337,11 @@ describe('CollectionHandle.unpublish', () => {
 describe('CollectionHandle.delete', () => {
   it('soft-deletes after verifying the document exists', async () => {
     const { db, softDeleteDocument, getDocumentById } = makeAdapter()
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     const result = await client.collection('posts').delete('doc:1')
 
@@ -321,7 +352,11 @@ describe('CollectionHandle.delete', () => {
 
   it('throws ERR_NOT_FOUND when the document does not exist', async () => {
     const { db, softDeleteDocument } = makeAdapter({ existingDoc: null })
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
 
     await expect(client.collection('posts').delete('doc:missing')).rejects.toThrowError(
       /document not found/
@@ -339,7 +374,11 @@ describe('BylineClient logger fallback', () => {
     const { db } = makeAdapter()
     // If this constructed successfully and the write call runs without
     // throwing a "logger not initialised" error, the fallback is working.
-    const client = createBylineClient({ db, collections: allCollections })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
     await expect(client.collection('posts').create({ title: 'T' })).resolves.toEqual(
       expect.objectContaining({ documentId: 'doc:new' })
     )

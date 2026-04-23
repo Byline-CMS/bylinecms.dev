@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+export { assertActorCanPerform } from './assert-actor-can-perform.js'
 export {
   COLLECTION_ABILITY_VERBS,
   type CollectionAbilityVerb,

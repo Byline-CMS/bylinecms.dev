@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { ERR_UNAUTHENTICATED, type RequestContext } from '@byline/auth'
 import type {
   BylineLogger,
   CollectionDefinition,
@@ -69,6 +70,12 @@ export class BylineClient {
   /** Cache: collection path → database row id + schema version. */
   private collectionRecordCache = new Map<string, { id: string; version: number }>()
 
+  /** The raw `requestContext` config value, stored for per-call resolution. */
+  private readonly requestContextSource:
+    | RequestContext
+    | (() => RequestContext | Promise<RequestContext>)
+    | undefined
+
   constructor(config: BylineClientConfig) {
     this.db = config.db
     this.collections = config.collections
@@ -76,6 +83,28 @@ export class BylineClient {
     this.logger = resolveLogger(config.logger)
     this.defaultLocale = config.defaultLocale ?? 'en'
     this.slugifier = config.slugifier
+    this.requestContextSource = config.requestContext
+  }
+
+  /**
+   * Resolve the current `RequestContext`, awaiting the factory form when
+   * configured. Throws `ERR_UNAUTHENTICATED` when no context is
+   * configured — every read and write on the client requires one.
+   */
+  async resolveRequestContext(): Promise<RequestContext> {
+    const source = this.requestContextSource
+    if (source == null) {
+      throw ERR_UNAUTHENTICATED({
+        message:
+          'no requestContext configured on BylineClient. Pass createSuperAdminContext() ' +
+          'from @byline/auth for scripts/tests, or supply a factory that returns a ' +
+          'session-derived context for each call.',
+      })
+    }
+    if (typeof source === 'function') {
+      return await source()
+    }
+    return source
   }
 
   /**

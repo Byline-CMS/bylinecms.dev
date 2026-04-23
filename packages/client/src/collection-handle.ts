@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { RequestContext } from '@byline/auth'
 import type {
   ChangeStatusResult,
   CollectionDefinition,
@@ -20,6 +21,7 @@ import type {
 } from '@byline/core'
 import {
   applyAfterRead,
+  assertActorCanPerform,
   changeDocumentStatus,
   createDocument,
   createReadContext,
@@ -68,6 +70,7 @@ export class CollectionHandle {
    * (LATERAL JOINs).
    */
   async find<F = Record<string, any>>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
+    await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { where, select, sort, locale = 'en', page = 1, pageSize = 20 } = options
     const readMode = resolveReadMode(options.status)
@@ -147,6 +150,7 @@ export class CollectionHandle {
     documentId: string,
     options: FindByIdOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
+    await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
     const readMode = resolveReadMode(options.status)
@@ -191,6 +195,7 @@ export class CollectionHandle {
     path: string,
     options: FindByPathOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
+    await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
     const readMode = resolveReadMode(options.status)
@@ -314,6 +319,7 @@ export class CollectionHandle {
    * `getDocumentCountsByStatus()` query which groups by status.
    */
   async count(where?: { status?: string }): Promise<number> {
+    await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
 
     const counts = await this.client.db.queries.documents.getDocumentCountsByStatus({
@@ -351,7 +357,22 @@ export class CollectionHandle {
       logger: this.client.logger,
       defaultLocale: this.client.defaultLocale,
       slugifier: this.client.slugifier,
+      requestContext: await this.client.resolveRequestContext(),
     }
+  }
+
+  /**
+   * Resolve the caller's `RequestContext` and enforce the read ability
+   * for this collection. Called at the top of every read entry point so
+   * reads and writes both fail closed at the service boundary.
+   *
+   * Returns the resolved context so callers can thread `readMode` and
+   * other per-request state into the adapter without re-resolving.
+   */
+  private async resolveAndAssertRead(): Promise<RequestContext> {
+    const requestContext = await this.client.resolveRequestContext()
+    assertActorCanPerform(requestContext, this.definition.path, 'read')
+    return requestContext
   }
 
   /**

@@ -6,12 +6,20 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import {
+  AdminAuth,
+  AuthError,
+  AuthErrorCodes,
+  createRequestContext,
+  createSuperAdminContext,
+} from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BylineError, ErrorCodes } from '../lib/errors.js'
 import {
   changeDocumentStatus,
   createDocument,
+  deleteDocument,
   unpublishDocument,
   updateDocument,
   updateDocumentWithPatches,
@@ -119,6 +127,11 @@ function buildCtx(
     collectionPath: definition.path,
     logger: noopLogger,
     defaultLocale: 'en',
+    // Inject a super-admin context by default so the bulk of existing
+    // tests do not have to care about ability enforcement. The dedicated
+    // "enforcement" block below covers the missing-context / missing-ability
+    // negative cases.
+    requestContext: createSuperAdminContext({ id: 'test-super-admin' }),
   }
 }
 
@@ -824,6 +837,147 @@ describe('Document lifecycle service', () => {
       await unpublishDocument(ctx, { documentId: 'doc-1' })
 
       expect(callOrder).toEqual(['before-1', 'before-2', 'archive', 'after-1', 'after-2'])
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Ability enforcement (Phase 4)
+  // -----------------------------------------------------------------------
+  describe('ability enforcement', () => {
+    it('throws ERR_UNAUTHENTICATED when requestContext is absent', async () => {
+      const { db } = createMockDb()
+      const ctx = buildCtx(db)
+      // Remove the default super-admin context to simulate a caller that
+      // forgot to wire auth at all.
+      ;(ctx as any).requestContext = undefined
+
+      try {
+        await createDocument(ctx, { data: { title: 'Oops' } })
+        expect.fail('expected ERR_UNAUTHENTICATED')
+      } catch (err) {
+        expect(err).toBeInstanceOf(AuthError)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
+      }
+    })
+
+    it('throws ERR_FORBIDDEN when actor lacks collections.<path>.create', async () => {
+      const { db } = createMockDb()
+      const ctx = buildCtx(db)
+      const actor = new AdminAuth({ id: 'editor', abilities: ['collections.articles.read'] })
+      ctx.requestContext = createRequestContext({ actor })
+
+      try {
+        await createDocument(ctx, { data: { title: 'Nope' } })
+        expect.fail('expected ERR_FORBIDDEN')
+      } catch (err) {
+        expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
+      }
+    })
+
+    it('permits create when actor holds collections.<path>.create', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const ctx = buildCtx(db)
+      const actor = new AdminAuth({
+        id: 'editor',
+        abilities: ['collections.articles.create'],
+      })
+      ctx.requestContext = createRequestContext({ actor })
+
+      await createDocument(ctx, { data: { title: 'Yes' } })
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
+    })
+
+    it('requires both changeStatus and publish when transitioning to published', async () => {
+      const { db, getCurrentVersionMetadata } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        collection_id: 'col-1',
+        path: 'x',
+        status: 'draft',
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      const ctx = buildCtx(db)
+      const actor = new AdminAuth({
+        id: 'editor',
+        // Has changeStatus but NOT publish — the publish transition should fail.
+        abilities: ['collections.articles.changeStatus'],
+      })
+      ctx.requestContext = createRequestContext({ actor })
+
+      try {
+        await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+        expect.fail('expected ERR_FORBIDDEN')
+      } catch (err) {
+        expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
+        expect((err as AuthError).message).toContain('collections.articles.publish')
+      }
+    })
+
+    it('permits a non-publish transition with only the changeStatus ability', async () => {
+      const { db, getCurrentVersionMetadata, setDocumentStatus } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        collection_id: 'col-1',
+        path: 'x',
+        status: 'draft',
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      const definition: CollectionDefinition = {
+        ...minimalCollection,
+        workflow: {
+          statuses: [
+            { name: 'draft' },
+            { name: 'in_review' },
+            { name: 'published' },
+            { name: 'archived' },
+          ],
+        },
+      }
+      const ctx = buildCtx(db, definition)
+      const actor = new AdminAuth({
+        id: 'editor',
+        abilities: ['collections.articles.changeStatus'],
+      })
+      ctx.requestContext = createRequestContext({ actor })
+
+      await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'in_review' })
+      expect(setDocumentStatus).toHaveBeenCalledOnce()
+    })
+
+    it('super-admin bypasses every check', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const ctx = buildCtx(db)
+      // buildCtx already defaults to super-admin; confirm no ability grants
+      // are actually needed.
+      await createDocument(ctx, { data: { title: 'X' } })
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
+    })
+
+    it('enforces delete against collections.<path>.delete', async () => {
+      const { db, getDocumentById } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        fields: {},
+      })
+      const ctx = buildCtx(db)
+      const actor = new AdminAuth({
+        id: 'editor',
+        abilities: ['collections.articles.read', 'collections.articles.update'],
+      })
+      ctx.requestContext = createRequestContext({ actor })
+
+      try {
+        await deleteDocument(ctx, { documentId: 'doc-1' })
+        expect.fail('expected ERR_FORBIDDEN')
+      } catch (err) {
+        expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
+        expect((err as AuthError).message).toContain('collections.articles.delete')
+      }
     })
   })
 })
