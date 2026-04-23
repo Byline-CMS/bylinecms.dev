@@ -14,15 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Lightweight uikit stubs — we don't care about the visual rendering, only
 // that the Input forwards props and the Label renders its htmlFor.
 vi.mock('@infonomic/uikit/react', () => ({
-  Label: ({
-    id,
-    htmlFor,
-    label,
-  }: {
-    id?: string
-    htmlFor?: string
-    label?: string
-  }) => (
+  Label: ({ id, htmlFor, label }: { id?: string; htmlFor?: string; label?: string }) => (
     <label id={id} htmlFor={htmlFor}>
       {label}
     </label>

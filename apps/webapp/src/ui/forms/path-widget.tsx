@@ -97,11 +97,7 @@ export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: P
   // in create mode, "Suggested" validation hint) currently applies. The
   // visible helpText/placeholder cover sighted users; this element makes
   // the same information addressable via aria-describedby for AT.
-  const srDescription = [
-    'System-managed URL path for this document.',
-    placeholder,
-    hint,
-  ]
+  const srDescription = ['System-managed URL path for this document.', placeholder, hint]
     .filter(Boolean)
     .join(' ')
 

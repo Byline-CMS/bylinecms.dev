@@ -38,13 +38,13 @@ import type * as schema from '../database/schema/index.js'
 type DatabaseConnection = NodePgDatabase<typeof schema>
 type Document = Omit<typeof documentVersions.$inferSelect, 'doc'>
 
+import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-restore.js'
 import {
   allStoreTypes,
   type StoreType,
   storeSelectList,
   storeTableNames,
 } from './storage-store-manifest.js'
-import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-restore.js'
 import { resolveStoreTypes } from './storage-utils.js'
 import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 
