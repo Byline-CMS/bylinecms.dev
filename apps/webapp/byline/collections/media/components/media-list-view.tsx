@@ -31,7 +31,6 @@ import {
   Search,
   Section,
   Select,
-  SelectItem,
 } from '@infonomic/uikit/react'
 
 import { LocalDateTime } from '@/ui/components/local-date-time'
@@ -230,13 +229,8 @@ export function MediaListView({
               size="sm"
               value={currentOrder}
               onValueChange={handleOrderChange}
-            >
-              {ORDER_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </Select>
+              items={[...ORDER_OPTIONS]}
+            />
           </div>
 
           {/* Top pager */}
