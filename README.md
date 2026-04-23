@@ -288,8 +288,7 @@ mkdir data
 
 2.2. Initialize the database and schema
 
-We've just started to refactor db and other components into packages and adapters, with
-only the postgres adapter available at the moment.
+Only the postgres adapter is available at the moment.
 
 ```sh
 # Copy .env.example to .env in the apps/dashboard directory. 
@@ -316,7 +315,7 @@ cd ../..
 # pnpm drizzle:generate
 pnpm drizzle:migrate
 
-# Optionally seed the database with categories and documents.
+#  Seed the database with a single super-admin user - and optionally, categories and documents.
 # From /apps/webapp. Note that our seed scripts live in
 # apps/webapp/byline/seeds, orchestrated by apps/webapp/byline/seed.ts
 # (for now and for 'reasons').
