@@ -6,8 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { type AbilityDescriptor, AbilityRegistry } from '@byline/auth'
 import { type Logger as PinoLogger, pino } from 'pino'
 
+import { registerCollectionAbilities } from './auth/register-collection-abilities.js'
 import { defineServerConfig } from './config/config.js'
 import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logger.js'
 import { Registry } from './lib/registry.js'
@@ -37,6 +39,26 @@ export interface BylineCore {
    * hit this accessor do not need a DB round-trip.
    */
   getCollectionRecord: (path: string) => CollectionRecord
+  /**
+   * Ability registry. Populated at init time with the CRUD + workflow
+   * abilities contributed by each declared collection
+   * (`collections.<path>.{read,create,update,delete,publish,changeStatus}`).
+   *
+   * Plugins and future subsystems contribute their own abilities via
+   * `registerAbility()` — or directly against `core.abilities` — typically
+   * during server bootstrap and before any admin UI renders.
+   *
+   * Consumed at runtime by `AdminAuth.assertAbility()` (Phase 4) and at
+   * design time by the admin role-editor UI (Phase 6). See
+   * docs/analysis/AUTHN-AUTHZ-ANALYSIS.md §3.
+   */
+  abilities: AbilityRegistry
+  /** Convenience wrapper around `abilities.register()`. */
+  registerAbility: (descriptor: AbilityDescriptor) => void
+  /** Convenience wrapper around `abilities.list()`. */
+  listAbilities: () => AbilityDescriptor[]
+  /** Convenience wrapper around `abilities.byGroup()`. */
+  getAbilitiesByGroup: () => Map<string, AbilityDescriptor[]>
 }
 
 /**
@@ -86,6 +108,14 @@ export const initBylineCore = async (
     return record
   }
 
+  // Ability registry — populated with each collection's CRUD + workflow
+  // abilities. Plugins and subsystems add their own via
+  // `core.registerAbility()` or `core.abilities.register()`.
+  const abilities = new AbilityRegistry()
+  for (const definition of composed.collections) {
+    registerCollectionAbilities(abilities, definition)
+  }
+
   return {
     config: composed.config,
     collections: composed.collections,
@@ -94,5 +124,9 @@ export const initBylineCore = async (
     logger: composed.logger,
     collectionRecords,
     getCollectionRecord,
+    abilities,
+    registerAbility: (descriptor) => abilities.register(descriptor),
+    listAbilities: () => abilities.list(),
+    getAbilitiesByGroup: () => abilities.byGroup(),
   }
 }

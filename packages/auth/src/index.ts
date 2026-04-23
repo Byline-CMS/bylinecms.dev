@@ -7,6 +7,10 @@
  */
 
 export {
+  type AbilityDescriptor,
+  AbilityRegistry,
+} from './abilities.js'
+export {
   type Actor,
   AdminAuth,
   isAdminAuth,

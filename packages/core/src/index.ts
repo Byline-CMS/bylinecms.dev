@@ -17,6 +17,12 @@
 
 export * from './@types/index.js'
 export {
+  COLLECTION_ABILITY_VERBS,
+  type CollectionAbilityVerb,
+  collectionAbilityKey,
+  registerCollectionAbilities,
+} from './auth/index.js'
+export {
   defineClientConfig,
   defineServerConfig,
   getClientConfig,
