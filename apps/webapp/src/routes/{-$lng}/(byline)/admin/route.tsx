@@ -21,7 +21,7 @@
 
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
-import { getCurrentAdminUser } from '@/modules/admin/session'
+import { getCurrentAdminUser } from '@/modules/admin/auth'
 import { AdminAppBar } from '@/ui/components/admin-app-bar'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 

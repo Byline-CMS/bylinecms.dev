@@ -19,7 +19,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { SignInForm } from '@/modules/admin/session/sign-in-form'
+import { SignInForm } from '@/modules/admin/auth/sign-in-form'
 
 interface SignInSearch {
   callbackUrl?: string
