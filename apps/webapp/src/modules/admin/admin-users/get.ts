@@ -11,11 +11,11 @@ import { createServerFn } from '@tanstack/react-start'
 import { type AdminUserResponse, getAdminUserCommand } from '@byline/admin/admin-users'
 
 import { getAdminRequestContext } from '@/lib/auth-context'
-import { getAdminStore } from './admin-store'
+import { bylineCore } from '../../../../byline.server.config.js'
 
 export const getAdminUser = createServerFn({ method: 'GET' })
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data }): Promise<AdminUserResponse> => {
     const context = await getAdminRequestContext()
-    return getAdminUserCommand(context, data, { store: getAdminStore() })
+    return getAdminUserCommand(context, data, { store: bylineCore.adminStore! })
   })

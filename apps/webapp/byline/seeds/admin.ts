@@ -24,8 +24,6 @@
  */
 
 import { seedSuperAdmin } from '@byline/admin/admin-users'
-import type { PgAdapter } from '@byline/db-postgres'
-import { createAdminStore } from '@byline/db-postgres/auth'
 
 import { bylineCore } from '../../byline.server.config.js'
 
@@ -41,9 +39,14 @@ export async function seedAdmin() {
     return
   }
 
-  const adminStore = createAdminStore((bylineCore.db as PgAdapter).drizzle)
+  if (!bylineCore.adminStore) {
+    throw new Error(
+      'seedAdmin: bylineCore.adminStore is not configured. ' +
+        'Pass adminStore to initBylineCore() in byline.server.config.ts.'
+    )
+  }
 
-  const result = await seedSuperAdmin(adminStore, { email, password })
+  const result = await seedSuperAdmin(bylineCore.adminStore, { email, password })
 
   const parts: string[] = []
   if (result.created.role) parts.push('role')

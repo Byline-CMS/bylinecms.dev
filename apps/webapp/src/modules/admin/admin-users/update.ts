@@ -11,7 +11,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { type AdminUserResponse, updateAdminUserCommand } from '@byline/admin/admin-users'
 
 import { getAdminRequestContext } from '@/lib/auth-context'
-import { getAdminStore } from './admin-store'
+import { bylineCore } from '../../../../byline.server.config.js'
 
 export interface UpdateAdminUserInput {
   id: string
@@ -30,5 +30,5 @@ export const updateAdminUser = createServerFn({ method: 'POST' })
   .inputValidator((input: UpdateAdminUserInput) => input)
   .handler(async ({ data }): Promise<AdminUserResponse> => {
     const context = await getAdminRequestContext()
-    return updateAdminUserCommand(context, data, { store: getAdminStore() })
+    return updateAdminUserCommand(context, data, { store: bylineCore.adminStore! })
   })

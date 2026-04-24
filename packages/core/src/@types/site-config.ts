@@ -51,8 +51,15 @@ export interface ClientConfig extends BaseConfig {
  * Server-side configuration. Extends BaseConfig with database and storage
  * adapters. Deliberately does NOT extend ClientConfig — the server has no
  * knowledge of React components or admin UI presentation logic.
+ *
+ * Generic over `TAdminStore` so installations can thread an adapter-built
+ * admin store (users / roles / permissions / refresh tokens) through
+ * `initBylineCore()` without `@byline/core` depending on `@byline/admin` —
+ * which would invert the package dependency direction. Callers that
+ * consume admin functionality pass `AdminStore` from `@byline/admin`;
+ * callers that do not leave the default `unknown`.
  */
-export interface ServerConfig extends BaseConfig {
+export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
   db: IDbAdapter
   /**
    * Site-wide default storage provider for upload-enabled collections.
@@ -108,4 +115,28 @@ export interface ServerConfig extends BaseConfig {
    * ```
    */
   sessionProvider?: SessionProvider
+  /**
+   * Adapter-built bundle of admin repositories (users / roles /
+   * permissions / refresh tokens). Typically constructed via the
+   * adapter's `createAdminStore(...)` factory and shared with the
+   * session provider so both sides talk to the same repository
+   * instances.
+   *
+   * Surfaced unchanged as `BylineCore.adminStore` so server fns, seeds,
+   * and future admin commands can reach it without holding a second
+   * reference or casting the adapter. Optional — installations without
+   * admin UI can leave it unset.
+   *
+   * @example
+   * ```ts
+   * import type { AdminStore } from '@byline/admin'
+   * import { createAdminStore } from '@byline/db-postgres/auth'
+   *
+   * const db = pgAdapter({ ... })
+   * const adminStore = createAdminStore(db.drizzle)
+   * const core = await initBylineCore<AdminStore>({ db, adminStore, ... })
+   * // core.adminStore is typed as AdminStore
+   * ```
+   */
+  adminStore?: TAdminStore
 }

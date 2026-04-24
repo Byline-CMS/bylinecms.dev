@@ -1,3 +1,4 @@
+import type { AdminStore } from '@byline/admin'
 import { JwtSessionProvider } from '@byline/admin/auth'
 import { initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
@@ -20,8 +21,25 @@ const collections = [Docs, News, Pages, Media, Categories]
 // Construct the db adapter up-front so we can thread its drizzle handle into
 // the session provider without a second connection pool. The admin store
 // bundles the four admin repositories (users / roles / permissions / refresh
-// tokens) that `JwtSessionProvider` — and, later, the admin services —
-// consume.
+// tokens) that `JwtSessionProvider`, the admin-user server fns, and the
+// super-admin seed all consume. Built once here and surfaced on
+// `bylineCore.adminStore` so downstream callers talk to `AdminStore` — the
+// interface — rather than casting the adapter.
+//
+// Future approaches, if/when the wiring grows:
+//
+//   Option B — Adapter-owned admin store. Have `pgAdapter()` return
+//   `{ ..., adminStore }` directly so the integration point doesn't need
+//   the separate `createAdminStore(db.drizzle)` call or the
+//   `@byline/db-postgres/auth` import. Widens the adapter contract slightly
+//   but removes one more concrete-adapter mention from this file.
+//
+//   Option C — Full DI via `@byline/core`'s `Registry`. Register
+//   `adminStore` as a typed factory keyed off `db`; adapters contribute
+//   the factory, `initBylineCore()` composes it. Most flexible (lazy
+//   construction, test wiring, multi-store setups) but heavier until we
+//   have a second adapter or a second DI consumer to justify the
+//   ceremony.
 const db = pgAdapter({
   connectionString: process.env.DB_CONNECTION_STRING || '',
   collections,
@@ -47,11 +65,12 @@ const sessionProvider = new JwtSessionProvider({
   signingSecret,
 })
 
-export const bylineCore = await initBylineCore({
+export const bylineCore = await initBylineCore<AdminStore>({
   serverURL: 'http://localhost:5173/',
   i18n,
   collections,
   db,
+  adminStore,
   // Site-wide default storage provider — used by any upload collection that
   // does not specify its own `upload.storage` override.
   //

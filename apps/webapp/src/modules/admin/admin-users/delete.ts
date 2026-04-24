@@ -11,11 +11,11 @@ import { createServerFn } from '@tanstack/react-start'
 import { deleteAdminUserCommand, type OkResponse } from '@byline/admin/admin-users'
 
 import { getAdminRequestContext } from '@/lib/auth-context'
-import { getAdminStore } from './admin-store'
+import { bylineCore } from '../../../../byline.server.config.js'
 
 export const deleteAdminUser = createServerFn({ method: 'POST' })
   .inputValidator((input: { id: string; vid: number }) => input)
   .handler(async ({ data }): Promise<OkResponse> => {
     const context = await getAdminRequestContext()
-    return deleteAdminUserCommand(context, data, { store: getAdminStore() })
+    return deleteAdminUserCommand(context, data, { store: bylineCore.adminStore! })
   })

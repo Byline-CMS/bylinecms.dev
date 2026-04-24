@@ -15,7 +15,7 @@ import {
 } from '@byline/admin/admin-users'
 
 import { getAdminRequestContext } from '@/lib/auth-context'
-import { getAdminStore } from './admin-store'
+import { bylineCore } from '../../../../byline.server.config.js'
 
 export interface ListAdminUsersInput {
   page?: number
@@ -36,5 +36,5 @@ export const listAdminUsers = createServerFn({ method: 'GET' })
   .inputValidator((input: ListAdminUsersInput) => input ?? {})
   .handler(async ({ data }): Promise<AdminUserListResponse> => {
     const context = await getAdminRequestContext()
-    return listAdminUsersCommand(context, data, { store: getAdminStore() })
+    return listAdminUsersCommand(context, data, { store: bylineCore.adminStore! })
   })

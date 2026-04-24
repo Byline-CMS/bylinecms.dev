@@ -21,8 +21,8 @@ import type {
   ServerConfig,
 } from './@types/index.js'
 
-export interface BylineCore {
-  config: ServerConfig
+export interface BylineCore<TAdminStore = unknown> {
+  config: ServerConfig<TAdminStore>
   collections: CollectionDefinition[]
   db: IDbAdapter
   storage: IStorageProvider | undefined
@@ -65,6 +65,16 @@ export interface BylineCore {
    * authentication is required.
    */
   sessionProvider: SessionProvider | undefined
+  /**
+   * Adapter-built admin store bundle (users / roles / permissions /
+   * refresh tokens). Passed through from `ServerConfig.adminStore` so
+   * consumers (server fns, seeds, admin commands) have a single
+   * adapter-agnostic handle instead of reconstructing the store or
+   * casting `db` to the concrete adapter type.
+   *
+   * Undefined when the installation does not configure admin.
+   */
+  adminStore: TAdminStore | undefined
 }
 
 /**
@@ -77,10 +87,10 @@ export interface BylineCore {
  * @param config - Server configuration (collections, db, storage, i18n).
  * @param pinoLogger - Optional raw Pino instance. Defaults to `pino({ level: 'info' })`.
  */
-export const initBylineCore = async (
-  config: ServerConfig,
+export const initBylineCore = async <TAdminStore = unknown>(
+  config: ServerConfig<TAdminStore>,
   pinoLogger: PinoLogger = pino({ level: 'info' })
-): Promise<BylineCore> => {
+): Promise<BylineCore<TAdminStore>> => {
   const registry = new Registry()
     .addValue('config', config)
     .addValue('collections', config.collections)
@@ -135,5 +145,6 @@ export const initBylineCore = async (
     listAbilities: () => abilities.list(),
     getAbilitiesByGroup: () => abilities.byGroup(),
     sessionProvider: composed.config.sessionProvider,
+    adminStore: composed.config.adminStore,
   }
 }

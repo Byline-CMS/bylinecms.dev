@@ -158,7 +158,7 @@ export function AccountContainer({ user }: { user: AdminUserResponse }) {
             <Button size="sm" onClick={openDrawer('update')}>
               Update Details
             </Button>
-            <div className="muted mt-4">
+            <div className="muted mt-4 text-xs">
               <p>
                 <span className="font-bold">Created:&nbsp;</span>
                 <LocalDateTime value={currentUser.created_at} />
