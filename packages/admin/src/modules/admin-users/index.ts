@@ -9,18 +9,59 @@
 /**
  * `@byline/admin/admin-users` — admin user CRUD.
  *
- * Exports the adapter-facing `AdminUsersRepository` contract and the
- * transport-agnostic services built on top of it (seed, and — later —
- * Zod-validated commands for create/update/enable-disable/delete).
+ * Exports the adapter-facing `AdminUsersRepository` contract, ability
+ * keys, transport-agnostic commands, the `AdminUsersService`, the seed
+ * helper, and the module's error types. Commands are the recommended
+ * entry point for any caller; the service is exposed for internal uses
+ * (seeds, other services) that want to skip Zod/ability overhead.
+ *
  * Password hashing is owned by `@byline/admin/auth`; this module takes
- * pre-hashed `password_hash` strings so the adapter never sees plaintext.
+ * pre-hashed `password_hash` strings on the repository boundary so the
+ * adapter never sees plaintext.
  */
 
+export {
+  ADMIN_USERS_ABILITIES,
+  type AdminUsersAbilityKey,
+  registerAdminUsersAbilities,
+} from './abilities.js'
+export {
+  createAdminUserCommand,
+  deleteAdminUserCommand,
+  disableAdminUserCommand,
+  enableAdminUserCommand,
+  getAdminUserCommand,
+  setAdminUserPasswordCommand,
+  updateAdminUserCommand,
+} from './commands.js'
+export { toAdminUser } from './dto.js'
+export {
+  AdminUsersError,
+  type AdminUsersErrorCode,
+  AdminUsersErrorCodes,
+  ERR_ADMIN_USER_EMAIL_IN_USE,
+  ERR_ADMIN_USER_NOT_FOUND,
+  ERR_ADMIN_USER_SELF_DELETE,
+  ERR_ADMIN_USER_SELF_DISABLE,
+} from './errors.js'
+export {
+  adminUserResponseSchema,
+  createAdminUserRequestSchema,
+  deleteAdminUserRequestSchema,
+  disableAdminUserRequestSchema,
+  enableAdminUserRequestSchema,
+  getAdminUserRequestSchema,
+  okResponseSchema,
+  setAdminUserPasswordRequestSchema,
+  updateAdminUserRequestSchema,
+} from './schemas.js'
 export {
   type SeedSuperAdminInput,
   type SeedSuperAdminResult,
   seedSuperAdmin,
 } from './seed-super-admin.js'
+export { AdminUsersService } from './service.js'
+export type { AdminUsersCommandDeps } from './commands.js'
 export type {
   AdminUserRow,
   AdminUsersRepository,
@@ -28,3 +69,14 @@ export type {
   CreateAdminUserInput,
   UpdateAdminUserInput,
 } from './repository.js'
+export type {
+  AdminUserResponse,
+  CreateAdminUserRequest,
+  DeleteAdminUserRequest,
+  DisableAdminUserRequest,
+  EnableAdminUserRequest,
+  GetAdminUserRequest,
+  OkResponse,
+  SetAdminUserPasswordRequest,
+  UpdateAdminUserRequest,
+} from './schemas.js'

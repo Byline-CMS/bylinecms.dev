@@ -52,7 +52,7 @@ export interface AbilityDescriptor {
   /** Optional longer description, shown as tooltip / help text. */
   description?: string
   /** Where this ability was registered from. */
-  source?: 'collection' | 'plugin' | 'core'
+  source?: 'collection' | 'plugin' | 'core' | 'admin'
 }
 
 export class AbilityRegistry {
