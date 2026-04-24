@@ -146,144 +146,146 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
   })
 
   return (
-    <form
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        void form.handleSubmit()
-      }}
-      className="flex flex-col gap-4 pt-2"
-    >
-      {formError ? <Alert intent="danger">{formError}</Alert> : null}
-      {successMessage ? <Alert intent="success">{successMessage}</Alert> : null}
+    <div className="form flex flex-col gap-2 p-1">
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          void form.handleSubmit()
+        }}
+        className="flex flex-col gap-4 pt-2`"
+      >
+        {formError ? <Alert intent="danger">{formError}</Alert> : null}
+        {successMessage ? <Alert intent="success">{successMessage}</Alert> : null}
 
-      <form.Field name="given_name">
-        {(field) => (
-          <Input
-            label="Given name"
-            id="given_name"
-            name={field.name}
-            value={field.state.value}
-            onBlur={field.handleBlur}
-            onChange={(e) => field.handleChange(e.currentTarget.value)}
-            error={field.state.meta.errors.length > 0}
-            errorText={firstError(field.state.meta.errors)}
-            autoComplete="given-name"
-          />
-        )}
-      </form.Field>
-
-      <form.Field name="family_name">
-        {(field) => (
-          <Input
-            label="Family name"
-            id="family_name"
-            name={field.name}
-            value={field.state.value}
-            onBlur={field.handleBlur}
-            onChange={(e) => field.handleChange(e.currentTarget.value)}
-            error={field.state.meta.errors.length > 0}
-            errorText={firstError(field.state.meta.errors)}
-            autoComplete="family-name"
-          />
-        )}
-      </form.Field>
-
-      <form.Field name="username">
-        {(field) => (
-          <Input
-            label="Username"
-            id="username"
-            name={field.name}
-            value={field.state.value}
-            onBlur={field.handleBlur}
-            onChange={(e) => field.handleChange(e.currentTarget.value)}
-            error={field.state.meta.errors.length > 0}
-            errorText={firstError(field.state.meta.errors)}
-            helpText="Optional. Leave blank to clear."
-            autoComplete="username"
-          />
-        )}
-      </form.Field>
-
-      <form.Field name="email">
-        {(field) => (
-          <Input
-            label="Email"
-            id="email"
-            name={field.name}
-            type="email"
-            value={field.state.value}
-            onBlur={field.handleBlur}
-            onChange={(e) => field.handleChange(e.currentTarget.value)}
-            error={field.state.meta.errors.length > 0}
-            errorText={firstError(field.state.meta.errors)}
-            autoComplete="email"
-            required
-          />
-        )}
-      </form.Field>
-
-      <div className="flex flex-col gap-2 p-1">
-        <form.Field name="is_enabled">
+        <form.Field name="given_name">
           {(field) => (
-            <Checkbox
-              id="is_enabled"
+            <Input
+              label="Given name"
+              id="given_name"
               name={field.name}
-              label="Enabled"
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked === true)}
-              helpText="Disabled accounts cannot sign in."
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              autoComplete="given-name"
             />
           )}
         </form.Field>
 
-        <form.Field name="is_email_verified">
+        <form.Field name="family_name">
           {(field) => (
-            <Checkbox
-              id="is_email_verified"
+            <Input
+              label="Family name"
+              id="family_name"
               name={field.name}
-              label="Email verified"
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked === true)}
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              autoComplete="family-name"
             />
           )}
         </form.Field>
 
-        <form.Field name="is_super_admin">
+        <form.Field name="username">
           {(field) => (
-            <Checkbox
-              id="is_super_admin"
+            <Input
+              label="Username"
+              id="username"
               name={field.name}
-              label="Super admin"
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked === true)}
-              helpText="Super admins bypass every ability check — grant with care."
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              helpText="Optional. Leave blank to clear."
+              autoComplete="username"
             />
           )}
         </form.Field>
-      </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2">
-        <Button type="button" intent="secondary" size="sm" onClick={onClose}>
-          {successMessage ? 'Close' : 'Cancel'}
-        </Button>
-        <form.Subscribe
-          selector={(state) => ({
-            canSubmit: state.canSubmit,
-            isSubmitting: state.isSubmitting,
-            isDirty: state.isDirty,
-          })}
-        >
-          {({ canSubmit, isSubmitting, isDirty }) => (
-            <Button type="submit" size="sm" disabled={!canSubmit || !isDirty || isSubmitting}>
-              {isSubmitting ? 'Saving…' : 'Save changes'}
-            </Button>
+        <form.Field name="email">
+          {(field) => (
+            <Input
+              label="Email"
+              id="email"
+              name={field.name}
+              type="email"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              autoComplete="email"
+              required
+            />
           )}
-        </form.Subscribe>
-      </div>
-    </form>
+        </form.Field>
+
+        <div className="flex flex-col gap-2 p-1">
+          <form.Field name="is_enabled">
+            {(field) => (
+              <Checkbox
+                id="is_enabled"
+                name={field.name}
+                label="Enabled"
+                checked={field.state.value}
+                onCheckedChange={(checked) => field.handleChange(checked === true)}
+                helpText="Disabled accounts cannot sign in."
+              />
+            )}
+          </form.Field>
+
+          <form.Field name="is_email_verified">
+            {(field) => (
+              <Checkbox
+                id="is_email_verified"
+                name={field.name}
+                label="Email verified"
+                checked={field.state.value}
+                onCheckedChange={(checked) => field.handleChange(checked === true)}
+              />
+            )}
+          </form.Field>
+
+          <form.Field name="is_super_admin">
+            {(field) => (
+              <Checkbox
+                id="is_super_admin"
+                name={field.name}
+                label="Super admin"
+                checked={field.state.value}
+                onCheckedChange={(checked) => field.handleChange(checked === true)}
+                helpText="Super admins bypass every ability check — grant with care."
+              />
+            )}
+          </form.Field>
+        </div>
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <Button type="button" intent="secondary" size="sm" onClick={onClose}>
+            {successMessage ? 'Close' : 'Cancel'}
+          </Button>
+          <form.Subscribe
+            selector={(state) => ({
+              canSubmit: state.canSubmit,
+              isSubmitting: state.isSubmitting,
+              isDirty: state.isDirty,
+            })}
+          >
+            {({ canSubmit, isSubmitting, isDirty }) => (
+              <Button type="submit" size="sm" disabled={!canSubmit || !isDirty || isSubmitting}>
+                {isSubmitting ? 'Saving…' : 'Save changes'}
+              </Button>
+            )}
+          </form.Subscribe>
+        </div>
+      </form>
+    </div>
   )
 }
 

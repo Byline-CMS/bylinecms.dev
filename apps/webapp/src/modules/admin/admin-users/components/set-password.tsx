@@ -90,78 +90,80 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
   })
 
   return (
-    <form
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        void form.handleSubmit()
-      }}
-      className="flex flex-col gap-4 pt-2"
-    >
-      {formError ? <Alert intent="danger">{formError}</Alert> : null}
-      {successMessage ? <Alert intent="success">{successMessage}</Alert> : null}
+    <div className="form flex flex-col gap-2 p-1 mt-1">
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          void form.handleSubmit()
+        }}
+        className="flex flex-col gap-4 pt-2"
+      >
+        {formError ? <Alert intent="danger">{formError}</Alert> : null}
+        {successMessage ? <Alert intent="success">{successMessage}</Alert> : null}
 
-      <p className="muted">
-        Sets a new password for <span className="font-semibold">{user.email}</span>. The user will
-        need to sign in again with the new password.
-      </p>
+        <p className="muted">
+          Sets a new password for <span className="font-semibold">{user.email}</span>. The user will
+          need to sign in again with the new password.
+        </p>
 
-      <form.Field name="password">
-        {(field) => (
-          <Input
-            label="New password"
-            id="password"
-            name={field.name}
-            type="password"
-            value={field.state.value}
-            onBlur={field.handleBlur}
-            onChange={(e) => field.handleChange(e.currentTarget.value)}
-            error={field.state.meta.errors.length > 0}
-            errorText={firstError(field.state.meta.errors)}
-            autoComplete="new-password"
-            required
-          />
-        )}
-      </form.Field>
-
-      <form.Field name="confirm">
-        {(field) => (
-          <Input
-            label="Confirm new password"
-            id="confirm"
-            name={field.name}
-            type="password"
-            value={field.state.value}
-            onBlur={field.handleBlur}
-            onChange={(e) => field.handleChange(e.currentTarget.value)}
-            error={field.state.meta.errors.length > 0}
-            errorText={firstError(field.state.meta.errors)}
-            autoComplete="new-password"
-            required
-          />
-        )}
-      </form.Field>
-
-      <div className="mt-4 flex items-center justify-end gap-2">
-        <Button type="button" intent="secondary" size="sm" onClick={onClose}>
-          {successMessage ? 'Close' : 'Cancel'}
-        </Button>
-        <form.Subscribe
-          selector={(state) => ({
-            canSubmit: state.canSubmit,
-            isSubmitting: state.isSubmitting,
-            isDirty: state.isDirty,
-          })}
-        >
-          {({ canSubmit, isSubmitting, isDirty }) => (
-            <Button type="submit" size="sm" disabled={!canSubmit || !isDirty || isSubmitting}>
-              {isSubmitting ? 'Saving…' : 'Set password'}
-            </Button>
+        <form.Field name="password">
+          {(field) => (
+            <Input
+              label="New password"
+              id="password"
+              name={field.name}
+              type="password"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              autoComplete="new-password"
+              required
+            />
           )}
-        </form.Subscribe>
-      </div>
-    </form>
+        </form.Field>
+
+        <form.Field name="confirm">
+          {(field) => (
+            <Input
+              label="Confirm new password"
+              id="confirm"
+              name={field.name}
+              type="password"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              autoComplete="new-password"
+              required
+            />
+          )}
+        </form.Field>
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <Button type="button" intent="secondary" size="sm" onClick={onClose}>
+            {successMessage ? 'Close' : 'Cancel'}
+          </Button>
+          <form.Subscribe
+            selector={(state) => ({
+              canSubmit: state.canSubmit,
+              isSubmitting: state.isSubmitting,
+              isDirty: state.isDirty,
+            })}
+          >
+            {({ canSubmit, isSubmitting, isDirty }) => (
+              <Button type="submit" size="sm" disabled={!canSubmit || !isDirty || isSubmitting}>
+                {isSubmitting ? 'Saving…' : 'Set password'}
+              </Button>
+            )}
+          </form.Subscribe>
+        </div>
+      </form>
+    </div>
   )
 }
 

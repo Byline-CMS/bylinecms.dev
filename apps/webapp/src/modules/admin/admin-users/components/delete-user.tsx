@@ -23,7 +23,7 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
-import { Alert, Button } from '@infonomic/uikit/react'
+import { Alert, Button, Modal } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { deleteAdminUser } from '../index'
@@ -77,7 +77,7 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
   }
 
   return (
-    <>
+    <Modal.Content className="gap-1">
       <div className="flex flex-col gap-2">
         {error ? <Alert intent="danger">{error}</Alert> : null}
         <p className="m-0">
@@ -99,7 +99,7 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
           {pending ? 'Deleting…' : 'Delete admin user'}
         </Button>
       </div>
-    </>
+    </Modal.Content>
   )
 }
 
