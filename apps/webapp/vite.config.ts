@@ -20,10 +20,16 @@ export default defineConfig({
     // keep them external and let Node.js resolve them from node_modules
     // at runtime.
     //   - sharp + @byline/storage-local — image processing
-    //   - @node-rs/argon2 + @byline/db-postgres — password hashing
-    //     (reached through @byline/db-postgres/auth from the admin
-    //     server fns)
-    external: ['sharp', '@byline/storage-local', '@node-rs/argon2', '@byline/db-postgres'],
+    //   - @node-rs/argon2 + @byline/admin — password hashing lives in
+    //     @byline/admin/auth now (reached from admin server fns + seed)
+    //   - @byline/db-postgres — adapter depends on pg native bindings
+    external: [
+      'sharp',
+      '@byline/storage-local',
+      '@node-rs/argon2',
+      '@byline/admin',
+      '@byline/db-postgres',
+    ],
   },
   plugins: [
     tanstackStart(),

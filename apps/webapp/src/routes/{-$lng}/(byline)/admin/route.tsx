@@ -22,6 +22,9 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
 import { getCurrentAdminUser } from '@/modules/admin/auth'
+import { Content } from '@/ui/admin/content'
+import { AdminMenuDrawer } from '@/ui/admin/menu-drawer'
+import { AdminMenuProvider } from '@/ui/admin/menu-provider'
 import { AdminAppBar } from '@/ui/components/admin-app-bar'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
@@ -49,11 +52,14 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin')({
 function AdminLayoutComponent() {
   const { user } = Route.useRouteContext()
   return (
-    <>
+    <AdminMenuProvider>
       <AdminAppBar user={user} />
-      <main className="flex flex-col flex-1 pt-[55px] w-full max-w-full">
-        <Outlet />
+      <main className="flex min-h-screen w-full max-w-full pt-[45px]">
+        <AdminMenuDrawer />
+        <Content>
+          <Outlet />
+        </Content>
       </main>
-    </>
+    </AdminMenuProvider>
   )
 }

@@ -1,8 +1,8 @@
 .admin-menu-drawer {
   position: sticky;
-  top: 65px;
+  top: 12px;
   margin: 0;
-  max-height: calc(100vh - 90px);
+  max-height: calc(100vh - 45px);
   overflow-y: auto;
 }
 
@@ -27,6 +27,14 @@
   width: 24px;
 }
 
+.admin-menu-drawer ul li.menu-item .label {
+  line-height: 0;
+}
+
+.admin-menu-drawer ul li.menu-item.compact .label {
+  display: none;
+}
+
 .admin-menu-drawer ul li.menu-item.active,
 .admin-menu-drawer ul li.menu-item:hover {
   background-color: var(--canvas-50);
@@ -34,12 +42,18 @@
 
 .admin-menu-drawer ul li.menu-item a {
   display: flex;
+  align-items: center;
+  justify-content: flex-start;
   padding: 7px 7px;
   gap: 8px;
   color: #111111;
   font-size: 0.9rem;
   font-weight: normal;
   text-decoration: none;
+}
+
+.admin-menu-drawer ul li.menu-item.compact a {
+  justify-content: center;
 }
 
 .admin-menu-drawer ul li.menu-item.active a {
