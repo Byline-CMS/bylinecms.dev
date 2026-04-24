@@ -7,12 +7,13 @@
  */
 
 import assert from 'node:assert'
-import { after, before, beforeEach, describe, it } from 'node:test'
+import { after, afterEach, before, describe, it } from 'node:test'
 
 import type { AdminStore } from '@byline/admin'
 import { seedSuperAdmin } from '@byline/admin/admin-users'
 import { hashPassword, resolveActor, verifyPassword } from '@byline/admin/auth'
 import { AdminAuth } from '@byline/auth'
+import { eq, inArray } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import {
@@ -26,24 +27,36 @@ import { createAdminStore } from '../admin-store.js'
 import type * as schema from '../../database/schema/index.js'
 
 // ---------------------------------------------------------------------------
-// Fixtures / helpers
+// Track-and-clean fixtures
 // ---------------------------------------------------------------------------
+//
+// Integration tests share the dev database with the running webapp, so
+// blanket `DELETE FROM admin_users` wipes would take out whichever
+// super-admin the developer signed in with. Instead, every admin-user
+// and admin-role row a test creates flows through `createUser` or
+// `createRole` helpers that push the new id into a per-suite tracking
+// set. `afterEach` deletes only those ids; `ON DELETE CASCADE` on
+// `adminPermissions`, `adminRoleAdminUser`, and `adminRefreshTokens`
+// handles the dependent rows automatically.
+//
+// To guard against a crashed prior run leaving a stale row with a test
+// email, the helpers pre-delete any existing row with the same email or
+// machine_name before inserting. Keeps the suite re-runnable without
+// manual cleanup.
 
 let db: NodePgDatabase<typeof schema>
 let store: AdminStore
 
-async function cleanAuthTables() {
-  await db.delete(adminPermissions)
-  await db.delete(adminRoleAdminUser)
-  await db.delete(adminRoles)
-  await db.delete(adminUsers)
+const trackedUserIds = new Set<string>()
+const trackedRoleIds = new Set<string>()
+
+function trackUser(id: string) {
+  trackedUserIds.add(id)
+}
+function trackRole(id: string) {
+  trackedRoleIds.add(id)
 }
 
-/**
- * Hash-and-create helper — the repository takes `password_hash` and is
- * deliberately not aware of hashing. Every test that wants a user with a
- * verifiable password goes through here.
- */
 async function createUser(input: {
   email: string
   password: string
@@ -51,14 +64,42 @@ async function createUser(input: {
   is_enabled?: boolean
   is_super_admin?: boolean
 }) {
+  const email = input.email.toLowerCase()
+  // Clear any stale row left by a crashed prior run.
+  await db.delete(adminUsers).where(eq(adminUsers.email, email))
   const password_hash = await hashPassword(input.password)
-  return store.adminUsers.create({
+  const row = await store.adminUsers.create({
     email: input.email,
     password_hash,
     given_name: input.given_name,
     is_enabled: input.is_enabled,
     is_super_admin: input.is_super_admin,
   })
+  trackUser(row.id)
+  return row
+}
+
+async function createRole(input: {
+  name: string
+  machine_name: string
+  description?: string | null
+  order?: number
+}) {
+  await db.delete(adminRoles).where(eq(adminRoles.machine_name, input.machine_name))
+  const row = await store.adminRoles.create(input)
+  trackRole(row.id)
+  return row
+}
+
+async function cleanupTrackedRows() {
+  if (trackedUserIds.size > 0) {
+    await db.delete(adminUsers).where(inArray(adminUsers.id, [...trackedUserIds]))
+  }
+  if (trackedRoleIds.size > 0) {
+    await db.delete(adminRoles).where(inArray(adminRoles.id, [...trackedRoleIds]))
+  }
+  trackedUserIds.clear()
+  trackedRoleIds.clear()
 }
 
 // ---------------------------------------------------------------------------
@@ -70,12 +111,12 @@ describe('auth integration', () => {
     store = createAdminStore(db)
   })
 
-  beforeEach(async () => {
-    await cleanAuthTables()
+  afterEach(async () => {
+    await cleanupTrackedRows()
   })
 
   after(async () => {
-    await cleanAuthTables()
+    await cleanupTrackedRows()
     await teardownTestDB()
   })
 
@@ -208,23 +249,26 @@ describe('auth integration', () => {
       await createUser({ email: 'list2@example.com', password: 'pw', given_name: 'Bea' })
       await createUser({ email: 'list3@example.com', password: 'pw', given_name: 'Casey' })
 
-      const page1 = await store.adminUsers.list({
+      // Query filters against a stable, unique-to-this-test needle so
+      // other test or dev rows don't skew the totals.
+      const filtered = await store.adminUsers.list({
         page: 1,
-        pageSize: 2,
+        pageSize: 10,
+        query: 'list',
         order: 'email',
         desc: false,
       })
-      assert.strictEqual(page1.length, 2)
+      assert.strictEqual(filtered.length, 3)
 
-      const filtered = await store.adminUsers.list({
+      const named = await store.adminUsers.list({
         page: 1,
         pageSize: 10,
         query: 'Bea',
         order: 'email',
         desc: false,
       })
-      assert.strictEqual(filtered.length, 1)
-      assert.strictEqual(filtered[0]?.given_name, 'Bea')
+      assert.strictEqual(named.length, 1)
+      assert.strictEqual(named[0]?.given_name, 'Bea')
 
       const total = await store.adminUsers.count({ query: 'list' })
       assert.strictEqual(total, 3)
@@ -237,26 +281,26 @@ describe('auth integration', () => {
 
   describe('admin roles repository', () => {
     it('creates and reads a role', async () => {
-      const role = await store.adminRoles.create({
+      const role = await createRole({
         name: 'Editor',
-        machine_name: 'editor',
+        machine_name: 'test-editor',
         description: 'Can edit content',
       })
-      assert.strictEqual(role.machine_name, 'editor')
-      const byMachine = await store.adminRoles.getByMachineName('editor')
+      assert.strictEqual(role.machine_name, 'test-editor')
+      const byMachine = await store.adminRoles.getByMachineName('test-editor')
       assert.strictEqual(byMachine?.id, role.id)
     })
 
     it('assignToUser is idempotent and listRolesForUser returns the role', async () => {
       const user = await createUser({ email: 'g@example.com', password: 'pw' })
-      const role = await store.adminRoles.create({ name: 'r', machine_name: 'r' })
+      const role = await createRole({ name: 'test-r', machine_name: 'test-r' })
 
       await store.adminRoles.assignToUser(role.id, user.id)
       await store.adminRoles.assignToUser(role.id, user.id) // idempotent
 
       const userRoles = await store.adminRoles.listRolesForUser(user.id)
       assert.strictEqual(userRoles.length, 1)
-      assert.strictEqual(userRoles[0]?.machine_name, 'r')
+      assert.strictEqual(userRoles[0]?.machine_name, 'test-r')
 
       const usersForRole = await store.adminRoles.listUsersForRole(role.id)
       assert.deepStrictEqual(usersForRole, [user.id])
@@ -264,7 +308,7 @@ describe('auth integration', () => {
 
     it('unassignFromUser removes the assignment', async () => {
       const user = await createUser({ email: 'h@example.com', password: 'pw' })
-      const role = await store.adminRoles.create({ name: 'r', machine_name: 'r' })
+      const role = await createRole({ name: 'test-r', machine_name: 'test-r' })
       await store.adminRoles.assignToUser(role.id, user.id)
       await store.adminRoles.unassignFromUser(role.id, user.id)
       assert.strictEqual((await store.adminRoles.listRolesForUser(user.id)).length, 0)
@@ -272,7 +316,7 @@ describe('auth integration', () => {
 
     it('delete cascades to permissions and role-user assignments', async () => {
       const user = await createUser({ email: 'i@example.com', password: 'pw' })
-      const role = await store.adminRoles.create({ name: 'r', machine_name: 'r' })
+      const role = await createRole({ name: 'test-r', machine_name: 'test-r' })
       await store.adminPermissions.grantAbility(role.id, 'a.one')
       await store.adminRoles.assignToUser(role.id, user.id)
 
@@ -280,12 +324,18 @@ describe('auth integration', () => {
 
       // The role is gone…
       assert.strictEqual(await store.adminRoles.getById(role.id), null)
-      // …and all grants are gone…
-      const permRows = await db.select().from(adminPermissions)
-      assert.strictEqual(permRows.length, 0)
-      // …and no assignment remains.
-      const assignRows = await db.select().from(adminRoleAdminUser)
-      assert.strictEqual(assignRows.length, 0)
+      // …and its grants are gone…
+      const grantsForRole = await db
+        .select()
+        .from(adminPermissions)
+        .where(eq(adminPermissions.admin_role_id, role.id))
+      assert.strictEqual(grantsForRole.length, 0)
+      // …and no assignment for the role remains.
+      const assignsForRole = await db
+        .select()
+        .from(adminRoleAdminUser)
+        .where(eq(adminRoleAdminUser.admin_role_id, role.id))
+      assert.strictEqual(assignsForRole.length, 0)
       // The user still exists.
       assert.ok(await store.adminUsers.getById(user.id))
     })
@@ -297,7 +347,7 @@ describe('auth integration', () => {
 
   describe('admin permissions repository', () => {
     it('grantAbility is idempotent', async () => {
-      const role = await store.adminRoles.create({ name: 'r', machine_name: 'r' })
+      const role = await createRole({ name: 'test-r', machine_name: 'test-r' })
       await store.adminPermissions.grantAbility(role.id, 'collections.pages.publish')
       await store.adminPermissions.grantAbility(role.id, 'collections.pages.publish')
       const abilities = await store.adminPermissions.listAbilities(role.id)
@@ -305,7 +355,7 @@ describe('auth integration', () => {
     })
 
     it('revokeAbility removes the grant', async () => {
-      const role = await store.adminRoles.create({ name: 'r', machine_name: 'r' })
+      const role = await createRole({ name: 'test-r', machine_name: 'test-r' })
       await store.adminPermissions.grantAbility(role.id, 'a.one')
       await store.adminPermissions.grantAbility(role.id, 'a.two')
       await store.adminPermissions.revokeAbility(role.id, 'a.one')
@@ -314,7 +364,7 @@ describe('auth integration', () => {
     })
 
     it('setAbilities replaces the ability set wholesale', async () => {
-      const role = await store.adminRoles.create({ name: 'r', machine_name: 'r' })
+      const role = await createRole({ name: 'test-r', machine_name: 'test-r' })
       await store.adminPermissions.grantAbility(role.id, 'a.one')
       await store.adminPermissions.grantAbility(role.id, 'a.two')
       await store.adminPermissions.setAbilities(role.id, ['a.three', 'a.four'])
@@ -346,8 +396,8 @@ describe('auth integration', () => {
         password: 'pw',
         is_enabled: true,
       })
-      const roleA = await store.adminRoles.create({ name: 'A', machine_name: 'a' })
-      const roleB = await store.adminRoles.create({ name: 'B', machine_name: 'b' })
+      const roleA = await createRole({ name: 'A', machine_name: 'test-a' })
+      const roleB = await createRole({ name: 'B', machine_name: 'test-b' })
 
       await store.adminPermissions.grantAbility(roleA.id, 'collections.pages.read')
       await store.adminPermissions.grantAbility(roleA.id, 'collections.pages.update')
@@ -374,7 +424,7 @@ describe('auth integration', () => {
 
     it('honours the is_super_admin flag', async () => {
       const user = await createUser({
-        email: 'root@example.com',
+        email: 'test-root@example.com',
         password: 'pw',
         is_super_admin: true,
         is_enabled: true,
@@ -389,14 +439,29 @@ describe('auth integration', () => {
 
   // -------------------------------------------------------------------------
   // seedSuperAdmin
+  //
+  // These tests use a test-specific role machine_name and email so the
+  // idempotency assertions are not affected by (and do not affect) a
+  // real dev-environment super-admin seed.
   // -------------------------------------------------------------------------
 
   describe('seedSuperAdmin', () => {
-    it('creates role + user + assignment on a fresh database', async () => {
-      const result = await seedSuperAdmin(store, {
-        email: 'root@byline.local',
-        password: 'initial-password',
-      })
+    const seedInput = {
+      email: 'test-seed-super@example.com',
+      password: 'initial-password',
+      roleMachineName: 'test-seed-super-admin',
+      roleName: 'Test Seed Super Admin',
+    }
+
+    it('creates role + user + assignment on first run', async () => {
+      // Pre-clean in case a prior run left the seed in place.
+      await db.delete(adminUsers).where(eq(adminUsers.email, seedInput.email))
+      await db.delete(adminRoles).where(eq(adminRoles.machine_name, seedInput.roleMachineName))
+
+      const result = await seedSuperAdmin(store, seedInput)
+      trackUser(result.userId)
+      trackRole(result.roleId)
+
       assert.ok(result.userId)
       assert.ok(result.roleId)
       assert.deepStrictEqual(result.created, { user: true, role: true, assignment: true })
@@ -407,14 +472,14 @@ describe('auth integration', () => {
     })
 
     it('is idempotent — second run reports nothing newly created', async () => {
-      await seedSuperAdmin(store, {
-        email: 'root@byline.local',
-        password: 'initial-password',
-      })
-      const second = await seedSuperAdmin(store, {
-        email: 'root@byline.local',
-        password: 'initial-password',
-      })
+      await db.delete(adminUsers).where(eq(adminUsers.email, seedInput.email))
+      await db.delete(adminRoles).where(eq(adminRoles.machine_name, seedInput.roleMachineName))
+
+      const first = await seedSuperAdmin(store, seedInput)
+      trackUser(first.userId)
+      trackRole(first.roleId)
+
+      const second = await seedSuperAdmin(store, seedInput)
       assert.deepStrictEqual(second.created, {
         user: false,
         role: false,

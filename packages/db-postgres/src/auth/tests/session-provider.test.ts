@@ -7,30 +7,34 @@
  */
 
 import assert from 'node:assert'
-import { after, before, beforeEach, describe, it } from 'node:test'
+import { after, afterEach, before, describe, it } from 'node:test'
 
 import type { AdminStore } from '@byline/admin'
 import { hashPassword, JwtSessionProvider } from '@byline/admin/auth'
 import { AdminAuth, AuthError, AuthErrorCodes } from '@byline/auth'
+import { eq, inArray } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
-import {
-  adminPermissions,
-  adminRefreshTokens,
-  adminRoleAdminUser,
-  adminRoles,
-  adminUsers,
-} from '../../database/schema/auth.js'
+import { adminUsers } from '../../database/schema/auth.js'
 import { setupTestDB, teardownTestDB } from '../../lib/test-helper.js'
 import { createAdminStore } from '../admin-store.js'
 import type * as schema from '../../database/schema/index.js'
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Track-and-clean fixtures
 // ---------------------------------------------------------------------------
+//
+// Integration tests share the dev database. Instead of a blanket wipe
+// (which would destroy the developer's signed-in super-admin), we track
+// each admin-user row a test creates and delete only those ids on
+// teardown. `adminRefreshTokens` cascades from `adminUsers`, so the
+// token rows are cleaned up automatically. No roles are created in this
+// suite — it only exercises the session provider.
 
 let db: NodePgDatabase<typeof schema>
 let store: AdminStore
+
+const trackedUserIds = new Set<string>()
 
 const SIGNING_SECRET = 'test-signing-secret-at-least-32-bytes-long-here'
 
@@ -48,20 +52,34 @@ function makeProvider(options?: {
   })
 }
 
-async function cleanAuthTables() {
-  await db.delete(adminRefreshTokens)
-  await db.delete(adminPermissions)
-  await db.delete(adminRoleAdminUser)
-  await db.delete(adminRoles)
-  await db.delete(adminUsers)
-}
-
 async function createEnabledUser(email: string, password: string) {
-  return store.adminUsers.create({
+  // Clear any stale row left by a crashed prior run.
+  await db.delete(adminUsers).where(eq(adminUsers.email, email.toLowerCase()))
+  const row = await store.adminUsers.create({
     email,
     password_hash: await hashPassword(password),
     is_enabled: true,
   })
+  trackedUserIds.add(row.id)
+  return row
+}
+
+async function createDisabledUser(email: string, password: string) {
+  await db.delete(adminUsers).where(eq(adminUsers.email, email.toLowerCase()))
+  const row = await store.adminUsers.create({
+    email,
+    password_hash: await hashPassword(password),
+    is_enabled: false,
+  })
+  trackedUserIds.add(row.id)
+  return row
+}
+
+async function cleanupTrackedRows() {
+  if (trackedUserIds.size > 0) {
+    await db.delete(adminUsers).where(inArray(adminUsers.id, [...trackedUserIds]))
+  }
+  trackedUserIds.clear()
 }
 
 // ---------------------------------------------------------------------------
@@ -73,12 +91,12 @@ describe('JwtSessionProvider', () => {
     store = createAdminStore(db)
   })
 
-  beforeEach(async () => {
-    await cleanAuthTables()
+  afterEach(async () => {
+    await cleanupTrackedRows()
   })
 
   after(async () => {
-    await cleanAuthTables()
+    await cleanupTrackedRows()
     await teardownTestDB()
   })
 
@@ -150,11 +168,7 @@ describe('JwtSessionProvider', () => {
     })
 
     it('throws ERR_ACCOUNT_DISABLED for a correct-password but disabled account', async () => {
-      await store.adminUsers.create({
-        email: 'disabled@example.com',
-        password_hash: await hashPassword('pw'),
-        is_enabled: false,
-      })
+      await createDisabledUser('disabled@example.com', 'pw')
       const provider = makeProvider()
       try {
         await provider.signInWithPassword({ email: 'disabled@example.com', password: 'pw' })
@@ -389,11 +403,7 @@ describe('JwtSessionProvider', () => {
     })
 
     it('returns null for a disabled user', async () => {
-      const user = await store.adminUsers.create({
-        email: 'n@example.com',
-        password_hash: await hashPassword('pw'),
-        is_enabled: false,
-      })
+      const user = await createDisabledUser('n@example.com', 'pw')
       const provider = makeProvider()
       assert.strictEqual(await provider.resolveActor(user.id), null)
     })
