@@ -117,16 +117,19 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
   // mobile overlay always renders with full labels for readability.
   const compact = mobile === false && drawerOpen === false
 
-  // On mobile we render *both* the aside (slides off-screen when closed)
-  // and the floating launcher (fades in when closed). Keeping both in the
-  // tree lets each transition smoothly via CSS rather than mounting /
-  // unmounting on every toggle.
-  const mobileLauncher =
+  // On mobile the toggle is a single fixed-position button that slides
+  // between two spots: x=8 when the drawer is closed (standalone
+  // launcher) and x=186 when open (docked on the drawer's right edge,
+  // ~24px poke-out past aside.right=210). Using one button rather than
+  // a launcher + drawer-edge pair avoids ever showing two chevrons at
+  // once — the drawer-edge chevron would otherwise peek through when the
+  // aside is translated off-screen.
+  const mobileToggle =
     mobile === true ? (
       <div
         className={cx(
-          'fixed top-[55px] left-2 z-40 transition-opacity duration-300 ease-in-out',
-          drawerOpen === false ? 'opacity-100' : 'pointer-events-none opacity-0'
+          'fixed top-[60px] z-50 transition-[left] duration-300 ease-in-out',
+          drawerOpen === true ? 'left-[186px]' : 'left-2'
         )}
       >
         <ToggleButton drawerOpen={drawerOpen} onClick={toggleDrawer} />
@@ -135,7 +138,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
 
   return (
     <>
-      {mobileLauncher}
+      {mobileToggle}
       <aside
         id="admin-menu"
         className={cx(
@@ -156,9 +159,13 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
         )}
         {...handlers}
       >
-        <div className="absolute top-[20px] -right-3 z-50">
-          <ToggleButton drawerOpen={drawerOpen} onClick={toggleDrawer} />
-        </div>
+        {/* Edge chevron — desktop only. Mobile uses the floating toggle
+            above so the drawer slide doesn't expose a second chevron. */}
+        {mobile === false && (
+          <div className="absolute top-[20px] -right-3 z-50">
+            <ToggleButton drawerOpen={drawerOpen} onClick={toggleDrawer} />
+          </div>
+        )}
         <nav className="admin-menu-drawer">
           <ul>
             <MenuItem
