@@ -14,7 +14,7 @@ import { Button } from '@infonomic/uikit/react'
 
 import { Breadcrumbs } from '@/context/breadcrumbs/breadcrumbs'
 import { useBreadcrumbs } from '@/context/breadcrumbs/breadcrumbs-provider'
-import { adminSignOut, type CurrentAdminUser } from '@/modules/admin/auth'
+import { adminSignOut, type CurrentAdminUser } from '@/modules/admin/session'
 import { Branding } from './branding'
 
 interface AdminAppBarProps {
