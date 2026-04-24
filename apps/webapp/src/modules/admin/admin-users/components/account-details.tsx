@@ -146,7 +146,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
   })
 
   return (
-    <div className="form flex flex-col gap-2 p-1">
+    <div className="form flex flex-col gap-2 p-1 mt-1">
       <form
         noValidate
         onSubmit={(event) => {

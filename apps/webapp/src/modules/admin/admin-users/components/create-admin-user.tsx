@@ -100,6 +100,10 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
             is_email_verified: value.is_email_verified,
           },
         })
+        // Clear the form so the next drawer open starts fresh — the
+        // list-view shows the success as a toast and keeps the drawer
+        // closed until the user clicks "+" again.
+        form.reset(initialValues)
         onSuccess?.(created)
       } catch (err) {
         const code = getErrorCode(err)

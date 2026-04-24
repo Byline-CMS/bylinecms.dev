@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react'
-import { useNavigate, useRouterState } from '@tanstack/react-router'
+import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 
 import {
   CloseIcon,
@@ -21,11 +21,11 @@ import {
   Section,
   Select,
   Table,
+  useToastManager,
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { LangLink } from '@/i18n/components/lang-link'
-import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { LocalDateTime } from '@/ui/components/local-date-time'
 import { RouterPager } from '@/ui/components/router-pager'
 import {
@@ -122,7 +122,8 @@ function padRows(value: number) {
  */
 export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
   const navigate = useNavigate()
-  const locale = useLocale()
+  const router = useRouter()
+  const toastManager = useToastManager()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
 
@@ -131,9 +132,13 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
 
   const handleCreateSuccess = (created: AdminUserResponse) => {
     setIsCreateDrawerOpen(false)
-    navigate({
-      to: '/{-$lng}/admin/users/$id',
-      params: { ...lngParam(locale), id: created.id },
+    // Re-run the list loader so the newly created user appears in the
+    // current page of the table.
+    void router.invalidate()
+    toastManager.add({
+      title: 'Admin user created',
+      description: created.email,
+      data: { intent: 'success' },
     })
   }
 
