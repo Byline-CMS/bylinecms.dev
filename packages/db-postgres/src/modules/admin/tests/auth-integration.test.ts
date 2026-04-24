@@ -320,7 +320,7 @@ describe('auth integration', () => {
       await store.adminPermissions.grantAbility(role.id, 'a.one')
       await store.adminRoles.assignToUser(role.id, user.id)
 
-      await store.adminRoles.delete(role.id)
+      await store.adminRoles.delete(role.id, role.vid)
 
       // The role is gone…
       assert.strictEqual(await store.adminRoles.getById(role.id), null)

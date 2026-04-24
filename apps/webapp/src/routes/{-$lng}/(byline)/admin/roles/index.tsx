@@ -8,15 +8,22 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Card, Container, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@infonomic/uikit/react'
 
-import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
+import { listAdminRoles } from '@/modules/admin/admin-roles'
+import { AdminRolesListView } from '@/modules/admin/admin-roles/components/list'
+import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/roles/')({
+  loader: async () => {
+    const data = await listAdminRoles()
+    return { data }
+  },
   component: AdminRolesIndex,
 })
 
 function AdminRolesIndex() {
+  const { data } = Route.useLoaderData()
   return (
     <>
       <BreadcrumbsClient
@@ -25,24 +32,10 @@ function AdminRolesIndex() {
           { label: 'Admin Roles', href: '/admin/roles' },
         ]}
       />
-      <Section className="py-6">
-        <Container>
-          <Card>
-            <Card.Header>
-              <Card.Title>Admin Roles</Card.Title>
-              <Card.Description className="muted">
-                Group abilities into roles and assign them to admin users.
-              </Card.Description>
-            </Card.Header>
-            <Card.Content>
-              <p className="muted">
-                Placeholder — role CRUD, member assignment, and the ability checkbox tree will be
-                wired to the admin-roles / admin-permissions commands once those modules land.
-              </p>
-            </Card.Content>
-          </Card>
-        </Container>
+      <Section className="py-5 pb-2">
+        <Container>{/* Header lives inside the list view. */}</Container>
       </Section>
+      <AdminRolesListView data={data} />
     </>
   )
 }

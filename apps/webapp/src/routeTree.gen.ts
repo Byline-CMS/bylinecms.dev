@@ -20,6 +20,7 @@ import { Route as Char123LngChar125bylineAdminRolesIndexRouteImport } from './ro
 import { Route as Char123LngChar125bylineAdminPermissionsIndexRouteImport } from './routes/{-$lng}/(byline)/admin/permissions/index'
 import { Route as Char123LngChar125bylineAdminAccountIndexRouteImport } from './routes/{-$lng}/(byline)/admin/account/index'
 import { Route as Char123LngChar125bylineAdminUsersIdIndexRouteImport } from './routes/{-$lng}/(byline)/admin/users/$id/index'
+import { Route as Char123LngChar125bylineAdminRolesIdIndexRouteImport } from './routes/{-$lng}/(byline)/admin/roles/$id/index'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/index'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionCreateRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/create'
 import { Route as Char123LngChar125bylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/{-$lng}/(byline)/admin/collections/$collection/$id/index'
@@ -90,6 +91,12 @@ const Char123LngChar125bylineAdminUsersIdIndexRoute =
     path: '/users/$id/',
     getParentRoute: () => Char123LngChar125bylineAdminRouteRoute,
   } as any)
+const Char123LngChar125bylineAdminRolesIdIndexRoute =
+  Char123LngChar125bylineAdminRolesIdIndexRouteImport.update({
+    id: '/roles/$id/',
+    path: '/roles/$id/',
+    getParentRoute: () => Char123LngChar125bylineAdminRouteRoute,
+  } as any)
 const Char123LngChar125bylineAdminCollectionsCollectionIndexRoute =
   Char123LngChar125bylineAdminCollectionsCollectionIndexRouteImport.update({
     id: '/collections/$collection/',
@@ -133,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/{-$lng}/admin/users/': typeof Char123LngChar125bylineAdminUsersIndexRoute
   '/{-$lng}/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   '/{-$lng}/admin/collections/$collection/': typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
+  '/{-$lng}/admin/roles/$id/': typeof Char123LngChar125bylineAdminRolesIdIndexRoute
   '/{-$lng}/admin/users/$id/': typeof Char123LngChar125bylineAdminUsersIdIndexRoute
   '/{-$lng}/admin/collections/$collection/$id/api': typeof Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute
   '/{-$lng}/admin/collections/$collection/$id/history': typeof Char123LngChar125bylineAdminCollectionsCollectionIdHistoryRoute
@@ -148,6 +156,7 @@ export interface FileRoutesByTo {
   '/{-$lng}/admin/users': typeof Char123LngChar125bylineAdminUsersIndexRoute
   '/{-$lng}/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   '/{-$lng}/admin/collections/$collection': typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
+  '/{-$lng}/admin/roles/$id': typeof Char123LngChar125bylineAdminRolesIdIndexRoute
   '/{-$lng}/admin/users/$id': typeof Char123LngChar125bylineAdminUsersIdIndexRoute
   '/{-$lng}/admin/collections/$collection/$id/api': typeof Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute
   '/{-$lng}/admin/collections/$collection/$id/history': typeof Char123LngChar125bylineAdminCollectionsCollectionIdHistoryRoute
@@ -167,6 +176,7 @@ export interface FileRoutesById {
   '/{-$lng}/(byline)/admin/users/': typeof Char123LngChar125bylineAdminUsersIndexRoute
   '/{-$lng}/(byline)/admin/collections/$collection/create': typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   '/{-$lng}/(byline)/admin/collections/$collection/': typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
+  '/{-$lng}/(byline)/admin/roles/$id/': typeof Char123LngChar125bylineAdminRolesIdIndexRoute
   '/{-$lng}/(byline)/admin/users/$id/': typeof Char123LngChar125bylineAdminUsersIdIndexRoute
   '/{-$lng}/(byline)/admin/collections/$collection/$id/api': typeof Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute
   '/{-$lng}/(byline)/admin/collections/$collection/$id/history': typeof Char123LngChar125bylineAdminCollectionsCollectionIdHistoryRoute
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/{-$lng}/admin/users/'
     | '/{-$lng}/admin/collections/$collection/create'
     | '/{-$lng}/admin/collections/$collection/'
+    | '/{-$lng}/admin/roles/$id/'
     | '/{-$lng}/admin/users/$id/'
     | '/{-$lng}/admin/collections/$collection/$id/api'
     | '/{-$lng}/admin/collections/$collection/$id/history'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/{-$lng}/admin/users'
     | '/{-$lng}/admin/collections/$collection/create'
     | '/{-$lng}/admin/collections/$collection'
+    | '/{-$lng}/admin/roles/$id'
     | '/{-$lng}/admin/users/$id'
     | '/{-$lng}/admin/collections/$collection/$id/api'
     | '/{-$lng}/admin/collections/$collection/$id/history'
@@ -219,6 +231,7 @@ export interface FileRouteTypes {
     | '/{-$lng}/(byline)/admin/users/'
     | '/{-$lng}/(byline)/admin/collections/$collection/create'
     | '/{-$lng}/(byline)/admin/collections/$collection/'
+    | '/{-$lng}/(byline)/admin/roles/$id/'
     | '/{-$lng}/(byline)/admin/users/$id/'
     | '/{-$lng}/(byline)/admin/collections/$collection/$id/api'
     | '/{-$lng}/(byline)/admin/collections/$collection/$id/history'
@@ -308,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LngChar125bylineAdminUsersIdIndexRouteImport
       parentRoute: typeof Char123LngChar125bylineAdminRouteRoute
     }
+    '/{-$lng}/(byline)/admin/roles/$id/': {
+      id: '/{-$lng}/(byline)/admin/roles/$id/'
+      path: '/roles/$id'
+      fullPath: '/{-$lng}/admin/roles/$id/'
+      preLoaderRoute: typeof Char123LngChar125bylineAdminRolesIdIndexRouteImport
+      parentRoute: typeof Char123LngChar125bylineAdminRouteRoute
+    }
     '/{-$lng}/(byline)/admin/collections/$collection/': {
       id: '/{-$lng}/(byline)/admin/collections/$collection/'
       path: '/collections/$collection'
@@ -368,6 +388,7 @@ interface Char123LngChar125bylineAdminRouteRouteChildren {
   Char123LngChar125bylineAdminUsersIndexRoute: typeof Char123LngChar125bylineAdminUsersIndexRoute
   Char123LngChar125bylineAdminCollectionsCollectionCreateRoute: typeof Char123LngChar125bylineAdminCollectionsCollectionCreateRoute
   Char123LngChar125bylineAdminCollectionsCollectionIndexRoute: typeof Char123LngChar125bylineAdminCollectionsCollectionIndexRoute
+  Char123LngChar125bylineAdminRolesIdIndexRoute: typeof Char123LngChar125bylineAdminRolesIdIndexRoute
   Char123LngChar125bylineAdminUsersIdIndexRoute: typeof Char123LngChar125bylineAdminUsersIdIndexRoute
   Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute: typeof Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute
   Char123LngChar125bylineAdminCollectionsCollectionIdHistoryRoute: typeof Char123LngChar125bylineAdminCollectionsCollectionIdHistoryRoute
@@ -390,6 +411,8 @@ const Char123LngChar125bylineAdminRouteRouteChildren: Char123LngChar125bylineAdm
       Char123LngChar125bylineAdminCollectionsCollectionCreateRoute,
     Char123LngChar125bylineAdminCollectionsCollectionIndexRoute:
       Char123LngChar125bylineAdminCollectionsCollectionIndexRoute,
+    Char123LngChar125bylineAdminRolesIdIndexRoute:
+      Char123LngChar125bylineAdminRolesIdIndexRoute,
     Char123LngChar125bylineAdminUsersIdIndexRoute:
       Char123LngChar125bylineAdminUsersIdIndexRoute,
     Char123LngChar125bylineAdminCollectionsCollectionIdApiRoute:

@@ -7,15 +7,66 @@
  */
 
 /**
- * `@byline/admin/admin-roles` — role CRUD and role ↔ user assignment.
+ * `@byline/admin/admin-roles` — role CRUD, reorder, and role ↔ user
+ * assignment.
  *
- * Ability grants against roles live on the sibling
+ * Exports the adapter-facing `AdminRolesRepository` contract, ability
+ * keys, transport-agnostic commands, the `AdminRolesService`, and the
+ * module's error types. Commands are the recommended entry point for
+ * any caller; the service is exposed for internal uses (other services,
+ * future seeds) that want to skip Zod/ability overhead.
+ *
+ * Per-role ability grants live on the sibling
  * `@byline/admin/admin-permissions` module, not here.
  */
 
+export {
+  ADMIN_ROLES_ABILITIES,
+  type AdminRolesAbilityKey,
+  registerAdminRolesAbilities,
+} from './abilities.js'
+export {
+  createAdminRoleCommand,
+  deleteAdminRoleCommand,
+  getAdminRoleCommand,
+  listAdminRolesCommand,
+  reorderAdminRolesCommand,
+  updateAdminRoleCommand,
+} from './commands.js'
+export { toAdminRole } from './dto.js'
+export {
+  AdminRolesError,
+  type AdminRolesErrorCode,
+  AdminRolesErrorCodes,
+  ERR_ADMIN_ROLE_MACHINE_NAME_IN_USE,
+  ERR_ADMIN_ROLE_NOT_FOUND,
+  ERR_ADMIN_ROLE_VERSION_CONFLICT,
+} from './errors.js'
+export {
+  adminRoleListResponseSchema,
+  adminRoleResponseSchema,
+  createAdminRoleRequestSchema,
+  deleteAdminRoleRequestSchema,
+  getAdminRoleRequestSchema,
+  listAdminRolesRequestSchema,
+  reorderAdminRolesRequestSchema,
+  updateAdminRoleRequestSchema,
+} from './schemas.js'
+export { AdminRolesService } from './service.js'
+export type { AdminRolesCommandDeps } from './commands.js'
 export type {
   AdminRoleRow,
   AdminRolesRepository,
   CreateAdminRoleInput,
   UpdateAdminRoleInput,
 } from './repository.js'
+export type {
+  AdminRoleListResponse,
+  AdminRoleResponse,
+  CreateAdminRoleRequest,
+  DeleteAdminRoleRequest,
+  GetAdminRoleRequest,
+  ListAdminRolesRequest,
+  ReorderAdminRolesRequest,
+  UpdateAdminRoleRequest,
+} from './schemas.js'
