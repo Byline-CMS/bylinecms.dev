@@ -27,7 +27,7 @@ import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import { passwordSchema } from '@byline/core/validation'
-import { Alert, Button, Checkbox, Input } from '@infonomic/uikit/react'
+import { Alert, Button, Checkbox, Input, LoaderEllipsis } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { createAdminUser } from '../index'
@@ -133,43 +133,6 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
       >
         {formError ? <Alert intent="danger">{formError}</Alert> : null}
 
-        <form.Field name="email">
-          {(field) => (
-            <Input
-              label="Email"
-              id="new-email"
-              name={field.name}
-              type="email"
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={(e) => field.handleChange(e.currentTarget.value)}
-              error={field.state.meta.errors.length > 0}
-              errorText={firstError(field.state.meta.errors)}
-              autoComplete="email"
-              required
-            />
-          )}
-        </form.Field>
-
-        <form.Field name="password">
-          {(field) => (
-            <Input
-              label="Initial password"
-              id="new-password"
-              name={field.name}
-              type="password"
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={(e) => field.handleChange(e.currentTarget.value)}
-              error={field.state.meta.errors.length > 0}
-              errorText={firstError(field.state.meta.errors)}
-              helpText="The user can change it from their own account after signing in."
-              autoComplete="new-password"
-              required
-            />
-          )}
-        </form.Field>
-
         <div className="grid gap-4 sm:grid-cols-2">
           <form.Field name="given_name">
             {(field) => (
@@ -221,6 +184,43 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
           )}
         </form.Field>
 
+        <form.Field name="email">
+          {(field) => (
+            <Input
+              label="Email"
+              id="new-email"
+              name={field.name}
+              type="email"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              autoComplete="email"
+              required
+            />
+          )}
+        </form.Field>
+
+        <form.Field name="password">
+          {(field) => (
+            <Input
+              label="Initial password"
+              id="new-password"
+              name={field.name}
+              type="password"
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              helpText="The user can change it from their own account after signing in."
+              autoComplete="new-password"
+              required
+            />
+          )}
+        </form.Field>
+
         <div className="flex flex-col gap-2">
           <form.Field name="is_enabled">
             {(field) => (
@@ -263,7 +263,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
         </div>
 
         <div className="mt-4 flex items-center justify-end gap-2">
-          <Button type="button" intent="secondary" size="sm" onClick={onClose}>
+          <Button type="button" intent="secondary" size="sm" onClick={onClose} className="min-w-16">
             Cancel
           </Button>
           <form.Subscribe
@@ -273,8 +273,12 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
             })}
           >
             {({ canSubmit, isSubmitting }) => (
-              <Button type="submit" size="sm" disabled={!canSubmit || isSubmitting}>
-                {isSubmitting ? 'Creating…' : 'Create admin user'}
+              <Button size="sm" intent="primary" type="submit" disabled={!canSubmit || isSubmitting} className="min-w-16">
+                {isSubmitting === true ? (
+                  <LoaderEllipsis size={42} />
+                ) : (
+                  'Save'
+                )}
               </Button>
             )}
           </form.Subscribe>

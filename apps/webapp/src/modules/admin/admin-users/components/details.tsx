@@ -23,7 +23,7 @@
 import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
-import { Alert, Button, Checkbox, Input } from '@infonomic/uikit/react'
+import { Alert, Button, Checkbox, Input, LoaderEllipsis } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { updateAdminUser } from '../index'
@@ -267,7 +267,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
         </div>
 
         <div className="mt-4 flex items-center justify-end gap-2">
-          <Button type="button" intent="secondary" size="sm" onClick={onClose}>
+          <Button type="button" intent="secondary" size="sm" onClick={onClose} className="min-w-16">
             {successMessage ? 'Close' : 'Cancel'}
           </Button>
           <form.Subscribe
@@ -277,9 +277,13 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
               isDirty: state.isDirty,
             })}
           >
-            {({ canSubmit, isSubmitting, isDirty }) => (
-              <Button type="submit" size="sm" disabled={!canSubmit || !isDirty || isSubmitting}>
-                {isSubmitting ? 'Saving…' : 'Save changes'}
+            {({ canSubmit, isSubmitting }) => (
+              <Button size="sm" intent="primary" type="submit" disabled={!canSubmit || isSubmitting} className="min-w-16">
+                {isSubmitting === true ? (
+                  <LoaderEllipsis size={42} />
+                ) : (
+                  'Save'
+                )}
               </Button>
             )}
           </form.Subscribe>

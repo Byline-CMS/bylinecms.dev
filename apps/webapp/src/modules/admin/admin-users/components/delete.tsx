@@ -23,7 +23,7 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
-import { Alert, Button, Modal } from '@infonomic/uikit/react'
+import { Alert, Button, LoaderEllipsis, Modal } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { deleteAdminUser } from '../index'
@@ -79,7 +79,7 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
   return (
     <Modal.Content className="gap-1">
       <div className="flex flex-col gap-2">
-        {error ? <Alert intent="danger">{error}</Alert> : null}
+        {error ? <Alert intent="danger" close={false}>{error}</Alert> : null}
         <p className="m-0">
           <span className="muted">User:</span> {displayNameFor(user)}
         </p>
@@ -92,11 +92,15 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
         </p>
       </div>
       <div className="mt-6 flex items-center justify-end gap-2">
-        <Button type="button" intent="secondary" size="sm" onClick={onClose} disabled={pending}>
+        <Button type="button" intent="secondary" size="sm" onClick={onClose} disabled={pending} className="min-w-16">
           Cancel
         </Button>
-        <Button type="button" intent="danger" size="sm" onClick={handleDelete} disabled={pending}>
-          {pending ? 'Deleting…' : 'Delete admin user'}
+        <Button size="sm" intent="danger" onClick={handleDelete} disabled={pending} className="min-w-16">
+          {pending === true ? (
+            <LoaderEllipsis size={42} />
+          ) : (
+            'Delete User'
+          )}
         </Button>
       </div>
     </Modal.Content>

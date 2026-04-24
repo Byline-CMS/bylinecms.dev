@@ -13,7 +13,7 @@ import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { listAdminUsers } from '@/modules/admin/admin-users'
-import { AdminUsersListView } from '@/modules/admin/admin-users/components/list-view'
+import { AdminUsersListView } from '@/modules/admin/admin-users/components/list'
 
 const orderSchema = z.enum([
   'given_name',

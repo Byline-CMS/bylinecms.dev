@@ -33,7 +33,7 @@ import {
   type TableHeadingCellSortableProps,
 } from '@/ui/components/th-sortable'
 import { formatNumber } from '@/utils/utils.general'
-import { CreateAdminUser } from './create-admin-user'
+import { CreateAdminUser } from './create'
 import type { AdminUserListResponse, AdminUserResponse } from '../index'
 
 const tableColumnDefs: Omit<TableHeadingCellSortableProps, 'lng'>[] = [
@@ -104,7 +104,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: static filler
         index
-      }`}
+        }`}
       className="h-[32px] border-none"
     >
       &nbsp;

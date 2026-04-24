@@ -25,7 +25,7 @@ import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import { passwordSchema } from '@byline/core/validation'
-import { Alert, Button, Input } from '@infonomic/uikit/react'
+import { Alert, Button, Input, LoaderEllipsis } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { setAdminUserPassword } from '../index'
@@ -145,7 +145,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
         </form.Field>
 
         <div className="mt-4 flex items-center justify-end gap-2">
-          <Button type="button" intent="secondary" size="sm" onClick={onClose}>
+          <Button type="button" intent="secondary" size="sm" onClick={onClose} className="min-w-16">
             {successMessage ? 'Close' : 'Cancel'}
           </Button>
           <form.Subscribe
@@ -155,9 +155,13 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
               isDirty: state.isDirty,
             })}
           >
-            {({ canSubmit, isSubmitting, isDirty }) => (
-              <Button type="submit" size="sm" disabled={!canSubmit || !isDirty || isSubmitting}>
-                {isSubmitting ? 'Saving…' : 'Set password'}
+            {({ canSubmit, isSubmitting }) => (
+              <Button size="sm" intent="primary" type="submit" disabled={!canSubmit || isSubmitting} className="min-w-16">
+                {isSubmitting === true ? (
+                  <LoaderEllipsis size={42} />
+                ) : (
+                  'Save'
+                )}
               </Button>
             )}
           </form.Subscribe>

@@ -15,8 +15,8 @@ import { Button, CloseIcon, Drawer, EditIcon, IconButton, Modal } from '@infonom
 import cx from 'classnames'
 
 import { LocalDateTime } from '@/ui/components/local-date-time'
-import { AccountDetails } from './account-details'
-import { DeleteUser } from './delete-user'
+import { DeleteUser } from './delete'
+import { AccountDetails } from './details'
 import { SetPassword } from './set-password'
 import type { AdminUserResponse } from '../index'
 
@@ -48,7 +48,7 @@ const panels: Record<
 > = {
   account_details: {
     title: 'Account Details',
-    drawerWidth: 'large',
+    drawerWidth: 'medium',
     component: AccountDetails,
   },
   set_password: {
@@ -196,7 +196,7 @@ export function AccountContainer({ user }: { user: AdminUserResponse }) {
         id="admin-user-drawer"
         closeOnOverlayClick={false}
         width="medium"
-        topOffset="50px"
+        topOffset="46px"
         isOpen={isDrawerOpen}
         onDismiss={closeDrawer}
         className={cx(
