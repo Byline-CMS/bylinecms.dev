@@ -6,8 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { AdminUserRow, AdminUsersRepository } from '@byline/admin/admin-users'
-import { eq, sql } from 'drizzle-orm'
+import {
+  type AdminUserRow,
+  type AdminUsersRepository,
+  ERR_ADMIN_USER_VERSION_CONFLICT,
+} from '@byline/admin/admin-users'
+import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -25,10 +29,16 @@ import type * as schema from '../database/schema/index.js'
  * Password hashing is *not* done here — the interface takes a pre-hashed
  * PHC string. Callers (seed, admin-user commands) hash first via
  * `hashPassword` from `@byline/admin/auth`.
+ *
+ * Optimistic-concurrency writes (`update`, `setPasswordHash`, `delete`)
+ * guard the `UPDATE ... WHERE id = $id AND vid = $expected` pattern —
+ * zero rows returned means another writer bumped the row first; throw
+ * `VERSION_CONFLICT`.
  */
 
 const PUBLIC_COLUMNS = {
   id: adminUsers.id,
+  vid: adminUsers.vid,
   given_name: adminUsers.given_name,
   family_name: adminUsers.family_name,
   username: adminUsers.username,
@@ -40,6 +50,15 @@ const PUBLIC_COLUMNS = {
   is_super_admin: adminUsers.is_super_admin,
   is_enabled: adminUsers.is_enabled,
   is_email_verified: adminUsers.is_email_verified,
+  created_at: adminUsers.created_at,
+  updated_at: adminUsers.updated_at,
+} as const
+
+const ORDER_COLUMN = {
+  given_name: adminUsers.given_name,
+  family_name: adminUsers.family_name,
+  email: adminUsers.email,
+  username: adminUsers.username,
   created_at: adminUsers.created_at,
   updated_at: adminUsers.updated_at,
 } as const
@@ -96,8 +115,49 @@ export function createAdminUsersRepository(
       return row ?? null
     },
 
-    async update(id, patch): Promise<AdminUserRow> {
-      const updateSet: Record<string, unknown> = { updated_at: new Date() }
+    async list(options) {
+      const needle = options.query?.trim()
+      const filter =
+        needle && needle.length > 0
+          ? or(
+              ilike(adminUsers.email, `%${needle}%`),
+              ilike(adminUsers.given_name, `%${needle}%`),
+              ilike(adminUsers.family_name, `%${needle}%`),
+              ilike(adminUsers.username, `%${needle}%`)
+            )
+          : undefined
+
+      const sortCol = ORDER_COLUMN[options.order]
+      const orderExpr = options.desc ? desc(sortCol) : asc(sortCol)
+      const offset = Math.max(0, (options.page - 1) * options.pageSize)
+
+      const query = db.select(PUBLIC_COLUMNS).from(adminUsers)
+      const filtered = filter ? query.where(filter) : query
+      return filtered.orderBy(orderExpr).limit(options.pageSize).offset(offset)
+    },
+
+    async count(options) {
+      const needle = options?.query?.trim()
+      const filter =
+        needle && needle.length > 0
+          ? or(
+              ilike(adminUsers.email, `%${needle}%`),
+              ilike(adminUsers.given_name, `%${needle}%`),
+              ilike(adminUsers.family_name, `%${needle}%`),
+              ilike(adminUsers.username, `%${needle}%`)
+            )
+          : undefined
+
+      const base = db.select({ value: sql<number>`count(*)::int` }).from(adminUsers)
+      const [row] = await (filter ? base.where(filter) : base)
+      return row?.value ?? 0
+    },
+
+    async update(id, expectedVid, patch): Promise<AdminUserRow> {
+      const updateSet: Record<string, unknown> = {
+        updated_at: new Date(),
+        vid: sql`${adminUsers.vid} + 1`,
+      }
       if (patch.given_name !== undefined) updateSet.given_name = patch.given_name
       if (patch.family_name !== undefined) updateSet.family_name = patch.family_name
       if (patch.username !== undefined) updateSet.username = patch.username
@@ -111,23 +171,29 @@ export function createAdminUsersRepository(
       const [row] = await db
         .update(adminUsers)
         .set(updateSet)
-        .where(eq(adminUsers.id, id))
+        .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
         .returning(PUBLIC_COLUMNS)
-      if (!row) throw new Error(`updateAdminUser: no row found for id ${id}`)
+      if (!row) throw ERR_ADMIN_USER_VERSION_CONFLICT()
       return row
     },
 
-    async setPasswordHash(id, passwordHash) {
-      await db
+    async setPasswordHash(id, expectedVid, passwordHash) {
+      const result = await db
         .update(adminUsers)
-        .set({ password: passwordHash, updated_at: new Date() })
-        .where(eq(adminUsers.id, id))
+        .set({
+          password: passwordHash,
+          updated_at: new Date(),
+          vid: sql`${adminUsers.vid} + 1`,
+        })
+        .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
+        .returning({ id: adminUsers.id })
+      if (result.length === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
     },
 
     async setEnabled(id, enabled) {
       await db
         .update(adminUsers)
-        .set({ is_enabled: enabled, updated_at: new Date() })
+        .set({ is_enabled: enabled, updated_at: new Date(), vid: sql`${adminUsers.vid} + 1` })
         .where(eq(adminUsers.id, id))
     },
 
@@ -153,8 +219,12 @@ export function createAdminUsersRepository(
         .where(eq(adminUsers.id, id))
     },
 
-    async delete(id) {
-      await db.delete(adminUsers).where(eq(adminUsers.id, id))
+    async delete(id, expectedVid) {
+      const result = await db
+        .delete(adminUsers)
+        .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
+        .returning({ id: adminUsers.id })
+      if (result.length === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
     },
   }
 }

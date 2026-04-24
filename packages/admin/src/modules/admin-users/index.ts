@@ -31,6 +31,7 @@ export {
   disableAdminUserCommand,
   enableAdminUserCommand,
   getAdminUserCommand,
+  listAdminUsersCommand,
   setAdminUserPasswordCommand,
   updateAdminUserCommand,
 } from './commands.js'
@@ -43,14 +44,17 @@ export {
   ERR_ADMIN_USER_NOT_FOUND,
   ERR_ADMIN_USER_SELF_DELETE,
   ERR_ADMIN_USER_SELF_DISABLE,
+  ERR_ADMIN_USER_VERSION_CONFLICT,
 } from './errors.js'
 export {
+  adminUserListResponseSchema,
   adminUserResponseSchema,
   createAdminUserRequestSchema,
   deleteAdminUserRequestSchema,
   disableAdminUserRequestSchema,
   enableAdminUserRequestSchema,
   getAdminUserRequestSchema,
+  listAdminUsersRequestSchema,
   okResponseSchema,
   setAdminUserPasswordRequestSchema,
   updateAdminUserRequestSchema,
@@ -63,19 +67,24 @@ export {
 export { AdminUsersService } from './service.js'
 export type { AdminUsersCommandDeps } from './commands.js'
 export type {
+  AdminUserListOrder,
   AdminUserRow,
   AdminUsersRepository,
   AdminUserWithPasswordRow,
+  CountAdminUsersOptions,
   CreateAdminUserInput,
+  ListAdminUsersOptions,
   UpdateAdminUserInput,
 } from './repository.js'
 export type {
+  AdminUserListResponse,
   AdminUserResponse,
   CreateAdminUserRequest,
   DeleteAdminUserRequest,
   DisableAdminUserRequest,
   EnableAdminUserRequest,
   GetAdminUserRequest,
+  ListAdminUsersRequest,
   OkResponse,
   SetAdminUserPasswordRequest,
   UpdateAdminUserRequest,

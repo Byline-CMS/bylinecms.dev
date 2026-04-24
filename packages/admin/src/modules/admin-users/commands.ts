@@ -11,19 +11,21 @@ import type { RequestContext } from '@byline/auth'
 import { assertAdminActor } from '../../lib/assert-admin-actor.js'
 import { ADMIN_USERS_ABILITIES } from './abilities.js'
 import {
+  adminUserListResponseSchema,
   adminUserResponseSchema,
   createAdminUserRequestSchema,
   deleteAdminUserRequestSchema,
   disableAdminUserRequestSchema,
   enableAdminUserRequestSchema,
   getAdminUserRequestSchema,
+  listAdminUsersRequestSchema,
   okResponseSchema,
   setAdminUserPasswordRequestSchema,
   updateAdminUserRequestSchema,
 } from './schemas.js'
 import { AdminUsersService } from './service.js'
 import type { AdminStore } from '../../store.js'
-import type { AdminUserResponse, OkResponse } from './schemas.js'
+import type { AdminUserListResponse, AdminUserResponse, OkResponse } from './schemas.js'
 
 /**
  * Transport-agnostic commands for the admin-users module.
@@ -55,6 +57,17 @@ export interface AdminUsersCommandDeps {
 
 function serviceOf(deps: AdminUsersCommandDeps): AdminUsersService {
   return new AdminUsersService({ repo: deps.store.adminUsers })
+}
+
+export async function listAdminUsersCommand(
+  context: RequestContext | undefined,
+  input: unknown,
+  deps: AdminUsersCommandDeps
+): Promise<AdminUserListResponse> {
+  const parsed = listAdminUsersRequestSchema.parse(input ?? {})
+  assertAdminActor(context, ADMIN_USERS_ABILITIES.read)
+  const result = await serviceOf(deps).listUsers(parsed)
+  return adminUserListResponseSchema.parse(result)
 }
 
 export async function getAdminUserCommand(

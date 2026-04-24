@@ -8,32 +8,45 @@
 
 import { v7 as uuidv7 } from 'uuid'
 
+import { ERR_ADMIN_USER_VERSION_CONFLICT } from '../../src/modules/admin-users/errors.js'
 import type {
   AdminUserRow,
   AdminUsersRepository,
   CreateAdminUserInput,
+  ListAdminUsersOptions,
   UpdateAdminUserInput,
 } from '../../src/modules/admin-users/repository.js'
 
 /**
  * In-memory `AdminUsersRepository` for unit tests.
  *
- * Preserves the observable contract of the Postgres implementation:
- *
- *   - `email` is lowercased on insert and on lookup.
- *   - `password_hash` is never returned from `getBy*` other than
- *     `getByEmailForSignIn`.
- *   - `update` applies partial patches.
- *   - `recordLoginFailure` increments; `recordLoginSuccess` resets.
- *   - `setPasswordHash` replaces the stored PHC string verbatim (no
- *     hashing here — hashing is the service's job).
- *
- * Storage is a `Map<id, row>` where the row carries the hash for
- * sign-in lookups. Public getters strip the hash before returning.
+ * Preserves the observable contract of the Postgres implementation,
+ * including `vid`-based optimistic concurrency on content writes.
+ * `setEnabled` is vid-less (last-writer-wins for admin toggles) and
+ * login counters do not bump `vid` (telemetry, not content).
  */
 
 interface StoredRow extends AdminUserRow {
   password_hash: string
+}
+
+function matchesQuery(row: StoredRow, needle: string): boolean {
+  const q = needle.toLowerCase()
+  return (
+    row.email.toLowerCase().includes(q) ||
+    (row.given_name ?? '').toLowerCase().includes(q) ||
+    (row.family_name ?? '').toLowerCase().includes(q) ||
+    (row.username ?? '').toLowerCase().includes(q)
+  )
+}
+
+function compareOrder(a: StoredRow, b: StoredRow, field: ListAdminUsersOptions['order']): number {
+  const va = a[field] ?? ''
+  const vb = b[field] ?? ''
+  if (va instanceof Date && vb instanceof Date) return va.getTime() - vb.getTime()
+  if (va < vb) return -1
+  if (va > vb) return 1
+  return 0
 }
 
 export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
@@ -66,6 +79,7 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       const t = now()
       const row: StoredRow = {
         id,
+        vid: 1,
         email: input.email.toLowerCase(),
         password_hash: input.password_hash,
         given_name: input.given_name ?? null,
@@ -113,9 +127,30 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       return null
     },
 
-    async update(id, patch: UpdateAdminUserInput): Promise<AdminUserRow> {
+    async list(options) {
+      const needle = options.query?.trim()
+      const filtered =
+        needle && needle.length > 0
+          ? Array.from(rows.values()).filter((r) => matchesQuery(r, needle))
+          : Array.from(rows.values())
+      filtered.sort((a, b) => compareOrder(a, b, options.order) * (options.desc ? -1 : 1))
+      const offset = Math.max(0, (options.page - 1) * options.pageSize)
+      return filtered.slice(offset, offset + options.pageSize).map(strip)
+    },
+
+    async count(options) {
+      const needle = options?.query?.trim()
+      if (!needle) return rows.size
+      let n = 0
+      for (const row of rows.values()) {
+        if (matchesQuery(row, needle)) n++
+      }
+      return n
+    },
+
+    async update(id, expectedVid, patch: UpdateAdminUserInput): Promise<AdminUserRow> {
       const existing = rows.get(id)
-      if (!existing) throw new Error(`updateAdminUser: no row found for id ${id}`)
+      if (!existing || existing.vid !== expectedVid) throw ERR_ADMIN_USER_VERSION_CONFLICT()
       const updated: StoredRow = {
         ...existing,
         ...(patch.email !== undefined ? { email: patch.email.toLowerCase() } : null),
@@ -128,22 +163,33 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
           ? { is_email_verified: patch.is_email_verified }
           : null),
         ...(patch.remember_me !== undefined ? { remember_me: patch.remember_me } : null),
+        vid: existing.vid + 1,
         updated_at: now(),
       }
       rows.set(id, updated)
       return strip(updated)
     },
 
-    async setPasswordHash(id, passwordHash) {
+    async setPasswordHash(id, expectedVid, passwordHash) {
       const existing = rows.get(id)
-      if (!existing) return
-      rows.set(id, { ...existing, password_hash: passwordHash, updated_at: now() })
+      if (!existing || existing.vid !== expectedVid) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+      rows.set(id, {
+        ...existing,
+        password_hash: passwordHash,
+        vid: existing.vid + 1,
+        updated_at: now(),
+      })
     },
 
     async setEnabled(id, enabled) {
       const existing = rows.get(id)
       if (!existing) return
-      rows.set(id, { ...existing, is_enabled: enabled, updated_at: now() })
+      rows.set(id, {
+        ...existing,
+        is_enabled: enabled,
+        vid: existing.vid + 1,
+        updated_at: now(),
+      })
     },
 
     async recordLoginSuccess(id, ip) {
@@ -168,7 +214,9 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       })
     },
 
-    async delete(id) {
+    async delete(id, expectedVid) {
+      const existing = rows.get(id)
+      if (!existing || existing.vid !== expectedVid) throw ERR_ADMIN_USER_VERSION_CONFLICT()
       rows.delete(id)
     },
   }

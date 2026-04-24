@@ -21,6 +21,7 @@ import type { AdminUserResponse } from './schemas.js'
 export function toAdminUser(row: AdminUserRow): AdminUserResponse {
   return {
     id: row.id,
+    vid: row.vid,
     email: row.email,
     given_name: row.given_name,
     family_name: row.family_name,

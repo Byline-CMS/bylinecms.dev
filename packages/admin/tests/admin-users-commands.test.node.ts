@@ -24,6 +24,7 @@ import {
   disableAdminUserCommand,
   enableAdminUserCommand,
   getAdminUserCommand,
+  listAdminUsersCommand,
   setAdminUserPasswordCommand,
   updateAdminUserCommand,
 } from '../src/modules/admin-users/commands.js'
@@ -68,7 +69,19 @@ describe('admin-users commands', () => {
       await expect(
         updateAdminUserCommand(
           context,
-          { id: '00000000-0000-7000-8000-000000000001', patch: {} },
+          { id: '00000000-0000-7000-8000-000000000001', vid: 1, patch: {} },
+          deps
+        )
+      ).rejects.toBeInstanceOf(ZodError)
+    })
+
+    it('updateAdminUserCommand rejects missing vid', async () => {
+      const deps = makeDeps()
+      const context = createSuperAdminContext()
+      await expect(
+        updateAdminUserCommand(
+          context,
+          { id: '00000000-0000-7000-8000-000000000001', patch: { given_name: 'Alice' } },
           deps
         )
       ).rejects.toBeInstanceOf(ZodError)
@@ -80,10 +93,20 @@ describe('admin-users commands', () => {
       await expect(
         setAdminUserPasswordCommand(
           context,
-          { id: '00000000-0000-7000-8000-000000000001', password: 'short' },
+          { id: '00000000-0000-7000-8000-000000000001', vid: 1, password: 'short' },
           deps
         )
       ).rejects.toBeInstanceOf(ZodError)
+    })
+
+    it('listAdminUsersCommand accepts an empty input and applies defaults', async () => {
+      const deps = makeDeps()
+      const context = createSuperAdminContext()
+      const response = await listAdminUsersCommand(context, {}, deps)
+      expect(response.meta.page).toBe(1)
+      expect(response.meta.page_size).toBe(20)
+      expect(response.meta.order).toBe('created_at')
+      expect(response.meta.desc).toBe(true)
     })
   })
 
@@ -159,10 +182,11 @@ describe('admin-users commands', () => {
 
       const updated = await updateAdminUserCommand(
         context,
-        { id: created.id, patch: { family_name: 'Adams' } },
+        { id: created.id, vid: created.vid, patch: { family_name: 'Adams' } },
         deps
       )
       expect(updated.family_name).toBe('Adams')
+      expect(updated.vid).toBe(created.vid + 1)
 
       const enabled = await enableAdminUserCommand(context, { id: created.id }, deps)
       expect(enabled.ok).toBe(true)
@@ -174,12 +198,17 @@ describe('admin-users commands', () => {
 
       const pw = await setAdminUserPasswordCommand(
         context,
-        { id: created.id, password: 'new-password-12chars' },
+        { id: created.id, vid: afterDisable.vid, password: 'new-password-12chars' },
         deps
       )
       expect(pw.ok).toBe(true)
 
-      const del = await deleteAdminUserCommand(context, { id: created.id }, deps)
+      const afterPassword = await getAdminUserCommand(context, { id: created.id }, deps)
+      const del = await deleteAdminUserCommand(
+        context,
+        { id: created.id, vid: afterPassword.vid },
+        deps
+      )
       expect(del.ok).toBe(true)
     })
 
@@ -192,6 +221,7 @@ describe('admin-users commands', () => {
       // target to attempt deletion on (it checks self-id before NOT_FOUND).
       ;(deps.store.adminUsers as ReturnType<typeof createInMemoryAdminUsersRepository>).__seed({
         id: actorId,
+        vid: 1,
         email: 'root@byline.local',
         password_hash: '$argon2id$v=19$m=19456,t=2,p=1$whatever$whatever',
         given_name: null,
@@ -208,7 +238,9 @@ describe('admin-users commands', () => {
         updated_at: new Date(),
       })
 
-      await expect(deleteAdminUserCommand(context, { id: actorId }, deps)).rejects.toMatchObject({
+      await expect(
+        deleteAdminUserCommand(context, { id: actorId, vid: 1 }, deps)
+      ).rejects.toMatchObject({
         code: 'admin.users.selfDeleteForbidden',
       })
     })

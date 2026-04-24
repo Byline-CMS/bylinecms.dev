@@ -16,6 +16,14 @@
  * keeping it out of the repository means the adapter stays unaware of
  * password policy and the hashing library of the day.
  *
+ * **Optimistic concurrency.** Content-shaped writes (`update`,
+ * `setPasswordHash`, `delete`) take an `expectedVid` and bump the stored
+ * `vid` on success. If the stored `vid` does not match `expectedVid` the
+ * adapter throws `AdminUsersError(VERSION_CONFLICT)`, signalling a stale
+ * client. Admin-intent writes that do not depend on current state
+ * (`setEnabled`, login counters) are vid-less — last-writer-wins is the
+ * right semantic for those.
+ *
  * Adapters (e.g. `@byline/db-postgres`) implement this interface; admin
  * services (`seed-super-admin`, admin-user commands) consume it. No
  * caller should ever construct `AdminUsersRepository` instances directly
@@ -30,6 +38,7 @@
  */
 export interface AdminUserRow {
   id: string
+  vid: number
   given_name: string | null
   family_name: string | null
   username: string | null
@@ -77,6 +86,32 @@ export interface UpdateAdminUserInput {
   remember_me?: boolean
 }
 
+export type AdminUserListOrder =
+  | 'given_name'
+  | 'family_name'
+  | 'email'
+  | 'username'
+  | 'created_at'
+  | 'updated_at'
+
+export interface ListAdminUsersOptions {
+  /** 1-based page number. */
+  page: number
+  /** Page size. Reasonable ceiling applied at the command layer. */
+  pageSize: number
+  /** Free-text search across email, given_name, family_name, username. */
+  query?: string
+  /** Column to sort by. */
+  order: AdminUserListOrder
+  /** True for DESC, false for ASC. */
+  desc: boolean
+}
+
+export interface CountAdminUsersOptions {
+  /** Free-text search — same semantics as `list`. */
+  query?: string
+}
+
 export interface AdminUsersRepository {
   create(input: CreateAdminUserInput): Promise<AdminUserRow>
   getById(id: string): Promise<AdminUserRow | null>
@@ -88,11 +123,28 @@ export interface AdminUsersRepository {
    * the `password_hash` field.
    */
   getByEmailForSignIn(email: string): Promise<AdminUserWithPasswordRow | null>
-  update(id: string, patch: UpdateAdminUserInput): Promise<AdminUserRow>
-  /** Replace the stored password hash. Caller supplies a pre-hashed PHC string. */
-  setPasswordHash(id: string, passwordHash: string): Promise<void>
+  /** Paginated, filtered, sorted list. */
+  list(options: ListAdminUsersOptions): Promise<AdminUserRow[]>
+  /** Total row count matching the same filter (for pager `total_pages`). */
+  count(options?: CountAdminUsersOptions): Promise<number>
+  /**
+   * Content update with optimistic concurrency. Throws
+   * `AdminUsersError(VERSION_CONFLICT)` if the stored `vid` differs from
+   * `expectedVid`. Bumps `vid` on success and returns the fresh row.
+   */
+  update(id: string, expectedVid: number, patch: UpdateAdminUserInput): Promise<AdminUserRow>
+  /**
+   * Replace the stored password hash with optimistic concurrency.
+   * Version-gated on `expectedVid`. Caller supplies a pre-hashed PHC string.
+   */
+  setPasswordHash(id: string, expectedVid: number, passwordHash: string): Promise<void>
+  /** Toggle enabled state. Vid-less — admin intent is independent of other edits. */
   setEnabled(id: string, enabled: boolean): Promise<void>
   recordLoginSuccess(id: string, ip: string | null): Promise<void>
   recordLoginFailure(id: string): Promise<void>
-  delete(id: string): Promise<void>
+  /**
+   * Delete with optimistic concurrency. Version-gated on `expectedVid` to
+   * prevent races against a concurrent update.
+   */
+  delete(id: string, expectedVid: number): Promise<void>
 }

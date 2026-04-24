@@ -18,12 +18,14 @@ import {
 } from './errors.js'
 import type { AdminUsersRepository } from './repository.js'
 import type {
+  AdminUserListResponse,
   AdminUserResponse,
   CreateAdminUserRequest,
   DeleteAdminUserRequest,
   DisableAdminUserRequest,
   EnableAdminUserRequest,
   GetAdminUserRequest,
+  ListAdminUsersRequest,
   SetAdminUserPasswordRequest,
   UpdateAdminUserRequest,
 } from './schemas.js'
@@ -31,7 +33,7 @@ import type {
 /**
  * Business logic for administering admin users.
  *
- * The service owns three concerns the repository deliberately avoids:
+ * The service owns four concerns the repository deliberately avoids:
  *
  *   1. **Password hashing.** `hashPassword` from `@byline/admin/auth`
  *      runs here so every write path (create, setPassword, future
@@ -41,6 +43,11 @@ import type {
  *      cannot enforce on its own.
  *   3. **DTO shaping.** Raw rows are shaped through `toAdminUser` so
  *      the response contract is owned in one place.
+ *   4. **Optimistic-concurrency plumbing.** The repo gates writes on
+ *      `expectedVid`; the service just threads it from the validated
+ *      request shape. Version conflicts surface as
+ *      `AdminUsersError(VERSION_CONFLICT)` from the adapter; the service
+ *      does not catch them.
  *
  * Commands call service methods after Zod-validating input and asserting
  * abilities; internal callers (seeds, other services) can call service
@@ -56,6 +63,34 @@ export class AdminUsersService {
 
   constructor(deps: { repo: AdminUsersRepository }) {
     this.#repo = deps.repo
+  }
+
+  async listUsers(request: ListAdminUsersRequest): Promise<AdminUserListResponse> {
+    // Run list + count in parallel — they hit the same indexes but
+    // there's no reason to serialise them.
+    const [rows, total] = await Promise.all([
+      this.#repo.list({
+        page: request.page,
+        pageSize: request.pageSize,
+        query: request.query,
+        order: request.order,
+        desc: request.desc,
+      }),
+      this.#repo.count({ query: request.query }),
+    ])
+    const total_pages = Math.max(1, Math.ceil(total / request.pageSize))
+    return {
+      users: rows.map(toAdminUser),
+      meta: {
+        total,
+        total_pages,
+        page: request.page,
+        page_size: request.pageSize,
+        query: request.query ?? '',
+        order: request.order,
+        desc: request.desc,
+      },
+    }
   }
 
   async getUser(request: GetAdminUserRequest): Promise<AdminUserResponse> {
@@ -97,7 +132,7 @@ export class AdminUsersService {
       if (owner && owner.id !== request.id) throw ERR_ADMIN_USER_EMAIL_IN_USE()
     }
 
-    const row = await this.#repo.update(request.id, request.patch)
+    const row = await this.#repo.update(request.id, request.vid, request.patch)
     return toAdminUser(row)
   }
 
@@ -105,7 +140,7 @@ export class AdminUsersService {
     const exists = await this.#repo.getById(request.id)
     if (!exists) throw ERR_ADMIN_USER_NOT_FOUND()
     const password_hash = await hashPassword(request.password)
-    await this.#repo.setPasswordHash(request.id, password_hash)
+    await this.#repo.setPasswordHash(request.id, request.vid, password_hash)
   }
 
   async enableUser(request: EnableAdminUserRequest): Promise<void> {
@@ -125,6 +160,6 @@ export class AdminUsersService {
     if (actor.id === request.id) throw ERR_ADMIN_USER_SELF_DELETE()
     const exists = await this.#repo.getById(request.id)
     if (!exists) throw ERR_ADMIN_USER_NOT_FOUND()
-    await this.#repo.delete(request.id)
+    await this.#repo.delete(request.id, request.vid)
   }
 }

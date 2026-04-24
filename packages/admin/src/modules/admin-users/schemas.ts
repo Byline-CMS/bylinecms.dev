@@ -16,6 +16,10 @@ import { z } from 'zod'
  * DTO shaper in `dto.ts` produces values that match `adminUserResponseSchema`
  * exactly; if the schema or the DTO drifts, tests catch it at the
  * command boundary.
+ *
+ * `vid` is the optimistic-concurrency version — every write that touches
+ * content content takes the client-held `vid` and the adapter gates the
+ * write on it, throwing `ADMIN_USER_VERSION_CONFLICT` on mismatch.
  */
 
 // ---------------------------------------------------------------------------
@@ -23,6 +27,11 @@ import { z } from 'zod'
 // ---------------------------------------------------------------------------
 
 const idSchema = z.uuid({ message: 'id must be a UUID' })
+
+const vidSchema = z
+  .number({ message: 'vid is required' })
+  .int({ message: 'vid must be an integer' })
+  .positive({ message: 'vid must be positive' })
 
 const emailSchema = z
   .email({ message: 'email must be a valid address' })
@@ -42,9 +51,27 @@ const passwordSchema = z
 
 const nameSchema = z.string().min(1).max(100)
 
+const orderSchema = z.enum([
+  'given_name',
+  'family_name',
+  'email',
+  'username',
+  'created_at',
+  'updated_at',
+])
+
 // ---------------------------------------------------------------------------
 // Requests
 // ---------------------------------------------------------------------------
+
+export const listAdminUsersRequestSchema = z.object({
+  page: z.number().int().min(1).optional().default(1),
+  pageSize: z.number().int().min(1).max(100).optional().default(20),
+  query: z.string().max(128).optional(),
+  order: orderSchema.optional().default('created_at'),
+  desc: z.boolean().optional().default(true),
+})
+export type ListAdminUsersRequest = z.infer<typeof listAdminUsersRequestSchema>
 
 export const getAdminUserRequestSchema = z.object({
   id: idSchema,
@@ -65,6 +92,7 @@ export type CreateAdminUserRequest = z.infer<typeof createAdminUserRequestSchema
 
 export const updateAdminUserRequestSchema = z.object({
   id: idSchema,
+  vid: vidSchema,
   patch: z
     .object({
       email: emailSchema.optional(),
@@ -80,6 +108,7 @@ export type UpdateAdminUserRequest = z.infer<typeof updateAdminUserRequestSchema
 
 export const setAdminUserPasswordRequestSchema = z.object({
   id: idSchema,
+  vid: vidSchema,
   password: passwordSchema,
 })
 export type SetAdminUserPasswordRequest = z.infer<typeof setAdminUserPasswordRequestSchema>
@@ -90,7 +119,10 @@ export type EnableAdminUserRequest = z.infer<typeof enableAdminUserRequestSchema
 export const disableAdminUserRequestSchema = z.object({ id: idSchema })
 export type DisableAdminUserRequest = z.infer<typeof disableAdminUserRequestSchema>
 
-export const deleteAdminUserRequestSchema = z.object({ id: idSchema })
+export const deleteAdminUserRequestSchema = z.object({
+  id: idSchema,
+  vid: vidSchema,
+})
 export type DeleteAdminUserRequest = z.infer<typeof deleteAdminUserRequestSchema>
 
 // ---------------------------------------------------------------------------
@@ -104,6 +136,7 @@ export type DeleteAdminUserRequest = z.infer<typeof deleteAdminUserRequestSchema
  */
 export const adminUserResponseSchema = z.object({
   id: z.string(),
+  vid: z.number().int(),
   email: z.string(),
   given_name: z.string().nullable(),
   family_name: z.string().nullable(),
@@ -119,6 +152,20 @@ export const adminUserResponseSchema = z.object({
   updated_at: z.date(),
 })
 export type AdminUserResponse = z.infer<typeof adminUserResponseSchema>
+
+export const adminUserListResponseSchema = z.object({
+  users: z.array(adminUserResponseSchema),
+  meta: z.object({
+    total: z.number().int().min(0),
+    total_pages: z.number().int().min(0),
+    page: z.number().int().min(1),
+    page_size: z.number().int().min(1),
+    query: z.string(),
+    order: orderSchema,
+    desc: z.boolean(),
+  }),
+})
+export type AdminUserListResponse = z.infer<typeof adminUserListResponseSchema>
 
 /** Empty response for void-returning mutations (set-password, enable, disable, delete). */
 export const okResponseSchema = z.object({ ok: z.literal(true) })

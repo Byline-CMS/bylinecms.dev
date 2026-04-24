@@ -8,15 +8,56 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Card, Container, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@infonomic/uikit/react'
+import { z } from 'zod'
 
 import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
+import { listAdminUsers } from '@/modules/admin/admin-users'
+import { AdminUsersListView } from '@/modules/admin/admin-users/components/list-view'
+
+const orderSchema = z.enum([
+  'given_name',
+  'family_name',
+  'email',
+  'username',
+  'created_at',
+  'updated_at',
+])
+
+const searchSchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  page_size: z.coerce.number().int().min(1).max(100).optional(),
+  query: z.string().optional(),
+  order: orderSchema.optional(),
+  desc: z.coerce.boolean().optional(),
+})
 
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/users/')({
+  validateSearch: searchSchema,
+  loaderDeps: ({ search: { page, page_size, query, order, desc } }) => ({
+    page,
+    page_size,
+    query,
+    order,
+    desc,
+  }),
+  loader: async ({ deps }) => {
+    const data = await listAdminUsers({
+      data: {
+        page: deps.page,
+        pageSize: deps.page_size,
+        query: deps.query,
+        order: deps.order,
+        desc: deps.desc,
+      },
+    })
+    return { data }
+  },
   component: AdminUsersIndex,
 })
 
 function AdminUsersIndex() {
+  const { data } = Route.useLoaderData()
   return (
     <>
       <BreadcrumbsClient
@@ -25,25 +66,10 @@ function AdminUsersIndex() {
           { label: 'Admin Users', href: '/admin/users' },
         ]}
       />
-      <Section className="py-6">
-        <Container>
-          <Card>
-            <Card.Header>
-              <Card.Title>Admin Users</Card.Title>
-              <Card.Description className="muted">
-                Manage the accounts that can sign in to the CMS.
-              </Card.Description>
-            </Card.Header>
-            <Card.Content>
-              <p className="muted">
-                Placeholder — the list, create, edit, enable/disable, and delete UI will be wired to
-                the admin-user commands from <code>@byline/admin/admin-users</code> in the next
-                step.
-              </p>
-            </Card.Content>
-          </Card>
-        </Container>
+      <Section className="py-5 pb-2">
+        <Container>{/* Header lives inside the list view. */}</Container>
       </Section>
+      <AdminUsersListView data={data} />
     </>
   )
 }

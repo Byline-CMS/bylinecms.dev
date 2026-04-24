@@ -120,9 +120,10 @@ describe('auth integration', () => {
       assert.ok(await verifyPassword('pw-value', withPw.password_hash))
     })
 
-    it('update applies partial patches', async () => {
+    it('update applies partial patches and bumps vid', async () => {
       const created = await createUser({ email: 'c@example.com', password: 'pw' })
-      const updated = await store.adminUsers.update(created.id, {
+      assert.strictEqual(created.vid, 1)
+      const updated = await store.adminUsers.update(created.id, created.vid, {
         given_name: 'Charlie',
         is_enabled: true,
       })
@@ -130,16 +131,42 @@ describe('auth integration', () => {
       assert.strictEqual(updated.is_enabled, true)
       // Unchanged fields remain
       assert.strictEqual(updated.email, 'c@example.com')
+      assert.strictEqual(updated.vid, created.vid + 1)
     })
 
-    it('setPasswordHash rehashes and subsequently verifies', async () => {
+    it('update throws VERSION_CONFLICT on a stale vid', async () => {
+      const created = await createUser({ email: 'c2@example.com', password: 'pw' })
+      // First update succeeds and bumps vid.
+      await store.adminUsers.update(created.id, created.vid, { given_name: 'First' })
+      // Replaying the same vid must conflict.
+      await assert.rejects(
+        () => store.adminUsers.update(created.id, created.vid, { given_name: 'Second' }),
+        (err: Error & { code?: string }) => err.code === 'admin.users.versionConflict'
+      )
+    })
+
+    it('setPasswordHash rehashes, bumps vid, and subsequently verifies', async () => {
       const created = await createUser({ email: 'd@example.com', password: 'old' })
-      await store.adminUsers.setPasswordHash(created.id, await hashPassword('new-password'))
+      await store.adminUsers.setPasswordHash(
+        created.id,
+        created.vid,
+        await hashPassword('new-password')
+      )
 
       const signIn = await store.adminUsers.getByEmailForSignIn('d@example.com')
       assert.ok(signIn)
       assert.ok(await verifyPassword('new-password', signIn.password_hash))
       assert.strictEqual(await verifyPassword('old', signIn.password_hash), false)
+      assert.strictEqual(signIn.vid, created.vid + 1)
+    })
+
+    it('setPasswordHash throws VERSION_CONFLICT on a stale vid', async () => {
+      const created = await createUser({ email: 'd2@example.com', password: 'pw' })
+      await store.adminUsers.update(created.id, created.vid, { given_name: 'D' })
+      await assert.rejects(
+        () => store.adminUsers.setPasswordHash(created.id, created.vid, '$argon2id$stale-hash'),
+        (err: Error & { code?: string }) => err.code === 'admin.users.versionConflict'
+      )
     })
 
     it('recordLoginSuccess resets failed_login_attempts and stamps last_login', async () => {
@@ -156,11 +183,49 @@ describe('auth integration', () => {
       assert.ok(row?.last_login)
     })
 
-    it('delete removes the row', async () => {
+    it('delete removes the row when vid matches', async () => {
       const created = await createUser({ email: 'f@example.com', password: 'pw' })
-      await store.adminUsers.delete(created.id)
+      await store.adminUsers.delete(created.id, created.vid)
       const fetched = await store.adminUsers.getById(created.id)
       assert.strictEqual(fetched, null)
+    })
+
+    it('delete throws VERSION_CONFLICT on a stale vid', async () => {
+      const created = await createUser({ email: 'f2@example.com', password: 'pw' })
+      await store.adminUsers.update(created.id, created.vid, { given_name: 'F' })
+      await assert.rejects(
+        () => store.adminUsers.delete(created.id, created.vid),
+        (err: Error & { code?: string }) => err.code === 'admin.users.versionConflict'
+      )
+      // Row should still be present.
+      assert.ok(await store.adminUsers.getById(created.id))
+    })
+
+    it('list applies pagination, order, and query filter', async () => {
+      await createUser({ email: 'list1@example.com', password: 'pw', given_name: 'Aaron' })
+      await createUser({ email: 'list2@example.com', password: 'pw', given_name: 'Bea' })
+      await createUser({ email: 'list3@example.com', password: 'pw', given_name: 'Casey' })
+
+      const page1 = await store.adminUsers.list({
+        page: 1,
+        pageSize: 2,
+        order: 'email',
+        desc: false,
+      })
+      assert.strictEqual(page1.length, 2)
+
+      const filtered = await store.adminUsers.list({
+        page: 1,
+        pageSize: 10,
+        query: 'Bea',
+        order: 'email',
+        desc: false,
+      })
+      assert.strictEqual(filtered.length, 1)
+      assert.strictEqual(filtered[0]?.given_name, 'Bea')
+
+      const total = await store.adminUsers.count({ query: 'list' })
+      assert.strictEqual(total, 3)
     })
   })
 

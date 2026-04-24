@@ -24,6 +24,7 @@ export const AdminUsersErrorCodes = {
   EMAIL_IN_USE: 'admin.users.emailInUse',
   SELF_DELETE_FORBIDDEN: 'admin.users.selfDeleteForbidden',
   SELF_DISABLE_FORBIDDEN: 'admin.users.selfDisableForbidden',
+  VERSION_CONFLICT: 'admin.users.versionConflict',
 } as const
 
 export type AdminUsersErrorCode = (typeof AdminUsersErrorCodes)[keyof typeof AdminUsersErrorCodes]
@@ -70,4 +71,14 @@ export const ERR_ADMIN_USER_SELF_DELETE = make(
 export const ERR_ADMIN_USER_SELF_DISABLE = make(
   AdminUsersErrorCodes.SELF_DISABLE_FORBIDDEN,
   'cannot disable your own admin account'
+)
+
+/**
+ * The stored `vid` does not match the client-supplied `expectedVid` —
+ * the caller is holding a stale version of the row. Typical admin-UI
+ * response is to reload the edit form with the current values.
+ */
+export const ERR_ADMIN_USER_VERSION_CONFLICT = make(
+  AdminUsersErrorCodes.VERSION_CONFLICT,
+  'admin user has been modified elsewhere — please reload and try again'
 )
