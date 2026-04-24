@@ -8,10 +8,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { useState } from 'react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 
 import {
+  CloseIcon,
   Container,
+  Drawer,
   IconButton,
   PlusIcon,
   Search,
@@ -22,6 +25,7 @@ import {
 import cx from 'classnames'
 
 import { LangLink } from '@/i18n/components/lang-link'
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { LocalDateTime } from '@/ui/components/local-date-time'
 import { RouterPager } from '@/ui/components/router-pager'
 import {
@@ -29,7 +33,8 @@ import {
   type TableHeadingCellSortableProps,
 } from '@/ui/components/th-sortable'
 import { formatNumber } from '@/utils/utils.general'
-import type { AdminUserListResponse } from '../index'
+import { CreateAdminUser } from './create-admin-user'
+import type { AdminUserListResponse, AdminUserResponse } from '../index'
 
 const tableColumnDefs: Omit<TableHeadingCellSortableProps, 'lng'>[] = [
   {
@@ -117,7 +122,20 @@ function padRows(value: number) {
  */
 export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
   const navigate = useNavigate()
+  const locale = useLocale()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
+
+  const openCreateDrawer = () => setIsCreateDrawerOpen(true)
+  const closeCreateDrawer = () => setIsCreateDrawerOpen(false)
+
+  const handleCreateSuccess = (created: AdminUserResponse) => {
+    setIsCreateDrawerOpen(false)
+    navigate({
+      to: '/{-$lng}/admin/users/$id',
+      params: { ...lngParam(locale), id: created.id },
+    })
+  }
 
   function updateSearch(patch: Record<string, string | number | boolean | undefined>) {
     navigate({
@@ -154,10 +172,7 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
         <div className="flex items-center gap-3 py-[2px]">
           <h1 className="!m-0 pb-[2px]">Admin Users</h1>
           <Stats total={data.meta.total} />
-          <IconButton
-            aria-label="Create New Admin User"
-            render={<LangLink to="/admin/users/add" />}
-          >
+          <IconButton aria-label="Create New Admin User" onClick={openCreateDrawer}>
             <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
           </IconButton>
         </div>
@@ -237,6 +252,35 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
           />
         </div>
       </Container>
+
+      <Drawer
+        id="admin-users-create-drawer"
+        closeOnOverlayClick={false}
+        width="medium"
+        topOffset="50px"
+        isOpen={isCreateDrawerOpen}
+        onDismiss={closeCreateDrawer}
+        className="md:w-[600px]"
+      >
+        <Drawer.Container aria-hidden={!isCreateDrawerOpen} className="p-2">
+          <Drawer.TopActions>
+            <button type="button" tabIndex={0} className="sr-only">
+              no action
+            </button>
+            <IconButton aria-label="Close" size="sm" onClick={closeCreateDrawer}>
+              <CloseIcon width="14px" height="14px" svgClassName="white-icon stroke-white" />
+            </IconButton>
+          </Drawer.TopActions>
+          <Drawer.Header>
+            <h2>New Admin User</h2>
+          </Drawer.Header>
+          <Drawer.Content>
+            <div className="max-h-[calc(100vh-160px)] overflow-y-auto">
+              <CreateAdminUser onClose={closeCreateDrawer} onSuccess={handleCreateSuccess} />
+            </div>
+          </Drawer.Content>
+        </Drawer.Container>
+      </Drawer>
     </Section>
   )
 }
