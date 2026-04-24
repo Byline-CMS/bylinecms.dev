@@ -43,7 +43,7 @@ export interface JwtSessionProviderConfig {
   /**
    * Adapter-backed admin repositories. Construct via the DB adapter's
    * admin-store factory (e.g. `createAdminStore(db)` from
-   * `@byline/db-postgres/auth`) and pass the result in — the provider
+   * `@byline/db-postgres/admin`) and pass the result in — the provider
    * does not touch Drizzle or any other adapter-specific API directly.
    */
   store: AdminStore

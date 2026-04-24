@@ -2,7 +2,7 @@ import type { AdminStore } from '@byline/admin'
 import { JwtSessionProvider } from '@byline/admin/auth'
 import { initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
-import { createAdminStore } from '@byline/db-postgres/auth'
+import { createAdminStore } from '@byline/db-postgres/admin'
 import { localStorageProvider } from '@byline/storage-local'
 
 // Import collection definitions directly from schema files — NOT the full
@@ -31,7 +31,7 @@ const collections = [Docs, News, Pages, Media, Categories]
 //   Option B — Adapter-owned admin store. Have `pgAdapter()` return
 //   `{ ..., adminStore }` directly so the integration point doesn't need
 //   the separate `createAdminStore(db.drizzle)` call or the
-//   `@byline/db-postgres/auth` import. Widens the adapter contract slightly
+//   `@byline/db-postgres/admin` import. Widens the adapter contract slightly
 //   but removes one more concrete-adapter mention from this file.
 //
 //   Option C — Full DI via `@byline/core`'s `Registry`. Register

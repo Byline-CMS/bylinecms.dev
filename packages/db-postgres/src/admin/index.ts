@@ -7,7 +7,7 @@
  */
 
 /**
- * `@byline/db-postgres/auth` — Postgres implementations of the admin
+ * `@byline/db-postgres/admin` — Postgres implementations of the admin
  * repository contracts declared in `@byline/admin`.
  *
  * Most callers want `createAdminStore(db)` — it bundles all four

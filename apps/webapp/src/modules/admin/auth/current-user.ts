@@ -22,7 +22,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { getServerConfig } from '@byline/core'
 import type { PgAdapter } from '@byline/db-postgres'
-import { createAdminUsersRepository } from '@byline/db-postgres/auth'
+import { createAdminUsersRepository } from '@byline/db-postgres/admin'
 
 import { getAdminRequestContext } from '@/lib/auth-context'
 

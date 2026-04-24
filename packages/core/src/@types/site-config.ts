@@ -106,7 +106,7 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * @example
    * ```ts
    * import { JwtSessionProvider } from '@byline/admin/auth'
-   * import { createAdminStore } from '@byline/db-postgres/auth'
+   * import { createAdminStore } from '@byline/db-postgres/admin'
    *
    * sessionProvider: new JwtSessionProvider({
    *   store: createAdminStore(drizzleDb),
@@ -130,7 +130,7 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * @example
    * ```ts
    * import type { AdminStore } from '@byline/admin'
-   * import { createAdminStore } from '@byline/db-postgres/auth'
+   * import { createAdminStore } from '@byline/db-postgres/admin'
    *
    * const db = pgAdapter({ ... })
    * const adminStore = createAdminStore(db.drizzle)

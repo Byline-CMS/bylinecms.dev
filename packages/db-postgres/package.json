@@ -44,10 +44,10 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
-    "./auth": {
-      "types": "./dist/auth/index.d.ts",
-      "import": "./dist/auth/index.js",
-      "require": "./dist/auth/index.js"
+    "./admin": {
+      "types": "./dist/admin/index.d.ts",
+      "import": "./dist/admin/index.js",
+      "require": "./dist/admin/index.js"
     },
     "./schema": {
       "types": "./dist/database/schema/index.d.ts",

@@ -10,7 +10,7 @@
  * Session provider — the transport-agnostic contract for authenticating
  * admin users and managing session tokens.
  *
- * The built-in `JwtSessionProvider` (in `@byline/db-postgres/auth`) mints
+ * The built-in `JwtSessionProvider` (in `@byline/db-postgres/admin`) mints
  * short-lived JWT access tokens and long-lived opaque refresh tokens,
  * storing refresh-token hashes in `byline_admin_refresh_tokens` for
  * revocation and replay detection.
