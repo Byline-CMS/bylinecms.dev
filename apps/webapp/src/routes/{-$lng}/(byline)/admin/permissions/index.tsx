@@ -10,7 +10,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Card, Container, Section } from '@infonomic/uikit/react'
 
-import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
+import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/permissions/')({
   component: AdminPermissionsIndex,

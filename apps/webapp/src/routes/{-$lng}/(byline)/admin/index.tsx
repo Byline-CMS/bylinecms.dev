@@ -12,9 +12,9 @@ import type { WorkflowStatus } from '@byline/core'
 import { getClientConfig, getWorkflowStatuses } from '@byline/core'
 import { Card, Container, Section } from '@infonomic/uikit/react'
 
-import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { type CollectionStatusCount, getCollectionStats } from '@/modules/admin/collections'
+import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 // ---------------------------------------------------------------------------
 // Status colour palette

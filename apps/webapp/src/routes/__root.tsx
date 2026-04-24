@@ -17,8 +17,8 @@ import { ToastProvider, ToastViewport } from '@infonomic/uikit/react'
 // the SSR rendering and client module graphs (see byline.admin.config.ts).
 import '../../byline.admin.config'
 
-import { BreadcrumbsProvider } from '@/context/breadcrumbs/breadcrumbs-provider'
 import { i18nConfig } from '@/i18n/i18n-config'
+import { BreadcrumbsProvider } from '@/ui/breadcrumbs/breadcrumbs-provider'
 import { RootError, RouteNotFound } from '@/ui/components/route-error'
 import { EarlyThemeDetector } from '@/ui/theme/early-theme-detector'
 import { ThemeProvider } from '@/ui/theme/provider'

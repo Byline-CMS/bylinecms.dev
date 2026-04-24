@@ -11,9 +11,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Container, Section } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
-import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { listAdminUsers } from '@/modules/admin/admin-users'
 import { AdminUsersListView } from '@/modules/admin/admin-users/components/list'
+import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 const orderSchema = z.enum([
   'given_name',

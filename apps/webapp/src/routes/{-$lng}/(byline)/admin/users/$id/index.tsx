@@ -10,9 +10,9 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@infonomic/uikit/react'
 
-import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { getAdminUser } from '@/modules/admin/admin-users'
 import { AccountContainer } from '@/modules/admin/admin-users/components/container'
+import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/users/$id/')({
   loader: async ({ params }) => {

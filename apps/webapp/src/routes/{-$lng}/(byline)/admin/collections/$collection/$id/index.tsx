@@ -12,9 +12,9 @@ import type { CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 import { z } from 'zod'
 
-import { BreadcrumbsClient } from '@/context/breadcrumbs/breadcrumbs-client'
 import { getCollectionDocument } from '@/modules/admin/collections'
 import { EditView } from '@/modules/admin/collections/components/edit'
+import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 const searchSchema = z.object({
   locale: z.string().optional(),

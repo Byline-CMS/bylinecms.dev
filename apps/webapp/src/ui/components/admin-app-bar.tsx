@@ -12,9 +12,9 @@ import { useState } from 'react'
 
 import { Button } from '@infonomic/uikit/react'
 
-import { Breadcrumbs } from '@/context/breadcrumbs/breadcrumbs'
-import { useBreadcrumbs } from '@/context/breadcrumbs/breadcrumbs-provider'
 import { adminSignOut, type CurrentAdminUser } from '@/modules/admin/auth'
+import { Breadcrumbs } from '@/ui/breadcrumbs/breadcrumbs'
+import { useBreadcrumbs } from '@/ui/breadcrumbs/breadcrumbs-provider'
 import { Branding } from './branding'
 
 interface AdminAppBarProps {
