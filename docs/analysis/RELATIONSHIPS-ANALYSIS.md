@@ -24,7 +24,7 @@ The storage layer has always modelled relations natively:
 per row, `RelationField` (`targetCollection`, `displayField`) is
 declared in `packages/core/src/@types/field-types.ts`, and the
 flatten/reconstruct code in
-`packages/db-postgres/src/storage/storage-utils.ts` round-trips the
+`packages/db-postgres/src/modules/storage/storage-utils.ts` round-trips the
 reference object. What had been missing until this work were the
 three consumer-facing pieces that make relations useful in practice
 — now delivered:
@@ -640,7 +640,7 @@ cd packages/client && pnpm test:integration
 
 - **Field-tree walker drift.** `walkRelationLeaves` must recurse through
   `group` / `array` / `blocks` exactly like the flatten/reconstruct code
-  in `packages/db-postgres/src/storage/storage-utils.ts`. If the two
+  in `packages/db-postgres/src/modules/storage/storage-utils.ts`. If the two
   diverge, relations inside blocks won't populate. Consider extracting
   a shared walker into `@byline/core` when the storage-utils walker is
   next touched. Create a shared walkFieldTree(fields, data, visitor) in @byline/core the next time anything needs to touch

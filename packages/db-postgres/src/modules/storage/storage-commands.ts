@@ -23,11 +23,11 @@ import {
   numericStore,
   relationStore,
   textStore,
-} from '../database/schema/index.js'
+} from '../../database/schema/index.js'
 import { flattenFieldSetData } from './storage-flatten.js'
 import { prepareFieldInsertBuckets } from './storage-insert.js'
 import { getFirstOrThrow } from './storage-utils.js'
-import type * as schema from '../database/schema/index.js'
+import type * as schema from '../../database/schema/index.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
 

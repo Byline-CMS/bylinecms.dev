@@ -160,7 +160,7 @@ storage layer can consume it.
 ### Storage tolerance for legacy data
 
 `restoreFieldSetData` in
-`packages/db-postgres/src/storage/storage-utils.ts` silently skips
+`packages/db-postgres/src/modules/storage/storage-utils.ts` silently skips
 rows whose `field_name` is in `RESERVED_FIELD_NAMES`. This is the
 data-drift tolerance for documents written before the migration —
 their `store_text` rows for `path` are inert, never reach the
@@ -227,7 +227,7 @@ The `@byline/client` SDK exposes the same: `CreateOptions.path` and
 | `slugifier` on `ServerConfig` | `packages/core/src/@types/site-config.ts` |
 | Reserved-name + `useAsPath` validation | `packages/core/src/config/validate-collections.ts` |
 | Lifecycle derivation, sticky, locale enforcement | `packages/core/src/services/document-lifecycle.ts` |
-| Storage tolerance for orphan rows | `packages/db-postgres/src/storage/storage-utils.ts` |
+| Storage tolerance for orphan rows | `packages/db-postgres/src/modules/storage/storage-utils.ts` |
 | Client SDK options | `packages/client/src/{types,collection-handle}.ts` |
 | Admin server fns accept `path` | `apps/webapp/src/modules/admin/collections/{create,update}.ts` |
 | Form context `systemPath` slot | `apps/webapp/src/ui/forms/form-context.tsx` |

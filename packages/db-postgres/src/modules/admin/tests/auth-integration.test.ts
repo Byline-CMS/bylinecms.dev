@@ -21,10 +21,10 @@ import {
   adminRoleAdminUser,
   adminRoles,
   adminUsers,
-} from '../../database/schema/auth.js'
-import { setupTestDB, teardownTestDB } from '../../lib/test-helper.js'
+} from '../../../database/schema/auth.js'
+import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 import { createAdminStore } from '../admin-store.js'
-import type * as schema from '../../database/schema/index.js'
+import type * as schema from '../../../database/schema/index.js'
 
 // ---------------------------------------------------------------------------
 // Track-and-clean fixtures

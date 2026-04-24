@@ -32,8 +32,8 @@ import {
   currentPublishedDocumentsView,
   documentVersions,
   metaStore,
-} from '../database/schema/index.js'
-import type * as schema from '../database/schema/index.js'
+} from '../../database/schema/index.js'
+import type * as schema from '../../database/schema/index.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
 type Document = Omit<typeof documentVersions.$inferSelect, 'doc'>

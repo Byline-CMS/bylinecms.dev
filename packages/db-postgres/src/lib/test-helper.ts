@@ -3,8 +3,8 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
 import * as schema from '../database/schema/index.js'
-import { createCommandBuilders } from '../storage/storage-commands.js'
-import { createQueryBuilders } from '../storage/storage-queries.js'
+import { createCommandBuilders } from '../modules/storage/storage-commands.js'
+import { createQueryBuilders } from '../modules/storage/storage-queries.js'
 
 let pool: pg.Pool
 let db: NodePgDatabase<typeof schema>

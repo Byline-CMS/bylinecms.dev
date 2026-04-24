@@ -13,7 +13,7 @@ import { createAdminPermissionsRepository } from './admin-permissions-repository
 import { createAdminRolesRepository } from './admin-roles-repository.js'
 import { createAdminUsersRepository } from './admin-users-repository.js'
 import { createRefreshTokensRepository } from './refresh-tokens-repository.js'
-import type * as schema from '../database/schema/index.js'
+import type * as schema from '../../database/schema/index.js'
 
 /**
  * Wire the four admin repositories against a Drizzle handle and return the

@@ -87,7 +87,7 @@ views now project `collection_version`.
 | `packages/core/src/@types/collection-types.ts` | Optional `version?: number` on `CollectionDefinition` |
 | `packages/core/src/@types/db-types.ts` | `ICollectionCommands.update(id, patch)`; `createDocumentVersion` now takes `collectionVersion` |
 | `packages/db-postgres/src/database/schema/index.ts` | Columns + view projections |
-| `packages/db-postgres/src/storage/storage-commands.ts` | `collections.create/update`; `document_versions` insert writes `collection_version` |
+| `packages/db-postgres/src/modules/storage/storage-commands.ts` | `collections.create/update`; `document_versions` insert writes `collection_version` |
 | `packages/core/src/services/document-lifecycle.ts` | `DocumentLifecycleContext.collectionVersion` threaded to adapter |
 | `packages/client/src/client.ts` | `resolveCollectionRecord()` caches `(id, version)` per path |
 | `apps/webapp/src/lib/api-utils.ts` | Collapsed to a thin cache lookup over `bylineCore.getCollectionRecord` |

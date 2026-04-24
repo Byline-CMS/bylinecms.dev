@@ -15,10 +15,10 @@ import { AdminAuth, AuthError, AuthErrorCodes } from '@byline/auth'
 import { eq, inArray } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
-import { adminUsers } from '../../database/schema/auth.js'
-import { setupTestDB, teardownTestDB } from '../../lib/test-helper.js'
+import { adminUsers } from '../../../database/schema/auth.js'
+import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 import { createAdminStore } from '../admin-store.js'
-import type * as schema from '../../database/schema/index.js'
+import type * as schema from '../../../database/schema/index.js'
 
 // ---------------------------------------------------------------------------
 // Track-and-clean fixtures

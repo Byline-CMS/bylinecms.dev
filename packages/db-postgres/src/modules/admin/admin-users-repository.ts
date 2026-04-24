@@ -15,8 +15,8 @@ import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
-import { adminUsers } from '../database/schema/auth.js'
-import type * as schema from '../database/schema/index.js'
+import { adminUsers } from '../../database/schema/auth.js'
+import type * as schema from '../../database/schema/index.js'
 
 /**
  * Postgres implementation of `AdminUsersRepository`.

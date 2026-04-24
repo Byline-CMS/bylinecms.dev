@@ -11,8 +11,8 @@ import { and, eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
-import { adminPermissions, adminRoleAdminUser } from '../database/schema/auth.js'
-import type * as schema from '../database/schema/index.js'
+import { adminPermissions, adminRoleAdminUser } from '../../database/schema/auth.js'
+import type * as schema from '../../database/schema/index.js'
 
 /**
  * Postgres implementation of `AdminPermissionsRepository` — per-role

@@ -45,9 +45,9 @@
       "require": "./dist/index.js"
     },
     "./admin": {
-      "types": "./dist/admin/index.d.ts",
-      "import": "./dist/admin/index.js",
-      "require": "./dist/admin/index.js"
+      "types": "./dist/modules/admin/index.d.ts",
+      "import": "./dist/modules/admin/index.js",
+      "require": "./dist/modules/admin/index.js"
     },
     "./schema": {
       "types": "./dist/database/schema/index.d.ts",

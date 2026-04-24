@@ -31,9 +31,9 @@ Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `
 notation (e.g. `content.1.photoBlock.0.display`) addresses each value. This gives proper column
 types, indexability, and future full-text/GIN indexing.
 
-- **Flatten** (write): `packages/db-postgres/src/storage/storage-utils.ts` → `flattenFields()` +
-  `packages/db-postgres/src/storage/storage-commands.ts` → `createDocumentVersion()`.
-- **Reconstruct** (read): `packages/db-postgres/src/storage/storage-queries.ts` →
+- **Flatten** (write): `packages/db-postgres/src/modules/storage/storage-utils.ts` → `flattenFields()` +
+  `packages/db-postgres/src/modules/storage/storage-commands.ts` → `createDocumentVersion()`.
+- **Reconstruct** (read): `packages/db-postgres/src/modules/storage/storage-queries.ts` →
   `getDocumentById(..., reconstruct: true)` → `reconstructFields()`.
 - Block and array items carry a stable `_id` (UUIDv7) stored in `store_meta` for identity tracking
   across patches. The `_id` is injected by `attachMetaToDocument()` on reconstruct and **must be

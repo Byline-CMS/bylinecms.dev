@@ -72,9 +72,9 @@ Env files: `apps/webapp/.env` and `packages/db-postgres/.env` (copy from `.env.e
 
 Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `store_boolean`, `store_datetime`, `store_json`, `store_file`, `store_relation`) plus `store_meta` for stable block/array-item identities. A custom path notation (e.g. `content.1.photoBlock.0.display`) addresses each value.
 
-- **Flatten** (write): `packages/db-postgres/src/storage/storage-utils.ts` → `flattenFieldSetData()`
-- **Reconstruct** (read): `packages/db-postgres/src/storage/storage-utils.ts` → `restoreFieldSetData()` — schema-aware, handles meta rows (`_id`, `_type`), locale resolution, and type-correct value extraction inline
-- **Store manifest**: `packages/db-postgres/src/storage/storage-store-manifest.ts` — declarative column manifest generates per-store SELECT lists for the UNION ALL. Adding a column is a one-line change; positional mismatches are structurally impossible. The adapter-agnostic `fieldTypeToStore` / `fieldTypeToStoreType` mappings live in `@byline/core` (see "Field → Store Mapping" below) and are re-exported here for adapter-internal use.
+- **Flatten** (write): `packages/db-postgres/src/modules/storage/storage-utils.ts` → `flattenFieldSetData()`
+- **Reconstruct** (read): `packages/db-postgres/src/modules/storage/storage-utils.ts` → `restoreFieldSetData()` — schema-aware, handles meta rows (`_id`, `_type`), locale resolution, and type-correct value extraction inline
+- **Store manifest**: `packages/db-postgres/src/modules/storage/storage-store-manifest.ts` — declarative column manifest generates per-store SELECT lists for the UNION ALL. Adding a column is a one-line change; positional mismatches are structurally impossible. The adapter-agnostic `fieldTypeToStore` / `fieldTypeToStoreType` mappings live in `@byline/core` (see "Field → Store Mapping" below) and are re-exported here for adapter-internal use.
 - **Selective field loading**: For list views, `resolveStoreTypes()` determines which store tables are needed for the requested fields, builds a partial UNION ALL (skipping irrelevant tables), and trims the reconstructed output to only the requested fields. Driven by `CollectionAdminConfig.columns`.
 - Block/array items carry a stable `_id` (UUIDv7) in `store_meta` for identity tracking. The `_id` is synthetic metadata — **never persist it via `flattenFieldSetData`**, never treat it as a data key in renderers.
 

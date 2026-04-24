@@ -10,8 +10,8 @@ import type { RefreshTokenRow, RefreshTokensRepository } from '@byline/admin/aut
 import { and, eq, isNull, lt } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
-import { adminRefreshTokens } from '../database/schema/auth.js'
-import type * as schema from '../database/schema/index.js'
+import { adminRefreshTokens } from '../../database/schema/auth.js'
+import type * as schema from '../../database/schema/index.js'
 
 /**
  * Postgres implementation of `RefreshTokensRepository`, backing the
