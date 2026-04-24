@@ -273,12 +273,14 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
             })}
           >
             {({ canSubmit, isSubmitting }) => (
-              <Button size="sm" intent="primary" type="submit" disabled={!canSubmit || isSubmitting} className="min-w-16">
-                {isSubmitting === true ? (
-                  <LoaderEllipsis size={42} />
-                ) : (
-                  'Save'
-                )}
+              <Button
+                size="sm"
+                intent="primary"
+                type="submit"
+                disabled={!canSubmit || isSubmitting}
+                className="min-w-16"
+              >
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
               </Button>
             )}
           </form.Subscribe>

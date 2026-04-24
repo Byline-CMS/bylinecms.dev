@@ -25,7 +25,7 @@ import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import { passwordSchema } from '@byline/core/validation'
-import { Alert, Button, Input, LoaderEllipsis } from '@infonomic/uikit/react'
+import { Alert, Button, InputPassword, LoaderEllipsis } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { setAdminUserPassword } from '../index'
@@ -110,11 +110,10 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
 
         <form.Field name="password">
           {(field) => (
-            <Input
+            <InputPassword
               label="New password"
               id="password"
               name={field.name}
-              type="password"
               value={field.state.value}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.currentTarget.value)}
@@ -128,11 +127,10 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
 
         <form.Field name="confirm">
           {(field) => (
-            <Input
+            <InputPassword
               label="Confirm new password"
               id="confirm"
               name={field.name}
-              type="password"
               value={field.state.value}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.currentTarget.value)}
@@ -156,12 +154,14 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
             })}
           >
             {({ canSubmit, isSubmitting }) => (
-              <Button size="sm" intent="primary" type="submit" disabled={!canSubmit || isSubmitting} className="min-w-16">
-                {isSubmitting === true ? (
-                  <LoaderEllipsis size={42} />
-                ) : (
-                  'Save'
-                )}
+              <Button
+                size="sm"
+                intent="primary"
+                type="submit"
+                disabled={!canSubmit || isSubmitting}
+                className="min-w-16"
+              >
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
               </Button>
             )}
           </form.Subscribe>
@@ -183,13 +183,7 @@ function firstError(errors: readonly unknown[]): string | undefined {
 }
 
 function getErrorCode(err: unknown): string | null {
-  if (err && typeof err === 'object') {
-    const e = err as { code?: unknown; cause?: unknown }
-    if (typeof e.code === 'string') return e.code
-    if (e.cause && typeof e.cause === 'object' && 'code' in e.cause) {
-      const cause = e.cause as { code?: unknown }
-      if (typeof cause.code === 'string') return cause.code
-    }
-  }
-  return null
+  return typeof (err as { code?: unknown })?.code === 'string'
+    ? (err as { code: string }).code
+    : null
 }

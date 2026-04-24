@@ -29,7 +29,7 @@ import { z } from 'zod'
 import { updateAdminUser } from '../index'
 import type { AdminUserResponse } from '../index'
 
-const accountDetailsSchema = z.object({
+const updateUserSchema = z.object({
   given_name: z.string().max(100, 'Given name must not exceed 100 characters'),
   family_name: z.string().max(100, 'Family name must not exceed 100 characters'),
   username: z.string().max(100, 'Username must not exceed 100 characters'),
@@ -42,9 +42,9 @@ const accountDetailsSchema = z.object({
   is_email_verified: z.boolean(),
 })
 
-type AccountDetailsValues = z.infer<typeof accountDetailsSchema>
+type UpdateUserValues = z.infer<typeof updateUserSchema>
 
-function defaultsFrom(user: AdminUserResponse): AccountDetailsValues {
+function defaultsFrom(user: AdminUserResponse): UpdateUserValues {
   return {
     given_name: user.given_name ?? '',
     family_name: user.family_name ?? '',
@@ -57,7 +57,7 @@ function defaultsFrom(user: AdminUserResponse): AccountDetailsValues {
 }
 
 /** Build a patch object containing only fields whose values differ from the original user row. */
-function buildPatch(values: AccountDetailsValues, user: AdminUserResponse) {
+function buildPatch(values: UpdateUserValues, user: AdminUserResponse) {
   const patch: {
     given_name?: string | null
     family_name?: string | null
@@ -85,13 +85,13 @@ function buildPatch(values: AccountDetailsValues, user: AdminUserResponse) {
   return patch
 }
 
-interface AccountDetailsProps {
+interface UpdateUserProps {
   user: AdminUserResponse
   onClose?: () => void
   onSuccess?: (user: AdminUserResponse) => void
 }
 
-export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps) {
+export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -102,7 +102,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
       modeAfterSubmission: 'change',
     }),
     validators: {
-      onDynamic: accountDetailsSchema,
+      onDynamic: updateUserSchema,
     },
     onSubmit: async ({ value }) => {
       setFormError(null)
@@ -278,12 +278,14 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
             })}
           >
             {({ canSubmit, isSubmitting }) => (
-              <Button size="sm" intent="primary" type="submit" disabled={!canSubmit || isSubmitting} className="min-w-16">
-                {isSubmitting === true ? (
-                  <LoaderEllipsis size={42} />
-                ) : (
-                  'Save'
-                )}
+              <Button
+                size="sm"
+                intent="primary"
+                type="submit"
+                disabled={!canSubmit || isSubmitting}
+                className="min-w-16"
+              >
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
               </Button>
             )}
           </form.Subscribe>
@@ -306,18 +308,12 @@ function firstError(errors: readonly unknown[]): string | undefined {
 
 /**
  * Extract the admin-users error code from a thrown server-fn response.
- * TanStack Start surfaces thrown `AdminUsersError` / `AuthError` with the
- * original `code` property intact; the wrapper may wrap it once more,
- * so we look a level deeper if needed.
+ * Typed errors (`AdminUsersError`, `AuthError`) survive the server-fn
+ * boundary with their `code` intact thanks to the `BylineCodedError`
+ * serialization adapter registered in `src/start.ts`.
  */
 function getErrorCode(err: unknown): string | null {
-  if (err && typeof err === 'object') {
-    const e = err as { code?: unknown; cause?: unknown }
-    if (typeof e.code === 'string') return e.code
-    if (e.cause && typeof e.cause === 'object' && 'code' in e.cause) {
-      const cause = e.cause as { code?: unknown }
-      if (typeof cause.code === 'string') return cause.code
-    }
-  }
-  return null
+  return typeof (err as { code?: unknown })?.code === 'string'
+    ? (err as { code: string }).code
+    : null
 }

@@ -16,8 +16,8 @@ import cx from 'classnames'
 
 import { LocalDateTime } from '@/ui/components/local-date-time'
 import { DeleteUser } from './delete'
-import { AccountDetails } from './details'
 import { SetPassword } from './set-password'
+import { UpdateUser } from './update'
 import type { AdminUserResponse } from '../index'
 
 /**
@@ -34,7 +34,7 @@ import type { AdminUserResponse } from '../index'
  * navigates away internally; its `onSuccess` is unused.
  */
 
-type ComponentKey = 'account_details' | 'set_password' | 'delete_user' | 'empty'
+type ComponentKey = 'update' | 'set_password' | 'delete_user' | 'empty'
 
 interface PanelProps {
   user: AdminUserResponse
@@ -46,10 +46,10 @@ const panels: Record<
   ComponentKey,
   { title: string; drawerWidth: 'medium' | 'large'; component: React.ComponentType<PanelProps> }
 > = {
-  account_details: {
+  update: {
     title: 'Account Details',
     drawerWidth: 'medium',
-    component: AccountDetails,
+    component: UpdateUser,
   },
   set_password: {
     title: 'Set Password',
@@ -125,7 +125,7 @@ export function AccountContainer({ user }: { user: AdminUserResponse }) {
     <>
       <div className="mb-12 gap-4 sm:grid sm:grid-cols-2">
         <div className="mb-4 flex flex-col gap-4">
-          <ContainerSection title="Account Details" onEdit={openDrawer('account_details')}>
+          <ContainerSection title="Account Details" onEdit={openDrawer('update')}>
             <p className="mb-0">
               <span className="muted">Email:</span> {currentUser.email}
             </p>
@@ -155,7 +155,7 @@ export function AccountContainer({ user }: { user: AdminUserResponse }) {
                 {currentUser.is_enabled ? 'Enabled' : 'Disabled'}
               </span>
             </p>
-            <Button size="sm" onClick={openDrawer('account_details')}>
+            <Button size="sm" onClick={openDrawer('update')}>
               Update Details
             </Button>
             <div className="muted mt-4">

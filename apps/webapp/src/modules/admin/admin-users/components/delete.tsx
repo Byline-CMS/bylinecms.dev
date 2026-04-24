@@ -79,7 +79,11 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
   return (
     <Modal.Content className="gap-1">
       <div className="flex flex-col gap-2">
-        {error ? <Alert intent="danger" close={false}>{error}</Alert> : null}
+        {error ? (
+          <Alert intent="danger" close={false}>
+            {error}
+          </Alert>
+        ) : null}
         <p className="m-0">
           <span className="muted">User:</span> {displayNameFor(user)}
         </p>
@@ -92,15 +96,24 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
         </p>
       </div>
       <div className="mt-6 flex items-center justify-end gap-2">
-        <Button type="button" intent="secondary" size="sm" onClick={onClose} disabled={pending} className="min-w-16">
+        <Button
+          type="button"
+          intent="secondary"
+          size="sm"
+          onClick={onClose}
+          disabled={pending}
+          className="min-w-16"
+        >
           Cancel
         </Button>
-        <Button size="sm" intent="danger" onClick={handleDelete} disabled={pending} className="min-w-16">
-          {pending === true ? (
-            <LoaderEllipsis size={42} />
-          ) : (
-            'Delete User'
-          )}
+        <Button
+          size="sm"
+          intent="danger"
+          onClick={handleDelete}
+          disabled={pending}
+          className="min-w-16"
+        >
+          {pending === true ? <LoaderEllipsis size={42} /> : 'Delete User'}
         </Button>
       </div>
     </Modal.Content>
@@ -108,13 +121,7 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
 }
 
 function getErrorCode(err: unknown): string | null {
-  if (err && typeof err === 'object') {
-    const e = err as { code?: unknown; cause?: unknown }
-    if (typeof e.code === 'string') return e.code
-    if (e.cause && typeof e.cause === 'object' && 'code' in e.cause) {
-      const cause = e.cause as { code?: unknown }
-      if (typeof cause.code === 'string') return cause.code
-    }
-  }
-  return null
+  return typeof (err as { code?: unknown })?.code === 'string'
+    ? (err as { code: string }).code
+    : null
 }
