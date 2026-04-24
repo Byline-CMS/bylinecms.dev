@@ -9,6 +9,8 @@
 import assert from 'node:assert'
 import { after, before, beforeEach, describe, it } from 'node:test'
 
+import type { AdminStore } from '@byline/admin'
+import { hashPassword, JwtSessionProvider } from '@byline/admin/auth'
 import { AdminAuth, AuthError, AuthErrorCodes } from '@byline/auth'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
@@ -20,9 +22,7 @@ import {
   adminUsers,
 } from '../../database/schema/auth.js'
 import { setupTestDB, teardownTestDB } from '../../lib/test-helper.js'
-import { createAdminUsersRepository } from '../admin-users-repository.js'
-import { JwtSessionProvider } from '../jwt-session-provider.js'
-import { createRefreshTokensRepository } from '../refresh-tokens-repository.js'
+import { createAdminStore } from '../admin-store.js'
 import type * as schema from '../../database/schema/index.js'
 
 // ---------------------------------------------------------------------------
@@ -30,6 +30,7 @@ import type * as schema from '../../database/schema/index.js'
 // ---------------------------------------------------------------------------
 
 let db: NodePgDatabase<typeof schema>
+let store: AdminStore
 
 const SIGNING_SECRET = 'test-signing-secret-at-least-32-bytes-long-here'
 
@@ -39,7 +40,7 @@ function makeProvider(options?: {
   now?: () => Date
 }) {
   return new JwtSessionProvider({
-    db,
+    store,
     signingSecret: SIGNING_SECRET,
     accessTokenTtlSeconds: options?.accessTokenTtlSeconds,
     refreshTokenTtlSeconds: options?.refreshTokenTtlSeconds,
@@ -56,8 +57,11 @@ async function cleanAuthTables() {
 }
 
 async function createEnabledUser(email: string, password: string) {
-  const users = createAdminUsersRepository(db)
-  return users.create({ email, password, is_enabled: true })
+  return store.adminUsers.create({
+    email,
+    password_hash: await hashPassword(password),
+    is_enabled: true,
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -66,6 +70,7 @@ describe('JwtSessionProvider', () => {
   before(() => {
     const testDB = setupTestDB([])
     db = testDB.db
+    store = createAdminStore(db)
   })
 
   beforeEach(async () => {
@@ -80,7 +85,7 @@ describe('JwtSessionProvider', () => {
   describe('construction', () => {
     it('rejects a short signing secret', () => {
       assert.throws(
-        () => new JwtSessionProvider({ db, signingSecret: 'too-short' }),
+        () => new JwtSessionProvider({ store, signingSecret: 'too-short' }),
         /at least 32 bytes/
       )
     })
@@ -140,16 +145,14 @@ describe('JwtSessionProvider', () => {
       } catch (err) {
         assert.strictEqual((err as AuthError).code, AuthErrorCodes.INVALID_CREDENTIALS)
       }
-      const users = createAdminUsersRepository(db)
-      const row = await users.getById(user.id)
+      const row = await store.adminUsers.getById(user.id)
       assert.strictEqual(row?.failed_login_attempts, 1)
     })
 
     it('throws ERR_ACCOUNT_DISABLED for a correct-password but disabled account', async () => {
-      const users = createAdminUsersRepository(db)
-      await users.create({
+      await store.adminUsers.create({
         email: 'disabled@example.com',
-        password: 'pw',
+        password_hash: await hashPassword('pw'),
         is_enabled: false,
       })
       const provider = makeProvider()
@@ -170,8 +173,7 @@ describe('JwtSessionProvider', () => {
         ip: '192.168.1.5',
         userAgent: 'Mozilla/test',
       })
-      const refreshTokens = createRefreshTokensRepository(db)
-      const rows = await refreshTokens.listAllForUser(user.id)
+      const rows = await store.refreshTokens.listAllForUser(user.id)
       assert.strictEqual(rows.length, 1)
       assert.strictEqual(rows[0]?.ip, '192.168.1.5')
       assert.strictEqual(rows[0]?.user_agent, 'Mozilla/test')
@@ -226,8 +228,7 @@ describe('JwtSessionProvider', () => {
         email: 'f@example.com',
         password: 'pw',
       })
-      const users = createAdminUsersRepository(db)
-      await users.setEnabled(user.id, false)
+      await store.adminUsers.setEnabled(user.id, false)
       try {
         await provider.verifyAccessToken(accessToken)
         assert.fail('expected ERR_ACCOUNT_DISABLED')
@@ -273,8 +274,7 @@ describe('JwtSessionProvider', () => {
       assert.notStrictEqual(refreshed.accessToken, signIn.accessToken)
 
       // Old token is now revoked and points at the new one
-      const refreshTokens = createRefreshTokensRepository(db)
-      const rows = await refreshTokens.listAllForUser(user.id)
+      const rows = await store.refreshTokens.listAllForUser(user.id)
       assert.strictEqual(rows.length, 2)
       const [oldRow, newRow] = rows
       assert.ok(oldRow?.revoked_at)
@@ -334,8 +334,7 @@ describe('JwtSessionProvider', () => {
       }
 
       // The entire chain descended from the replayed token is now revoked.
-      const refreshTokens = createRefreshTokensRepository(db)
-      const rows = await refreshTokens.listAllForUser(user.id)
+      const rows = await store.refreshTokens.listAllForUser(user.id)
       for (const row of rows) {
         assert.ok(row.revoked_at, `row ${row.id} expected revoked, got null`)
       }
@@ -369,8 +368,7 @@ describe('JwtSessionProvider', () => {
       await provider.revokeSession(signIn.refreshToken)
       await provider.revokeSession(signIn.refreshToken) // idempotent
 
-      const refreshTokens = createRefreshTokensRepository(db)
-      const rows = await refreshTokens.listAllForUser(user.id)
+      const rows = await store.refreshTokens.listAllForUser(user.id)
       assert.strictEqual(rows.length, 1)
       assert.ok(rows[0]?.revoked_at)
     })
@@ -391,10 +389,9 @@ describe('JwtSessionProvider', () => {
     })
 
     it('returns null for a disabled user', async () => {
-      const users = createAdminUsersRepository(db)
-      const user = await users.create({
+      const user = await store.adminUsers.create({
         email: 'n@example.com',
-        password: 'pw',
+        password_hash: await hashPassword('pw'),
         is_enabled: false,
       })
       const provider = makeProvider()

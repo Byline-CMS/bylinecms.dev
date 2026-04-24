@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { RefreshTokenRow, RefreshTokensRepository } from '@byline/admin/auth'
 import { and, eq, isNull, lt } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
@@ -13,36 +14,14 @@ import { adminRefreshTokens } from '../database/schema/auth.js'
 import type * as schema from '../database/schema/index.js'
 
 /**
- * Refresh-token row as seen by the session provider. Note that `token_hash`
- * is the SHA-256 of the plaintext — the plaintext itself is never stored
- * and leaves the server only once, when it is issued to the caller.
+ * Postgres implementation of `RefreshTokensRepository`, backing the
+ * built-in `JwtSessionProvider`.
  */
-export interface RefreshTokenRow {
-  id: string
-  admin_user_id: string
-  token_hash: string
-  issued_at: Date
-  expires_at: Date
-  revoked_at: Date | null
-  rotated_to_id: string | null
-  last_used_at: Date | null
-  user_agent: string | null
-  ip: string | null
-}
-
-export interface IssueRefreshTokenInput {
-  id: string
-  admin_user_id: string
-  token_hash: string
-  expires_at: Date
-  user_agent?: string | null
-  ip?: string | null
-}
-
-export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>) {
+export function createRefreshTokensRepository(
+  db: NodePgDatabase<typeof schema>
+): RefreshTokensRepository {
   return {
-    /** Insert a new refresh-token row. `id` is supplied by the caller (UUIDv7). */
-    async issue(input: IssueRefreshTokenInput): Promise<RefreshTokenRow> {
+    async issue(input): Promise<RefreshTokenRow> {
       const [row] = await db
         .insert(adminRefreshTokens)
         .values({
@@ -58,7 +37,7 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
       return row
     },
 
-    async findByHash(tokenHash: string): Promise<RefreshTokenRow | null> {
+    async findByHash(tokenHash) {
       const [row] = await db
         .select()
         .from(adminRefreshTokens)
@@ -66,48 +45,33 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
       return row ?? null
     },
 
-    async findById(id: string): Promise<RefreshTokenRow | null> {
+    async findById(id) {
       const [row] = await db.select().from(adminRefreshTokens).where(eq(adminRefreshTokens.id, id))
       return row ?? null
     },
 
-    /** Stamp `last_used_at` for observability. */
-    async touch(id: string, at: Date = new Date()): Promise<void> {
+    async touch(id, at = new Date()) {
       await db
         .update(adminRefreshTokens)
         .set({ last_used_at: at, updated_at: new Date() })
         .where(eq(adminRefreshTokens.id, id))
     },
 
-    /**
-     * Atomically revoke `oldId` and set its `rotated_to_id` to `newId`.
-     * Caller is responsible for inserting the new row (via `issue`) before
-     * calling this — the DB enforces FK-style checking only on hash
-     * uniqueness, so ordering is a contract.
-     */
-    async markRotated(oldId: string, newId: string, at: Date = new Date()): Promise<void> {
+    async markRotated(oldId, newId, at = new Date()) {
       await db
         .update(adminRefreshTokens)
         .set({ revoked_at: at, rotated_to_id: newId, updated_at: new Date() })
         .where(eq(adminRefreshTokens.id, oldId))
     },
 
-    /** Revoke a single token. Idempotent. */
-    async revoke(id: string, at: Date = new Date()): Promise<void> {
+    async revoke(id, at = new Date()) {
       await db
         .update(adminRefreshTokens)
         .set({ revoked_at: at, updated_at: new Date() })
         .where(and(eq(adminRefreshTokens.id, id), isNull(adminRefreshTokens.revoked_at)))
     },
 
-    /**
-     * Walk the rotation chain starting at `startId` and revoke every token
-     * in it. Called when a rotated token is replayed — indicates the
-     * chain has been compromised and every descendant is suspect.
-     *
-     * Returns the number of rows touched.
-     */
-    async revokeChain(startId: string, at: Date = new Date()): Promise<number> {
+    async revokeChain(startId, at = new Date()) {
       let cursor: string | null = startId
       let touched = 0
       // Bounded walk — chains in practice are short; 1000 is a safety ceiling.
@@ -135,8 +99,7 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
       return touched
     },
 
-    /** Revoke every non-revoked token for a user. Used on password change / sign-out everywhere. */
-    async revokeAllForUser(adminUserId: string, at: Date = new Date()): Promise<number> {
+    async revokeAllForUser(adminUserId, at = new Date()) {
       const result = await db
         .update(adminRefreshTokens)
         .set({ revoked_at: at, updated_at: new Date() })
@@ -150,8 +113,7 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
       return result.length
     },
 
-    /** Remove rows whose `expires_at` is in the past. Housekeeping. */
-    async purgeExpired(now: Date = new Date()): Promise<number> {
+    async purgeExpired(now = new Date()) {
       const result = await db
         .delete(adminRefreshTokens)
         .where(lt(adminRefreshTokens.expires_at, now))
@@ -159,8 +121,7 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
       return result.length
     },
 
-    /** All non-revoked, non-expired tokens for a user. Primarily for tests. */
-    async listActiveForUser(adminUserId: string): Promise<RefreshTokenRow[]> {
+    async listActiveForUser(adminUserId) {
       return db
         .select()
         .from(adminRefreshTokens)
@@ -172,8 +133,7 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
         )
     },
 
-    /** All tokens (including revoked) for a user. Primarily for tests and debugging. */
-    async listAllForUser(adminUserId: string): Promise<RefreshTokenRow[]> {
+    async listAllForUser(adminUserId) {
       return db
         .select()
         .from(adminRefreshTokens)
@@ -181,10 +141,7 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
         .orderBy(adminRefreshTokens.issued_at)
     },
 
-    /** All tokens descended from `startId` via the rotation chain. Utility for tests. */
-    async listRotationChain(startId: string): Promise<RefreshTokenRow[]> {
-      // Gather the chain and filter results without relying on CTE syntax,
-      // keeping the query simple. See `revokeChain` for the same walk.
+    async listRotationChain(startId) {
       const chain: RefreshTokenRow[] = []
       let cursor: string | null = startId
       for (let step = 0; cursor != null && step < 1000; step++) {
@@ -200,5 +157,3 @@ export function createRefreshTokensRepository(db: NodePgDatabase<typeof schema>)
     },
   }
 }
-
-export type RefreshTokensRepository = ReturnType<typeof createRefreshTokensRepository>

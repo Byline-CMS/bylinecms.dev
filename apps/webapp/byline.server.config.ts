@@ -1,6 +1,7 @@
+import { JwtSessionProvider } from '@byline/admin/auth'
 import { initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
-import { JwtSessionProvider } from '@byline/db-postgres/auth'
+import { createAdminStore } from '@byline/db-postgres/auth'
 import { localStorageProvider } from '@byline/storage-local'
 
 // Import collection definitions directly from schema files — NOT the full
@@ -17,11 +18,16 @@ import { i18n } from './byline/i18n.js'
 const collections = [Docs, News, Pages, Media, Categories]
 
 // Construct the db adapter up-front so we can thread its drizzle handle into
-// the session provider without a second connection pool.
+// the session provider without a second connection pool. The admin store
+// bundles the four admin repositories (users / roles / permissions / refresh
+// tokens) that `JwtSessionProvider` — and, later, the admin services —
+// consume.
 const db = pgAdapter({
   connectionString: process.env.DB_CONNECTION_STRING || '',
   collections,
 })
+
+const adminStore = createAdminStore(db.drizzle)
 
 // Built-in JWT session provider. Signing secret comes from the environment —
 // see `.env.example`. Phase 5 uses HS256 with Byline's default TTLs
@@ -37,7 +43,7 @@ if (!signingSecret || signingSecret.length < 32) {
 }
 
 const sessionProvider = new JwtSessionProvider({
-  db: db.drizzle,
+  store: adminStore,
   signingSecret,
 })
 

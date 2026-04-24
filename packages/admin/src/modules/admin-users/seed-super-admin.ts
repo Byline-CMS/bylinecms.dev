@@ -6,11 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-
-import { createAdminRolesRepository } from './admin-roles-repository.js'
-import { createAdminUsersRepository } from './admin-users-repository.js'
-import type * as schema from '../database/schema/index.js'
+import { hashPassword } from '../auth/password.js'
+import type { AdminStore } from '../../store.js'
 
 export interface SeedSuperAdminInput {
   email: string
@@ -49,20 +46,17 @@ export interface SeedSuperAdminResult {
  * usable account.
  */
 export async function seedSuperAdmin(
-  db: NodePgDatabase<typeof schema>,
+  store: AdminStore,
   input: SeedSuperAdminInput
 ): Promise<SeedSuperAdminResult> {
-  const usersRepo = createAdminUsersRepository(db)
-  const rolesRepo = createAdminRolesRepository(db)
-
   const roleMachineName = input.roleMachineName ?? 'super-admin'
   const roleName = input.roleName ?? 'Super Admin'
 
   // 1. Role
-  let role = await rolesRepo.getByMachineName(roleMachineName)
+  let role = await store.adminRoles.getByMachineName(roleMachineName)
   let roleCreated = false
   if (!role) {
-    role = await rolesRepo.create({
+    role = await store.adminRoles.create({
       name: roleName,
       machine_name: roleMachineName,
       description:
@@ -73,12 +67,13 @@ export async function seedSuperAdmin(
   }
 
   // 2. User
-  let user = await usersRepo.getByEmail(input.email)
+  let user = await store.adminUsers.getByEmail(input.email)
   let userCreated = false
   if (!user) {
-    user = await usersRepo.create({
+    const passwordHash = await hashPassword(input.password)
+    user = await store.adminUsers.create({
       email: input.email,
-      password: input.password,
+      password_hash: passwordHash,
       given_name: input.given_name ?? null,
       family_name: input.family_name ?? null,
       is_super_admin: true,
@@ -89,10 +84,10 @@ export async function seedSuperAdmin(
   }
 
   // 3. Assignment (idempotent)
-  const existingRoles = await rolesRepo.listRolesForUser(user.id)
+  const existingRoles = await store.adminRoles.listRolesForUser(user.id)
   const alreadyAssigned = existingRoles.some((r) => r.id === role.id)
   if (!alreadyAssigned) {
-    await rolesRepo.assignToUser(role.id, user.id)
+    await store.adminRoles.assignToUser(role.id, user.id)
   }
 
   return {

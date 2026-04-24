@@ -22,15 +22,12 @@ import {
   type SignInResult,
   type SignInWithPasswordArgs,
 } from '@byline/auth'
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { jwtVerify, SignJWT } from 'jose'
 import { v7 as uuidv7 } from 'uuid'
 
-import { createAdminUsersRepository } from './admin-users-repository.js'
 import { verifyPassword } from './password.js'
-import { createRefreshTokensRepository } from './refresh-tokens-repository.js'
 import { resolveActor } from './resolve-actor.js'
-import type * as schema from '../database/schema/index.js'
+import type { AdminStore } from '../../store.js'
 
 const DEFAULT_ISSUER = 'byline'
 const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 15 * 60 // 15 minutes
@@ -43,7 +40,13 @@ const CAPABILITIES: SessionProviderCapabilities = {
 }
 
 export interface JwtSessionProviderConfig {
-  db: NodePgDatabase<typeof schema>
+  /**
+   * Adapter-backed admin repositories. Construct via the DB adapter's
+   * admin-store factory (e.g. `createAdminStore(db)` from
+   * `@byline/db-postgres/auth`) and pass the result in — the provider
+   * does not touch Drizzle or any other adapter-specific API directly.
+   */
+  store: AdminStore
   /**
    * HMAC-SHA256 signing secret. Must be at least 32 bytes (256 bits) of
    * entropy. Load from a secret manager — never hard-code.
@@ -65,7 +68,7 @@ export interface JwtSessionProviderConfig {
 export class JwtSessionProvider implements SessionProvider {
   public readonly capabilities = CAPABILITIES
 
-  readonly #db: NodePgDatabase<typeof schema>
+  readonly #store: AdminStore
   readonly #signingKey: Uint8Array
   readonly #issuer: string
   readonly #accessTtl: number
@@ -73,7 +76,7 @@ export class JwtSessionProvider implements SessionProvider {
   readonly #now: () => Date
 
   constructor(config: JwtSessionProviderConfig) {
-    this.#db = config.db
+    this.#store = config.store
     this.#signingKey =
       typeof config.signingSecret === 'string'
         ? new TextEncoder().encode(config.signingSecret)
@@ -94,20 +97,18 @@ export class JwtSessionProvider implements SessionProvider {
   // -----------------------------------------------------------------------
 
   async signInWithPassword(args: SignInWithPasswordArgs): Promise<SignInResult> {
-    const users = createAdminUsersRepository(this.#db)
+    const users = this.#store.adminUsers
     const row = await users.getByEmailForSignIn(args.email)
 
     // Uniform error response for unknown email vs. wrong password — don't
     // leak which one. Still do a real verify against a dummy hash so the
     // timing is comparable; the argon2 cost dominates regardless.
     if (!row) {
-      // A best-effort timing equaliser: hash a throwaway so the wrong-email
-      // path takes roughly as long as the wrong-password path.
       await verifyPassword(args.password, DUMMY_HASH_FOR_TIMING)
       throw ERR_INVALID_CREDENTIALS({ message: 'invalid credentials' })
     }
 
-    const ok = await verifyPassword(args.password, row.password)
+    const ok = await verifyPassword(args.password, row.password_hash)
     if (!ok) {
       await users.recordLoginFailure(row.id)
       throw ERR_INVALID_CREDENTIALS({ message: 'invalid credentials' })
@@ -119,7 +120,7 @@ export class JwtSessionProvider implements SessionProvider {
 
     await users.recordLoginSuccess(row.id, args.ip ?? null)
 
-    const actor = await resolveActor(this.#db, row.id)
+    const actor = await resolveActor(this.#store, row.id)
     // resolveActor also checks is_enabled, but we just recorded success
     // above, so null here would indicate a race (the account was disabled
     // between the check and the resolve). Treat as disabled.
@@ -151,7 +152,7 @@ export class JwtSessionProvider implements SessionProvider {
       throw ERR_INVALID_TOKEN({ message: 'unexpected token type' })
     }
 
-    const actor = await resolveActor(this.#db, payload.sub)
+    const actor = await resolveActor(this.#store, payload.sub)
     if (!actor) {
       // The token was valid but the user is now disabled or deleted.
       throw ERR_ACCOUNT_DISABLED({ message: 'account disabled or deleted' })
@@ -161,7 +162,7 @@ export class JwtSessionProvider implements SessionProvider {
   }
 
   async refreshSession(args: RefreshSessionArgs): Promise<SessionTokens> {
-    const refreshTokens = createRefreshTokensRepository(this.#db)
+    const refreshTokens = this.#store.refreshTokens
     const hash = hashToken(args.refreshToken)
     const row = await refreshTokens.findByHash(hash)
 
@@ -217,14 +218,14 @@ export class JwtSessionProvider implements SessionProvider {
   }
 
   async revokeSession(refreshToken: string): Promise<void> {
-    const refreshTokens = createRefreshTokensRepository(this.#db)
+    const refreshTokens = this.#store.refreshTokens
     const row = await refreshTokens.findByHash(hashToken(refreshToken))
     if (!row) return // Idempotent — unknown tokens are a no-op.
     await refreshTokens.revoke(row.id, this.#now())
   }
 
   async resolveActor(adminUserId: string): Promise<AdminAuth | null> {
-    return resolveActor(this.#db, adminUserId)
+    return resolveActor(this.#store, adminUserId)
   }
 
   // -----------------------------------------------------------------------
@@ -237,7 +238,7 @@ export class JwtSessionProvider implements SessionProvider {
     userAgent: string | null
   }): Promise<SessionTokens> {
     const now = this.#now()
-    const refreshTokens = createRefreshTokensRepository(this.#db)
+    const refreshTokens = this.#store.refreshTokens
 
     const accessToken = await this.#signAccessToken(input.adminUserId, now)
     const accessExpiresAt = new Date(now.getTime() + this.#accessTtl * 1000)

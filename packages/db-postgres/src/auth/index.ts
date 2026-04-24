@@ -6,35 +6,23 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-export {
-  type AdminRoleRow,
-  type AdminRolesRepository,
-  type CreateAdminRoleInput,
-  createAdminRolesRepository,
-  type UpdateAdminRoleInput,
-} from './admin-roles-repository.js'
-export {
-  type AdminUserRow,
-  type AdminUsersRepository,
-  type AdminUserWithPasswordRow,
-  type CreateAdminUserInput,
-  createAdminUsersRepository,
-  type UpdateAdminUserInput,
-} from './admin-users-repository.js'
-export {
-  JwtSessionProvider,
-  type JwtSessionProviderConfig,
-} from './jwt-session-provider.js'
-export { hashPassword, verifyPassword } from './password.js'
-export {
-  createRefreshTokensRepository,
-  type IssueRefreshTokenInput,
-  type RefreshTokenRow,
-  type RefreshTokensRepository,
-} from './refresh-tokens-repository.js'
-export { resolveActor } from './resolve-actor.js'
-export {
-  type SeedSuperAdminInput,
-  type SeedSuperAdminResult,
-  seedSuperAdmin,
-} from './seed-super-admin.js'
+/**
+ * `@byline/db-postgres/auth` — Postgres implementations of the admin
+ * repository contracts declared in `@byline/admin`.
+ *
+ * Most callers want `createAdminStore(db)` — it bundles all four
+ * repositories into the `AdminStore` shape that `@byline/admin` consumers
+ * (the built-in `JwtSessionProvider`, `seedSuperAdmin`, admin-user and
+ * admin-role commands) expect. Individual factories remain exported for
+ * unusual cases (custom wiring, partial testing).
+ *
+ * No session-provider code lives here — `JwtSessionProvider` moved to
+ * `@byline/admin/auth`. This package only supplies the adapter-shaped
+ * pieces it implements.
+ */
+
+export { createAdminPermissionsRepository } from './admin-permissions-repository.js'
+export { createAdminRolesRepository } from './admin-roles-repository.js'
+export { createAdminStore } from './admin-store.js'
+export { createAdminUsersRepository } from './admin-users-repository.js'
+export { createRefreshTokensRepository } from './refresh-tokens-repository.js'

@@ -31,6 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@byline/admin": "workspace:*",
     "@byline/auth": "workspace:*",
     "@byline/core": "workspace:*",
     "@byline/db-postgres": "workspace:*",

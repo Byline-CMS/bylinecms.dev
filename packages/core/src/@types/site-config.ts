@@ -89,16 +89,20 @@ export interface ServerConfig extends BaseConfig {
    * else continues to work. Phase 5 wires the admin server-fn middleware
    * and will tighten this where authentication is required.
    *
-   * The built-in `JwtSessionProvider` from `@byline/db-postgres/auth`
-   * covers the default case. Alternative providers can adapt Lucia,
-   * better-auth, WorkOS, Clerk, or institutional SSO by implementing the
-   * `SessionProvider` interface from `@byline/auth`.
+   * The built-in `JwtSessionProvider` from `@byline/admin/auth` covers
+   * the default case. Alternative providers can adapt Lucia, better-auth,
+   * WorkOS, Clerk, or institutional SSO by implementing the
+   * `SessionProvider` interface from `@byline/auth` — those adapters
+   * should ship as separate packages rather than being added to
+   * `@byline/admin`.
    *
    * @example
    * ```ts
-   * import { JwtSessionProvider } from '@byline/db-postgres/auth'
+   * import { JwtSessionProvider } from '@byline/admin/auth'
+   * import { createAdminStore } from '@byline/db-postgres/auth'
+   *
    * sessionProvider: new JwtSessionProvider({
-   *   db: drizzleDb,
+   *   store: createAdminStore(drizzleDb),
    *   signingSecret: process.env.BYLINE_JWT_SECRET!,
    * })
    * ```

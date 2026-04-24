@@ -11,8 +11,8 @@
  *
  * Idempotent. Reads credentials from env (`BYLINE_SUPERADMIN_EMAIL`,
  * `BYLINE_SUPERADMIN_PASSWORD`) and calls the built-in
- * `seedSuperAdmin` helper from `@byline/db-postgres/auth` against the
- * application's single connection pool.
+ * `seedSuperAdmin` helper from `@byline/admin/admin-users` against an
+ * `AdminStore` built on the application's single connection pool.
  *
  * The admin account it produces:
  *   - `is_super_admin: true`  — bypasses every ability check
@@ -23,7 +23,9 @@
  * once, then immediately change the password from inside the admin UI.
  */
 
-import { seedSuperAdmin } from '@byline/db-postgres/auth'
+import { seedSuperAdmin } from '@byline/admin/admin-users'
+import type { PgAdapter } from '@byline/db-postgres'
+import { createAdminStore } from '@byline/db-postgres/auth'
 
 import { bylineCore } from '../../byline.server.config.js'
 
@@ -39,15 +41,9 @@ export async function seedAdmin() {
     return
   }
 
-  // `bylineCore.db` is typed as IDbAdapter at this boundary; the concrete
-  // pgAdapter return augments it with the raw drizzle handle.
-  const db = (
-    bylineCore.db as typeof bylineCore.db & {
-      drizzle: Parameters<typeof seedSuperAdmin>[0]
-    }
-  ).drizzle
+  const adminStore = createAdminStore((bylineCore.db as PgAdapter).drizzle)
 
-  const result = await seedSuperAdmin(db, { email, password })
+  const result = await seedSuperAdmin(adminStore, { email, password })
 
   const parts: string[] = []
   if (result.created.role) parts.push('role')

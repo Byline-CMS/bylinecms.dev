@@ -6,44 +6,26 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { AdminUserRow, AdminUsersRepository } from '@byline/admin/admin-users'
 import { eq, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
 import { adminUsers } from '../database/schema/auth.js'
-import { hashPassword } from './password.js'
 import type * as schema from '../database/schema/index.js'
 
 /**
- * Public-facing admin-user row — the `password` column is deliberately
- * omitted. Only `getByEmailForSignIn` returns the password, and only so
- * the session provider can verify it.
+ * Postgres implementation of `AdminUsersRepository`.
+ *
+ * The DB column for the password hash is `password`; the public interface
+ * exposes it as `password_hash`. The mapping happens entirely inside this
+ * factory — callers speak the interface shape and never see the column
+ * name.
+ *
+ * Password hashing is *not* done here — the interface takes a pre-hashed
+ * PHC string. Callers (seed, admin-user commands) hash first via
+ * `hashPassword` from `@byline/admin/auth`.
  */
-export interface AdminUserRow {
-  id: string
-  given_name: string | null
-  family_name: string | null
-  username: string | null
-  email: string
-  remember_me: boolean
-  last_login: Date | null
-  last_login_ip: string | null
-  failed_login_attempts: number
-  is_super_admin: boolean
-  is_enabled: boolean
-  is_email_verified: boolean
-  created_at: Date
-  updated_at: Date
-}
-
-/**
- * Admin-user row including the PHC password string. Returned only by
- * `getByEmailForSignIn` — callers must treat it with care (never log,
- * never return to clients).
- */
-export interface AdminUserWithPasswordRow extends AdminUserRow {
-  password: string
-}
 
 const PUBLIC_COLUMNS = {
   id: adminUsers.id,
@@ -62,39 +44,17 @@ const PUBLIC_COLUMNS = {
   updated_at: adminUsers.updated_at,
 } as const
 
-export interface CreateAdminUserInput {
-  email: string
-  /** Plaintext. Hashed before insert. */
-  password: string
-  given_name?: string | null
-  family_name?: string | null
-  username?: string | null
-  is_super_admin?: boolean
-  is_enabled?: boolean
-  is_email_verified?: boolean
-}
-
-export interface UpdateAdminUserInput {
-  given_name?: string | null
-  family_name?: string | null
-  username?: string | null
-  email?: string
-  is_super_admin?: boolean
-  is_enabled?: boolean
-  is_email_verified?: boolean
-  remember_me?: boolean
-}
-
-export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
+export function createAdminUsersRepository(
+  db: NodePgDatabase<typeof schema>
+): AdminUsersRepository {
   return {
-    async create(input: CreateAdminUserInput): Promise<AdminUserRow> {
-      const passwordHash = await hashPassword(input.password)
+    async create(input): Promise<AdminUserRow> {
       const [row] = await db
         .insert(adminUsers)
         .values({
           id: uuidv7(),
           email: input.email.toLowerCase(),
-          password: passwordHash,
+          password: input.password_hash,
           given_name: input.given_name ?? null,
           family_name: input.family_name ?? null,
           username: input.username ?? null,
@@ -107,12 +67,12 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
       return row
     },
 
-    async getById(id: string): Promise<AdminUserRow | null> {
+    async getById(id) {
       const [row] = await db.select(PUBLIC_COLUMNS).from(adminUsers).where(eq(adminUsers.id, id))
       return row ?? null
     },
 
-    async getByEmail(email: string): Promise<AdminUserRow | null> {
+    async getByEmail(email) {
       const [row] = await db
         .select(PUBLIC_COLUMNS)
         .from(adminUsers)
@@ -120,7 +80,7 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
       return row ?? null
     },
 
-    async getByUsername(username: string): Promise<AdminUserRow | null> {
+    async getByUsername(username) {
       const [row] = await db
         .select(PUBLIC_COLUMNS)
         .from(adminUsers)
@@ -128,20 +88,15 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
       return row ?? null
     },
 
-    /**
-     * Sign-in-only lookup. Returns the password PHC string alongside the
-     * public row so the session provider can verify. Callers **must not**
-     * persist or echo the password field.
-     */
-    async getByEmailForSignIn(email: string): Promise<AdminUserWithPasswordRow | null> {
+    async getByEmailForSignIn(email) {
       const [row] = await db
-        .select({ ...PUBLIC_COLUMNS, password: adminUsers.password })
+        .select({ ...PUBLIC_COLUMNS, password_hash: adminUsers.password })
         .from(adminUsers)
         .where(eq(adminUsers.email, email.toLowerCase()))
       return row ?? null
     },
 
-    async update(id: string, patch: UpdateAdminUserInput): Promise<AdminUserRow> {
+    async update(id, patch): Promise<AdminUserRow> {
       const updateSet: Record<string, unknown> = { updated_at: new Date() }
       if (patch.given_name !== undefined) updateSet.given_name = patch.given_name
       if (patch.family_name !== undefined) updateSet.family_name = patch.family_name
@@ -162,22 +117,21 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
       return row
     },
 
-    async setPassword(id: string, plaintext: string): Promise<void> {
-      const passwordHash = await hashPassword(plaintext)
+    async setPasswordHash(id, passwordHash) {
       await db
         .update(adminUsers)
         .set({ password: passwordHash, updated_at: new Date() })
         .where(eq(adminUsers.id, id))
     },
 
-    async setEnabled(id: string, enabled: boolean): Promise<void> {
+    async setEnabled(id, enabled) {
       await db
         .update(adminUsers)
         .set({ is_enabled: enabled, updated_at: new Date() })
         .where(eq(adminUsers.id, id))
     },
 
-    async recordLoginSuccess(id: string, ip: string | null): Promise<void> {
+    async recordLoginSuccess(id, ip) {
       await db
         .update(adminUsers)
         .set({
@@ -189,7 +143,7 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
         .where(eq(adminUsers.id, id))
     },
 
-    async recordLoginFailure(id: string): Promise<void> {
+    async recordLoginFailure(id) {
       await db
         .update(adminUsers)
         .set({
@@ -199,10 +153,8 @@ export function createAdminUsersRepository(db: NodePgDatabase<typeof schema>) {
         .where(eq(adminUsers.id, id))
     },
 
-    async delete(id: string): Promise<void> {
+    async delete(id) {
       await db.delete(adminUsers).where(eq(adminUsers.id, id))
     },
   }
 }
-
-export type AdminUsersRepository = ReturnType<typeof createAdminUsersRepository>
