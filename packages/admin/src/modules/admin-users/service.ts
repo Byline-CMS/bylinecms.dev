@@ -136,11 +136,12 @@ export class AdminUsersService {
     return toAdminUser(row)
   }
 
-  async setPassword(request: SetAdminUserPasswordRequest): Promise<void> {
+  async setPassword(request: SetAdminUserPasswordRequest): Promise<AdminUserResponse> {
     const exists = await this.#repo.getById(request.id)
     if (!exists) throw ERR_ADMIN_USER_NOT_FOUND()
     const password_hash = await hashPassword(request.password)
-    await this.#repo.setPasswordHash(request.id, request.vid, password_hash)
+    const row = await this.#repo.setPasswordHash(request.id, request.vid, password_hash)
+    return toAdminUser(row)
   }
 
   async enableUser(request: EnableAdminUserRequest): Promise<void> {

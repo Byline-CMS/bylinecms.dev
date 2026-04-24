@@ -177,8 +177,8 @@ export function createAdminUsersRepository(
       return row
     },
 
-    async setPasswordHash(id, expectedVid, passwordHash) {
-      const result = await db
+    async setPasswordHash(id, expectedVid, passwordHash): Promise<AdminUserRow> {
+      const [row] = await db
         .update(adminUsers)
         .set({
           password: passwordHash,
@@ -186,8 +186,9 @@ export function createAdminUsersRepository(
           vid: sql`${adminUsers.vid} + 1`,
         })
         .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
-        .returning({ id: adminUsers.id })
-      if (result.length === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+        .returning(PUBLIC_COLUMNS)
+      if (!row) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+      return row
     },
 
     async setEnabled(id, enabled) {

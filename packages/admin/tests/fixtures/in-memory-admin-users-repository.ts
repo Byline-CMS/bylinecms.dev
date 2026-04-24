@@ -170,15 +170,17 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       return strip(updated)
     },
 
-    async setPasswordHash(id, expectedVid, passwordHash) {
+    async setPasswordHash(id, expectedVid, passwordHash): Promise<AdminUserRow> {
       const existing = rows.get(id)
       if (!existing || existing.vid !== expectedVid) throw ERR_ADMIN_USER_VERSION_CONFLICT()
-      rows.set(id, {
+      const updated: StoredRow = {
         ...existing,
         password_hash: passwordHash,
         vid: existing.vid + 1,
         updated_at: now(),
-      })
+      }
+      rows.set(id, updated)
+      return strip(updated)
     },
 
     async setEnabled(id, enabled) {

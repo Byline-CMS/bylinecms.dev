@@ -107,11 +107,11 @@ export async function setAdminUserPasswordCommand(
   context: RequestContext | undefined,
   input: unknown,
   deps: AdminUsersCommandDeps
-): Promise<OkResponse> {
+): Promise<AdminUserResponse> {
   const parsed = setAdminUserPasswordRequestSchema.parse(input)
   assertAdminActor(context, ADMIN_USERS_ABILITIES.changePassword)
-  await serviceOf(deps).setPassword(parsed)
-  return okResponseSchema.parse({ ok: true })
+  const result = await serviceOf(deps).setPassword(parsed)
+  return adminUserResponseSchema.parse(result)
 }
 
 export async function enableAdminUserCommand(

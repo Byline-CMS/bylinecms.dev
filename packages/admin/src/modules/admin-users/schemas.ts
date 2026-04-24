@@ -100,6 +100,7 @@ export const updateAdminUserRequestSchema = z.object({
       family_name: nameSchema.nullish(),
       username: z.string().min(1).max(100).nullish(),
       is_super_admin: z.boolean().optional(),
+      is_enabled: z.boolean().optional(),
       is_email_verified: z.boolean().optional(),
     })
     .refine((p) => Object.keys(p).length > 0, { message: 'patch cannot be empty' }),

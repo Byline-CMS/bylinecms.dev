@@ -136,8 +136,10 @@ export interface AdminUsersRepository {
   /**
    * Replace the stored password hash with optimistic concurrency.
    * Version-gated on `expectedVid`. Caller supplies a pre-hashed PHC string.
+   * Returns the updated row so callers holding the edit form can refresh
+   * their cached `vid` without a second round-trip.
    */
-  setPasswordHash(id: string, expectedVid: number, passwordHash: string): Promise<void>
+  setPasswordHash(id: string, expectedVid: number, passwordHash: string): Promise<AdminUserRow>
   /** Toggle enabled state. Vid-less — admin intent is independent of other edits. */
   setEnabled(id: string, enabled: boolean): Promise<void>
   recordLoginSuccess(id: string, ip: string | null): Promise<void>

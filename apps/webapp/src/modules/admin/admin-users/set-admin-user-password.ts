@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { type OkResponse, setAdminUserPasswordCommand } from '@byline/admin/admin-users'
+import { type AdminUserResponse, setAdminUserPasswordCommand } from '@byline/admin/admin-users'
 
 import { getAdminRequestContext } from '@/lib/auth-context'
 import { getAdminStore } from './admin-store'
@@ -21,7 +21,7 @@ export interface SetAdminUserPasswordInput {
 
 export const setAdminUserPassword = createServerFn({ method: 'POST' })
   .inputValidator((input: SetAdminUserPasswordInput) => input)
-  .handler(async ({ data }): Promise<OkResponse> => {
+  .handler(async ({ data }): Promise<AdminUserResponse> => {
     const context = await getAdminRequestContext()
     return setAdminUserPasswordCommand(context, data, { store: getAdminStore() })
   })

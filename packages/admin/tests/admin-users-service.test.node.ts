@@ -251,22 +251,23 @@ describe('AdminUsersService', () => {
   })
 
   describe('setPassword', () => {
-    it('rehashes and stores a new hash, bumping vid', async () => {
+    it('rehashes, bumps vid, and returns the fresh user row', async () => {
       const { repo, service } = makeService()
       const created = await service.createUser({
         email: 'alice@example.com',
         password: 'old-password-12',
       })
-      await service.setPassword({
+      const response = await service.setPassword({
         id: created.id,
         vid: created.vid,
         password: 'new-password-12',
       })
+      expect(response.id).toBe(created.id)
+      expect(response.vid).toBe(created.vid + 1)
+
       const row = await repo.getByEmailForSignIn('alice@example.com')
       expect(await verifyPassword('new-password-12', row?.password_hash)).toBe(true)
       expect(await verifyPassword('old-password-12', row?.password_hash)).toBe(false)
-      const fresh = await service.getUser({ id: created.id })
-      expect(fresh.vid).toBe(created.vid + 1)
     })
 
     it('throws VERSION_CONFLICT on a stale vid', async () => {

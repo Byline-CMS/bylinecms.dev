@@ -145,13 +145,15 @@ describe('auth integration', () => {
       )
     })
 
-    it('setPasswordHash rehashes, bumps vid, and subsequently verifies', async () => {
+    it('setPasswordHash rehashes, bumps vid, and returns the fresh row', async () => {
       const created = await createUser({ email: 'd@example.com', password: 'old' })
-      await store.adminUsers.setPasswordHash(
+      const updated = await store.adminUsers.setPasswordHash(
         created.id,
         created.vid,
         await hashPassword('new-password')
       )
+      assert.strictEqual(updated.id, created.id)
+      assert.strictEqual(updated.vid, created.vid + 1)
 
       const signIn = await store.adminUsers.getByEmailForSignIn('d@example.com')
       assert.ok(signIn)

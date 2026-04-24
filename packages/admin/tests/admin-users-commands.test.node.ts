@@ -196,14 +196,14 @@ describe('admin-users commands', () => {
       const afterDisable = await getAdminUserCommand(context, { id: created.id }, deps)
       expect(afterDisable.is_enabled).toBe(false)
 
-      const pw = await setAdminUserPasswordCommand(
+      const afterPassword = await setAdminUserPasswordCommand(
         context,
         { id: created.id, vid: afterDisable.vid, password: 'new-password-12chars' },
         deps
       )
-      expect(pw.ok).toBe(true)
+      expect(afterPassword.id).toBe(created.id)
+      expect(afterPassword.vid).toBe(afterDisable.vid + 1)
 
-      const afterPassword = await getAdminUserCommand(context, { id: created.id }, deps)
       const del = await deleteAdminUserCommand(
         context,
         { id: created.id, vid: afterPassword.vid },

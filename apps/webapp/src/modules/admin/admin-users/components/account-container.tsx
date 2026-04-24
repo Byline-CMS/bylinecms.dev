@@ -15,6 +15,9 @@ import { Button, CloseIcon, Drawer, EditIcon, IconButton, Modal } from '@infonom
 import cx from 'classnames'
 
 import { LocalDateTime } from '@/ui/components/local-date-time'
+import { AccountDetails } from './account-details'
+import { DeleteUser } from './delete-user'
+import { SetPassword } from './set-password'
 import type { AdminUserResponse } from '../index'
 
 /**
@@ -24,10 +27,11 @@ import type { AdminUserResponse } from '../index'
  * sub-form. Destructive actions (delete) use a modal instead of a
  * drawer.
  *
- * Phase 5a renders the cards read-only with placeholder drawers —
- * AccountDetails / SetPassword / DeleteUser sub-components land in 5b
- * and will slot into the `components` registry below without the
- * container needing to change.
+ * Each sub-panel is a self-contained form component receiving
+ * `(user, onClose, onSuccess)`. Forms that return a fresh user (the
+ * update and set-password flows) lift it into `currentUser` via
+ * `handleSuccess` so subsequent edits see the bumped `vid`. Delete
+ * navigates away internally; its `onSuccess` is unused.
  */
 
 type ComponentKey = 'account_details' | 'set_password' | 'delete_user' | 'empty'
@@ -38,20 +42,6 @@ interface PanelProps {
   onSuccess?: (user: AdminUserResponse) => void
 }
 
-function PlaceholderPanel({ onClose }: PanelProps) {
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="muted">
-        This editor form lands in the next phase. The container, drawer plumbing, and save-bus
-        wiring are already in place — the sub-component will slot in without changes here.
-      </p>
-      <Button size="sm" intent="secondary" onClick={onClose}>
-        Close
-      </Button>
-    </div>
-  )
-}
-
 const panels: Record<
   ComponentKey,
   { title: string; drawerWidth: 'medium' | 'large'; component: React.ComponentType<PanelProps> }
@@ -59,17 +49,17 @@ const panels: Record<
   account_details: {
     title: 'Account Details',
     drawerWidth: 'large',
-    component: PlaceholderPanel,
+    component: AccountDetails,
   },
   set_password: {
     title: 'Set Password',
     drawerWidth: 'medium',
-    component: PlaceholderPanel,
+    component: SetPassword,
   },
   delete_user: {
     title: 'Delete Admin User',
     drawerWidth: 'medium',
-    component: PlaceholderPanel,
+    component: DeleteUser,
   },
   empty: {
     title: '',

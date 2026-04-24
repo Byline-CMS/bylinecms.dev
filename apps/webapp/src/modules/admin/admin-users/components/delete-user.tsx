@@ -1,0 +1,116 @@
+'use client'
+
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/**
+ * Delete-user modal body.
+ *
+ * Rendered inside `AccountContainer`'s `<Modal.Container>`, so this
+ * component only lays out the content + action row — the modal header
+ * and dismiss button are already drawn by the container.
+ *
+ * On success we navigate away to `/admin/users`; the record that hosts
+ * this view no longer exists. The `onSuccess` callback on `PanelProps`
+ * is unused here because `delete` produces no updated user.
+ */
+
+import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+
+import { Alert, Button } from '@infonomic/uikit/react'
+
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
+import { deleteAdminUser } from '../index'
+import type { AdminUserResponse } from '../index'
+
+interface DeleteUserProps {
+  user: AdminUserResponse
+  onClose?: () => void
+  onSuccess?: (user: AdminUserResponse) => void
+}
+
+function displayNameFor(user: AdminUserResponse): string {
+  const parts = [user.given_name, user.family_name].filter(
+    (part): part is string => typeof part === 'string' && part.length > 0
+  )
+  return parts.length > 0 ? parts.join(' ') : user.email
+}
+
+export function DeleteUser({ user, onClose }: DeleteUserProps) {
+  const navigate = useNavigate()
+  const locale = useLocale()
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  async function handleDelete() {
+    if (pending) return
+    setPending(true)
+    setError(null)
+    try {
+      await deleteAdminUser({ data: { id: user.id, vid: user.vid } })
+      onClose?.()
+      navigate({
+        to: '/{-$lng}/admin/users',
+        params: { ...lngParam(locale) },
+      })
+    } catch (err) {
+      const code = getErrorCode(err)
+      if (code === 'admin.users.selfDeleteForbidden') {
+        setError('You cannot delete your own admin account.')
+      } else if (code === 'admin.users.versionConflict') {
+        setError(
+          'This user has been modified elsewhere since you opened this dialog. Close and reload before trying again.'
+        )
+      } else if (code === 'admin.users.notFound') {
+        setError('This user has already been deleted.')
+      } else {
+        setError('Could not delete this admin user. Please try again.')
+      }
+      setPending(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        {error ? <Alert intent="danger">{error}</Alert> : null}
+        <p className="m-0">
+          <span className="muted">User:</span> {displayNameFor(user)}
+        </p>
+        <p className="m-0">
+          <span className="muted">Email:</span> {user.email}
+        </p>
+        <p className="mt-3 text-red-600 dark:text-red-300">
+          This will permanently delete the admin user. The action cannot be undone. Any active
+          sessions will be invalidated at the next refresh.
+        </p>
+      </div>
+      <div className="mt-6 flex items-center justify-end gap-2">
+        <Button type="button" intent="secondary" size="sm" onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button type="button" intent="danger" size="sm" onClick={handleDelete} disabled={pending}>
+          {pending ? 'Deleting…' : 'Delete admin user'}
+        </Button>
+      </div>
+    </>
+  )
+}
+
+function getErrorCode(err: unknown): string | null {
+  if (err && typeof err === 'object') {
+    const e = err as { code?: unknown; cause?: unknown }
+    if (typeof e.code === 'string') return e.code
+    if (e.cause && typeof e.cause === 'object' && 'code' in e.cause) {
+      const cause = e.cause as { code?: unknown }
+      if (typeof cause.code === 'string') return cause.code
+    }
+  }
+  return null
+}
