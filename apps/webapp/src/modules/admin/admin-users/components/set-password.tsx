@@ -24,18 +24,16 @@
 import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
+import { passwordSchema } from '@byline/core/validation'
 import { Alert, Button, Input } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { setAdminUserPassword } from '../index'
 import type { AdminUserResponse } from '../index'
 
-const setPasswordSchema = z
+const setPasswordFormSchema = z
   .object({
-    password: z
-      .string({ message: 'Password is required' })
-      .min(12, 'Password must be at least 12 characters')
-      .max(256, 'Password must not exceed 256 characters'),
+    password: passwordSchema,
     confirm: z.string({ message: 'Please confirm the password' }),
   })
   .refine((v) => v.password === v.confirm, {
@@ -43,7 +41,7 @@ const setPasswordSchema = z
     path: ['confirm'],
   })
 
-type SetPasswordValues = z.infer<typeof setPasswordSchema>
+type SetPasswordValues = z.infer<typeof setPasswordFormSchema>
 
 interface SetPasswordProps {
   user: AdminUserResponse
@@ -62,7 +60,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
       modeAfterSubmission: 'change',
     }),
     validators: {
-      onDynamic: setPasswordSchema,
+      onDynamic: setPasswordFormSchema,
     },
     onSubmit: async ({ value }) => {
       setFormError(null)
@@ -119,6 +117,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             autoComplete="new-password"
             required
@@ -136,6 +135,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             autoComplete="new-password"
             required
@@ -145,7 +145,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
 
       <div className="mt-4 flex items-center justify-end gap-2">
         <Button type="button" intent="secondary" size="sm" onClick={onClose}>
-          Cancel
+          {successMessage ? 'Close' : 'Cancel'}
         </Button>
         <form.Subscribe
           selector={(state) => ({

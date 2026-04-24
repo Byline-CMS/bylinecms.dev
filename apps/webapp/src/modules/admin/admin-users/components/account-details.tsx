@@ -167,6 +167,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             autoComplete="given-name"
           />
@@ -182,6 +183,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             autoComplete="family-name"
           />
@@ -197,6 +199,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             helpText="Optional. Leave blank to clear."
             autoComplete="username"
@@ -214,6 +217,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             autoComplete="email"
             required
@@ -221,7 +225,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
         )}
       </form.Field>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 p-1">
         <form.Field name="is_enabled">
           {(field) => (
             <Checkbox
@@ -263,7 +267,7 @@ export function AccountDetails({ user, onClose, onSuccess }: AccountDetailsProps
 
       <div className="mt-4 flex items-center justify-end gap-2">
         <Button type="button" intent="secondary" size="sm" onClick={onClose}>
-          Cancel
+          {successMessage ? 'Close' : 'Cancel'}
         </Button>
         <form.Subscribe
           selector={(state) => ({

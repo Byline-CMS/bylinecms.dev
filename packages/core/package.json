@@ -63,6 +63,11 @@
       "import": "./dist/logger/index.js",
       "require": "./dist/logger/index.js"
     },
+    "./validation": {
+      "types": "./dist/validation/index.d.ts",
+      "import": "./dist/validation/index.js",
+      "require": "./dist/validation/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -104,6 +109,11 @@
         "types": "./dist/logger/index.d.ts",
         "import": "./dist/logger/index.js",
         "require": "./dist/logger/index.js"
+      },
+      "./validation": {
+        "types": "./dist/validation/index.d.ts",
+        "import": "./dist/validation/index.js",
+        "require": "./dist/validation/index.js"
       },
       "./package.json": "./package.json"
     },

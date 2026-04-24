@@ -132,7 +132,7 @@ describe('admin-users commands', () => {
       await expect(
         createAdminUserCommand(
           context,
-          { email: 'alice@example.com', password: 'correct-horse-battery-staple' },
+          { email: 'alice@example.com', password: 'Correct-Horse-9' },
           deps
         )
       ).rejects.toMatchObject({ code: AuthErrorCodes.FORBIDDEN })
@@ -143,7 +143,7 @@ describe('admin-users commands', () => {
       const context = contextWith([ADMIN_USERS_ABILITIES.create])
       const response = await createAdminUserCommand(
         context,
-        { email: 'alice@example.com', password: 'correct-horse-battery-staple' },
+        { email: 'alice@example.com', password: 'Correct-Horse-9' },
         deps
       )
       expect(response.email).toBe('alice@example.com')
@@ -169,7 +169,7 @@ describe('admin-users commands', () => {
         context,
         {
           email: 'alice@example.com',
-          password: 'correct-horse-battery-staple',
+          password: 'Correct-Horse-9',
           given_name: 'Alice',
           is_enabled: true,
         },
@@ -198,7 +198,7 @@ describe('admin-users commands', () => {
 
       const afterPassword = await setAdminUserPasswordCommand(
         context,
-        { id: created.id, vid: afterDisable.vid, password: 'new-password-12chars' },
+        { id: created.id, vid: afterDisable.vid, password: 'New-Password-9!' },
         deps
       )
       expect(afterPassword.id).toBe(created.id)

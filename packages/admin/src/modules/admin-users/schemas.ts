@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { passwordSchema, uuidSchema } from '@byline/core/validation'
 import { z } from 'zod'
 
 /**
@@ -20,13 +21,17 @@ import { z } from 'zod'
  * `vid` is the optimistic-concurrency version — every write that touches
  * content content takes the client-held `vid` and the adapter gates the
  * write on it, throwing `ADMIN_USER_VERSION_CONFLICT` on mismatch.
+ *
+ * Password and uuid helpers come from `@byline/core/validation` — the
+ * shared primitives ported from the organisation's `@infonomic/shared`
+ * schemas so rules stay consistent across projects.
  */
 
 // ---------------------------------------------------------------------------
 // Field-level schemas (re-used across requests)
 // ---------------------------------------------------------------------------
 
-const idSchema = z.uuid({ message: 'id must be a UUID' })
+const idSchema = uuidSchema
 
 const vidSchema = z
   .number({ message: 'vid is required' })
@@ -38,16 +43,6 @@ const emailSchema = z
   .min(3)
   .max(254)
   .transform((v) => v.toLowerCase())
-
-/**
- * Password policy for admin-user passwords. Minimum 12 chars keeps us
- * above OWASP's 2023 recommendation for administrative accounts. Upper
- * bound caps argon2 input; hashing a 1 MiB password is a DoS vector.
- */
-const passwordSchema = z
-  .string({ message: 'password is required' })
-  .min(12, 'password must be at least 12 characters')
-  .max(256, 'password must not exceed 256 characters')
 
 const nameSchema = z.string().min(1).max(100)
 

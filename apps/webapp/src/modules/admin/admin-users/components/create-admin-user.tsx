@@ -26,6 +26,7 @@
 import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
+import { passwordSchema } from '@byline/core/validation'
 import { Alert, Button, Checkbox, Input } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
@@ -37,10 +38,7 @@ const createAdminUserFormSchema = z.object({
     .email({ message: 'Enter a valid email address' })
     .min(3)
     .max(254, 'Email must not exceed 254 characters'),
-  password: z
-    .string({ message: 'Password is required' })
-    .min(12, 'Password must be at least 12 characters')
-    .max(256, 'Password must not exceed 256 characters'),
+  password: passwordSchema,
   given_name: z.string().max(100, 'Given name must not exceed 100 characters'),
   family_name: z.string().max(100, 'Family name must not exceed 100 characters'),
   username: z.string().max(100, 'Username must not exceed 100 characters'),
@@ -140,6 +138,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             autoComplete="email"
             required
@@ -157,6 +156,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             helpText="The user can change it from their own account after signing in."
             autoComplete="new-password"
@@ -175,6 +175,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
               value={field.state.value}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
               autoComplete="given-name"
             />
@@ -190,6 +191,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
               value={field.state.value}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
               autoComplete="family-name"
             />
@@ -206,6 +208,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
             value={field.state.value}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.currentTarget.value)}
+            error={field.state.meta.errors.length > 0}
             errorText={firstError(field.state.meta.errors)}
             helpText="Optional."
             autoComplete="username"
