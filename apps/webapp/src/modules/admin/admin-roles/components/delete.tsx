@@ -18,7 +18,7 @@
  */
 
 import { useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouter } from '@tanstack/react-router'
 
 import { Alert, Button, LoaderEllipsis, Modal } from '@infonomic/uikit/react'
 
@@ -34,6 +34,7 @@ interface DeleteRoleProps {
 
 export function DeleteRole({ role, onClose }: DeleteRoleProps) {
   const navigate = useNavigate()
+  const router = useRouter()
   const locale = useLocale()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -45,6 +46,10 @@ export function DeleteRole({ role, onClose }: DeleteRoleProps) {
     try {
       await deleteAdminRole({ data: { id: role.id, vid: role.vid } })
       onClose?.()
+      // Invalidate before navigating so the list-route loader is
+      // forced to re-fetch — without this, TanStack Router can serve
+      // the cached pre-delete list.
+      await router.invalidate()
       navigate({
         to: '/{-$lng}/admin/roles',
         params: { ...lngParam(locale) },

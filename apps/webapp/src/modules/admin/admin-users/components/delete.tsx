@@ -21,7 +21,7 @@
  */
 
 import { useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouter } from '@tanstack/react-router'
 
 import { Alert, Button, LoaderEllipsis, Modal } from '@infonomic/uikit/react'
 
@@ -44,6 +44,7 @@ function displayNameFor(user: AdminUserResponse): string {
 
 export function DeleteUser({ user, onClose }: DeleteUserProps) {
   const navigate = useNavigate()
+  const router = useRouter()
   const locale = useLocale()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -55,6 +56,10 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
     try {
       await deleteAdminUser({ data: { id: user.id, vid: user.vid } })
       onClose?.()
+      // Invalidate before navigating so the list-route loader is
+      // forced to re-fetch — without this, TanStack Router can serve
+      // the cached pre-delete list.
+      await router.invalidate()
       navigate({
         to: '/{-$lng}/admin/users',
         params: { ...lngParam(locale) },

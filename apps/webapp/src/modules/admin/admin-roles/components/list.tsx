@@ -22,7 +22,7 @@
  */
 
 import type React from 'react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import {
@@ -129,6 +129,18 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
   const [orderChanged, setOrderChanged] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
+
+  // Sync local `items` to fresh loader data after a `router.invalidate()`.
+  // We hold local state for the optimistic drag-and-drop UI, so without
+  // this effect a newly-created or deleted role wouldn't appear until
+  // the page was reloaded. Skip the sync while the user has an unsaved
+  // reorder in flight — clobbering their pending edit would be worse
+  // than the slightly-stale list.
+  useEffect(() => {
+    if (!orderChanged) {
+      setItems(data.roles)
+    }
+  }, [data.roles, orderChanged])
 
   const openCreateDrawer = () => setIsCreateDrawerOpen(true)
   const closeCreateDrawer = () => setIsCreateDrawerOpen(false)
