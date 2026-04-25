@@ -11,14 +11,23 @@ import type { AbilityRegistry, RequestContext } from '@byline/auth'
 import { assertAdminActor } from '../../lib/assert-admin-actor.js'
 import { ADMIN_PERMISSIONS_ABILITIES } from './abilities.js'
 import {
+  getRoleAbilitiesRequestSchema,
+  getRoleAbilitiesResponseSchema,
   listRegisteredAbilitiesRequestSchema,
   listRegisteredAbilitiesResponseSchema,
+  setRoleAbilitiesRequestSchema,
+  setRoleAbilitiesResponseSchema,
   whoHasAbilityRequestSchema,
   whoHasAbilityResponseSchema,
 } from './schemas.js'
 import { AdminPermissionsService } from './service.js'
 import type { AdminStore } from '../../store.js'
-import type { ListRegisteredAbilitiesResponse, WhoHasAbilityResponse } from './schemas.js'
+import type {
+  GetRoleAbilitiesResponse,
+  ListRegisteredAbilitiesResponse,
+  SetRoleAbilitiesResponse,
+  WhoHasAbilityResponse,
+} from './schemas.js'
 
 /**
  * Transport-agnostic commands for the admin-permissions inspector.
@@ -61,4 +70,26 @@ export async function whoHasAbilityCommand(
   assertAdminActor(context, ADMIN_PERMISSIONS_ABILITIES.read)
   const result = await serviceOf(deps).whoHasAbility(parsed)
   return whoHasAbilityResponseSchema.parse(result)
+}
+
+export async function getRoleAbilitiesCommand(
+  context: RequestContext | undefined,
+  input: unknown,
+  deps: AdminPermissionsCommandDeps
+): Promise<GetRoleAbilitiesResponse> {
+  const parsed = getRoleAbilitiesRequestSchema.parse(input)
+  assertAdminActor(context, ADMIN_PERMISSIONS_ABILITIES.read)
+  const result = await serviceOf(deps).getRoleAbilities(parsed)
+  return getRoleAbilitiesResponseSchema.parse(result)
+}
+
+export async function setRoleAbilitiesCommand(
+  context: RequestContext | undefined,
+  input: unknown,
+  deps: AdminPermissionsCommandDeps
+): Promise<SetRoleAbilitiesResponse> {
+  const parsed = setRoleAbilitiesRequestSchema.parse(input)
+  assertAdminActor(context, ADMIN_PERMISSIONS_ABILITIES.update)
+  const result = await serviceOf(deps).setRoleAbilities(parsed)
+  return setRoleAbilitiesResponseSchema.parse(result)
 }

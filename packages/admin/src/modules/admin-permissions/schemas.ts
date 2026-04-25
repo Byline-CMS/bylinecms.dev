@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { uuidSchema } from '@byline/core/validation'
 import { z } from 'zod'
 
 /**
@@ -37,6 +38,17 @@ export const whoHasAbilityRequestSchema = z.object({
   ability: abilityKeySchema,
 })
 export type WhoHasAbilityRequest = z.infer<typeof whoHasAbilityRequestSchema>
+
+export const getRoleAbilitiesRequestSchema = z.object({
+  id: uuidSchema,
+})
+export type GetRoleAbilitiesRequest = z.infer<typeof getRoleAbilitiesRequestSchema>
+
+export const setRoleAbilitiesRequestSchema = z.object({
+  id: uuidSchema,
+  abilities: z.array(abilityKeySchema),
+})
+export type SetRoleAbilitiesRequest = z.infer<typeof setRoleAbilitiesRequestSchema>
 
 // ---------------------------------------------------------------------------
 // Responses
@@ -96,3 +108,21 @@ export const whoHasAbilityResponseSchema = z.object({
   users: z.array(abilityHolderUserSchema),
 })
 export type WhoHasAbilityResponse = z.infer<typeof whoHasAbilityResponseSchema>
+
+/**
+ * Editor payloads. `roleId` is echoed back on both responses so the
+ * caller can match async writes against the role they were editing
+ * without holding the id separately. `abilities` is the authoritative
+ * stored set after the write.
+ */
+export const getRoleAbilitiesResponseSchema = z.object({
+  roleId: z.string(),
+  abilities: z.array(z.string()),
+})
+export type GetRoleAbilitiesResponse = z.infer<typeof getRoleAbilitiesResponseSchema>
+
+export const setRoleAbilitiesResponseSchema = z.object({
+  roleId: z.string(),
+  abilities: z.array(z.string()),
+})
+export type SetRoleAbilitiesResponse = z.infer<typeof setRoleAbilitiesResponseSchema>

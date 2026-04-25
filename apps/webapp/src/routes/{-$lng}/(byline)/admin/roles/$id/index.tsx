@@ -10,6 +10,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@infonomic/uikit/react'
 
+import { getRoleAbilities, listRegisteredAbilities } from '@/modules/admin/admin-permissions'
 import { getAdminRole } from '@/modules/admin/admin-roles'
 import { RoleContainer } from '@/modules/admin/admin-roles/components/container'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
@@ -17,8 +18,15 @@ import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/roles/$id/')({
   loader: async ({ params }) => {
     try {
-      const role = await getAdminRole({ data: { id: params.id } })
-      return { role }
+      // Three independent reads — fetch in parallel so the role-detail
+      // page lands ready to open the permissions editor without a
+      // second waterfall.
+      const [role, registered, currentAbilities] = await Promise.all([
+        getAdminRole({ data: { id: params.id } }),
+        listRegisteredAbilities(),
+        getRoleAbilities({ data: { id: params.id } }),
+      ])
+      return { role, registered, initialAbilities: currentAbilities.abilities }
     } catch (err) {
       // Match on the string code rather than importing the error class —
       // the subpath would pull argon2 into the browser bundle transitively.
@@ -26,7 +34,8 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/roles/$id/')({
         typeof err === 'object' &&
         err !== null &&
         'code' in err &&
-        (err as { code?: unknown }).code === 'admin.roles.notFound'
+        ((err as { code?: unknown }).code === 'admin.roles.notFound' ||
+          (err as { code?: unknown }).code === 'admin.permissions.roleNotFound')
       ) {
         throw notFound()
       }
@@ -37,7 +46,7 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin/roles/$id/')({
 })
 
 function AdminRoleDetail() {
-  const { role } = Route.useLoaderData()
+  const { role, registered, initialAbilities } = Route.useLoaderData()
   return (
     <>
       <BreadcrumbsClient
@@ -54,7 +63,7 @@ function AdminRoleDetail() {
       </Section>
       <Section>
         <Container>
-          <RoleContainer role={role} />
+          <RoleContainer role={role} registered={registered} initialAbilities={initialAbilities} />
         </Container>
       </Section>
     </>

@@ -24,9 +24,13 @@ export type {
   AbilityGroupResponse,
   AbilityHolderRole,
   AbilityHolderUser,
+  GetRoleAbilitiesResponse,
   ListRegisteredAbilitiesResponse,
+  SetRoleAbilitiesResponse,
   WhoHasAbilityResponse,
 } from '@byline/admin/admin-permissions'
 
+export { getRoleAbilities } from './get-role-abilities'
 export { listRegisteredAbilities } from './list-registered'
+export { type SetRoleAbilitiesInput, setRoleAbilities } from './set-role-abilities'
 export { whoHasAbility } from './who-has'

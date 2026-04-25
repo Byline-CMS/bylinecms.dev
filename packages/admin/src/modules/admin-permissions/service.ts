@@ -9,9 +9,17 @@
 import type { AbilityRegistry } from '@byline/auth'
 
 import { toAbilityDescriptor } from './dto.js'
+import {
+  ERR_ADMIN_PERMISSIONS_ABILITY_UNREGISTERED,
+  ERR_ADMIN_PERMISSIONS_ROLE_NOT_FOUND,
+} from './errors.js'
 import type { AdminStore } from '../../store.js'
 import type {
+  GetRoleAbilitiesRequest,
+  GetRoleAbilitiesResponse,
   ListRegisteredAbilitiesResponse,
+  SetRoleAbilitiesRequest,
+  SetRoleAbilitiesResponse,
   WhoHasAbilityRequest,
   WhoHasAbilityResponse,
 } from './schemas.js'
@@ -61,6 +69,37 @@ export class AdminPermissionsService {
       groups,
       total: flat.length,
     }
+  }
+
+  async getRoleAbilities(request: GetRoleAbilitiesRequest): Promise<GetRoleAbilitiesResponse> {
+    const role = await this.#store.adminRoles.getById(request.id)
+    if (!role) throw ERR_ADMIN_PERMISSIONS_ROLE_NOT_FOUND()
+    const abilities = await this.#store.adminPermissions.listAbilities(request.id)
+    return { roleId: request.id, abilities }
+  }
+
+  async setRoleAbilities(request: SetRoleAbilitiesRequest): Promise<SetRoleAbilitiesResponse> {
+    const role = await this.#store.adminRoles.getById(request.id)
+    if (!role) throw ERR_ADMIN_PERMISSIONS_ROLE_NOT_FOUND()
+
+    // Reject any ability that is not in the registry — guards against
+    // typos, stale UI state, and a since-removed plugin's keys lingering
+    // in someone's draft. The registry was populated at init time so
+    // this is an in-memory check.
+    const unknown = request.abilities.filter((key) => !this.#abilities.has(key))
+    if (unknown.length > 0) {
+      throw ERR_ADMIN_PERMISSIONS_ABILITY_UNREGISTERED({
+        message: `Unregistered abilities: ${unknown.join(', ')}`,
+      })
+    }
+
+    // Wholesale-replace inside a transaction (handled by the repo).
+    await this.#store.adminPermissions.setAbilities(request.id, request.abilities)
+    // Return the freshly-stored set so the client can reset its dirty
+    // state without a second round-trip — also defends against drift if
+    // the repo dedupes or reorders.
+    const stored = await this.#store.adminPermissions.listAbilities(request.id)
+    return { roleId: request.id, abilities: stored }
   }
 
   async whoHasAbility(request: WhoHasAbilityRequest): Promise<WhoHasAbilityResponse> {

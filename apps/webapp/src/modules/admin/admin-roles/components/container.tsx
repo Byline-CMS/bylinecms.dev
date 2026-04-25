@@ -14,23 +14,39 @@
  * area, each "Edit" button opens a drawer containing the sub-form, and
  * destructive actions use a modal.
  *
- * The Permissions card is intentionally a placeholder for now — the
- * `@byline/admin/admin-permissions` module will own the
- * per-role-ability grant UI when it ships next.
+ * The Permissions card opens a large-width drawer hosting the
+ * per-role ability editor from `@byline/admin/admin-permissions`. The
+ * editor lives in this module rather than admin-permissions because
+ * the bundling action is conceptually a property of the role, even
+ * though the data lives in a separate table.
  */
 
 import type React from 'react'
 import { useState } from 'react'
+import { useRouter } from '@tanstack/react-router'
 
-import { Button, CloseIcon, Drawer, EditIcon, IconButton, Modal } from '@infonomic/uikit/react'
+import {
+  Button,
+  CloseIcon,
+  Drawer,
+  EditIcon,
+  IconButton,
+  Modal,
+  useToastManager,
+} from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { LocalDateTime } from '@/ui/components/local-date-time'
 import { DeleteRole } from './delete'
+import { RolePermissions } from './permissions'
 import { UpdateRole } from './update'
+import type {
+  ListRegisteredAbilitiesResponse,
+  SetRoleAbilitiesResponse,
+} from '@/modules/admin/admin-permissions'
 import type { AdminRoleResponse } from '../index'
 
-type ComponentKey = 'update' | 'delete_role' | 'empty'
+type ComponentKey = 'update' | 'delete_role' | 'permissions' | 'empty'
 
 interface PanelProps {
   role: AdminRoleResponse
@@ -45,12 +61,23 @@ const panels: Record<
   update: {
     title: 'Role Details',
     drawerWidth: 'medium',
+    // Standard panel — render is delegated to the registry.
     component: UpdateRole,
   },
   delete_role: {
     title: 'Delete Admin Role',
     drawerWidth: 'medium',
     component: DeleteRole,
+  },
+  permissions: {
+    title: 'Role Permissions',
+    drawerWidth: 'large',
+    // Permissions panel needs extra props (registered abilities, current
+    // grants, separate success callback). The container renders it
+    // inline against `current === 'permissions'` rather than through
+    // this map — the entry exists so title and drawer width still
+    // resolve uniformly.
+    component: () => null,
   },
   empty: {
     title: '',
@@ -83,8 +110,17 @@ function ContainerSection({
   )
 }
 
-export function RoleContainer({ role }: { role: AdminRoleResponse }) {
+interface RoleContainerProps {
+  role: AdminRoleResponse
+  registered: ListRegisteredAbilitiesResponse
+  initialAbilities: string[]
+}
+
+export function RoleContainer({ role, registered, initialAbilities }: RoleContainerProps) {
+  const router = useRouter()
+  const toastManager = useToastManager()
   const [currentRole, setCurrentRole] = useState<AdminRoleResponse>(role)
+  const [currentAbilities, setCurrentAbilities] = useState<string[]>(initialAbilities)
   const [current, setCurrent] = useState<ComponentKey>('empty')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -108,6 +144,16 @@ export function RoleContainer({ role }: { role: AdminRoleResponse }) {
 
   const handleSuccess = (updated: AdminRoleResponse) => {
     setCurrentRole(updated)
+  }
+
+  const handlePermissionsSaved = (response: SetRoleAbilitiesResponse) => {
+    setCurrentAbilities(response.abilities)
+    void router.invalidate()
+    toastManager.add({
+      title: 'Permissions saved',
+      description: `${response.abilities.length} abilities granted to ${currentRole.name}.`,
+      data: { intent: 'success' },
+    })
   }
 
   const Panel = panels[current].component
@@ -144,10 +190,14 @@ export function RoleContainer({ role }: { role: AdminRoleResponse }) {
         </div>
 
         <div className="flex flex-col gap-4">
-          <ContainerSection title="Permissions">
-            <p className="mb-0 muted italic">
-              Per-role ability grants will be managed here when the admin-permissions module ships.
+          <ContainerSection title="Permissions" onEdit={openDrawer('permissions')}>
+            <p className="mb-3">
+              <span className="muted">{currentAbilities.length}</span> of{' '}
+              <span className="muted">{registered.total}</span> abilities granted to this role.
             </p>
+            <Button size="sm" onClick={openDrawer('permissions')}>
+              Edit Permissions
+            </Button>
           </ContainerSection>
 
           <ContainerSection title="Delete Role">
@@ -186,7 +236,17 @@ export function RoleContainer({ role }: { role: AdminRoleResponse }) {
           </Drawer.Header>
           <Drawer.Content>
             <div className="max-h-[calc(100vh-160px)] overflow-y-auto">
-              <Panel role={currentRole} onClose={closeDrawer} onSuccess={handleSuccess} />
+              {current === 'permissions' ? (
+                <RolePermissions
+                  role={currentRole}
+                  registered={registered}
+                  initialAbilities={currentAbilities}
+                  onClose={closeDrawer}
+                  onSaved={handlePermissionsSaved}
+                />
+              ) : (
+                <Panel role={currentRole} onClose={closeDrawer} onSuccess={handleSuccess} />
+              )}
             </div>
           </Drawer.Content>
         </Drawer.Container>

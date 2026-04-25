@@ -26,7 +26,9 @@ export {
   registerAdminPermissionsAbilities,
 } from './abilities.js'
 export {
+  getRoleAbilitiesCommand,
   listRegisteredAbilitiesCommand,
+  setRoleAbilitiesCommand,
   whoHasAbilityCommand,
 } from './commands.js'
 export { toAbilityDescriptor } from './dto.js'
@@ -42,8 +44,12 @@ export {
   abilityGroupResponseSchema,
   abilityHolderRoleSchema,
   abilityHolderUserSchema,
+  getRoleAbilitiesRequestSchema,
+  getRoleAbilitiesResponseSchema,
   listRegisteredAbilitiesRequestSchema,
   listRegisteredAbilitiesResponseSchema,
+  setRoleAbilitiesRequestSchema,
+  setRoleAbilitiesResponseSchema,
   whoHasAbilityRequestSchema,
   whoHasAbilityResponseSchema,
 } from './schemas.js'
@@ -55,8 +61,12 @@ export type {
   AbilityGroupResponse,
   AbilityHolderRole,
   AbilityHolderUser,
+  GetRoleAbilitiesRequest,
+  GetRoleAbilitiesResponse,
   ListRegisteredAbilitiesRequest,
   ListRegisteredAbilitiesResponse,
+  SetRoleAbilitiesRequest,
+  SetRoleAbilitiesResponse,
   WhoHasAbilityRequest,
   WhoHasAbilityResponse,
 } from './schemas.js'

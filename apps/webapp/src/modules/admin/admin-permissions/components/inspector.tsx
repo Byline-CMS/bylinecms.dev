@@ -131,7 +131,7 @@ function AbilityRow({ ability, matrix, loading, onToggle, expanded }: AbilityRow
           <p className="mb-0 mt-1 text-sm font-medium">{ability.label}</p>
           {ability.description ? <p className="muted mb-0 text-xs">{ability.description}</p> : null}
         </div>
-        <Button size="sm" intent="secondary" onClick={onToggle}>
+        <Button size="xs" intent="secondary" onClick={onToggle}>
           {expanded ? 'Hide' : 'Holders'}
         </Button>
       </div>
