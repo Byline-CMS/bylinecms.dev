@@ -1,4 +1,4 @@
-import type { AdminStore } from '@byline/admin'
+import { type AdminStore, registerAdminAbilities } from '@byline/admin'
 import { JwtSessionProvider } from '@byline/admin/auth'
 import { initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
@@ -87,3 +87,9 @@ export const bylineCore = await initBylineCore<AdminStore>({
   }),
   sessionProvider,
 })
+
+// Register admin-subsystem abilities (admin.users.*, admin.roles.*) on the
+// shared registry. Collection abilities are auto-registered by
+// `initBylineCore()`; admin abilities are opt-in here so `@byline/core` does
+// not depend on `@byline/admin`.
+registerAdminAbilities(bylineCore.abilities)
