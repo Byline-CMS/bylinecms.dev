@@ -72,10 +72,19 @@ const listViewColumns: ColumnDefinition[] = [
 
 export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
   columns: listViewColumns,
+  tabs: [
+    { name: 'details', label: 'Details' },
+    { name: 'content', label: 'Content' },
+  ],
   fields: {
+    // Details tab
+    title: { tab: 'details' },
+    summary: { tab: 'details' },
+    featureImage: { tab: 'details' },
+    // Content tab
+    content: { tab: 'content' },
     path: { position: 'sidebar' },
     availableLanguages: { position: 'sidebar' },
     publishedOn: { position: 'sidebar' },
-    heroImage: { position: 'sidebar' },
   },
 })

@@ -35,6 +35,19 @@ export const News: CollectionDefinition = {
   useAsPath: 'title',
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
+    { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
+    // Relation field demo (Phase 3). Points at the Media upload collection
+    // so editors can choose a feature image via the relation picker widget.
+    // Set `displayField: 'title'` so the picker's row label reads from the
+    // uploaded item's `title` field rather than falling back to its path.
+    {
+      name: 'featureImage',
+      label: 'Feature Image',
+      type: 'relation',
+      targetCollection: 'media',
+      displayField: 'title',
+      optional: true,
+    },
     {
       name: 'content',
       label: 'Content',
@@ -47,18 +60,6 @@ export const News: CollectionDefinition = {
       label: 'Published On',
       type: 'datetime',
       mode: 'datetime',
-    },
-    // Relation field demo (Phase 3). Points at the Media upload collection
-    // so editors can choose a hero image via the relation picker widget.
-    // Set `displayField: 'title'` so the picker's row label reads from the
-    // uploaded item's `title` field rather than falling back to its path.
-    {
-      name: 'heroImage',
-      label: 'Hero Image',
-      type: 'relation',
-      targetCollection: 'media',
-      displayField: 'title',
-      optional: true,
     },
     availableLanguagesField(),
   ],
