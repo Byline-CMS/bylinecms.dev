@@ -32,6 +32,19 @@ export interface CurrentAdminUser {
   given_name: string | null
   family_name: string | null
   is_super_admin: boolean
+  /**
+   * Flat ability set resolved from the actor's role grants. Sent to the
+   * client so the admin shell can render cosmetic ability cues (hide
+   * Users / Roles / Permissions menu items, disable buttons, etc.). The
+   * real enforcement boundary is server-side (`assertActorCanPerform` /
+   * `assertAdminActor`) — UI cues are an affordance, never a security
+   * guarantee.
+   *
+   * Empty for a non-super-admin who happens to hold zero abilities.
+   * Super-admins also receive an empty array here; the `is_super_admin`
+   * flag is what callers should branch on for the bypass.
+   */
+  abilities: string[]
 }
 
 export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
@@ -58,6 +71,7 @@ export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
       given_name: row.given_name,
       family_name: row.family_name,
       is_super_admin: row.is_super_admin,
+      abilities: Array.from(actor.abilities),
     }
   }
 )
