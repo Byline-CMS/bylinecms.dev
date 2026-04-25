@@ -75,7 +75,4 @@ const pickerViewColumns: ColumnDefinition[] = [
 export const CategoriesAdmin: CollectionAdminConfig = defineAdmin(Categories, {
   columns: listViewColumns,
   picker: pickerViewColumns,
-  fields: {
-    path: { position: 'sidebar' },
-  },
 })

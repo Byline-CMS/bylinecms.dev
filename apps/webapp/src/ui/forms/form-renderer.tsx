@@ -8,11 +8,20 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { CollectionAdminConfig, Field, WorkflowStatus } from '@byline/core'
+import type {
+  CollectionAdminConfig,
+  Field,
+  GroupDefinition,
+  RowDefinition,
+  TabSetDefinition,
+  WorkflowStatus,
+} from '@byline/core'
 import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
 
 import { FieldRenderer } from '@/ui/fields/field-renderer'
 import { i18n } from '~/i18n'
+import { Group } from '../admin/group'
+import { Row } from '../admin/row'
 import { Tabs } from '../admin/tabs'
 import { LocalDateTime } from '../components/local-date-time'
 import { DocumentActions } from './document-actions'
@@ -221,12 +230,12 @@ const FormContent = ({
   initialLocale,
   onLocaleChange,
   useNavigationGuard: useNavigationGuardProp,
-  _activeTab,
+  _activeTabBySet,
   _onTabChange,
 }: FormRendererProps & {
-  /** Lifted tab state from FormRenderer — preserves the active tab across locale-change remounts. */
-  _activeTab?: string
-  _onTabChange?: (tab: string) => void
+  /** Lifted active-tab-per-set map from FormRenderer — preserves tab choices across locale-change remounts. */
+  _activeTabBySet?: Record<string, string>
+  _onTabChange?: (tabSetName: string, tabName: string) => void
 }) => {
   const {
     getFieldValues,
@@ -256,26 +265,118 @@ const FormContent = ({
     if (initialLocale) setContentLocale(initialLocale)
   }, [initialLocale])
 
-  // Tabs — initialise from lifted parent state (preserves tab across locale-change remounts),
-  // falling back to the first declared tab (or empty string when no tabs are configured).
-  const tabsConfig = adminConfig?.tabs
-  const hasTabs = tabsConfig != null && tabsConfig.length > 0
-  const [activeTab, setActiveTab] = useState<string>(
-    _activeTab && tabsConfig?.some((t) => t.name === _activeTab)
-      ? _activeTab
-      : (tabsConfig?.[0]?.name ?? '')
-  )
+  // ---------------------------------------------------------------------
+  // Layout primitives + lookup tables.
+  //
+  // Built once per render from `adminConfig`. The validator at startup
+  // guarantees every reachable name resolves and every schema field is
+  // placed at most once, so render-time lookups are unguarded.
+  // ---------------------------------------------------------------------
 
-  // Keep parent ref in sync whenever the user manually switches tabs.
+  const fieldByName = useMemo(() => {
+    const map = new Map<string, Field>()
+    for (const field of fields) {
+      if ('name' in field) map.set(field.name, field)
+    }
+    return map
+  }, [fields])
+
+  const tabSetByName = useMemo(() => {
+    const map = new Map<string, TabSetDefinition>()
+    for (const set of adminConfig?.tabSets ?? []) map.set(set.name, set)
+    return map
+  }, [adminConfig])
+
+  const rowByName = useMemo(() => {
+    const map = new Map<string, RowDefinition>()
+    for (const row of adminConfig?.rows ?? []) map.set(row.name, row)
+    return map
+  }, [adminConfig])
+
+  const groupByName = useMemo(() => {
+    const map = new Map<string, GroupDefinition>()
+    for (const group of adminConfig?.groups ?? []) map.set(group.name, group)
+    return map
+  }, [adminConfig])
+
+  // When `layout` is omitted, synthesise main = all schema fields in order.
+  const layout = useMemo(() => {
+    if (adminConfig?.layout) return adminConfig.layout
+    return { main: fields.filter((f) => 'name' in f).map((f) => (f as { name: string }).name) }
+  }, [adminConfig, fields])
+
+  // Reverse index: schema field name → which tab set + tab it lives in.
+  // Powers per-tab-set error badge counts. Fields not under any tab set
+  // (e.g. raw-field placement directly in `layout.main`) are absent from
+  // this map.
+  const fieldToTabPath = useMemo(() => {
+    const map = new Map<string, { tabSetName: string; tabName: string }>()
+    const visit = (
+      names: readonly string[],
+      tabSetName: string,
+      tabName: string,
+      seen: Set<string>
+    ) => {
+      for (const name of names) {
+        if (fieldByName.has(name)) {
+          map.set(name, { tabSetName, tabName })
+        } else if (seen.has(name)) {
+        } else if (rowByName.has(name)) {
+          const row = rowByName.get(name)!
+          const next = new Set(seen).add(name)
+          visit(row.fields, tabSetName, tabName, next)
+        } else if (groupByName.has(name)) {
+          const group = groupByName.get(name)!
+          const next = new Set(seen).add(name)
+          visit(group.fields, tabSetName, tabName, next)
+        }
+      }
+    }
+    for (const set of adminConfig?.tabSets ?? []) {
+      for (const tab of set.tabs) {
+        visit(tab.fields, set.name, tab.name, new Set())
+      }
+    }
+    return map
+  }, [adminConfig, fieldByName, rowByName, groupByName])
+
+  // ---------------------------------------------------------------------
+  // Active-tab state — one tab name per declared tab set.
+  // Lifted into FormRenderer via `_activeTabBySet` / `_onTabChange` so the
+  // user's tab choices survive the locale-change remount triggered by
+  // FormProvider's `key` prop.
+  // ---------------------------------------------------------------------
+
+  const tabSets = adminConfig?.tabSets ?? []
+
+  const initialActiveTabBySet = useMemo<Record<string, string>>(() => {
+    const result: Record<string, string> = {}
+    for (const set of tabSets) {
+      const saved = _activeTabBySet?.[set.name]
+      if (saved && set.tabs.some((t) => t.name === saved)) {
+        result[set.name] = saved
+      } else {
+        result[set.name] = set.tabs[0]?.name ?? ''
+      }
+    }
+    return result
+    // initial-only; subsequent updates flow through setActiveTabBySet.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabSets, _activeTabBySet])
+
+  const [activeTabBySet, setActiveTabBySet] =
+    useState<Record<string, string>>(initialActiveTabBySet)
+
   const handleTabChange = useCallback(
-    (tab: string) => {
-      setActiveTab(tab)
-      _onTabChange?.(tab)
+    (tabSetName: string, tabName: string) => {
+      setActiveTabBySet((prev) => ({ ...prev, [tabSetName]: tabName }))
+      _onTabChange?.(tabSetName, tabName)
     },
     [_onTabChange]
   )
 
-  // Track live form data so TabDefinition.condition functions can react to field changes
+  // Track live form data so TabDefinition.condition functions can react to
+  // field changes. Re-evaluated per keystroke via the meta-subscribe loop.
   const [formData, setFormData] = useState<Record<string, any>>(() => getFieldValues())
 
   // Live document heading — tracks the useAsTitle field as the user types
@@ -379,55 +480,90 @@ const FormContent = ({
     })()
   }
 
-  // Compute visible tabs, applying any condition functions against the live form data
-  const visibleTabs = useMemo(
-    () => tabsConfig?.filter((tab) => !tab.condition || tab.condition(formData)) ?? [],
-    [tabsConfig, formData]
-  )
-
-  // If the active tab has been hidden by a condition, fall back to the first visible tab
-  const resolvedActiveTab =
-    hasTabs && visibleTabs.length > 0 && !visibleTabs.some((t) => t.name === activeTab)
-      ? (visibleTabs[0]?.name ?? activeTab)
-      : activeTab
-
-  // Split fields by tab and position.
-  // When tabs are configured, fields with no explicit tab assignment default to the first tab.
-  const fieldPositions = adminConfig?.fields ?? {}
-  const firstTabName = tabsConfig?.[0]?.name
-
-  // Count errors per tab so the Tabs bar can show a danger badge
-  const tabErrorCounts = useMemo<Record<string, number>>(() => {
-    if (!hasTabs) return {}
-    const counts: Record<string, number> = {}
+  // Per-tab-set error counts: { [tabSetName]: { [tabName]: count } }.
+  // Each <Tabs> bar consumes its own slice.
+  const tabErrorCountsBySet = useMemo<Record<string, Record<string, number>>>(() => {
+    const result: Record<string, Record<string, number>> = {}
     for (const err of errors) {
-      // err.field is the top-level field name; look up its tab assignment.
-      // Skip fields explicitly placed in the sidebar — they are not under any tab.
-      const fieldPos = fieldPositions[err.field]
-      if (fieldPos?.position === 'sidebar') continue
-      const assignedTab = fieldPos?.tab ?? firstTabName
-      if (assignedTab) {
-        counts[assignedTab] = (counts[assignedTab] ?? 0) + 1
-      }
+      const path = fieldToTabPath.get(err.field)
+      if (!path) continue
+      result[path.tabSetName] ??= {}
+      result[path.tabSetName]![path.tabName] = (result[path.tabSetName]?.[path.tabName] ?? 0) + 1
     }
-    return counts
-  }, [hasTabs, errors, fieldPositions, firstTabName])
+    return result
+  }, [errors, fieldToTabPath])
 
-  const fieldBelongsToActiveTab = (fieldName: string): boolean => {
-    if (!hasTabs) return true
-    const assignedTab = fieldPositions[fieldName]?.tab
-    const effectiveTab = assignedTab ?? firstTabName
-    return effectiveTab === resolvedActiveTab
+  // -------------------------------------------------------------------
+  // Layout walk — recursively dispatches each name in a region to the
+  // appropriate primitive renderer or to <FieldRenderer>.
+  // -------------------------------------------------------------------
+
+  const renderField = (fieldName: string): ReactNode => {
+    const field = fieldByName.get(fieldName)
+    if (!field) return null
+    return (
+      <FieldRenderer
+        key={field.name}
+        field={field}
+        defaultValue={initialData?.fields?.[field.name]}
+        collectionPath={collectionPath}
+        contentLocale={contentLocale}
+        components={adminConfig?.fields?.[field.name]?.components}
+      />
+    )
   }
 
-  const defaultFields = fields.filter((f) => {
-    if (!fieldBelongsToActiveTab(f.name)) return false
-    const pos = fieldPositions[f.name]?.position
-    return pos == null || pos === 'default'
-  })
-  const sidebarFields = fields.filter((f) => {
-    return fieldPositions[f.name]?.position === 'sidebar'
-  })
+  const renderItem = (name: string): ReactNode => {
+    const tabSet = tabSetByName.get(name)
+    if (tabSet) return renderTabSet(tabSet)
+
+    const group = groupByName.get(name)
+    if (group) return renderGroup(group)
+
+    const row = rowByName.get(name)
+    if (row) return renderRow(row)
+
+    return renderField(name)
+  }
+
+  const renderRow = (row: RowDefinition): ReactNode => (
+    <Row key={`row:${row.name}`}>{row.fields.map((name) => renderField(name))}</Row>
+  )
+
+  const renderGroup = (group: GroupDefinition): ReactNode => (
+    <Group key={`group:${group.name}`} label={group.label}>
+      {group.fields.map((name) => renderItem(name))}
+    </Group>
+  )
+
+  const renderTabSet = (set: TabSetDefinition): ReactNode => {
+    const visibleTabs = set.tabs.filter((tab) => !tab.condition || tab.condition(formData))
+    const requested = activeTabBySet[set.name] ?? ''
+    const resolvedActive =
+      visibleTabs.length > 0 && !visibleTabs.some((t) => t.name === requested)
+        ? (visibleTabs[0]?.name ?? requested)
+        : requested
+    const activeTab = visibleTabs.find((t) => t.name === resolvedActive)
+
+    return (
+      <div key={`tabset:${set.name}`} className="flex flex-col gap-4">
+        {visibleTabs.length > 0 && (
+          <Tabs
+            tabs={visibleTabs}
+            activeTab={resolvedActive}
+            onChange={(tabName) => handleTabChange(set.name, tabName)}
+            errorCounts={tabErrorCountsBySet[set.name]}
+            className="-mt-4 mb-0"
+          />
+        )}
+        {activeTab && (
+          <div className="flex flex-col gap-4">
+            {activeTab.fields.map((name) => renderItem(name))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full flex flex-col">
@@ -506,25 +642,7 @@ const FormContent = ({
       </div>
       <div className="page-layout--two-columns--right-sticky pt-8">
         <div className="content flex flex-col gap-4">
-          {hasTabs && visibleTabs.length > 0 && (
-            <Tabs
-              tabs={visibleTabs}
-              activeTab={resolvedActiveTab}
-              onChange={handleTabChange}
-              errorCounts={tabErrorCounts}
-              className="-mt-4 mb-0"
-            />
-          )}
-          {defaultFields.map((field) => (
-            <FieldRenderer
-              key={field.name}
-              field={field}
-              defaultValue={initialData?.fields?.[field.name]}
-              collectionPath={collectionPath}
-              contentLocale={contentLocale}
-              components={fieldPositions[field.name]?.components}
-            />
-          ))}
+          {layout.main.map((name) => renderItem(name))}
         </div>
         <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
           {(useAsPath ||
@@ -536,16 +654,7 @@ const FormContent = ({
               mode={mode}
             />
           )}
-          {sidebarFields.map((field) => (
-            <FieldRenderer
-              key={field.name}
-              field={field}
-              defaultValue={initialData?.fields?.[field.name]}
-              collectionPath={collectionPath}
-              contentLocale={contentLocale}
-              components={fieldPositions[field.name]?.components}
-            />
-          ))}
+          {(layout.sidebar ?? []).map((name) => renderItem(name))}
         </div>
       </div>
       {guard.isBlocked && (
@@ -596,9 +705,9 @@ export const FormRenderer = ({
   onLocaleChange,
   useNavigationGuard,
 }: FormRendererProps) => {
-  // Persists the active tab across locale-change remounts of FormContent.
+  // Persists per-tab-set active tab across locale-change remounts of FormContent.
   // useRef so mutations never trigger a re-render of FormRenderer itself.
-  const savedTabRef = useRef<string>('')
+  const savedTabsRef = useRef<Record<string, string>>({})
 
   return (
     <FormProvider
@@ -626,9 +735,9 @@ export const FormRenderer = ({
         initialLocale={initialLocale}
         onLocaleChange={onLocaleChange}
         useNavigationGuard={useNavigationGuard}
-        _activeTab={savedTabRef.current}
-        _onTabChange={(tab) => {
-          savedTabRef.current = tab
+        _activeTabBySet={savedTabsRef.current}
+        _onTabChange={(tabSetName, tabName) => {
+          savedTabsRef.current = { ...savedTabsRef.current, [tabSetName]: tabName }
         }}
       />
     </FormProvider>

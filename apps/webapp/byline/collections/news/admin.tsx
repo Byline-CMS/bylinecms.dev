@@ -52,39 +52,28 @@ const listViewColumns: ColumnDefinition[] = [
   },
 ]
 
-// export const NewsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
-//   columns: newsColumns,
-//   fields: {
-//     title: {
-//       components: {
-//         Label: ({ label, required }) => (
-//           <h3>{label}{required && ' *'}</h3>
-//         ),
-//         afterField: ({ value }) => (
-//           <p className="text-xs text-muted">{(value as string)?.length ?? 0} chars</p>
-//         ),
-//       },
-//     },
-//     path: { position: 'sidebar' },
-//     // ...
-//   },
-// })
-
 export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
   columns: listViewColumns,
-  tabs: [
-    { name: 'details', label: 'Details' },
-    { name: 'content', label: 'Content' },
+  tabSets: [
+    {
+      name: 'main',
+      tabs: [
+        {
+          name: 'details',
+          label: 'Details',
+          fields: ['title', 'summary', 'titles', 'featureImage'],
+        },
+        {
+          name: 'content',
+          label: 'Content',
+          fields: ['content'],
+        },
+      ],
+    },
   ],
-  fields: {
-    // Details tab
-    title: { tab: 'details' },
-    summary: { tab: 'details' },
-    featureImage: { tab: 'details' },
-    // Content tab
-    content: { tab: 'content' },
-    path: { position: 'sidebar' },
-    availableLanguages: { position: 'sidebar' },
-    publishedOn: { position: 'sidebar' },
+  rows: [{ name: 'titles', fields: ['text1', 'text2'] }],
+  layout: {
+    main: ['main'],
+    sidebar: ['availableLanguages', 'publishedOn'],
   },
 })

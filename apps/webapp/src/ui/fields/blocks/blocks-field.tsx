@@ -279,7 +279,9 @@ export const BlocksField = ({
                 >
                   <Card.Header>
                     <div className="flex items-start justify-between gap-2">
-                      <Card.Title className="text-[1.3rem] leading-tight">{b.label ?? b.blockType}</Card.Title>
+                      <Card.Title className="text-[1.3rem] leading-tight">
+                        {b.label ?? b.blockType}
+                      </Card.Title>
                       <span className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full border border-gray-100 dark:border-gray-700 text-[10px] font-semibold text-gray-400 dark:text-gray-400 tabular-nums mt-0.5">
                         {index + 1}
                       </span>

@@ -36,6 +36,8 @@ export const News: CollectionDefinition = {
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
+    { name: 'text1', label: 'Text 1', type: 'text' },
+    { name: 'text2', label: 'Text 2', type: 'text' },
     // Relation field demo (Phase 3). Points at the Media upload collection
     // so editors can choose a feature image via the relation picker widget.
     // Set `displayField: 'title'` so the picker's row label reads from the

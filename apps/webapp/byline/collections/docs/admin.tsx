@@ -62,23 +62,30 @@ const listViewColumns: ColumnDefinition[] = [
 
 export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   columns: listViewColumns,
-  tabs: [
-    { name: 'details', label: 'Details' },
-    { name: 'content', label: 'Content' },
-    { name: 'reviews', label: 'Reviews & Links' },
+  tabSets: [
+    {
+      name: 'main',
+      tabs: [
+        {
+          name: 'details',
+          label: 'Details',
+          fields: ['title', 'summary', 'category', 'featured'],
+        },
+        {
+          name: 'content',
+          label: 'Content',
+          fields: ['content'],
+        },
+        {
+          name: 'reviews',
+          label: 'Reviews & Links',
+          fields: ['reviews', 'links'],
+        },
+      ],
+    },
   ],
-  fields: {
-    // Details tab
-    title: { tab: 'details' },
-    summary: { tab: 'details' },
-    category: { tab: 'details' },
-    publishedOn: { position: 'sidebar' },
-    featured: { tab: 'details' },
-    availableLanguages: { position: 'sidebar' },
-    // Content tab
-    content: { tab: 'content' },
-    // Reviews & Links tab
-    reviews: { tab: 'reviews' },
-    links: { tab: 'reviews' },
+  layout: {
+    main: ['main'],
+    sidebar: ['publishedOn', 'availableLanguages'],
   },
 })

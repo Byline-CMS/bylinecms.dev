@@ -60,78 +60,105 @@ export interface ColumnDefinition<T = any> {
   formatter?: ColumnFormatter<T>
 }
 
+// ---------------------------------------------------------------------------
+// Layout primitives
+//
+// Each primitive is a flat top-level registry of named components. Membership
+// is owned by the primitive itself — fields list themselves once, inside the
+// primitive's `fields[]` array. Composition into the form's two render
+// regions (`main` / `sidebar`) is handled by `LayoutDefinition` below.
+//
+// Nesting rules (enforced by the startup validator, not the type system):
+//   - `tabSets` only appear in `layout.main`.
+//   - Rows contain only schema field names (no nested rows/groups/tabs).
+//   - Groups contain schema field names + row names (no tabs, no nested groups).
+//   - Tab contents accept schema fields, row names, and group names.
+//
+// The path widget is form chrome — it is rendered structurally by the form
+// renderer based on `CollectionDefinition.useAsPath` and is NOT addressable
+// from `layout`. Admin configs cannot reference `'path'`.
+// ---------------------------------------------------------------------------
+
 /**
- * A tab groups fields under a named tab in the edit form.
- * Tabs are a purely presentational concern — they do not affect field paths,
- * storage, patches, or validation.
+ * A single tab inside a tab set.
  */
 export interface TabDefinition {
-  /** Unique key used to reference this tab in FieldAdminConfig. */
+  /** Unique-within-its-set name used by the renderer to track active tab. */
   name: string
   /** Human-readable label rendered on the tab button. */
   label: string
+  /** Schema field names, row names, or group names rendered inside this tab. */
+  fields: string[]
   /**
    * Optional condition: when provided, the tab is only rendered when this
    * function returns true. Receives the current live form data, allowing
    * tabs to appear/disappear based on field values.
    *
-   * This is a client-only function and must not be placed on CollectionDefinition.
+   * Re-evaluated per keystroke via the form's meta-subscribe loop.
+   * Client-only — must not be placed on `CollectionDefinition`.
    */
   condition?: (data: Record<string, any>) => boolean
 }
 
 /**
- * A container is a labelled visual section that clusters related fields
- * within a tab (or the default layout when no tabs are configured).
- * Purely presentational — no storage or schema impact.
+ * A named tab component — one tab bar containing one or more internal tabs.
+ * Place by name in `layout.main`.
  */
-export interface ContainerDefinition {
-  /** Unique key used to reference this container in FieldAdminConfig. */
+export interface TabSetDefinition {
+  /** Unique key used to reference this tab set in `layout.main`. */
   name: string
-  /** Optional heading rendered above the contained fields. */
-  label?: string
-  /** When tabs are configured, restrict this container to a specific tab. */
-  tab?: string
+  /** Ordered tabs rendered by this tab bar. */
+  tabs: TabDefinition[]
 }
 
 /**
- * A row lays out a set of named fields side-by-side horizontally.
- * Fields listed here are rendered in a flex row instead of the default
- * vertical stack. Purely presentational.
+ * A horizontal flex row of fields. Members are rendered side-by-side
+ * (stacking below the `sm` breakpoint). Purely presentational; no storage
+ * or schema impact. Rows are leaf containers — they accept only schema
+ * field names.
  */
 export interface RowDefinition {
-  /** Unique key used to reference this row in FieldAdminConfig. */
+  /** Unique key used to reference this row from `layout`, a tab, or a group. */
   name: string
-  /** Ordered list of field names to render in a horizontal row. */
+  /** Ordered list of schema field names. */
   fields: string[]
-  /** When tabs are configured, restrict this row to a specific tab. */
-  tab?: string
-  /** When containers are configured, restrict this row to a specific container. */
-  container?: string
 }
 
 /**
- * Per-field admin UI configuration.
- * Controls how individual fields are rendered in the admin dashboard.
+ * A labelled fieldset clustering related fields together. Purely presentational.
+ * Groups accept schema field names and row names.
+ */
+export interface GroupDefinition {
+  /** Unique key used to reference this group from `layout` or a tab. */
+  name: string
+  /** Optional heading rendered above the cluster (uses `<legend>`). */
+  label?: string
+  /** Ordered list of schema field names and row names. */
+  fields: string[]
+}
+
+/**
+ * Composition block — places primitives and raw schema field names into the
+ * two render regions of the form.
+ *
+ * `main` accepts: tabSet | group | row | schema-field names.
+ * `sidebar` accepts: group | row | schema-field names. (No tabSets.)
+ *
+ * When omitted entirely on `CollectionAdminConfig`, the renderer synthesises
+ * `{ main: <all schema field names in order> }` so trivial collections
+ * render with sensible defaults.
+ */
+export interface LayoutDefinition {
+  main: string[]
+  sidebar?: string[]
+}
+
+/**
+ * Per-field admin UI configuration — purely rendering overrides.
+ * Placement (tab/row/group/sidebar) is handled exclusively through the
+ * layout primitives above.
  */
 export interface FieldAdminConfig {
-  /** Where to place the field in the edit form layout. */
-  position?: 'default' | 'sidebar'
-  /**
-   * Which tab (by name) this field belongs to.
-   * Requires `tabs` to be declared on the CollectionAdminConfig.
-   */
-  tab?: string
-  /**
-   * Which container (by name) this field belongs to.
-   * Requires `containers` to be declared on the CollectionAdminConfig.
-   */
-  container?: string
-  /**
-   * Which row (by name) this field belongs to.
-   * Requires a matching entry in `rows` on the CollectionAdminConfig.
-   */
-  row?: string
   /**
    * Optional UI component overrides for this field's rendering.
    * Only meaningful for value fields (not array, blocks, or group).
@@ -144,14 +171,14 @@ export interface FieldAdminConfig {
  * Admin UI configuration for a collection.
  * This is the presentation/UI layer — separate from the data schema.
  *
- * Linked to a CollectionDefinition by the `slug` field matching
- * the collection's `path`.
+ * Linked to a `CollectionDefinition` by `slug` matching the collection's
+ * `path`.
  */
 export interface CollectionAdminConfig<T = any> {
-  /** Must match the `path` of the corresponding CollectionDefinition. */
+  /** Must match the `path` of the corresponding `CollectionDefinition`. */
   slug: string
 
-  /** Group name for organizing collections in the admin sidebar. */
+  /** Group name for organising collections in the admin sidebar. */
   group?: string
 
   /** Column definitions for the collection list view. */
@@ -173,26 +200,28 @@ export interface CollectionAdminConfig<T = any> {
   /** Default columns to show when no explicit column config is provided. */
   defaultColumns?: string[]
 
-  /** Per-field admin UI overrides, keyed by field name. */
-  fields?: Record<string, FieldAdminConfig>
+  /** Named tab components. Each set is one tab bar. */
+  tabSets?: TabSetDefinition[]
 
-  /**
-   * Ordered tab declarations for tabbed form layouts.
-   * Assign fields to tabs via `fields[fieldName].tab`.
-   */
-  tabs?: TabDefinition[]
-
-  /**
-   * Named visual container sections within the form (or within a tab).
-   * Assign fields to containers via `fields[fieldName].container`.
-   */
-  containers?: ContainerDefinition[]
-
-  /**
-   * Horizontal row layouts — fields listed in each row are rendered
-   * side-by-side instead of stacked vertically.
-   */
+  /** Named horizontal-row layouts. */
   rows?: RowDefinition[]
+
+  /** Named labelled-fieldset clusters. */
+  groups?: GroupDefinition[]
+
+  /**
+   * Composition: how the primitives above (and any raw schema fields) flow
+   * into the form's `main` and `sidebar` regions. When omitted, the
+   * renderer synthesises a default that places every schema field in
+   * `main` in declaration order.
+   */
+  layout?: LayoutDefinition
+
+  /**
+   * Per-field rendering overrides, keyed by field name.
+   * Placement is no longer expressed here — see the layout primitives above.
+   */
+  fields?: Record<string, FieldAdminConfig>
 
   /** Preview URL builder for live preview links. */
   preview?: (doc: T, ctx: { locale?: string }) => string
@@ -218,8 +247,8 @@ export interface CollectionAdminConfig<T = any> {
 }
 
 /**
- * Type-safe factory for creating a CollectionAdminConfig linked to a schema.
- * Infers field names from the collection definition for autocomplete.
+ * Type-safe factory for creating a `CollectionAdminConfig` linked to a schema.
+ * Sets `slug` from the schema's `path`.
  */
 export function defineAdmin<T = any>(
   schema: CollectionDefinition,

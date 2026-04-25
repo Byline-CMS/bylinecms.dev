@@ -59,30 +59,10 @@ const listViewColumns: ColumnDefinition[] = [
   },
 ]
 
-// export const PagesAdmin: CollectionAdminConfig = defineAdmin(Docs, {
-//   columns: pagesColumns,
-//   fields: {
-//     title: {
-//       components: {
-//         Label: ({ label, required }) => (
-//           <h3>{label}{required && ' *'}</h3>
-//         ),
-//         afterField: ({ value }) => (
-//           <p className="text-xs text-muted">{(value as string)?.length ?? 0} chars</p>
-//         ),
-//       },
-//     },
-//     path: { position: 'sidebar' },
-//     // ...
-//   },
-// })
-
 export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   columns: listViewColumns,
-  fields: {
-    path: { position: 'sidebar' },
-    availableLanguages: { position: 'sidebar' },
-    publishedOn: { position: 'sidebar' },
-    featured: { position: 'sidebar' },
+  layout: {
+    main: ['title', 'category', 'content'],
+    sidebar: ['publishedOn', 'featured', 'availableLanguages'],
   },
 })
