@@ -15,6 +15,7 @@
  * without reaching across package boundaries.
  */
 
+export type { UserRolesResponse } from '@byline/admin/admin-roles'
 export type {
   AdminUserListOrder,
   AdminUserListResponse,
@@ -27,6 +28,8 @@ export { deleteAdminUser } from './delete'
 export { disableAdminUser } from './disable'
 export { enableAdminUser } from './enable'
 export { getAdminUser } from './get'
+export { getUserRoles } from './get-user-roles'
 export { type ListAdminUsersInput, listAdminUsers } from './list'
 export { type SetAdminUserPasswordInput, setAdminUserPassword } from './set-password'
+export { type SetUserRolesInput, setUserRoles } from './set-user-roles'
 export { type UpdateAdminUserInput, updateAdminUser } from './update'

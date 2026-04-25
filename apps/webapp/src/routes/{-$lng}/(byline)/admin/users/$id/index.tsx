@@ -10,29 +10,38 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@infonomic/uikit/react'
 
-import { getAdminUser } from '@/modules/admin/admin-users'
+import { listAdminRoles } from '@/modules/admin/admin-roles'
+import { getAdminUser, getUserRoles } from '@/modules/admin/admin-users'
 import { AccountContainer } from '@/modules/admin/admin-users/components/container'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/users/$id/')({
   loader: async ({ params }) => {
     try {
-      const user = await getAdminUser({ data: { id: params.id } })
-      return { user }
+      // Three independent reads in parallel — the user row, the full
+      // role catalog (for the roles drawer's checkbox list), and the
+      // user's current role assignments.
+      const [user, rolesList, userRoles] = await Promise.all([
+        getAdminUser({ data: { id: params.id } }),
+        listAdminRoles(),
+        getUserRoles({ data: { userId: params.id } }),
+      ])
+      return { user, allRoles: rolesList.roles, initialUserRoles: userRoles.roles }
     } catch (err) {
       // Service emits `AdminUsersError(NOT_FOUND)` when the id resolves
-      // to no row; TanStack Start wraps the error for the transport.
-      // We map it to the framework `notFound()` so the route renders
-      // the 404 boundary rather than the generic error boundary.
-      // The service throws `AdminUsersError` with this code when the id
-      // resolves to no row. Matching on the string avoids importing from
-      // `@byline/admin` in a client-reachable module — the subpath pulls
-      // argon2 into the browser bundle transitively.
+      // to no row; the user-roles command uses
+      // `admin.roles.userNotFound` for the same condition. Map either
+      // to the framework `notFound()` so the route renders the 404
+      // boundary rather than the generic error boundary. Matching on
+      // the string avoids importing from `@byline/admin` in a
+      // client-reachable module — the subpath pulls argon2 into the
+      // browser bundle transitively.
       if (
         typeof err === 'object' &&
         err !== null &&
         'code' in err &&
-        (err as { code?: unknown }).code === 'admin.users.notFound'
+        ((err as { code?: unknown }).code === 'admin.users.notFound' ||
+          (err as { code?: unknown }).code === 'admin.roles.userNotFound')
       ) {
         throw notFound()
       }
@@ -54,7 +63,7 @@ function displayNameFor(user: {
 }
 
 function AdminUserDetail() {
-  const { user } = Route.useLoaderData()
+  const { user, allRoles, initialUserRoles } = Route.useLoaderData()
   return (
     <>
       <BreadcrumbsClient
@@ -71,7 +80,7 @@ function AdminUserDetail() {
       </Section>
       <Section>
         <Container>
-          <AccountContainer user={user} />
+          <AccountContainer user={user} allRoles={allRoles} initialUserRoles={initialUserRoles} />
         </Container>
       </Section>
     </>

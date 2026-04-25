@@ -83,4 +83,14 @@ export interface AdminRolesRepository {
   unassignFromUser(roleId: string, userId: string): Promise<void>
   listRolesForUser(userId: string): Promise<AdminRoleRow[]>
   listUsersForRole(roleId: string): Promise<string[]>
+  /**
+   * Replace the role-set for a user wholesale. Runs in a single
+   * transaction so the user is never observed mid-edit. Vid-less by
+   * design — assignments live in the join table, not on the user row,
+   * and the editor UX is "drag, save the whole list" rather than
+   * field-level concurrency. Caller is responsible for validating that
+   * `userId` and every `roleId` exist; the repo trusts its inputs and
+   * lets the FK constraint surface as the ultimate backstop.
+   */
+  setRolesForUser(userId: string, roleIds: readonly string[]): Promise<void>
 }

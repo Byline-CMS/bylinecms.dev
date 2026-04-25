@@ -32,13 +32,13 @@ import { useMemo, useState } from 'react'
 import { Alert, Button, Checkbox, LoaderEllipsis } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
+import { setRoleAbilities } from '@/modules/admin/admin-permissions'
 import type {
   AbilityDescriptorResponse,
   AbilityGroupResponse,
   ListRegisteredAbilitiesResponse,
   SetRoleAbilitiesResponse,
 } from '@/modules/admin/admin-permissions'
-import { setRoleAbilities } from '@/modules/admin/admin-permissions'
 import type { AdminRoleResponse } from '../index'
 
 type Mode = 'view' | 'edit'
@@ -128,10 +128,7 @@ function GroupSection({
             />
             <label
               htmlFor={`ability-${ability.key}`}
-              className={cx(
-                'min-w-0 flex-1',
-                isEdit ? 'cursor-pointer' : 'cursor-default'
-              )}
+              className={cx('min-w-0 flex-1', isEdit ? 'cursor-pointer' : 'cursor-default')}
             >
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{ability.label}</span>
@@ -157,9 +154,7 @@ export function RolePermissions({
   onSaved,
 }: RolePermissionsProps) {
   const [mode, setMode] = useState<Mode>('view')
-  const [initialSet, setInitialSet] = useState<ReadonlySet<string>>(
-    () => new Set(initialAbilities)
-  )
+  const [initialSet, setInitialSet] = useState<ReadonlySet<string>>(() => new Set(initialAbilities))
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initialAbilities))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -256,8 +251,8 @@ export function RolePermissions({
         />
         <p className="muted m-0 text-sm">
           <span className="font-medium">{totalSelected}</span> of{' '}
-          <span className="font-medium">{registered.total}</span>{' '}
-          {isEdit ? 'selected' : 'granted'} for {role.name}
+          <span className="font-medium">{registered.total}</span> {isEdit ? 'selected' : 'granted'}{' '}
+          for {role.name}
         </p>
         {isEdit && isDirty ? (
           <div className="ml-auto flex items-center gap-2">

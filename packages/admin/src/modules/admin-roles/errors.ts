@@ -18,6 +18,7 @@ export const AdminRolesErrorCodes = {
   NOT_FOUND: 'admin.roles.notFound',
   MACHINE_NAME_IN_USE: 'admin.roles.machineNameInUse',
   VERSION_CONFLICT: 'admin.roles.versionConflict',
+  USER_NOT_FOUND: 'admin.roles.userNotFound',
 } as const
 
 export type AdminRolesErrorCode = (typeof AdminRolesErrorCodes)[keyof typeof AdminRolesErrorCodes]
@@ -62,4 +63,14 @@ export const ERR_ADMIN_ROLE_MACHINE_NAME_IN_USE = make(
 export const ERR_ADMIN_ROLE_VERSION_CONFLICT = make(
   AdminRolesErrorCodes.VERSION_CONFLICT,
   'admin role has been modified elsewhere — please reload and try again'
+)
+
+/**
+ * The admin user targeted by a role-assignment operation does not exist.
+ * Module-local rather than reaching into `@byline/admin/admin-users`'
+ * error codes — keeps the modules decoupled.
+ */
+export const ERR_ADMIN_ROLE_USER_NOT_FOUND = make(
+  AdminRolesErrorCodes.USER_NOT_FOUND,
+  'admin user not found'
 )

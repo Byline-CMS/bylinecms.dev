@@ -38,14 +38,14 @@ import {
   useToastManager,
 } from '@infonomic/uikit/react'
 
-import type {
-  ListRegisteredAbilitiesResponse,
-  SetRoleAbilitiesResponse,
-} from '@/modules/admin/admin-permissions'
 import { LocalDateTime } from '@/ui/components/local-date-time'
 import { DeleteRole } from './delete'
 import { RolePermissions } from './permissions'
 import { UpdateRole } from './update'
+import type {
+  ListRegisteredAbilitiesResponse,
+  SetRoleAbilitiesResponse,
+} from '@/modules/admin/admin-permissions'
 import type { AdminRoleResponse } from '../index'
 
 type ComponentKey = 'update' | 'delete_role' | 'empty'
@@ -56,14 +56,12 @@ interface PanelProps {
   onSuccess?: (role: AdminRoleResponse) => void
 }
 
-const panels: Record<
-  ComponentKey,
-  { title: string; component: React.ComponentType<PanelProps> }
-> = {
-  update: { title: 'Role Details', component: UpdateRole },
-  delete_role: { title: 'Delete Admin Role', component: DeleteRole },
-  empty: { title: '', component: () => null },
-}
+const panels: Record<ComponentKey, { title: string; component: React.ComponentType<PanelProps> }> =
+  {
+    update: { title: 'Role Details', component: UpdateRole },
+    delete_role: { title: 'Delete Admin Role', component: DeleteRole },
+    empty: { title: '', component: () => null },
+  }
 
 interface RoleContainerProps {
   role: AdminRoleResponse

@@ -90,6 +90,17 @@ export const reorderAdminRolesRequestSchema = z.object({
 })
 export type ReorderAdminRolesRequest = z.infer<typeof reorderAdminRolesRequestSchema>
 
+export const getRolesForUserRequestSchema = z.object({
+  userId: idSchema,
+})
+export type GetRolesForUserRequest = z.infer<typeof getRolesForUserRequestSchema>
+
+export const setRolesForUserRequestSchema = z.object({
+  userId: idSchema,
+  roleIds: z.array(idSchema),
+})
+export type SetRolesForUserRequest = z.infer<typeof setRolesForUserRequestSchema>
+
 // ---------------------------------------------------------------------------
 // Responses
 // ---------------------------------------------------------------------------
@@ -110,6 +121,18 @@ export const adminRoleListResponseSchema = z.object({
   roles: z.array(adminRoleResponseSchema),
 })
 export type AdminRoleListResponse = z.infer<typeof adminRoleListResponseSchema>
+
+/**
+ * User-roles editor payload. `userId` is echoed back so the caller can
+ * match async writes; `roles` is the authoritative role-set after the
+ * write, shaped as full role rows so the drawer renders names without a
+ * second fetch.
+ */
+export const userRolesResponseSchema = z.object({
+  userId: z.string(),
+  roles: z.array(adminRoleResponseSchema),
+})
+export type UserRolesResponse = z.infer<typeof userRolesResponseSchema>
 
 /** Empty response for void-returning mutations (delete, reorder). */
 export const okResponseSchema = z.object({ ok: z.literal(true) })

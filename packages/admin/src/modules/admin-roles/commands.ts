@@ -9,6 +9,7 @@
 import type { RequestContext } from '@byline/auth'
 
 import { assertAdminActor } from '../../lib/assert-admin-actor.js'
+import { ADMIN_USERS_ABILITIES } from '../admin-users/abilities.js'
 import { ADMIN_ROLES_ABILITIES } from './abilities.js'
 import {
   adminRoleListResponseSchema,
@@ -16,14 +17,22 @@ import {
   createAdminRoleRequestSchema,
   deleteAdminRoleRequestSchema,
   getAdminRoleRequestSchema,
+  getRolesForUserRequestSchema,
   listAdminRolesRequestSchema,
   okResponseSchema,
   reorderAdminRolesRequestSchema,
+  setRolesForUserRequestSchema,
   updateAdminRoleRequestSchema,
+  userRolesResponseSchema,
 } from './schemas.js'
 import { AdminRolesService } from './service.js'
 import type { AdminStore } from '../../store.js'
-import type { AdminRoleListResponse, AdminRoleResponse, OkResponse } from './schemas.js'
+import type {
+  AdminRoleListResponse,
+  AdminRoleResponse,
+  OkResponse,
+  UserRolesResponse,
+} from './schemas.js'
 
 /**
  * Transport-agnostic commands for the admin-roles module.
@@ -46,7 +55,7 @@ export interface AdminRolesCommandDeps {
 }
 
 function serviceOf(deps: AdminRolesCommandDeps): AdminRolesService {
-  return new AdminRolesService({ repo: deps.store.adminRoles })
+  return new AdminRolesService({ store: deps.store })
 }
 
 export async function listAdminRolesCommand(
@@ -113,4 +122,32 @@ export async function reorderAdminRolesCommand(
   assertAdminActor(context, ADMIN_ROLES_ABILITIES.update)
   await serviceOf(deps).reorderRoles(parsed)
   return okResponseSchema.parse({ ok: true })
+}
+
+export async function getRolesForUserCommand(
+  context: RequestContext | undefined,
+  input: unknown,
+  deps: AdminRolesCommandDeps
+): Promise<UserRolesResponse> {
+  const parsed = getRolesForUserRequestSchema.parse(input)
+  // Reading a user's role assignments requires read access to admin
+  // users — the data is fundamentally about that user.
+  assertAdminActor(context, ADMIN_USERS_ABILITIES.read)
+  const result = await serviceOf(deps).getRolesForUser(parsed)
+  return userRolesResponseSchema.parse(result)
+}
+
+export async function setRolesForUserCommand(
+  context: RequestContext | undefined,
+  input: unknown,
+  deps: AdminRolesCommandDeps
+): Promise<UserRolesResponse> {
+  const parsed = setRolesForUserRequestSchema.parse(input)
+  // Editing a user's role-set is at the same trust level as updating
+  // their other admin fields. Roll into `admin.users.update` rather
+  // than minting a separate `admin.users.assignRoles` key — the role
+  // editor's checkbox tree would otherwise need both.
+  assertAdminActor(context, ADMIN_USERS_ABILITIES.update)
+  const result = await serviceOf(deps).setRolesForUser(parsed)
+  return userRolesResponseSchema.parse(result)
 }

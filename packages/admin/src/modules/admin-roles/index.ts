@@ -29,8 +29,10 @@ export {
   createAdminRoleCommand,
   deleteAdminRoleCommand,
   getAdminRoleCommand,
+  getRolesForUserCommand,
   listAdminRolesCommand,
   reorderAdminRolesCommand,
+  setRolesForUserCommand,
   updateAdminRoleCommand,
 } from './commands.js'
 export { toAdminRole } from './dto.js'
@@ -40,6 +42,7 @@ export {
   AdminRolesErrorCodes,
   ERR_ADMIN_ROLE_MACHINE_NAME_IN_USE,
   ERR_ADMIN_ROLE_NOT_FOUND,
+  ERR_ADMIN_ROLE_USER_NOT_FOUND,
   ERR_ADMIN_ROLE_VERSION_CONFLICT,
 } from './errors.js'
 export {
@@ -48,9 +51,12 @@ export {
   createAdminRoleRequestSchema,
   deleteAdminRoleRequestSchema,
   getAdminRoleRequestSchema,
+  getRolesForUserRequestSchema,
   listAdminRolesRequestSchema,
   reorderAdminRolesRequestSchema,
+  setRolesForUserRequestSchema,
   updateAdminRoleRequestSchema,
+  userRolesResponseSchema,
 } from './schemas.js'
 export { AdminRolesService } from './service.js'
 export type { AdminRolesCommandDeps } from './commands.js'
@@ -66,7 +72,10 @@ export type {
   CreateAdminRoleRequest,
   DeleteAdminRoleRequest,
   GetAdminRoleRequest,
+  GetRolesForUserRequest,
   ListAdminRolesRequest,
   ReorderAdminRolesRequest,
+  SetRolesForUserRequest,
   UpdateAdminRoleRequest,
+  UserRolesResponse,
 } from './schemas.js'

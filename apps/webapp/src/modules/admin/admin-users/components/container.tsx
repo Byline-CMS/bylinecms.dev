@@ -10,15 +10,26 @@
 
 import type React from 'react'
 import { useState } from 'react'
+import { useRouter } from '@tanstack/react-router'
 
-import { Button, CloseIcon, Drawer, EditIcon, IconButton, Modal } from '@infonomic/uikit/react'
+import {
+  Button,
+  CloseIcon,
+  Drawer,
+  EditIcon,
+  IconButton,
+  Modal,
+  useToastManager,
+} from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { LocalDateTime } from '@/ui/components/local-date-time'
 import { DeleteUser } from './delete'
+import { UserRoles } from './roles'
 import { SetPassword } from './set-password'
 import { UpdateUser } from './update'
-import type { AdminUserResponse } from '../index'
+import type { AdminRoleResponse } from '@/modules/admin/admin-roles'
+import type { AdminUserResponse, UserRolesResponse } from '../index'
 
 /**
  * Detail view for a single admin user, built around Infonomic's drawer
@@ -32,9 +43,16 @@ import type { AdminUserResponse } from '../index'
  * update and set-password flows) lift it into `currentUser` via
  * `handleSuccess` so subsequent edits see the bumped `vid`. Delete
  * navigates away internally; its `onSuccess` is unused.
+ *
+ * The roles drawer is special-cased: it needs `allRoles` (the catalog
+ * to render the checkbox list) and `initialRoleIds` (pre-checked from
+ * the user's current assignments). It's rendered inline against
+ * `current === 'roles'` rather than going through the panels map —
+ * same trick the role-detail container uses for its permissions
+ * panel.
  */
 
-type ComponentKey = 'update' | 'set_password' | 'delete_user' | 'empty'
+type ComponentKey = 'update' | 'set_password' | 'delete_user' | 'roles' | 'empty'
 
 interface PanelProps {
   user: AdminUserResponse
@@ -60,6 +78,12 @@ const panels: Record<
     title: 'Delete Admin User',
     drawerWidth: 'medium',
     component: DeleteUser,
+  },
+  roles: {
+    title: 'User Roles',
+    drawerWidth: 'medium',
+    // See container header docstring — rendered inline, this is a stub.
+    component: () => null,
   },
   empty: {
     title: '',
@@ -92,8 +116,28 @@ function ContainerSection({
   )
 }
 
-export function AccountContainer({ user }: { user: AdminUserResponse }) {
+function RoleBadge({ role }: { role: AdminRoleResponse }) {
+  return (
+    <span
+      title={role.machine_name}
+      className="inline-flex items-center rounded-sm bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-200"
+    >
+      {role.name}
+    </span>
+  )
+}
+
+interface AccountContainerProps {
+  user: AdminUserResponse
+  allRoles: AdminRoleResponse[]
+  initialUserRoles: AdminRoleResponse[]
+}
+
+export function AccountContainer({ user, allRoles, initialUserRoles }: AccountContainerProps) {
+  const router = useRouter()
+  const toastManager = useToastManager()
   const [currentUser, setCurrentUser] = useState<AdminUserResponse>(user)
+  const [currentUserRoles, setCurrentUserRoles] = useState<AdminRoleResponse[]>(initialUserRoles)
   const [current, setCurrent] = useState<ComponentKey>('empty')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -117,6 +161,16 @@ export function AccountContainer({ user }: { user: AdminUserResponse }) {
 
   const handleSuccess = (updated: AdminUserResponse) => {
     setCurrentUser(updated)
+  }
+
+  const handleRolesSaved = (response: UserRolesResponse) => {
+    setCurrentUserRoles(response.roles)
+    void router.invalidate()
+    toastManager.add({
+      title: 'Roles saved',
+      description: `${response.roles.length} role${response.roles.length === 1 ? '' : 's'} assigned to ${currentUser.email}.`,
+      data: { intent: 'success' },
+    })
   }
 
   const Panel = panels[current].component
@@ -176,6 +230,21 @@ export function AccountContainer({ user }: { user: AdminUserResponse }) {
         </div>
 
         <div className="flex flex-col gap-4">
+          <ContainerSection title="Roles" onEdit={openDrawer('roles')}>
+            {currentUserRoles.length === 0 ? (
+              <p className="muted m-0 italic">No roles assigned.</p>
+            ) : (
+              <div className="mb-3 flex flex-wrap gap-1">
+                {currentUserRoles.map((role) => (
+                  <RoleBadge key={role.id} role={role} />
+                ))}
+              </div>
+            )}
+            <Button size="sm" onClick={openDrawer('roles')}>
+              Edit Roles
+            </Button>
+          </ContainerSection>
+
           <ContainerSection title="Password" onEdit={openDrawer('set_password')}>
             <p className="mb-3">Set a new password for this user.</p>
             <Button size="sm" onClick={openDrawer('set_password')}>
@@ -217,7 +286,17 @@ export function AccountContainer({ user }: { user: AdminUserResponse }) {
           </Drawer.Header>
           <Drawer.Content>
             <div className="max-h-[calc(100vh-160px)] overflow-y-auto">
-              <Panel user={currentUser} onClose={closeDrawer} onSuccess={handleSuccess} />
+              {current === 'roles' ? (
+                <UserRoles
+                  user={currentUser}
+                  allRoles={allRoles}
+                  initialRoleIds={currentUserRoles.map((r) => r.id)}
+                  onClose={closeDrawer}
+                  onSaved={handleRolesSaved}
+                />
+              ) : (
+                <Panel user={currentUser} onClose={closeDrawer} onSuccess={handleSuccess} />
+              )}
             </div>
           </Drawer.Content>
         </Drawer.Container>

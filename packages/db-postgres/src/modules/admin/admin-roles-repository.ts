@@ -173,5 +173,19 @@ export function createAdminRolesRepository(
         .where(eq(adminRoleAdminUser.admin_role_id, roleId))
       return rows.map((r) => r.admin_user_id)
     },
+
+    async setRolesForUser(userId, roleIds) {
+      // Single transaction — user assignments are never observed
+      // half-edited. Symmetric to AdminPermissionsRepository.setAbilities.
+      await db.transaction(async (tx) => {
+        await tx.delete(adminRoleAdminUser).where(eq(adminRoleAdminUser.admin_user_id, userId))
+        if (roleIds.length === 0) return
+        const rows = roleIds.map((admin_role_id) => ({
+          admin_role_id,
+          admin_user_id: userId,
+        }))
+        await tx.insert(adminRoleAdminUser).values(rows)
+      })
+    },
   }
 }
