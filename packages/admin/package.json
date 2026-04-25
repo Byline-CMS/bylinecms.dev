@@ -60,10 +60,10 @@
       "import": "./dist/modules/admin-permissions/index.js",
       "require": "./dist/modules/admin-permissions/index.js"
     },
-    "./account": {
-      "types": "./dist/modules/account/index.d.ts",
-      "import": "./dist/modules/account/index.js",
-      "require": "./dist/modules/account/index.js"
+    "./admin-account": {
+      "types": "./dist/modules/admin-account/index.d.ts",
+      "import": "./dist/modules/admin-account/index.js",
+      "require": "./dist/modules/admin-account/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -118,10 +118,10 @@
         "import": "./dist/modules/admin-permissions/index.js",
         "require": "./dist/modules/admin-permissions/index.js"
       },
-      "./account": {
-        "types": "./dist/modules/account/index.d.ts",
-        "import": "./dist/modules/account/index.js",
-        "require": "./dist/modules/account/index.js"
+      "./admin-account": {
+        "types": "./dist/modules/admin-account/index.d.ts",
+        "import": "./dist/modules/admin-account/index.js",
+        "require": "./dist/modules/admin-account/index.js"
       },
       "./package.json": "./package.json"
     },

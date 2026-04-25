@@ -24,7 +24,8 @@
  * The `Actor` union (`AdminAuth | UserAuth | null`) is the canonical shape
  * carried on `RequestContext`. A `null` actor represents an
  * unauthenticated request — only permitted on public read paths
- * (`readMode === 'published'`) once enforcement lands in Phase 4.
+ * (`readMode === 'published'`) once service-layer enforcement lands
+ * (the outstanding item in AUTHN-AUTHZ-ANALYSIS.md).
  *
  * Ability keys are flat dotted strings (e.g. `collections.pages.publish`,
  * `media.manage`). See AUTHN-AUTHZ-ANALYSIS.md §4 for the rationale and
@@ -64,8 +65,9 @@ export class AdminAuth {
 
   /**
    * Throwing check. Throws `ERR_FORBIDDEN` when the actor lacks the
-   * ability. Super-admins bypass. Primary enforcement call site in
-   * Phase 4.
+   * ability. Super-admins bypass. Primary enforcement call site once
+   * service-layer enforcement (`document-lifecycle` / `IDocumentQueries`)
+   * is wired in.
    */
   assertAbility(ability: string, message?: string): void {
     if (this.isSuperAdmin) return
@@ -125,7 +127,7 @@ export class UserAuth {
 /**
  * Canonical actor shape carried on `RequestContext`. `null` represents an
  * unauthenticated request — permitted only on public read paths once
- * enforcement lands in Phase 4.
+ * service-layer enforcement is in place.
  */
 export type Actor = AdminAuth | UserAuth | null
 

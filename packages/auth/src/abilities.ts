@@ -16,8 +16,9 @@
  * feeds two consumers:
  *
  *   - **Runtime** — `AdminAuth.assertAbility('collections.pages.publish')`
- *     checks the flat ability set on the actor; the registry is consulted
- *     in dev mode to warn on unregistered keys (wired in Phase 4).
+ *     checks the flat ability set on the actor; the registry is intended
+ *     to be consulted in dev mode to warn on unregistered keys once
+ *     service-layer enforcement is wired in.
  *   - **Admin UI** — the role editor enumerates `list()` / `byGroup()`
  *     and renders a grouped checkbox tree. No per-plugin wiring.
  *
@@ -40,7 +41,8 @@
  * `collections.<path>` so every ability for a collection lands in one
  * group.
  *
- * `source` tags the ability's origin for the inspector view (Phase 8).
+ * `source` tags the ability's origin for the inspector view (the
+ * registered-collections / who-has-what panels still to ship).
  */
 export interface AbilityDescriptor {
   /** Flat dotted string, e.g. `'collections.pages.publish'`. */

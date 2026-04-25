@@ -41,10 +41,15 @@ We now keep active architecture and design analysis documents together under
 
 Current in-progress or strategic documents:
 
+- [Phases of work](docs/analysis/PHASES-OF-WORK.md)
 - [Storage analysis](docs/analysis/STORAGE-ANALYSIS.md)
 - [Relationships analysis](docs/analysis/RELATIONSHIPS-ANALYSIS.md)
 - [Routing and API analysis](docs/analysis/ROUTING-API-ANALYSIS.md)
 - [Client in-process SDK analysis](docs/analysis/CLIENT-IN-PROCESS-SDK-ANALYSIS.md)
+- [Core composition analysis](docs/analysis/CORE-COMPOSITION-ANALYSIS.md)
+- [Collection versioning analysis](docs/analysis/COLLECTION-VERSIONING-ANALYSIS.md)
+- [Document path analysis](docs/analysis/DOCUMENT-PATH-ANALYSIS.md)
+- [AuthN / AuthZ analysis](docs/analysis/AUTHN-AUTHZ-ANALYSIS.md)
 
 ## Mission & Vision
  

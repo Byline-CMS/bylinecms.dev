@@ -15,8 +15,10 @@ import { type Actor, AdminAuth } from './actor.js'
  * `document-lifecycle` service, `IDocumentQueries` method, `@byline/client`
  * entry point, and collection hook.
  *
- * The auth subsystem populates `actor`; downstream code reads it. Phase 0
- * threading is plumbing only — assertions turn on in Phase 4.
+ * The auth subsystem populates `actor`; downstream code reads it. Today
+ * the threading is plumbing only — `actor.assertAbility(...)` is not yet
+ * called at the `document-lifecycle` / `IDocumentQueries` boundary. See
+ * the Phase status table in AUTHN-AUTHZ-ANALYSIS.md.
  *
  * `RequestContext` is intentionally independent of the existing
  * `ReadContext` (populate / `afterRead` recursion guard) for now. Merging
@@ -25,8 +27,9 @@ import { type Actor, AdminAuth } from './actor.js'
  *
  * Fields:
  *   - `actor`        — the authenticated identity (or `null` for public
- *                      read paths). Phase 4 enforces that `null` is only
- *                      permitted when `readMode === 'published'`.
+ *                      read paths). Service-layer enforcement (when wired)
+ *                      will permit `null` only when
+ *                      `readMode === 'published'`.
  *   - `requestId`    — monotonic-ish UUIDv7 per logical request. Surfaces
  *                      in log lines and error cause chains.
  *   - `locale`       — optional content locale for this request. When

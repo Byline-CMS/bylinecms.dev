@@ -7,13 +7,14 @@
  */
 
 /**
- * `@byline/admin/admin-account` — self-service for the currently
- * signed-in admin user.
+ * `@byline/admin/admin-account` — reserved for self-service surfaces
+ * (password change, profile fields, active-session listing) for the
+ * currently signed-in admin user.
  *
- * Password change, profile fields, active-session listing and revocation.
- * Available affordances depend on the configured `SessionProvider` —
- * password change is gated by `capabilities.passwordChange`, and session
- * listing depends on whether the provider exposes per-session state.
+ * Empty placeholder. The module exists so the package's subpath layout
+ * is stable and so `@byline/admin/admin-account` can be imported the
+ * moment a concrete affordance lands. Available affordances will depend
+ * on the configured `SessionProvider` (e.g. `capabilities.passwordChange`).
  */
 
 export {}

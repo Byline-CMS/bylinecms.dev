@@ -13,6 +13,10 @@ import { deleteAdminRoleCommand } from '@byline/admin/admin-roles'
 import { getAdminRequestContext } from '@/lib/auth-context'
 import { bylineCore } from '../../../../byline.server.config.js'
 
+// Return shape mirrors `OkResponse` from `@byline/admin/admin-users`.
+// Lifting the type to a shared spot is a small follow-up — the two
+// modules each declare their own identical `OkResponse` today, and the
+// root `@byline/admin` barrel can only re-export one of them.
 export const deleteAdminRole = createServerFn({ method: 'POST' })
   .inputValidator((input: { id: string; vid: number }) => input)
   .handler(async ({ data }): Promise<{ ok: true }> => {
