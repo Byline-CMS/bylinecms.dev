@@ -24,7 +24,7 @@
 
 export { registerAdminAbilities } from './abilities.js'
 export { assertAdminActor } from './lib/assert-admin-actor.js'
-export * from './modules/account/index.js'
+export * from './modules/admin-account/index.js'
 export * from './modules/admin-permissions/index.js'
 export * from './modules/admin-roles/index.js'
 export * from './modules/admin-users/index.js'
