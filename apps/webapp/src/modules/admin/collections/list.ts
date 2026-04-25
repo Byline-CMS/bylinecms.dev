@@ -9,6 +9,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import {
+  assertActorCanPerform,
   ERR_NOT_FOUND,
   getCollectionSchemasForPath,
   getLogger,
@@ -16,6 +17,7 @@ import {
 } from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
+import { getAdminRequestContext } from '@/lib/auth-context'
 import { serialise } from './utils'
 
 // ---------------------------------------------------------------------------
@@ -48,6 +50,8 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
         details: { collectionPath: path },
       }).log(getLogger())
     }
+
+    assertActorCanPerform(await getAdminRequestContext(), path, 'read')
 
     const db = getServerConfig().db
     const pageSize = params.page_size ?? 20

@@ -16,7 +16,10 @@ Byline CMS — an open-source, AI-first headless CMS. Currently a prototype/PoC.
 |---|---|---|
 | `apps/webapp` | `@byline/webapp` | TanStack Start (SSR mode) + React admin UI. Vite dev server on `:5173`, API on `:3001` |
 | `packages/core` | `@byline/core` | Types, config, patch logic, workflow, Zod schema builder |
-| `packages/db-postgres` | `@byline/db-postgres` | Postgres adapter (Drizzle ORM) |
+| `packages/client` | `@byline/client` | In-process SDK over the storage primitives + `document-lifecycle` (find / create / update / delete / populate / status-aware reads) |
+| `packages/auth` | `@byline/auth` | Actor primitives, `RequestContext`, `AbilityRegistry`, `SessionProvider` interface, error factories. Leaf package |
+| `packages/admin` | `@byline/admin` | Admin subsystem — users, roles, permissions, account modules, plus the built-in JWT session provider |
+| `packages/db-postgres` | `@byline/db-postgres` | Postgres adapter (Drizzle ORM); subpath `@byline/db-postgres/admin` carries the admin-store repositories |
 | `packages/db-remote` | `@byline/db-remote` | Remote/stub adapter (placeholder) |
 | `packages/db-mysql` | `@byline/db-mysql` | MySQL adapter (placeholder) |
 | `packages/storage-local` | `@byline/storage-local` | Local filesystem storage provider |
@@ -106,6 +109,22 @@ A typed `Registry`/`AsyncRegistry` DI container in `packages/core/src/lib/regist
 
 - Browser: `apps/webapp/src/client.tsx` imports `../byline.client.config.ts`
 - Server: `apps/webapp/byline.server.config.ts` calls `initBylineCore()` with the full `ServerConfig`
+
+### Auth (`@byline/auth` + `@byline/admin`)
+
+The auth subsystem is split across two packages:
+
+- `@byline/auth` — leaf package with the actor primitives (`AdminAuth`, `UserAuth`, `Actor`), the `RequestContext` shape (extends the seed of `ReadContext`), the `AbilityRegistry`, the `SessionProvider` interface, and the `AuthError` factories. No DB, no transport — types and small classes only.
+- `@byline/admin` — concrete implementation: admin user / role / permission / account modules (each as `commands.ts` + `repository.ts` + `service.ts` + `dto.ts` + `schemas.ts` + `errors.ts` + `abilities.ts`), the built-in `JwtSessionProvider`, password hashing (argon2id), and the `AdminStore` aggregate. `@byline/db-postgres/admin` ships the Postgres-backed repositories plugged into `AdminStore`.
+
+Admin-area transport for the webapp lives in `apps/webapp/src/modules/admin/{admin-users,admin-roles,admin-permissions,auth}/*` — each file is a thin `createServerFn` wrapper that resolves a `RequestContext` via `getAdminRequestContext()` (`apps/webapp/src/lib/auth-context.ts`), then delegates to the matching `*Command` from `@byline/admin/*`. The wrappers are intentionally boilerplate-shaped today; consolidation is deferred until service-layer enforcement (below) settles per-fn variation.
+
+**Service-layer enforcement is live**, split across two helpers by realm:
+
+- **Document collections** — `assertActorCanPerform` (`packages/core/src/auth/assert-actor-can-perform.ts`). Called by every write path (`document-lifecycle.*`, `document-upload`) before any storage work, by `@byline/client` `CollectionHandle` for read paths, and by every admin webapp *document-collection* server fn under `apps/webapp/src/modules/admin/collections/*` (`list`, `get`, `history`, `stats` for reads; `create`, `update`, `delete`, `status`, `upload` for writes). Policy: no-context → `ERR_UNAUTHENTICATED`; `actor: null` → permitted only on `read` with `readMode === 'published'`; otherwise `actor.assertAbility('collections.<path>.<verb>')`.
+- **Admin user / role / permission management** — `assertAdminActor` (`packages/admin/src/lib/assert-admin-actor.ts`). Called inside every `*Command` in `@byline/admin/admin-{users,roles,permissions}`. Always requires a present `AdminAuth` actor (no public path) and asserts the specific module ability (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`).
+
+Direct `db.commands.*` / `db.queries.*` calls intentionally bypass both helpers — the documented escape hatch for seeds, migrations, and internal tooling. Outstanding auth work is Phase 7 (`beforeRead` hook + query-level filtering, for read-side row-scoping on documents) and the bulk of Phase 8 (registered-collections / who-has-what inspector views). See [`docs/analysis/AUTHN-AUTHZ-ANALYSIS.md`](docs/analysis/AUTHN-AUTHZ-ANALYSIS.md).
 
 ### Routing & API
 

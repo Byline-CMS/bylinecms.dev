@@ -1,16 +1,37 @@
 # Authentication & Authorization — Analysis
 
-> Last updated: 2026-04-23
-> Status: **strategic analysis + phased plan.** No code has been
-> written against this yet. Companion to
-> [PHASES-OF-WORK.md](./PHASES-OF-WORK.md) — auth is the next phase
-> of work and this document holds its full plan.
+> Last updated: 2026-04-25
+> Status: **in flight.** The strategic analysis and phased plan below
+> are the originating design from 2026-04-23; most of the plumbing has
+> since shipped, and as of the latest pass enforcement is now live on
+> every documented entry point. See the **Phase status** table
+> immediately below. The remaining outstanding tracks are **Phase 7**
+> (`beforeRead` hook + query-level filtering) and the bulk of **Phase
+> 8** (registered-collections / who-has-what inspector views).
+>
+> Companion to [PHASES-OF-WORK.md](./PHASES-OF-WORK.md).
 > Related:
 > - [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) —
 >   `ReadContext` is the seed for the actor-carrying `RequestContext`
 >   described below.
 > - [CLIENT-IN-PROCESS-SDK-ANALYSIS.md](./CLIENT-IN-PROCESS-SDK-ANALYSIS.md) —
 >   the client SDK is where actor threading becomes externally visible.
+
+## Phase status (as of 2026-04-25)
+
+| Phase | Title | Status | Where it lives |
+|---|---|---|---|
+| 0 | Package scaffold, actor primitives, context threading | **shipped** | `packages/auth/src/{actor,context,index}.ts`; `createSuperAdminContext` in `context.ts` |
+| 1 | Ability registry + collection auto-registration | **shipped** | `packages/auth/src/abilities.ts` (`AbilityRegistry`); `@byline/admin` modules each export a `register*Abilities()` |
+| 2 | Admin users / roles / permissions schema + services | **shipped** | `packages/db-postgres/src/database/schema/auth.ts` + migration; repositories under `packages/db-postgres/src/modules/admin/`; services under `packages/admin/src/modules/admin-{users,roles,permissions}/`; `seedSuperAdmin` wired into `apps/webapp/byline/seeds/admin.ts` |
+| 3 | `SessionProvider` interface + built-in JWT provider | **shipped** | `packages/auth/src/session-provider.ts`; `packages/admin/src/modules/auth/{jwt-session-provider,password,refresh-tokens-repository,resolve-actor}.ts` |
+| 4 | Enforcement at the service-layer boundary | **shipped** | Two enforcement helpers, one per realm. **Document collections:** `assertActorCanPerform` (`packages/core/src/auth/assert-actor-can-perform.ts`) — no-context → `ERR_UNAUTHENTICATED`; `actor: null` → only `verb === 'read'` and `readMode === 'published'`; otherwise `actor.assertAbility(...)`. Applied at every `document-lifecycle.*` entry point (create, update, updateWithPatches, changeStatus, unpublish, delete), at `document-upload`, at `@byline/client` `CollectionHandle`, and at every admin document server fn under `apps/webapp/src/modules/admin/collections/*` (writes via `DocumentLifecycleContext.requestContext`, reads via direct `assertActorCanPerform` before the adapter call). **Admin user / role / permission management:** `assertAdminActor` (`packages/admin/src/lib/assert-admin-actor.ts`) — always requires a present `AdminAuth` actor (no anonymous path) and asserts the specific module ability (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`). Called inside every `*Command` in `@byline/admin/admin-{users,roles,permissions}`. Direct `db.commands.*` / `db.queries.*` calls intentionally bypass both helpers — the documented escape hatch for seeds, migrations, and internal tooling. |
+| 5 | Admin server-fn auth middleware | **shipped** | `apps/webapp/src/lib/auth-context.ts` (`getAdminRequestContext`); sign-in / sign-out / current-user server fns under `apps/webapp/src/modules/admin/auth/`; sign-in route at `routes/{-$lng}/(byline)/sign-in.tsx` |
+| 6 | Admin UI: sign-in, admin users, admin roles, role-ability editor | **shipped** | route trees under `apps/webapp/src/routes/{-$lng}/(byline)/admin/{users,roles,permissions,account}/`; components under `apps/webapp/src/modules/admin/admin-{users,roles,permissions}/components/` |
+| 7 | `beforeRead` hook + query-level filtering | **outstanding** | not started; `afterRead` exists but `beforeRead` does not |
+| 8 | Read-only inspector view | **partial** | the role-ability editor at `admin-permissions/components/inspector.tsx` lands one piece; the registered-collections panel and who-has-what matrix are not built |
+
+The strategic analysis below (§§1–8) records the original design rationale and is preserved verbatim; references to "Phase 4" inside individual sections refer to the table above. Where wording in the original sections suggests work has not yet started, defer to the table.
 
 ## Context
 
@@ -605,6 +626,34 @@ Deliverables:
   accommodates them; actual adapters wait for real demand.
 - UI-editable conditional rules (CASL-style). Hooks remain the
   expression surface.
+- **Pulling admin document reads through `CollectionHandle`.** Note
+  this is specifically about the admin webapp's reads of *CMS
+  documents* — the four server fns under
+  `apps/webapp/src/modules/admin/collections/*` (`list`, `get`,
+  `history`, `stats`). It is **not** about admin-user /
+  admin-role / admin-permission management; those are already
+  fully enforced through `assertAdminActor` inside every `*Command`
+  in `@byline/admin` and have nothing to do with `CollectionHandle`.
+
+  Phase 4 closed out by adding direct `assertActorCanPerform` calls
+  to those four document-read server fns. That works, but it
+  skips the rest of the `CollectionHandle` read pipeline —
+  `populateDocuments` is invoked by hand in `get.ts`, the
+  `afterRead` hook is **never** fired on admin document reads,
+  and any future read concern (Phase 7 `beforeRead` predicate
+  compilation, mask-on-read, redaction, audit logging) will have
+  to be wired in twice. Migrating those four server fns to
+  `bylineClient.collection(path).find(...)` / `findById(...)` etc.
+  is the structurally clean fix. Deferred because (a) the
+  migration is non-trivial — the published-vs-current "live" badge
+  in `list.ts`, the `_publishedVersion` block in `get.ts`, the
+  `populate: '*'` API-preview path, and the version-history
+  endpoint each need a `CollectionHandle` option or a co-located
+  escape hatch — and (b) Phase 7 is the natural trigger for it:
+  once `beforeRead` lands, the admin document-read path needs the
+  same predicate compiler the client uses, at which point this
+  migration becomes the obvious answer rather than a parallel
+  track. Tackle alongside or immediately after Phase 7.
 
 ### Sequencing notes
 
@@ -627,3 +676,5 @@ Deliverables:
 |------|--------|
 | 2026-04-23 | Initial strategic analysis captured. |
 | 2026-04-23 | Enforcement boundary decision added (§8). Open questions resolved. Phased plan (0–8) appended. |
+| 2026-04-25 | Phase status table added at top. Phases 0–3, 5–6 shipped; Phase 8 partial (role-ability editor only). Phases 4 and 7 remain outstanding; service-layer enforcement (Phase 4) is the next auth work item. |
+| 2026-04-25 | Phase 4 closed out for the document-collection realm. Service-layer enforcement was already shipped on the write path (`document-lifecycle`, `document-upload`) and on the public client read path (`CollectionHandle`); this pass added the four missing read assertions on the admin webapp's *document-collection* server fns (`list`, `get`, `history`, `stats`) so admin document reads now go through the same gate. (The admin user/role/permission management area was already fully enforced via `assertAdminActor` in every `*Command`, and is unaffected by this pass.) Outstanding tracks are now Phase 7 (`beforeRead` hook + query-level filtering) and the bulk of Phase 8 (inspector views). |

@@ -8,9 +8,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getServerConfig } from '@byline/core'
+import { assertActorCanPerform, getServerConfig } from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
+import { getAdminRequestContext } from '@/lib/auth-context'
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -30,6 +31,8 @@ const getCollectionStatsFn = createServerFn({ method: 'GET' })
   .handler(async ({ data }) => {
     const config = await ensureCollection(data.collection)
     if (!config) return { stats: [] as CollectionStatusCount[] }
+
+    assertActorCanPerform(await getAdminRequestContext(), data.collection, 'read')
 
     const db = getServerConfig().db
     const counts = await db.queries.documents.getDocumentCountsByStatus({

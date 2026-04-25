@@ -9,6 +9,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import {
+  assertActorCanPerform,
   BylineError,
   buildRelationSummaryPopulateMap,
   ERR_NOT_FOUND,
@@ -22,6 +23,7 @@ import {
 } from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
+import { getAdminRequestContext } from '@/lib/auth-context'
 import { serialise } from './utils'
 
 // ---------------------------------------------------------------------------
@@ -48,6 +50,8 @@ const getDocumentFn = createServerFn({ method: 'GET' })
         details: { collectionPath: path },
       }).log(logger)
     }
+
+    assertActorCanPerform(await getAdminRequestContext(), path, 'read')
 
     const serverConfig = getServerConfig()
     const db = serverConfig.db
@@ -169,6 +173,8 @@ const getDocumentByVersionFn = createServerFn({ method: 'GET' })
         details: { collectionPath: path },
       }).log(logger)
     }
+
+    assertActorCanPerform(await getAdminRequestContext(), path, 'read')
 
     const db = getServerConfig().db
     const rawDocument = await db.queries.documents.getDocumentByVersion({
