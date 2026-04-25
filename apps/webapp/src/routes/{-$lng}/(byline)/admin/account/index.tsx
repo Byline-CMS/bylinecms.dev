@@ -8,16 +8,36 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Card, Container, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@infonomic/uikit/react'
 
+import { getAccount } from '@/modules/admin/admin-account'
+import { AccountSelfContainer } from '@/modules/admin/admin-account/components/container'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/account/')({
+  loader: async () => {
+    // The slim `user` on the admin route's context (CurrentAdminUser)
+    // doesn't carry `vid` or the createdAt/updatedAt/lastLogin
+    // timestamps, so the self-service drawer needs the full row.
+    const account = await getAccount({ data: {} })
+    return { account }
+  },
   component: AdminAccountIndex,
 })
 
+function displayNameFor(account: {
+  given_name: string | null
+  family_name: string | null
+  email: string
+}) {
+  const parts = [account.given_name, account.family_name].filter(
+    (part): part is string => typeof part === 'string' && part.length > 0
+  )
+  return parts.length > 0 ? parts.join(' ') : account.email
+}
+
 function AdminAccountIndex() {
-  const { user } = Route.useRouteContext()
+  const { account } = Route.useLoaderData()
   return (
     <>
       <BreadcrumbsClient
@@ -26,40 +46,15 @@ function AdminAccountIndex() {
           { label: 'Account', href: '/admin/account' },
         ]}
       />
-      <Section className="py-6">
+      <Section className="py-5 pb-2">
         <Container>
-          <Card>
-            <Card.Header>
-              <Card.Title>Account</Card.Title>
-              <Card.Description className="muted">
-                Manage your own admin profile, password, and active sessions.
-              </Card.Description>
-            </Card.Header>
-            <Card.Content>
-              <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-                <dt className="font-semibold">Email</dt>
-                <dd>{user.email}</dd>
-                {user.given_name != null ? (
-                  <>
-                    <dt className="font-semibold">Given name</dt>
-                    <dd>{user.given_name}</dd>
-                  </>
-                ) : null}
-                {user.family_name != null ? (
-                  <>
-                    <dt className="font-semibold">Family name</dt>
-                    <dd>{user.family_name}</dd>
-                  </>
-                ) : null}
-                <dt className="font-semibold">Super admin</dt>
-                <dd>{user.is_super_admin ? 'Yes' : 'No'}</dd>
-              </dl>
-              <p className="muted mt-4">
-                Placeholder — the change-password form, profile editor, and session list will be
-                wired to the account module once it lands.
-              </p>
-            </Card.Content>
-          </Card>
+          <h1 className="mb-2">{displayNameFor(account)}</h1>
+          <p className="muted">Manage your own profile and password.</p>
+        </Container>
+      </Section>
+      <Section>
+        <Container>
+          <AccountSelfContainer account={account} />
         </Container>
       </Section>
     </>

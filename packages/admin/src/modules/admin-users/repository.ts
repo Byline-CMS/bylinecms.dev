@@ -123,6 +123,15 @@ export interface AdminUsersRepository {
    * the `password_hash` field.
    */
   getByEmailForSignIn(email: string): Promise<AdminUserWithPasswordRow | null>
+  /**
+   * Authenticated-verification lookup. Same shape as
+   * `getByEmailForSignIn` but keyed by id — used by the self-service
+   * change-password flow, where the actor is already authenticated and
+   * we need to verify the *current* password before swapping in a new
+   * one. Same handling rules apply: callers **must not** persist or
+   * echo the `password_hash` field.
+   */
+  getByIdForSignIn(id: string): Promise<AdminUserWithPasswordRow | null>
   /** Paginated, filtered, sorted list. */
   list(options: ListAdminUsersOptions): Promise<AdminUserRow[]>
   /** Total row count matching the same filter (for pager `total_pages`). */

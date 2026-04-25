@@ -39,10 +39,36 @@ import { type AdminAuth, ERR_UNAUTHENTICATED, isAdminAuth, type RequestContext }
  *     (thrown from `AdminAuth.assertAbility`)
  */
 export function assertAdminActor(context: RequestContext | undefined, ability: string): AdminAuth {
+  const actor = requireAdminActor(context, `admin action requiring '${ability}'`)
+  actor.assertAbility(ability)
+  return actor
+}
+
+/**
+ * Authentication-only counterpart of `assertAdminActor`. Runs the same
+ * three checks (context present, actor present, actor is `AdminAuth`)
+ * but **does not** assert any ability key.
+ *
+ * Used by self-service commands where the actor is the target by
+ * definition — `@byline/admin/admin-account` for "change my own
+ * password" / "update my own profile". For those flows there is no
+ * meaningful ability to gate against; the security property is "you
+ * may only mutate your own row," and the commands enforce that by
+ * sourcing the target id from `actor.id` rather than from the
+ * request payload.
+ *
+ * Reasoning is described as part of the request narrative so the
+ * `ERR_UNAUTHENTICATED` message stays useful when it surfaces in logs
+ * — the helper has no `ability` argument to fall back on.
+ */
+export function requireAdminActor(
+  context: RequestContext | undefined,
+  reasonForLog: string
+): AdminAuth {
   if (!context) {
     throw ERR_UNAUTHENTICATED({
       message:
-        `missing requestContext on admin action requiring '${ability}'. Pass createSuperAdminContext() ` +
+        `missing requestContext on ${reasonForLog}. Pass createSuperAdminContext() ` +
         `from @byline/auth for scripts/tests, or construct a request-scoped context from your ` +
         `session provider in the admin webapp.`,
     })
@@ -51,15 +77,14 @@ export function assertAdminActor(context: RequestContext | undefined, ability: s
   const { actor } = context
   if (actor == null) {
     throw ERR_UNAUTHENTICATED({
-      message: `anonymous caller cannot perform admin action requiring '${ability}'`,
+      message: `anonymous caller cannot perform ${reasonForLog}`,
     })
   }
   if (!isAdminAuth(actor)) {
     throw ERR_UNAUTHENTICATED({
-      message: `non-admin actor cannot perform admin action requiring '${ability}'`,
+      message: `non-admin actor cannot perform ${reasonForLog}`,
     })
   }
 
-  actor.assertAbility(ability)
   return actor
 }

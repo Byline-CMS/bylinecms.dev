@@ -115,6 +115,14 @@ export function createAdminUsersRepository(
       return row ?? null
     },
 
+    async getByIdForSignIn(id) {
+      const [row] = await db
+        .select({ ...PUBLIC_COLUMNS, password_hash: adminUsers.password })
+        .from(adminUsers)
+        .where(eq(adminUsers.id, id))
+      return row ?? null
+    },
+
     async list(options) {
       const needle = options.query?.trim()
       const filter =

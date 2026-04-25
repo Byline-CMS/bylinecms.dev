@@ -38,7 +38,13 @@ import { createSerializationAdapter } from '@tanstack/react-router'
  * server-fn boundary. Add a new entry when introducing another typed
  * error class that carries a string `code`.
  */
-const CODED_ERROR_NAMES = new Set(['AdminUsersError', 'AuthError'])
+const CODED_ERROR_NAMES = new Set([
+  'AdminAccountError',
+  'AdminPermissionsError',
+  'AdminRolesError',
+  'AdminUsersError',
+  'AuthError',
+])
 
 export interface BylineCodedErrorPayload {
   name: string

@@ -7,14 +7,54 @@
  */
 
 /**
- * `@byline/admin/admin-account` — reserved for self-service surfaces
- * (password change, profile fields, active-session listing) for the
- * currently signed-in admin user.
+ * `@byline/admin/admin-account` — self-service surfaces for the currently
+ * signed-in admin user.
  *
- * Empty placeholder. The module exists so the package's subpath layout
- * is stable and so `@byline/admin/admin-account` can be imported the
- * moment a concrete affordance lands. Available affordances will depend
- * on the configured `SessionProvider` (e.g. `capabilities.passwordChange`).
+ * Distinct from `@byline/admin/admin-users` in two ways:
+ *
+ *   1. The actor IS the target. Commands take no `id` field — the
+ *      target is sourced from `actor.id` on the authenticated
+ *      `RequestContext`. There is no way at the command surface to
+ *      ask "operate on someone else."
+ *   2. There is no ability gate. The other admin modules use
+ *      `assertAdminActor(context, ability)`; this module uses
+ *      `requireAdminActor(context)` — authn-only. "Anyone may change
+ *      their own password" is the policy.
+ *
+ * Reuses `AdminUsersRepository` from `@byline/admin/admin-users` rather
+ * than introducing a parallel repo — the table is the same and the
+ * narrower self-service surface is structural rather than physical.
+ *
+ * Active-session listing / revocation is intentionally not included
+ * yet — that depends on `RefreshTokensRepository` semantics and a
+ * "sign out everywhere on password change" follow-up.
  */
 
-export {}
+export {
+  changeAccountPasswordCommand,
+  getAccountCommand,
+  updateAccountCommand,
+} from './commands.js'
+export {
+  AdminAccountError,
+  type AdminAccountErrorCode,
+  AdminAccountErrorCodes,
+  ERR_ADMIN_ACCOUNT_INVALID_CURRENT_PASSWORD,
+  ERR_ADMIN_ACCOUNT_NOT_FOUND,
+} from './errors.js'
+export {
+  accountResponseSchema,
+  changeAccountPasswordRequestSchema,
+  getAccountRequestSchema,
+  okResponseSchema,
+  updateAccountRequestSchema,
+} from './schemas.js'
+export { AdminAccountService } from './service.js'
+export type { AdminAccountCommandDeps } from './commands.js'
+export type {
+  AccountResponse,
+  ChangeAccountPasswordRequest,
+  GetAccountRequest,
+  OkResponse,
+  UpdateAccountRequest,
+} from './schemas.js'
