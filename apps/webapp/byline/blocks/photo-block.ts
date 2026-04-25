@@ -11,6 +11,7 @@ import type { Block } from '@byline/core'
 export const PhotoBlock = {
   blockType: 'photoBlock',
   label: 'Photo Block',
+  helpText: 'A block for displaying a photo with optional caption and alt text.',
   fields: [
     {
       name: 'display',

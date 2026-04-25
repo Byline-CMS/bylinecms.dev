@@ -11,6 +11,7 @@ import type { Block } from '@byline/core'
 export const RichTextBlock = {
   blockType: 'richTextBlock',
   label: 'Richtext Block',
+  helpText: 'A block for displaying a richtext editor.',
   fields: [
     {
       name: 'richText',

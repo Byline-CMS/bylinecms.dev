@@ -40,19 +40,19 @@ export const BlocksField = ({
   const [showAddBlockModal, setShowAddBlockModal] = useState(false)
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null)
 
-  const compositeVariants = useMemo(() => field.blocks ?? [], [field.blocks])
+  const availableBlocks = useMemo(() => field.blocks ?? [], [field.blocks])
   const [selectedBlockName, setSelectedBlockName] = useState<string>(
-    () => compositeVariants[0]?.blockType
+    () => availableBlocks[0]?.blockType
   )
 
   useEffect(() => {
     if (
       selectedBlockName == null ||
-      !compositeVariants.some((b) => b.blockType === selectedBlockName)
+      !availableBlocks.some((b) => b.blockType === selectedBlockName)
     ) {
-      setSelectedBlockName(compositeVariants[0]?.blockType)
+      setSelectedBlockName(availableBlocks[0]?.blockType)
     }
-  }, [compositeVariants, selectedBlockName])
+  }, [availableBlocks, selectedBlockName])
 
   useEffect(() => {
     if (Array.isArray(defaultValue)) {
@@ -106,8 +106,8 @@ export const BlocksField = ({
 
     const variant =
       (forcedVariantName != null
-        ? compositeVariants.find((v) => v.blockType === forcedVariantName)
-        : undefined) ?? compositeVariants[0]
+        ? availableBlocks.find((v) => v.blockType === forcedVariantName)
+        : undefined) ?? availableBlocks[0]
 
     if (!variant) return
 
@@ -168,7 +168,7 @@ export const BlocksField = ({
   }
 
   const handleInsertBelow = (index: number, forcedVariantName?: string) => {
-    if (compositeVariants.length > 1 && forcedVariantName == null) {
+    if (availableBlocks.length > 1 && forcedVariantName == null) {
       setPendingInsertIndex(index + 1)
       setShowAddBlockModal(true)
     } else {
@@ -270,7 +270,7 @@ export const BlocksField = ({
           </Modal.Header>
           <Modal.Content className="cursor-pointer">
             <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
-              {compositeVariants.map((b) => (
+              {availableBlocks.map((b, index) => (
                 <Card
                   key={b.blockType}
                   hover
@@ -278,9 +278,21 @@ export const BlocksField = ({
                   className="mb-2"
                 >
                   <Card.Header>
-                    <Card.Title className="text-xl">{b.label ?? b.blockType}</Card.Title>
+                    <div className="flex items-start justify-between gap-2">
+                      <Card.Title className="text-[1.3rem] leading-tight">{b.label ?? b.blockType}</Card.Title>
+                      <span className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full border border-gray-100 dark:border-gray-700 text-[10px] font-semibold text-gray-400 dark:text-gray-400 tabular-nums mt-0.5">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <code className="mt-0 block font-mono text-[12px] text-gray-400 dark:text-gray-500">
+                      {b.blockType}
+                    </code>
                   </Card.Header>
-                  <Card.Content>{b.label ?? b.blockType}</Card.Content>
+                  <Card.Content>
+                    <p className="text-sm text-gray-500 dark:text-gray-200">
+                      {b.helpText ?? b.label ?? b.blockType}
+                    </p>
+                  </Card.Content>
                 </Card>
               ))}
             </div>
