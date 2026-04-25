@@ -8,15 +8,22 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Card, Container, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@infonomic/uikit/react'
 
+import { listRegisteredAbilities } from '@/modules/admin/admin-permissions'
+import { AbilitiesInspector } from '@/modules/admin/admin-permissions/components/inspector'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/{-$lng}/(byline)/admin/permissions/')({
+  loader: async () => {
+    const data = await listRegisteredAbilities()
+    return { data }
+  },
   component: AdminPermissionsIndex,
 })
 
 function AdminPermissionsIndex() {
+  const { data } = Route.useLoaderData()
   return (
     <>
       <BreadcrumbsClient
@@ -25,26 +32,10 @@ function AdminPermissionsIndex() {
           { label: 'Permissions', href: '/admin/permissions' },
         ]}
       />
-      <Section className="py-6">
-        <Container>
-          <Card>
-            <Card.Header>
-              <Card.Title>Permissions</Card.Title>
-              <Card.Description className="muted">
-                Read-only inspector for every registered ability, grouped by subsystem.
-              </Card.Description>
-            </Card.Header>
-            <Card.Content>
-              <p className="muted">
-                Placeholder — this view will enumerate the abilities registered through the
-                framework's <code>AbilityRegistry</code> (collections auto-contribute their CRUD +
-                workflow keys; admin and future plugins register their own), along with which roles
-                currently hold each ability.
-              </p>
-            </Card.Content>
-          </Card>
-        </Container>
+      <Section className="py-5 pb-2">
+        <Container>{/* Header lives inside the inspector. */}</Container>
       </Section>
+      <AbilitiesInspector data={data} />
     </>
   )
 }

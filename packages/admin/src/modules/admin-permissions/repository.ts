@@ -16,6 +16,10 @@
  *
  * `listAbilitiesForUser` is the join used by `resolveActor` to build an
  * `AdminAuth` — distinct abilities across every role the user holds.
+ *
+ * `listRolesForAbility` and `listUsersForAbility` are the inverse joins
+ * driving the admin-permissions inspector view (which roles grant a given
+ * ability, and which admin users hold those roles transitively).
  */
 
 export interface AdminPermissionsRepository {
@@ -30,4 +34,16 @@ export interface AdminPermissionsRepository {
    * `resolveActor()` to build the ability set on an `AdminAuth`.
    */
   listAbilitiesForUser(userId: string): Promise<string[]>
+  /**
+   * Role ids that grant the given ability. Used by the inspector to render
+   * the per-ability "granted by these roles" list.
+   */
+  listRolesForAbility(ability: string): Promise<string[]>
+  /**
+   * Distinct admin user ids that hold a role granting the given ability.
+   * Single-query join through `byline_admin_role_admin_user` — preferred
+   * over chaining `listRolesForAbility` + `listUsersForRole` so the
+   * inspector stays O(1) queries per ability.
+   */
+  listUsersForAbility(ability: string): Promise<string[]>
 }

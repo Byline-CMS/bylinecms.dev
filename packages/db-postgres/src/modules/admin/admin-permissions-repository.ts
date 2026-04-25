@@ -72,5 +72,25 @@ export function createAdminPermissionsRepository(
         .where(eq(adminRoleAdminUser.admin_user_id, userId))
       return rows.map((r) => r.ability)
     },
+
+    async listRolesForAbility(ability) {
+      const rows = await db
+        .select({ admin_role_id: adminPermissions.admin_role_id })
+        .from(adminPermissions)
+        .where(eq(adminPermissions.ability, ability))
+      return rows.map((r) => r.admin_role_id)
+    },
+
+    async listUsersForAbility(ability) {
+      const rows = await db
+        .selectDistinct({ admin_user_id: adminRoleAdminUser.admin_user_id })
+        .from(adminRoleAdminUser)
+        .innerJoin(
+          adminPermissions,
+          eq(adminPermissions.admin_role_id, adminRoleAdminUser.admin_role_id)
+        )
+        .where(eq(adminPermissions.ability, ability))
+      return rows.map((r) => r.admin_user_id)
+    },
   }
 }
