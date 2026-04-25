@@ -9,39 +9,44 @@
  */
 
 /**
- * Per-role ability editor.
+ * Inline per-role ability editor. Renders below the role-details
+ * header on the role detail page — full-width, no drawer.
  *
- * Mounts inside the role-detail drawer. Renders the registered ability
- * catalog grouped by `group`, pre-checked from the role's current
- * grants. Each group has select-all / clear-all affordances and a
- * "selected of total" count. Saving wholesale-replaces the role's
- * abilities via `setRoleAbilities`; the response carries the
- * authoritative stored set so the editor's "initial" baseline resets
- * cleanly without a second round-trip.
+ * Mode-switched: defaults to **view** (checkboxes disabled, no edit
+ * affordances). Click Edit to switch to **edit** mode — checkboxes
+ * become interactive, per-group "Select all / Clear" buttons appear,
+ * and a Save button materialises once the selection diverges from the
+ * stored set. Cancel reverts the local set and returns to view mode.
  *
- * Vid-less by design — abilities live in `byline_admin_permissions`,
- * not on the role row, so editing them does not bump the role's `vid`.
- * Last-writer-wins on a per-role basis.
+ * The View toggle is disabled while there are unsaved changes — this
+ * is the explicit-intent equivalent of a confirm dialog and keeps the
+ * UX honest about whether changes have been persisted.
+ *
+ * Vid-less by design (see Phase B notes): abilities live in
+ * `byline_admin_permissions`, not on the role row, so editing them
+ * does not bump the role's `vid`. Last-writer-wins on a per-role basis.
  */
 
 import { useMemo, useState } from 'react'
 
 import { Alert, Button, Checkbox, LoaderEllipsis } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
-import { setRoleAbilities } from '@/modules/admin/admin-permissions'
 import type {
   AbilityDescriptorResponse,
   AbilityGroupResponse,
   ListRegisteredAbilitiesResponse,
   SetRoleAbilitiesResponse,
 } from '@/modules/admin/admin-permissions'
+import { setRoleAbilities } from '@/modules/admin/admin-permissions'
 import type { AdminRoleResponse } from '../index'
+
+type Mode = 'view' | 'edit'
 
 interface RolePermissionsProps {
   role: AdminRoleResponse
   registered: ListRegisteredAbilitiesResponse
   initialAbilities: string[]
-  onClose?: () => void
   onSaved?: (response: SetRoleAbilitiesResponse) => void
 }
 
@@ -54,7 +59,8 @@ function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 interface GroupSectionProps {
   group: AbilityGroupResponse
   selected: ReadonlySet<string>
-  disabled: boolean
+  mode: Mode
+  saving: boolean
   onToggle: (key: string, checked: boolean) => void
   onSelectAll: (groupKeys: readonly string[]) => void
   onClearAll: (groupKeys: readonly string[]) => void
@@ -63,13 +69,15 @@ interface GroupSectionProps {
 function GroupSection({
   group,
   selected,
-  disabled,
+  mode,
+  saving,
   onToggle,
   onSelectAll,
   onClearAll,
 }: GroupSectionProps) {
   const groupKeys = useMemo(() => group.abilities.map((a) => a.key), [group.abilities])
   const selectedInGroup = groupKeys.filter((key) => selected.has(key)).length
+  const isEdit = mode === 'edit'
 
   return (
     <div className="rounded-sm border border-gray-100 dark:border-gray-700">
@@ -77,41 +85,54 @@ function GroupSection({
         <div>
           <span className="font-medium">{group.group}</span>
           <span className="muted ml-2 text-xs">
-            {selectedInGroup} of {group.abilities.length} selected
+            {selectedInGroup} of {group.abilities.length} {isEdit ? 'selected' : 'granted'}
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            intent="secondary"
-            type="button"
-            disabled={disabled || selectedInGroup === group.abilities.length}
-            onClick={() => onSelectAll(groupKeys)}
-          >
-            Select all
-          </Button>
-          <Button
-            size="sm"
-            intent="secondary"
-            type="button"
-            disabled={disabled || selectedInGroup === 0}
-            onClick={() => onClearAll(groupKeys)}
-          >
-            Clear
-          </Button>
-        </div>
+        {isEdit ? (
+          <div className="flex items-center gap-1">
+            <Button
+              size="xs"
+              intent="secondary"
+              type="button"
+              disabled={saving || selectedInGroup === group.abilities.length}
+              onClick={() => onSelectAll(groupKeys)}
+            >
+              Select all
+            </Button>
+            <Button
+              size="xs"
+              intent="secondary"
+              type="button"
+              disabled={saving || selectedInGroup === 0}
+              onClick={() => onClearAll(groupKeys)}
+            >
+              Clear
+            </Button>
+          </div>
+        ) : null}
       </div>
-      <div className="flex flex-col gap-1 p-3">
+      <div className="grid grid-cols-1 gap-1 p-3 sm:grid-cols-2">
         {group.abilities.map((ability: AbilityDescriptorResponse) => (
           <div key={ability.key} className="flex items-start gap-2 py-1">
             <Checkbox
               id={`ability-${ability.key}`}
               name={`ability-${ability.key}`}
               checked={selected.has(ability.key)}
-              disabled={disabled}
+              disabled={!isEdit || saving}
               onCheckedChange={(checked) => onToggle(ability.key, checked === true)}
+              // Override the uikit Checkbox container's `width: 100%` so it
+              // shrinks to its button width — otherwise the external label
+              // is pushed away by an empty 100%-wide container.
+              containerClasses="!w-auto"
+              componentClasses="!w-auto"
             />
-            <label htmlFor={`ability-${ability.key}`} className="min-w-0 flex-1 cursor-pointer">
+            <label
+              htmlFor={`ability-${ability.key}`}
+              className={cx(
+                'min-w-0 flex-1',
+                isEdit ? 'cursor-pointer' : 'cursor-default'
+              )}
+            >
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{ability.label}</span>
                 <code className="rounded-sm bg-gray-50 px-1.5 py-0.5 text-xs dark:bg-canvas-800">
@@ -133,26 +154,27 @@ export function RolePermissions({
   role,
   registered,
   initialAbilities,
-  onClose,
   onSaved,
 }: RolePermissionsProps) {
-  const [initialSet, setInitialSet] = useState<ReadonlySet<string>>(() => new Set(initialAbilities))
+  const [mode, setMode] = useState<Mode>('view')
+  const [initialSet, setInitialSet] = useState<ReadonlySet<string>>(
+    () => new Set(initialAbilities)
+  )
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initialAbilities))
-  const [isSaving, setIsSaving] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const isDirty = !setsEqual(selected, initialSet)
   const totalSelected = selected.size
 
   function handleToggle(key: string, checked: boolean): void {
+    if (mode !== 'edit') return
     setSelected((current) => {
       const next = new Set(current)
       if (checked) next.add(key)
       else next.delete(key)
       return next
     })
-    setSuccessMessage(null)
   }
 
   function handleSelectAll(groupKeys: readonly string[]): void {
@@ -161,7 +183,6 @@ export function RolePermissions({
       for (const key of groupKeys) next.add(key)
       return next
     })
-    setSuccessMessage(null)
   }
 
   function handleClearAll(groupKeys: readonly string[]): void {
@@ -170,14 +191,31 @@ export function RolePermissions({
       for (const key of groupKeys) next.delete(key)
       return next
     })
-    setSuccessMessage(null)
+  }
+
+  function handleCancel(): void {
+    setSelected(new Set(initialSet))
+    setError(null)
+    setMode('view')
+  }
+
+  function handleEnterEdit(): void {
+    setError(null)
+    setMode('edit')
+  }
+
+  function handleEnterView(): void {
+    // Disabled while dirty (the toggle's `disabled` prop guards this) —
+    // belt-and-suspenders so a stray click can't slip through.
+    if (isDirty) return
+    setError(null)
+    setMode('view')
   }
 
   async function handleSave(): Promise<void> {
-    if (isSaving) return
-    setIsSaving(true)
+    if (saving) return
+    setSaving(true)
     setError(null)
-    setSuccessMessage(null)
     try {
       const response = await setRoleAbilities({
         data: { id: role.id, abilities: Array.from(selected) },
@@ -187,7 +225,6 @@ export function RolePermissions({
       const storedSet = new Set(response.abilities)
       setInitialSet(storedSet)
       setSelected(new Set(storedSet))
-      setSuccessMessage('Saved.')
       onSaved?.(response)
     } catch (err) {
       const code = getErrorCode(err)
@@ -201,21 +238,54 @@ export function RolePermissions({
         setError('Could not save permissions. Please try again.')
       }
     } finally {
-      setIsSaving(false)
+      setSaving(false)
     }
   }
 
+  const isEdit = mode === 'edit'
+
   return (
-    <div className="form flex flex-col gap-3 p-1">
-      <div className="flex items-center justify-between">
+    <div className="mb-12 flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-sm border border-gray-100 bg-canvas-25 p-3 dark:border-gray-700 dark:bg-canvas-800">
+        <ModeToggle
+          mode={mode}
+          dirty={isDirty}
+          saving={saving}
+          onView={handleEnterView}
+          onEdit={handleEnterEdit}
+        />
         <p className="muted m-0 text-sm">
-          {totalSelected} of {registered.total} abilities selected for{' '}
-          <span className="font-medium">{role.name}</span>
+          <span className="font-medium">{totalSelected}</span> of{' '}
+          <span className="font-medium">{registered.total}</span>{' '}
+          {isEdit ? 'selected' : 'granted'} for {role.name}
         </p>
+        {isEdit && isDirty ? (
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              type="button"
+              intent="secondary"
+              size="xs"
+              onClick={handleCancel}
+              disabled={saving}
+              className="min-w-16"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              intent="primary"
+              size="xs"
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="min-w-16"
+            >
+              {saving ? <LoaderEllipsis size={30} /> : 'Save'}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {error ? <Alert intent="danger">{error}</Alert> : null}
-      {successMessage ? <Alert intent="success">{successMessage}</Alert> : null}
 
       <div className="flex flex-col gap-2">
         {registered.groups.map((group) => (
@@ -223,36 +293,66 @@ export function RolePermissions({
             key={group.group}
             group={group}
             selected={selected}
-            disabled={isSaving}
+            mode={mode}
+            saving={saving}
             onToggle={handleToggle}
             onSelectAll={handleSelectAll}
             onClearAll={handleClearAll}
           />
         ))}
       </div>
+    </div>
+  )
+}
 
-      <div className="mt-2 flex items-center justify-end gap-2">
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          onClick={onClose}
-          disabled={isSaving}
-          className="min-w-16"
-        >
-          {successMessage ? 'Close' : 'Cancel'}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          intent="primary"
-          onClick={() => void handleSave()}
-          disabled={isSaving || !isDirty}
-          className="min-w-16"
-        >
-          {isSaving ? <LoaderEllipsis size={42} /> : 'Save'}
-        </Button>
-      </div>
+interface ModeToggleProps {
+  mode: Mode
+  dirty: boolean
+  saving: boolean
+  onView: () => void
+  onEdit: () => void
+}
+
+function ModeToggle({ mode, dirty, saving, onView, onEdit }: ModeToggleProps) {
+  // Segmented two-state toggle. View is disabled while dirty so the
+  // user has to commit to Save or Cancel — avoids accidentally
+  // discarding a draft selection.
+  const isView = mode === 'view'
+  const isEdit = mode === 'edit'
+  return (
+    <div
+      role="group"
+      aria-label="Permissions mode"
+      className="inline-flex overflow-hidden rounded-sm border border-gray-200 dark:border-gray-700"
+    >
+      <button
+        type="button"
+        onClick={onView}
+        disabled={dirty || saving}
+        className={cx(
+          'px-2.5 py-0.5 text-xs transition',
+          isView
+            ? 'bg-gray-100 font-medium dark:bg-canvas-700'
+            : 'bg-transparent hover:bg-gray-50 dark:hover:bg-canvas-700',
+          (dirty || saving) && !isView && 'opacity-50 cursor-not-allowed'
+        )}
+      >
+        View
+      </button>
+      <button
+        type="button"
+        onClick={onEdit}
+        disabled={saving}
+        className={cx(
+          'border-l border-gray-200 px-2.5 py-0.5 text-xs transition dark:border-gray-700',
+          isEdit
+            ? 'bg-gray-100 font-medium dark:bg-canvas-700'
+            : 'bg-transparent hover:bg-gray-50 dark:hover:bg-canvas-700',
+          saving && !isEdit && 'opacity-50 cursor-not-allowed'
+        )}
+      >
+        Edit
+      </button>
     </div>
   )
 }

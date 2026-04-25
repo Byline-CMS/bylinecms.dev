@@ -9,16 +9,20 @@
  */
 
 /**
- * Detail view for a single admin role. Same drawer pattern as the
- * admin-users container: the main view shows cards for each editable
- * area, each "Edit" button opens a drawer containing the sub-form, and
- * destructive actions use a modal.
+ * Detail view for a single admin role.
  *
- * The Permissions card opens a large-width drawer hosting the
- * per-role ability editor from `@byline/admin/admin-permissions`. The
- * editor lives in this module rather than admin-permissions because
- * the bundling action is conceptually a property of the role, even
- * though the data lives in a separate table.
+ * Layout:
+ *   - **Header panel** (single, full-width): role identity (name,
+ *     machine_name, description, timestamps) plus `Edit Details` and
+ *     `Delete Role` buttons. The drawer continues to host the edit
+ *     form; the modal hosts the delete confirmation.
+ *   - **Permissions list** (full-width, inline): the per-role ability
+ *     editor in `RolePermissions`. Defaults to view mode; click Edit
+ *     in its controls row to switch to interactive checkboxes.
+ *
+ * The drawer is now used only for editing role details; the permissions
+ * editor is inline. This trades a single drawer surface for a full-page
+ * inspector-style view.
  */
 
 import type React from 'react'
@@ -29,24 +33,22 @@ import {
   Button,
   CloseIcon,
   Drawer,
-  EditIcon,
   IconButton,
   Modal,
   useToastManager,
 } from '@infonomic/uikit/react'
-import cx from 'classnames'
 
-import { LocalDateTime } from '@/ui/components/local-date-time'
-import { DeleteRole } from './delete'
-import { RolePermissions } from './permissions'
-import { UpdateRole } from './update'
 import type {
   ListRegisteredAbilitiesResponse,
   SetRoleAbilitiesResponse,
 } from '@/modules/admin/admin-permissions'
+import { LocalDateTime } from '@/ui/components/local-date-time'
+import { DeleteRole } from './delete'
+import { RolePermissions } from './permissions'
+import { UpdateRole } from './update'
 import type { AdminRoleResponse } from '../index'
 
-type ComponentKey = 'update' | 'delete_role' | 'permissions' | 'empty'
+type ComponentKey = 'update' | 'delete_role' | 'empty'
 
 interface PanelProps {
   role: AdminRoleResponse
@@ -56,58 +58,11 @@ interface PanelProps {
 
 const panels: Record<
   ComponentKey,
-  { title: string; drawerWidth: 'medium' | 'large'; component: React.ComponentType<PanelProps> }
+  { title: string; component: React.ComponentType<PanelProps> }
 > = {
-  update: {
-    title: 'Role Details',
-    drawerWidth: 'medium',
-    // Standard panel — render is delegated to the registry.
-    component: UpdateRole,
-  },
-  delete_role: {
-    title: 'Delete Admin Role',
-    drawerWidth: 'medium',
-    component: DeleteRole,
-  },
-  permissions: {
-    title: 'Role Permissions',
-    drawerWidth: 'large',
-    // Permissions panel needs extra props (registered abilities, current
-    // grants, separate success callback). The container renders it
-    // inline against `current === 'permissions'` rather than through
-    // this map — the entry exists so title and drawer width still
-    // resolve uniformly.
-    component: () => null,
-  },
-  empty: {
-    title: '',
-    drawerWidth: 'medium',
-    component: () => null,
-  },
-}
-
-function ContainerSection({
-  title,
-  onEdit,
-  children,
-}: {
-  title: string
-  onEdit?: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-sm border border-gray-100 bg-canvas-25 p-4 dark:border-gray-700 dark:bg-canvas-800">
-      <div className="mb-2 flex items-center justify-between">
-        <h2>{title}</h2>
-        {onEdit ? (
-          <IconButton variant="text" onClick={onEdit} aria-label={`Edit ${title}`}>
-            <EditIcon width="20px" height="20px" />
-          </IconButton>
-        ) : null}
-      </div>
-      <div>{children}</div>
-    </div>
-  )
+  update: { title: 'Role Details', component: UpdateRole },
+  delete_role: { title: 'Delete Admin Role', component: DeleteRole },
+  empty: { title: '', component: () => null },
 }
 
 interface RoleContainerProps {
@@ -160,56 +115,48 @@ export function RoleContainer({ role, registered, initialAbilities }: RoleContai
 
   return (
     <>
-      <div className="mb-12 gap-4 sm:grid sm:grid-cols-2">
-        <div className="mb-4 flex flex-col gap-4">
-          <ContainerSection title="Role Details" onEdit={openDrawer('update')}>
-            <p className="mb-0">
-              <span className="muted">Name:</span> {currentRole.name}
-            </p>
-            <p className="mb-0">
-              <span className="muted">Machine name:</span> {currentRole.machine_name}
-            </p>
-            <p className="mb-3">
-              <span className="muted">Description:</span>{' '}
-              {currentRole.description ?? <span className="muted italic">Not set</span>}
-            </p>
-            <Button size="sm" onClick={openDrawer('update')}>
-              Update Details
+      <div className="mb-6 rounded-sm border border-gray-100 bg-canvas-25 p-4 dark:border-gray-700 dark:bg-canvas-800">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <h2 className="!m-0">Role Details</h2>
+          <div className="flex items-center gap-2">
+            <Button size="xs" intent="secondary" onClick={openDrawer('update')}>
+              Edit Details
             </Button>
-            <div className="muted mt-4 text-xs">
-              <p>
-                <span className="font-bold">Created:&nbsp;</span>
-                <LocalDateTime value={currentRole.created_at} />
-              </p>
-              <p className="mb-0">
-                <span className="font-bold">Updated:&nbsp;</span>
-                <LocalDateTime value={currentRole.updated_at} />
-              </p>
-            </div>
-          </ContainerSection>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <ContainerSection title="Permissions" onEdit={openDrawer('permissions')}>
-            <p className="mb-3">
-              <span className="muted">{currentAbilities.length}</span> of{' '}
-              <span className="muted">{registered.total}</span> abilities granted to this role.
-            </p>
-            <Button size="sm" onClick={openDrawer('permissions')}>
-              Edit Permissions
-            </Button>
-          </ContainerSection>
-
-          <ContainerSection title="Delete Role">
-            <p className="mb-3">
-              Permanently delete this role. Any user assignments and ability grants are removed.
-            </p>
-            <Button size="sm" intent="danger" onClick={openModal('delete_role')}>
+            <Button size="xs" intent="danger" onClick={openModal('delete_role')}>
               Delete Role
             </Button>
-          </ContainerSection>
+          </div>
+        </div>
+        <div className="grid gap-1 sm:grid-cols-2">
+          <p className="m-0">
+            <span className="muted">Name:</span> {currentRole.name}
+          </p>
+          <p className="m-0">
+            <span className="muted">Machine name:</span> {currentRole.machine_name}
+          </p>
+          <p className="m-0 sm:col-span-2">
+            <span className="muted">Description:</span>{' '}
+            {currentRole.description ?? <span className="muted italic">Not set</span>}
+          </p>
+        </div>
+        <div className="muted mt-3 grid gap-1 text-xs sm:grid-cols-2">
+          <p className="m-0">
+            <span className="font-bold">Created:&nbsp;</span>
+            <LocalDateTime value={currentRole.created_at} />
+          </p>
+          <p className="m-0">
+            <span className="font-bold">Updated:&nbsp;</span>
+            <LocalDateTime value={currentRole.updated_at} />
+          </p>
         </div>
       </div>
+
+      <RolePermissions
+        role={currentRole}
+        registered={registered}
+        initialAbilities={currentAbilities}
+        onSaved={handlePermissionsSaved}
+      />
 
       <Drawer
         id="admin-role-drawer"
@@ -218,9 +165,7 @@ export function RoleContainer({ role, registered, initialAbilities }: RoleContai
         topOffset="46px"
         isOpen={isDrawerOpen}
         onDismiss={closeDrawer}
-        className={cx(
-          panels[current].drawerWidth === 'large' ? 'md:w-[700px] lg:w-[800px]' : 'md:w-[500px]'
-        )}
+        className="md:w-[500px]"
       >
         <Drawer.Container aria-hidden={!isDrawerOpen} className="p-2">
           <Drawer.TopActions>
@@ -236,17 +181,7 @@ export function RoleContainer({ role, registered, initialAbilities }: RoleContai
           </Drawer.Header>
           <Drawer.Content>
             <div className="max-h-[calc(100vh-160px)] overflow-y-auto">
-              {current === 'permissions' ? (
-                <RolePermissions
-                  role={currentRole}
-                  registered={registered}
-                  initialAbilities={currentAbilities}
-                  onClose={closeDrawer}
-                  onSaved={handlePermissionsSaved}
-                />
-              ) : (
-                <Panel role={currentRole} onClose={closeDrawer} onSuccess={handleSuccess} />
-              )}
+              <Panel role={currentRole} onClose={closeDrawer} onSuccess={handleSuccess} />
             </div>
           </Drawer.Content>
         </Drawer.Container>
