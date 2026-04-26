@@ -44,3 +44,4 @@ postgres/backups
 # Claude Code local/personal config
 .claude/settings.local.json
 .claude/.mcp.local.json
+.claude/scheduled_tasks.lock
