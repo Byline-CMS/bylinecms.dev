@@ -1,23 +1,25 @@
 # Authentication & Authorization — Analysis
 
-> Last updated: 2026-04-25
-> Status: **in flight.** The strategic analysis and phased plan below
-> are the originating design from 2026-04-23; most of the plumbing has
-> since shipped, and as of the latest pass enforcement is now live on
-> every documented entry point. See the **Phase status** table
-> immediately below. The remaining outstanding tracks are **Phase 7**
-> (`beforeRead` hook + query-level filtering) and the bulk of **Phase
-> 8** (registered-collections / who-has-what inspector views).
+> Last updated: 2026-04-26
+> Status: **mostly shipped.** The strategic analysis and phased plan
+> below are the originating design from 2026-04-23; every load-bearing
+> phase has now landed. The remaining outstanding work is the bulk of
+> **Phase 8** (registered-collections / who-has-what inspector views) —
+> read-only refinements that can slot around other in-flight tracks.
 >
 > Companion to [PHASES-OF-WORK.md](./PHASES-OF-WORK.md).
 > Related:
+> - [ACCESS-CONTROL-RECIPES.md](./ACCESS-CONTROL-RECIPES.md) — worked
+>   `beforeRead` hook examples (owner-only drafts, multi-tenant
+>   scoping, embargo, soft-delete hide, department visibility,
+>   self-only). Doubles as the user-facing companion to Phase 7.
 > - [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) —
 >   `ReadContext` is the seed for the actor-carrying `RequestContext`
 >   described below.
 > - [CLIENT-IN-PROCESS-SDK-ANALYSIS.md](./CLIENT-IN-PROCESS-SDK-ANALYSIS.md) —
 >   the client SDK is where actor threading becomes externally visible.
 
-## Phase status (as of 2026-04-25)
+## Phase status (as of 2026-04-26)
 
 | Phase | Title | Status | Where it lives |
 |---|---|---|---|
@@ -28,7 +30,7 @@
 | 4 | Enforcement at the service-layer boundary | **shipped** | Two enforcement helpers, one per realm. **Document collections:** `assertActorCanPerform` (`packages/core/src/auth/assert-actor-can-perform.ts`) — no-context → `ERR_UNAUTHENTICATED`; `actor: null` → only `verb === 'read'` and `readMode === 'published'`; otherwise `actor.assertAbility(...)`. Applied at every `document-lifecycle.*` entry point (create, update, updateWithPatches, changeStatus, unpublish, delete), at `document-upload`, at `@byline/client` `CollectionHandle`, and at every admin document server fn under `apps/webapp/src/modules/admin/collections/*` (writes via `DocumentLifecycleContext.requestContext`, reads via direct `assertActorCanPerform` before the adapter call). **Admin user / role / permission management:** `assertAdminActor` (`packages/admin/src/lib/assert-admin-actor.ts`) — always requires a present `AdminAuth` actor (no anonymous path) and asserts the specific module ability (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`). Called inside every `*Command` in `@byline/admin/admin-{users,roles,permissions}`. Direct `db.commands.*` / `db.queries.*` calls intentionally bypass both helpers — the documented escape hatch for seeds, migrations, and internal tooling. |
 | 5 | Admin server-fn auth middleware | **shipped** | `apps/webapp/src/lib/auth-context.ts` (`getAdminRequestContext`); sign-in / sign-out / current-user server fns under `apps/webapp/src/modules/admin/auth/`; sign-in route at `routes/{-$lng}/(byline)/sign-in.tsx` |
 | 6 | Admin UI: sign-in, admin users, admin roles, role-ability editor | **shipped** | route trees under `apps/webapp/src/routes/{-$lng}/(byline)/admin/{users,roles,permissions,account}/`; components under `apps/webapp/src/modules/admin/admin-{users,roles,permissions}/components/` |
-| 7 | `beforeRead` hook + query-level filtering | **outstanding** | not started; `afterRead` exists but `beforeRead` does not |
+| 7 | `beforeRead` hook + query-level filtering | **shipped** | `CollectionHooks.beforeRead` slot (`packages/core/src/@types/collection-types.ts`); `applyBeforeRead` + per-`ReadContext` cache (`packages/core/src/auth/apply-before-read.ts`); `QueryPredicate` + `$and` / `$or` combinators in `packages/core/src/@types/query-predicate.ts`; `parseWhere` + `mergePredicates` in `packages/core/src/query/parse-where.ts` (relocated from `@byline/client`); Postgres adapter compiles `DocumentColumnFilter` for `status` / `path` inside combinators; wired into every `@byline/client` `CollectionHandle` read entry point and into `populateDocuments` per target collection; `_bypassBeforeRead` escape hatch on read options. Worked examples and recipes in [ACCESS-CONTROL-RECIPES.md](./ACCESS-CONTROL-RECIPES.md). Companion to Phase 7: admin webapp's document-collection reads now flow through `CollectionHandle` (Zod schemas + admin UI flipped to the public `ClientDocument` shape) so `beforeRead` / `afterRead` / future read concerns land in one pipeline rather than two. |
 | 8 | Read-only inspector view | **partial** | the role-ability editor at `admin-permissions/components/inspector.tsx` lands one piece; the registered-collections panel and who-has-what matrix are not built |
 
 The strategic analysis below (§§1–8) records the original design rationale and is preserved verbatim; references to "Phase 4" inside individual sections refer to the table above. Where wording in the original sections suggests work has not yet started, defer to the table.
@@ -582,23 +584,71 @@ Deliverables:
   `useAbility()` hook or `<RequireAbility>` wrapper, documented
   at the source as a UX affordance, not a security boundary.
 
-### Phase 7 — `beforeRead` hook + query-level filtering
+### Phase 7 — `beforeRead` hook + query-level filtering — **shipped**
 
 **Goal.** Let collections contribute WHERE-clause predicates based
 on the actor — the read-side access-control track that was item 3
 on PHASES-OF-WORK.
 
-Deliverables:
+Shipped 2026-04-26 across six commits. Deliverables:
 
-- `CollectionHooks.beforeRead` signature:
-  `({ context, collectionPath }) => QueryPredicate | void`.
-- Predicate compiler translating structured predicates into the
-  same `EXISTS` / `LEFT JOIN LATERAL` machinery used by
-  field-level `where`.
-- Applied uniformly at `IDocumentQueries.findDocuments` and
-  threaded through populate.
-- Documentation + one worked example on a test collection (e.g.
-  "only own drafts").
+- **`CollectionHooks.beforeRead`** — signature
+  `({ collectionPath, requestContext, readContext }) => QueryPredicate | void`.
+  Async-capable. Multiple hooks combine with implicit AND. Lives in
+  `packages/core/src/@types/collection-types.ts`.
+- **`QueryPredicate` language** in
+  `packages/core/src/@types/query-predicate.ts` — field-name keys plus
+  `$and` / `$or` combinators. The client's `WhereClause` is now a
+  back-compat alias so user-facing `where` and hook return values
+  share one shape and combinators work on both surfaces.
+- **`applyBeforeRead`** helper in
+  `packages/core/src/auth/apply-before-read.ts` — invokes hooks,
+  AND-combines results, and caches on
+  `ReadContext.beforeReadCache` (keyed by `collectionPath`) so async
+  hooks don't re-run across populate fanout.
+- **Predicate compiler** moved to `packages/core/src/query/parse-where.ts`
+  (relocated from `@byline/client` so populate can compile predicates
+  in-process). `mergePredicates(hookPredicate, userWhere)` AND-merges
+  the hook output with caller-supplied `where` in one normalisation
+  pass.
+- **`DocumentColumnFilter`** kind added so `{ status: 'published' }`
+  composes correctly inside `$or` (the natural Recipe 1 shape) — at
+  the top level `status` / `path` stay reserved keys; inside a
+  combinator they downshift to a direct outer-scope column comparison
+  rather than the EAV-style EXISTS path that doesn't apply.
+- **Adapter widening** — `getDocumentById` /
+  `getDocumentByPath` / `getDocumentsByDocumentIds` /
+  `getDocumentCountsByStatus` accept an optional
+  `filters?: DocumentFilter[]` parameter. The Postgres adapter wires
+  them through `buildFilterExists`; outer-scope plumbing carries
+  status/path column refs alongside the version id.
+- **Wired into every read entry point** — `CollectionHandle`'s
+  `find` / `findById` / `findByPath` / `findOne` /
+  `countByStatus` / `history` / `findByVersion` all apply the hook
+  predicate, and `populateDocuments` runs `applyBeforeRead` once per
+  target collection per request before its batch fetch. The bypass
+  escape hatch is `_bypassBeforeRead: true` on read options.
+- **Companion: admin reads on `ClientDocument`.** The four
+  document-collection server fns under
+  `apps/webapp/src/modules/admin/collections/*` (`list`, `get`,
+  `history`, `stats`) plus the version-by-id fn now route through
+  `CollectionHandle` via the new admin client singleton at
+  `apps/webapp/src/lib/byline-client.ts`. Zod schemas (`createBaseSchema`
+  / `createListMetaSchema` / list+history response shapes) and the
+  admin UI flipped from snake-case storage shape to the public
+  camelCase `ClientDocument` surface, eliminating the parallel admin
+  read pipeline.
+- **Tests.** 23 new unit tests in `packages/core` (combinator
+  parsing, `applyBeforeRead` cache and async behaviour, combinator-
+  internal status / path downshift) plus 13 end-to-end integration
+  tests in `packages/client/tests/integration/client-before-read.integration.test.ts`
+  covering owner-only drafts, multi-tenant scoping, populate fanout
+  cache, `_bypassBeforeRead`, `countByStatus`, and the `history`
+  access gate. The integration suite is fully green at 75/75.
+- **Documentation.** Six worked examples and composition rules in
+  [ACCESS-CONTROL-RECIPES.md](./ACCESS-CONTROL-RECIPES.md). The
+  `client-before-read` integration test wires Recipes 1 and 2
+  end-to-end and serves as the executable companion.
 
 ### Phase 8 — Read-only inspector view
 
@@ -626,34 +676,14 @@ Deliverables:
   accommodates them; actual adapters wait for real demand.
 - UI-editable conditional rules (CASL-style). Hooks remain the
   expression surface.
-- **Pulling admin document reads through `CollectionHandle`.** Note
-  this is specifically about the admin webapp's reads of *CMS
-  documents* — the four server fns under
-  `apps/webapp/src/modules/admin/collections/*` (`list`, `get`,
-  `history`, `stats`). It is **not** about admin-user /
-  admin-role / admin-permission management; those are already
-  fully enforced through `assertAdminActor` inside every `*Command`
-  in `@byline/admin` and have nothing to do with `CollectionHandle`.
 
-  Phase 4 closed out by adding direct `assertActorCanPerform` calls
-  to those four document-read server fns. That works, but it
-  skips the rest of the `CollectionHandle` read pipeline —
-  `populateDocuments` is invoked by hand in `get.ts`, the
-  `afterRead` hook is **never** fired on admin document reads,
-  and any future read concern (Phase 7 `beforeRead` predicate
-  compilation, mask-on-read, redaction, audit logging) will have
-  to be wired in twice. Migrating those four server fns to
-  `bylineClient.collection(path).find(...)` / `findById(...)` etc.
-  is the structurally clean fix. Deferred because (a) the
-  migration is non-trivial — the published-vs-current "live" badge
-  in `list.ts`, the `_publishedVersion` block in `get.ts`, the
-  `populate: '*'` API-preview path, and the version-history
-  endpoint each need a `CollectionHandle` option or a co-located
-  escape hatch — and (b) Phase 7 is the natural trigger for it:
-  once `beforeRead` lands, the admin document-read path needs the
-  same predicate compiler the client uses, at which point this
-  migration becomes the obvious answer rather than a parallel
-  track. Tackle alongside or immediately after Phase 7.
+> Previously deferred but now shipped: pulling admin document reads
+> through `CollectionHandle`. Closed out alongside Phase 7 — see the
+> "Companion: admin reads on `ClientDocument`" entry under the
+> Phase 7 deliverables. The admin webapp now consumes the public
+> `ClientDocument` shape rather than raw storage shape, so
+> `beforeRead` / `afterRead` / future read concerns land in one
+> pipeline.
 
 ### Sequencing notes
 
@@ -678,3 +708,4 @@ Deliverables:
 | 2026-04-23 | Enforcement boundary decision added (§8). Open questions resolved. Phased plan (0–8) appended. |
 | 2026-04-25 | Phase status table added at top. Phases 0–3, 5–6 shipped; Phase 8 partial (role-ability editor only). Phases 4 and 7 remain outstanding; service-layer enforcement (Phase 4) is the next auth work item. |
 | 2026-04-25 | Phase 4 closed out for the document-collection realm. Service-layer enforcement was already shipped on the write path (`document-lifecycle`, `document-upload`) and on the public client read path (`CollectionHandle`); this pass added the four missing read assertions on the admin webapp's *document-collection* server fns (`list`, `get`, `history`, `stats`) so admin document reads now go through the same gate. (The admin user/role/permission management area was already fully enforced via `assertAdminActor` in every `*Command`, and is unaffected by this pass.) Outstanding tracks are now Phase 7 (`beforeRead` hook + query-level filtering) and the bulk of Phase 8 (inspector views). |
+| 2026-04-26 | Phase 7 shipped end-to-end across six commits: `QueryPredicate` language with `$and` / `$or`, `applyBeforeRead` with per-`ReadContext` cache, predicate compiler relocated to `@byline/core`, adapter widening for `filters?: DocumentFilter[]` on the four lookup methods, wiring through every `CollectionHandle` read entry point and through `populateDocuments`, `_bypassBeforeRead` escape hatch, and `DocumentColumnFilter` so `status` / `path` compose correctly inside combinators. Companion track ("pull admin document reads through `CollectionHandle`") closed out at the same time — admin reads now flow through the public `ClientDocument` shape via a new admin client singleton, eliminating the parallel pipeline. 23 new unit tests + 13 new integration tests; the integration suite is fully green at 75/75. Worked examples and composition rules in [ACCESS-CONTROL-RECIPES.md](./ACCESS-CONTROL-RECIPES.md). Only outstanding auth track is now the bulk of Phase 8 (registered-collections / who-has-what inspector views). |
