@@ -1,97 +1,99 @@
-// 'use client'
+'use client'
 
-// /**
-//  * Copyright (c) Meta Platforms, Inc. and affiliates.
-//  *
-//  * This source code is licensed under the MIT license found in the
-//  * LICENSE file in the root directory of this source tree.
-//  *
-//  */
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ *
+ * Portions Copyright (c) Meta Platforms, Inc. and affiliates.
+ */
 
-// import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-// import { mergeRegister } from '@lexical/utils'
-// import {
-//   $getSelection,
-//   $isElementNode,
-//   $isRangeSelection,
-//   COMMAND_PRIORITY_LOW,
-//   PASTE_COMMAND,
-// } from 'lexical'
-// import { useEffect } from 'react'
+import { useEffect } from 'react'
 
-// import {
-//   $toggleLink,
-//   type LinkAttributes,
-//   LinkNode,
-//   TOGGLE_LINK_COMMAND,
-// } from '../../../nodes/link-nodes'
-// import { encodeRelativeUrl, validateUrl } from '../../../utils/url'
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { mergeRegister } from '@lexical/utils'
+import {
+  $getSelection,
+  $isElementNode,
+  $isRangeSelection,
+  COMMAND_PRIORITY_LOW,
+  PASTE_COMMAND,
+} from 'lexical'
 
-// export function LinkPlugin(): null {
-//   const [editor] = useLexicalComposerContext()
+import {
+  $toggleLink,
+  type LinkAttributes,
+  LinkNode,
+  TOGGLE_LINK_COMMAND,
+} from '../../../nodes/link-nodes'
+import { validateUrl } from '../../../utils/url'
 
-//   useEffect(() => {
-//     if (!editor.hasNodes([LinkNode])) {
-//       throw new Error('LinkPlugin: LinkNode not registered on editor')
-//     }
-//     return mergeRegister(
-//       editor.registerCommand(
-//         TOGGLE_LINK_COMMAND,
-//         (payload: LinkAttributes & { text?: string }) => {
-//           const linkAttributes = payload
-//           // TODO - revisit encoding / decoding of URL
-//           // validate
-//           // currently short-circuiting for custom relative URLs that begin with a forward slash
-//           if (
-//             linkAttributes?.linkType === 'custom' &&
-//             linkAttributes?.url?.startsWith('/') === false
-//           ) {
-//             if (validateUrl !== undefined && validateUrl(linkAttributes?.url) === false) {
-//               return false
-//             }
-//           }
+export function LinkPlugin(): null {
+  const [editor] = useLexicalComposerContext()
 
-//           $toggleLink(linkAttributes)
-//           return true
-//         },
-//         COMMAND_PRIORITY_LOW
-//       ),
-//       validateUrl !== undefined
-//         ? editor.registerCommand(
-//             PASTE_COMMAND,
-//             (event) => {
-//               const selection = $getSelection()
-//               if (
-//                 !$isRangeSelection(selection) ||
-//                 selection.isCollapsed() ||
-//                 !(event instanceof ClipboardEvent) ||
-//                 event.clipboardData == null
-//               ) {
-//                 return false
-//               }
-//               const clipboardText = event.clipboardData.getData('text')
-//               if (!validateUrl(clipboardText)) {
-//                 return false
-//               }
-//               // If we select nodes that are elements then avoid applying the link.
-//               if (!selection.getNodes().some((node) => $isElementNode(node))) {
-//                 const linkAttributes: LinkAttributes = {
-//                   linkType: 'custom',
-//                   url: clipboardText,
-//                 }
-//                 editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkAttributes)
-//                 event.preventDefault()
-//                 return true
-//               }
-//               return false
-//             },
-//             COMMAND_PRIORITY_LOW
-//           )
-//         : () => {
-//             // Don't paste arbitrary text as a link when there's no validate function
-//           }
-//     )
-//   }, [editor])
+  useEffect(() => {
+    if (!editor.hasNodes([LinkNode])) {
+      throw new Error('LinkPlugin: LinkNode not registered on editor')
+    }
 
-//   return null
-// }
+    return mergeRegister(
+      editor.registerCommand(
+        TOGGLE_LINK_COMMAND,
+        (payload: LinkAttributes | null) => {
+          if (payload === null) {
+            $toggleLink(payload)
+            return true
+          }
+
+          // For custom links, accept either a fully-formed URL or a
+          // root-relative path (starts with `/`). Drop the command when the
+          // URL is unusable so the toolbar doesn't insert garbage.
+          if (payload.linkType === 'custom') {
+            const url = payload.url ?? ''
+            if (!url.startsWith('/') && !validateUrl(url)) {
+              return false
+            }
+          }
+
+          $toggleLink(payload)
+          return true
+        },
+        COMMAND_PRIORITY_LOW
+      ),
+
+      editor.registerCommand(
+        PASTE_COMMAND,
+        (event) => {
+          const selection = $getSelection()
+          if (
+            !$isRangeSelection(selection) ||
+            selection.isCollapsed() ||
+            !(event instanceof ClipboardEvent) ||
+            event.clipboardData == null
+          ) {
+            return false
+          }
+          const clipboardText = event.clipboardData.getData('text')
+          if (!validateUrl(clipboardText)) {
+            return false
+          }
+          // Don't auto-link when the selection spans block-level nodes.
+          if (selection.getNodes().some((node) => $isElementNode(node))) {
+            return false
+          }
+          editor.dispatchCommand(TOGGLE_LINK_COMMAND, {
+            linkType: 'custom',
+            url: clipboardText,
+          })
+          event.preventDefault()
+          return true
+        },
+        COMMAND_PRIORITY_LOW
+      )
+    )
+  }, [editor])
+
+  return null
+}

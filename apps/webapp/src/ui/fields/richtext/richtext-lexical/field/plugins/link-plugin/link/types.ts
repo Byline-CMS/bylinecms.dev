@@ -12,9 +12,8 @@ export interface LinkData {
   text: null | string
 }
 
-export interface LinkDrawerProps {
+export interface LinkModalProps {
   isOpen: boolean
-  drawerSlug: string
   onClose: () => void
   onSubmit: (data: LinkData) => void
   data?: LinkData

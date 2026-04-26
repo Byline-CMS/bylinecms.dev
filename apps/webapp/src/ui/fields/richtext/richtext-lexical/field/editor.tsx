@@ -41,8 +41,8 @@ import { FloatingTextFormatToolbarPlugin } from './plugins/floating-text-format-
 // import { InlineImagePlugin } from './plugins/inline-image-plugin'
 import { LayoutPlugin } from './plugins/layout-plugin/layout-plugin'
 import { AutoLinkPlugin } from './plugins/link-plugin/auto-link'
-// import { LinkPlugin } from './plugins/link-plugin/link'
-// import { FloatingLinkEditorPlugin } from './plugins/link-plugin/link/floating-link-editor'
+import { LinkPlugin } from './plugins/link-plugin/link'
+import { FloatingLinkEditorPlugin } from './plugins/link-plugin/link/floating-link-editor'
 import { TableActionMenuPlugin } from './plugins/table-action-menu-plugin'
 import { TablePlugin as PayloadTablePlugin } from './plugins/table-plugin'
 import { ToolbarPlugin } from './plugins/toolbar-plugin'
@@ -163,7 +163,7 @@ export const Editor = memo(function Editor({
       >
         {/* <DragDropPaste /> */}
         {autoFocusPlugin && <AutoFocusPlugin />}
-        {/* {links && <LinkPlugin />} */}
+        {links && <LinkPlugin />}
         {autoEmbedPlugin && <AutoEmbedPlugin />}
         <TabIndentationPlugin />
         {autoLinkPlugin && <AutoLinkPlugin />}
@@ -203,9 +203,9 @@ export const Editor = memo(function Editor({
             {tablePlugin && <TablePlugin hasCellMerge={true} hasCellBackgroundColor={true} />}
             {floatingAnchorElem != null && !isSmallWidthViewport && (
               <>
-                {/* {floatingLinkEditorPlugin && (
+                {floatingLinkEditorPlugin && (
                   <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem} />
-                )} */}
+                )}
                 {tableActionMenuPlugin && (
                   <TableActionMenuPlugin anchorElem={floatingAnchorElem} cellMerge={false} />
                 )}

@@ -33,6 +33,7 @@ export const News: CollectionDefinition = {
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
+  linksInEditor: true, // See type definition for details.
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {

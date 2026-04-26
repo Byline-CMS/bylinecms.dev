@@ -668,6 +668,14 @@ export interface CollectionDefinition {
    * without `useAsPath` receive a UUID `path` instead.
    */
   useAsPath?: string
+
+  /***
+   * When `true`, the rich text editor's link plugin surfaces relation targets
+   * from this collection as linkable options. Requires the collection to have
+   * a `useAsTitle` field, which is used to label the options in the editor.
+   */
+  linksInEditor?: boolean
+
   /**
    * When `true`, the admin landing page displays a per-status document count
    * inside the collection card. Requires a database round-trip per collection

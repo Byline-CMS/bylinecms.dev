@@ -8,7 +8,6 @@ export interface LinkAttributes {
   doc?: {
     value: string
     relationTo: string
-    data: Record<string, unknown>
   } | null
 }
 
