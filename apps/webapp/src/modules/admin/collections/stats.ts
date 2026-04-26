@@ -8,10 +8,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { assertActorCanPerform, getServerConfig } from '@byline/core'
-
 import { ensureCollection } from '@/lib/api-utils'
-import { getAdminRequestContext } from '@/lib/auth-context'
+import { getAdminBylineClient } from '@/lib/byline-client'
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -32,12 +30,10 @@ const getCollectionStatsFn = createServerFn({ method: 'GET' })
     const config = await ensureCollection(data.collection)
     if (!config) return { stats: [] as CollectionStatusCount[] }
 
-    assertActorCanPerform(await getAdminRequestContext(), data.collection, 'read')
-
-    const db = getServerConfig().db
-    const counts = await db.queries.documents.getDocumentCountsByStatus({
-      collection_id: config.collection.id,
-    })
+    // Routes through CollectionHandle.countByStatus so per-status counts
+    // reflect the actor's beforeRead predicate (multi-tenant scoping,
+    // owner-only drafts, etc).
+    const counts = await getAdminBylineClient().collection(data.collection).countByStatus()
 
     return { stats: counts as CollectionStatusCount[] }
   })

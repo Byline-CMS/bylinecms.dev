@@ -692,16 +692,24 @@ export class DocumentQueries implements IDocumentQueries {
    */
   async getDocumentCountsByStatus({
     collection_id,
+    filters,
   }: {
     collection_id: string
+    filters?: DocumentFilter[]
   }): Promise<Array<{ status: string; count: number }>> {
+    const conditions: SQL[] = [eq(currentDocumentsView.collection_id, collection_id)]
+    for (const f of filters ?? []) {
+      conditions.push(
+        this.buildFilterExists(f, 'en', sql`${currentDocumentsView.id}`, undefined, 0)
+      )
+    }
     const rows = await this.db
       .select({
         status: currentDocumentsView.status,
         count: sql<number>`count(*)::int`,
       })
       .from(currentDocumentsView)
-      .where(eq(currentDocumentsView.collection_id, collection_id))
+      .where(and(...conditions))
       .groupBy(currentDocumentsView.status)
 
     return rows.map((r) => ({

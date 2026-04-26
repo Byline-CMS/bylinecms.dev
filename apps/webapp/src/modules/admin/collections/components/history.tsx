@@ -151,7 +151,7 @@ export const HistoryView = ({
             <RouterPager
               lng="en"
               page={data?.meta.page}
-              count={data?.meta.total_pages}
+              count={data?.meta.totalPages}
               showFirstButton
               showLastButton
               componentName="pagerTop"
@@ -180,14 +180,14 @@ export const HistoryView = ({
               </Table.Header>
 
               <Table.Body>
-                {data?.documents?.map((document, rowIndex) => {
-                  const versionId = (document as any).document_version_id as string | undefined
-                  const { total, page, page_size, desc } = data.meta
+                {data?.docs?.map((document, rowIndex) => {
+                  const versionId = document.versionId
+                  const { total, page, pageSize, desc } = data.meta
                   const versionNumber = desc
-                    ? total - (page - 1) * page_size - rowIndex
-                    : (page - 1) * page_size + rowIndex + 1
+                    ? total - (page - 1) * pageSize - rowIndex
+                    : (page - 1) * pageSize + rowIndex + 1
                   return (
-                    <Table.Row key={versionId ?? document.document_id}>
+                    <Table.Row key={versionId ?? document.id}>
                       <Table.Cell className="text-left">
                         {versionId && currentDocument ? (
                           <IconButton
@@ -200,9 +200,7 @@ export const HistoryView = ({
                             onClick={() =>
                               setSelectedVersion({
                                 versionId,
-                                label: new Date(
-                                  (document as any).created_at ?? ''
-                                ).toLocaleString(),
+                                label: new Date(document.createdAt).toLocaleString(),
                               })
                             }
                           >
@@ -229,9 +227,7 @@ export const HistoryView = ({
                                 onClick={() =>
                                   setSelectedVersion({
                                     versionId,
-                                    label: new Date(
-                                      (document as any).created_at ?? ''
-                                    ).toLocaleString(),
+                                    label: new Date(document.createdAt).toLocaleString(),
                                   })
                                 }
                               >
@@ -252,7 +248,7 @@ export const HistoryView = ({
                                 params={{
                                   ...lngParam(uiLocale),
                                   collection,
-                                  id: document.document_id,
+                                  id: document.id,
                                 }}
                               >
                                 {column.formatter
@@ -275,7 +271,7 @@ export const HistoryView = ({
                             )
                           ) : column.fieldName === 'status' && workflowStatuses ? (
                             <StatusBadge
-                              status={(document as any).status}
+                              status={document.status}
                               workflowStatuses={workflowStatuses}
                             />
                           ) : (
@@ -291,7 +287,7 @@ export const HistoryView = ({
                 })}
               </Table.Body>
             </Table>
-            {padRows(6 - (data?.documents?.length ?? 0))}
+            {padRows(6 - (data?.docs?.length ?? 0))}
           </Table.Container>
           <div className="options flex flex-col gap-2 sm:flex-row items-start sm:items-center mb-5">
             <Select<string>
@@ -312,7 +308,7 @@ export const HistoryView = ({
               smoothScrollToTop={true}
               lng="en"
               page={data?.meta.page}
-              count={data?.meta.total_pages}
+              count={data?.meta.totalPages}
               showFirstButton
               showLastButton
               componentName="pagerBottom"

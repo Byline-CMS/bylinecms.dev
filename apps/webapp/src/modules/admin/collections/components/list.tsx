@@ -194,7 +194,7 @@ export const ListView = ({
           <RouterPager
             lng="en"
             page={data?.meta.page}
-            count={data?.meta.total_pages}
+            count={data?.meta.totalPages}
             showFirstButton
             showLastButton
             componentName="pagerTop"
@@ -222,9 +222,9 @@ export const ListView = ({
             </Table.Header>
 
             <Table.Body>
-              {data?.documents?.map((document) => {
+              {data?.docs?.map((document) => {
                 return (
-                  <Table.Row key={document.document_id}>
+                  <Table.Row key={document.id}>
                     {columns.map((column) => (
                       <Table.Cell
                         key={String(column.fieldName)}
@@ -242,7 +242,7 @@ export const ListView = ({
                             params={{
                               ...lngParam(uiLocale),
                               collection: data.included.collection.path,
-                              id: document.document_id,
+                              id: document.id,
                             }}
                           >
                             {column.formatter
@@ -261,9 +261,9 @@ export const ListView = ({
                           )
                         ) : column.fieldName === 'status' && workflowStatuses ? (
                           <StatusBadge
-                            status={(document as any).status}
+                            status={document.status}
                             workflowStatuses={workflowStatuses}
-                            hasPublishedVersion={(document as any).has_published_version}
+                            hasPublishedVersion={document.hasPublishedVersion}
                           />
                         ) : (
                           String(getColumnValue(document, column.fieldName as string) ?? '')
@@ -275,7 +275,7 @@ export const ListView = ({
               })}
             </Table.Body>
           </Table>
-          {padRows(6 - (data?.documents?.length ?? 0))}
+          {padRows(6 - (data?.docs?.length ?? 0))}
         </Table.Container>
         <div className="options flex flex-col gap-2 sm:flex-row items-start sm:items-center mb-5">
           <Select<string>
@@ -296,7 +296,7 @@ export const ListView = ({
             smoothScrollToTop={true}
             lng="en"
             page={data?.meta.page}
-            count={data?.meta.total_pages}
+            count={data?.meta.totalPages}
             showFirstButton
             showLastButton
             componentName="pagerBottom"

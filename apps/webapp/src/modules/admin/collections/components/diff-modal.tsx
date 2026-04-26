@@ -14,8 +14,18 @@ import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
 import { getCollectionDocumentVersion } from '@/modules/admin/collections'
 
 // Keys that are per-version metadata rather than content — strip before diffing
-// so the diff focuses on meaningful content changes.
-const STRIP_KEYS = new Set(['document_version_id', 'created_at', 'updated_at', '_publishedVersion'])
+// so the diff focuses on meaningful content changes. ClientDocument-shape
+// metadata keys after the Phase 7 admin migration.
+const STRIP_KEYS = new Set([
+  'id',
+  'versionId',
+  'path',
+  'status',
+  'createdAt',
+  'updatedAt',
+  'hasPublishedVersion',
+  '_publishedVersion',
+])
 
 function stripMeta(doc: Record<string, unknown>): Record<string, unknown> {
   // With the nested document shape, extract just the fields for diffing.
@@ -30,7 +40,7 @@ export interface DiffModalProps {
   onDismiss: () => void
   collection: string
   documentId: string
-  /** The document_version_id of the historical version to compare. */
+  /** The `versionId` of the historical version to compare. */
   versionId: string
   /** A human-readable label for the historical version (e.g. a date string). */
   versionLabel: string

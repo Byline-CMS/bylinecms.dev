@@ -43,9 +43,11 @@ import type {
   CreateOptions,
   FindByIdOptions,
   FindByPathOptions,
+  FindByVersionOptions,
   FindOneOptions,
   FindOptions,
   FindResult,
+  HistoryOptions,
   UpdateOptions,
 } from './types.js'
 
@@ -359,26 +361,126 @@ export class CollectionHandle {
   }
 
   /**
-   * Count documents, optionally filtered by status.
+   * Count documents visible to the current actor, optionally filtered by
+   * status.
    *
-   * When called with no arguments or `where.status`, uses the optimised
-   * `getDocumentCountsByStatus()` query which groups by status.
+   * Applies the collection's `beforeRead` predicate so the count reflects
+   * only the rows the actor can see (multi-tenant scoping, owner-only
+   * drafts, soft-delete hide, etc).
    */
-  async count(where?: { status?: string }): Promise<number> {
-    await this.resolveAndAssertRead()
-    const collectionId = await this.client.resolveCollectionId(this.definition.path)
-
-    const counts = await this.client.db.queries.documents.getDocumentCountsByStatus({
-      collection_id: collectionId,
+  async count(where?: { status?: string; _bypassBeforeRead?: true }): Promise<number> {
+    const counts = await this.countByStatus({
+      _bypassBeforeRead: where?._bypassBeforeRead,
     })
-
     if (where?.status) {
       const match = counts.find((c) => c.status === where.status)
       return match?.count ?? 0
     }
-
-    // No status filter — sum all statuses.
     return counts.reduce((sum, c) => sum + c.count, 0)
+  }
+
+  /**
+   * Per-status document counts for this collection. Used by admin status
+   * bars / dashboards. Applies `beforeRead` so per-status counts reflect
+   * only the actor's visible rows.
+   */
+  async countByStatus(
+    options: { _bypassBeforeRead?: true } = {}
+  ): Promise<Array<{ status: string; count: number }>> {
+    const requestContext = await this.resolveAndAssertRead()
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      createReadContext(),
+      options._bypassBeforeRead
+    )
+    return this.client.db.queries.documents.getDocumentCountsByStatus({
+      collection_id: collectionId,
+      filters,
+    })
+  }
+
+  /**
+   * Fetch the version history for a single document. Applies `beforeRead`
+   * as an access gate via `findById` — if the actor can't see the
+   * document at all, history returns an empty result rather than
+   * leaking version metadata.
+   *
+   * Each version in the response is a shaped `ClientDocument`. Pagination
+   * mirrors the storage adapter's `{ documents, meta }` shape, then is
+   * mapped to the same `{ docs, meta }` envelope `find()` returns.
+   */
+  async history<F = Record<string, any>>(
+    documentId: string,
+    options: HistoryOptions = {}
+  ): Promise<FindResult<F>> {
+    const _requestContext = await this.resolveAndAssertRead()
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const readCtx = options._readContext ?? createReadContext()
+    const locale = options.locale ?? 'en'
+    const page = options.page ?? 1
+    const pageSize = options.pageSize ?? 20
+
+    // Access gate. `findById` runs `beforeRead`; a `null` here means either
+    // the document does not exist or the actor's predicate excludes it. In
+    // both cases an empty history is the correct response.
+    if (!options._bypassBeforeRead) {
+      const accessible = await this.findById(documentId, {
+        locale,
+        _readContext: readCtx,
+      })
+      if (accessible == null) {
+        return {
+          docs: [],
+          meta: { total: 0, page, pageSize, totalPages: 0 },
+        }
+      }
+    }
+
+    const result = await this.client.db.queries.documents.getDocumentHistory({
+      collection_id: collectionId,
+      document_id: documentId,
+      locale,
+      page,
+      page_size: pageSize,
+      order: options.order,
+      desc: options.desc,
+    })
+
+    return {
+      docs: result.documents.map((d) => this.shapeWithPopulated<F>(d)),
+      meta: {
+        total: result.meta.total,
+        page: result.meta.page,
+        pageSize: result.meta.page_size,
+        totalPages: result.meta.total_pages,
+      },
+    }
+  }
+
+  /**
+   * Fetch a specific version of a document by its `documentVersionId`.
+   * Used by admin diff views.
+   *
+   * Pass-through to `getDocumentByVersion`; access enforcement falls back
+   * to the collection-level `read` ability (asserted at the top of every
+   * read entry point). Row-level `beforeRead` does **not** apply here —
+   * version-by-id is a history-viewing primitive and the caller is
+   * expected to have already passed an access check on the parent
+   * document. Use `history()` instead if you want the access gate.
+   */
+  async findByVersion<F = Record<string, any>>(
+    versionId: string,
+    options: FindByVersionOptions<F> = {}
+  ): Promise<ClientDocument<F> | null> {
+    await this.resolveAndAssertRead()
+    const locale = options.locale ?? 'en'
+    const raw = await this.client.db.queries.documents.getDocumentByVersion({
+      document_version_id: versionId,
+      locale,
+    })
+    if (raw == null) return null
+    return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
 
   // -------------------------------------------------------------------------

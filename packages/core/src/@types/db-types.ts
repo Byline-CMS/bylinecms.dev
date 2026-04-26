@@ -415,6 +415,12 @@ export interface IDocumentQueries {
    */
   getDocumentCountsByStatus(params: {
     collection_id: string
+    /** See `getDocumentById.filters`. Used by `CollectionHandle.countByStatus`
+     *  to apply `beforeRead`-hook scoping so per-status counts reflect only
+     *  the rows the actor can see. */
+    filters?: DocumentFilter[]
+    /** See `getDocumentById.requestContext`. */
+    requestContext?: RequestContext
   }): Promise<Array<{ status: string; count: number }>>
 
   /**

@@ -196,6 +196,33 @@ export interface FindByPathOptions<F = Record<string, any>>
   locale?: string
 }
 
+/**
+ * Options for `CollectionHandle.history(documentId, options)`. The history
+ * endpoint is paginated; `order` / `desc` mirror the storage adapter's
+ * version-row sort axes. `_bypassBeforeRead` skips the `findById` access
+ * gate for admin tooling.
+ */
+export interface HistoryOptions extends BeforeReadControls {
+  locale?: string
+  page?: number
+  pageSize?: number
+  order?: string
+  desc?: boolean
+  /** @internal — see `_readContext` on read options. */
+  _readContext?: ReadContext
+}
+
+/**
+ * Options for `CollectionHandle.findByVersion(versionId, options)`. No
+ * `BeforeReadControls` — `findByVersion` is a low-level pass-through
+ * intended for admin diff views; row-level scoping is the caller's
+ * responsibility (typically by gating with a prior `findById` call).
+ */
+export interface FindByVersionOptions<F = Record<string, any>> {
+  select?: (keyof F & string)[] | string[]
+  locale?: string
+}
+
 // ---------------------------------------------------------------------------
 // Write options
 // ---------------------------------------------------------------------------

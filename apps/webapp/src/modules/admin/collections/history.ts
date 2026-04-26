@@ -8,16 +8,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import {
-  assertActorCanPerform,
-  ERR_NOT_FOUND,
-  getCollectionSchemasForPath,
-  getLogger,
-  getServerConfig,
-} from '@byline/core'
+import { ERR_NOT_FOUND, getCollectionSchemasForPath, getLogger } from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
-import { getAdminRequestContext } from '@/lib/auth-context'
+import { getAdminBylineClient } from '@/lib/byline-client'
 import { serialise } from './utils'
 
 // ---------------------------------------------------------------------------
@@ -48,28 +42,32 @@ export const getCollectionDocumentHistory = createServerFn({ method: 'GET' })
       }).log(getLogger())
     }
 
-    assertActorCanPerform(await getAdminRequestContext(), path, 'read')
-
-    const db = getServerConfig().db
-    const result = await db.queries.documents.getDocumentHistory({
-      collection_id: config.collection.id,
-      document_id: id,
-      locale: params.locale ?? 'en',
-      page: params.page,
-      page_size: params.page_size,
-      order: params.order,
-      desc: params.desc,
-    })
+    // Routes through CollectionHandle.history so the access gate
+    // (`beforeRead` via `findById`) is applied consistently with the rest
+    // of the read pipeline. When the actor's predicate excludes the
+    // document, history returns an empty result rather than leaking
+    // version metadata.
+    const result = await getAdminBylineClient()
+      .collection(path)
+      .history(id, {
+        locale: params.locale ?? 'en',
+        page: params.page,
+        pageSize: params.page_size,
+        order: params.order,
+        desc: params.desc,
+      })
 
     const serialised = serialise(result)
+    const { history } = getCollectionSchemasForPath(path)
 
     // When locale is 'all' the storage layer returns localized fields as
     // locale-keyed objects which don't conform to the typed Zod schema — skip
-    // validation in that case, same as getCollectionDocument.
+    // validation in that case, same as getCollectionDocument. Cast through
+    // the inferred Zod type so both branches share one return shape; the
+    // runtime contents are structurally compatible.
     if (params.locale === 'all') {
-      return serialised
+      return serialised as unknown as ReturnType<typeof history.parse>
     }
 
-    const { history } = getCollectionSchemasForPath(path)
     return history.parse(serialised)
   })

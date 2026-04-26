@@ -33,11 +33,11 @@ import type { UseNavigationGuard } from './navigation-guard'
 
 /** Metadata about a previously published version that is still live. */
 export interface PublishedVersionInfo {
-  document_version_id: string
-  document_id: string
+  id: string
+  versionId: string
   status: string
-  created_at: string | Date
-  updated_at: string | Date
+  createdAt: string | Date
+  updatedAt: string | Date
 }
 
 /** Props shared by both the public FormRenderer and its internal FormContent component. */
@@ -103,20 +103,20 @@ const FormStatusDisplay = ({
           <span className="truncate overflow-hidden">{statusLabel}</span>
         </div>
 
-        {initialData?.updated_at != null && (
+        {initialData?.updatedAt != null && (
           <div className="last-modified flex items-center gap-1 min-w-0">
             <span className="muted shrink-0">Last modified:</span>
             <span className="truncate overflow-hidden">
-              <LocalDateTime value={initialData.updated_at} />
+              <LocalDateTime value={initialData.updatedAt} />
             </span>
           </div>
         )}
 
-        {initialData?.created_at != null && (
+        {initialData?.createdAt != null && (
           <div className="created flex items-center gap-1 min-w-0">
             <span className="muted shrink-0">Created:</span>
             <span className="truncate overflow-hidden">
-              <LocalDateTime value={initialData.created_at} />
+              <LocalDateTime value={initialData.createdAt} />
             </span>
           </div>
         )}
@@ -126,9 +126,9 @@ const FormStatusDisplay = ({
         <div className="published-version-notice inline leading-4 md:leading-3.5">
           <span className="muted text-[0.8rem]">
             A published version is currently live.{' '}
-            {publishedVersion.updated_at ? (
+            {publishedVersion.updatedAt ? (
               <span>
-                Published on <LocalDateTime value={publishedVersion.updated_at} />
+                Published on <LocalDateTime value={publishedVersion.updatedAt} />
               </span>
             ) : (
               ''
@@ -711,7 +711,7 @@ export const FormRenderer = ({
 
   return (
     <FormProvider
-      key={`${initialLocale ?? 'default'}-${initialData?.document_version_id ?? ''}`}
+      key={`${initialLocale ?? 'default'}-${initialData?.versionId ?? ''}`}
       initialData={initialData}
     >
       <FormContent

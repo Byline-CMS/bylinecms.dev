@@ -237,7 +237,7 @@ export function MediaListView({
           <RouterPager
             lng="en"
             page={data.meta.page}
-            count={data.meta.total_pages}
+            count={data.meta.totalPages}
             showFirstButton
             showLastButton
             componentName="pagerTop"
@@ -246,11 +246,11 @@ export function MediaListView({
         </div>
 
         {/* ---- Card grid ---- */}
-        {data.documents.length === 0 ? (
+        {data.docs.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6 mt-4">
-            {(data.documents as any[]).map((doc) => {
+            {(data.docs as any[]).map((doc) => {
               const fields = doc.fields ?? {}
               const img = fields.image as StoredFileValue | null | undefined
               const thumbUrl = img?.storage_url
@@ -259,13 +259,13 @@ export function MediaListView({
                   : img.storage_url
                 : null
 
-              const updatedAt = doc.updated_at ?? null
+              const updatedAt = doc.updatedAt ?? null
 
               return (
                 <Link
-                  key={doc.document_id}
+                  key={doc.id}
                   to="/{-$lng}/admin/collections/$collection/$id"
-                  params={{ collection: collectionPath, id: doc.document_id }}
+                  params={{ collection: collectionPath, id: doc.id }}
                   className="group flex flex-col overflow-hidden rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-canvas-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors no-underline"
                 >
                   {/* Thumbnail */}
@@ -318,7 +318,7 @@ export function MediaListView({
             smoothScrollToTop={true}
             lng="en"
             page={data.meta.page}
-            count={data.meta.total_pages}
+            count={data.meta.totalPages}
             showFirstButton
             showLastButton
             componentName="pagerBottom"

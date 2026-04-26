@@ -9,15 +9,15 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import {
-  assertActorCanPerform,
   ERR_NOT_FOUND,
   getCollectionSchemasForPath,
   getLogger,
   getServerConfig,
+  type QueryPredicate,
 } from '@byline/core'
 
 import { ensureCollection } from '@/lib/api-utils'
-import { getAdminRequestContext } from '@/lib/auth-context'
+import { getAdminBylineClient } from '@/lib/byline-client'
 import { serialise } from './utils'
 
 // ---------------------------------------------------------------------------
@@ -51,49 +51,53 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       }).log(getLogger())
     }
 
-    assertActorCanPerform(await getAdminRequestContext(), path, 'read')
-
-    const db = getServerConfig().db
+    const client = getAdminBylineClient()
+    const handle = client.collection(path)
     const pageSize = params.page_size ?? 20
 
-    const result = await db.queries.documents.findDocuments({
-      collection_id: config.collection.id,
+    // Routes through CollectionHandle.find so the read pipeline (beforeRead
+    // → findDocuments → afterRead) is identical to any non-admin client.
+    // `status: 'any'` keeps admin behaviour: in-progress drafts are visible
+    // even when no published version exists. The `where.status` filter
+    // (when supplied) further narrows to a specific exact status, and
+    // `where.query` triggers the configured search-fields text search.
+    const where: QueryPredicate = {}
+    if (params.status) where.status = params.status
+    if (params.query) where.query = params.query
+
+    const result = await handle.find({
+      where: Object.keys(where).length > 0 ? where : undefined,
+      sort: params.order ? { [params.order]: params.desc === false ? 'asc' : 'desc' } : undefined,
       locale: params.locale ?? 'en',
       page: params.page,
       pageSize,
-      orderBy: params.order,
-      orderDirection: params.desc === true ? 'desc' : params.desc === false ? 'asc' : undefined,
-      query: params.query,
-      status: params.status,
-      fields: params.fields,
+      select: params.fields,
+      status: 'any',
     })
 
-    // Determine which documents on this page have a published version anywhere
-    // in their version history (even if the current version is a newer draft).
-    // This powers the green "live" indicator dot in the list UI, so editors can
-    // see at a glance which documents are publicly visible.
-    const documentIds = result.documents.map((d: any) => d.document_id)
+    // Decorate each doc with `hasPublishedVersion` so the list UI can show a
+    // "live" indicator on documents that still have a published version
+    // even when the current row is a newer draft. This is admin-bespoke
+    // metadata, so it sits alongside the public ClientDocument shape rather
+    // than inside it.
+    const documentIds = result.docs.map((d) => d.id)
     const publishedSet =
       documentIds.length > 0
-        ? await db.queries.documents.getPublishedDocumentIds({
+        ? await getServerConfig().db.queries.documents.getPublishedDocumentIds({
             collection_id: config.collection.id,
             document_ids: documentIds,
           })
         : new Set<string>()
 
-    for (const doc of result.documents) {
-      ;(doc as any).has_published_version = publishedSet.has((doc as any).document_id)
-    }
+    const docs = result.docs.map((d) => ({
+      ...d,
+      hasPublishedVersion: publishedSet.has(d.id),
+    }))
 
-    // Assemble the response shape the admin UI expects.
-    const totalPages = Math.ceil(result.total / pageSize)
     const response = {
-      documents: result.documents,
+      docs,
       meta: {
-        total: result.total,
-        page: params.page ?? 1,
-        page_size: pageSize,
-        total_pages: totalPages,
+        ...result.meta,
         order: params.order,
         desc: params.desc,
       },

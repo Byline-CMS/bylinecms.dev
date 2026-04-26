@@ -225,12 +225,13 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
   const statusEnum = z.enum([statuses[0], ...statuses.slice(1)] as [string, ...string[]])
 
   return z.object({
-    document_version_id: z.uuid().optional(),
-    document_id: z.uuid(),
+    id: z.uuid(),
+    versionId: z.uuid().optional(),
+    path: z.string().optional(),
     status: statusEnum,
-    has_published_version: z.boolean().optional(),
-    created_at: z.iso.datetime(),
-    updated_at: z.iso.datetime(),
+    hasPublishedVersion: z.boolean().optional(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
   })
 }
 
@@ -254,9 +255,9 @@ export const createFieldsSchema = (fields: Field[], strict = true) => {
 export const createListMetaSchema = () =>
   z.object({
     page: z.number().int().positive(),
-    page_size: z.number().int().positive(),
+    pageSize: z.number().int().positive(),
     total: z.number().int().nonnegative(),
-    total_pages: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
     order: z.string().optional(),
     desc: z.boolean().optional(),
   })
@@ -308,14 +309,14 @@ export const createCollectionSchemas = (collection: CollectionDefinition) => {
     fields: fieldsSchema,
     full: fullSchema,
     list: z.object({
-      documents: z.array(fullSchemaLenient),
+      docs: z.array(fullSchemaLenient),
       meta: createListMetaSchema(),
       included: z.object({
         collection: createCollectionMetaSchema(collection),
       }),
     }),
     history: z.object({
-      documents: z.array(fullSchemaLenient),
+      docs: z.array(fullSchemaLenient),
       meta: createListMetaSchema(),
     }),
     create: fieldsSchema,

@@ -120,8 +120,8 @@ export const RelationPicker = ({
     })
       .then((response) => {
         if (cancelled) return
-        setDocuments(response.documents)
-        setTotalPages(response.meta.total_pages ?? 1)
+        setDocuments(response.docs)
+        setTotalPages(response.meta.totalPages ?? 1)
         setCollectionId(response.included.collection.id as string)
       })
       .catch((err) => {
@@ -145,7 +145,7 @@ export const RelationPicker = ({
 
   const handleSelect = useCallback(() => {
     if (!selectedDocumentId || !collectionId) return
-    const record = documents.find((d) => d?.document_id === selectedDocumentId)
+    const record = documents.find((d) => d?.id === selectedDocumentId)
     onSelect({
       target_document_id: selectedDocumentId,
       target_collection_id: collectionId,
@@ -195,7 +195,7 @@ export const RelationPicker = ({
               {documents.length > 0 && (
                 <ul className="divide-y divide-gray-700">
                   {documents.map((doc) => {
-                    const id = doc.document_id as string
+                    const id = doc.id as string
                     const selected = selectedDocumentId === id
                     return (
                       <li key={id}>

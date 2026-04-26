@@ -33,6 +33,7 @@
   "dependencies": {
     "@byline/admin": "workspace:*",
     "@byline/auth": "workspace:*",
+    "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
     "@byline/db-postgres": "workspace:*",
     "@byline/storage-local": "workspace:*",

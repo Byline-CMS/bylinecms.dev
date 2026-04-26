@@ -62,7 +62,7 @@ export const EditView = ({
   const handleLocaleChange = (newLocale: string) => {
     navigate({
       to: '/{-$lng}/admin/collections/$collection/$id',
-      params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
+      params: { ...lngParam(uiLocale), collection: path, id: String(initialData.id) },
       search: { locale: newLocale },
     })
   }
@@ -70,7 +70,7 @@ export const EditView = ({
   const handleStatusChange = async (status: string) => {
     try {
       await updateDocumentStatus({
-        data: { collection: path, id: String(initialData.document_id), status },
+        data: { collection: path, id: String(initialData.id), status },
       })
       toastManager.add({
         title: `${labels.singular} Status Update`,
@@ -89,7 +89,7 @@ export const EditView = ({
       // Refresh the page to reflect the new status.
       navigate({
         to: '/{-$lng}/admin/collections/$collection/$id',
-        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
+        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.id) },
         search: (prev) => ({ ...prev }),
       })
     } catch (err) {
@@ -117,7 +117,7 @@ export const EditView = ({
 
   const handleUnpublish = async () => {
     try {
-      await unpublishDocument({ data: { collection: path, id: String(initialData.document_id) } })
+      await unpublishDocument({ data: { collection: path, id: String(initialData.id) } })
       toastManager.add({
         title: `${labels.singular} Unpublish`,
         description: 'Published version has been taken offline.',
@@ -134,7 +134,7 @@ export const EditView = ({
       })
       navigate({
         to: '/{-$lng}/admin/collections/$collection/$id',
-        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
+        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.id) },
         search: (prev) => ({ ...prev }),
       })
     } catch (err) {
@@ -158,7 +158,7 @@ export const EditView = ({
 
   const handleDelete = async () => {
     try {
-      await deleteDocument({ data: { collection: path, id: String(initialData.document_id) } })
+      await deleteDocument({ data: { collection: path, id: String(initialData.id) } })
       toastManager.add({
         title: `${labels.singular} Deletion`,
         description: `${labels.singular} has been deleted.`,
@@ -210,9 +210,9 @@ export const EditView = ({
       await updateCollectionDocumentWithPatches({
         data: {
           collection: path,
-          id: String(initialData.document_id),
+          id: String(initialData.id),
           patches,
-          document_version_id: initialData.document_version_id as string | undefined,
+          versionId: initialData.versionId as string | undefined,
           locale,
           ...(systemPath ? { path: systemPath } : {}),
         },
@@ -239,7 +239,7 @@ export const EditView = ({
       // updated publishedVersion metadata.
       navigate({
         to: '/{-$lng}/admin/collections/$collection/$id',
-        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.document_id) },
+        params: { ...lngParam(uiLocale), collection: path, id: String(initialData.id) },
         search: (prev) => ({ ...prev }),
       })
     } catch (err) {
@@ -280,7 +280,7 @@ export const EditView = ({
           headerSlot={
             <ViewMenu
               collection={path}
-              documentId={String(initialData.document_id)}
+              documentId={String(initialData.id)}
               activeView="edit"
               locale={locale}
             />

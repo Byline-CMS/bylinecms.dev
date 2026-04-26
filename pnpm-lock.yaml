@@ -32,6 +32,9 @@ importers:
       '@byline/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@byline/client':
+        specifier: workspace:*
+        version: link:../../packages/client
       '@byline/core':
         specifier: workspace:*
         version: link:../../packages/core

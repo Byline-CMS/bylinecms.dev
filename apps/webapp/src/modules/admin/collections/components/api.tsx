@@ -36,7 +36,7 @@ export const ApiView = ({
           <h2 className="mb-2">{labels.singular} API</h2>
           <ViewMenu
             collection={path}
-            documentId={String(initialData.document_id)}
+            documentId={String(initialData.id)}
             activeView="api"
             locale={locale}
             depth={depth}
