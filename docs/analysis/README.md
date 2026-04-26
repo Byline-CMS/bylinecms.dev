@@ -21,6 +21,7 @@ Current documents:
 - [Collection versioning analysis](./COLLECTION-VERSIONING-ANALYSIS.md)
 - [Document path analysis](./DOCUMENT-PATH-ANALYSIS.md)
 - [AuthN / AuthZ analysis](./AUTHN-AUTHZ-ANALYSIS.md)
+- [Access control recipes](./ACCESS-CONTROL-RECIPES.md)
 - [Phases of work](./PHASES-OF-WORK.md)
 
 These are intentionally working documents. Some describe shipped decisions,
