@@ -6,9 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { RequestContext } from '@byline/auth'
+
 import type { ReadContext } from './db-types.js'
 import type { FieldSetData, FieldSetDataAllLocales } from './field-data-types.js'
 import type { Block, DefaultValue, Field } from './field-types.js'
+import type { QueryPredicate } from './query-predicate.js'
 import type { IStorageProvider } from './storage-types.js'
 import type { Prettify } from './type-utils.js'
 
@@ -449,6 +452,59 @@ export interface AfterReadContext {
 }
 
 /**
+ * Context passed to `beforeRead` hooks.
+ *
+ * Fires once per `IDocumentQueries.findDocuments` call (and once per populate
+ * batch, per target collection) **before** any DB work. The hook returns a
+ * `QueryPredicate` that the query layer compiles into the same `EXISTS` /
+ * `LEFT JOIN LATERAL` SQL machinery the client's existing `where` parser
+ * emits, then ANDs onto whatever the caller passed in `where`.
+ *
+ * Returning `undefined` (or simply `void`) means "no scoping" — typically
+ * the superuser / unconditional-read branch. Use a sentinel predicate that
+ * yields no rows (e.g. `{ id: '__none__' }`) when the actor cannot read
+ * anything; do not throw, because callers expect empty list results rather
+ * than collapsed endpoints.
+ *
+ * The hook receives:
+ *   - `requestContext` — the authenticated request, including `actor`. The
+ *     actor is the primary input to most predicates.
+ *   - `readContext`    — the same per-request context threaded through
+ *     populate and `afterRead`. Carries a hook-result cache so async
+ *     predicates don't re-run across populate fanout.
+ *   - `collectionPath` — the collection being queried (useful when the
+ *     same hook function is reused across collections).
+ *
+ * See `docs/analysis/AUTHN-AUTHZ-ANALYSIS.md` (Phase 7) for the strategic
+ * rationale and `docs/analysis/ACCESS-CONTROL-RECIPES.md` for worked
+ * examples.
+ */
+export interface BeforeReadContext {
+  collectionPath: string
+  requestContext: RequestContext
+  readContext: ReadContext
+}
+
+/**
+ * A `beforeRead` hook function. Returns a `QueryPredicate` to scope the
+ * query, or `void`/`undefined` to apply no scoping. May be async — actors
+ * needing tenant lookups or role-metadata fetches commonly are.
+ */
+export type BeforeReadHookFn = (
+  ctx: BeforeReadContext
+) => QueryPredicate | void | Promise<QueryPredicate | void>
+
+/**
+ * Slot type for `beforeRead`.
+ *
+ * Distinct from the generic `CollectionHookSlot` because `beforeRead`
+ * returns a value (a predicate). When multiple hook functions are
+ * configured, their predicates are combined with implicit AND in
+ * declaration order; functions that return `void` are skipped.
+ */
+export type BeforeReadHookSlot = BeforeReadHookFn | BeforeReadHookFn[]
+
+/**
  * A `beforeUpload` hook function. May return a modified filename string to
  * override the sanitised default; returning `void` keeps the default.
  */
@@ -528,6 +584,16 @@ export interface CollectionHooks {
   afterDelete?: CollectionHookSlot<DeleteContext>
 
   // -- Document read --------------------------------------------------------
+  /**
+   * Runs once per `findDocuments` call (and once per populate batch, per
+   * target collection), **before** any DB work. Returns a `QueryPredicate`
+   * that the query layer ANDs onto the caller's `where` to enforce
+   * read-side row scoping (multi-tenant, owner-only-drafts, soft-delete
+   * hide, etc). Returning `void` applies no scoping. Multiple functions
+   * combine with implicit AND. See
+   * `docs/analysis/ACCESS-CONTROL-RECIPES.md`.
+   */
+  beforeRead?: BeforeReadHookSlot
   /**
    * Runs once per materialised document on every read path that flows
    * through `@byline/client` or `populateDocuments`. Can mutate

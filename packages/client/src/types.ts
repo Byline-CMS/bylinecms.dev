@@ -13,10 +13,17 @@ import type {
   IDbAdapter,
   IStorageProvider,
   PopulateSpec,
+  PredicateValue,
+  QueryPredicate,
   ReadContext,
   ReadMode,
   SlugifierFn,
 } from '@byline/core'
+
+// Re-exported for callers who reach the predicate language through the
+// client surface. The canonical definitions live in `@byline/core` so
+// hooks (`CollectionHooks.beforeRead`) and the client share one type.
+export type { FilterOperators, PredicateValue, QueryPredicate } from '@byline/core'
 
 // ---------------------------------------------------------------------------
 // Client construction
@@ -123,7 +130,26 @@ interface StatusControls {
   status?: ReadMode
 }
 
-export interface FindOptions<F = Record<string, any>> extends PopulateControls, StatusControls {
+/**
+ * Read-side access-control escape hatch shared by every read method.
+ *
+ *   - `_bypassBeforeRead?: true` — skip the `CollectionHooks.beforeRead`
+ *     hook for this read. Reserved for admin tooling, migrations, and
+ *     seed scripts that need unscoped access; never use from application
+ *     code, since it deliberately disables the predicate that enforces
+ *     row-level read access (multi-tenant scoping, owner-only-drafts,
+ *     soft-delete hide, etc).
+ *
+ * @internal
+ */
+interface BeforeReadControls {
+  _bypassBeforeRead?: true
+}
+
+export interface FindOptions<F = Record<string, any>>
+  extends PopulateControls,
+    StatusControls,
+    BeforeReadControls {
   /** Filter documents. Keys are field names or reserved names (status, path). */
   where?: WhereClause
   /** Return only these fields. Omit for all fields. */
@@ -138,20 +164,27 @@ export interface FindOptions<F = Record<string, any>> extends PopulateControls, 
   pageSize?: number
 }
 
-export interface FindOneOptions<F = Record<string, any>> extends PopulateControls, StatusControls {
+export interface FindOneOptions<F = Record<string, any>>
+  extends PopulateControls,
+    StatusControls,
+    BeforeReadControls {
   where?: WhereClause
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
-export interface FindByIdOptions<F = Record<string, any>> extends PopulateControls, StatusControls {
+export interface FindByIdOptions<F = Record<string, any>>
+  extends PopulateControls,
+    StatusControls,
+    BeforeReadControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
 
 export interface FindByPathOptions<F = Record<string, any>>
   extends PopulateControls,
-    StatusControls {
+    StatusControls,
+    BeforeReadControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
@@ -211,24 +244,16 @@ export interface UpdateOptions {
  *   title: { $contains: 'launch' },    // ordinary field filter
  * }
  * ```
+ *
+ * `WhereClause` is a backwards-compatible alias for the canonical
+ * `QueryPredicate` from `@byline/core`. The client-facing `where` clause
+ * and a `CollectionHooks.beforeRead` return value share one structure, so
+ * combinators (`$and`, `$or`) are usable on both surfaces.
  */
-export interface WhereClause {
-  [key: string]: WhereValue
-}
+export type WhereClause = QueryPredicate
 
-export type WhereValue = string | number | boolean | null | FilterOperators | WhereClause
-
-export interface FilterOperators {
-  $eq?: string | number | boolean | null
-  $ne?: string | number | boolean | null
-  $gt?: string | number
-  $gte?: string | number
-  $lt?: string | number
-  $lte?: string | number
-  $contains?: string
-  $in?: Array<string | number>
-  $nin?: Array<string | number>
-}
+/** Backwards-compatible alias for `PredicateValue` from `@byline/core`. */
+export type WhereValue = PredicateValue
 
 // ---------------------------------------------------------------------------
 // Sort

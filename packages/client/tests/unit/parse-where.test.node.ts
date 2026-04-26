@@ -10,7 +10,7 @@ import type { CollectionDefinition } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
-import { parseSort, parseWhere } from '../../src/query/parse-where.js'
+import { mergePredicates, parseSort, parseWhere } from '../../src/query/parse-where.js'
 
 const testCollection = defineCollection({
   path: 'test-articles',
@@ -413,5 +413,195 @@ describe('parseSort', () => {
     expect(result.orderBy).toBe('created_at')
     expect(result.orderDirection).toBe('desc')
     expect(result.fieldSort).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// $and / $or combinators
+// ---------------------------------------------------------------------------
+
+describe('parseWhere — combinators', () => {
+  it('flattens a top-level $and into the implicit-AND filter list', async () => {
+    const result = await parseWhere(
+      { $and: [{ title: 'Hello' }, { views: { $gte: 100 } }] },
+      testCollection
+    )
+    expect(result.filters).toHaveLength(2)
+    expect(result.filters[0]).toMatchObject({ kind: 'field', fieldName: 'title' })
+    expect(result.filters[1]).toMatchObject({ kind: 'field', fieldName: 'views' })
+  })
+
+  it('wraps a top-level $or in a single combinator node', async () => {
+    const result = await parseWhere(
+      { $or: [{ title: 'Hello' }, { views: { $gte: 100 } }] },
+      testCollection
+    )
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toMatchObject({
+      kind: 'or',
+      children: [
+        { kind: 'field', fieldName: 'title' },
+        { kind: 'field', fieldName: 'views' },
+      ],
+    })
+  })
+
+  it('wraps multi-key $or branches in a nested AND combinator', async () => {
+    const result = await parseWhere(
+      {
+        $or: [{ title: 'Hello', featured: true }, { views: { $gte: 100 } }],
+      },
+      testCollection
+    )
+    expect(result.filters).toHaveLength(1)
+    const top = result.filters[0]!
+    expect(top.kind).toBe('or')
+    if (top.kind !== 'or') return
+    expect(top.children).toHaveLength(2)
+    expect(top.children[0]).toMatchObject({
+      kind: 'and',
+      children: [
+        { kind: 'field', fieldName: 'title' },
+        { kind: 'field', fieldName: 'featured' },
+      ],
+    })
+    expect(top.children[1]).toMatchObject({ kind: 'field', fieldName: 'views' })
+  })
+
+  it('combines field predicates and combinators at the same level', async () => {
+    const result = await parseWhere(
+      {
+        featured: true,
+        $or: [{ title: 'Hello' }, { title: 'World' }],
+      },
+      testCollection
+    )
+    expect(result.filters).toHaveLength(2)
+    expect(result.filters[0]).toMatchObject({ kind: 'field', fieldName: 'featured' })
+    expect(result.filters[1]).toMatchObject({ kind: 'or' })
+  })
+
+  it('skips empty $or branches that parse to no filters', async () => {
+    const result = await parseWhere(
+      {
+        $or: [
+          { title: 'Hello' },
+          // unknown-field branch — parser drops it, leaving an empty group
+          { nonexistent: 'value' },
+        ],
+      },
+      testCollection
+    )
+    expect(result.filters).toHaveLength(1)
+    const top = result.filters[0]!
+    expect(top.kind).toBe('or')
+    if (top.kind !== 'or') return
+    // Only the title branch survives.
+    expect(top.children).toHaveLength(1)
+    expect(top.children[0]).toMatchObject({ kind: 'field', fieldName: 'title' })
+  })
+
+  it('drops a $or whose every branch is empty', async () => {
+    const result = await parseWhere(
+      {
+        $or: [{ nonexistent: 'a' }, { alsoNonexistent: 'b' }],
+      },
+      testCollection
+    )
+    // No combinator emitted — would have meant "OR of nothing", a semantic
+    // landmine if compiled to SQL.
+    expect(result.filters).toEqual([])
+  })
+
+  it('drops a non-array combinator value (defensive)', async () => {
+    const result = await parseWhere(
+      {
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed input
+        $or: { title: 'Hello' } as any,
+      },
+      testCollection
+    )
+    expect(result.filters).toEqual([])
+  })
+
+  it('nests $or inside $and correctly', async () => {
+    const result = await parseWhere(
+      {
+        $and: [{ featured: true }, { $or: [{ title: 'a' }, { title: 'b' }] }],
+      },
+      testCollection
+    )
+    // $and flattens to two top-level filters.
+    expect(result.filters).toHaveLength(2)
+    expect(result.filters[0]).toMatchObject({ kind: 'field', fieldName: 'featured' })
+    expect(result.filters[1]).toMatchObject({
+      kind: 'or',
+      children: [
+        { kind: 'field', fieldName: 'title' },
+        { kind: 'field', fieldName: 'title' },
+      ],
+    })
+  })
+
+  it('parses combinators inside a nested relation sub-where', async () => {
+    const result = await parseWhere(
+      {
+        category: {
+          $or: [{ name: 'News' }, { path: 'announcements' }],
+        },
+      },
+      testCollection,
+      ctx
+    )
+    expect(result.filters).toHaveLength(1)
+    const rel = result.filters[0]!
+    expect(rel.kind).toBe('relation')
+    if (rel.kind !== 'relation') return
+    expect(rel.nested).toHaveLength(1)
+    expect(rel.nested[0]).toMatchObject({
+      kind: 'or',
+      children: [
+        { kind: 'field', fieldName: 'name' },
+        { kind: 'field', fieldName: 'path' },
+      ],
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// mergePredicates
+// ---------------------------------------------------------------------------
+
+describe('mergePredicates', () => {
+  it('returns undefined when both sides are absent', () => {
+    expect(mergePredicates(undefined, undefined)).toBeUndefined()
+    expect(mergePredicates(null, undefined)).toBeUndefined()
+  })
+
+  it('returns the user where when no hook predicate', () => {
+    const userWhere = { title: 'Hello' }
+    expect(mergePredicates(undefined, userWhere)).toBe(userWhere)
+    expect(mergePredicates(null, userWhere)).toBe(userWhere)
+  })
+
+  it('returns the hook predicate when no user where', () => {
+    const hookPredicate = { tenantId: 't-1' }
+    expect(mergePredicates(hookPredicate, undefined)).toBe(hookPredicate)
+  })
+
+  it('wraps both sides in $and when both present', () => {
+    const hookPredicate = { tenantId: 't-1' }
+    const userWhere = { status: 'published' }
+    const merged = mergePredicates(hookPredicate, userWhere)
+    expect(merged).toEqual({ $and: [hookPredicate, userWhere] })
+  })
+
+  it('round-trips a merged predicate through parseWhere as implicit AND', async () => {
+    const merged = mergePredicates({ featured: true }, { title: 'Hello' })
+    const parsed = await parseWhere(merged, testCollection)
+    // Top-level $and is flattened by the parser, so we get two field filters.
+    expect(parsed.filters).toHaveLength(2)
+    expect(parsed.filters[0]).toMatchObject({ kind: 'field', fieldName: 'featured' })
+    expect(parsed.filters[1]).toMatchObject({ kind: 'field', fieldName: 'title' })
   })
 })

@@ -8,6 +8,7 @@
 
 import type {
   CollectionDefinition,
+  CombinatorFilter,
   DocumentFilter,
   FieldFilter,
   FieldSort,
@@ -1024,10 +1025,39 @@ export class DocumentQueries implements IDocumentQueries {
     readMode: ReadMode | undefined,
     depth: number
   ): SQL {
-    if (filter.kind === 'relation') {
-      return this.buildRelationExists(filter, locale, outerDocVersionId, readMode, depth)
+    switch (filter.kind) {
+      case 'field':
+        return this.buildFieldExists(filter, locale, outerDocVersionId)
+      case 'relation':
+        return this.buildRelationExists(filter, locale, outerDocVersionId, readMode, depth)
+      case 'and':
+      case 'or':
+        return this.buildCombinatorGroup(filter, locale, outerDocVersionId, readMode, depth)
     }
-    return this.buildFieldExists(filter, locale, outerDocVersionId)
+  }
+
+  /**
+   * Build a parenthesised AND/OR group from a CombinatorFilter. Each child
+   * compiles through `buildFilterExists` recursively, so combinators nest
+   * freely and inherit the outer `outerDocVersionId` / `depth` so relation
+   * children stay correctly scoped.
+   *
+   * An empty `children` array would emit `()` and produce a syntax error,
+   * so callers (the parser) skip empty groups; this method assumes at
+   * least one child by construction.
+   */
+  private buildCombinatorGroup(
+    filter: CombinatorFilter,
+    locale: string,
+    outerDocVersionId: SQL,
+    readMode: ReadMode | undefined,
+    depth: number
+  ): SQL {
+    const childSql = filter.children.map((child) =>
+      this.buildFilterExists(child, locale, outerDocVersionId, readMode, depth)
+    )
+    const joiner = filter.kind === 'or' ? sql` OR ` : sql` AND `
+    return sql`(${sql.join(childSql, joiner)})`
   }
 
   /**

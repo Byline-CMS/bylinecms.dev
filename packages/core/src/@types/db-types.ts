@@ -1,6 +1,8 @@
 import type { RequestContext } from '@byline/auth'
 import type { CollectionDefinition } from '@byline/core'
 
+import type { QueryPredicate } from './query-predicate.js'
+
 /**
  * Read mode for document queries.
  *
@@ -43,6 +45,17 @@ export interface ReadContext {
    * hook performs its own reads.
    */
   afterReadFired: Set<string>
+  /**
+   * Per-request memoisation of `beforeRead` hook results, keyed by
+   * `collectionPath`. Populate fans out across many source documents and
+   * many target-collection batches; without a cache, an async hook
+   * (e.g. resolving the actor's tenant id) would re-run on every batch.
+   * Keyed by collection path because the actor is invariant for the
+   * lifetime of one `ReadContext`. `null` records "hook ran and returned
+   * void" (i.e. no scoping applies); absence records "hook has not been
+   * run yet for this collection".
+   */
+  beforeReadCache: Map<string, QueryPredicate | null>
   /** Monotonic count of document materialisations; compared against `maxReads`. */
   readCount: number
   /** Hard ceiling on materialisations per request. Default 500. */
@@ -111,11 +124,28 @@ export interface RelationFilter {
 }
 
 /**
- * Any filter that can appear in a `findDocuments` call — either a
- * direct field predicate (`FieldFilter`) or a cross-collection hop
- * through a relation (`RelationFilter`).
+ * A boolean combinator group. Wraps a list of child filters with explicit
+ * AND or OR semantics; nests freely. Produced by `parse-where` from
+ * `$and` / `$or` keys in the source `QueryPredicate`. The adapter compiles
+ * each child into its existing SQL form (field EXISTS, relation EXISTS,
+ * or another combinator group) and joins them with the matching SQL
+ * operator inside parentheses.
+ *
+ * Top-level `$and` is structurally redundant with the implicit AND across
+ * `DocumentFilter[]` and the parser flattens it for simplicity; the
+ * combinator only earns its keep when nested inside `$or` (or vice versa).
  */
-export type DocumentFilter = FieldFilter | RelationFilter
+export interface CombinatorFilter {
+  kind: 'and' | 'or'
+  children: DocumentFilter[]
+}
+
+/**
+ * Any filter that can appear in a `findDocuments` call — a direct field
+ * predicate (`FieldFilter`), a cross-collection hop through a relation
+ * (`RelationFilter`), or a nested boolean combinator (`CombinatorFilter`).
+ */
+export type DocumentFilter = FieldFilter | RelationFilter | CombinatorFilter
 
 /**
  * A field-level sort descriptor, pre-resolved to the correct EAV store

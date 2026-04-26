@@ -159,6 +159,7 @@ export function createReadContext(overrides?: Partial<ReadContext>): ReadContext
   return {
     visited: overrides?.visited ?? new Set(),
     afterReadFired: overrides?.afterReadFired ?? new Set(),
+    beforeReadCache: overrides?.beforeReadCache ?? new Map(),
     readCount: overrides?.readCount ?? 0,
     maxReads: overrides?.maxReads ?? DEFAULT_MAX_READS,
     maxDepth: overrides?.maxDepth ?? DEFAULT_MAX_DEPTH,

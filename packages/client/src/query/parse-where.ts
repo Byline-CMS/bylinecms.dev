@@ -9,9 +9,11 @@
 import type {
   BylineLogger,
   CollectionDefinition,
+  CombinatorFilter,
   DocumentFilter,
   FieldFilter,
   FieldFilterOperator,
+  QueryPredicate,
   RelationFilter,
 } from '@byline/core'
 import { fieldTypeToStore } from '@byline/core'
@@ -121,6 +123,28 @@ export async function parseWhere(
 }
 
 /**
+ * Combine a `beforeRead` hook predicate with a caller-supplied where
+ * clause using implicit AND. Returns whichever side is non-empty, or
+ * wraps both in `$and` when both are present.
+ *
+ * Defined at the predicate level (rather than merging two `ParsedWhere`
+ * outputs) so the result still flows through `parseWhere` once — there
+ * is one normalisation pass and one place where reserved keys, relation
+ * lookups, and combinator flattening happen. `null` is treated the same
+ * as `undefined` (the cache value `null` records "hook ran and applied
+ * no scoping").
+ */
+export function mergePredicates(
+  hookPredicate: QueryPredicate | null | undefined,
+  userWhere: WhereClause | undefined
+): WhereClause | undefined {
+  if (!hookPredicate && !userWhere) return undefined
+  if (!hookPredicate) return userWhere
+  if (!userWhere) return hookPredicate
+  return { $and: [hookPredicate, userWhere] }
+}
+
+/**
  * Recursion entry point. `isNested: true` disables the top-level reserved
  * keys (`status`, `query`, `path`) so that on a nested sub-where, those
  * names resolve as ordinary fields on the target collection (where `path`
@@ -137,6 +161,66 @@ async function parseWhereInternal(
   if (!where) return result
 
   for (const [key, rawValue] of Object.entries(where)) {
+    // The shared `QueryPredicate` index signature includes `undefined` so it
+    // can coexist with the optional `$and` / `$or` combinator properties;
+    // skip explicit-undefined entries up front so the rest of this loop can
+    // assume a concrete value.
+    if (rawValue === undefined) continue
+
+    // --- Boolean combinators ---------------------------------------------
+    // `$and` / `$or` carry an array of child predicates. Each child is
+    // parsed in its own scope (an `$or` child is itself an implicit AND of
+    // its keys); the resulting `DocumentFilter[]` is wrapped in a
+    // CombinatorFilter and added to the outer filter list.
+    //
+    // Top-level `$and` is structurally redundant with the implicit AND
+    // across `result.filters`, so we flatten it: parse each child and
+    // splice its filters in. The combinator only earns its keep when
+    // nested under `$or` (or vice versa). Document-level reserved-key
+    // results (status / query / pathFilter) inside combinators are
+    // intentionally dropped — they don't compose with OR semantics and
+    // belong at the top level of the where clause.
+    if (key === '$and' || key === '$or') {
+      if (!Array.isArray(rawValue)) {
+        ctx?.logger?.debug(
+          { key, collection: definition.path },
+          'parse-where: dropping combinator — value is not an array of predicates'
+        )
+        continue
+      }
+
+      const childFilters: DocumentFilter[][] = []
+      for (const child of rawValue as QueryPredicate[]) {
+        const childParsed = await parseWhereInternal(child, definition, ctx, { isNested })
+        childFilters.push(childParsed.filters)
+      }
+
+      if (key === '$and') {
+        // Flatten: AND over [[a, b], [c]] becomes [a, b, c] at the outer
+        // level since the outer scope is itself implicit-AND.
+        for (const group of childFilters) result.filters.push(...group)
+      } else {
+        // `$or`: each child group is itself implicit-AND, so wrap each
+        // group in an inner `and` combinator (when it has more than one
+        // filter) and emit a single outer `or` combinator over the lot.
+        // Empty child groups (parsed to nothing) are skipped — keeping
+        // them would change semantics ("OR with always-true").
+        const orChildren: DocumentFilter[] = []
+        for (const group of childFilters) {
+          if (group.length === 0) continue
+          if (group.length === 1) {
+            orChildren.push(group[0]!)
+          } else {
+            orChildren.push({ kind: 'and', children: group } satisfies CombinatorFilter)
+          }
+        }
+        if (orChildren.length > 0) {
+          result.filters.push({ kind: 'or', children: orChildren } satisfies CombinatorFilter)
+        }
+      }
+      continue
+    }
+
     // --- Document-level reserved keys (top-level only) ---------------------
     if (!isNested) {
       if (key === 'status') {
@@ -295,8 +379,17 @@ interface NormalisedOperator {
 }
 
 /**
+ * Predicate-level combinator keys. These are `$`-prefixed but, unlike
+ * operator keys (`$eq`, `$ne`, …), they are valid inside a "plain
+ * sub-where" because their value is a list of nested predicates rather
+ * than a comparison value.
+ */
+const COMBINATOR_KEYS = new Set(['$and', '$or'])
+
+/**
  * A "plain sub-where" is a non-null, non-array object whose top-level keys
- * are all field names (no `$`-prefixed operator keys). Used to disambiguate
+ * are field names or predicate-level combinators (`$and` / `$or`) — but
+ * **not** comparison-operator keys (`$eq`, `$ne`, …). Used to disambiguate
  * `{ category: { path: 'news' } }` (nested where against the target) from
  * `{ category: { $eq: 'abc-id' } }` (operator object on the relation's own
  * `target_document_id`).
@@ -304,12 +397,14 @@ interface NormalisedOperator {
 function isPlainSubWhere(raw: unknown): raw is Record<string, unknown> {
   if (raw === null || typeof raw !== 'object') return false
   if (Array.isArray(raw)) return false
-  for (const k of Object.keys(raw as Record<string, unknown>)) {
-    if (k.startsWith('$')) return false
-  }
+  const keys = Object.keys(raw as Record<string, unknown>)
   // An empty object is not a meaningful sub-where; treat as non-match
   // (ordinary field-filter path will then reject it via normaliseToOperator).
-  return Object.keys(raw as Record<string, unknown>).length > 0
+  if (keys.length === 0) return false
+  for (const k of keys) {
+    if (k.startsWith('$') && !COMBINATOR_KEYS.has(k)) return false
+  }
+  return true
 }
 
 /**
