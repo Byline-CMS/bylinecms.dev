@@ -122,7 +122,28 @@ export const Docs = defineCollection({
         },
       },
     },
-    { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
+    {
+      name: 'summary',
+      label: 'Summary',
+      type: 'textArea',
+      localized: true,
+      helpText:
+        'Enter a short summary. The first 150 characters are used for social media meta descriptions. Aim for 100–300 characters.',
+    },
+    // Relation field demo. Points at the Media upload collection
+    // so editors can choose a feature image via the relation picker widget.
+    // Set `displayField: 'title'` so the picker's row label reads from the
+    // uploaded item's `title` field rather than falling back to its path.
+    // Will display the picker defined columns if present in the admin.tsx
+    // configuration.
+    {
+      name: 'featureImage',
+      label: 'Feature Image',
+      type: 'relation',
+      targetCollection: 'media',
+      displayField: 'title',
+      optional: true,
+    },
     {
       name: 'publishedOn',
       label: 'Published On',

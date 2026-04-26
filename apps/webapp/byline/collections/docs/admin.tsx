@@ -9,6 +9,7 @@
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
 import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
+import { SummaryLength } from '~/components/summary-length.js'
 import { FeaturedFormatter } from './components/feature-formatter.js'
 import { Docs } from './schema.js'
 
@@ -108,11 +109,14 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * Per-field rendering overrides, keyed by field name. Use to supply custom
    * UI component slots for a specific field without affecting placement.
    * Placement is controlled exclusively through the layout primitives below.
-   *
-   * @example
-   * fields: { title: { components: { Input: MyCustomInput } } }
    */
-  // fields: {},
+  fields: {
+    summary: {
+      components: {
+        HelpText: SummaryLength,
+      },
+    },
+  },
 
   /**
    * Preview URL builder for live preview links. Receives the document and an
@@ -148,7 +152,7 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
         {
           name: 'details',
           label: 'Details',
-          fields: ['title', 'summary', 'category', 'featured'],
+          fields: ['title', 'summary', 'featureImage', 'category', 'featured'],
         },
         {
           name: 'content',

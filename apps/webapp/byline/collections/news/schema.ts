@@ -35,13 +35,20 @@ export const News: CollectionDefinition = {
   useAsPath: 'title',
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
-    { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
-    { name: 'text1', label: 'Text 1', type: 'text' },
-    { name: 'text2', label: 'Text 2', type: 'text' },
-    // Relation field demo (Phase 3). Points at the Media upload collection
+    {
+      name: 'summary',
+      label: 'Summary',
+      type: 'textArea',
+      localized: true,
+      helpText:
+        'Enter a short summary. The first 150 characters are used for social media meta descriptions. Aim for 100–300 characters.',
+    },
+    // Relation field demo. Points at the Media upload collection
     // so editors can choose a feature image via the relation picker widget.
     // Set `displayField: 'title'` so the picker's row label reads from the
     // uploaded item's `title` field rather than falling back to its path.
+    // Will display the picker defined columns if present in the admin.tsx
+    // configuration.
     {
       name: 'featureImage',
       label: 'Feature Image',
@@ -50,6 +57,10 @@ export const News: CollectionDefinition = {
       displayField: 'title',
       optional: true,
     },
+    // Demonstration pair of text fields that will be arranged in a row as defined
+    // in the admin.tsx file. No special meaning to these fields.
+    { name: 'text1', label: 'Text 1', type: 'text' },
+    { name: 'text2', label: 'Text 2', type: 'text' },
     {
       name: 'content',
       label: 'Content',

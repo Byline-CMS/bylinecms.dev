@@ -546,7 +546,7 @@ const FormContent = ({
     const activeTab = visibleTabs.find((t) => t.name === resolvedActive)
 
     return (
-      <div key={`tabset:${set.name}`} className="flex flex-col gap-4">
+      <div key={`tabset:${set.name}`} className="flex flex-col gap-5">
         {visibleTabs.length > 0 && (
           <Tabs
             tabs={visibleTabs}
@@ -557,7 +557,7 @@ const FormContent = ({
           />
         )}
         {activeTab && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5">
             {activeTab.fields.map((name) => renderItem(name))}
           </div>
         )}
@@ -641,19 +641,19 @@ const FormContent = ({
         </div>
       </div>
       <div className="page-layout--two-columns--right-sticky pt-8">
-        <div className="content flex flex-col gap-4">
+        <div className="content flex flex-col gap-5">
           {layout.main.map((name) => renderItem(name))}
         </div>
-        <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-4">
+        <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-5">
           {(useAsPath ||
             (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
-            <PathWidget
-              useAsPath={useAsPath}
-              collectionPath={collectionPath ?? ''}
-              defaultLocale={i18n.content.defaultLocale}
-              mode={mode}
-            />
-          )}
+              <PathWidget
+                useAsPath={useAsPath}
+                collectionPath={collectionPath ?? ''}
+                defaultLocale={i18n.content.defaultLocale}
+                mode={mode}
+              />
+            )}
           {(layout.sidebar ?? []).map((name) => renderItem(name))}
         </div>
       </div>

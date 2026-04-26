@@ -9,6 +9,7 @@
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
 import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
+import { SummaryLength } from '~/components/summary-length.js'
 import { News } from './schema.js'
 
 /**
@@ -50,12 +51,11 @@ const listViewColumns: ColumnDefinition[] = [
 ]
 
 /**
- * Columns rendered per row when a collection item appears as the 
- * target of a relation picker. Usually narrower than the list 
+ * Columns rendered per row when a collection item appears as the
+ * target of a relation picker. Usually narrower than the list
  * view — just enough to identify the right item at a glance.
  */
 // const pickerViewColumns: ColumnDefinition[] = []
-
 
 export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
   /**
@@ -100,11 +100,14 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
    * Per-field rendering overrides, keyed by field name. Use to supply custom
    * UI component slots for a specific field without affecting placement.
    * Placement is controlled exclusively through the layout primitives below.
-   *
-   * @example
-   * fields: { title: { components: { Input: MyCustomInput } } }
    */
-  // fields: {},
+  fields: {
+    summary: {
+      components: {
+        HelpText: SummaryLength,
+      },
+    },
+  },
 
   /**
    * Preview URL builder for live preview links. Receives the document and an
