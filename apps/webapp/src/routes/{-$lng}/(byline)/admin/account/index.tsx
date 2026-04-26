@@ -46,7 +46,7 @@ function AdminAccountIndex() {
           { label: 'Account', href: '/admin/account' },
         ]}
       />
-      <Section className="py-5 pb-2">
+      <Section className="pb-2">
         <Container>
           <h1 className="mb-2">{displayNameFor(account)}</h1>
           <p className="muted">Manage your own profile and password.</p>

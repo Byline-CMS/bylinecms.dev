@@ -32,9 +32,6 @@ function AdminPermissionsIndex() {
           { label: 'Permissions', href: '/admin/permissions' },
         ]}
       />
-      <Section className="py-5 pb-2">
-        <Container>{/* Header lives inside the inspector. */}</Container>
-      </Section>
       <AbilitiesInspector data={data} />
     </>
   )

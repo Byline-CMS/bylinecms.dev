@@ -32,9 +32,6 @@ function AdminRolesIndex() {
           { label: 'Admin Roles', href: '/admin/roles' },
         ]}
       />
-      <Section className="py-5 pb-2">
-        <Container>{/* Header lives inside the list view. */}</Container>
-      </Section>
       <AdminRolesListView data={data} />
     </>
   )

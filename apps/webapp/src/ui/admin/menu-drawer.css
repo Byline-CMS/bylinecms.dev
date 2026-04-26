@@ -1,13 +1,13 @@
 .admin-menu-drawer {
   position: sticky;
-  top: 12px;
+  top: 55px;
   margin: 0;
-  max-height: calc(100vh - 45px);
+  max-height: calc(100vh - 60px);
   overflow-y: auto;
 }
 
 .admin-menu-drawer ul {
-  margin: 1rem;
+  margin: 1.4rem 0.5rem 0.5rem;
   padding: 0;
   list-style: none;
   list-style-position: outside;
@@ -16,7 +16,7 @@
 .admin-menu-drawer ul li.menu-item {
   border-radius: 4px;
   /* background-color: rgb(var(--canvas-50) / 0.2); */
-  margin: 0 0 0.1rem 0;
+  margin: 0;
   transition: all 200ms ease;
 }
 

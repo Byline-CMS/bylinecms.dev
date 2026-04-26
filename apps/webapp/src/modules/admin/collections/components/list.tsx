@@ -66,7 +66,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-      }`}
+        }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -156,7 +156,7 @@ export const ListView = ({
   return (
     <Section>
       <Container>
-        <div className="flex items-center gap-3 py-[2px]">
+        <div className="flex items-center gap-3">
           <h1 className="!m-0 pb-[2px]">{data.included.collection.labels.plural as string}</h1>
           <Stats total={data?.meta.total} />
           <IconButton
@@ -247,10 +247,10 @@ export const ListView = ({
                           >
                             {column.formatter
                               ? renderFormatted(
-                                  getColumnValue(document, column.fieldName as string),
-                                  document,
-                                  column.formatter
-                                )
+                                getColumnValue(document, column.fieldName as string),
+                                document,
+                                column.formatter
+                              )
                               : (getColumnValue(document, column.fieldName as string) ?? '------')}
                           </Link>
                         ) : column.formatter ? (

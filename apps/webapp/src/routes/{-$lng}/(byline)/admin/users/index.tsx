@@ -66,9 +66,6 @@ function AdminUsersIndex() {
           { label: 'Admin Users', href: '/admin/users' },
         ]}
       />
-      <Section className="py-5 pb-2">
-        <Container>{/* Header lives inside the list view. */}</Container>
-      </Section>
       <AdminUsersListView data={data} />
     </>
   )

@@ -53,5 +53,5 @@ export function Content({ children }: ContentProps): React.JSX.Element {
     }
   }, [mobile, closeDrawer])
 
-  return <div className="flex min-w-0 flex-1 flex-col pt-6">{children}</div>
+  return <div className="flex min-w-0 flex-1 flex-col pt-4 pb-6">{children}</div>
 }

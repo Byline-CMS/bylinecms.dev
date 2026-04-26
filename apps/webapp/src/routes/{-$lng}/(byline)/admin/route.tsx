@@ -23,6 +23,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
 import { getCurrentAdminUser } from '@/modules/admin/auth'
 import { Content } from '@/ui/admin/content'
+import { DrawerToggle } from '@/ui/admin/drawer-toggle'
 import { AdminMenuDrawer } from '@/ui/admin/menu-drawer'
 import { AdminMenuProvider } from '@/ui/admin/menu-provider'
 import { AdminAppBar } from '@/ui/components/admin-app-bar'
@@ -55,6 +56,7 @@ function AdminLayoutComponent() {
     <AdminMenuProvider>
       <AdminAppBar user={user} />
       <main className="flex min-h-screen w-full max-w-full pt-[45px]">
+        <DrawerToggle />
         <AdminMenuDrawer />
         <Content>
           <Outlet />
