@@ -34,6 +34,9 @@ function testCollection(suffix: string | number): CollectionDefinition {
     }),
     search: { fields: ['title'] },
     useAsTitle: 'title',
+    // Slugify the `path` field into the version path so the `findByPath`
+    // test resolves docs by the value supplied in `data.path`.
+    useAsPath: 'path',
     fields: [
       { name: 'title', type: 'text', label: 'Title' },
       { name: 'path', type: 'text', label: 'Path' },

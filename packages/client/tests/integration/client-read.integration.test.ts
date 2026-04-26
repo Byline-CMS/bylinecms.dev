@@ -25,6 +25,7 @@ beforeAll(async () => {
   for (const article of sampleArticles) {
     const result = await ctx.db.commands.documents.createDocumentVersion({
       collectionId: ctx.collectionId,
+      collectionVersion: 1,
       collectionConfig: ctx.definition,
       action: 'create',
       documentData: article,

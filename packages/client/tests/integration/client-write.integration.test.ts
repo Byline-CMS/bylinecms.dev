@@ -39,13 +39,20 @@ describe('client.collection().create()', () => {
   it('creates a document that is immediately readable via find/findById', async () => {
     const { documentId, documentVersionId } = await ctx.client
       .collection(ctx.definition.path)
-      .create({
-        title: 'Hello from Phase 4',
-        path: 'hello-phase-4',
-        summary: 'Written through the client write path.',
-        views: 7,
-        featured: false,
-      })
+      .create(
+        {
+          title: 'Hello from Phase 4',
+          path: 'hello-phase-4',
+          summary: 'Written through the client write path.',
+          views: 7,
+          featured: false,
+        },
+        // Override the version path explicitly. The fixture's `useAsPath: 'title'`
+        // would otherwise slugify the title; `path` here is the field, not the
+        // version-column override — they share a name but live on different
+        // axes (field-data vs version-row metadata).
+        { path: 'hello-phase-4' }
+      )
 
     expect(documentId).toBeTruthy()
     expect(documentVersionId).toBeTruthy()
@@ -59,6 +66,8 @@ describe('client.collection().create()', () => {
   })
 
   it('auto-generates a path when none is supplied', async () => {
+    // Fixture uses `useAsPath: 'title'`, so omitting an explicit path
+    // override falls through to the slugified title.
     const { documentId } = await ctx.client
       .collection(ctx.definition.path)
       .create({ title: 'Auto Path Article', summary: 's' })

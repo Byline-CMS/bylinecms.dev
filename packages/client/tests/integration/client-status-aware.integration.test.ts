@@ -52,11 +52,18 @@ async function seedDraftOverPublished(params: {
 }) {
   const handle = ctx.client.collection(ctx.definition.path)
 
-  const created = await handle.create({
-    title: params.title,
-    path: params.path,
-    summary: params.publishedSummary,
-  })
+  // The fixture has `useAsPath: 'title'`, so the version-row `path` would
+  // be slugified from the title. Pass `path` via the create/update
+  // options (`CreateOptions.path` / `UpdateOptions.path`) to override
+  // with the test-controlled slug each test asserts against.
+  const created = await handle.create(
+    {
+      title: params.title,
+      path: params.path,
+      summary: params.publishedSummary,
+    },
+    { path: params.path }
+  )
 
   await handle.changeStatus(created.documentId, 'published')
   const publishedVersionId = (
@@ -70,11 +77,15 @@ async function seedDraftOverPublished(params: {
   // version while leaving the earlier `published` version intact (see
   // document-lifecycle.updateDocument / createDocumentVersion with
   // action='update'). That's the state Phase 5 is designed for.
-  const updated = await handle.update(created.documentId, {
-    title: params.title,
-    path: params.path,
-    summary: params.draftSummary,
-  })
+  const updated = await handle.update(
+    created.documentId,
+    {
+      title: params.title,
+      path: params.path,
+      summary: params.draftSummary,
+    },
+    { path: params.path }
+  )
 
   return {
     documentId: created.documentId,
@@ -173,11 +184,14 @@ describe('find with draft-over-published versions', () => {
 
     // A doc that is only a draft (never published) should be absent from
     // the default find() results.
-    const draftOnly = await handle.create({
-      title: 'Draft-only Article',
-      path: 'draft-only',
-      summary: 'Never published',
-    })
+    const draftOnly = await handle.create(
+      {
+        title: 'Draft-only Article',
+        path: 'draft-only',
+        summary: 'Never published',
+      },
+      { path: 'draft-only' }
+    )
 
     // A doc in draft-over-published state should appear, with its
     // *published* fields.

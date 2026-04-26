@@ -166,11 +166,7 @@ export interface DocumentColumnFilter {
  * (`RelationFilter`), a nested boolean combinator (`CombinatorFilter`),
  * or a document-version column comparison (`DocumentColumnFilter`).
  */
-export type DocumentFilter =
-  | FieldFilter
-  | RelationFilter
-  | CombinatorFilter
-  | DocumentColumnFilter
+export type DocumentFilter = FieldFilter | RelationFilter | CombinatorFilter | DocumentColumnFilter
 
 /**
  * A field-level sort descriptor, pre-resolved to the correct EAV store
