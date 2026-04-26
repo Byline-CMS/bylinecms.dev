@@ -74,3 +74,16 @@ export interface QueryPredicate {
   $or?: QueryPredicate[]
   [key: string]: PredicateValue | undefined
 }
+
+// ---------------------------------------------------------------------------
+// Sort
+// ---------------------------------------------------------------------------
+
+export type SortDirection = 'asc' | 'desc'
+
+/**
+ * A sort specification — `{ fieldName: direction }`. Field names resolve
+ * through `field-store-map` to a LATERAL JOIN; document-level columns
+ * (`createdAt`, `updatedAt`, `path`) compile to a direct `ORDER BY`.
+ */
+export type SortSpec = Record<string, SortDirection>

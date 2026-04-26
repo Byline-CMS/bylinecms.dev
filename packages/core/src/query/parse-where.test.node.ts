@@ -6,11 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
-import { defineCollection, defineWorkflow } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
-import { mergePredicates, parseSort, parseWhere } from '../../src/query/parse-where.js'
+import { defineCollection, defineWorkflow } from '../@types/collection-types.js'
+import { mergePredicates, parseSort, parseWhere } from './parse-where.js'
+import type { CollectionDefinition } from '../@types/collection-types.js'
 
 const testCollection = defineCollection({
   path: 'test-articles',
@@ -205,7 +205,8 @@ describe('parseWhere', () => {
     expect(result.status).toBe('published')
     expect(result.query).toBe('search')
     expect(result.filters).toHaveLength(2)
-    expect(result.filters.map((f) => f.fieldName).sort()).toEqual(['title', 'views'])
+    const fieldNames = result.filters.flatMap((f) => (f.kind === 'field' ? [f.fieldName] : []))
+    expect(fieldNames.sort()).toEqual(['title', 'views'])
   })
 
   it('should skip unknown field names silently', async () => {
@@ -216,8 +217,10 @@ describe('parseWhere', () => {
   it('should handle null values', async () => {
     const result = await parseWhere({ title: null }, testCollection)
     expect(result.filters).toHaveLength(1)
-    expect(result.filters[0]?.operator).toBe('$eq')
-    expect((result.filters[0] as { value: unknown }).value).toBeNull()
+    const f = result.filters[0]!
+    if (f.kind !== 'field') throw new Error('expected field filter')
+    expect(f.operator).toBe('$eq')
+    expect(f.value).toBeNull()
   })
 
   // -------------------------------------------------------------------------

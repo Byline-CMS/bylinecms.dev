@@ -12,6 +12,7 @@ import type {
   CollectionDefinition,
   CreateDocumentResult,
   DeleteDocumentResult,
+  DocumentFilter,
   DocumentLifecycleContext,
   PopulateSpec,
   ReadContext,
@@ -21,17 +22,20 @@ import type {
 } from '@byline/core'
 import {
   applyAfterRead,
+  applyBeforeRead,
   assertActorCanPerform,
   changeDocumentStatus,
   createDocument,
   createReadContext,
   deleteDocument,
+  mergePredicates,
+  parseSort,
+  parseWhere,
   populateDocuments,
   unpublishDocument,
   updateDocument,
 } from '@byline/core'
 
-import { parseSort, parseWhere } from './query/parse-where.js'
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
 import type { BylineClient } from './client.js'
 import type {
@@ -70,13 +74,19 @@ export class CollectionHandle {
    * (LATERAL JOINs).
    */
   async find<F = Record<string, any>>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
-    await this.resolveAndAssertRead()
+    const requestContext = await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { where, select, sort, locale = 'en', page = 1, pageSize = 20 } = options
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
 
-    const parsedWhere = await parseWhere(where, this.definition, {
+    const hookPredicate = await this.resolveBeforeReadPredicate(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
+    const merged = mergePredicates(hookPredicate, where)
+    const parsedWhere = await parseWhere(merged, this.definition, {
       collections: this.client.collections,
       resolveCollectionId: (path) => this.client.resolveCollectionId(path),
       logger: this.client.logger,
@@ -99,10 +109,17 @@ export class CollectionHandle {
       readMode,
     })
 
-    await this.populateIfRequested(collectionId, result.documents, locale, readMode, {
-      ...options,
-      _readContext: readCtx,
-    })
+    await this.populateIfRequested(
+      collectionId,
+      result.documents,
+      locale,
+      readMode,
+      requestContext,
+      {
+        ...options,
+        _readContext: readCtx,
+      }
+    )
 
     // Fire afterRead for each source document AFTER populate so the hook
     // sees the fully populated tree. Targets were already fired inside
@@ -139,6 +156,7 @@ export class CollectionHandle {
       depth: options.depth,
       status: options.status,
       _readContext: options._readContext,
+      _bypassBeforeRead: options._bypassBeforeRead,
     })
     return result.docs[0] ?? null
   }
@@ -150,11 +168,17 @@ export class CollectionHandle {
     documentId: string,
     options: FindByIdOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
-    await this.resolveAndAssertRead()
+    const requestContext = await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
 
     const raw = await this.client.db.queries.documents.getDocumentById({
       collection_id: collectionId,
@@ -162,6 +186,7 @@ export class CollectionHandle {
       locale,
       reconstruct: true,
       readMode,
+      filters,
     })
 
     if (raw == null) return null
@@ -172,10 +197,17 @@ export class CollectionHandle {
       trimFields(raw as Record<string, any>, options.select as string[])
     }
 
-    await this.populateIfRequested(collectionId, [raw as Record<string, any>], locale, readMode, {
-      ...options,
-      _readContext: readCtx,
-    })
+    await this.populateIfRequested(
+      collectionId,
+      [raw as Record<string, any>],
+      locale,
+      readMode,
+      requestContext,
+      {
+        ...options,
+        _readContext: readCtx,
+      }
+    )
 
     await applyAfterRead({
       doc: raw as Record<string, any>,
@@ -195,11 +227,17 @@ export class CollectionHandle {
     path: string,
     options: FindByPathOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
-    await this.resolveAndAssertRead()
+    const requestContext = await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const { locale = 'en' } = options
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
 
     const raw = await this.client.db.queries.documents.getDocumentByPath({
       collection_id: collectionId,
@@ -207,6 +245,7 @@ export class CollectionHandle {
       locale,
       reconstruct: true,
       readMode,
+      filters,
     })
 
     if (raw == null) return null
@@ -215,10 +254,17 @@ export class CollectionHandle {
       trimFields(raw as Record<string, any>, options.select as string[])
     }
 
-    await this.populateIfRequested(collectionId, [raw as Record<string, any>], locale, readMode, {
-      ...options,
-      _readContext: readCtx,
-    })
+    await this.populateIfRequested(
+      collectionId,
+      [raw as Record<string, any>],
+      locale,
+      readMode,
+      requestContext,
+      {
+        ...options,
+        _readContext: readCtx,
+      }
+    )
 
     await applyAfterRead({
       doc: raw as Record<string, any>,
@@ -389,7 +435,13 @@ export class CollectionHandle {
     rawDocs: Record<string, any>[],
     locale: string,
     readMode: ReadMode,
-    options: { populate?: PopulateSpec; depth?: number; _readContext?: ReadContext }
+    requestContext: RequestContext,
+    options: {
+      populate?: PopulateSpec
+      depth?: number
+      _readContext?: ReadContext
+      _bypassBeforeRead?: true
+    }
   ): Promise<void> {
     if (options.populate === undefined) return
     await populateDocuments({
@@ -402,7 +454,48 @@ export class CollectionHandle {
       locale,
       readMode,
       readContext: options._readContext,
+      requestContext,
+      bypassBeforeRead: options._bypassBeforeRead,
     })
+  }
+
+  /**
+   * Resolve and cache the `beforeRead` hook predicate for this collection
+   * inside the current `ReadContext`. Honours `_bypassBeforeRead` (admin
+   * tooling, seeds, migrations).
+   */
+  private async resolveBeforeReadPredicate(
+    requestContext: RequestContext,
+    readContext: ReadContext,
+    bypass: true | undefined
+  ) {
+    if (bypass) return null
+    return applyBeforeRead({
+      definition: this.definition,
+      requestContext,
+      readContext,
+    })
+  }
+
+  /**
+   * Like `resolveBeforeReadPredicate`, but parses the predicate to the
+   * adapter-facing `DocumentFilter[]` shape used by `getDocumentById` /
+   * `getDocumentByPath`. Returns `undefined` (not `[]`) when there is no
+   * scoping, so the adapter can skip the loop entirely.
+   */
+  private async resolveBeforeReadFilters(
+    requestContext: RequestContext,
+    readContext: ReadContext,
+    bypass: true | undefined
+  ): Promise<DocumentFilter[] | undefined> {
+    const predicate = await this.resolveBeforeReadPredicate(requestContext, readContext, bypass)
+    if (predicate == null) return undefined
+    const parsed = await parseWhere(predicate, this.definition, {
+      collections: this.client.collections,
+      resolveCollectionId: (path) => this.client.resolveCollectionId(path),
+      logger: this.client.logger,
+    })
+    return parsed.filters.length > 0 ? parsed.filters : undefined
   }
 
   /**

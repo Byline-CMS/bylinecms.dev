@@ -17,6 +17,7 @@
 
 export * from './@types/index.js'
 export {
+  applyBeforeRead,
   assertActorCanPerform,
   COLLECTION_ABILITY_VERBS,
   type CollectionAbilityVerb,
@@ -49,6 +50,14 @@ export {
 export { type BylineLogger, getLogger } from './lib/logger.js'
 export { AsyncRegistry, type RegisteredServices, Registry } from './lib/registry.js'
 export * from './patches/index.js'
+export {
+  mergePredicates,
+  type ParseContext,
+  type ParsedSort,
+  type ParsedWhere,
+  parseSort,
+  parseWhere,
+} from './query/parse-where.js'
 export { getCollectionSchemasForPath } from './schemas/zod/cache.js'
 export * from './services/index.js'
 export * from './storage/index.js'

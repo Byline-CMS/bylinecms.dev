@@ -18,12 +18,19 @@ import type {
   ReadContext,
   ReadMode,
   SlugifierFn,
+  SortSpec,
 } from '@byline/core'
 
 // Re-exported for callers who reach the predicate language through the
 // client surface. The canonical definitions live in `@byline/core` so
 // hooks (`CollectionHooks.beforeRead`) and the client share one type.
-export type { FilterOperators, PredicateValue, QueryPredicate } from '@byline/core'
+export type {
+  FilterOperators,
+  PredicateValue,
+  QueryPredicate,
+  SortDirection,
+  SortSpec,
+} from '@byline/core'
 
 // ---------------------------------------------------------------------------
 // Client construction
@@ -258,10 +265,10 @@ export type WhereValue = PredicateValue
 // ---------------------------------------------------------------------------
 // Sort
 // ---------------------------------------------------------------------------
-
-export type SortDirection = 'asc' | 'desc'
-
-export type SortSpec = Record<string, SortDirection>
+// `SortSpec` and `SortDirection` are re-exported from `@byline/core` at the
+// top of this file. The canonical definitions moved to core alongside
+// `parseSort` / `parseWhere` so populate (which lives in core) can compile
+// hook predicates without a layer-crossing import.
 
 // ---------------------------------------------------------------------------
 // Response types

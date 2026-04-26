@@ -276,6 +276,13 @@ export interface IDocumentQueries {
     /** See `ReadMode`. Defaults to `'any'`. */
     readMode?: ReadMode
     /**
+     * Additional WHERE-clause predicates ANDed onto the query. Used by
+     * `CollectionHandle` to apply `beforeRead`-hook scoping; when the
+     * predicate excludes the row, the method returns `null` (the same
+     * shape as "document does not exist").
+     */
+    filters?: DocumentFilter[]
+    /**
      * Request-scoped auth context. Plumbing only in Phase 0 — adapters
      * currently ignore it. Phase 4 uses it for `collections.<path>.read`
      * ability assertion and for `beforeRead`-hook query scoping.
@@ -311,6 +318,8 @@ export interface IDocumentQueries {
     reconstruct: boolean
     /** See `ReadMode`. Defaults to `'any'`. */
     readMode?: ReadMode
+    /** See `getDocumentById.filters`. */
+    filters?: DocumentFilter[]
     /** See `getDocumentById.requestContext`. */
     requestContext?: RequestContext
   }): Promise<any | null>
@@ -340,6 +349,9 @@ export interface IDocumentQueries {
     fields?: string[]
     /** See `ReadMode`. Defaults to `'any'`. */
     readMode?: ReadMode
+    /** See `getDocumentById.filters`. Used by populate to apply each target
+     *  collection's `beforeRead` predicate to its batch fetch. */
+    filters?: DocumentFilter[]
     /** See `getDocumentById.requestContext`. */
     requestContext?: RequestContext
   }): Promise<any[]>

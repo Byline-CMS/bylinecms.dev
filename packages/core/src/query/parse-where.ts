@@ -6,19 +6,29 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { fieldTypeToStore } from '../storage/field-store-map.js'
 import type {
-  BylineLogger,
-  CollectionDefinition,
   CombinatorFilter,
   DocumentFilter,
   FieldFilter,
   FieldFilterOperator,
-  QueryPredicate,
   RelationFilter,
-} from '@byline/core'
-import { fieldTypeToStore } from '@byline/core'
+} from '../@types/db-types.js'
+import type { CollectionDefinition } from '../@types/index.js'
+import type {
+  FilterOperators,
+  PredicateValue,
+  QueryPredicate,
+  SortSpec,
+} from '../@types/query-predicate.js'
+import type { BylineLogger } from '../lib/logger.js'
 
-import type { FilterOperators, SortSpec, WhereClause, WhereValue } from '../types.js'
+// Internal aliases — `parse-where` was originally written against the
+// client's `WhereClause` / `WhereValue` types, now back-compat aliases
+// for `QueryPredicate` / `PredicateValue`. Keeping the names lets the
+// existing function bodies stay unchanged.
+type WhereClause = QueryPredicate
+type WhereValue = PredicateValue
 
 // ---------------------------------------------------------------------------
 // Document-level reserved keys

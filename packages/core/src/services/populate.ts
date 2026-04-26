@@ -130,10 +130,15 @@
  *     added).
  */
 
+import type { RequestContext } from '@byline/auth'
+
+import { applyBeforeRead } from '../auth/apply-before-read.js'
 import { ERR_READ_BUDGET_EXCEEDED } from '../lib/errors.js'
+import { parseWhere } from '../query/parse-where.js'
 import { applyAfterRead } from './document-read.js'
 import type {
   CollectionDefinition,
+  DocumentFilter,
   FieldSet,
   IDbAdapter,
   ReadContext,
@@ -259,6 +264,23 @@ export interface PopulateOptions {
    * prevent A→B→A infinite loops.
    */
   readContext?: ReadContext
+  /**
+   * Request-scoped auth context. Required when any target collection in the
+   * walk has a `beforeRead` hook configured. Each target's hook is invoked
+   * (and cached on `readContext.beforeReadCache`) before its batch fetch,
+   * and the resulting predicate is ANDed onto the fetch's WHERE. When
+   * omitted — most synthetic / test call paths — `beforeRead` hooks are
+   * skipped entirely; the production read paths all forward this through
+   * from `CollectionHandle`.
+   */
+  requestContext?: RequestContext
+  /**
+   * Skip `beforeRead` hook resolution on every target collection. The
+   * top-level read's `_bypassBeforeRead` flag rides through to populate
+   * here so admin tooling sees the same unscoped tree on populated
+   * relations as it does on the source document.
+   */
+  bypassBeforeRead?: true
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +439,20 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
         )
       )
 
+      // Resolve the target collection's `beforeRead` predicate, if any.
+      // The cache on `ctx.beforeReadCache` ensures each (collectionPath,
+      // actor) tuple only runs through the hook once per request, even
+      // across populate fanout where the same target collection may be
+      // visited from multiple sources.
+      const targetFilters = await resolveBeforeReadFiltersForTarget({
+        targetDef,
+        collections: opts.collections,
+        requestContext: opts.requestContext,
+        readContext: ctx,
+        bypassBeforeRead: opts.bypassBeforeRead,
+        db: opts.db,
+      })
+
       let fetched: any[] = []
       if (idsToFetch.length > 0) {
         fetched = await opts.db.queries.documents.getDocumentsByDocumentIds({
@@ -425,6 +461,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
           locale: opts.locale,
           fields: selectList,
           readMode: opts.readMode,
+          filters: targetFilters,
         })
       }
 
@@ -576,6 +613,54 @@ async function resolveCollectionDef(
 
   cache.set(id, def ?? null)
   return def
+}
+
+/**
+ * Resolve the per-target-collection `beforeRead` predicate for a populate
+ * batch fetch and compile it to `DocumentFilter[]`. Skipped when:
+ *   - the target collection definition could not be resolved (in which
+ *     case populate emits an unresolved stub anyway),
+ *   - no `requestContext` was threaded in (synthetic / test call paths
+ *     that don't go through `CollectionHandle`),
+ *   - `bypassBeforeRead` is set (admin tooling, seeds, migrations).
+ *
+ * Returns `undefined` when no scoping applies, so the adapter can skip
+ * the EXISTS-loop entirely.
+ */
+async function resolveBeforeReadFiltersForTarget(params: {
+  targetDef: CollectionDefinition | undefined
+  collections: CollectionDefinition[]
+  requestContext: RequestContext | undefined
+  readContext: ReadContext
+  bypassBeforeRead: true | undefined
+  db: IDbAdapter
+}): Promise<DocumentFilter[] | undefined> {
+  const { targetDef, collections, requestContext, readContext, bypassBeforeRead, db } = params
+  if (!targetDef || !requestContext || bypassBeforeRead) return undefined
+
+  const predicate = await applyBeforeRead({
+    definition: targetDef,
+    requestContext,
+    readContext,
+  })
+  if (predicate == null) return undefined
+
+  const parsed = await parseWhere(predicate, targetDef, {
+    collections,
+    resolveCollectionId: async (path) => {
+      // Match the target collection by path against the loaded collection
+      // list first (cheap, in-memory); fall back to a DB lookup for cases
+      // where a hook references a collection not loaded into the same
+      // populate context. This mirrors `CollectionHandle`'s parser ctx.
+      const local = collections.find((c) => c.path === path) as
+        | (CollectionDefinition & { id?: string })
+        | undefined
+      if (local?.id) return local.id
+      const row = await db.queries.collections.getCollectionByPath(path)
+      return row?.id ?? ''
+    },
+  })
+  return parsed.filters.length > 0 ? parsed.filters : undefined
 }
 
 /**

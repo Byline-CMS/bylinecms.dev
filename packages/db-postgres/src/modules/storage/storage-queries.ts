@@ -232,19 +232,28 @@ export class DocumentQueries implements IDocumentQueries {
     locale = 'en',
     reconstruct = true,
     readMode,
+    filters,
   }: {
     collection_id: string
     document_id: string
     locale?: string
     reconstruct?: boolean
     readMode?: ReadMode
+    filters?: DocumentFilter[]
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
+    const baseConditions: SQL[] = [
+      eq(view.collection_id, collection_id),
+      eq(view.document_id, document_id),
+    ]
+    for (const f of filters ?? []) {
+      baseConditions.push(this.buildFilterExists(f, locale, sql`${view.id}`, readMode, 0))
+    }
     const [document] = await this.db
       .select()
       .from(view)
-      .where(and(eq(view.collection_id, collection_id), eq(view.document_id, document_id)))
+      .where(and(...baseConditions))
 
     if (document == null) {
       return null
@@ -303,19 +312,25 @@ export class DocumentQueries implements IDocumentQueries {
     locale = 'en',
     reconstruct = true,
     readMode,
+    filters,
   }: {
     collection_id: string
     path: string
     locale?: string
     reconstruct: boolean
     readMode?: ReadMode
+    filters?: DocumentFilter[]
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
+    const baseConditions: SQL[] = [eq(view.collection_id, collection_id), eq(view.path, path)]
+    for (const f of filters ?? []) {
+      baseConditions.push(this.buildFilterExists(f, locale, sql`${view.id}`, readMode, 0))
+    }
     const [document] = await this.db
       .select()
       .from(view)
-      .where(and(eq(view.collection_id, collection_id), eq(view.path, path)))
+      .where(and(...baseConditions))
 
     if (document == null) {
       return null
@@ -463,20 +478,35 @@ export class DocumentQueries implements IDocumentQueries {
     locale = 'all',
     fields,
     readMode,
+    filters,
   }: {
     collection_id: string
     document_ids: string[]
     locale?: string
     fields?: string[]
     readMode?: ReadMode
+    filters?: DocumentFilter[]
   }): Promise<any[]> {
     if (document_ids.length === 0) return []
 
     const view = this.pickCurrentView(readMode)
+    // The locale used to compile filter EXISTS subqueries should resolve
+    // values from a real locale, even when the surrounding read uses the
+    // sentinel `'all'` (populate batches that span every locale do this).
+    // Falling back to `'en'` here matches the default used by the
+    // single-doc lookup methods.
+    const filterLocale = locale === 'all' ? 'en' : locale
+    const baseConditions: SQL[] = [
+      eq(view.collection_id, collection_id),
+      inArray(view.document_id, document_ids),
+    ]
+    for (const f of filters ?? []) {
+      baseConditions.push(this.buildFilterExists(f, filterLocale, sql`${view.id}`, readMode, 0))
+    }
     const docs = await this.db
       .select()
       .from(view)
-      .where(and(eq(view.collection_id, collection_id), inArray(view.document_id, document_ids)))
+      .where(and(...baseConditions))
 
     return this.reconstructDocuments({ documents: docs as Document[], locale, fields })
   }
