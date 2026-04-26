@@ -9,6 +9,7 @@
 import type {
   CollectionDefinition,
   CombinatorFilter,
+  DocumentColumnFilter,
   DocumentFilter,
   FieldFilter,
   FieldSort,
@@ -54,6 +55,19 @@ interface MetaRow {
   path: string
   item_id: string
   meta: Record<string, any> | null
+}
+
+/**
+ * SQL references to the columns the predicate compiler may need from the
+ * enclosing scope. `docVersionId` is consumed by every EXISTS subquery as
+ * the correlation key; `status` and `path` are referenced by
+ * `DocumentColumnFilter` (the inside-a-combinator form of the
+ * top-level `status` / `path` reserved keys).
+ */
+interface OuterScope {
+  docVersionId: SQL
+  status: SQL
+  path: SQL
 }
 
 /**
@@ -247,8 +261,15 @@ export class DocumentQueries implements IDocumentQueries {
       eq(view.collection_id, collection_id),
       eq(view.document_id, document_id),
     ]
-    for (const f of filters ?? []) {
-      baseConditions.push(this.buildFilterExists(f, locale, sql`${view.id}`, readMode, 0))
+    if (filters?.length) {
+      const outerScope: OuterScope = {
+        docVersionId: sql`${view.id}`,
+        status: sql`${view.status}`,
+        path: sql`${view.path}`,
+      }
+      for (const f of filters) {
+        baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
+      }
     }
     const [document] = await this.db
       .select()
@@ -324,8 +345,15 @@ export class DocumentQueries implements IDocumentQueries {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
     const baseConditions: SQL[] = [eq(view.collection_id, collection_id), eq(view.path, path)]
-    for (const f of filters ?? []) {
-      baseConditions.push(this.buildFilterExists(f, locale, sql`${view.id}`, readMode, 0))
+    if (filters?.length) {
+      const outerScope: OuterScope = {
+        docVersionId: sql`${view.id}`,
+        status: sql`${view.status}`,
+        path: sql`${view.path}`,
+      }
+      for (const f of filters) {
+        baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
+      }
     }
     const [document] = await this.db
       .select()
@@ -500,8 +528,15 @@ export class DocumentQueries implements IDocumentQueries {
       eq(view.collection_id, collection_id),
       inArray(view.document_id, document_ids),
     ]
-    for (const f of filters ?? []) {
-      baseConditions.push(this.buildFilterExists(f, filterLocale, sql`${view.id}`, readMode, 0))
+    if (filters?.length) {
+      const outerScope: OuterScope = {
+        docVersionId: sql`${view.id}`,
+        status: sql`${view.status}`,
+        path: sql`${view.path}`,
+      }
+      for (const f of filters) {
+        baseConditions.push(this.buildFilterExists(f, filterLocale, outerScope, readMode, 0))
+      }
     }
     const docs = await this.db
       .select()
@@ -698,10 +733,15 @@ export class DocumentQueries implements IDocumentQueries {
     filters?: DocumentFilter[]
   }): Promise<Array<{ status: string; count: number }>> {
     const conditions: SQL[] = [eq(currentDocumentsView.collection_id, collection_id)]
-    for (const f of filters ?? []) {
-      conditions.push(
-        this.buildFilterExists(f, 'en', sql`${currentDocumentsView.id}`, undefined, 0)
-      )
+    if (filters?.length) {
+      const outerScope: OuterScope = {
+        docVersionId: sql`${currentDocumentsView.id}`,
+        status: sql`${currentDocumentsView.status}`,
+        path: sql`${currentDocumentsView.path}`,
+      }
+      for (const f of filters) {
+        conditions.push(this.buildFilterExists(f, 'en', outerScope, undefined, 0))
+      }
     }
     const rows = await this.db
       .select({
@@ -959,7 +999,15 @@ export class DocumentQueries implements IDocumentQueries {
     // introduces its own alias scope (`r${depth}`, `td${depth}`) so nested
     // EXISTS clauses don't shadow their outer relation's aliases.
     for (const filter of filters) {
-      conditions.push(this.buildFilterExists(filter, locale, sql`d.id`, readMode, 0))
+      conditions.push(
+        this.buildFilterExists(
+          filter,
+          locale,
+          { docVersionId: sql`d.id`, status: sql`d.status`, path: sql`d.path` },
+          readMode,
+          0
+        )
+      )
     }
 
     const whereClause = sql.join(conditions, sql` AND `)
@@ -1047,38 +1095,43 @@ export class DocumentQueries implements IDocumentQueries {
    * `kind` — field filters emit a direct EXISTS against the field's EAV
    * store; relation filters emit a nested EXISTS that joins through
    * `store_relation` to the target collection's current-documents view
-   * and recurses against the target's own stores.
+   * and recurses against the target's own stores; combinator filters
+   * emit a parenthesised AND/OR group; document-column filters emit a
+   * direct comparison on the outer scope's status/path column.
    *
-   * `outerDocVersionId` is the SQL reference to the document_version_id
-   * on the enclosing scope — `d.id` for top-level filters, `td${n}.id`
-   * for filters inside a relation hop at depth n. `depth` is the current
-   * nesting level; each relation hop bumps it so aliases stay unique
-   * across nested EXISTS scopes (Postgres would otherwise resolve
-   * `td.id` to the innermost `td`, silently producing the wrong rows).
+   * `outerScope` carries SQL references to the enclosing scope's
+   * `document_version_id`, `status`, and `path` — `d.id`/`d.status`/
+   * `d.path` at the top level, the equivalent column references on the
+   * Drizzle view for single-doc lookups, and `td${n}.…` inside relation
+   * hops. `depth` is the current relation-nesting level; each relation
+   * hop bumps it so aliases stay unique across nested EXISTS scopes
+   * (Postgres would otherwise resolve `td.id` to the innermost `td`,
+   * silently producing the wrong rows).
    */
   private buildFilterExists(
     filter: DocumentFilter,
     locale: string,
-    outerDocVersionId: SQL,
+    outerScope: OuterScope,
     readMode: ReadMode | undefined,
     depth: number
   ): SQL {
     switch (filter.kind) {
       case 'field':
-        return this.buildFieldExists(filter, locale, outerDocVersionId)
+        return this.buildFieldExists(filter, locale, outerScope.docVersionId)
       case 'relation':
-        return this.buildRelationExists(filter, locale, outerDocVersionId, readMode, depth)
+        return this.buildRelationExists(filter, locale, outerScope, readMode, depth)
       case 'and':
       case 'or':
-        return this.buildCombinatorGroup(filter, locale, outerDocVersionId, readMode, depth)
+        return this.buildCombinatorGroup(filter, locale, outerScope, readMode, depth)
+      case 'docColumn':
+        return this.buildDocColumnFilter(filter, outerScope)
     }
   }
 
   /**
    * Build a parenthesised AND/OR group from a CombinatorFilter. Each child
    * compiles through `buildFilterExists` recursively, so combinators nest
-   * freely and inherit the outer `outerDocVersionId` / `depth` so relation
-   * children stay correctly scoped.
+   * freely and inherit the outer scope.
    *
    * An empty `children` array would emit `()` and produce a syntax error,
    * so callers (the parser) skip empty groups; this method assumes at
@@ -1087,15 +1140,26 @@ export class DocumentQueries implements IDocumentQueries {
   private buildCombinatorGroup(
     filter: CombinatorFilter,
     locale: string,
-    outerDocVersionId: SQL,
+    outerScope: OuterScope,
     readMode: ReadMode | undefined,
     depth: number
   ): SQL {
     const childSql = filter.children.map((child) =>
-      this.buildFilterExists(child, locale, outerDocVersionId, readMode, depth)
+      this.buildFilterExists(child, locale, outerScope, readMode, depth)
     )
     const joiner = filter.kind === 'or' ? sql` OR ` : sql` AND `
     return sql`(${sql.join(childSql, joiner)})`
+  }
+
+  /**
+   * Compile a `DocumentColumnFilter` against the outer scope's status or
+   * path column. Plain comparison — no EXISTS — because the column lives
+   * directly on the outer relation (`document_versions` row), not in the
+   * EAV stores.
+   */
+  private buildDocColumnFilter(filter: DocumentColumnFilter, outerScope: OuterScope): SQL {
+    const column = filter.column === 'status' ? outerScope.status : outerScope.path
+    return this.buildFilterCondition(column, filter.operator, filter.value)
   }
 
   /**
@@ -1139,7 +1203,7 @@ export class DocumentQueries implements IDocumentQueries {
   private buildRelationExists(
     filter: RelationFilter,
     locale: string,
-    outerDocVersionId: SQL,
+    outerScope: OuterScope,
     readMode: ReadMode | undefined,
     depth: number
   ): SQL {
@@ -1153,10 +1217,14 @@ export class DocumentQueries implements IDocumentQueries {
     // nested inside that gets `r1`/`td1`.
     const rAlias = sql.raw(`r${depth}`)
     const tdAlias = sql.raw(`td${depth}`)
-    const tdId = sql.raw(`td${depth}.id`)
+    const innerScope: OuterScope = {
+      docVersionId: sql.raw(`td${depth}.id`),
+      status: sql.raw(`td${depth}.status`),
+      path: sql.raw(`td${depth}.path`),
+    }
 
     const nestedConditions: SQL[] = filter.nested.map((nested) =>
-      this.buildFilterExists(nested, locale, tdId, readMode, depth + 1)
+      this.buildFilterExists(nested, locale, innerScope, readMode, depth + 1)
     )
 
     const nestedAnd =
@@ -1167,7 +1235,7 @@ export class DocumentQueries implements IDocumentQueries {
       JOIN ${targetView} ${tdAlias}
         ON ${tdAlias}.document_id = ${rAlias}.target_document_id
        AND ${tdAlias}.collection_id = ${rAlias}.target_collection_id
-      WHERE ${rAlias}.document_version_id = ${outerDocVersionId}
+      WHERE ${rAlias}.document_version_id = ${outerScope.docVersionId}
         AND ${rAlias}.field_name = ${filter.fieldName}
         AND ${rAlias}.target_collection_id = ${filter.targetCollectionId}
         AND (${rAlias}.locale = ${locale} OR ${rAlias}.locale = 'all')${nestedAnd}

@@ -424,9 +424,16 @@ export class CollectionHandle {
     // Access gate. `findById` runs `beforeRead`; a `null` here means either
     // the document does not exist or the actor's predicate excludes it. In
     // both cases an empty history is the correct response.
+    //
+    // `status: 'any'` so the gate asks "can the actor see *any* version of
+    // this document?" rather than the client's default "is there a
+    // published version they can see?". A draft-only document with the
+    // owning actor should still surface history; using the published-only
+    // default would gate them out incorrectly.
     if (!options._bypassBeforeRead) {
       const accessible = await this.findById(documentId, {
         locale,
+        status: 'any',
         _readContext: readCtx,
       })
       if (accessible == null) {

@@ -141,11 +141,36 @@ export interface CombinatorFilter {
 }
 
 /**
+ * A predicate over a document-version column (`status`, `path`). Distinct
+ * from `FieldFilter` — these columns live on `document_versions` itself,
+ * not on the EAV stores, so they compile to a direct outer-scope column
+ * comparison rather than an `EXISTS` subquery.
+ *
+ * Produced by `parse-where` when `status` / `path` appear *inside* a
+ * combinator (`$or` / `$and` child). At the top level the same keys are
+ * intercepted as reserved keys on `ParsedWhere.status` / `ParsedWhere.pathFilter`
+ * because they map to direct adapter parameters there; inside a
+ * combinator that mapping no longer makes sense (you can't OR-combine
+ * with the outer scalar parameter), so they downshift to this filter.
+ */
+export interface DocumentColumnFilter {
+  kind: 'docColumn'
+  column: 'status' | 'path'
+  operator: FieldFilterOperator
+  value: string | null
+}
+
+/**
  * Any filter that can appear in a `findDocuments` call — a direct field
  * predicate (`FieldFilter`), a cross-collection hop through a relation
- * (`RelationFilter`), or a nested boolean combinator (`CombinatorFilter`).
+ * (`RelationFilter`), a nested boolean combinator (`CombinatorFilter`),
+ * or a document-version column comparison (`DocumentColumnFilter`).
  */
-export type DocumentFilter = FieldFilter | RelationFilter | CombinatorFilter
+export type DocumentFilter =
+  | FieldFilter
+  | RelationFilter
+  | CombinatorFilter
+  | DocumentColumnFilter
 
 /**
  * A field-level sort descriptor, pre-resolved to the correct EAV store

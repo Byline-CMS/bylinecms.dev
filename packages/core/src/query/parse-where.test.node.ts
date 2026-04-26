@@ -546,6 +546,74 @@ describe('parseWhere — combinators', () => {
     })
   })
 
+  it('emits a docColumn filter when status appears inside an $or', async () => {
+    const result = await parseWhere(
+      {
+        $or: [{ status: 'published' }, { status: 'draft', title: 'Hello' }],
+      },
+      testCollection
+    )
+    // Top-level $or stays as a single combinator wrapping each branch.
+    expect(result.filters).toHaveLength(1)
+    const top = result.filters[0]!
+    expect(top.kind).toBe('or')
+    if (top.kind !== 'or') return
+    expect(top.children).toHaveLength(2)
+    // First branch: just a status check, downshifted from reserved key.
+    expect(top.children[0]).toMatchObject({
+      kind: 'docColumn',
+      column: 'status',
+      operator: '$eq',
+      value: 'published',
+    })
+    // Second branch has both a status check and a title filter — wrapped
+    // in an inner `and` so the outer `or` sees one node per branch.
+    expect(top.children[1]).toMatchObject({ kind: 'and' })
+    if (top.children[1]?.kind !== 'and') return
+    expect(top.children[1].children).toHaveLength(2)
+    expect(top.children[1].children[0]).toMatchObject({
+      kind: 'docColumn',
+      column: 'status',
+      value: 'draft',
+    })
+    expect(top.children[1].children[1]).toMatchObject({ kind: 'field', fieldName: 'title' })
+    // None of the combinator-internal status writes should leak into
+    // `result.status` — that's reserved for top-level scalar filters.
+    expect(result.status).toBeUndefined()
+  })
+
+  it('emits a docColumn filter when path appears inside an $or', async () => {
+    const result = await parseWhere(
+      { $or: [{ path: 'a' }, { path: { $contains: 'b' } }] },
+      testCollection
+    )
+    expect(result.pathFilter).toBeUndefined() // not the top-level reserved form
+    const top = result.filters[0]!
+    expect(top.kind).toBe('or')
+    if (top.kind !== 'or') return
+    expect(top.children[0]).toMatchObject({
+      kind: 'docColumn',
+      column: 'path',
+      operator: '$eq',
+      value: 'a',
+    })
+    expect(top.children[1]).toMatchObject({
+      kind: 'docColumn',
+      column: 'path',
+      operator: '$contains',
+      value: 'b',
+    })
+  })
+
+  it('still treats top-level status / path as the reserved scalar form', async () => {
+    // Sanity: outside a combinator, status and path go on the ParsedWhere
+    // top-level slots and emit no DocumentFilter.
+    const result = await parseWhere({ status: 'published', path: 'foo' }, testCollection)
+    expect(result.status).toBe('published')
+    expect(result.pathFilter).toEqual({ operator: '$eq', value: 'foo' })
+    expect(result.filters).toEqual([])
+  })
+
   it('parses combinators inside a nested relation sub-where', async () => {
     const result = await parseWhere(
       {

@@ -9,6 +9,7 @@
 import { fieldTypeToStore } from '../storage/field-store-map.js'
 import type {
   CombinatorFilter,
+  DocumentColumnFilter,
   DocumentFilter,
   FieldFilter,
   FieldFilterOperator,
@@ -129,7 +130,7 @@ export async function parseWhere(
   definition: CollectionDefinition,
   ctx?: ParseContext
 ): Promise<ParsedWhere> {
-  return parseWhereInternal(where, definition, ctx, { isNested: false })
+  return parseWhereInternal(where, definition, ctx, { isNested: false, inCombinator: false })
 }
 
 /**
@@ -164,7 +165,7 @@ async function parseWhereInternal(
   where: WhereClause | undefined,
   definition: CollectionDefinition,
   ctx: ParseContext | undefined,
-  { isNested }: { isNested: boolean }
+  { isNested, inCombinator }: { isNested: boolean; inCombinator: boolean }
 ): Promise<ParsedWhere> {
   const result: ParsedWhere = { filters: [] }
 
@@ -201,7 +202,15 @@ async function parseWhereInternal(
 
       const childFilters: DocumentFilter[][] = []
       for (const child of rawValue as QueryPredicate[]) {
-        const childParsed = await parseWhereInternal(child, definition, ctx, { isNested })
+        // Children parse with `inCombinator: true` so reserved keys
+        // (`status`, `path`) become `DocumentColumnFilter` predicates
+        // rather than being intercepted as top-level scalar parameters
+        // — they need to compose with the combinator's OR/AND, which
+        // the top-level scalar form cannot do.
+        const childParsed = await parseWhereInternal(child, definition, ctx, {
+          isNested,
+          inCombinator: true,
+        })
         childFilters.push(childParsed.filters)
       }
 
@@ -231,9 +240,29 @@ async function parseWhereInternal(
       continue
     }
 
-    // --- Document-level reserved keys (top-level only) ---------------------
+    // --- Document-level reserved keys --------------------------------------
+    // At the top level (not nested in a relation, not inside a combinator)
+    // these keys map to direct adapter scalar parameters
+    // (`ParsedWhere.status` / `query` / `pathFilter`) which compile to the
+    // outermost WHERE clause. Inside a combinator that mapping no longer
+    // composes — the predicate needs to OR with siblings, which the scalar
+    // parameter form cannot express — so `status` / `path` downshift to a
+    // `DocumentColumnFilter` and `query` is dropped (text search has no
+    // sensible OR-composing form here).
     if (!isNested) {
       if (key === 'status') {
+        if (inCombinator) {
+          const parsed = normaliseToOperator(rawValue)
+          if (parsed) {
+            result.filters.push({
+              kind: 'docColumn',
+              column: 'status',
+              operator: parsed.operator,
+              value: parsed.value === null ? null : String(parsed.value),
+            } satisfies DocumentColumnFilter)
+          }
+          continue
+        }
         if (typeof rawValue === 'string') {
           result.status = rawValue
         }
@@ -241,6 +270,13 @@ async function parseWhereInternal(
       }
 
       if (key === 'query') {
+        if (inCombinator) {
+          ctx?.logger?.debug(
+            { collection: definition.path },
+            'parse-where: dropping `query` inside a combinator — text search does not compose with OR/AND'
+          )
+          continue
+        }
         if (typeof rawValue === 'string') {
           result.query = rawValue
         }
@@ -248,6 +284,18 @@ async function parseWhereInternal(
       }
 
       if (key === 'path') {
+        if (inCombinator) {
+          const parsed = normaliseToOperator(rawValue)
+          if (parsed) {
+            result.filters.push({
+              kind: 'docColumn',
+              column: 'path',
+              operator: parsed.operator,
+              value: parsed.value === null ? null : String(parsed.value),
+            } satisfies DocumentColumnFilter)
+          }
+          continue
+        }
         const parsed = normaliseToOperator(rawValue)
         if (parsed) {
           result.pathFilter = {
@@ -298,6 +346,7 @@ async function parseWhereInternal(
       const targetCollectionId = await ctx.resolveCollectionId(targetPath)
       const nested = await parseWhereInternal(rawValue as WhereClause, targetDef, ctx, {
         isNested: true,
+        inCombinator: false,
       })
 
       // Flatten nested: only field-level / relation-level conditions make
