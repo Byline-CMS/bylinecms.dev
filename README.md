@@ -20,7 +20,7 @@ The core storage model, early UI, and schema / admin configuration system were a
 - [Content Management in the Time of AI (An Addendum)](#content-management-in-the-time-of-ai-an-addendum)
 - [License](#license)
 
-<img width="734" alt="byline-screeenshot-03" src="https://github.com/user-attachments/assets/c7d6efa1-71bb-4add-b0a2-34611f17be4c" />
+<img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
 <p style="font-size: 0.8rem;"><em>Tiny steps - the Byline prototype.</em></p>
 
