@@ -157,6 +157,5 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
         </ul>
       </nav>
     </aside>
-
   )
 }

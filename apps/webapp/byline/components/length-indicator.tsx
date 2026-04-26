@@ -1,6 +1,6 @@
 'use client'
 
-/** 
+/**
  * Portions Copyright (c) Payload CMS, LLC info@payloadcms.com
  * Copyright notices appear at the top of source files where applicable
  * and are licensed under the MIT license found in the
@@ -9,7 +9,7 @@
  * https://github.com/payloadcms/payload/
  * From the Payload SEO plugin
  * https://github.com/payloadcms/payload/tree/main/packages/plugin-seo
-*/
+ */
 
 import type React from 'react'
 import { Fragment, useEffect, useState } from 'react'

@@ -8,7 +8,6 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Container, Section } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
 import { listAdminUsers } from '@/modules/admin/admin-users'

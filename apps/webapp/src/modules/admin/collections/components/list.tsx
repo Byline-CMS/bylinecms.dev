@@ -66,7 +66,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-        }`}
+      }`}
       className="h-[32px] border-none"
     >
       &nbsp;
@@ -247,10 +247,10 @@ export const ListView = ({
                           >
                             {column.formatter
                               ? renderFormatted(
-                                getColumnValue(document, column.fieldName as string),
-                                document,
-                                column.formatter
-                              )
+                                  getColumnValue(document, column.fieldName as string),
+                                  document,
+                                  column.formatter
+                                )
                               : (getColumnValue(document, column.fieldName as string) ?? '------')}
                           </Link>
                         ) : column.formatter ? (

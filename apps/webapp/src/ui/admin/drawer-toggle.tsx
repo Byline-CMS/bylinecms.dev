@@ -7,7 +7,12 @@ export function DrawerToggle() {
   const { toggleDrawer, drawerOpen } = useAdminMenu()
 
   return (
-    <div className={cx("fixed top-[38px] z-50 transition-all duration-300 ease-in-out", { 'left-[8px]': !drawerOpen, 'left-[160px]': drawerOpen })}>
+    <div
+      className={cx('fixed top-[38px] z-50 transition-all duration-300 ease-in-out', {
+        'left-[8px]': !drawerOpen,
+        'left-[160px]': drawerOpen,
+      })}
+    >
       <Tooltip
         text={drawerOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         side="right"

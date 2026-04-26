@@ -41,11 +41,11 @@ interface PanelProps {
 }
 
 const panels: Record<ComponentKey, { title: string; component: React.ComponentType<PanelProps> }> =
-{
-  update: { title: 'Profile', component: UpdateAccount },
-  change_password: { title: 'Change Password', component: ChangeAccountPassword },
-  empty: { title: '', component: () => null },
-}
+  {
+    update: { title: 'Profile', component: UpdateAccount },
+    change_password: { title: 'Change Password', component: ChangeAccountPassword },
+    empty: { title: '', component: () => null },
+  }
 
 function ContainerSection({
   title,

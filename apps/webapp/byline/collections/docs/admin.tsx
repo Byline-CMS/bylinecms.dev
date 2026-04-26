@@ -59,12 +59,11 @@ const listViewColumns: ColumnDefinition[] = [
 ]
 
 /**
- * Columns rendered per row when a collection item appears as the 
- * target of a relation picker. Usually narrower than the list 
+ * Columns rendered per row when a collection item appears as the
+ * target of a relation picker. Usually narrower than the list
  * view — just enough to identify the right item at a glance.
  */
 // const pickerViewColumns: ColumnDefinition[] = []
-
 
 export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   /**

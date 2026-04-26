@@ -647,13 +647,13 @@ const FormContent = ({
         <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-5">
           {(useAsPath ||
             (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
-              <PathWidget
-                useAsPath={useAsPath}
-                collectionPath={collectionPath ?? ''}
-                defaultLocale={i18n.content.defaultLocale}
-                mode={mode}
-              />
-            )}
+            <PathWidget
+              useAsPath={useAsPath}
+              collectionPath={collectionPath ?? ''}
+              defaultLocale={i18n.content.defaultLocale}
+              mode={mode}
+            />
+          )}
           {(layout.sidebar ?? []).map((name) => renderItem(name))}
         </div>
       </div>

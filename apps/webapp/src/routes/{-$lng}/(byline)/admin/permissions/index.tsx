@@ -8,8 +8,6 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Container, Section } from '@infonomic/uikit/react'
-
 import { listRegisteredAbilities } from '@/modules/admin/admin-permissions'
 import { AbilitiesInspector } from '@/modules/admin/admin-permissions/components/inspector'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
