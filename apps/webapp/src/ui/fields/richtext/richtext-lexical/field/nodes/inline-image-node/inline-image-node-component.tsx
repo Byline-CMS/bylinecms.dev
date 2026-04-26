@@ -49,6 +49,8 @@ import type { Position } from './types'
 
 import './inline-image-node-component.css'
 
+import { LinkPlugin } from '../../plugins/link-plugin/link'
+import { FloatingLinkEditorPlugin } from '../../plugins/link-plugin/link/floating-link-editor'
 import type { InlineImageData } from '../../plugins/inline-image-plugin/types'
 
 const inlineImageDrawerSlug = 'inline-image'
@@ -328,8 +330,8 @@ export default function InlineImageComponent({
                   if (onChange != null) onChange(editorState, editor, nestedTags)
                 }}
               />
-              {/* <LinkPlugin /> */}
-              {/* <FloatingLinkEditorPlugin /> */}
+              <LinkPlugin />
+              <FloatingLinkEditorPlugin />
               <FloatingTextFormatToolbarPlugin />
               <HistoryPlugin externalHistoryState={historyState} />
               <RichTextPlugin
