@@ -23,7 +23,7 @@ import type { RoutesConfig } from '@byline/core'
 
 export { i18n } from './byline/i18n.js'
 
-export const serverURL = 'http://localhost:5173/'
+export const serverURL = process.env.VITE_SERVER_URL || 'http://localhost:5173/'
 
 /**
  * URL segments for admin and (future) public API routes. Defaults of
