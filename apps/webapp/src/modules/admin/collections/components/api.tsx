@@ -30,8 +30,8 @@ export const ApiView = ({
   const { labels, path } = collectionDefinition
 
   return (
-    <Section>
-      <Container>
+    <Section className="flex-1 flex flex-col min-h-0">
+      <Container className="flex-1 flex flex-col min-h-0">
         <div className="item-view flex flex-col sm:flex-row justify-start sm:justify-between mb-2">
           <h2 className="mb-2">{labels.singular} API</h2>
           <ViewMenu
@@ -42,7 +42,7 @@ export const ApiView = ({
             depth={depth}
           />
         </div>
-        <div className="border bg-canvas-800 rounded p-1 font-mono text-sm font-weight-normal">
+        <div className="border bg-canvas-800 rounded p-1 font-mono text-sm font-weight-normal flex-1 overflow-y-auto min-h-0">
           <JsonView
             data={initialData}
             shouldExpandNode={allExpanded}

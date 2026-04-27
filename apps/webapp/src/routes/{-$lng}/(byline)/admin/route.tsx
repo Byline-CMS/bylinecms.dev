@@ -55,7 +55,7 @@ function AdminLayoutComponent() {
   return (
     <AdminMenuProvider>
       <AdminAppBar user={user} />
-      <main className="flex min-h-screen w-full max-w-full pt-[45px]">
+      <main className="flex h-screen w-full max-w-full pt-[45px]">
         <DrawerToggle />
         <AdminMenuDrawer />
         <Content>
