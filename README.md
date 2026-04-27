@@ -1,85 +1,95 @@
 # Byline CMS
 
-Welcome to Byline CMS.
+A developer-friendly, open-source headless CMS — built so versioning,
+editorial workflow, and content translation are first-class concerns rather
+than features bolted on later.
 
-We're hoping to build a developer-friendly, open-source and community-driven headless CMS.
-
-### A note about AI usage in the development of Byline CMS. 
-
-The core storage model, early UI, and schema / admin configuration system were all developed by hand, drawing on years of experience building solutions on top of other frameworks. Once our core model settled down, and following the 'big leap' in AI coding assistants around December 2025, we have increasingly adopted a 'guided' approach to using LLM-based generative AI to design and plan phases of work. It's been a remarkable journey. The marginal cost of developing Byline has dropped significantly as a result — enough that, with just a 2-person team, we'll likely get to a 'pretty good' v1 release on our own. Our hunch is that even within the rapidly evolving world of LLM-based AI, a content management system like Byline will remain a useful tool for our work and for the organizations we support. We're also excited by the potential for building higher-level AI-enabled services on top of Byline. It's hard to predict how this will all play out in a world of software development that is changing fast, though again we believe that our [Mission & Vision](#mission--vision) statement below, along with our note about [Content Management in the Time of AI (An Addendum)](#content-management-in-the-time-of-ai-an-addendum) further below, holds true. Time will tell whether we've guessed right, or not. ;-)
-
-## Table of Contents
-
-- [Docs](#docs)
-- [Mission & Vision](#mission--vision)
-- [FAQ](#faq)
-- [Design Goals](#design-goals)
-- [Key Architectural Decisions](#key-architectural-decisions)
-- [Current Analysis Documents](#current-analysis-documents)
-- [Getting Started](#getting-started)
-- [Content Management in the Time of AI (An Addendum)](#content-management-in-the-time-of-ai-an-addendum)
-- [License](#license)
+> Status: early beta. The shape is settling, the core is stable enough to
+> build on, and you're welcome to follow along.
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
-<p style="font-size: 0.8rem;"><em>Tiny steps - the Byline prototype.</em></p>
+<p style="font-size: 0.8rem;"><em>Welcome to the Byline dashboard!</em></p>
 
-## Docs
+## What's different
 
-We use a few different kinds of documentation, and they serve different jobs.
+- **Three pillars, not three plugins.** Versioning, editorial workflow, and
+  content translation are foundational and designed to coexist without
+  trade-offs.
+- **Universal storage (EAV-per-type).** Schemas change without migrations.
+  Documents flatten into typed `store_*` tables (text, numeric, boolean,
+  datetime, json, file, relation) addressed by a custom path notation —
+  indexable, query-friendly, and the basis for selective field loading.
+- **Immutable versioning by default.** Every change creates a new
+  UUIDv7-ordered version. "Current" is a pointer, not a mutation.
+- **Patch-based updates.** Clients accumulate `DocumentPatch[]`; the server
+  applies them against the reconstructed document. A foundation for
+  collaborative editing later.
+- **Schema separated from presentation.** Collection definitions are
+  server-safe data; admin UI lives in a parallel `defineAdmin()` config —
+  Django models vs ModelAdmin, applied to headless content.
 
-- Analysis docs in [docs/analysis](docs/analysis/README.md) capture phases of work, active architectural thinking, deferred boundaries, and strategic design notes.
-- Implementation docs describe how something currently works in code, usually close to the package or subsystem they belong to.
-- Package design docs, such as [packages/client/DESIGN.md](packages/client/DESIGN.md), describe the intended API and roadmap for a specific package rather than the broader project phase.
+For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-If a document is mostly about an active architecture question or a current design phase, it should usually live under [docs/analysis](docs/analysis/README.md).
+## Documentation
 
-## Current Analysis Documents
+- **[docs/analysis/](docs/analysis/README.md)** — active architectural
+  thinking, phased roadmap, design notes. Start with
+  [PHASES-OF-WORK](docs/analysis/PHASES-OF-WORK.md) for what's shipping
+  next.
+- **[docs/MISSION.md](docs/MISSION.md)** — why Byline exists, the three
+  pillars, building in the open, and a note on how we use AI in
+  development.
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — key architectural
+  decisions in depth, with code examples.
+- **[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)** — full setup,
+  including Postgres bring-up and seeding.
+- **[docs/CONTENT-IN-THE-TIME-OF-AI.md](docs/CONTENT-IN-THE-TIME-OF-AI.md)**
+  — why we think structured content management matters more, not less,
+  alongside generative AI.
+- **Package design docs** sit close to their packages — e.g.
+  [packages/client/DESIGN.md](packages/client/DESIGN.md).
 
-We now keep active architecture and design analysis documents together under
-[`docs/analysis`](docs/analysis/README.md).
+## Quick start
 
-Current in-progress or strategic documents:
+```sh
+git clone git@github.com:Byline-CMS/bylinecms.dev.git
+cd bylinecms.dev
+pnpm install -g rimraf
+pnpm install
+pnpm build
+```
 
-- [Phases of work](docs/analysis/PHASES-OF-WORK.md)
-- [Storage analysis](docs/analysis/STORAGE-ANALYSIS.md)
-- [Relationships analysis](docs/analysis/RELATIONSHIPS-ANALYSIS.md)
-- [Routing and API analysis](docs/analysis/ROUTING-API-ANALYSIS.md)
-- [Client in-process SDK analysis](docs/analysis/CLIENT-IN-PROCESS-SDK-ANALYSIS.md)
-- [Core composition analysis](docs/analysis/CORE-COMPOSITION-ANALYSIS.md)
-- [Collection versioning analysis](docs/analysis/COLLECTION-VERSIONING-ANALYSIS.md)
-- [Document path analysis](docs/analysis/DOCUMENT-PATH-ANALYSIS.md)
-- [AuthN / AuthZ analysis](docs/analysis/AUTHN-AUTHZ-ANALYSIS.md)
+Bring up Postgres (Docker, default password `test`):
 
-## Mission & Vision
- 
-### Why Byline Exists
- 
-Byline grew out of a frustration that we suspect many projects share. In our experience, most content management systems struggle with at least one of three fundamental concerns: versioning, workflow, or content translation. Many struggle with all three. And when they try to support all three at the same time, they tend to break — sometimes obviously, or more commonly, in ways that don't surface until you're deep into a real project with real stakes.
- 
-### The Three Pillars
- 
-We believe that content management rests on three pillars, and that these pillars can coexist without creating mutually exclusive states or trade-offs between one and another.
- 
-**Content translation is not interface translation:** The language you write your content in is not the same as the language you administer your system in. Most CMS platforms conflate these concerns. Byline separates them at the data model level.
- 
-**Versioning should be immutable and enabled by default:** Every change creates a new version. The current state of a document is a pointer, not a mutation. Versioning is not a feature; it's foundational.
- 
-**Workflow should be enabled by default:** Editorial workflow should be a first-class concern, not an afterthought bolted on through plugins or configuration.
- 
-And these three concerns should all work together.
- 
-### Data Ownership
- 
-We believe that if you create and store content, you should be able to get it back out. Not through an export plugin that sort of works. Not through an API that gives you 80% of what you stored. Your data should be portable, extractable, and workable in full and at any time.
- 
-This isn't an ideological position. It's a practical one. We've worked with enough organisations who've been locked into platforms, or who've lost content in migrations, or who've discovered too late that their CMS stored things in a way that made extraction painful and lossy.
- 
-We're not trying to be the next WordPress or the next Contentful. We're not building a platform that does everything for everyone. And we're not pretending we have all the answers. Byline is early-stage and there's a lot of work ahead.
- 
-### Building in the Open
- 
-The developers of Byline have worked extensively with non-profits and NGOs, and this work has shown us the value of certain freedoms: the freedom to own, control, and share content that deserves to be seen. We're building in the open because we think the problems we're solving are shared problems, and because we'd rather build with people who understand them than in isolation.
+```sh
+cd postgres && mkdir data
+./postgres.sh up -d
+```
+
+Initialise the database, run migrations, and seed:
+
+```sh
+cd packages/db-postgres && cp .env.example .env
+cd src/database && ./db_init.sh && cd ../..
+pnpm drizzle:migrate
+
+cd ../../apps/webapp && cp .env.example .env
+pnpm tsx --env-file=.env byline/seed.ts
+```
+
+Then from the project root:
+
+```sh
+pnpm dev
+```
+
+Open http://localhost:5173/.
+
+Full notes — including the foot-gun protection on `db_init`, alternate
+database names, and what the seed does — are in
+[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
 
 ## FAQ
 
@@ -90,12 +100,11 @@ We’re pretty much nobody — at least not within the usual spheres of influenc
 
 <details>
 <summary>2. Will this work?</summary>
-We hope so - but at this early stage, we have no idea.
+We hope so. Early beta means the core is stable enough to build on, but we're still discovering what the edges should look like.
 </details>
 
-
 <details>
-<summary>3. What governance structures are you considering? </summary> 
+<summary>3. What governance structures are you considering?</summary>
 We really like the governance structure of [Penpot](https://community.penpot.app/t/penpots-upcoming-business-model-for-2025/7328). We're committed to 100% open-source software, with no "open core" or "freemium" gotchas.
 </details>
 
@@ -111,7 +120,7 @@ We’re not certain yet, and likely not at this early stage. Our priority is to 
 
 <details>
 <summary>6. What's here now?</summary>
-We're working on a prototype as a 'proof of concept' for our design goals. It runs, and you're more than welcome to follow along, but it will almost certainly change significantly over time.
+Byline is in early beta. The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. Expect changes as we move toward v1, but the core architecture is stable.
 </details>
 
 <details>
@@ -128,256 +137,13 @@ Practically speaking, if someone uses MPL-licensed software in a commercial prod
 We feel the MPL will help to encourage collaboration and shared maintenance of the core platform, while still supporting sustainable commercial ecosystems — which is why many teams see MPL-2.0 as a pragmatic middle path between fully permissive and strongly reciprocal open-source licenses.
 </details>
 
-## Key Architectural Decisions
-
-1. Universal Storage (Inverted Index / EAV-per-type): One of our experiments in this effort is the creation of a general purpose storage model that does not require per-collection schema deployments or migrations regardless of collection shape. It is similar to an  Entity-Attribute-Value store partitioned by type. Our typed store_* tables give us proper column types, indexability, and future full-text/GIN indexing — which we feel is a significant advantage over a single JSONB-per-document approach. We use a custom store path notation (content.1.photoBlock.0.display) as our addressing scheme for 'flattening' and 'reconstructing' documents.
-
-2. Immutable Versioning: We save document versions by default (UUIDv7 time-ordered). This gives us built-in version history, enables eventual audit trails, and avoids in-place mutation. We use ROW_NUMBER() OVER PARTITION for resolving "latest" versions.
-
-3. Patch-Based Updates: We accumulate DocumentPatch[] on the client and apply them server-side against the reconstructed document. Three patch families (field, array, block) cover the essential operations. We also feel our patch-based strategy is a good foundation for future collaborative editing (OT/CRDT).
-
-4. Separate schema (collection schema) and 'presentation' configuration systems: We're fairly sure that a split schema from presentation concerns is the right way to go. The core idea is to have schema/data config defined separately from admin UI config (which references the schema). Something like this:
-
-```ts
-// collections/pages/schema.ts  (server-safe, no UI concerns)
-import type { CollectionDefinition } from '@byline/core'
-import { defineWorkflow } from '@byline/core'
-
-import { availableLanguagesField } from '~/fields/available-languages-field.js'
-
-export const Pages: CollectionDefinition = {
-  path: 'pages',
-  labels: { singular: 'Page', plural: 'Pages' },
-  workflow: defineWorkflow({
-    draft: { label: 'Draft', verb: 'Revert to Draft' },
-    published: { label: 'Published', verb: 'Publish' },
-    archived: { label: 'Archived', verb: 'Archive' },
-  }),
-  useAsTitle: 'title',
-  // `path` is a reserved system attribute on documentVersions; opt into
-  // automatic derivation by naming the source field with useAsPath.
-  useAsPath: 'title',
-  search: { fields: ['title'] },
-  fields: [
-    { name: 'title', label: 'Title', type: 'text', localized: true },
-    { name: 'content', label: 'Content', type: 'richText', localized: true },
-    { name: 'publishedOn', label: 'Published On', type: 'datetime', mode: 'datetime' },
-    { name: 'featured', label: 'Featured', type: 'checkbox', optional: true },
-    availableLanguagesField(),
-  ],
-}
-```
-
-```tsx
-// collections/pages/admin.tsx  (client-safe, presentation only)
-import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
-
-import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
-import { Pages } from './schema.js'
-
-const listViewColumns: ColumnDefinition[] = [
-  { fieldName: 'title', label: 'Title', sortable: true, align: 'left', className: 'w-[30%]' },
-  {
-    fieldName: 'featured',
-    label: 'Featured',
-    align: 'center',
-    formatter: (value) => (value ? '★' : ''),
-  },
-  { fieldName: 'status', label: 'Status', align: 'center' },
-  {
-    fieldName: 'updated_at',
-    label: 'Last Updated',
-    sortable: true,
-    align: 'right',
-    formatter: { component: DateTimeFormatter },
-  },
-]
-
-export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
-  columns: listViewColumns,
-  fields: {
-    path: { position: 'sidebar' },
-    availableLanguages: { position: 'sidebar' },
-    publishedOn: { position: 'sidebar' },
-    featured: { position: 'sidebar' },
-  },
-})
-```
-
-> `useAsTitle`, `search`, and `workflow` live on the schema (not the admin
-> config) because they describe the document itself, not how it's rendered.
-> `useAsTitle` names the field that represents a document's identity —
-> used by the relation picker summary, populate's default projection, and
-> any other server-side consumer. Analogous to Django's `Model.__str__`.
-The advantages of this approach:
-
-- Schema definitions become truly server-only — no import-map strings, no admin blocks, no client components anywhere near them. They're plain data, trivially serializable, testable, and publishable as an API contract.
-- Admin UI config can use real JSX and real imports because it's explicitly a client (or RSC) module. No string indirection needed.
-- The schema can be consumed by other frontends (mobile, CLI tools, external APIs) without dragging admin UI baggage along.
-- Type-safety improves: defineAdmin(PagesSchema, ...) can infer field names from the schema and offer autocomplete for UI overrides.
-
-What it costs:
-
-- Two files instead of one (or two declarations in a single file - though this is arguably better separation of concerns).
-- A "linking" mechanism is needed so the framework knows which admin config belongs to which schema.
-- Harder to see "the whole picture" at a glance for a single collection.
-
-Prior art for this split:
-
-- Django does exactly this: models (schema) are separate from ModelAdmin (admin site presentation). It's one of Django's most praised architectural decisions.
-- Rails ActiveAdmin / Administrate: resource definitions are separate from their admin "dashboard" configuration.
-- Sanity Studio v3: schema types are defined separately from "desk structure" (how the admin UI organizes and presents them). Custom input components are real React components, not string references.
-- Keystatic: schema and UI ("reader" vs "admin") are somewhat separated by design.
-
-## What is there to do?
-
-Here's a list of things that will need to be done, in no particular order:
-
-1. API: A published API specification with client libraries. We're planning a DSL-like client API (`find`, `findAll`, `created`, `update`, `delete`) that sits above our storage primitives, with support for selective field loading, relationship population (with depth control), and a query builder that leverages our typed EAV stores for field-level filtering and sorting. See [docs/analysis/STORAGE-ANALYSIS.md](docs/analysis/STORAGE-ANALYSIS.md) for the full analysis and [docs/analysis/CLIENT-IN-PROCESS-SDK-ANALYSIS.md](docs/analysis/CLIENT-IN-PROCESS-SDK-ANALYSIS.md) for current progress.
-
-1. Field and Form APIs: Assuming we're going to build at least one implementation of an admin dashboard, we'll develop APIs for generating admin app field and form UIs from collection definitions.
-
-1. Compositional Block Strategy: As above, we'll implement a strategy for block composition. Blocks are small(er) units of 'Field API' that can be reused, reordered, and specified as part of a collection's field definition.
-
-1. Data Storage: We're working on what we think is a pretty good (and very fast) storage API. See above Architectural Decisions. Our typed EAV system now features a declarative column manifest, selective field loading for list views (querying only the store tables you need), configurable per-collection search, and a single-round-trip locale copy-forward for immutable versioning. For a deep dive, including our strategic analysis and roadmap, see [docs/analysis/STORAGE-ANALYSIS.md](docs/analysis/STORAGE-ANALYSIS.md).
-
-1. Security: Authentication (AuthN) and authorization (AuthZ) for the above including roles, abilities, admin account user management etc.
-
-1. Accessability (a11y): The admin app (all flavours of the admin app, whether React, Preact, Svelte, Solid or other) needs to be accessible (like really).
-
-1. Localization (i18n): Admin apps need to be localized (interface translations). Collection and field definitions (and therefore by default the API) - need to support localization (content translations).
-
-1. Media: We need a media strategy - generation, storage, serving.
-
-1. Packages and Distribution Strategy: We'll need to extract and prepare packages in the monorepo for distribution.
-
-1. UI Kit: The current UI kit is based on Infonomic's agency 'CSS Module / CSS only' UI kit. Some components are rolled from scratch. Others abstract / wrap publicly available components. Many components are based on [Base UI](https://base-ui.com/) which is a great project. Our preference for the moment is to continue with [@infonomic/uikit](https://github.com/infonomic/uikit) - but consider alternatives as appropriate.
-
-1. And last but not least - AI/MCP integration: Once we feel the core is stable, we'll turn on the taps for AI integration (content translation, rephrasing, clarity etc.,) and first-class MCP support.
-
-## Getting Started
-
-Byline is in active development. It builds and runs if you wanted to poke around or follow along.
-
-### 1. Clone and install dependencies
-
-```sh
-# git clone this repo
-git clone git@github.com:Byline-CMS/bylinecms.dev.git
-cd bylinecms.dev
-# install rimraf global
-pnpm install -g rimraf
-# or npm install -g rimraf
-# install deps
-pnpm install
-# build once so that all workspace packages and apps have their deps
-pnpm build
-```
-
-### 2 Setup your database. 
-
-Byline currently requires PostgreSQL. There is a docker-compose.yml in the root postgres directory. Note that the default root password is set to 'test' in docker-compose.yml.
-
-2.1. Create the 'data' subdirectory first, and then start postgres.
-
-```sh 
-# From the root of the project
-cd postgres
-mkdir data
-# If you want to run docker detached, run './postgres.sh up -d'
-./postgres.sh up
-
-# And then 'down' if you want to remove the Docker container and network configuration when you're done.
-./postgres.sh down 
-```
-
-2.2. Initialize the database and schema
-
-Only the postgres adapter is available at the moment.
-
-```sh
-# Copy .env.example to .env in the apps/dashboard directory. 
-# Read the notes in .env.example.
-cd packages/db-postgres
-cp .env.example .env
-
-# Again, the default database root password is 'test' 
-# (assuming you're using our docker-compose.yml file).
-cd src/database 
-./db_init.sh
-cd ../..
-
-# IMPORTANT: our ./db_init script sources (imports) common.sh, 
-# which has a hardcoded value for the name of the development database.
-# This is a 'foot gun' protection, so the script can only ever drop
-# and recreate this database name. If you'd like to use a database
-# name other than byline_dev - change the last line in common.sh, 
-# as well as your corresponding .env settings.
-
-# You can optionally run pnpm drizzle:generate, although since 
-# this is a development repo - migrations have already been generated 
-# and committed.
-# pnpm drizzle:generate
-pnpm drizzle:migrate
-
-#  Seed the database with a single super-admin user - and optionally, categories and documents.
-# From /apps/webapp. Note that our seed scripts live in
-# apps/webapp/byline/seeds, orchestrated by apps/webapp/byline/seed.ts
-# (for now and for 'reasons').
-cd apps/webapp
-cp .env.example .env
-pnpm tsx --env-file=.env byline/seed.ts
-```
-
-### 3. Start dev mode
-
-Again, from the root of the project and start the dev environment.
-
-```sh
-pnpm dev
-```
-
-If you've built the project (above) and have postgres up and running, you should be able to view the prototype on http://localhost:5173/
-
-Enjoy and stay tuned!
-
-Oh, and one more thing...
-
-## Content Management in the Time of AI (An Addendum)
-
-In a world where generative AI can produce content in seconds and translate it into dozens of languages, why does a headless CMS with structured versioning, workflow, and translation still matter?
-
-We think it matters more, not less. Here's why.
-
-AI is good at producing content. It is getting better at translating it. But producing content and *managing* content are different problems. When organisations begin using AI to generate or assist with content at scale, the result is more content, produced faster, in more languages, by more authors (both human and machine). Each of those pieces still needs to move through a review process. Each version still needs to be tracked. And the relationship between a source document, its translations, and their respective approval states still needs to be correct and auditable.
-
-AI solves the blank page problem. It does not solve the question of what state a piece of content is in, who approved it, which version is canonical, or how it relates to its translations. If anything, the volume and velocity that AI introduces makes those questions harder to answer without a sound structural foundation.
-
-There is a trust dimension here as well. As AI-generated content becomes more common, we suspect that provenance will matter more, not less. Organisations will increasingly need to demonstrate that content was reviewed through a defined process and approved at a specific point in time. Immutable versioning and auditable workflow are not just engineering concerns in that context. They are trust infrastructure.
-
-We also believe that the CMS managing AI-assisted content needs better architecture than one managing purely human-authored content, precisely because the volume is higher, the review burden is greater, and the consequences of publishing something incorrect or unapproved are amplified.
-
-None of this is certain. But it reflects what we've observed and what we think is coming. Byline is being built with these assumptions in mind.
-
 ## License
 
-This project is licensed under the Mozilla Public License Version 2.0.
-A copy of the full license text can be found in the LICENSE file.
+Mozilla Public License 2.0. See [LICENSE](LICENSE) and [COPYRIGHT](COPYRIGHT).
 
 Copyright © 2026 Infonomic Company Limited
 
-For full details, please refer to the [LICENSE](LICENSE) and [COPYRIGHT](COPYRIGHT) files in this repository.
-
-
 ### Major Contributors
 
-* Anthony Bouch https://www.linkedin.com/in/anthonybouch/ anthony@infonomic.io 
-* David Lipsky https://www.linkedin.com/in/david-lipsky-4391862a8/ david@infonomic.io 
-
-
-
-
-
-
-
-
+- Anthony Bouch — https://www.linkedin.com/in/anthonybouch/ — anthony@infonomic.io
+- David Lipsky — https://www.linkedin.com/in/david-lipsky-4391862a8/ — david@infonomic.io
