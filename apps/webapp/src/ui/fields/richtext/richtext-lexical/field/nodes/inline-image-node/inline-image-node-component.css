@@ -53,12 +53,13 @@
   position: absolute;
   top: 12px;
   right: 12px;
-  padding: 6px 8px;
+  padding: 1px 4px;
   margin: 0 auto;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 5px;
   background-color: rgba(0, 0, 0, 0.5);
-  min-width: 60px;
+  min-width: 50px;
+  font-size: 0.95rem;
   color: #fff;
   cursor: pointer;
   user-select: none;

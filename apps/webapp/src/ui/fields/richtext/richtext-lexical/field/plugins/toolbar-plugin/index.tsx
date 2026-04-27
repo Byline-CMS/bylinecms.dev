@@ -89,7 +89,7 @@ import { getSelectedNode } from '../../utils/getSelectedNode'
 import { sanitizeUrl } from '../../utils/url'
 import { OPEN_ADMONITION_MODAL_COMMAND } from '../admonition-plugin'
 import { EmbedConfigs } from '../auto-embed-plugin'
-// import { OPEN_INLINE_IMAGE_MODAL_COMMAND } from '../inline-image-plugin'
+import { OPEN_INLINE_IMAGE_MODAL_COMMAND } from '../inline-image-plugin'
 import { OPEN_INSERT_LAYOUT_MODAL_COMMAND } from '../layout-plugin/layout-plugin'
 import { OPEN_TABLE_MODAL_COMMAND } from '../table-plugin'
 
@@ -885,7 +885,7 @@ export function ToolbarPlugin(): React.JSX.Element {
                     </DropDownItem>
                   )}
 
-                  {/* {inlineImagePlugin && (
+                  {inlineImagePlugin && (
                     <DropDownItem
                       onClick={() => {
                         activeEditor.dispatchCommand(OPEN_INLINE_IMAGE_MODAL_COMMAND, null)
@@ -895,7 +895,7 @@ export function ToolbarPlugin(): React.JSX.Element {
                       <i className="icon image" />
                       <span className="text">Inline Image</span>
                     </DropDownItem>
-                  )} */}
+                  )}
                   {tablePlugin && (
                     <DropDownItem
                       onClick={() => {

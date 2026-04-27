@@ -1,4 +1,4 @@
-// 'use client'
+'use client'
 
 /**
  * This Source Code is subject to the terms of the Mozilla Public
@@ -6,342 +6,197 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
  * Copyright (c) Infonomic Company Limited
+ *
+ * Portions Copyright (c) Meta Platforms, Inc. and affiliates.
  */
 
-// /**
-//  * Portions copyright (c) Meta Platforms, Inc.
-//  * and affiliates and is based on examples found here
-//  * https://github.com/facebook/lexical/tree/main/packages/lexical-playground
-//  *  - in particular the ImagesPlugin
-//  *
-//  * This source code is licensed under the MIT license found in the
-//  * LICENSE file in the root directory of this source tree.
-//  *
-//  */
+import type * as React from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-// import React, { useEffect } from 'react'
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { $wrapNodeInElement, mergeRegister } from '@lexical/utils'
+import {
+  $createParagraphNode,
+  $getNodeByKey,
+  $insertNodes,
+  $isRootOrShadowRoot,
+  COMMAND_PRIORITY_EDITOR,
+  COMMAND_PRIORITY_NORMAL,
+  createCommand,
+  type LexicalCommand,
+  type LexicalEditor,
+  type NodeKey,
+} from 'lexical'
 
-// import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-// import { $wrapNodeInElement, mergeRegister, $insertNodeToNearestRoot } from '@lexical/utils'
-// import {
-//   $createParagraphNode,
-//   $createRangeSelection,
-//   $getSelection,
-//   $insertNodes,
-//   $isNodeSelection,
-//   $isRootOrShadowRoot,
-//   $setSelection,
-//   COMMAND_PRIORITY_EDITOR,
-//   COMMAND_PRIORITY_HIGH,
-//   COMMAND_PRIORITY_LOW,
-//   createCommand,
-//   DRAGOVER_COMMAND,
-//   DRAGSTART_COMMAND,
-//   DROP_COMMAND,
-//   type LexicalCommand,
-//   type LexicalEditor,
-//   COMMAND_PRIORITY_NORMAL
-// } from 'lexical'
+import {
+  $createInlineImageNode,
+  $isInlineImageNode,
+  InlineImageNode,
+} from '../../nodes/inline-image-node'
+import { InlineImageModal } from './inline-image-modal'
+import type { InlineImageAttributes } from '../../nodes/inline-image-node/types'
+import type { InlineImageData } from './types'
 
-// import { InlineImageModal } from './inline-image-modal'
-// import { getPreferredSize } from './utils'
-// import { useEditorConfig } from '../../config/editor-config-context'
-// import {
-//   $createInlineImageNode,
-//   $isInlineImageNode,
-//   InlineImageNode
-// } from '../../nodes/inline-image-node'
-// import { CAN_USE_DOM } from '../../shared/canUseDOM'
+export type InsertInlineImagePayload = Readonly<InlineImageAttributes>
+export type UpdateInlineImagePayload = Readonly<{
+  nodeKey: NodeKey
+  attributes: InlineImageAttributes
+}>
+export type OpenInlineImageModalPayload = Readonly<{ nodeKey?: NodeKey }> | null
 
-// import type { InlineImageAttributes } from '../../nodes/inline-image-node/types'
-// import { InlineImageData } from './types'
+/**
+ * Asks the InlineImagePlugin to open its modal. Pass `null` (or omit
+ * `nodeKey`) for insert mode; pass a `nodeKey` to edit an existing node
+ * with its current attributes pre-filled.
+ */
+export const OPEN_INLINE_IMAGE_MODAL_COMMAND: LexicalCommand<OpenInlineImageModalPayload> =
+  createCommand('OPEN_INLINE_IMAGE_MODAL_COMMAND')
 
-// export type InsertInlineImagePayload = Readonly<InlineImageAttributes>
+/** Inserts a new InlineImageNode at the current selection. */
+export const INSERT_INLINE_IMAGE_COMMAND: LexicalCommand<InsertInlineImagePayload> = createCommand(
+  'INSERT_INLINE_IMAGE_COMMAND'
+)
 
-// const getDOMSelection = (targetWindow: Window | null): Selection | null =>
-//   CAN_USE_DOM ? (targetWindow ?? window).getSelection() : null
+/** Updates the InlineImageNode identified by `nodeKey` in place. */
+export const UPDATE_INLINE_IMAGE_COMMAND: LexicalCommand<UpdateInlineImagePayload> = createCommand(
+  'UPDATE_INLINE_IMAGE_COMMAND'
+)
 
-// export const OPEN_INLINE_IMAGE_MODAL_COMMAND: LexicalCommand<null> = createCommand(
-//   'OPEN_INLINE_IMAGE_MODAL_COMMAND'
-// )
+type ModalMode = 'insert' | 'edit'
 
-// export const INSERT_INLINE_IMAGE_COMMAND: LexicalCommand<InlineImageAttributes> = createCommand(
-//   'INSERT_INLINE_IMAGE_COMMAND'
-// )
+interface ModalState {
+  mode: ModalMode
+  open: boolean
+  nodeKey: NodeKey | null
+  initialData: InlineImageData | undefined
+}
 
-// export function InlineImagePlugin({ collection }: { collection: string }): React.JSX.Element {
-//   const [editor] = useLexicalComposerContext()
-//   const { uuid } = useEditorConfig()
-//   const editDepth = useEditDepth()
-//   const { config } = useConfig()
-//   const {
-//     serverURL,
-//     routes: { api }
-//   } = config
+const CLOSED_STATE: ModalState = {
+  mode: 'insert',
+  open: false,
+  nodeKey: null,
+  initialData: undefined,
+}
 
-//   const {
-//     toggleModal = () => {
-//       console.error('Error: useModal() from FacelessUI did not work correctly')
-//     },
-//     closeModal,
-//     isModalOpen
-//   } = useModal()
+/**
+ * Build the modal's `initialData` from a live node. Reads via
+ * `editor.getEditorState().read(...)` so we don't mutate state during a
+ * non-update phase.
+ */
+function readNodeAsInitialData(
+  editor: LexicalEditor,
+  nodeKey: NodeKey
+): InlineImageData | undefined {
+  let data: InlineImageData | undefined
+  editor.getEditorState().read(() => {
+    const node = $getNodeByKey(nodeKey)
+    if (!$isInlineImageNode(node)) return
+    data = {
+      relation: node.getRelation(),
+      src: node.getSrc(),
+      altText: node.getAltText(),
+      position: node.getPosition(),
+      showCaption: node.getShowCaption(),
+    }
+  })
+  return data
+}
 
-//   const inlineImageDrawerSlug = formatDrawerSlug({
-//     slug: `rich-text-inline-image-insert-lexical-${uuid}`,
-//     depth: editDepth
-//   })
+export function InlineImagePlugin({ collection }: { collection: string }): React.JSX.Element {
+  const [editor] = useLexicalComposerContext()
+  const [modalState, setModalState] = useState<ModalState>(CLOSED_STATE)
 
-//   useEffect(() => {
-//     if (!editor.hasNodes([InlineImageNode])) {
-//       throw new Error('InlineImagePlugin: InlineImageNode not registered on editor')
-//     }
+  useEffect(() => {
+    if (!editor.hasNodes([InlineImageNode])) {
+      throw new Error('InlineImagePlugin: InlineImageNode not registered on editor')
+    }
 
-//     return mergeRegister(
-//       // TODO: possibly register this command with insert and edit options?
-//       editor.registerCommand<null>(
-//         OPEN_INLINE_IMAGE_MODAL_COMMAND,
-//         () => {
-//           if (inlineImageDrawerSlug != null) {
-//             toggleModal(inlineImageDrawerSlug)
-//             return true
-//           }
-//           return false
-//         },
-//         COMMAND_PRIORITY_NORMAL
-//       ),
+    return mergeRegister(
+      editor.registerCommand<OpenInlineImageModalPayload>(
+        OPEN_INLINE_IMAGE_MODAL_COMMAND,
+        (payload) => {
+          const nodeKey = payload?.nodeKey
+          if (nodeKey != null) {
+            const initialData = readNodeAsInitialData(editor, nodeKey)
+            setModalState({ mode: 'edit', open: true, nodeKey, initialData })
+          } else {
+            setModalState({
+              mode: 'insert',
+              open: true,
+              nodeKey: null,
+              initialData: undefined,
+            })
+          }
+          return true
+        },
+        COMMAND_PRIORITY_NORMAL
+      ),
 
-//       editor.registerCommand<InsertInlineImagePayload>(
-//         INSERT_INLINE_IMAGE_COMMAND,
-//         (payload: InlineImageAttributes) => {
-//           const imageNode = $createInlineImageNode(payload)
-//           $insertNodes([imageNode])
-//           if ($isRootOrShadowRoot(imageNode.getParentOrThrow())) {
-//             $wrapNodeInElement(imageNode, $createParagraphNode).selectEnd()
-//           }
-//           return true
-//         },
-//         COMMAND_PRIORITY_EDITOR
-//       ),
+      editor.registerCommand<InsertInlineImagePayload>(
+        INSERT_INLINE_IMAGE_COMMAND,
+        (payload) => {
+          const imageNode = $createInlineImageNode(payload)
+          $insertNodes([imageNode])
+          if ($isRootOrShadowRoot(imageNode.getParentOrThrow())) {
+            $wrapNodeInElement(imageNode, $createParagraphNode).selectEnd()
+          }
+          return true
+        },
+        COMMAND_PRIORITY_EDITOR
+      ),
 
-//       editor.registerCommand<DragEvent>(
-//         DRAGSTART_COMMAND,
-//         (event) => {
-//           return onDragStart(event)
-//         },
-//         COMMAND_PRIORITY_HIGH
-//       ),
+      editor.registerCommand<UpdateInlineImagePayload>(
+        UPDATE_INLINE_IMAGE_COMMAND,
+        ({ nodeKey, attributes }) => {
+          const node = $getNodeByKey(nodeKey)
+          if ($isInlineImageNode(node)) {
+            node.update(attributes)
+            return true
+          }
+          return false
+        },
+        COMMAND_PRIORITY_EDITOR
+      )
+    )
+  }, [editor])
 
-//       editor.registerCommand<DragEvent>(
-//         DRAGOVER_COMMAND,
-//         (event) => {
-//           return onDragover(event)
-//         },
-//         COMMAND_PRIORITY_LOW
-//       ),
+  const handleSubmit = useCallback(
+    (data: InlineImageData) => {
+      if (data.relation == null) return
 
-//       editor.registerCommand<DragEvent>(
-//         DROP_COMMAND,
-//         (event) => {
-//           return onDrop(event, editor)
-//         },
-//         COMMAND_PRIORITY_HIGH
-//       )
-//     )
-//   }, [editor, inlineImageDrawerSlug, toggleModal])
+      const attributes: InlineImageAttributes = {
+        relation: data.relation,
+        src: data.src,
+        altText: data.altText,
+        position: data.position,
+        width: data.width,
+        height: data.height,
+        showCaption: data.showCaption,
+      }
 
-//   const handleModalSubmit = async (data: InlineImageData): Promise<void> => {
-//     closeModal(inlineImageDrawerSlug)
-//     if (data?.id != null) {
-//       try {
-//         const url = `${serverURL}${api}/${collection}/${data.id}`
-//         const response = await requests.get(url)
-//         if (response.ok) {
-//           const doc = await response.json()
-//           const size = data?.position === 'default' ? 'medium' : 'small'
-//           const imageSource = getPreferredSize(size, doc)
-//           if (imageSource != null) {
-//             const imagePayload: InlineImageAttributes = {
-//               id: data.id,
-//               collection,
-//               src: imageSource.url,
-//               altText: data?.altText,
-//               position: data?.position,
-//               showCaption: data?.showCaption
-//             }
+      if (modalState.mode === 'edit' && modalState.nodeKey != null) {
+        editor.dispatchCommand(UPDATE_INLINE_IMAGE_COMMAND, {
+          nodeKey: modalState.nodeKey,
+          attributes,
+        })
+      } else {
+        editor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, attributes)
+      }
+    },
+    [editor, modalState.mode, modalState.nodeKey]
+  )
 
-//             // We don't set width or height for SVG images
-//             if (imageSource.width != null) {
-//               imagePayload.width = imageSource.width
-//             }
+  const handleClose = useCallback(() => {
+    setModalState(CLOSED_STATE)
+  }, [])
 
-//             if (imageSource.height != null) {
-//               imagePayload.height = imageSource.height
-//             }
-
-//             editor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, imagePayload)
-//           } else {
-//             console.error('Error: unable to find image source from document in InlineImagePlugin.')
-//           }
-//         } else {
-//           console.error('Error: Response not ok trying load existing image in InlineImagePlugin')
-//         }
-//       } catch (error) {
-//         console.error('Error: trying load existing image in InlineImagePlugin', error)
-//       }
-//     }
-//   }
-
-//   return (
-//     <InlineImageDrawer
-//       isOpen={isModalOpen(inlineImageDrawerSlug)}
-//       drawerSlug={inlineImageDrawerSlug}
-//       data={{
-//         id: undefined,
-//         altText: undefined,
-//         position: undefined,
-//         showCaption: undefined
-//       }}
-//       onSubmit={(data: InlineImageData) => {
-//         void handleModalSubmit(data)
-//       }}
-//       onClose={() => {
-//         closeModal(inlineImageDrawerSlug)
-//       }}
-//     />
-//   )
-// }
-
-// const TRANSPARENT_IMAGE =
-//   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-// let img: HTMLImageElement
-// if (typeof document !== 'undefined') {
-//   img = document?.createElement('img')
-//   img.src = TRANSPARENT_IMAGE
-// }
-
-// function onDragStart(event: DragEvent): boolean {
-//   const node = getImageNodeInSelection()
-//   if (node == null) {
-//     return false
-//   }
-//   const dataTransfer = event.dataTransfer
-//   if (dataTransfer == null) {
-//     return false
-//   }
-//   dataTransfer.setData('text/plain', '_')
-//   dataTransfer.setDragImage(img, 0, 0)
-//   dataTransfer.setData(
-//     'application/x-lexical-drag',
-//     JSON.stringify({
-//       data: {
-//         altText: node.__altText,
-//         caption: node.__caption,
-//         height: node.__height,
-//         key: node.getKey(),
-//         showCaption: node.__showCaption,
-//         src: node.__src,
-//         width: node.__width
-//       },
-//       type: 'image'
-//     })
-//   )
-
-//   return true
-// }
-
-// function onDragover(event: DragEvent): boolean {
-//   const node = getImageNodeInSelection()
-//   if (node == null) {
-//     return false
-//   }
-//   if (!canDropImage(event)) {
-//     event.preventDefault()
-//   }
-//   return true
-// }
-
-// function onDrop(event: DragEvent, editor: LexicalEditor): boolean {
-//   const node = getImageNodeInSelection()
-//   if (node == null) {
-//     return false
-//   }
-//   const data = getDragImageData(event)
-//   if (data == null) {
-//     return false
-//   }
-//   event.preventDefault()
-//   if (canDropImage(event)) {
-//     const range = getDragSelection(event)
-//     node.remove()
-//     const rangeSelection = $createRangeSelection()
-//     if (range !== null && range !== undefined) {
-//       rangeSelection.applyDOMRange(range)
-//     }
-//     $setSelection(rangeSelection)
-//     editor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, data)
-//   }
-//   return true
-// }
-
-// function getImageNodeInSelection(): InlineImageNode | null {
-//   const selection = $getSelection()
-//   if (!$isNodeSelection(selection)) {
-//     return null
-//   }
-//   const nodes = selection.getNodes()
-//   const node = nodes[0]
-//   return $isInlineImageNode(node) ? node : null
-// }
-
-// function getDragImageData(event: DragEvent): null | InsertInlineImagePayload {
-//   const dragData = event.dataTransfer?.getData('application/x-lexical-drag')
-//   if (dragData == null) {
-//     return null
-//   }
-//   const { type, data } = JSON.parse(dragData)
-//   if (type !== 'image') {
-//     return null
-//   }
-
-//   return data
-// }
-
-// declare global {
-//   interface DragEvent {
-//     rangeOffset?: number
-//     rangeParent?: Node
-//   }
-// }
-
-// function canDropImage(event: DragEvent): boolean {
-//   const target = event.target
-//   return !!(
-//     target != null &&
-//     target instanceof HTMLElement &&
-//     target.closest('code, span.editor-image') == null &&
-//     target.parentElement?.closest('div.ContentEditable__root') != null
-//   )
-// }
-
-// function getDragSelection(event: DragEvent): Range | null | undefined {
-//   let range
-//   const target = event.target as null | Element | Document
-//   const targetWindow =
-//     target == null
-//       ? null
-//       : target.nodeType === 9
-//         ? (target as Document).defaultView
-//         : (target as Element).ownerDocument.defaultView
-//   const domSelection = getDOMSelection(targetWindow)
-//   if (document.caretRangeFromPoint != null) {
-//     range = document.caretRangeFromPoint(event.clientX, event.clientY)
-//   } else if (event.rangeParent != null && domSelection !== null) {
-//     domSelection.collapse(event.rangeParent, event.rangeOffset ?? 0)
-//     range = domSelection.getRangeAt(0)
-//   } else {
-//     throw Error('Cannot get the selection when dragging')
-//   }
-
-//   return range
-// }
+  return (
+    <InlineImageModal
+      isOpen={modalState.open}
+      collection={collection}
+      data={modalState.initialData}
+      onSubmit={handleSubmit}
+      onClose={handleClose}
+    />
+  )
+}

@@ -40,21 +40,15 @@ import ContentEditableInline from '../../content-editable-inline'
 import { useSharedHistoryContext } from '../../context/shared-history-context'
 import { useSharedOnChange } from '../../context/shared-on-change-context'
 import { FloatingTextFormatToolbarPlugin } from '../../plugins/floating-text-format-toolbar-plugin/index'
-import { InlineImageModal } from '../../plugins/inline-image-plugin/inline-image-modal'
-// import { LinkPlugin } from '../../plugins/link-plugin/link'
-// import { FloatingLinkEditorPlugin } from '../../plugins/link-plugin/link/floating-link-editor'
+import { OPEN_INLINE_IMAGE_MODAL_COMMAND } from '../../plugins/inline-image-plugin'
+import { LinkPlugin } from '../../plugins/link-plugin/link'
+import { FloatingLinkEditorPlugin } from '../../plugins/link-plugin/link/floating-link-editor'
 import PlaceholderInline from '../../ui/placeholder-inline'
 import { $isInlineImageNode } from './inline-image-node'
 import type { DocumentRelation } from '../document-relation'
 import type { Position } from './types'
 
 import './inline-image-node-component.css'
-
-import { LinkPlugin } from '../../plugins/link-plugin/link'
-import { FloatingLinkEditorPlugin } from '../../plugins/link-plugin/link/floating-link-editor'
-import type { InlineImageData } from '../../plugins/inline-image-plugin/types'
-
-const inlineImageDrawerSlug = 'inline-image'
 
 const imageCache = new Set()
 
@@ -144,7 +138,6 @@ export default function InlineImageComponent({
   const [selection, setSelection] = useState<RangeSelection | NodeSelection | BaseSelection | null>(
     null
   )
-  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const activeEditorRef = useRef<LexicalEditor | null>(null)
 
@@ -269,15 +262,10 @@ export default function InlineImageComponent({
   const draggable = isSelected && $isNodeSelection(selection)
   const isFocused = isSelected
 
+  // Open the plugin-hosted modal in edit mode for this node. The plugin
+  // reads the current attributes via `nodeKey` and pre-fills the form.
   const handleToggleModal = (): void => {
-    if (id != null) {
-      setIsModalOpen(true)
-    }
-  }
-
-  // TODO: Implement when HTTP transport is available — see docs/analysis/ROUTING-API-ANALYSIS.md
-  const handleModalSubmit = async (_data: InlineImageData): Promise<void> => {
-    setIsModalOpen(false)
+    editor.dispatchCommand(OPEN_INLINE_IMAGE_MODAL_COMMAND, { nodeKey })
   }
 
   const classNames = cx(
@@ -349,20 +337,6 @@ export default function InlineImageComponent({
           </span>
         )}
       </span>
-
-      {id != null && id.length > 0 && (
-        <InlineImageModal
-          isOpen={isModalOpen}
-          drawerSlug={inlineImageDrawerSlug}
-          data={{ id, altText, position, showCaption }}
-          onSubmit={(data: InlineImageData) => {
-            void handleModalSubmit(data)
-          }}
-          onClose={() => {
-            setIsModalOpen(false)
-          }}
-        />
-      )}
     </Suspense>
   )
 }

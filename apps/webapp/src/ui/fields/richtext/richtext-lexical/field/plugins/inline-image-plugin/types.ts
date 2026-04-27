@@ -6,42 +6,31 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { DocumentRelation } from '../../nodes/document-relation'
 import type { Position } from '../../nodes/inline-image-node/types'
 
+/**
+ * The form-shape carried into / out of the inline image modal. Mirrors
+ * `InlineImageAttributes` minus the Lexical-managed bits (`key`, `caption:
+ * LexicalEditor`) — those don't belong in form state.
+ */
 export interface InlineImageData {
-  id?: string
+  relation: DocumentRelation | null
+  src: string
   altText?: string
   position?: Position
+  width?: number | string
+  height?: number | string
   showCaption?: boolean
 }
 
-export interface InlineImageDrawerProps {
+export interface InlineImageModalProps {
+  /** Modal visibility — driven by the plugin's open/close commands. */
   isOpen: boolean
-  drawerSlug: string
-  onClose: () => void
-  onSubmit: (data: InlineImageData) => void
+  /** The collection path the picker should target — typically `'media'`. */
+  collection: string
+  /** Pre-filled data when the modal opens in edit mode; undefined for insert. */
   data?: InlineImageData
-}
-
-export interface InlineImageFormState {
-  image: {
-    value: string | undefined
-    initialValue: string | undefined
-    valid: boolean
-  }
-  altText: {
-    value: string | undefined
-    initialValue: string | undefined
-    valid: boolean
-  }
-  position: {
-    value: 'left' | 'right' | 'full' | 'wide' | 'default'
-    initialValue: 'left' | 'right' | 'full' | 'wide' | 'default'
-    valid: boolean
-  }
-  showCaption: {
-    value: boolean
-    initialValue: boolean
-    valid: boolean
-  }
+  onSubmit: (data: InlineImageData) => void
+  onClose: () => void
 }

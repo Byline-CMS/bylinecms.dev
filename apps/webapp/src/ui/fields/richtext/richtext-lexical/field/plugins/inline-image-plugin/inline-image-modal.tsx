@@ -8,101 +8,276 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type React from 'react'
-import { useEffect, useState } from 'react'
+import type * as React from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { Button, CloseIcon, IconButton, Modal } from '@infonomic/uikit/react'
+import type { CollectionDefinition, StoredFileValue } from '@byline/core'
+import { getCollectionDefinition } from '@byline/core'
+import {
+  Button,
+  Checkbox,
+  CloseIcon,
+  ErrorText,
+  IconButton,
+  Input,
+  Modal,
+  RadioGroup,
+  RadioGroupItem,
+} from '@infonomic/uikit/react'
 
-import { useEditorConfig } from '../../config/editor-config-context'
-import { getInitialState, validateFields } from './fields'
-import type { Position } from '../../nodes/inline-image-node'
-import type { InlineImageData, InlineImageDrawerProps, InlineImageFormState } from './types'
+import { RelationPicker } from '@/ui/fields/relation/relation-picker'
+import { isAltTextValid, positionOptions } from './fields'
+import { deriveImageSizes, getPreferredSize } from './utils'
+import type { DocumentRelation } from '../../nodes/document-relation'
+import type { Position } from '../../nodes/inline-image-node/types'
+import type { InlineImageData, InlineImageModalProps } from './types'
 
-import './inline-image-modal.css'
+interface FormState {
+  relation: DocumentRelation | null
+  altText: string
+  position: Position
+  showCaption: boolean
+}
 
-const _baseClass = 'inline-image-plugin--modal'
+function emptyState(): FormState {
+  return {
+    relation: null,
+    altText: '',
+    position: 'full',
+    showCaption: false,
+  }
+}
 
-export const InlineImageModal: React.FC<InlineImageDrawerProps> = ({
-  isOpen = false,
-  drawerSlug,
+function fromInlineImageData(data: InlineImageData | undefined): FormState {
+  if (!data) return emptyState()
+  return {
+    relation: data.relation ?? null,
+    altText: data.altText ?? '',
+    position: data.position ?? 'full',
+    showCaption: data.showCaption ?? false,
+  }
+}
+
+export const InlineImageModal: React.FC<InlineImageModalProps> = ({
+  isOpen,
+  collection,
+  data: dataFromProps,
   onSubmit,
   onClose,
-  data: dataFromProps,
 }) => {
-  const { config } = useEditorConfig()
-  // const { t } = useTranslation()
-  const [synchronizedFormState, setSynchronizedFormState] = useState<
-    InlineImageFormState | undefined
-  >(undefined)
+  const [state, setState] = useState<FormState>(() => fromInlineImageData(dataFromProps))
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [altError, setAltError] = useState<string | null>(null)
+  const [imageError, setImageError] = useState<string | null>(null)
 
-  const handleOnCancel = (): void => {
-    setSynchronizedFormState(undefined)
+  // Reset form state on the leading edge of open (insert mode → empty form;
+  // edit mode → pre-filled). Ref guards the effect so re-renders that change
+  // `dataFromProps` reference mid-edit don't wipe in-progress input.
+  const wasOpenRef = useRef(false)
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      setState(fromInlineImageData(dataFromProps))
+      setAltError(null)
+      setImageError(null)
+    }
+    wasOpenRef.current = isOpen
+  }, [isOpen, dataFromProps])
+
+  const targetDef: CollectionDefinition | null = getCollectionDefinition(collection)
+
+  // The image StoredFileValue lives inside the picked media doc's denormalised
+  // `relation.document.image` field — see `handlePickerSelect` below.
+  const pickedImage: StoredFileValue | null = useMemo(() => {
+    const img = state.relation?.document?.image as StoredFileValue | undefined
+    return img ?? null
+  }, [state.relation])
+
+  const pickedThumbUrl: string | null = useMemo(() => {
+    if (!pickedImage?.storage_url) return null
+    if (pickedImage.mime_type === 'image/svg+xml') return pickedImage.storage_url
+    if (pickedImage.thumbnail_generated) {
+      return pickedImage.storage_url.replace(/\.[^.]+$/, '-thumbnail.webp')
+    }
+    return pickedImage.storage_url
+  }, [pickedImage])
+
+  const pickedTitle: string | null = useMemo(() => {
+    const title = state.relation?.document?.title
+    return typeof title === 'string' && title.length > 0 ? title : null
+  }, [state.relation])
+
+  const handlePickerSelect = (selection: {
+    target_document_id: string
+    target_collection_id: string
+    record?: Record<string, any>
+  }) => {
+    setPickerOpen(false)
+    const fields = selection.record?.fields ?? {}
+    const image = fields.image as StoredFileValue | undefined
+    const title = typeof fields.title === 'string' ? fields.title : undefined
+    const altTextFromMedia = typeof fields.altText === 'string' ? fields.altText : undefined
+    const sizes = image ? deriveImageSizes(image, targetDef?.upload?.sizes) : []
+
+    setState((s) => {
+      const document: Record<string, any> = {}
+      if (title) document.title = title
+      if (altTextFromMedia) document.altText = altTextFromMedia
+      if (image) document.image = image
+      if (sizes.length > 0) document.sizes = sizes
+
+      return {
+        ...s,
+        relation: {
+          target_document_id: selection.target_document_id,
+          target_collection_id: selection.target_collection_id,
+          target_collection_path: collection,
+          document: Object.keys(document).length > 0 ? document : undefined,
+        },
+        // Pre-fill alt-text from the media's `altText` field on first pick if
+        // the form's alt-text is still empty. Editorial wins over the source
+        // record once the user starts typing.
+        altText: s.altText.length > 0 ? s.altText : (altTextFromMedia ?? ''),
+      }
+    })
+    setImageError(null)
+  }
+
+  const handleSave = () => {
+    if (!state.relation || !pickedImage) {
+      setImageError('Pick an image')
+      return
+    }
+    if (!isAltTextValid(state.altText)) {
+      setAltError('Alt text is required')
+      return
+    }
+
+    const preferred = getPreferredSize(state.position, pickedImage)
+    const data: InlineImageData = {
+      relation: state.relation,
+      src: preferred?.url ?? pickedImage.storage_url ?? '',
+      altText: state.altText.trim(),
+      position: state.position,
+      width: preferred?.width,
+      height: preferred?.height,
+      showCaption: state.showCaption,
+    }
+    onSubmit(data)
     onClose()
   }
 
-  async function _handleFormOnChange({
-    formState,
-  }: {
-    formState: InlineImageFormState
-  }): Promise<InlineImageFormState> {
-    return new Promise((resolve, _reject) => {
-      validateFields(formState)
-      resolve(formState)
-    })
-  }
-
-  const _handleFormOnSubmit = (
-    fields: InlineImageFormState,
-    data: Record<string, unknown>
-  ): void => {
-    const { valid } = validateFields(fields)
-    if (valid === true) {
-      if (onSubmit != null) {
-        const submitData: InlineImageData = {
-          id: data.image as string,
-          altText: data.altText as string,
-          position: data.position as Position,
-          showCaption: data.showCaption as boolean,
-        }
-        onSubmit(submitData)
-      }
-      setSynchronizedFormState(undefined)
-      onClose()
-    }
-  }
-
-  useEffect(() => {
-    if (synchronizedFormState == null && isOpen === true) {
-      const formState = getInitialState(dataFromProps)
-      setSynchronizedFormState(formState)
-    }
-  }, [synchronizedFormState, isOpen, dataFromProps])
-
-  if (isOpen === false) {
-    return null
-  }
+  if (!isOpen) return null
 
   return (
-    <Modal isOpen={isOpen} onDismiss={handleOnCancel} closeOnOverlayClick={false}>
-      <Modal.Container className="sm:max-w-[500px]">
-        <Modal.Header className="flex items-center justify-between mb-4">
-          <h3>Inline Image</h3>
-          <IconButton arial-label="Close" size="sm" onClick={handleOnCancel}>
-            <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
-          </IconButton>
-        </Modal.Header>
-        <Modal.Content>
-          <p>
-            Modal content with some text here that should run a little longer. And longer here. And
-            the current theme is.
-          </p>
-        </Modal.Content>
-        <Modal.Actions>
-          <Button size="sm" intent="noeffect" onClick={handleOnCancel} data-autofocus>
-            Close
-          </Button>
-        </Modal.Actions>
-      </Modal.Container>
-    </Modal>
+    <>
+      <Modal isOpen={isOpen} onDismiss={onClose} closeOnOverlayClick={false}>
+        <Modal.Container style={{ maxWidth: '520px', width: '100%' }}>
+          <Modal.Header className="flex items-center justify-between pt-4 mb-2">
+            <h3 className="m-0 text-xl">Inline image</h3>
+            <IconButton aria-label="Close" size="xs" onClick={onClose}>
+              <CloseIcon width="15px" height="15px" svgClassName="white-icon" />
+            </IconButton>
+          </Modal.Header>
+          <Modal.Content>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Image</span>
+                <div className="flex items-center gap-3">
+                  {pickedThumbUrl ? (
+                    <img
+                      src={pickedThumbUrl}
+                      alt={pickedTitle ?? ''}
+                      className="w-12 h-12 object-cover rounded border border-gray-700"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 flex items-center justify-center bg-gray-800 rounded border border-gray-700 text-xs text-gray-500">
+                      —
+                    </div>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    intent="noeffect"
+                    type="button"
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    {state.relation
+                      ? 'Change image…'
+                      : `Pick ${targetDef?.labels.singular ?? 'image'}…`}
+                  </Button>
+                  {pickedTitle && (
+                    <span className="text-sm text-gray-200 truncate">{pickedTitle}</span>
+                  )}
+                </div>
+                {imageError && <ErrorText id="image-error" text={imageError} />}
+              </div>
+
+              <Input
+                id="inline-image-alt"
+                name="altText"
+                label="Alt text"
+                placeholder="Describe the image for screen readers"
+                value={state.altText}
+                error={altError != null}
+                errorText={altError ?? undefined}
+                onChange={(e) => {
+                  setAltError(null)
+                  setState((s) => ({ ...s, altText: e.target.value }))
+                }}
+              />
+
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Position</span>
+                <RadioGroup
+                  id="inline-image-position"
+                  name="position"
+                  aria-label="Image position"
+                  direction="row"
+                  value={state.position ?? 'full'}
+                  onValueChange={(value) =>
+                    setState((s) => ({ ...s, position: value as Position }))
+                  }
+                >
+                  {positionOptions.map((opt) => (
+                    <RadioGroupItem
+                      key={String(opt.value)}
+                      id={`inline-image-position-${opt.value}`}
+                      value={String(opt.value)}
+                      label={opt.label}
+                    />
+                  ))}
+                </RadioGroup>
+              </div>
+
+              <Checkbox
+                id="inline-image-caption"
+                name="showCaption"
+                label="Show caption"
+                checked={state.showCaption}
+                onCheckedChange={(checked) =>
+                  setState((s) => ({ ...s, showCaption: checked === true }))
+                }
+              />
+            </div>
+          </Modal.Content>
+          <Modal.Actions className="flex gap-3">
+            <Button size="sm" intent="noeffect" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" intent="primary" type="button" onClick={handleSave}>
+              Save
+            </Button>
+          </Modal.Actions>
+        </Modal.Container>
+      </Modal>
+
+      <RelationPicker
+        targetCollectionPath={collection}
+        targetDefinition={targetDef}
+        isOpen={pickerOpen}
+        onSelect={handlePickerSelect}
+        onDismiss={() => setPickerOpen(false)}
+      />
+    </>
   )
 }

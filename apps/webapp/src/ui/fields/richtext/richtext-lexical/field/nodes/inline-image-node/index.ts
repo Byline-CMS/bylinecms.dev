@@ -6,6 +6,5 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+export * from './inline-image-node'
 export * from './types'
-// export * from './inline-image-node-component'
-// export * from './inline-image-node'

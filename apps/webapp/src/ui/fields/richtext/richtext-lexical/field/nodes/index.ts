@@ -16,7 +16,7 @@ import { TableCellNode, TableNode, TableRowNode } from '@lexical/table'
 import type { Klass, LexicalNode } from 'lexical'
 
 import { AdmonitionNode } from './admonition-node/admonition-node'
-// import { InlineImageNode } from './inline-image-node/inline-image-node'
+import { InlineImageNode } from './inline-image-node/inline-image-node'
 import { LayoutContainerNode } from './layout-container-node/layout-container-node'
 import { LayoutItemNode } from './layout-container-node/layout-item-node'
 import { AutoLinkNode, LinkNode } from './link-nodes'
@@ -36,7 +36,7 @@ export const Nodes: Array<Klass<LexicalNode>> = [
   AutoLinkNode,
   LinkNode,
   OverflowNode,
-  // InlineImageNode,
+  InlineImageNode,
   HorizontalRuleNode,
   MarkNode,
   AdmonitionNode,

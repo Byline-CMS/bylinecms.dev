@@ -38,7 +38,7 @@ import { AutoEmbedPlugin } from './plugins/auto-embed-plugin'
 import { CodeHighlightPlugin } from './plugins/code-highlight-plugin'
 // import { DragDropPaste } from './plugins/drag-drop-paste-plugin'
 import { FloatingTextFormatToolbarPlugin } from './plugins/floating-text-format-toolbar-plugin'
-// import { InlineImagePlugin } from './plugins/inline-image-plugin'
+import { InlineImagePlugin } from './plugins/inline-image-plugin'
 import { LayoutPlugin } from './plugins/layout-plugin/layout-plugin'
 import { AutoLinkPlugin } from './plugins/link-plugin/auto-link'
 import { LinkPlugin } from './plugins/link-plugin/link'
@@ -190,7 +190,7 @@ export const Editor = memo(function Editor({
               ErrorBoundary={LexicalErrorBoundary}
             />
             <HistoryPlugin externalHistoryState={historyState} />
-            {/* {inlineImagePlugin && <InlineImagePlugin collection={inlineImageUploadCollection} />} */}
+            {inlineImagePlugin && <InlineImagePlugin collection={inlineImageUploadCollection} />}
             {admonitionPlugin && <AdmonitionPlugin />}
             {checkListPlugin && <CheckListPlugin />}
             {listPlugin && <ListPlugin />}
