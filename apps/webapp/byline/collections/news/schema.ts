@@ -58,10 +58,6 @@ export const News: CollectionDefinition = {
       displayField: 'title',
       optional: true,
     },
-    // Demonstration pair of text fields that will be arranged in a row as defined
-    // in the admin.tsx file. No special meaning to these fields.
-    { name: 'text1', label: 'Text 1', type: 'text' },
-    { name: 'text2', label: 'Text 2', type: 'text' },
     {
       name: 'content',
       label: 'Content',

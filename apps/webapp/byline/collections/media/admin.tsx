@@ -68,7 +68,7 @@ const pickerViewColumns: ColumnDefinition[] = [
     fieldName: 'image' as keyof any,
     label: 'Preview',
     align: 'left',
-    className: 'w-[50px] shrink-0',
+    className: 'w-[72px] shrink-0',
     formatter: { component: MediaThumbnail },
   },
   {

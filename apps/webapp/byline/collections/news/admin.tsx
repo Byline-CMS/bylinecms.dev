@@ -143,7 +143,7 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
         {
           name: 'details',
           label: 'Details',
-          fields: ['title', 'summary', 'titles', 'featureImage'],
+          fields: ['title', 'summary', 'featureImage'],
         },
         {
           name: 'content',
@@ -162,7 +162,8 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
    * Reference a row by its `name` inside a tab's `fields`, a group's `fields`,
    * or directly in `layout.main` / `layout.sidebar`.
    */
-  rows: [{ name: 'titles', fields: ['text1', 'text2'] }],
+  // rows: [{ name: 'titles', fields: ['text1', 'text2'] }],
+  rows: [],
 
   /**
    * Named labelled-fieldset clusters. Groups accept schema field names and row

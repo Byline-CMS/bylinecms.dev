@@ -29,7 +29,7 @@ export const SummaryLength: SlotComponent<FieldHelpTextSlotProps> = ({ path, hel
   const value = useFieldValue<string>(path)
 
   return (
-    <div className="mt-1 flex flex-col gap-1">
+    <div className="mt-2 flex flex-col gap-1">
       <LengthIndicator minLength={100} maxLength={300} text={value} />
       {helpText && (
         <p className="text-sm text-gray-500 dark:text-gray-400 leading-tight mb-1">{helpText}</p>

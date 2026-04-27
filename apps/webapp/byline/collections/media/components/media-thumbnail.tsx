@@ -44,7 +44,7 @@ export function MediaThumbnail({ record }: FormatterProps) {
 
   if (!img?.storageUrl) {
     return (
-      <span className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 rounded text-gray-600 text-[0.6rem]">
+      <span className="inline-flex items-center justify-center w-18 h-18 bg-gray-800 rounded text-gray-600 text-[0.6rem]">
         —
       </span>
     )
@@ -56,7 +56,7 @@ export function MediaThumbnail({ record }: FormatterProps) {
     <img
       src={thumbUrl}
       alt={img.originalFilename ?? img.filename}
-      className="w-10 h-10 object-cover rounded border border-gray-700"
+      className="w-18 h-18 object-cover rounded border border-gray-700"
       loading="lazy"
     />
   )
