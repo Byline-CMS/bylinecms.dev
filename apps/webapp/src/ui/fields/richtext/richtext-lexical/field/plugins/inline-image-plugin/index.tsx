@@ -92,7 +92,7 @@ function readNodeAsInitialData(
     const node = $getNodeByKey(nodeKey)
     if (!$isInlineImageNode(node)) return
     data = {
-      relation: node.getRelation(),
+      documentRelation: node.getRelation(),
       src: node.getSrc(),
       altText: node.getAltText(),
       position: node.getPosition(),
@@ -162,10 +162,10 @@ export function InlineImagePlugin({ collection }: { collection: string }): React
 
   const handleSubmit = useCallback(
     (data: InlineImageData) => {
-      if (data.relation == null) return
+      if (data.documentRelation == null) return
 
       const attributes: InlineImageAttributes = {
-        relation: data.relation,
+        ...data.documentRelation,
         src: data.src,
         altText: data.altText,
         position: data.position,

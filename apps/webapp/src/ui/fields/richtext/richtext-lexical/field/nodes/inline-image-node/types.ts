@@ -18,8 +18,7 @@ import type { DocumentRelation } from '../document-relation'
 
 export type Position = 'left' | 'right' | 'full' | 'wide' | 'default' | undefined
 
-export interface InlineImageAttributes {
-  relation: DocumentRelation
+export interface InlineImageAttributes extends DocumentRelation {
   src: string
   altText?: string
   position?: Position
@@ -31,8 +30,7 @@ export interface InlineImageAttributes {
 }
 
 export type SerializedInlineImageNode = Spread<
-  {
-    relation: DocumentRelation
+  DocumentRelation & {
     src: string
     position?: Position
     altText: string

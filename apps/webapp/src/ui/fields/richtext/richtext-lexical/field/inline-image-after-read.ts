@@ -44,13 +44,13 @@ import { deriveImageSizes } from './plugins/inline-image-plugin/utils'
 interface LexicalNodeLike {
   type?: string
   children?: LexicalNodeLike[]
-  // Inline-image-specific fields (only present when type === 'inline-image')
-  relation?: {
-    targetDocumentId?: string
-    targetCollectionId?: string
-    targetCollectionPath?: string
-    document?: Record<string, any>
-  }
+  // Inline-image-specific fields (only present when type === 'inline-image').
+  // The document-reference envelope is spread flat onto the node, matching
+  // how the link plugin spreads it onto `attributes`.
+  targetDocumentId?: string
+  targetCollectionId?: string
+  targetCollectionPath?: string
+  document?: Record<string, any>
 }
 
 interface LexicalRoot {
@@ -59,7 +59,7 @@ interface LexicalRoot {
 
 /**
  * Walk a Lexical tree and yield every `inline-image` node it contains.
- * Mutating `node.relation.document` during iteration is safe — the walk is
+ * Mutating `node.document` during iteration is safe — the walk is
  * top-down and doesn't revisit nodes.
  */
 function* iterInlineImageNodes(node: LexicalNodeLike): Generator<LexicalNodeLike, void, void> {
@@ -143,9 +143,8 @@ export function inlineImageAfterRead(options: InlineImageAfterReadOptions) {
       const root = getLexicalRoot(fields[fieldName])
       if (!root) continue
       for (const node of iterInlineImageNodes(root)) {
-        const rel = node.relation
-        const collectionPath = rel?.targetCollectionPath
-        const documentId = rel?.targetDocumentId
+        const collectionPath = node.targetCollectionPath
+        const documentId = node.targetDocumentId
         if (!collectionPath || !documentId) continue
         if (allowedSources != null && !allowedSources.has(collectionPath)) continue
         pending.push({ node, collectionPath, documentId })
@@ -192,7 +191,7 @@ export function inlineImageAfterRead(options: InlineImageAfterReadOptions) {
     )
 
     // Merge fresh `{ title, altText, image, sizes }` back into each node's
-    // `relation.document`. Mutating in place — `afterRead` propagates these
+    // `document`. Mutating in place — `afterRead` propagates these
     // mutations through the shaped response.
     for (const { node, collectionPath, documentId } of pending) {
       const target = fetched.get(collectionPath)?.get(documentId)
@@ -202,13 +201,12 @@ export function inlineImageAfterRead(options: InlineImageAfterReadOptions) {
       const sizesConfig = getCollectionDefinition(collectionPath)?.upload?.sizes
       const sizes = image ? deriveImageSizes(image, sizesConfig) : []
 
-      const next: Record<string, any> = { ...(node.relation?.document ?? {}) }
+      const next: Record<string, any> = { ...(node.document ?? {}) }
       if (typeof targetFields.title === 'string') next.title = targetFields.title
       if (typeof targetFields.altText === 'string') next.altText = targetFields.altText
       if (image != null) next.image = image
       if (sizes.length > 0) next.sizes = sizes
-      if (node.relation == null) continue
-      node.relation.document = next
+      node.document = next
     }
   }
 }

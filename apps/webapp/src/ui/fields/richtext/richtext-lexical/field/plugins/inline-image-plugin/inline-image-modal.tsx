@@ -33,7 +33,7 @@ import type { Position } from '../../nodes/inline-image-node/types'
 import type { InlineImageData, InlineImageModalProps } from './types'
 
 interface FormState {
-  relation: DocumentRelation | null
+  documentRelation: DocumentRelation | null
   altText: string
   position: Position
   showCaption: boolean
@@ -41,7 +41,7 @@ interface FormState {
 
 function emptyState(): FormState {
   return {
-    relation: null,
+    documentRelation: null,
     altText: '',
     position: 'full',
     showCaption: false,
@@ -51,7 +51,7 @@ function emptyState(): FormState {
 function fromInlineImageData(data: InlineImageData | undefined): FormState {
   if (!data) return emptyState()
   return {
-    relation: data.relation ?? null,
+    documentRelation: data.documentRelation ?? null,
     altText: data.altText ?? '',
     position: data.position ?? 'full',
     showCaption: data.showCaption ?? false,
@@ -86,11 +86,11 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   const targetDef: CollectionDefinition | null = getCollectionDefinition(collection)
 
   // The image StoredFileValue lives inside the picked media doc's denormalised
-  // `relation.document.image` field — see `handlePickerSelect` below.
+  // `documentRelation.document.image` field — see `handlePickerSelect` below.
   const pickedImage: StoredFileValue | null = useMemo(() => {
-    const img = state.relation?.document?.image as StoredFileValue | undefined
+    const img = state.documentRelation?.document?.image as StoredFileValue | undefined
     return img ?? null
-  }, [state.relation])
+  }, [state.documentRelation])
 
   const pickedThumbUrl: string | null = useMemo(() => {
     if (!pickedImage?.storageUrl) return null
@@ -102,9 +102,9 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   }, [pickedImage])
 
   const pickedTitle: string | null = useMemo(() => {
-    const title = state.relation?.document?.title
+    const title = state.documentRelation?.document?.title
     return typeof title === 'string' && title.length > 0 ? title : null
-  }, [state.relation])
+  }, [state.documentRelation])
 
   const handlePickerSelect = (selection: {
     targetDocumentId: string
@@ -127,7 +127,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
 
       return {
         ...s,
-        relation: {
+        documentRelation: {
           targetDocumentId: selection.targetDocumentId,
           targetCollectionId: selection.targetCollectionId,
           targetCollectionPath: collection,
@@ -143,7 +143,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   }
 
   const handleSave = () => {
-    if (!state.relation || !pickedImage) {
+    if (!state.documentRelation || !pickedImage) {
       setImageError('Pick an image')
       return
     }
@@ -154,7 +154,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
 
     const preferred = getPreferredSize(state.position, pickedImage)
     const data: InlineImageData = {
-      relation: state.relation,
+      documentRelation: state.documentRelation,
       src: preferred?.url ?? pickedImage.storageUrl ?? '',
       altText: state.altText.trim(),
       position: state.position,
@@ -201,7 +201,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
                     type="button"
                     onClick={() => setPickerOpen(true)}
                   >
-                    {state.relation
+                    {state.documentRelation
                       ? 'Change image…'
                       : `Pick ${targetDef?.labels.singular ?? 'image'}…`}
                   </Button>

@@ -12,10 +12,13 @@ import type { Position } from '../../nodes/inline-image-node/types'
 /**
  * The form-shape carried into / out of the inline image modal. Mirrors
  * `InlineImageAttributes` minus the Lexical-managed bits (`key`, `caption:
- * LexicalEditor`) — those don't belong in form state.
+ * LexicalEditor`) — those don't belong in form state. The document-reference
+ * envelope is carried as an optional nested `DocumentRelation` here (rather
+ * than spread flat) because the modal needs a single null/non-null state to
+ * represent "user hasn't picked a document yet".
  */
 export interface InlineImageData {
-  relation: DocumentRelation | null
+  documentRelation: DocumentRelation | null
   src: string
   altText?: string
   position?: Position
