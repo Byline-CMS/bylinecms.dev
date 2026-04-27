@@ -1,14 +1,13 @@
 import type { SerializedElementNode, Spread } from 'lexical'
 
+import type { DocumentRelation } from '../document-relation'
+
 export interface LinkAttributes {
   url?: string
   rel?: null | string
   newTab?: boolean
   linkType?: 'custom' | 'internal'
-  doc?: {
-    value: string
-    relationTo: string
-  } | null
+  doc?: DocumentRelation | null
 }
 
 export type SerializedLinkNode = Spread<

@@ -14,17 +14,12 @@ import type {
   Spread,
 } from 'lexical'
 
+import type { DocumentRelation } from '../document-relation'
+
 export type Position = 'left' | 'right' | 'full' | 'wide' | 'default' | undefined
 
-export interface Doc {
-  value: string
-  relationTo: string
-  data?: Record<string, unknown>
-}
-
 export interface InlineImageAttributes {
-  id: string
-  collection: string
+  relation: DocumentRelation
   src: string
   altText?: string
   position?: Position
@@ -37,7 +32,7 @@ export interface InlineImageAttributes {
 
 export type SerializedInlineImageNode = Spread<
   {
-    doc: Doc
+    relation: DocumentRelation
     src: string
     position?: Position
     altText: string

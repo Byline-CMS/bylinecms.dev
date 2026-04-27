@@ -17,6 +17,17 @@ import type { IStorageProvider } from './storage-types.js'
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
 
 /**
+ * URL path segments for the admin and (future) public API routes.
+ * Both values are optional on the input side — callers typically read the
+ * resolved shape via `resolveRoutes()` which fills in `'/admin'` and `'/api'`
+ * defaults.
+ */
+export interface RoutesConfig {
+  admin: string
+  api: string
+}
+
+/**
  * Common configuration shared by the server and client. Contains only
  * serializable, framework-agnostic properties — no React components, no
  * database adapters, no storage providers.
@@ -34,6 +45,13 @@ export interface BaseConfig {
     }
   }
   collections: CollectionDefinition[]
+  /**
+   * URL segments for admin and API routes. Both keys default to `/admin`
+   * and `/api` respectively — installations only set this when they want
+   * to mount the admin or API at a non-default path. Consumers should
+   * read these via `resolveRoutes()` so the defaults are always applied.
+   */
+  routes?: Partial<RoutesConfig>
 }
 
 /**

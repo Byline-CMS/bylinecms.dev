@@ -76,7 +76,12 @@ import {
 } from 'lexical'
 
 import { useEditorConfig } from '../../config/editor-config-context'
-import { $isLinkNode, type LinkAttributes, TOGGLE_LINK_COMMAND } from '../../nodes/link-nodes'
+import {
+  $isLinkNode,
+  type LinkAttributes,
+  OPEN_LINK_MODAL_COMMAND,
+  TOGGLE_LINK_COMMAND,
+} from '../../nodes/link-nodes'
 import { IS_APPLE } from '../../shared/environment'
 import { useToolbarExtensions } from '../../toolbar-extensions'
 import { DropDown, DropDownItem } from '../../ui/dropdown'
@@ -543,8 +548,9 @@ export function ToolbarPlugin(): React.JSX.Element {
 
   const insertLink = useCallback(() => {
     if (!isLink) {
-      // Only call TOGGLE_LINK_COMMAND and openModal if there is
-      // text selected (at least one character).
+      // Only insert a placeholder LinkNode (and open the modal) if there is
+      // text selected (at least one character) — empty selections can't be
+      // wrapped in a link.
       const editorState = activeEditor.getEditorState()
       editorState.read(() => {
         const selection = $getSelection()
@@ -555,7 +561,7 @@ export function ToolbarPlugin(): React.JSX.Element {
               url: 'https://',
             }
             editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkAttributes)
-            // openModal(linkDrawerSlug)
+            editor.dispatchCommand(OPEN_LINK_MODAL_COMMAND, undefined)
           }
         }
       })

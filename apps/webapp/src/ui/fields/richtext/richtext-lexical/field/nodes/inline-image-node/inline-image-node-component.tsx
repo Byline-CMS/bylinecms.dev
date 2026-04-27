@@ -45,6 +45,7 @@ import { InlineImageModal } from '../../plugins/inline-image-plugin/inline-image
 // import { FloatingLinkEditorPlugin } from '../../plugins/link-plugin/link/floating-link-editor'
 import PlaceholderInline from '../../ui/placeholder-inline'
 import { $isInlineImageNode } from './inline-image-node'
+import type { DocumentRelation } from '../document-relation'
 import type { Position } from './types'
 
 import './inline-image-node-component.css'
@@ -113,8 +114,7 @@ function LazyImage({
 }
 
 export default function InlineImageComponent({
-  id,
-  collection,
+  relation,
   src,
   position,
   altText,
@@ -124,8 +124,7 @@ export default function InlineImageComponent({
   caption,
   nodeKey,
 }: {
-  id: string
-  collection: string
+  relation: DocumentRelation
   src: string
   position: Position
   altText?: string
@@ -135,6 +134,7 @@ export default function InlineImageComponent({
   caption: LexicalEditor
   nodeKey: NodeKey
 }): React.JSX.Element {
+  const { target_document_id: id, target_collection_path: collection } = relation
   const [editor] = useLexicalComposerContext()
   const { onChange } = useSharedOnChange()
   const { historyState } = useSharedHistoryContext()

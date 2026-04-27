@@ -14,7 +14,7 @@ import { Docs } from './byline/collections/docs/schema.js'
 import { Media } from './byline/collections/media/schema.js'
 import { News } from './byline/collections/news/schema.js'
 import { Pages } from './byline/collections/pages/schema.js'
-import { i18n } from './byline/i18n.js'
+import { i18n, routes, serverURL } from './byline.common.config.js'
 
 const collections = [Docs, News, Pages, Media, Categories]
 
@@ -84,8 +84,9 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   })
 
   const core = await initBylineCore<AdminStore>({
-    serverURL: 'http://localhost:5173/',
+    serverURL,
     i18n,
+    routes,
     collections,
     db,
     adminStore,

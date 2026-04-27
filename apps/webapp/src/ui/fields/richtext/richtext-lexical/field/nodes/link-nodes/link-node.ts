@@ -6,6 +6,7 @@
  *
  */
 
+import { getClientConfig, resolveRoutes } from '@byline/core'
 import { addClassNamesToElement, isHTMLAnchorElement } from '@lexical/utils'
 import {
   $applyNodeReplacement,
@@ -26,8 +27,15 @@ import {
 } from 'lexical'
 
 import { sanitizeUrl } from '../../utils/url'
+import type { DocumentRelation } from '../document-relation'
 import type { SerializedAutoLinkNode } from './auto-link-node'
 import type { LinkAttributes, SerializedLinkNode } from './types'
+
+function adminHref(doc: DocumentRelation | null | undefined): string {
+  if (doc == null) return '#'
+  const { admin } = resolveRoutes(getClientConfig().routes)
+  return `${admin}/collections/${doc.target_collection_path}/${doc.target_document_id}`
+}
 
 /** @noInheritDoc */
 export class LinkNode extends ElementNode {
@@ -66,11 +74,10 @@ export class LinkNode extends ElementNode {
     if (this.__attributes?.linkType === 'custom') {
       element.href = sanitizeUrl(this.__attributes.url ?? '')
     } else {
-      // TODO: note the admin/collections url doesn't actually matter here, as this link
-      // will not be followed. Instead the floating link editor will appear.
-      // That said - it would be nice to be able to access the payload routes/admin configuration
-      // value to ensure that this is the correct admin path.
-      element.href = `/admin/collections/${this.__attributes.doc?.relationTo}/${this.__attributes.doc?.value}`
+      // The href is non-functional inside the editor — clicks are intercepted
+      // by the floating link editor — but a stable admin path makes a sensible
+      // fallback if the link is ever middle-clicked / opened in a new tab.
+      element.href = adminHref(this.__attributes.doc)
     }
 
     if (this.__attributes?.newTab ?? false) {
@@ -107,28 +114,17 @@ export class LinkNode extends ElementNode {
       anchor.href = url
     }
 
-    // We've changed from a custom URL to an internal URL
-    if (
+    // We've changed from a custom URL to an internal URL, or the internal
+    // target itself has changed.
+    const doc = this.__attributes.doc
+    const prevDoc = prevNode.__attributes.doc
+    const switchedToInternal =
+      this.__attributes?.linkType === 'internal' && prevNode.__attributes?.linkType === 'custom'
+    const targetChanged =
       this.__attributes?.linkType === 'internal' &&
-      prevNode.__attributes?.linkType === 'custom'
-    ) {
-      // TODO: note the admin/collections url doesn't actually matter here, as this link
-      // will not be followed. Instead the floating link editor will appear.
-      // That said - it would be nice to be able to access the payload routes/admin configuration
-      // value to ensure that this is the correct admin path.
-      anchor.href = `/admin/collections/${this.__attributes.doc?.relationTo}/${this.__attributes.doc?.value}`
-    }
-
-    // We've changed the internal URL to a new value
-    if (
-      this.__attributes.doc?.value !== prevNode.__attributes.doc?.value &&
-      this.__attributes?.linkType === 'internal'
-    ) {
-      // TODO: note the admin/collections url doesn't actually matter here, as this link
-      // will not be followed. Instead the floating link editor will appear.
-      // That said - it would be nice to be able to access the payload routes/admin configuration
-      // value to ensure that this is the correct admin path.
-      anchor.href = `/admin/collections/${this.__attributes.doc?.relationTo}/${this.__attributes.doc?.value}`
+      doc?.target_document_id !== prevDoc?.target_document_id
+    if (switchedToInternal || targetChanged) {
+      anchor.href = adminHref(doc)
     }
 
     // TODO: not 100% sure why we're setting rel to '' - revisit
@@ -277,6 +273,15 @@ export function $isLinkNode(node: LexicalNode | null | undefined): node is LinkN
 
 export const TOGGLE_LINK_COMMAND: LexicalCommand<LinkAttributes | null> =
   createCommand('TOGGLE_LINK_COMMAND')
+
+/**
+ * Asks the FloatingLinkEditorPlugin to open its edit modal for the link
+ * containing the current selection. Used by the toolbar on fresh link
+ * insertion so the user lands directly in the picker, and by anything else
+ * that wants to drive the modal without faking a pencil-icon click.
+ */
+export const OPEN_LINK_MODAL_COMMAND: LexicalCommand<void> =
+  createCommand('OPEN_LINK_MODAL_COMMAND')
 
 export function $toggleLink(linkAttributes: (LinkAttributes & { text?: string }) | null): void {
   const selection = $getSelection()

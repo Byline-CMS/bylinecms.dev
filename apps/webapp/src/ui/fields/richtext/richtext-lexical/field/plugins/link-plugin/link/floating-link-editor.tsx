@@ -11,8 +11,9 @@
  */
 
 import type * as React from 'react'
-import { type Dispatch, useCallback, useEffect, useRef, useState } from 'react'
+import { type Dispatch, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { getClientConfig, resolveRoutes } from '@byline/core'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $findMatchingParent, mergeRegister } from '@lexical/utils'
 import {
@@ -32,6 +33,7 @@ import {
   $isAutoLinkNode,
   $isLinkNode,
   type LinkAttributes,
+  OPEN_LINK_MODAL_COMMAND,
   TOGGLE_LINK_COMMAND,
 } from '../../../nodes/link-nodes'
 import { getSelectedNode } from '../../../utils/getSelectedNode'
@@ -68,6 +70,7 @@ function FloatingLinkEditor({
   })
   const [linkModalData, setLinkModalData] = useState<LinkData | undefined>(undefined)
   const [modalOpen, setModalOpen] = useState(false)
+  const adminRoute = useMemo(() => resolveRoutes(getClientConfig().routes).admin, [])
 
   const $updateLinkEditor = useCallback(() => {
     const selection = $getSelection()
@@ -96,8 +99,14 @@ function FloatingLinkEditor({
         if (data.fields?.linkType === 'internal') {
           const doc = data.fields?.doc
           setLinkEditorState({
-            label: doc != null ? `${doc.relationTo} · ${doc.value.slice(0, 8)}…` : null,
-            url: doc != null ? `/${doc.relationTo}/${doc.value}` : '',
+            label:
+              doc != null
+                ? `${doc.target_collection_path} · ${doc.target_document_id.slice(0, 8)}…`
+                : null,
+            url:
+              doc != null
+                ? `${adminRoute}/collections/${doc.target_collection_path}/${doc.target_document_id}`
+                : '',
           })
         } else {
           setLinkEditorState({
@@ -142,7 +151,7 @@ function FloatingLinkEditor({
     }
 
     return true
-  }, [anchorElem, editor])
+  }, [anchorElem, editor, adminRoute])
 
   useEffect(() => {
     const scrollerElem = anchorElem.parentElement
@@ -194,6 +203,14 @@ function FloatingLinkEditor({
           return false
         },
         COMMAND_PRIORITY_HIGH
+      ),
+      editor.registerCommand(
+        OPEN_LINK_MODAL_COMMAND,
+        () => {
+          setModalOpen(true)
+          return true
+        },
+        COMMAND_PRIORITY_LOW
       )
     )
   }, [editor, $updateLinkEditor, setIsLink, isLink])

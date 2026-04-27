@@ -26,18 +26,11 @@ import {
   type SelectValue,
 } from '@infonomic/uikit/react'
 
-import { resolveRowLabel } from '@/ui/fields/relation/relation-display'
 import { RelationPicker } from '@/ui/fields/relation/relation-picker'
 import { validateUrl } from '../../../utils/url'
+import type { DocumentRelation } from '../../../nodes/document-relation'
 import type { LinkAttributes } from '../../../nodes/link-nodes'
 import type { LinkData, LinkModalProps } from './types'
-
-interface PickedDoc {
-  value: string
-  relationTo: string
-  /** Cached picker record so we can render its label without a re-fetch. */
-  record: Record<string, any> | null
-}
 
 interface FormState {
   text: string
@@ -46,10 +39,11 @@ interface FormState {
   newTab: boolean
   /** Which collection the Select is currently previewing — UI state only. */
   targetCollection: string | null
-  /** Currently chosen document. `relationTo` is the source-of-truth collection
-   * for this doc and is independent of `targetCollection` so the user can
-   * explore other collections in the Select without losing their pick. */
-  picked: PickedDoc | null
+  /** Currently chosen document relation. `target_collection_path` is the
+   * source-of-truth collection for this doc and is independent of
+   * `targetCollection` so the user can explore other collections in the
+   * Select without losing their pick. */
+  picked: DocumentRelation | null
 }
 
 function emptyState(linkable: CollectionDefinition[]): FormState {
@@ -67,18 +61,31 @@ function fromLinkData(data: LinkData | undefined, linkable: CollectionDefinition
   const base = emptyState(linkable)
   if (!data) return base
   const fields = data.fields ?? {}
-  const linkType: 'custom' | 'internal' =
-    fields.linkType === 'internal' && linkable.length > 0 ? 'internal' : 'custom'
-  const picked: PickedDoc | null =
-    linkType === 'internal' && fields.doc != null
-      ? { value: fields.doc.value, relationTo: fields.doc.relationTo, record: null }
-      : null
+  // Default to internal when:
+  //   • the stored data already says internal, or
+  //   • a doc is set, or
+  //   • this is a fresh placeholder link from the toolbar (linkType: 'custom'
+  //     with an empty / `https://` url and no doc) — in that case the user
+  //     hasn't decided yet, so prefer the picker when any collection has
+  //     `linksInEditor: true`.
+  const url = fields.url ?? ''
+  const isPlaceholderUrl = url === '' || url === 'https://'
+  const wantsInternal =
+    linkable.length > 0 &&
+    (fields.linkType === 'internal' ||
+      fields.doc != null ||
+      (isPlaceholderUrl && fields.doc == null))
+  const linkType: 'custom' | 'internal' = wantsInternal ? 'internal' : 'custom'
+  const picked: DocumentRelation | null =
+    linkType === 'internal' && fields.doc != null ? fields.doc : null
   return {
     text: data.text ?? '',
     linkType,
-    url: fields.url ?? '',
+    // Don't surface the placeholder `https://` in the URL input — it makes
+    // the field look pre-filled with garbage.
+    url: isPlaceholderUrl ? '' : url,
     newTab: fields.newTab ?? false,
-    targetCollection: picked?.relationTo ?? linkable[0]?.path ?? null,
+    targetCollection: picked?.target_collection_path ?? linkable[0]?.path ?? null,
     picked,
   }
 }
@@ -117,16 +124,12 @@ export const LinkModal: React.FC<LinkModalProps> = ({
 
   const pickedLabel: string | null = useMemo(() => {
     if (state.linkType !== 'internal' || !state.picked) return null
-    const pickedDef = getCollectionDefinition(state.picked.relationTo)
-    if (state.picked.record) {
-      return (
-        resolveRowLabel(state.picked.record, pickedDef?.useAsTitle ?? null) ?? state.picked.value
-      )
-    }
-    // Existing link being re-edited — we don't have the record cached.
-    // Show a stable stub; full title hydration is the deferred afterRead hook.
-    const short = state.picked.value.slice(0, 8)
-    return `${pickedDef?.labels.singular ?? state.picked.relationTo} · ${short}…`
+    const title = state.picked.document?.title
+    if (typeof title === 'string' && title.length > 0) return title
+    // No title cached — show a stable stub keyed off the collection.
+    const pickedDef = getCollectionDefinition(state.picked.target_collection_path)
+    const short = state.picked.target_document_id.slice(0, 8)
+    return `${pickedDef?.labels.singular ?? state.picked.target_collection_path} · ${short}…`
   }, [state.linkType, state.picked])
 
   const handlePickerSelect = (selection: {
@@ -135,14 +138,29 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     record?: Record<string, any>
   }) => {
     setPickerOpen(false)
-    setState((s) => ({
-      ...s,
-      picked: {
-        value: selection.target_document_id,
-        relationTo: s.targetCollection as string,
-        record: selection.record ?? null,
-      },
-    }))
+    setState((s) => {
+      const targetCollection = s.targetCollection as string
+      // Normalise the picked record into a small `{ title, path }` envelope.
+      // `useAsTitle` is always in the picker projection; `path` is top-level
+      // metadata on every list response. This is everything the public
+      // client needs to build a link to the document — no afterRead hook
+      // needed for the common case.
+      const titleField = getCollectionDefinition(targetCollection)?.useAsTitle
+      const title = titleField ? selection.record?.fields?.[titleField] : undefined
+      const path = selection.record?.path
+      const document: Record<string, any> = {}
+      if (typeof title === 'string' && title.length > 0) document.title = title
+      if (typeof path === 'string' && path.length > 0) document.path = path
+      return {
+        ...s,
+        picked: {
+          target_document_id: selection.target_document_id,
+          target_collection_id: selection.target_collection_id,
+          target_collection_path: targetCollection,
+          document: Object.keys(document).length > 0 ? document : undefined,
+        },
+      }
+    })
   }
 
   const handleSave = () => {
@@ -171,10 +189,7 @@ export const LinkModal: React.FC<LinkModalProps> = ({
         : {
             linkType: 'internal',
             newTab: state.newTab,
-            doc: {
-              value: (state.picked as PickedDoc).value,
-              relationTo: (state.picked as PickedDoc).relationTo,
-            },
+            doc: state.picked as DocumentRelation,
           }
 
     onSubmit({

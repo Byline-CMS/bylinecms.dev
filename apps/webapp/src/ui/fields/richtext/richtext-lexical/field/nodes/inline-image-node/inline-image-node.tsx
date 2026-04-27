@@ -22,23 +22,30 @@ import type {
 } from 'lexical'
 import { $applyNodeReplacement, createEditor, DecoratorNode } from 'lexical'
 
-import type { Doc, InlineImageAttributes, Position, SerializedInlineImageNode } from './types'
+import type { DocumentRelation } from '../document-relation'
+import type { InlineImageAttributes, Position, SerializedInlineImageNode } from './types'
 
 const InlineImageComponent = React.lazy(async () => await import('./inline-image-node-component'))
 
 function convertInlineImageElement(domNode: Node): null | DOMConversionOutput {
   if (domNode instanceof HTMLImageElement) {
     const { alt: altText, src, width, height } = domNode
-    const id = domNode.dataset.id as string
-    const collection = domNode.dataset.collection as string
-    const node = $createInlineImageNode({ id, collection, src, altText, height, width })
+    // HTML round-trip carries only the document id and the collection path
+    // (not the collection's UUID). `target_collection_id` is left empty here;
+    // editor flows that need the UUID should re-pick via the modal.
+    const relation: DocumentRelation = {
+      target_document_id: (domNode.dataset.id as string | undefined) ?? '',
+      target_collection_id: '',
+      target_collection_path: (domNode.dataset.collection as string | undefined) ?? '',
+    }
+    const node = $createInlineImageNode({ relation, src, altText, height, width })
     return { node }
   }
   return null
 }
 
 export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
-  __doc: Doc
+  __relation: DocumentRelation
   __src: string
   __position: Position
   __altText: string | undefined
@@ -53,7 +60,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
 
   static clone(node: InlineImageNode): InlineImageNode {
     return new InlineImageNode(
-      node.__doc,
+      node.__relation,
       node.__src,
       node.__position,
       node.__altText,
@@ -66,10 +73,9 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
   }
 
   static importJSON(serializedNode: SerializedInlineImageNode): InlineImageNode {
-    const { src, position, altText, height, width, showCaption, caption, doc } = serializedNode
+    const { src, position, altText, height, width, showCaption, caption, relation } = serializedNode
     const node = $createInlineImageNode({
-      id: doc.value,
-      collection: doc.relationTo,
+      relation,
       src,
       position,
       altText,
@@ -95,7 +101,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
   }
 
   constructor(
-    doc: Doc,
+    relation: DocumentRelation,
     src: string,
     position: Position,
     altText?: string,
@@ -106,7 +112,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
     key?: NodeKey
   ) {
     super(key)
-    this.__doc = doc
+    this.__relation = relation
     this.__src = src
     this.__position = position
     this.__altText = altText
@@ -118,8 +124,8 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
 
   exportDOM(): DOMExportOutput {
     const element = document.createElement('img')
-    element.setAttribute('data-id', this.__doc.value)
-    element.setAttribute('data-collection', this.__doc.relationTo)
+    element.setAttribute('data-id', this.__relation.target_document_id)
+    element.setAttribute('data-collection', this.__relation.target_collection_path)
     element.setAttribute('src', this.__src)
     element.setAttribute('alt', this.__altText as string)
 
@@ -135,7 +141,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
 
   exportJSON(): SerializedInlineImageNode {
     return {
-      doc: this.__doc,
+      relation: this.__relation,
       src: this.getSrc(),
       position: this.__position,
       altText: this.getAltText(),
@@ -146,6 +152,10 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
       type: 'inline-image',
       version: 1,
     }
+  }
+
+  getRelation(): DocumentRelation {
+    return this.__relation
   }
 
   getSrc(): string {
@@ -187,12 +197,9 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
 
   update(payload: InlineImageAttributes): void {
     const writable = this.getWritable()
-    const { id, collection, src, position, altText, height, width, showCaption } = payload
-    if (id != null) {
-      writable.__doc.value = id
-    }
-    if (collection != null) {
-      writable.__doc.relationTo = collection
+    const { relation, src, position, altText, height, width, showCaption } = payload
+    if (relation != null) {
+      writable.__relation = relation
     }
     if (src != null) {
       writable.__src = src
@@ -242,8 +249,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
     return (
       <Suspense fallback={null}>
         <InlineImageComponent
-          id={this.__doc.value}
-          collection={this.__doc.relationTo}
+          relation={this.__relation}
           src={this.__src}
           position={this.__position}
           altText={this.__altText}
@@ -259,8 +265,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
 }
 
 export function $createInlineImageNode({
-  id,
-  collection,
+  relation,
   src,
   position,
   altText,
@@ -270,9 +275,8 @@ export function $createInlineImageNode({
   caption,
   key,
 }: InlineImageAttributes): InlineImageNode {
-  const doc: Doc = { value: id, relationTo: collection }
   return $applyNodeReplacement(
-    new InlineImageNode(doc, src, position, altText, width, height, showCaption, caption, key)
+    new InlineImageNode(relation, src, position, altText, width, height, showCaption, caption, key)
   )
 }
 

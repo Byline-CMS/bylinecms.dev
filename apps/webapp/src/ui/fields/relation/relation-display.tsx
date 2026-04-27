@@ -90,9 +90,16 @@ export function resolveRowLabel(
 /**
  * Build the `fields` projection for the picker listing. Unions:
  *   - caller-supplied `displayField`
- *   - target schema's `useAsTitle`
+ *   - target schema's `useAsTitle` (always included, even when not visible)
  *   - every `fieldName` declared in the admin config's `picker` columns
  *   - `title` (metadata fallback for rows with no explicit picker columns)
+ *
+ * Note that the document `path` is top-level metadata on every list response
+ * — it is always returned by `getCollectionDocuments` regardless of the
+ * `fields` projection. Callers that need `{ title, path }` for downstream
+ * normalisation (e.g. the rich-text link plugin) can rely on:
+ *   - `record.fields[def.useAsTitle]` for the title
+ *   - `record.path` for the path
  *
  * Returns `undefined` when no target definition is available, leaving the
  * listing endpoint to decide its own default projection.

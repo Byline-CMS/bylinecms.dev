@@ -73,6 +73,7 @@ export function getClientConfig(): ClientConfig {
     return {
       serverURL: serverConfig.serverURL,
       i18n: serverConfig.i18n,
+      routes: serverConfig.routes,
       collections: serverConfig.collections,
       admin: [],
     } as ClientConfig

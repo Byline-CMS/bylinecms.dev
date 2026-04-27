@@ -32,6 +32,7 @@ export {
   getCollectionDefinition,
   getServerConfig,
 } from './config/config.js'
+export { resolveRoutes } from './config/routes.js'
 export { validateAdminConfigs } from './config/validate-admin-configs.js'
 export { RESERVED_FIELD_NAMES } from './config/validate-collections.js'
 export { type BylineCore, initBylineCore } from './core.js'
