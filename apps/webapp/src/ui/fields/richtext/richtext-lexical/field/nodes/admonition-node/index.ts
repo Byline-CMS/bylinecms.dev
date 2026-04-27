@@ -7,5 +7,8 @@
  */
 
 export * from './admonition-node'
-export * from './admonition-node-component'
+// Intentionally NOT re-exported: `admonition-node-component` is loaded
+// lazily via `React.lazy` inside `admonition-node.tsx` so it can land in
+// its own chunk. Re-exporting it here would static-import it back into
+// any consumer of this barrel and defeat the split.
 export * from './types'

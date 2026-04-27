@@ -37,7 +37,6 @@ export const NumericalField = ({
 }) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
-  // const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<string | number | undefined>(fieldPath)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
   const htmlId = id ?? fieldPath

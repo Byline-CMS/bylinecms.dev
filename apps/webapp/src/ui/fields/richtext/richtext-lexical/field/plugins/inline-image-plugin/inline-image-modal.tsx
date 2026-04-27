@@ -9,7 +9,7 @@
  */
 
 import type * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { CollectionDefinition, StoredFileValue } from '@byline/core'
 import { getCollectionDefinition } from '@byline/core'
@@ -27,6 +27,7 @@ import {
 } from '@infonomic/uikit/react'
 
 import { RelationPicker } from '@/ui/fields/relation/relation-picker'
+import { useModalFormState } from '../../shared/useModalFormState'
 import { isAltTextValid, positionOptions } from './fields'
 import { deriveImageSizes, getPreferredSize } from './utils'
 import type { DocumentRelation } from '../../nodes/document-relation'
@@ -66,23 +67,18 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   onSubmit,
   onClose,
 }) => {
-  const [state, setState] = useState<FormState>(() => fromInlineImageData(dataFromProps))
   const [pickerOpen, setPickerOpen] = useState(false)
   const [altError, setAltError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
 
-  // Reset form state on the leading edge of open (insert mode → empty form;
-  // edit mode → pre-filled). Ref guards the effect so re-renders that change
-  // `dataFromProps` reference mid-edit don't wipe in-progress input.
-  const wasOpenRef = useRef(false)
-  useEffect(() => {
-    if (isOpen && !wasOpenRef.current) {
-      setState(fromInlineImageData(dataFromProps))
+  const [state, setState] = useModalFormState<FormState>(
+    isOpen,
+    () => fromInlineImageData(dataFromProps),
+    () => {
       setAltError(null)
       setImageError(null)
     }
-    wasOpenRef.current = isOpen
-  }, [isOpen, dataFromProps])
+  )
 
   const targetDef: CollectionDefinition | null = getCollectionDefinition(collection)
 
@@ -230,7 +226,12 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
               />
 
               <div className="flex flex-col gap-2 mb-3">
-                <Label htmlFor="inline-image-position" id="inline-image-position-label" className="text-sm font-medium" label="Position" />
+                <Label
+                  htmlFor="inline-image-position"
+                  id="inline-image-position-label"
+                  className="text-sm font-medium"
+                  label="Position"
+                />
                 <RadioGroup
                   id="inline-image-position"
                   name="position"
@@ -264,10 +265,22 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
             </div>
           </Modal.Content>
           <Modal.Actions className="flex gap-3">
-            <Button size="sm" intent="noeffect" type="button" onClick={onClose} className="min-w-[70px]">
+            <Button
+              size="sm"
+              intent="noeffect"
+              type="button"
+              onClick={onClose}
+              className="min-w-[70px]"
+            >
               Cancel
             </Button>
-            <Button size="sm" intent="primary" type="button" onClick={handleSave} className="min-w-[70px]">
+            <Button
+              size="sm"
+              intent="primary"
+              type="button"
+              onClick={handleSave}
+              className="min-w-[70px]"
+            >
               Save
             </Button>
           </Modal.Actions>

@@ -1,6 +1,6 @@
 # Universal Storage (EAV-per-type) — Strategic Analysis
 
-> Last updated: 2026-04-22
+> Last updated: 2026-04-26
 > Companions:
 > - [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) — the
 >   first consumer of the EAV layer that spans collections at read

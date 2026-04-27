@@ -37,7 +37,6 @@ export const TextField = ({
 }) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
-  // const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<string | undefined>(fieldPath)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
   const htmlId = id ?? fieldPath
@@ -127,7 +126,6 @@ export const TextField = ({
         onChange={(e) => handleChange(e.target.value)}
         error={fieldError != null}
         errorText={fieldError}
-        // className={isDirty ? 'border-yellow-300' : ''}
       />
     )
   }

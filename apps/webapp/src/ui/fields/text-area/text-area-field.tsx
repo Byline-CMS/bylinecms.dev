@@ -11,7 +11,7 @@ import { useCallback } from 'react'
 import type { Field, FieldComponentSlots, TextAreaField as FieldType } from '@byline/core'
 import { Label, TextArea } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { LocaleBadge } from '../locale-badge'
 
 export const TextAreaField = ({
@@ -37,7 +37,6 @@ export const TextAreaField = ({
 }) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
-  const _isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<string | undefined>(fieldPath)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
   const htmlId = id ?? fieldPath
@@ -127,7 +126,6 @@ export const TextAreaField = ({
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange(e.target.value)}
         error={fieldError != null}
         errorText={fieldError}
-        // className={isDirty ? 'border-blue-300' : ''}
         rows={4}
       />
     )

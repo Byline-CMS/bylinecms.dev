@@ -42,7 +42,6 @@ export const RichTextField = ({
 }: Props) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
-  // const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<any>(fieldPath)
   const incomingValue = value ?? fieldValue
   const incomingDefault = defaultValue

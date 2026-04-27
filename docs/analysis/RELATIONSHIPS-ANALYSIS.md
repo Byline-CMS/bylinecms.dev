@@ -1,6 +1,6 @@
 # Relationships — Analysis & Plan
 
-> Last updated: 2026-04-15
+> Last updated: 2026-04-27 (richtext link + inline image plugins shipped)
 > Companions:
 > - [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md) — the foundational
 >   EAV layer these relations read and write against.
@@ -695,7 +695,7 @@ cd packages/client && pnpm test:integration
 
 ---
 
-## Future work: rich-text document links
+## Rich-text document links — shipped 2026-04-27
 
 A richtext editor (Lexical, in our case) frequently needs to insert
 links to *other Byline documents* — e.g. a News article linking to a
@@ -703,12 +703,28 @@ related Page, Doc, or another News item. This is a second application
 of the same "relationship" primitive, just embedded *inside a rich-text
 field value* rather than as a discrete field on the collection. The
 storage model, the picker UX, and the recursion guards all carry
-over, but there are enough editor-specific concerns to warrant its own
-design track.
+over, but there are enough editor-specific concerns that this got its
+own design track.
 
-This section scopes the feature. Implementation is deferred to a
-later phase (likely alongside the first `afterRead` hook work, since
-Mode 2 below depends on it).
+The work shipped in two paired plugins, both consuming the same
+`DocumentRelation` envelope:
+
+- **Link plugin** — `apps/webapp/src/ui/fields/richtext/richtext-lexical/field/plugins/link-plugin/`
+  with `LinkNode` (`field/nodes/link-nodes/link-node.ts`). Internal
+  links carry the relation envelope flat on the node's attributes
+  alongside `linkType: 'internal'`; external links carry `linkType:
+  'custom'` + `url`. Save-time denormalisation only.
+- **Inline image plugin** — `apps/webapp/src/ui/fields/richtext/richtext-lexical/field/plugins/inline-image-plugin/`
+  with `DocumentInlineImageNode` (`field/nodes/inline-image-node/`).
+  Picks a media document, denormalises `{ title, altText, image, sizes }`
+  into the envelope at save time. An optional `inline-image-after-read.ts`
+  hook is authored for Mode 2 hydration but **not yet wired** into any
+  collection definition — it's there to be opted in when staleness
+  becomes a problem.
+
+The original spec below is preserved for context. The shipped shape
+diverges from it in three notable ways — see "What changed from the
+original spec" at the end of this section.
 
 ### Overview
 
@@ -908,14 +924,13 @@ section above.
 
 ### Deferred within this track
 
-- **Cross-document link integrity on delete.** Mode 1 captures
-  `cached` at save time, so deleting the target leaves the cache in
-  place but stale; Mode 2 yields `_resolved: false` at render time.
-  Neither mode actively rewrites referrers. A future job could scan
-  all richtext fields for broken links and surface them in an admin
-  "broken links" view — a natural analogue of the future relation
-  cascade-check story.
-- **Bulk "refresh cached links" admin command** for Mode 1.
+- **Cross-document link integrity on delete.** Mode 1 leaves the
+  denormalised envelope in place but stale; Mode 2 (when wired)
+  yields `_resolved: false` at render time. Neither mode actively
+  rewrites referrers. A future job could scan all richtext fields for
+  broken links and surface them in an admin "broken links" view — a
+  natural analogue of the future relation cascade-check story.
+- **Bulk "refresh denormalised links" admin command** for Mode 1.
 - **Mixed editor configs** — supporting per-link choice (save vs
   read) inside the same editor, rather than per-editor. Almost
   certainly not worth the complexity until a real use case demands
@@ -923,6 +938,40 @@ section above.
 - **Anchor / fragment targeting.** A link may point at a specific
   heading inside the target document; that is editor-feature work,
   orthogonal to the storage shape.
+
+### What changed from the original spec
+
+1. **Flat envelope, no `cached` wrapper.** The original design proposed
+   a `DocumentLinkNodePayload` with `target_document_id`,
+   `target_collection_id`, and a separate `cached?: Record<string,
+   unknown>` bag. The shipped shape flattens the relation envelope
+   directly onto the node's attributes (`targetDocumentId`,
+   `targetCollectionId`, `targetCollectionPath`, `document?: Record<string,
+   any>`), matching the `RelationField` value shape verbatim. Same
+   information, one fewer layer of nesting. The `cachedAt` marker was
+   dropped — we have no use for it yet, and Mode 2 hydration overrides
+   denormalised values when wired.
+2. **Configuration moved from the richtext field to the target
+   collection.** Instead of `documentLinks: { embed, allowedCollections,
+   … }` on each `richText` field, target eligibility is a single
+   `linksInEditor: boolean` flag on the `CollectionDefinition`. Any
+   collection with `linksInEditor: true` becomes available in every
+   richtext editor's link picker. Simpler; revisit if a real use case
+   ever needs per-editor restriction.
+3. **Inline image was added as a sibling track.** Originally framed as
+   "document links" only; the same machinery turned out to apply
+   directly to picking a media document and rendering its `image`
+   `StoredFileValue` inline. Both plugins share `DocumentRelation`
+   (`apps/webapp/src/ui/fields/richtext/richtext-lexical/field/nodes/document-relation.ts`),
+   the `RelationPicker`, and the same modal-form-state machinery
+   (`field/shared/useModalFormState.ts`).
+
+The original "Two modes of operation" / "Configurable field projection"
+/ "Lexical implementation notes" / "Recursive-read safety" sections
+below remain the conceptual reference for both shipped plugins —
+substitute "relation envelope flattened on attributes" wherever the
+spec says "`cached` bag", and "`linksInEditor` flag" wherever it says
+"`documentLinks.allowedCollections`".
 
 ---
 
@@ -947,9 +996,9 @@ section above.
 - **Relation column formatter** in list views — currently no column
   renderer exists for relation field values; list views only show
   `target_document_id`. Useful but out of scope here.
-- **Rich-text document links** (Lexical `DocumentLinkNode`, toolbar
-  plugin reusing the existing RelationPicker, save-time vs read-time
-  hydration modes, configurable field projection, shared
-  `ReadContext` for recursion safety). See the
-  [Future work: rich-text document links](#future-work-rich-text-document-links)
-  section above for the full design.
+- ~~**Rich-text document links**~~ — shipped 2026-04-27 as the link
+  plugin and the inline image plugin. See
+  [Rich-text document links — shipped 2026-04-27](#rich-text-document-links--shipped-2026-04-27)
+  above. Mode 2 hydration is partially landed (the
+  `inline-image-after-read.ts` hook exists but isn't wired into any
+  collection) — opt in when staleness becomes a problem.

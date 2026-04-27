@@ -9,7 +9,7 @@
  */
 
 import type * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { CollectionDefinition } from '@byline/core'
 import { getClientConfig, getCollectionDefinition } from '@byline/core'
@@ -28,6 +28,7 @@ import {
 } from '@infonomic/uikit/react'
 
 import { RelationPicker } from '@/ui/fields/relation/relation-picker'
+import { useModalFormState } from '../../../shared/useModalFormState'
 import { validateUrl } from '../../../utils/url'
 import type { DocumentRelation } from '../../../nodes/document-relation'
 import type { LinkAttributes } from '../../../nodes/link-nodes'
@@ -76,11 +77,11 @@ function fromLinkData(data: LinkData | undefined, linkable: CollectionDefinition
   const picked: DocumentRelation | null =
     fields.linkType === 'internal'
       ? {
-        targetDocumentId: fields.targetDocumentId,
-        targetCollectionId: fields.targetCollectionId,
-        targetCollectionPath: fields.targetCollectionPath,
-        document: fields.document,
-      }
+          targetDocumentId: fields.targetDocumentId,
+          targetCollectionId: fields.targetCollectionId,
+          targetCollectionPath: fields.targetCollectionPath,
+          document: fields.document,
+        }
       : null
   return {
     text: data.text ?? '',
@@ -105,17 +106,14 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     []
   )
 
-  const [state, setState] = useState<FormState>(() => fromLinkData(dataFromProps, linkable))
   const [pickerOpen, setPickerOpen] = useState(false)
   const [urlError, setUrlError] = useState<string | null>(null)
 
-  // Reset whenever the drawer transitions to open (new link selected).
-  useEffect(() => {
-    if (isOpen) {
-      setState(fromLinkData(dataFromProps, linkable))
-      setUrlError(null)
-    }
-  }, [isOpen, dataFromProps, linkable])
+  const [state, setState] = useModalFormState<FormState>(
+    isOpen,
+    () => fromLinkData(dataFromProps, linkable),
+    () => setUrlError(null)
+  )
 
   const targetDef: CollectionDefinition | null = state.targetCollection
     ? getCollectionDefinition(state.targetCollection)
@@ -186,18 +184,18 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     const fields: LinkAttributes =
       state.linkType === 'custom'
         ? {
-          linkType: 'custom',
-          url: state.url,
-          newTab: state.newTab,
-        }
+            linkType: 'custom',
+            url: state.url,
+            newTab: state.newTab,
+          }
         : {
-          linkType: 'internal',
-          newTab: state.newTab,
-          targetDocumentId: picked.targetDocumentId,
-          targetCollectionId: picked.targetCollectionId,
-          targetCollectionPath: picked.targetCollectionPath,
-          document: picked.document,
-        }
+            linkType: 'internal',
+            newTab: state.newTab,
+            targetDocumentId: picked.targetDocumentId,
+            targetCollectionId: picked.targetCollectionId,
+            targetCollectionPath: picked.targetCollectionPath,
+            document: picked.document,
+          }
 
     onSubmit({
       text: state.text.length > 0 ? state.text : null,
@@ -232,7 +230,6 @@ export const LinkModal: React.FC<LinkModalProps> = ({
 
               {linkable.length > 0 && (
                 <RadioGroup
-
                   id="link-type"
                   name="linkType"
                   aria-label="Link type"
@@ -270,7 +267,12 @@ export const LinkModal: React.FC<LinkModalProps> = ({
                 <div className="flex flex-col gap-3 mt-2">
                   {linkable.length > 1 && (
                     <div>
-                      <Label id="link-target-collection" htmlFor="link-target-collection" className="mb-1" label="Target collection" />
+                      <Label
+                        id="link-target-collection"
+                        htmlFor="link-target-collection"
+                        className="mb-1"
+                        label="Target collection"
+                      />
                       <Select<string>
                         size="sm"
                         items={collectionItems}
@@ -289,7 +291,12 @@ export const LinkModal: React.FC<LinkModalProps> = ({
                   )}
 
                   <div className="border rounded p-3">
-                    <Label id="link-target-document" htmlFor="link-target-document" className="mb-1" label="Target document" />
+                    <Label
+                      id="link-target-document"
+                      htmlFor="link-target-document"
+                      className="mb-1"
+                      label="Target document"
+                    />
 
                     <div className="flex items-center justify-between gap-2">
                       {pickedLabel && (

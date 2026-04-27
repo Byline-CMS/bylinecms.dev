@@ -1,6 +1,6 @@
 # Phases of Work — Strategic Roadmap
 
-> Last updated: 2026-04-26 (auth load-bearing work done — Phase 8 inspector views are the only outstanding auth track)
+> Last updated: 2026-04-27 (richtext link + inline image plugins shipped — `hasMany` is the only outstanding feature item)
 > Companion to [STORAGE-ANALYSIS.md](./STORAGE-ANALYSIS.md),
 > [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md),
 > [ROUTING-API-ANALYSIS.md](./ROUTING-API-ANALYSIS.md),
@@ -109,6 +109,26 @@ Full per-phase status and the strategic rationale live in
 
 ---
 
+## ~~1. Richtext document links~~ — shipped 2026-04-27
+
+The link plugin (`LinkNode` + `RelationPicker`-driven modal, internal
+and external links, configured via `linksInEditor: true` on each
+target collection) and the inline image plugin
+(`DocumentInlineImageNode` over the same envelope, with denormalised
+media `{ title, altText, image, sizes }`) both landed. Both share the
+`DocumentRelation` envelope and the `useModalFormState` hook
+(`apps/webapp/src/ui/fields/richtext/richtext-lexical/field/shared/useModalFormState.ts`).
+Mode 1 (save-time denormalisation) is the active path; Mode 2 has a
+prepared `inline-image-after-read.ts` hook that is not yet wired into
+any collection — opt in when staleness becomes a problem. The shape
+that shipped diverges from the original spec in three notable ways
+(flat envelope vs. `cached` bag, collection-level `linksInEditor`
+flag vs. per-richtext-field config, and inline image as a sibling
+plugin) — see
+[RELATIONSHIPS-ANALYSIS § "What changed from the original spec"](./RELATIONSHIPS-ANALYSIS.md#what-changed-from-the-original-spec).
+
+---
+
 ## 1. `hasMany` relations
 
 **Scope.** Multi-target relation fields. Needs:
@@ -120,28 +140,13 @@ Full per-phase status and the strategic rationale live in
 
 **Why this slot.** Commonly requested, well-scoped in
 [RELATIONSHIPS-ANALYSIS § "Deferred"](./RELATIONSHIPS-ANALYSIS.md), and
-a good user-visible feature once earlier items land. Not blocking; not
-load-bearing for any earlier item. Can interleave with the auth
-phases if priorities shift.
+the only outstanding feature item now that the richtext link / inline
+image work has shipped. Not blocking; not load-bearing for any earlier
+item.
 
 ---
 
-## 2. Richtext document links
-
-**Scope.** Lexical `DocumentLinkNode`, toolbar plugin reusing the
-existing `RelationPicker`, save-time vs read-time hydration modes,
-configurable field projection, shared `ReadContext` for recursion
-safety.
-
-**Why this slot.** Larger track. `afterRead` has now shipped so Mode 2
-hydration is unblocked — but this still sits behind `hasMany`
-priority-wise (smaller unit, more commonly requested). Designed in
-detail in [RELATIONSHIPS-ANALYSIS § "Future work: rich-text document
-links"](./RELATIONSHIPS-ANALYSIS.md).
-
----
-
-## 3. Stable HTTP transport — explicitly NOT next
+## 2. Stable HTTP transport — explicitly NOT next
 
 The trigger for a stable/public HTTP API is **not** "the client SDK
 gained more methods." It is **the first real client that cannot
@@ -173,8 +178,8 @@ Until that arrives, hold the line per
   concerns land in one pipeline. The only outstanding auth track is
   the bulk of Phase 8 (inspector views) — read-only refinements
   that can slot around other in-flight tracks.
-- **Item 3 (HTTP transport) stays deferred** regardless of progress
-  on items 1–2 unless an external-client trigger fires. Whenever it
+- **Item 2 (HTTP transport) stays deferred** regardless of progress
+  on item 1 unless an external-client trigger fires. Whenever it
   does fire, it will inherit the `RequestContext` / `Actor`
   contract established by the auth phases.
 - **`packages/ui` extraction** (not listed above as a standalone
@@ -195,3 +200,4 @@ Until that arrives, hold the line per
 | 2026-04-25 | Auth Phases 0–3 and 5–6 shipped over the past week (actor primitives, ability registry, admin schema + services + seed, JWT session provider, server-fn middleware, admin UI). Phases 4 (service-layer enforcement) and 7–8 (`beforeRead` + inspector views) remain. Item 1 promoted from "active next" to "in flight". |
 | 2026-04-25 | Phase 4 closed out for the document-collection realm: most of service-layer enforcement was already shipped on the write path and on `@byline/client`; this pass added the four missing read assertions on the admin webapp's *document-collection* server fns (`list`, `get`, `history`, `stats`). The admin user/role/permission management area was already enforced via `assertAdminActor` inside every `*Command` and is unchanged. Phase 7 (`beforeRead`) and Phase 8 inspector views remain. |
 | 2026-04-26 | Phase 7 (`beforeRead` hook + query-level filtering) shipped end-to-end with the companion admin-on-`ClientDocument` reshape. Auth (was item 1) is now structurally complete for its load-bearing work; only Phase 8 inspector views remain. Items renumbered: `hasMany` is now item 1, richtext document links item 2, HTTP transport item 3. Worked recipes added at [ACCESS-CONTROL-RECIPES.md](./ACCESS-CONTROL-RECIPES.md). |
+| 2026-04-27 | Richtext document links shipped: `LinkNode` + link plugin (internal/external links, configured by `linksInEditor` on each target collection) and inline image plugin (`DocumentInlineImageNode` over the same `DocumentRelation` envelope, with denormalised `{ title, altText, image, sizes }`). Mode 1 (save-time denormalisation) is the active path; an `inline-image-after-read.ts` Mode 2 hook is authored but unwired. Shape diverges from the original spec — see [RELATIONSHIPS-ANALYSIS § "What changed from the original spec"](./RELATIONSHIPS-ANALYSIS.md#what-changed-from-the-original-spec). Items renumbered: `hasMany` is now item 1, HTTP transport item 2. Companion editor cleanup pass: shared `useModalFormState` hook extracted; field-widget dead `_isDirty` lines removed. |
