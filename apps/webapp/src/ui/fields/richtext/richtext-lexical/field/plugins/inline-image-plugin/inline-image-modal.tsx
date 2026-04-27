@@ -20,6 +20,7 @@ import {
   ErrorText,
   IconButton,
   Input,
+  Label,
   Modal,
   RadioGroup,
   RadioGroupItem,
@@ -187,15 +188,16 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
                     <img
                       src={pickedThumbUrl}
                       alt={pickedTitle ?? ''}
-                      className="w-12 h-12 object-cover rounded border border-gray-700"
+                      className="w-18 h-18 object-cover rounded border border-gray-700"
                     />
                   ) : (
-                    <div className="w-12 h-12 flex items-center justify-center bg-gray-800 rounded border border-gray-700 text-xs text-gray-500">
+                    <div className="w-18 h-18 flex items-center justify-center bg-gray-800 rounded border border-gray-700 text-xs text-gray-500">
                       —
                     </div>
                   )}
                   <Button
                     size="sm"
+                    className="min-w-[70px]"
                     variant="outlined"
                     intent="noeffect"
                     type="button"
@@ -216,6 +218,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
                 id="inline-image-alt"
                 name="altText"
                 label="Alt text"
+                required
                 placeholder="Describe the image for screen readers"
                 value={state.altText}
                 error={altError != null}
@@ -226,12 +229,12 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
                 }}
               />
 
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Position</span>
+              <div className="flex flex-col gap-2 mb-3">
+                <Label htmlFor="inline-image-position" id="inline-image-position-label" className="text-sm font-medium" label="Position" />
                 <RadioGroup
                   id="inline-image-position"
                   name="position"
-                  aria-label="Image position"
+                  aria-labelledby="inline-image-position-label"
                   direction="row"
                   value={state.position ?? 'full'}
                   onValueChange={(value) =>
@@ -261,10 +264,10 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
             </div>
           </Modal.Content>
           <Modal.Actions className="flex gap-3">
-            <Button size="sm" intent="noeffect" type="button" onClick={onClose}>
+            <Button size="sm" intent="noeffect" type="button" onClick={onClose} className="min-w-[70px]">
               Cancel
             </Button>
-            <Button size="sm" intent="primary" type="button" onClick={handleSave}>
+            <Button size="sm" intent="primary" type="button" onClick={handleSave} className="min-w-[70px]">
               Save
             </Button>
           </Modal.Actions>

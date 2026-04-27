@@ -19,6 +19,7 @@ import {
   CloseIcon,
   IconButton,
   Input,
+  Label,
   Modal,
   RadioGroup,
   RadioGroupItem,
@@ -75,11 +76,11 @@ function fromLinkData(data: LinkData | undefined, linkable: CollectionDefinition
   const picked: DocumentRelation | null =
     fields.linkType === 'internal'
       ? {
-          targetDocumentId: fields.targetDocumentId,
-          targetCollectionId: fields.targetCollectionId,
-          targetCollectionPath: fields.targetCollectionPath,
-          document: fields.document,
-        }
+        targetDocumentId: fields.targetDocumentId,
+        targetCollectionId: fields.targetCollectionId,
+        targetCollectionPath: fields.targetCollectionPath,
+        document: fields.document,
+      }
       : null
   return {
     text: data.text ?? '',
@@ -185,18 +186,18 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     const fields: LinkAttributes =
       state.linkType === 'custom'
         ? {
-            linkType: 'custom',
-            url: state.url,
-            newTab: state.newTab,
-          }
+          linkType: 'custom',
+          url: state.url,
+          newTab: state.newTab,
+        }
         : {
-            linkType: 'internal',
-            newTab: state.newTab,
-            targetDocumentId: picked.targetDocumentId,
-            targetCollectionId: picked.targetCollectionId,
-            targetCollectionPath: picked.targetCollectionPath,
-            document: picked.document,
-          }
+          linkType: 'internal',
+          newTab: state.newTab,
+          targetDocumentId: picked.targetDocumentId,
+          targetCollectionId: picked.targetCollectionId,
+          targetCollectionPath: picked.targetCollectionPath,
+          document: picked.document,
+        }
 
     onSubmit({
       text: state.text.length > 0 ? state.text : null,
@@ -211,7 +212,7 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     <>
       <Modal isOpen={isOpen} onDismiss={onClose} closeOnOverlayClick={false}>
         <Modal.Container style={{ maxWidth: '480px', width: '100%' }}>
-          <Modal.Header className="flex items-center justify-between pt-4 mb-2">
+          <Modal.Header className="flex items-center justify-between pt-4 mb-4">
             <h3 className="m-0 text-xl">Edit link</h3>
             <IconButton aria-label="Close" size="xs" onClick={onClose}>
               <CloseIcon width="15px" height="15px" svgClassName="white-icon" />
@@ -221,6 +222,7 @@ export const LinkModal: React.FC<LinkModalProps> = ({
             <div className="flex flex-col gap-4">
               <Input
                 id="link-text"
+                className="mb-2"
                 name="text"
                 label="Link text"
                 placeholder="Visible link text"
@@ -230,6 +232,7 @@ export const LinkModal: React.FC<LinkModalProps> = ({
 
               {linkable.length > 0 && (
                 <RadioGroup
+
                   id="link-type"
                   name="linkType"
                   aria-label="Link type"
@@ -264,40 +267,47 @@ export const LinkModal: React.FC<LinkModalProps> = ({
               )}
 
               {state.linkType === 'internal' && (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 mt-2">
                   {linkable.length > 1 && (
-                    <Select<string>
-                      size="sm"
-                      items={collectionItems}
-                      placeholder="Target collection"
-                      value={state.targetCollection ?? undefined}
-                      onValueChange={(value) => {
-                        if (value == null) return
-                        // Switching the Select is exploratory — we keep the
-                        // currently picked document; only the picker target
-                        // changes. Picking a new document via the picker is
-                        // the only path that replaces `picked`.
-                        setState((s) => ({ ...s, targetCollection: value }))
-                      }}
-                    />
+                    <div>
+                      <Label id="link-target-collection" htmlFor="link-target-collection" className="mb-1" label="Target collection" />
+                      <Select<string>
+                        size="sm"
+                        items={collectionItems}
+                        placeholder="Target collection"
+                        value={state.targetCollection ?? undefined}
+                        onValueChange={(value) => {
+                          if (value == null) return
+                          // Switching the Select is exploratory — we keep the
+                          // currently picked document; only the picker target
+                          // changes. Picking a new document via the picker is
+                          // the only path that replaces `picked`.
+                          setState((s) => ({ ...s, targetCollection: value }))
+                        }}
+                      />
+                    </div>
                   )}
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outlined"
-                      intent="noeffect"
-                      type="button"
-                      onClick={() => setPickerOpen(true)}
-                      disabled={!state.targetCollection}
-                    >
-                      {pickedLabel
-                        ? 'Change document…'
-                        : `Pick ${targetDef?.labels.singular ?? 'document'}…`}
-                    </Button>
-                    {pickedLabel && (
-                      <span className="text-sm text-gray-200 truncate">{pickedLabel}</span>
-                    )}
+                  <div className="border rounded p-3">
+                    <Label id="link-target-document" htmlFor="link-target-document" className="mb-1" label="Target document" />
+
+                    <div className="flex items-center justify-between gap-2">
+                      {pickedLabel && (
+                        <span className="text-sm text-accent-400 truncate">{pickedLabel}</span>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outlined"
+                        intent="noeffect"
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        disabled={!state.targetCollection}
+                      >
+                        {pickedLabel
+                          ? 'Change'
+                          : `Pick ${targetDef?.labels.singular ?? 'document'}…`}
+                      </Button>
+                    </div>
                   </div>
 
                   {urlError && state.linkType === 'internal' && (
@@ -316,10 +326,22 @@ export const LinkModal: React.FC<LinkModalProps> = ({
             </div>
           </Modal.Content>
           <Modal.Actions className="flex gap-3">
-            <Button size="sm" intent="noeffect" type="button" onClick={onClose}>
+            <Button
+              size="sm"
+              intent="noeffect"
+              type="button"
+              onClick={onClose}
+              className="min-w-[70px]"
+            >
               Cancel
             </Button>
-            <Button size="sm" intent="primary" type="button" onClick={handleSave}>
+            <Button
+              size="sm"
+              intent="primary"
+              type="button"
+              onClick={handleSave}
+              className="min-w-[70px]"
+            >
               Save
             </Button>
           </Modal.Actions>

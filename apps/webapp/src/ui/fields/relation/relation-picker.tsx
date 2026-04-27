@@ -262,11 +262,12 @@ export const RelationPicker = ({
           </div>
         </Modal.Content>
         <Modal.Actions>
-          <Button size="sm" intent="noeffect" type="button" onClick={onDismiss}>
+          <Button size="sm" intent="noeffect" type="button" onClick={onDismiss} className="min-w-[70px]">
             Cancel
           </Button>
           <Button
             size="sm"
+            className="min-w-[70px]"
             intent="primary"
             type="button"
             disabled={!selectedDocumentId}
