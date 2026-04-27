@@ -57,8 +57,8 @@ interface RelationPickerProps {
    * also renders from those same columns will find the data it needs.
    */
   onSelect: (selection: {
-    target_document_id: string
-    target_collection_id: string
+    targetDocumentId: string
+    targetCollectionId: string
     record?: Record<string, any>
   }) => void
   /** Called when the user dismisses the modal. */
@@ -147,8 +147,8 @@ export const RelationPicker = ({
     if (!selectedDocumentId || !collectionId) return
     const record = documents.find((d) => d?.id === selectedDocumentId)
     onSelect({
-      target_document_id: selectedDocumentId,
-      target_collection_id: collectionId,
+      targetDocumentId: selectedDocumentId,
+      targetCollectionId: collectionId,
       record,
     })
   }, [selectedDocumentId, collectionId, documents, onSelect])

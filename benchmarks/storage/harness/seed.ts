@@ -163,8 +163,8 @@ function articleContent(i: number, mediaIds: Array<{ document_id: string; collec
   if (i % 3 === 0 && mediaIds.length > 0) {
     const m = mediaIds[i % mediaIds.length]!
     base.hero = {
-      target_document_id: m.document_id,
-      target_collection_id: m.collection_id,
+      targetDocumentId: m.document_id,
+      targetCollectionId: m.collection_id,
     }
   }
 

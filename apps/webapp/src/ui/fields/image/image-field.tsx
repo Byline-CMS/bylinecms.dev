@@ -61,7 +61,7 @@ export const ImageField = ({
   const isOldPlaceholder = (v: unknown): boolean => {
     if (!v || typeof v !== 'object') return false
     const maybe = v as Partial<StoredFileValue>
-    return maybe.storage_provider === 'placeholder' && maybe.storage_path === 'pending'
+    return maybe.storageProvider === 'placeholder' && maybe.storagePath === 'pending'
   }
 
   // Show upload widget only if no value or old placeholder
@@ -113,13 +113,13 @@ export const ImageField = ({
       ) : (
         <div className="mt-1 flex gap-4 border border-primary-500 p-2 rounded-md">
           {/* Preview */}
-          {incomingValue?.storage_url && (
+          {incomingValue?.storageUrl && (
             <div className="relative">
               <img
-                src={incomingValue.storage_url}
-                alt={incomingValue.original_filename ?? incomingValue.filename}
+                src={incomingValue.storageUrl}
+                alt={incomingValue.originalFilename ?? incomingValue.filename}
                 className={`rounded border border-gray-600 object-contain ${
-                  incomingValue.mime_type === 'image/svg+xml'
+                  incomingValue.mimeType === 'image/svg+xml'
                     ? 'w-[271px] h-[159px]'
                     : 'max-h-40 min-h-16 min-w-16'
                 }`}
@@ -138,13 +138,13 @@ export const ImageField = ({
               <span className="font-semibold">Filename:</span> {incomingValue?.filename}
             </div>
             <div>
-              <span className="font-semibold">Original:</span> {incomingValue?.original_filename}
+              <span className="font-semibold">Original:</span> {incomingValue?.originalFilename}
             </div>
             <div>
-              <span className="font-semibold">Type:</span> {incomingValue?.mime_type}
+              <span className="font-semibold">Type:</span> {incomingValue?.mimeType}
             </div>
             <div>
-              <span className="font-semibold">Size:</span> {incomingValue?.file_size}
+              <span className="font-semibold">Size:</span> {incomingValue?.fileSize}
             </div>
             {isPending ? (
               <div>
@@ -154,22 +154,22 @@ export const ImageField = ({
             ) : (
               <>
                 <div>
-                  <span className="font-semibold">Storage:</span> {incomingValue?.storage_provider}
+                  <span className="font-semibold">Storage:</span> {incomingValue?.storageProvider}
                 </div>
-                {incomingValue?.image_width != null && (
+                {incomingValue?.imageWidth != null && (
                   <div>
-                    <span className="font-semibold">Dimensions:</span> {incomingValue.image_width}
-                    {incomingValue.image_height != null ? `×${incomingValue.image_height}` : ''}
+                    <span className="font-semibold">Dimensions:</span> {incomingValue.imageWidth}
+                    {incomingValue.imageHeight != null ? `×${incomingValue.imageHeight}` : ''}
                   </div>
                 )}
-                {incomingValue?.image_format != null && (
+                {incomingValue?.imageFormat != null && (
                   <div>
-                    <span className="font-semibold">Format:</span> {incomingValue.image_format}
+                    <span className="font-semibold">Format:</span> {incomingValue.imageFormat}
                   </div>
                 )}
                 <div>
                   <span className="font-semibold">Thumbnail:</span>{' '}
-                  {incomingValue?.thumbnail_generated ? 'Generated' : 'Pending'}
+                  {incomingValue?.thumbnailGenerated ? 'Generated' : 'Pending'}
                 </div>
               </>
             )}

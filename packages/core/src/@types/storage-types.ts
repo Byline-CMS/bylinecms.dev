@@ -17,15 +17,15 @@
  */
 export interface StoredFileLocation {
   /** Provider identifier string (e.g. `'local'`, `'s3'`). */
-  storage_provider: string
+  storageProvider: string
   /** Provider-internal path or object key for the stored file. */
-  storage_path: string
+  storagePath: string
   /**
    * Public or CDN URL for the file, if available.
    * `null` when the provider requires a separate URL-generation step (e.g.
    * signed S3 URLs generated at read-time).
    */
-  storage_url: string | null
+  storageUrl: string | null
 }
 
 /**
@@ -87,9 +87,9 @@ export interface IStorageProvider {
   delete(storagePath: string): Promise<void>
 
   /**
-   * Derive a public URL for a given `storage_path` at read-time.
+   * Derive a public URL for a given `storagePath` at read-time.
    *
-   * For providers that embed the URL in `StoredFileLocation.storage_url` at
+   * For providers that embed the URL in `StoredFileLocation.storageUrl` at
    * upload time (e.g. a public S3 bucket), this can simply return the same
    * value. For providers that generate signed/expiring URLs, implement the
    * signing logic here.

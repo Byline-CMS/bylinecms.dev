@@ -10,20 +10,20 @@ import type { Field } from '@byline/core'
 import { resolveFieldDefaultValue } from '@byline/core'
 
 export const placeholderStoredFileValue = {
-  file_id: crypto.randomUUID(),
+  fileId: crypto.randomUUID(),
   filename: 'placeholder',
-  original_filename: 'placeholder',
-  mime_type: 'application/octet-stream',
-  file_size: 0,
-  storage_provider: 'placeholder',
-  storage_path: 'pending',
-  storage_url: null,
-  file_hash: null,
-  image_width: null,
-  image_height: null,
-  image_format: null,
-  processing_status: 'pending',
-  thumbnail_generated: false,
+  originalFilename: 'placeholder',
+  mimeType: 'application/octet-stream',
+  fileSize: 0,
+  storageProvider: 'placeholder',
+  storagePath: 'pending',
+  storageUrl: null,
+  fileHash: null,
+  imageWidth: null,
+  imageHeight: null,
+  imageFormat: null,
+  processingStatus: 'pending',
+  thumbnailGenerated: false,
 }
 
 export const placeholderForField = (f: Field): any => {

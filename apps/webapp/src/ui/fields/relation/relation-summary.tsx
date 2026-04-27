@@ -37,8 +37,8 @@ interface RelationSummaryProps {
   displayField?: string
   /** The raw relation value from the form. May be a plain ref or a populated envelope. */
   value: {
-    target_document_id: string
-    target_collection_id: string
+    targetDocumentId: string
+    targetCollectionId: string
     _resolved?: boolean
     _cycle?: boolean
     document?: Record<string, any>
@@ -48,7 +48,7 @@ interface RelationSummaryProps {
    * Used when `value` is a plain ref (post-pick state) but we still want
    * the tile to render real display data without a refetch. Caller is
    * responsible for clearing/replacing this when the value's
-   * `target_document_id` changes.
+   * `targetDocumentId` changes.
    */
   cachedRecord?: Record<string, any> | null
 }
@@ -68,7 +68,7 @@ export function RelationSummary({
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="text-gray-500">{targetDefinition.labels.singular}</span>
         <span className="font-mono text-xs text-red-400 truncate">
-          (target not found) {value.target_document_id}
+          (target not found) {value.targetDocumentId}
         </span>
       </div>
     )
@@ -102,7 +102,7 @@ export function RelationSummary({
       {label ? (
         <span className="truncate text-gray-100">{label}</span>
       ) : (
-        <span className="font-mono truncate">{value.target_document_id}</span>
+        <span className="font-mono truncate">{value.targetDocumentId}</span>
       )}
     </div>
   )

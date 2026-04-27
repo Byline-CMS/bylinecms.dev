@@ -113,13 +113,13 @@ const complexProductDocument = {
     {
       imageItem: {
         image: {
-          file_id: '018dd0b2-9a2a-7f01-b8b2-a0c719d0f5b3',
+          fileId: '018dd0b2-9a2a-7f01-b8b2-a0c719d0f5b3',
           filename: 'headphones-main.jpg',
-          original_filename: 'wireless-headphones.jpg',
-          mime_type: 'image/jpeg',
-          file_size: 2048000,
-          storage_provider: 's3',
-          storage_path: '/products/img-001.jpg',
+          originalFilename: 'wireless-headphones.jpg',
+          mimeType: 'image/jpeg',
+          fileSize: 2048000,
+          storageProvider: 's3',
+          storagePath: '/products/img-001.jpg',
         },
         alt: {
           en: 'Premium wireless headphones front view',
@@ -136,13 +136,13 @@ const complexProductDocument = {
     {
       imageItem: {
         image: {
-          file_id: '018dd0b2-9a2a-7f02-8e73-f4c5a9e3d6b8',
+          fileId: '018dd0b2-9a2a-7f02-8e73-f4c5a9e3d6b8',
           filename: 'headphones-side.jpg',
-          original_filename: 'side-view.jpg',
-          mime_type: 'image/jpeg',
-          file_size: 1536000,
-          storage_provider: 's3',
-          storage_path: '/products/img-002.jpg',
+          originalFilename: 'side-view.jpg',
+          mimeType: 'image/jpeg',
+          fileSize: 1536000,
+          storageProvider: 's3',
+          storagePath: '/products/img-002.jpg',
         },
         alt: {
           en: 'Side view showing comfort padding',

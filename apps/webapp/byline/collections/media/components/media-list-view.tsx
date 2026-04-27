@@ -43,7 +43,7 @@ import { FormatBadge } from './media-thumbnail'
 // ---------------------------------------------------------------------------
 
 /**
- * Derive the webp thumbnail URL from the original storage_url using the same
+ * Derive the webp thumbnail URL from the original storageUrl using the same
  * convention as MediaThumbnailCell / the Sharp upload processor.
  *   `/uploads/media/2026/02/img.jpg` → `/uploads/media/2026/02/img-thumbnail.webp`
  */
@@ -253,10 +253,10 @@ export function MediaListView({
             {(data.docs as any[]).map((doc) => {
               const fields = doc.fields ?? {}
               const img = fields.image as StoredFileValue | null | undefined
-              const thumbUrl = img?.storage_url
-                ? img.thumbnail_generated
-                  ? deriveThumbnailUrl(img.storage_url)
-                  : img.storage_url
+              const thumbUrl = img?.storageUrl
+                ? img.thumbnailGenerated
+                  ? deriveThumbnailUrl(img.storageUrl)
+                  : img.storageUrl
                 : null
 
               const updatedAt = doc.updatedAt ?? null
@@ -273,7 +273,7 @@ export function MediaListView({
                     {thumbUrl ? (
                       <img
                         src={thumbUrl}
-                        alt={fields.altText ?? img?.original_filename ?? ''}
+                        alt={fields.altText ?? img?.originalFilename ?? ''}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         loading="lazy"
                       />
@@ -297,7 +297,7 @@ export function MediaListView({
                         {doc.status && (
                           <StatusBadge status={doc.status} workflowStatuses={workflowStatuses} />
                         )}
-                        {img?.image_format && <FormatBadge format={img.image_format} />}
+                        {img?.imageFormat && <FormatBadge format={img.imageFormat} />}
                       </div>
                       {updatedAt && (
                         <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">

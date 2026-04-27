@@ -140,8 +140,8 @@ beforeAll(async () => {
   const createdPost = await posts.create({
     title: 'Difference Engine',
     author: {
-      target_document_id: authorId,
-      target_collection_id: ctx.authorsCollectionId,
+      targetDocumentId: authorId,
+      targetCollectionId: ctx.authorsCollectionId,
     },
   })
   postId = createdPost.documentId
@@ -155,7 +155,7 @@ afterAll(async () => {
 })
 
 // Shape of a populated-relation leaf after the client's shape pass. The
-// envelope is `{ target_document_id, target_collection_id, _resolved: true,
+// envelope is `{ targetDocumentId, targetCollectionId, _resolved: true,
 // document: ClientDocument }` (see `PopulatedRelationValue` in
 // @byline/core/services/populate.ts).
 type PopulatedLeaf = {

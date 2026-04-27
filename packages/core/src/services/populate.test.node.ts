@@ -111,8 +111,8 @@ const allCollections = [postsCollection, authorsCollection, orgsCollection]
 
 function relationRef(collectionId: string, documentId: string) {
   return {
-    target_document_id: documentId,
-    target_collection_id: collectionId,
+    targetDocumentId: documentId,
+    targetCollectionId: collectionId,
   }
 }
 
@@ -123,8 +123,8 @@ function relationRef(collectionId: string, documentId: string) {
  */
 function populatedEnvelope(collectionId: string, documentId: string, document: any) {
   return {
-    target_document_id: documentId,
-    target_collection_id: collectionId,
+    targetDocumentId: documentId,
+    targetCollectionId: collectionId,
     _resolved: true,
     document,
   }
@@ -254,7 +254,7 @@ describe('collectRelationLeaves', () => {
     const leaves: any[] = []
     collectRelationLeaves(fields, postsCollection.fields, true, leaves)
     expect(leaves).toHaveLength(1)
-    expect(leaves[0].value.target_document_id).toBe('a1')
+    expect(leaves[0].value.targetDocumentId).toBe('a1')
     expect(leaves[0].sub).toBe(true)
   })
 
@@ -275,7 +275,7 @@ describe('collectRelationLeaves', () => {
     }
     const leaves: any[] = []
     collectRelationLeaves(fields, postsCollection.fields, true, leaves)
-    expect(leaves.map((l) => l.value.target_document_id)).toEqual(['a3'])
+    expect(leaves.map((l) => l.value.targetDocumentId)).toEqual(['a3'])
   })
 
   it('recurses into array items', () => {
@@ -284,7 +284,7 @@ describe('collectRelationLeaves', () => {
     }
     const leaves: any[] = []
     collectRelationLeaves(fields, postsCollection.fields, true, leaves)
-    expect(leaves.map((l) => l.value.target_document_id).sort()).toEqual(['a4', 'a5'])
+    expect(leaves.map((l) => l.value.targetDocumentId).sort()).toEqual(['a4', 'a5'])
   })
 
   it('recurses into blocks items, matching _type to blockType', () => {
@@ -299,7 +299,7 @@ describe('collectRelationLeaves', () => {
     }
     const leaves: any[] = []
     collectRelationLeaves(fields, postsCollection.fields, true, leaves)
-    expect(leaves.map((l) => l.value.target_document_id)).toEqual(['a6'])
+    expect(leaves.map((l) => l.value.targetDocumentId)).toEqual(['a6'])
   })
 
   it('skips unknown block types silently', () => {
@@ -446,7 +446,7 @@ describe('populateDocuments', () => {
     expect(doc.fields.author).toEqual(populatedEnvelope('authors', 'a1', author))
   })
 
-  it('populated envelope preserves relationship_type and cascade_delete', async () => {
+  it('populated envelope preserves relationshipType and cascadeDelete', async () => {
     // Link metadata on the original relation value (e.g. a weak-ref flag
     // or cascade-delete directive) must survive the populate pass so
     // callers can inspect or round-trip the relation.
@@ -455,8 +455,8 @@ describe('populateDocuments', () => {
     const doc = shapedDoc('posts', 'p1', {
       author: {
         ...relationRef('authors', 'a1'),
-        relationship_type: 'weak',
-        cascade_delete: true,
+        relationshipType: 'weak',
+        cascadeDelete: true,
       },
     })
 
@@ -469,10 +469,10 @@ describe('populateDocuments', () => {
     })
 
     expect(doc.fields.author).toEqual({
-      target_document_id: 'a1',
-      target_collection_id: 'authors',
-      relationship_type: 'weak',
-      cascade_delete: true,
+      targetDocumentId: 'a1',
+      targetCollectionId: 'authors',
+      relationshipType: 'weak',
+      cascadeDelete: true,
       _resolved: true,
       document: author,
     })
@@ -577,8 +577,8 @@ describe('populateDocuments', () => {
     })
 
     expect(doc.fields.author).toEqual({
-      target_document_id: 'gone',
-      target_collection_id: 'authors',
+      targetDocumentId: 'gone',
+      targetCollectionId: 'authors',
       _resolved: false,
     })
   })
@@ -615,8 +615,8 @@ describe('populateDocuments', () => {
 
     expect(post.fields.author.document).toBe(author)
     expect(author.fields.employer).toEqual({
-      target_document_id: 'p1',
-      target_collection_id: 'posts',
+      targetDocumentId: 'p1',
+      targetCollectionId: 'posts',
       _resolved: true,
       _cycle: true,
     })
@@ -656,8 +656,8 @@ describe('populateDocuments', () => {
     // Second call sees a1 already visited → skips fetch, renders cycle.
     expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
     expect(doc2.fields.author).toEqual({
-      target_document_id: 'a1',
-      target_collection_id: 'authors',
+      targetDocumentId: 'a1',
+      targetCollectionId: 'authors',
       _resolved: true,
       _cycle: true,
     })
@@ -973,7 +973,7 @@ describe('populateDocuments', () => {
 describe('populateDocuments — DB UUID → path resolution', () => {
   it('falls back to getCollectionById when collectionId is a DB UUID', async () => {
     // Production flow: admin server fn passes DB UUIDs as collectionId and
-    // target_collection_id. The collections array carries CollectionDefinition
+    // targetCollectionId. The collections array carries CollectionDefinition
     // objects keyed by path, not UUID. Without the DB fallback, populate
     // early-exits because findDef can't resolve the UUID.
     const postsUuid = '019d3acf-aaaa-aaaa-aaaa-000000000001'
@@ -986,7 +986,7 @@ describe('populateDocuments — DB UUID → path resolution', () => {
     )
 
     const doc = shapedDoc(postsUuid, 'p1', {
-      author: { target_document_id: 'a1', target_collection_id: authorsUuid },
+      author: { targetDocumentId: 'a1', targetCollectionId: authorsUuid },
     })
 
     await populateDocuments({
@@ -1015,8 +1015,8 @@ describe('populateDocuments — DB UUID → path resolution', () => {
     )
 
     const doc = shapedDoc('posts', 'p1', {
-      author: { target_document_id: 'a1', target_collection_id: authorsUuid },
-      secondaryAuthor: { target_document_id: 'a2', target_collection_id: authorsUuid },
+      author: { targetDocumentId: 'a1', targetCollectionId: authorsUuid },
+      secondaryAuthor: { targetDocumentId: 'a2', targetCollectionId: authorsUuid },
     })
 
     await populateDocuments({
@@ -1054,8 +1054,8 @@ describe('populateDocuments — unknown target collection', () => {
     })
 
     expect(doc.fields.author).toEqual({
-      target_document_id: 'a1',
-      target_collection_id: 'weirdCollection',
+      targetDocumentId: 'a1',
+      targetCollectionId: 'weirdCollection',
       _resolved: false,
     })
   })

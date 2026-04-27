@@ -39,7 +39,7 @@ interface FormState {
   newTab: boolean
   /** Which collection the Select is currently previewing — UI state only. */
   targetCollection: string | null
-  /** Currently chosen document relation. `target_collection_path` is the
+  /** Currently chosen document relation. `targetCollectionPath` is the
    * source-of-truth collection for this doc and is independent of
    * `targetCollection` so the user can explore other collections in the
    * Select without losing their pick. */
@@ -75,9 +75,9 @@ function fromLinkData(data: LinkData | undefined, linkable: CollectionDefinition
   const picked: DocumentRelation | null =
     fields.linkType === 'internal'
       ? {
-          target_document_id: fields.target_document_id,
-          target_collection_id: fields.target_collection_id,
-          target_collection_path: fields.target_collection_path,
+          targetDocumentId: fields.targetDocumentId,
+          targetCollectionId: fields.targetCollectionId,
+          targetCollectionPath: fields.targetCollectionPath,
           document: fields.document,
         }
       : null
@@ -88,7 +88,7 @@ function fromLinkData(data: LinkData | undefined, linkable: CollectionDefinition
     // the field look pre-filled with garbage.
     url: isPlaceholderUrl ? '' : url,
     newTab: fields.newTab ?? false,
-    targetCollection: picked?.target_collection_path ?? linkable[0]?.path ?? null,
+    targetCollection: picked?.targetCollectionPath ?? linkable[0]?.path ?? null,
     picked,
   }
 }
@@ -130,14 +130,14 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     const title = state.picked.document?.title
     if (typeof title === 'string' && title.length > 0) return title
     // No title cached — show a stable stub keyed off the collection.
-    const pickedDef = getCollectionDefinition(state.picked.target_collection_path)
-    const short = state.picked.target_document_id.slice(0, 8)
-    return `${pickedDef?.labels.singular ?? state.picked.target_collection_path} · ${short}…`
+    const pickedDef = getCollectionDefinition(state.picked.targetCollectionPath)
+    const short = state.picked.targetDocumentId.slice(0, 8)
+    return `${pickedDef?.labels.singular ?? state.picked.targetCollectionPath} · ${short}…`
   }, [state.linkType, state.picked])
 
   const handlePickerSelect = (selection: {
-    target_document_id: string
-    target_collection_id: string
+    targetDocumentId: string
+    targetCollectionId: string
     record?: Record<string, any>
   }) => {
     setPickerOpen(false)
@@ -157,9 +157,9 @@ export const LinkModal: React.FC<LinkModalProps> = ({
       return {
         ...s,
         picked: {
-          target_document_id: selection.target_document_id,
-          target_collection_id: selection.target_collection_id,
-          target_collection_path: targetCollection,
+          targetDocumentId: selection.targetDocumentId,
+          targetCollectionId: selection.targetCollectionId,
+          targetCollectionPath: targetCollection,
           document: Object.keys(document).length > 0 ? document : undefined,
         },
       }
@@ -192,9 +192,9 @@ export const LinkModal: React.FC<LinkModalProps> = ({
         : {
             linkType: 'internal',
             newTab: state.newTab,
-            target_document_id: picked.target_document_id,
-            target_collection_id: picked.target_collection_id,
-            target_collection_path: picked.target_collection_path,
+            targetDocumentId: picked.targetDocumentId,
+            targetCollectionId: picked.targetCollectionId,
+            targetCollectionPath: picked.targetCollectionPath,
             document: picked.document,
           }
 

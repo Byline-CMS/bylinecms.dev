@@ -34,7 +34,7 @@ function adminHref(attrs: LinkAttributes | null | undefined): string {
   if (attrs == null || attrs.linkType !== 'internal') return '#'
   const internal = attrs as InternalLinkAttributes
   const { admin } = resolveRoutes(getClientConfig().routes)
-  return `${admin}/collections/${internal.target_collection_path}/${internal.target_document_id}`
+  return `${admin}/collections/${internal.targetCollectionPath}/${internal.targetDocumentId}`
 }
 
 /** @noInheritDoc */
@@ -118,7 +118,7 @@ export class LinkNode extends ElementNode {
     const targetChanged =
       attrs?.linkType === 'internal' &&
       prevAttrs?.linkType === 'internal' &&
-      attrs.target_document_id !== prevAttrs.target_document_id
+      attrs.targetDocumentId !== prevAttrs.targetDocumentId
     if (switchedToInternal || targetChanged) {
       anchor.href = adminHref(attrs)
     }

@@ -318,28 +318,28 @@ const extractValueFieldData = (data: FlattenedFieldValue): unknown => {
 
     case 'file':
       return {
-        file_id: data.file_id,
+        fileId: data.file_id,
         filename: data.filename,
-        original_filename: data.original_filename,
-        mime_type: data.mime_type,
-        file_size: data.file_size,
-        storage_provider: data.storage_provider,
-        storage_path: data.storage_path,
-        storage_url: data.storage_url,
-        file_hash: data.file_hash,
-        image_width: data.image_width,
-        image_height: data.image_height,
-        image_format: data.image_format,
-        processing_status: data.processing_status,
-        thumbnail_generated: data.thumbnail_generated,
+        originalFilename: data.original_filename,
+        mimeType: data.mime_type,
+        fileSize: data.file_size,
+        storageProvider: data.storage_provider,
+        storagePath: data.storage_path,
+        storageUrl: data.storage_url,
+        fileHash: data.file_hash,
+        imageWidth: data.image_width,
+        imageHeight: data.image_height,
+        imageFormat: data.image_format,
+        processingStatus: data.processing_status,
+        thumbnailGenerated: data.thumbnail_generated,
       }
 
     case 'relation':
       return {
-        target_document_id: data.target_document_id,
-        target_collection_id: data.target_collection_id,
-        relationship_type: data.relationship_type,
-        cascade_delete: data.cascade_delete,
+        targetDocumentId: data.target_document_id,
+        targetCollectionId: data.target_collection_id,
+        relationshipType: data.relationship_type,
+        cascadeDelete: data.cascade_delete,
       }
   }
 }

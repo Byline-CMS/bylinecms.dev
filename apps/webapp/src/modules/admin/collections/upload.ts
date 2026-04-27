@@ -123,7 +123,7 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
               }
 
               const uploadDir = (storage as any).uploadDir as string
-              const absoluteOriginalPath = `${uploadDir}/${storedFile.storage_path}`
+              const absoluteOriginalPath = `${uploadDir}/${storedFile.storagePath}`
 
               return generateImageVariants(
                 buffer,

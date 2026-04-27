@@ -249,7 +249,7 @@ describe('afterRead — populate interaction', () => {
       documents: [
         rawDoc('posts', 'p1', {
           title: 'T',
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         }),
       ],
       total: 1,
@@ -286,7 +286,7 @@ describe('afterRead — populate interaction', () => {
       documents: [
         rawDoc('posts', 'p1', {
           title: 'T',
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         }),
       ],
       total: 1,
@@ -353,7 +353,7 @@ describe('afterRead — A→B→A safety', () => {
       // Hook on A performs its own read of B, threading the context.
       const b = await client
         .collection('authors')
-        .findById(ctx.doc.fields.author.target_document_id, { _readContext: ctx.readContext })
+        .findById(ctx.doc.fields.author.targetDocumentId, { _readContext: ctx.readContext })
       ctx.doc.fields.authorName = b?.fields.name
     })
 
@@ -368,7 +368,7 @@ describe('afterRead — A→B→A safety', () => {
       if (p.document_id === 'p1') {
         return rawDoc('posts', 'p1', {
           title: 'T',
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         })
       }
       if (p.document_id === 'a1') {

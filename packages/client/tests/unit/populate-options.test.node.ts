@@ -159,7 +159,7 @@ describe('CollectionHandle.find populate integration', () => {
       documents: [
         rawDoc('posts', 'p1', {
           title: 'Hello',
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         }),
       ],
       total: 1,
@@ -182,8 +182,8 @@ describe('CollectionHandle.find populate integration', () => {
     // and the shaped ClientDocument lives under `document`.
     expect(populated).toEqual(
       expect.objectContaining({
-        target_document_id: 'a1',
-        target_collection_id: 'authors',
+        targetDocumentId: 'a1',
+        targetCollectionId: 'authors',
         _resolved: true,
         document: expect.objectContaining({
           id: 'a1',
@@ -199,7 +199,7 @@ describe('CollectionHandle.find populate integration', () => {
     findDocuments.mockResolvedValueOnce({
       documents: [
         rawDoc('posts', 'p1', {
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         }),
       ],
       total: 1,
@@ -219,7 +219,7 @@ describe('CollectionHandle.find populate integration', () => {
     const org = rawDoc('orgs', 'o1', { name: 'Acme' })
     const author = rawDoc('authors', 'a1', {
       name: 'Nora',
-      employer: { target_document_id: 'o1', target_collection_id: 'orgs' },
+      employer: { targetDocumentId: 'o1', targetCollectionId: 'orgs' },
     })
     const { db, findDocuments, getDocumentsByDocumentIds } = makeAdapter({
       authors: { a1: author },
@@ -229,7 +229,7 @@ describe('CollectionHandle.find populate integration', () => {
       documents: [
         rawDoc('posts', 'p1', {
           title: 'Hello',
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         }),
       ],
       total: 1,
@@ -260,7 +260,7 @@ describe('CollectionHandle.find populate integration', () => {
     findDocuments.mockResolvedValueOnce({
       documents: [
         rawDoc('posts', 'p1', {
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         }),
       ],
       total: 1,
@@ -295,7 +295,7 @@ describe('CollectionHandle.findById populate integration', () => {
     getDocumentById.mockResolvedValueOnce(
       rawDoc('posts', 'p1', {
         title: 'Hello',
-        author: { target_document_id: 'a1', target_collection_id: 'authors' },
+        author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
       })
     )
 
@@ -320,7 +320,7 @@ describe('CollectionHandle.findById populate integration', () => {
     getDocumentById.mockResolvedValueOnce(
       rawDoc('posts', 'p1', {
         title: 'Hello',
-        author: { target_document_id: 'a1', target_collection_id: 'authors' },
+        author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
       })
     )
 
@@ -342,7 +342,7 @@ describe('CollectionHandle.findById populate integration', () => {
     const { db, getDocumentById } = makeAdapter({ authors: {} /* nothing */ })
     getDocumentById.mockResolvedValueOnce(
       rawDoc('posts', 'p1', {
-        author: { target_document_id: 'gone', target_collection_id: 'authors' },
+        author: { targetDocumentId: 'gone', targetCollectionId: 'authors' },
       })
     )
 
@@ -354,8 +354,8 @@ describe('CollectionHandle.findById populate integration', () => {
     const doc = await client.collection('posts').findById('p1', { populate: { author: true } })
 
     expect(doc?.fields.author).toEqual({
-      target_document_id: 'gone',
-      target_collection_id: 'authors',
+      targetDocumentId: 'gone',
+      targetCollectionId: 'authors',
       _resolved: false,
     })
   })
@@ -373,7 +373,7 @@ describe('CollectionHandle.findByPath populate integration', () => {
     })
     getDocumentByPath.mockResolvedValueOnce(
       rawDoc('posts', 'p1', {
-        author: { target_document_id: 'a1', target_collection_id: 'authors' },
+        author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
       })
     )
 

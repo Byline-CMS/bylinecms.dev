@@ -128,7 +128,7 @@ export default function InlineImageComponent({
   caption: LexicalEditor
   nodeKey: NodeKey
 }): React.JSX.Element {
-  const { target_document_id: id, target_collection_path: collection } = relation
+  const { targetDocumentId: id, targetCollectionPath: collection } = relation
   const [editor] = useLexicalComposerContext()
   const { onChange } = useSharedOnChange()
   const { historyState } = useSharedHistoryContext()

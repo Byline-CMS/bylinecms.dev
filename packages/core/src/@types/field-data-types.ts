@@ -146,38 +146,21 @@ export type FieldSetDataAllLocales<T extends FieldSet = FieldSet> = Prettify<
 // ---------------------------------------------------------------------------
 
 export interface StoredFileValue {
-  file_id: string
+  fileId: string
   filename: string
-  original_filename: string
-  mime_type: string
-  file_size: number
-  storage_provider: string
-  storage_path: string
-  storage_url?: string
-  file_hash?: string
-  image_width?: number
-  image_height?: number
-  image_format?: string
-  processing_status: 'pending' | 'processing' | 'complete' | 'failed'
-  thumbnail_generated?: boolean
+  originalFilename: string
+  mimeType: string
+  fileSize: number
+  storageProvider: string
+  storagePath: string
+  storageUrl?: string
+  fileHash?: string
+  imageWidth?: number
+  imageHeight?: number
+  imageFormat?: string
+  processingStatus: 'pending' | 'processing' | 'complete' | 'failed'
+  thumbnailGenerated?: boolean
 }
-
-// export interface StoredFileValue {
-//   file_id: string
-//   filename: string
-//   original_filename: string
-//   mime_type: string
-//   file_size: string
-//   storage_provider: string
-//   storage_path: string
-//   storage_url: string | null
-//   file_hash: string | null
-//   image_width: number | null
-//   image_height: number | null
-//   image_format: string | null
-//   processing_status: 'pending' | 'processing' | 'complete' | 'failed'
-//   thumbnail_generated: boolean
-// }
 
 /**
  * A placeholder StoredFileValue used when an image/file is selected but not yet
@@ -185,20 +168,20 @@ export interface StoredFileValue {
  * the actual upload until Save.
  */
 export interface PendingStoredFileValue {
-  file_id: string
+  fileId: string
   filename: string
-  original_filename: string
-  mime_type: string
-  file_size: string
-  storage_provider: 'pending'
-  storage_path: ''
-  storage_url: string // blob URL for local preview
-  file_hash: null
-  image_width: number | null
-  image_height: number | null
-  image_format: null
-  processing_status: 'pending'
-  thumbnail_generated: false
+  originalFilename: string
+  mimeType: string
+  fileSize: string
+  storageProvider: 'pending'
+  storagePath: ''
+  storageUrl: string // blob URL for local preview
+  fileHash: null
+  imageWidth: number | null
+  imageHeight: number | null
+  imageFormat: null
+  processingStatus: 'pending'
+  thumbnailGenerated: false
 }
 
 /**
@@ -207,7 +190,7 @@ export interface PendingStoredFileValue {
 export function isPendingStoredFileValue(value: unknown): value is PendingStoredFileValue {
   if (!value || typeof value !== 'object') return false
   const v = value as Partial<StoredFileValue>
-  return v.storage_provider === 'pending'
+  return v.storageProvider === 'pending'
 }
 
 /**
@@ -219,20 +202,20 @@ export function createPendingStoredFileValue(
   dimensions?: { width: number; height: number }
 ): PendingStoredFileValue {
   return {
-    file_id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    fileId: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     filename: file.name,
-    original_filename: file.name,
-    mime_type: file.type,
-    file_size: String(file.size),
-    storage_provider: 'pending',
-    storage_path: '',
-    storage_url: previewUrl,
-    file_hash: null,
-    image_width: dimensions?.width ?? null,
-    image_height: dimensions?.height ?? null,
-    image_format: null,
-    processing_status: 'pending',
-    thumbnail_generated: false,
+    originalFilename: file.name,
+    mimeType: file.type,
+    fileSize: String(file.size),
+    storageProvider: 'pending',
+    storagePath: '',
+    storageUrl: previewUrl,
+    fileHash: null,
+    imageWidth: dimensions?.width ?? null,
+    imageHeight: dimensions?.height ?? null,
+    imageFormat: null,
+    processingStatus: 'pending',
+    thumbnailGenerated: false,
   }
 }
 
@@ -241,8 +224,8 @@ export function createPendingStoredFileValue(
 // ---------------------------------------------------------------------------
 
 export interface RelatedDocumentValue {
-  target_document_id: string
-  target_collection_id: string
-  relationship_type?: string
-  cascade_delete?: boolean
+  targetDocumentId: string
+  targetCollectionId: string
+  relationshipType?: string
+  cascadeDelete?: boolean
 }

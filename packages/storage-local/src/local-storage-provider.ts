@@ -104,9 +104,9 @@ class LocalStorageProvider implements IStorageProvider {
     }
 
     return {
-      storage_provider: this.providerName,
-      storage_path: storagePath,
-      storage_url: this.getUrl(storagePath),
+      storageProvider: this.providerName,
+      storagePath: storagePath,
+      storageUrl: this.getUrl(storagePath),
     }
   }
 

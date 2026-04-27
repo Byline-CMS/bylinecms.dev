@@ -93,12 +93,12 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   }, [state.relation])
 
   const pickedThumbUrl: string | null = useMemo(() => {
-    if (!pickedImage?.storage_url) return null
-    if (pickedImage.mime_type === 'image/svg+xml') return pickedImage.storage_url
-    if (pickedImage.thumbnail_generated) {
-      return pickedImage.storage_url.replace(/\.[^.]+$/, '-thumbnail.webp')
+    if (!pickedImage?.storageUrl) return null
+    if (pickedImage.mimeType === 'image/svg+xml') return pickedImage.storageUrl
+    if (pickedImage.thumbnailGenerated) {
+      return pickedImage.storageUrl.replace(/\.[^.]+$/, '-thumbnail.webp')
     }
-    return pickedImage.storage_url
+    return pickedImage.storageUrl
   }, [pickedImage])
 
   const pickedTitle: string | null = useMemo(() => {
@@ -107,8 +107,8 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   }, [state.relation])
 
   const handlePickerSelect = (selection: {
-    target_document_id: string
-    target_collection_id: string
+    targetDocumentId: string
+    targetCollectionId: string
     record?: Record<string, any>
   }) => {
     setPickerOpen(false)
@@ -128,9 +128,9 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
       return {
         ...s,
         relation: {
-          target_document_id: selection.target_document_id,
-          target_collection_id: selection.target_collection_id,
-          target_collection_path: collection,
+          targetDocumentId: selection.targetDocumentId,
+          targetCollectionId: selection.targetCollectionId,
+          targetCollectionPath: collection,
           document: Object.keys(document).length > 0 ? document : undefined,
         },
         // Pre-fill alt-text from the media's `altText` field on first pick if
@@ -155,7 +155,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
     const preferred = getPreferredSize(state.position, pickedImage)
     const data: InlineImageData = {
       relation: state.relation,
-      src: preferred?.url ?? pickedImage.storage_url ?? '',
+      src: preferred?.url ?? pickedImage.storageUrl ?? '',
       altText: state.altText.trim(),
       position: state.position,
       width: preferred?.width,

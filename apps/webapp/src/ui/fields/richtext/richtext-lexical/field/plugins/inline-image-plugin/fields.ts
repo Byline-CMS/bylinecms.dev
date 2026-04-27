@@ -9,10 +9,10 @@
 import type { SelectValue } from '@infonomic/uikit/react'
 
 export const positionOptions: SelectValue[] = [
-  { label: 'Left', value: 'left' },
-  { label: 'Right', value: 'right' },
   { label: 'Full', value: 'full' },
   { label: 'Wide', value: 'wide' },
+  { label: 'Left', value: 'left' },
+  { label: 'Right', value: 'right' },
 ]
 
 /** Alt text is required for accessibility — non-empty after trimming. */

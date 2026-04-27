@@ -9,20 +9,20 @@
 /**
  * Stored shape for any Lexical node that references a Byline document
  * (currently `LinkNode` for internal links and `InlineImageNode` for media
- * picks). Mirrors the relation-field envelope (`target_document_id` /
- * `target_collection_id`) and adds the human-readable collection `path` plus
+ * picks). Mirrors the relation-field envelope (`targetDocumentId` /
+ * `targetCollectionId`) and adds the human-readable collection `path` plus
  * an optional `document` bag for denormalised fields populated by the picker
  * at write time or by an `afterRead` collection hook at read time.
  *
- * The two ID fields are the source of truth; `target_collection_path` is
+ * The two ID fields are the source of truth; `targetCollectionPath` is
  * carried alongside because the editor has no field-definition side-channel
  * (unlike a `relation` field) to look up the path from the id at render time.
  * `document` is best-effort — renderers must tolerate it being absent.
  */
 export interface DocumentRelation {
-  target_document_id: string
-  target_collection_id: string
-  target_collection_path: string
+  targetDocumentId: string
+  targetCollectionId: string
+  targetCollectionPath: string
   /**
    * Denormalised fields from the target document — typically `path`, `title`,
    * and any other fields a renderer needs without a round-trip. Populated by

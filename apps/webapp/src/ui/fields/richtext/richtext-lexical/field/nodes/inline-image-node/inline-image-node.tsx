@@ -31,12 +31,12 @@ function convertInlineImageElement(domNode: Node): null | DOMConversionOutput {
   if (domNode instanceof HTMLImageElement) {
     const { alt: altText, src, width, height } = domNode
     // HTML round-trip carries only the document id and the collection path
-    // (not the collection's UUID). `target_collection_id` is left empty here;
+    // (not the collection's UUID). `targetCollectionId` is left empty here;
     // editor flows that need the UUID should re-pick via the modal.
     const relation: DocumentRelation = {
-      target_document_id: (domNode.dataset.id as string | undefined) ?? '',
-      target_collection_id: '',
-      target_collection_path: (domNode.dataset.collection as string | undefined) ?? '',
+      targetDocumentId: (domNode.dataset.id as string | undefined) ?? '',
+      targetCollectionId: '',
+      targetCollectionPath: (domNode.dataset.collection as string | undefined) ?? '',
     }
     const node = $createInlineImageNode({ relation, src, altText, height, width })
     return { node }
@@ -124,8 +124,8 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
 
   exportDOM(): DOMExportOutput {
     const element = document.createElement('img')
-    element.setAttribute('data-id', this.__relation.target_document_id)
-    element.setAttribute('data-collection', this.__relation.target_collection_path)
+    element.setAttribute('data-id', this.__relation.targetDocumentId)
+    element.setAttribute('data-collection', this.__relation.targetCollectionPath)
     element.setAttribute('src', this.__src)
     element.setAttribute('alt', this.__altText as string)
 

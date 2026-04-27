@@ -6,7 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { Field, FieldSet, FileStore, ValueField } from '@byline/core'
+import type {
+  Field,
+  FieldSet,
+  RelatedDocumentValue,
+  StoredFileValue,
+  ValueField,
+} from '@byline/core'
 import { ERR_DATABASE, getLogger } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -250,38 +256,38 @@ const flattenValueFieldData = (
 
     case 'file':
     case 'image': {
-      const v = value as FileStore
+      const v = value as StoredFileValue
       return {
         locale,
         field_path,
         field_type: 'file',
-        file_id: v.file_id,
+        file_id: v.fileId,
         filename: v.filename,
-        original_filename: v.original_filename,
-        mime_type: v.mime_type,
-        file_size: v.file_size,
-        storage_provider: v.storage_provider,
-        storage_path: v.storage_path,
-        storage_url: v.storage_url,
-        file_hash: v.file_hash,
-        image_width: v.image_width,
-        image_height: v.image_height,
-        image_format: v.image_format,
-        processing_status: v.processing_status,
-        thumbnail_generated: v.thumbnail_generated,
+        original_filename: v.originalFilename,
+        mime_type: v.mimeType,
+        file_size: v.fileSize,
+        storage_provider: v.storageProvider,
+        storage_path: v.storagePath,
+        storage_url: v.storageUrl,
+        file_hash: v.fileHash,
+        image_width: v.imageWidth,
+        image_height: v.imageHeight,
+        image_format: v.imageFormat,
+        processing_status: v.processingStatus,
+        thumbnail_generated: v.thumbnailGenerated,
       }
     }
 
     case 'relation': {
-      const v = value as any // TODO: RelationStore type or similar?
+      const v = value as RelatedDocumentValue
       return {
         locale,
         field_path,
         field_type: 'relation',
-        target_document_id: v.target_document_id,
-        target_collection_id: v.target_collection_id,
-        relationship_type: v.relationship_type,
-        cascade_delete: v.cascade_delete,
+        target_document_id: v.targetDocumentId,
+        target_collection_id: v.targetCollectionId,
+        relationship_type: v.relationshipType,
+        cascade_delete: v.cascadeDelete,
       }
     }
 

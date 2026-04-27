@@ -53,20 +53,20 @@ const sampleDocument = {
     fr: "Il s'agit d'un document d'exemple à des fins de test.",
   },
   // category: {
-  //   target_collection_id: "cat-123",
-  //   target_document_id: "electronics-audio"
+  //   targetCollectionId: "cat-123",
+  //   targetDocumentId: "electronics-audio"
   // },
   publishedOn: new Date('2024-01-15T10:00:00'),
   views: 100,
   price: '19.99',
   attachment: {
-    file_id: filedId,
+    fileId: filedId,
     filename: 'sample-attachment.pdf',
-    original_filename: 'sample-document.pdf',
-    file_size: 102400, // 100 KB
-    mime_type: 'application/pdf',
-    storage_provider: 'local',
-    storage_path: 'uploads/attachments/sample-attachment.pdf',
+    originalFilename: 'sample-document.pdf',
+    fileSize: 102400, // 100 KB
+    mimeType: 'application/pdf',
+    storageProvider: 'local',
+    storagePath: 'uploads/attachments/sample-attachment.pdf',
   },
 }
 

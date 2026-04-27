@@ -154,20 +154,20 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       // evolution (new fields) doesn't break existing documents.
       schema = z
         .object({
-          file_id: z.string(),
+          fileId: z.string(),
           filename: z.string(),
-          original_filename: z.string(),
-          mime_type: z.string(),
-          file_size: z.string(),
-          storage_provider: z.string(),
-          storage_path: z.string(),
-          storage_url: z.string().nullable().optional(),
-          file_hash: z.string().nullable().optional(),
-          image_width: z.number().nullable().optional(),
-          image_height: z.number().nullable().optional(),
-          image_format: z.string().nullable().optional(),
-          processing_status: z.enum(['pending', 'processing', 'complete', 'failed']),
-          thumbnail_generated: z.boolean().optional(),
+          originalFilename: z.string(),
+          mimeType: z.string(),
+          fileSize: z.string(),
+          storageProvider: z.string(),
+          storagePath: z.string(),
+          storageUrl: z.string().nullable().optional(),
+          fileHash: z.string().nullable().optional(),
+          imageWidth: z.number().nullable().optional(),
+          imageHeight: z.number().nullable().optional(),
+          imageFormat: z.string().nullable().optional(),
+          processingStatus: z.enum(['pending', 'processing', 'complete', 'failed']),
+          thumbnailGenerated: z.boolean().optional(),
         })
         .passthrough()
       break
@@ -186,8 +186,8 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
 
     case 'relation':
       // Relation values are `RelatedDocumentValue` objects:
-      //   { target_document_id, target_collection_id,
-      //     relationship_type?, cascade_delete? }
+      //   { targetDocumentId, targetCollectionId,
+      //     relationshipType?, cascadeDelete? }
       // Values come from the picker (UUIDs) or from DB reads (also UUIDs),
       // but tests may use shorter strings — keep the schema shape-strict
       // without enforcing UUID format so synthetic fixtures still validate.
@@ -196,10 +196,10 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       // because the tree then contains nested documents, not bare refs.
       schema = z
         .object({
-          target_document_id: z.string(),
-          target_collection_id: z.string(),
-          relationship_type: z.string().optional(),
-          cascade_delete: z.boolean().optional(),
+          targetDocumentId: z.string(),
+          targetCollectionId: z.string(),
+          relationshipType: z.string().optional(),
+          cascadeDelete: z.boolean().optional(),
         })
         .nullable()
       break

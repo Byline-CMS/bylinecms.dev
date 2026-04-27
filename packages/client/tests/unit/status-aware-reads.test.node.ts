@@ -232,7 +232,7 @@ describe('populate forwards readMode to the batch fetch', () => {
     findDocuments.mockResolvedValueOnce({
       documents: [
         rawDoc('posts', 'p1', {
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         }),
       ],
       total: 1,
@@ -259,7 +259,7 @@ describe('populate forwards readMode to the batch fetch', () => {
     findDocuments.mockResolvedValueOnce({
       documents: [
         rawDoc('posts', 'p1', {
-          author: { target_document_id: 'a1', target_collection_id: 'authors' },
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
         }),
       ],
       total: 1,

@@ -152,9 +152,9 @@ class S3StorageProvider implements IStorageProvider {
     await upload.done()
 
     return {
-      storage_provider: this.providerName,
-      storage_path: objectKey,
-      storage_url: this.getUrl(objectKey),
+      storageProvider: this.providerName,
+      storagePath: objectKey,
+      storageUrl: this.getUrl(objectKey),
     }
   }
 

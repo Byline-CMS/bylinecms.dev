@@ -289,27 +289,27 @@ export async function uploadDocument(
 
       for (const fn of normalizeCollectionHook(definition.hooks?.afterUpload)) {
         await fn({
-          storedFilePath: storedFile.storage_path,
+          storedFilePath: storedFile.storagePath,
           variantPaths: variantStoragePaths,
           collectionPath,
         })
       }
 
       const storedFileValue: StoredFileValue = {
-        file_id: crypto.randomUUID(),
+        fileId: crypto.randomUUID(),
         filename: effectiveFilename,
-        original_filename: originalFilename,
-        mime_type: mimeType,
-        file_size: fileSize,
-        storage_provider: storedFile.storage_provider,
-        storage_path: storedFile.storage_path,
-        storage_url: storedFile.storage_url ?? undefined,
-        file_hash: undefined,
-        image_width: imageMeta.width ?? undefined,
-        image_height: imageMeta.height ?? undefined,
-        image_format: imageMeta.format ?? undefined,
-        processing_status: 'complete',
-        thumbnail_generated: variants.some((variant) => variant.name === 'thumbnail'),
+        originalFilename: originalFilename,
+        mimeType: mimeType,
+        fileSize: fileSize,
+        storageProvider: storedFile.storageProvider,
+        storagePath: storedFile.storagePath,
+        storageUrl: storedFile.storageUrl ?? undefined,
+        fileHash: undefined,
+        imageWidth: imageMeta.width ?? undefined,
+        imageHeight: imageMeta.height ?? undefined,
+        imageFormat: imageMeta.format ?? undefined,
+        processingStatus: 'complete',
+        thumbnailGenerated: variants.some((variant) => variant.name === 'thumbnail'),
       }
 
       if (!shouldCreateDocument) {
@@ -347,7 +347,7 @@ export async function uploadDocument(
           'document creation failed — rolling back storage files'
         )
 
-        const rollbackPaths = [storedFile.storage_path, ...variantStoragePaths]
+        const rollbackPaths = [storedFile.storagePath, ...variantStoragePaths]
         for (const storagePath of rollbackPaths) {
           try {
             await storage.delete(storagePath)

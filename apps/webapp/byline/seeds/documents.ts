@@ -21,8 +21,8 @@ const sampleDocument = {
     es: 'Este es un documento de muestra para fines de prueba.',
   },
   // category: {
-  //   target_collection_id: "cat-123",
-  //   target_document_id: "electronics-audio"
+  //   targetCollectionId: "cat-123",
+  //   targetDocumentId: "electronics-audio"
   // },
   featured: false,
   publishedOn: new Date('2024-01-15T10:00:00'),

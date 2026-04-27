@@ -37,7 +37,7 @@ export const FileField = ({
   const isPlaceholderStoredFileValue = (v: unknown): boolean => {
     if (!v || typeof v !== 'object') return false
     const maybe = v as Partial<StoredFileValue>
-    return maybe.storage_provider === 'placeholder' && maybe.storage_path === 'pending'
+    return maybe.storageProvider === 'placeholder' && maybe.storagePath === 'pending'
   }
 
   const effectiveValue: StoredFileValue | null = isPlaceholderStoredFileValue(incomingValue)
@@ -74,19 +74,19 @@ export const FileField = ({
             <span className="font-semibold">Filename:</span> {effectiveValue.filename}
           </div>
           <div>
-            <span className="font-semibold">Original:</span> {effectiveValue.original_filename}
+            <span className="font-semibold">Original:</span> {effectiveValue.originalFilename}
           </div>
           <div>
-            <span className="font-semibold">Type:</span> {effectiveValue.mime_type}
+            <span className="font-semibold">Type:</span> {effectiveValue.mimeType}
           </div>
           <div>
-            <span className="font-semibold">Size:</span> {effectiveValue.file_size}
+            <span className="font-semibold">Size:</span> {effectiveValue.fileSize}
           </div>
           <div>
-            <span className="font-semibold">Storage:</span> {effectiveValue.storage_provider}
+            <span className="font-semibold">Storage:</span> {effectiveValue.storageProvider}
           </div>
           <div>
-            <span className="font-semibold">Path:</span> {effectiveValue.storage_path}
+            <span className="font-semibold">Path:</span> {effectiveValue.storagePath}
           </div>
         </div>
       )}

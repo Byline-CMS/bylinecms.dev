@@ -77,7 +77,7 @@ export const RelationField = ({
   const [pickerOpen, setPickerOpen] = useState(false)
   // Cached target document from the most recent picker selection. Lets the
   // tile render real display data (name, thumbnail) immediately after a
-  // pick without a round trip. Cleared via the `target_document_id`
+  // pick without a round trip. Cleared via the `targetDocumentId`
   // comparison in the render path.
   const [pickedRecord, setPickedRecord] = useState<{
     id: string
@@ -85,19 +85,19 @@ export const RelationField = ({
   } | null>(null)
 
   const handleSelect = (selection: {
-    target_document_id: string
-    target_collection_id: string
+    targetDocumentId: string
+    targetCollectionId: string
     record?: Record<string, any>
   }) => {
     setPickerOpen(false)
     if (selection.record) {
-      setPickedRecord({ id: selection.target_document_id, record: selection.record })
+      setPickedRecord({ id: selection.targetDocumentId, record: selection.record })
     } else {
       setPickedRecord(null)
     }
     onChange?.({
-      target_document_id: selection.target_document_id,
-      target_collection_id: selection.target_collection_id,
+      targetDocumentId: selection.targetDocumentId,
+      targetCollectionId: selection.targetCollectionId,
     })
   }
 
@@ -110,7 +110,7 @@ export const RelationField = ({
   // still matches the current value — guards against a stale cache after
   // an external value change (e.g. patch rollback).
   const cachedRecord =
-    pickedRecord && incomingValue && pickedRecord.id === incomingValue.target_document_id
+    pickedRecord && incomingValue && pickedRecord.id === incomingValue.targetDocumentId
       ? pickedRecord.record
       : null
 

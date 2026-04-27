@@ -46,9 +46,9 @@ interface LexicalNodeLike {
   children?: LexicalNodeLike[]
   // Inline-image-specific fields (only present when type === 'inline-image')
   relation?: {
-    target_document_id?: string
-    target_collection_id?: string
-    target_collection_path?: string
+    targetDocumentId?: string
+    targetCollectionId?: string
+    targetCollectionPath?: string
     document?: Record<string, any>
   }
 }
@@ -144,8 +144,8 @@ export function inlineImageAfterRead(options: InlineImageAfterReadOptions) {
       if (!root) continue
       for (const node of iterInlineImageNodes(root)) {
         const rel = node.relation
-        const collectionPath = rel?.target_collection_path
-        const documentId = rel?.target_document_id
+        const collectionPath = rel?.targetCollectionPath
+        const documentId = rel?.targetDocumentId
         if (!collectionPath || !documentId) continue
         if (allowedSources != null && !allowedSources.has(collectionPath)) continue
         pending.push({ node, collectionPath, documentId })

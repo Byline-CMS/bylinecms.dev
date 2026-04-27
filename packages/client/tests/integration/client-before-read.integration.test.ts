@@ -237,21 +237,21 @@ beforeAll(async () => {
   const aliceDraft = await ctx.client.collection(postsDefinition.path).create({
     title: 'Alice draft',
     authorId: 'alice',
-    author: { target_document_id: aliceAuthorId, target_collection_id: ctx.authorsCollectionId },
+    author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
   })
   aliceDraftId = aliceDraft.documentId
 
   const bobDraft = await ctx.client.collection(postsDefinition.path).create({
     title: 'Bob draft',
     authorId: 'bob',
-    author: { target_document_id: aliceAuthorId, target_collection_id: ctx.authorsCollectionId },
+    author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
   })
   bobDraftId = bobDraft.documentId
 
   const alicePub = await ctx.client.collection(postsDefinition.path).create({
     title: 'Alice published',
     authorId: 'alice',
-    author: { target_document_id: aliceAuthorId, target_collection_id: ctx.authorsCollectionId },
+    author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
   })
   alicePublishedId = alicePub.documentId
   await ctx.client.collection(postsDefinition.path).changeStatus(alicePublishedId, 'published')

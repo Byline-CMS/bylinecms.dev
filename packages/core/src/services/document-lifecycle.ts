@@ -695,7 +695,7 @@ export async function deleteDocument(
         }).log(ctx.logger)
       }
 
-      // Extract the primary file's storage_path before deletion.
+      // Extract the primary file's storagePath before deletion.
       let primaryStoragePath: string | null = null
       if (isUploadCollection) {
         const primaryField = definition.fields.find((f) => f.type === 'image' || f.type === 'file')
@@ -704,9 +704,9 @@ export async function deleteDocument(
           if (
             fieldValue &&
             typeof fieldValue === 'object' &&
-            typeof fieldValue.storage_path === 'string'
+            typeof fieldValue.storagePath === 'string'
           ) {
-            primaryStoragePath = fieldValue.storage_path
+            primaryStoragePath = fieldValue.storagePath
           }
         }
       }

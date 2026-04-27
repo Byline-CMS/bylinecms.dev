@@ -98,8 +98,8 @@ function FloatingLinkEditor({
         if (data.fields?.linkType === 'internal') {
           const internal = data.fields
           setLinkEditorState({
-            label: `${internal.target_collection_path} · ${internal.target_document_id.slice(0, 8)}…`,
-            url: `${adminRoute}/collections/${internal.target_collection_path}/${internal.target_document_id}`,
+            label: `${internal.targetCollectionPath} · ${internal.targetDocumentId.slice(0, 8)}…`,
+            url: `${adminRoute}/collections/${internal.targetCollectionPath}/${internal.targetDocumentId}`,
           })
         } else {
           setLinkEditorState({

@@ -77,9 +77,9 @@ function createMockDb() {
 
 function createMockStorage() {
   const upload = vi.fn().mockResolvedValue({
-    storage_provider: 'local',
-    storage_path: 'media/original.png',
-    storage_url: '/uploads/media/original.png',
+    storageProvider: 'local',
+    storagePath: 'media/original.png',
+    storageUrl: '/uploads/media/original.png',
   })
   const del = vi.fn().mockResolvedValue(undefined)
   const storage: IStorageProvider = {

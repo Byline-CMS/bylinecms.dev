@@ -9,7 +9,7 @@
 import type { FormatterProps, StoredFileValue } from '@byline/core'
 
 /**
- * Derive the thumbnail URL from the original storage_url.
+ * Derive the thumbnail URL from the original storageUrl.
  *
  * Sharp writes variants as siblings of the original file using the naming
  * convention `<basename>-<variantName>.<outputExt>`:
@@ -42,7 +42,7 @@ export function MediaThumbnail({ record }: FormatterProps) {
   const fields = doc.fields ?? {}
   const img = fields.image as StoredFileValue | null | undefined
 
-  if (!img?.storage_url) {
+  if (!img?.storageUrl) {
     return (
       <span className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 rounded text-gray-600 text-[0.6rem]">
         —
@@ -50,12 +50,12 @@ export function MediaThumbnail({ record }: FormatterProps) {
     )
   }
 
-  const thumbUrl = img.thumbnail_generated ? deriveThumbnailUrl(img.storage_url) : img.storage_url
+  const thumbUrl = img.thumbnailGenerated ? deriveThumbnailUrl(img.storageUrl) : img.storageUrl
 
   return (
     <img
       src={thumbUrl}
-      alt={img.original_filename ?? img.filename}
+      alt={img.originalFilename ?? img.filename}
       className="w-10 h-10 object-cover rounded border border-gray-700"
       loading="lazy"
     />

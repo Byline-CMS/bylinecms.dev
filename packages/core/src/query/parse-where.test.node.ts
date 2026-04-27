@@ -227,7 +227,7 @@ describe('parseWhere', () => {
   // Relation sub-where
   // -------------------------------------------------------------------------
 
-  it('should treat bare string on a relation field as $eq on target_document_id', async () => {
+  it('should treat bare string on a relation field as $eq on targetDocumentId', async () => {
     const result = await parseWhere({ category: 'some-category-doc-id' }, testCollection, ctx)
     expect(result.filters).toHaveLength(1)
     expect(result.filters[0]).toEqual({

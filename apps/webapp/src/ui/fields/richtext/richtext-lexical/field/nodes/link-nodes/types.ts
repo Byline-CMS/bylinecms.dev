@@ -14,9 +14,10 @@ export interface CustomLinkAttributes extends BaseLinkAttributes {
 }
 
 /**
- * Internal link to a Byline document. The relation envelope (`target_*` +
- * `document`) is flattened directly onto the attributes alongside `linkType`
- * — same shape pattern as the `RelationField` value, no extra wrapper.
+ * Internal link to a Byline document. The relation envelope (`targetDocumentId`,
+ * `targetCollectionId`, `targetCollectionPath`, `document`) is flattened
+ * directly onto the attributes alongside `linkType` — same shape pattern as
+ * the `RelationField` value, no extra wrapper.
  */
 export interface InternalLinkAttributes extends BaseLinkAttributes, DocumentRelation {
   linkType: 'internal'

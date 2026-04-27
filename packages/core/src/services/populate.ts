@@ -233,8 +233,8 @@ export interface PopulateOptions {
    * Documents to populate, as returned from a read operation. Must carry
    * `document_id` and `fields`. Mutated in place — every relation leaf
    * in `fields` that is walked becomes an envelope: the original
-   * `{ target_document_id, target_collection_id, relationship_type?,
-   * cascade_delete? }` refs are preserved, and discriminator fields
+   * `{ targetDocumentId, targetCollectionId, relationshipType?,
+   * cascadeDelete? }` refs are preserved, and discriminator fields
    * (`_resolved`, `_cycle`) plus an optional `document` property are
    * layered on top. See the `PopulatedRelationValue` /
    * `UnresolvedRelationValue` / `CycleRelationValue` interfaces below.
@@ -289,12 +289,12 @@ export interface PopulateOptions {
 //
 // Every relation leaf — whether an unpopulated ref, a successfully populated
 // link, a deleted target, or a cycle stop — shares the `RelatedDocumentValue`
-// base (`target_document_id`, `target_collection_id`, and optional link
-// metadata `relationship_type` / `cascade_delete`). The `_resolved` /
+// base (`targetDocumentId`, `targetCollectionId`, and optional link
+// metadata `relationshipType` / `cascadeDelete`). The `_resolved` /
 // `_cycle` / `document` properties discriminate the four states:
 //
 //   Unpopulated (no populate pass, or this leaf not in scope)
-//     { target_document_id, target_collection_id, relationship_type?, cascade_delete? }
+//     { targetDocumentId, targetCollectionId, relationshipType?, cascadeDelete? }
 //
 //   Populated (target fetched and attached)
 //     { ..., _resolved: true, document: { ...fetched target doc } }
@@ -410,7 +410,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
     // Group by target collection so we batch one query per target.
     const byTarget = new Map<string, RelationLeafRef[]>()
     for (const leaf of allLeaves) {
-      const tid = leaf.value.target_collection_id
+      const tid = leaf.value.targetCollectionId
       const arr = byTarget.get(tid)
       if (arr) arr.push(leaf)
       else byTarget.set(tid, [leaf])
@@ -433,9 +433,9 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
         new Set(
           leaves
             .filter(
-              (l) => !ctx.visited.has(visitedKey(targetCollectionId, l.value.target_document_id))
+              (l) => !ctx.visited.has(visitedKey(targetCollectionId, l.value.targetDocumentId))
             )
-            .map((l) => l.value.target_document_id)
+            .map((l) => l.value.targetDocumentId)
         )
       )
 
@@ -472,12 +472,12 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
 
       // First pass: replace leaves with envelopes (reading visited state
       // before we update it). Each envelope preserves the original link
-      // metadata (`target_document_id`, `target_collection_id`, and any
-      // `relationship_type` / `cascade_delete`) so consumers can
+      // metadata (`targetDocumentId`, `targetCollectionId`, and any
+      // `relationshipType` / `cascadeDelete`) so consumers can
       // round-trip or inspect the relationship regardless of outcome.
       for (const leaf of leaves) {
-        const { target_document_id, target_collection_id } = leaf.value
-        const key = visitedKey(target_collection_id, target_document_id)
+        const { targetDocumentId, targetCollectionId } = leaf.value
+        const key = visitedKey(targetCollectionId, targetDocumentId)
 
         if (ctx.visited.has(key)) {
           leaf.parent[leaf.key as any] = {
@@ -488,7 +488,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
           continue
         }
 
-        const fetchedDoc = byId.get(target_document_id)
+        const fetchedDoc = byId.get(targetDocumentId)
         if (fetchedDoc === undefined) {
           leaf.parent[leaf.key as any] = {
             ...leaf.value,
@@ -764,8 +764,8 @@ function isRelatedDocumentValue(v: unknown): v is RelatedDocumentValue {
   return (
     typeof v === 'object' &&
     v !== null &&
-    typeof (v as any).target_document_id === 'string' &&
-    typeof (v as any).target_collection_id === 'string'
+    typeof (v as any).targetDocumentId === 'string' &&
+    typeof (v as any).targetCollectionId === 'string'
   )
 }
 
@@ -839,7 +839,7 @@ function reduceChildPopulate(
   const merged: PopulateMap = {}
   let hasMerged = false
   for (const l of leaves) {
-    if (l.value.target_document_id !== targetDocumentId) continue
+    if (l.value.targetDocumentId !== targetDocumentId) continue
     if (l.sub === '*') {
       anyStar = true
       break

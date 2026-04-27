@@ -162,8 +162,8 @@ beforeAll(async () => {
     name: 'Breaking',
     path: 'breaking',
     parent: {
-      target_document_id: ctx.categoryIds.get('news'),
-      target_collection_id: ctx.categoriesCollectionId,
+      targetDocumentId: ctx.categoryIds.get('news'),
+      targetCollectionId: ctx.categoriesCollectionId,
     },
   })
   await ctx.client
@@ -187,8 +187,8 @@ beforeAll(async () => {
       title: seed.title,
       path: seed.path,
       category: {
-        target_document_id: ctx.categoryIds.get(seed.cat),
-        target_collection_id: ctx.categoriesCollectionId,
+        targetDocumentId: ctx.categoryIds.get(seed.cat),
+        targetCollectionId: ctx.categoriesCollectionId,
       },
     })
     await articlesHandle.changeStatus(created.documentId, 'published')
