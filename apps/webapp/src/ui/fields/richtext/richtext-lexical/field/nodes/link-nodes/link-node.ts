@@ -27,14 +27,14 @@ import {
 } from 'lexical'
 
 import { sanitizeUrl } from '../../utils/url'
-import type { DocumentRelation } from '../document-relation'
 import type { SerializedAutoLinkNode } from './auto-link-node'
-import type { LinkAttributes, SerializedLinkNode } from './types'
+import type { InternalLinkAttributes, LinkAttributes, SerializedLinkNode } from './types'
 
-function adminHref(doc: DocumentRelation | null | undefined): string {
-  if (doc == null) return '#'
+function adminHref(attrs: LinkAttributes | null | undefined): string {
+  if (attrs == null || attrs.linkType !== 'internal') return '#'
+  const internal = attrs as InternalLinkAttributes
   const { admin } = resolveRoutes(getClientConfig().routes)
-  return `${admin}/collections/${doc.target_collection_path}/${doc.target_document_id}`
+  return `${admin}/collections/${internal.target_collection_path}/${internal.target_document_id}`
 }
 
 /** @noInheritDoc */
@@ -54,11 +54,10 @@ export class LinkNode extends ElementNode {
 
   constructor({
     attributes = {
+      linkType: 'custom',
       url: undefined,
       newTab: false,
       rel: null,
-      doc: null,
-      linkType: 'custom',
     },
     key,
   }: {
@@ -71,13 +70,13 @@ export class LinkNode extends ElementNode {
 
   createDOM(config: EditorConfig): HTMLAnchorElement {
     const element = document.createElement('a')
-    if (this.__attributes?.linkType === 'custom') {
-      element.href = sanitizeUrl(this.__attributes.url ?? '')
-    } else {
+    if (this.__attributes?.linkType === 'internal') {
       // The href is non-functional inside the editor — clicks are intercepted
       // by the floating link editor — but a stable admin path makes a sensible
       // fallback if the link is ever middle-clicked / opened in a new tab.
-      element.href = adminHref(this.__attributes.doc)
+      element.href = adminHref(this.__attributes)
+    } else {
+      element.href = sanitizeUrl(this.__attributes?.url ?? '')
     }
 
     if (this.__attributes?.newTab ?? false) {
@@ -86,7 +85,7 @@ export class LinkNode extends ElementNode {
 
     element.rel = ''
 
-    if (this.__attributes?.newTab === true && this.__attributes?.linkType === 'custom') {
+    if (this.__attributes?.newTab === true && this.__attributes?.linkType !== 'internal') {
       element.rel = manageRel(element.rel, 'add', 'noopener')
       element.rel = manageRel(element.rel, 'add', 'nofollow')
     }
@@ -101,30 +100,27 @@ export class LinkNode extends ElementNode {
   }
 
   updateDOM(prevNode: LinkNode, anchor: HTMLAnchorElement, _config: EditorConfig): boolean {
-    const url = this.__attributes?.url
-    const newTab = this.__attributes?.newTab
-    const rel = this.__attributes?.rel
+    const attrs = this.__attributes
+    const prevAttrs = prevNode.__attributes
+    const url = attrs?.linkType !== 'internal' ? attrs?.url : undefined
+    const prevUrl = prevAttrs?.linkType !== 'internal' ? prevAttrs?.url : undefined
+    const newTab = attrs?.newTab
+    const rel = attrs?.rel
 
     // A custom URL but the URL has been updated.
-    if (
-      url != null &&
-      url !== prevNode.__attributes?.url &&
-      this.__attributes?.linkType === 'custom'
-    ) {
+    if (url != null && url !== prevUrl && attrs?.linkType !== 'internal') {
       anchor.href = url
     }
 
     // We've changed from a custom URL to an internal URL, or the internal
     // target itself has changed.
-    const doc = this.__attributes.doc
-    const prevDoc = prevNode.__attributes.doc
-    const switchedToInternal =
-      this.__attributes?.linkType === 'internal' && prevNode.__attributes?.linkType === 'custom'
+    const switchedToInternal = attrs?.linkType === 'internal' && prevAttrs?.linkType !== 'internal'
     const targetChanged =
-      this.__attributes?.linkType === 'internal' &&
-      doc?.target_document_id !== prevDoc?.target_document_id
+      attrs?.linkType === 'internal' &&
+      prevAttrs?.linkType === 'internal' &&
+      attrs.target_document_id !== prevAttrs.target_document_id
     if (switchedToInternal || targetChanged) {
-      anchor.href = adminHref(doc)
+      anchor.href = adminHref(attrs)
     }
 
     // TODO: not 100% sure why we're setting rel to '' - revisit
@@ -133,10 +129,10 @@ export class LinkNode extends ElementNode {
       anchor.rel = ''
     }
 
-    if (newTab !== prevNode.__attributes?.newTab) {
+    if (newTab !== prevAttrs?.newTab) {
       if (newTab != null && newTab === true) {
         anchor.target = '_blank'
-        if (this.__attributes?.linkType === 'custom') {
+        if (attrs?.linkType !== 'internal') {
           anchor.rel = manageRel(anchor.rel, 'add', 'noopener')
           anchor.rel = manageRel(anchor.rel, 'add', 'nofollow')
         }
@@ -150,7 +146,7 @@ export class LinkNode extends ElementNode {
     // TODO - revisit - I don't think there can be any other rel
     // values other than nofollow and noopener - so not
     // sure why anchor.rel += rel below
-    if (rel !== prevNode.__attributes.rel) {
+    if (rel !== prevAttrs?.rel) {
       if (rel != null) {
         anchor.rel += rel
       } else {
@@ -250,11 +246,10 @@ function convertAnchorElement(domNode: Node): DOMConversionOutput {
     if (content !== null && content !== '') {
       node = $createLinkNode({
         attributes: {
+          linkType: 'custom',
           url: domNode.getAttribute('href') ?? '',
           rel: domNode.getAttribute('rel'),
           newTab: domNode.getAttribute('target') === '_blank',
-          linkType: 'custom',
-          doc: null,
         },
       })
     }

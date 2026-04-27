@@ -60,24 +60,27 @@ function emptyState(linkable: CollectionDefinition[]): FormState {
 function fromLinkData(data: LinkData | undefined, linkable: CollectionDefinition[]): FormState {
   const base = emptyState(linkable)
   if (!data) return base
-  const fields = data.fields ?? {}
+  const fields = data.fields
+  if (!fields) return base
   // Default to internal when:
   //   • the stored data already says internal, or
-  //   • a doc is set, or
   //   • this is a fresh placeholder link from the toolbar (linkType: 'custom'
-  //     with an empty / `https://` url and no doc) — in that case the user
-  //     hasn't decided yet, so prefer the picker when any collection has
+  //     with an empty / `https://` url) — in that case the user hasn't
+  //     decided yet, so prefer the picker when any collection has
   //     `linksInEditor: true`.
-  const url = fields.url ?? ''
+  const url = fields.linkType === 'internal' ? '' : (fields.url ?? '')
   const isPlaceholderUrl = url === '' || url === 'https://'
-  const wantsInternal =
-    linkable.length > 0 &&
-    (fields.linkType === 'internal' ||
-      fields.doc != null ||
-      (isPlaceholderUrl && fields.doc == null))
+  const wantsInternal = linkable.length > 0 && (fields.linkType === 'internal' || isPlaceholderUrl)
   const linkType: 'custom' | 'internal' = wantsInternal ? 'internal' : 'custom'
   const picked: DocumentRelation | null =
-    linkType === 'internal' && fields.doc != null ? fields.doc : null
+    fields.linkType === 'internal'
+      ? {
+          target_document_id: fields.target_document_id,
+          target_collection_id: fields.target_collection_id,
+          target_collection_path: fields.target_collection_path,
+          document: fields.document,
+        }
+      : null
   return {
     text: data.text ?? '',
     linkType,
@@ -178,18 +181,21 @@ export const LinkModal: React.FC<LinkModalProps> = ({
       }
     }
 
+    const picked = state.picked as DocumentRelation
     const fields: LinkAttributes =
       state.linkType === 'custom'
         ? {
             linkType: 'custom',
             url: state.url,
             newTab: state.newTab,
-            doc: null,
           }
         : {
             linkType: 'internal',
             newTab: state.newTab,
-            doc: state.picked as DocumentRelation,
+            target_document_id: picked.target_document_id,
+            target_collection_id: picked.target_collection_id,
+            target_collection_path: picked.target_collection_path,
+            document: picked.document,
           }
 
     onSubmit({

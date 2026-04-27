@@ -81,10 +81,9 @@ function FloatingLinkEditor({
       let data: LinkData = {
         text: '',
         fields: {
+          linkType: 'custom',
           url: '',
-          linkType: undefined,
           newTab: undefined,
-          doc: undefined,
         },
       }
 
@@ -97,16 +96,10 @@ function FloatingLinkEditor({
         }
 
         if (data.fields?.linkType === 'internal') {
-          const doc = data.fields?.doc
+          const internal = data.fields
           setLinkEditorState({
-            label:
-              doc != null
-                ? `${doc.target_collection_path} · ${doc.target_document_id.slice(0, 8)}…`
-                : null,
-            url:
-              doc != null
-                ? `${adminRoute}/collections/${doc.target_collection_path}/${doc.target_document_id}`
-                : '',
+            label: `${internal.target_collection_path} · ${internal.target_document_id.slice(0, 8)}…`,
+            url: `${adminRoute}/collections/${internal.target_collection_path}/${internal.target_document_id}`,
           })
         } else {
           setLinkEditorState({
@@ -222,12 +215,8 @@ function FloatingLinkEditor({
   }, [editor, $updateLinkEditor])
 
   const handleModalSubmit = (data: LinkData): void => {
-    const fields = data.fields ?? {}
     const newAttributes: LinkAttributes & { text?: string } = {
-      linkType: fields.linkType,
-      newTab: fields.newTab,
-      url: fields.linkType === 'custom' ? fields.url : undefined,
-      doc: fields.linkType === 'internal' ? fields.doc : null,
+      ...data.fields,
       text: data.text ?? undefined,
     }
     editor.dispatchCommand(TOGGLE_LINK_COMMAND, newAttributes)

@@ -20,6 +20,7 @@ import {
   $isAutoLinkNode,
   $isLinkNode,
   AutoLinkNode,
+  type CustomLinkAttributes,
   type LinkAttributes,
 } from '../../../nodes/link-nodes'
 import invariant from '../../../shared/invariant'
@@ -32,6 +33,16 @@ interface LinkMatcherResult {
   length: number
   text: string
   url: string
+}
+
+/**
+ * AutoLink only ever produces `linkType: 'custom'` nodes — narrow at the
+ * read sites so we can access `url` and `rel` without fighting the
+ * discriminated union.
+ */
+function customAttrs(attrs: LinkAttributes | undefined | null): CustomLinkAttributes | null {
+  if (attrs == null || attrs.linkType === 'internal') return null
+  return attrs
 }
 
 export type LinkMatcher = (text: string) => LinkMatcherResult | null
@@ -154,10 +165,10 @@ function handleLinkCreation(
           invalidMatchEnd + matchStart + matchLength
         )
       }
-      const attributes: LinkAttributes = {
-        url: match.url,
+      const attributes: CustomLinkAttributes = {
         linkType: 'custom',
-        ...match.attributes,
+        url: match.url,
+        ...(match.attributes as CustomLinkAttributes | undefined),
       }
 
       const linkNode = $createAutoLinkNode({ attributes })
@@ -188,7 +199,7 @@ function handleLinkEdit(
     const child = children[i]
     if (!$isTextNode(child) || !child.isSimpleText()) {
       replaceWithChildren(linkNode)
-      onChange(null, linkNode.getAttributes()?.url ?? null)
+      onChange(null, customAttrs(linkNode.getAttributes())?.url ?? null)
       return
     }
   }
@@ -198,23 +209,25 @@ function handleLinkEdit(
   const match = findFirstMatch(text, matchers)
   if (match === null || match.text !== text) {
     replaceWithChildren(linkNode)
-    onChange(null, linkNode.getAttributes()?.url ?? null)
+    onChange(null, customAttrs(linkNode.getAttributes())?.url ?? null)
     return
   }
 
   // Check neighbors
   if (!isPreviousNodeValid(linkNode) || !isNextNodeValid(linkNode)) {
     replaceWithChildren(linkNode)
-    onChange(null, linkNode.getAttributes()?.url ?? null)
+    onChange(null, customAttrs(linkNode.getAttributes())?.url ?? null)
     return
   }
 
-  const url = linkNode.getAttributes()?.url
+  const url = customAttrs(linkNode.getAttributes())?.url
   if (url !== match?.url) {
-    const attrs = linkNode.getAttributes()
-    attrs.url = match?.url
-    linkNode.setAttributes(attrs)
-    onChange(match.url, url ?? null)
+    const attrs = customAttrs(linkNode.getAttributes())
+    if (attrs != null) {
+      attrs.url = match?.url
+      linkNode.setAttributes(attrs)
+      onChange(match.url, url ?? null)
+    }
   }
 
   if (match.attributes != null) {
@@ -242,13 +255,13 @@ function handleBadNeighbors(
   if ($isAutoLinkNode(previousSibling) && !startsWithSeparator(text)) {
     previousSibling.append(textNode)
     handleLinkEdit(previousSibling, matchers, onChange)
-    onChange(null, previousSibling.getAttributes()?.url ?? null)
+    onChange(null, customAttrs(previousSibling.getAttributes())?.url ?? null)
   }
 
   if ($isAutoLinkNode(nextSibling) && !endsWithSeparator(text)) {
     replaceWithChildren(nextSibling)
     handleLinkEdit(nextSibling, matchers, onChange)
-    onChange(null, nextSibling.getAttributes()?.url ?? null)
+    onChange(null, customAttrs(nextSibling.getAttributes())?.url ?? null)
   }
 }
 
