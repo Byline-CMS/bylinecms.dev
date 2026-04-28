@@ -1,7 +1,7 @@
 {
   "name": "@byline/bench-storage",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Storage-layer benchmarks for Byline — seed harness, query measurement, and reproducible results.",
   "license": "MPL-2.0",
   "type": "module",
