@@ -1,0 +1,11 @@
+.note-icon {
+  margin-right: 0.5rem;
+  margin-top: 3px;
+}
+
+.note-icon svg {
+  display: block;
+  width: 25px;
+  height: 25px;
+  fill: #445566;
+}

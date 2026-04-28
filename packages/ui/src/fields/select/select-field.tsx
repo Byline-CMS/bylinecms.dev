@@ -1,0 +1,54 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+import type { SelectField as FieldType } from '@byline/core'
+import { ErrorText, Select } from '@infonomic/uikit/react'
+
+import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+
+export const SelectField = ({
+  field,
+  value,
+  defaultValue,
+  onChange,
+  id,
+  path,
+}: {
+  field: FieldType
+  value?: string
+  defaultValue?: string
+  onChange?: (value: string) => void
+  id?: string
+  path?: string
+}) => {
+  const fieldPath = path ?? field.name
+  const fieldError = useFieldError(fieldPath)
+  const isDirty = useIsDirty(fieldPath)
+  const fieldValue = useFieldValue<string | undefined>(fieldPath)
+  const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
+
+  return (
+    <div className={`byline-select ${field.name}`}>
+      <Select<string>
+        size="xs"
+        id={id ?? fieldPath}
+        name={field.name}
+        placeholder="Select an option"
+        required={!field.optional}
+        value={incomingValue}
+        helpText={field.helpText}
+        items={field.options.map((opt) => ({ value: opt.value, label: opt.label }))}
+        onValueChange={(value) => {
+          if (value != null) onChange?.(value)
+        }}
+        className={isDirty ? 'border-blue-300' : ''}
+      />
+      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+    </div>
+  )
+}

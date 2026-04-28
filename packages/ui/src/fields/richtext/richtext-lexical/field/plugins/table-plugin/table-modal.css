@@ -1,0 +1,19 @@
+.table-modal-container {
+  min-width: 340px;
+  max-width: 600px;
+}
+
+.table-modal-header {
+  margin-bottom: 0.5rem;
+}
+
+@media screen and (min-width: 640px) {
+  .table-modal-select {
+    margin: 1rem 0 0.5rem;
+    width: 100%;
+  }
+
+  .table-modal-actions {
+    margin: 0;
+  }
+}

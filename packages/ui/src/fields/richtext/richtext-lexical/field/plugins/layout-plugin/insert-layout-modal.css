@@ -1,0 +1,19 @@
+.insert-layout-modal-container {
+  min-width: 340px;
+  max-width: 600px;
+}
+
+.insert-layout-modal-select {
+  margin: 2rem 0 0;
+}
+
+@media screen and (min-width: 640px) {
+  .insert-layout-modal-select {
+    margin: 1rem 0 0.5rem;
+    width: 100%;
+  }
+
+  .insert-layout-modal-actions {
+    margin: 0;
+  }
+}

@@ -1,0 +1,29 @@
+.inline-image-plugin--modal-image {
+  margin-bottom: 2rem;
+}
+
+.inline-image-plugin--modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.inline-image-plugin--modal-media-display {
+  margin-bottom: 2em;
+}
+
+.inline-image-plugin--modal-alt-text {
+  margin-bottom: 1em;
+}
+
+.inline-image-plugin--modal-position {
+  margin-bottom: 2em;
+}
+
+.inline-image-plugin--modal-show-caption {
+  margin-bottom: 1em;
+}
+
+.inline-image-plugin--modal-actions {
+  display: flex;
+  gap: 12px;
+}

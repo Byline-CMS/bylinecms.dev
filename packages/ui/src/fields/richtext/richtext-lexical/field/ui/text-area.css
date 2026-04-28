@@ -1,0 +1,46 @@
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ *
+ */
+
+.TextArea__wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.TextArea__label {
+  display: flex;
+  flex: 1;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.TextArea__input {
+  border: 1px solid #999;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 10px;
+  padding-right: 10px;
+  font-size: 16px;
+  border-radius: 1px;
+  min-width: 0;
+}
+
+.dark,
+[data-theme="dark"],
+[data-theme="dark"] ::backdrop {
+  .TextArea__label {
+    color: #ccc;
+  }
+
+  .TextArea__input {
+    border: 1px solid #666;
+    background-color: #1c1c1c;
+    color: #eee;
+  }
+}

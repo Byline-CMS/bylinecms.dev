@@ -1,0 +1,15 @@
+.auto-embed-modal-container {
+  min-width: 340px;
+  max-width: 600px;
+}
+
+.auto-embed-modal-header {
+  margin-bottom: 1rem;
+}
+
+@media screen and (min-width: 640px) {
+  .auto-embed-modal-container {
+    min-width: 340px;
+    width: 500px;
+  }
+}
