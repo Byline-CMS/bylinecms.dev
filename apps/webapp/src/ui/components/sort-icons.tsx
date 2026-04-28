@@ -1,4 +1,4 @@
-w'use client'
+'use client'
 
 /**
  * This Source Code is subject to the terms of the Mozilla Public

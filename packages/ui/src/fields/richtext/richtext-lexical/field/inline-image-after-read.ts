@@ -16,13 +16,17 @@
  * @example
  * ```ts
  * import { defineCollection } from '@byline/core'
- * import { inlineImageAfterRead } from '@/ui/fields/richtext/richtext-lexical/field/inline-image-after-read'
+ * import { inlineImageAfterRead } from '@byline/ui'
+ * import { getAdminBylineClient } from '@/lib/byline-client'
  *
  * export const Docs = defineCollection({
  *   path: 'docs',
  *   useAsTitle: 'title',
  *   hooks: {
- *     afterRead: inlineImageAfterRead({ richTextFields: ['body'] }),
+ *     afterRead: inlineImageAfterRead({
+ *       richTextFields: ['body'],
+ *       getClient: getAdminBylineClient,
+ *     }),
  *   },
  *   fields: [
  *     { name: 'title', type: 'text' },
@@ -32,6 +36,7 @@
  * ```
  */
 
+import type { BylineClient } from '@byline/client'
 import type { AfterReadContext, StoredFileValue } from '@byline/core'
 import { getCollectionDefinition } from '@byline/core'
 
@@ -110,6 +115,12 @@ interface InlineImageAfterReadOptions {
    * to skip nodes that point at collections you don't want to hydrate.
    */
   sourceCollections?: string[]
+  /**
+   * Returns the server-side `BylineClient` used to batch-fetch target
+   * documents. Typically the host application's cached singleton (e.g.
+   * `getAdminBylineClient` in the webapp).
+   */
+  getClient: () => BylineClient
 }
 
 /**
@@ -127,7 +138,7 @@ interface InlineImageAfterReadOptions {
  * module stays side-effect-free at admin-config evaluation time.
  */
 export function inlineImageAfterRead(options: InlineImageAfterReadOptions) {
-  const { richTextFields, sourceCollections } = options
+  const { richTextFields, sourceCollections, getClient } = options
   const allowedSources = sourceCollections ? new Set(sourceCollections) : null
 
   return async (ctx: AfterReadContext): Promise<void> => {
@@ -164,13 +175,11 @@ export function inlineImageAfterRead(options: InlineImageAfterReadOptions) {
       bucket.add(p.documentId)
     }
 
-    // Resolve a BylineClient lazily — admin-side this is the cached singleton
-    // backed by the active server config. Other consumers are expected to
-    // override the import path or wire their own client; we keep this module
-    // dependent on `@/lib/byline-client` to avoid plumbing a `client` arg
-    // through every collection definition.
-    const { getAdminBylineClient } = await import('@/lib/byline-client')
-    const client = getAdminBylineClient()
+    // Resolve a BylineClient via the host-provided factory. Admin-side this
+    // is typically the cached singleton backed by the active server config
+    // (`getAdminBylineClient`). Other consumers wire their own client
+    // through the same option.
+    const client = getClient()
 
     // Batch-load each collection's docs in parallel.
     const fetched = new Map<string, Map<string, Record<string, any>>>()

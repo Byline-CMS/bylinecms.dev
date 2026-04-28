@@ -13,7 +13,7 @@ import { getCollectionAdminConfig } from '@byline/core'
 import { Button, LoaderRing, Modal, Search } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
-import { getCollectionDocuments } from '@/modules/admin/collections'
+import { useBylineFieldServices } from '../../services/field-services-context'
 import {
   PickerCell,
   resolveFallbackDisplayField,
@@ -84,6 +84,8 @@ export const RelationPicker = ({
   const [totalPages, setTotalPages] = useState<number>(1)
   const [collectionId, setCollectionId] = useState<string | null>(null)
 
+  const { getCollectionDocuments } = useBylineFieldServices()
+
   const targetAdminConfig: CollectionAdminConfig | null =
     getCollectionAdminConfig(targetCollectionPath)
   const pickerColumns = targetAdminConfig?.picker
@@ -108,14 +110,12 @@ export const RelationPicker = ({
     setLoading(true)
     setError(null)
     getCollectionDocuments({
-      data: {
-        collection: targetCollectionPath,
-        params: {
-          page,
-          page_size: PAGE_SIZE,
-          query: query.length > 0 ? query : undefined,
-          fields: selectFields,
-        },
+      collection: targetCollectionPath,
+      params: {
+        page,
+        page_size: PAGE_SIZE,
+        query: query.length > 0 ? query : undefined,
+        fields: selectFields,
       },
     })
       .then((response: any) => {
@@ -135,7 +135,16 @@ export const RelationPicker = ({
     return () => {
       cancelled = true
     }
-  }, [isOpen, targetCollectionPath, query, page, displayField, targetDefinition, pickerColumns])
+  }, [
+    isOpen,
+    targetCollectionPath,
+    query,
+    page,
+    displayField,
+    targetDefinition,
+    pickerColumns,
+    getCollectionDocuments,
+  ])
 
   const resolvedDisplayField =
     displayField ??

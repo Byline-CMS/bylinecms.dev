@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Card, GripperVerticalIcon } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
-import { DraggableSortable, moveItem, useSortable } from '@/ui/dnd/draggable-sortable'
+import { DraggableSortable, moveItem, useSortable } from '..'
 
 const sourceItems = [
   {

@@ -7,8 +7,8 @@
  */
 
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
+import { DateTimeFormatter } from '@byline/ui'
 
-import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
 import { SummaryLength } from '~/components/summary-length.js'
 import { News } from './schema.js'
 

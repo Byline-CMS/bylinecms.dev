@@ -17,8 +17,6 @@ import {
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
-import type { Locale } from '@/i18n/i18n-config'
-
 const menuItemClasses = cx(
   'flex gap-1 w-full rounded px-[2px] py-[5px] md:text-sm',
   'hover:bg-canvas-50/30 dark:hover:bg-canvas-900',
@@ -27,13 +25,11 @@ const menuItemClasses = cx(
 )
 
 interface DraggableContextMenuProps {
-  lng: Locale
   onAddBelow?: () => void
   onRemove?: () => void
 }
 
 export function DraggableContextMenu({
-  lng,
   onAddBelow,
   onRemove,
 }: DraggableContextMenuProps): React.JSX.Element {

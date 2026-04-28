@@ -77,11 +77,11 @@ function fromLinkData(data: LinkData | undefined, linkable: CollectionDefinition
   const picked: DocumentRelation | null =
     fields.linkType === 'internal'
       ? {
-        targetDocumentId: fields.targetDocumentId,
-        targetCollectionId: fields.targetCollectionId,
-        targetCollectionPath: fields.targetCollectionPath,
-        document: fields.document,
-      }
+          targetDocumentId: fields.targetDocumentId,
+          targetCollectionId: fields.targetCollectionId,
+          targetCollectionPath: fields.targetCollectionPath,
+          document: fields.document,
+        }
       : null
   return {
     text: data.text ?? '',
@@ -184,18 +184,18 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     const fields: LinkAttributes =
       state.linkType === 'custom'
         ? {
-          linkType: 'custom',
-          url: state.url,
-          newTab: state.newTab,
-        }
+            linkType: 'custom',
+            url: state.url,
+            newTab: state.newTab,
+          }
         : {
-          linkType: 'internal',
-          newTab: state.newTab,
-          targetDocumentId: picked.targetDocumentId,
-          targetCollectionId: picked.targetCollectionId,
-          targetCollectionPath: picked.targetCollectionPath,
-          document: picked.document,
-        }
+            linkType: 'internal',
+            newTab: state.newTab,
+            targetDocumentId: picked.targetDocumentId,
+            targetCollectionId: picked.targetCollectionId,
+            targetCollectionPath: picked.targetCollectionPath,
+            document: picked.document,
+          }
 
     onSubmit({
       text: state.text.length > 0 ? state.text : null,

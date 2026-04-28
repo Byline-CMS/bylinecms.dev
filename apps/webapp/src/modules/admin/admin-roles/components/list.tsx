@@ -25,6 +25,7 @@ import type React from 'react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import { DraggableSortable, moveItem, useSortable } from '@byline/ui'
 import {
   Button,
   CloseIcon,
@@ -42,7 +43,6 @@ import cx from 'classnames'
 
 import { LangLink } from '@/i18n/components/lang-link'
 import { LocalDateTime } from '@/ui/components/local-date-time'
-import { DraggableSortable, moveItem, useSortable } from '@/ui/dnd/draggable-sortable'
 import { formatNumber } from '@/utils/utils.general'
 import { reorderAdminRoles } from '../reorder'
 import { CreateAdminRole } from './create'

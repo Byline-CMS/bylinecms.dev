@@ -10,11 +10,10 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import { FormRenderer, useTanStackNavigationGuard } from '@byline/ui'
 import { Container, Section, useToastManager } from '@infonomic/uikit/react'
 
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
-import { FormRenderer } from '@/ui/forms/form-renderer'
-import { useTanStackNavigationGuard } from '@/ui/forms/tanstack-navigation-guard'
 import { createCollectionDocument } from '..'
 
 type CreateState = {

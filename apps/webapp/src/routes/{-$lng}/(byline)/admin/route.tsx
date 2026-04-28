@@ -21,6 +21,9 @@
 
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
+import { BylineFieldServicesProvider } from '@byline/ui'
+
+import { bylineFieldServices } from '@/lib/byline-field-services'
 import { getCurrentAdminUser } from '@/modules/admin/auth'
 import { Content } from '@/ui/admin/content'
 import { DrawerToggle } from '@/ui/admin/drawer-toggle'
@@ -53,15 +56,17 @@ export const Route = createFileRoute('/{-$lng}/(byline)/admin')({
 function AdminLayoutComponent() {
   const { user } = Route.useRouteContext()
   return (
-    <AdminMenuProvider>
-      <AdminAppBar user={user} />
-      <main className="flex h-screen w-full max-w-full pt-[45px]">
-        <DrawerToggle />
-        <AdminMenuDrawer />
-        <Content>
-          <Outlet />
-        </Content>
-      </main>
-    </AdminMenuProvider>
+    <BylineFieldServicesProvider services={bylineFieldServices}>
+      <AdminMenuProvider>
+        <AdminAppBar user={user} />
+        <main className="flex h-screen w-full max-w-full pt-[45px]">
+          <DrawerToggle />
+          <AdminMenuDrawer />
+          <Content>
+            <Outlet />
+          </Content>
+        </main>
+      </AdminMenuProvider>
+    </BylineFieldServicesProvider>
   )
 }

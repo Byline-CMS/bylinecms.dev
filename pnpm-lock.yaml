@@ -44,6 +44,9 @@ importers:
       '@byline/storage-local':
         specifier: workspace:*
         version: link:../../packages/storage-local
+      '@byline/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -621,6 +624,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@byline/client':
+        specifier: workspace:*
+        version: link:../client
       '@byline/core':
         specifier: workspace:*
         version: link:../core
@@ -718,6 +724,9 @@ importers:
       '@rslib/core':
         specifier: ^0.21.0
         version: 0.21.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(core-js@3.47.0)(typescript@6.0.2)
+      '@tanstack/react-router':
+        specifier: ^1.168.19
+        version: 1.168.19(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@types/lodash':
         specifier: ^4.17.24
         version: 4.17.24

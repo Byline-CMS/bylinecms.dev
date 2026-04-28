@@ -18,12 +18,12 @@ import type {
 } from '@byline/core'
 import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
 
-import { FieldRenderer } from '@/ui/fields/field-renderer'
-import { i18n } from '~/i18n'
 import { Group } from '../admin/group'
 import { Row } from '../admin/row'
 import { Tabs } from '../admin/tabs'
-import { LocalDateTime } from '../components/local-date-time'
+import { FieldRenderer } from '../fields/field-renderer'
+import { LocalDateTime } from '../fields/local-date-time'
+import { useBylineFieldServices } from '../services/field-services-context'
 import { DocumentActions } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import { useNavigationGuardAdapter } from './navigation-guard'
@@ -73,6 +73,12 @@ export interface FormRendererProps {
   initialLocale?: string
   /** Called when the user picks a different content locale. */
   onLocaleChange?: (locale: string) => void
+  /**
+   * Default content locale used when no `initialLocale` is supplied and as the
+   * fallback inside `PathWidget`. Hosts typically pass their app-wide
+   * `i18n.content.defaultLocale`. Defaults to `'en'`.
+   */
+  defaultLocale?: string
   /**
    * Framework-specific navigation guard hook.
    * When provided, this overrides the adapter from `NavigationGuardProvider` context.
@@ -229,6 +235,7 @@ const FormContent = ({
   collectionPath,
   initialLocale,
   onLocaleChange,
+  defaultLocale = 'en',
   useNavigationGuard: useNavigationGuardProp,
   _activeTabBySet,
   _onTabChange,
@@ -258,7 +265,8 @@ const FormContent = ({
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [contentLocale, setContentLocale] = useState(initialLocale ?? i18n.content.defaultLocale)
+  const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
+  const { uploadDocument } = useBylineFieldServices()
 
   // Sync contentLocale when the route re-fetches with a different locale.
   useEffect(() => {
@@ -441,7 +449,7 @@ const FormContent = ({
       if (pendingUploads.size > 0) {
         setIsUploading(true)
         try {
-          const uploadResult = await executeUploads(pendingUploads)
+          const uploadResult = await executeUploads(pendingUploads, uploadDocument)
 
           // Check for upload errors
           if (!uploadResult.allSucceeded) {
@@ -650,7 +658,7 @@ const FormContent = ({
             <PathWidget
               useAsPath={useAsPath}
               collectionPath={collectionPath ?? ''}
-              defaultLocale={i18n.content.defaultLocale}
+              defaultLocale={defaultLocale}
               mode={mode}
             />
           )}
@@ -703,6 +711,7 @@ export const FormRenderer = ({
   collectionPath,
   initialLocale,
   onLocaleChange,
+  defaultLocale,
   useNavigationGuard,
 }: FormRendererProps) => {
   // Persists per-tab-set active tab across locale-change remounts of FormContent.
@@ -734,6 +743,7 @@ export const FormRenderer = ({
         collectionPath={collectionPath}
         initialLocale={initialLocale}
         onLocaleChange={onLocaleChange}
+        defaultLocale={defaultLocale}
         useNavigationGuard={useNavigationGuard}
         _activeTabBySet={savedTabsRef.current}
         _onTabChange={(tabSetName, tabName) => {

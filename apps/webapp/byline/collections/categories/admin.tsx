@@ -7,8 +7,8 @@
  */
 
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
+import { DateTimeFormatter } from '@byline/ui'
 
-import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
 import { Categories } from './schema.js'
 
 // ---- Admin UI config (client-only, presentation concerns) ----

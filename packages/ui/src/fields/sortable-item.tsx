@@ -63,7 +63,7 @@ export const SortableItem = ({
           <GripperVerticalIcon className="w-4 h-4 text-primary-500 dark:text-primary-200" />
         </button>
         <div className="text-[1rem] font-medium flex-1 min-w-0 truncate">{label}</div>
-        <DraggableContextMenu lng="en" onAddBelow={onAddBelow} onRemove={onRemove} />
+        <DraggableContextMenu onAddBelow={onAddBelow} onRemove={onRemove} />
         <button
           type="button"
           className="p-1 rounded hover:bg-gray-800 text-gray-400 flex items-center justify-center"

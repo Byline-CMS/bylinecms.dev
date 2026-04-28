@@ -7,7 +7,7 @@
  */
 import * as React from 'react'
 
-import './input.scss'
+import './input.css'
 
 type Props = Readonly<{
   'data-test-id'?: string

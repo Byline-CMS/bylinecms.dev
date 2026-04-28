@@ -11,6 +11,7 @@ import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 
 import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { renderFormatted } from '@byline/ui'
 import {
   Container,
   IconButton,
@@ -26,7 +27,6 @@ import cx from 'classnames'
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { RouterPager } from '@/ui/components/router-pager'
 import { TableHeadingCellSortable } from '@/ui/components/th-sortable.tsx'
-import { renderFormatted } from '@/ui/fields/column-formatter'
 import { formatNumber } from '@/utils/utils.general.ts'
 import { StatusBadge } from './status-badge'
 

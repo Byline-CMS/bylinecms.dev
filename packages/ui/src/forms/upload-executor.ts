@@ -16,7 +16,7 @@
 
 import type { StoredFileValue } from '@byline/core'
 
-import { uploadDocument } from '@/modules/admin/collections'
+import type { UploadDocumentFn } from '../services/field-services-types'
 import type { PendingUpload } from './form-context'
 
 export interface UploadResult {
@@ -42,10 +42,13 @@ export interface ExecuteUploadsResult {
  * Returns a result object with successful uploads and any errors.
  *
  * @param pendingUploads - Map of field path to PendingUpload
+ * @param uploadDocument - Host-provided upload transport (resolved via
+ *                         `useBylineFieldServices()` in the calling React tree)
  * @returns Promise resolving to ExecuteUploadsResult
  */
 export async function executeUploads(
-  pendingUploads: Map<string, PendingUpload>
+  pendingUploads: Map<string, PendingUpload>,
+  uploadDocument: UploadDocumentFn
 ): Promise<ExecuteUploadsResult> {
   const results: UploadResult[] = []
   const successful = new Map<string, StoredFileValue>()
@@ -101,6 +104,7 @@ export type UploadProgressCallback = (info: {
  */
 export async function executeUploadsWithProgress(
   pendingUploads: Map<string, PendingUpload>,
+  uploadDocument: UploadDocumentFn,
   onProgress?: UploadProgressCallback
 ): Promise<ExecuteUploadsResult> {
   const results: UploadResult[] = []
