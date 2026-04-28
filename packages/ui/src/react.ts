@@ -38,6 +38,7 @@ export * from './forms/navigation-guard.js'
 export * from './forms/path-widget.js'
 export * from './forms/tanstack-navigation-guard.js'
 export * from './services/field-services-context.js'
+export * from './services/i18n-context.js'
 export type {
   BylineFieldServices,
   CollectionListDoc,
@@ -47,7 +48,6 @@ export type {
   UploadDocumentFn,
   UploadedFileResult,
 } from './services/field-services-types.js'
-export * from './services/i18n-context.js'
 export type {
   BylineI18n,
   BylineLocaleOption,

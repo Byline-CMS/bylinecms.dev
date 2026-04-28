@@ -6,7 +6,7 @@ import { IntlMessageFormat } from 'intl-messageformat'
 
 import type { Translations } from '@/i18n/translations'
 
-const TranslationsContext = createContext<Translations | null>(null)
+export const TranslationsContext = createContext<Translations | null>(null)
 
 export const TranslationsProvider = ({
   translations,
