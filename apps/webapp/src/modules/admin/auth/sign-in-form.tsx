@@ -18,7 +18,7 @@
 
 import { type FormEvent, useState } from 'react'
 
-import { Alert, Button, Card, Input } from '@infonomic/uikit/react'
+import { Alert, Button, Card, Input, LoaderEllipsis } from '@infonomic/uikit/react'
 
 import { adminSignIn } from './sign-in.js'
 
@@ -96,8 +96,12 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
             />
           </div>
           <div className="mt-6 flex justify-end">
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Signing in…' : 'Sign in'}
+            <Button type="submit" disabled={pending} className="min-w-[80px]">
+              {pending ? (
+                <LoaderEllipsis size={30} color="#aaaaaa" />
+              ) : (
+                <span>Sign In</span>
+              )}
             </Button>
           </div>
         </form>
