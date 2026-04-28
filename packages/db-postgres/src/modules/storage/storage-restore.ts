@@ -43,7 +43,6 @@ export const restoreFieldSetData = (
     }
     const field = fields.find((f) => f.name === fieldName)
     if (!field) {
-      warnings.push(`Field ${fieldName} not found`)
     } else {
       result[fieldName] = restoreFieldData(
         field,
@@ -137,7 +136,7 @@ const restoreGroupFieldData = (
   const subField = field.fields.find((f) => f.name === fieldName)
 
   if (subField == null) {
-    warnings.push(`Sub-field ${fieldName} not found in group ${field.name}`)
+    // Sub-field was removed from the schema; silently skip orphaned rows.
     return target
   }
 
@@ -194,7 +193,7 @@ const restoreArrayFieldData = (
   const subField = field.fields.find((f) => f.name === fieldName)
 
   if (subField == null) {
-    warnings.push(`Sub-field ${fieldName} not found in array ${field.name}`)
+    // Sub-field was removed from the schema; silently skip orphaned rows.
     return target
   }
 
@@ -235,7 +234,7 @@ const restoreBlocksFieldData = (
 
   const block = field.blocks.find((f) => f.blockType === blockType)
   if (block == null) {
-    warnings.push(`Block type '${blockType}' not found in blocks field ${field.name}`)
+    // Block type was removed from the schema; silently skip orphaned rows.
     return target
   }
 
@@ -258,9 +257,7 @@ const restoreBlocksFieldData = (
   const fieldName = data.field_path[pathIndex + 2]!
   const subField = block.fields.find((f) => f.name === fieldName)
   if (subField == null) {
-    warnings.push(
-      `Invalid field name '${data.field_path[pathIndex + 2]}' in path ${data.field_path.join('.')}`
-    )
+    // Sub-field was removed from the schema; silently skip orphaned rows.
     return target
   }
 
