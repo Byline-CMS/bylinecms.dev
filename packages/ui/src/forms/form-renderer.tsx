@@ -17,6 +17,7 @@ import type {
   WorkflowStatus,
 } from '@byline/core'
 import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { Group } from '../admin/group'
 import { Row } from '../admin/row'
@@ -26,6 +27,7 @@ import { LocalDateTime } from '../fields/local-date-time'
 import { useBylineFieldServices } from '../services/field-services-context'
 import { DocumentActions } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
+import styles from './form-renderer.module.css'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
 import { executeUploads } from './upload-executor'
@@ -102,26 +104,30 @@ const FormStatusDisplay = ({
   const statusLabel = workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
 
   return (
-    <div className="form-status flex flex-col">
-      <div className="flex flex-col text-[0.8rem] md:mb-1 leading-5 md:leading-3 lg:flex-row lg:items-center sm:gap-2">
-        <div className="published flex items-center gap-1 min-w-0">
-          <span className="muted shrink-0">Status:</span>
-          <span className="truncate overflow-hidden">{statusLabel}</span>
+    <div className={cx('byline-form-status', styles.status)}>
+      <div className={cx('byline-form-status-meta', styles['status-meta'])}>
+        <div className={cx('byline-form-status-cell', styles['status-cell'])}>
+          <span className={cx('byline-form-status-muted', styles['status-muted'])}>Status:</span>
+          <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
+            {statusLabel}
+          </span>
         </div>
 
         {initialData?.updatedAt != null && (
-          <div className="last-modified flex items-center gap-1 min-w-0">
-            <span className="muted shrink-0">Last modified:</span>
-            <span className="truncate overflow-hidden">
+          <div className={cx('byline-form-status-cell', styles['status-cell'])}>
+            <span className={cx('byline-form-status-muted', styles['status-muted'])}>
+              Last modified:
+            </span>
+            <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
               <LocalDateTime value={initialData.updatedAt} />
             </span>
           </div>
         )}
 
         {initialData?.createdAt != null && (
-          <div className="created flex items-center gap-1 min-w-0">
-            <span className="muted shrink-0">Created:</span>
-            <span className="truncate overflow-hidden">
+          <div className={cx('byline-form-status-cell', styles['status-cell'])}>
+            <span className={cx('byline-form-status-muted', styles['status-muted'])}>Created:</span>
+            <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
               <LocalDateTime value={initialData.createdAt} />
             </span>
           </div>
@@ -129,8 +135,8 @@ const FormStatusDisplay = ({
       </div>
 
       {publishedVersion != null && (
-        <div className="published-version-notice inline leading-4 md:leading-3.5">
-          <span className="muted text-[0.8rem]">
+        <div className={cx('byline-form-status-published', styles['status-published'])}>
+          <span className={cx('byline-form-status-muted', styles['status-muted'])}>
             A published version is currently live.{' '}
             {publishedVersion.updatedAt ? (
               <span>
@@ -143,7 +149,11 @@ const FormStatusDisplay = ({
           {onUnpublish && (
             <>
               {' '}
-              <button type="button" onClick={onUnpublish} className="text-[0.8rem] underline">
+              <button
+                type="button"
+                onClick={onUnpublish}
+                className={cx('byline-form-status-unpublish', styles['status-unpublish'])}
+              >
                 Unpublish
               </button>
             </>
@@ -554,18 +564,18 @@ const FormContent = ({
     const activeTab = visibleTabs.find((t) => t.name === resolvedActive)
 
     return (
-      <div key={`tabset:${set.name}`} className="flex flex-col gap-5">
+      <div key={`tabset:${set.name}`} className={cx('byline-form-tabset', styles.tabset)}>
         {visibleTabs.length > 0 && (
           <Tabs
             tabs={visibleTabs}
             activeTab={resolvedActive}
             onChange={(tabName) => handleTabChange(set.name, tabName)}
             errorCounts={tabErrorCountsBySet[set.name]}
-            className="-mt-4 mb-0"
+            className={cx('byline-form-tabset-tabs', styles['tabset-tabs'])}
           />
         )}
         {activeTab && (
-          <div className="flex flex-col gap-5">
+          <div className={cx('byline-form-tabset-fields', styles['tabset-fields'])}>
             {activeTab.fields.map((name) => renderItem(name))}
           </div>
         )}
@@ -574,21 +584,21 @@ const FormContent = ({
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="w-full flex flex-col">
-      <div className="item-view grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-x-4 gap-y-1 mb-2">
-        <h1 className="mb-0 text-[1.75rem]">{heading}</h1>
+    <form noValidate onSubmit={handleSubmit} className={cx('byline-form', styles.form)}>
+      <div className={cx('byline-form-heading-row', styles['heading-row'])}>
+        <h1 className={cx('byline-form-heading', styles.heading)}>{heading}</h1>
         {headerSlot}
       </div>
-      <div className="sticky rounded top-[45px] z-20 p-2 bg-canvas-25 dark:bg-canvas-800 form-status-and-actions mb-1 lg:mb-0 grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start gap-x-4 gap-y-1 border border-gray-800">
+      <div className={cx('byline-form-status-bar', styles['status-bar'])}>
         <FormStatusDisplay
           initialData={initialData}
           workflowStatuses={workflowStatuses}
           publishedVersion={publishedVersion}
           onUnpublish={onUnpublish}
         />
-        <div className="form-actions flex items-center gap-2">
+        <div className={cx('byline-form-actions', styles.actions)}>
           <Button
-            className="min-w-[70px] min-h-[28px]"
+            className={cx('byline-form-actions-button', styles['actions-button'])}
             size="sm"
             intent="noeffect"
             type="button"
@@ -597,7 +607,7 @@ const FormContent = ({
             {hasChanges === false ? 'Close' : 'Cancel'}
           </Button>
           <Button
-            className="min-w-[70px] min-h-[28px]"
+            className={cx('byline-form-actions-button', styles['actions-button'])}
             size="sm"
             type="submit"
             disabled={hasChanges === false || isUploading}
@@ -605,10 +615,16 @@ const FormContent = ({
             {isUploading ? 'Uploading…' : 'Save'}
           </Button>
           {primaryStatus && onStatusChange && (
-            <div className="relative z-10">
+            <div className={cx('byline-form-actions-status-wrap', styles['actions-status-wrap'])}>
               <ComboButton
-                buttonClassName="min-w-[100px] min-h-[28px]"
-                triggerClassName="min-h-[28px]"
+                buttonClassName={cx(
+                  'byline-form-actions-combo-button',
+                  styles['actions-combo-button']
+                )}
+                triggerClassName={cx(
+                  'byline-form-actions-combo-trigger',
+                  styles['actions-combo-trigger']
+                )}
                 options={secondaryStatuses.map((s) => ({
                   label: s.verb ?? s.label ?? s.name,
                   value: s.name,
@@ -648,11 +664,11 @@ const FormContent = ({
           />
         </div>
       </div>
-      <div className="page-layout--two-columns--right-sticky pt-8">
-        <div className="content flex flex-col gap-5">
+      <div className={cx('byline-form-layout', styles.layout)}>
+        <div className={cx('byline-form-content', styles.content)}>
           {layout.main.map((name) => renderItem(name))}
         </div>
-        <div className="sidebar-second mt-0 px-4 pt-1 bg-canvas-50/20 dark:bg-canvas-900 border-l border-gray-100 dark:border-gray-800 flex flex-col gap-5">
+        <div className={cx('byline-form-sidebar', styles.sidebar)}>
           {(useAsPath ||
             (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
             <PathWidget
@@ -668,11 +684,15 @@ const FormContent = ({
       {guard.isBlocked && (
         <Modal isOpen={true} closeOnOverlayClick={false} onDismiss={guard.stay}>
           <Modal.Container style={{ maxWidth: '460px' }}>
-            <Modal.Header className="pt-4 mb-2">
-              <h3 className="m-0 mb-2 text-2xl">Leave without saving?</h3>
+            <Modal.Header
+              className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}
+            >
+              <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
+                Leave without saving?
+              </h3>
             </Modal.Header>
             <Modal.Content>
-              <p className="text-sm">
+              <p className={cx('byline-form-guard-modal-text', styles['guard-modal-text'])}>
                 Your changes have not been saved. If you leave now, you will lose your changes.
               </p>
             </Modal.Content>

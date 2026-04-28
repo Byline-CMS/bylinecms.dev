@@ -12,9 +12,11 @@ import {
   type StoredFileValue,
 } from '@byline/core'
 import { ErrorText } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../../forms/form-context'
 import { useFieldChangeHandler } from '../use-field-change-handler'
+import styles from './image-field.module.css'
 import { ImageUploadField } from './image-upload-field'
 
 interface ImageFieldProps {
@@ -39,8 +41,7 @@ export const ImageField = ({
 }: ImageFieldProps) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
-  const _isDirty = useIsDirty(fieldPath)
-  const isDirty = _isDirty
+  const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<StoredFileValue | null | undefined>(fieldPath)
   const { removePendingUpload } = useFormContext()
 
@@ -76,20 +77,22 @@ export const ImageField = ({
   }
 
   return (
-    <div className={`byline-image ${field.name}`}>
-      <div className="flex items-baseline gap-2 mb-1">
+    <div className={`byline-field-image ${field.name}`}>
+      <div className={cx('byline-field-image-header', styles.header)}>
         <div>
-          <div className="text-sm font-medium text-gray-100">
+          <div className={cx('byline-field-image-label', styles.label)}>
             {field.label ?? field.name}
             {field.optional ? '' : ' *'}
           </div>
-          {field.helpText && <div className="mt-0.5 text-xs text-gray-400">{field.helpText}</div>}
+          {field.helpText && (
+            <div className={cx('byline-field-image-help', styles.help)}>{field.helpText}</div>
+          )}
         </div>
         {/* Remove button — shown when an image is set (including pending) */}
         {!showUploadWidget && collectionPath && (
           <button
             type="button"
-            className="text-xs text-red-500 hover:text-red-400 underline-offset-2 hover:underline"
+            className={cx('byline-field-image-remove', styles.remove)}
             onClick={handleRemove}
           >
             Remove
@@ -108,67 +111,93 @@ export const ImageField = ({
             }}
           />
         ) : (
-          <div className="text-xs text-gray-500 italic">No image selected</div>
+          <div className={cx('byline-field-image-empty', styles.empty)}>No image selected</div>
         )
       ) : (
-        <div className="mt-1 flex gap-4 border border-primary-500 p-2 rounded-md">
+        <div className={cx('byline-field-image-tile', styles.tile)}>
           {/* Preview */}
           {incomingValue?.storageUrl && (
-            <div className="relative">
+            <div className={cx('byline-field-image-preview-wrap', styles['preview-wrap'])}>
               <img
                 src={incomingValue.storageUrl}
                 alt={incomingValue.originalFilename ?? incomingValue.filename}
-                className={`rounded border border-gray-600 object-contain ${
-                  incomingValue.mimeType === 'image/svg+xml'
-                    ? 'w-[271px] h-[159px]'
-                    : 'max-h-40 min-h-16 min-w-16'
-                }`}
+                className={cx(
+                  'byline-field-image-preview',
+                  styles.preview,
+                  incomingValue.mimeType === 'image/svg+xml' && [
+                    'byline-field-image-preview-svg',
+                    styles['preview-svg'],
+                  ]
+                )}
               />
               {/* Pending upload badge */}
               {isPending && (
-                <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-yellow-600/90 text-yellow-100 text-[0.6rem] font-medium rounded">
+                <div className={cx('byline-field-image-pending', styles.pending)}>
                   Pending upload
                 </div>
               )}
             </div>
           )}
           {/* Metadata */}
-          <div className="text-xs text-gray-200 space-y-0.5">
+          <div className={cx('byline-field-image-meta', styles.meta)}>
             <div>
-              <span className="font-semibold">Filename:</span> {incomingValue?.filename}
+              <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                Filename:
+              </span>{' '}
+              {incomingValue?.filename}
             </div>
             <div>
-              <span className="font-semibold">Original:</span> {incomingValue?.originalFilename}
+              <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                Original:
+              </span>{' '}
+              {incomingValue?.originalFilename}
             </div>
             <div>
-              <span className="font-semibold">Type:</span> {incomingValue?.mimeType}
+              <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>Type:</span>{' '}
+              {incomingValue?.mimeType}
             </div>
             <div>
-              <span className="font-semibold">Size:</span> {incomingValue?.fileSize}
+              <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>Size:</span>{' '}
+              {incomingValue?.fileSize}
             </div>
             {isPending ? (
               <div>
-                <span className="font-semibold">Status:</span>{' '}
-                <span className="text-yellow-400">Will upload on save</span>
+                <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                  Status:
+                </span>{' '}
+                <span className={cx('byline-field-image-meta-pending', styles['meta-pending'])}>
+                  Will upload on save
+                </span>
               </div>
             ) : (
               <>
                 <div>
-                  <span className="font-semibold">Storage:</span> {incomingValue?.storageProvider}
+                  <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                    Storage:
+                  </span>{' '}
+                  {incomingValue?.storageProvider}
                 </div>
                 {incomingValue?.imageWidth != null && (
                   <div>
-                    <span className="font-semibold">Dimensions:</span> {incomingValue.imageWidth}
+                    <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                      Dimensions:
+                    </span>{' '}
+                    {incomingValue.imageWidth}
                     {incomingValue.imageHeight != null ? `×${incomingValue.imageHeight}` : ''}
                   </div>
                 )}
                 {incomingValue?.imageFormat != null && (
                   <div>
-                    <span className="font-semibold">Format:</span> {incomingValue.imageFormat}
+                    <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                      Format:
+                    </span>{' '}
+                    {incomingValue.imageFormat}
                   </div>
                 )}
                 <div>
-                  <span className="font-semibold">Thumbnail:</span>{' '}
+                  <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                    Thumbnail:
+                  </span>{' '}
                   {incomingValue?.thumbnailGenerated ? 'Generated' : 'Pending'}
                 </div>
               </>

@@ -10,8 +10,10 @@ import { useCallback, useMemo } from 'react'
 
 import { slugify } from '@byline/core'
 import { Input, Label } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { useFieldValue, useFormContext, useSystemPath } from './form-context'
+import styles from './path-widget.module.css'
 
 /**
  * Coerce an arbitrary source-field value (string, Date, or other) into
@@ -45,6 +47,9 @@ export interface PathWidgetProps {
  * action explicitly writes the current live preview into the override
  * slot so the user can re-anchor a path against the source field after
  * editing the title.
+ *
+ * Stable override handles: `.byline-form-path`, `.byline-form-path-header`,
+ * `.byline-form-path-regenerate`.
  */
 export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: PathWidgetProps) => {
   const { setSystemPath } = useFormContext()
@@ -102,14 +107,14 @@ export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: P
     .join(' ')
 
   return (
-    <div className="byline-path">
-      <div className="flex items-center justify-between gap-2">
+    <div className="byline-form-path">
+      <div className={cx('byline-form-path-header', styles.header)}>
         <Label id="system-path-label" htmlFor="system-path" label="Path" />
         {useAsPath && livePreview.length > 0 && livePreview !== systemPath && (
           <button
             type="button"
             onClick={handleRegenerate}
-            className="text-[0.8rem] underline"
+            className={cx('byline-form-path-regenerate', styles.regenerate)}
             aria-label={`Regenerate path from ${useAsPath} field`}
           >
             Regenerate from {useAsPath}
@@ -125,7 +130,10 @@ export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: P
         helpText={hint}
         aria-describedby="system-path-description"
       />
-      <span id="system-path-description" className="sr-only">
+      <span
+        id="system-path-description"
+        className={cx('byline-form-path-sr-only', styles['sr-only'])}
+      >
         {srDescription}
       </span>
     </div>

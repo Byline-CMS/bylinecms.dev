@@ -1402,8 +1402,7 @@ button.item.dropdown-item-active i {
 }
 
 .dark,
-[data-theme="dark"],
-[data-theme="dark"] ::backdrop {
+[data-theme="dark"] {
   .toolbar i,
   .toolbar span {
     filter: invert(1) brightness(1.2);

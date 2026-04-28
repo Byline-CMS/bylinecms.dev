@@ -1,0 +1,41 @@
+/**
+ * Group — labelled fieldset clustering related fields together.
+ *
+ * Used by `FormRenderer` when a `CollectionAdminConfig` declares a
+ * `groups` primitive. Renders a bordered, padded `<fieldset>` with an
+ * optional `<legend>` for the label.
+ *
+ * Override handles: `.byline-admin-group` (the fieldset) and
+ * `.byline-admin-group-legend` (the optional heading) are exposed as
+ * stable global classes for host overrides.
+ *
+ * Note: this is the *admin layout* group primitive, not the schema-level
+ * `group` field type. Field widgets use `byline-field-*` handles to keep
+ * the namespaces disambiguated.
+ */
+
+.group,
+:global(.byline-admin-group) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  padding: var(--spacing-12);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
+  border-radius: var(--border-radius-md);
+}
+
+.legend,
+:global(.byline-admin-group-legend) {
+  padding-inline: var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ─── Dark theme variants ───────────────────────────────────── */
+
+:is([data-theme="dark"], :global(.dark)) {
+  .group,
+  :global(.byline-admin-group) {
+    border-color: var(--gray-700);
+  }
+}

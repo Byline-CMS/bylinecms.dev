@@ -1,0 +1,41 @@
+/**
+ * PathWidget — system-managed `documentVersions.path` form widget.
+ *
+ * Override handles:
+ *   .byline-form-path                  — wrapper div
+ *   .byline-form-path-header           — label + regenerate-button row
+ *   .byline-form-path-regenerate       — regenerate-link button
+ *   .byline-form-path-sr-only          — visually-hidden screen-reader hint
+ */
+
+.header,
+:global(.byline-form-path-header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-8);
+}
+
+.regenerate,
+:global(.byline-form-path-regenerate) {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.sr-only,
+:global(.byline-form-path-sr-only) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -20,6 +20,7 @@ import {
   resolveRowLabel,
   resolveSelectFields,
 } from './relation-display'
+import styles from './relation-picker.module.css'
 
 // ---------------------------------------------------------------------------
 // RelationPicker — modal listing for selecting a target document
@@ -169,11 +170,11 @@ export const RelationPicker = ({
   return (
     <Modal isOpen={isOpen} onDismiss={onDismiss}>
       <Modal.Container style={{ maxWidth: '600px', width: '100%' }}>
-        <Modal.Header className="pt-4 mb-2">
-          <h3 className="m-0 mb-2 text-xl">{title}</h3>
+        <Modal.Header className={cx('byline-field-relation-picker-header', styles.header)}>
+          <h3 className={cx('byline-field-relation-picker-title', styles.title)}>{title}</h3>
         </Modal.Header>
         <Modal.Content>
-          <div className="flex flex-col gap-3">
+          <div className={cx('byline-field-relation-picker-body', styles.body)}>
             <Search
               onSearch={(q) => {
                 setPage(1)
@@ -187,22 +188,24 @@ export const RelationPicker = ({
               placeholder="Search"
             />
 
-            <div className="min-h-[320px] max-h-[420px] overflow-y-auto border border-gray-700 rounded-md">
+            <div className={cx('byline-field-relation-picker-list', styles.list)}>
               {loading && documents.length === 0 && (
-                <div className="flex items-center justify-center py-10">
+                <div className={cx('byline-field-relation-picker-loading', styles.loading)}>
                   <LoaderRing size={24} color="#888888" />
                 </div>
               )}
               {!loading && error && (
-                <div className="px-4 py-10 text-center text-sm text-red-500">{error}</div>
+                <div className={cx('byline-field-relation-picker-error', styles.error)}>
+                  {error}
+                </div>
               )}
               {!loading && !error && documents.length === 0 && (
-                <div className="px-4 py-10 text-center text-sm text-gray-400">
+                <div className={cx('byline-field-relation-picker-empty', styles.empty)}>
                   No documents found
                 </div>
               )}
               {documents.length > 0 && (
-                <ul className="divide-y divide-gray-700">
+                <ul className={cx('byline-field-relation-picker-rows', styles.rows)}>
                   {documents.map((doc) => {
                     const id = doc.id as string
                     const selected = selectedDocumentId === id
@@ -211,25 +214,50 @@ export const RelationPicker = ({
                         <button
                           type="button"
                           className={cx(
-                            'w-full text-left px-3 py-2',
-                            'hover:bg-gray-800 transition-colors',
-                            selected && 'bg-primary-900/30 border-l-2 border-primary-400'
+                            'byline-field-relation-picker-row-button',
+                            styles['row-button'],
+                            selected && [
+                              'byline-field-relation-picker-row-selected',
+                              styles['row-selected'],
+                            ]
                           )}
                           onClick={() => setSelectedDocumentId(id)}
                         >
                           {pickerColumns && pickerColumns.length > 0 ? (
-                            <div className="flex items-center gap-3">
+                            <div
+                              className={cx(
+                                'byline-field-relation-picker-row-cells',
+                                styles['row-cells']
+                              )}
+                            >
                               {pickerColumns.map((col) => (
                                 <PickerCell key={String(col.fieldName)} column={col} record={doc} />
                               ))}
                             </div>
                           ) : (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-sm text-gray-100 truncate">
+                            <div
+                              className={cx(
+                                'byline-field-relation-picker-row-stack',
+                                styles['row-stack']
+                              )}
+                            >
+                              <span
+                                className={cx(
+                                  'byline-field-relation-picker-row-label',
+                                  styles['row-label']
+                                )}
+                              >
                                 {resolveRowLabel(doc, resolvedDisplayField) || id}
                               </span>
                               {typeof doc.path === 'string' && doc.path.length > 0 && (
-                                <span className="text-xs text-gray-500 truncate">{doc.path}</span>
+                                <span
+                                  className={cx(
+                                    'byline-field-relation-picker-row-path',
+                                    styles['row-path']
+                                  )}
+                                >
+                                  {doc.path}
+                                </span>
                               )}
                             </div>
                           )}
@@ -242,7 +270,7 @@ export const RelationPicker = ({
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between text-xs text-gray-400">
+              <div className={cx('byline-field-relation-picker-pager', styles.pager)}>
                 <Button
                   size="xs"
                   variant="outlined"
@@ -276,13 +304,13 @@ export const RelationPicker = ({
             intent="noeffect"
             type="button"
             onClick={onDismiss}
-            className="min-w-[70px]"
+            className={cx('byline-field-relation-picker-action', styles.action)}
           >
             Cancel
           </Button>
           <Button
             size="sm"
-            className="min-w-[70px]"
+            className={cx('byline-field-relation-picker-action', styles.action)}
             intent="primary"
             type="button"
             disabled={!selectedDocumentId}

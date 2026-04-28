@@ -1,0 +1,32 @@
+/**
+ * Row — horizontal flex layout for admin form fields.
+ *
+ * Members render side-by-side at `sm` and above, stack vertically below.
+ * `flex: 1` + `min-width: 0` on direct children lets two text inputs
+ * share the row evenly without overflowing.
+ *
+ * Override handle: `.byline-admin-row` is exposed as a stable global
+ * class so hosts can target this element from their own stylesheet
+ * without referring to the hashed local name.
+ */
+
+.row,
+:global(.byline-admin-row) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-16);
+}
+
+.row > *,
+:global(.byline-admin-row) > * {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (min-width: 40rem) {
+  .row,
+  :global(.byline-admin-row) {
+    flex-direction: row;
+  }
+}

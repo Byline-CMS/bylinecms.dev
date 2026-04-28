@@ -1,0 +1,22 @@
+/**
+ * FieldRenderer — main field-type switch wrapper.
+ *
+ * Override handles:
+ *   .byline-field-localized-wrap   — wrapper added when a non-self-badging
+ *                                    field needs an absolutely-positioned
+ *                                    locale badge in the corner
+ *   .byline-field-localized-badge  — the absolutely-positioned badge slot
+ */
+
+.localized-wrap,
+:global(.byline-field-localized-wrap) {
+  position: relative;
+}
+
+.localized-badge,
+:global(.byline-field-localized-badge) {
+  position: absolute;
+  top: 0;
+  right: 0;
+  line-height: 1;
+}

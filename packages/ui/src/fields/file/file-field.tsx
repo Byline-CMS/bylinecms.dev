@@ -8,8 +8,10 @@
 
 import type { FileField as FieldType, StoredFileValue } from '@byline/core'
 import { ErrorText } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import styles from './file-field.module.css'
 
 interface FileFieldProps {
   field: FieldType
@@ -46,47 +48,55 @@ export const FileField = ({
 
   return (
     <div
-      className={`byline-file ${field.name}${isDirty ? ' border border-blue-300 rounded-md p-3' : ''}`}
+      className={cx(
+        'byline-field-file',
+        field.name,
+        isDirty && ['byline-field-file-dirty', styles.dirty]
+      )}
     >
-      <div className="flex items-baseline justify-between mb-1">
+      <div className={cx('byline-field-file-header', styles.header)}>
         <div>
-          <div className="text-sm font-medium text-gray-100">
+          <div className={cx('byline-field-file-label', styles.label)}>
             {field.label ?? field.name}
             {field.optional ? '' : ' *'}
           </div>
-          {field.helpText && <div className="mt-0.5 text-xs text-gray-400">{field.helpText}</div>}
+          {field.helpText && (
+            <div className={cx('byline-field-file-help', styles.help)}>{field.helpText}</div>
+          )}
         </div>
         {/* Placeholder action area for future upload UI */}
-        <button
-          type="button"
-          className="text-xs text-blue-300 hover:text-blue-200 underline-offset-2 hover:underline"
-          disabled
-        >
+        <button type="button" className={cx('byline-field-file-action', styles.action)} disabled>
           Upload (coming soon)
         </button>
       </div>
 
       {effectiveValue == null ? (
-        <div className="text-xs text-gray-500 italic">No file selected</div>
+        <div className={cx('byline-field-file-empty', styles.empty)}>No file selected</div>
       ) : (
-        <div className="mt-1 text-xs text-gray-200 space-y-0.5">
+        <div className={cx('byline-field-file-meta', styles.meta)}>
           <div>
-            <span className="font-semibold">Filename:</span> {effectiveValue.filename}
+            <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>Filename:</span>{' '}
+            {effectiveValue.filename}
           </div>
           <div>
-            <span className="font-semibold">Original:</span> {effectiveValue.originalFilename}
+            <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>Original:</span>{' '}
+            {effectiveValue.originalFilename}
           </div>
           <div>
-            <span className="font-semibold">Type:</span> {effectiveValue.mimeType}
+            <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>Type:</span>{' '}
+            {effectiveValue.mimeType}
           </div>
           <div>
-            <span className="font-semibold">Size:</span> {effectiveValue.fileSize}
+            <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>Size:</span>{' '}
+            {effectiveValue.fileSize}
           </div>
           <div>
-            <span className="font-semibold">Storage:</span> {effectiveValue.storageProvider}
+            <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>Storage:</span>{' '}
+            {effectiveValue.storageProvider}
           </div>
           <div>
-            <span className="font-semibold">Path:</span> {effectiveValue.storagePath}
+            <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>Path:</span>{' '}
+            {effectiveValue.storagePath}
           </div>
         </div>
       )}

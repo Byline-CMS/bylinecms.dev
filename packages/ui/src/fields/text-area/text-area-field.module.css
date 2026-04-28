@@ -1,0 +1,13 @@
+/**
+ * TextAreaField — multi-line text input wrapper.
+ *
+ * Override handles:
+ *   .byline-field-text-area             — the wrapper div
+ *   .byline-field-text-area-label-row   — the label + locale-badge row
+ */
+
+.label-row,
+:global(.byline-field-text-area-label-row) {
+  display: flex;
+  align-items: center;
+}

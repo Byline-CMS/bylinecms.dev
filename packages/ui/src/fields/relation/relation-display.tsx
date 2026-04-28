@@ -9,6 +9,8 @@
 import type { CollectionDefinition, ColumnDefinition } from '@byline/core'
 import cx from 'classnames'
 
+import styles from './relation-display.module.css'
+
 // ---------------------------------------------------------------------------
 // Shared render helpers used by both the relation picker modal rows and
 // the relation-summary tile on the edit form. Kept in lock-step so a row
@@ -50,9 +52,10 @@ export function PickerCell({
   return (
     <div
       className={cx(
-        'min-w-0 text-sm text-gray-100 truncate',
-        column.align === 'center' && 'text-center',
-        column.align === 'right' && 'text-right',
+        'byline-relation-cell',
+        styles.cell,
+        column.align === 'center' && ['byline-relation-cell-center', styles['cell-center']],
+        column.align === 'right' && ['byline-relation-cell-right', styles['cell-right']],
         column.className
       )}
     >

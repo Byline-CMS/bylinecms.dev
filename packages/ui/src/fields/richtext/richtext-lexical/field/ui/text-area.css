@@ -32,8 +32,7 @@
 }
 
 .dark,
-[data-theme="dark"],
-[data-theme="dark"] ::backdrop {
+[data-theme="dark"] {
   .TextArea__label {
     color: #ccc;
   }

@@ -1,0 +1,88 @@
+/**
+ * FileField — placeholder file widget showing stored file metadata.
+ *
+ * Override handles:
+ *   .byline-field-file              — wrapper div
+ *   .byline-field-file-dirty        — dirty-state border on the wrapper
+ *   .byline-field-file-header       — label/help row
+ *   .byline-field-file-label        — primary label text
+ *   .byline-field-file-help         — secondary help text
+ *   .byline-field-file-action       — action button (e.g. "Upload (coming soon)")
+ *   .byline-field-file-empty        — empty-state hint text
+ *   .byline-field-file-meta         — metadata list
+ *   .byline-field-file-meta-key     — metadata field-name span
+ */
+
+.dirty,
+:global(.byline-field-file-dirty) {
+  padding: var(--spacing-12);
+  border: var(--border-width-thin) var(--border-style-solid) var(--blue-300);
+  border-radius: var(--border-radius-md);
+}
+
+.header,
+:global(.byline-field-file-header) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.label,
+:global(.byline-field-file-label) {
+  color: var(--gray-100);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.help,
+:global(.byline-field-file-help) {
+  margin-top: 0.125rem;
+  color: var(--gray-400);
+  font-size: var(--font-size-xs);
+}
+
+.action,
+:global(.byline-field-file-action) {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--blue-300);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.action:hover,
+:global(.byline-field-file-action):hover {
+  color: var(--blue-200);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.action:disabled,
+:global(.byline-field-file-action):disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.empty,
+:global(.byline-field-file-empty) {
+  color: var(--gray-500);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+}
+
+.meta,
+:global(.byline-field-file-meta) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-top: 0.25rem;
+  color: var(--gray-200);
+  font-size: var(--font-size-xs);
+}
+
+.meta-key,
+:global(.byline-field-file-meta-key) {
+  font-weight: var(--font-weight-semibold);
+}

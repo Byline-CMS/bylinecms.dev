@@ -1,0 +1,155 @@
+/**
+ * RelationPicker — modal listing for selecting a target document.
+ *
+ * Override handles:
+ *   .byline-field-relation-picker             — picker chrome wrapper
+ *   .byline-field-relation-picker-header      — modal header (title)
+ *   .byline-field-relation-picker-title       — title text
+ *   .byline-field-relation-picker-body        — vertical stack of search + list + pager
+ *   .byline-field-relation-picker-list        — scrollable list container
+ *   .byline-field-relation-picker-loading     — centered spinner row
+ *   .byline-field-relation-picker-error       — error message row
+ *   .byline-field-relation-picker-empty       — "no results" message row
+ *   .byline-field-relation-picker-rows        — <ul> of rows
+ *   .byline-field-relation-picker-row-button  — clickable row button
+ *   .byline-field-relation-picker-row-selected — added when row is selected
+ *   .byline-field-relation-picker-row-cells   — picker-columns layout inside a row
+ *   .byline-field-relation-picker-row-stack   — fallback label/path stack
+ *   .byline-field-relation-picker-row-label   — fallback row label text
+ *   .byline-field-relation-picker-row-path    — fallback row secondary path
+ *   .byline-field-relation-picker-pager       — pager row at the bottom
+ *   .byline-field-relation-picker-action      — Cancel / Select buttons
+ */
+
+.header,
+:global(.byline-field-relation-picker-header) {
+  padding-top: 1rem;
+  margin-bottom: var(--spacing-8);
+}
+
+.title,
+:global(.byline-field-relation-picker-title) {
+  margin: 0 0 var(--spacing-8) 0;
+  font-size: var(--font-size-xl);
+}
+
+.body,
+:global(.byline-field-relation-picker-body) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.list,
+:global(.byline-field-relation-picker-list) {
+  min-height: 320px;
+  max-height: 420px;
+  overflow-y: auto;
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
+  border-radius: var(--border-radius-md);
+}
+
+.loading,
+:global(.byline-field-relation-picker-loading) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 0;
+}
+
+.error,
+:global(.byline-field-relation-picker-error) {
+  padding: 2.5rem 1rem;
+  color: var(--red-500);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.empty,
+:global(.byline-field-relation-picker-empty) {
+  padding: 2.5rem 1rem;
+  color: var(--gray-400);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.rows,
+:global(.byline-field-relation-picker-rows) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rows > li + li,
+:global(.byline-field-relation-picker-rows) > li + li {
+  border-top: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
+}
+
+.row-button,
+:global(.byline-field-relation-picker-row-button) {
+  width: 100%;
+  padding: var(--spacing-8) 0.75rem;
+  border: none;
+  background: none;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.row-button:hover,
+:global(.byline-field-relation-picker-row-button):hover {
+  background-color: var(--gray-800);
+}
+
+.row-selected,
+:global(.byline-field-relation-picker-row-selected) {
+  background-color: oklch(from var(--primary-900) l c h / 0.3);
+  border-left: 2px solid var(--primary-400);
+}
+
+.row-cells,
+:global(.byline-field-relation-picker-row-cells) {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.row-stack,
+:global(.byline-field-relation-picker-row-stack) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.row-label,
+:global(.byline-field-relation-picker-row-label) {
+  color: var(--gray-100);
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-path,
+:global(.byline-field-relation-picker-row-path) {
+  color: var(--gray-500);
+  font-size: var(--font-size-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pager,
+:global(.byline-field-relation-picker-pager) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--gray-400);
+  font-size: var(--font-size-xs);
+}
+
+.action,
+:global(.byline-field-relation-picker-action) {
+  min-width: 70px;
+}

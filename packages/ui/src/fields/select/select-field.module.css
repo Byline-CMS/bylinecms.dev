@@ -1,0 +1,13 @@
+/**
+ * SelectField — dropdown form widget.
+ *
+ * Override handles:
+ *   .byline-field-select         — the wrapper div
+ *   .byline-field-select-dirty   — added to the inner select when the
+ *                                  field has unsaved local changes
+ */
+
+.dirty,
+:global(.byline-field-select-dirty) {
+  border-color: var(--blue-300);
+}

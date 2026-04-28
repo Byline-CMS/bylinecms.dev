@@ -1,0 +1,55 @@
+/**
+ * RelationSummary — selected-value tile for the relation field widget.
+ *
+ * Override handles:
+ *   .byline-relation-summary               — root container
+ *   .byline-relation-summary-stack         — vertical layout used for label + value
+ *   .byline-relation-summary-row           — horizontal layout used for picker columns
+ *   .byline-relation-summary-kind          — small "type" label above the value
+ *   .byline-relation-summary-value         — primary value text
+ *   .byline-relation-summary-value-mono    — monospace fallback (raw uuid / not-found)
+ *   .byline-relation-summary-missing       — added to the value when target is unresolved
+ */
+
+.stack,
+:global(.byline-relation-summary-stack) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.row,
+:global(.byline-relation-summary-row) {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.kind,
+:global(.byline-relation-summary-kind) {
+  color: var(--gray-500);
+}
+
+.value,
+:global(.byline-relation-summary-value) {
+  color: var(--gray-100);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value-mono,
+:global(.byline-relation-summary-value-mono) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.missing,
+:global(.byline-relation-summary-missing) {
+  font-size: var(--font-size-xs);
+  color: var(--red-400);
+}

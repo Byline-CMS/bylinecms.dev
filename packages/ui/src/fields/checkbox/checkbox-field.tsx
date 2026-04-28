@@ -32,7 +32,7 @@ export const CheckboxField = ({
   const checked = value ?? fieldValue ?? defaultValue ?? false
 
   return (
-    <div className={`byline-checkbox ${field.name}`}>
+    <div className={`byline-field-checkbox ${field.name}`}>
       <Checkbox
         id={id ?? fieldPath}
         name={field.name}

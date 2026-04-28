@@ -14,12 +14,14 @@ import type {
   GroupField as GroupFieldType,
 } from '@byline/core'
 import { Card, CloseIcon, IconButton, Modal, PlusIcon } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { DraggableSortable, moveItem } from '../../dnd/draggable-sortable'
 import { defaultScalarForField } from '../../fields/field-helpers'
 import { GroupField } from '../../fields/group/group-field'
 import { SortableItem } from '../../fields/sortable-item'
 import { useFormContext } from '../../forms/form-context'
+import styles from './blocks-field.module.css'
 
 // ---------------------------------------------------------------------------
 // BlocksField — renders `type: 'blocks'` fields. Children are heterogeneous
@@ -225,15 +227,17 @@ export const BlocksField = ({
   }
 
   return (
-    <div className={`byline-blocks ${field.name}`}>
-      {field.label && <h3 className="text-[1rem] font-medium mb-1">{field.label}</h3>}
+    <div className={`byline-field-blocks ${field.name}`}>
+      {field.label && (
+        <h3 className={cx('byline-field-blocks-title', styles.title)}>{field.label}</h3>
+      )}
       <DraggableSortable
         ids={items.map((i) => i.id)}
         onDragEnd={handleDragEnd}
-        className="flex flex-col gap-4"
+        className={cx('byline-field-blocks-stack', styles.stack)}
       >
         {items.map((item, index) => renderItem(item, index))}
-        <div className="flex items-center gap-2">
+        <div className={cx('byline-field-blocks-add-row', styles['add-row'])}>
           <IconButton
             onClick={() => {
               setPendingInsertIndex(null)
@@ -255,8 +259,8 @@ export const BlocksField = ({
         }}
       >
         <Modal.Container style={{ maxWidth: '600px' }}>
-          <Modal.Header className="pt-4 mb-2">
-            <h3 className="m-0 mb-2 text-2xl">Blocks</h3>
+          <Modal.Header className={cx('byline-field-blocks-modal-head', styles['modal-head'])}>
+            <h3 className={cx('byline-field-blocks-modal-title', styles['modal-title'])}>Blocks</h3>
             <IconButton
               arial-label="Close"
               size="xs"
@@ -268,30 +272,32 @@ export const BlocksField = ({
               <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
             </IconButton>
           </Modal.Header>
-          <Modal.Content className="cursor-pointer">
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+          <Modal.Content className={cx('byline-field-blocks-card-cursor', styles['modal-content'])}>
+            <div className={cx('byline-field-blocks-grid', styles.grid)}>
               {availableBlocks.map((b, index) => (
                 <Card
                   key={b.blockType}
                   hover
                   onClick={() => void handleAddItem(b.blockType, pendingInsertIndex ?? undefined)}
-                  className="mb-2"
+                  className={cx('byline-field-blocks-card', styles.card)}
                 >
                   <Card.Header>
-                    <div className="flex items-start justify-between gap-2">
-                      <Card.Title className="text-[1.3rem] leading-tight">
+                    <div className={cx('byline-field-blocks-card-head', styles['card-head'])}>
+                      <Card.Title
+                        className={cx('byline-field-blocks-card-title', styles['card-title'])}
+                      >
                         {b.label ?? b.blockType}
                       </Card.Title>
-                      <span className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full border border-gray-100 dark:border-gray-700 text-[10px] font-semibold text-gray-400 dark:text-gray-400 tabular-nums mt-0.5">
+                      <span className={cx('byline-field-blocks-card-index', styles['card-index'])}>
                         {index + 1}
                       </span>
                     </div>
-                    <code className="mt-0 block font-mono text-[12px] text-gray-400 dark:text-gray-500">
+                    <code className={cx('byline-field-blocks-card-code', styles['card-code'])}>
                       {b.blockType}
                     </code>
                   </Card.Header>
                   <Card.Content>
-                    <p className="text-sm text-gray-500 dark:text-gray-200">
+                    <p className={cx('byline-field-blocks-card-body', styles['card-body'])}>
                       {b.helpText ?? b.label ?? b.blockType}
                     </p>
                   </Card.Content>

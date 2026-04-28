@@ -1,0 +1,48 @@
+/**
+ * ArrayField — homogeneous array of child fields with optional D&D.
+ *
+ * Override handles:
+ *   .byline-field-array               — outer wrapper
+ *   .byline-field-array-title         — array label heading
+ *   .byline-field-array-stack         — vertical layout for items + add row
+ *   .byline-field-array-card          — disable-sorting fallback card per item
+ *   .byline-field-array-group-header  — sub-group title above grouped fields
+ *   .byline-field-array-group-fields  — vertical stack of fields inside an item
+ */
+
+.title,
+:global(.byline-field-array-title) {
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.stack,
+:global(.byline-field-array-stack) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+}
+
+.card,
+:global(.byline-field-array-card) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  padding: var(--spacing-16);
+  border: var(--border-width-thin) dashed var(--gray-600);
+  border-radius: var(--border-radius-md);
+}
+
+.group-header,
+:global(.byline-field-array-group-header) {
+  font-size: 0.9rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.group-fields,
+:global(.byline-field-array-group-fields) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+}

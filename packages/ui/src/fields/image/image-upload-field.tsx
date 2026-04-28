@@ -29,6 +29,7 @@ import {
 import cx from 'classnames'
 
 import { useFormContext } from '../../forms/form-context'
+import styles from './image-upload-field.module.css'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -167,13 +168,13 @@ export const ImageUploadField = ({
   const isProcessing = status === 'processing'
 
   return (
-    <div className="mt-1">
+    <div className={cx('byline-field-image-upload', styles.root)}>
       {/* Hidden native file input */}
       <input
         ref={inputRef}
         type="file"
         accept={accept}
-        className="sr-only"
+        className={cx('byline-field-image-upload-input', styles.input)}
         onChange={handleFileChange}
         disabled={isProcessing}
         aria-hidden="true"
@@ -196,29 +197,25 @@ export const ImageUploadField = ({
           }
         }}
         className={cx(
-          'flex flex-col items-center justify-center gap-2',
-          'border-2 border-dashed rounded-lg px-4 py-6 text-center',
-          'cursor-pointer select-none transition-colors duration-150',
-          {
-            'border-primary-400 bg-primary-900/20 text-primary-300': isDragOver && !isProcessing,
-            'border-gray-600 hover:border-primary-500 hover:bg-primary-900/10 text-gray-400':
-              !isDragOver && !isProcessing,
-            'border-gray-700 bg-gray-800/50 text-gray-600 cursor-not-allowed': isProcessing,
-          }
+          'byline-field-image-upload-zone',
+          styles.zone,
+          isDragOver &&
+            !isProcessing && ['byline-field-image-upload-zone-active', styles['zone-active']],
+          isProcessing && ['byline-field-image-upload-zone-busy', styles['zone-busy']]
         )}
       >
         {isProcessing ? (
           <>
             {/* Spinner */}
             <svg
-              className="animate-spin h-6 w-6 text-primary-400"
+              className={cx('byline-field-image-upload-spinner', styles.spinner)}
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
               aria-hidden="true"
             >
               <circle
-                className="opacity-25"
+                style={{ opacity: 0.25 }}
                 cx="12"
                 cy="12"
                 r="10"
@@ -226,19 +223,19 @@ export const ImageUploadField = ({
                 strokeWidth="4"
               />
               <path
-                className="opacity-75"
+                style={{ opacity: 0.75 }}
                 fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
               />
             </svg>
-            <span className="text-xs font-medium">Processing…</span>
+            <span className={cx('byline-field-image-upload-label', styles.label)}>Processing…</span>
           </>
         ) : (
           <>
             {/* Upload icon */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-7 w-7 opacity-60"
+              className={cx('byline-field-image-upload-icon', styles.icon)}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -251,18 +248,20 @@ export const ImageUploadField = ({
                 d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
               />
             </svg>
-            <span className="text-xs font-medium">
+            <span className={cx('byline-field-image-upload-label', styles.label)}>
               Drop image here or{' '}
-              <span className="text-primary-400 underline underline-offset-2">browse</span>
+              <span className={cx('byline-field-image-upload-action', styles.action)}>browse</span>
             </span>
-            <span className="text-[0.65rem] text-gray-500">JPEG, PNG, WebP, GIF, SVG, AVIF</span>
+            <span className={cx('byline-field-image-upload-hint', styles.hint)}>
+              JPEG, PNG, WebP, GIF, SVG, AVIF
+            </span>
           </>
         )}
       </div>
 
       {/* Error message */}
       {status === 'error' && errorMessage && (
-        <p className="mt-1.5 text-xs text-red-400" role="alert">
+        <p className={cx('byline-field-image-upload-error', styles.error)} role="alert">
           {errorMessage}
         </p>
       )}

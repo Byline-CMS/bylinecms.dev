@@ -1,0 +1,43 @@
+/**
+ * GroupField — fixed-order group of child fields.
+ *
+ * Override handles:
+ *   .byline-field-group           — outer wrapper
+ *   .byline-field-group-header    — label/help text block
+ *   .byline-field-group-title     — title heading
+ *   .byline-field-group-required  — required asterisk
+ *   .byline-field-group-help      — help text below title
+ *   .byline-field-group-body      — vertical stack of children
+ */
+
+.header,
+:global(.byline-field-group-header) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-bottom: var(--spacing-8);
+}
+
+.title,
+:global(.byline-field-group-title) {
+  font-size: 1rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.required,
+:global(.byline-field-group-required) {
+  color: var(--red-500);
+}
+
+.help,
+:global(.byline-field-group-help) {
+  color: var(--gray-500);
+  font-size: var(--font-size-xs);
+}
+
+.body,
+:global(.byline-field-group-body) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}

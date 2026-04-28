@@ -10,6 +10,8 @@ import type { ReactNode } from 'react'
 
 import cx from 'classnames'
 
+import styles from './group.module.css'
+
 interface GroupProps {
   /** Optional heading rendered as a `<legend>` above the cluster. */
   label?: string
@@ -23,16 +25,15 @@ interface GroupProps {
  * Used by `FormRenderer` when a `CollectionAdminConfig` declares a `groups`
  * primitive. Renders a bordered, padded `<fieldset>` with an optional
  * `<legend>` for the label.
+ *
+ * Stable override handles: `.byline-admin-group` on the fieldset and
+ * `.byline-admin-group-legend` on the legend (alongside the hashed
+ * CSS-modules locals).
  */
 export const Group = ({ label, children, className }: GroupProps) => {
   return (
-    <fieldset
-      className={cx(
-        'border border-gray-200 dark:border-gray-700 rounded-md p-3 flex flex-col gap-4',
-        className
-      )}
-    >
-      {label && <legend className="px-1 text-sm font-medium">{label}</legend>}
+    <fieldset className={cx('byline-admin-group', styles.group, className)}>
+      {label && <legend className={cx('byline-admin-group-legend', styles.legend)}>{label}</legend>}
       {children}
     </fieldset>
   )

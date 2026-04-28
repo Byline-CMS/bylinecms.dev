@@ -1,0 +1,148 @@
+/**
+ * BlocksField — heterogeneous array picked from a modal of block variants.
+ *
+ * Override handles:
+ *   .byline-field-blocks                — outer wrapper
+ *   .byline-field-blocks-title          — block-list label heading
+ *   .byline-field-blocks-stack          — vertical stack of blocks + add row
+ *   .byline-field-blocks-add-row        — add-button row at the bottom
+ *   .byline-field-blocks-modal-head     — picker modal header
+ *   .byline-field-blocks-modal-title    — picker modal title
+ *   .byline-field-blocks-grid           — grid of variant cards
+ *   .byline-field-blocks-card           — variant card wrapper
+ *   .byline-field-blocks-card-head      — card title row
+ *   .byline-field-blocks-card-title     — card title text
+ *   .byline-field-blocks-card-index     — small numeric index pill
+ *   .byline-field-blocks-card-code      — variant blockType code line
+ *   .byline-field-blocks-card-body      — variant description text
+ *   .byline-field-blocks-card-cursor    — cursor: pointer hint on the modal content
+ */
+
+.title,
+:global(.byline-field-blocks-title) {
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.stack,
+:global(.byline-field-blocks-stack) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+}
+
+.add-row,
+:global(.byline-field-blocks-add-row) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+
+.modal-head,
+:global(.byline-field-blocks-modal-head) {
+  padding-top: 1rem;
+  margin-bottom: var(--spacing-8);
+}
+
+.modal-title,
+:global(.byline-field-blocks-modal-title) {
+  margin: 0 0 var(--spacing-8) 0;
+  font-size: var(--font-size-2xl);
+}
+
+.modal-content,
+:global(.byline-field-blocks-card-cursor) {
+  cursor: pointer;
+}
+
+.grid,
+:global(.byline-field-blocks-grid) {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-16);
+}
+
+@media (min-width: 40rem) {
+  .grid,
+  :global(.byline-field-blocks-grid) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 48rem) {
+  .grid,
+  :global(.byline-field-blocks-grid) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.card,
+:global(.byline-field-blocks-card) {
+  margin-bottom: var(--spacing-8);
+}
+
+.card-head,
+:global(.byline-field-blocks-card-head) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-8);
+}
+
+.card-title,
+:global(.byline-field-blocks-card-title) {
+  font-size: 1.3rem;
+  line-height: var(--line-height-tight);
+}
+
+.card-index,
+:global(.byline-field-blocks-card-index) {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.125rem;
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  border-radius: var(--border-radius-full);
+  color: var(--gray-400);
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-code,
+:global(.byline-field-blocks-card-code) {
+  display: block;
+  margin-top: 0;
+  color: var(--gray-400);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.card-body,
+:global(.byline-field-blocks-card-body) {
+  color: var(--gray-500);
+  font-size: var(--font-size-sm);
+}
+
+/* ─── Dark theme variants ───────────────────────────────────── */
+
+:is([data-theme="dark"], :global(.dark)) {
+  .card-index,
+  :global(.byline-field-blocks-card-index) {
+    border-color: var(--gray-700);
+  }
+
+  .card-code,
+  :global(.byline-field-blocks-card-code) {
+    color: var(--gray-500);
+  }
+
+  .card-body,
+  :global(.byline-field-blocks-card-body) {
+    color: var(--gray-200);
+  }
+}

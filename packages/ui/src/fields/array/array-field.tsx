@@ -10,12 +10,14 @@ import { useEffect, useState } from 'react'
 
 import type { ArrayField as ArrayFieldType, Field } from '@byline/core'
 import { IconButton, PlusIcon } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { DraggableSortable, moveItem } from '../../dnd/draggable-sortable'
 import { defaultScalarForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { SortableItem } from '../../fields/sortable-item'
 import { useFormContext } from '../../forms/form-context'
+import styles from './array-field.module.css'
 
 // ---------------------------------------------------------------------------
 // ArrayField — renders `type: 'array'` fields. Children are homogeneous:
@@ -171,8 +173,15 @@ export const ArrayField = ({
         // Group child — render its inner fields with the group's sub-object
         const groupData = initial && typeof initial === 'object' ? initial : {}
         return (
-          <div key={childField.name} className="flex flex-col gap-4">
-            {childField.label && <h4 className="text-[0.9rem] font-medium">{childField.label}</h4>}
+          <div
+            key={childField.name}
+            className={cx('byline-field-array-group-fields', styles['group-fields'])}
+          >
+            {childField.label && (
+              <h4 className={cx('byline-field-array-group-header', styles['group-header'])}>
+                {childField.label}
+              </h4>
+            )}
             {(childField.fields as Field[]).map((innerField) => (
               <FieldRenderer
                 key={innerField.name}
@@ -201,11 +210,10 @@ export const ArrayField = ({
 
     if (disableSorting) {
       return (
-        <div
-          key={itemWrapper.id}
-          className="p-4 border border-dashed border-gray-600 rounded-md flex flex-col gap-4"
-        >
-          <div className="flex flex-col gap-4">{innerBody}</div>
+        <div key={itemWrapper.id} className={cx('byline-field-array-card', styles.card)}>
+          <div className={cx('byline-field-array-group-fields', styles['group-fields'])}>
+            {innerBody}
+          </div>
         </div>
       )
     }
@@ -218,25 +226,27 @@ export const ArrayField = ({
         onAddBelow={() => handleInsertBelow(index)}
         onRemove={() => handleRemoveItem(index)}
       >
-        <div className="flex flex-col gap-4">{innerBody}</div>
+        <div className={cx('byline-field-array-group-fields', styles['group-fields'])}>
+          {innerBody}
+        </div>
       </SortableItem>
     )
   }
 
   return (
-    <div className={`byline-array ${field.name}`}>
+    <div className={`byline-field-array ${field.name}`}>
       {!disableSorting && field.label && (
-        <h3 className="text-[1rem] font-medium mb-1">{field.label}</h3>
+        <h3 className={cx('byline-field-array-title', styles.title)}>{field.label}</h3>
       )}
       {disableSorting ? (
-        <div className="flex flex-col gap-4">
+        <div className={cx('byline-field-array-stack', styles.stack)}>
           {items.map((item, index) => renderItem(item, index))}
         </div>
       ) : (
         <DraggableSortable
           ids={items.map((i) => i.id)}
           onDragEnd={handleDragEnd}
-          className="flex flex-col gap-4"
+          className={cx('byline-field-array-stack', styles.stack)}
         >
           {items.map((item, index) => renderItem(item, index))}
           <span>

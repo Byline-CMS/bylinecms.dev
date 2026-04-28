@@ -17,12 +17,7 @@ import {
 } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
-const menuItemClasses = cx(
-  'flex gap-1 w-full rounded px-[2px] py-[5px] md:text-sm',
-  'hover:bg-canvas-50/30 dark:hover:bg-canvas-900',
-  'cursor-default select-none items-center outline-none',
-  'text-gray-600 focus:bg-canvas-50/30 dark:text-gray-300 dark:focus:bg-canvas-900'
-)
+import styles from './draggable-context-menu.module.css'
 
 interface DraggableContextMenuProps {
   onAddBelow?: () => void
@@ -33,6 +28,11 @@ export function DraggableContextMenu({
   onAddBelow,
   onRemove,
 }: DraggableContextMenuProps): React.JSX.Element {
+  const itemClass = cx('byline-draggable-menu-item', styles.item)
+  const rowClass = cx('byline-draggable-menu-row', styles.row)
+  const iconSlotClass = cx('byline-draggable-menu-icon-slot', styles['icon-slot'])
+  const labelClass = cx('byline-draggable-menu-label', styles.label)
+
   return (
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger render={<IconButton variant="text" size="sm" />}>
@@ -43,34 +43,36 @@ export function DraggableContextMenu({
         <DropdownMenu.Content
           align="end"
           sideOffset={0}
-          className={cx(
-            'z-40 rounded radix-side-bottom:animate-slide-down radix-side-top:animate-slide-up',
-            'w-34 px-1.5 py-1 shadow-md',
-            'bg-white dark:bg-canvas-800 border dark:border-canvas-700 shadow'
-          )}
+          className={cx('byline-draggable-menu', styles.menu)}
         >
-          <DropdownMenu.Item className={menuItemClasses} onClick={onAddBelow}>
-            <div className="flex w-full items-center gap-1">
-              <span className="inline-block w-[22px]">
+          <DropdownMenu.Item className={itemClass} onClick={onAddBelow}>
+            <div className={rowClass}>
+              <span className={iconSlotClass}>
                 <PlusIcon width="18px" height="18px" />
               </span>
-              <span className="text-left inline-block w-full flex-1 self-start text-black dark:text-gray-300">
-                Add Below
-              </span>
+              <span className={labelClass}>Add Below</span>
             </div>
           </DropdownMenu.Item>
-          <DropdownMenu.Separator className="my-1 border-t border-t-gray-200 dark:border-t-gray-900 w-[90%] mx-auto" />
-          <DropdownMenu.Item className={menuItemClasses} onClick={onRemove}>
-            <div className="flex w-full items-center gap-1">
-              <div className="flex items-center gap-1">
-                <span className="inline-block w-[22px]">
+          <DropdownMenu.Separator
+            className={cx('byline-draggable-menu-separator', styles.separator)}
+          />
+          <DropdownMenu.Item className={itemClass} onClick={onRemove}>
+            <div className={rowClass}>
+              <div className={rowClass}>
+                <span className={iconSlotClass}>
                   <DeleteIcon
                     width="18px"
                     height="18px"
-                    svgClassName="stroke-red-600 dark:stroke-red-600"
+                    svgClassName={cx('byline-draggable-menu-delete-icon', styles['delete-icon'])}
                   />
                 </span>
-                <span className="text-left inline-block w-full flex-1 self-start text-red-600">
+                <span
+                  className={cx(
+                    'byline-draggable-menu-label byline-draggable-menu-label-danger',
+                    styles.label,
+                    styles['label-danger']
+                  )}
+                >
                   Remove
                 </span>
               </div>

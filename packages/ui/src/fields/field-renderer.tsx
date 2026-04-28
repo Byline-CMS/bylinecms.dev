@@ -13,11 +13,13 @@ import type {
   FieldComponentSlots,
   GroupField as GroupFieldType,
 } from '@byline/core'
+import cx from 'classnames'
 
 import { ArrayField } from './array/array-field'
 import { BlocksField } from './blocks/blocks-field'
 import { CheckboxField } from './checkbox/checkbox-field'
 import { DateTimeField } from './datetime/datetime-field'
+import styles from './field-renderer.module.css'
 import { FileField } from './file/file-field'
 import { GroupField } from './group/group-field'
 import { ImageField } from './image/image-field'
@@ -232,9 +234,11 @@ export const FieldRenderer = ({
 
   if (badge && !selfBadge) {
     return (
-      <div className="localized-field relative">
+      <div className={cx('byline-field-localized-wrap', styles['localized-wrap'])}>
         {renderField()}
-        <span className="locale-badge absolute top-0 right-0 leading-none">{badge}</span>
+        <span className={cx('byline-field-localized-badge', styles['localized-badge'])}>
+          {badge}
+        </span>
       </div>
     )
   }

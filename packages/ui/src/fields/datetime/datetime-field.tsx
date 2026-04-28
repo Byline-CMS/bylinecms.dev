@@ -8,8 +8,10 @@
 
 import type { DateTimeField as FieldType } from '@byline/core'
 import { DatePicker, ErrorText } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import styles from './datetime-field.module.css'
 
 export const DateTimeField = ({
   field,
@@ -33,7 +35,7 @@ export const DateTimeField = ({
   const incomingValue = value ?? fieldValue ?? defaultValue ?? null
 
   return (
-    <div className={`byline-datetime ${field.name}`}>
+    <div className={`byline-field-datetime ${field.name}`}>
       <DatePicker
         id={id ?? fieldPath}
         name={field.name}
@@ -44,7 +46,7 @@ export const DateTimeField = ({
         yearsInFuture={field.yearsInFuture || 1}
         yearsInPast={field.yearsInPast || 10}
         onDateChange={(date) => onChange?.(date)}
-        className={isDirty ? 'border-blue-300' : ''}
+        className={cx(isDirty && ['byline-field-datetime-dirty', styles.dirty])}
       />
       {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
     </div>

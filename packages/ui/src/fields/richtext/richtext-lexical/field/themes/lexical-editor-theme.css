@@ -554,8 +554,7 @@ html[data-theme="dark"] .LexicalEditorTheme__code:before {
 }
 
 .dark,
-[data-theme="dark"],
-[data-theme="dark"] ::backdrop {
+[data-theme="dark"] {
   .LexicalEditorTheme__quote {
     color: rgb(187, 189, 192);
   }

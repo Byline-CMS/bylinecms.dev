@@ -7,8 +7,10 @@
  */
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import cx from 'classnames'
 
 import { PickerCell, resolveFallbackDisplayField, resolveRowLabel } from './relation-display'
+import styles from './relation-summary.module.css'
 
 // ---------------------------------------------------------------------------
 // RelationSummary — selected-value tile for the relation field widget.
@@ -65,9 +67,17 @@ export function RelationSummary({
   // Unresolved (deleted target).
   if (value._resolved === false) {
     return (
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-gray-500">{targetDefinition.labels.singular}</span>
-        <span className="font-mono text-xs text-red-400 truncate">
+      <div className={cx('byline-relation-summary-stack', styles.stack)}>
+        <span className={cx('byline-relation-summary-kind', styles.kind)}>
+          {targetDefinition.labels.singular}
+        </span>
+        <span
+          className={cx(
+            'byline-relation-summary-value-mono byline-relation-summary-missing',
+            styles['value-mono'],
+            styles.missing
+          )}
+        >
           (target not found) {value.targetDocumentId}
         </span>
       </div>
@@ -81,7 +91,7 @@ export function RelationSummary({
 
   if (record && pickerColumns && pickerColumns.length > 0) {
     return (
-      <div className="flex items-center gap-3 min-w-0">
+      <div className={cx('byline-relation-summary-row', styles.row)}>
         {pickerColumns.map((col) => (
           <PickerCell key={String(col.fieldName)} column={col} record={record} />
         ))}
@@ -97,12 +107,16 @@ export function RelationSummary({
   const label = record ? resolveRowLabel(record, resolvedDisplayField) : null
 
   return (
-    <div className="flex flex-col gap-0.5 min-w-0">
-      <span className="text-gray-500">{targetDefinition.labels.singular}</span>
+    <div className={cx('byline-relation-summary-stack', styles.stack)}>
+      <span className={cx('byline-relation-summary-kind', styles.kind)}>
+        {targetDefinition.labels.singular}
+      </span>
       {label ? (
-        <span className="truncate text-gray-100">{label}</span>
+        <span className={cx('byline-relation-summary-value', styles.value)}>{label}</span>
       ) : (
-        <span className="font-mono truncate">{value.targetDocumentId}</span>
+        <span className={cx('byline-relation-summary-value-mono', styles['value-mono'])}>
+          {value.targetDocumentId}
+        </span>
       )}
     </div>
   )

@@ -8,8 +8,10 @@
 
 import type { SelectField as FieldType } from '@byline/core'
 import { ErrorText, Select } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import styles from './select-field.module.css'
 
 export const SelectField = ({
   field,
@@ -33,7 +35,7 @@ export const SelectField = ({
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
 
   return (
-    <div className={`byline-select ${field.name}`}>
+    <div className={`byline-field-select ${field.name}`}>
       <Select<string>
         size="xs"
         id={id ?? fieldPath}
@@ -46,7 +48,7 @@ export const SelectField = ({
         onValueChange={(value) => {
           if (value != null) onChange?.(value)
         }}
-        className={isDirty ? 'border-blue-300' : ''}
+        className={cx(isDirty && ['byline-field-select-dirty', styles.dirty])}
       />
       {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
     </div>

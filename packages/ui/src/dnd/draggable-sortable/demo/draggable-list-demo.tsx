@@ -6,6 +6,7 @@ import { Card, GripperVerticalIcon } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { DraggableSortable, moveItem, useSortable } from '..'
+import styles from './draggable-list-demo.module.css'
 
 const sourceItems = [
   {
@@ -63,12 +64,9 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ item, disabled, isSortabl
     <Card
       ref={setNodeRef as any}
       className={cx(
-        'mb-4 bg-canvas-25 relative shadow',
-        'flex flex-col min-w-full no-underline max-w-sm p-6',
-        'bg-white border border-canvas-25 rounded-lg shadow-md',
-        'dark:bg-canvas-800 ',
-        //  'transition ease-in-out duration-200',
-        { 'shadow-lg': isDragging }
+        'byline-demo-card',
+        styles.card,
+        isDragging && ['byline-demo-card-dragging', styles['card-dragging']]
       )}
       style={{
         // @ts-expect-error
@@ -77,8 +75,12 @@ const DraggableCard: React.FC<DraggableCardProps> = ({ item, disabled, isSortabl
         zIndex: isDragging ? '10' : 'auto',
       }}
     >
-      <div className="header flex justify-start items-center">
-        <div className="mr-2" {...attributes} {...listeners}>
+      <div className={cx('byline-demo-card-header', styles['card-header'])}>
+        <div
+          className={cx('byline-demo-card-grip', styles['card-grip'])}
+          {...attributes}
+          {...listeners}
+        >
           <GripperVerticalIcon />
         </div>
         <h3>{item.name}</h3>
@@ -104,12 +106,8 @@ export function DraggableList(): React.JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-[600px] relative">
-      <DraggableSortable
-        ids={items.map((item) => item.id)}
-        onDragEnd={handleOnDragEnd}
-        className=""
-      >
+    <div className={cx('byline-demo-list', styles.list)}>
+      <DraggableSortable ids={items.map((item) => item.id)} onDragEnd={handleOnDragEnd}>
         {items.map((item) => (
           <DraggableCard key={item.id} disabled={false} isSortable={true} item={item} />
         ))}

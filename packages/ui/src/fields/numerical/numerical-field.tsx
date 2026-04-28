@@ -101,7 +101,7 @@ export const NumericalField = ({
   }
 
   return (
-    <div className={`byline-${field.type} ${field.name}`}>
+    <div className={`byline-field-${field.type} ${field.name}`}>
       {renderLabel()}
       {BeforeField && <BeforeField {...slotBaseProps} />}
       {renderInput()}

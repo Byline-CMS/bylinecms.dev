@@ -1,0 +1,65 @@
+/**
+ * DraggableList demo — example of how to assemble DraggableSortable +
+ * useSortable into a working list. Not part of the public surface; kept as
+ * a documentation example.
+ *
+ * Override handles:
+ *   .byline-demo-list           — root list container
+ *   .byline-demo-card           — single draggable card
+ *   .byline-demo-card-dragging  — added while the card is mid-drag
+ *   .byline-demo-card-header    — gripper + title row
+ *   .byline-demo-card-grip      — drag handle column
+ */
+
+.list,
+:global(.byline-demo-list) {
+  position: relative;
+  margin-inline: auto;
+  max-width: 600px;
+}
+
+.card,
+:global(.byline-demo-card) {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-width: 100%;
+  max-width: 24rem;
+  margin-bottom: var(--spacing-16);
+  padding: 1.5rem;
+  border: var(--border-width-thin) var(--border-style-solid) var(--canvas-25);
+  border-radius: var(--border-radius-lg);
+  background-color: white;
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+  text-decoration: none;
+}
+
+.card-dragging,
+:global(.byline-demo-card-dragging) {
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.card-header,
+:global(.byline-demo-card-header) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.card-grip,
+:global(.byline-demo-card-grip) {
+  margin-right: var(--spacing-8);
+}
+
+/* ─── Dark theme variants ───────────────────────────────────── */
+
+:is([data-theme="dark"], :global(.dark)) {
+  .card,
+  :global(.byline-demo-card) {
+    background-color: var(--canvas-800);
+  }
+}

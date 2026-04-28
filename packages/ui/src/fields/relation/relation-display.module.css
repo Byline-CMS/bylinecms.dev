@@ -1,0 +1,29 @@
+/**
+ * RelationDisplay — shared cell renderer for relation picker rows and the
+ * relation-summary selected-value tile.
+ *
+ * Override handles:
+ *   .byline-relation-cell           — single column cell
+ *   .byline-relation-cell-center    — cell with align: center
+ *   .byline-relation-cell-right     — cell with align: right
+ */
+
+.cell,
+:global(.byline-relation-cell) {
+  min-width: 0;
+  color: var(--gray-100);
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell-center,
+:global(.byline-relation-cell-center) {
+  text-align: center;
+}
+
+.cell-right,
+:global(.byline-relation-cell-right) {
+  text-align: right;
+}

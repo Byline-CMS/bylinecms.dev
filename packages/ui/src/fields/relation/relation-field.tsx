@@ -16,8 +16,10 @@ import type {
 } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 import { Button, ErrorText, Label } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import styles from './relation-field.module.css'
 import { RelationPicker } from './relation-picker'
 import { RelationSummary } from './relation-summary'
 
@@ -115,10 +117,11 @@ export const RelationField = ({
       : null
 
   const isUnknown = targetDef == null
+  const monoClass = cx('byline-field-relation-mono', styles.mono)
 
   return (
-    <div className={`byline-relation ${field.name}`}>
-      <div className="flex items-baseline gap-2 mb-1">
+    <div className={`byline-field-relation ${field.name}`}>
+      <div className={cx('byline-field-relation-header', styles.header)}>
         <Label
           id={`${htmlId}-label`}
           htmlFor={htmlId}
@@ -128,27 +131,29 @@ export const RelationField = ({
         {incomingValue && !isUnknown && (
           <button
             type="button"
-            className="text-xs text-red-500 hover:text-red-400 underline-offset-2 hover:underline"
+            className={cx('byline-field-relation-remove', styles.remove)}
             onClick={handleRemove}
           >
             Remove
           </button>
         )}
       </div>
-      {field.helpText && <div className="mb-1 text-xs text-gray-400">{field.helpText}</div>}
+      {field.helpText && (
+        <div className={cx('byline-field-relation-help', styles.help)}>{field.helpText}</div>
+      )}
 
       {isUnknown ? (
-        <div className="mt-1 flex flex-col gap-1 border border-red-700 bg-red-900/20 p-2 rounded-md text-xs text-red-200">
+        <div className={cx('byline-field-relation-error-tile', styles['error-tile'])}>
           <span>
-            Relation field <code className="font-mono">{field.name}</code> targets unknown
-            collection <code className="font-mono">{field.targetCollection}</code>.
+            Relation field <code className={monoClass}>{field.name}</code> targets unknown
+            collection <code className={monoClass}>{field.targetCollection}</code>.
           </span>
-          <span className="text-red-400/80">
+          <span className={cx('byline-field-relation-error-text', styles['error-text'])}>
             Register the collection in your Byline config or correct the target path.
           </span>
         </div>
       ) : incomingValue ? (
-        <div className="mt-1 flex items-center justify-between gap-2 border border-primary-500 p-2 rounded-md text-xs text-gray-200">
+        <div className={cx('byline-field-relation-tile', styles.tile)}>
           <RelationSummary
             targetDefinition={targetDef}
             targetAdminConfig={targetAdminConfig}

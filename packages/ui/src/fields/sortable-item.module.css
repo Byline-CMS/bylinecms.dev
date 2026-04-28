@@ -1,0 +1,167 @@
+/**
+ * SortableItem — drag-card wrapping array/blocks list rows.
+ *
+ * Override handles:
+ *   .byline-sortable                  — root card
+ *   .byline-sortable-dragging         — added while the item is mid-drag
+ *   .byline-sortable-collapsed        — added when content is collapsed
+ *   .byline-sortable-header           — top row (gripper + label + actions)
+ *   .byline-sortable-header-collapsed — added to header when collapsed
+ *   .byline-sortable-grip             — drag handle button
+ *   .byline-sortable-grip-icon        — drag handle icon
+ *   .byline-sortable-label            — header label text
+ *   .byline-sortable-toggle           — collapse/expand button
+ *   .byline-sortable-toggle-icon      — chevron icon (rotates when collapsed)
+ *   .byline-sortable-content          — body container (children)
+ *   .byline-sortable-content-hidden   — collapsed body state
+ */
+
+.root,
+:global(.byline-sortable) {
+  padding: var(--spacing-16);
+  padding-top: var(--spacing-8);
+  border: var(--border-width-thin) dashed var(--gray-600);
+  border-radius: var(--border-radius-md);
+  background-color: oklch(from var(--canvas-50) l c h / 0.5);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.dragging,
+:global(.byline-sortable-dragging) {
+  background-color: oklch(from var(--canvas-50) l c h / 0.8);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.collapsed,
+:global(.byline-sortable-collapsed) {
+  padding-top: var(--spacing-8);
+  padding-bottom: var(--spacing-8);
+}
+
+.header,
+:global(.byline-sortable-header) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  margin-bottom: 0;
+  margin-left: -0.75rem;
+}
+
+.header-expanded,
+:global(.byline-sortable-header-expanded) {
+  margin-bottom: var(--spacing-8);
+}
+
+.grip,
+:global(.byline-sortable-grip) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border: none;
+  background: none;
+  border-radius: var(--border-radius-sm);
+  color: var(--gray-400);
+  cursor: grab;
+}
+
+.grip:hover,
+:global(.byline-sortable-grip):hover {
+  background-color: var(--gray-100);
+}
+
+.grip:active,
+:global(.byline-sortable-grip):active {
+  cursor: grabbing;
+}
+
+.grip-icon,
+:global(.byline-sortable-grip-icon) {
+  width: 1rem;
+  height: 1rem;
+  color: var(--primary-500);
+}
+
+.label,
+:global(.byline-sortable-label) {
+  flex: 1;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: var(--font-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toggle,
+:global(.byline-sortable-toggle) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border: none;
+  background: none;
+  border-radius: var(--border-radius-sm);
+  color: var(--gray-400);
+  cursor: pointer;
+}
+
+.toggle:hover,
+:global(.byline-sortable-toggle):hover {
+  background-color: var(--gray-800);
+}
+
+.toggle-icon,
+:global(.byline-sortable-toggle-icon) {
+  width: 1rem;
+  height: 1rem;
+  transition: transform 150ms ease;
+}
+
+.toggle-icon-rotated,
+:global(.byline-sortable-toggle-icon-rotated) {
+  transform: rotate(180deg);
+}
+
+.content,
+:global(.byline-sortable-content) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  transition: all 200ms ease;
+  opacity: 1;
+}
+
+.content-hidden,
+:global(.byline-sortable-content-hidden) {
+  max-height: 0;
+  opacity: 0;
+  z-index: -10;
+}
+
+/* ─── Dark theme variants ───────────────────────────────────── */
+
+:is([data-theme="dark"], :global(.dark)) {
+  .root,
+  :global(.byline-sortable) {
+    background-color: var(--canvas-800);
+  }
+
+  .dragging,
+  :global(.byline-sortable-dragging) {
+    background-color: oklch(from var(--canvas-700) l c h / 0.3);
+  }
+
+  .grip:hover,
+  :global(.byline-sortable-grip):hover {
+    background-color: var(--gray-800);
+  }
+
+  .grip-icon,
+  :global(.byline-sortable-grip-icon) {
+    color: var(--primary-200);
+  }
+}

@@ -10,16 +10,22 @@ import { useMemo } from 'react'
 
 import type { Field, GroupField as GroupFieldType } from '@byline/core'
 import { ErrorText } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { placeholderForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { useFieldError } from '../../forms/form-context'
+import styles from './group-field.module.css'
 
 // ---------------------------------------------------------------------------
 // GroupField — renders a fixed-order group of child fields wrapped in a
 // single div. No drag-and-drop. No add/remove.
 // The outer div carries the field type ('group') and field name as classes
 // so consumers can target individual groups via CSS.
+//
+// Stable override handles: `.byline-field-group`, `.byline-field-group-header`,
+// `.byline-field-group-title`, `.byline-field-group-help`,
+// `.byline-field-group-body`.
 // ---------------------------------------------------------------------------
 
 interface GroupFieldProps {
@@ -45,16 +51,21 @@ export const GroupField = ({ field, defaultValue, path }: GroupFieldProps) => {
   }, [defaultValue, field.fields])
 
   return (
-    <div className={`byline-group ${field.name}`}>
+    <div className={`byline-field-group ${field.name}`}>
       {field.label && (
-        <div className="flex flex-col gap-0.5 mb-2">
-          <h3 className="text-[1rem] font-medium">
-            {field.label} {!field.optional && <span className="text-red-500">*</span>}
+        <div className={cx('byline-field-group-header', styles.header)}>
+          <h3 className={cx('byline-field-group-title', styles.title)}>
+            {field.label}{' '}
+            {!field.optional && (
+              <span className={cx('byline-field-group-required', styles.required)}>*</span>
+            )}
           </h3>
-          {field.helpText && <p className="muted text-xs text-muted">{field.helpText}</p>}
+          {field.helpText && (
+            <p className={cx('byline-field-group-help', styles.help)}>{field.helpText}</p>
+          )}
         </div>
       )}
-      <div className="flex flex-col gap-2">
+      <div className={cx('byline-field-group-body', styles.body)}>
         {(field.fields as Field[]).map((innerField) => {
           return (
             <FieldRenderer

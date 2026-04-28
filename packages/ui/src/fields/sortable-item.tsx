@@ -13,6 +13,7 @@ import cx from 'classnames'
 
 import { useSortable } from '../dnd/draggable-sortable'
 import { DraggableContextMenu } from './draggable-context-menu'
+import styles from './sortable-item.module.css'
 
 export const SortableItem = ({
   id,
@@ -47,41 +48,51 @@ export const SortableItem = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={cx('p-4 pt-2 border border-dashed border-gray-600 rounded-md', {
-        'shadow-sm bg-canvas-50/50 dark:bg-canvas-800': !isDragging,
-        'shadow-md bg-canvas-50/80 dark:bg-canvas-700/30': isDragging,
-        'pt-2 pb-2': collapsed,
-      })}
+      className={cx(
+        'byline-sortable',
+        styles.root,
+        isDragging && ['byline-sortable-dragging', styles.dragging],
+        collapsed && ['byline-sortable-collapsed', styles.collapsed]
+      )}
     >
-      <div className={cx('flex items-center gap-2 mb-0 -ml-3', { 'mb-2': !collapsed })}>
+      <div
+        className={cx(
+          'byline-sortable-header',
+          styles.header,
+          !collapsed && ['byline-sortable-header-expanded', styles['header-expanded']]
+        )}
+      >
         <button
           type="button"
-          className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-gray-400 flex items-center justify-center"
+          className={cx('byline-sortable-grip', styles.grip)}
           {...attributes}
           {...listeners}
         >
-          <GripperVerticalIcon className="w-4 h-4 text-primary-500 dark:text-primary-200" />
+          <GripperVerticalIcon className={cx('byline-sortable-grip-icon', styles['grip-icon'])} />
         </button>
-        <div className="text-[1rem] font-medium flex-1 min-w-0 truncate">{label}</div>
+        <div className={cx('byline-sortable-label', styles.label)}>{label}</div>
         <DraggableContextMenu onAddBelow={onAddBelow} onRemove={onRemove} />
         <button
           type="button"
-          className="p-1 rounded hover:bg-gray-800 text-gray-400 flex items-center justify-center"
+          className={cx('byline-sortable-toggle', styles.toggle)}
           onClick={() => setCollapsed((prev) => !prev)}
           aria-label={collapsed ? 'Expand item' : 'Collapse item'}
         >
           <ChevronDownIcon
-            className={cx('w-4 h-4 transition-transform', {
-              'rotate-180': collapsed,
-            })}
+            className={cx(
+              'byline-sortable-toggle-icon',
+              styles['toggle-icon'],
+              collapsed && ['byline-sortable-toggle-icon-rotated', styles['toggle-icon-rotated']]
+            )}
           />
         </button>
       </div>
       <div
-        className={cx('flex flex-col relative gap-4 transition-all duration-200', {
-          'max-h-0 opacity-0 -z-10': collapsed,
-          'opacity-100': !collapsed,
-        })}
+        className={cx(
+          'byline-sortable-content',
+          styles.content,
+          collapsed && ['byline-sortable-content-hidden', styles['content-hidden']]
+        )}
       >
         {children}
       </div>

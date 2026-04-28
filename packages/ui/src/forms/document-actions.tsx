@@ -17,7 +17,9 @@ import {
   IconButton,
   Modal,
 } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
+import styles from './document-actions.module.css'
 import type { PublishedVersionInfo } from './form-renderer'
 
 export function DocumentActions({
@@ -44,12 +46,16 @@ export function DocumentActions({
         <DropdownComponent.Trigger
           render={<IconButton variant="text" intent="noeffect" size="sm" />}
         >
-          <EllipsisIcon className="rotate-90 text-primary-500" width="15px" height="15px" />
+          <EllipsisIcon
+            className={cx('byline-form-actions-icon', styles.icon)}
+            width="15px"
+            height="15px"
+          />
         </DropdownComponent.Trigger>
 
         <DropdownComponent.Portal>
           <DropdownComponent.Content
-            className="min-w-[110px]"
+            className={cx('byline-form-actions-menu', styles.menu)}
             align="end"
             data-side="top"
             sideOffset={10}
@@ -57,11 +63,11 @@ export function DocumentActions({
             {publishedVersion && (
               <>
                 <DropdownComponent.Item onClick={onUnpublish}>
-                  <div className="dropdown-item-content flex items-center ml-2">
-                    <span className="dropdown-item-content-icon">
-                      {/* <UserIcon width="22px" height="22px" /> */}
+                  <div className={cx('byline-form-actions-item', styles.item)}>
+                    <span className={cx('byline-form-actions-item-icon', styles['item-icon'])} />
+                    <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                      Unpublish
                     </span>
-                    <span className="dropdown-item-content-text text-sm ">Unpublish</span>
                   </div>
                 </DropdownComponent.Item>
                 <DropdownComponent.Separator />
@@ -72,15 +78,12 @@ export function DocumentActions({
                 setShowDeleteConfirm(true)
               }}
             >
-              <div className="dropdown-item-content flex items-center ml-1">
-                <span className="dropdown-item-content-icon inline-block w-[28px]">
+              <div className={cx('byline-form-actions-item', styles.item)}>
+                <span className={cx('byline-form-actions-item-icon', styles['item-icon'])}>
                   <DeleteIcon width="16px" height="16px" />
                 </span>
-                <span className="dropdown-item-content-text text-left text-sm inline-block w-full">
-                  <button
-                    type="button"
-                    className="text-left inline-block w-full flex-1 leading-none text-red-600 dark:text-red-400"
-                  >
+                <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                  <button type="button" className={cx('byline-form-actions-delete', styles.delete)}>
                     Delete
                   </button>
                 </span>
@@ -98,8 +101,10 @@ export function DocumentActions({
         }}
       >
         <Modal.Container style={{ maxWidth: '500px' }}>
-          <Modal.Header className="pt-4 mb-2">
-            <h3 className="m-0 mb-2 text-2xl">Delete Document</h3>
+          <Modal.Header className={cx('byline-form-actions-modal-head', styles['modal-head'])}>
+            <h3 className={cx('byline-form-actions-modal-title', styles['modal-title'])}>
+              Delete Document
+            </h3>
             <IconButton
               arial-label="Close"
               size="xs"
@@ -116,7 +121,12 @@ export function DocumentActions({
             </p>
           </Modal.Content>
           <Modal.Actions>
-            <button data-autofocus type="button" tabIndex={0} className="sr-only">
+            <button
+              data-autofocus
+              type="button"
+              tabIndex={0}
+              className={cx('byline-form-actions-sr-only', styles['sr-only'])}
+            >
               no action
             </button>
             <Button

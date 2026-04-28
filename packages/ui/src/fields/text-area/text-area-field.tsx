@@ -10,9 +10,11 @@ import { useCallback } from 'react'
 
 import type { Field, FieldComponentSlots, TextAreaField as FieldType } from '@byline/core'
 import { Label, TextArea } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { LocaleBadge } from '../locale-badge'
+import styles from './text-area-field.module.css'
 
 export const TextAreaField = ({
   field,
@@ -77,11 +79,13 @@ export const TextAreaField = ({
   const suppressInputLabel = showBadge || hasCustomLabel
   const suppressInputHelpText = !!CustomHelpText
 
+  const labelRowClass = cx('byline-field-text-area-label-row', styles['label-row'])
+
   // ── Label rendering ──────────────────────────────────────────
   const renderLabel = () => {
     if (hasCustomLabel) {
       return (
-        <div className="flex items-center">
+        <div className={labelRowClass}>
           <CustomLabel {...slotBaseProps} label={field.label} required={!field.optional} />
           {showBadge && <LocaleBadge locale={locale!} />}
         </div>
@@ -89,7 +93,7 @@ export const TextAreaField = ({
     }
     if (showBadge) {
       return (
-        <div className="flex items-center">
+        <div className={labelRowClass}>
           <Label
             id={`${htmlId}-label`}
             htmlFor={htmlId}
@@ -132,7 +136,7 @@ export const TextAreaField = ({
   }
 
   return (
-    <div className={`byline-textArea ${field.name}`}>
+    <div className={`byline-field-text-area ${field.name}`}>
       {renderLabel()}
       {BeforeField && <BeforeField {...slotBaseProps} />}
       {renderInput()}

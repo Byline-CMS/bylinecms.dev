@@ -1,0 +1,13 @@
+/**
+ * DateTimeField — date/time picker form widget.
+ *
+ * Override handles:
+ *   .byline-field-datetime         — the wrapper div
+ *   .byline-field-datetime-dirty   — added to the inner picker when the
+ *                                    field has unsaved local changes
+ */
+
+.dirty,
+:global(.byline-field-datetime-dirty) {
+  border-color: var(--blue-300);
+}
