@@ -17,10 +17,14 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint --continue",
     "typecheck": "turbo run typecheck --continue",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "version-packages": "changeset version",
+    "release:tag": "turbo run build --filter=\"./packages/*\" && changeset tag",
+    "release:npm": "turbo run build --filter=\"./packages/*\" && changeset publish"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.11"
+    "@biomejs/biome": "2.4.11",
+    "@changesets/cli": "^2.30.0"
   },
   "dependencies": {
     "turbo": "^2.9.6",

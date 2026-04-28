@@ -2,7 +2,7 @@
   "name": "@byline/storage-s3",
   "private": false,
   "license": "MPL-2.0",
-  "version": "0.1.0",
+  "version": "0.9.1",
   "description": "Byline CMS S3-compatible storage provider (AWS S3, Cloudflare R2, MinIO, etc.)",
   "keywords": [
     "cms",
