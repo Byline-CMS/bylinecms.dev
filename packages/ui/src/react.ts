@@ -36,7 +36,6 @@ export * from './forms/form-context.js'
 export * from './forms/form-renderer.js'
 export * from './forms/navigation-guard.js'
 export * from './forms/path-widget.js'
-export * from './forms/tanstack-navigation-guard.js'
 export * from './services/field-services-context.js'
 export * from './services/i18n-context.js'
 export type {

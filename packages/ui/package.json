@@ -87,20 +87,13 @@
     "zod-form-data": "^3.0.1"
   },
   "peerDependencies": {
-    "@tanstack/react-router": "^1.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@tanstack/react-router": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.11",
     "@rsbuild/plugin-react": "^1.4.6",
     "@rslib/core": "^0.21.0",
-    "@tanstack/react-router": "^1.168.19",
     "@types/lodash": "^4.17.24",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^25.6.0",
