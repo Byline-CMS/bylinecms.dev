@@ -43,7 +43,7 @@ const listViewColumns: ColumnDefinition[] = [
     className: 'w-[15%]',
   },
   {
-    fieldName: 'updated_at',
+    fieldName: 'updatedAt',
     label: 'Last Updated',
     sortable: true,
     align: 'right',
