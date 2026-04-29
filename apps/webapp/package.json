@@ -62,7 +62,6 @@
     "react-diff-viewer-continued": "^4.2.0",
     "react-dom": "19.2.5",
     "react-error-boundary": "^6.1.1",
-    "react-hook-form": "^7.72.1",
     "react-json-view-lite": "^2.5.0",
     "react-swipeable": "^7.0.2",
     "uuid": "^13.0.0",
