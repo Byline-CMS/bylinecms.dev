@@ -404,6 +404,13 @@ export interface RichTextField extends LocalizableField {
     minLength?: number
     maxLength?: number
   }
+  /**
+   * Editor-specific configuration. The shape is opaque to `@byline/core` —
+   * each editor adapter defines what it accepts. For `@byline/richtext-lexical`
+   * this is its `EditorConfig`. Per-field config takes precedence over any
+   * baked-in config supplied at registration via `lexicalEditor()`.
+   */
+  editorConfig?: unknown
 }
 
 // ---------------------------------------------------------------------------

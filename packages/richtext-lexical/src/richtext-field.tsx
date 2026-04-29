@@ -14,6 +14,7 @@ import { ErrorText, Label } from '@infonomic/uikit/react'
 
 import { defaultEditorConfig } from './field/config/default'
 import { EditorField } from './field/editor-field'
+import type { EditorConfig } from './field/config/types'
 
 interface Props {
   field: FieldType
@@ -21,7 +22,7 @@ interface Props {
   instanceKey?: string
   value?: any
   defaultValue?: any
-  editorConfig?: any
+  editorConfig?: EditorConfig
   onChange?: (value: any) => void
   path?: string
   /** When provided, renders a LocaleBadge next to the field label. */
@@ -47,6 +48,15 @@ export const RichTextField = ({
 
   const fieldId = instanceKey ? `${field.name}-${instanceKey}` : field.name
 
+  // Resolve the editor config with field-level priority:
+  //   1. `field.editorConfig` — set on the schema field itself (most specific).
+  //   2. `editorConfig` prop  — baked in at registration via `lexicalEditor()`.
+  //   3. `defaultEditorConfig` — package default.
+  // The schema-level value is typed as `unknown` at the `@byline/core` boundary,
+  // so the cast lives here where the Lexical config shape is known.
+  const resolvedEditorConfig: EditorConfig =
+    (field.editorConfig as EditorConfig | undefined) ?? editorConfig ?? defaultEditorConfig
+
   // Assemble the label node here (a Byline-level concern) so that the editor
   // component itself stays free of any Byline-specific dependencies.
   const labelNode: React.ReactNode =
@@ -69,7 +79,7 @@ export const RichTextField = ({
       <div className="flex flex-1 flex-col gap-1">
         <EditorField
           onChange={onChange}
-          editorConfig={editorConfig || defaultEditorConfig}
+          editorConfig={resolvedEditorConfig}
           id={fieldId}
           name={field.name}
           description={field.helpText}

@@ -1,6 +1,6 @@
 # Richtext Editor Adapter — Analysis
 
-> Last updated: 2026-04-29 (Phase 1 — `@byline/richtext-lexical` extracted, single-slot adapter shipped)
+> Last updated: 2026-04-29 (Phase 1 — `@byline/richtext-lexical` extracted, single-slot adapter shipped; Phase 1.5 — opaque per-field `editorConfig` and `lexicalEditor()` factory shipped same day)
 > Companions:
 > - [CORE-COMPOSITION-ANALYSIS.md](./CORE-COMPOSITION-ANALYSIS.md) — the broader story for how Byline composes adapter packages (db, storage, session, and now editors).
 > - [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) — the richtext editor's link and inline-image plugins are the first non-form consumer of the populate pipeline; future editor work will continue to lean on the relation field surface.
@@ -109,6 +109,79 @@ case 'richText': {
 
 The throw is the failure mode by design. A `richText` field with no editor configured is unusable; we want loud, fast feedback at first render rather than a silent textarea fallback that could ship to production unnoticed.
 
+## Phase 1.5 — Opaque per-field config and a registration factory
+
+Shipped the same day as Phase 1, in response to the immediate practical need to (a) configure the registered editor with site-wide settings and (b) reduce the feature set on a per-field basis (caption fields, byline strap-lines, anywhere the full editor surface is inappropriate).
+
+The shape is intentionally minimal — three tiny additions, none of which commit `@byline/core` to a feature graph or adapter pipeline. The contract `RichTextEditorComponent` is unchanged.
+
+### What was added
+
+1. **Schema-level slot — `RichTextField.editorConfig?: unknown`** in `packages/core/src/@types/field-types.ts`. The shape is opaque to `@byline/core`: each editor adapter defines what it accepts. For `@byline/richtext-lexical` this is the package's `EditorConfig`. The value flows from the schema through the renderer (which already passes the field definition) into the editor wrapper.
+
+2. **Field-level priority in the wrapper** — `packages/richtext-lexical/src/richtext-field.tsx` resolves the editor config in this order:
+   1. `field.editorConfig` (most specific — the schema author opted in for this field),
+   2. `editorConfig` prop (registration-baked via `lexicalEditor()`),
+   3. `defaultEditorConfig` (package fallback).
+
+3. **Registration factory — `lexicalEditor(configure?)`** in `packages/richtext-lexical/src/lexical-editor.tsx`. Returns a `RichTextEditorComponent` with editor settings baked in via a closure. The `configure` callback receives a `cloneDeep(defaultEditorConfig)` so mutating it is safe and never leaks across registrations. `lexicalEditor()` with no argument is equivalent to registering `RichTextField` directly.
+
+### Two usage shapes
+
+Site-wide reduced editor — registration site:
+
+```ts
+// apps/webapp/byline.admin.config.ts
+import { lexicalEditor } from '@byline/richtext-lexical'
+
+defineClientConfig({
+  fields: {
+    richText: {
+      editor: lexicalEditor((c) => {
+        c.settings.options.tablePlugin = false
+        c.settings.options.codeHighlightPlugin = false
+        return c
+      }),
+    },
+  },
+})
+```
+
+Per-field compact custom field — `apps/webapp/byline/fields/lexical-richtext-compact.ts`:
+
+```ts
+type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
+  configure?: (config: EditorConfig) => EditorConfig
+}
+
+export function lexicalRichTextCompact(options: Options = {}): RichTextField {
+  const { configure, ...rest } = options
+  const base = applyCompactPreset(cloneDeep(defaultEditorConfig))
+  const editorConfig = configure ? configure(base) : base
+  return { name: 'richText', label: 'RichText', ...rest, type: 'richText', editorConfig }
+}
+```
+
+```ts
+// In a collection schema
+fields: [
+  lexicalRichTextCompact({ name: 'caption', label: 'Caption' }),
+  // Compact preset, but re-enable lists for this one field:
+  lexicalRichTextCompact({
+    name: 'summary',
+    configure: (c) => { c.settings.options.listPlugin = true; return c },
+  }),
+]
+```
+
+The factory and the custom field follow exactly the pattern the project already established for `availableLanguagesField` (`apps/webapp/byline/fields/available-languages-field.ts`): `Partial<Omit<TargetField, …computed props…>>` for options, an explicit narrow callback for any computed values, no surprises.
+
+### Why this is *not* the deferred feature-graph surface
+
+The deferred "feature-graph configuration" item below is about a **normalised feature shape shared across multiple editor packages** — a contract in `@byline/core` that says "every editor exposes a feature set in roughly the same shape." That commitment is still deferred, and rightly so: there is only one editor today, and the right time to design a shared feature shape is against two real implementations.
+
+Phase 1.5 is strictly smaller. `RichTextField.editorConfig` is `unknown` — the type system explicitly does not know what's in there, and `@byline/core` does not interpret it. Every editor adapter owns its own config shape and owns the cast at its own boundary. A future Phase 4 could still normalise things on top of this without conflict; the opaque slot would either become typed or sit alongside a typed feature graph for editor-specific extras.
+
 ## Out of scope — deferred
 
 These are the surfaces we deliberately did **not** add in Phase 1. Each one is here as a placeholder so future contributors (human or agent) understand they were considered and consciously deferred.
@@ -197,5 +270,9 @@ The existing `FieldComponentSlots.Field` already provides the per-field escape h
 - Contract: `packages/core/src/@types/field-types.ts` — `RichTextEditorProps`, `RichTextEditorComponent`
 - Slot: `packages/core/src/@types/site-config.ts` — `ClientConfig.fields.richText.editor`
 - Renderer: `packages/ui/src/fields/field-renderer.tsx` — `case 'richText'`
-- Registration: `apps/webapp/byline.admin.config.ts` — `fields.richText.editor`
+- Registration: `apps/webapp/byline.admin.config.ts` — `fields.richText.editor` (commented `lexicalEditor()` example shows the site-wide configuration shape)
 - Per-field override (already shipped): `FieldComponentSlots.Field` in `packages/core/src/@types/field-types.ts`
+- Phase 1.5 schema slot: `RichTextField.editorConfig?: unknown` in `packages/core/src/@types/field-types.ts`
+- Phase 1.5 wrapper resolution: `packages/richtext-lexical/src/richtext-field.tsx` — `resolvedEditorConfig`
+- Phase 1.5 registration factory: `packages/richtext-lexical/src/lexical-editor.tsx` — `lexicalEditor(configure?)`
+- Phase 1.5 worked custom field: `apps/webapp/byline/fields/lexical-richtext-compact.ts`
