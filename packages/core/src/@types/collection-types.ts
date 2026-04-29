@@ -205,7 +205,16 @@ export interface DefineWorkflowInput {
   archived?: RequiredStatusConfig
   /** Additional statuses placed between `draft` and `published`, in order. */
   customStatuses?: WorkflowStatus[]
-  /** Override the default status for new documents (defaults to `'draft'`). */
+  /**
+   * Override the default status for new documents (defaults to `'draft'`).
+   *
+   * Setting this to `'published'` is the supported "publish-on-save" pattern:
+   * the full draft → published → archived lifecycle stays available, but new
+   * versions land directly as `published` so trusted editors can skip the
+   * draft step. For collections that have no editorial lifecycle at all
+   * (categories, tags, taxonomies), use `SINGLE_STATUS_WORKFLOW` instead —
+   * that also strips the workflow controls from the admin UI.
+   */
   defaultStatus?: string
 }
 
@@ -218,6 +227,40 @@ export const DEFAULT_WORKFLOW: WorkflowConfig = {
     { name: 'published', label: 'Published' },
     { name: 'archived', label: 'Archived' },
   ],
+}
+
+/**
+ * Single-status workflow for collections that have no editorial lifecycle —
+ * typically lookup or reference data such as categories, tags, taxonomies,
+ * and facets where a draft → review → publish flow adds friction without
+ * value.
+ *
+ * Effects of using this workflow:
+ *   - Every save lands as `'published'` immediately, so public clients
+ *     reading via `readMode: 'published'` see new rows right away.
+ *   - The form renderer hides workflow controls and shows only Save / Close.
+ *   - The list view's status filter is hidden.
+ *   - `changeDocumentStatus()` and `unpublishDocument()` reject server-side
+ *     because there is no other status to transition to.
+ *
+ * For editorial collections that should keep the draft/published/archived
+ * lifecycle but skip the draft step on save, prefer
+ * `defineWorkflow({ ..., defaultStatus: 'published' })` instead.
+ *
+ * @example
+ * ```ts
+ * import { SINGLE_STATUS_WORKFLOW } from '@byline/core'
+ *
+ * export const DocsCategories: CollectionDefinition = {
+ *   path: 'docs-categories',
+ *   workflow: SINGLE_STATUS_WORKFLOW,
+ *   // ...
+ * }
+ * ```
+ */
+export const SINGLE_STATUS_WORKFLOW: WorkflowConfig = {
+  statuses: [{ name: 'published', label: 'Published' }],
+  defaultStatus: 'published',
 }
 
 /**
@@ -253,7 +296,16 @@ export const DEFAULT_WORKFLOW: WorkflowConfig = {
  *     { name: 'needs_review', label: 'Needs Review', verb: 'Request Review' },
  *   ],
  * })
+ *
+ * // Publish-on-save: keep the full lifecycle, but new versions land
+ * // directly as `published` instead of `draft`.
+ * defineWorkflow({
+ *   defaultStatus: 'published',
+ * })
  * ```
+ *
+ * For collections that have no editorial lifecycle at all (categories,
+ * tags, taxonomies), use `SINGLE_STATUS_WORKFLOW` instead.
  */
 export function defineWorkflow(input: DefineWorkflowInput = {}): WorkflowConfig {
   const reserved = new Set<string>(REQUIRED_WORKFLOW_STATUSES)

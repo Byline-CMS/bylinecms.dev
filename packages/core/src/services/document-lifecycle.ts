@@ -536,6 +536,16 @@ export async function changeDocumentStatus(
       if (params.nextStatus === 'published') {
         assertActorCanPerform(ctx.requestContext, collectionPath, 'publish')
       }
+      // Single-status workflows (e.g. SINGLE_STATUS_WORKFLOW for lookups)
+      // have no transitions to perform. Reject early with a clear message
+      // rather than relying on the generic ±1-step validator.
+      const workflow = getWorkflow(definition)
+      if (workflow.statuses.length <= 1) {
+        throw ERR_INVALID_TRANSITION({
+          message: `collection '${collectionPath}' has a single-status workflow; status transitions are not supported`,
+          details: { collectionPath, nextStatus: params.nextStatus },
+        }).log(ctx.logger)
+      }
       const hooks: CollectionHooks | undefined = definition.hooks
 
       // 1. Fetch current version metadata. No field reconstruction needed —
@@ -556,7 +566,6 @@ export async function changeDocumentStatus(
       const documentVersionId = latest.document_version_id
 
       // 2. Validate transition.
-      const workflow = getWorkflow(definition)
       const result = validateStatusTransition(workflow, currentStatus, params.nextStatus)
 
       if (!result.valid) {
@@ -618,11 +627,19 @@ export async function unpublishDocument(
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'unpublishDocument' },
     async () => {
-      const { db, collectionPath } = ctx
+      const { db, collectionPath, definition } = ctx
       // Unpublish is a workflow transition out of `published` — reuse the
       // changeStatus gate rather than a separate ability.
       assertActorCanPerform(ctx.requestContext, collectionPath, 'changeStatus')
-      const hooks: CollectionHooks | undefined = ctx.definition.hooks
+      // Single-status workflows have nothing to unpublish to.
+      const workflow = getWorkflow(definition)
+      if (workflow.statuses.length <= 1) {
+        throw ERR_INVALID_TRANSITION({
+          message: `collection '${collectionPath}' has a single-status workflow; unpublish is not supported`,
+          details: { collectionPath },
+        }).log(ctx.logger)
+      }
+      const hooks: CollectionHooks | undefined = definition.hooks
 
       await invokeHook(hooks?.beforeUnpublish, {
         documentId: params.documentId,

@@ -6,7 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
+import {
+  getCollectionDefinition,
+  getDefaultStatus,
+  getServerConfig,
+  slugify,
+} from '@byline/core'
 
 const categories = [
   {
@@ -64,6 +69,7 @@ export async function seedNewsCategories() {
       action: 'create',
       documentData: category,
       path: seedPath,
+      status: getDefaultStatus(collectionDefinition),
     })
     console.log(`  - seeded category: ${category.name.en} (${seedPath})`)
   }

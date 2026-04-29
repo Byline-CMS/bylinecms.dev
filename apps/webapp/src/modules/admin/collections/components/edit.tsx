@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
-import { getWorkflowStatuses } from '@byline/core'
+import { getDefaultStatus, getWorkflowStatuses } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { FormRenderer } from '@byline/ui'
 import { Container, Section, useToastManager } from '@infonomic/uikit/react'
@@ -52,7 +52,7 @@ export const EditView = ({
 
   // Compute the next forward workflow status for the status button.
   const workflowStatuses = getWorkflowStatuses(collectionDefinition)
-  const currentStatus = (initialData as any)?.status ?? 'draft'
+  const currentStatus = (initialData as any)?.status ?? getDefaultStatus(collectionDefinition)
   const currentIndex = workflowStatuses.findIndex((s) => s.name === currentStatus)
   const nextStatus =
     currentIndex !== -1 && currentIndex < workflowStatuses.length - 1

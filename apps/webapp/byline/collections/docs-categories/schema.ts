@@ -7,7 +7,7 @@
  */
 
 import type { CollectionDefinition } from '@byline/core'
-import { defineWorkflow } from '@byline/core'
+import { SINGLE_STATUS_WORKFLOW } from '@byline/core'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -17,16 +17,9 @@ export const DocsCategories: CollectionDefinition = {
     singular: 'Document Category',
     plural: 'Document Categories',
   },
-  // Workflow: defineWorkflow() guarantees draft, published, and archived are
-  // always present and correctly ordered. No custom statuses here — the
-  // standard three-step lifecycle is used.
-  //
-  //   Resulting order: [draft, published, archived]
-  workflow: defineWorkflow({
-    draft: { label: 'Draft', verb: 'Revert to Draft' },
-    published: { label: 'Published', verb: 'Publish' },
-    archived: { label: 'Archived', verb: 'Archive' },
-  }),
+  // Lookup collection — no editorial lifecycle. Saves go straight to
+  // `published` and the form shows only Save / Close.
+  workflow: SINGLE_STATUS_WORKFLOW,
   showStats: true,
   search: { fields: ['name'] },
   useAsTitle: 'name',

@@ -180,7 +180,7 @@ export const ListView = ({
             className="mr-auto w-full max-w-[350px]"
           />
 
-          {workflowStatuses && workflowStatuses.length > 0 && (
+          {workflowStatuses && workflowStatuses.length > 1 && (
             <Select<string>
               id="status_filter"
               name="status_filter"

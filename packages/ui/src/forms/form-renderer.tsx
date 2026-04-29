@@ -102,16 +102,21 @@ const FormStatusDisplay = ({
 }) => {
   const statusCode = initialData?.status
   const statusLabel = workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
+  // Single-status workflows (e.g. lookups) have no editorial lifecycle —
+  // suppress the "Status: …" cell since there is nothing meaningful to convey.
+  const showStatusCell = (workflowStatuses?.length ?? 0) > 1
 
   return (
     <div className={cx('byline-form-status', styles.status)}>
       <div className={cx('byline-form-status-meta', styles['status-meta'])}>
-        <div className={cx('byline-form-status-cell', styles['status-cell'])}>
-          <span className={cx('byline-form-status-muted', styles['status-muted'])}>Status:</span>
-          <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
-            {statusLabel}
-          </span>
-        </div>
+        {showStatusCell && (
+          <div className={cx('byline-form-status-cell', styles['status-cell'])}>
+            <span className={cx('byline-form-status-muted', styles['status-muted'])}>Status:</span>
+            <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
+              {statusLabel}
+            </span>
+          </div>
+        )}
 
         {initialData?.updatedAt != null && (
           <div className={cx('byline-form-status-cell', styles['status-cell'])}>
@@ -179,6 +184,12 @@ function computeStatusTransitions(
 } {
   if (!workflowStatuses || workflowStatuses.length === 0 || !currentStatus) {
     return { primaryStatus: nextStatus, secondaryStatuses: [] }
+  }
+
+  // Single-status workflows (e.g. SINGLE_STATUS_WORKFLOW for lookups) have
+  // no transitions — short-circuit so the form shows only Close / Save.
+  if (workflowStatuses.length <= 1) {
+    return { primaryStatus: undefined, secondaryStatuses: [] }
   }
 
   const currentIndex = workflowStatuses.findIndex((s) => s.name === currentStatus)
