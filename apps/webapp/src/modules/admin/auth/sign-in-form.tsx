@@ -97,11 +97,7 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
           </div>
           <div className="mt-6 flex justify-end">
             <Button type="submit" disabled={pending} className="min-w-[80px]">
-              {pending ? (
-                <LoaderEllipsis size={30} color="#aaaaaa" />
-              ) : (
-                <span>Sign In</span>
-              )}
+              {pending ? <LoaderEllipsis size={30} color="#aaaaaa" /> : <span>Sign In</span>}
             </Button>
           </div>
         </form>
