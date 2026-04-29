@@ -15,6 +15,7 @@
 
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
+import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
 
 import { Categories, CategoriesAdmin } from './byline/collections/categories/index.js'
 import { Docs, DocsAdmin } from './byline/collections/docs/index.js'
@@ -29,6 +30,9 @@ export const config: ClientConfig = {
   routes,
   collections: [Docs, News, Pages, Media, Categories],
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, CategoriesAdmin],
+  fields: {
+    richText: { editor: LexicalRichTextField },
+  },
 }
 
 defineClientConfig(config)

@@ -13,6 +13,7 @@ import type {
   FieldComponentSlots,
   GroupField as GroupFieldType,
 } from '@byline/core'
+import { getClientConfig } from '@byline/core'
 import cx from 'classnames'
 
 import { ArrayField } from './array/array-field'
@@ -26,7 +27,6 @@ import { ImageField } from './image/image-field'
 import { LocaleBadge } from './locale-badge'
 import { NumericalField } from './numerical/numerical-field'
 import { RelationField } from './relation/relation-field'
-import { RichTextField } from './richtext/richtext-lexical/richtext-field'
 import { SelectField } from './select/select-field'
 import { TextField } from './text/text-field'
 import { TextAreaField } from './text-area/text-area-field'
@@ -130,9 +130,16 @@ export const FieldRenderer = ({
             id={htmlId}
           />
         )
-      case 'richText':
+      case 'richText': {
+        const RichTextEditor = getClientConfig().fields?.richText?.editor
+        if (!RichTextEditor) {
+          throw new Error(
+            'No richText editor registered. Install @byline/richtext-lexical and set ' +
+              '`fields.richText.editor` in your admin config (byline.admin.config.ts).'
+          )
+        }
         return (
-          <RichTextField
+          <RichTextEditor
             field={hideLabel ? { ...field, label: undefined } : field}
             defaultValue={defaultValue}
             onChange={handleChange}
@@ -141,6 +148,7 @@ export const FieldRenderer = ({
             locale={isLocalised ? contentLocale : undefined}
           />
         )
+      }
       case 'datetime':
         return (
           <DateTimeField

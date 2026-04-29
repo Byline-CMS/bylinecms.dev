@@ -12,6 +12,7 @@ import type { SlugifierFn } from '../utils/slugify.js'
 import type { CollectionAdminConfig } from './admin-types.js'
 import type { CollectionDefinition } from './collection-types.js'
 import type { IDbAdapter } from './db-types.js'
+import type { RichTextEditorComponent } from './field-types.js'
 import type { IStorageProvider } from './storage-types.js'
 
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
@@ -63,6 +64,31 @@ export interface BaseConfig {
 export interface ClientConfig extends BaseConfig {
   /** Admin UI configuration for collections (client-side only). */
   admin?: CollectionAdminConfig[]
+  /**
+   * Site-wide field-level UI defaults. Currently surfaces the richtext
+   * editor adapter slot — additional field-level defaults (custom
+   * widgets, formatters, etc.) can be registered here as the system grows.
+   *
+   * @example
+   * ```ts
+   * import { RichTextField } from '@byline/richtext-lexical'
+   *
+   * defineClientConfig({
+   *   // ...
+   *   fields: {
+   *     richText: { editor: RichTextField },
+   *   },
+   * })
+   * ```
+   */
+  fields?: {
+    /**
+     * Editor component used to render every `type: 'richText'` field. Per-field
+     * overrides via `FieldAdminConfig.components.Field` continue to take
+     * precedence over this site-wide default.
+     */
+    richText?: { editor: RichTextEditorComponent }
+  }
 }
 
 /**

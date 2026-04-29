@@ -9,10 +9,9 @@
 import type React from 'react'
 
 import type { RichTextField as FieldType } from '@byline/core'
+import { LocaleBadge, useFieldError, useFieldValue } from '@byline/ui'
 import { ErrorText, Label } from '@infonomic/uikit/react'
 
-import { useFieldError, useFieldValue } from '../../../forms/form-context'
-import { LocaleBadge } from '../../locale-badge'
 import { defaultEditorConfig } from './field/config/default'
 import { EditorField } from './field/editor-field'
 

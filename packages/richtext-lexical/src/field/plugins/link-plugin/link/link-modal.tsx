@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react'
 
 import type { CollectionDefinition } from '@byline/core'
 import { getClientConfig, getCollectionDefinition } from '@byline/core'
+import { RelationPicker } from '@byline/ui'
 import {
   Button,
   Checkbox,
@@ -27,7 +28,6 @@ import {
   type SelectValue,
 } from '@infonomic/uikit/react'
 
-import { RelationPicker } from '../../../../../../relation/relation-picker'
 import { useModalFormState } from '../../../shared/useModalFormState'
 import { validateUrl } from '../../../utils/url'
 import type { DocumentRelation } from '../../../nodes/document-relation'

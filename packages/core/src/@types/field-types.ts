@@ -711,3 +711,39 @@ export interface FieldComponentSlots {
    */
   afterField?: SlotComponent<FieldAdornmentSlotProps>
 }
+
+// ---------------------------------------------------------------------------
+// Richtext editor adapter contract
+// ---------------------------------------------------------------------------
+
+/**
+ * Props passed to a configured richtext editor component. Mirrors the
+ * arguments the field-renderer already supplies for `type: 'richText'`
+ * fields, so an adapter package can satisfy the contract by re-exporting
+ * a thin wrapper around its underlying editor.
+ *
+ * Editor packages (e.g. `@byline/richtext-lexical`) expose a component
+ * matching this shape, and the installation registers it as the
+ * site-wide default via `ClientConfig.fields.richText.editor`.
+ */
+export interface RichTextEditorProps {
+  /** The field definition (label / helpText / optional / hooks / validate). */
+  field: RichTextField
+  /** Initial value to seed the editor with on first render. */
+  defaultValue?: unknown
+  /** Commit a new value to the form store (runs the field hook pipeline). */
+  onChange: (value: unknown) => void
+  /** Dot-path of the field in the document, e.g. `"content.0.body"`. */
+  path: string
+  /** Stable identity for editor instances; used as a React `key`. */
+  instanceKey: string
+  /** Active content locale; the editor may render a locale badge if set. */
+  locale?: string
+}
+
+/**
+ * Component shape an editor package must export to be plugged in via
+ * `ClientConfig.fields.richText.editor`. Built on `SlotComponent` so the
+ * type stays React-agnostic at the `@byline/core` boundary.
+ */
+export type RichTextEditorComponent = SlotComponent<RichTextEditorProps>

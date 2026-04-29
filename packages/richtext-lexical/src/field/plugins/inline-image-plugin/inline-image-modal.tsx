@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react'
 
 import type { CollectionDefinition, StoredFileValue } from '@byline/core'
 import { getCollectionDefinition } from '@byline/core'
+import { RelationPicker } from '@byline/ui'
 import {
   Button,
   Checkbox,
@@ -26,7 +27,6 @@ import {
   RadioGroupItem,
 } from '@infonomic/uikit/react'
 
-import { RelationPicker } from '../../../../../relation/relation-picker'
 import { useModalFormState } from '../../shared/useModalFormState'
 import { isAltTextValid, positionOptions } from './fields'
 import { deriveImageSizes, getPreferredSize } from './utils'
