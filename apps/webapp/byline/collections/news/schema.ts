@@ -44,6 +44,13 @@ export const News: CollectionDefinition = {
       helpText:
         'Enter a short summary. The first 150 characters are used for social media meta descriptions. Aim for 100–300 characters.',
     },
+    {
+      name: 'category',
+      label: 'Category',
+      type: 'relation',
+      targetCollection: 'news-categories',
+      displayField: 'name',
+    },
     // Relation field demo. Points at the Media upload collection
     // so editors can choose a feature image via the relation picker widget.
     // Set `displayField: 'title'` so the picker's row label reads from the

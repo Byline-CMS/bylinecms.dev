@@ -155,7 +155,7 @@ export const Docs = defineCollection({
       name: 'category',
       label: 'Category',
       type: 'relation',
-      targetCollection: 'categories',
+      targetCollection: 'docs-categories',
       displayField: 'name',
     },
     {

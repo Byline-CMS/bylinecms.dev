@@ -13,12 +13,13 @@ import { Docs } from './byline/collections/docs/schema.js'
 import { DocsCategories } from './byline/collections/docs-categories/schema.js'
 import { Media } from './byline/collections/media/schema.js'
 import { News } from './byline/collections/news/schema.js'
+import { NewsCategories } from './byline/collections/news-categories/schema.js'
 import { Pages } from './byline/collections/pages/schema.js'
 import { DEFAULT_SERVER_URL, i18n, routes } from './byline.common.config.js'
 
 const serverURL = process.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
 
-const collections = [Docs, News, Pages, Media, DocsCategories]
+const collections = [Docs, News, Pages, Media, DocsCategories, NewsCategories]
 
 // HMR-safe singleton. Vite's program reload re-evaluates this module
 // without disposing the previous module's resources — every reload

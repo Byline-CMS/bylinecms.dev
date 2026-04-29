@@ -22,10 +22,16 @@ import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
 // commented `richText` block below for the exact shape.
 // import { lexicalEditor } from '@byline/richtext-lexical'
 
+// Import `lexicalEditor` instead of (or alongside) `RichTextField` if you
+// want to register the editor with site-wide custom settings. See the
+// commented `richText` block below for the exact shape.
+// import { lexicalEditor } from '@byline/richtext-lexical'
+
 import { Docs, DocsAdmin } from './byline/collections/docs/index.js'
 import { DocsCategories, DocsCategoriesAdmin } from './byline/collections/docs-categories/index.js'
 import { Media, MediaAdmin } from './byline/collections/media/index.js'
 import { News, NewsAdmin } from './byline/collections/news/index.js'
+import { NewsCategories, NewsCategoriesAdmin } from './byline/collections/news-categories/index.js'
 import { Pages, PagesAdmin } from './byline/collections/pages/index.js'
 import { DEFAULT_SERVER_URL, i18n, routes } from './byline.common.config.js'
 
@@ -35,8 +41,8 @@ export const config: ClientConfig = {
   serverURL,
   i18n,
   routes,
-  collections: [Docs, News, Pages, Media, DocsCategories],
-  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, DocsCategoriesAdmin],
+  collections: [Docs, News, Pages, Media, DocsCategories, NewsCategories],
+  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, DocsCategoriesAdmin, NewsCategoriesAdmin],
   fields: {
     // Default registration — every `type: 'richText'` field gets the full
     // Lexical feature set unless overridden per-field via
