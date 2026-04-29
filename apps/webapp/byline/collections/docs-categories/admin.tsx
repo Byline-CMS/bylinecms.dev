@@ -9,7 +9,7 @@
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 import { DateTimeFormatter } from '@byline/ui'
 
-import { Categories } from './schema.js'
+import { DocsCategories } from './schema.js'
 
 // ---- Admin UI config (client-only, presentation concerns) ----
 
@@ -72,7 +72,7 @@ const pickerViewColumns: ColumnDefinition[] = [
   },
 ]
 
-export const CategoriesAdmin: CollectionAdminConfig = defineAdmin(Categories, {
+export const DocsCategoriesAdmin: CollectionAdminConfig = defineAdmin(DocsCategories, {
   columns: listViewColumns,
   picker: pickerViewColumns,
 })

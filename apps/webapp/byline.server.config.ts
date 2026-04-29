@@ -5,18 +5,20 @@ import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
 import { localStorageProvider } from '@byline/storage-local'
 
+import { Docs } from './byline/collections/docs/schema.js'
 // Import collection definitions directly from schema files — NOT the full
 // client config or index barrels. The client config / index files pull in
 // admin configs (React components, CSS modules) that are not loadable
 // outside Vite (e.g. when running seeds via tsx).
-import { Categories } from './byline/collections/categories/schema.js'
-import { Docs } from './byline/collections/docs/schema.js'
+import { DocsCategories } from './byline/collections/docs-categories/schema.js'
 import { Media } from './byline/collections/media/schema.js'
 import { News } from './byline/collections/news/schema.js'
 import { Pages } from './byline/collections/pages/schema.js'
-import { i18n, routes, serverURL } from './byline.common.config.js'
+import { DEFAULT_SERVER_URL, i18n, routes } from './byline.common.config.js'
 
-const collections = [Docs, News, Pages, Media, Categories]
+const serverURL = process.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
+
+const collections = [Docs, News, Pages, Media, DocsCategories]
 
 // HMR-safe singleton. Vite's program reload re-evaluates this module
 // without disposing the previous module's resources — every reload

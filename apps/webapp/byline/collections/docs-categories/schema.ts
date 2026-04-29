@@ -11,11 +11,11 @@ import { defineWorkflow } from '@byline/core'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
-export const Categories: CollectionDefinition = {
-  path: 'categories',
+export const DocsCategories: CollectionDefinition = {
+  path: 'docs-categories',
   labels: {
-    singular: 'Category',
-    plural: 'Categories',
+    singular: 'Document Category',
+    plural: 'Document Categories',
   },
   // Workflow: defineWorkflow() guarantees draft, published, and archived are
   // always present and correctly ordered. No custom statuses here — the

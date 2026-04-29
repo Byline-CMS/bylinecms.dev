@@ -11,13 +11,13 @@ import 'dotenv/config'
 import '../byline.server.config.js'
 
 import { seedAdmin } from './seeds/admin.js'
-import { seedCategories } from './seeds/categories.js'
-import { seedDocuments } from './seeds/documents.js'
+import { seedDocsCategories } from './seeds/doc-categories.js'
+import { seedDocs } from './seeds/docs.js'
 
 async function run() {
   await seedAdmin()
-  await seedCategories()
-  await seedDocuments()
+  await seedDocsCategories()
+  await seedDocs()
 }
 
 run()

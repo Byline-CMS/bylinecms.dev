@@ -23,13 +23,13 @@ const categories = [
   },
 ]
 
-export async function seedCategories() {
+export async function seedDocsCategories() {
   const db = getServerConfig().db
 
-  const collectionDefinition = getCollectionDefinition('categories')
+  const collectionDefinition = getCollectionDefinition('docs-categories')
 
   if (!collectionDefinition) {
-    console.error('Collection definition not found for "categories"')
+    console.error('Collection definition not found for "docs-categories"')
     return
   }
 
@@ -37,10 +37,10 @@ export async function seedCategories() {
   // `ensureCollections()` when byline.server.config was imported, so we
   // look the row up rather than re-inserting (which would violate the
   // unique-path constraint).
-  const existing = await db.queries.collections.getCollectionByPath('categories')
+  const existing = await db.queries.collections.getCollectionByPath('docs-categories')
   if (!existing) {
     throw new Error(
-      "seedCategories: expected the 'categories' collection to be registered by initBylineCore()"
+      "seedDocsCategories: expected the 'docs-categories' collection to be registered by initBylineCore()"
     )
   }
 
@@ -50,12 +50,12 @@ export async function seedCategories() {
     version: (existing.version as number | undefined) ?? 1,
   }
 
-  console.log(`Seeding into Categories collection (${categoriesCollection.name})`)
+  console.log(`Seeding into Docs Categories collection (${categoriesCollection.name})`)
 
   for (const category of categories) {
     const seedPath = slugify(category.name.en, {
       locale: 'en',
-      collectionPath: 'categories',
+      collectionPath: 'docs-categories',
     })
     await db.commands.documents.createDocumentVersion({
       collectionId: categoriesCollection.id,

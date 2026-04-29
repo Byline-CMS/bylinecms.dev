@@ -16,24 +16,27 @@
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
 import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
+
 // Import `lexicalEditor` instead of (or alongside) `RichTextField` if you
 // want to register the editor with site-wide custom settings. See the
 // commented `richText` block below for the exact shape.
 // import { lexicalEditor } from '@byline/richtext-lexical'
 
-import { Categories, CategoriesAdmin } from './byline/collections/categories/index.js'
 import { Docs, DocsAdmin } from './byline/collections/docs/index.js'
+import { DocsCategories, DocsCategoriesAdmin } from './byline/collections/docs-categories/index.js'
 import { Media, MediaAdmin } from './byline/collections/media/index.js'
 import { News, NewsAdmin } from './byline/collections/news/index.js'
 import { Pages, PagesAdmin } from './byline/collections/pages/index.js'
-import { i18n, routes, serverURL } from './byline.common.config.js'
+import { DEFAULT_SERVER_URL, i18n, routes } from './byline.common.config.js'
+
+const serverURL = import.meta.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
 
 export const config: ClientConfig = {
   serverURL,
   i18n,
   routes,
-  collections: [Docs, News, Pages, Media, Categories],
-  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, CategoriesAdmin],
+  collections: [Docs, News, Pages, Media, DocsCategories],
+  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, DocsCategoriesAdmin],
   fields: {
     // Default registration — every `type: 'richText'` field gets the full
     // Lexical feature set unless overridden per-field via

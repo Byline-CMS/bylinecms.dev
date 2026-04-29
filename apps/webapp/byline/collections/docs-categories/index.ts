@@ -6,5 +6,5 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-export { CategoriesAdmin } from './admin.js'
-export { Categories } from './schema.js'
+export { DocsCategoriesAdmin } from './admin.js'
+export { DocsCategories } from './schema.js'

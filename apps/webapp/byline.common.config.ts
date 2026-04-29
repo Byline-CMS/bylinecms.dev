@@ -12,18 +12,19 @@
  * (browser / admin UI).
  *
  * Anything that's serializable and needed in both contexts lives here so
- * there's a single source of truth — `serverURL`, `routes`, and `i18n`.
- * Anything that pulls in server-only modules (db adapter, session
- * provider, storage provider) stays in the server config; anything that
- * pulls in admin UI components (formatters, column definitions) stays in
- * the admin config.
+ * there's a single source of truth — `routes`, `i18n`, and the
+ * `DEFAULT_SERVER_URL` literal. Env-var access does not belong here:
+ * Vite's `import.meta.env` and Node's `process.env` are different
+ * mechanisms, so each entry point resolves `serverURL` itself using the
+ * API native to its runtime (see `byline.server.config.ts` and
+ * `byline.admin.config.ts`).
  */
 
 import type { RoutesConfig } from '@byline/core'
 
 export { i18n } from './byline/i18n.js'
 
-export const serverURL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5173/'
+export const DEFAULT_SERVER_URL = 'http://localhost:5173/'
 
 /**
  * URL segments for admin and (future) public API routes. Defaults of
