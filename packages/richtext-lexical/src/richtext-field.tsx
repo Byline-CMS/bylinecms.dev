@@ -11,9 +11,11 @@ import type React from 'react'
 import type { RichTextField as FieldType } from '@byline/core'
 import { LocaleBadge, useFieldError, useFieldValue } from '@byline/ui'
 import { ErrorText, Label } from '@infonomic/uikit/react'
+import cx from 'classnames'
 
 import { defaultEditorConfig } from './field/config/default'
 import { EditorField } from './field/editor-field'
+import styles from './richtext-field.module.css'
 import type { EditorConfig } from './field/config/types'
 
 interface Props {
@@ -61,7 +63,7 @@ export const RichTextField = ({
   // component itself stays free of any Byline-specific dependencies.
   const labelNode: React.ReactNode =
     locale && field.label ? (
-      <div className="flex items-center">
+      <div className={cx('byline-field-richtext-label', styles['label-row'])}>
         <Label
           id={`${fieldId}-label`}
           label={field.label}
@@ -75,8 +77,8 @@ export const RichTextField = ({
     )
 
   return (
-    <div className={`byline-richText ${field.name} flex flex-1 h-full`}>
-      <div className="flex flex-1 flex-col gap-1">
+    <div className={cx('byline-field-richtext', field.name, styles.wrapper)}>
+      <div className={cx('byline-field-richtext-body', styles.body)}>
         <EditorField
           onChange={onChange}
           editorConfig={resolvedEditorConfig}

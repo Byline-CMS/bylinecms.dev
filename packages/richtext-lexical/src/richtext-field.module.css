@@ -1,0 +1,29 @@
+/**
+ * RichTextField — Lexical rich text editor field.
+ *
+ * Override handles:
+ *   .byline-field-richtext        — outer wrapper
+ *   .byline-field-richtext-label  — label row containing label + locale badge
+ *   .byline-field-richtext-body   — vertical stack containing editor + error
+ */
+
+.wrapper,
+:global(.byline-field-richtext) {
+  display: flex;
+  flex: 1 1 0%;
+  height: 100%;
+}
+
+.label-row,
+:global(.byline-field-richtext-label) {
+  display: flex;
+  align-items: center;
+}
+
+.body,
+:global(.byline-field-richtext-body) {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  gap: 0.25rem;
+}
