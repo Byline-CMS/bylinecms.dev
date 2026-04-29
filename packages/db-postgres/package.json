@@ -66,11 +66,11 @@
     "drizzle-orm": "^0.45.2",
     "npm-run-all": "^4.1.5",
     "pg": "^8.20.0",
-    "uuid": "^13.0.0",
+    "uuid": "^14.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.11",
+    "@biomejs/biome": "2.4.13",
     "@types/node": "^25.6.0",
     "@types/pg": "^8.20.0",
     "chokidar": "^5.0.0",
@@ -78,7 +78,7 @@
     "drizzle-kit": "^0.31.10",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
-    "typescript": "6.0.2"
+    "typescript": "6.0.3"
   },
   "publishConfig": {
     "access": "public",

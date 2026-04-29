@@ -23,12 +23,12 @@
     "release:npm": "turbo run build --filter=\"./packages/*\" && changeset publish"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.11",
-    "@changesets/cli": "^2.30.0"
+    "@biomejs/biome": "2.4.13",
+    "@changesets/cli": "^2.31.0"
   },
   "dependencies": {
     "turbo": "^2.9.6",
-    "typescript": "6.0.2"
+    "typescript": "6.0.3"
   },
   "engines": {
     "node": "^18.20.2 || >=20.9.0"
