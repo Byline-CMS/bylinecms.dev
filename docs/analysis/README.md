@@ -22,6 +22,7 @@ Current documents:
 - [Document path analysis](./DOCUMENT-PATH-ANALYSIS.md)
 - [AuthN / AuthZ analysis](./AUTHN-AUTHZ-ANALYSIS.md)
 - [Access control recipes](./ACCESS-CONTROL-RECIPES.md)
+- [Richtext editor adapter analysis](./RICHTEXT-ANALYSIS.md)
 - [Phases of work](./PHASES-OF-WORK.md)
 
 These are intentionally working documents. Some describe shipped decisions,
