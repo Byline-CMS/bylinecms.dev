@@ -26,7 +26,7 @@
  *     binding TanStack Start primitives to the framework-neutral
  *     contracts in `@byline/ui` and `@byline/client`
  *     (`bylineFieldServices`, `bylineAdminServices`, the admin
- *     `BylineClient` singleton, `BylineI18nBridge`).
+ *     `BylineClient` singleton).
  *   - `@byline/host-tanstack-start/admin-shell/{chrome,collections,...}` —
  *     router-coupled admin UI: shared shell chrome (menu drawer, app bar,
  *     route-error, breadcrumbs, etc.) plus per-area page containers.

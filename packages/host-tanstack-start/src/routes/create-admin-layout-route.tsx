@@ -17,14 +17,8 @@
  *
  * The resolved user is returned as route context so every nested admin
  * route (and the `AdminAppBar`) can read it without an extra fetch.
- *
- * `i18nBridge` is a host-app-supplied wrapper that mounts the host's
- * translation primitives onto Byline's `BylineI18nProvider`. Each host
- * ships its own bridge with the same shape; the package contract here
- * is "wrap everything inside `i18nBridge`".
  */
 
-import type { ComponentType, ReactNode } from 'react'
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
 import { BylineAdminServicesProvider, BylineFieldServicesProvider } from '@byline/ui'
@@ -42,18 +36,11 @@ import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
 
 interface AdminLayoutOpts {
-  /**
-   * Host-supplied wrapper that bridges the host's translation primitives
-   * onto `BylineI18nProvider`. Required so localized chrome strings (and
-   * Byline UI components) resolve through the host's i18n machinery.
-   */
-  i18nBridge: ComponentType<{ children: ReactNode }>
   /** Path users are redirected to when unauthenticated. Defaults to `/sign-in`. */
   signInPath?: string
 }
 
-export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts) {
-  const I18nBridge = opts.i18nBridge
+export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {}) {
   const signInPath = opts.signInPath ?? '/sign-in'
 
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
@@ -78,22 +65,20 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts) {
         user: Awaited<ReturnType<typeof getCurrentAdminUser>>
       }
       return (
-        <I18nBridge>
-          <BylineAdminServicesProvider services={bylineAdminServices}>
-            <BylineFieldServicesProvider services={bylineFieldServices}>
-              <AdminMenuProvider>
-                <AdminAppBar user={user} />
-                <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
-                  <DrawerToggle />
-                  <AdminMenuDrawer />
-                  <Content>
-                    <Outlet />
-                  </Content>
-                </main>
-              </AdminMenuProvider>
-            </BylineFieldServicesProvider>
-          </BylineAdminServicesProvider>
-        </I18nBridge>
+        <BylineAdminServicesProvider services={bylineAdminServices}>
+          <BylineFieldServicesProvider services={bylineFieldServices}>
+            <AdminMenuProvider>
+              <AdminAppBar user={user} />
+              <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
+                <DrawerToggle />
+                <AdminMenuDrawer />
+                <Content>
+                  <Outlet />
+                </Content>
+              </main>
+            </AdminMenuProvider>
+          </BylineFieldServicesProvider>
+        </BylineAdminServicesProvider>
       )
     },
     errorComponent: RouteError,

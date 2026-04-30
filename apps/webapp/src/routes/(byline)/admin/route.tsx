@@ -8,8 +8,4 @@
 
 import { createAdminLayoutRoute } from '@byline/host-tanstack-start/routes'
 
-import { BylineI18nBridge } from '@/integrations/byline/byline-i18n'
-
-export const Route = createAdminLayoutRoute('/(byline)/admin', {
-  i18nBridge: BylineI18nBridge,
-})
+export const Route = createAdminLayoutRoute('/(byline)/admin')

@@ -52,7 +52,6 @@ export * from './forms/navigation-guard.js'
 export * from './forms/path-widget.js'
 export * from './services/admin-services-context.js'
 export * from './services/field-services-context.js'
-export * from './services/i18n-context.js'
 export type {
   AdminServiceCall,
   BylineAdminServices,
@@ -78,8 +77,3 @@ export type {
   UploadDocumentFn,
   UploadedFileResult,
 } from './services/field-services-types.js'
-export type {
-  BylineI18n,
-  BylineLocaleOption,
-  BylineTranslateFn,
-} from './services/i18n-types.js'
