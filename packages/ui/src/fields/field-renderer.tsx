@@ -135,7 +135,7 @@ export const FieldRenderer = ({
         if (!RichTextEditor) {
           throw new Error(
             'No richText editor registered. Install @byline/richtext-lexical and set ' +
-              '`fields.richText.editor` in your admin config (byline.admin.config.ts).'
+              '`fields.richText.editor` in your admin config.'
           )
         }
         return (

@@ -54,7 +54,7 @@ export interface UploadFileOptions {
  *
  * @example
  * ```ts
- * // byline.server.config.ts
+ * // In your server config (e.g. byline/server.config.ts):
  * import { localStorageProvider } from '@byline/storage-local'
  *
  * defineServerConfig({

@@ -51,7 +51,7 @@ function requireSessionProvider() {
   if (!provider) {
     throw new Error(
       'No sessionProvider configured on ServerConfig. ' +
-        'Construct a JwtSessionProvider in byline.server.config.ts and pass it to initBylineCore().'
+        'Construct a JwtSessionProvider in your server config and pass it to initBylineCore().'
     )
   }
   return provider

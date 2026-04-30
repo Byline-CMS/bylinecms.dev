@@ -25,12 +25,6 @@
       "~/*": ["./byline/*"]
     }
   },
-  "include": [
-    "src",
-    "byline",
-    "byline.admin.config.ts",
-    "byline.server.config.ts",
-    "vite.config.ts"
-  ],
+  "include": ["src", "byline", "vite.config.ts"],
   "exclude": ["node_modules"]
 }

@@ -13,9 +13,9 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
 import { ToastProvider, ToastViewport } from '@infonomic/uikit/react'
 
-// Initialize Byline client config — must be imported here so it runs in both
-// the SSR rendering and client module graphs (see byline.admin.config.ts).
-import '../../byline.admin.config'
+// Initialize Byline admin config — must be imported here so it runs in both
+// the SSR rendering and client module graphs (see byline/admin.config.ts).
+import '../../byline/admin.config'
 
 import { BreadcrumbsProvider } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-provider'
 import {

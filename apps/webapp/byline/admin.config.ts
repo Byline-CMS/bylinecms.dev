@@ -1,16 +1,22 @@
 /**
- * This module ensures Byline client config (including admin UI config) is
- * registered in the current module graph. Import this file as a side-effect
- * from any module that needs access to collection admin configurations.
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * In TanStack Start with Vite 6, the server entry (server.ts) and the SSR
- * rendering context run in separate Vite environments. Side-effect imports
- * in server.ts do not propagate into the SSR render module graph, we
- * import this config in __root.tsx to ensure it's available in both contexts.
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/**
+ * Registers Byline's client-side config (collection admin UI configs,
+ * field editors, i18n, routes) in the current module graph. Imported as
+ * a side-effect from `src/routes/__root.tsx` — that module runs in both
+ * the SSR render and client module graphs, so a single import there
+ * covers both contexts.
  *
- * Shared scalar values (`serverURL`, `i18n`, `routes`) come from
- * `byline.common.config.ts` so they're declared once and consumed by both
- * the server and admin entry points.
+ * In TanStack Start with Vite 6 the server entry (`src/server.ts`) and
+ * the SSR rendering context run in separate Vite environments, so
+ * importing this file from `src/server.ts` would NOT propagate the
+ * registration into the SSR render module graph.
  */
 
 import type { ClientConfig } from '@byline/core'
@@ -22,18 +28,14 @@ import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
 // commented `richText` block below for the exact shape.
 // import { lexicalEditor } from '@byline/richtext-lexical'
 
-// Import `lexicalEditor` instead of (or alongside) `RichTextField` if you
-// want to register the editor with site-wide custom settings. See the
-// commented `richText` block below for the exact shape.
-// import { lexicalEditor } from '@byline/richtext-lexical'
-
-import { Docs, DocsAdmin } from './byline/collections/docs/index.js'
-import { DocsCategories, DocsCategoriesAdmin } from './byline/collections/docs-categories/index.js'
-import { Media, MediaAdmin } from './byline/collections/media/index.js'
-import { News, NewsAdmin } from './byline/collections/news/index.js'
-import { NewsCategories, NewsCategoriesAdmin } from './byline/collections/news-categories/index.js'
-import { Pages, PagesAdmin } from './byline/collections/pages/index.js'
-import { DEFAULT_SERVER_URL, i18n, routes } from './byline.common.config.js'
+import { Docs, DocsAdmin } from './collections/docs/index.js'
+import { DocsCategories, DocsCategoriesAdmin } from './collections/docs-categories/index.js'
+import { Media, MediaAdmin } from './collections/media/index.js'
+import { News, NewsAdmin } from './collections/news/index.js'
+import { NewsCategories, NewsCategoriesAdmin } from './collections/news-categories/index.js'
+import { Pages, PagesAdmin } from './collections/pages/index.js'
+import { i18n } from './i18n.js'
+import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
 const serverURL = import.meta.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
 

@@ -34,7 +34,7 @@ export async function seedNewsCategories() {
   }
 
   // `initBylineCore` already registered the collection row via
-  // `ensureCollections()` when byline.server.config was imported, so we
+  // `ensureCollections()` when byline/server.config was imported, so we
   // look the row up rather than re-inserting (which would violate the
   // unique-path constraint).
   const existing = await db.queries.collections.getCollectionByPath('news-categories')

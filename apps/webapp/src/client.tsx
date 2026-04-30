@@ -6,10 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-// NOTE: Byline client config is now initialized in src/config/init-client-config.ts,
-// imported from __root.tsx, so it is available in both SSR and client contexts.
-// This legacy import is kept for safety but is no longer strictly necessary.
-import '../byline.admin.config.ts'
+// NOTE: Byline admin config is initialized via a side-effect import in
+// `src/routes/__root.tsx`. That module runs in both the SSR render and
+// client module graphs, so importing it here would only duplicate the
+// registration in the client bundle.
 
 import { StrictMode } from 'react'
 import { StartClient } from '@tanstack/react-start/client'

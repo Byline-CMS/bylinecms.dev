@@ -151,7 +151,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // Register on the global singleton so server-side packages
   // (`@byline/host-tanstack-start/server-fns/*`, future hosts) can read
   // post-init state via `getBylineCore()` instead of importing the
-  // host's `byline.server.config.ts` directly.
+  // host's server config module directly.
   defineBylineCore(core)
 
   return core

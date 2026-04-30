@@ -107,8 +107,9 @@ A typed `Registry`/`AsyncRegistry` DI container in `packages/core/src/lib/regist
 
 ### Config Loading
 
-- Browser: `apps/webapp/src/client.tsx` imports `../byline.client.config.ts`
-- Server: `apps/webapp/byline.server.config.ts` calls `initBylineCore()` with the full `ServerConfig`
+- All Byline configuration lives under `apps/webapp/byline/`: `i18n.ts`, `routes.ts`, `admin.config.ts`, `server.config.ts`, plus `collections/`, `blocks/`, `fields/`, `seeds/`.
+- Browser/SSR: `apps/webapp/src/routes/__root.tsx` side-effect imports `byline/admin.config.ts` (covers both module graphs in TanStack Start / Vite 6).
+- Server entry: `apps/webapp/src/server.ts` side-effect imports `byline/server.config.ts`, which calls `initBylineCore()` with the full `ServerConfig` and registers it on the process global. Server-side callers retrieve the resolved core via `getBylineCore<AdminStore>()` from `@byline/core`.
 
 ### Auth (`@byline/auth` + `@byline/admin`)
 

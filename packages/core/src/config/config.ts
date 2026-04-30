@@ -44,7 +44,7 @@ export const getCollectionDefinition = (path: string): CollectionDefinition | nu
   const config = getClientConfigInstance() ?? getServerConfigInstance()
   if (config == null) {
     throw new Error(
-      'Byline has not been configured yet. Please call defineClientConfig or defineServerConfig in byline.client.config.ts or byline.server.config.ts first.'
+      'Byline has not been configured yet. Please call defineClientConfig or defineServerConfig in your admin/server config first.'
     )
   }
 
@@ -108,7 +108,7 @@ export function getServerConfig(): ServerConfig {
 // BylineCore singleton — the composed runtime returned by `initBylineCore`.
 // Server-side packages that need post-init state (the abilities registry,
 // the resolved admin store) read it here rather than importing the host's
-// `byline.server.config.ts` directly. Stored as `unknown` to avoid a
+// host server config module directly. Stored as `unknown` to avoid a
 // circular type dependency between `config.ts` and `core.ts`; consumers
 // import the typed `getBylineCore<TAdminStore>()` re-export from
 // `core.ts`.
@@ -125,7 +125,7 @@ export function getBylineCoreUnsafe(): unknown {
   const core = getBylineCoreInstance()
   if (core == null) {
     throw new Error(
-      'BylineCore has not been initialised yet. Please call initBylineCore() in byline.server.config.ts first.'
+      'BylineCore has not been initialised yet. Please call initBylineCore() in your server config first.'
     )
   }
   return core

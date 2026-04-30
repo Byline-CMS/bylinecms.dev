@@ -146,7 +146,7 @@ class LocalStorageProvider implements IStorageProvider {
  * ```ts
  * import { localStorageProvider } from '@byline/storage-local'
  *
- * // In byline.server.config.ts:
+ * // In your server config (e.g. byline/server.config.ts):
  * defineServerConfig({
  *   ...config,
  *   db: pgAdapter({ connectionString: process.env.DB_CONNECTION_STRING! }),

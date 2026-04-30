@@ -23,9 +23,9 @@
  * once, then immediately change the password from inside the admin UI.
  */
 
+import type { AdminStore } from '@byline/admin'
 import { seedSuperAdmin } from '@byline/admin/admin-users'
-
-import { bylineCore } from '../../byline.server.config.js'
+import { getBylineCore } from '@byline/core'
 
 export async function seedAdmin() {
   const email = process.env.BYLINE_SUPERADMIN_EMAIL
@@ -39,10 +39,12 @@ export async function seedAdmin() {
     return
   }
 
+  const bylineCore = getBylineCore<AdminStore>()
+
   if (!bylineCore.adminStore) {
     throw new Error(
       'seedAdmin: bylineCore.adminStore is not configured. ' +
-        'Pass adminStore to initBylineCore() in byline.server.config.ts.'
+        'Pass adminStore to initBylineCore() in byline/server.config.ts.'
     )
   }
 

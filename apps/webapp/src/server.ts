@@ -7,14 +7,14 @@
  */
 
 // Initialize Byline server config (DB adapter, etc.) before handling any requests.
-import '../byline.server.config.ts'
+import '../byline/server.config.ts'
 
-// NOTE: The client config (collection admin UI configs) is initialized in
-// src/config/init-client-config.ts, imported from __root.tsx. That module runs
-// in the SSR render context — the same Vite environment where route components
-// execute. Importing byline.client.config.ts HERE would only set it in the
-// server entry environment, which is isolated from the SSR render environment
-// in TanStack Start / Vite 6.
+// NOTE: The admin config (collection admin UI configs) is initialized via a
+// side-effect import in `src/routes/__root.tsx`. That module runs in the SSR
+// render context — the same Vite environment where route components execute.
+// Importing the admin config HERE would only register it in the server entry
+// environment, which is isolated from the SSR render environment in
+// TanStack Start / Vite 6.
 
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 

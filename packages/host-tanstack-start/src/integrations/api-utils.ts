@@ -12,7 +12,7 @@
  * We'll extract a properly configured API server soon.
  */
 
-// NOTE: Server config (byline.server.config.ts) is loaded by
+// NOTE: The host's server config (e.g. byline/server.config.ts) is loaded by
 // src/server.ts (TanStack Start server entry point) before any
 // requests are handled. No need to import it here.
 

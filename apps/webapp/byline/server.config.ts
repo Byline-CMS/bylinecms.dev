@@ -1,3 +1,19 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/**
+ * Server-side Byline bootstrap. Imported as a side-effect from
+ * `src/server.ts` (and from any seed / migration script that needs the
+ * configured runtime). Resolves the composed `BylineCore` and registers
+ * it on the process global via `initBylineCore()` — server-side callers
+ * read it back with `getBylineCore<AdminStore>()`.
+ */
+
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
 import { JwtSessionProvider } from '@byline/admin/auth'
 import { type BylineCore, initBylineCore } from '@byline/core'
@@ -5,17 +21,18 @@ import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
 import { localStorageProvider } from '@byline/storage-local'
 
-import { Docs } from './byline/collections/docs/schema.js'
 // Import collection definitions directly from schema files — NOT the full
-// client config or index barrels. The client config / index files pull in
-// admin configs (React components, CSS modules) that are not loadable
+// admin config or index barrels. The admin config / index files pull in
+// admin UI configs (React components, CSS modules) that are not loadable
 // outside Vite (e.g. when running seeds via tsx).
-import { DocsCategories } from './byline/collections/docs-categories/schema.js'
-import { Media } from './byline/collections/media/schema.js'
-import { News } from './byline/collections/news/schema.js'
-import { NewsCategories } from './byline/collections/news-categories/schema.js'
-import { Pages } from './byline/collections/pages/schema.js'
-import { DEFAULT_SERVER_URL, i18n, routes } from './byline.common.config.js'
+import { Docs } from './collections/docs/schema.js'
+import { DocsCategories } from './collections/docs-categories/schema.js'
+import { Media } from './collections/media/schema.js'
+import { News } from './collections/news/schema.js'
+import { NewsCategories } from './collections/news-categories/schema.js'
+import { Pages } from './collections/pages/schema.js'
+import { i18n } from './i18n.js'
+import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
 const serverURL = process.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
 
@@ -27,10 +44,9 @@ const collections = [Docs, News, Pages, Media, DocsCategories, NewsCategories]
 // `pgAdapter`, the previous pool would orphan but stay alive, and
 // after a handful of HMR cycles Postgres' `max_connections` is
 // exhausted and every query fails with `53300 sorry, too many clients
-// already`. Stashing the constructed core (and the resolving
-// `Promise` for it, so concurrent reloads converge on one build)
-// lets module reloads reuse the same pool. Production has no HMR so
-// this guard is a no-op there.
+// already`. Stashing the resolving `Promise` (so concurrent reloads
+// converge on one build) lets module reloads reuse the same pool.
+// Production has no HMR so this guard is a no-op there.
 declare global {
   // biome-ignore lint: globalThis augmentation requires `var` rather than `let`
   var __bylineCoreSingleton__: Promise<BylineCore<AdminStore>> | undefined
@@ -122,6 +138,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
 
 // Cache the *Promise*, not the resolved value, so concurrent module
 // loads during a reload race converge on a single build rather than
-// each starting their own.
+// each starting their own. The top-level `await` surfaces init errors
+// at module load time; downstream callers retrieve the resolved core
+// via `getBylineCore<AdminStore>()` from `@byline/core`.
 globalThis.__bylineCoreSingleton__ ??= buildBylineCore()
-export const bylineCore = await globalThis.__bylineCoreSingleton__
+await globalThis.__bylineCoreSingleton__

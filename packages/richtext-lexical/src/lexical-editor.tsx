@@ -15,7 +15,7 @@ import type { EditorConfig } from './field/config/types'
 
 /**
  * Returns a `RichTextEditorComponent` with editor settings baked in. Use this
- * at the registration site in `byline.admin.config.ts` when you want to
+ * at the registration site in your admin config when you want to
  * customise the editor across the whole installation; per-field overrides
  * via `RichTextField.editorConfig` continue to take precedence at render time.
  *

@@ -59,9 +59,10 @@ formatters. This mirrors Django's "model vs ModelAdmin" pattern.
 ## Architecture patterns to follow
 
 ### Config & routing
-- **Config is side-effect loaded**:
-  - Browser: `apps/webapp/src/client.tsx` imports `../byline.client.config.ts`
-  - Server: `apps/webapp/routes/api` TanStack server API routes import `../byline.server.config.*`
+- **Config is side-effect loaded** (all Byline configuration lives under `apps/webapp/byline/`):
+  - Browser/SSR: `apps/webapp/src/routes/__root.tsx` imports `../../byline/admin.config`
+  - Server entry: `apps/webapp/src/server.ts` imports `../byline/server.config.ts`
+  - Server-side callers retrieve the composed runtime via `getBylineCore<AdminStore>()` from `@byline/core`
 - **Dashboard routing**: `@tanstack/react-router` file-based routes under `apps/webapp/src/routes`
   with generated `src/routeTree.gen.ts`. Route files export `Route = createFileRoute(...)`.
 - **Validation**: Zod is the default runtime validator (e.g. `apps/webapp/src/lib/api-utils.ts`).
