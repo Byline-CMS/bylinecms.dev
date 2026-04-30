@@ -20,8 +20,6 @@ Byline CMS — an open-source, AI-first headless CMS. Currently a prototype/PoC.
 | `packages/auth` | `@byline/auth` | Actor primitives, `RequestContext`, `AbilityRegistry`, `SessionProvider` interface, error factories. Leaf package |
 | `packages/admin` | `@byline/admin` | Admin subsystem — users, roles, permissions, account modules, plus the built-in JWT session provider |
 | `packages/db-postgres` | `@byline/db-postgres` | Postgres adapter (Drizzle ORM); subpath `@byline/db-postgres/admin` carries the admin-store repositories |
-| `packages/db-remote` | `@byline/db-remote` | Remote/stub adapter (placeholder) |
-| `packages/db-mysql` | `@byline/db-mysql` | MySQL adapter (placeholder) |
 | `packages/storage-local` | `@byline/storage-local` | Local filesystem storage provider |
 | `packages/storage-s3` | `@byline/storage-s3` | S3-compatible storage provider |
 | `packages/ui` | `@byline/ui` | Shared UI components (Rslib build) |

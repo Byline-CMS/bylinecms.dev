@@ -564,8 +564,7 @@ breakage.
 
 **Reused (no edits):**
 
-- `IDocumentQueries.getDocumentsByDocumentIds` — db-postgres +
-  db-remote stub
+- `IDocumentQueries.getDocumentsByDocumentIds` — db-postgres
 - `@byline/core` field→store mapping (`fieldTypeToStore` et al.)
 - `apps/webapp/src/ui/forms/form-context.tsx` — `setFieldValue`,
   `useFieldValue`, `useFieldError`

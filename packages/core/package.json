@@ -16,7 +16,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
-    "directory": "packages/byline"
+    "directory": "packages/core"
   },
   "type": "module",
   "main": "dist/index.js",

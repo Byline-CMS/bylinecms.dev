@@ -24,7 +24,7 @@ end-to-end on the installer-scaffolded template.
 | 3.1 — Scaffold `@byline/host-tanstack-start` | ✅ shipped | `2d1b096` |
 | 3.2 — Lift server fns | ✅ shipped | `2d1b096` |
 | 3.3 — Lift auth context + cookies | ✅ shipped | `2d1b096` |
-| 3.4 — Lift integration glue | ✅ shipped (`byline-i18n.tsx` + `empty-module.ts` stayed in `apps/webapp` — see §3.4) | `2d1b096` |
+| 3.4 — Lift integration glue | ✅ shipped — `byline-i18n.tsx` originally stayed in `apps/webapp` per §3.4 plan, then removed entirely with the `BylineI18n` bridge contract (commit `7680125`); `empty-module.ts` was renamed to `argon2-browser-shim.ts` and moved to `apps/webapp/vite/` (commit `63d93be`) once it was clear it had no Byline relationship. | `2d1b096` |
 | 3.5 — Lift admin shell components | ✅ shipped — chrome (15 files) + per-area page containers (14 files) lifted with Tailwind→CSS-modules migration; `app-bar.tsx` stays in `apps/webapp` (public-only). | — |
 | 3.6 — Build route factories | ✅ shipped — 14 factories under `routes/`, plus dashboard + sign-in chrome lifts. Path strings cast to `never` since the package can't see the host's generated route tree. |
 | 3.7 — Replace host route bodies | ✅ shipped — every file in `apps/webapp/src/routes/(byline)/**` collapsed to a one-liner factory call. |
@@ -195,11 +195,10 @@ this directory" as the integration story.
   1. `@byline/auth`
   2. `@byline/core`
   3. `@byline/client`, `@byline/admin`, `@byline/ui`
-  4. `@byline/db-postgres`, `@byline/db-mysql`, `@byline/db-remote`
-     (wait: there is no `db-remote`; the repo has `core-remote`).
-     Re-check: publish `@byline/core-remote`.
+  4. `@byline/db-postgres`
   5. `@byline/storage-local`, `@byline/storage-s3`
   6. `@byline/richtext-lexical`
+  7. `@byline/host-tanstack-start`
 
 (All packages are at `version: "0.9.2"` today. Decide whether to bump to
 `0.9.3` for the publish or just publish 0.9.2.)
@@ -993,10 +992,10 @@ the pattern in `docs/analysis/PHASES-OF-WORK.md`. The MEMORY index in
 These don't block Phase 0 but should be settled by Phase 1:
 
 1. **npm org name.** `@byline` confirmed available?
-2. **`db-mysql` and `core-remote`.** Both ship as placeholders today.
-   Publishing a placeholder is fine, but the README should be explicit
-   that they're not implemented. (Already done in the READMEs we just
-   wrote.)
+2. **MySQL adapter.** Removed from the workspace pre-publish (was a
+   placeholder with a README and no `package.json`). Recreate
+   `packages/db-mysql` with a real `package.json` when MySQL support
+   is implemented for real.
 3. **`@byline/ui` style of subpath exports.** Confirm rslib supports the
    multi-entry pattern proposed in 2.4 — if not, fall back to a single
    entry with named exports.
