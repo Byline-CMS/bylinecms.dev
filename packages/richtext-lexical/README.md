@@ -1,9 +1,9 @@
-# @byline/db-postgres
+# @byline/richtext-lexical
 
-PostgreSQL adapter for Byline CMS — Drizzle schema, migrations, and the
-storage / queries / commands implementation behind `IDbAdapter`. The
-subpath `@byline/db-postgres/admin` ships the Postgres-backed admin-store
-repositories that plug into `@byline/admin`.
+Lexical-based richtext editor adapter for Byline CMS — a richtext field
+implementation built on Meta's [Lexical](https://lexical.dev/) framework,
+plus the matching server-side renderer. Configurable per richtext field via
+the field's `editor` option.
 
 This package is part of [Byline CMS](https://github.com/Byline-CMS/bylinecms.dev)
 — a developer-friendly, open-source headless CMS with versioning, editorial

@@ -1,9 +1,9 @@
-# @byline/db-postgres
+# @byline/storage-s3
 
-PostgreSQL adapter for Byline CMS — Drizzle schema, migrations, and the
-storage / queries / commands implementation behind `IDbAdapter`. The
-subpath `@byline/db-postgres/admin` ships the Postgres-backed admin-store
-repositories that plug into `@byline/admin`.
+S3-compatible storage provider for Byline CMS uploads — works with AWS S3,
+Cloudflare R2, MinIO, and other S3-API-compatible object stores. Drop in
+as a site-wide `storage` provider in `initBylineCore()`, or use as a
+per-collection override on an upload collection.
 
 This package is part of [Byline CMS](https://github.com/Byline-CMS/bylinecms.dev)
 — a developer-friendly, open-source headless CMS with versioning, editorial

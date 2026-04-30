@@ -1,9 +1,8 @@
-# @byline/db-postgres
+# @byline/storage-local
 
-PostgreSQL adapter for Byline CMS — Drizzle schema, migrations, and the
-storage / queries / commands implementation behind `IDbAdapter`. The
-subpath `@byline/db-postgres/admin` ships the Postgres-backed admin-store
-repositories that plug into `@byline/admin`.
+Local-filesystem storage provider for Byline CMS uploads. Suitable for
+development and self-hosted deployments where a configured `uploadDir` is
+served as a static path by the host web server.
 
 This package is part of [Byline CMS](https://github.com/Byline-CMS/bylinecms.dev)
 — a developer-friendly, open-source headless CMS with versioning, editorial
