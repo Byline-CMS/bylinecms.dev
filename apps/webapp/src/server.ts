@@ -14,7 +14,7 @@ import '../byline/server.config.ts'
 // render context — the same Vite environment where route components execute.
 // Importing the admin config HERE would only register it in the server entry
 // environment, which is isolated from the SSR render environment in
-// TanStack Start / Vite 6.
+// TanStack Start / Vite 8.
 
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 
