@@ -28,7 +28,7 @@ end-to-end on the installer-scaffolded template.
 | 3.5 — Lift admin shell components | ✅ shipped — chrome (15 files) + per-area page containers (14 files) lifted with Tailwind→CSS-modules migration; `app-bar.tsx` stays in `apps/webapp` (public-only). | — |
 | 3.6 — Build route factories | ✅ shipped — 14 factories under `routes/`, plus dashboard + sign-in chrome lifts. Path strings cast to `never` since the package can't see the host's generated route tree. |
 | 3.7 — Replace host route bodies | ✅ shipped — every file in `apps/webapp/src/routes/(byline)/**` collapsed to a one-liner factory call. |
-| 3.8 — `apps/webapp` end-state check | ⏳ pending verification — `src/modules` removable; `src/ui/{admin,breadcrumbs}` already gone; `src/ui/components/` retains `app-bar.tsx` (public-only). |
+| 3.8 — `apps/webapp` end-state check | ✅ shipped — audit confirms the layout matches the plan; `app-bar.tsx` stays in `apps/webapp/src/ui/components/` (host-only public chrome, never coexists with `AdminAppBar`). |
 | 4 — `@byline/cli` + template | pending | — |
 | 5 — Build the docs site on the installer | pending | — |
 | 6 — Cut 1.0 | pending | — |
@@ -788,10 +788,21 @@ After Phase 3, `apps/webapp/src/` should contain:
 - `byline.{common,server,admin}.config.ts` (at the webapp root) —
   collection definitions + adapter wiring.
 
-`src/modules/` should be empty and removable. `src/ui/admin/`,
-`src/ui/components/`, and `src/ui/breadcrumbs/` should be empty and
-removable. The host's `src/lib/` was already removed in Phase 0.3 —
-nothing to revisit there.
+`src/modules/` retains `home/` (host-owned public-site components — hero,
+gradient, branding, feature grid, etc.); `modules/admin/` is gone.
+`src/ui/admin/` and `src/ui/breadcrumbs/` are gone. `src/ui/components/`
+is intentionally trimmed to a single file: `app-bar.tsx` — the host's
+public-site chrome. Host AppBar and `AdminAppBar` never coexist on a
+page (different route trees), so there is no reason to lift it; if a
+future build wants a Byline-aware piece on the public site (e.g. a
+"Signed in as X · Admin" badge), that lands as a separate
+`<AdminSessionBadge />` slot, not by relocating the AppBar. The host's
+`src/lib/` was already removed in Phase 0.3 — nothing to revisit there.
+
+**Audit (2026-04-30):** all 14 files under `routes/(byline)/**` are
+11–19 lines, every one a factory call. `integrations/byline/` has only
+`byline-i18n.tsx` and `empty-module.ts`. `pnpm typecheck`, `pnpm build`,
+`pnpm lint`, `pnpm test` clean across the workspace; vite dev boots.
 
 There is **no** `src/integrations/byline/host.ts` aggregator (was
 proposed earlier). The host wires the named adapters individually at
