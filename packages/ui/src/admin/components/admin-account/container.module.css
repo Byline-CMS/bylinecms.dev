@@ -1,0 +1,158 @@
+/**
+ * AccountSelfContainer — self-service account dashboard with edit drawers.
+ *
+ * Override handles:
+ *   .byline-account-grid          — outer two-column grid
+ *   .byline-account-column        — column wrapper (vertical card stack)
+ *   .byline-account-section       — single bordered section card
+ *   .byline-account-section-head  — section title + edit-icon row
+ *   .byline-account-line          — single key/value text line
+ *   .byline-account-cta-line      — paragraph above the in-card primary CTA
+ *   .byline-account-meta          — small metadata block (created/updated/last login)
+ *   .byline-account-status        — status colour modifier (enabled / disabled)
+ *   .byline-account-status-on
+ *   .byline-account-status-off
+ *   .byline-account-status-help   — italic helper line on Account Status card
+ *   .byline-account-drawer        — drawer responsive width override
+ *   .byline-account-drawer-body   — drawer content container
+ *   .byline-account-drawer-scroll — drawer scrollable inner viewport
+ *   .byline-account-drawer-skip   — sr-only "no action" focus shim
+ */
+
+.grid,
+:global(.byline-account-grid) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-48);
+}
+
+@media (min-width: 40rem) {
+  .grid,
+  :global(.byline-account-grid) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.column,
+:global(.byline-account-column) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-16);
+}
+
+.section,
+:global(.byline-account-section) {
+  padding: var(--spacing-16);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  background-color: var(--canvas-25);
+  border-radius: var(--border-radius-sm);
+}
+
+.section-head,
+:global(.byline-account-section-head) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-8);
+}
+
+.line,
+:global(.byline-account-line) {
+  margin-bottom: 0;
+}
+
+.cta-line,
+:global(.byline-account-cta-line) {
+  margin-bottom: var(--spacing-12);
+}
+
+.meta,
+:global(.byline-account-meta) {
+  margin-top: var(--spacing-16);
+  font-size: var(--font-size-xs);
+}
+
+.status-on,
+:global(.byline-account-status-on) {
+  color: var(--green-600);
+}
+
+.status-off,
+:global(.byline-account-status-off) {
+  color: var(--red-600);
+}
+
+.status-help,
+:global(.byline-account-status-help) {
+  margin-top: var(--spacing-12);
+  margin-bottom: 0;
+  font-size: var(--font-size-xs);
+}
+
+/*
+ * Italic helper for "Not set" placeholders. Replaces the Tailwind
+ * `italic` utility we used pre-lift; with the component now in a
+ * published package, Tailwind's source scanner doesn't see the class
+ * string in the host so the rule was never generated.
+ */
+.not-set,
+:global(.byline-account-not-set) {
+  font-style: italic;
+}
+
+.drawer,
+:global(.byline-account-drawer) {
+  /* Width handled by uikit Drawer prop; no additional class needed today. */
+}
+
+@media (min-width: 48rem) {
+  .drawer,
+  :global(.byline-account-drawer) {
+    width: 500px;
+  }
+}
+
+.drawer-body,
+:global(.byline-account-drawer-body) {
+  padding: var(--spacing-8);
+}
+
+.drawer-scroll,
+:global(.byline-account-drawer-scroll) {
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.drawer-skip,
+:global(.byline-account-drawer-skip) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:is([data-theme="dark"], :global(.dark)) {
+  .section,
+  :global(.byline-account-section) {
+    border-color: var(--gray-700);
+    background-color: var(--canvas-800);
+  }
+
+  .status-on,
+  :global(.byline-account-status-on) {
+    color: var(--green-400);
+  }
+
+  .status-off,
+  :global(.byline-account-status-off) {
+    color: var(--red-400);
+  }
+}

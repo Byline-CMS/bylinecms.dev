@@ -1,0 +1,62 @@
+/**
+ * ApiView — JSON inspector view for a collection document.
+ *
+ * Override handles:
+ *   .byline-api-section   — outer Section wrapper
+ *   .byline-api-container — inner Container wrapper
+ *   .byline-api-head      — title + view-menu row
+ *   .byline-api-title     — heading
+ *   .byline-api-viewer    — scrollable JSON panel
+ */
+
+.section,
+:global(.byline-api-section),
+.container,
+:global(.byline-api-container) {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.head,
+:global(.byline-api-head) {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  margin-bottom: var(--spacing-8);
+}
+
+@media (min-width: 40rem) {
+  .head,
+  :global(.byline-api-head) {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
+.title,
+:global(.byline-api-title) {
+  margin-bottom: var(--spacing-8);
+}
+
+.viewer,
+:global(.byline-api-viewer) {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--spacing-4);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-300);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--canvas-800);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+}
+
+:is([data-theme="dark"], :global(.dark)) {
+  .viewer,
+  :global(.byline-api-viewer) {
+    border-color: var(--gray-700);
+  }
+}

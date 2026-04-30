@@ -1,0 +1,49 @@
+/**
+ * UpdateAdminUser — drawer form for editing an admin user.
+ *
+ * Override handles:
+ *   .byline-user-update-wrap     — outer container
+ *   .byline-user-update-form     — vertical-stack form element
+ *   .byline-user-update-flags    — checkbox stack (enabled / verified / super)
+ *   .byline-user-update-actions  — Cancel/Save row
+ *   .byline-user-update-action   — buttons in the actions row
+ */
+
+.wrap,
+:global(.byline-user-update-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.form,
+:global(.byline-user-update-form) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  padding-top: var(--spacing-8);
+}
+
+.flags,
+:global(.byline-user-update-flags) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4);
+}
+
+.actions,
+:global(.byline-user-update-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-16);
+}
+
+.action,
+:global(.byline-user-update-action) {
+  min-width: 4rem;
+}

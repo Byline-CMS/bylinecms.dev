@@ -6,12 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import {
-  getCollectionDefinition,
-  getDefaultStatus,
-  getServerConfig,
-  slugify,
-} from '@byline/core'
+import { getCollectionDefinition, getDefaultStatus, getServerConfig, slugify } from '@byline/core'
 
 // Complex test document with many fields and arrays. The system `path`
 // is supplied separately to `createDocumentVersion` as a top-level

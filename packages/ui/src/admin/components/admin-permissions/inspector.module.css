@@ -1,0 +1,326 @@
+/**
+ * AbilitiesInspector — registry inspector with lazy-loaded role/user matrices.
+ *
+ * Override handles:
+ *   .byline-inspector-head           — title row
+ *   .byline-inspector-title          — main heading
+ *   .byline-inspector-count-pill     — total-count pill
+ *   .byline-inspector-lead           — paragraph-style description
+ *   .byline-inspector-empty          — empty-state paragraph
+ *   .byline-inspector-groups         — vertical group stack
+ *   .byline-inspector-group          — group <details> card
+ *   .byline-inspector-group-summary  — group summary row
+ *   .byline-inspector-group-name     — group display name
+ *   .byline-inspector-group-count    — abilities-in-group count
+ *   .byline-inspector-group-body     — group body
+ *   .byline-inspector-row            — single ability row
+ *   .byline-inspector-row-head       — header inside a row
+ *   .byline-inspector-row-info       — info column inside row-head
+ *   .byline-inspector-row-meta       — code + source-badge row
+ *   .byline-inspector-row-key        — ability key code pill
+ *   .byline-inspector-row-source     — source badge base
+ *   .byline-inspector-row-source-collection
+ *   .byline-inspector-row-source-admin
+ *   .byline-inspector-row-source-plugin
+ *   .byline-inspector-row-source-core
+ *   .byline-inspector-row-source-unknown
+ *   .byline-inspector-row-label      — ability display name
+ *   .byline-inspector-row-description — ability description
+ *   .byline-inspector-loader         — loading row inside expanded row
+ *   .byline-inspector-matrix         — two-column roles/users panel
+ *   .byline-inspector-matrix-title   — column heading
+ *   .byline-inspector-matrix-empty   — empty-list message
+ *   .byline-inspector-matrix-list    — bare list
+ *   .byline-inspector-matrix-item    — list item
+ *   .byline-inspector-matrix-name    — bold name span
+ *   .byline-inspector-matrix-machine — muted machine-name suffix
+ */
+
+.head,
+:global(.byline-inspector-head) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  margin-bottom: var(--spacing-16);
+}
+
+.title,
+:global(.byline-inspector-title) {
+  margin: 0;
+}
+
+.count-pill,
+:global(.byline-inspector-count-pill) {
+  background-color: var(--gray-25);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
+  padding: var(--spacing-4) var(--spacing-8);
+  font-size: var(--font-size-sm);
+  border-radius: var(--border-radius-sm);
+}
+
+.lead,
+:global(.byline-inspector-lead) {
+  margin-bottom: var(--spacing-16);
+  font-size: var(--font-size-sm);
+}
+
+.empty,
+:global(.byline-inspector-empty) {
+  /* Inherits .muted colour from sibling utility class. */
+}
+
+.groups,
+:global(.byline-inspector-groups) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.group,
+:global(.byline-inspector-group) {
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  border-radius: var(--border-radius-sm);
+}
+
+/* Hide the default summary disclosure marker (browser-specific). */
+.group :global(summary)::-webkit-details-marker {
+  display: none;
+}
+
+.group-summary,
+:global(.byline-inspector-group-summary) {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-12);
+  list-style: none;
+}
+
+.group-name,
+:global(.byline-inspector-group-name) {
+  font-weight: var(--font-weight-medium);
+}
+
+.group-count,
+:global(.byline-inspector-group-count) {
+  font-size: var(--font-size-xs);
+}
+
+.group-body,
+:global(.byline-inspector-group-body) {
+  padding: 0 var(--spacing-12) var(--spacing-12) var(--spacing-12);
+}
+
+.row,
+:global(.byline-inspector-row) {
+  border-top: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  padding: var(--spacing-8) 0;
+}
+
+.row:first-child,
+:global(.byline-inspector-row):first-child {
+  border-top: 0;
+}
+
+.row-head,
+:global(.byline-inspector-row-head) {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-12);
+}
+
+.row-info,
+:global(.byline-inspector-row-info) {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.row-meta,
+:global(.byline-inspector-row-meta) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+
+.row-key,
+:global(.byline-inspector-row-key) {
+  background-color: var(--gray-50);
+  padding: 0.125rem 0.375rem;
+  font-size: var(--font-size-xs);
+  border-radius: var(--border-radius-sm);
+}
+
+.row-source,
+:global(.byline-inspector-row-source) {
+  padding: 0.125rem 0.375rem;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--gray-100);
+  color: var(--gray-800);
+}
+
+.row-source-collection,
+:global(.byline-inspector-row-source-collection) {
+  background-color: var(--gray-100);
+  color: var(--gray-800);
+}
+
+.row-source-admin,
+:global(.byline-inspector-row-source-admin) {
+  background-color: var(--blue-50);
+  color: var(--blue-700);
+}
+
+.row-source-plugin,
+:global(.byline-inspector-row-source-plugin) {
+  /* No purple token in uikit; fall back to primary scale. */
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.row-source-core,
+:global(.byline-inspector-row-source-core) {
+  background-color: var(--green-50);
+  color: var(--green-700);
+}
+
+.row-source-unknown,
+:global(.byline-inspector-row-source-unknown) {
+  background-color: var(--gray-50);
+  color: var(--gray-600);
+}
+
+.row-label,
+:global(.byline-inspector-row-label) {
+  margin: var(--spacing-4) 0 0 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.row-description,
+:global(.byline-inspector-row-description) {
+  margin-bottom: 0;
+  font-size: var(--font-size-xs);
+}
+
+.loader,
+:global(.byline-inspector-loader) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-8);
+  font-size: var(--font-size-sm);
+}
+
+.matrix,
+:global(.byline-inspector-matrix) {
+  margin-top: var(--spacing-8);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-12);
+  padding: var(--spacing-12);
+  background-color: var(--canvas-25);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  border-radius: var(--border-radius-sm);
+}
+
+@media (min-width: 40rem) {
+  .matrix,
+  :global(.byline-inspector-matrix) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.matrix-title,
+:global(.byline-inspector-matrix-title) {
+  margin: 0 0 var(--spacing-8) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.matrix-empty,
+:global(.byline-inspector-matrix-empty) {
+  margin: 0;
+  font-style: italic;
+  font-size: var(--font-size-sm);
+}
+
+.matrix-list,
+:global(.byline-inspector-matrix-list) {
+  margin: 0;
+  list-style: none;
+  padding: 0;
+  font-size: var(--font-size-sm);
+}
+
+.matrix-item,
+:global(.byline-inspector-matrix-item) {
+  margin-bottom: var(--spacing-4);
+}
+
+.matrix-name,
+:global(.byline-inspector-matrix-name) {
+  font-weight: var(--font-weight-medium);
+}
+
+:is([data-theme="dark"], :global(.dark)) {
+  .count-pill,
+  :global(.byline-inspector-count-pill) {
+    background-color: var(--canvas-700);
+    border-color: var(--gray-700);
+  }
+
+  .group,
+  :global(.byline-inspector-group) {
+    border-color: var(--gray-700);
+  }
+
+  .row,
+  :global(.byline-inspector-row) {
+    border-top-color: var(--gray-700);
+  }
+
+  .row-key,
+  :global(.byline-inspector-row-key) {
+    background-color: var(--canvas-800);
+  }
+
+  .row-source-collection,
+  :global(.byline-inspector-row-source-collection) {
+    background-color: var(--canvas-700);
+    color: var(--gray-200);
+  }
+
+  .row-source-admin,
+  :global(.byline-inspector-row-source-admin) {
+    background-color: var(--blue-900);
+    color: var(--blue-200);
+  }
+
+  .row-source-plugin,
+  :global(.byline-inspector-row-source-plugin) {
+    background-color: var(--primary-900);
+    color: var(--primary-200);
+  }
+
+  .row-source-core,
+  :global(.byline-inspector-row-source-core) {
+    background-color: var(--green-900);
+    color: var(--green-200);
+  }
+
+  .row-source-unknown,
+  :global(.byline-inspector-row-source-unknown) {
+    background-color: var(--canvas-800);
+    color: var(--gray-400);
+  }
+
+  .matrix,
+  :global(.byline-inspector-matrix) {
+    background-color: var(--canvas-800);
+    border-color: var(--gray-700);
+  }
+}

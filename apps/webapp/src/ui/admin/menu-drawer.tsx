@@ -24,7 +24,7 @@ import { useSwipeable } from 'react-swipeable'
 
 import { LangLink } from '@/i18n/components/lang-link.tsx'
 import { pathWithoutLocale } from '@/i18n/utils'
-import { useAbilities } from '@/lib/abilities.tsx'
+import { useAbilities } from '@/integrations/byline/abilities.tsx'
 import { useAdminMenu } from './menu-provider.tsx'
 
 import './menu-drawer.css'

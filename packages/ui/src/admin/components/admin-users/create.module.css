@@ -1,0 +1,63 @@
+/**
+ * CreateAdminUser — drawer form for creating a new admin user.
+ *
+ * Override handles:
+ *   .byline-user-create-wrap     — outer container
+ *   .byline-user-create-form     — vertical-stack form element
+ *   .byline-user-create-grid     — two-column name grid (collapses on mobile)
+ *   .byline-user-create-flags    — checkbox stack (enabled / verified / super)
+ *   .byline-user-create-actions  — Cancel/Save row
+ *   .byline-user-create-action   — buttons in the actions row
+ */
+
+.wrap,
+:global(.byline-user-create-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.form,
+:global(.byline-user-create-form) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  padding-top: var(--spacing-8);
+}
+
+.grid,
+:global(.byline-user-create-grid) {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-16);
+}
+
+@media (min-width: 40rem) {
+  .grid,
+  :global(.byline-user-create-grid) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.flags,
+:global(.byline-user-create-flags) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.actions,
+:global(.byline-user-create-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-16);
+}
+
+.action,
+:global(.byline-user-create-action) {
+  min-width: 4rem;
+}

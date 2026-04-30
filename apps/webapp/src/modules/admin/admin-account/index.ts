@@ -21,8 +21,8 @@
 // transitively pull argon2 in via the package barrel).
 export type { AccountResponse } from '@byline/admin/admin-account'
 
-export { changeAccountPassword } from './change-password'
-export { getAccount } from './get'
-export { updateAccount } from './update'
-export type { ChangeAccountPasswordInput } from './change-password'
-export type { UpdateAccountInput } from './update'
+export { changeAccountPassword } from './server/change-password'
+export { getAccount } from './server/get'
+export { updateAccount } from './server/update'
+export type { ChangeAccountPasswordInput } from './server/change-password'
+export type { UpdateAccountInput } from './server/update'

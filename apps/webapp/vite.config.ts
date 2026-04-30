@@ -6,7 +6,9 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-const emptyModule = fileURLToPath(new URL('./src/lib/empty-module.ts', import.meta.url))
+const emptyModule = fileURLToPath(
+  new URL('./src/integrations/byline/empty-module.ts', import.meta.url)
+)
 
 export default defineConfig({
   server: {

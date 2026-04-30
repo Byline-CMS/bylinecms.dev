@@ -6,12 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import {
-  getCollectionDefinition,
-  getDefaultStatus,
-  getServerConfig,
-  slugify,
-} from '@byline/core'
+import { getCollectionDefinition, getDefaultStatus, getServerConfig, slugify } from '@byline/core'
 
 const categories = [
   {

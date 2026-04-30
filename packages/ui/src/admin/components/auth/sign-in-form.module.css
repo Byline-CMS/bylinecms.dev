@@ -1,0 +1,53 @@
+/**
+ * SignInForm — admin sign-in card form.
+ *
+ * Override handles:
+ *   .byline-sign-in-card     — outer Card (responsive width)
+ *   .byline-sign-in-alert    — error alert spacing
+ *   .byline-sign-in-form     — the form element
+ *   .byline-sign-in-fields   — vertical stack of inputs
+ *   .byline-sign-in-actions  — submit-button row
+ *   .byline-sign-in-button   — the submit button (min-width)
+ */
+
+.card,
+:global(.byline-sign-in-card) {
+  width: 100%;
+}
+
+@media (min-width: 40rem) {
+  .card,
+  :global(.byline-sign-in-card) {
+    max-width: 380px;
+  }
+}
+
+.alert,
+:global(.byline-sign-in-alert) {
+  margin-top: var(--spacing-12);
+}
+
+.form,
+:global(.byline-sign-in-form) {
+  padding-top: var(--spacing-8);
+  margin-bottom: var(--spacing-8);
+}
+
+.fields,
+:global(.byline-sign-in-fields) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+}
+
+.actions,
+:global(.byline-sign-in-actions) {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-24);
+}
+
+.button,
+:global(.byline-sign-in-button) {
+  min-width: 5rem;
+}

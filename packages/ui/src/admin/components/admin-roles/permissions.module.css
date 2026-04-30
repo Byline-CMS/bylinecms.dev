@@ -1,0 +1,273 @@
+/**
+ * RolePermissions — inline per-role ability editor.
+ *
+ * Override handles:
+ *   .byline-role-permissions-wrap         — outer column container
+ *   .byline-role-permissions-toolbar      — top toolbar (mode toggle + count + actions)
+ *   .byline-role-permissions-counter      — "n of m selected/granted" line
+ *   .byline-role-permissions-counter-num  — bold number span
+ *   .byline-role-permissions-actions      — Cancel/Save cluster (right-aligned)
+ *   .byline-role-permissions-action       — Cancel/Save buttons
+ *   .byline-role-permissions-groups       — vertical group stack
+ *   .byline-role-permissions-group        — group card
+ *   .byline-role-permissions-group-head   — group header row
+ *   .byline-role-permissions-group-title  — group name + count line
+ *   .byline-role-permissions-group-name   — group display name
+ *   .byline-role-permissions-group-count  — n-of-m count text
+ *   .byline-role-permissions-group-buttons — Select-all/Clear cluster
+ *   .byline-role-permissions-grid         — ability checkbox grid
+ *   .byline-role-permissions-row          — single ability row
+ *   .byline-role-permissions-label        — clickable label
+ *   .byline-role-permissions-label-edit   — edit-mode cursor variant
+ *   .byline-role-permissions-label-head   — name + key pill row
+ *   .byline-role-permissions-label-name   — ability display name
+ *   .byline-role-permissions-key          — code pill (ability key)
+ *   .byline-role-permissions-description  — ability description
+ *   .byline-role-permissions-mode-toggle  — segmented View/Edit toggle
+ *   .byline-role-permissions-mode-button  — toggle button base
+ *   .byline-role-permissions-mode-button-active — active toggle button
+ *   .byline-role-permissions-mode-button-divider — left-border separator on the second button
+ *   .byline-role-permissions-mode-button-disabled — disabled-cursor modifier
+ */
+
+.wrap,
+:global(.byline-role-permissions-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+  margin-bottom: var(--spacing-48);
+}
+
+.toolbar,
+:global(.byline-role-permissions-toolbar) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-12);
+  padding: var(--spacing-12);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  background-color: var(--canvas-25);
+  border-radius: var(--border-radius-sm);
+}
+
+.counter,
+:global(.byline-role-permissions-counter) {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.counter-num,
+:global(.byline-role-permissions-counter-num) {
+  font-weight: var(--font-weight-medium);
+}
+
+.actions,
+:global(.byline-role-permissions-actions) {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+
+.action,
+:global(.byline-role-permissions-action) {
+  min-width: 4rem;
+}
+
+/*
+ * Checkbox shrink-fit — overrides the uikit Checkbox's `width: 100%`
+ * default container so the external label sits flush against the
+ * checkbox button. Replaces the `!w-auto` Tailwind utility we used
+ * pre-lift; with the component now in a published package, Tailwind's
+ * source scanner no longer sees that class string in the host so the
+ * rule was never generated and the label was being pushed to the right.
+ */
+.checkbox-auto,
+:global(.byline-role-permissions-checkbox-auto) {
+  width: auto !important;
+}
+
+.groups,
+:global(.byline-role-permissions-groups) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.group,
+:global(.byline-role-permissions-group) {
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  border-radius: var(--border-radius-sm);
+}
+
+.group-head,
+:global(.byline-role-permissions-group-head) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-12);
+  border-bottom: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+}
+
+.group-name,
+:global(.byline-role-permissions-group-name) {
+  font-weight: var(--font-weight-medium);
+}
+
+.group-count,
+:global(.byline-role-permissions-group-count) {
+  margin-left: var(--spacing-8);
+  font-size: var(--font-size-xs);
+}
+
+.group-buttons,
+:global(.byline-role-permissions-group-buttons) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.grid,
+:global(.byline-role-permissions-grid) {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-4);
+  padding: var(--spacing-12);
+}
+
+@media (min-width: 40rem) {
+  .grid,
+  :global(.byline-role-permissions-grid) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.row,
+:global(.byline-role-permissions-row) {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4) 0;
+}
+
+.label,
+:global(.byline-role-permissions-label) {
+  min-width: 0;
+  flex: 1 1 0;
+  cursor: default;
+}
+
+.label-edit,
+:global(.byline-role-permissions-label-edit) {
+  cursor: pointer;
+}
+
+.label-head,
+:global(.byline-role-permissions-label-head) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+
+.label-name,
+:global(.byline-role-permissions-label-name) {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.key,
+:global(.byline-role-permissions-key) {
+  background-color: var(--gray-100);
+  padding: 0.125rem 0.375rem;
+  font-size: var(--font-size-xs);
+  border-radius: var(--border-radius-sm);
+}
+
+.description,
+:global(.byline-role-permissions-description) {
+  margin-bottom: 0;
+  font-size: var(--font-size-xs);
+}
+
+.mode-toggle,
+:global(.byline-role-permissions-mode-toggle) {
+  display: inline-flex;
+  overflow: hidden;
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
+  border-radius: var(--border-radius-sm);
+}
+
+.mode-button,
+:global(.byline-role-permissions-mode-button) {
+  padding: 0.125rem 0.625rem;
+  font-size: var(--font-size-xs);
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.mode-button:hover,
+:global(.byline-role-permissions-mode-button):hover {
+  background-color: var(--gray-50);
+}
+
+.mode-button-active,
+:global(.byline-role-permissions-mode-button-active) {
+  background-color: var(--gray-100);
+  font-weight: var(--font-weight-medium);
+}
+
+.mode-button-divider,
+:global(.byline-role-permissions-mode-button-divider) {
+  border-left: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
+}
+
+.mode-button-disabled,
+:global(.byline-role-permissions-mode-button-disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:is([data-theme="dark"], :global(.dark)) {
+  .toolbar,
+  :global(.byline-role-permissions-toolbar) {
+    border-color: var(--gray-700);
+    background-color: var(--canvas-800);
+  }
+
+  .group,
+  :global(.byline-role-permissions-group) {
+    border-color: var(--gray-700);
+  }
+
+  .group-head,
+  :global(.byline-role-permissions-group-head) {
+    border-bottom-color: var(--gray-700);
+  }
+
+  .key,
+  :global(.byline-role-permissions-key) {
+    background-color: var(--canvas-800);
+  }
+
+  .mode-toggle,
+  :global(.byline-role-permissions-mode-toggle) {
+    border-color: var(--gray-700);
+  }
+
+  .mode-button:hover,
+  :global(.byline-role-permissions-mode-button):hover {
+    background-color: var(--canvas-700);
+  }
+
+  .mode-button-active,
+  :global(.byline-role-permissions-mode-button-active) {
+    background-color: var(--canvas-700);
+  }
+
+  .mode-button-divider,
+  :global(.byline-role-permissions-mode-button-divider) {
+    border-left-color: var(--gray-700);
+  }
+}

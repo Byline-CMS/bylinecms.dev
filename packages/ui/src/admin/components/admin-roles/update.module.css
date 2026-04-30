@@ -1,0 +1,40 @@
+/**
+ * UpdateAdminRole — drawer form for editing an existing role.
+ *
+ * Override handles:
+ *   .byline-role-update-wrap     — outer container
+ *   .byline-role-update-form     — vertical-stack form element
+ *   .byline-role-update-actions  — Cancel/Save row
+ *   .byline-role-update-action   — buttons in the actions row
+ */
+
+.wrap,
+:global(.byline-role-update-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.form,
+:global(.byline-role-update-form) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  padding-top: var(--spacing-8);
+}
+
+.actions,
+:global(.byline-role-update-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-16);
+}
+
+.action,
+:global(.byline-role-update-action) {
+  min-width: 4rem;
+}

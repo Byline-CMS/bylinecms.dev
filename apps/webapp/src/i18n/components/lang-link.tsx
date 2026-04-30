@@ -5,7 +5,7 @@
  * `{-$lng}` path parameter based on the current (or explicitly supplied) locale.
  *
  * For the default locale the param is omitted, producing clean URLs
- * (e.g. `/admin` instead of `/en/admin`).
+ * (e.g. `/about` instead of `/en/about`).
  *
  * When `forceReload` is true, a plain `<a>` tag is rendered instead,
  * triggering a full page navigation.
@@ -19,7 +19,7 @@ import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 
 export interface LangLinkProps
   extends Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'children'> {
-  /** Route path — use clean paths like '/admin', not '/{-$lng}/admin'. The locale prefix is added automatically. */
+  /** Route path — use clean paths like '/about', not '/{-$lng}/about'. The locale prefix is added automatically. */
   to: string
   /** Target locale — defaults to the current route locale */
   lng?: Locale
@@ -42,7 +42,7 @@ export interface LangLinkProps
 
 /**
  * Prepend the optional locale segment to a clean path so it matches the
- * generated TanStack route IDs (e.g. `'/{-$lng}/admin'`).
+ * generated TanStack route IDs (e.g. `'/about'` → `'/{-$lng}/about'`).
  */
 function toLocaleRoute(path: string): string {
   if (path.startsWith('/{-$lng}')) return path

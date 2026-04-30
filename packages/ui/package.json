@@ -52,9 +52,34 @@
       "import": "./dist/react.js",
       "main": "./dist/react.js",
       "default": "./dist/react.js"
+    },
+    "./admin/*": {
+      "types": "./dist/admin/*.d.ts",
+      "import": "./dist/admin/*.js"
+    },
+    "./components/*": {
+      "types": "./dist/components/*.d.ts",
+      "import": "./dist/components/*.js"
+    },
+    "./dnd/*": {
+      "types": "./dist/dnd/*.d.ts",
+      "import": "./dist/dnd/*.js"
+    },
+    "./fields/*": {
+      "types": "./dist/fields/*.d.ts",
+      "import": "./dist/fields/*.js"
+    },
+    "./forms/*": {
+      "types": "./dist/forms/*.d.ts",
+      "import": "./dist/forms/*.js"
+    },
+    "./services/*": {
+      "types": "./dist/services/*.d.ts",
+      "import": "./dist/services/*.js"
     }
   },
   "dependencies": {
+    "@byline/admin": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
     "@dnd-kit/core": "^6.3.1",
@@ -62,9 +87,11 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@infonomic/uikit": "^6.7.0",
+    "@tanstack/react-form-start": "^1.29.1",
     "classnames": "^2.5.1",
     "lodash-es": "^4.18.1",
     "npm-run-all": "^4.1.5",
+    "react-diff-viewer-continued": "^4.2.2",
     "zod": "^4.3.6",
     "zod-form-data": "^3.0.1"
   },

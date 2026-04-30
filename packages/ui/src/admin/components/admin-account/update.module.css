@@ -1,0 +1,40 @@
+/**
+ * UpdateAccount — self-service profile form (drawer body).
+ *
+ * Override handles:
+ *   .byline-account-update-wrap     — outer container
+ *   .byline-account-update-form     — vertical-stack form element
+ *   .byline-account-update-actions  — Cancel/Save row
+ *   .byline-account-update-action   — buttons in the actions row
+ */
+
+.wrap,
+:global(.byline-account-update-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.form,
+:global(.byline-account-update-form) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  padding-top: var(--spacing-8);
+}
+
+.actions,
+:global(.byline-account-update-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-16);
+}
+
+.action,
+:global(.byline-account-update-action) {
+  min-width: 4rem;
+}

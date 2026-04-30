@@ -12,7 +12,7 @@
  * Auto-discovered by the Start Vite plugin at `src/start.ts`. The only
  * role right now is to register serialization adapters so typed errors
  * (`AdminUsersError`, `AuthError`) survive the server-fn boundary with
- * their `code` intact — see `src/lib/start-errors.ts` for the full
+ * their `code` intact — see `src/integrations/byline/start-errors.ts` for the full
  * rationale.
  *
  * Add further `serializationAdapters`, request/function middleware, or
@@ -21,7 +21,7 @@
 
 import { createStart } from '@tanstack/react-start'
 
-import { bylineCodedErrorAdapter } from './lib/start-errors'
+import { bylineCodedErrorAdapter } from './integrations/byline/start-errors'
 
 export const startInstance = createStart(() => ({
   serializationAdapters: [bylineCodedErrorAdapter],

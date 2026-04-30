@@ -30,7 +30,7 @@ export type {
   WhoHasAbilityResponse,
 } from '@byline/admin/admin-permissions'
 
-export { getRoleAbilities } from './get-role-abilities'
-export { listRegisteredAbilities } from './list-registered'
-export { type SetRoleAbilitiesInput, setRoleAbilities } from './set-role-abilities'
-export { whoHasAbility } from './who-has'
+export { getRoleAbilities } from './server/get-role-abilities'
+export { listRegisteredAbilities } from './server/list-registered'
+export { type SetRoleAbilitiesInput, setRoleAbilities } from './server/set-role-abilities'
+export { whoHasAbility } from './server/who-has'

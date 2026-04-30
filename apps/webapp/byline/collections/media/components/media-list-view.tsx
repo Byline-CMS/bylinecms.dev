@@ -23,6 +23,7 @@ import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 
 import type { ListViewComponentProps, StoredFileValue, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { LocalDateTime } from '@byline/ui'
 import {
   Container,
   IconButton,
@@ -33,7 +34,6 @@ import {
   Select,
 } from '@infonomic/uikit/react'
 
-import { LocalDateTime } from '@/ui/components/local-date-time'
 import { RouterPager } from '@/ui/components/router-pager'
 import { formatNumber } from '@/utils/utils.general'
 import { FormatBadge } from './media-thumbnail'
@@ -146,7 +146,7 @@ export function MediaListView({
       delete params.page
       params.query = query
       navigate({
-        to: '/{-$lng}/admin/collections/$collection',
+        to: '/admin/collections/$collection',
         params: { collection: collectionPath },
         search: params,
       })
@@ -158,7 +158,7 @@ export function MediaListView({
     delete params.page
     delete params.query
     navigate({
-      to: '/{-$lng}/admin/collections/$collection',
+      to: '/admin/collections/$collection',
       params: { collection: collectionPath },
       search: params,
     })
@@ -176,7 +176,7 @@ export function MediaListView({
     params.order = order
     params.desc = desc
     navigate({
-      to: '/{-$lng}/admin/collections/$collection',
+      to: '/admin/collections/$collection',
       params: { collection: collectionPath },
       search: params,
     })
@@ -196,7 +196,7 @@ export function MediaListView({
             render={
               <Link
                 className="ml-auto"
-                to="/{-$lng}/admin/collections/$collection/create"
+                to="/admin/collections/$collection/create"
                 params={{ collection: collectionPath }}
               />
             }
@@ -264,7 +264,7 @@ export function MediaListView({
               return (
                 <Link
                   key={doc.id}
-                  to="/{-$lng}/admin/collections/$collection/$id"
+                  to="/admin/collections/$collection/$id"
                   params={{ collection: collectionPath, id: doc.id }}
                   className="group flex flex-col overflow-hidden rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-canvas-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors no-underline"
                 >

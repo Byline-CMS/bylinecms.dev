@@ -1,0 +1,79 @@
+/**
+ * DiffModal — side-by-side document version comparison modal.
+ *
+ * Override handles:
+ *   .byline-diff-modal-header     — modal header padding
+ *   .byline-diff-modal-title-stack — heading + subtitle stack
+ *   .byline-diff-modal-title      — heading
+ *   .byline-diff-modal-subtitle   — subtitle line
+ *   .byline-diff-modal-version    — inline pill identifying the historical version
+ *   .byline-diff-modal-content    — scrollable content
+ *   .byline-diff-modal-state      — loading / error placeholder
+ *   .byline-diff-modal-error      — error placeholder colour modifier
+ *   .byline-diff-modal-viewer     — diff viewer wrapper
+ */
+
+.header,
+:global(.byline-diff-modal-header) {
+  padding-top: var(--spacing-16);
+  margin-bottom: var(--spacing-8);
+  flex-shrink: 0;
+}
+
+.title-stack,
+:global(.byline-diff-modal-title-stack) {
+  display: flex;
+  flex-direction: column;
+}
+
+.title,
+:global(.byline-diff-modal-title) {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.subtitle,
+:global(.byline-diff-modal-subtitle) {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--gray-400);
+}
+
+.version,
+:global(.byline-diff-modal-version) {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  background-color: var(--canvas-700);
+  padding: 0 var(--spacing-4);
+  border-radius: var(--border-radius-sm);
+}
+
+.content,
+:global(.byline-diff-modal-content) {
+  flex: 1 1 0;
+  overflow: auto;
+  padding: 0;
+  min-height: 0;
+}
+
+.state,
+:global(.byline-diff-modal-state) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--spacing-12);
+  color: var(--gray-400);
+}
+
+.error,
+:global(.byline-diff-modal-error) {
+  color: var(--red-400);
+  gap: 0;
+}
+
+.viewer,
+:global(.byline-diff-modal-viewer) {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}

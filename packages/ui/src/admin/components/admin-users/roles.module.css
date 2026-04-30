@@ -1,0 +1,117 @@
+/**
+ * UserRoles — drawer for assigning roles to a user.
+ *
+ * Override handles:
+ *   .byline-user-roles-wrap        — outer container
+ *   .byline-user-roles-empty       — "no roles created yet" empty-state
+ *   .byline-user-roles-empty-hint  — inline machine-name hint
+ *   .byline-user-roles-list        — flat checkbox list
+ *   .byline-user-roles-row         — single role row
+ *   .byline-user-roles-label       — clickable label
+ *   .byline-user-roles-label-head  — name + machine-name pill row
+ *   .byline-user-roles-name        — role display name
+ *   .byline-user-roles-machine     — inline code pill (machine name)
+ *   .byline-user-roles-description — role description
+ *   .byline-user-roles-actions     — Cancel/Save row
+ *   .byline-user-roles-action      — buttons in the actions row
+ */
+
+.wrap,
+:global(.byline-user-roles-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+  padding: var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.empty,
+:global(.byline-user-roles-empty) {
+  margin: 0;
+  font-style: italic;
+}
+
+.empty-hint,
+:global(.byline-user-roles-empty-hint) {
+  /* Inherits muted colour from the parent .muted utility. */
+}
+
+.list,
+:global(.byline-user-roles-list) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.row,
+:global(.byline-user-roles-row) {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4) 0;
+}
+
+.label,
+:global(.byline-user-roles-label) {
+  min-width: 0;
+  flex: 1 1 0;
+  cursor: pointer;
+}
+
+.label-head,
+:global(.byline-user-roles-label-head) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+
+.name,
+:global(.byline-user-roles-name) {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.machine,
+:global(.byline-user-roles-machine) {
+  background-color: var(--gray-100);
+  padding: 0.125rem 0.375rem;
+  font-size: var(--font-size-xs);
+  border-radius: var(--border-radius-sm);
+}
+
+.description,
+:global(.byline-user-roles-description) {
+  margin-bottom: 0;
+  font-size: var(--font-size-xs);
+}
+
+.actions,
+:global(.byline-user-roles-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-16);
+}
+
+.action,
+:global(.byline-user-roles-action) {
+  min-width: 4rem;
+}
+
+/*
+ * Checkbox shrink-fit — see admin-roles/permissions.module.css for the
+ * rationale; the same override is needed here for the per-user role
+ * checkbox list.
+ */
+.checkbox-auto,
+:global(.byline-user-roles-checkbox-auto) {
+  width: auto !important;
+}
+
+:is([data-theme="dark"], :global(.dark)) {
+  .machine,
+  :global(.byline-user-roles-machine) {
+    background-color: var(--canvas-800);
+  }
+}

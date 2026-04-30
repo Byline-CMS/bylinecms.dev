@@ -17,9 +17,9 @@
 
 export type { AdminRoleListResponse, AdminRoleResponse } from '@byline/admin/admin-roles'
 
-export { type CreateAdminRoleInput, createAdminRole } from './create'
-export { deleteAdminRole } from './delete'
-export { getAdminRole } from './get'
-export { listAdminRoles } from './list'
-export { reorderAdminRoles } from './reorder'
-export { type UpdateAdminRoleInput, updateAdminRole } from './update'
+export { type CreateAdminRoleInput, createAdminRole } from './server/create'
+export { deleteAdminRole } from './server/delete'
+export { getAdminRole } from './server/get'
+export { listAdminRoles } from './server/list'
+export { reorderAdminRoles } from './server/reorder'
+export { type UpdateAdminRoleInput, updateAdminRole } from './server/update'

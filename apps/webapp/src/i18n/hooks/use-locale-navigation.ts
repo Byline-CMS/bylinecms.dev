@@ -28,7 +28,7 @@ export function useLocale(): Locale {
  * `<Link params={...}>` or `navigate({ params: ... })`.
  *
  * For the default locale the param is `undefined` so it produces clean URLs
- * (e.g. `/admin` instead of `/en/admin`).
+ * (e.g. `/about` instead of `/en/about`).
  */
 export function lngParam(locale: Locale): { lng: string | undefined } {
   return { lng: locale === i18nConfig.defaultLocale ? undefined : locale }
@@ -36,7 +36,7 @@ export function lngParam(locale: Locale): { lng: string | undefined } {
 
 /**
  * Prepend the optional locale segment to a clean path so it matches the
- * generated TanStack route IDs (e.g. `'/admin'` → `'/{-$lng}/admin'`).
+ * generated TanStack route IDs (e.g. `'/about'` → `'/{-$lng}/about'`).
  * Paths that already have the prefix are returned unchanged.
  */
 export function toLocaleRoute(path: string): string {
