@@ -31,7 +31,7 @@
     "typescript": "6.0.3"
   },
   "engines": {
-    "node": "^18.20.2 || >=20.9.0"
+    "node": ">=20.9.0"
   },
   "pnpm": {
     "allowedDeprecatedVersions": {
