@@ -10,9 +10,9 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { getCollectionDocument } from '@byline/host-tanstack-start/server-fns/collections'
 import { z } from 'zod'
 
-import { getCollectionDocument } from '@/modules/admin/collections'
 import { EditView } from '@/modules/admin/collections/ui/edit'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 

@@ -25,6 +25,11 @@ import type React from 'react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import type {
+  AdminRoleListResponse,
+  AdminRoleResponse,
+} from '@byline/host-tanstack-start/server-fns/admin-roles'
+import { reorderAdminRoles } from '@byline/host-tanstack-start/server-fns/admin-roles/reorder'
 import {
   CreateAdminRole,
   DraggableSortable,
@@ -49,8 +54,6 @@ import cx from 'classnames'
 
 import { LangLink } from '@/i18n/components/lang-link'
 import { formatNumber } from '@/utils/utils.general'
-import { reorderAdminRoles } from '../server/reorder'
-import type { AdminRoleListResponse, AdminRoleResponse } from '../index'
 
 function Stats({ total }: { total: number }) {
   return (

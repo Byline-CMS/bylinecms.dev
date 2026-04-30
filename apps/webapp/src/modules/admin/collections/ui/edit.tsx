@@ -12,15 +12,15 @@ import { useNavigate } from '@tanstack/react-router'
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getDefaultStatus, getWorkflowStatuses } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { FormRenderer } from '@byline/ui'
-import { Container, Section, useToastManager } from '@infonomic/uikit/react'
-
 import {
   deleteDocument,
   unpublishDocument,
   updateCollectionDocumentWithPatches,
   updateDocumentStatus,
-} from '..'
+} from '@byline/host-tanstack-start/server-fns/collections'
+import { FormRenderer } from '@byline/ui'
+import { Container, Section, useToastManager } from '@infonomic/uikit/react'
+
 import { useTanStackNavigationGuard } from './tanstack-navigation-guard'
 import { ViewMenu } from './view-menu'
 

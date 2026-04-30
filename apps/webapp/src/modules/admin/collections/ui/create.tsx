@@ -10,10 +10,10 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import { createCollectionDocument } from '@byline/host-tanstack-start/server-fns/collections'
 import { FormRenderer } from '@byline/ui'
 import { Container, Section, useToastManager } from '@infonomic/uikit/react'
 
-import { createCollectionDocument } from '..'
 import { useTanStackNavigationGuard } from './tanstack-navigation-guard'
 
 type CreateState = {

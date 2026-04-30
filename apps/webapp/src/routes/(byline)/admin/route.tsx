@@ -21,12 +21,12 @@
 
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
+import { bylineAdminServices } from '@byline/host-tanstack-start/integrations/byline-admin-services'
+import { bylineFieldServices } from '@byline/host-tanstack-start/integrations/byline-field-services'
+import { getCurrentAdminUser } from '@byline/host-tanstack-start/server-fns/auth'
 import { BylineAdminServicesProvider, BylineFieldServicesProvider } from '@byline/ui'
 
-import { bylineAdminServices } from '@/integrations/byline/byline-admin-services'
-import { bylineFieldServices } from '@/integrations/byline/byline-field-services'
 import { BylineI18nBridge } from '@/integrations/byline/byline-i18n'
-import { getCurrentAdminUser } from '@/modules/admin/auth'
 import { Content } from '@/ui/admin/content'
 import { DrawerToggle } from '@/ui/admin/drawer-toggle'
 import { AdminMenuDrawer } from '@/ui/admin/menu-drawer'

@@ -115,14 +115,8 @@ export function UserRoles({ user, allRoles, initialRoleIds, onClose, onSaved }: 
                 checked={selected.has(role.id)}
                 disabled={saving}
                 onCheckedChange={(checked) => handleToggle(role.id, checked === true)}
-                containerClasses={cx(
-                  'byline-user-roles-checkbox-auto',
-                  styles['checkbox-auto']
-                )}
-                componentClasses={cx(
-                  'byline-user-roles-checkbox-auto',
-                  styles['checkbox-auto']
-                )}
+                containerClasses={cx('byline-user-roles-checkbox-auto', styles['checkbox-auto'])}
+                componentClasses={cx('byline-user-roles-checkbox-auto', styles['checkbox-auto'])}
               />
               <label
                 htmlFor={`role-${role.id}`}

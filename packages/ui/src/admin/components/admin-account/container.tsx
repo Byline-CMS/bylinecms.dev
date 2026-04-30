@@ -108,15 +108,27 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
             </p>
             <p className={cx('byline-account-line', styles.line)}>
               <span className="muted">Given name:</span>{' '}
-              {currentAccount.given_name ?? <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>Not set</span>}
+              {currentAccount.given_name ?? (
+                <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
+                  Not set
+                </span>
+              )}
             </p>
             <p className={cx('byline-account-line', styles.line)}>
               <span className="muted">Family name:</span>{' '}
-              {currentAccount.family_name ?? <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>Not set</span>}
+              {currentAccount.family_name ?? (
+                <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
+                  Not set
+                </span>
+              )}
             </p>
             <p className={cx('byline-account-cta-line', styles['cta-line'])}>
               <span className="muted">Username:</span>{' '}
-              {currentAccount.username ?? <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>Not set</span>}
+              {currentAccount.username ?? (
+                <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
+                  Not set
+                </span>
+              )}
             </p>
             <Button size="sm" onClick={openDrawer('update')}>
               Edit Profile

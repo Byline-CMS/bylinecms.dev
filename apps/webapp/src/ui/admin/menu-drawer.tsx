@@ -12,6 +12,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { ADMIN_PERMISSIONS_ABILITIES } from '@byline/admin/admin-permissions'
 import { ADMIN_ROLES_ABILITIES } from '@byline/admin/admin-roles'
 import { ADMIN_USERS_ABILITIES } from '@byline/admin/admin-users'
+import { useAbilities } from '@byline/host-tanstack-start/integrations/abilities'
 import {
   HomeIcon,
   RolesIcon,
@@ -24,7 +25,6 @@ import { useSwipeable } from 'react-swipeable'
 
 import { LangLink } from '@/i18n/components/lang-link.tsx'
 import { pathWithoutLocale } from '@/i18n/utils'
-import { useAbilities } from '@/integrations/byline/abilities.tsx'
 import { useAdminMenu } from './menu-provider.tsx'
 
 import './menu-drawer.css'

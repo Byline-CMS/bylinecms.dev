@@ -17,6 +17,7 @@ import type {
 
 const BYLINE_SERVER_CONFIG = Symbol.for('__byline_server_config__')
 const BYLINE_CLIENT_CONFIG = Symbol.for('__byline_client_config__')
+const BYLINE_CORE = Symbol.for('__byline_core__')
 
 function getServerConfigInstance(): ServerConfig | null {
   return (globalThis as any)[BYLINE_SERVER_CONFIG] ?? null
@@ -30,6 +31,13 @@ function getClientConfigInstance(): ClientConfig | null {
 }
 function setClientConfigInstance(config: ClientConfig) {
   ;(globalThis as any)[BYLINE_CLIENT_CONFIG] = config
+}
+
+function getBylineCoreInstance(): unknown | null {
+  return (globalThis as any)[BYLINE_CORE] ?? null
+}
+function setBylineCoreInstance(core: unknown) {
+  ;(globalThis as any)[BYLINE_CORE] = core
 }
 
 export const getCollectionDefinition = (path: string): CollectionDefinition | null => {
@@ -94,4 +102,31 @@ export function getServerConfig(): ServerConfig {
     )
   }
   return serverConfig
+}
+
+// ---------------------------------------------------------------------------
+// BylineCore singleton — the composed runtime returned by `initBylineCore`.
+// Server-side packages that need post-init state (the abilities registry,
+// the resolved admin store) read it here rather than importing the host's
+// `byline.server.config.ts` directly. Stored as `unknown` to avoid a
+// circular type dependency between `config.ts` and `core.ts`; consumers
+// import the typed `getBylineCore<TAdminStore>()` re-export from
+// `core.ts`.
+// ---------------------------------------------------------------------------
+
+export function defineBylineCore(core: unknown): void {
+  setBylineCoreInstance(core)
+}
+
+export function getBylineCoreUnsafe(): unknown {
+  if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+    throw new Error('getBylineCore cannot be called on the client.')
+  }
+  const core = getBylineCoreInstance()
+  if (core == null) {
+    throw new Error(
+      'BylineCore has not been initialised yet. Please call initBylineCore() in byline.server.config.ts first.'
+    )
+  }
+  return core
 }

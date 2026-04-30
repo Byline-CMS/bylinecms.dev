@@ -81,9 +81,15 @@
  * pre-lift; with the component now in a published package, Tailwind's
  * source scanner no longer sees that class string in the host so the
  * rule was never generated and the label was being pushed to the right.
+ *
+ * `!important` is required — the uikit Checkbox sets `width: 100%`
+ * at the same specificity, so a plain rule loses to source-order. The
+ * pre-lift Tailwind class `!w-auto` carried `!important` via Tailwind's
+ * `!` prefix; this is the same effect, expressed in a CSS module.
  */
 .checkbox-auto,
 :global(.byline-role-permissions-checkbox-auto) {
+  /* biome-ignore lint/complexity/noImportantStyles: see comment above */
   width: auto !important;
 }
 

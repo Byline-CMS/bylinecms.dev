@@ -102,10 +102,12 @@
 /*
  * Checkbox shrink-fit — see admin-roles/permissions.module.css for the
  * rationale; the same override is needed here for the per-user role
- * checkbox list.
+ * checkbox list. `!important` is required to win over the uikit
+ * Checkbox's `width: 100%` default at equal specificity.
  */
 .checkbox-auto,
 :global(.byline-user-roles-checkbox-auto) {
+  /* biome-ignore lint/complexity/noImportantStyles: see admin-roles/permissions.module.css */
   width: auto !important;
 }
 

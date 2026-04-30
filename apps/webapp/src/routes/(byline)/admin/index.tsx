@@ -10,9 +10,12 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import type { WorkflowStatus } from '@byline/core'
 import { getClientConfig, getWorkflowStatuses } from '@byline/core'
+import {
+  type CollectionStatusCount,
+  getCollectionStats,
+} from '@byline/host-tanstack-start/server-fns/collections'
 import { Card, Container, Section } from '@infonomic/uikit/react'
 
-import { type CollectionStatusCount, getCollectionStats } from '@/modules/admin/collections'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 // ---------------------------------------------------------------------------

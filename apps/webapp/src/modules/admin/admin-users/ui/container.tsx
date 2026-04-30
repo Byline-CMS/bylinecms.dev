@@ -12,6 +12,11 @@ import type React from 'react'
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import type { AdminRoleResponse } from '@byline/host-tanstack-start/server-fns/admin-roles'
+import type {
+  AdminUserResponse,
+  UserRolesResponse,
+} from '@byline/host-tanstack-start/server-fns/admin-users'
 import { LocalDateTime, SetPassword, UpdateUser, UserRoles } from '@byline/ui'
 import {
   Button,
@@ -25,8 +30,6 @@ import {
 import cx from 'classnames'
 
 import { DeleteUser } from './delete'
-import type { AdminRoleResponse } from '@/modules/admin/admin-roles'
-import type { AdminUserResponse, UserRolesResponse } from '../index'
 
 /**
  * Detail view for a single admin user, built around Infonomic's drawer

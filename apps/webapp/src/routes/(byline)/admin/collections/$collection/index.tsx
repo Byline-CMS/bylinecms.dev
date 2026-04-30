@@ -15,10 +15,10 @@ import {
   getCollectionDefinition,
   getWorkflowStatuses,
 } from '@byline/core'
+import { getCollectionDocuments } from '@byline/host-tanstack-start/server-fns/collections'
 import { useToastManager } from '@infonomic/uikit/react'
 import { z } from 'zod'
 
-import { getCollectionDocuments } from '@/modules/admin/collections'
 import { ListView } from '@/modules/admin/collections/ui/list'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 

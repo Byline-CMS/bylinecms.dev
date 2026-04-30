@@ -19,9 +19,8 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { bylineAdminServices } from '@byline/host-tanstack-start/integrations/byline-admin-services'
 import { BylineAdminServicesProvider, SignInForm } from '@byline/ui'
-
-import { bylineAdminServices } from '@/integrations/byline/byline-admin-services'
 
 interface SignInSearch {
   callbackUrl?: string

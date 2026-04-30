@@ -23,10 +23,9 @@
 import { useState } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
+import type { AdminUserResponse } from '@byline/host-tanstack-start/server-fns/admin-users'
+import { deleteAdminUser } from '@byline/host-tanstack-start/server-fns/admin-users'
 import { Alert, Button, LoaderEllipsis, Modal } from '@infonomic/uikit/react'
-
-import { deleteAdminUser } from '../index'
-import type { AdminUserResponse } from '../index'
 
 interface DeleteUserProps {
   user: AdminUserResponse

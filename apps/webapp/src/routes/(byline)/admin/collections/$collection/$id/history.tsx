@@ -14,9 +14,12 @@ import {
   getCollectionDefinition,
   getWorkflowStatuses,
 } from '@byline/core'
+import {
+  getCollectionDocument,
+  getCollectionDocumentHistory,
+} from '@byline/host-tanstack-start/server-fns/collections'
 import { z } from 'zod'
 
-import { getCollectionDocument, getCollectionDocumentHistory } from '@/modules/admin/collections'
 import { HistoryView } from '@/modules/admin/collections/ui/history'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 

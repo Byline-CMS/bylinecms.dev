@@ -8,10 +8,13 @@
 
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import {
+  getRoleAbilities,
+  listRegisteredAbilities,
+} from '@byline/host-tanstack-start/server-fns/admin-permissions'
+import { getAdminRole } from '@byline/host-tanstack-start/server-fns/admin-roles'
 import { Container, Section } from '@infonomic/uikit/react'
 
-import { getRoleAbilities, listRegisteredAbilities } from '@/modules/admin/admin-permissions'
-import { getAdminRole } from '@/modules/admin/admin-roles'
 import { RoleContainer } from '@/modules/admin/admin-roles/ui/container'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 

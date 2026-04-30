@@ -8,6 +8,39 @@ end-to-end on the installer-scaffolded template.
 
 ---
 
+## Status (as of 2026-04-30)
+
+| Phase | Status | Commit |
+|---|---|---|
+| 0 — Prerequisite refactors (0.1, 0.2, 0.3) | ✅ shipped | `36924ca` |
+| 1 — First npm publish | ⏸ deferred (skip until Phase 3 / 4 land) | — |
+| 2 — Grow `@byline/ui` to absorb admin UI | ✅ shipped | `36924ca` |
+| 2.1 — Lift admin UI components | ✅ shipped (14 of 15 — `api.tsx` deferred to 3.5, transitively router-coupled via `view-menu`) | — |
+| 2.2 — Lift admin shell chrome to `@byline/ui` | ⏭ **redirected to 3.5** — every file in `src/ui/admin/*` is router-coupled (`useRouterState`, `LangLink`) | — |
+| 2.3 — Lift generic UI to `@byline/ui` | ⏭ **redirected to 3.5** — only `local-date-time.tsx` qualified (already a duplicate of `@byline/ui`'s); rest is router-coupled | — |
+| 2.4 — `@byline/ui` subpath exports | ✅ shipped | — |
+| 2.5 — Replace host imports | ✅ shipped (rolled into 2.1) | — |
+| 2.6 — Wire `BylineAdminServicesProvider` | ✅ shipped (rolled into 2.1) | — |
+| 3.1 — Scaffold `@byline/host-tanstack-start` | ✅ shipped | `2d1b096` |
+| 3.2 — Lift server fns | ✅ shipped | `2d1b096` |
+| 3.3 — Lift auth context + cookies | ✅ shipped | `2d1b096` |
+| 3.4 — Lift integration glue | ✅ shipped (`byline-i18n.tsx` + `empty-module.ts` stayed in `apps/webapp` — see §3.4) | `2d1b096` |
+| 3.5 — Lift admin shell components | 🔜 **next session** — heavy: ~30 files including Tailwind→CSS-modules migration | — |
+| 3.6 — Build route factories | pending | — |
+| 3.7 — Replace host route bodies | pending | — |
+| 3.8 — `apps/webapp` end-state check | pending | — |
+| 4 — `@byline/cli` + template | pending | — |
+| 5 — Build the docs site on the installer | pending | — |
+| 6 — Cut 1.0 | pending | — |
+
+Phase 1 (first npm publish) was originally sequenced between Phase 0
+and Phase 2 in the plan but skipped on the user's call — the dogfood
+loop works fine with `workspace:*` while the host adapter is still
+under construction. Reactivate before any external consumer (e.g.
+`docs.bylinecms.dev`) lands.
+
+---
+
 ## Sequencing principle
 
 Each phase ends with the repo in a **shippable, dogfood-able state**. We
@@ -34,7 +67,7 @@ Goal: collapse the host integration surface from six directories to
 three explicit ones, so the package boundaries can be drawn cleanly in
 phases 2–3.
 
-### 0.1 — Move admin out from under `{-$lng}`
+### 0.1 — Move admin out from under `{-$lng}` ✅ shipped (`36924ca`)
 
 Per analysis §5b. Admin UI locale is held by `BylineI18nBridge` and the
 user's preference, not the URL.
@@ -60,7 +93,7 @@ correctly. Sign-in callback URLs need verification.
 - Sign-in `callbackUrl` round-trips correctly.
 - Public site (`/{-$lng}/...`) is unaffected.
 
-### 0.2 — Split server fns from components inside `src/modules/admin/*`
+### 0.2 — Split server fns from components inside `src/modules/admin/*` ✅ shipped (`36924ca`)
 
 Per analysis §5c. Today each module mixes `create.ts` (server fn) with
 `components/create.tsx` (React form); they cannot go into the same
@@ -85,7 +118,7 @@ adjustments. Mechanical.
 **Verification:** the standard gate. Anything broken here surfaces as an
 import error during build or typecheck.
 
-### 0.3 — Move integration glue into `src/integrations/byline/`
+### 0.3 — Move integration glue into `src/integrations/byline/` ✅ shipped (`36924ca`)
 
 Per analysis §5d. Make the seam between "host" and "Byline integration"
 visually obvious.
@@ -201,7 +234,7 @@ Goal: every framework-neutral React surface lives in `@byline/ui`.
 After this phase, `apps/webapp` imports admin UI components from
 `@byline/ui` instead of from local `src/modules/admin/*/ui/`.
 
-### 2.1 — Lift admin UI components into `@byline/ui/src/admin/components/`
+### 2.1 — Lift admin UI components into `@byline/ui/src/admin/components/` ✅ shipped (`36924ca`) — 14 of 15 (`api.tsx` deferred to 3.5)
 
 **Source → destination:**
 
@@ -237,7 +270,14 @@ on first pass — every server fn the admin UI calls. Missing one
 surfaces as a runtime error. Mitigate by enumerating directly from
 the (now-split) `src/modules/admin/*/server/*.ts` files.
 
-### 2.2 — Lift admin shell chrome into `@byline/ui/src/admin/`
+### 2.2 — Lift admin shell chrome into `@byline/ui/src/admin/` ⏭ redirected to 3.5
+
+**Phase 2 reality-check:** every file in `src/ui/admin/*` is router-coupled
+(`useRouterState`, `LangLink`, host's `useAbilities`, hardcoded admin paths).
+Lifting into `@byline/ui` would either require a 3rd injection layer
+("navigation services") or break `@byline/ui`'s framework-neutral
+contract. Honest call was to redirect the entire shell chrome to
+`@byline/host-tanstack-start/admin-shell/chrome/` in Phase 3.5.
 
 **Source → destination:**
 
@@ -249,7 +289,15 @@ the (now-split) `src/modules/admin/*/server/*.ts` files.
 
 These are pure React with no router coupling — straight lift.
 
-### 2.3 — Lift generic UI into `@byline/ui/src/components/`
+### 2.3 — Lift generic UI into `@byline/ui/src/components/` ⏭ mostly redirected to 3.5
+
+**Phase 2 reality-check:** of the 8 files in `src/ui/components/`, 7 are
+router-coupled (`admin-app-bar`, `app-bar`, `branding`, `route-error`,
+`router-pager`, `th-sortable`, `sort-icons`). Only `local-date-time.tsx`
+qualified for `@byline/ui` — and it was already a duplicate of an
+existing file there. Phase 2.3 deleted the host duplicate and rewired
+5 import sites. The other 7 files lift in 3.5 to
+`@byline/host-tanstack-start/admin-shell/chrome/`.
 
 Currently empty; this fills it.
 
@@ -265,7 +313,7 @@ Currently empty; this fills it.
 - `admin-app-bar.tsx`, `route-error.tsx`, `router-pager.tsx` — Phase 3.
 - `breadcrumbs/*` — Phase 3.
 
-### 2.4 — Add subpath exports
+### 2.4 — Add subpath exports ✅ shipped (`36924ca`)
 
 Update `packages/ui/package.json` `exports`:
 
@@ -285,7 +333,7 @@ Update `packages/ui/package.json` `exports`:
 Confirm rslib emits the entry points correctly (may need `lib`-array
 config update).
 
-### 2.5 — Replace host imports
+### 2.5 — Replace host imports ✅ shipped (`36924ca`) — rolled into 2.1
 
 Mechanical pass through `apps/webapp/src/routes/(byline)/**`, swap:
 
@@ -297,7 +345,7 @@ After replacement, `apps/webapp/src/modules/admin/*/ui/` and
 `apps/webapp/src/ui/admin/` and the lifted bits of
 `apps/webapp/src/ui/components/` should be deletable.
 
-### 2.6 — Wire `BylineAdminServicesProvider` at the admin route boundary
+### 2.6 — Wire `BylineAdminServicesProvider` at the admin route boundary ✅ shipped (`36924ca`) — rolled into 2.1
 
 In `apps/webapp/src/routes/(byline)/admin/route.tsx`, wrap the existing
 `BylineFieldServicesProvider` with `BylineAdminServicesProvider`,
@@ -329,7 +377,7 @@ package. After this phase, `apps/webapp` is reduced to:
   `createBylineHost(config)` and the `BylineAdminServicesProvider` setup
 - Host vite/tsr/tailwind config files
 
-### 3.1 — Scaffold the package
+### 3.1 — Scaffold the package ✅ shipped (`2d1b096`)
 
 ```
 packages/host-tanstack-start/
@@ -351,11 +399,11 @@ packages/host-tanstack-start/
 │   │   ├── byline-client.ts
 │   │   ├── byline-field-services.ts
 │   │   ├── byline-admin-services.ts
-│   │   ├── byline-i18n.tsx
+│   │   ├── byline-core.ts        # NEW — typed accessor for the composed BylineCore
 │   │   ├── api-utils.ts
 │   │   ├── abilities.tsx
-│   │   ├── start-errors.ts
-│   │   └── empty-module.ts
+│   │   └── start-errors.ts
+│   │   # byline-i18n.tsx and empty-module.ts STAY in apps/webapp — see §3.4
 │   ├── admin-shell/
 │   │   ├── chrome/                  # shared shell — used by every admin area
 │   │   │   ├── menu-drawer.{tsx,module.css}
@@ -412,15 +460,53 @@ imports the matching `admin-shell/<area>/<view>.tsx` page container and
 wires it into a `createFileRoute()` with the loader, `beforeLoad`
 guards, and parameter shape.
 
-Build pipeline: TypeScript-only (matches `@byline/core`, `@byline/admin`,
-`@byline/client`). No CSS modules, so no rslib needed. Use the same
-`tsc -p tsconfig.json && tsc-alias` pattern. **Caveat:** the lifted
-shell components have co-located `.module.css` files today (kept from
-the apps/webapp source). Either keep the rslib pipeline like
-`@byline/ui` does, or convert the shell-component styles to inline
-CSS at lift time. Recommendation: switch to rslib here as well — the
-admin shell is React UI with CSS modules, the same shape as
-`@byline/ui`, so the same pipeline is the path of least resistance.
+Build pipeline: **rslib** (matches `@byline/ui`), set up from the
+start so 3.5's CSS-module-bearing shell components don't need a
+pipeline switch later. `bundle: false`, per-file emit, `cssModules: {}`
++ `emitCss: true`. The same `rslib build` + `tsc-alias`-free pattern
+as `@byline/ui`.
+
+**Lessons learned during the scaffold (so the next host package
+doesn't re-discover them):**
+
+1. **`tsconfig.build.json` must include all source files**, not just
+   the entry barrel. rslib's per-file declaration emission only
+   generates `.d.ts` for files reachable from the build's `include`.
+   When the entry barrel is empty (subpath-only public surface),
+   that's only the barrel itself — every other file ends up without
+   declarations, breaking subpath imports for consumers. Use
+   `"include": ["./src/**/*", "./src/declarations.d.ts"]` with the
+   test files explicitly excluded.
+
+2. **Subpath wildcards don't auto-resolve `index.js`.** A pattern
+   like `"./server-fns/*"` with target `"./dist/server-fns/*.js"`
+   substitutes `*` literally. So `import from
+   '@byline/host-tanstack-start/server-fns/admin-roles'` fails
+   because there's no `server-fns/admin-roles.js` — only
+   `server-fns/admin-roles/index.js`. The fix is **explicit per-module
+   entries** for the barrels, plus a single-`*` wildcard for deep
+   imports:
+
+   ```json
+   "./server-fns/admin-roles": {
+     "types": "./dist/server-fns/admin-roles/index.d.ts",
+     "import": "./dist/server-fns/admin-roles/index.js"
+   },
+   "./server-fns/*": {
+     "types": "./dist/server-fns/*.d.ts",
+     "import": "./dist/server-fns/*.js"
+   }
+   ```
+
+   The `*` matches anything including slashes, so `/admin-roles/reorder`
+   resolves to `./dist/server-fns/admin-roles/reorder.js`. (One `*`
+   per pattern is the Node.js spec.)
+
+3. **The host package's empty root barrel is intentional.** Every
+   consumption path is a subpath import — there's no
+   `import { ... } from '@byline/host-tanstack-start'` API. Keeps the
+   public surface explicit and forces consumers to pull from the
+   correct subpath.
 
 **Dependencies:**
 
@@ -430,21 +516,52 @@ admin shell is React UI with CSS modules, the same shape as
   `@byline/ui` (peer)
 - `react`, `react-dom` (peer)
 
-### 3.2 — Lift server fns
+### 3.2 — Lift server fns ✅ shipped (`2d1b096`)
 
 **Source → destination:**
 
-- `apps/webapp/src/modules/admin/<module>/server/*` →
-  `packages/host-tanstack-start/src/server-fns/<module>/*`
+- `apps/webapp/src/modules/admin/<m>/server/*` →
+  `packages/host-tanstack-start/src/server-fns/<m>/*`
+- `apps/webapp/src/modules/admin/<m>/index.ts` (the barrel) →
+  `packages/host-tanstack-start/src/server-fns/<m>/index.ts`. The
+  barrel's relative paths flatten from `./server/<x>` → `./<x>`.
 
-Re-export everything from
-`packages/host-tanstack-start/src/server-fns/index.ts`.
+**Architectural change in `@byline/core`:** the lifted server fns
+previously imported `bylineCore` from a relative
+`apps/webapp/byline.server.config.js` path. That path no longer
+resolves from inside the package. Added:
 
-Server fns carry a hard dependency on `getServerConfig()` (from
-`@byline/core`) and on `getAdminRequestContext()` (the auth helper).
-Both are pure imports — they don't need host injection.
+- `defineBylineCore(core)` / `getBylineCoreUnsafe()` in
+  `packages/core/src/config/config.ts` — same `Symbol.for(...)`
+  global-singleton pattern as `defineServerConfig` /
+  `getServerConfig`.
+- `getBylineCore<TAdminStore>()` typed accessor in
+  `packages/core/src/core.ts` and re-exported from
+  `@byline/core`.
+- `initBylineCore()` now calls `defineBylineCore(core)` at the end
+  of init.
 
-### 3.3 — Lift auth context + cookies
+This is the host-agnostic accessor for `core.adminStore` /
+`core.abilities` / etc. Future host packages (`@byline/host-nextjs`,
+…) consume it the same way.
+
+A small typed helper `packages/host-tanstack-start/src/integrations/byline-core.ts`
+pre-binds `TAdminStore` to `AdminStore` from `@byline/admin`:
+
+```ts
+import type { AdminStore } from '@byline/admin'
+import { type BylineCore, getBylineCore } from '@byline/core'
+
+export function bylineCore(): BylineCore<AdminStore> {
+  return getBylineCore<AdminStore>()
+}
+```
+
+The 24 server fns that previously did `bylineCore.adminStore!` (where
+`bylineCore` was the relative import) now do `bylineCore().adminStore!`
+(where `bylineCore` is the helper).
+
+### 3.3 — Lift auth context + cookies ✅ shipped (`2d1b096`)
 
 **Source → destination:**
 
@@ -452,32 +569,120 @@ Both are pure imports — they don't need host injection.
   `packages/host-tanstack-start/src/auth/auth-context.ts`
 - `apps/webapp/src/integrations/byline/auth-cookies.ts` →
   `packages/host-tanstack-start/src/auth/auth-cookies.ts`
+- `auth-context.test.node.ts` lifted with the file. Vitest config
+  (`vitest.config.ts`) and `test` script added to the package; the 6
+  unit tests pass in their new home.
 
 These read TanStack Start request headers via
 `@tanstack/react-start/server`. Straight lift.
 
-### 3.4 — Lift the remaining integration glue
+`apps/webapp`'s test script kept its node-mode run with
+`--passWithNoTests` so it doesn't fail with "no test files found"
+now that the only `.test.node.ts` it had has moved out.
+
+### 3.4 — Lift the remaining integration glue ✅ shipped (`2d1b096`)
 
 **Source → destination:**
 
 - `byline-client.ts` → `packages/host-tanstack-start/src/integrations/byline-client.ts`
 - `byline-field-services.ts` → `packages/host-tanstack-start/src/integrations/byline-field-services.ts`
-- `byline-admin-services.ts` (created in 2.6) → `packages/host-tanstack-start/src/integrations/byline-admin-services.ts`
-- `byline-i18n.tsx` → `packages/host-tanstack-start/src/integrations/byline-i18n.tsx`
+- `byline-admin-services.ts` → `packages/host-tanstack-start/src/integrations/byline-admin-services.ts`
 - `api-utils.ts` → `packages/host-tanstack-start/src/integrations/api-utils.ts`
 - `abilities.tsx` → `packages/host-tanstack-start/src/integrations/abilities.tsx`
 - `start-errors.ts` → `packages/host-tanstack-start/src/integrations/start-errors.ts`
 
-Expose a single `createBylineHost(config)` from the package root that
-returns the wired adapters as a frozen object — the host calls this
-once at startup.
+**Stayed in `apps/webapp`** for honest reasons:
 
-### 3.5 — Lift router-coupled shell components
+- **`byline-i18n.tsx`** — bridges the host's webapp-specific i18n
+  setup (`TranslationsContext`, `useLocale`, `i18nConfig`,
+  `interfaceLanguageMap`) into Byline's `BylineI18nProvider` from
+  `@byline/ui`. Not portable to other hosts without dragging the
+  webapp's i18n machinery along. A future Next.js host would ship
+  its own bridge file with the same shape; the `@byline/ui` consumer
+  contract stays unchanged.
+- **`empty-module.ts`** — pure vite-config shim for
+  `@node-rs/argon2-wasm32-wasi`. Build infrastructure, not adapter
+  code. Each host's `vite.config.ts` aliases the WASM peer to a
+  local stub.
+
+`byline-admin-services.ts` and `byline-field-services.ts` had their
+internal imports rewired from `@/modules/admin/<m>` (host alias) to
+relative imports `../server-fns/<m>/index.js` since the server fns
+now live in the same package. `api-utils.ts` switched from the
+relative `byline.server.config.js` import to the new `bylineCore()`
+helper (see §3.2).
+
+**No `createBylineHost(config)` aggregator** — the original plan
+proposed a single root entry that returned all wired adapters as a
+frozen object. Skipped because (a) the package's public surface is
+subpath-only by design (see §3.1 lessons), (b) the host wires the
+named adapters individually at the route shell anyway
+(`bylineFieldServices`, `bylineAdminServices`), and (c) adding an
+aggregator would re-introduce a root entry whose only purpose is to
+re-export. Each adapter is its own subpath import.
+
+**Known limitations carried into Phase 3.5+:**
+
+- `@byline/db-postgres` and `@byline/storage-local` are non-optional
+  peer deps because `server-fns/auth/current-user.ts` imports
+  `PgAdapter` / `createAdminUsersRepository` and
+  `server-fns/collections/upload.ts` imports the storage-local image
+  helpers. This bakes concrete-adapter choices into the host package.
+  Untangling these into an adapter-agnostic shape is a separate
+  refactor — for Phase 3 the package is fine as "TanStack Start host
+  adapter that presumes Postgres + filesystem-storage Byline."
+
+### 3.5 — Lift router-coupled shell components 🔜 next session
 
 Phase 2 confirmed that the entire admin shell — both the chrome and the
 per-area page containers — is router-coupled and belongs in this
 package. Lifts split into **shared chrome** and **per-area page
 containers**.
+
+**Starting conditions** (verified clean at commit `2d1b096`):
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm test` all green across the
+  workspace.
+- `apps/webapp/src/modules/admin/` contains only `admin-roles/ui/`,
+  `admin-users/ui/`, and `collections/ui/` (the page containers that
+  move in this phase). All other module subdirs were emptied in
+  Phase 3.2 + Phase 0.2.
+- `apps/webapp/src/ui/admin/` and `apps/webapp/src/ui/components/`
+  still contain the chrome that moves in this phase. `local-date-time`
+  is gone from `src/ui/components/` — it's already in `@byline/ui`
+  post-Phase-2.3.
+- `packages/host-tanstack-start/src/admin-shell/` skeleton dirs exist
+  (`chrome/`, `admin-roles/`, `admin-users/`, `collections/`) but are
+  empty.
+- The package's rslib pipeline + CSS-module support is already
+  configured — no build-pipeline work needed in 3.5.
+
+**Estimated scope:** ~30 files moving + Tailwind→CSS-modules migration
+of all of them. Comparable to (slightly heavier than) Phase 2.1.
+Realistic floor: 3–5 hours of focused work. Plan to break across two
+sittings if needed: (a) the lift itself + chrome migration, (b) the
+per-area page-container migration. Each batch is independently
+verifiable.
+
+**Migration pattern reminder** — every file that lifts into the
+package needs every Tailwind utility removed from React `className=`
+strings. Replace with the `@byline/ui` dual-class convention (CSS
+module local + `:global(.byline-<scope>-<thing>)` override handle).
+Watch specifically for:
+
+- Tailwind classes passed as `className` strings (the obvious case)
+- Tailwind classes passed as `containerClasses` / `componentClasses`
+  / similar named slot props on uikit components (the `!w-auto` trap
+  from Phase 2.1)
+- Tailwind classes inside `cx()` calls
+- The `italic` and `font-bold` cases — `font-bold` ships in uikit
+  globally so it works as-is, `italic` does not and needs a CSS
+  module class.
+- `bg-canvas-{25,50,…}` Tailwind classes map to uikit
+  `var(--canvas-{25,50,…})` tokens (a webapp-specific extension to
+  the standard Tailwind scale; both exist).
+- `bg-gray-25` exists too — map to `var(--gray-25)`. Other gray scales
+  follow the standard Tailwind→uikit pattern.
 
 **Shared chrome** (`apps/webapp/src/ui/admin/*` + router-coupled bits of
 `apps/webapp/src/ui/components/*` + `apps/webapp/src/ui/breadcrumbs/*`)
@@ -566,20 +771,33 @@ After replacement, regenerate `routeTree.gen.ts`.
 
 After Phase 3, `apps/webapp/src/` should contain:
 
-- `routes/(byline)/**` — all files ~10 lines, all re-exports.
-- `routes/__root.tsx`, `routes/{-$lng}/_public/**` — host-owned public site.
-- `integrations/byline/host.ts` — the one wiring file:
-  ```ts
-  import { createBylineHost } from '@byline/host-tanstack-start'
-  import { config } from '../../../byline.server.config'
-  export const bylineHost = createBylineHost(config)
-  ```
+- `routes/(byline)/**` — all files ~10 lines, all calls to factories
+  from `@byline/host-tanstack-start/routes/*`.
+- `routes/__root.tsx`, `routes/{-$lng}/_public/**` — host-owned public
+  site.
+- `integrations/byline/byline-i18n.tsx` — the host-app-specific i18n
+  bridge that mounts the webapp's `TranslationsContext` into Byline's
+  `BylineI18nProvider`. Stays in apps/webapp because it's tied to
+  the webapp's specific i18n setup.
+- `integrations/byline/empty-module.ts` — vite-shim for
+  `@node-rs/argon2-wasm32-wasi`. Stays because it's host-bundler
+  infrastructure, not adapter code.
 - `client.tsx`, `server.ts`, `start.ts`, `router.tsx` — TanStack Start
   scaffolding (host-owned).
 - `i18n/` — host's own i18n implementation for the public site.
+- `byline.{common,server,admin}.config.ts` (at the webapp root) —
+  collection definitions + adapter wiring.
 
-`src/modules/admin/` should be empty and removable. `src/lib/` should
-contain only host-owned utilities (none Byline-related).
+`src/modules/` should be empty and removable. `src/ui/admin/`,
+`src/ui/components/`, and `src/ui/breadcrumbs/` should be empty and
+removable. The host's `src/lib/` was already removed in Phase 0.3 —
+nothing to revisit there.
+
+There is **no** `src/integrations/byline/host.ts` aggregator (was
+proposed earlier). The host wires the named adapters individually at
+the admin route shell — `bylineFieldServices`, `bylineAdminServices`,
+the admin `BylineClient` — by importing them from the relevant
+`@byline/host-tanstack-start/integrations/*` subpaths. See §3.4.
 
 ### Phase 3 ship gate
 

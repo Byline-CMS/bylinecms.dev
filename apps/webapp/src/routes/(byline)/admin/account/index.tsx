@@ -8,10 +8,10 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { getAccount } from '@byline/host-tanstack-start/server-fns/admin-account'
 import { AccountSelfContainer } from '@byline/ui'
 import { Container, Section } from '@infonomic/uikit/react'
 
-import { getAccount } from '@/modules/admin/admin-account'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/(byline)/admin/account/')({

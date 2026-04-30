@@ -10,7 +10,7 @@ import { type AbilityDescriptor, AbilityRegistry, type SessionProvider } from '@
 import { type Logger as PinoLogger, pino } from 'pino'
 
 import { registerCollectionAbilities } from './auth/register-collection-abilities.js'
-import { defineServerConfig } from './config/config.js'
+import { defineBylineCore, defineServerConfig, getBylineCoreUnsafe } from './config/config.js'
 import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logger.js'
 import { Registry } from './lib/registry.js'
 import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
@@ -132,7 +132,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
     registerCollectionAbilities(abilities, definition)
   }
 
-  return {
+  const core: BylineCore<TAdminStore> = {
     config: composed.config,
     collections: composed.collections,
     db: composed.db,
@@ -147,4 +147,25 @@ export const initBylineCore = async <TAdminStore = unknown>(
     sessionProvider: composed.config.sessionProvider,
     adminStore: composed.config.adminStore,
   }
+
+  // Register on the global singleton so server-side packages
+  // (`@byline/host-tanstack-start/server-fns/*`, future hosts) can read
+  // post-init state via `getBylineCore()` instead of importing the
+  // host's `byline.server.config.ts` directly.
+  defineBylineCore(core)
+
+  return core
+}
+
+/**
+ * Typed accessor for the composed `BylineCore` registered by
+ * `initBylineCore`. Throws if init has not run yet.
+ *
+ * The generic `TAdminStore` parameter mirrors `BylineCore<TAdminStore>` —
+ * callers that consume `core.adminStore` should pass the concrete admin
+ * store type (e.g. `getBylineCore<AdminStore>()`); callers that don't
+ * touch `adminStore` can omit it.
+ */
+export function getBylineCore<TAdminStore = unknown>(): BylineCore<TAdminStore> {
+  return getBylineCoreUnsafe() as BylineCore<TAdminStore>
 }

@@ -10,9 +10,9 @@
 
 import { useState } from 'react'
 
+import { adminSignOut, type CurrentAdminUser } from '@byline/host-tanstack-start/server-fns/auth'
 import { Button } from '@infonomic/uikit/react'
 
-import { adminSignOut, type CurrentAdminUser } from '@/modules/admin/auth'
 import { Breadcrumbs } from '@/ui/breadcrumbs/breadcrumbs'
 import { useBreadcrumbs } from '@/ui/breadcrumbs/breadcrumbs-provider'
 import { Branding } from './branding'

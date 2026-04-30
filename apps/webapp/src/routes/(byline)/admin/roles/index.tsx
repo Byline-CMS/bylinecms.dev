@@ -8,7 +8,8 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { listAdminRoles } from '@/modules/admin/admin-roles'
+import { listAdminRoles } from '@byline/host-tanstack-start/server-fns/admin-roles'
+
 import { AdminRolesListView } from '@/modules/admin/admin-roles/ui/list'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 

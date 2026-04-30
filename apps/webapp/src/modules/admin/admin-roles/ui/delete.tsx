@@ -20,10 +20,9 @@
 import { useState } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 
+import type { AdminRoleResponse } from '@byline/host-tanstack-start/server-fns/admin-roles'
+import { deleteAdminRole } from '@byline/host-tanstack-start/server-fns/admin-roles'
 import { Alert, Button, LoaderEllipsis, Modal } from '@infonomic/uikit/react'
-
-import { deleteAdminRole } from '../index'
-import type { AdminRoleResponse } from '../index'
 
 interface DeleteRoleProps {
   role: AdminRoleResponse

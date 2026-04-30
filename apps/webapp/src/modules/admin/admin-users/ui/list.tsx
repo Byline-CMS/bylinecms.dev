@@ -11,6 +11,10 @@
 import { useState } from 'react'
 import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 
+import type {
+  AdminUserListResponse,
+  AdminUserResponse,
+} from '@byline/host-tanstack-start/server-fns/admin-users'
 import { CreateAdminUser, LocalDateTime } from '@byline/ui'
 import {
   CloseIcon,
@@ -33,7 +37,6 @@ import {
   type TableHeadingCellSortableProps,
 } from '@/ui/components/th-sortable'
 import { formatNumber } from '@/utils/utils.general'
-import type { AdminUserListResponse, AdminUserResponse } from '../index'
 
 const tableColumnDefs: Omit<TableHeadingCellSortableProps, 'lng'>[] = [
   {

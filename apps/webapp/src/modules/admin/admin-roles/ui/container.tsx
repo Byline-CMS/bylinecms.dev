@@ -29,6 +29,11 @@ import type React from 'react'
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import type {
+  ListRegisteredAbilitiesResponse,
+  SetRoleAbilitiesResponse,
+} from '@byline/host-tanstack-start/server-fns/admin-permissions'
+import type { AdminRoleResponse } from '@byline/host-tanstack-start/server-fns/admin-roles'
 import { LocalDateTime, RolePermissions, UpdateRole } from '@byline/ui'
 import {
   Button,
@@ -40,11 +45,6 @@ import {
 } from '@infonomic/uikit/react'
 
 import { DeleteRole } from './delete'
-import type {
-  ListRegisteredAbilitiesResponse,
-  SetRoleAbilitiesResponse,
-} from '@/modules/admin/admin-permissions'
-import type { AdminRoleResponse } from '../index'
 
 type ComponentKey = 'update' | 'delete_role' | 'empty'
 

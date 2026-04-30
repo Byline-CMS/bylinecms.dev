@@ -8,9 +8,9 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { listAdminUsers } from '@byline/host-tanstack-start/server-fns/admin-users'
 import { z } from 'zod'
 
-import { listAdminUsers } from '@/modules/admin/admin-users'
 import { AdminUsersListView } from '@/modules/admin/admin-users/ui/list'
 import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
