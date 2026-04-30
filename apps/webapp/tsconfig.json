@@ -25,6 +25,6 @@
       "~/*": ["./byline/*"]
     }
   },
-  "include": ["src", "byline", "vite.config.ts"],
+  "include": ["src", "byline", "vite", "vite.config.ts"],
   "exclude": ["node_modules"]
 }

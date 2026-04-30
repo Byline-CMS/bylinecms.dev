@@ -6,9 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-const emptyModule = fileURLToPath(
-  new URL('./src/integrations/byline/empty-module.ts', import.meta.url)
-)
+const argon2BrowserShim = fileURLToPath(new URL('./vite/argon2-browser-shim.ts', import.meta.url))
 
 export default defineConfig({
   server: {
@@ -28,7 +26,7 @@ export default defineConfig({
       // lets resolution succeed; the actual argon2 calls live behind
       // `createServerFn` and never execute on the client. Server-side
       // (Node) always picks `index.js`, so the alias is a no-op there.
-      { find: '@node-rs/argon2-wasm32-wasi', replacement: emptyModule },
+      { find: '@node-rs/argon2-wasm32-wasi', replacement: argon2BrowserShim },
     ],
   },
   ssr: {
