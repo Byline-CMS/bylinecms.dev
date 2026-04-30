@@ -10,11 +10,12 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
+import { EditView } from '@byline/host-tanstack-start/admin-shell/collections/edit'
 import { getCollectionDocument } from '@byline/host-tanstack-start/server-fns/collections'
 import { z } from 'zod'
 
-import { EditView } from '@/modules/admin/collections/ui/edit'
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
+import { contentLocales, i18n } from '~/i18n'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
@@ -71,6 +72,8 @@ function RouteComponent() {
         adminConfig={adminConfig ?? undefined}
         initialData={data}
         locale={locale}
+        contentLocales={contentLocales}
+        defaultContentLocale={i18n.content.defaultLocale}
       />
     </>
   )

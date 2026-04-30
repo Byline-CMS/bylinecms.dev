@@ -23,6 +23,7 @@ import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 
 import type { ListViewComponentProps, StoredFileValue, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { RouterPager } from '@byline/host-tanstack-start/admin-shell/chrome/router-pager'
 import { LocalDateTime } from '@byline/ui'
 import {
   Container,
@@ -34,7 +35,6 @@ import {
   Select,
 } from '@infonomic/uikit/react'
 
-import { RouterPager } from '@/ui/components/router-pager'
 import { formatNumber } from '@/utils/utils.general'
 import { FormatBadge } from './media-thumbnail'
 
@@ -235,7 +235,6 @@ export function MediaListView({
 
           {/* Top pager */}
           <RouterPager
-            lng="en"
             page={data.meta.page}
             count={data.meta.totalPages}
             showFirstButton
@@ -316,7 +315,6 @@ export function MediaListView({
         <div className="flex justify-end mb-5">
           <RouterPager
             smoothScrollToTop={true}
-            lng="en"
             page={data.meta.page}
             count={data.meta.totalPages}
             showFirstButton

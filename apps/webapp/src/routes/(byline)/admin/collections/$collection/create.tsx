@@ -14,9 +14,8 @@ import {
   getCollectionAdminConfig,
   getCollectionDefinition,
 } from '@byline/core'
-
-import { CreateView } from '@/modules/admin/collections/ui/create'
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
+import { CreateView } from '@byline/host-tanstack-start/admin-shell/collections/create'
 
 export const Route = createFileRoute('/(byline)/admin/collections/$collection/create')({
   loader: async ({ params }): Promise<{ initialData: any }> => {

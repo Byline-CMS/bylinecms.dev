@@ -1,0 +1,199 @@
+/**
+ * AccountContainer — admin-user detail view with edit drawers.
+ *
+ * Override handles:
+ *   .byline-admin-user-grid           — outer two-column grid wrapper
+ *   .byline-admin-user-column         — column wrapper
+ *   .byline-admin-user-section        — single bordered card
+ *   .byline-admin-user-section-head   — section title + edit-icon row
+ *   .byline-admin-user-line           — single key/value paragraph
+ *   .byline-admin-user-meta           — small metadata block (created/updated/last-login)
+ *   .byline-admin-user-status-on / -off — enabled/disabled colour modifier
+ *   .byline-admin-user-not-set        — italic "Not set" markers
+ *   .byline-admin-user-role-list      — wrapped role-badge container
+ *   .byline-admin-user-role-badge     — individual role pill
+ *   .byline-admin-user-role-empty     — italic empty-roles caption
+ *   .byline-admin-user-drawer         — drawer responsive width override
+ *   .byline-admin-user-drawer-large   — drawer responsive width (large variant)
+ *   .byline-admin-user-drawer-body    — drawer content container
+ *   .byline-admin-user-drawer-scroll  — drawer scrollable inner viewport
+ *   .byline-admin-user-modal          — modal container sizing
+ *   .byline-admin-user-modal-head     — modal header row
+ */
+
+.grid,
+:global(.byline-admin-user-grid) {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 40rem) {
+  .grid,
+  :global(.byline-admin-user-grid) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.column,
+:global(.byline-admin-user-column) {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section,
+:global(.byline-admin-user-section) {
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  background-color: var(--canvas-25);
+  padding: 1rem;
+  border-radius: 0.125rem;
+}
+
+:is([data-theme="dark"], :global(.dark)) .section,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-user-section) {
+  border-color: var(--gray-700);
+  background-color: var(--canvas-800);
+}
+
+.sectionHead,
+:global(.byline-admin-user-section-head) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.line,
+:global(.byline-admin-user-line) {
+  margin-bottom: 0;
+}
+
+.lineSpaced,
+:global(.byline-admin-user-line-spaced) {
+  margin-bottom: 0.75rem;
+}
+
+.meta,
+:global(.byline-admin-user-meta) {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+}
+
+.statusOn,
+:global(.byline-admin-user-status-on) {
+  color: var(--green-600);
+}
+
+.statusOff,
+:global(.byline-admin-user-status-off) {
+  color: var(--red-600);
+}
+
+:is([data-theme="dark"], :global(.dark)) .statusOn,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-user-status-on) {
+  color: var(--green-400);
+}
+
+:is([data-theme="dark"], :global(.dark)) .statusOff,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-user-status-off) {
+  color: var(--red-400);
+}
+
+.notSet,
+:global(.byline-admin-user-not-set) {
+  font-style: italic;
+}
+
+.roleList,
+:global(.byline-admin-user-role-list) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.roleEmpty,
+:global(.byline-admin-user-role-empty) {
+  margin: 0;
+  font-style: italic;
+}
+
+.roleBadge,
+:global(.byline-admin-user-role-badge) {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.125rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+:is([data-theme="dark"], :global(.dark)) .roleBadge,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-user-role-badge) {
+  background-color: rgba(30, 58, 138, 0.4);
+  color: #bfdbfe;
+}
+
+.drawer,
+:global(.byline-admin-user-drawer) {
+  /* width handled via uikit prop */
+}
+
+@media (min-width: 48rem) {
+  .drawer,
+  :global(.byline-admin-user-drawer) {
+    width: 500px;
+  }
+}
+
+.drawerLarge,
+:global(.byline-admin-user-drawer-large) {
+  /* width handled via uikit prop */
+}
+
+@media (min-width: 48rem) {
+  .drawerLarge,
+  :global(.byline-admin-user-drawer-large) {
+    width: 700px;
+  }
+}
+
+@media (min-width: 66rem) {
+  .drawerLarge,
+  :global(.byline-admin-user-drawer-large) {
+    width: 800px;
+  }
+}
+
+.drawerScroll,
+:global(.byline-admin-user-drawer-scroll) {
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.modal,
+:global(.byline-admin-user-modal) {
+  /* default sizing */
+}
+
+@media (min-width: 40rem) {
+  .modal,
+  :global(.byline-admin-user-modal) {
+    margin-bottom: 6rem;
+    max-width: 550px;
+  }
+}
+
+.modalHead,
+:global(.byline-admin-user-modal-head) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}

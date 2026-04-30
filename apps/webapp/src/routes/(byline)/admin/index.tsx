@@ -10,13 +10,12 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import type { WorkflowStatus } from '@byline/core'
 import { getClientConfig, getWorkflowStatuses } from '@byline/core'
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
 import {
   type CollectionStatusCount,
   getCollectionStats,
 } from '@byline/host-tanstack-start/server-fns/collections'
 import { Card, Container, Section } from '@infonomic/uikit/react'
-
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 // ---------------------------------------------------------------------------
 // Status colour palette

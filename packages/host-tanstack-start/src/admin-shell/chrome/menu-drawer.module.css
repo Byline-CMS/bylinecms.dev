@@ -1,0 +1,183 @@
+/**
+ * Admin menu drawer.
+ *
+ * Override handles:
+ *   .byline-admin-menu-drawer-aside  — outer <aside> wrapper
+ *   .byline-admin-menu-drawer        — <nav> inside the aside
+ *   .byline-admin-menu-item          — each <li.menu-item>
+ *   .byline-admin-menu-separator     — divider <li>
+ *
+ * Inner classnames (`.menu-item`, `.menu-separator`, `.icon`, `.label`,
+ * `.compact`, `.active`) stay as plain string class names so the CSS rule
+ * chains stay readable; targeted via :global in this module.
+ */
+
+.aside,
+:global(.byline-admin-menu-drawer-aside) {
+  display: flex;
+  flex-direction: column;
+  border-right: var(--border-width-thin) var(--border-style-solid) var(--canvas-200);
+  background-color: var(--canvas-25);
+  z-index: 15;
+  transition: all 300ms ease-in-out;
+}
+
+:is([data-theme="dark"], :global(.dark)) .aside,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer-aside) {
+  border-right-color: var(--canvas-800);
+  background-color: var(--canvas-800);
+}
+
+.asideMobile,
+:global(.byline-admin-menu-drawer-aside-mobile) {
+  position: fixed;
+  top: 45px;
+  bottom: 0;
+  left: 0;
+}
+
+.asideMobileOpen,
+:global(.byline-admin-menu-drawer-aside-mobile-open) {
+  width: 210px;
+}
+
+.asideMobileClosed,
+:global(.byline-admin-menu-drawer-aside-mobile-closed) {
+  width: 0;
+  overflow: hidden;
+}
+
+.asideDesktop,
+:global(.byline-admin-menu-drawer-aside-desktop) {
+  position: relative;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.asideDesktopOpen,
+:global(.byline-admin-menu-drawer-aside-desktop-open) {
+  width: 210px;
+}
+
+.asideDesktopClosed,
+:global(.byline-admin-menu-drawer-aside-desktop-closed) {
+  width: 60px;
+}
+
+.nav,
+:global(.byline-admin-menu-drawer) {
+  position: sticky;
+  top: 55px;
+  margin: 0;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+}
+
+.nav ul,
+:global(.byline-admin-menu-drawer) ul {
+  margin: 1.4rem 0.5rem 0.5rem;
+  padding: 0;
+  list-style: none;
+  list-style-position: outside;
+}
+
+.nav ul :global(li.menu-item),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item) {
+  border-radius: 4px;
+  margin: 0;
+  transition: all 200ms ease;
+}
+
+.nav ul :global(li.menu-item .icon),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item .icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+}
+
+.nav ul :global(li.menu-item .label),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item .label) {
+  line-height: 0;
+}
+
+.nav ul :global(li.menu-item.compact .label),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact .label) {
+  display: none;
+}
+
+.nav ul :global(li.menu-item.active),
+.nav ul :global(li.menu-item:hover),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item.active),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item:hover) {
+  background-color: var(--canvas-50);
+}
+
+.nav ul :global(li.menu-item a),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item a) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 7px;
+  gap: 8px;
+  color: #111111;
+  font-size: 0.9rem;
+  font-weight: normal;
+  text-decoration: none;
+}
+
+.nav ul :global(li.menu-item.compact a),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact a) {
+  justify-content: center;
+}
+
+.nav ul :global(li.menu-item.active a),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item.active a) {
+  color: #111111;
+  text-decoration: none;
+}
+
+.nav ul :global(li.menu-separator),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-separator) {
+  padding-top: 0.5px;
+  margin: 0.75rem auto;
+  width: 90%;
+  background-color: #dddddd;
+}
+
+:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item a),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item a) {
+  color: #dddddd;
+}
+
+:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active a),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item.active a) {
+  color: #ffffff;
+}
+
+:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active),
+:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item:hover),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item.active),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item:hover) {
+  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
+}
+
+:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-separator),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-separator) {
+  background-color: #444444;
+}

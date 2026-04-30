@@ -1,0 +1,30 @@
+/**
+ * DrawerToggle — fixed-position chevron toggle docked to the menu drawer's edge.
+ *
+ * Override handle: .byline-admin-drawer-toggle
+ */
+
+.root,
+:global(.byline-admin-drawer-toggle) {
+  position: fixed;
+  top: 38px;
+  z-index: 50;
+  transition: all 300ms ease-in-out;
+}
+
+.rootClosed,
+:global(.byline-admin-drawer-toggle-closed) {
+  left: 8px;
+}
+
+.rootOpen,
+:global(.byline-admin-drawer-toggle-open) {
+  left: 160px;
+}
+
+.button,
+:global(.byline-admin-drawer-toggle-button) {
+  outline: none;
+  min-width: 42px;
+  height: 36px;
+}

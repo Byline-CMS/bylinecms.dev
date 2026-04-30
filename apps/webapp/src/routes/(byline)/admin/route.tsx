@@ -21,18 +21,21 @@
 
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
+import { AdminAppBar } from '@byline/host-tanstack-start/admin-shell/chrome/admin-app-bar'
+import { Content } from '@byline/host-tanstack-start/admin-shell/chrome/content'
+import { DrawerToggle } from '@byline/host-tanstack-start/admin-shell/chrome/drawer-toggle'
+import { AdminMenuDrawer } from '@byline/host-tanstack-start/admin-shell/chrome/menu-drawer'
+import { AdminMenuProvider } from '@byline/host-tanstack-start/admin-shell/chrome/menu-provider'
+import {
+  RouteError,
+  RouteNotFound,
+} from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { bylineAdminServices } from '@byline/host-tanstack-start/integrations/byline-admin-services'
 import { bylineFieldServices } from '@byline/host-tanstack-start/integrations/byline-field-services'
 import { getCurrentAdminUser } from '@byline/host-tanstack-start/server-fns/auth'
 import { BylineAdminServicesProvider, BylineFieldServicesProvider } from '@byline/ui'
 
 import { BylineI18nBridge } from '@/integrations/byline/byline-i18n'
-import { Content } from '@/ui/admin/content'
-import { DrawerToggle } from '@/ui/admin/drawer-toggle'
-import { AdminMenuDrawer } from '@/ui/admin/menu-drawer'
-import { AdminMenuProvider } from '@/ui/admin/menu-provider'
-import { AdminAppBar } from '@/ui/components/admin-app-bar'
-import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
 export const Route = createFileRoute('/(byline)/admin')({
   beforeLoad: async ({ location }) => {

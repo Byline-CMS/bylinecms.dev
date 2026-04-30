@@ -1,0 +1,114 @@
+/**
+ * Route-level error / not-found components.
+ *
+ * Override handles:
+ *   .byline-route-error                — outer Section
+ *   .byline-route-error-container      — inner Container
+ *   .byline-route-error-message        — alert body paragraph
+ *   .byline-route-error-actions        — button row
+ *   .byline-route-error-link           — secondary "Go to homepage" link
+ *   .byline-root-error                 — root fallback wrapper
+ *   .byline-root-error-inner           — root fallback content
+ *   .byline-root-error-title           — root fallback heading
+ *   .byline-root-error-detail          — root fallback message
+ *   .byline-root-error-button          — root fallback retry button
+ */
+
+.section,
+:global(.byline-route-error) {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+.container,
+:global(.byline-route-error-container) {
+  margin-top: 8vh;
+  max-width: 42rem;
+}
+
+@media (min-width: 40rem) {
+  .container,
+  :global(.byline-route-error-container) {
+    margin-top: 12vh;
+  }
+}
+
+.message,
+:global(.byline-route-error-message) {
+  margin-top: 0.25rem;
+}
+
+.actions,
+:global(.byline-route-error-actions) {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.link,
+:global(.byline-route-error-link) {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.875rem;
+  text-decoration: underline;
+}
+.link:hover,
+:global(.byline-route-error-link:hover) {
+  text-decoration: none;
+}
+
+.rootRoot,
+:global(.byline-root-error) {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.rootInner,
+:global(.byline-root-error-inner) {
+  max-width: 28rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rootTitle,
+:global(.byline-root-error-title) {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+:is([data-theme="dark"], :global(.dark)) .rootTitle,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-root-error-title) {
+  color: #f87171;
+}
+
+.rootDetail,
+:global(.byline-root-error-detail) {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+}
+
+:is([data-theme="dark"], :global(.dark)) .rootDetail,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-root-error-detail) {
+  color: var(--gray-400);
+}
+
+.rootButton,
+:global(.byline-root-error-button) {
+  border-radius: 0.25rem;
+  background-color: #dc2626;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #ffffff;
+  border: 0;
+  cursor: pointer;
+}
+.rootButton:hover,
+:global(.byline-root-error-button:hover) {
+  background-color: #b91c1c;
+}

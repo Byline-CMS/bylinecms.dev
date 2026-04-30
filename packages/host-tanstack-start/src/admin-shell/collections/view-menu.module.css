@@ -1,0 +1,59 @@
+/**
+ * ViewMenu — mini-nav bar for document-level views (Edit, History, API).
+ *
+ * Override handles:
+ *   .byline-view-menu        — outer flex row
+ *   .byline-view-menu-label  — locale/depth label (lg-only)
+ *   .byline-view-menu-button — primary view buttons (Edit/API)
+ *   .byline-view-menu-icon-button — history icon button
+ */
+
+.root,
+:global(.byline-view-menu) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.label,
+:global(.byline-view-menu-label) {
+  display: none;
+  color: var(--gray-400);
+  font-size: 0.75rem;
+  padding-top: 2px;
+}
+
+@media (min-width: 66rem) {
+  .label,
+  :global(.byline-view-menu-label) {
+    display: block;
+  }
+}
+
+.localeSelect,
+:global(.byline-view-menu-locale-select) {
+  min-width: 100px;
+}
+
+.depthSelect,
+:global(.byline-view-menu-depth-select) {
+  min-width: 60px;
+}
+
+.iconButton,
+:global(.byline-view-menu-icon-button) {
+  min-width: 24px;
+}
+
+.iconButtonIcon,
+:global(.byline-view-menu-icon-button-icon) {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.button,
+:global(.byline-view-menu-button) {
+  min-width: 50px;
+}

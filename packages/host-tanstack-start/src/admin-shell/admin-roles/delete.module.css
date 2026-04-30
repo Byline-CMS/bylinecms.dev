@@ -1,0 +1,52 @@
+/**
+ * DeleteRole — modal body for permanent role deletion.
+ *
+ * Override handles:
+ *   .byline-role-delete-content   — outer Modal.Content (gap)
+ *   .byline-role-delete-body      — vertical stack of role identity rows
+ *   .byline-role-delete-warning   — red warning paragraph
+ *   .byline-role-delete-actions   — Cancel/Delete row
+ *   .byline-role-delete-button    — action buttons (min-width)
+ */
+
+.content,
+:global(.byline-role-delete-content) {
+  gap: 0.25rem;
+}
+
+.body,
+:global(.byline-role-delete-body) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row,
+:global(.byline-role-delete-row) {
+  margin: 0;
+}
+
+.warning,
+:global(.byline-role-delete-warning) {
+  margin-top: 0.75rem;
+  color: var(--red-600);
+}
+
+:is([data-theme="dark"], :global(.dark)) .warning,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-role-delete-warning) {
+  color: var(--red-300);
+}
+
+.actions,
+:global(.byline-role-delete-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.button,
+:global(.byline-role-delete-button) {
+  min-width: 4rem;
+}

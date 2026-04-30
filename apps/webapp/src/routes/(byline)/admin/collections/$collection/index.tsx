@@ -15,12 +15,11 @@ import {
   getCollectionDefinition,
   getWorkflowStatuses,
 } from '@byline/core'
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
+import { ListView } from '@byline/host-tanstack-start/admin-shell/collections/list'
 import { getCollectionDocuments } from '@byline/host-tanstack-start/server-fns/collections'
 import { useToastManager } from '@infonomic/uikit/react'
 import { z } from 'zod'
-
-import { ListView } from '@/modules/admin/collections/ui/list'
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),

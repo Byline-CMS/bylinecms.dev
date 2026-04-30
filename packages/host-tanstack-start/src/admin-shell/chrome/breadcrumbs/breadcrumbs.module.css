@@ -1,0 +1,93 @@
+/**
+ * Breadcrumbs — admin app-bar trail.
+ *
+ * Override handles:
+ *   .byline-breadcrumbs       — outer <nav>
+ *   .byline-breadcrumbs-list  — inline <ul>
+ *   .byline-breadcrumbs-item  — each <li>
+ *   .byline-breadcrumbs-link  — clickable home + intermediate links
+ *   .byline-breadcrumbs-leaf  — current-page (final) span
+ *   .byline-breadcrumbs-icon  — chevron / home icons
+ */
+
+.nav,
+:global(.byline-breadcrumbs) {
+  display: flex;
+}
+
+.list,
+:global(.byline-breadcrumbs-list) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0.25rem;
+}
+
+.item,
+:global(.byline-breadcrumbs-item) {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.link,
+:global(.byline-breadcrumbs-link) {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-900);
+}
+.link:hover,
+:global(.byline-breadcrumbs-link:hover) {
+  color: var(--gray-800);
+}
+
+:is([data-theme="dark"], :global(.dark)) .link,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-breadcrumbs-link) {
+  color: var(--gray-400);
+}
+:is([data-theme="dark"], :global(.dark)) .link:hover,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-breadcrumbs-link:hover) {
+  color: #ffffff;
+}
+
+.leaf,
+:global(.byline-breadcrumbs-leaf) {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--gray-800);
+}
+:is([data-theme="dark"], :global(.dark)) .leaf,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-breadcrumbs-leaf) {
+  color: var(--gray-400);
+}
+
+.homeIcon,
+:global(.byline-breadcrumbs-home-icon) {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+}
+
+.chevron,
+:global(.byline-breadcrumbs-chevron) {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--gray-400);
+}
+
+.chevronCurrent,
+:global(.byline-breadcrumbs-chevron-current) {
+  color: var(--gray-900);
+}
+:is([data-theme="dark"], :global(.dark)) .chevronCurrent,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-breadcrumbs-chevron-current) {
+  color: var(--gray-600);
+}

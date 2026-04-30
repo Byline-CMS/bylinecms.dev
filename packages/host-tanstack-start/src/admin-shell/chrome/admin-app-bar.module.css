@@ -1,0 +1,72 @@
+/**
+ * AdminAppBar — top header in the admin shell.
+ *
+ * Override handles:
+ *   .byline-admin-app-bar           — outer <header>
+ *   .byline-admin-app-bar-left      — branding + breadcrumbs cluster
+ *   .byline-admin-app-bar-right     — sign-in info + sign-out cluster
+ *   .byline-admin-app-bar-user      — "Signed in as …" text
+ *   .byline-admin-app-bar-user-name — bolded display name
+ */
+
+.header,
+:global(.byline-admin-app-bar) {
+  position: fixed;
+  z-index: 50;
+  height: 45px;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+}
+
+:is([data-theme="dark"], :global(.dark)) .header,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-app-bar) {
+  background-color: var(--canvas-800);
+}
+
+.left,
+:global(.byline-admin-app-bar-left) {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.right,
+:global(.byline-admin-app-bar-right) {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.user,
+:global(.byline-admin-app-bar-user) {
+  display: none;
+  color: var(--gray-600);
+}
+
+@media (min-width: 40rem) {
+  .user,
+  :global(.byline-admin-app-bar-user) {
+    display: inline;
+  }
+}
+
+:is([data-theme="dark"], :global(.dark)) .user,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-app-bar-user) {
+  color: var(--gray-300);
+}
+
+.userName,
+:global(.byline-admin-app-bar-user-name) {
+  font-weight: 600;
+}

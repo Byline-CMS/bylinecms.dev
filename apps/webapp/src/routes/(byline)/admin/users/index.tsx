@@ -8,11 +8,10 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { AdminUsersListView } from '@byline/host-tanstack-start/admin-shell/admin-users/list'
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
 import { listAdminUsers } from '@byline/host-tanstack-start/server-fns/admin-users'
 import { z } from 'zod'
-
-import { AdminUsersListView } from '@/modules/admin/admin-users/ui/list'
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 const orderSchema = z.enum([
   'given_name',

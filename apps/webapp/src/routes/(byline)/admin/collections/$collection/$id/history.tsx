@@ -14,14 +14,15 @@ import {
   getCollectionDefinition,
   getWorkflowStatuses,
 } from '@byline/core'
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
+import { HistoryView } from '@byline/host-tanstack-start/admin-shell/collections/history'
 import {
   getCollectionDocument,
   getCollectionDocumentHistory,
 } from '@byline/host-tanstack-start/server-fns/collections'
 import { z } from 'zod'
 
-import { HistoryView } from '@/modules/admin/collections/ui/history'
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
+import { contentLocales, i18n } from '~/i18n'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -101,6 +102,8 @@ function RouteComponent() {
         adminConfig={adminConfig ?? undefined}
         data={history}
         currentDocument={currentDocument as Record<string, unknown> | null}
+        contentLocales={contentLocales}
+        defaultContentLocale={i18n.content.defaultLocale}
       />
     </>
   )

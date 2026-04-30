@@ -1,0 +1,16 @@
+/**
+ * Content — main scrollable region of the admin shell.
+ *
+ * Override handle: .byline-admin-content
+ */
+
+.root,
+:global(.byline-admin-content) {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding-top: 1rem;
+  padding-bottom: 1.5rem;
+}

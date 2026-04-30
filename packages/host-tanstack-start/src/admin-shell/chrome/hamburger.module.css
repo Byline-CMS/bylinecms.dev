@@ -1,0 +1,16 @@
+/**
+ * Hamburger — icon button that toggles the admin menu drawer.
+ *
+ * Override handle: .byline-admin-hamburger
+ *
+ * Uses uikit's pre-existing global `.component--hamburger` styles for
+ * the bar visuals; this module just hosts the wrapper override surface.
+ */
+
+.button,
+:global(.byline-admin-hamburger) {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}

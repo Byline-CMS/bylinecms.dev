@@ -1,0 +1,51 @@
+/**
+ * TableHeadingCellSortable — clickable column header with a sort indicator.
+ *
+ * Override handles:
+ *   .byline-th-sortable          — heading cell wrapper class (passes through className)
+ *   .byline-th-sortable-button   — clickable button inside the header
+ *   .byline-th-align-left        — left-aligned content
+ *   .byline-th-align-center      — center-aligned content
+ *   .byline-th-align-right       — right-aligned content
+ *   .byline-th-icon              — sort icon size hint
+ */
+
+.button,
+:global(.byline-th-sortable-button) {
+  display: flex;
+  gap: 0.25rem;
+  padding-left: 2px;
+  padding-right: 6px;
+  font-weight: 700;
+}
+
+.button:hover,
+:global(.byline-th-sortable-button:hover) {
+  text-decoration: underline;
+}
+
+.alignLeft,
+:global(.byline-th-align-left) {
+  text-align: left;
+}
+
+.alignCenter,
+:global(.byline-th-align-center) {
+  text-align: center;
+}
+
+.alignRight,
+:global(.byline-th-align-right) {
+  text-align: right;
+}
+
+.alignRightAuto,
+:global(.byline-th-align-right-auto) {
+  margin-left: auto;
+}
+
+.icon,
+:global(.byline-th-icon) {
+  width: 1.5rem;
+  height: 1.5rem;
+}

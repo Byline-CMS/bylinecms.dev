@@ -1,0 +1,108 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+import { useState } from 'react'
+
+import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import { FormRenderer } from '@byline/ui'
+import { Container, Section, useToastManager } from '@infonomic/uikit/react'
+
+import { createCollectionDocument } from '../../server-fns/collections/index.js'
+import { useNavigate } from '../chrome/loose-router.js'
+import { useTanStackNavigationGuard } from './tanstack-navigation-guard.js'
+
+type CreateState = {
+  status: 'success' | 'failed' | 'busy' | 'idle'
+  message: string
+}
+
+export const CreateView = ({
+  collectionDefinition,
+  adminConfig,
+  initialData,
+}: {
+  collectionDefinition: CollectionDefinition
+  adminConfig?: CollectionAdminConfig
+  // biome-ignore lint/suspicious/noExplicitAny: shape is collection-specific
+  initialData?: Record<string, any>
+}) => {
+  const toastManager = useToastManager()
+  const [_createState, setCreateState] = useState<CreateState>({
+    status: 'idle',
+    message: '',
+  })
+  const navigate = useNavigate()
+  const { labels, path, fields } = collectionDefinition
+
+  const handleSubmit = async ({
+    data,
+    systemPath,
+  }: {
+    // biome-ignore lint/suspicious/noExplicitAny: data is collection-specific
+    data: any
+    systemPath?: string | null
+  }) => {
+    try {
+      await createCollectionDocument({
+        data: {
+          collection: path,
+          data,
+          ...(systemPath ? { path: systemPath } : {}),
+        },
+      })
+      navigate({
+        to: '/admin/collections/$collection' as never,
+        params: { collection: path },
+        search: { action: 'created' },
+      })
+    } catch (err) {
+      console.error(err)
+
+      toastManager.add({
+        title: `${labels.singular} Creation`,
+        description: `An error occurred while creating ${labels.singular.toLowerCase()}`,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
+
+      setCreateState({
+        status: 'failed',
+        message: `An error occurred while creating ${labels.singular.toLowerCase()}`,
+      })
+    }
+  }
+
+  return (
+    <Section>
+      <Container>
+        <FormRenderer
+          mode="create"
+          fields={fields}
+          onSubmit={handleSubmit}
+          initialData={initialData}
+          adminConfig={adminConfig}
+          useAsTitle={collectionDefinition.useAsTitle}
+          useAsPath={collectionDefinition.useAsPath}
+          headingLabel={labels.singular}
+          useNavigationGuard={useTanStackNavigationGuard}
+          onCancel={() =>
+            navigate({
+              to: '/admin/collections/$collection' as never,
+              params: { collection: path },
+            })
+          }
+          collectionPath={path}
+        />
+      </Container>
+    </Section>
+  )
+}

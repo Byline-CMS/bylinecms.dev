@@ -1,0 +1,52 @@
+/**
+ * DeleteUser — modal body for permanent admin-user deletion.
+ *
+ * Override handles:
+ *   .byline-admin-user-delete-content   — outer Modal.Content (gap)
+ *   .byline-admin-user-delete-body      — vertical stack of identity rows
+ *   .byline-admin-user-delete-warning   — red warning paragraph
+ *   .byline-admin-user-delete-actions   — Cancel/Delete row
+ *   .byline-admin-user-delete-button    — action buttons (min-width)
+ */
+
+.content,
+:global(.byline-admin-user-delete-content) {
+  gap: 0.25rem;
+}
+
+.body,
+:global(.byline-admin-user-delete-body) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row,
+:global(.byline-admin-user-delete-row) {
+  margin: 0;
+}
+
+.warning,
+:global(.byline-admin-user-delete-warning) {
+  margin-top: 0.75rem;
+  color: var(--red-600);
+}
+
+:is([data-theme="dark"], :global(.dark)) .warning,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-user-delete-warning) {
+  color: var(--red-300);
+}
+
+.actions,
+:global(.byline-admin-user-delete-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.button,
+:global(.byline-admin-user-delete-button) {
+  min-width: 4rem;
+}

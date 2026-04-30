@@ -8,10 +8,9 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { AdminRolesListView } from '@byline/host-tanstack-start/admin-shell/admin-roles/list'
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
 import { listAdminRoles } from '@byline/host-tanstack-start/server-fns/admin-roles'
-
-import { AdminRolesListView } from '@/modules/admin/admin-roles/ui/list'
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/(byline)/admin/roles/')({
   loader: async () => {

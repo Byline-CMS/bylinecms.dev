@@ -8,10 +8,9 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
 import { listRegisteredAbilities } from '@byline/host-tanstack-start/server-fns/admin-permissions'
 import { AbilitiesInspector } from '@byline/ui'
-
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/(byline)/admin/permissions/')({
   loader: async () => {

@@ -25,7 +25,7 @@ end-to-end on the installer-scaffolded template.
 | 3.2 — Lift server fns | ✅ shipped | `2d1b096` |
 | 3.3 — Lift auth context + cookies | ✅ shipped | `2d1b096` |
 | 3.4 — Lift integration glue | ✅ shipped (`byline-i18n.tsx` + `empty-module.ts` stayed in `apps/webapp` — see §3.4) | `2d1b096` |
-| 3.5 — Lift admin shell components | 🔜 **next session** — heavy: ~30 files including Tailwind→CSS-modules migration | — |
+| 3.5 — Lift admin shell components | ✅ shipped — chrome (15 files) + per-area page containers (14 files) lifted with Tailwind→CSS-modules migration; `app-bar.tsx` stays in `apps/webapp` (public-only). | — |
 | 3.6 — Build route factories | pending | — |
 | 3.7 — Replace host route bodies | pending | — |
 | 3.8 — `apps/webapp` end-state check | pending | — |

@@ -8,12 +8,11 @@
 
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import { AccountContainer } from '@byline/host-tanstack-start/admin-shell/admin-users/container'
+import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
 import { listAdminRoles } from '@byline/host-tanstack-start/server-fns/admin-roles'
 import { getAdminUser, getUserRoles } from '@byline/host-tanstack-start/server-fns/admin-users'
 import { Container, Section } from '@infonomic/uikit/react'
-
-import { AccountContainer } from '@/modules/admin/admin-users/ui/container'
-import { BreadcrumbsClient } from '@/ui/breadcrumbs/breadcrumbs-client'
 
 export const Route = createFileRoute('/(byline)/admin/users/$id/')({
   loader: async ({ params }) => {

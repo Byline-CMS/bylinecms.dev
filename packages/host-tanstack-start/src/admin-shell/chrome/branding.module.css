@@ -1,0 +1,20 @@
+/**
+ * Branding — admin app-bar logo wrapper.
+ *
+ * Override handles:
+ *   .byline-admin-branding      — outer flex row
+ *   .byline-admin-branding-logo — logo SVG
+ */
+
+.root,
+:global(.byline-admin-branding) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo,
+:global(.byline-admin-branding-logo) {
+  width: 24px;
+  height: 24px;
+}
