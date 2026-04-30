@@ -6,43 +6,6 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-/**
- * Admin sign-in page.
- *
- * Lives outside the `/admin` subtree so the authenticated-admin layout
- * (and its `beforeLoad` guard) does not apply. A bare centred card on a
- * plain background — no AdminAppBar, no breadcrumbs.
- *
- * Preserves a `callbackUrl` query param so sign-ins triggered by the
- * admin guard redirect back to the originally-requested path.
- */
+import { createSignInRoute } from '@byline/host-tanstack-start/routes'
 
-import { createFileRoute } from '@tanstack/react-router'
-
-import { bylineAdminServices } from '@byline/host-tanstack-start/integrations/byline-admin-services'
-import { BylineAdminServicesProvider, SignInForm } from '@byline/ui'
-
-interface SignInSearch {
-  callbackUrl?: string
-}
-
-export const Route = createFileRoute('/(byline)/sign-in')({
-  validateSearch: (search: Record<string, unknown>): SignInSearch => {
-    const callbackUrl = typeof search.callbackUrl === 'string' ? search.callbackUrl : undefined
-    return { callbackUrl }
-  },
-  component: SignInPage,
-})
-
-function SignInPage() {
-  const { callbackUrl } = Route.useSearch()
-  return (
-    <BylineAdminServicesProvider services={bylineAdminServices}>
-      <main className="flex flex-col flex-1 items-center p-6">
-        <div className="mt-[8vh] sm:mt-[14vh] w-full flex flex-col items-center">
-          <SignInForm callbackUrl={callbackUrl} />
-        </div>
-      </main>
-    </BylineAdminServicesProvider>
-  )
-}
+export const Route = createSignInRoute('/(byline)/sign-in')

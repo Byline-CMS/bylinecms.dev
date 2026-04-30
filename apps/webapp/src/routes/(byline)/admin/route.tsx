@@ -6,76 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-/**
- * Admin shell layout — authenticated-only.
- *
- * `beforeLoad` resolves the current admin user (which internally verifies
- * the session cookies, refreshes transparently when needed, and throws
- * `ERR_UNAUTHENTICATED` when there is no session). On unauthenticated
- * requests we redirect to `/sign-in` with a `callbackUrl` so the user
- * lands back on the page they originally requested.
- *
- * The resolved user is returned as route context so every nested admin
- * route (and the `AdminAppBar`) can read it without an extra fetch.
- */
-
-import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
-
-import { AdminAppBar } from '@byline/host-tanstack-start/admin-shell/chrome/admin-app-bar'
-import { Content } from '@byline/host-tanstack-start/admin-shell/chrome/content'
-import { DrawerToggle } from '@byline/host-tanstack-start/admin-shell/chrome/drawer-toggle'
-import { AdminMenuDrawer } from '@byline/host-tanstack-start/admin-shell/chrome/menu-drawer'
-import { AdminMenuProvider } from '@byline/host-tanstack-start/admin-shell/chrome/menu-provider'
-import {
-  RouteError,
-  RouteNotFound,
-} from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
-import { bylineAdminServices } from '@byline/host-tanstack-start/integrations/byline-admin-services'
-import { bylineFieldServices } from '@byline/host-tanstack-start/integrations/byline-field-services'
-import { getCurrentAdminUser } from '@byline/host-tanstack-start/server-fns/auth'
-import { BylineAdminServicesProvider, BylineFieldServicesProvider } from '@byline/ui'
+import { createAdminLayoutRoute } from '@byline/host-tanstack-start/routes'
 
 import { BylineI18nBridge } from '@/integrations/byline/byline-i18n'
 
-export const Route = createFileRoute('/(byline)/admin')({
-  beforeLoad: async ({ location }) => {
-    try {
-      const user = await getCurrentAdminUser()
-      return { user }
-    } catch {
-      // `getCurrentAdminUser` (via `getAdminRequestContext`) throws
-      // `ERR_UNAUTHENTICATED` or a related auth error when no valid
-      // session is present. Redirect to sign-in with the original path
-      // so we can send the user back after they authenticate.
-      throw redirect({
-        to: '/sign-in',
-        search: { callbackUrl: location.href },
-      })
-    }
-  },
-  component: AdminLayoutComponent,
-  errorComponent: RouteError,
-  notFoundComponent: RouteNotFound,
+export const Route = createAdminLayoutRoute('/(byline)/admin', {
+  i18nBridge: BylineI18nBridge,
 })
-
-function AdminLayoutComponent() {
-  const { user } = Route.useRouteContext()
-  return (
-    <BylineI18nBridge>
-      <BylineAdminServicesProvider services={bylineAdminServices}>
-        <BylineFieldServicesProvider services={bylineFieldServices}>
-          <AdminMenuProvider>
-            <AdminAppBar user={user} />
-            <main className="flex h-screen w-full max-w-full pt-[45px]">
-              <DrawerToggle />
-              <AdminMenuDrawer />
-              <Content>
-                <Outlet />
-              </Content>
-            </main>
-          </AdminMenuProvider>
-        </BylineFieldServicesProvider>
-      </BylineAdminServicesProvider>
-    </BylineI18nBridge>
-  )
-}

@@ -89,6 +89,10 @@
       "types": "./dist/admin-shell/*.d.ts",
       "import": "./dist/admin-shell/*.js"
     },
+    "./routes": {
+      "types": "./dist/routes/index.d.ts",
+      "import": "./dist/routes/index.js"
+    },
     "./routes/*": {
       "types": "./dist/routes/*.d.ts",
       "import": "./dist/routes/*.js"

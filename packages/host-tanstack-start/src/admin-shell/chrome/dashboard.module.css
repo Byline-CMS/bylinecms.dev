@@ -1,0 +1,245 @@
+/**
+ * AdminDashboard — collection-summary cards on /admin.
+ *
+ * Override handles:
+ *   .byline-dashboard-grid             — outer auto-fit card grid
+ *   .byline-dashboard-card-header      — header row of each card
+ *   .byline-dashboard-card-title       — flex row inside the header
+ *   .byline-dashboard-title-text       — collection plural-name label
+ *   .byline-dashboard-title-meta       — "<n> total" caption
+ *   .byline-dashboard-stat-grid        — auto-fit grid of status tiles
+ *   .byline-dashboard-stat-tile        — each tile (also a Link)
+ *   .byline-dashboard-stat-tile-label  — status label (DRAFT, PUBLISHED, …)
+ *   .byline-dashboard-stat-tile-number — status count
+ *   .byline-dashboard-tile-draft       — colour modifier for status="draft"
+ *   .byline-dashboard-tile-published   — colour modifier for status="published"
+ *   .byline-dashboard-tile-archived    — colour modifier for status="archived"
+ *   .byline-dashboard-tile-custom      — colour modifier for any other status
+ *   .byline-dashboard-empty-link       — fallback card body link when no stats
+ */
+
+.grid,
+:global(.byline-dashboard-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1.5rem;
+}
+
+.cardLink,
+:global(.byline-dashboard-card-link) {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardLink:hover,
+:global(.byline-dashboard-card-link:hover) {
+  opacity: 0.9;
+}
+
+.cardHeader,
+:global(.byline-dashboard-card-header) {
+  border-bottom: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
+  padding-bottom: 0.75rem;
+}
+
+:is([data-theme="dark"], :global(.dark)) .cardHeader,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-dashboard-card-header) {
+  border-bottom-color: var(--gray-700);
+}
+
+.cardTitle,
+:global(.byline-dashboard-card-title) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.titleText,
+:global(.byline-dashboard-title-text) {
+  font-size: 1.5rem;
+}
+
+.titleMeta,
+:global(.byline-dashboard-title-meta) {
+  font-size: 0.9rem;
+  font-weight: normal;
+}
+
+.statGrid,
+:global(.byline-dashboard-stat-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4rem, 1fr));
+  gap: 0.5rem;
+}
+
+.statTile,
+:global(.byline-dashboard-stat-tile) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  padding: 1rem 0.5rem 0.625rem;
+  gap: 0.125rem;
+  transition: opacity 200ms ease;
+  text-decoration: none;
+}
+
+.statTile:hover,
+:global(.byline-dashboard-stat-tile:hover) {
+  opacity: 0.8;
+}
+
+.statTileLabel,
+:global(.byline-dashboard-stat-tile-label) {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+.statTileNumber,
+:global(.byline-dashboard-stat-tile-number) {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-top: 0.25rem;
+}
+
+/* Colour modifiers — one set per known status, plus a fallback. */
+
+.tileDraft,
+:global(.byline-dashboard-tile-draft) {
+  background-color: #fffbeb;
+}
+
+.tileDraft .statTileLabel,
+:global(.byline-dashboard-tile-draft) :global(.byline-dashboard-stat-tile-label) {
+  color: #d97706;
+}
+
+.tileDraft .statTileNumber,
+:global(.byline-dashboard-tile-draft) :global(.byline-dashboard-stat-tile-number) {
+  color: #b45309;
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileDraft,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-dashboard-tile-draft) {
+  background-color: rgba(120, 53, 15, 0.2);
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileDraft .statTileLabel,
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-dashboard-tile-draft)
+  :global(.byline-dashboard-stat-tile-label) {
+  color: #fbbf24;
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileDraft .statTileNumber,
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-dashboard-tile-draft)
+  :global(.byline-dashboard-stat-tile-number) {
+  color: #fcd34d;
+}
+
+.tilePublished,
+:global(.byline-dashboard-tile-published) {
+  background-color: #ecfdf5;
+}
+
+.tilePublished .statTileLabel,
+:global(.byline-dashboard-tile-published) :global(.byline-dashboard-stat-tile-label),
+.tilePublished .statTileNumber,
+:global(.byline-dashboard-tile-published) :global(.byline-dashboard-stat-tile-number) {
+  color: #047857;
+}
+
+:is([data-theme="dark"], :global(.dark)) .tilePublished,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-dashboard-tile-published) {
+  background-color: rgba(6, 78, 59, 0.2);
+}
+
+:is([data-theme="dark"], :global(.dark)) .tilePublished .statTileLabel,
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-dashboard-tile-published)
+  :global(.byline-dashboard-stat-tile-label) {
+  color: #34d399;
+}
+
+:is([data-theme="dark"], :global(.dark)) .tilePublished .statTileNumber,
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-dashboard-tile-published)
+  :global(.byline-dashboard-stat-tile-number) {
+  color: #6ee7b7;
+}
+
+.tileArchived,
+:global(.byline-dashboard-tile-archived) {
+  background-color: #f0f9ff;
+}
+
+.tileArchived .statTileLabel,
+:global(.byline-dashboard-tile-archived) :global(.byline-dashboard-stat-tile-label),
+.tileArchived .statTileNumber,
+:global(.byline-dashboard-tile-archived) :global(.byline-dashboard-stat-tile-number) {
+  color: #0369a1;
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileArchived,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-dashboard-tile-archived) {
+  background-color: rgba(12, 74, 110, 0.2);
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileArchived .statTileLabel,
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-dashboard-tile-archived)
+  :global(.byline-dashboard-stat-tile-label) {
+  color: #38bdf8;
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileArchived .statTileNumber,
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-dashboard-tile-archived)
+  :global(.byline-dashboard-stat-tile-number) {
+  color: #7dd3fc;
+}
+
+.tileCustom,
+:global(.byline-dashboard-tile-custom) {
+  background-color: #f5f3ff;
+}
+
+.tileCustom .statTileLabel,
+:global(.byline-dashboard-tile-custom) :global(.byline-dashboard-stat-tile-label),
+.tileCustom .statTileNumber,
+:global(.byline-dashboard-tile-custom) :global(.byline-dashboard-stat-tile-number) {
+  color: #6d28d9;
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileCustom,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-dashboard-tile-custom) {
+  background-color: rgba(76, 29, 149, 0.2);
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileCustom .statTileLabel,
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-dashboard-tile-custom)
+  :global(.byline-dashboard-stat-tile-label) {
+  color: #a78bfa;
+}
+
+:is([data-theme="dark"], :global(.dark)) .tileCustom .statTileNumber,
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-dashboard-tile-custom)
+  :global(.byline-dashboard-stat-tile-number) {
+  color: #c4b5fd;
+}
+
+.emptyLink,
+:global(.byline-dashboard-empty-link) {
+  display: block;
+}

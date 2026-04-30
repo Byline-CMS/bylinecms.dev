@@ -26,9 +26,9 @@ end-to-end on the installer-scaffolded template.
 | 3.3 — Lift auth context + cookies | ✅ shipped | `2d1b096` |
 | 3.4 — Lift integration glue | ✅ shipped (`byline-i18n.tsx` + `empty-module.ts` stayed in `apps/webapp` — see §3.4) | `2d1b096` |
 | 3.5 — Lift admin shell components | ✅ shipped — chrome (15 files) + per-area page containers (14 files) lifted with Tailwind→CSS-modules migration; `app-bar.tsx` stays in `apps/webapp` (public-only). | — |
-| 3.6 — Build route factories | pending | — |
-| 3.7 — Replace host route bodies | pending | — |
-| 3.8 — `apps/webapp` end-state check | pending | — |
+| 3.6 — Build route factories | ✅ shipped — 14 factories under `routes/`, plus dashboard + sign-in chrome lifts. Path strings cast to `never` since the package can't see the host's generated route tree. |
+| 3.7 — Replace host route bodies | ✅ shipped — every file in `apps/webapp/src/routes/(byline)/**` collapsed to a one-liner factory call. |
+| 3.8 — `apps/webapp` end-state check | ⏳ pending verification — `src/modules` removable; `src/ui/{admin,breadcrumbs}` already gone; `src/ui/components/` retains `app-bar.tsx` (public-only). |
 | 4 — `@byline/cli` + template | pending | — |
 | 5 — Build the docs site on the installer | pending | — |
 | 6 — Cut 1.0 | pending | — |

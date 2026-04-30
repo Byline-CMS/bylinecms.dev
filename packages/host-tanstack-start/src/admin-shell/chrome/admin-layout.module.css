@@ -1,0 +1,16 @@
+/**
+ * AdminLayout — the <main> wrapper used by the authenticated admin
+ * shell. Hosts the menu drawer, drawer toggle, and the route content
+ * stream side-by-side, with room above for the fixed AdminAppBar.
+ *
+ * Override handle: .byline-admin-layout-main
+ */
+
+.main,
+:global(.byline-admin-layout-main) {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  padding-top: 45px;
+}

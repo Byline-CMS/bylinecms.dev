@@ -6,65 +6,6 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createFileRoute } from '@tanstack/react-router'
+import { createAdminUsersListRoute } from '@byline/host-tanstack-start/routes'
 
-import { AdminUsersListView } from '@byline/host-tanstack-start/admin-shell/admin-users/list'
-import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
-import { listAdminUsers } from '@byline/host-tanstack-start/server-fns/admin-users'
-import { z } from 'zod'
-
-const orderSchema = z.enum([
-  'given_name',
-  'family_name',
-  'email',
-  'username',
-  'created_at',
-  'updated_at',
-])
-
-const searchSchema = z.object({
-  page: z.coerce.number().int().min(1).optional(),
-  page_size: z.coerce.number().int().min(1).max(100).optional(),
-  query: z.string().optional(),
-  order: orderSchema.optional(),
-  desc: z.coerce.boolean().optional(),
-})
-
-export const Route = createFileRoute('/(byline)/admin/users/')({
-  validateSearch: searchSchema,
-  loaderDeps: ({ search: { page, page_size, query, order, desc } }) => ({
-    page,
-    page_size,
-    query,
-    order,
-    desc,
-  }),
-  loader: async ({ deps }) => {
-    const data = await listAdminUsers({
-      data: {
-        page: deps.page,
-        pageSize: deps.page_size,
-        query: deps.query,
-        order: deps.order,
-        desc: deps.desc,
-      },
-    })
-    return { data }
-  },
-  component: AdminUsersIndex,
-})
-
-function AdminUsersIndex() {
-  const { data } = Route.useLoaderData()
-  return (
-    <>
-      <BreadcrumbsClient
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/admin' },
-          { label: 'Admin Users', href: '/admin/users' },
-        ]}
-      />
-      <AdminUsersListView data={data} />
-    </>
-  )
-}
+export const Route = createAdminUsersListRoute('/(byline)/admin/users/')

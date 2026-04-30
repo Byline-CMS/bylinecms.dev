@@ -6,51 +6,6 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createFileRoute, notFound } from '@tanstack/react-router'
+import { createCollectionCreateRoute } from '@byline/host-tanstack-start/routes'
 
-import type { CollectionDefinition } from '@byline/core'
-import {
-  buildInitialDataFromFields,
-  getCollectionAdminConfig,
-  getCollectionDefinition,
-} from '@byline/core'
-import { BreadcrumbsClient } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-client'
-import { CreateView } from '@byline/host-tanstack-start/admin-shell/collections/create'
-
-export const Route = createFileRoute('/(byline)/admin/collections/$collection/create')({
-  loader: async ({ params }): Promise<{ initialData: any }> => {
-    const collectionDef = getCollectionDefinition(params.collection)
-    if (!collectionDef) {
-      throw notFound()
-    }
-    const initialData = await buildInitialDataFromFields(collectionDef.fields, {
-      data: {},
-      now: () => new Date(),
-    })
-    return { initialData }
-  },
-  component: RouteComponent,
-})
-
-function RouteComponent() {
-  const { collection } = Route.useParams()
-  const { initialData } = Route.useLoaderData()
-  const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
-  const adminConfig = getCollectionAdminConfig(collection)
-  return (
-    <>
-      <BreadcrumbsClient
-        breadcrumbs={[
-          { label: 'Dashboard', href: `/admin` },
-          { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
-          { label: 'Create', href: `/admin/collections/${collection}/create` },
-        ]}
-      />
-      <CreateView
-        collectionDefinition={collectionDef}
-        adminConfig={adminConfig ?? undefined}
-        initialData={initialData}
-      />
-    </>
-  )
-}
+export const Route = createCollectionCreateRoute('/(byline)/admin/collections/$collection/create')

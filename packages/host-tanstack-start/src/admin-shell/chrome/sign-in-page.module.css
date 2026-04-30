@@ -1,0 +1,32 @@
+/**
+ * SignInPage — outer wrapper for the sign-in form.
+ *
+ * Override handles:
+ *   .byline-sign-in-page    — outer <main>
+ *   .byline-sign-in-page-inner — vertically-centred card container
+ */
+
+.main,
+:global(.byline-sign-in-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  align-items: center;
+  padding: 1.5rem;
+}
+
+.inner,
+:global(.byline-sign-in-page-inner) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-top: 8vh;
+}
+
+@media (min-width: 40rem) {
+  .inner,
+  :global(.byline-sign-in-page-inner) {
+    margin-top: 14vh;
+  }
+}
