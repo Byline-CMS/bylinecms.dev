@@ -16,7 +16,7 @@
 
 import type { StoredFileValue } from '@byline/core'
 
-import type { UploadDocumentFn } from '../services/field-services-types'
+import type { UploadFieldFn } from '../services/field-services-types'
 import type { PendingUpload } from './form-context'
 
 export interface UploadResult {
@@ -42,13 +42,13 @@ export interface ExecuteUploadsResult {
  * Returns a result object with successful uploads and any errors.
  *
  * @param pendingUploads - Map of field path to PendingUpload
- * @param uploadDocument - Host-provided upload transport (resolved via
+ * @param uploadField - Host-provided upload transport (resolved via
  *                         `useBylineFieldServices()` in the calling React tree)
  * @returns Promise resolving to ExecuteUploadsResult
  */
 export async function executeUploads(
   pendingUploads: Map<string, PendingUpload>,
-  uploadDocument: UploadDocumentFn
+  uploadField: UploadFieldFn
 ): Promise<ExecuteUploadsResult> {
   const results: UploadResult[] = []
   const successful = new Map<string, StoredFileValue>()
@@ -67,7 +67,7 @@ export async function executeUploads(
     try {
       // Pass createDocument=false — we're uploading for an embedded field,
       // the form's save action handles document creation/update.
-      const result = await uploadDocument(upload.collectionPath, formData, false)
+      const result = await uploadField(upload.collectionPath, formData, false)
 
       results.push({
         fieldPath,
@@ -123,7 +123,7 @@ export type UploadProgressCallback = (info: {
  */
 export async function executeUploadsWithProgress(
   pendingUploads: Map<string, PendingUpload>,
-  uploadDocument: UploadDocumentFn,
+  uploadField: UploadFieldFn,
   onProgress?: UploadProgressCallback
 ): Promise<ExecuteUploadsResult> {
   const results: UploadResult[] = []
@@ -148,7 +148,7 @@ export async function executeUploadsWithProgress(
     formData.append('field', uploadFieldName(fieldPath))
 
     try {
-      const result = await uploadDocument(upload.collectionPath, formData, false)
+      const result = await uploadField(upload.collectionPath, formData, false)
 
       results.push({
         fieldPath,

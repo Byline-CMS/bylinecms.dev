@@ -16,7 +16,7 @@ export {
 } from './collection-bootstrap.js'
 export * from './document-lifecycle.js'
 export * from './document-read.js'
-export * from './document-upload.js'
+export * from './field-upload.js'
 export {
   type CycleRelationValue,
   createReadContext,

@@ -74,6 +74,6 @@ export type {
   CollectionListParams,
   CollectionListResponse,
   GetCollectionDocumentsFn,
-  UploadDocumentFn,
   UploadedFileResult,
+  UploadFieldFn,
 } from './services/field-services-types.js'

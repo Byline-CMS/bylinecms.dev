@@ -10,10 +10,10 @@ import { createSuperAdminContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BylineError, ErrorCodes } from '../lib/errors.js'
-import { uploadDocument } from './document-upload.js'
+import { uploadField } from './field-upload.js'
 import type { CollectionDefinition, IDbAdapter, IStorageProvider } from '../@types/index.js'
 import type { BylineLogger } from '../lib/logger.js'
-import type { DocumentUploadContext, UploadImageProcessor } from './document-upload.js'
+import type { FieldUploadContext, UploadImageProcessor } from './field-upload.js'
 
 const uploadCollection: CollectionDefinition = {
   path: 'media',
@@ -140,12 +140,12 @@ function createImageProcessor(overrides?: Partial<UploadImageProcessor>): Upload
   }
 }
 
-function buildCtx(overrides?: Partial<DocumentUploadContext>) {
+function buildCtx(overrides?: Partial<FieldUploadContext>) {
   const { db, createDocumentVersion } = createMockDb()
   const { storage, upload, del } = createMockStorage()
   const imageProcessor = createImageProcessor()
 
-  const ctx: DocumentUploadContext = {
+  const ctx: FieldUploadContext = {
     db,
     definition: uploadCollection,
     collectionId: 'col-1',
@@ -163,11 +163,11 @@ function buildCtx(overrides?: Partial<DocumentUploadContext>) {
   return { ctx, createDocumentVersion, upload, del, imageProcessor }
 }
 
-describe('uploadDocument service', () => {
+describe('uploadField service', () => {
   it('uploads a file without creating a document when requested', async () => {
     const { ctx, createDocumentVersion, upload } = buildCtx()
 
-    const result = await uploadDocument(ctx, {
+    const result = await uploadField(ctx, {
       buffer: Buffer.from('png'),
       originalFilename: 'hero.png',
       mimeType: 'image/png',
@@ -201,7 +201,7 @@ describe('uploadDocument service', () => {
 
     const { ctx, createDocumentVersion, upload } = buildCtx({ definition })
 
-    const result = await uploadDocument(ctx, {
+    const result = await uploadField(ctx, {
       buffer: Buffer.from('png'),
       originalFilename: 'Hero Banner.PNG',
       mimeType: 'image/png',
@@ -260,7 +260,7 @@ describe('uploadDocument service', () => {
 
     const { ctx, upload } = buildCtx({ definition })
 
-    await uploadDocument(ctx, {
+    await uploadField(ctx, {
       buffer: Buffer.from('png'),
       originalFilename: 'hero.png',
       mimeType: 'image/png',
@@ -287,7 +287,7 @@ describe('uploadDocument service', () => {
     const { ctx, upload, imageProcessor } = buildCtx({ definition })
 
     await expect(
-      uploadDocument(ctx, {
+      uploadField(ctx, {
         buffer: Buffer.from('png'),
         originalFilename: 'hero.png',
         mimeType: 'image/png',
@@ -310,7 +310,7 @@ describe('uploadDocument service', () => {
     const { ctx } = buildCtx({ definition })
 
     await expect(
-      uploadDocument(ctx, {
+      uploadField(ctx, {
         buffer: Buffer.from('gif'),
         originalFilename: 'hero.gif',
         mimeType: 'image/gif',
@@ -326,7 +326,7 @@ describe('uploadDocument service', () => {
     const { ctx } = buildCtx({ fieldName: 'caption' })
 
     await expect(
-      uploadDocument(ctx, {
+      uploadField(ctx, {
         buffer: Buffer.from('png'),
         originalFilename: 'hero.png',
         mimeType: 'image/png',
@@ -343,7 +343,7 @@ describe('uploadDocument service', () => {
 
     const { ctx, upload, del } = buildCtx({ definition })
 
-    const result = await uploadDocument(ctx, {
+    const result = await uploadField(ctx, {
       buffer: Buffer.from('png'),
       originalFilename: 'hero.png',
       mimeType: 'image/png',
@@ -361,7 +361,7 @@ describe('uploadDocument service', () => {
     const { db } = createMockDb()
     db.commands.documents.createDocumentVersion = vi.fn().mockRejectedValue(new Error('db down'))
     const { storage, del } = createMockStorage()
-    const ctx: DocumentUploadContext = {
+    const ctx: FieldUploadContext = {
       db,
       definition: uploadCollection,
       collectionId: 'col-1',
@@ -382,7 +382,7 @@ describe('uploadDocument service', () => {
 
     let error: unknown
     try {
-      await uploadDocument(ctx, {
+      await uploadField(ctx, {
         buffer: Buffer.from('png'),
         originalFilename: 'hero.png',
         mimeType: 'image/png',

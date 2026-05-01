@@ -16,20 +16,20 @@
  * @byline/ui surface is unchanged.
  */
 
-import type { BylineFieldServices, GetCollectionDocumentsFn, UploadDocumentFn } from '@byline/ui'
+import type { BylineFieldServices, GetCollectionDocumentsFn, UploadFieldFn } from '@byline/ui'
 
 import { getCollectionDocuments as serverGetCollectionDocuments } from '../server-fns/collections/list.js'
-import { uploadDocument as serverUploadDocument } from '../server-fns/collections/upload.js'
+import { uploadField as serverUploadField } from '../server-fns/collections/upload.js'
 
 const getCollectionDocuments: GetCollectionDocumentsFn = ({ collection, params }) =>
   serverGetCollectionDocuments({
     data: { collection, params },
   }) as ReturnType<GetCollectionDocumentsFn>
 
-const uploadDocument: UploadDocumentFn = (collection, formData, createDocument) =>
-  serverUploadDocument(collection, formData, createDocument)
+const uploadField: UploadFieldFn = (collection, formData, createDocument) =>
+  serverUploadField(collection, formData, createDocument)
 
 export const bylineFieldServices: BylineFieldServices = {
   getCollectionDocuments,
-  uploadDocument,
+  uploadField,
 }

@@ -287,7 +287,7 @@ const FormContent = ({
   const [statusBusy, setStatusBusy] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
-  const { uploadDocument } = useBylineFieldServices()
+  const { uploadField } = useBylineFieldServices()
 
   // Sync contentLocale when the route re-fetches with a different locale.
   useEffect(() => {
@@ -470,7 +470,7 @@ const FormContent = ({
       if (pendingUploads.size > 0) {
         setIsUploading(true)
         try {
-          const uploadResult = await executeUploads(pendingUploads, uploadDocument)
+          const uploadResult = await executeUploads(pendingUploads, uploadField)
 
           // Check for upload errors
           if (!uploadResult.allSucceeded) {

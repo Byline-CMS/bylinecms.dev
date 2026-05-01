@@ -2,14 +2,14 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type {
   CollectionDefinition,
-  DocumentUploadContext,
+  FieldUploadContext,
   FileField,
   ImageField,
   StoredFileValue,
 } from '@byline/core'
 import { ERR_NOT_FOUND, ERR_VALIDATION, getServerConfig, getUploadFields } from '@byline/core'
 import { getLogger, withLogContext } from '@byline/core/logger'
-import { uploadDocument as coreUploadDocument } from '@byline/core/services'
+import { uploadField as coreUploadField } from '@byline/core/services'
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/storage-local'
 
 import { getAdminRequestContext } from '../../auth/auth-context.js'
@@ -21,7 +21,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
  * `storedFile.variants` with full `storagePath`/`storageUrl`/`width`/
  * `height`/`format`. Single source of truth.
  */
-export interface UploadDocumentResult {
+export interface UploadFieldResult {
   /** Present when the upload endpoint created a document (createDocument=true, the default). */
   documentId?: string
   documentVersionId?: string
@@ -58,8 +58,7 @@ function parseUploadFormData(data: FormData): UploadDocumentInput {
   }
 
   const fieldEntry = data.get('field')
-  const fieldName =
-    typeof fieldEntry === 'string' && fieldEntry.trim() ? fieldEntry.trim() : null
+  const fieldName = typeof fieldEntry === 'string' && fieldEntry.trim() ? fieldEntry.trim() : null
 
   const fields: Record<string, string> = {}
   for (const [key, value] of data.entries()) {
@@ -147,14 +146,14 @@ function resolveUploadFieldName(
  * deployments and external clients can use the identical upload orchestration
  * without depending on TanStack Start server-function transport details.
  */
-export const uploadCollectionDocument = createServerFn({ method: 'POST' })
+export const uploadCollectionField = createServerFn({ method: 'POST' })
   .inputValidator(parseUploadFormData)
   .handler(async ({ data }) => {
     const { collectionPath, shouldCreateDocument, fieldName, file, fields } = data
     const logger = getLogger()
 
     return withLogContext(
-      { domain: 'api', module: 'upload', function: 'uploadCollectionDocument' },
+      { domain: 'api', module: 'upload', function: 'uploadCollectionField' },
       async () => {
         const config = await ensureCollection(collectionPath)
         if (config == null) {
@@ -163,7 +162,7 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
               message: 'Collection not found.',
               details: { collectionPath },
             },
-            uploadCollectionDocument
+            uploadCollectionField
           ).log(logger)
         }
 
@@ -173,9 +172,9 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
           collectionPath,
           fieldName
         )
-        const targetField = config.definition.fields.find(
-          (f) => f.name === resolvedFieldName
-        ) as ImageField | FileField
+        const targetField = config.definition.fields.find((f) => f.name === resolvedFieldName) as
+          | ImageField
+          | FileField
         // Per-field storage routing falls through to the site-wide default.
         const storage = targetField.upload?.storage ?? serverConfig.storage
         if (!storage) {
@@ -194,7 +193,7 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
           throw new Error('Failed to read uploaded file.')
         }
 
-        const ctx: DocumentUploadContext = {
+        const ctx: FieldUploadContext = {
           db: serverConfig.db,
           definition: config.definition,
           collectionId: config.collection.id,
@@ -229,7 +228,7 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
           },
         }
 
-        return coreUploadDocument(ctx, {
+        return coreUploadField(ctx, {
           buffer,
           originalFilename: file.name || 'upload',
           mimeType: file.type || 'application/octet-stream',
@@ -258,11 +257,11 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
  *                          in-form field widget — the form's own save will
  *                          create the document. Defaults to `true`.
  */
-export async function uploadDocument(
+export async function uploadField(
   collection: string,
   formData: FormData,
   createDocument = true
-): Promise<UploadDocumentResult> {
+): Promise<UploadFieldResult> {
   const payload = new FormData()
   for (const [key, value] of formData.entries()) {
     payload.append(key, value)
@@ -271,5 +270,5 @@ export async function uploadDocument(
   payload.set('collection', collection)
   payload.set('createDocument', createDocument ? 'true' : 'false')
 
-  return uploadCollectionDocument({ data: payload })
+  return uploadCollectionField({ data: payload })
 }

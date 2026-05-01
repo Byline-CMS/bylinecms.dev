@@ -68,7 +68,7 @@ export interface UploadImageProcessor {
   }) => Promise<UploadVariantResult[]>
 }
 
-export interface DocumentUploadContext {
+export interface FieldUploadContext {
   db: IDbAdapter
   definition: CollectionDefinition
   collectionId: string
@@ -102,7 +102,7 @@ export interface DocumentUploadContext {
   requestContext?: RequestContext
 }
 
-export interface UploadDocumentParams {
+export interface UploadFieldParams {
   buffer: Buffer
   originalFilename: string
   mimeType: string
@@ -112,7 +112,7 @@ export interface UploadDocumentParams {
   locale?: string
 }
 
-export interface UploadDocumentResult {
+export interface UploadFieldResult {
   documentId?: string
   documentVersionId?: string
   /**
@@ -227,12 +227,12 @@ async function runBeforeStoreChain(
   return effective
 }
 
-export async function uploadDocument(
-  ctx: DocumentUploadContext,
-  params: UploadDocumentParams
-): Promise<UploadDocumentResult> {
+export async function uploadField(
+  ctx: FieldUploadContext,
+  params: UploadFieldParams
+): Promise<UploadFieldResult> {
   return withLogContext(
-    { domain: 'services', module: 'upload', function: 'uploadDocument' },
+    { domain: 'services', module: 'upload', function: 'uploadField' },
     async () => {
       const {
         definition,
@@ -258,7 +258,7 @@ export async function uploadDocument(
               'upload-capable image/file field, or does not exist.',
             details: { collectionPath, fieldName },
           },
-          uploadDocument
+          uploadField
         ).log(logger)
       }
       const upload = field.upload
@@ -270,7 +270,7 @@ export async function uploadDocument(
               'block. Add an UploadConfig to the field definition.',
             details: { collectionPath, fieldName },
           },
-          uploadDocument
+          uploadField
         ).log(logger)
       }
 
@@ -295,7 +295,7 @@ export async function uploadDocument(
                 `Allowed: ${upload.mimeTypes.join(', ')}.`,
               details: { collectionPath, fieldName, mimeType },
             },
-            uploadDocument
+            uploadField
           ).log(logger)
         }
       }
@@ -313,7 +313,7 @@ export async function uploadDocument(
               maxFileSize: upload.maxFileSize,
             },
           },
-          uploadDocument
+          uploadField
         ).log(logger)
       }
 
@@ -360,7 +360,7 @@ export async function uploadDocument(
             details: { collectionPath, fieldName },
             cause: err,
           },
-          uploadDocument
+          uploadField
         ).log(logger)
       }
 
@@ -462,7 +462,13 @@ export async function uploadDocument(
 
       try {
         const result = await createDocument(lifecycleCtx, {
-          data: buildDocumentData(definition, fieldName, storedFileValue, fields, effectiveFilename),
+          data: buildDocumentData(
+            definition,
+            fieldName,
+            storedFileValue,
+            fields,
+            effectiveFilename
+          ),
           locale: locale ?? ctx.defaultLocale,
         })
 
@@ -492,7 +498,7 @@ export async function uploadDocument(
             details: { collectionPath, fieldName },
             cause: err,
           },
-          uploadDocument
+          uploadField
         ).log(logger)
       }
     }

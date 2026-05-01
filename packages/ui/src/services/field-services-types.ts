@@ -56,7 +56,7 @@ export interface UploadedFileResult {
   storedFile: StoredFileValue
 }
 
-export type UploadDocumentFn = (
+export type UploadFieldFn = (
   collection: string,
   formData: FormData,
   createDocument?: boolean
@@ -64,5 +64,5 @@ export type UploadDocumentFn = (
 
 export interface BylineFieldServices {
   getCollectionDocuments: GetCollectionDocumentsFn
-  uploadDocument: UploadDocumentFn
+  uploadField: UploadFieldFn
 }
