@@ -47,13 +47,13 @@ export function NewsList({ result, category }: NewsListProps) {
                 : undefined
 
             return (
-              <Card key={doc.id} className="flex overflow-hidden">
+              <Card key={doc.id} className="flex overflow-hidden group">
                 {thumbnailUrl ? (
                   <div className="aspect-video w-full shrink-0 overflow-hidden bg-gray-100">
                     <img
                       src={thumbnailUrl}
                       alt={imageAlt}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out"
                     />
                   </div>
                 ) : null}
