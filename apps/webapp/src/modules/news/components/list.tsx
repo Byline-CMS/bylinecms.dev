@@ -6,14 +6,38 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { FindResult } from '@byline/client'
+import type { PersistedVariant, StoredFileValue } from '@byline/core'
 import { Card } from '@infonomic/uikit/react'
 
 import { truncate } from '@/utils/utils.general'
+import type { NewsListResult } from '@/modules/news/list'
 
 interface NewsListProps {
-  result: FindResult
+  result: NewsListResult
   category?: string
+}
+
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
+// Pick a named variant URL from a stored image, falling back to the next
+// preferred variant and finally the original `storageUrl`. The variant list
+// itself is just `image.variants`, but the fallback chain is real logic
+// worth a name.
+function pickVariantUrl(
+  image: StoredFileValue | undefined,
+  ...preferred: string[]
+): string | undefined {
+  if (!image) return undefined
+  const variants: PersistedVariant[] = image.variants ?? []
+  for (const name of preferred) {
+    const hit = variants.find((v) => v.name === name)
+    if (hit?.storageUrl) return hit.storageUrl
+  }
+  return image.storageUrl
 }
 
 export function NewsList({ result, category }: NewsListProps) {
@@ -35,16 +59,18 @@ export function NewsList({ result, category }: NewsListProps) {
       ) : (
         <div className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6 p-0">
           {docs.map((doc) => {
-            const title =
-              typeof doc.fields.title === 'string' ? doc.fields.title : (doc.path ?? doc.id)
-            const categoryLabel = readPopulatedCategoryName(doc.fields.category)
-            const thumbnailUrl = readFeatureImageThumbnailUrl(doc.fields.featureImage)
-            const imageAlt = readFeatureImageAlt(doc.fields.featureImage) ?? title
-            const publishedOn = formatPublishedDate(doc.fields.publishedOn)
-            const summary =
-              typeof doc.fields.summary === 'string'
-                ? truncate(doc.fields.summary, 150, true)
-                : undefined
+            const title = doc.fields.title ?? doc.path ?? doc.id
+            const categoryLabel = doc.fields.category?.document?.fields.name
+            const featureImage = doc.fields.featureImage?.document?.fields.image
+            const thumbnailUrl = pickVariantUrl(featureImage, 'thumbnail', 'card')
+            const imageAlt =
+              doc.fields.featureImage?.document?.fields.altText ??
+              doc.fields.featureImage?.document?.fields.title ??
+              title
+            const publishedOn = doc.fields.publishedOn
+              ? dateFormatter.format(new Date(doc.fields.publishedOn))
+              : undefined
+            const summary = doc.fields.summary ? truncate(doc.fields.summary, 150, true) : undefined
 
             return (
               <Card key={doc.id} className="flex overflow-hidden group">
@@ -58,9 +84,7 @@ export function NewsList({ result, category }: NewsListProps) {
                   </div>
                 ) : null}
                 <div className="flex flex-1 flex-col gap-2 p-4">
-                  <h2>
-                    {title}
-                  </h2>
+                  <h2>{title}</h2>
                   {publishedOn || categoryLabel ? (
                     <p className="m-0 text-xs text-gray-400">
                       {publishedOn}
@@ -68,11 +92,8 @@ export function NewsList({ result, category }: NewsListProps) {
                       {categoryLabel}
                     </p>
                   ) : null}
-                  {summary ? (
-                    <p className="m-0 text-sm muted leading-relaxed">{summary}</p>
-                  ) : null}
+                  {summary ? <p className="m-0 text-sm muted leading-relaxed">{summary}</p> : null}
                 </div>
-
               </Card>
             )
           })}
@@ -80,51 +101,4 @@ export function NewsList({ result, category }: NewsListProps) {
       )}
     </div>
   )
-}
-
-// ---------------------------------------------------------------------------
-// Helpers — extract data from populated relation envelopes
-// ---------------------------------------------------------------------------
-
-function readPopulatedCategoryName(value: unknown): string | undefined {
-  if (!value || typeof value !== 'object') return undefined
-  const v = value as Record<string, unknown>
-  const doc = (v.document ?? v.target) as Record<string, unknown> | undefined
-  const fields = doc?.fields as Record<string, unknown> | undefined
-  const name = fields?.name
-  return typeof name === 'string' ? name : undefined
-}
-
-function readFeatureImageThumbnailUrl(value: unknown): string | undefined {
-  if (!value || typeof value !== 'object') return undefined
-  const v = value as Record<string, unknown>
-  const doc = (v.document ?? v.target) as Record<string, unknown> | undefined
-  const fields = doc?.fields as Record<string, unknown> | undefined
-  const image = fields?.image as Record<string, unknown> | undefined
-  if (!image) return undefined
-
-  const variants = image.variants as Array<Record<string, unknown>> | undefined
-  if (Array.isArray(variants)) {
-    const thumbnail =
-      variants.find((vr) => vr.name === 'thumbnail') ?? variants.find((vr) => vr.name === 'card')
-    if (typeof thumbnail?.storageUrl === 'string') return thumbnail.storageUrl
-  }
-
-  return typeof image.storageUrl === 'string' ? image.storageUrl : undefined
-}
-
-function readFeatureImageAlt(value: unknown): string | undefined {
-  if (!value || typeof value !== 'object') return undefined
-  const v = value as Record<string, unknown>
-  const doc = (v.document ?? v.target) as Record<string, unknown> | undefined
-  const fields = doc?.fields as Record<string, unknown> | undefined
-  const alt = fields?.altText ?? fields?.title
-  return typeof alt === 'string' ? alt : undefined
-}
-
-function formatPublishedDate(value: unknown): string | undefined {
-  if (!value) return undefined
-  const date = new Date(value as string)
-  if (Number.isNaN(date.getTime())) return undefined
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }

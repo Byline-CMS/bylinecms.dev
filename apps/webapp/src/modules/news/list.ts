@@ -25,8 +25,13 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { createRequestContext } from '@byline/auth'
-import { type BylineClient, createBylineClient, type FindResult } from '@byline/client'
-import { getServerConfig } from '@byline/core'
+import {
+  type BylineClient,
+  type ClientDocument,
+  createBylineClient,
+  type FindResult,
+} from '@byline/client'
+import { getServerConfig, type StoredFileValue } from '@byline/core'
 
 let cachedClient: BylineClient | undefined
 
@@ -42,6 +47,43 @@ function getPublicBylineClient(): BylineClient {
   })
   return cachedClient
 }
+
+// ---------------------------------------------------------------------------
+// Field shapes for typed access at the call site
+// ---------------------------------------------------------------------------
+//
+// `populate` replaces each in-scope relation leaf with an envelope whose
+// `document` carries the populated target as a `ClientDocument`. Cycle /
+// unresolved leaves omit `document`, so it is modelled as optional and
+// consumers reach values via `?.document?.fields?.x`.
+
+interface PopulatedRelation<F> {
+  document?: ClientDocument<F>
+}
+
+export interface NewsCategoryFields {
+  name?: string
+  path?: string
+}
+
+export interface MediaFields {
+  image?: StoredFileValue
+  title?: string
+  altText?: string
+  caption?: string
+  credit?: string
+}
+
+export interface NewsFields {
+  title?: string
+  summary?: string
+  category?: PopulatedRelation<NewsCategoryFields>
+  featureImage?: PopulatedRelation<MediaFields>
+  publishedOn?: string
+  content?: unknown
+}
+
+export type NewsListResult = FindResult<NewsFields>
 
 export interface NewsListInput {
   category?: string
@@ -66,11 +108,11 @@ export const getNewsListFn = createServerFn({ method: 'GET' })
       locale: input?.locale,
     })
   )
-  .handler(async (ctx): Promise<FindResult> => {
+  .handler(async (ctx): Promise<NewsListResult> => {
     const data = ctx.data as ResolvedNewsListInput
     const client = getPublicBylineClient()
 
-    return client.collection('news').find({
+    return client.collection('news').find<NewsFields>({
       where: data.category ? { category: { path: data.category } } : undefined,
       sort: { publishedOn: 'desc' },
       depth: 1,
