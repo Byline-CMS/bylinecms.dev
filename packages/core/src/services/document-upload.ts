@@ -8,16 +8,22 @@
 
 import type { RequestContext } from '@byline/auth'
 
-import { normalizeCollectionHook } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_DATABASE, ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
 import { createDocument, type DocumentLifecycleContext } from './document-lifecycle.js'
 import type {
-  BeforeUploadContext,
+  AfterStoreContext,
+  AfterStoreHookFn,
+  BeforeStoreContext,
+  BeforeStoreHookFn,
   CollectionDefinition,
+  Field,
+  FileField,
   IDbAdapter,
+  ImageField,
   IStorageProvider,
+  PersistedVariant,
   StoredFileLocation,
   StoredFileValue,
   UploadConfig,
@@ -31,9 +37,22 @@ export interface UploadImageMeta {
   format: string | null
 }
 
+/**
+ * One generated image variant returned by the image processor adapter.
+ *
+ * The processor knows the resolved dimensions / output format from the
+ * Sharp pipeline, so the upload service persists them onto
+ * `StoredFileValue.variants` without a re-read. `storageUrl` is captured
+ * via `storage.getUrl(storagePath)` if the processor doesn't supply it
+ * directly.
+ */
 export interface UploadVariantResult {
   name: string
   storagePath: string
+  storageUrl?: string
+  width?: number
+  height?: number
+  format?: string
 }
 
 export interface UploadImageProcessor {
@@ -60,6 +79,12 @@ export interface DocumentUploadContext {
    */
   collectionVersion: number
   collectionPath: string
+  /**
+   * Name of the upload-capable image/file field on this collection. The
+   * service resolves the field, validates that it carries an `upload`
+   * block, and reads MIME / size / sizes / storage / hooks from there.
+   */
+  fieldName: string
   storage: IStorageProvider
   logger: BylineLogger
   imageProcessor?: UploadImageProcessor
@@ -71,7 +96,8 @@ export interface DocumentUploadContext {
    * Request-scoped auth context. Forwarded to the internal
    * `DocumentLifecycleContext` when an upload creates a document, and
    * consulted directly at the upload entry for the `create` ability
-   * check. Optional in Phase 4 plumbing; Phase 5 tightens.
+   * check. Required at the field-level upload boundary so `beforeStore` /
+   * `afterStore` hooks can branch on `actor`.
    */
   requestContext?: RequestContext
 }
@@ -89,8 +115,13 @@ export interface UploadDocumentParams {
 export interface UploadDocumentResult {
   documentId?: string
   documentVersionId?: string
+  /**
+   * The persisted file value, including the `variants` array with
+   * `storagePath`, `storageUrl`, `width`, `height`, and `format` for each
+   * generated derivative. Single source of truth — the legacy top-level
+   * `variants` list is gone.
+   */
   storedFile: StoredFileValue
-  variants: Array<{ name: string; url: string }>
 }
 
 function isMimeTypeAllowed(mimeType: string, allowedTypes: string[]): boolean {
@@ -116,52 +147,84 @@ function sanitiseFilename(filename: string): string {
   return `${safe || 'file'}${ext}`
 }
 
-async function resolveUploadFilename(
-  definition: CollectionDefinition,
-  hookCtx: BeforeUploadContext,
-  defaultFilename: string
-): Promise<string> {
-  const beforeUploadHook = definition.hooks?.beforeUpload
-  if (!beforeUploadHook) {
-    return defaultFilename
-  }
-
-  const fns = Array.isArray(beforeUploadHook) ? beforeUploadHook : [beforeUploadHook]
-  let effectiveFilename = defaultFilename
-
-  for (const fn of fns) {
-    const override = await fn(hookCtx)
-    if (typeof override === 'string' && override.trim()) {
-      effectiveFilename = override.trim()
+/**
+ * Walk a field set (recursing into `group` / `array` / `blocks`) and
+ * locate the `image | file` field with the given name. Returns the
+ * field reference, or `undefined` if no match is found.
+ *
+ * Block/array/group nesting matters because a future schema may define
+ * upload-capable fields inside repeating structures. Today's schemas
+ * declare uploads at the top level, but the resolver doesn't assume
+ * that.
+ */
+function findUploadField(
+  fields: readonly Field[],
+  fieldName: string
+): ImageField | FileField | undefined {
+  for (const field of fields) {
+    if ((field.type === 'image' || field.type === 'file') && field.name === fieldName) {
+      return field
+    }
+    if (field.type === 'group' || field.type === 'array') {
+      const nested = findUploadField(field.fields, fieldName)
+      if (nested) return nested
+    }
+    if (field.type === 'blocks') {
+      for (const block of field.blocks) {
+        const nested = findUploadField(block.fields, fieldName)
+        if (nested) return nested
+      }
     }
   }
-
-  return effectiveFilename
+  return undefined
 }
 
-function buildDocumentData(
-  definition: CollectionDefinition,
-  storedFile: StoredFileValue,
-  fields: Record<string, string>,
-  fallbackTitle: string
-): Record<string, unknown> {
-  const documentData: Record<string, unknown> = {}
+function normalizeUploadHook<T>(hook: T | T[] | undefined): T[] {
+  if (!hook) return []
+  return Array.isArray(hook) ? hook : [hook]
+}
 
-  for (const field of definition.fields) {
-    if (field.type === 'image' || field.type === 'file') {
-      documentData[field.name] = storedFile
+/**
+ * Run the `beforeStore` chain. Each function receives the previous
+ * function's filename override (fold). A function may:
+ *
+ *   - return a string or `{ filename }` to substitute a new filename;
+ *   - return `{ error }` to short-circuit with `ERR_VALIDATION`;
+ *   - return `void` / `undefined` to leave the filename unchanged.
+ *
+ * Returns the resolved filename.
+ */
+async function runBeforeStoreChain(
+  hooks: BeforeStoreHookFn[],
+  ctx: BeforeStoreContext,
+  logger: BylineLogger
+): Promise<string> {
+  let effective = ctx.filename
+  for (const fn of hooks) {
+    const result = await fn({ ...ctx, filename: effective })
+    if (result == null) continue
+    if (typeof result === 'string') {
+      const trimmed = result.trim()
+      if (trimmed) effective = trimmed
       continue
     }
-
-    const rawValue = fields[field.name]?.trim() ?? ''
-    if (field.name === 'title') {
-      documentData.title = rawValue || fallbackTitle
-    } else if (rawValue !== '') {
-      documentData[field.name] = rawValue
+    if (typeof result === 'object') {
+      if ('error' in result && typeof result.error === 'string' && result.error) {
+        throw ERR_VALIDATION(
+          {
+            message: result.error,
+            details: { collectionPath: ctx.collectionPath, fieldName: ctx.fieldName },
+          },
+          runBeforeStoreChain
+        ).log(logger)
+      }
+      if ('filename' in result && typeof result.filename === 'string') {
+        const trimmed = result.filename.trim()
+        if (trimmed) effective = trimmed
+      }
     }
   }
-
-  return documentData
+  return effective
 }
 
 export async function uploadDocument(
@@ -171,20 +234,41 @@ export async function uploadDocument(
   return withLogContext(
     { domain: 'services', module: 'upload', function: 'uploadDocument' },
     async () => {
-      const { definition, collectionPath, storage, db, collectionId, logger, imageProcessor } = ctx
+      const {
+        definition,
+        collectionPath,
+        storage,
+        db,
+        collectionId,
+        logger,
+        imageProcessor,
+        fieldName,
+      } = ctx
       // Upload is effectively a write under collection scope — enforce
       // the `create` ability even when `shouldCreateDocument: false` so
       // anonymous callers cannot push bytes into storage.
       assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
-      const upload = definition.upload
 
+      const field = findUploadField(definition.fields, fieldName)
+      if (!field) {
+        throw ERR_VALIDATION(
+          {
+            message:
+              `Field '${fieldName}' on collection '${collectionPath}' is not an ` +
+              'upload-capable image/file field, or does not exist.',
+            details: { collectionPath, fieldName },
+          },
+          uploadDocument
+        ).log(logger)
+      }
+      const upload = field.upload
       if (!upload) {
         throw ERR_VALIDATION(
           {
             message:
-              `Collection '${collectionPath}' is not upload-enabled. ` +
-              "Add an 'upload' block to its CollectionDefinition.",
-            details: { collectionPath },
+              `Field '${fieldName}' on collection '${collectionPath}' has no 'upload' ` +
+              'block. Add an UploadConfig to the field definition.',
+            details: { collectionPath, fieldName },
           },
           uploadDocument
         ).log(logger)
@@ -200,21 +284,16 @@ export async function uploadDocument(
         locale,
       } = params
 
-      const filename = sanitiseFilename(originalFilename || 'upload')
-      const effectiveFilename = await resolveUploadFilename(
-        definition,
-        { filename, mimeType, fileSize, collectionPath },
-        filename
-      )
-
+      // -- Validation runs FIRST. Hooks never see a file that's about to
+      //    be rejected.
       if (upload.mimeTypes && upload.mimeTypes.length > 0) {
         if (!isMimeTypeAllowed(mimeType, upload.mimeTypes)) {
           throw ERR_VALIDATION(
             {
               message:
-                `MIME type '${mimeType}' is not allowed for this collection. ` +
+                `MIME type '${mimeType}' is not allowed for field '${fieldName}'. ` +
                 `Allowed: ${upload.mimeTypes.join(', ')}.`,
-              details: { collectionPath, mimeType },
+              details: { collectionPath, fieldName, mimeType },
             },
             uploadDocument
           ).log(logger)
@@ -226,17 +305,50 @@ export async function uploadDocument(
           {
             message:
               `File size ${fileSize} bytes exceeds the maximum allowed size of ` +
-              `${upload.maxFileSize} bytes.`,
-            details: { collectionPath, fileSize, maxFileSize: upload.maxFileSize },
+              `${upload.maxFileSize} bytes for field '${fieldName}'.`,
+            details: {
+              collectionPath,
+              fieldName,
+              fileSize,
+              maxFileSize: upload.maxFileSize,
+            },
           },
           uploadDocument
         ).log(logger)
       }
 
+      // -- beforeStore chain. May rename, may reject. Hooks need a
+      //    `RequestContext` for `actor.id` / tenant prefixing; if none
+      //    was supplied at the upload entry we hand them an empty one
+      //    rather than throw — `assertActorCanPerform` is the auth gate
+      //    for whether the upload should run at all, not the hook layer.
+      const sanitised = sanitiseFilename(originalFilename || 'upload')
+      const beforeStoreHooks = normalizeUploadHook<BeforeStoreHookFn>(upload.hooks?.beforeStore)
+      const effectiveFilename = await runBeforeStoreChain(
+        beforeStoreHooks,
+        {
+          fieldName,
+          field,
+          filename: sanitised,
+          mimeType,
+          fileSize,
+          fields,
+          collectionPath,
+          requestContext: ctx.requestContext ?? {
+            actor: null,
+            requestId: '',
+            readMode: 'any',
+          },
+        },
+        logger
+      )
+
+      // -- Storage write. Filename is the post-hook value, so generated
+      //    variants automatically inherit the new prefix.
       let storedFile: StoredFileLocation
       try {
         storedFile = await storage.upload(buffer, {
-          filename,
+          filename: effectiveFilename,
           mimeType,
           size: fileSize,
           collection: collectionPath,
@@ -245,7 +357,7 @@ export async function uploadDocument(
         throw ERR_STORAGE(
           {
             message: 'File upload failed. See server logs for details.',
-            details: { collectionPath },
+            details: { collectionPath, fieldName },
             cause: err,
           },
           uploadDocument
@@ -256,7 +368,7 @@ export async function uploadDocument(
         ? await imageProcessor.extractMeta(buffer, mimeType)
         : { width: null, height: null, format: null }
 
-      let variants: Array<{ name: string; url: string }> = []
+      let persistedVariants: PersistedVariant[] = []
       let variantStoragePaths: string[] = []
       const isProcessableImage =
         mimeType.startsWith('image/') && !(imageProcessor?.isBypassMimeType?.(mimeType) ?? false)
@@ -268,7 +380,7 @@ export async function uploadDocument(
         imageProcessor?.generateVariants
       ) {
         try {
-          const generatedVariants = await imageProcessor.generateVariants({
+          const generated = await imageProcessor.generateVariants({
             buffer,
             mimeType,
             storedFile,
@@ -276,31 +388,26 @@ export async function uploadDocument(
             upload,
             logger,
           })
-
-          variants = generatedVariants.map((variant) => ({
+          persistedVariants = generated.map((variant) => ({
             name: variant.name,
-            url: storage.getUrl(variant.storagePath),
+            storagePath: variant.storagePath,
+            storageUrl: variant.storageUrl ?? storage.getUrl(variant.storagePath),
+            width: variant.width,
+            height: variant.height,
+            format: variant.format,
           }))
-          variantStoragePaths = generatedVariants.map((variant) => variant.storagePath)
+          variantStoragePaths = generated.map((v) => v.storagePath)
         } catch (err: unknown) {
-          logger.error({ err, collectionPath }, 'image variant generation failed')
+          logger.error({ err, collectionPath, fieldName }, 'image variant generation failed')
         }
-      }
-
-      for (const fn of normalizeCollectionHook(definition.hooks?.afterUpload)) {
-        await fn({
-          storedFilePath: storedFile.storagePath,
-          variantPaths: variantStoragePaths,
-          collectionPath,
-        })
       }
 
       const storedFileValue: StoredFileValue = {
         fileId: crypto.randomUUID(),
         filename: effectiveFilename,
-        originalFilename: originalFilename,
-        mimeType: mimeType,
-        fileSize: fileSize,
+        originalFilename,
+        mimeType,
+        fileSize,
         storageProvider: storedFile.storageProvider,
         storagePath: storedFile.storagePath,
         storageUrl: storedFile.storageUrl ?? undefined,
@@ -309,11 +416,35 @@ export async function uploadDocument(
         imageHeight: imageMeta.height ?? undefined,
         imageFormat: imageMeta.format ?? undefined,
         processingStatus: 'complete',
-        thumbnailGenerated: variants.some((variant) => variant.name === 'thumbnail'),
+        thumbnailGenerated: persistedVariants.some((variant) => variant.name === 'thumbnail'),
+        variants: persistedVariants.length > 0 ? persistedVariants : undefined,
+      }
+
+      // -- afterStore chain. Failures are logged but do not roll back
+      //    the storage write (consistent with `afterCreate` etc.).
+      const afterStoreHooks = normalizeUploadHook<AfterStoreHookFn>(upload.hooks?.afterStore)
+      for (const fn of afterStoreHooks) {
+        try {
+          const afterCtx: AfterStoreContext = {
+            fieldName,
+            field,
+            storedFile: storedFileValue,
+            fields,
+            collectionPath,
+            requestContext: ctx.requestContext ?? {
+              actor: null,
+              requestId: '',
+              readMode: 'any',
+            },
+          }
+          await fn(afterCtx)
+        } catch (err: unknown) {
+          logger.error({ err, collectionPath, fieldName }, 'afterStore hook failed')
+        }
       }
 
       if (!shouldCreateDocument) {
-        return { storedFile: storedFileValue, variants }
+        return { storedFile: storedFileValue }
       }
 
       const lifecycleCtx: DocumentLifecycleContext = {
@@ -331,7 +462,7 @@ export async function uploadDocument(
 
       try {
         const result = await createDocument(lifecycleCtx, {
-          data: buildDocumentData(definition, storedFileValue, fields, effectiveFilename),
+          data: buildDocumentData(definition, fieldName, storedFileValue, fields, effectiveFilename),
           locale: locale ?? ctx.defaultLocale,
         })
 
@@ -339,11 +470,10 @@ export async function uploadDocument(
           documentId: result.documentId,
           documentVersionId: result.documentVersionId,
           storedFile: storedFileValue,
-          variants,
         }
       } catch (err: unknown) {
         logger.error(
-          { err, collectionPath },
+          { err, collectionPath, fieldName },
           'document creation failed — rolling back storage files'
         )
 
@@ -359,7 +489,7 @@ export async function uploadDocument(
         throw ERR_DATABASE(
           {
             message: 'File was stored but document creation failed. See server logs.',
-            details: { collectionPath },
+            details: { collectionPath, fieldName },
             cause: err,
           },
           uploadDocument
@@ -367,4 +497,30 @@ export async function uploadDocument(
       }
     }
   )
+}
+
+function buildDocumentData(
+  definition: CollectionDefinition,
+  uploadFieldName: string,
+  storedFile: StoredFileValue,
+  fields: Record<string, string>,
+  fallbackTitle: string
+): Record<string, unknown> {
+  const documentData: Record<string, unknown> = {}
+
+  for (const field of definition.fields) {
+    if (field.name === uploadFieldName && (field.type === 'image' || field.type === 'file')) {
+      documentData[field.name] = storedFile
+      continue
+    }
+
+    const rawValue = fields[field.name]?.trim() ?? ''
+    if (field.name === 'title') {
+      documentData.title = rawValue || fallbackTitle
+    } else if (rawValue !== '') {
+      documentData[field.name] = rawValue
+    }
+  }
+
+  return documentData
 }

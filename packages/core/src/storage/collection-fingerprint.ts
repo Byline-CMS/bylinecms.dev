@@ -42,6 +42,7 @@ type CanonicalField = {
   displayField?: string
   mode?: string
   validation?: Record<string, unknown>
+  upload?: Record<string, unknown>
 }
 
 function canonicalField(field: Field): CanonicalField {
@@ -79,6 +80,17 @@ function canonicalField(field: Field): CanonicalField {
 
     case 'datetime':
       if (field.mode !== undefined) base.mode = field.mode
+      return base
+
+    case 'image':
+    case 'file':
+      // Per-field upload config affects the read-back contract (mime
+      // policy, variant set, storage backend), so it folds into the
+      // schema fingerprint. `hooks` is excluded — functions don't
+      // canonicalise, and `stableStringify` would drop them anyway.
+      // `storage` is also excluded: it's a runtime provider object,
+      // not a schema-shape declaration.
+      if (field.upload) base.upload = canonicalUpload(field.upload)
       return base
 
     case 'text':
@@ -139,7 +151,6 @@ function canonicalCollection(def: CollectionDefinition): Record<string, unknown>
     fields: def.fields.map(canonicalField),
   }
   if (def.workflow) out.workflow = canonicalWorkflow(def.workflow)
-  if (def.upload) out.upload = canonicalUpload(def.upload)
   if (def.useAsPath !== undefined) out.useAsPath = def.useAsPath
   if (def.useAsTitle !== undefined) out.useAsTitle = def.useAsTitle
   return out

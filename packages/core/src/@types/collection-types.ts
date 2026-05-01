@@ -9,8 +9,8 @@
 import type { RequestContext } from '@byline/auth'
 
 import type { ReadContext } from './db-types.js'
-import type { FieldSetData, FieldSetDataAllLocales } from './field-data-types.js'
-import type { Block, DefaultValue, Field } from './field-types.js'
+import type { FieldSetData, FieldSetDataAllLocales, StoredFileValue } from './field-data-types.js'
+import type { Block, DefaultValue, Field, FileField, ImageField } from './field-types.js'
 import type { QueryPredicate } from './query-predicate.js'
 import type { IStorageProvider } from './storage-types.js'
 import type { Prettify } from './type-utils.js'
@@ -53,27 +53,35 @@ export interface ImageSize {
 }
 
 /**
- * Configuration block that turns a `CollectionDefinition` into an
- * upload-enabled collection.
- *
- * Any collection with an `upload` block is treated as a media library.
- * An upload route is automatically mounted at
- * `POST /admin/api/<collection-path>/upload`.
+ * Configuration block declared on an `image` or `file` field. Hangs the
+ * upload contract — accepted MIME types, size limit, generated variants,
+ * storage routing, and server-side hooks — directly off the field that
+ * receives the file. A collection with at least one image/file field
+ * carrying an `upload` block is upload-capable; the auto-mounted route at
+ * `POST /admin/api/<collection-path>/upload` accepts a `field` selector
+ * to pick the target field.
  *
  * @example
  * ```ts
  * export const Media: CollectionDefinition = {
  *   path: 'media',
- *   upload: {
- *     mimeTypes: ['image/*'],
- *     maxFileSize: 10 * 1024 * 1024, // 10 MB
- *     sizes: [
- *       { name: 'thumbnail', width: 300, height: 300, fit: 'cover' },
- *       { name: 'mobile',    width: 768,  fit: 'inside' },
- *       { name: 'desktop',   width: 1920, fit: 'inside', format: 'webp', quality: 85 },
- *     ],
- *   },
- *   ...
+ *   fields: [
+ *     {
+ *       name: 'image',
+ *       label: 'Image',
+ *       type: 'image',
+ *       upload: {
+ *         mimeTypes: ['image/*'],
+ *         maxFileSize: 10 * 1024 * 1024, // 10 MB
+ *         sizes: [
+ *           { name: 'thumbnail', width: 300, height: 300, fit: 'cover' },
+ *           { name: 'mobile',    width: 768,  fit: 'inside' },
+ *           { name: 'desktop',   width: 1920, fit: 'inside', format: 'webp', quality: 85 },
+ *         ],
+ *       },
+ *     },
+ *     // ...
+ *   ],
  * }
  * ```
  */
@@ -86,24 +94,24 @@ export interface UploadConfig {
   /** Maximum file size in bytes. Omit for no limit. */
   maxFileSize?: number
   /**
-   * Named image variants to generate via Sharp after upload.
-   * Only applied to MIME types that match `image/*`.
-   * Omit to skip image processing (e.g. for a video or PDF collection).
+   * Named image variants to generate via Sharp after the original is
+   * stored. Only applied to MIME types that match `image/*`.
+   * Omit to skip image processing (e.g. for a video or PDF field).
    */
   sizes?: ImageSize[]
   /**
-   * Storage provider for this collection.
+   * Storage provider for this field.
    *
    * When set, this takes precedence over the site-wide `ServerConfig.storage`
-   * default. Use this to route different collections to different backends —
-   * for example, keep user avatars on local disk while sending editorial
-   * images to S3, or target separate S3 buckets per collection.
+   * default. Use this to route different fields to different backends —
+   * for example, keep avatars on local disk while sending editorial
+   * images to S3, or target separate S3 buckets per field.
    *
    * Falls back to `ServerConfig.storage` when omitted.
    *
    * @example
    * ```ts
-   * // Dedicated S3 bucket just for this collection:
+   * // Dedicated S3 bucket just for this field:
    * upload: {
    *   mimeTypes: ['image/*'],
    *   storage: s3StorageProvider({ bucket: 'my-photos', region: 'eu-west-1', ... }),
@@ -111,6 +119,23 @@ export interface UploadConfig {
    * ```
    */
   storage?: IStorageProvider
+  /**
+   * Server-side lifecycle hooks for this field's upload pipeline.
+   *
+   * `beforeStore` fires after MIME / size validation passes and before
+   * the storage provider is asked to write the file — the bytes have
+   * already crossed the network and live on the server (an in-memory
+   * Buffer or /tmp file, depending on the storage adapter), but
+   * permanent storage hasn't been touched yet. It can rename or reject
+   * the upload.
+   *
+   * `afterStore` fires after the original file *and* all image variants
+   * have been written to the storage provider, before the document
+   * version is created.
+   *
+   * @see UploadHooks
+   */
+  hooks?: UploadHooks
 }
 
 // ---------------------------------------------------------------------------
@@ -440,33 +465,112 @@ export interface DeleteContext {
 }
 
 /**
- * Context passed to `beforeUpload` hooks.
+ * Context passed to `beforeStore` hooks (configured on
+ * `field.upload.hooks`).
  *
- * The hook may return a modified filename string to override the sanitised
- * default, enabling custom file-naming strategies (e.g. slug-based names,
- * content-hash prefixes). Returning `void` / `undefined` keeps the default.
+ * Fires after MIME-type and file-size validation succeed and before
+ * the storage provider is asked to write the file. By the time this
+ * hook runs the bytes have already crossed the network and live on
+ * the server — an in-memory `Buffer` in our current adapters, or a
+ * /tmp file with a future streaming adapter — but permanent storage
+ * has not yet been touched.
+ *
+ * The hook can:
+ *
+ *   - Rename the file by returning a string or `{ filename }`. The
+ *     override is threaded into `storage.upload(...)`, so generated
+ *     image variants automatically inherit the new prefix.
+ *   - Reject the upload by returning `{ error }`. Surfaces as
+ *     `ERR_VALIDATION` with the supplied message; no file is written,
+ *     no variants are generated, no document is created, no later
+ *     hook in the chain runs.
+ *   - Keep defaults by returning `void` / `undefined`.
+ *
+ * When configured as an array, hooks fold: each function receives the
+ * filename returned by the previous function (or the original sanitised
+ * filename if the previous returned `void`).
  */
-export interface BeforeUploadContext {
-  /** Sanitised filename that will be used by default. Hooks may return an override. */
+export interface BeforeStoreContext {
+  /** Name of the image/file field receiving this upload. */
+  fieldName: string
+  /** The full field definition. Carries `field.upload` for hooks that want to introspect their own config. */
+  field: ImageField | FileField
+  /** Sanitised default filename. Hooks may override. */
   filename: string
   mimeType: string
   fileSize: number
+  /**
+   * Other form values posted alongside the file. Use these to derive
+   * filenames from document context (e.g. `fields.publicationId`,
+   * `fields.serialNumber`). Always strings — multipart form values
+   * arrive untyped.
+   */
+  fields: Record<string, string>
   collectionPath: string
+  /** Authenticated request context. `actor.id`, `actor.tenantId`, etc. for prefixing. */
+  requestContext: RequestContext
 }
 
 /**
- * Context passed to `afterUpload` hooks.
+ * Result returned by a `beforeStore` hook.
  *
- * Fires after the file has been stored and image variants generated, but
- * before the document version is created. Suitable for post-processing,
- * CDN warm-up, audit logging, etc.
+ *   - `string`            → override filename (shorthand).
+ *   - `{ filename }`      → override filename (object form).
+ *   - `{ error }`         → reject the upload; surfaces as
+ *                           `ERR_VALIDATION`. Short-circuits the chain.
+ *   - `void` / undefined  → keep current defaults.
  */
-export interface AfterUploadContext {
-  /** Storage path of the original uploaded file. */
-  storedFilePath: string
-  /** Storage paths of each generated image variant (may be empty). */
-  variantPaths: string[]
+export type BeforeStoreResult =
+  | string
+  | { filename?: string; error?: undefined }
+  | { error: string; filename?: undefined }
+  | void
+
+/**
+ * A `beforeStore` hook function. Async-capable.
+ */
+export type BeforeStoreHookFn = (
+  ctx: BeforeStoreContext
+) => BeforeStoreResult | Promise<BeforeStoreResult>
+
+/**
+ * Context passed to `afterStore` hooks (configured on
+ * `field.upload.hooks`).
+ *
+ * Fires after the original file and every generated image variant
+ * have been written to the storage provider, and before the document
+ * version is created. Suitable for CDN cache warmup, audit logging,
+ * or async post-processing kicks. Failures are logged but do not
+ * roll back the storage write — consistent with `afterCreate` etc.,
+ * which run outside the storage transaction.
+ */
+export interface AfterStoreContext {
+  /** Name of the image/file field that received this upload. */
+  fieldName: string
+  field: ImageField | FileField
+  /**
+   * The persisted file value, including the `variants` array with
+   * `storagePath`, `storageUrl`, `width`, `height`, and `format` for
+   * each generated derivative.
+   */
+  storedFile: StoredFileValue
+  fields: Record<string, string>
   collectionPath: string
+  requestContext: RequestContext
+}
+
+/** An `afterStore` hook function. Async-capable. */
+export type AfterStoreHookFn = (ctx: AfterStoreContext) => void | Promise<void>
+
+/**
+ * Server-side hooks declared on an upload-capable field's `upload`
+ * block. Each hook accepts a single function or an ordered array;
+ * `beforeStore` chains fold filename overrides through the array,
+ * `afterStore` chains run sequentially with errors logged.
+ */
+export interface UploadHooks {
+  beforeStore?: BeforeStoreHookFn | BeforeStoreHookFn[]
+  afterStore?: AfterStoreHookFn | AfterStoreHookFn[]
 }
 
 /**
@@ -555,17 +659,6 @@ export type BeforeReadHookFn = (
  * declaration order; functions that return `void` are skipped.
  */
 export type BeforeReadHookSlot = BeforeReadHookFn | BeforeReadHookFn[]
-
-/**
- * A `beforeUpload` hook function. May return a modified filename string to
- * override the sanitised default; returning `void` keeps the default.
- */
-export type BeforeUploadHookFn = (
-  ctx: BeforeUploadContext
-) => string | void | Promise<string | void>
-
-/** Slot type for `beforeUpload` — single function or ordered array. */
-export type BeforeUploadHookSlot = BeforeUploadHookFn | BeforeUploadHookFn[]
 
 // -- CollectionHooks interface ----------------------------------------------
 
@@ -657,22 +750,10 @@ export interface CollectionHooks {
    */
   afterRead?: CollectionHookSlot<AfterReadContext>
 
-  // -- File upload (upload-enabled collections only) ------------------------
-  /**
-   * Runs before a file is uploaded to the storage provider.
-   *
-   * The hook may return a modified filename string to override the sanitised
-   * default — this is the primary extension point for custom file-naming
-   * strategies (e.g. deriving a name from a content hash or a document slug).
-   * Returning `void` keeps the default sanitised filename.
-   */
-  beforeUpload?: BeforeUploadHookSlot
-  /**
-   * Runs after the file has been stored and image variants generated, but
-   * before the document version is created. Suitable for post-processing,
-   * CDN cache warm-up, or audit logging.
-   */
-  afterUpload?: CollectionHookSlot<AfterUploadContext>
+  // Note: server-side upload hooks (`beforeStore` / `afterStore`) live on
+  // the field's `upload` block — see `UploadHooks`. They are field-scoped
+  // and field-aware by design; a collection with multiple image/file
+  // fields runs each field's pipeline independently.
 }
 
 export interface CollectionDefinition {
@@ -684,11 +765,6 @@ export interface CollectionDefinition {
   fields: Field[]
   /** Sequential workflow configuration. Falls back to DEFAULT_WORKFLOW if omitted. */
   workflow?: WorkflowConfig
-  /**
-   * Upload configuration. When present, this collection is treated as a
-   * media/upload collection and an upload endpoint is mounted automatically.
-   */
-  upload?: UploadConfig
   /** Lifecycle hooks for server-side document operations. */
   hooks?: CollectionHooks
   /**

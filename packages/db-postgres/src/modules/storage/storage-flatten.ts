@@ -275,6 +275,14 @@ const flattenValueFieldData = (
         image_format: v.imageFormat,
         processing_status: v.processingStatus,
         thumbnail_generated: v.thumbnailGenerated,
+        variants: v.variants?.map((variant) => ({
+          name: variant.name,
+          storage_path: variant.storagePath,
+          storage_url: variant.storageUrl,
+          width: variant.width,
+          height: variant.height,
+          format: variant.format,
+        })),
       }
     }
 

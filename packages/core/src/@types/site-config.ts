@@ -106,15 +106,16 @@ export interface ClientConfig extends BaseConfig {
 export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
   db: IDbAdapter
   /**
-   * Site-wide default storage provider for upload-enabled collections.
+   * Site-wide default storage provider for upload-capable image/file
+   * fields.
    *
-   * This is the fallback used when a collection's own `UploadConfig.storage`
-   * is not set. Individual collections can override this by specifying
+   * This is the fallback used when a field's own `UploadConfig.storage`
+   * is not set. Individual fields can override this by specifying
    * `storage` inside their `upload` config block.
    *
    * Resolution order:
-   *   1. `collection.upload.storage`  — collection-level override
-   *   2. `ServerConfig.storage`        — site-wide default
+   *   1. `field.upload.storage`   — per-field override
+   *   2. `ServerConfig.storage`   — site-wide default
    *   3. 500 error if neither is set
    *
    * @example

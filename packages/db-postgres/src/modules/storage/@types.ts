@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { FileStoreVariant } from '@byline/core'
+
 // Data structures for flattened field data -- these align closely with the
 // shapes of the field data tables (textStore, numericStore, etc.), but have a
 // more convenient shape for use in the flatten / reconstruct functions.
@@ -56,6 +58,7 @@ interface FlattenedFileFieldValue extends BaseFlattenedFieldData {
   image_format?: string
   processing_status?: string
   thumbnail_generated?: boolean
+  variants?: FileStoreVariant[]
 }
 
 interface FlattenedRelationFieldValue extends BaseFlattenedFieldData {
@@ -127,6 +130,7 @@ export interface UnifiedFieldValue {
   image_format: string | null
   processing_status: string | null
   thumbnail_generated: boolean | null
+  variants: FileStoreVariant[] | null
 
   // Relation fields
   target_document_id: string | null

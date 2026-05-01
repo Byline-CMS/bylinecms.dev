@@ -8,7 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
+import { ERR_NOT_FOUND, getLogger, getServerConfig, getUploadFields } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import { deleteDocument as deleteDocumentService } from '@byline/core/services'
 
@@ -34,8 +34,15 @@ export const deleteDocument = createServerFn({ method: 'POST' })
 
     const serverConfig = getServerConfig()
     // Resolve the storage provider so the lifecycle service can clean up
-    // uploaded files and variants on deletion.
-    const storage = config.definition.upload?.storage ?? serverConfig.storage
+    // uploaded files and variants on deletion. With per-field upload
+    // config, a collection may have one (or more) image/file fields with
+    // their own storage. The delete path needs *a* provider; we pick the
+    // first upload-capable field's, falling back to the site-wide
+    // default. Multi-storage collections are out of scope today —
+    // deletion routes everything through one provider, which is fine
+    // when all upload fields target the same backend (the common case).
+    const firstUploadField = getUploadFields(config.definition)[0]
+    const storage = firstUploadField?.upload?.storage ?? serverConfig.storage
     const db = serverConfig.db
     const ctx: DocumentLifecycleContext = {
       db,

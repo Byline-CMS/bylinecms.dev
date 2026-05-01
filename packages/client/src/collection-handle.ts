@@ -351,8 +351,9 @@ export class CollectionHandle {
   /**
    * Soft-delete a document. All versions are flagged `is_deleted = true`
    * and disappear from read paths (the `current_documents` view filters
-   * them out). For upload-enabled collections with a storage provider,
-   * the primary file and its Sharp-generated variants are also removed
+   * them out). When the collection has any upload-capable image/file
+   * field and a storage provider is configured, the original file and
+   * every persisted variant on each upload-capable field are removed
    * after the DB soft-delete — failures there are logged but non-fatal.
    */
   async delete(documentId: string): Promise<DeleteDocumentResult> {

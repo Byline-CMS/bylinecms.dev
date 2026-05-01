@@ -195,27 +195,67 @@ describe('fingerprintCollection', () => {
     expect(await fingerprintCollection(b)).not.toBe(a)
   })
 
-  it('changes when upload mimeTypes change', async () => {
+  it('changes when an image-field upload mimeTypes change', async () => {
     const a = baseCollection()
-    a.upload = { mimeTypes: ['image/*'] }
+    a.fields.push({
+      name: 'cover',
+      type: 'image',
+      upload: { mimeTypes: ['image/*'] },
+    })
     const hashA = await fingerprintCollection(a)
 
     const b = baseCollection()
-    b.upload = { mimeTypes: ['video/*'] }
+    b.fields.push({
+      name: 'cover',
+      type: 'image',
+      upload: { mimeTypes: ['video/*'] },
+    })
     expect(await fingerprintCollection(b)).not.toBe(hashA)
   })
 
-  it('ignores upload storage provider (implementation detail)', async () => {
+  it('ignores image-field upload storage provider (runtime detail)', async () => {
     const a = baseCollection()
-    a.upload = { mimeTypes: ['image/*'] }
+    a.fields.push({
+      name: 'cover',
+      type: 'image',
+      upload: { mimeTypes: ['image/*'] },
+    })
     const hashA = await fingerprintCollection(a)
 
     const b = baseCollection()
-    b.upload = {
-      mimeTypes: ['image/*'],
-      // Fake storage provider — function properties get stripped.
-      storage: { put: async () => {}, get: async () => {}, delete: async () => {} } as any,
-    }
+    b.fields.push({
+      name: 'cover',
+      type: 'image',
+      upload: {
+        mimeTypes: ['image/*'],
+        // Fake storage provider — runtime detail, excluded from canonical shape.
+        storage: { put: async () => {}, get: async () => {}, delete: async () => {} } as any,
+      },
+    })
+    expect(await fingerprintCollection(b)).toBe(hashA)
+  })
+
+  it('ignores image-field upload hooks (functions never canonicalise)', async () => {
+    const a = baseCollection()
+    a.fields.push({
+      name: 'cover',
+      type: 'image',
+      upload: { mimeTypes: ['image/*'] },
+    })
+    const hashA = await fingerprintCollection(a)
+
+    const b = baseCollection()
+    b.fields.push({
+      name: 'cover',
+      type: 'image',
+      upload: {
+        mimeTypes: ['image/*'],
+        hooks: {
+          beforeStore: () => 'renamed.jpg',
+          afterStore: () => {},
+        },
+      },
+    })
     expect(await fingerprintCollection(b)).toBe(hashA)
   })
 

@@ -47,8 +47,13 @@ export type GetCollectionDocumentsFn = (input: {
 export interface UploadedFileResult {
   documentId?: string
   documentVersionId?: string
+  /**
+   * The persisted file value, including the `variants` array with
+   * `storagePath`, `storageUrl`, `width`, `height`, and `format` for each
+   * generated derivative. Single source of truth — the legacy top-level
+   * `variants: { name, url }[]` is gone.
+   */
   storedFile: StoredFileValue
-  variants: Array<{ name: string; url: string }>
 }
 
 export type UploadDocumentFn = (

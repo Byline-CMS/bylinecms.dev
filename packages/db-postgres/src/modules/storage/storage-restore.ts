@@ -329,6 +329,14 @@ const extractValueFieldData = (data: FlattenedFieldValue): unknown => {
         imageFormat: data.image_format,
         processingStatus: data.processing_status,
         thumbnailGenerated: data.thumbnail_generated,
+        variants: data.variants?.map((variant) => ({
+          name: variant.name,
+          storagePath: variant.storage_path,
+          storageUrl: variant.storage_url,
+          width: variant.width,
+          height: variant.height,
+          format: variant.format,
+        })),
       }
 
     case 'relation':
@@ -409,6 +417,7 @@ export const extractFlattenedFieldValue = (
         image_format: orUndefined(unifiedValue.image_format),
         processing_status: orUndefined(unifiedValue.processing_status),
         thumbnail_generated: orUndefined(unifiedValue.thumbnail_generated),
+        variants: orUndefined(unifiedValue.variants),
       }
 
     case 'relation':

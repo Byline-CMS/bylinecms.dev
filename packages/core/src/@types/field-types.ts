@@ -8,6 +8,7 @@
 
 // import { z } from 'zod/v4'
 
+import type { UploadConfig } from './collection-types.js'
 import type { MaybePromise, NonEmptyArray } from './type-utils.js'
 
 // ---------------------------------------------------------------------------
@@ -523,7 +524,16 @@ export interface RelationField extends NonlocalizableField {
 
 export interface FileField extends NonlocalizableField {
   type: 'file'
-  // TODO: Validation rules, e.g. allowed formats, file size etc.
+  /**
+   * Per-field upload configuration. When set, this field is upload-capable —
+   * the auto-mounted route at `POST /admin/api/<collection-path>/upload`
+   * accepts `field=<name>` to target it. Carries MIME / size constraints,
+   * variant definitions, storage routing, and `beforeStore` / `afterStore`
+   * hooks.
+   *
+   * @see UploadConfig
+   */
+  upload?: UploadConfig
 }
 
 // ---------------------------------------------------------------------------
@@ -532,7 +542,16 @@ export interface FileField extends NonlocalizableField {
 
 export interface ImageField extends NonlocalizableField {
   type: 'image'
-  // TODO: Validation rules, e.g. allowed formats, file size, aspect ratios etc.
+  /**
+   * Per-field upload configuration. When set, this field is upload-capable —
+   * the auto-mounted route at `POST /admin/api/<collection-path>/upload`
+   * accepts `field=<name>` to target it. Carries MIME / size constraints,
+   * variant definitions, storage routing, and `beforeStore` / `afterStore`
+   * hooks.
+   *
+   * @see UploadConfig
+   */
+  upload?: UploadConfig
 }
 
 // ---------------------------------------------------------------------------

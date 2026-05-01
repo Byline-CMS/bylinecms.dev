@@ -127,6 +127,7 @@ export const prepareFieldInsertBuckets = (
           image_format: field.image_format,
           processing_status: field.processing_status || 'pending', // TODO: Is 'pending' the appropriate default status?
           thumbnail_generated: field.thumbnail_generated || false,
+          variants: field.variants,
         })
         continue
 

@@ -1,0 +1,1 @@
+ALTER TABLE "byline_store_file" ADD COLUMN "variants" jsonb;

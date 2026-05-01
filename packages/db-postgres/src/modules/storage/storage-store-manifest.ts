@@ -208,6 +208,11 @@ const columns: ColumnDef[] = [
     nullCast: 'boolean',
     sources: { file: 'thumbnail_generated' },
   },
+  {
+    name: 'variants',
+    nullCast: 'jsonb',
+    sources: { file: 'variants' },
+  },
 
   // -- Relation -------------------------------------------------------------
   {

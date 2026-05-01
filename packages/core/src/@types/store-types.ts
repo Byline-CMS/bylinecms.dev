@@ -39,6 +39,21 @@ export interface DateTimeStore extends BaseStore {
   value_timestamp_tz?: Date
 }
 
+/**
+ * One generated image variant persisted alongside the original file
+ * inside `store_file.variants` (jsonb). Mirrors `PersistedVariant` on
+ * the field-data side; kept in sync because flatten/restore copies
+ * directly between them.
+ */
+export interface FileStoreVariant {
+  name: string
+  storage_path: string
+  storage_url?: string
+  width?: number
+  height?: number
+  format?: string
+}
+
 export interface FileStore extends BaseStore {
   field_type: 'file' | 'image'
   file_id: string
@@ -55,6 +70,8 @@ export interface FileStore extends BaseStore {
   image_format?: string
   processing_status?: string
   thumbnail_generated?: boolean
+  /** Image variants persisted as jsonb. Absent for non-image / no-sizes uploads. */
+  variants?: FileStoreVariant[]
 }
 
 export interface RelationStore extends BaseStore {
@@ -146,6 +163,7 @@ export interface UnionRowValue {
   image_format: string | null
   processing_status: string | null
   thumbnail_generated: boolean | null
+  variants: FileStoreVariant[] | null
 
   // Relation fields
   target_document_id: string | null

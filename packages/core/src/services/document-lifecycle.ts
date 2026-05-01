@@ -43,7 +43,7 @@ import { withLogContext } from '../lib/logger.js'
 import { applyPatches } from '../patches/index.js'
 import { normaliseDateFields } from '../utils/normalise-dates.js'
 import { type SlugifierFn, slugify } from '../utils/slugify.js'
-import { deriveVariantStoragePaths } from '../utils/storage-utils.js'
+import { getUploadFields } from '../utils/storage-utils.js'
 import { getDefaultStatus, getWorkflow, validateStatusTransition } from '../workflow/workflow.js'
 import type { BylineLogger } from '../lib/logger.js'
 import type { DocumentPatch } from '../patches/index.js'
@@ -74,13 +74,15 @@ export interface DocumentLifecycleContext {
   /** The collection `path` string (e.g. `'docs'`, `'news'`). */
   collectionPath: string
   /**
-   * Storage provider for this collection. Required for upload-enabled
-   * collections so that file cleanup can be performed on document deletion.
+   * Storage provider for this collection. Required when the collection
+   * has any upload-capable image/file field, so that the original files
+   * and their persisted variants can be cleaned up on document deletion.
    *
    * Resolved by the route layer as:
-   *   `definition.upload?.storage ?? serverConfig.storage`
+   *   `field.upload?.storage ?? serverConfig.storage`
    *
-   * Optional — existing callers that do not need file cleanup are unaffected.
+   * Optional — callers whose collections have no upload-capable fields
+   * are unaffected.
    */
   storage?: IStorageProvider
   /** Structured logger instance. Provided via the DI registry. */
@@ -669,16 +671,19 @@ export async function unpublishDocument(
  * document disappears from all list / page queries without physically
  * removing data.
  *
- * For upload-enabled collections, when `ctx.storage` is provided, the
- * original uploaded file and all Sharp-generated variants are also removed
- * from storage after the DB soft-delete succeeds. File cleanup failures are
- * logged but are non-fatal — they do not cause the delete to fail.
+ * When the collection has any upload-capable image/file field and
+ * `ctx.storage` is provided, every original file and persisted variant
+ * across those fields is also removed from storage after the DB
+ * soft-delete succeeds. Variant paths are read from the field value's
+ * `variants` array (no re-derivation from `upload.sizes`), so cleanup
+ * stays correct even if the size set changed between upload and delete.
+ * File cleanup failures are logged but are non-fatal.
  *
  * Flow:
- *   1. Fetch current document (reconstruct for upload collections to read field values)
+ *   1. Fetch current document (reconstruct when upload-capable fields exist)
  *   2. `hooks.beforeDelete({ documentId, collectionPath })`
  *   3. `db.commands.documents.softDeleteDocument({ document_id })`
- *   4. Storage file + variant cleanup (upload collections only, non-fatal)
+ *   4. Storage file + variant cleanup (skipped when no upload fields, non-fatal)
  *   5. `hooks.afterDelete({ documentId, collectionPath })`
  */
 export async function deleteDocument(
@@ -695,10 +700,12 @@ export async function deleteDocument(
       const hooks: CollectionHooks | undefined = definition.hooks
 
       // 1. Verify the document exists.
-      //    For upload-enabled collections with storage, fetch with reconstruct: true
-      //    so we can read the stored file path from the primary image/file field
-      //    before the DB rows are deleted.
-      const isUploadCollection = !!definition.upload && !!ctx.storage
+      //    For collections that have any upload-capable image/file field
+      //    AND a storage provider, fetch with reconstruct: true so we
+      //    can read the stored file paths (and persisted variant paths)
+      //    from the field values before the DB rows are deleted.
+      const uploadFieldNames = getUploadFields(definition).map((f) => f.name)
+      const isUploadCollection = uploadFieldNames.length > 0 && ctx.storage != null
       const latest = await db.queries.documents.getDocumentById({
         collection_id: ctx.collectionId,
         document_id: params.documentId,
@@ -712,18 +719,25 @@ export async function deleteDocument(
         }).log(ctx.logger)
       }
 
-      // Extract the primary file's storagePath before deletion.
-      let primaryStoragePath: string | null = null
+      // Collect storage paths for every upload-capable field on the doc:
+      // the original file plus every persisted variant. Reading the
+      // variants from the field value (rather than re-deriving from
+      // `upload.sizes`) keeps cleanup correct even when the size set
+      // changes between upload and delete.
+      const storagePathsToDelete: string[] = []
       if (isUploadCollection) {
-        const primaryField = definition.fields.find((f) => f.type === 'image' || f.type === 'file')
-        if (primaryField) {
-          const fieldValue = (latest as Record<string, any>)?.fields?.[primaryField.name]
-          if (
-            fieldValue &&
-            typeof fieldValue === 'object' &&
-            typeof fieldValue.storagePath === 'string'
-          ) {
-            primaryStoragePath = fieldValue.storagePath
+        for (const fieldName of uploadFieldNames) {
+          const fieldValue = (latest as Record<string, any>)?.fields?.[fieldName]
+          if (!fieldValue || typeof fieldValue !== 'object') continue
+          if (typeof fieldValue.storagePath === 'string') {
+            storagePathsToDelete.push(fieldValue.storagePath)
+          }
+          if (Array.isArray(fieldValue.variants)) {
+            for (const variant of fieldValue.variants) {
+              if (variant && typeof variant.storagePath === 'string') {
+                storagePathsToDelete.push(variant.storagePath)
+              }
+            }
           }
         }
       }
@@ -741,14 +755,9 @@ export async function deleteDocument(
         document_id: params.documentId,
       })
 
-      // 4. Clean up storage files. Runs only for upload-enabled collections when
-      //    ctx.storage is provided. Non-fatal: logs errors but does not throw.
-      if (primaryStoragePath && ctx.storage && definition.upload) {
-        const allPaths = [
-          primaryStoragePath,
-          ...deriveVariantStoragePaths(primaryStoragePath, definition.upload.sizes ?? []),
-        ]
-        for (const storagePath of allPaths) {
+      // 4. Clean up storage files. Non-fatal: logs errors but does not throw.
+      if (ctx.storage && storagePathsToDelete.length > 0) {
+        for (const storagePath of storagePathsToDelete) {
           try {
             await ctx.storage.delete(storagePath)
           } catch (err: unknown) {

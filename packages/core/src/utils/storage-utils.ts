@@ -6,35 +6,42 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { ImageSize } from '../@types/collection-types.js'
+import type { CollectionDefinition } from '../@types/collection-types.js'
+import type { Field, FileField, ImageField } from '../@types/field-types.js'
 
 /**
- * Derive the storage paths of Sharp-generated image variants from the
- * original file's storage path and the collection's size definitions.
- *
- * This mirrors the naming convention used by `generateImageVariants()` in
- * `@byline/storage-local`:
- *
- *   `<path-without-extension>-<variantName>.<format>`
- *
- * @example
- * ```ts
- * deriveVariantStoragePaths('media/abc123-photo.jpg', [
- *   { name: 'thumbnail', format: 'webp' },
- *   { name: 'desktop',   format: 'webp' },
- * ])
- * // → ['media/abc123-photo-thumbnail.webp', 'media/abc123-photo-desktop.webp']
- * ```
- *
- * Used at document-delete time to identify variant files for cleanup without
- * requiring them to be stored separately in the database.
+ * Predicate: does this field carry an `upload` config? True for any
+ * `image` / `file` field with an `upload` block declared.
  */
-export function deriveVariantStoragePaths(storagePath: string, sizes: ImageSize[]): string[] {
-  if (!sizes || sizes.length === 0) return []
-  const lastDot = storagePath.lastIndexOf('.')
-  const base = lastDot !== -1 ? storagePath.slice(0, lastDot) : storagePath
-  return sizes.map((size) => {
-    const format = size.format ?? 'webp'
-    return `${base}-${size.name}.${format}`
-  })
+export function isUploadField(field: Field): field is (ImageField | FileField) & {
+  upload: NonNullable<(ImageField | FileField)['upload']>
+} {
+  return (field.type === 'image' || field.type === 'file') && field.upload != null
+}
+
+/**
+ * Walk the top-level field set and return every upload-capable
+ * image/file field on the collection. Used by the delete path,
+ * the upload-route resolver, and any UI that needs to reason about
+ * "is this collection upload-capable, and which fields take uploads?"
+ *
+ * Does not recurse into `group` / `array` / `blocks` — the supported
+ * transport surface is top-level upload fields. Nested upload fields
+ * are reachable through the core upload service via `findUploadField`,
+ * but require a richer transport selector.
+ */
+export function getUploadFields(
+  definition: Pick<CollectionDefinition, 'fields'>
+): (ImageField | FileField)[] {
+  return definition.fields.filter(isUploadField)
+}
+
+/**
+ * Convenience: does this collection have at least one upload-capable
+ * image/file field at the top level? Replaces the old
+ * `definition.upload != null` discriminator that "this collection is
+ * an upload collection / media library."
+ */
+export function hasUploadField(definition: Pick<CollectionDefinition, 'fields'>): boolean {
+  return definition.fields.some(isUploadField)
 }

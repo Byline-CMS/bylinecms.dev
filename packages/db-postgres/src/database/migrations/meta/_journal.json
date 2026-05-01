@@ -8,6 +8,13 @@
       "when": 1776979547426,
       "tag": "0000_condemned_kronos",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777600377018,
+      "tag": "0001_sudden_phantom_reporter",
+      "breakpoints": true
     }
   ]
 }

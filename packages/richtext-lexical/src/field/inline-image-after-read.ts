@@ -38,7 +38,6 @@
 
 import type { BylineClient } from '@byline/client'
 import type { AfterReadContext, StoredFileValue } from '@byline/core'
-import { getCollectionDefinition } from '@byline/core'
 
 import { deriveImageSizes } from './plugins/inline-image-plugin/utils'
 
@@ -207,8 +206,7 @@ export function inlineImageAfterRead(options: InlineImageAfterReadOptions) {
       if (!target) continue
       const targetFields = (target.fields ?? {}) as Record<string, any>
       const image = targetFields.image as StoredFileValue | undefined
-      const sizesConfig = getCollectionDefinition(collectionPath)?.upload?.sizes
-      const sizes = image ? deriveImageSizes(image, sizesConfig) : []
+      const sizes = image ? deriveImageSizes(image) : []
 
       const next: Record<string, any> = { ...(node.document ?? {}) }
       if (typeof targetFields.title === 'string') next.title = targetFields.title

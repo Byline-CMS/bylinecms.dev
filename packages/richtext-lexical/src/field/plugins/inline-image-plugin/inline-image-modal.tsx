@@ -113,7 +113,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
     const image = fields.image as StoredFileValue | undefined
     const title = typeof fields.title === 'string' ? fields.title : undefined
     const altTextFromMedia = typeof fields.altText === 'string' ? fields.altText : undefined
-    const sizes = image ? deriveImageSizes(image, targetDef?.upload?.sizes) : []
+    const sizes = image ? deriveImageSizes(image) : []
 
     setState((s) => {
       const document: Record<string, any> = {}

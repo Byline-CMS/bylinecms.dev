@@ -1,7 +1,13 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import type { DocumentUploadContext, StoredFileValue } from '@byline/core'
-import { ERR_NOT_FOUND, getServerConfig } from '@byline/core'
+import type {
+  CollectionDefinition,
+  DocumentUploadContext,
+  FileField,
+  ImageField,
+  StoredFileValue,
+} from '@byline/core'
+import { ERR_NOT_FOUND, ERR_VALIDATION, getServerConfig, getUploadFields } from '@byline/core'
 import { getLogger, withLogContext } from '@byline/core/logger'
 import { uploadDocument as coreUploadDocument } from '@byline/core/services'
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/storage-local'
@@ -9,17 +15,29 @@ import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byli
 import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { ensureCollection } from '../../integrations/api-utils.js'
 
+/**
+ * Result of an upload through the host transport. The legacy top-level
+ * `variants: { name, url }[]` is gone — variants live on
+ * `storedFile.variants` with full `storagePath`/`storageUrl`/`width`/
+ * `height`/`format`. Single source of truth.
+ */
 export interface UploadDocumentResult {
   /** Present when the upload endpoint created a document (createDocument=true, the default). */
   documentId?: string
   documentVersionId?: string
   storedFile: StoredFileValue
-  variants: Array<{ name: string; url: string }>
 }
 
 interface UploadDocumentInput {
   collectionPath: string
   shouldCreateDocument: boolean
+  /**
+   * Name of the upload-capable image/file field on the collection. When
+   * absent, the handler defaults to the unique upload-capable field;
+   * collections with multiple upload-capable fields require an explicit
+   * `field` selector.
+   */
+  fieldName: string | null
   file: File
   fields: Record<string, string>
 }
@@ -39,9 +57,13 @@ function parseUploadFormData(data: FormData): UploadDocumentInput {
     throw new Error("Missing required form field 'file'.")
   }
 
+  const fieldEntry = data.get('field')
+  const fieldName =
+    typeof fieldEntry === 'string' && fieldEntry.trim() ? fieldEntry.trim() : null
+
   const fields: Record<string, string> = {}
   for (const [key, value] of data.entries()) {
-    if (key === 'collection' || key === 'createDocument' || key === 'file') {
+    if (key === 'collection' || key === 'createDocument' || key === 'file' || key === 'field') {
       continue
     }
     if (typeof value === 'string') {
@@ -52,9 +74,67 @@ function parseUploadFormData(data: FormData): UploadDocumentInput {
   return {
     collectionPath: collectionEntry.trim(),
     shouldCreateDocument: data.get('createDocument') !== 'false',
+    fieldName,
     file: fileEntry,
     fields,
   }
+}
+
+/**
+ * Resolve the target upload field on the collection. Explicit `field`
+ * wins; otherwise default to the unique upload-capable field. Throws
+ * `ERR_VALIDATION` when the request is ambiguous.
+ *
+ * Walks `definition.fields` only (not nested `group` / `array` /
+ * `blocks`) — top-level upload fields are the supported case for the
+ * transport today. Nested-field uploads remain available via the core
+ * service when wired into a custom transport.
+ */
+function resolveUploadFieldName(
+  definition: CollectionDefinition,
+  collectionPath: string,
+  requested: string | null
+): string {
+  const candidates = getUploadFields(definition)
+
+  if (requested) {
+    const match = candidates.find((f) => f.name === requested)
+    if (!match) {
+      throw ERR_VALIDATION({
+        message:
+          `Field '${requested}' is not an upload-capable image/file field on collection ` +
+          `'${collectionPath}'.`,
+        details: {
+          collectionPath,
+          requestedField: requested,
+          available: candidates.map((f) => f.name),
+        },
+      })
+    }
+    return match.name
+  }
+
+  if (candidates.length === 1) return candidates[0].name
+
+  if (candidates.length === 0) {
+    throw ERR_VALIDATION({
+      message:
+        `Collection '${collectionPath}' has no upload-capable image/file field. ` +
+        "Add an 'upload' block to one of its image/file fields.",
+      details: { collectionPath },
+    })
+  }
+
+  throw ERR_VALIDATION({
+    message:
+      `Collection '${collectionPath}' has multiple upload-capable fields ` +
+      `(${candidates.map((f) => `'${f.name}'`).join(', ')}). ` +
+      "Pass a 'field' FormData entry to select one.",
+    details: {
+      collectionPath,
+      available: candidates.map((f) => f.name),
+    },
+  })
 }
 
 /**
@@ -70,7 +150,7 @@ function parseUploadFormData(data: FormData): UploadDocumentInput {
 export const uploadCollectionDocument = createServerFn({ method: 'POST' })
   .inputValidator(parseUploadFormData)
   .handler(async ({ data }) => {
-    const { collectionPath, shouldCreateDocument, file, fields } = data
+    const { collectionPath, shouldCreateDocument, fieldName, file, fields } = data
     const logger = getLogger()
 
     return withLogContext(
@@ -88,10 +168,21 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
         }
 
         const serverConfig = getServerConfig()
-        const storage = config.definition.upload?.storage ?? serverConfig.storage
+        const resolvedFieldName = resolveUploadFieldName(
+          config.definition,
+          collectionPath,
+          fieldName
+        )
+        const targetField = config.definition.fields.find(
+          (f) => f.name === resolvedFieldName
+        ) as ImageField | FileField
+        // Per-field storage routing falls through to the site-wide default.
+        const storage = targetField.upload?.storage ?? serverConfig.storage
         if (!storage) {
           throw new Error(
-            `No storage provider configured for collection '${collectionPath}'. Set either collection.upload.storage or the site-wide ServerConfig.storage.`
+            `No storage provider configured for field '${resolvedFieldName}' on collection ` +
+              `'${collectionPath}'. Set either field.upload.storage or the site-wide ` +
+              'ServerConfig.storage.'
           )
         }
 
@@ -109,6 +200,7 @@ export const uploadCollectionDocument = createServerFn({ method: 'POST' })
           collectionId: config.collection.id,
           collectionVersion: config.collection.version,
           collectionPath,
+          fieldName: resolvedFieldName,
           storage,
           logger,
           defaultLocale: serverConfig.i18n.content.defaultLocale,

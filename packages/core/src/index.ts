@@ -69,5 +69,5 @@ export {
   type SlugifyContext,
   slugify,
 } from './utils/slugify.js'
-export { deriveVariantStoragePaths } from './utils/storage-utils.js'
+export { getUploadFields, hasUploadField, isUploadField } from './utils/storage-utils.js'
 export * from './workflow/index.js'

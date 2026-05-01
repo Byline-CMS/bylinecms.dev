@@ -23,6 +23,7 @@ Current documents:
 - [AuthN / AuthZ analysis](./AUTHN-AUTHZ-ANALYSIS.md)
 - [Access control recipes](./ACCESS-CONTROL-RECIPES.md)
 - [Richtext editor adapter analysis](./RICHTEXT-ANALYSIS.md)
+- [File / media upload analysis](./FILE-MEDIA-UPLOAD-ANALYSIS.md) — companion plan: [implementation plan](./FILE-MEDIA-UPLOAD-IMPLEMENTATION-PLAN.md)
 - [Phases of work](./PHASES-OF-WORK.md)
 
 These are intentionally working documents. Some describe shipped decisions,

@@ -57,6 +57,12 @@ export async function executeUploads(
   for (const [fieldPath, upload] of pendingUploads.entries()) {
     const formData = new FormData()
     formData.append('file', upload.file)
+    // Tell the server which upload-capable field this file belongs to.
+    // With per-field upload config a collection can have multiple
+    // image/file fields, each with its own constraints; the server's
+    // unique-default fallback covers the single-field case but rejects
+    // multi-field collections without an explicit selector.
+    formData.append('field', uploadFieldName(fieldPath))
 
     try {
       // Pass createDocument=false — we're uploading for an embedded field,
@@ -86,6 +92,19 @@ export async function executeUploads(
     errors,
     allSucceeded: errors.size === 0,
   }
+}
+
+/**
+ * Extract the leaf field name from a `fieldPath`. Top-level upload
+ * fields (`'image'`, `'avatar'`) pass through unchanged; nested paths
+ * (`'profile.avatar'`) reduce to their last segment, since the
+ * server-side resolver matches against top-level field names today.
+ * Nested upload fields would need a richer transport selector when
+ * they land — the host resolver is the natural place to extend.
+ */
+function uploadFieldName(fieldPath: string): string {
+  const dot = fieldPath.lastIndexOf('.')
+  return dot === -1 ? fieldPath : fieldPath.slice(dot + 1)
 }
 
 /**
@@ -126,6 +145,7 @@ export async function executeUploadsWithProgress(
 
     const formData = new FormData()
     formData.append('file', upload.file)
+    formData.append('field', uploadFieldName(fieldPath))
 
     try {
       const result = await uploadDocument(upload.collectionPath, formData, false)

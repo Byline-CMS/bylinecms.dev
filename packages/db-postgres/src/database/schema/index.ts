@@ -455,6 +455,12 @@ export const fileStore = pgTable(
     // File processing status
     processing_status: varchar('processing_status', { length: 20 }).default('pending'), // 'pending', 'processing', 'completed', 'failed'
     thumbnail_generated: boolean('thumbnail_generated').default(false),
+
+    // Image variants (Sharp-generated derivatives). Persisted as jsonb so
+    // the read path can return a `<picture>` / `srcset`-ready array
+    // without a sidecar table. Shape: FileStoreVariant[] —
+    // { name, storage_path, storage_url?, width?, height?, format? }.
+    variants: jsonb('variants'),
   },
   (table) => [
     // File-specific indexes
