@@ -20,7 +20,7 @@ population, field selection, response shaping, and (eventually) access control.
 | 5 | Status-aware reads (`status?: 'published' \| 'any'` defaulting to `'published'` in-client), backed by `current_published_documents` view | **Shipped** |
 | 6 | Cross-collection relation filters — nested-object where DSL over a relation field compiles to nested EXISTS through `store_relation` | **Shipped** |
 | — | `afterRead` collection hook — fires once per materialised document on every read path and once per populated relation target; `ReadContext.afterReadFired` enforces "at most once per logical request" (A→B→A foreclosure) | **Shipped** |
-| — | `path` as system attribute — `CreateOptions.path` / `UpdateOptions.path` forward to the lifecycle; see [DOCUMENT-PATH-ANALYSIS.md](../../docs/analysis/DOCUMENT-PATH-ANALYSIS.md) | **Shipped** |
+| — | `path` as system attribute — `CreateOptions.path` / `UpdateOptions.path` forward to the lifecycle; see [DOCUMENT-PATHS.md](../../docs/DOCUMENT-PATHS.md) | **Shipped** |
 
 ### Phase 5 semantics
 

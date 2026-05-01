@@ -34,10 +34,9 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 
 ## Documentation
 
-- **[docs/analysis/](docs/analysis/README.md)** — active architectural
-  thinking, phased roadmap, design notes. Start with
-  [PHASES-OF-WORK](docs/analysis/PHASES-OF-WORK.md) for what's shipping
-  next.
+- **[docs/](docs/)** — reference documentation for each subsystem
+  (storage, collection versioning, relationships, file uploads, auth,
+  client SDK, routing, richtext editor, core composition roadmap).
 - **[docs/MISSION.md](docs/MISSION.md)** — why Byline exists, the three
   pillars, building in the open, and a note on how we use AI in
   development.

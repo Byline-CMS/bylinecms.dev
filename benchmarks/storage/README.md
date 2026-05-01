@@ -197,8 +197,8 @@ Watch for:
 
 - A knee in `findDocuments` latency around some document count. If
   this appears well inside the realistic range, the JSONB read-cache
-  column noted in `STORAGE-ANALYSIS.md` becomes justified work rather
-  than speculative.
+  column noted in [`docs/CORE-DOCUMENT-STORAGE.md`](../../docs/CORE-DOCUMENT-STORAGE.md)
+  becomes justified work rather than speculative.
 - Plan changes in `EXPLAIN ANALYZE` — index scans flipping to
   sequential scans at larger sizes. Such flips usually indicate a
   missing or unused index.

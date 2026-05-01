@@ -1,24 +1,12 @@
-## Access Control Recipes
+# Access Control Recipes
 
-> Last updated: 2026-04-26
 > Companions:
-> - [AUTHN-AUTHZ-ANALYSIS.md](./AUTHN-AUTHZ-ANALYSIS.md) — the auth
->   subsystem these recipes plug into. Phase 7 introduces the
->   `beforeRead` hook + `QueryPredicate` machinery the recipes use.
-> - [RELATIONSHIPS-ANALYSIS.md](./RELATIONSHIPS-ANALYSIS.md) — populate
->   threads `beforeRead` through to populated target collections, so
->   each recipe applies on relation walks too.
+> - [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — the auth subsystem these recipes plug into. The `beforeRead` hook + `QueryPredicate` machinery the recipes use is documented there.
+> - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — populate threads `beforeRead` through to populated target collections, so each recipe applies on relation walks too.
 
-This document is a working cookbook of common read-side access-control
-patterns, written against the `CollectionHooks.beforeRead` hook and
-the structured `QueryPredicate` it returns. Each recipe states the
-use case, gives a complete hook implementation, and calls out the
-edge cases worth knowing about. The intent is that this file
-eventually graduates from `docs/analysis/` into user-facing
-documentation when Byline grows a public docs site — until then it
-lives next to the design analysis it derives from.
+This document is a working cookbook of common read-side access-control patterns, written against the `CollectionHooks.beforeRead` hook and the structured `QueryPredicate` it returns. Each recipe states the use case, gives a complete hook implementation, and calls out the edge cases worth knowing about.
 
-### Background
+## Background
 
 `beforeRead` fires once per `findDocuments` call (and once per
 populate batch, per target collection), receives the actor and read
@@ -37,7 +25,7 @@ filterable via client `where` is filterable from a hook.
 
 ---
 
-### Recipe 1 — Owner-only drafts
+## Recipe 1 — Owner-only drafts
 
 **Use case.** Anyone with `read` sees published documents. Authors
 see their own drafts in addition. Editors with a broader ability see
@@ -64,7 +52,7 @@ out.
 
 ---
 
-### Recipe 2 — Multi-tenant scoping
+## Recipe 2 — Multi-tenant scoping
 
 **Use case.** Every document belongs to a tenant. Every read clamps
 to the actor's tenant — full stop, no ability needed. The
@@ -85,7 +73,7 @@ have a forgotten escape hatch.
 
 ---
 
-### Recipe 3 — Embargo / scheduled publish
+## Recipe 3 — Embargo / scheduled publish
 
 **Use case.** Editorial workflow needs documents that go live at a
 specific timestamp. Non-editors must not see them before then;
@@ -104,7 +92,7 @@ need to be cache-key-aware of time, or the embargo lifts late.
 
 ---
 
-### Recipe 4 — Soft-delete hide
+## Recipe 4 — Soft-delete hide
 
 **Use case.** Documents are soft-deleted by setting `deletedAt`
 rather than removed from the table. Most readers should never see
@@ -124,7 +112,7 @@ opt-in ability and sees both states.
 
 ---
 
-### Recipe 5 — Department / workspace visibility
+## Recipe 5 — Department / workspace visibility
 
 **Use case.** Internal CMS where each document is tagged with a
 department. Users may belong to multiple departments and see
@@ -145,7 +133,7 @@ read regardless of populate fanout.
 
 ---
 
-### Recipe 6 — Self-only on user-like collections
+## Recipe 6 — Self-only on user-like collections
 
 **Use case.** A `profiles` collection (or similar user-shaped data)
 where ordinary users may only ever see their own row, but staff with
@@ -165,7 +153,7 @@ filter on that field instead.
 
 ---
 
-### Composition rules
+## Composition rules
 
 - **Hook predicate AND user `where`.** The compiler merges them with
   implicit AND. A user passing `where: { status: 'draft' }` against
@@ -185,7 +173,7 @@ filter on that field instead.
   This is a deliberate escape hatch and should never be used inside
   application code.
 
-### What `beforeRead` is *not* for
+## What `beforeRead` is *not* for
 
 - **Field-level redaction.** Use `afterRead` to mutate
   `doc.fields` — that hook already shipped and is the right surface

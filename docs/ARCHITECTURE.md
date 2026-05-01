@@ -1,8 +1,7 @@
 # Key Architectural Decisions
 
 These are the load-bearing design decisions behind Byline. Each is described
-in more depth in the matching analysis document under
-[`docs/analysis/`](./analysis/README.md).
+in more depth in the matching reference document under [`docs/`](.).
 
 ## 1. Universal Storage (Inverted Index / EAV-per-type)
 
@@ -16,7 +15,7 @@ approach. We use a custom store path notation (`content.1.photoBlock.0.display`)
 as our addressing scheme for 'flattening' and 'reconstructing' documents.
 
 For a deep dive — including the strategic analysis, benchmarks, and roadmap —
-see [STORAGE-ANALYSIS](./analysis/STORAGE-ANALYSIS.md).
+see [CORE-DOCUMENT-STORAGE](./CORE-DOCUMENT-STORAGE.md).
 
 ## 2. Immutable Versioning
 
@@ -24,7 +23,7 @@ We save document versions by default (UUIDv7 time-ordered). This gives us
 built-in version history, enables eventual audit trails, and avoids in-place
 mutation. We use `ROW_NUMBER() OVER PARTITION` for resolving "latest" versions.
 
-See [COLLECTION-VERSIONING-ANALYSIS](./analysis/COLLECTION-VERSIONING-ANALYSIS.md).
+See [COLLECTION-VERSIONING](./COLLECTION-VERSIONING.md).
 
 ## 3. Patch-Based Updates
 
@@ -152,5 +151,5 @@ path. Service-layer enforcement asserts collection abilities on the write
 side; the `beforeRead` collection hook AND-merges per-actor `QueryPredicate`s
 into the same SQL machinery the public client uses.
 
-For the full story, see [AUTHN-AUTHZ-ANALYSIS](./analysis/AUTHN-AUTHZ-ANALYSIS.md)
-and the worked recipes in [ACCESS-CONTROL-RECIPES](./analysis/ACCESS-CONTROL-RECIPES.md).
+For the full story, see [AUTHN-AUTHZ](./AUTHN-AUTHZ.md)
+and the worked recipes in [ACCESS-CONTROL-RECIPES](./ACCESS-CONTROL-RECIPES.md).
