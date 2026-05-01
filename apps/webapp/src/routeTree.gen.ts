@@ -15,6 +15,7 @@ import { Route as Char123LngChar125PublicRouteRouteImport } from './routes/{-$ln
 import { Route as bylineAdminRouteRouteImport } from './routes/(byline)/admin/route'
 import { Route as Char123LngChar125PublicIndexRouteImport } from './routes/{-$lng}/_public/index'
 import { Route as bylineAdminIndexRouteImport } from './routes/(byline)/admin/index'
+import { Route as Char123LngChar125PublicNewsRouteImport } from './routes/{-$lng}/_public/news'
 import { Route as bylineAdminUsersIndexRouteImport } from './routes/(byline)/admin/users/index'
 import { Route as bylineAdminRolesIndexRouteImport } from './routes/(byline)/admin/roles/index'
 import { Route as bylineAdminPermissionsIndexRouteImport } from './routes/(byline)/admin/permissions/index'
@@ -58,6 +59,12 @@ const bylineAdminIndexRoute = bylineAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => bylineAdminRouteRoute,
 } as any)
+const Char123LngChar125PublicNewsRoute =
+  Char123LngChar125PublicNewsRouteImport.update({
+    id: '/news',
+    path: '/news',
+    getParentRoute: () => Char123LngChar125PublicRouteRoute,
+  } as any)
 const bylineAdminUsersIndexRoute = bylineAdminUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
@@ -124,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/{-$lng}': typeof Char123LngChar125PublicRouteRouteWithChildren
   '/admin': typeof bylineAdminRouteRouteWithChildren
   '/sign-in': typeof bylineSignInRoute
+  '/{-$lng}/news': typeof Char123LngChar125PublicNewsRoute
   '/admin/': typeof bylineAdminIndexRoute
   '/{-$lng}/': typeof Char123LngChar125PublicIndexRoute
   '/admin/account/': typeof bylineAdminAccountIndexRoute
@@ -141,6 +149,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/{-$lng}': typeof Char123LngChar125PublicIndexRoute
   '/sign-in': typeof bylineSignInRoute
+  '/{-$lng}/news': typeof Char123LngChar125PublicNewsRoute
   '/admin': typeof bylineAdminIndexRoute
   '/admin/account': typeof bylineAdminAccountIndexRoute
   '/admin/permissions': typeof bylineAdminPermissionsIndexRoute
@@ -160,6 +169,7 @@ export interface FileRoutesById {
   '/(byline)/admin': typeof bylineAdminRouteRouteWithChildren
   '/{-$lng}/_public': typeof Char123LngChar125PublicRouteRouteWithChildren
   '/(byline)/sign-in': typeof bylineSignInRoute
+  '/{-$lng}/_public/news': typeof Char123LngChar125PublicNewsRoute
   '/(byline)/admin/': typeof bylineAdminIndexRoute
   '/{-$lng}/_public/': typeof Char123LngChar125PublicIndexRoute
   '/(byline)/admin/account/': typeof bylineAdminAccountIndexRoute
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/{-$lng}'
     | '/admin'
     | '/sign-in'
+    | '/{-$lng}/news'
     | '/admin/'
     | '/{-$lng}/'
     | '/admin/account/'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
   to:
     | '/{-$lng}'
     | '/sign-in'
+    | '/{-$lng}/news'
     | '/admin'
     | '/admin/account'
     | '/admin/permissions'
@@ -215,6 +227,7 @@ export interface FileRouteTypes {
     | '/(byline)/admin'
     | '/{-$lng}/_public'
     | '/(byline)/sign-in'
+    | '/{-$lng}/_public/news'
     | '/(byline)/admin/'
     | '/{-$lng}/_public/'
     | '/(byline)/admin/account/'
@@ -279,6 +292,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof bylineAdminIndexRouteImport
       parentRoute: typeof bylineAdminRouteRoute
+    }
+    '/{-$lng}/_public/news': {
+      id: '/{-$lng}/_public/news'
+      path: '/news'
+      fullPath: '/{-$lng}/news'
+      preLoaderRoute: typeof Char123LngChar125PublicNewsRouteImport
+      parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
     '/(byline)/admin/users/': {
       id: '/(byline)/admin/users/'
@@ -361,11 +381,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface Char123LngChar125PublicRouteRouteChildren {
+  Char123LngChar125PublicNewsRoute: typeof Char123LngChar125PublicNewsRoute
   Char123LngChar125PublicIndexRoute: typeof Char123LngChar125PublicIndexRoute
 }
 
 const Char123LngChar125PublicRouteRouteChildren: Char123LngChar125PublicRouteRouteChildren =
   {
+    Char123LngChar125PublicNewsRoute: Char123LngChar125PublicNewsRoute,
     Char123LngChar125PublicIndexRoute: Char123LngChar125PublicIndexRoute,
   }
 
