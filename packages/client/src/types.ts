@@ -17,6 +17,7 @@ import type {
   QueryPredicate,
   ReadContext,
   ReadMode,
+  ServerConfig,
   SlugifierFn,
   SortSpec,
 } from '@byline/core'
@@ -37,10 +38,29 @@ export type {
 // ---------------------------------------------------------------------------
 
 export interface BylineClientConfig {
-  /** The database adapter (e.g. from @byline/db-postgres). */
-  db: IDbAdapter
-  /** All registered collection definitions. */
-  collections: CollectionDefinition[]
+  /**
+   * Convenience shorthand: pass an already-resolved `ServerConfig` (typically
+   * from `getServerConfig()`) to seed `db`, `collections`, `storage`,
+   * `slugifier`, and `defaultLocale` in one go. Each disaggregated prop
+   * below is still accepted and overrides the corresponding value pulled
+   * from `config`, so tests and migrations can substitute pieces:
+   *
+   * ```ts
+   * createBylineClient({
+   *   config: getServerConfig(),
+   *   requestContext: () => createRequestContext({ readMode: 'published' }),
+   * })
+   * ```
+   *
+   * The SDK does *not* call `getServerConfig()` itself — the caller does —
+   * so seeds, scripts, and tests that want to construct a client without a
+   * registered server config can keep passing the disaggregated props.
+   */
+  config?: ServerConfig
+  /** The database adapter (e.g. from @byline/db-postgres). Required when `config` is omitted. */
+  db?: IDbAdapter
+  /** All registered collection definitions. Required when `config` is omitted. */
+  collections?: CollectionDefinition[]
   /** Optional storage provider — needed for delete file cleanup. */
   storage?: IStorageProvider
   /**
@@ -340,4 +360,39 @@ export interface FindResult<F = Record<string, any>> {
     pageSize: number
     totalPages: number
   }
+}
+
+// ---------------------------------------------------------------------------
+// Populate type helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * The shape a populated relation leaf takes when `populate` (or `populate: '*'`)
+ * is in scope for that field. Wraps the populated target as a `ClientDocument<T>`
+ * on `.document`. Optional because the slot may also resolve to an
+ * unresolved (`_resolved: false`) or cycle (`_cycle: true`) marker, in which
+ * cases `document` is absent.
+ */
+export interface PopulatedRelation<T> {
+  document?: ClientDocument<T>
+}
+
+/**
+ * Re-type one key of a schema-inferred fields type as a populated relation.
+ * Use to overlay populate's per-call enrichment on top of the unpopulated
+ * shape that `CollectionFieldData<typeof X>` derives from the schema.
+ *
+ * Homomorphic mapped form preserves the optionality of the underlying key —
+ * an optional relation field stays optional after populate is layered on.
+ *
+ * ```ts
+ * type NewsPopulated = WithPopulated<
+ *   WithPopulated<NewsFields, 'category', NewsCategoryFields>,
+ *   'featureImage', MediaFields
+ * >
+ * client.collection('news').find<NewsPopulated>({ populate: { category: '*', featureImage: '*' } })
+ * ```
+ */
+export type WithPopulated<F, K extends keyof F, Target> = {
+  [P in keyof F]: P extends K ? PopulatedRelation<Target> : F[P]
 }

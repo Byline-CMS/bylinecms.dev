@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { PhotoBlock } from '../../blocks/photo-block.js'
@@ -204,3 +205,5 @@ export const Docs = defineCollection({
     availableLanguagesField(),
   ],
 })
+
+export type DocFields = CollectionFieldData<typeof Docs>

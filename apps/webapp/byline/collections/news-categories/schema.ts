@@ -6,12 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
-import { SINGLE_STATUS_WORKFLOW } from '@byline/core'
+import type { CollectionFieldData } from '@byline/core'
+import { defineCollection, SINGLE_STATUS_WORKFLOW } from '@byline/core'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
-export const NewsCategories: CollectionDefinition = {
+export const NewsCategories = defineCollection({
   path: 'news-categories',
   labels: {
     singular: 'News Category',
@@ -28,4 +28,6 @@ export const NewsCategories: CollectionDefinition = {
     { name: 'name', label: 'Name', type: 'text', localized: true },
     { name: 'description', label: 'Description', type: 'textArea', localized: true },
   ],
-}
+})
+
+export type NewsCategoryFields = CollectionFieldData<typeof NewsCategories>

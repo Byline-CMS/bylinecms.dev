@@ -6,14 +6,14 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
-import { defineWorkflow } from '@byline/core'
+import type { CollectionFieldData } from '@byline/core'
+import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { availableLanguagesField } from '~/fields/available-languages-field.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
-export const Pages: CollectionDefinition = {
+export const Pages = defineCollection({
   path: 'pages',
   labels: {
     singular: 'Page',
@@ -91,4 +91,6 @@ export const Pages: CollectionDefinition = {
     },
     availableLanguagesField(),
   ],
-}
+})
+
+export type PageFields = CollectionFieldData<typeof Pages>

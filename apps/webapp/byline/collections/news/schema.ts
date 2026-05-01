@@ -6,14 +6,14 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
-import { defineWorkflow } from '@byline/core'
+import type { CollectionFieldData } from '@byline/core'
+import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { availableLanguagesField } from '~/fields/available-languages-field.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
-export const News: CollectionDefinition = {
+export const News = defineCollection({
   path: 'news',
   labels: {
     singular: 'News',
@@ -80,4 +80,11 @@ export const News: CollectionDefinition = {
     },
     availableLanguagesField(),
   ],
-}
+})
+
+/**
+ * Field data shape inferred directly from the schema. Use this as the
+ * generic to typed read calls — `client.collection('news').find<NewsFields>()`
+ * — so dot-notation on `doc.fields` is fully checked.
+ */
+export type NewsFields = CollectionFieldData<typeof News>

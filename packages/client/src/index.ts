@@ -41,9 +41,11 @@ export type {
   FindOneOptions,
   FindOptions,
   FindResult,
+  PopulatedRelation,
   SortDirection,
   SortSpec,
   UpdateOptions,
   WhereClause,
   WhereValue,
+  WithPopulated,
 } from './types.js'

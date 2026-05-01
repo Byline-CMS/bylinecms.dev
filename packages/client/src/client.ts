@@ -77,12 +77,28 @@ export class BylineClient {
     | undefined
 
   constructor(config: BylineClientConfig) {
-    this.db = config.db
-    this.collections = config.collections
-    this.storage = config.storage
+    // Accept the disaggregated form (`db` / `collections` / `storage` /
+    // `slugifier` / `defaultLocale`) or the `config` shorthand (a resolved
+    // `ServerConfig`). Disaggregated props win when both are provided so
+    // tests and migrations can substitute individual pieces.
+    const fromConfig = config.config
+    const db = config.db ?? fromConfig?.db
+    const collections = config.collections ?? fromConfig?.collections
+    if (!db) {
+      throw new Error('BylineClient requires `db` (or a `config` containing `db`).')
+    }
+    if (!collections) {
+      throw new Error(
+        'BylineClient requires `collections` (or a `config` containing `collections`).'
+      )
+    }
+
+    this.db = db
+    this.collections = collections
+    this.storage = config.storage ?? fromConfig?.storage
     this.logger = resolveLogger(config.logger)
-    this.defaultLocale = config.defaultLocale ?? 'en'
-    this.slugifier = config.slugifier
+    this.defaultLocale = config.defaultLocale ?? fromConfig?.i18n?.content?.defaultLocale ?? 'en'
+    this.slugifier = config.slugifier ?? fromConfig?.slugifier
     this.requestContextSource = config.requestContext
   }
 

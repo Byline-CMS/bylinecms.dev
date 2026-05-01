@@ -6,8 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { AfterStoreContext, BeforeStoreContext, CollectionDefinition } from '@byline/core'
-import { defineWorkflow } from '@byline/core'
+import type { AfterStoreContext, BeforeStoreContext, CollectionFieldData } from '@byline/core'
+import { defineCollection, defineWorkflow } from '@byline/core'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -37,7 +37,7 @@ import { defineWorkflow } from '@byline/core'
  * }
  * ```
  */
-export const Media: CollectionDefinition = {
+export const Media = defineCollection({
   path: 'media',
   labels: {
     singular: 'Media Item',
@@ -146,4 +146,6 @@ export const Media: CollectionDefinition = {
       helpText: 'Photographer, agency, or copyright holder.',
     },
   ],
-}
+})
+
+export type MediaFields = CollectionFieldData<typeof Media>

@@ -28,12 +28,8 @@ let cachedClient: BylineClient | undefined
 
 export function getAdminBylineClient(): BylineClient {
   if (cachedClient) return cachedClient
-  const config = getServerConfig()
   cachedClient = createBylineClient({
-    db: config.db,
-    collections: config.collections,
-    storage: config.storage,
-    defaultLocale: config.i18n?.content?.defaultLocale,
+    config: getServerConfig(),
     // Resolved per-call so each server fn picks up the actor from the
     // current request's session cookies. `getAdminRequestContext` runs the
     // refresh dance on its own and throws `ERR_UNAUTHENTICATED` when no
