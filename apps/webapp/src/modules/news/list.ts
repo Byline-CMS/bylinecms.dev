@@ -73,10 +73,13 @@ export const getNewsListFn = createServerFn({ method: 'GET' })
     return client.collection('news').find({
       where: data.category ? { category: { path: data.category } } : undefined,
       sort: { publishedOn: 'desc' },
+      depth: 1,
       // Default-projection populate pulls the relation's `displayField`
       // (`name` for news-categories) so the card grid has a label without
       // a second round-trip.
-      populate: { category: true, featureImage: true },
+      // populate: { category: true, featureImage: true },
+      //populate: '*',
+      populate: { category: '*', featureImage: '*' },
       page: data.page,
       pageSize: data.pageSize,
       locale: data.locale,

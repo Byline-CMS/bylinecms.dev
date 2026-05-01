@@ -29,7 +29,7 @@ export const Route = createFileRoute('/{-$lng}/_public/news')({
 function RouteComponent() {
   const result = Route.useLoaderData()
   const { category } = Route.useSearch()
-
+  console.log('News list result', JSON.stringify({ result, category }, null, 2))
   return (
     <Section>
       <Container>
