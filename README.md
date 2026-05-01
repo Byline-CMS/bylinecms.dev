@@ -34,9 +34,8 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 
 ## Documentation
 
-- **[docs/](docs/)** — reference documentation for each subsystem
-  (storage, collection versioning, relationships, file uploads, auth,
-  client SDK, routing, richtext editor, core composition roadmap).
+**Start here**
+
 - **[docs/MISSION.md](docs/MISSION.md)** — why Byline exists, the three
   pillars, building in the open, and a note on how we use AI in
   development.
@@ -47,8 +46,50 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 - **[docs/CONTENT-IN-THE-TIME-OF-AI.md](docs/CONTENT-IN-THE-TIME-OF-AI.md)**
   — why we think structured content management matters more, not less,
   alongside generative AI.
-- **Package design docs** sit close to their packages — e.g.
-  [packages/client/DESIGN.md](packages/client/DESIGN.md).
+
+**Subsystem reference**
+
+1. **[docs/CORE-DOCUMENT-STORAGE.md](docs/CORE-DOCUMENT-STORAGE.md)** —
+   universal storage (EAV-per-type), the seven typed `store_*` tables,
+   flatten/reconstruct, immutable versioning, and indicative benchmark
+   numbers.
+2. **[docs/DOCUMENT-PATHS.md](docs/DOCUMENT-PATHS.md)** — the `path`
+   system attribute on `documentVersions`, `useAsPath`, the slugifier,
+   the path widget, and per-locale paths as a future phase.
+3. **[docs/RELATIONSHIPS.md](docs/RELATIONSHIPS.md)** — cross-collection
+   relations, populate, the relation envelope, recursion safety via
+   `ReadContext`, and `hasMany` as a future phase.
+4. **[docs/FILE-MEDIA-UPLOADS.md](docs/FILE-MEDIA-UPLOADS.md)** —
+   field-level uploads, the two-round-trip flow (field upload then
+   document save), `beforeStore`/`afterStore` hooks, and variant
+   persistence.
+5. **[docs/ROUTING-API.md](docs/ROUTING-API.md)** — the internal
+   TanStack-server-fn transport phase, today's server-fn surface, and
+   what triggers a stable HTTP boundary.
+6. **[docs/AUTHN-AUTHZ.md](docs/AUTHN-AUTHZ.md)** — two auth realms,
+   abilities and roles, the `AbilityRegistry`, service-layer
+   enforcement, and the `beforeRead` hook.
+7. **[docs/CLIENT-SDK.md](docs/CLIENT-SDK.md)** — `@byline/client` as
+   an in-process, server-side SDK: read DSL, write surface, populate,
+   status modes, and what it deliberately is *not*.
+8. **[docs/RICHTEXT.md](docs/RICHTEXT.md)** — pluggable richtext editor
+   adapter, the current Lexical implementation, and future phases for
+   a second editor.
+9. **[docs/ACCESS-CONTROL-RECIPES.md](docs/ACCESS-CONTROL-RECIPES.md)**
+   — working cookbook of `beforeRead` patterns: owner-only drafts,
+   multi-tenant scoping, embargo, soft-delete hide, department
+   visibility, self-only.
+10. **[docs/COLLECTION-VERSIONING.md](docs/COLLECTION-VERSIONING.md)**
+    — Phase 1 (data model + fingerprinting) shipped; Phases 2–5
+    (history table, fetch-by-version, in-memory forward migration,
+    strict-CI mode) deferred.
+11. **[docs/CORE-COMPOSITION.md](docs/CORE-COMPOSITION.md)** —
+    forward-looking roadmap for `createCommand`, module registries,
+    a command tree on `BylineCore`, per-realm request-context
+    builders, and `loadConfig()`.
+
+**Package design docs** sit close to their packages — e.g.
+[packages/client/DESIGN.md](packages/client/DESIGN.md).
 
 ## Quick start
 
