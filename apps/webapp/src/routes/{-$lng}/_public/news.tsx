@@ -10,8 +10,8 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Container, Section } from '@infonomic/uikit/react'
 
-import { getNewsListFn } from '@/modules/news/list'
 import { NewsList } from '@/modules/news/components/list'
+import { getNewsListFn } from '@/modules/news/list'
 
 interface NewsSearch {
   category?: string

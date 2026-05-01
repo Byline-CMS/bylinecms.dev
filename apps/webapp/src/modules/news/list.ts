@@ -58,12 +58,14 @@ interface ResolvedNewsListInput {
 }
 
 export const getNewsListFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: NewsListInput | undefined): ResolvedNewsListInput => ({
-    category: input?.category || undefined,
-    page: input?.page ?? 1,
-    pageSize: input?.pageSize ?? 12,
-    locale: input?.locale,
-  }))
+  .inputValidator(
+    (input: NewsListInput | undefined): ResolvedNewsListInput => ({
+      category: input?.category || undefined,
+      page: input?.page ?? 1,
+      pageSize: input?.pageSize ?? 12,
+      locale: input?.locale,
+    })
+  )
   .handler(async (ctx): Promise<FindResult> => {
     const data = ctx.data as ResolvedNewsListInput
     const client = getPublicBylineClient()
