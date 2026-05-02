@@ -11,7 +11,7 @@
 .cell,
 :global(.byline-relation-cell) {
   min-width: 0;
-  color: var(--gray-100);
+  color: var(--gray-700);
   font-size: var(--font-size-sm);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -26,4 +26,12 @@
 .cell-right,
 :global(.byline-relation-cell-right) {
   text-align: right;
+}
+
+:is([data-theme="dark"], :global(.dark)) {
+
+  .cell,
+  :global(.byline-relation-cell) {
+    color: var(--gray-100);
+  }
 }

@@ -51,6 +51,7 @@
 }
 
 @media (min-width: 40rem) {
+
   .heading-row,
   :global(.byline-form-heading-row) {
     grid-template-columns: 1fr auto;
@@ -74,12 +75,13 @@
   gap: 0.25rem var(--spacing-16);
   padding: var(--spacing-8);
   margin-bottom: 0.25rem;
-  border: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
   border-radius: var(--border-radius-sm);
-  background-color: var(--canvas-100);
+  background-color: var(--canvas-25);
 }
 
 @media (min-width: 40rem) {
+
   .status-bar,
   :global(.byline-form-status-bar) {
     grid-template-columns: 1fr auto;
@@ -87,6 +89,7 @@
 }
 
 @media (min-width: 66rem) {
+
   .status-bar,
   :global(.byline-form-status-bar) {
     margin-bottom: 0;
@@ -96,7 +99,9 @@
 .status,
 :global(.byline-form-status) {
   display: flex;
+  height: 100%;
   flex-direction: column;
+  justify-content: center;
 }
 
 .status-meta,
@@ -108,6 +113,7 @@
 }
 
 @media (min-width: 48rem) {
+
   .status-meta,
   :global(.byline-form-status-meta) {
     margin-bottom: 0.25rem;
@@ -116,6 +122,7 @@
 }
 
 @media (min-width: 66rem) {
+
   .status-meta,
   :global(.byline-form-status-meta) {
     flex-direction: row;
@@ -124,6 +131,7 @@
 }
 
 @media (min-width: 40rem) {
+
   .status-meta,
   :global(.byline-form-status-meta) {
     gap: var(--spacing-8);
@@ -159,6 +167,7 @@
 }
 
 @media (min-width: 48rem) {
+
   .status-published,
   :global(.byline-form-status-published) {
     line-height: 0.875rem;
@@ -215,6 +224,7 @@
 }
 
 @media (min-width: 60rem) {
+
   .layout,
   :global(.byline-form-layout) {
     display: grid;
@@ -234,6 +244,7 @@
 }
 
 @media (min-width: 60rem) {
+
   .content,
   :global(.byline-form-content) {
     margin-bottom: 3.75rem;
@@ -255,6 +266,7 @@
 }
 
 @media (min-width: 60rem) {
+
   .sidebar,
   :global(.byline-form-sidebar) {
     position: sticky;
@@ -302,9 +314,11 @@
 /* ─── Dark theme variants ───────────────────────────────────── */
 
 :is([data-theme="dark"], :global(.dark)) {
+
   .status-bar,
   :global(.byline-form-status-bar) {
     background-color: var(--canvas-800);
+    border: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
   }
 
   .sidebar,

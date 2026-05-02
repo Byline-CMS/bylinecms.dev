@@ -26,6 +26,7 @@
 }
 
 @media (min-width: 66rem) {
+
   .label,
   :global(.byline-view-menu-label) {
     display: block;
@@ -35,6 +36,7 @@
 .localeSelect,
 :global(.byline-view-menu-locale-select) {
   min-width: 100px;
+  padding: 0.1rem 0;
 }
 
 .depthSelect,
