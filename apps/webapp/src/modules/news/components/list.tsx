@@ -91,17 +91,17 @@ export function NewsList({ result, category }: NewsListProps) {
                   </div>
                 ) : null}
                 <div className="flex flex-1 flex-col gap-2 p-4">
-                  <h2>{title}</h2>
                   <div className="flex items-center gap-2">
-                    {publishedOn && (
-                      <span className="m-0 text-xs text-gray-400">{publishedOn}</span>
-                    )}
                     {categoryLabel && (
                       <Badge className="m-0 text-xs">
                         {categoryLabel}
                       </Badge>
                     )}
+                    {publishedOn && (
+                      <span className="m-0 text-xs text-gray-400">{publishedOn}</span>
+                    )}
                   </div>
+                  <h2>{title}</h2>
                   {summary ? (
                     <p className="m-0 text-sm muted leading-relaxed">{summary}</p>
                   ) : null}
