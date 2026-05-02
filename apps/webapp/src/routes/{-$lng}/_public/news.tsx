@@ -12,6 +12,7 @@ import { Container, Section } from '@infonomic/uikit/react'
 
 import { NewsList } from '@/modules/news/components/list'
 import { getNewsListFn } from '@/modules/news/list'
+import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 
 interface NewsSearch {
   category?: string
@@ -29,13 +30,19 @@ export const Route = createFileRoute('/{-$lng}/_public/news')({
 function RouteComponent() {
   const result = Route.useLoaderData()
   const { category } = Route.useSearch()
-  console.log('News list result', JSON.stringify({ result, category }, null, 2))
+  // console.log('News list result', JSON.stringify({ result, category }, null, 2))
   return (
-    <Section>
-      <Container>
-        <h1>News</h1>
-        <NewsList result={result} category={category} />
-      </Container>
-    </Section>
+    <>
+      <Section>
+        <Container className="mt-3">
+          <Breadcrumbs breadcrumbs={[{ label: 'News', href: '/news' }]} />
+        </Container>
+      </Section>
+      <Section>
+        <Container>
+          <NewsList result={result} category={category} />
+        </Container>
+      </Section>
+    </>
   )
 }

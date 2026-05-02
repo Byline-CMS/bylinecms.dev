@@ -7,8 +7,9 @@
  */
 
 import type { PersistedVariant, StoredFileValue } from '@byline/core'
-import { Card } from '@infonomic/uikit/react'
+import { Badge, Card } from '@infonomic/uikit/react'
 
+import { RouterPager } from '@/ui/components/router-pager'
 import { truncate } from '@/utils/utils.general'
 import type { NewsListResult } from '@/modules/news/list'
 
@@ -45,13 +46,17 @@ export function NewsList({ result, category }: NewsListProps) {
 
   return (
     <div>
-      <header className="mb-4">
-        <p className="text-sm text-gray-500">
-          {meta.total} {meta.total === 1 ? 'item' : 'items'}
-          {category ? ` in "${category}"` : ''}
-        </p>
-      </header>
-
+      <div className="flex items-center justify-between mb-4 prose">
+        <h1 className="m-0">News</h1>
+        <RouterPager
+          page={meta.page}
+          count={meta.totalPages}
+          showFirstButton
+          showLastButton
+          componentName="pagerTop"
+          aria-label="Top Pager"
+        />
+      </div>
       {docs.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-500">
           <p>No news items found.</p>
@@ -70,7 +75,9 @@ export function NewsList({ result, category }: NewsListProps) {
             const publishedOn = doc.fields.publishedOn
               ? dateFormatter.format(new Date(doc.fields.publishedOn))
               : undefined
-            const summary = doc.fields.summary ? truncate(doc.fields.summary, 150, true) : undefined
+            const summary = doc.fields.summary
+              ? truncate(doc.fields.summary, 150, true)
+              : undefined
 
             return (
               <Card key={doc.id} className="flex overflow-hidden group">
@@ -85,14 +92,19 @@ export function NewsList({ result, category }: NewsListProps) {
                 ) : null}
                 <div className="flex flex-1 flex-col gap-2 p-4">
                   <h2>{title}</h2>
-                  {publishedOn || categoryLabel ? (
-                    <p className="m-0 text-xs text-gray-400">
-                      {publishedOn}
-                      {publishedOn && categoryLabel ? ' · ' : ''}
-                      {categoryLabel}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    {publishedOn && (
+                      <span className="m-0 text-xs text-gray-400">{publishedOn}</span>
+                    )}
+                    {categoryLabel && (
+                      <Badge className="m-0 text-xs">
+                        {categoryLabel}
+                      </Badge>
+                    )}
+                  </div>
+                  {summary ? (
+                    <p className="m-0 text-sm muted leading-relaxed">{summary}</p>
                   ) : null}
-                  {summary ? <p className="m-0 text-sm muted leading-relaxed">{summary}</p> : null}
                 </div>
               </Card>
             )

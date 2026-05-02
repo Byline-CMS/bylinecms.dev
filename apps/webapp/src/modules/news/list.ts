@@ -70,7 +70,6 @@ export const getNewsListFn = createServerFn({ method: 'GET' })
     return client.collection('news').find<NewsListFields>({
       where: data.category ? { category: { path: data.category } } : undefined,
       sort: { publishedOn: 'desc' },
-      depth: 1,
       populate: { category: '*', featureImage: '*' },
       page: data.page,
       pageSize: data.pageSize,
