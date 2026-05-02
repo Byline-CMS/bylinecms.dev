@@ -169,14 +169,25 @@ Editorial workflows usually want one extra capability: an admin should be able t
 
 ### How the pieces fit
 
-Three primitives, all opt-in per server fn:
+The plumbing splits into two layers — a transport layer (cookie + viewer client + server fns) that decides what each request sees, and a UX layer (admin shell affordances) that lets editors flip the cookie and discover the resulting state.
+
+**Transport layer:**
 
 | Piece                                | Location                                                                          | Role                                                                                                              |
 |--------------------------------------|-----------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
 | `byline_preview` cookie              | `@byline/host-tanstack-start/auth/preview-cookies`                                 | Session-level "I want to see drafts" flag. httpOnly. Mere presence is the signal — no payload to verify.          |
 | `getViewerBylineClient()`            | `@byline/host-tanstack-start/integrations/byline-viewer-client`                    | Singleton `BylineClient` whose per-call `requestContext` factory upgrades to the admin actor when both the cookie and a valid admin session resolve. |
 | `isPreviewActive()`                  | same module                                                                       | Async check that returns `true` only when the cookie is set **and** `getAdminRequestContext()` resolves an admin. |
-| `enablePreviewModeFn` / `disablePreviewModeFn` | `@byline/host-tanstack-start/server-fns/preview`                       | Toggle the cookie. Enable requires a valid admin context; disable is unauthenticated (anyone can clear their own cookie). |
+| `enablePreviewModeFn` / `disablePreviewModeFn` / `getPreviewStateFn` | `@byline/host-tanstack-start/server-fns/preview` | Toggle the cookie / read its current state. Enable requires a valid admin context; disable and state-read are unauthenticated. |
+
+**UX layer:**
+
+| Surface                              | Location                                                                          | Role                                                                                                              |
+|--------------------------------------|-----------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| Drawer toggle (`Preview ON / OFF`)   | `@byline/host-tanstack-start/admin-shell/chrome/preview-toggle`                    | Source-of-truth indicator above Account in the admin menu drawer. Always visible, always reversible. Reflects cookie state via `getPreviewStateFn`. |
+| `<PreviewLink>`                      | `@byline/host-tanstack-start/admin-shell/collections/preview-link`                 | Per-document external-link icon on the edit page header. On click: `enablePreviewModeFn()` then `window.open(url)`. Hides when `preview.url(doc)` returns `null`. |
+| `CollectionAdminConfig.preview`      | `defineAdmin(...)` in your collection's `admin.tsx`                                | `{ populate?, url(doc, { locale }) }`. The populate hint guarantees `url(...)` sees resolved relation values; `url` returns the preview URL or `null`. Falls back to `/${collectionPath}/${doc.path}` when omitted. |
+| ContentAdminBar pill                 | `apps/webapp/src/ui/components/content-admin-bar.tsx`                              | Public-side "Preview" pill + "Exit Preview" button when the cookie is set. Threaded down from the public layout loader (`getPreviewStateFn`). Calls `disablePreviewModeFn` then `router.invalidate()` on exit. |
 
 ### Trust model
 
@@ -214,22 +225,75 @@ Two lines of boilerplate per fn, and the trust boundary stays explicit at the ca
 
 ### Toggling preview mode
 
-The admin host is expected to surface enable/disable affordances (typically a "Preview" link inside the admin shell and an "Exit preview" button on the public-page admin bar). The server fns themselves are minimal:
+Three places naturally need to flip the cookie — each backed by the same server fns:
 
 ```ts
 import {
   enablePreviewModeFn,
   disablePreviewModeFn,
+  getPreviewStateFn,
 } from '@byline/host-tanstack-start/server-fns/preview'
 
-// From an admin-side button: requires a valid admin context, sets the cookie.
+// Drawer toggle / per-doc <PreviewLink> click — sets the cookie.
+// Requires a valid admin context.
 await enablePreviewModeFn()
 
-// From the public-page admin bar (or a sign-out path): clears the cookie.
+// "Exit Preview" on the public-side bar — clears the cookie.
+// Unauthenticated (anyone can clear their own cookie).
 await disablePreviewModeFn()
+
+// Drawer toggle / public-bar pill on mount — reads the current state.
+const { preview } = await getPreviewStateFn()
 ```
 
 The cookie has a 24-hour `maxAge` — preview is meant to be a short-lived editorial mode, not a permanent state. Re-enabling is a one-click action.
+
+### Per-document preview links via `CollectionAdminConfig.preview`
+
+Per-document preview links need to know *where* to send the editor. For collections whose public route is the conventional `/${collectionPath}/${path}` (e.g. `/news/<slug>`), the default is fine and no config is needed — `<PreviewLink>` synthesises the URL automatically.
+
+For collections whose public URL depends on document context — a `pages` collection routed by an `area` relation, a `docs` collection prefixed by `version`, anything where the URL composes from more than just `path` — declare the URL composition on `defineAdmin`:
+
+```ts
+// apps/webapp/byline/collections/pages/admin.tsx
+defineAdmin(Pages, {
+  // ... columns, layout, etc.
+
+  preview: {
+    // Populate hint applied when the admin loads the doc for the
+    // preview link. Guarantees `url(doc)` sees resolved relation
+    // envelopes (`doc.fields.area?.document?.path`) instead of bare
+    // `RelatedDocumentValue` refs.
+    populate: { area: '*' },
+
+    // Pure function — return null when there's no preview URL
+    // meaningful for this doc yet. <PreviewLink> hides itself in
+    // that case.
+    url: (doc, { locale }) => {
+      if (!doc.path) return null
+      const area = doc.fields.area?.document?.path
+      const prefix = locale && locale !== 'en' ? `/${locale}` : ''
+      return area && area !== 'root'
+        ? `${prefix}/${area}/${doc.path}`
+        : `${prefix}/${doc.path}`
+    },
+  },
+})
+```
+
+The function form (rather than a string template like `/[area.path]/[path]`) keeps conditionals first-class — you can branch on locale, status, missing relations, or anything else available in `doc` / `ctx`. Returning `null` is the clean way to say "no preview URL for this doc" — the icon hides; no broken `/undefined/...` links.
+
+Returned URLs may be **relative** (`/news/foo`) for same-origin hosts or **absolute** (`https://www.example.com/news/foo`) for hosts deployed separately from the admin. `<PreviewLink>` opens whatever you return in a new tab via `window.open(url, '_blank', 'noopener,noreferrer')`.
+
+### UX flow
+
+The three UX surfaces compose into one editorial flow:
+
+1. **Discover the affordance.** The `<PreviewLink>` icon sits in the document edit page header (next to History / Edit / API). One click enables preview mode and opens the document's public URL in a new tab — the editor sees their draft rendered exactly as the published version would be.
+2. **See the global state.** Because `enablePreviewModeFn` sets a cookie, every other public page the admin visits in that browser session also surfaces drafts. The drawer toggle (`Preview ON / OFF`, above Account) makes that state glanceable and reversible.
+3. **Exit from the public side.** While browsing the public site in preview mode, the `ContentAdminBar` shows a "Preview" pill + "Exit Preview" button. Clicking exit clears the cookie and `router.invalidate()`s the layout, so any drafts on screen revert to published immediately.
+
+The two-step "enable cookie, then navigate" deliberately avoids a `/routes/draft?url=...&secret=...` redirect handler — `enablePreviewModeFn` is itself the gate (it requires a valid admin session before setting the cookie), so no shared secret needs to ride in the URL.
 
 ### Comparison with the public client
 
@@ -241,6 +305,8 @@ The cookie has a 24-hour `maxAge` — preview is meant to be a short-lived edito
 - The double resolution cost (cookie check + JWT verify) only happens in active preview sessions — the no-cookie path is a single cookie read.
 - Preview elevates `readMode` for the request, but it does **not** bypass `beforeRead` hooks. A multi-tenant or owner-only-drafts hook will still scope the rows the admin can see — preview just changes which version of those rows is returned.
 - The same pattern works for any host fn — not just collection reads. Any server fn that wants the "promote to admin actor when preview is on" behaviour can compose `getViewerBylineClient` + `isPreviewActive` the same way.
+- **Front-end caching caveat.** Byline doesn't ship a built-in cache layer, but anything in front of your host (CDN, route-level cache headers, an in-process LRU) needs to either key off the `byline_preview` cookie or skip caching entirely when it's set — otherwise a single admin's preview view can poison a public cache entry and leak drafts to the next visitor. The Payload analogue is Next.js's `__prerender_bypass` cookie that disables ISR for the session; the underlying constraint is the same.
+- The edit-page loader auto-populates direct relation fields at depth 1 with each target's `picker` projection, so `url(doc)` already sees populated `category`/`area`/etc envelopes carrying their column-level `path`. `preview.populate` is the future hook for cases where `url(doc)` needs to read **fields** of a populated relation (not just `path`) — wiring the loader to merge `preview.populate` on top of the default is a small follow-up task.
 
 ## Write surface
 
@@ -337,6 +403,10 @@ These are not the same package and should not be conflated. In-process SDK evolu
 | `current_published_documents` view       | `packages/db-postgres/src/database/migrations/0000_*.sql`    |
 | Preview cookie helpers                   | `packages/host-tanstack-start/src/auth/preview-cookies.ts`   |
 | Viewer client + `isPreviewActive`        | `packages/host-tanstack-start/src/integrations/byline-viewer-client.ts` |
-| Preview enable/disable server fns        | `packages/host-tanstack-start/src/server-fns/preview/`       |
+| Preview enable/disable/state server fns  | `packages/host-tanstack-start/src/server-fns/preview/`       |
+| Drawer toggle                            | `packages/host-tanstack-start/src/admin-shell/chrome/preview-toggle.tsx` |
+| `<PreviewLink>` + `resolvePreviewUrl`    | `packages/host-tanstack-start/src/admin-shell/collections/preview-link.tsx` |
+| `CollectionAdminConfig.preview` type     | `packages/core/src/@types/admin-types.ts`                    |
+| ContentAdminBar pill                     | `apps/webapp/src/ui/components/content-admin-bar.tsx`        |
 | Implementation-detail design notes       | `packages/client/DESIGN.md`                                  |
 | Integration test suite                   | `packages/client/tests/integration/`                         |

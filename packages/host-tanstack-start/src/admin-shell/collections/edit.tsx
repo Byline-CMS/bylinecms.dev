@@ -292,6 +292,11 @@ export const EditView = ({
               locale={locale}
               contentLocales={contentLocales}
               defaultContentLocale={defaultContentLocale}
+              adminConfig={adminConfig}
+              // initialData is the loaded ClientDocument-shaped record (id +
+              // path + status + fields) — exactly what PreviewDocument needs.
+              // biome-ignore lint/suspicious/noExplicitAny: storage shape
+              doc={initialData as any}
             />
           }
           onStatusChange={handleStatusChange}

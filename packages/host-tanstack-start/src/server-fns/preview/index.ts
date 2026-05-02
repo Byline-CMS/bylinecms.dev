@@ -8,3 +8,4 @@
 
 export { disablePreviewModeFn } from './disable.js'
 export { enablePreviewModeFn } from './enable.js'
+export { getPreviewStateFn } from './state.js'

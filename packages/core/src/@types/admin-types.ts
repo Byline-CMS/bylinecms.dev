@@ -8,6 +8,7 @@
 
 import type { CollectionDefinition, WorkflowStatus } from './collection-types.js'
 import type { FieldComponentSlots } from './field-types.js'
+import type { PopulateSpec } from './populate-types.js'
 
 /**
  * Props passed to a custom list-view component registered via
@@ -168,6 +169,23 @@ export interface FieldAdminConfig {
 }
 
 /**
+ * Minimal document shape passed to `CollectionAdminConfig.preview.url`.
+ *
+ * Inlined here (rather than importing `ClientDocument` from `@byline/client`)
+ * so `@byline/core` stays a leaf package — admin config types must not pull
+ * in the client. The shape mirrors the public `ClientDocument` envelope:
+ * top-level columns (`path`, `status`, etc.) are addressable directly, and
+ * the field shape is generic so callers narrowing `CollectionAdminConfig<T>`
+ * get autocomplete inside `doc.fields`.
+ */
+export interface PreviewDocument<F = any> {
+  id: string
+  path: string
+  status: string
+  fields: F
+}
+
+/**
  * Admin UI configuration for a collection.
  * This is the presentation/UI layer — separate from the data schema.
  *
@@ -223,8 +241,53 @@ export interface CollectionAdminConfig<T = any> {
    */
   fields?: Record<string, FieldAdminConfig>
 
-  /** Preview URL builder for live preview links. */
-  preview?: (doc: T, ctx: { locale?: string }) => string
+  /**
+   * Preview URL configuration for the admin's live-preview affordance
+   * (`<PreviewLink>` icon on the document edit page header). When omitted,
+   * the preview link defaults to `/${collectionPath}/${doc.path}` — fine
+   * for collections whose public URL mirrors the collection path.
+   *
+   * Two parts:
+   *
+   *   - `populate` (optional) — populate hint applied when the admin loads
+   *     the document for the preview link. Lets `url(doc, ctx)` see resolved
+   *     relation values (e.g. `doc.fields.area?.document?.path`) instead
+   *     of the bare `RelatedDocumentValue` envelope. Selective by design —
+   *     full populate per-row would be expensive for list views if/when
+   *     preview links land there too.
+   *
+   *   - `url(doc, ctx)` — pure function returning the preview URL. Receives
+   *     the (optionally populated) document and a small request-scoped
+   *     context object carrying `locale`. Return `null` to indicate "no
+   *     preview URL is meaningful for this document yet" — `<PreviewLink>`
+   *     hides itself in that case (e.g. missing slug, missing required
+   *     relation, draft awaiting first save).
+   *
+   * Example for a `pages` collection routed by `area` relation:
+   *
+   * ```ts
+   * preview: {
+   *   populate: { area: '*' },
+   *   url: (doc, { locale }) => {
+   *     const area = doc.fields.area?.document?.path
+   *     const slug = doc.fields.slug
+   *     if (!slug) return null
+   *     const prefix = locale && locale !== 'en' ? `/${locale}` : ''
+   *     return area && area !== 'root'
+   *       ? `${prefix}/${area}/${slug}`
+   *       : `${prefix}/${slug}`
+   *   },
+   * }
+   * ```
+   *
+   * Returned URLs may be relative (`/news/foo`) for same-origin hosts
+   * or absolute (`https://example.com/news/foo`) for hosts deployed
+   * separately from the admin.
+   */
+  preview?: {
+    populate?: PopulateSpec
+    url: (doc: PreviewDocument<T>, ctx: { locale?: string }) => string | null
+  }
 
   /**
    * Custom list-view component for this collection.

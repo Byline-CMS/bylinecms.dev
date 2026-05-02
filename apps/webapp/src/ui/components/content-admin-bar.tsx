@@ -10,7 +10,20 @@ import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import { adminSignOut, type CurrentAdminUser } from '@byline/host-tanstack-start/server-fns/auth'
-import { Button, DocumentIcon, EditIcon, InfonomicIcon, SignOutIcon } from '@infonomic/uikit/react'
+import {
+  disablePreviewModeFn,
+  enablePreviewModeFn,
+} from '@byline/host-tanstack-start/server-fns/preview'
+import {
+  Button,
+  Chip,
+  DocumentIcon,
+  EditIcon,
+  EyeClosedIcon,
+  EyeOpenIcon,
+  InfonomicIcon,
+  SignOutIcon,
+} from '@infonomic/uikit/react'
 
 export type ContentAdminBarProps = {
   user: CurrentAdminUser | null
@@ -21,14 +34,24 @@ export type ContentAdminBarProps = {
    * mount point can never silently 404 the bar's links.
    */
   admin: string
+  /**
+   * Whether the `byline_preview` cookie is currently set on this request.
+   * The public layout loader resolves it via `getPreviewStateFn()` and
+   * threads it down. The bar always renders a selectable "Preview ON / OFF"
+   * Chip while the admin is signed in — `preview` controls its initial
+   * selected state. Toggling the Chip flips the cookie and re-runs the
+   * loader so any drafts on screen revert to / appear from published.
+   */
+  preview?: boolean
   lng?: string
 }
 
-export function ContentAdminBar({ user, admin }: ContentAdminBarProps) {
+export function ContentAdminBar({ user, admin, preview = false }: ContentAdminBarProps) {
   const router = useRouter()
   const [collection, setCollection] = useState<string>()
   const [id, setId] = useState<string>()
   const [signingOut, setSigningOut] = useState(false)
+  const [previewBusy, setPreviewBusy] = useState(false)
 
   // Observe the DOM for `byline-cms-meta` rather than keying off
   // `location.pathname` — the meta div is owned by child routes inside the
@@ -66,6 +89,26 @@ export function ContentAdminBar({ user, admin }: ContentAdminBarProps) {
     // Re-run the public layout loader so `user` becomes null and the bar hides.
     await router.invalidate()
     setSigningOut(false)
+  }
+
+  async function handlePreviewToggle(next: boolean) {
+    if (previewBusy) return
+    setPreviewBusy(true)
+    try {
+      if (next) {
+        await enablePreviewModeFn()
+      } else {
+        await disablePreviewModeFn()
+      }
+    } catch (err) {
+      console.warn('preview toggle failed', err)
+    }
+    // Re-run the public layout loader so `preview` reflects the new state.
+    // Any draft-aware server fn currently feeding content on the page (e.g.
+    // news) also re-evaluates, so drafts appear / revert to published in
+    // one round trip.
+    await router.invalidate()
+    setPreviewBusy(false)
   }
 
   const { email, id: userID } = user
@@ -109,6 +152,28 @@ export function ContentAdminBar({ user, admin }: ContentAdminBarProps) {
           justifyContent: 'flex-end',
         }}
       >
+        <Button
+          className="min-w-[36px] text-black dark:text-black focus:ring-0 focus:ring-offset-0"
+          intent="primary"
+          variant="outlined"
+          size="xs"
+          disabled={previewBusy}
+          onClick={() => {
+            void handlePreviewToggle(!preview)
+          }}
+          title={
+            preview
+              ? 'Drafts are visible — click to return to the published view'
+              : 'Click to surface in-progress drafts on the public site'
+          }
+        >
+          {preview ? (
+            <EyeOpenIcon width="16px" height="16px" />
+          ) : (
+            <EyeClosedIcon width="16px" height="16px" />
+          )}
+          <span className="hidden sm:block">Preview</span>
+        </Button>
         {collection && id && (
           <Button
             render={

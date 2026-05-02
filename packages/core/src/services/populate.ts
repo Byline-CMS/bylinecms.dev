@@ -141,6 +141,9 @@ import type {
   DocumentFilter,
   FieldSet,
   IDbAdapter,
+  PopulateFieldSpec,
+  PopulateMap,
+  PopulateSpec,
   ReadContext,
   ReadMode,
   RelatedDocumentValue,
@@ -172,52 +175,19 @@ export function createReadContext(overrides?: Partial<ReadContext>): ReadContext
 }
 
 // ---------------------------------------------------------------------------
-// Populate DSL
+// Populate DSL — pure type aliases relocated to `../@types/populate-types.ts`
+// so other type surfaces (e.g. `CollectionAdminConfig.preview.populate`) can
+// reference them without importing the services layer. Re-exported here for
+// backward compatibility with existing call sites that import from
+// `@byline/core` via the services barrel.
 // ---------------------------------------------------------------------------
 
-/**
- * Per-field populate options. `select` names the target's fields to
- * load (merged with the target's identity field so UI always has a
- * label to render); `populate` nests for deeper relations.
- *
- * Use the `'*'` sub-spec shorthand instead when you want the full
- * target document — `select` is strictly for explicit field lists.
- */
-export interface PopulateFieldOptions {
-  select?: string[]
-  populate?: PopulateMap
-}
-
-/**
- * Per-relation projection selector.
- *
- * - `true` → default projection (identity field only; metadata is free).
- * - `'*'`  → full document (every field loaded).
- * - `{ select: [...] }` or `{ populate: {...} }` → explicit options.
- *
- * See the DSL summary at the top of this file for the full semantics.
- */
-export type PopulateFieldSpec = true | '*' | PopulateFieldOptions
-
-/**
- * Top-level populate spec. Keys are relation field names (matched
- * anywhere in the source document's field tree, including inside
- * `group` / `array` / `blocks` structures).
- */
-export type PopulateMap = Record<string, PopulateFieldSpec>
-
-/**
- * Top-level populate spec. Three shapes:
- *
- *   - `true`        → populate every relation leaf encountered, with
- *                     default projection (identity only) at every level.
- *   - `'*'`         → populate every relation leaf, with full projection
- *                     at every level. Symmetric with the sub-spec `'*'`
- *                     shorthand.
- *   - `PopulateMap` → populate only the named relations, with per-field
- *                     projection selectors.
- */
-export type PopulateSpec = true | '*' | PopulateMap
+export type {
+  PopulateFieldOptions,
+  PopulateFieldSpec,
+  PopulateMap,
+  PopulateSpec,
+} from '../@types/populate-types.js'
 
 // ---------------------------------------------------------------------------
 // PopulateOptions — the public entry

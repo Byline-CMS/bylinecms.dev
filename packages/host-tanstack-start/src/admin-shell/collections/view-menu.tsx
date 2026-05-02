@@ -8,10 +8,12 @@
 
 import { useEffect } from 'react'
 
+import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
 import { Button, HistoryIcon, IconButton, Label, Select } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
 import { useNavigate } from '../chrome/loose-router.js'
+import { PreviewLink } from './preview-link.js'
 import styles from './view-menu.module.css'
 
 export type ViewMenuPaths = 'edit' | 'history' | 'api'
@@ -45,6 +47,8 @@ export const ViewMenu = ({
   depth,
   contentLocales,
   defaultContentLocale,
+  adminConfig,
+  doc,
 }: {
   /** Collection path (e.g. "docs", "news"). */
   collection: string
@@ -60,6 +64,18 @@ export const ViewMenu = ({
   contentLocales: ReadonlyArray<ContentLocaleOption>
   /** Fallback content locale used when the URL has none. */
   defaultContentLocale: string
+  /**
+   * Admin config for the collection. When present and `adminConfig.preview`
+   * is configured (or the default URL convention applies), a `<PreviewLink>`
+   * external-link icon is rendered next to the History button.
+   */
+  adminConfig?: CollectionAdminConfig
+  /**
+   * The currently-loaded document. Required for the preview link's
+   * URL resolution; omit this prop to suppress the preview affordance
+   * entirely (e.g. on the create route, where no doc exists yet).
+   */
+  doc?: PreviewDocument
 }) => {
   const navigate = useNavigate()
 
@@ -165,6 +181,15 @@ export const ViewMenu = ({
             onValueChange={handleDepthChange}
           />
         </>
+      )}
+      {doc && (
+        <PreviewLink
+          collectionPath={collection}
+          doc={doc}
+          adminConfig={adminConfig}
+          locale={locale}
+          className={cx('byline-view-menu-icon-button', styles.iconButton)}
+        />
       )}
       <IconButton
         className={cx('byline-view-menu-icon-button', styles.iconButton)}

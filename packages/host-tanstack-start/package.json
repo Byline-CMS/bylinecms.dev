@@ -76,6 +76,10 @@
       "types": "./dist/server-fns/collections/index.d.ts",
       "import": "./dist/server-fns/collections/index.js"
     },
+    "./server-fns/preview": {
+      "types": "./dist/server-fns/preview/index.d.ts",
+      "import": "./dist/server-fns/preview/index.js"
+    },
     "./server-fns/*": {
       "types": "./dist/server-fns/*.d.ts",
       "import": "./dist/server-fns/*.js"

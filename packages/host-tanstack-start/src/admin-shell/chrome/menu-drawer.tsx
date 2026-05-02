@@ -26,6 +26,7 @@ import { useAbilities } from '../../integrations/abilities.js'
 import { Link } from './loose-router.js'
 import styles from './menu-drawer.module.css'
 import { useAdminMenu } from './menu-provider.js'
+import { PreviewToggle } from './preview-toggle.js'
 
 const isActive = (currentPath: string, linkHref: string): boolean => {
   // Root admin highlights only on exact match so it doesn't stay lit on
@@ -139,6 +140,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
             </>
           )}
           <li className="menu-separator" />
+          <PreviewToggle compact={compact} />
           <MenuItem
             to="/admin/account"
             label="Account"

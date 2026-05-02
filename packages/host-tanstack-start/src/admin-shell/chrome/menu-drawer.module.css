@@ -113,26 +113,37 @@
   background-color: var(--canvas-50);
 }
 
-.nav ul :global(li.menu-item a),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item a) {
+.nav ul :global(li.menu-item) :is(a, button),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item) :is(a, button) {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  width: 100%;
   padding: 7px;
   gap: 8px;
   color: #111111;
   font-size: 0.9rem;
   font-weight: normal;
   text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 
-.nav ul :global(li.menu-item.compact a),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact a) {
+.nav ul :global(li.menu-item) :is(a, button):disabled,
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item) :is(a, button):disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.nav ul :global(li.menu-item.compact) :is(a, button),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact) :is(a, button) {
   justify-content: center;
 }
 
-.nav ul :global(li.menu-item.active a),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.active a) {
+.nav ul :global(li.menu-item.active) :is(a, button),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item.active) :is(a, button) {
   color: #111111;
   text-decoration: none;
 }
@@ -145,19 +156,21 @@
   background-color: #dddddd;
 }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item a),
+:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item) :is(a, button),
 :is([data-theme="dark"], :global(.dark))
   :global(.byline-admin-menu-drawer)
   ul
-  :global(li.menu-item a) {
+  :global(li.menu-item)
+  :is(a, button) {
   color: #dddddd;
 }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active a),
+:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active) :is(a, button),
 :is([data-theme="dark"], :global(.dark))
   :global(.byline-admin-menu-drawer)
   ul
-  :global(li.menu-item.active a) {
+  :global(li.menu-item.active)
+  :is(a, button) {
   color: #ffffff;
 }
 
