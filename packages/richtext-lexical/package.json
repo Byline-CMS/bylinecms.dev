@@ -58,7 +58,7 @@
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
     "@byline/ui": "workspace:*",
-    "@infonomic/uikit": "^6.7.0",
+    "@infonomic/uikit": "^6.7.1",
     "@lexical/clipboard": "0.44.0",
     "@lexical/code": "0.44.0",
     "@lexical/hashtag": "0.44.0",
@@ -86,7 +86,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.13",
+    "@biomejs/biome": "2.4.14",
     "@rsbuild/plugin-react": "^2.0.0",
     "@rslib/core": "^0.21.3",
     "@types/lodash": "^4.17.24",

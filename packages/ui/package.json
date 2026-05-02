@@ -89,13 +89,13 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@infonomic/uikit": "^6.7.0",
+    "@infonomic/uikit": "^6.7.1",
     "@tanstack/react-form-start": "^1.29.1",
     "classnames": "^2.5.1",
     "lodash-es": "^4.18.1",
     "npm-run-all": "^4.1.5",
     "react-diff-viewer-continued": "^4.2.2",
-    "zod": "^4.3.6",
+    "zod": "^4.4.2",
     "zod-form-data": "^3.0.1"
   },
   "peerDependencies": {
@@ -103,7 +103,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.13",
+    "@biomejs/biome": "2.4.14",
     "@rsbuild/plugin-react": "^2.0.0",
     "@rslib/core": "^0.21.3",
     "@types/lodash": "^4.17.24",

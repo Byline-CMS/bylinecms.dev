@@ -24,5 +24,25 @@
 
 /**
  * Application styles
+ *
+ * These imports are intentionally flattened here instead of routing through
+ * `./app.css` -> `./base/base.css` and `./layouts/layouts.css`.
+ * Tailwind CSS v4's Vite plugin hit a recursion error while resolving that
+ * nested CSS import graph, even though these files do not contain Tailwind
+ * directives themselves.
+ *
+ * Previous structure:
+ *   global.css -> @import "./app.css"
+ *   app.css -> @import "./base/base.css" and @import "./layouts/layouts.css"
+ *   base/base.css -> fonts.css, lists.css, media.css, typography.css, inputs.css
+ *   layouts/layouts.css -> global.css, grid.css, sections.css, inline-layouts.css
  */
+@import "./base/fonts.css";
+@import "./base/lists.css";
+@import "./base/media.css";
+@import "./base/typography.css";
+@import "./base/inputs.css";
+@import "./layouts/grid.css";
+@import "./layouts/sections.css";
+@import "./layouts/inline-layouts.css";
 @import "./app.css";
