@@ -15,11 +15,12 @@ import { Route as Char123LngChar125PublicRouteRouteImport } from './routes/{-$ln
 import { Route as bylineAdminRouteRouteImport } from './routes/(byline)/admin/route'
 import { Route as Char123LngChar125PublicIndexRouteImport } from './routes/{-$lng}/_public/index'
 import { Route as bylineAdminIndexRouteImport } from './routes/(byline)/admin/index'
-import { Route as Char123LngChar125PublicNewsRouteImport } from './routes/{-$lng}/_public/news'
+import { Route as Char123LngChar125PublicNewsIndexRouteImport } from './routes/{-$lng}/_public/news/index'
 import { Route as bylineAdminUsersIndexRouteImport } from './routes/(byline)/admin/users/index'
 import { Route as bylineAdminRolesIndexRouteImport } from './routes/(byline)/admin/roles/index'
 import { Route as bylineAdminPermissionsIndexRouteImport } from './routes/(byline)/admin/permissions/index'
 import { Route as bylineAdminAccountIndexRouteImport } from './routes/(byline)/admin/account/index'
+import { Route as Char123LngChar125PublicNewsSlugRouteImport } from './routes/{-$lng}/_public/news/$slug'
 import { Route as bylineAdminUsersIdIndexRouteImport } from './routes/(byline)/admin/users/$id/index'
 import { Route as bylineAdminRolesIdIndexRouteImport } from './routes/(byline)/admin/roles/$id/index'
 import { Route as bylineAdminCollectionsCollectionIndexRouteImport } from './routes/(byline)/admin/collections/$collection/index'
@@ -59,10 +60,10 @@ const bylineAdminIndexRoute = bylineAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => bylineAdminRouteRoute,
 } as any)
-const Char123LngChar125PublicNewsRoute =
-  Char123LngChar125PublicNewsRouteImport.update({
-    id: '/news',
-    path: '/news',
+const Char123LngChar125PublicNewsIndexRoute =
+  Char123LngChar125PublicNewsIndexRouteImport.update({
+    id: '/news/',
+    path: '/news/',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
   } as any)
 const bylineAdminUsersIndexRoute = bylineAdminUsersIndexRouteImport.update({
@@ -86,6 +87,12 @@ const bylineAdminAccountIndexRoute = bylineAdminAccountIndexRouteImport.update({
   path: '/account/',
   getParentRoute: () => bylineAdminRouteRoute,
 } as any)
+const Char123LngChar125PublicNewsSlugRoute =
+  Char123LngChar125PublicNewsSlugRouteImport.update({
+    id: '/news/$slug',
+    path: '/news/$slug',
+    getParentRoute: () => Char123LngChar125PublicRouteRoute,
+  } as any)
 const bylineAdminUsersIdIndexRoute = bylineAdminUsersIdIndexRouteImport.update({
   id: '/users/$id/',
   path: '/users/$id/',
@@ -131,13 +138,14 @@ export interface FileRoutesByFullPath {
   '/{-$lng}': typeof Char123LngChar125PublicRouteRouteWithChildren
   '/admin': typeof bylineAdminRouteRouteWithChildren
   '/sign-in': typeof bylineSignInRoute
-  '/{-$lng}/news': typeof Char123LngChar125PublicNewsRoute
   '/admin/': typeof bylineAdminIndexRoute
   '/{-$lng}/': typeof Char123LngChar125PublicIndexRoute
+  '/{-$lng}/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
   '/admin/account/': typeof bylineAdminAccountIndexRoute
   '/admin/permissions/': typeof bylineAdminPermissionsIndexRoute
   '/admin/roles/': typeof bylineAdminRolesIndexRoute
   '/admin/users/': typeof bylineAdminUsersIndexRoute
+  '/{-$lng}/news/': typeof Char123LngChar125PublicNewsIndexRoute
   '/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
   '/admin/collections/$collection/': typeof bylineAdminCollectionsCollectionIndexRoute
   '/admin/roles/$id/': typeof bylineAdminRolesIdIndexRoute
@@ -149,12 +157,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/{-$lng}': typeof Char123LngChar125PublicIndexRoute
   '/sign-in': typeof bylineSignInRoute
-  '/{-$lng}/news': typeof Char123LngChar125PublicNewsRoute
   '/admin': typeof bylineAdminIndexRoute
+  '/{-$lng}/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
   '/admin/account': typeof bylineAdminAccountIndexRoute
   '/admin/permissions': typeof bylineAdminPermissionsIndexRoute
   '/admin/roles': typeof bylineAdminRolesIndexRoute
   '/admin/users': typeof bylineAdminUsersIndexRoute
+  '/{-$lng}/news': typeof Char123LngChar125PublicNewsIndexRoute
   '/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
   '/admin/collections/$collection': typeof bylineAdminCollectionsCollectionIndexRoute
   '/admin/roles/$id': typeof bylineAdminRolesIdIndexRoute
@@ -169,13 +178,14 @@ export interface FileRoutesById {
   '/(byline)/admin': typeof bylineAdminRouteRouteWithChildren
   '/{-$lng}/_public': typeof Char123LngChar125PublicRouteRouteWithChildren
   '/(byline)/sign-in': typeof bylineSignInRoute
-  '/{-$lng}/_public/news': typeof Char123LngChar125PublicNewsRoute
   '/(byline)/admin/': typeof bylineAdminIndexRoute
   '/{-$lng}/_public/': typeof Char123LngChar125PublicIndexRoute
+  '/{-$lng}/_public/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
   '/(byline)/admin/account/': typeof bylineAdminAccountIndexRoute
   '/(byline)/admin/permissions/': typeof bylineAdminPermissionsIndexRoute
   '/(byline)/admin/roles/': typeof bylineAdminRolesIndexRoute
   '/(byline)/admin/users/': typeof bylineAdminUsersIndexRoute
+  '/{-$lng}/_public/news/': typeof Char123LngChar125PublicNewsIndexRoute
   '/(byline)/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
   '/(byline)/admin/collections/$collection/': typeof bylineAdminCollectionsCollectionIndexRoute
   '/(byline)/admin/roles/$id/': typeof bylineAdminRolesIdIndexRoute
@@ -190,13 +200,14 @@ export interface FileRouteTypes {
     | '/{-$lng}'
     | '/admin'
     | '/sign-in'
-    | '/{-$lng}/news'
     | '/admin/'
     | '/{-$lng}/'
+    | '/{-$lng}/news/$slug'
     | '/admin/account/'
     | '/admin/permissions/'
     | '/admin/roles/'
     | '/admin/users/'
+    | '/{-$lng}/news/'
     | '/admin/collections/$collection/create'
     | '/admin/collections/$collection/'
     | '/admin/roles/$id/'
@@ -208,12 +219,13 @@ export interface FileRouteTypes {
   to:
     | '/{-$lng}'
     | '/sign-in'
-    | '/{-$lng}/news'
     | '/admin'
+    | '/{-$lng}/news/$slug'
     | '/admin/account'
     | '/admin/permissions'
     | '/admin/roles'
     | '/admin/users'
+    | '/{-$lng}/news'
     | '/admin/collections/$collection/create'
     | '/admin/collections/$collection'
     | '/admin/roles/$id'
@@ -227,13 +239,14 @@ export interface FileRouteTypes {
     | '/(byline)/admin'
     | '/{-$lng}/_public'
     | '/(byline)/sign-in'
-    | '/{-$lng}/_public/news'
     | '/(byline)/admin/'
     | '/{-$lng}/_public/'
+    | '/{-$lng}/_public/news/$slug'
     | '/(byline)/admin/account/'
     | '/(byline)/admin/permissions/'
     | '/(byline)/admin/roles/'
     | '/(byline)/admin/users/'
+    | '/{-$lng}/_public/news/'
     | '/(byline)/admin/collections/$collection/create'
     | '/(byline)/admin/collections/$collection/'
     | '/(byline)/admin/roles/$id/'
@@ -293,11 +306,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof bylineAdminIndexRouteImport
       parentRoute: typeof bylineAdminRouteRoute
     }
-    '/{-$lng}/_public/news': {
-      id: '/{-$lng}/_public/news'
+    '/{-$lng}/_public/news/': {
+      id: '/{-$lng}/_public/news/'
       path: '/news'
-      fullPath: '/{-$lng}/news'
-      preLoaderRoute: typeof Char123LngChar125PublicNewsRouteImport
+      fullPath: '/{-$lng}/news/'
+      preLoaderRoute: typeof Char123LngChar125PublicNewsIndexRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
     '/(byline)/admin/users/': {
@@ -327,6 +340,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/account/'
       preLoaderRoute: typeof bylineAdminAccountIndexRouteImport
       parentRoute: typeof bylineAdminRouteRoute
+    }
+    '/{-$lng}/_public/news/$slug': {
+      id: '/{-$lng}/_public/news/$slug'
+      path: '/news/$slug'
+      fullPath: '/{-$lng}/news/$slug'
+      preLoaderRoute: typeof Char123LngChar125PublicNewsSlugRouteImport
+      parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
     '/(byline)/admin/users/$id/': {
       id: '/(byline)/admin/users/$id/'
@@ -381,14 +401,17 @@ declare module '@tanstack/react-router' {
 }
 
 interface Char123LngChar125PublicRouteRouteChildren {
-  Char123LngChar125PublicNewsRoute: typeof Char123LngChar125PublicNewsRoute
   Char123LngChar125PublicIndexRoute: typeof Char123LngChar125PublicIndexRoute
+  Char123LngChar125PublicNewsSlugRoute: typeof Char123LngChar125PublicNewsSlugRoute
+  Char123LngChar125PublicNewsIndexRoute: typeof Char123LngChar125PublicNewsIndexRoute
 }
 
 const Char123LngChar125PublicRouteRouteChildren: Char123LngChar125PublicRouteRouteChildren =
   {
-    Char123LngChar125PublicNewsRoute: Char123LngChar125PublicNewsRoute,
     Char123LngChar125PublicIndexRoute: Char123LngChar125PublicIndexRoute,
+    Char123LngChar125PublicNewsSlugRoute: Char123LngChar125PublicNewsSlugRoute,
+    Char123LngChar125PublicNewsIndexRoute:
+      Char123LngChar125PublicNewsIndexRoute,
   }
 
 const Char123LngChar125PublicRouteRouteWithChildren =

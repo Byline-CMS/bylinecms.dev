@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { Link } from '@tanstack/react-router'
+
 import type { PersistedVariant, StoredFileValue } from '@byline/core'
 import { Badge, Card } from '@infonomic/uikit/react'
 
@@ -80,33 +82,38 @@ export function NewsList({ result, category }: NewsListProps) {
               : undefined
 
             return (
-              <Card key={doc.id} className="flex overflow-hidden group">
-                {thumbnailUrl ? (
-                  <div className="aspect-video w-full shrink-0 overflow-hidden bg-gray-100">
-                    <img
-                      src={thumbnailUrl}
-                      alt={imageAlt}
-                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out"
-                    />
-                  </div>
-                ) : null}
-                <div className="flex flex-1 flex-col gap-2 p-4">
-                  <div className="flex items-center gap-2">
-                    {categoryLabel && (
-                      <Badge className="m-0 text-xs">
-                        {categoryLabel}
-                      </Badge>
-                    )}
-                    {publishedOn && (
-                      <span className="m-0 text-xs text-gray-400">{publishedOn}</span>
-                    )}
-                  </div>
-                  <h2>{title}</h2>
-                  {summary ? (
-                    <p className="m-0 text-sm muted leading-relaxed">{summary}</p>
+              <Link
+                key={doc.id}
+                to="/{-$lng}/news/$slug"
+                params={{ slug: doc.path ?? doc.id }}
+                className="no-underline text-inherit"
+              >
+                <Card className="flex overflow-hidden group h-full">
+                  {thumbnailUrl ? (
+                    <div className="aspect-video w-full shrink-0 overflow-hidden bg-gray-100">
+                      <img
+                        src={thumbnailUrl}
+                        alt={imageAlt}
+                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out"
+                      />
+                    </div>
                   ) : null}
-                </div>
-              </Card>
+                  <div className="flex flex-1 flex-col gap-2 p-4">
+                    <div className="flex items-center gap-2">
+                      {categoryLabel && (
+                        <Badge className="m-0 text-xs">{categoryLabel}</Badge>
+                      )}
+                      {publishedOn && (
+                        <span className="m-0 text-xs text-gray-400">{publishedOn}</span>
+                      )}
+                    </div>
+                    <h2>{title}</h2>
+                    {summary ? (
+                      <p className="m-0 text-sm muted leading-relaxed">{summary}</p>
+                    ) : null}
+                  </div>
+                </Card>
+              </Link>
             )
           })}
         </div>
