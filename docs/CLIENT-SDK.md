@@ -295,9 +295,18 @@ The three UX surfaces compose into one editorial flow:
 
 The two-step "enable cookie, then navigate" deliberately avoids a `/routes/draft?url=...&secret=...` redirect handler — `enablePreviewModeFn` is itself the gate (it requires a valid admin session before setting the cookie), so no shared secret needs to ride in the URL.
 
-### Comparison with the public client
+### Two viewer-side clients: when to use each
 
-`getPublicBylineClient` (typically host-app-local — see `apps/webapp/src/lib/get-byline-client.ts`) is unconditionally anonymous + `'published'`. Use it where preview should never apply (RSS feeds, sitemap generators, third-party-facing endpoints, anywhere the response will be cached without a cookie key). Use `getViewerBylineClient` on user-facing public pages where an admin's session should be honoured.
+`@byline/host-tanstack-start/integrations` ships **two** module-scoped singleton helpers for non-admin reads. Both wrap `createBylineClient` over the same `getServerConfig()`; both hold their own `collectionRecordCache` (so the path → `{ id, version }` lookup is amortised across the process lifetime); both serve fresh per-request `RequestContext` values via the SDK's per-call factory pattern. The only difference is what their factory closure does:
+
+| Helper                    | `requestContext` factory                                                                                  | Use when                                                                                                                                                  |
+|---------------------------|-----------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `getPublicBylineClient()` | Always returns anonymous + `readMode: 'published'`. Never reads the preview cookie. Never elevates.      | RSS feeds, sitemaps, JSON or any endpoint exposed to third-party consumers, any response an upstream CDN / cache might serve without keying off `byline_preview`. The "preview-can-never-apply" client. |
+| `getViewerBylineClient()` | Returns anonymous + `'published'` by default; upgrades to admin actor when both the cookie *and* a valid admin session resolve. | User-facing public pages where an admin's preview-mode session should be honoured. The "preview-aware" client. |
+
+Both live next to `getAdminBylineClient` (the third sibling, for admin-side authenticated reads — resolves a fresh `RequestContext` from session cookies on every call). The pattern is intentionally three parallel singletons rather than one configurable client — each serves a specific trust level, and the choice is visible at the call site rather than buried in a config flag.
+
+A request that uses `getViewerBylineClient` and *does not* pass `status: 'any'` behaves identically to one that used `getPublicBylineClient`. The viewer client is therefore strictly safe to default to on user-facing pages — the worst case is "preview cookie does nothing." Reach for the public client when "preview should never apply" is a load-bearing property (e.g. cache safety, or an endpoint whose response cannot leak draft content under any circumstance).
 
 ### Limits and notes
 
@@ -401,8 +410,10 @@ These are not the same package and should not be conflated. In-process SDK evolu
 | `beforeRead` predicate application       | `packages/core/src/auth/apply-before-read.ts`                |
 | Document write services                  | `packages/core/src/services/document-lifecycle.ts`           |
 | `current_published_documents` view       | `packages/db-postgres/src/database/migrations/0000_*.sql`    |
-| Preview cookie helpers                   | `packages/host-tanstack-start/src/auth/preview-cookies.ts`   |
+| Public client (no preview)               | `packages/host-tanstack-start/src/integrations/byline-public-client.ts` |
 | Viewer client + `isPreviewActive`        | `packages/host-tanstack-start/src/integrations/byline-viewer-client.ts` |
+| Admin client                             | `packages/host-tanstack-start/src/integrations/byline-client.ts` |
+| Preview cookie helpers                   | `packages/host-tanstack-start/src/auth/preview-cookies.ts`   |
 | Preview enable/disable/state server fns  | `packages/host-tanstack-start/src/server-fns/preview/`       |
 | Drawer toggle                            | `packages/host-tanstack-start/src/admin-shell/chrome/preview-toggle.tsx` |
 | `<PreviewLink>` + `resolvePreviewUrl`    | `packages/host-tanstack-start/src/admin-shell/collections/preview-link.tsx` |

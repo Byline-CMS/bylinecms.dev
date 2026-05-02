@@ -7,11 +7,12 @@
  */
 
 /**
- * The host's *viewer* `BylineClient` singleton — the front-end equivalent
- * of `getPublicBylineClient` with one extra capability: when an admin is
- * signed in **and** the `byline_preview` cookie is set, the per-call
- * `requestContext` factory returns the authenticated `AdminAuth` instead
- * of the anonymous null actor.
+ * The host's *viewer* `BylineClient` singleton — the preview-aware
+ * sibling of `getPublicBylineClient` (`./byline-public-client.ts`).
+ * Behaves identically to the public client until both the
+ * `byline_preview` cookie is set **and** a valid admin session resolves;
+ * at that point the per-call `requestContext` factory returns the
+ * authenticated `AdminAuth` instead of the anonymous null actor.
  *
  * Why this matters: `assertActorCanPerform` (packages/core/src/auth) only
  * permits anonymous reads when `readMode === 'published'`. So if a server
@@ -23,9 +24,12 @@
  *
  * The contract for callers:
  *
- *   1. Use `getViewerBylineClient()` instead of `getPublicBylineClient()`
- *      on any public-facing read where you want admins to be able to
- *      preview drafts.
+ *   1. Use `getViewerBylineClient()` on any user-facing public read
+ *      where an admin's preview-mode session should be honoured. Use
+ *      `getPublicBylineClient()` instead for endpoints where preview
+ *      should never apply (RSS feeds, sitemaps, third-party endpoints,
+ *      anything an upstream cache might serve without keying off the
+ *      preview cookie).
  *   2. Call `isPreviewActive()` once per server fn to decide whether to
  *      pass `status: 'any'` on the read.
  *
@@ -35,7 +39,8 @@
  * worst case is "preview cookie does nothing".
  *
  * The collection-record cache is per-instance, so a singleton here keeps
- * the same amortisation benefit `getPublicBylineClient` has.
+ * the same amortisation benefit `getPublicBylineClient` has — the two
+ * helpers are parallel singletons (one cached `BylineClient` each).
  */
 
 import { createRequestContext } from '@byline/auth'
