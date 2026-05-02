@@ -132,7 +132,7 @@ export const PreviewLink = ({
       aria-label="Open preview in new tab"
       title="Preview"
     >
-      <ExternalLinkIcon className="byline-preview-link-icon" />
+      <ExternalLinkIcon width='20px' height="20px" className="byline-preview-link-icon" />
     </IconButton>
   )
 }
