@@ -6,9 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { Block } from '@byline/core'
+import { type BlockData, type BlockFieldData, defineBlock } from '@byline/core'
 
-export const RichTextBlock = {
+export const RichTextBlock = defineBlock({
   blockType: 'richTextBlock',
   label: 'Richtext Block',
   helpText: 'A block for displaying a richtext editor.',
@@ -29,4 +29,7 @@ export const RichTextBlock = {
         'If enabled, the richtext content will be constrained to a maximum width for better readability.',
     },
   ],
-} as const satisfies Block
+})
+
+export type RichTextBlockFields = BlockFieldData<typeof RichTextBlock>
+export type RichTextBlockData = BlockData<typeof RichTextBlock>

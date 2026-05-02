@@ -6,9 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { Block } from '@byline/core'
+import { type BlockData, type BlockFieldData, defineBlock } from '@byline/core'
 
-export const PhotoBlock = {
+export const PhotoBlock = defineBlock({
   blockType: 'photoBlock',
   label: 'Photo Block',
   helpText: 'A block for displaying a photo with optional caption and alt text.',
@@ -43,4 +43,17 @@ export const PhotoBlock = {
       localized: true,
     },
   ],
-} as const satisfies Block
+})
+
+/**
+ * Field-only data shape for the photo block — useful for forms or
+ * block-internal helpers.
+ */
+export type PhotoBlockFields = BlockFieldData<typeof PhotoBlock>
+
+/**
+ * Full block instance shape (`_id`, `_type` + fields) as it appears
+ * inside a document tree. Use this as the prop type for the photo
+ * block renderer.
+ */
+export type PhotoBlockData = BlockData<typeof PhotoBlock>

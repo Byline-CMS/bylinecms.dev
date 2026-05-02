@@ -838,6 +838,61 @@ export type CollectionFieldDataAllLocales<C extends CollectionDefinition> = Fiel
   C['fields']
 >
 
+// ---------------------------------------------------------------------------
+// Block helpers — mirrors of defineCollection / CollectionFieldData / etc.
+// ---------------------------------------------------------------------------
+
+/**
+ * Type-safe factory for creating a Block. Returns the definition as-is,
+ * but locks in literal types for `blockType`, field names, and select
+ * option values — so `BlockFieldData<typeof MyBlock>` and the
+ * `_type: B['blockType']` discriminant resolve precisely. Replaces the
+ * `as const satisfies Block` pattern.
+ */
+export function defineBlock<const B extends Block>(definition: B & Block): B {
+  return definition
+}
+
+/**
+ * Field-only data shape inferred from a block schema. The counterpart
+ * to `CollectionFieldData<C>` — use this when you want just the
+ * editable fields (e.g. for forms or block-internal helpers).
+ */
+export type BlockFieldData<B extends Block> = FieldSetData<B['fields']>
+export type BlockFieldDataAllLocales<B extends Block> = FieldSetDataAllLocales<B['fields']>
+
+/**
+ * Full block instance shape as it appears inside a document tree:
+ * the field data plus the synthetic `_id` / `_type` discriminants
+ * written by the storage layer. Use this as the prop type for block
+ * renderers — `_type` lets a `switch (block._type)` exhaustively narrow
+ * across a `BlocksUnion<typeof MyBlocks>`.
+ */
+export type BlockData<B extends Block> = Prettify<
+  {
+    _id: string
+    _type: B['blockType']
+  } & BlockFieldData<B>
+>
+
+/**
+ * Discriminated union of `BlockData<B>` over a tuple of block
+ * definitions. Drives exhaustive switching in `RenderBlocks`-style
+ * renderers.
+ *
+ * @example
+ * ```ts
+ * const Blocks = [PhotoBlock, RichTextBlock] as const
+ * type AnyBlock = BlocksUnion<typeof Blocks>
+ * // → BlockData<typeof PhotoBlock> | BlockData<typeof RichTextBlock>
+ * ```
+ */
+export type BlocksUnion<Bs extends readonly Block[]> = Bs[number] extends infer B
+  ? B extends Block
+    ? BlockData<B>
+    : never
+  : never
+
 export type CollectionData<C extends CollectionDefinition> = Prettify<
   {
     document_id: string

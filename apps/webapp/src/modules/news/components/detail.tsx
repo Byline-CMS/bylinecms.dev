@@ -9,6 +9,7 @@
 import type { PersistedVariant, StoredFileValue } from '@byline/core'
 import { Badge } from '@infonomic/uikit/react'
 
+import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
 import type { NewsDetailResult } from '@/modules/news/detail'
 
 interface NewsDetailProps {
@@ -48,6 +49,8 @@ export function NewsDetail({ result }: NewsDetailProps) {
     ? dateFormatter.format(new Date(fields.publishedOn))
     : undefined
 
+  const content = fields.content as Record<string, any> | undefined
+
   return (
     <article className="prose max-w-[940px] mx-auto mt-4">
       <header className="mb-6">
@@ -61,7 +64,7 @@ export function NewsDetail({ result }: NewsDetailProps) {
         ) : null}
       </header>
       {heroUrl ? (
-        <div className="mb-6 overflow-hidden rounded-lg bg-gray-100">
+        <div className="mb-6 overflow-hidden">
           <img src={heroUrl} alt={imageAlt} className="h-auto w-full object-cover" />
         </div>
       ) : null}
@@ -71,6 +74,12 @@ export function NewsDetail({ result }: NewsDetailProps) {
         Lexical reader (e.g. a tree-walker over `content.root.children`)
         once one ships in `@byline/richtext-lexical`.
       */}
+      <LexicalRichText
+        nodes={content?.root?.children}
+        lng="en"
+        wrapInDiv={false}
+        className="editor-text"
+      />
     </article>
   )
 }
