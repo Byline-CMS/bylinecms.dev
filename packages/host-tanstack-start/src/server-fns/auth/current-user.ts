@@ -20,6 +20,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { AuthError } from '@byline/auth'
 import { getServerConfig } from '@byline/core'
 import type { PgAdapter } from '@byline/db-postgres'
 import { createAdminUsersRepository } from '@byline/db-postgres/admin'
@@ -72,6 +73,45 @@ export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
       family_name: row.family_name,
       is_super_admin: row.is_super_admin,
       abilities: Array.from(actor.abilities),
+    }
+  }
+)
+
+/**
+ * Soft variant for public-page consumers (e.g. the content admin bar that
+ * renders only when the visitor is signed in). Returns `null` instead of
+ * throwing when there is no session — anonymous visitors are the common
+ * case here, so a thrown error would be wrong shape for a public route
+ * loader. Other failure modes (DB unavailable, session points to a
+ * deleted admin) are still coerced to `null` so the bar simply hides.
+ */
+export const getCurrentAdminUserSoft = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<CurrentAdminUser | null> => {
+    try {
+      let actor
+      try {
+        ;({ actor } = await getAdminRequestContext())
+      } catch (err) {
+        if (err instanceof AuthError) return null
+        throw err
+      }
+      if (!actor) return null
+
+      const db = (getServerConfig().db as PgAdapter).drizzle
+      const users = createAdminUsersRepository(db)
+      const row = await users.getById(actor.id)
+      if (!row) return null
+
+      return {
+        id: row.id,
+        email: row.email,
+        given_name: row.given_name,
+        family_name: row.family_name,
+        is_super_admin: row.is_super_admin,
+        abilities: Array.from(actor.abilities),
+      }
+    } catch {
+      return null
     }
   }
 )

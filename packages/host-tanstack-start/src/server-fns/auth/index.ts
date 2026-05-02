@@ -6,6 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-export { type CurrentAdminUser, getCurrentAdminUser } from './current-user.js'
+export {
+  type CurrentAdminUser,
+  getCurrentAdminUser,
+  getCurrentAdminUserSoft,
+} from './current-user.js'
 export { adminSignIn, type SignInInput, type SignInResult } from './sign-in.js'
 export { adminSignOut } from './sign-out.js'

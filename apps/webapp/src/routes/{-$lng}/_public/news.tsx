@@ -33,6 +33,7 @@ function RouteComponent() {
   // console.log('News list result', JSON.stringify({ result, category }, null, 2))
   return (
     <>
+      <div id="byline-cms-meta" className="invisible max-h-0" aria-hidden data-collection="news" />
       <Section>
         <Container className="mt-3">
           <Breadcrumbs breadcrumbs={[{ label: 'News', href: '/news' }]} />
