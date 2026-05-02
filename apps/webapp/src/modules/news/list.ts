@@ -9,19 +9,24 @@
 /**
  * Public News list server fn.
  *
- * Reads the `news` collection through the shared public `BylineClient`
- * (`actor: null`, `readMode: 'published'`) and exposes a filterable
- * query. `assertActorCanPerform` permits the null actor on read paths
- * whose `readMode === 'published'`, which is exactly the client's
- * default. The optional `category` input is matched against the related
+ * Reads the `news` collection through the shared *viewer* `BylineClient`,
+ * which behaves as the public client by default and transparently
+ * upgrades to the admin actor when the `byline_preview` cookie is set
+ * **and** a valid admin session resolves. `isPreviewActive()` performs
+ * the same paired check and decides whether this read passes
+ * `status: 'any'` (admin sees drafts) or `status: 'published'` (everyone
+ * else). The optional `category` input is matched against the related
  * news-category's `path` slug.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import type { FindResult, WithPopulated } from '@byline/client'
+import {
+  getViewerBylineClient,
+  isPreviewActive,
+} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
-import { getPublicBylineClient } from '@/lib/get-byline-client'
 import type { MediaFields } from '~/collections/media/schema.js'
 import type { NewsFields } from '~/collections/news/schema.js'
 import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
@@ -65,7 +70,8 @@ export const getNewsListFn = createServerFn({ method: 'GET' })
   )
   .handler(async (ctx): Promise<NewsListResult> => {
     const data = ctx.data as ResolvedNewsListInput
-    const client = getPublicBylineClient()
+    const client = getViewerBylineClient()
+    const preview = await isPreviewActive()
 
     return client.collection('news').find<NewsListFields>({
       where: data.category ? { category: { path: data.category } } : undefined,
@@ -74,5 +80,6 @@ export const getNewsListFn = createServerFn({ method: 'GET' })
       page: data.page,
       pageSize: data.pageSize,
       locale: data.locale,
+      status: preview ? 'any' : 'published',
     })
   })

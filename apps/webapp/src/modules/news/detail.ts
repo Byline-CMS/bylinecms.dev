@@ -9,17 +9,21 @@
 /**
  * Public News detail server fn.
  *
- * Mirrors the list-side patterns in `./list.ts`: reads through the public
- * `BylineClient` (`actor: null`, `readMode: 'published'`) so unpublished
- * versions are invisible, and populates `category` + `featureImage` so the
- * page renders without a follow-up request.
+ * Mirrors the list-side patterns in `./list.ts`: reads through the
+ * shared *viewer* `BylineClient` so unpublished versions stay invisible
+ * for ordinary visitors but become visible to admins who have toggled
+ * preview mode (cookie + valid admin session). Populates `category` +
+ * `featureImage` so the page renders without a follow-up request.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import type { ClientDocument, WithPopulated } from '@byline/client'
+import {
+  getViewerBylineClient,
+  isPreviewActive,
+} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
-import { getPublicBylineClient } from '@/lib/get-byline-client'
 import type { MediaFields } from '~/collections/media/schema.js'
 import type { NewsFields } from '~/collections/news/schema.js'
 import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
@@ -38,16 +42,20 @@ export interface NewsDetailInput {
 }
 
 export const getNewsDetailFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: NewsDetailInput): NewsDetailInput => ({
-    slug: input.slug,
-    locale: input.locale,
-  }))
+  .inputValidator(
+    (input: NewsDetailInput): NewsDetailInput => ({
+      slug: input.slug,
+      locale: input.locale,
+    })
+  )
   .handler(async (ctx): Promise<NewsDetailResult> => {
     const { slug, locale } = ctx.data as NewsDetailInput
-    const client = getPublicBylineClient()
+    const client = getViewerBylineClient()
+    const preview = await isPreviewActive()
 
     return client.collection('news').findByPath<NewsDetailFields>(slug, {
       populate: { category: '*', featureImage: '*' },
       locale,
+      status: preview ? 'any' : 'published',
     })
   })

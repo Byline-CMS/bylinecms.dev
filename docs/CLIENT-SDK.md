@@ -163,6 +163,85 @@ In `'published'` mode every read — including populate of relation targets and 
 client.collection('news').find({ status: 'any', where: { status: 'draft' } })
 ```
 
+## Preview mode (admin draft viewing on the public host)
+
+Editorial workflows usually want one extra capability: an admin should be able to navigate the public host pages and see their **own in-progress drafts** rendered exactly as the published version would be — without changing routes, without rebuilding markup, and without leaking drafts to ordinary visitors. `@byline/host-tanstack-start` ships a small "viewer client" that layers preview-aware behaviour over the SDK without changing it.
+
+### How the pieces fit
+
+Three primitives, all opt-in per server fn:
+
+| Piece                                | Location                                                                          | Role                                                                                                              |
+|--------------------------------------|-----------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| `byline_preview` cookie              | `@byline/host-tanstack-start/auth/preview-cookies`                                 | Session-level "I want to see drafts" flag. httpOnly. Mere presence is the signal — no payload to verify.          |
+| `getViewerBylineClient()`            | `@byline/host-tanstack-start/integrations/byline-viewer-client`                    | Singleton `BylineClient` whose per-call `requestContext` factory upgrades to the admin actor when both the cookie and a valid admin session resolve. |
+| `isPreviewActive()`                  | same module                                                                       | Async check that returns `true` only when the cookie is set **and** `getAdminRequestContext()` resolves an admin. |
+| `enablePreviewModeFn` / `disablePreviewModeFn` | `@byline/host-tanstack-start/server-fns/preview`                       | Toggle the cookie. Enable requires a valid admin context; disable is unauthenticated (anyone can clear their own cookie). |
+
+### Trust model
+
+The cookie is a *flag*, not a credential. The actual safety check is layered:
+
+1. **Source-view selection is per-call.** The SDK's `resolveReadMode` defaults to `'published'` regardless of `RequestContext.readMode`, so a server fn must pass `status: 'any'` to surface drafts. There is no way to flip the source view through `RequestContext` alone.
+2. **`status: 'any'` requires an actor.** `assertActorCanPerform` (packages/core/src/auth) only permits `actor: null` on `read` when `readMode === 'published'`. So a stray query string or stale cookie that reaches `status: 'any'` without a valid admin throws `ERR_UNAUTHENTICATED` rather than leaking drafts.
+3. **The viewer client elevates the actor only when the cookie *and* the session line up.** A signed-out browser carrying an old preview cookie still falls through to the anonymous + `'published'` context — worst case the cookie does nothing.
+
+A stale cookie is therefore failure-mode-neutral: it never escalates a non-admin request, and it never breaks a non-admin request either.
+
+### Server fn pattern
+
+```ts
+import { createServerFn } from '@tanstack/react-start'
+import {
+  getViewerBylineClient,
+  isPreviewActive,
+} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
+
+export const getNewsListFn = createServerFn({ method: 'GET' })
+  .inputValidator(/* ... */)
+  .handler(async (ctx) => {
+    const client  = getViewerBylineClient()
+    const preview = await isPreviewActive()
+
+    return client.collection('news').find({
+      // ...where / sort / populate / page / pageSize ...
+      status: preview ? 'any' : 'published',
+    })
+  })
+```
+
+Two lines of boilerplate per fn, and the trust boundary stays explicit at the call site. Authors who want to *force* one mode regardless of preview state simply hard-code `status: 'published'` (or `'any'`) — preview becomes opt-in per fn rather than ambient across the whole app.
+
+### Toggling preview mode
+
+The admin host is expected to surface enable/disable affordances (typically a "Preview" link inside the admin shell and an "Exit preview" button on the public-page admin bar). The server fns themselves are minimal:
+
+```ts
+import {
+  enablePreviewModeFn,
+  disablePreviewModeFn,
+} from '@byline/host-tanstack-start/server-fns/preview'
+
+// From an admin-side button: requires a valid admin context, sets the cookie.
+await enablePreviewModeFn()
+
+// From the public-page admin bar (or a sign-out path): clears the cookie.
+await disablePreviewModeFn()
+```
+
+The cookie has a 24-hour `maxAge` — preview is meant to be a short-lived editorial mode, not a permanent state. Re-enabling is a one-click action.
+
+### Comparison with the public client
+
+`getPublicBylineClient` (typically host-app-local — see `apps/webapp/src/lib/get-byline-client.ts`) is unconditionally anonymous + `'published'`. Use it where preview should never apply (RSS feeds, sitemap generators, third-party-facing endpoints, anywhere the response will be cached without a cookie key). Use `getViewerBylineClient` on user-facing public pages where an admin's session should be honoured.
+
+### Limits and notes
+
+- Preview is per-server-fn opt-in. A fn that does not pass `status: 'any'` will always serve published content, even with the cookie set. This is deliberate: opt-in keeps the trust boundary visible in code.
+- The double resolution cost (cookie check + JWT verify) only happens in active preview sessions — the no-cookie path is a single cookie read.
+- Preview elevates `readMode` for the request, but it does **not** bypass `beforeRead` hooks. A multi-tenant or owner-only-drafts hook will still scope the rows the admin can see — preview just changes which version of those rows is returned.
+- The same pattern works for any host fn — not just collection reads. Any server fn that wants the "promote to admin actor when preview is on" behaviour can compose `getViewerBylineClient` + `isPreviewActive` the same way.
+
 ## Write surface
 
 ```ts
@@ -256,5 +335,8 @@ These are not the same package and should not be conflated. In-process SDK evolu
 | `beforeRead` predicate application       | `packages/core/src/auth/apply-before-read.ts`                |
 | Document write services                  | `packages/core/src/services/document-lifecycle.ts`           |
 | `current_published_documents` view       | `packages/db-postgres/src/database/migrations/0000_*.sql`    |
+| Preview cookie helpers                   | `packages/host-tanstack-start/src/auth/preview-cookies.ts`   |
+| Viewer client + `isPreviewActive`        | `packages/host-tanstack-start/src/integrations/byline-viewer-client.ts` |
+| Preview enable/disable server fns        | `packages/host-tanstack-start/src/server-fns/preview/`       |
 | Implementation-detail design notes       | `packages/client/DESIGN.md`                                  |
 | Integration test suite                   | `packages/client/tests/integration/`                         |
