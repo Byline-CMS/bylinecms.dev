@@ -146,23 +146,38 @@
 }
 
 :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item a),
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer) ul :global(li.menu-item a) {
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item a) {
   color: #dddddd;
 }
 
 :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active a),
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer) ul :global(li.menu-item.active a) {
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item.active a) {
   color: #ffffff;
 }
 
 :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active),
 :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item:hover),
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer) ul :global(li.menu-item.active),
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer) ul :global(li.menu-item:hover) {
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item.active),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item:hover) {
   background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
 }
 
 :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-separator),
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer) ul :global(li.menu-separator) {
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-separator) {
   background-color: #444444;
 }

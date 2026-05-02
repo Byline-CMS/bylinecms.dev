@@ -111,8 +111,10 @@ export function ContentAdminBar({ user, admin }: ContentAdminBarProps) {
       >
         {collection && id && (
           <Button
-            // biome-ignore lint/a11y/useAnchorContent: Screen readers will read the aria-label, and the link text is visually hidden to avoid redundancy.
-            render={<a href={`${admin}/collections/${collection}/${id}`} aria-label="Edit document" />}
+            render={
+              // biome-ignore lint/a11y/useAnchorContent: Screen readers will read the aria-label, and the link text is visually hidden to avoid redundancy.
+              <a href={`${admin}/collections/${collection}/${id}`} aria-label="Edit document" />
+            }
             variant="outlined"
             size="xs"
             className="min-w-[36px] text-black dark:text-black focus:ring-0 focus:ring-offset-0"
@@ -129,8 +131,13 @@ export function ContentAdminBar({ user, admin }: ContentAdminBarProps) {
         )}
         {collection && (
           <Button
-            // biome-ignore lint/a11y/useAnchorContent: Screen readers will read the aria-label, and the link text is visually hidden to avoid redundancy.
-            render={<a href={`${admin}/collections/${collection}/create`} aria-label="Create new document" />}
+            render={
+              // biome-ignore lint/a11y/useAnchorContent: Screen readers will read the aria-label, and the link text is visually hidden to avoid redundancy.
+              <a
+                href={`${admin}/collections/${collection}/create`}
+                aria-label="Create new document"
+              />
+            }
             variant="outlined"
             size="xs"
             className="min-w-[36px] text-black dark:text-black focus:ring-0 focus:ring-offset-0"

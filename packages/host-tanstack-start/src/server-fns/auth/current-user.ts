@@ -20,7 +20,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { AuthError } from '@byline/auth'
+import { type Actor, AuthError } from '@byline/auth'
 import { getServerConfig } from '@byline/core'
 import type { PgAdapter } from '@byline/db-postgres'
 import { createAdminUsersRepository } from '@byline/db-postgres/admin'
@@ -88,7 +88,7 @@ export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
 export const getCurrentAdminUserSoft = createServerFn({ method: 'GET' }).handler(
   async (): Promise<CurrentAdminUser | null> => {
     try {
-      let actor
+      let actor: Actor
       try {
         ;({ actor } = await getAdminRequestContext())
       } catch (err) {

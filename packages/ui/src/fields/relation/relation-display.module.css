@@ -29,7 +29,6 @@
 }
 
 :is([data-theme="dark"], :global(.dark)) {
-
   .cell,
   :global(.byline-relation-cell) {
     color: var(--gray-100);

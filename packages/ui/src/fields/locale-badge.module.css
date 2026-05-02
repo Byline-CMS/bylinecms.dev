@@ -28,7 +28,6 @@
 /* ─── Dark theme variants ───────────────────────────────────── */
 
 :is([data-theme="dark"], :global(.dark)) {
-
   .badge,
   :global(.byline-locale-badge) {
     border-color: var(--yellow-700);

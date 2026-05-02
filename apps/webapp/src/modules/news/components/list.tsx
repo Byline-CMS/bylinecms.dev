@@ -77,9 +77,7 @@ export function NewsList({ result, category }: NewsListProps) {
             const publishedOn = doc.fields.publishedOn
               ? dateFormatter.format(new Date(doc.fields.publishedOn))
               : undefined
-            const summary = doc.fields.summary
-              ? truncate(doc.fields.summary, 150, true)
-              : undefined
+            const summary = doc.fields.summary ? truncate(doc.fields.summary, 150, true) : undefined
 
             return (
               <Link
@@ -100,9 +98,7 @@ export function NewsList({ result, category }: NewsListProps) {
                   ) : null}
                   <div className="flex flex-1 flex-col gap-2 p-4">
                     <div className="flex items-center gap-2">
-                      {categoryLabel && (
-                        <Badge className="m-0 text-xs">{categoryLabel}</Badge>
-                      )}
+                      {categoryLabel && <Badge className="m-0 text-xs">{categoryLabel}</Badge>}
                       {publishedOn && (
                         <span className="m-0 text-xs text-gray-400">{publishedOn}</span>
                       )}

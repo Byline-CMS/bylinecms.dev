@@ -26,7 +26,6 @@
 }
 
 @media (min-width: 66rem) {
-
   .label,
   :global(.byline-view-menu-label) {
     display: block;

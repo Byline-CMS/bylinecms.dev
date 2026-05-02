@@ -80,8 +80,8 @@
   list-style: none;
 }
 
-.rows>li+li,
-:global(.byline-field-relation-picker-rows)>li+li {
+.rows > li + li,
+:global(.byline-field-relation-picker-rows) > li + li {
   border-top: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
 }
 
@@ -155,7 +155,6 @@
 }
 
 :is([data-theme="dark"], :global(.dark)) {
-
   .row-button:hover,
   :global(.byline-field-relation-picker-row-button):hover {
     background-color: var(--gray-900);
