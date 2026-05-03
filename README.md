@@ -91,7 +91,7 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 **Package design docs** sit close to their packages — e.g.
 [packages/client/DESIGN.md](packages/client/DESIGN.md).
 
-## Quick start
+## Quick start (development environment and example application)
 
 ```sh
 git clone git@github.com:Byline-CMS/bylinecms.dev.git
