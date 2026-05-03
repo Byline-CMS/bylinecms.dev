@@ -32,6 +32,7 @@ import {
   parseSort,
   parseWhere,
   populateDocuments,
+  populateRichTextFields,
   unpublishDocument,
   updateDocument,
 } from '@byline/core'
@@ -123,6 +124,11 @@ export class CollectionHandle {
       }
     )
 
+    // Richtext populate runs *after* relation populate (so populated relation
+    // targets are already attached) and *before* afterRead (so user-land
+    // hooks observe the refreshed rich-text content).
+    await this.richTextPopulateSources(result.documents, readCtx)
+
     // Fire afterRead for each source document AFTER populate so the hook
     // sees the fully populated tree. Targets were already fired inside
     // populate. applyAfterRead deduplicates via readCtx.afterReadFired.
@@ -211,6 +217,8 @@ export class CollectionHandle {
       }
     )
 
+    await this.richTextPopulateSources([raw as Record<string, any>], readCtx)
+
     await applyAfterRead({
       doc: raw as Record<string, any>,
       definition: this.definition,
@@ -267,6 +275,8 @@ export class CollectionHandle {
         _readContext: readCtx,
       }
     )
+
+    await this.richTextPopulateSources([raw as Record<string, any>], readCtx)
 
     await applyAfterRead({
       doc: raw as Record<string, any>,
@@ -566,6 +576,31 @@ export class CollectionHandle {
       readContext: options._readContext,
       requestContext,
       bypassBeforeRead: options._bypassBeforeRead,
+      richTextPopulate: this.client.richTextPopulate,
+    })
+  }
+
+  /**
+   * Apply richtext populate to a freshly-read set of source documents.
+   * Mirrors what `populateDocuments` does for materialised targets, but
+   * runs unconditionally for sources because `richTextPopulate` is a
+   * framework-managed phase rather than a user-opted DSL like
+   * `populate`/`depth`. Each leaf is gated by its own
+   * `populateRelationsOnRead` inside the service. No-ops when no adapter
+   * is registered.
+   */
+  private async richTextPopulateSources(
+    rawDocs: Record<string, any>[],
+    readContext: ReadContext
+  ): Promise<void> {
+    const populate = this.client.richTextPopulate
+    if (!populate || rawDocs.length === 0) return
+    await populateRichTextFields({
+      fields: this.definition.fields,
+      collectionPath: this.definition.path,
+      documents: rawDocs,
+      populate,
+      readContext,
     })
   }
 

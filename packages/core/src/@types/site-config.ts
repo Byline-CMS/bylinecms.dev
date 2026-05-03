@@ -12,7 +12,7 @@ import type { SlugifierFn } from '../utils/slugify.js'
 import type { CollectionAdminConfig } from './admin-types.js'
 import type { CollectionDefinition } from './collection-types.js'
 import type { IDbAdapter } from './db-types.js'
-import type { RichTextEditorComponent } from './field-types.js'
+import type { RichTextEditorComponent, RichTextPopulateFn } from './field-types.js'
 import type { IStorageProvider } from './storage-types.js'
 
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
@@ -184,4 +184,29 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * ```
    */
   adminStore?: TAdminStore
+  /**
+   * Site-wide field-level server adapter slots. Mirrors
+   * `ClientConfig.fields` for the server side — each entry plugs an
+   * adapter package into a framework-managed read or write phase.
+   *
+   * @example
+   * ```ts
+   * import { lexicalEditorServer } from '@byline/richtext-lexical/server'
+   *
+   * defineServerConfig({
+   *   fields: {
+   *     richText: { populate: lexicalEditorServer({ getClient: getAdminBylineClient }) },
+   *   },
+   * })
+   * ```
+   */
+  fields?: {
+    /**
+     * Richtext server-side populate function. Invoked by the read pipeline
+     * for every rich-text field whose effective `populateRelationsOnRead`
+     * is `true`. Required when any collection has a `richText` field
+     * configured to populate on read; `initBylineCore()` enforces this.
+     */
+    richText?: { populate: RichTextPopulateFn }
+  }
 }

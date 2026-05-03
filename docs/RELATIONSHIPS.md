@@ -269,14 +269,11 @@ The old `z.any()` catch-all is gone — the picker's contract is enforced at for
 
 ## Richtext document links
 
-A second application of the relationship primitive: links to other Byline documents *inside* a richtext field value. Two paired Lexical plugins ship in `packages/richtext-lexical/src/field/plugins/`, both consuming the same envelope:
+A second application of the relationship primitive: links to other Byline documents *inside* a richtext field value, plus inline-image references to media documents. Two paired Lexical plugins consume the same `DocumentRelation` envelope this doc defines.
 
-- **Link plugin** (`link-plugin/`) — `LinkNode` with `linkType: 'internal'` carries the relation envelope flat on the node's attributes; `linkType: 'custom'` carries `url` instead. Save-time denormalisation.
-- **Inline image plugin** (`inline-image-plugin/`) — `DocumentInlineImageNode` picks a media document and denormalises `{ title, altText, image, sizes }` into the node attributes at save time.
+The full present-state strategy — how the link and inline-image modals denormalise picked targets at picker time, how the persisted Lexical JSON is shaped, the `denormaliseRelations` field-level opt-out, the opt-in `lexicalAfterRead` hook and its à la carte siblings, and the Phase 3 deferral on adapter-side lifecycle hooks — lives in **[RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--denormalisation-strategy)**.
 
-### Eligibility — `linksInEditor` flag
-
-A collection becomes available in *every* richtext editor's link picker when its definition declares `linksInEditor: true`:
+One eligibility flag stays here because it lives on `CollectionDefinition`, not on the editor adapter:
 
 ```ts
 export const Pages: CollectionDefinition = {
@@ -286,24 +283,7 @@ export const Pages: CollectionDefinition = {
 }
 ```
 
-This is deliberately a single boolean on the collection rather than an `allowedCollections` list per richtext field — simpler, and revisitable if a real use case ever needs per-editor restriction.
-
-### Two modes — save-time denormalisation (default) and read-time hydration (opt-in)
-
-**Save-time denormalisation (default).** At write time the link plugin walks the editor state for `LinkNode` instances and writes the chosen target fields (`title`, `path`, `altText`, `image`, etc.) directly onto the node's attributes. The richtext value persists as `store_json` carrying a complete, render-ready envelope. Reads are fast — no second round-trip to resolve link text.
-
-The trade-off is staleness. If the target's title or path changes after the link is saved, the denormalised copy diverges until the linking document is next saved. This is acceptable for editorial flows where editors expect a "refresh" affordance if they need absolute freshness; a future bulk "refresh links" admin command would walk every link node and re-denormalise on demand.
-
-**Read-time hydration (opt-in).** The inline image plugin authors a hook at `field/plugins/inline-image-plugin/inline-image-after-read.ts` that walks the reconstructed richtext value, collects every link's `{target_collection_id, target_document_id}`, and batch-hydrates via `IDocumentQueries.getDocumentsByDocumentIds()` — the same primitive populate uses. The hook is **not yet wired** into any collection definition. Opt in by adding the hook to a collection's `afterRead` slot when staleness becomes a problem.
-
-When wired, hydration shares the same `ReadContext` as populate. Two consequences:
-
-- A relation field and a richtext link pointing at the same target cost **one** materialisation, not two. The visited set collapses them.
-- A→B→A cycles between richtext links and relation fields are caught by the same cycle marker. The frontend renders `_resolved: false` or `_cycle: true` instead of crashing.
-
-### Why a flat envelope, not a `cached` wrapper
-
-The shipped node attributes flatten the relation envelope directly (`targetDocumentId`, `targetCollectionId`, `targetCollectionPath`, `document?: Record<string, any>`). This matches the `RelationField` value shape verbatim — same information, one fewer layer of nesting than an earlier `{ cached: { ... } }` design. A `cachedAt` ISO marker was considered for Mode 2 freshness windows but dropped for now; read-time hydration overrides the denormalised values when wired anyway.
+A collection becomes pickable from *every* richtext editor's link picker when its definition declares `linksInEditor: true`. Deliberately a single boolean on the collection rather than an `allowedCollections` list per richtext field — simpler, and revisitable if a real use case ever needs per-editor restriction.
 
 ## Demo wiring — News → Media
 
@@ -394,9 +374,7 @@ List views currently render `target_document_id` as a string for relation cells.
 | Relation field admin widget                  | `packages/ui/src/fields/relation/{relation-field,relation-picker,relation-summary,relation-display}.tsx` |
 | Admin API preview depth selector             | `apps/webapp/src/routes/(byline)/admin/collections/$collection/$id/api.tsx`               |
 | Admin `getDocument` server fn                | `packages/host-tanstack-start/src/server-fns/collections/get.ts`                          |
-| Richtext link plugin                         | `packages/richtext-lexical/src/field/plugins/link-plugin/`                                |
-| Richtext inline image plugin                 | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/`                        |
-| `LinkNode` / `DocumentInlineImageNode`       | `packages/richtext-lexical/src/field/nodes/{link-nodes,inline-image-node}/`               |
 | `linksInEditor` flag                         | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.linksInEditor`)     |
+| Richtext denormalisation strategy            | [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--denormalisation-strategy) |
 | Demo relation                                | `apps/webapp/byline/collections/news/schema.ts` (`heroImage` field)                       |
 | Integration tests                            | `packages/client/tests/integration/client-populate.integration.test.ts`                   |

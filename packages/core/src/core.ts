@@ -14,6 +14,7 @@ import { defineBylineCore, defineServerConfig, getBylineCoreUnsafe } from './con
 import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logger.js'
 import { Registry } from './lib/registry.js'
 import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
+import { validateRichTextFieldFlags } from './services/richtext-populate.js'
 import type {
   CollectionDefinition,
   IDbAdapter,
@@ -99,6 +100,12 @@ export const initBylineCore = async <TAdminStore = unknown>(
     .addFactory('logger', createBylineLogger)
 
   const composed = registry.compose({ pinoLogger })
+
+  // Validate richText field flags against the registered server adapter
+  // before any DB work. Fail-fast surfaces unrenderable configurations
+  // (both flags off) and missing-adapter cases at boot rather than at
+  // request time.
+  validateRichTextFieldFlags(composed.collections, config.fields?.richText?.populate != null)
 
   // Backward compat: populate globalThis singletons
   defineServerConfig(config)

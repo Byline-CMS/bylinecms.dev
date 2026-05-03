@@ -35,3 +35,11 @@ export {
   type RelationTargetResolver,
   resolveRelationProjection,
 } from './relation-projection.js'
+export {
+  collectRichTextLeaves,
+  type PopulateRichTextFieldsOptions,
+  populateRichTextFields,
+  type RichTextLeaf,
+  resolvePopulateOnRead,
+  validateRichTextFieldFlags,
+} from './richtext-populate.js'

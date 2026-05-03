@@ -71,6 +71,7 @@ export const News = defineCollection({
       type: 'richText',
       helpText: 'Enter the main content for this page.',
       localized: true,
+      embedRelationsOnSave: true, // See type definition for details.
     },
     {
       name: 'publishedOn',

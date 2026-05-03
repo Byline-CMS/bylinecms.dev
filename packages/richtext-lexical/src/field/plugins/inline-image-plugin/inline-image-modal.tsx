@@ -27,6 +27,7 @@ import {
   RadioGroupItem,
 } from '@infonomic/uikit/react'
 
+import { useEditorConfig } from '../../config/editor-config-context'
 import { useModalFormState } from '../../shared/useModalFormState'
 import { isAltTextValid, positionOptions } from './fields'
 import { deriveImageSizes, getPreferredSize } from './utils'
@@ -70,6 +71,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [altError, setAltError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
+  const { config: editorSettings } = useEditorConfig()
 
   const [state, setState] = useModalFormState<FormState>(
     isOpen,
@@ -150,8 +152,21 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
     }
 
     const preferred = getPreferredSize(state.position, pickedImage)
+    // The form-state `documentRelation` always carries `{ title, altText,
+    // image, sizes }` embedded at picker-select time so the modal preview
+    // can render. When `embedRelationsOnSave: false`, strip that envelope
+    // at save so the persisted node only carries the relation primary keys.
+    // Top-level `src` / `width` / `height` / `altText` are kept regardless —
+    // Lexical needs them to render the inline image in the admin editor.
+    const persistedRelation = editorSettings.embedRelationsOnSave
+      ? state.documentRelation
+      : {
+          targetDocumentId: state.documentRelation.targetDocumentId,
+          targetCollectionId: state.documentRelation.targetCollectionId,
+          targetCollectionPath: state.documentRelation.targetCollectionPath,
+        }
     const data: InlineImageData = {
-      documentRelation: state.documentRelation,
+      documentRelation: persistedRelation,
       src: preferred?.url ?? pickedImage.storageUrl ?? '',
       altText: state.altText.trim(),
       position: state.position,

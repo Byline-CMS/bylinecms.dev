@@ -3,5 +3,5 @@
   "compilerOptions": {
     "rootDir": "./src"
   },
-  "include": ["./src/index.ts", "./src/declarations.d.ts"]
+  "include": ["./src/index.ts", "./src/server.ts", "./src/declarations.d.ts"]
 }

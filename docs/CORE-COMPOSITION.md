@@ -3,6 +3,21 @@
 > Companions:
 > - [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — the ability-key design that the future `createCommand({ auth: { abilities } })` slot will consume.
 > - [ROUTING-API.md](./ROUTING-API.md) — admin server fns are the current call sites that would benefit from a command-tree shape.
+> - [RICHTEXT.md](./RICHTEXT.md) — the richtext adapter is the first server-side adapter slot on `ServerConfig.fields.*`; pattern for future field-level server adapters.
+
+## Field-level server adapter slots — `ServerConfig.fields.*`
+
+Adapter packages can register a server-side function alongside their client-side React component via mirrored slots on `ClientConfig.fields.*` and `ServerConfig.fields.*`. The richtext adapter is the first user of this pattern:
+
+- **Client side** — `ClientConfig.fields.richText.editor: RichTextEditorComponent`. Render-only React component, registered via `lexicalEditor()` from `@byline/richtext-lexical`.
+- **Server side** — `ServerConfig.fields.richText.populate: RichTextPopulateFn`. Pure function called once per rich-text leaf the read pipeline discovers in a document tree, registered via `lexicalEditorServer()` from `@byline/richtext-lexical/server`.
+
+Two consequences worth flagging for any future field-level adapter:
+
+1. **Subpath split is the right shape.** Adapter packages with both client and server pieces ship two entry points so consumers of one don't bundle the other. `@byline/richtext-lexical` (UI) and `@byline/richtext-lexical/server` are the reference example.
+2. **The framework owns the walker.** Field-level server adapters receive context per-leaf (`{ value, fieldPath, collectionPath, readContext }`) — they don't walk the document tree themselves. `collectRichTextLeaves` in `packages/core/src/services/richtext-populate.ts` is the per-field-type walker today; future adapters get their own walker but slot into the same place in the read pipeline (between relation populate and user-land afterRead).
+
+A user-land lifecycle hook surface on adapters (Phase 3b in `RICHTEXT.md`) is deliberately *not* part of this pattern. That layer waits for a second editor implementation to reveal what it should look like; today's slot is for framework-managed phases only.
 
 > **Status: forward-looking.** This document describes the planned evolution of Byline's dependency-injection and composition story. None of the phases below have shipped — today's setup (described under "Where we are now") is intentionally minimal. The phases are ordered by leverage and by how independent each one is.
 

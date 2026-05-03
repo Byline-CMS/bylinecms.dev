@@ -17,6 +17,7 @@ import type {
   QueryPredicate,
   ReadContext,
   ReadMode,
+  RichTextPopulateFn,
   ServerConfig,
   SlugifierFn,
   SortSpec,
@@ -80,6 +81,16 @@ export interface BylineClientConfig {
    * omitted, the lifecycle uses the default `slugify` from `@byline/core`.
    */
   slugifier?: SlugifierFn
+  /**
+   * Optional richtext server-side populate function. Threaded into
+   * `populateDocuments` so populated targets get their rich-text leaves
+   * refreshed before `afterRead` fires; also called for source documents
+   * after relation populate completes. When omitted (and not provided via
+   * the `config` shorthand's `fields.richText.populate`), rich-text
+   * populate is skipped — the read returns whatever was embedded at
+   * write time.
+   */
+  richTextPopulate?: RichTextPopulateFn
   /**
    * Request-scoped auth context. Required in practice — every read and
    * write call from this client resolves a context and enforces

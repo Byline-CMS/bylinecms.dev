@@ -56,8 +56,21 @@ export const RichTextField = ({
   //   3. `defaultEditorConfig` — package default.
   // The schema-level value is typed as `unknown` at the `@byline/core` boundary,
   // so the cast lives here where the Lexical config shape is known.
-  const resolvedEditorConfig: EditorConfig =
+  const baseEditorConfig: EditorConfig =
     (field.editorConfig as EditorConfig | undefined) ?? editorConfig ?? defaultEditorConfig
+
+  // Adapter-agnostic field-level lever — when present, override the resolved
+  // editor settings so the inline-image / link modals see this field's policy.
+  const resolvedEditorConfig: EditorConfig =
+    field.embedRelationsOnSave === undefined
+      ? baseEditorConfig
+      : {
+          ...baseEditorConfig,
+          settings: {
+            ...baseEditorConfig.settings,
+            embedRelationsOnSave: field.embedRelationsOnSave,
+          },
+        }
 
   // Assemble the label node here (a Byline-level concern) so that the editor
   // component itself stays free of any Byline-specific dependencies.

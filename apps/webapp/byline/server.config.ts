@@ -19,6 +19,8 @@ import { JwtSessionProvider } from '@byline/admin/auth'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
+import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
+import { lexicalEditorServer } from '@byline/richtext-lexical/server'
 import { localStorageProvider } from '@byline/storage-local'
 
 // Import collection definitions directly from schema files — NOT the full
@@ -125,6 +127,38 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       baseUrl: '/uploads',
     }),
     sessionProvider,
+    fields: {
+      // Server-side richtext adapter — refreshes embedded relation
+      // envelopes (link `{ title, path }`, inline-image `{ title, altText,
+      // image, sizes }`) on every read, gated per-field by
+      // `populateRelationsOnRead`. See docs/RICHTEXT.md for the full design.
+      //
+      // `getClient` returns a `BylineClient` — the SDK over the storage
+      // primitives that the populate visitors use to batch-fetch target
+      // documents (e.g. `client.collection('media').find({ where: { id:
+      // { $in: [...] } } })`). The client carries the DB adapter, the
+      // collection registry, the request-context resolver, and every
+      // read-pipeline phase (`beforeRead` → populate → `afterRead`), so
+      // populate's nested reads run under the *same* authenticated actor
+      // and the *same* `ReadContext` as the request that triggered them.
+      // That's what makes A→B→A cycle protection and visited-set dedup
+      // work across relation populate, richtext populate, and any user-
+      // land `afterRead` hooks.
+      //
+      // We pass `getAdminBylineClient` (not the public client) because
+      // admin server fns are the only call sites that read documents in
+      // the admin webapp today — the populate phase inherits whichever
+      // actor the request resolved. A future public-facing host would
+      // register its own client whose `requestContext` factory resolves
+      // an end-user actor instead. See `@byline/host-tanstack-start/
+      // integrations/byline-client.ts` for how the admin client is built.
+      //
+      // Why a getter, not a value: `getAdminBylineClient()` reads the
+      // server config singleton, which is only populated *after*
+      // `initBylineCore()` returns. Passing a factory defers resolution
+      // to populate-call time so registration order here doesn't matter.
+      richText: { populate: lexicalEditorServer({ getClient: getAdminBylineClient }) },
+    },
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on

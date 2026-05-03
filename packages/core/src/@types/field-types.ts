@@ -412,6 +412,39 @@ export interface RichTextField extends LocalizableField {
    * baked-in config supplied at registration via `lexicalEditor()`.
    */
   editorConfig?: unknown
+  /**
+   * **Write-time strategy.** When `true`, the editor's relation-bearing
+   * nodes (internal links, inline images, …) embed a small projection of
+   * the picked target's fields directly into the persisted JSON at
+   * modal-save time. Defaults to `true`.
+   *
+   * Set to `false` only when the field will be served by read-time
+   * populate (see `populateRelationsOnRead`). Without populate, public
+   * renderers see a stripped envelope (relation primary keys only) and
+   * have no title / path / image to render.
+   *
+   * Adapter-agnostic — any future editor adapter with relation-bearing
+   * nodes inherits the same lever.
+   */
+  embedRelationsOnSave?: boolean
+  /**
+   * **Read-time strategy.** When `true`, the framework's read pipeline
+   * walks this field's value on every read and asks the registered
+   * richtext populate function to refresh embedded relation envelopes
+   * against their source documents.
+   *
+   * Default is the inverse of `embedRelationsOnSave`:
+   *   - `embedRelationsOnSave: true`  → defaults to `false` (snapshot mode).
+   *   - `embedRelationsOnSave: false` → defaults to `true` (storage-thin).
+   *
+   * Set both to `true` for belt-and-braces: embed at write, refresh on
+   * read. Setting both to `false` is invalid — `initBylineCore()` rejects
+   * fields where neither write-time nor read-time would render.
+   *
+   * Requires a registered `ServerConfig.fields.richText.populate` adapter
+   * when effectively `true`; otherwise `initBylineCore()` throws.
+   */
+  populateRelationsOnRead?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -773,3 +806,43 @@ export interface RichTextEditorProps {
  * type stays React-agnostic at the `@byline/core` boundary.
  */
 export type RichTextEditorComponent = SlotComponent<RichTextEditorProps>
+
+// ---------------------------------------------------------------------------
+// Richtext server adapter — populate
+// ---------------------------------------------------------------------------
+
+/**
+ * Context passed to the richtext populate function for one rich-text field
+ * value. Mirrors the shape consumed by the relation-field populate
+ * primitive — `readContext` is the same request-scoped context, so the
+ * visited set / read budget / `afterReadFired` machinery covers rich-text
+ * fan-out automatically and any nested reads the adapter performs.
+ *
+ * The adapter mutates `value` in place — typically by walking the editor's
+ * node tree and overwriting embedded relation envelopes. The framework
+ * holds the parent reference and reads back the mutated value when
+ * shaping the response.
+ */
+export interface RichTextPopulateContext {
+  /** The richText field's value (raw editor JSON, possibly stringified). */
+  value: unknown
+  /** Field path within the document — e.g. `'body'` or `'content.0.caption'`. */
+  fieldPath: string
+  /** Collection path the document belongs to. */
+  collectionPath: string
+  /**
+   * Shared request-scoped `ReadContext`. Threading is mandatory — adapter
+   * implementations must pass this back into any `client.collection(...)`
+   * read they perform via `_readContext`.
+   */
+  readContext: import('./db-types.js').ReadContext
+}
+
+/**
+ * Server-side populate function contract. Editor adapters export an
+ * implementation; installations register one via
+ * `ServerConfig.fields.richText.populate`. Called once per rich-text
+ * leaf the framework discovers in a document, gated by each field's
+ * `populateRelationsOnRead` flag.
+ */
+export type RichTextPopulateFn = (ctx: RichTextPopulateContext) => Promise<void>

@@ -136,6 +136,7 @@ import { applyBeforeRead } from '../auth/apply-before-read.js'
 import { ERR_READ_BUDGET_EXCEEDED } from '../lib/errors.js'
 import { parseWhere } from '../query/parse-where.js'
 import { applyAfterRead } from './document-read.js'
+import { populateRichTextFields } from './richtext-populate.js'
 import type {
   CollectionDefinition,
   DocumentFilter,
@@ -251,6 +252,17 @@ export interface PopulateOptions {
    * relations as it does on the source document.
    */
   bypassBeforeRead?: true
+  /**
+   * Registered richtext server-side populate function (typically resolved
+   * once at the top level from `ServerConfig.fields.richText.populate`).
+   * Threaded through populate so each materialised target also gets its
+   * rich-text leaves populated before its `afterRead` hook fires —
+   * ensuring user-land hooks observe fully populated content regardless
+   * of whether the target arrived via a relation field on the source or
+   * via a richtext document link / inline image. Omit when no richtext
+   * adapter is registered.
+   */
+  richTextPopulate?: import('../@types/index.js').RichTextPopulateFn
 }
 
 // ---------------------------------------------------------------------------
@@ -503,6 +515,19 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
         }
 
         if (targetDef) {
+          // Rich-text populate runs *before* the user-land afterRead hook
+          // so hook authors observe fully-populated rich-text content. The
+          // gate (per-field `populateRelationsOnRead`) lives inside the
+          // service; passing the function unconditionally is correct.
+          if (opts.richTextPopulate) {
+            await populateRichTextFields({
+              fields: targetDef.fields,
+              collectionPath: targetDef.path,
+              documents: [d],
+              populate: opts.richTextPopulate,
+              readContext: ctx,
+            })
+          }
           await applyAfterRead({ doc: d, definition: targetDef, readContext: ctx })
         }
 
