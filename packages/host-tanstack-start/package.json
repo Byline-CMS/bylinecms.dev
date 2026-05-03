@@ -142,7 +142,7 @@
     "@rsbuild/plugin-react": "^2.0.0",
     "@rslib/core": "^0.21.3",
     "@tanstack/react-router": "^1.169.1",
-    "@tanstack/react-start": "^1.167.59",
+    "@tanstack/react-start": "^1.167.61",
     "@types/node": "^25.6.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
