@@ -1,5 +1,18 @@
 # @byline/db-postgres
 
+## 0.10.0
+
+### Minor Changes
+
+- 0700fe2: Consolidated all UI components into a single @byline/ui UI kit.
+
+### Patch Changes
+
+- Updated dependencies [0700fe2]
+  - @byline/admin@0.10.0
+  - @byline/auth@0.10.0
+  - @byline/core@0.10.0
+
 ## 0.9.3
 
 ### Patch Changes

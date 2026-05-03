@@ -3,11 +3,11 @@
   "private": false,
   "type": "module",
   "license": "MPL-2.0",
-  "version": "0.9.3",
+  "version": "1.0.0",
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "TanStack Start host adapter for Byline CMS \u2014 server fns, auth context, integration glue, admin shell, and route factories",
+  "description": "TanStack Start host adapter for Byline CMS — server fns, auth context, integration glue, admin shell, and route factories",
   "keywords": [
     "cms",
     "headless cms",
