@@ -46,7 +46,7 @@ export function NewsDetail({ result }: NewsDetailProps) {
         </div>
         <h1 className="m-0">{title}</h1>
         {fields.summary ? (
-          <p className="mt-3 text-base text-gray-600 leading-relaxed">{fields.summary}</p>
+          <p className="mt-3 text-base muted leading-relaxed">{fields.summary}</p>
         ) : null}
       </header>
       {featureImage ? (

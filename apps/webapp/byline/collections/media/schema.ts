@@ -70,42 +70,48 @@ export const Media = defineCollection({
         // 20 MB limit per file.
         maxFileSize: 20 * 1024 * 1024,
         // Named Sharp variants generated after the original is stored.
+        // AVIF is widely supported across modern browsers (Chrome 85+,
+        // Firefox 93+, Safari 16.4+) and typically yields ~20–30 %
+        // smaller files than webp at comparable quality. Sharp's avif
+        // defaults to a lower numeric quality (~50) than webp; the
+        // values below are tuned for that — image-processor.ts uses
+        // `quality: size.quality ?? 55` for the avif branch.
         sizes: [
           {
             name: 'thumbnail',
             width: 400,
             height: 400,
             fit: 'cover',
-            format: 'webp',
-            quality: 80,
+            format: 'avif',
+            quality: 55,
           },
           {
             name: 'card',
             width: 600,
             fit: 'inside',
-            format: 'webp',
-            quality: 82,
+            format: 'avif',
+            quality: 55,
           },
           {
             name: 'mobile',
             width: 768,
             fit: 'inside',
-            format: 'webp',
-            quality: 85,
+            format: 'avif',
+            quality: 55,
           },
           {
             name: 'tablet',
             width: 1280,
             fit: 'inside',
-            format: 'webp',
-            quality: 85,
+            format: 'avif',
+            quality: 55,
           },
           {
             name: 'desktop',
             width: 2100,
             fit: 'inside',
-            format: 'webp',
-            quality: 85,
+            format: 'avif',
+            quality: 55,
           },
         ],
         hooks: {

@@ -16,6 +16,20 @@ const SIZE_CAPS: Record<'auto' | 'medium' | 'small', number> = {
   small: 768,
 }
 
+/**
+ * Image-format names the renderer pipeline knows about. Aligns with the
+ * `format` values Sharp emits via `UploadConfig.sizes[].format`. AVIF is
+ * preferred when present (smaller files at comparable quality); webp is
+ * the standard fallback for older browsers.
+ */
+export type VariantFormat = 'avif' | 'webp'
+
+/** MIME type emitted on the matching `<source type="…">` element. */
+export const VARIANT_MIME: Record<VariantFormat, string> = {
+  avif: 'image/avif',
+  webp: 'image/webp',
+}
+
 type ResolvedVariant = PersistedVariant & { storageUrl: string; width: number }
 
 function isResolvedVariant(v: PersistedVariant): v is ResolvedVariant {
@@ -23,21 +37,35 @@ function isResolvedVariant(v: PersistedVariant): v is ResolvedVariant {
 }
 
 /**
- * Build a srcSet of webp variants (`<url> <width>w`) for an upload
- * value, sorted ascending by width and filtered by an optional size
- * cap. Variants without a `storageUrl` or `width` are skipped.
+ * Build a srcSet (`<url> <width>w`) for variants of the given `format`,
+ * sorted ascending by width and filtered by an optional size cap.
+ * Variants without a `storageUrl` or `width` are skipped.
  */
-export function getWebpVariantSrcSet(
+export function getVariantSrcSet(
   image: StoredFileValue | undefined | null,
+  format: VariantFormat,
   maxSize: 'auto' | 'medium' | 'small' = 'auto'
 ): string[] {
   if (image == null) return []
   const cap = SIZE_CAPS[maxSize]
   return (image.variants ?? [])
     .filter(isResolvedVariant)
-    .filter((v) => v.format === 'webp' && v.width <= cap)
+    .filter((v) => v.format === format && v.width <= cap)
     .sort((a, b) => a.width - b.width)
     .map((v) => `${v.storageUrl} ${v.width}w`)
+}
+
+/**
+ * `true` when the upload value carries at least one variant in the
+ * given format. Used to decide whether to emit a `<source>` element
+ * for that format on a `<picture>`.
+ */
+export function hasVariantFormat(
+  image: StoredFileValue | undefined | null,
+  format: VariantFormat
+): boolean {
+  if (image == null) return false
+  return (image.variants ?? []).some((v) => v.format === format)
 }
 
 /**

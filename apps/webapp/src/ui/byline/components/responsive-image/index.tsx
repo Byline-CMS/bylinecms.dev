@@ -13,7 +13,13 @@ import type { CSSProperties } from 'react'
 import type { StoredFileValue } from '@byline/core'
 import cx from 'classnames'
 
-import { getVariant, getWebpVariantSrcSet } from '@/ui/utils/image-sources.ts'
+import {
+  getVariant,
+  getVariantSrcSet,
+  hasVariantFormat,
+  VARIANT_MIME,
+  type VariantFormat,
+} from '@/ui/utils/image-sources.ts'
 
 /**
  * Responsive `<picture>` driven by Byline's image-field upload value.
@@ -21,8 +27,16 @@ import { getVariant, getWebpVariantSrcSet } from '@/ui/utils/image-sources.ts'
  * Collection-agnostic — the only data dependency is `StoredFileValue`,
  * the per-field upload metadata that any `image` field carries. So a
  * caller hands in `media.image` from a populated relation, an avatar's
- * `image` field, an inline upload — whatever — and gets back a webp
- * srcSet plus a sensible fallback.
+ * `image` field, an inline upload — whatever — and gets back AVIF /
+ * WebP `<source>` srcSets plus a sensible fallback.
+ *
+ * Source order is **AVIF first, WebP second** — browsers walk the
+ * sources in document order and pick the first one whose `type` they
+ * support. Modern browsers fetch the AVIF; older ones drop to WebP;
+ * pre-WebP browsers fall through to the `<img>` tag. Each `<source>`
+ * is only emitted when at least one variant in that format exists, so
+ * legacy media items that only have one of the formats still render
+ * correctly.
  *
  * `size` caps the variants included in the srcSet and provides a
  * default `sizes` hint:
@@ -150,7 +164,16 @@ export function ResponsiveImage({
     )
   }
 
-  const webpSrcSet = getWebpVariantSrcSet(image, SRC_SET_CAP[size])
+  const cap = SRC_SET_CAP[size]
+  // AVIF declared first so supporting browsers pick it; WebP follows
+  // for older clients. Each source is suppressed when the upload has
+  // no variants in that format.
+  const sourceFormats: VariantFormat[] = ['avif', 'webp']
+  const sources = sourceFormats
+    .filter((format) => hasVariantFormat(image, format))
+    .map((format) => ({ format, srcSet: getVariantSrcSet(image, format, cap) }))
+    .filter((entry) => entry.srcSet.length > 0)
+
   const fallbackSrc =
     fallback
       .map((name) => getVariant(image, name)?.storageUrl)
@@ -159,9 +182,14 @@ export function ResponsiveImage({
 
   return (
     <picture className={pictureClasses}>
-      {webpSrcSet.length > 0 && (
-        <source srcSet={webpSrcSet.join(', ')} type="image/webp" sizes={resolvedSizes} />
-      )}
+      {sources.map(({ format, srcSet }) => (
+        <source
+          key={format}
+          srcSet={srcSet.join(', ')}
+          type={VARIANT_MIME[format]}
+          sizes={resolvedSizes}
+        />
+      ))}
       <img
         className={cx('not-prose', imgClassName)}
         style={style}

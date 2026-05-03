@@ -8,6 +8,10 @@
 
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import {
+  RouteError,
+  RouteNotFound,
+} from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { Container, Section } from '@infonomic/uikit/react'
 
 import { NewsDetail } from '@/modules/news/components/detail'
@@ -21,6 +25,8 @@ export const Route = createFileRoute('/{-$lng}/_public/news/$slug')({
     return result
   },
   component: RouteComponent,
+  errorComponent: RouteError,
+  notFoundComponent: RouteNotFound,
 })
 
 function RouteComponent() {
