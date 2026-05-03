@@ -1,4 +1,4 @@
-# @byline/db-postgres
+# @byline/host-tanstack-start
 
 ## 0.9.3
 
@@ -8,14 +8,8 @@
 - Updated dependencies [9d546c3]
   - @byline/admin@0.9.3
   - @byline/auth@0.9.3
+  - @byline/client@0.9.3
   - @byline/core@0.9.3
-
-## 0.9.2
-
-### Patch Changes
-
-- Changeset test.
-- Updated dependencies
-  - @byline/admin@0.9.2
-  - @byline/auth@0.9.2
-  - @byline/core@0.9.2
+  - @byline/db-postgres@0.9.3
+  - @byline/storage-local@0.9.3
+  - @byline/ui@0.9.3
