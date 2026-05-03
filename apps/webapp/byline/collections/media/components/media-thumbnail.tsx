@@ -14,10 +14,10 @@ import type { FormatterProps, StoredFileValue } from '@byline/core'
  * Sharp writes variants as siblings of the original file using the naming
  * convention `<basename>-<variantName>.<outputExt>`:
  *   `/uploads/media/2026/02/abc-photo.jpg`
- *   → `/uploads/media/2026/02/abc-photo-thumbnail.webp`
+ *   → `/uploads/media/2026/02/abc-photo-thumbnail.avif`
  */
 function deriveThumbnailUrl(storageUrl: string): string {
-  return storageUrl.replace(/\.[^.]+$/, '-thumbnail.webp')
+  return storageUrl.replace(/\.[^.]+$/, '-thumbnail.avif')
 }
 
 /**
@@ -34,7 +34,7 @@ export function FormatBadge({ format }: { format: string }) {
 
 /**
  * MediaThumbnailCell renders a small preview image in the Media list view.
- * When the `thumbnail` variant has been generated, the smaller webp is used;
+ * When the `thumbnail` variant has been generated, the smaller avif is used;
  * otherwise the original storage URL is shown.
  */
 export function MediaThumbnail({ record }: FormatterProps) {

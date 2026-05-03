@@ -31,6 +31,14 @@
  * does not produce variants for them, so the only effect is a new
  * storagePath on a re-stored copy.
  *
+ * Status preservation: `updateDocument` always stamps new versions with
+ * the workflow's default status (`getDefaultStatus`, i.e. the first
+ * declared status — `'draft'` for media). After the update we step the
+ * new version forward through `changeStatus` until it lands in the same
+ * slot the original occupied. Skipping this leaves the previously-
+ * published version (with the old variant set) as what
+ * `current_published_documents` returns to public readers.
+ *
  * Currently requires the local storage provider — pulls bytes back via
  * the provider's `uploadDir`. An S3-capable variant would add a
  * `download(storagePath)` to `IStorageProvider` and route through that.
@@ -43,11 +51,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { createSuperAdminContext } from '@byline/auth'
-import { createBylineClient } from '@byline/client'
+import { type CollectionHandle, createBylineClient } from '@byline/client'
 import {
   type FieldUploadContext,
   getCollectionDefinition,
   getServerConfig,
+  getWorkflowStatuses,
   type StoredFileValue,
 } from '@byline/core'
 import { uploadField as coreUploadField } from '@byline/core/services'
@@ -90,8 +99,15 @@ async function run(): Promise<void> {
 
   // Snapshot the full set up-front. Each update bumps `updated_at` and
   // reorders the default sort, so paging through a moving window would
-  // either skip or re-visit rows.
-  const allDocs: { id: string; path: string; fields: Record<string, any> }[] = []
+  // either skip or re-visit rows. Capture `status` so we can restore
+  // each doc to its original workflow slot after the regenerated draft
+  // is written (see `restoreStatus` below).
+  const allDocs: {
+    id: string
+    path: string
+    status: string
+    fields: Record<string, any>
+  }[] = []
   const pageSize = 100
   for (let page = 1; ; page++) {
     const result = await handle.find({
@@ -101,7 +117,12 @@ async function run(): Promise<void> {
       _bypassBeforeRead: true,
     })
     for (const d of result.docs) {
-      allDocs.push({ id: d.id, path: d.path, fields: d.fields as Record<string, any> })
+      allDocs.push({
+        id: d.id,
+        path: d.path,
+        status: d.status,
+        fields: d.fields as Record<string, any>,
+      })
     }
     if (result.docs.length < pageSize) break
   }
@@ -175,6 +196,13 @@ async function run(): Promise<void> {
     const nextFields = { ...doc.fields, [FIELD_NAME]: uploadResult.storedFile }
     await handle.update(doc.id, nextFields)
 
+    // `updateDocument` always stamps the new version with the workflow's
+    // default status (the first key — 'draft' for media), so without this
+    // step the public read path keeps returning the prior published
+    // version with the old variant set. Walk the new version forward to
+    // the slot the doc originally occupied.
+    await restoreStatus(handle, definition, doc.id, doc.status)
+
     // Best-effort orphan cleanup. Failures are non-fatal — the new
     // value is already persisted, the doc is consistent, the unused
     // bytes are just dead weight on disk.
@@ -202,6 +230,41 @@ async function run(): Promise<void> {
   console.log(
     `regenerate-media: done. processed=${processed}, skipped=${skipped}, total=${allDocs.length}.`
   )
+}
+
+/**
+ * Walk the workflow ladder forward from the new version's status (the
+ * workflow's first slot, set by `updateDocument`) to `targetStatus`.
+ *
+ * `validateStatusTransition` allows ±1-step moves and reset-to-first, so
+ * jumping straight from 'draft' to 'archived' is rejected — we step
+ * through 'published' on the way. A target equal to the current status
+ * is a no-op (transition validation accepts identical-status moves but
+ * we skip the work).
+ *
+ * Throws if `targetStatus` is not declared on the collection's workflow,
+ * since that signals a stale snapshot or a workflow definition that has
+ * been edited since the docs were created.
+ */
+async function restoreStatus(
+  handle: CollectionHandle,
+  definition: Parameters<typeof getWorkflowStatuses>[0],
+  documentId: string,
+  targetStatus: string
+): Promise<void> {
+  const statuses = getWorkflowStatuses(definition).map((s) => s.name)
+  const targetIndex = statuses.indexOf(targetStatus)
+  if (targetIndex === -1) {
+    throw new Error(
+      `restoreStatus: status '${targetStatus}' is not declared on collection ` +
+        `'${definition.path}' (declared: ${statuses.join(', ')}).`
+    )
+  }
+  // The new version is always at index 0 (workflow default). Anything at
+  // index > 0 needs that many forward transitions.
+  for (let i = 1; i <= targetIndex; i++) {
+    await handle.changeStatus(documentId, statuses[i] as string)
+  }
 }
 
 run()

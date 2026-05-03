@@ -43,12 +43,12 @@ import { FormatBadge } from './media-thumbnail'
 // ---------------------------------------------------------------------------
 
 /**
- * Derive the webp thumbnail URL from the original storageUrl using the same
+ * Derive the avif thumbnail URL from the original storageUrl using the same
  * convention as MediaThumbnailCell / the Sharp upload processor.
- *   `/uploads/media/2026/02/img.jpg` → `/uploads/media/2026/02/img-thumbnail.webp`
+ *   `/uploads/media/2026/02/img.jpg` → `/uploads/media/2026/02/img-thumbnail.avif`
  */
 function deriveThumbnailUrl(storageUrl: string): string {
-  return storageUrl.replace(/\.[^.]+$/, '-thumbnail.webp')
+  return storageUrl.replace(/\.[^.]+$/, '-thumbnail.avif')
 }
 
 // ---------------------------------------------------------------------------
