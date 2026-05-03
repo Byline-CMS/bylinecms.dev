@@ -8,7 +8,7 @@
 
 import { type ReactNode, useState } from 'react'
 
-import { ChevronDownIcon, GripperVerticalIcon } from '@infonomic/uikit/react'
+import { ChevronDownIcon, GripperVerticalIcon } from '../uikit.js'
 import cx from 'classnames'
 
 import { useSortable } from '../dnd/draggable-sortable'

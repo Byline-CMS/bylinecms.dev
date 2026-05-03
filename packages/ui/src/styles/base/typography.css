@@ -1,0 +1,46 @@
+@layer byline-base {
+  :root {
+    /* 12px */
+    --font-size-xs: 0.75rem;
+    /* 14px */
+    --font-size-sm: 0.875rem;
+    /* 16px */
+    --font-size-base: 1rem;
+    /* 18px */
+    --font-size-lg: 1.125rem;
+    /* 20px */
+    --font-size-xl: 1.25rem;
+    /* 24px */
+    --font-size-2xl: 1.5rem;
+    /* 30px */
+    --font-size-3xl: 1.875rem;
+    /* 36px */
+    --font-size-4xl: 2.25rem;
+    /* 42px */
+    --font-size-5xl: 2.625rem;
+    /* 48px */
+    --font-size-6xl: 3rem;
+    /* 54px */
+    --font-size-7xl: 3.375rem;
+    /* 60px */
+    --font-size-8xl: 3.75rem;
+
+    --font-weight-light: 300;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+    --font-weight-ultrabold: 900;
+
+    --line-height-tight: 1.1;
+    --line-height-snug: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.625;
+    --line-height-loose: 2;
+
+    --letter-spacing-tight: -0.02em;
+    --letter-spacing-normal: 0;
+    --letter-spacing-wide: 0.05em;
+  }
+}

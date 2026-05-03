@@ -1,4 +1,4 @@
-import { Container, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@byline/ui'
 
 import { LangLink } from '@/i18n/components/lang-link'
 

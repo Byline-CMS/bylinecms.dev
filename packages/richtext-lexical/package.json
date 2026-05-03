@@ -64,7 +64,6 @@
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
     "@byline/ui": "workspace:*",
-    "@infonomic/uikit": "^6.7.1",
     "@lexical/clipboard": "0.44.0",
     "@lexical/code": "0.44.0",
     "@lexical/hashtag": "0.44.0",

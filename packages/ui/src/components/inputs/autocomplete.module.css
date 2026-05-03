@@ -1,0 +1,370 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  /* ── Wrapper ── */
+
+  .autocomplete-wrapper,
+  :global(.infonomic-autocomplete-wrapper) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-1);
+  }
+
+  /* ── Input ── */
+
+  .input,
+  :global(.infonomic-autocomplete-input) {
+    border: none;
+    outline: 1px solid transparent;
+    outline-offset: 2px;
+    font-weight: normal;
+    display: inline-flex;
+    gap: var(--gap-2);
+    align-items: center;
+    width: 100%;
+    transition: all var(--transition-normal);
+    border-radius: var(--border-radius-sm);
+  }
+
+  .input:focus,
+  .input:active,
+  :global(.infonomic-autocomplete-input):focus,
+  :global(.infonomic-autocomplete-input):active {
+    outline-color: var(--ring-color);
+  }
+
+  .input:disabled,
+  .input[disabled],
+  :global(.infonomic-autocomplete-input):disabled,
+  :global(.infonomic-autocomplete-input)[disabled] {
+    pointer-events: none;
+  }
+
+  /* ── Sizes ── */
+
+  .sm,
+  :global(.infonomic-autocomplete-input-sm) {
+    min-height: 32px;
+    font-size: 0.875rem;
+    line-height: 0;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .md,
+  :global(.infonomic-autocomplete-input-md) {
+    min-height: 36px;
+    font-size: 1rem;
+    line-height: 0;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .lg,
+  :global(.infonomic-autocomplete-input-lg) {
+    min-height: 40px;
+    font-size: 1.175rem;
+    line-height: 0;
+    padding: 0.4rem 0.5rem;
+  }
+
+  /* ── Variants ── */
+
+  .outlined,
+  :global(.infonomic-autocomplete-input-outlined) {
+    border: 1px solid var(--input-variant-outlined-border);
+    background-color: transparent;
+  }
+
+  .outlined:hover,
+  :global(.infonomic-autocomplete-input-outlined):hover {
+    border: 1px solid var(--input-variant-outlined-hover-border);
+  }
+
+  .outlined:focus,
+  .outlined:active,
+  :global(.infonomic-autocomplete-input-outlined):focus,
+  :global(.infonomic-autocomplete-input-outlined):active {
+    --ring-color: var(--input-variant-outline-ring-color);
+  }
+
+  .underlined,
+  :global(.infonomic-autocomplete-input-underlined) {
+    border-bottom: 1px solid var(--input-variant-underlined-border);
+    border-radius: 0;
+    gap: var(--gap-1);
+    background-color: var(--input-variant-underlined);
+  }
+
+  .underlined.sm,
+  :global(.infonomic-autocomplete-input-underlined.infonomic-autocomplete-input-sm) {
+    padding: 0.25rem 0.1rem;
+    min-height: 26px;
+  }
+
+  .underlined.md,
+  :global(.infonomic-autocomplete-input-underlined.infonomic-autocomplete-input-md) {
+    padding: 0.25rem 0.1rem;
+    min-height: 30px;
+  }
+
+  .underlined.lg,
+  :global(.infonomic-autocomplete-input-underlined.infonomic-autocomplete-input-lg) {
+    padding: 0 0.1rem;
+    min-height: 34px;
+  }
+
+  .underlined:hover,
+  :global(.infonomic-autocomplete-input-underlined):hover {
+    border-bottom: 1px solid var(--input-variant-underlined-hover-border);
+  }
+
+  .underlined:focus,
+  .underlined:active,
+  :global(.infonomic-autocomplete-input-underlined):focus,
+  :global(.infonomic-autocomplete-input-underlined):active {
+    outline: none;
+  }
+
+  .filled,
+  :global(.infonomic-autocomplete-input-filled) {
+    background-color: var(--input-variant-filled);
+  }
+
+  /* ── Error ── */
+
+  .error,
+  :global(.infonomic-autocomplete-input-error) {
+    border: 1px solid var(--field-border-invalid);
+  }
+
+  .error:hover,
+  :global(.infonomic-autocomplete-input-error):hover {
+    border: 1px solid var(--field-border-invalid);
+  }
+
+  .error:focus,
+  .error:active,
+  :global(.infonomic-autocomplete-input-error):focus,
+  :global(.infonomic-autocomplete-input-error):active {
+    --ring-color: var(--field-ring-invalid);
+  }
+
+  /* ── Intents ── */
+
+  .primary,
+  :global(.infonomic-autocomplete-input-primary) {
+    --input-variant-outlined-border: var(--stroke-primary);
+    --input-variant-outlined-hover-border: var(--stroke-primary-hover);
+    --input-variant-outline-ring-color: var(--ring-primary);
+    --input-variant-underlined-border: var(--stroke-primary);
+    --input-variant-underlined-hover-border: var(--stroke-primary-hover);
+    --input-variant-filled: var(--fill-primary-weak);
+  }
+
+  .secondary,
+  :global(.infonomic-autocomplete-input-secondary) {
+    --input-variant-outlined-border: var(--stroke-secondary);
+    --input-variant-outlined-hover-border: var(--stroke-secondary-hover);
+    --input-variant-outline-ring-color: var(--ring-secondary);
+    --input-variant-underlined-border: var(--stroke-secondary);
+    --input-variant-underlined-hover-border: var(--stroke-secondary-hover);
+    --input-variant-filled: var(--fill-secondary-weak);
+  }
+
+  .noeffect,
+  :global(.infonomic-autocomplete-input-noeffect) {
+    --input-variant-outlined-border: var(--stroke-noeffect);
+    --input-variant-outlined-hover-border: var(--stroke-noeffect-hover);
+    --input-variant-outline-ring-color: var(--ring-noeffect);
+    --input-variant-underlined-border: var(--stroke-noeffect);
+    --input-variant-underlined-hover-border: var(--stroke-noeffect-hover);
+    --input-variant-filled: var(--fill-noeffect-weak);
+  }
+
+  .success,
+  :global(.infonomic-autocomplete-input-success) {
+    --input-variant-outlined-border: var(--stroke-success);
+    --input-variant-outlined-hover-border: var(--stroke-success-hover);
+    --input-variant-outline-ring-color: var(--ring-success);
+    --input-variant-underlined-border: var(--stroke-success);
+    --input-variant-underlined-hover-border: var(--stroke-success-hover);
+    --input-variant-filled: var(--fill-success-weak);
+  }
+
+  .info,
+  :global(.infonomic-autocomplete-input-info) {
+    --input-variant-outlined-border: var(--stroke-info);
+    --input-variant-outlined-hover-border: var(--stroke-info-hover);
+    --input-variant-outline-ring-color: var(--ring-info);
+    --input-variant-underlined-border: var(--stroke-info);
+    --input-variant-underlined-hover-border: var(--stroke-info-hover);
+    --input-variant-filled: var(--fill-info-weak);
+  }
+
+  .warning,
+  :global(.infonomic-autocomplete-input-warning) {
+    --input-variant-outlined-border: var(--stroke-warning);
+    --input-variant-outlined-hover-border: var(--stroke-warning-hover);
+    --input-variant-outline-ring-color: var(--ring-warning);
+    --input-variant-underlined-border: var(--stroke-warning);
+    --input-variant-underlined-hover-border: var(--stroke-warning-hover);
+    --input-variant-filled: var(--fill-warning-weak);
+  }
+
+  .danger,
+  :global(.infonomic-autocomplete-input-danger) {
+    --input-variant-outlined-border: var(--stroke-danger);
+    --input-variant-outlined-hover-border: var(--stroke-danger-hover);
+    --input-variant-outline-ring-color: var(--ring-danger);
+    --input-variant-underlined-border: var(--stroke-danger);
+    --input-variant-underlined-hover-border: var(--stroke-danger-hover);
+    --input-variant-filled: var(--fill-danger-weak);
+  }
+
+  /* ── Positioner ── */
+
+  .positioner,
+  :global(.infonomic-autocomplete-positioner) {
+    z-index: 50;
+    outline: 0;
+  }
+
+  /* ── Popup ── */
+
+  .popup,
+  :global(.infonomic-autocomplete-popup) {
+    z-index: 50;
+    margin-top: 2px;
+    border: 1px solid var(--surface-panel-border);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--border-radius-md);
+    background-color: var(--surface-panel-elevated);
+    padding: 6px;
+    width: var(--anchor-width);
+    max-height: min(23rem, var(--available-height));
+    max-width: var(--available-width);
+  }
+
+  .popup-sm {
+    padding: 4px;
+  }
+
+  .popup-md {
+    padding: 6px;
+  }
+
+  .popup-lg {
+    padding: 8px;
+  }
+
+  /* ── List ── */
+
+  .list,
+  :global(.infonomic-autocomplete-list) {
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-block: 0.25rem;
+    scroll-padding-block: 0.25rem;
+    outline: 0;
+    max-height: min(23rem, var(--available-height));
+  }
+
+  .list[data-empty],
+  :global(.infonomic-autocomplete-list)[data-empty] {
+    padding: 0;
+  }
+
+  /* ── Item ── */
+
+  .autocomplete-item,
+  :global(.infonomic-autocomplete-item) {
+    position: relative;
+    user-select: none;
+    cursor: default;
+    outline: 0;
+    color: var(--surface-item-text);
+    background-color: var(--surface-item);
+    font-size: 1rem;
+    line-height: 1;
+    padding-block: 0.5rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+  }
+
+  .autocomplete-item[data-disabled],
+  :global(.infonomic-autocomplete-item[data-disabled]) {
+    color: var(--surface-item-text-disabled);
+    pointer-events: none;
+  }
+
+  .autocomplete-item[data-highlighted],
+  :global(.infonomic-autocomplete-item[data-highlighted]) {
+    outline: none;
+    background-color: var(--surface-item-hover);
+    color: var(--surface-item-text-hover);
+  }
+
+  /* ── Size-scoped items ── */
+
+  .popup-sm .autocomplete-item {
+    font-size: 0.75rem;
+    padding-block: 0.375rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    border-radius: 4px;
+  }
+
+  .popup-md .autocomplete-item {
+    font-size: 0.875rem;
+  }
+
+  .popup-lg .autocomplete-item {
+    font-size: 1.125rem;
+    padding-block: 0.625rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-radius: 8px;
+  }
+
+  /* ── Group label ── */
+
+  .group-label,
+  :global(.infonomic-autocomplete-group-label) {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Separator ── */
+
+  .separator,
+  :global(.infonomic-autocomplete-separator) {
+    margin: 0.375rem 0.75rem;
+    height: 1px;
+    background-color: var(--surface-panel-border);
+  }
+
+  /* ── Empty ── */
+
+  .empty:not(:empty),
+  :global(.infonomic-autocomplete-empty):not(:empty) {
+    box-sizing: border-box;
+    padding: 1rem;
+    font-size: 0.925rem;
+    line-height: 1;
+    color: var(--muted);
+  }
+
+  /* Dark mode handled by semantic tokens in theme layer */
+}

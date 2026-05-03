@@ -1,0 +1,42 @@
+/**
+ * BORDER FUNCTIONAL TOKENS
+ *
+ * Semantic tokens for borders, including colors and potentially
+ * widths, styles, and radii in the future.
+ */
+
+@layer byline-functional {
+  :root {
+    --border-color: var(--gray-100);
+
+    /* Generic field-state tokens (used by Input, Autocomplete, Select, etc.) */
+    --field-border: var(--border-color);
+    --field-border-hover: var(--stroke-noeffect-hover);
+    --field-border-invalid: var(--stroke-danger);
+    --field-ring: var(--ring-primary);
+    --field-ring-invalid: var(--ring-danger);
+  }
+
+  /* Dark mode */
+  .dark,
+  [data-theme="dark"] {
+    --border-color: var(--canvas-600);
+
+    --field-border: var(--border-color);
+    --field-border-hover: var(--stroke-noeffect-hover);
+    --field-border-invalid: var(--stroke-danger);
+    --field-ring: var(--ring-primary);
+    --field-ring-invalid: var(--ring-danger);
+  }
+
+  /* Force light mode (local override) */
+  .not-dark {
+    --border-color: var(--gray-100);
+
+    --field-border: var(--border-color);
+    --field-border-hover: var(--stroke-noeffect-hover);
+    --field-border-invalid: var(--stroke-danger);
+    --field-ring: var(--ring-primary);
+    --field-ring-invalid: var(--ring-danger);
+  }
+}

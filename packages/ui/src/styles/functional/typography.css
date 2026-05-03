@@ -1,0 +1,54 @@
+/**
+ * TYPOGRAPHY FUNCTIONAL TOKENS
+ *
+ * Semantic tokens for text colors and typography-related variables.
+ * Separate from typography.css in the typography/ directory which defines
+ * actual typographic styles and scales.
+ */
+
+@layer byline-functional {
+  :root {
+    --text: var(--gray-900);
+    --headings: var(--primary-700);
+    --muted: oklch(from var(--foreground) calc(l * 2) c h);
+
+    /* Generic text-role tokens - for components that need a subdued or
+       placeholder-style foreground without adopting any intent color. */
+    --text-subtle: var(--muted);
+    --text-placeholder: var(--muted);
+  }
+
+  /* 🌙 Dark via `.dark` class or [data-theme="dark"] attribute.
+   * We rely on the consuming application to detect a user's
+   * preferred color scheme - either by header or cookie, and to set
+   * a root html class accordingly (for now), which unfortunately means
+   * relying on either a server-side render or JS to set the theme
+   * on initial load.
+   */
+  .dark,
+  [data-theme="dark"],
+  [data-theme="dark"]::backdrop {
+    --text: var(--gray-50);
+    --headings: var(--gray-50);
+    --muted: oklch(from var(--foreground) calc(l * 0.75) c h);
+
+    --text-subtle: var(--muted);
+    --text-placeholder: var(--muted);
+  }
+
+  /* ===================================================================
+   * .NOT-DARK OVERRIDE
+   * .not-dark override: Forces light mode tokens by re-declaring :root values.
+   * This duplication is intentional - it ensures .not-dark always wins over .dark
+   * regardless of DOM order, without needing complex :not() selectors.
+   * Alternative approaches (revert-layer, :not() patterns) would be more fragile.
+  */
+  .not-dark {
+    --text: var(--gray-900);
+    --headings: var(--primary-800);
+    --muted: oklch(from var(--foreground) calc(l * 2) c h);
+
+    --text-subtle: var(--muted);
+    --text-placeholder: var(--muted);
+  }
+}

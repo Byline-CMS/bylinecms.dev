@@ -1,0 +1,106 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .loader-spinner,
+  :global(.infonomic-loader-spinner) {
+    --_size: var(--loader-spinner-size, 56px);
+    --_color: var(--loader-spinner-color, var(--loader-color, currentColor));
+    display: inline-block;
+    position: relative;
+    width: var(--_size);
+    height: var(--_size);
+  }
+
+  .loader-spinner-blade,
+  :global(.infonomic-loader-spinner-blade) {
+    transform-origin: calc(var(--_size) * 0.5) calc(var(--_size) * 0.5714);
+    animation: loader-spinner 1.2s linear infinite;
+  }
+
+  .loader-spinner-blade-inner,
+  :global(.infonomic-loader-spinner-blade-inner) {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: calc(var(--_size) * 0.4464);
+    width: calc(var(--_size) * 0.0893);
+    height: calc(var(--_size) * 0.25);
+    border-radius: 20%;
+    background: var(--_color);
+  }
+
+  .loader-spinner-blade:nth-child(1) {
+    transform: rotate(0deg);
+    animation-delay: -1.1s;
+  }
+
+  .loader-spinner-blade:nth-child(2) {
+    transform: rotate(30deg);
+    animation-delay: -1s;
+  }
+
+  .loader-spinner-blade:nth-child(3) {
+    transform: rotate(60deg);
+    animation-delay: -0.9s;
+  }
+
+  .loader-spinner-blade:nth-child(4) {
+    transform: rotate(90deg);
+    animation-delay: -0.8s;
+  }
+
+  .loader-spinner-blade:nth-child(5) {
+    transform: rotate(120deg);
+    animation-delay: -0.7s;
+  }
+
+  .loader-spinner-blade:nth-child(6) {
+    transform: rotate(150deg);
+    animation-delay: -0.6s;
+  }
+
+  .loader-spinner-blade:nth-child(7) {
+    transform: rotate(180deg);
+    animation-delay: -0.5s;
+  }
+
+  .loader-spinner-blade:nth-child(8) {
+    transform: rotate(210deg);
+    animation-delay: -0.4s;
+  }
+
+  .loader-spinner-blade:nth-child(9) {
+    transform: rotate(240deg);
+    animation-delay: -0.3s;
+  }
+
+  .loader-spinner-blade:nth-child(10) {
+    transform: rotate(270deg);
+    animation-delay: -0.2s;
+  }
+
+  .loader-spinner-blade:nth-child(11) {
+    transform: rotate(300deg);
+    animation-delay: -0.1s;
+  }
+
+  .loader-spinner-blade:nth-child(12) {
+    transform: rotate(330deg);
+    animation-delay: 0s;
+  }
+
+  @keyframes loader-spinner {
+    0% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+}

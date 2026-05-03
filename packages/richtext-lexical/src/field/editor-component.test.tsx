@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./editor-component.css', () => ({}))
 vi.mock('./themes/lexical-editor-theme.css', () => ({}))
-vi.mock('@infonomic/uikit/react', () => ({
+vi.mock('@byline/ui', () => ({
   HelpText: () => null,
   Label: () => null,
 }))

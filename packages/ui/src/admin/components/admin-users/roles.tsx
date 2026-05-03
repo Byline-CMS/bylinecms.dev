@@ -27,7 +27,7 @@ import { useState } from 'react'
 
 import type { AdminRoleResponse, UserRolesResponse } from '@byline/admin/admin-roles'
 import type { AdminUserResponse } from '@byline/admin/admin-users'
-import { Alert, Button, Checkbox, LoaderEllipsis } from '@infonomic/uikit/react'
+import { Alert, Button, Checkbox, LoaderEllipsis } from '../../../uikit.js'
 import cx from 'classnames'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'

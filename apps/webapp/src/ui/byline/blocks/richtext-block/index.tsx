@@ -1,6 +1,6 @@
 'use client'
 
-import { Container } from '@infonomic/uikit/react'
+import { Container } from '@byline/ui'
 import cx from 'classnames'
 
 import type { RichTextBlockData } from '~/blocks/richtext-block'

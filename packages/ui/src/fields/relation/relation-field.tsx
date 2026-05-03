@@ -15,7 +15,7 @@ import type {
   RelatedDocumentValue,
 } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
-import { Button, ErrorText, Label } from '@infonomic/uikit/react'
+import { Button, ErrorText, Label } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'

@@ -16,7 +16,7 @@ import {
   EllipsisIcon,
   IconButton,
   Modal,
-} from '@infonomic/uikit/react'
+} from '../uikit.js'
 import cx from 'classnames'
 
 import styles from './document-actions.module.css'

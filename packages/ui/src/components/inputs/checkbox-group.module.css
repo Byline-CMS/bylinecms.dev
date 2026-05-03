@@ -1,0 +1,15 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  :global(.infonomic-checkbox-group),
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
+  }
+}

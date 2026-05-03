@@ -1,0 +1,234 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  /* ============================================
+     Viewport — fixed-position container for toasts.
+     Position classes are applied here.
+     ============================================ */
+
+  .viewport,
+  :global(.infonomic-toast-viewport) {
+    --viewport-padding: 16px;
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: var(--z-index-toast);
+    outline: none;
+  }
+
+  /* Mobile: full-width at all positions */
+
+  .top-left,
+  :global(.infonomic-toast-top-left) {
+    top: 88px;
+    right: var(--viewport-padding);
+    left: var(--viewport-padding);
+  }
+
+  .top-right,
+  :global(.infonomic-toast-top-right) {
+    top: 88px;
+    right: var(--viewport-padding);
+    left: var(--viewport-padding);
+  }
+
+  .bottom-left,
+  :global(.infonomic-toast-bottom-left) {
+    bottom: var(--viewport-padding);
+    right: var(--viewport-padding);
+    left: var(--viewport-padding);
+  }
+
+  .bottom-right,
+  :global(.infonomic-toast-bottom-right) {
+    bottom: var(--viewport-padding);
+    right: var(--viewport-padding);
+    left: var(--viewport-padding);
+  }
+
+  @media (min-width: 48rem) {
+    .bottom-right,
+    :global(.infonomic-toast-bottom-right) {
+      bottom: var(--viewport-padding);
+      right: var(--viewport-padding);
+      left: auto;
+      width: 100%;
+      max-width: 390px;
+    }
+
+    .bottom-left,
+    :global(.infonomic-toast-bottom-left) {
+      bottom: var(--viewport-padding);
+      left: var(--viewport-padding);
+      right: auto;
+      width: 100%;
+      max-width: 390px;
+    }
+
+    .top-left,
+    :global(.infonomic-toast-top-left) {
+      top: 88px;
+      left: var(--viewport-padding);
+      right: auto;
+      bottom: auto;
+      width: 100%;
+      max-width: 390px;
+    }
+
+    .top-right,
+    :global(.infonomic-toast-top-right) {
+      top: 88px;
+      right: var(--viewport-padding);
+      bottom: auto;
+      left: auto;
+      width: 100%;
+      max-width: 390px;
+    }
+  }
+
+  /* ============================================
+     Root — individual toast wrapper
+     ============================================ */
+
+  .root,
+  :global(.infonomic-toast-root) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-1);
+    padding-top: 12px;
+    padding-bottom: 16px;
+    background: var(--surface-panel-elevated);
+    border-width: var(--border-width-thin);
+    border-color: var(--border-color);
+    border-style: var(--border-style-solid);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    transform: translateX(var(--toast-swipe-movement-x, 0))
+      translateY(var(--toast-swipe-movement-y, 0));
+    transition:
+      transform 200ms ease-out,
+      opacity 150ms ease-in;
+  }
+
+  /* Entry animation */
+  .root[data-starting-style],
+  :global(.infonomic-toast-root[data-starting-style]) {
+    opacity: 0;
+    transform: translateY(calc(100% + var(--viewport-padding)));
+  }
+
+  @media (min-width: 48rem) {
+    .viewport.top-right .root[data-starting-style],
+    .viewport.bottom-right .root[data-starting-style],
+    :global(.infonomic-toast-viewport.top-right .infonomic-toast-root[data-starting-style]),
+    :global(.infonomic-toast-viewport.bottom-right .infonomic-toast-root[data-starting-style]) {
+      opacity: 0;
+      transform: translateX(calc(100% + var(--viewport-padding)));
+    }
+
+    .viewport.top-left .root[data-starting-style],
+    .viewport.bottom-left .root[data-starting-style],
+    :global(.infonomic-toast-viewport.top-left .infonomic-toast-root[data-starting-style]),
+    :global(.infonomic-toast-viewport.bottom-left .infonomic-toast-root[data-starting-style]) {
+      opacity: 0;
+      transform: translateX(calc(-100% - var(--viewport-padding)));
+    }
+  }
+
+  /* Exit animation */
+  .root[data-ending-style],
+  :global(.infonomic-toast-root[data-ending-style]) {
+    opacity: 0;
+  }
+
+  .root[data-ending-style][data-swipe-direction="right"],
+  :global(.infonomic-toast-root[data-ending-style][data-swipe-direction="right"]) {
+    transform: translateX(calc(var(--toast-swipe-movement-x, 0) + 100% + var(--viewport-padding)));
+  }
+
+  .root[data-ending-style][data-swipe-direction="left"],
+  :global(.infonomic-toast-root[data-ending-style][data-swipe-direction="left"]) {
+    transform: translateX(calc(var(--toast-swipe-movement-x, 0) - 100% - var(--viewport-padding)));
+  }
+
+  .root[data-ending-style][data-swipe-direction="down"],
+  :global(.infonomic-toast-root[data-ending-style][data-swipe-direction="down"]) {
+    transform: translateY(calc(var(--toast-swipe-movement-y, 0) + 150%));
+  }
+
+  /* ============================================
+     Content — overflow container for stacking
+     ============================================ */
+
+  .content,
+  :global(.infonomic-toast-content) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-1);
+  }
+
+  /* ============================================
+     Header / Close / Title / Description / Action
+     ============================================ */
+
+  .header,
+  :global(.infonomic-toast-header) {
+    display: flex;
+    padding: 0 16px 0 12px;
+    align-items: start;
+    gap: var(--gap-2);
+    justify-content: space-between;
+  }
+
+  .close,
+  :global(.infonomic-toast-close) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    min-width: 24px;
+    min-height: 24px;
+    width: 24px;
+    height: 24px;
+    border-radius: 100%;
+    margin-left: auto;
+    margin-top: -2px;
+  }
+
+  .close svg,
+  :global(.infonomic-toast-close svg) {
+    fill: white;
+  }
+
+  .title,
+  :global(.infonomic-toast-title) {
+    display: flex;
+    padding: 0 12px 0 8px;
+    align-items: start;
+    gap: var(--gap-2);
+    margin-bottom: 5px;
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  .description,
+  :global(.infonomic-toast-description) {
+    margin: 0;
+    padding: 0 8px 0 12px;
+    font-size: var(--font-size-sm);
+    line-height: 1.3;
+  }
+
+  .action,
+  :global(.infonomic-toast-action) {
+    display: flex;
+    justify-content: end;
+    padding: 0 12px 0 12px;
+  }
+}

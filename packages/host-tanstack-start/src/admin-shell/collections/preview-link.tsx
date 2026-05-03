@@ -40,7 +40,7 @@
 import { useState } from 'react'
 
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
-import { ExternalLinkIcon, IconButton, useToastManager } from '@infonomic/uikit/react'
+import { ExternalLinkIcon, IconButton, useToastManager } from '@byline/ui'
 import cx from 'classnames'
 
 import { enablePreviewModeFn } from '../../server-fns/preview/index.js'

@@ -1,0 +1,274 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .day-picker {
+    padding: var(--spacing-12);
+  }
+
+  /* relative flex flex-col gap-4 sm:flex-row */
+  .months {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-16);
+  }
+
+  /* 'relative flex h-7 items-center justify-center', */
+  .months-caption {
+    position: relative;
+    display: flex;
+    height: 1.75rem;
+    /* 28px */
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 'flex items-center justify-center gap-2 w-full',_dropdownsClassName */
+  .dropdowns {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-8);
+    width: 100%;
+  }
+
+  .select-trigger {
+    width: 100%;
+    height: 2.25rem;
+    /* 36px */
+    font-size: 0.875rem;
+    /* 14px */
+  }
+
+  .select-content {
+    z-index: 100;
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  .select-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border: none;
+    /* 14px */
+  }
+
+  .select-item:hover {
+    background-color: var(--gray-50);
+    color: var(--foreground);
+  }
+
+  .select-chevrons {
+    stroke: var(--primary-400);
+    opacity: 0.7;
+  }
+
+  .scroll-area {
+    border: 1px solid var(--border-color);
+    height: 240px;
+    width: 120px;
+    background-color: var(--background);
+    text-align: center;
+  }
+
+  .disabled {
+    color: var(--muted);
+    opacity: 0.5;
+  }
+
+  /* 'invisible flex-1' */
+  /* This is used to hide the month when the calendar is in single mode */
+  /* and the month is not selected */
+  .hidden {
+    visibility: hidden;
+    flex: 1;
+  }
+
+  /* 'text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30', */
+  .outside {
+    color: var(--muted);
+    opacity: 0.5;
+  }
+
+  .outside[aria-selected="true"] {
+    color: var(--muted);
+    opacity: 0.3;
+  }
+
+  /* 'pt-3 text-sm' */
+  .footer {
+    padding-top: var(--spacing-12);
+    font-size: 0.875rem;
+    /* 14px */
+  }
+
+  .weekdays {
+    display: flex;
+  }
+
+  /* 'w-9 text-sm font-normal text-muted-foreground', */
+  .weekday {
+    width: 2.25rem;
+    /* 36px */
+    font-size: 0.875rem;
+    /* 14px */
+    font-weight: normal;
+    color: var(--muted);
+  }
+
+  /* 'truncate text-sm font-medium' */
+  .caption-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    /* 14px */
+    font-weight: 500;
+  }
+
+  /* 'mx-auto mt-4' */
+  .month-grid {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: var(--spacing-16);
+  }
+
+  /* 'mt-2 flex w-max items-start' */
+  .week {
+    margin-top: var(--spacing-8);
+    display: flex;
+    width: max-content;
+    align-items: flex-start;
+  }
+
+  /* 'flex size-9 flex-1 items-center justify-center p-0 text-sm', */
+  .day {
+    display: flex;
+    width: 2.25rem;
+    /* 36px */
+    height: 2.25rem;
+    /* 36px */
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 0.875rem;
+    /* 14px */
+  }
+
+  /* '[&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary [&>button]:hover:text-primary-foreground', */
+  .day > button {
+    color: var(--foreground);
+  }
+
+  /* '[&>button]:bg-accent [&>button]:text-accent-foreground', */
+  .today > button {
+    /* background-color: var(--gray-50); */
+    border: solid 1px var(--stroke-primary);
+    color: var(--foreground);
+  }
+
+  .day > button:hover,
+  .day-selected > button {
+    background-color: var(--fill-primary-strong);
+    color: white;
+  }
+
+  /* 'size-9 rounded-md p-0 font-normal transition-none aria-selected:opacity-100', */
+  .day-button {
+    width: 2.25rem;
+    /* 36px */
+    height: 2.25rem;
+    /* 36px */
+    border-radius: var(--border-radius-md);
+    padding: 0;
+    font-weight: normal;
+    transition: none;
+  }
+
+  .day-button[aria-selected="true"] {
+    opacity: 1;
+  }
+
+  /* 'bg-accent [&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary [&>button]:hover:text-primary-foreground' */
+  .button-range {
+    background-color: var(--fill-primary-weak);
+    color: var(--foreground);
+  }
+
+  .button-range > button {
+    background-color: var(--fill-primary-strong);
+    color: white;
+  }
+
+  .button-range > button:hover {
+    background-color: var(--fill-primary-strong);
+    color: var(--foreground);
+  }
+
+  .range-start {
+    border-top-left-radius: var(--border-radius-md);
+    border-bottom-left-radius: var(--border-radius-md);
+  }
+
+  .range-end {
+    border-top-right-radius: var(--border-radius-md);
+    border-bottom-right-radius: var(--border-radius-md);
+  }
+
+  /* 'bg-accent !text-foreground [&>button]:bg-transparent [&>button]:!text-foreground [&>button]:hover:bg-transparent [&>button]:hover:!text-foreground', */
+  .range-middle {
+    background-color: var(--fill-primary-weak);
+    color: var(--foreground);
+  }
+
+  .range-middle > button,
+  .range-middle > button:hover {
+    background-color: transparent;
+    color: var(--foreground);
+  }
+
+  @media (min-width: 40rem) {
+    .months {
+      flex-direction: row;
+    }
+  }
+
+  /* 🌙 Dark via `.dark` class. We rely on the 
+  * consuming application to detect a user's preferred
+  * color scheme - either by header or cookie, and set
+  * a root html class accordingly
+  */
+  :global(.dark),
+  :global([data-theme="dark"]) {
+    .select-content {
+      background-color: var(--canvas-800);
+      color: var(--foreground);
+    }
+
+    .scroll-area {
+      background-color: var(--canvas-800);
+      color: var(--foreground);
+    }
+
+    .select-item:hover {
+      background-color: var(--primary-400);
+      color: var(--foreground);
+    }
+
+    .select-chevrons {
+      stroke: var(--primary-200);
+      opacity: 0.7;
+    }
+  }
+}

@@ -1,0 +1,122 @@
+/* No longer used in our actual hamburger React and Astro components
+but left here as a reference. */
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .component--hamburger {
+    display: flex;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    width: 42px;
+    height: 34px;
+    overflow: hidden;
+    cursor: pointer;
+    transition-property: opacity, filter;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
+    font: inherit;
+    color: inherit;
+    text-transform: none;
+    background-color: transparent;
+    border: 0;
+    margin: 0;
+    border-radius: 4px;
+  }
+
+  /* .component--hamburger:hover {
+  @apply bg-primary-200;
+} */
+
+  .component--hamburger:active,
+  .component--hamburger:focus {
+    outline: none;
+    border-color: white;
+    border-width: 0.5px;
+    border-style: dashed;
+    /* border: dashed 0.5px #ffffff; */
+    border-radius: 4px;
+  }
+
+  .component--hamburger .box {
+    width: 24px;
+    height: 24px;
+    display: block;
+    position: relative;
+  }
+
+  .component--hamburger .inner {
+    display: block;
+    top: 50%;
+    margin-top: -1px;
+    transition-duration: 0.075s;
+    transition-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+
+  .component--hamburger .inner,
+  .component--hamburger .inner::before,
+  .component--hamburger .inner::after {
+    position: absolute;
+    width: 24px;
+    height: 2px;
+    border-radius: 0;
+    /* background-color: white; */
+    transition-property: transform;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
+  }
+
+  /* .dark .component--hamburger .inner,
+.dark .component--hamburger .inner::before,
+.dark .component--hamburger .inner::after {
+  background-color: white;
+} */
+
+  .component--hamburger .inner::before,
+  .component--hamburger .inner::after {
+    content: "";
+    display: block;
+  }
+
+  .component--hamburger .inner::before {
+    top: -8px;
+    transition:
+      top 0.075s 0.12s ease,
+      opacity 0.075s ease;
+  }
+
+  .component--hamburger .inner::after {
+    bottom: -8px;
+    transition:
+      bottom 0.075s 0.12s ease,
+      transform 0.075s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+
+  .component--hamburger.is_active .inner {
+    transform: rotate(45deg);
+    transition-delay: 0.12s;
+    transition-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+
+  .component--hamburger.is_active .inner::before {
+    top: 0;
+    opacity: 0;
+    transition:
+      top 0.075s ease,
+      opacity 0.075s 0.12s ease;
+  }
+
+  .component--hamburger.is_active .inner::after {
+    bottom: 0;
+    transform: rotate(-90deg);
+    transition:
+      bottom 0.075s ease,
+      transform 0.075s 0.12s cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+}

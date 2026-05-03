@@ -1,0 +1,289 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .input-wrapper,
+  :global(.infonomic-input-wrapper) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-1);
+  }
+
+  .input-container,
+  :global(.infonomic-input-container) {
+    position: relative;
+    width: 100%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2);
+  }
+
+  .input,
+  :global(.infonomic-input) {
+    border: none;
+    outline: 1px solid transparent;
+    outline-offset: 2px;
+    font-weight: normal;
+    display: inline-flex;
+    gap: var(--gap-2);
+    align-items: center;
+    width: 100%;
+    transition: all var(--transition-normal);
+    border-radius: var(--border-radius-sm);
+  }
+
+  .input:focus,
+  .input:active,
+  :global(.infonomic-input):focus,
+  :global(.infonomic-input):active {
+    outline-color: var(--ring-color);
+  }
+
+  .input:disabled,
+  .input[disabled],
+  :global(.infonomic-input):disabled,
+  :global(.infonomic-input)[disabled] {
+    pointer-events: none;
+  }
+
+  .label,
+  :global(.infonomic-input-label) {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--label-color);
+  }
+
+  /* Sizes */
+  .sm,
+  :global(.infonomic-input-sm) {
+    min-height: 32px;
+    font-size: 0.875rem;
+    line-height: 0;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .md,
+  :global(.infonomic-input-md) {
+    min-height: 36px;
+    font-size: 1rem;
+    line-height: 0;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .lg,
+  :global(.infonomic-input-lg) {
+    min-height: 40px;
+    font-size: 1.175rem;
+    line-height: 0;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .start-adornment,
+  .end-adornment,
+  :global(.infonomic-input-start-adornment),
+  :global(.infonomic-input-end-adornment) {
+    position: absolute;
+    display: flex;
+    align-items: center;
+  }
+
+  .start-adornment,
+  :global(.infonomic-input-start-adornment) {
+    left: 5px;
+  }
+
+  .end-adornment,
+  :global(.infonomic-input-end-adornment) {
+    right: 5px;
+  }
+
+  .help-text,
+  :global(.infonomic-input-help-text) {
+    font-size: 0.75rem;
+    color: var(--help-text-color);
+  }
+
+  /* Variants */
+  .outlined,
+  :global(.infonomic-input-outlined) {
+    border: 1px solid var(--input-variant-outlined-border);
+    background-color: transparent;
+  }
+
+  .outlined:hover,
+  :global(.infonomic-input-outlined):hover {
+    border: 1px solid var(--input-variant-outlined-hover-border);
+  }
+
+  .outlined:focus,
+  .outlined:active,
+  :global(.infonomic-input-outlined):focus,
+  :global(.infonomic-input-outlined):active {
+    --ring-color: var(--input-variant-outline-ring-color);
+  }
+
+  .underlined,
+  :global(.infonomic-input-underlined) {
+    border-bottom: 1px solid var(--input-variant-underlined-border);
+    border-radius: 0;
+    gap: var(--gap-1);
+    background-color: var(--input-variant-underlined);
+  }
+
+  /* Sizes */
+  .underlined.sm,
+  :global(.infonomic-input-underlined.input-sm) {
+    padding: 0.25rem 0.1rem;
+    min-height: 26px;
+  }
+
+  .underlined.md,
+  :global(.infonomic-input-underlined.input-md) {
+    padding: 0.25rem 0.1rem;
+    min-height: 30px;
+  }
+
+  .underlined.lg,
+  :global(.infonomic-input-underlined.input-lg) {
+    padding: 0 0.1rem;
+    min-height: 34px;
+  }
+
+  .underlined:hover,
+  :global(.infonomic-input-underlined):hover {
+    border-bottom: 1px solid var(--input-variant-underlined-hover-border);
+  }
+
+  .underlined:focus,
+  .underlined:active,
+  :global(.infonomic-input-underlined):focus,
+  :global(.infonomic-input-underlined):active {
+    outline: none;
+  }
+
+  .filled,
+  :global(.infonomic-input-filled) {
+    background-color: var(--input-variant-filled);
+  }
+
+  /* Error classes last, so that they override all
+    of the above */
+  .error,
+  :global(.infonomic-input-error) {
+    border: 1px solid var(--field-border-invalid);
+  }
+
+  .error:hover,
+  :global(.infonomic-input-error):hover {
+    border: 1px solid var(--field-border-invalid);
+  }
+
+  .error:focus,
+  .error:active,
+  :global(.infonomic-input-error):focus,
+  :global(.infonomic-input-error):active {
+    --ring-color: var(--field-ring-invalid);
+  }
+
+  .underlined.start-adornment-padding,
+  .start-adornment-padding,
+  :global(.infonomic-input-underlined.input-start-adornment-padding),
+  :global(.infonomic-input-start-adornment-padding) {
+    padding-left: 2rem;
+  }
+
+  .underlined.end-adornment-padding,
+  .end-adornment-padding,
+  :global(.infonomic-input-underlined.input-end-adornment-padding),
+  :global(.infonomic-input-end-adornment-padding) {
+    padding-right: 2rem;
+  }
+
+  .underlined.start-adornment,
+  :global(.infonomic-input-underlined.input-start-adornment) {
+    left: 0;
+  }
+
+  .underlined.end-adornment,
+  :global(.infonomic-input-underlined.input-end-adornment) {
+    right: 0;
+  }
+
+  /* Intents */
+  .primary,
+  :global(.infonomic-input-primary) {
+    --input-variant-outlined-border: var(--stroke-primary);
+    --input-variant-outlined-hover-border: var(--stroke-primary-hover);
+    --input-variant-outline-ring-color: var(--ring-primary);
+    --input-variant-underlined-border: var(--stroke-primary);
+    --input-variant-underlined-hover-border: var(--stroke-primary-hover);
+    --input-variant-filled: var(--fill-primary-weak);
+  }
+
+  .secondary,
+  :global(.infonomic-input-secondary) {
+    --input-variant-outlined-border: var(--stroke-secondary);
+    --input-variant-outlined-hover-border: var(--stroke-secondary-hover);
+    --input-variant-outline-ring-color: var(--ring-secondary);
+    --input-variant-underlined-border: var(--stroke-secondary);
+    --input-variant-underlined-hover-border: var(--stroke-secondary-hover);
+    --input-variant-filled: var(--fill-secondary-weak);
+  }
+
+  .noeffect,
+  :global(.infonomic-input-noeffect) {
+    --input-variant-outlined-border: var(--stroke-noeffect);
+    --input-variant-outlined-hover-border: var(--stroke-noeffect-hover);
+    --input-variant-outline-ring-color: var(--ring-noeffect);
+    --input-variant-underlined-border: var(--stroke-noeffect);
+    --input-variant-underlined-hover-border: var(--stroke-noeffect-hover);
+    --input-variant-filled: var(--fill-noeffect-weak);
+  }
+
+  .success,
+  :global(.infonomic-input-success) {
+    --input-variant-outlined-border: var(--stroke-success);
+    --input-variant-outlined-hover-border: var(--stroke-success-hover);
+    --input-variant-outline-ring-color: var(--ring-success);
+    --input-variant-underlined-border: var(--stroke-success);
+    --input-variant-underlined-hover-border: var(--stroke-success-hover);
+    --input-variant-filled: var(--fill-success-weak);
+  }
+
+  .info,
+  :global(.infonomic-input-info) {
+    --input-variant-outlined-border: var(--stroke-info);
+    --input-variant-outlined-hover-border: var(--stroke-info-hover);
+    --input-variant-outline-ring-color: var(--ring-info);
+    --input-variant-underlined-border: var(--stroke-info);
+    --input-variant-underlined-hover-border: var(--stroke-info-hover);
+    --input-variant-filled: var(--fill-info-weak);
+  }
+
+  .warning,
+  :global(.infonomic-input-warning) {
+    --input-variant-outlined-border: var(--stroke-warning);
+    --input-variant-outlined-hover-border: var(--stroke-warning-hover);
+    --input-variant-outline-ring-color: var(--ring-warning);
+    --input-variant-underlined-border: var(--stroke-warning);
+    --input-variant-underlined-hover-border: var(--stroke-warning-hover);
+    --input-variant-filled: var(--fill-warning-weak);
+  }
+
+  .danger,
+  :global(.infonomic-input-danger) {
+    --input-variant-outlined-border: var(--stroke-danger);
+    --input-variant-outlined-hover-border: var(--stroke-danger-hover);
+    --input-variant-outline-ring-color: var(--ring-danger);
+    --input-variant-underlined-border: var(--stroke-danger);
+    --input-variant-underlined-hover-border: var(--stroke-danger-hover);
+    --input-variant-filled: var(--fill-danger-weak);
+  }
+
+  /* Dark mode handled by semantic tokens in theme layer */
+}

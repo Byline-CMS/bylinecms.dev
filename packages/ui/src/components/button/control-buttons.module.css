@@ -1,0 +1,134 @@
+@layer byline-base, byline-utilities, byline-theme, byline-components;
+
+@layer byline-components {
+  .stop-button,
+  .play-button,
+  .directional-button,
+  :global(.infonomic-stop-button),
+  :global(.infonomic-play-button),
+  :global(.infonomic-directional-button) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    border-style: none;
+    border-radius: 100%;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    color: white;
+    background-color: var(--fill-primary-strong);
+    transition-property: all, color;
+    transition-duration: 0.3s, 1ms;
+    transition-timing-function: cubic-bezier(0.25, 0.8, 0.5, 1), ease;
+    transition-delay: 0s, 0s;
+    cursor: pointer;
+  }
+
+  .directional-button span {
+    width: 40%;
+    padding-bottom: 3px;
+  }
+
+  .play-button span {
+    width: 80%;
+    height: 80%;
+  }
+
+  .stop-button span {
+    width: 50%;
+    height: 50%;
+  }
+
+  .directional-button span .icon path {
+    stroke: none;
+    fill: white;
+  }
+
+  .stop-button:hover,
+  .play-button:hover,
+  .stop-button:focus,
+  .play-button:focus,
+  .directional-button:hover,
+  .directional-button:focus {
+    color: white;
+    background-color: var(--fill-primary-strong-hover);
+    transform: translateY(-5px);
+  }
+
+  /* Sizes */
+  .xs {
+    width: 20px;
+    min-width: 20px;
+    height: 20px;
+    min-height: 20px;
+  }
+
+  .sm {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
+  }
+
+  .md {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .lg {
+    width: 50px;
+    min-width: 50px;
+    height: 50px;
+    min-height: 50px;
+  }
+
+  .xl {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  /* Up is default so no need to rotate */
+  .up:hover,
+  .up:focus {
+    transform: translateY(-5px);
+  }
+
+  .down span,
+  .down span {
+    transform: rotate(180deg);
+  }
+
+  .down:hover,
+  .down:focus {
+    transform: translateY(5px);
+  }
+
+  .left span,
+  .left span {
+    transform: rotate(-90deg);
+  }
+
+  .left:hover,
+  .left:focus {
+    transform: translateX(-5px);
+  }
+
+  .right span,
+  .right span {
+    transform: rotate(90deg);
+  }
+
+  .right:hover,
+  .right:focus {
+    transform: translateX(5px);
+  }
+
+  /* No dark theme overrides needed! 
+   * Tokens automatically switch in .dark and respect .not-dark 
+  */
+}

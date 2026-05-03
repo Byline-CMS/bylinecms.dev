@@ -4,13 +4,13 @@
  * integrated with Tailwind (colors, breakpoints etc.) via
  * Tailwind theme configuration.
  */
-@import "@infonomic/uikit/reset.css";
-@import "@infonomic/uikit/styles.css";
+@import "@byline/ui/reset.css";
+@import "@byline/ui/styles.css";
 
 /**
  * Optional uikit typography including prose and fonts
  */
-@import "@infonomic/uikit/typography.css";
+@import "@byline/ui/typography.css";
 
 /**
  * Custom uikit overrides

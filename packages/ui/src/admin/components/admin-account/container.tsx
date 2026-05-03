@@ -28,7 +28,7 @@ import type React from 'react'
 import { useState } from 'react'
 
 import type { AccountResponse } from '@byline/admin/admin-account'
-import { Button, CloseIcon, Drawer, EditIcon, IconButton } from '@infonomic/uikit/react'
+import { Button, CloseIcon, Drawer, EditIcon, IconButton } from '../../../uikit.js'
 import cx from 'classnames'
 
 import { LocalDateTime } from '../../../fields/local-date-time.js'

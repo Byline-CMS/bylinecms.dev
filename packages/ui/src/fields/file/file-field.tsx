@@ -7,7 +7,7 @@
  */
 
 import type { FileField as FieldType, StoredFileValue } from '@byline/core'
-import { ErrorText } from '@infonomic/uikit/react'
+import { ErrorText } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'

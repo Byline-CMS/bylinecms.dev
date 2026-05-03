@@ -1,0 +1,127 @@
+@layer byline-base, byline-utilities, byline-theme, byline-components;
+
+@layer byline-components {
+  /* Backdrop overlay */
+
+  .backdrop,
+  :global(.infonomic-modal-backdrop) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(245, 245, 245, 0.35);
+    transition: opacity 200ms ease;
+  }
+
+  .backdrop[data-starting-style],
+  .backdrop[data-ending-style] {
+    opacity: 0;
+  }
+
+  :global(.dark) .backdrop,
+  :global([data-theme="dark"]) .backdrop,
+  :global(.dark .infonomic-modal-backdrop),
+  :global([data-theme="dark"] .infonomic-modal-backdrop) {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Modal wrapper / popup — the dialog surface */
+
+  .modal-wrapper,
+  :global(.infonomic-modal-wrapper) {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transition: opacity 200ms ease;
+  }
+
+  .modal-wrapper[data-starting-style],
+  .modal-wrapper[data-ending-style] {
+    opacity: 0;
+  }
+
+  @media screen and (min-width: 40rem) {
+    .modal-wrapper,
+    :global(.infonomic-modal-wrapper) {
+      justify-content: center;
+    }
+  }
+
+  /* Container — the visible dialog box */
+
+  .modal-container,
+  :global(.infonomic-modal-container) {
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-md);
+    border-radius: var(--border-radius-md);
+    min-height: 300px;
+    max-height: 88vh;
+    width: 100%;
+    background-color: var(--surface-panel);
+    border: 1px solid var(--border-color);
+    margin-left: var(--spacing-8);
+    margin-right: var(--spacing-8);
+  }
+
+  @media screen and (min-width: 40rem) {
+    .modal-container,
+    :global(.infonomic-modal-container) {
+      max-height: calc(100vh - 24px);
+      min-height: auto;
+      width: auto;
+    }
+  }
+
+  /* Sub-component styles */
+
+  .modal-header,
+  :global(.infonomic-modal-header) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-3);
+    padding-left: var(--spacing-16);
+    padding-right: var(--spacing-16);
+    padding-top: var(--spacing-16);
+    max-width: 100%;
+  }
+
+  .modal-header h2,
+  .modal-header h3,
+  :global(.infonomic-modal-header h2),
+  :global(.infonomic-modal-header h3) {
+    margin: 0;
+  }
+
+  .modal-content,
+  :global(.infonomic-modal-content) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--gap-3);
+    padding-left: var(--spacing-16);
+    padding-right: var(--spacing-16);
+    padding-bottom: var(--spacing-12);
+    max-width: 100%;
+  }
+
+  .modal-actions,
+  :global(.infonomic-modal-actions) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--gap-3);
+    padding-top: var(--spacing-8);
+    padding-bottom: var(--spacing-20);
+    padding-left: var(--spacing-16);
+    padding-right: var(--spacing-16);
+  }
+}

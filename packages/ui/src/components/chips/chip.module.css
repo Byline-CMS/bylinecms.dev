@@ -1,0 +1,445 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .chip,
+  :global(.infonomic-chip) {
+    --chip-font-size: 0.9rem;
+    --chip-height: 34px;
+    --chip-padding-y: 0.35rem;
+    --chip-padding-x: 0.4rem;
+    --chip-icon-size: 1rem;
+    --chip-gap: var(--gap-1);
+    appearance: none;
+    outline: 1px solid transparent;
+    outline-offset: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--chip-gap);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    line-height: 1.1;
+    font-weight: 500;
+    text-decoration: none;
+    min-height: var(--chip-height);
+    padding: var(--chip-padding-y) var(--chip-padding-x);
+    font-size: var(--chip-font-size);
+    transition:
+      background-color var(--transition-normal),
+      outline-color var(--transition-normal);
+  }
+
+  .chip:disabled,
+  .chip[disabled],
+  :global(.infonomic-chip):disabled,
+  :global(.infonomic-chip)[disabled] {
+    pointer-events: none;
+  }
+
+  .chip:focus,
+  .chip:active,
+  :global(.infonomic-chip):focus,
+  :global(.infonomic-chip):active {
+    outline-color: var(--ring-color);
+  }
+
+  .label,
+  :global(.infonomic-chip-label) {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  .icon,
+  :global(.infonomic-chip-icon) {
+    width: var(--chip-icon-size);
+    height: var(--chip-icon-size);
+  }
+
+  .iconWrapper,
+  :global(.infonomic-chip-icon-wrapper) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+  }
+
+  .close-icon,
+  :global(.infonomic-chip-close-icon) {
+    width: calc(var(--chip-icon-size) * 0.9);
+    height: calc(var(--chip-icon-size) * 0.9);
+  }
+
+  /* Sizes ----------------------------------------------------------- */
+  .xs,
+  :global(.infonomic-chip-xs) {
+    --chip-height: 24px;
+    --chip-padding-y: 0.15rem;
+    --chip-padding-x: 0.3rem;
+    --chip-font-size: 0.75rem;
+    --chip-icon-size: 1rem;
+    gap: var(--gap-1);
+  }
+
+  .sm,
+  :global(.infonomic-chip-sm) {
+    --chip-height: 28px;
+    --chip-padding-y: 0.2rem;
+    --chip-padding-x: 0.3rem;
+    --chip-font-size: 0.82rem;
+    --chip-icon-size: 1.2rem;
+  }
+
+  .md,
+  :global(.infonomic-chip-md) {
+    --chip-height: 32px;
+    --chip-padding-y: 0.25rem;
+    --chip-padding-x: 0.3rem;
+    --chip-font-size: 0.9rem;
+    --chip-icon-size: 1.3rem;
+  }
+
+  .lg,
+  :global(.infonomic-chip-lg) {
+    --chip-gap: var(--gap-2);
+    --chip-height: 36px;
+    --chip-padding-y: 0.3rem;
+    --chip-padding-x: 0.4rem;
+    --chip-font-size: 0.98rem;
+    --chip-icon-size: 1.35rem;
+  }
+
+  .xl,
+  :global(.infonomic-chip-xl) {
+    --chip-gap: var(--gap-2);
+    --chip-height: 40px;
+    --chip-padding-y: 0.3rem;
+    --chip-padding-x: 0.5rem;
+    --chip-font-size: 1rem;
+    --chip-icon-size: 1.4rem;
+  }
+
+  /* Variants -------------------------------------------------------- */
+  /* Variants - Consuming Variables */
+  .filled,
+  :global(.infonomic-chip-filled) {
+    color: var(--chip-variant-filled-foreground);
+    background-color: var(--chip-variant-filled);
+  }
+
+  .filled:hover,
+  :global(.infonomic-chip-filled):hover {
+    background-color: var(--chip-variant-filled-hover);
+  }
+
+  .filled:focus,
+  .filled:active,
+  :global(.infonomic-chip-filled):focus,
+  :global(.infonomic-chip-filled):active {
+    --ring-color: var(--chip-ring-color);
+  }
+
+  .filled:disabled,
+  .filled[disabled],
+  :global(.infonomic-chip-filled):disabled,
+  :global(.infonomic-chip-filled)[disabled] {
+    background-color: var(
+      --chip-variant-filled-disabled,
+      oklch(from var(--chip-variant-filled) calc(l * 1.1) calc(c * 0.85) h)
+    );
+    color: var(
+      --chip-variant-filled-foreground-disabled,
+      oklch(from var(--chip-variant-filled-foreground) calc(l * 0.9) calc(c * 0.85) h)
+    );
+  }
+
+  /* -------------------------------------------------------- */
+  /* Weak variant for close button on selected chip */
+
+  .filled-weak,
+  :global(.infonomic-chip-filled-weak) {
+    color: var(--chip-variant-filled-weak-foreground);
+    background-color: var(--chip-variant-filled-weak);
+  }
+
+  .filled-weak:hover,
+  :global(.infonomic-chip-filled-weak):hover {
+    background-color: var(--chip-variant-filled-weak-hover);
+  }
+
+  .filled-weak:focus,
+  .filled-weak:active,
+  :global(.infonomic-chip-filled-weak):focus,
+  :global(.infonomic-chip-filled-weak):active {
+    --ring-color: var(--chip-ring-color);
+  }
+
+  .filled-weak:disabled,
+  .filled-weak[disabled],
+  :global(.infonomic-chip-filled-weak):disabled,
+  :global(.infonomic-chip-filled-weak)[disabled] {
+    background-color: var(
+      --chip-variant-filled-weak-disabled,
+      oklch(from var(--chip-variant-filled-weak) calc(l * 1.1) calc(c * 0.85) h)
+    );
+    color: var(
+      --chip-variant-filled-weak-foreground-disabled,
+      oklch(from var(--chip-variant-filled-weak-foreground) calc(l * 0.9) calc(c * 0.85) h)
+    );
+  }
+
+  /* -------------------------------------------------------- */
+  /* Outlined variant */
+
+  .outlined,
+  :global(.infonomic-chip-outlined) {
+    border: 1px solid var(--chip-variant-outlined-border);
+    color: var(--chip-variant-outlined-foreground);
+    background-color: var(--chip-variant-outlined);
+  }
+
+  .outlined:disabled,
+  .outlined[disabled],
+  :global(.infonomic-chip-outlined):disabled,
+  :global(.infonomic-chip-outlined)[disabled] {
+    border-color: var(
+      --chip-variant-outlined-border-disabled,
+      oklch(from var(--chip-variant-outlined-border) calc(l * 1.5) calc(c * 0.8) h)
+    );
+    color: var(
+      --chip-variant-outlined-foreground-disabled,
+      oklch(from var(--chip-variant-outlined-foreground) calc(l * 1.1) calc(c * 0.7) h)
+    );
+  }
+
+  .outlined:hover,
+  :global(.infonomic-chip-outlined):hover {
+    background-color: var(--chip-variant-outlined-hover);
+  }
+
+  .outlined:focus,
+  .outlined:active,
+  :global(.infonomic-chip-outlined):focus,
+  :global(.infonomic-chip-outlined):active {
+    --ring-color: var(--chip-ring-color);
+  }
+
+  .text,
+  :global(.infonomic-chip-text) {
+    background-color: var(--chip-variant-text);
+    color: var(--chip-variant-text-foreground);
+  }
+
+  .text:disabled,
+  .text[disabled],
+  :global(.infonomic-chip-text):disabled,
+  :global(.infonomic-chip-text)[disabled] {
+    color: oklch(from var(--chip-variant-text-foreground) calc(l * 1.5) calc(c * 0.5) h);
+  }
+
+  .text:hover,
+  :global(.infonomic-chip-text):hover {
+    background-color: var(--chip-variant-text-hover);
+  }
+
+  .text:focus,
+  .text:active,
+  :global(.infonomic-chip-text):focus,
+  :global(.infonomic-chip-text):active {
+    --ring-color: var(--chip-ring-color);
+  }
+
+  /* Intents - Defining Variables */
+  .primary,
+  :global(.infonomic-chip-primary) {
+    --chip-ring-color: var(--ring-primary);
+
+    /* Filled */
+    --chip-variant-filled: var(--fill-primary-strong);
+    --chip-variant-filled-hover: var(--fill-primary-strong-hover);
+    --chip-variant-filled-disabled: var(--fill-primary-strong-disabled);
+    --chip-variant-filled-foreground: var(--text-on-primary-strong);
+    --chip-variant-filled-foreground-disabled: var(--text-on-primary-strong-disabled);
+
+    /* Filled Weak */
+    --chip-variant-filled-weak: var(--fill-primary-weak);
+    --chip-variant-filled-weak-hover: var(--fill-primary-weak-hover);
+    --chip-variant-filled-weak-disabled: var(--fill-primary-weak-disabled);
+    --chip-variant-filled-weak-foreground: var(--text-on-primary-weak);
+    --chip-variant-filled-weak-foreground-disabled: var(--text-on-primary-weak-disabled);
+
+    /* Outlined */
+    --chip-variant-outlined: var(--fill-primary-outlined);
+    --chip-variant-outlined-hover: var(--fill-primary-outlined-hover);
+    --chip-variant-outlined-border: var(--stroke-primary);
+    --chip-variant-outlined-border-disabled: var(--stroke-primary-disabled);
+    --chip-variant-outlined-foreground: var(--text-on-primary-outlined);
+    --chip-variant-outlined-foreground-disabled: var(--text-on-primary-outlined-disabled);
+  }
+
+  .secondary,
+  :global(.infonomic-chip-secondary) {
+    --chip-ring-color: var(--ring-secondary);
+
+    /* Filled */
+    --chip-variant-filled: var(--fill-secondary-strong);
+    --chip-variant-filled-hover: var(--fill-secondary-strong-hover);
+    --chip-variant-filled-disabled: var(--fill-secondary-strong-disabled);
+    --chip-variant-filled-foreground: var(--text-on-secondary-strong);
+    --chip-variant-filled-foreground-disabled: var(--text-on-secondary-strong-disabled);
+
+    /* Filled Weak */
+    --chip-variant-filled-weak: var(--fill-secondary-weak);
+    --chip-variant-filled-weak-foreground: var(--text-on-secondary-weak);
+    --chip-variant-filled-weak-hover: var(--fill-secondary-weak-hover);
+    --chip-variant-filled-weak-disabled: var(--fill-secondary-weak-disabled);
+    --chip-variant-filled-weak-foreground-disabled: var(--text-on-secondary-weak-disabled);
+
+    /* Outlined */
+    --chip-variant-outlined: var(--fill-secondary-outlined);
+    --chip-variant-outlined-hover: var(--fill-secondary-outlined-hover);
+    --chip-variant-outlined-border: var(--stroke-secondary);
+    --chip-variant-outlined-border-disabled: var(--stroke-secondary-disabled);
+    --chip-variant-outlined-foreground: var(--text-on-secondary-outlined);
+    --chip-variant-outlined-foreground-disabled: var(--text-on-secondary-outlined-disabled);
+  }
+
+  .noeffect,
+  :global(.infonomic-chip-noeffect) {
+    --chip-ring-color: var(--ring-noeffect);
+
+    /* Filled */
+    --chip-variant-filled: var(--fill-noeffect-strong);
+    --chip-variant-filled-hover: var(--fill-noeffect-strong-hover);
+    --chip-variant-filled-disabled: var(--fill-noeffect-strong-disabled);
+    --chip-variant-filled-foreground: var(--text-on-noeffect-strong);
+    --chip-variant-filled-foreground-disabled: var(--text-on-noeffect-strong-disabled);
+
+    /* Filled Weak */
+    --chip-variant-filled-weak: var(--fill-noeffect-weak);
+    --chip-variant-filled-weak-hover: var(--fill-noeffect-weak-hover);
+    --chip-variant-filled-weak-disabled: var(--fill-noeffect-weak-disabled);
+    --chip-variant-filled-weak-foreground: var(--text-on-noeffect-weak);
+    --chip-variant-filled-weak-foreground-disabled: var(--text-on-noeffect-weak-disabled);
+
+    /* Outlined */
+    --chip-variant-outlined: var(--fill-noeffect-outlined);
+    --chip-variant-outlined-hover: var(--fill-noeffect-outlined-hover);
+    --chip-variant-outlined-border: var(--stroke-noeffect);
+    --chip-variant-outlined-border-disabled: var(--stroke-noeffect-disabled);
+    --chip-variant-outlined-foreground: var(--text-on-noeffect-outlined);
+    --chip-variant-outlined-foreground-disabled: var(--text-on-noeffect-outlined-disabled);
+  }
+
+  .success,
+  :global(.infonomic-chip-success) {
+    --chip-ring-color: var(--ring-success);
+
+    /* Filled */
+    --chip-variant-filled: var(--fill-success-strong);
+    --chip-variant-filled-hover: var(--fill-success-strong-hover);
+    --chip-variant-filled-disabled: var(--fill-success-strong-disabled);
+    --chip-variant-filled-foreground: var(--text-on-success-strong);
+    --chip-variant-filled-foreground-disabled: var(--text-on-success-strong-disabled);
+
+    /* Filled Weak */
+    --chip-variant-filled-weak: var(--fill-success-weak);
+    --chip-variant-filled-weak-hover: var(--fill-success-weak-hover);
+    --chip-variant-filled-weak-disabled: var(--fill-success-weak-disabled);
+    --chip-variant-filled-weak-foreground: var(--text-on-success-weak);
+    --chip-variant-filled-weak-foreground-disabled: var(--text-on-success-weak-disabled);
+
+    /* Outlined */
+    --chip-variant-outlined: var(--fill-success-outlined);
+    --chip-variant-outlined-hover: var(--fill-success-outlined-hover);
+    --chip-variant-outlined-border: var(--stroke-success);
+    --chip-variant-outlined-border-disabled: var(--stroke-success-disabled);
+    --chip-variant-outlined-foreground: var(--text-on-success-outlined);
+    --chip-variant-outlined-foreground-disabled: var(--text-on-success-outlined-disabled);
+  }
+
+  .info,
+  :global(.infonomic-chip-info) {
+    --chip-ring-color: var(--ring-info);
+
+    /* Filled */
+    --chip-variant-filled: var(--fill-info-strong);
+    --chip-variant-filled-hover: var(--fill-info-strong-hover);
+    --chip-variant-filled-disabled: var(--fill-info-strong-disabled);
+    --chip-variant-filled-foreground: var(--text-on-info-strong);
+    --chip-variant-filled-foreground-disabled: var(--text-on-info-strong-disabled);
+
+    /* Filled Weak */
+    --chip-variant-filled-weak: var(--fill-info-weak);
+    --chip-variant-filled-weak-hover: var(--fill-info-weak-hover);
+    --chip-variant-filled-weak-disabled: var(--fill-info-weak-disabled);
+    --chip-variant-filled-weak-foreground: var(--text-on-info-weak);
+    --chip-variant-filled-weak-foreground-disabled: var(--text-on-info-weak-disabled);
+
+    /* Outlined */
+    --chip-variant-outlined: var(--fill-info-outlined);
+    --chip-variant-outlined-hover: var(--fill-info-outlined-hover);
+    --chip-variant-outlined-border: var(--stroke-info);
+    --chip-variant-outlined-border-disabled: var(--stroke-info-disabled);
+    --chip-variant-outlined-foreground: var(--text-on-info-outlined);
+    --chip-variant-outlined-foreground-disabled: var(--text-on-info-outlined-disabled);
+  }
+
+  .warning,
+  :global(.infonomic-chip-warning) {
+    --chip-ring-color: var(--ring-warning);
+
+    /* Filled */
+    --chip-variant-filled: var(--fill-warning-strong);
+    --chip-variant-filled-hover: var(--fill-warning-strong-hover);
+    --chip-variant-filled-disabled: var(--fill-warning-strong-disabled);
+    --chip-variant-filled-foreground: var(--text-on-warning-strong);
+    --chip-variant-filled-foreground-disabled: var(--text-on-warning-strong-disabled);
+
+    /* Filled Weak */
+    --chip-variant-filled-weak: var(--fill-warning-weak);
+    --chip-variant-filled-weak-hover: var(--fill-warning-weak-hover);
+    --chip-variant-filled-weak-disabled: var(--fill-warning-weak-disabled);
+    --chip-variant-filled-weak-foreground: var(--text-on-warning-weak);
+    --chip-variant-filled-weak-foreground-disabled: var(--text-on-warning-weak-disabled);
+
+    /* Outlined */
+    --chip-variant-outlined: var(--fill-warning-outlined);
+    --chip-variant-outlined-hover: var(--fill-warning-outlined-hover);
+    --chip-variant-outlined-border: var(--stroke-warning);
+    --chip-variant-outlined-border-disabled: var(--stroke-warning-disabled);
+    --chip-variant-outlined-foreground: var(--text-on-warning-outlined);
+    --chip-variant-outlined-foreground-disabled: var(--text-on-warning-outlined-disabled);
+  }
+
+  .danger,
+  :global(.infonomic-chip-danger) {
+    --chip-ring-color: var(--ring-danger);
+
+    /* Filled */
+    --chip-variant-filled: var(--fill-danger-strong);
+    --chip-variant-filled-hover: var(--fill-danger-strong-hover);
+    --chip-variant-filled-disabled: var(--fill-danger-strong-disabled);
+    --chip-variant-filled-foreground: var(--text-on-danger-strong);
+    --chip-variant-filled-foreground-disabled: var(--text-on-danger-strong-disabled);
+
+    /* Filled Weak */
+    --chip-variant-filled-weak: var(--fill-danger-weak);
+    --chip-variant-filled-weak-hover: var(--fill-danger-weak-hover);
+    --chip-variant-filled-weak-disabled: var(--fill-danger-weak-disabled);
+    --chip-variant-filled-weak-foreground: var(--text-on-danger-weak);
+    --chip-variant-filled-weak-foreground-disabled: var(--text-on-danger-weak-disabled);
+
+    /* Outlined */
+    --chip-variant-outlined: transparent;
+    --chip-variant-outlined-hover: var(--fill-danger-weak);
+    --chip-variant-outlined-border: var(--stroke-danger);
+    --chip-variant-outlined-border-disabled: var(--stroke-danger-disabled);
+    --chip-variant-outlined-foreground: var(--text-on-danger-outlined);
+    --chip-variant-outlined-foreground-disabled: var(--text-on-danger-outlined-disabled);
+  }
+}

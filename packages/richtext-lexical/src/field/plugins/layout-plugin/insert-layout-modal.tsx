@@ -26,7 +26,7 @@ import {
   Modal,
   Select,
   type SelectValue,
-} from '@infonomic/uikit/react'
+} from '@byline/ui'
 
 const layouts: SelectValue[] = [
   { label: '2 columns (equal width)', value: '1fr 1fr' },

@@ -29,7 +29,8 @@ import type React from 'react'
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
-import { LocalDateTime, RolePermissions, UpdateRole } from '@byline/ui'
+import { LocalDateTime } from '@byline/ui/react/fields'
+import { RolePermissions, UpdateRole } from '@byline/ui/react/admin'
 import {
   Button,
   CloseIcon,
@@ -37,7 +38,7 @@ import {
   IconButton,
   Modal,
   useToastManager,
-} from '@infonomic/uikit/react'
+} from '@byline/ui'
 import cx from 'classnames'
 
 import styles from './container.module.css'

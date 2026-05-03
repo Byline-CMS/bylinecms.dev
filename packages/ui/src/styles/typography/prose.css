@@ -1,0 +1,414 @@
+/* 
+ * Adapted from Tailwind typography plugin
+ * Portions copyright (c) Tailwind Labs, Inc.
+ *
+ * A simple typography style sheet that can be used in a project
+ * without Tailwind, although the typography styles are quite basic.
+ *
+ * Note: You should only load one typography style sheet or plugin.
+ * If Tailwind is being used in the frontend, and you're using 
+ * the Tailwind typography plugin, then this style sheet should NOT
+ * be loaded (although it will cause little harm as it's 
+ * behind a cascade layer).
+ *
+*/
+
+@layer byline-typography {
+  :root {
+    --prose-body: var(--gray-900);
+    --prose-headings: var(--gray-900);
+    --prose-lead: #4b5563;
+    --prose-links: var(--accent-950);
+    --prose-counters: #6b7280;
+    --prose-bullets: #d1d5db;
+    --prose-hr: #e5e7eb;
+    --prose-quotes: var(--accent-700);
+    --prose-quote-borders: var(--accent-700);
+    --prose-captions: #6b7280;
+    --prose-kbd: #111827;
+    --prose-kbd-shadows: 17 24 39;
+    --prose-code: #1e293b;
+    --prose-code-background: #efefef;
+    --prose-code-borders: #cccccc;
+    --prose-pre-code: #e5e7eb;
+    --prose-pre-background: #1f2937;
+    --prose-invert-body: var(--gray-50);
+    --prose-invert-headings: var(--gray-50);
+    --prose-invert-lead: #9ca3af;
+    --prose-invert-links: var(--accent-500);
+    --prose-invert-counters: #9ca3af;
+    --prose-invert-bullets: #4b5563;
+    --prose-invert-hr: #374151;
+    --prose-invert-quotes: var(--accent-400);
+    --prose-invert-quote-borders: var(--accent-400);
+    --prose-invert-captions: #9ca3af;
+    --prose-invert-kbd: #fff;
+    --prose-invert-kbd-shadows: 255 255 255;
+    --prose-invert-code: #f1f5f9;
+    --prose-invert-code-background: #222222;
+    --prose-invert-code-borders: #333333;
+    --prose-invert-pre-code: #d1d5db;
+    --prose-invert-pre-background: #161d27;
+    --prose-invert-th-borders: #4b5563;
+    --prose-invert-td-borders: #374151;
+  }
+
+  .dark {
+    --prose-body: var(--prose-invert-body);
+    --prose-headings: var(--prose-invert-headings);
+    --prose-lead: var(--prose-invert-lead);
+    --prose-links: var(--prose-invert-links);
+    --prose-counters: var(--prose-invert-counters);
+    --prose-bullets: var(--prose-invert-bullets);
+    --prose-hr: var(--prose-invert-hr);
+    --prose-quotes: var(--prose-invert-quotes);
+    --prose-quote-borders: var(--prose-invert-quote-borders);
+    --prose-captions: var(--prose-invert-captions);
+    --prose-kbd: var(--prose-invert-kbd);
+    --prose-kbd-shadows: var(--prose-invert-kbd-shadows);
+    --prose-code: var(--prose-invert-code);
+    --prose-code-background: var(--prose-invert-code-background);
+    --prose-code-borders: var(--prose-invert-code-borders);
+    --prose-pre-code: var(--prose-invert-pre-code);
+    --prose-pre-background: var(--prose-invert-pre-background);
+  }
+
+  /* Brute force our not-dark class for now until we figure out
+   * a better way to do this. Note - the following does NOT work:
+   .dark:not(:where([class~="not-dark"], [class~="not-dark"] *)) {
+   */
+  .not-dark {
+    --prose-body: var(--gray-900);
+    --prose-headings: var(--gray-900);
+    --prose-lead: #4b5563;
+    --prose-links: var(--accent-950);
+    --prose-counters: #6b7280;
+    --prose-bullets: #d1d5db;
+    --prose-hr: #e5e7eb;
+    --prose-quotes: var(--accent-700);
+    --prose-quote-borders: var(--accent-700);
+    --prose-captions: #6b7280;
+    --prose-kbd: #111827;
+    --prose-kbd-shadows: 17 24 39;
+    --prose-code: #1e293b;
+    --prose-code-background: #efefef;
+    --prose-code-borders: #cccccc;
+    --prose-pre-code: #e5e7eb;
+    --prose-pre-background: #1f2937;
+  }
+
+  /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   * Typography defaults
+   * We will gradually refactor prose to sensible defaults 
+   */
+
+  html {
+    font-size: 1rem;
+    color: var(--prose-body);
+  }
+
+  /* Redeclared here to change the specificity and scope of --prose-body */
+  html .not-dark {
+    color: var(--prose-body);
+  }
+
+  /* Overflow wrap for long non-dictionary words or urls */
+  article,
+  .editor-text,
+  .break-long-words {
+    overflow-wrap: anywhere;
+  }
+
+  article,
+  .dynamic-text {
+    font-size: 1.25rem;
+    line-height: 1.6;
+  }
+
+  /* 
+    NOTE: Increase font size for smaller screens to improve readability 
+    at medium breakpoint (consider large breakpoint as well?) 
+  */
+  @media screen and (min-width: 48rem) {
+    article,
+    .dynamic-text {
+      font-size: 1.125rem;
+      line-height: 1.64;
+    }
+  }
+
+  /* Default headings - will be overridden by prose sections below */
+  .prose {
+    h1,
+    h2,
+    h3,
+    h4,
+    h5 {
+      color: var(--prose-headings);
+    }
+  }
+
+  .prose :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 2.5rem;
+    font-weight: 600;
+    line-height: 1.125;
+    margin-top: 0;
+    margin-bottom: 1rem;
+  }
+
+  .prose :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .prose :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.1;
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .prose :where(h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 1.55rem;
+    font-weight: 600;
+    line-height: 1.1;
+    margin-top: 1.25rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .prose :where(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+  }
+
+  .prose-lg :where(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 1.125rem;
+    line-height: 1.64;
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+  }
+
+  .prose-xl :where(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 1.25rem;
+    line-height: 1.6;
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+  }
+
+  .prose :where([class~="lead"]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--prose-lead);
+    font-size: 1.25em;
+    line-height: 1.4;
+    margin-top: 1.2em;
+    margin-bottom: 1.2em;
+  }
+
+  .prose :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--prose-links);
+    text-decoration: underline;
+    font-weight: 500;
+  }
+
+  .prose :where(strong):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--prose-bold);
+    font-weight: 500;
+  }
+
+  .prose :where(a strong):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: inherit;
+  }
+
+  .prose :where(blockquote strong):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: inherit;
+  }
+
+  .prose :where(ol):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: decimal;
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+    padding-inline-start: 1.625em;
+  }
+
+  .prose :where(ol[type="A"]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: upper-alpha;
+  }
+
+  .prose :where(ol[type="a"]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: lower-alpha;
+  }
+
+  .prose :where(ol[type="A" s]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: upper-alpha;
+  }
+
+  .prose :where(ol[type="a" s]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: lower-alpha;
+  }
+
+  .prose :where(ol[type="I"]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: upper-roman;
+  }
+
+  .prose :where(ol[type="i"]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: lower-roman;
+  }
+
+  .prose :where(ol[type="I" s]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: upper-roman;
+  }
+
+  .prose :where(ol[type="i" s]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: lower-roman;
+  }
+
+  .prose :where(ol[type="1"]):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: decimal;
+  }
+
+  .prose :where(ul):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    list-style-type: disc;
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+    padding-inline-start: 1.625em;
+  }
+
+  .prose :where(ol > li):not(:where([class~="not-prose"], [class~="not-prose"] *))::marker {
+    font-weight: 400;
+    color: var(--prose-counters);
+  }
+
+  .prose :where(ul > li):not(:where([class~="not-prose"], [class~="not-prose"] *))::marker {
+    color: var(--prose-bullets);
+  }
+
+  .prose :where(dt):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--prose-headings);
+    font-weight: 500;
+    margin-top: 1.25em;
+  }
+
+  .prose :where(hr):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    border-color: var(--prose-hr);
+    border-top-width: 1px;
+    margin-top: 3em;
+    margin-bottom: 3em;
+  }
+
+  .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-weight: 600;
+    font-style: normal;
+    color: var(--prose-quotes);
+    quotes: none;
+    margin-top: 1.3rem;
+    margin-bottom: 1.3rem;
+    margin-right: 2rem;
+    /* Font size must be em - so that it changes in articles or text that has dynamic font sizes on smaller screens */
+    font-size: 1.2em;
+    line-height: 1.3;
+    padding-inline-start: 1rem;
+    border-inline-start-width: 0.25rem;
+    border-inline-start-color: var(--prose-quote-borders);
+  }
+
+  /* The same as above - for the moment */
+  @media (min-width: 48rem) {
+    .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      font-size: 1.2em;
+      line-height: 1.3;
+    }
+  }
+
+  .prose
+    :where(blockquote p:first-of-type):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    )::before {
+    content: open-quote;
+  }
+
+  .prose
+    :where(blockquote p:last-of-type):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    )::after {
+    content: close-quote;
+  }
+
+  .prose :where(img):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
+
+  .prose :where(picture):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    display: block;
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
+
+  .prose :where(video):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
+
+  .prose :where(kbd):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--prose-kbd);
+    box-shadow:
+      0 0 0 1px rgb(var(--prose-kbd-shadows) / 10%),
+      0 3px 0 rgb(var(--prose-kbd-shadows) / 10%);
+    font-size: 0.875em;
+    border-radius: 0.3125rem;
+    padding-top: 0.1875em;
+    padding-inline-end: 0.375em;
+    padding-bottom: 0.1875em;
+    padding-inline-start: 0.375em;
+  }
+
+  .prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--prose-code);
+    font-weight: 400;
+    font-size: 0.875em;
+    background-color: var(--prose-code-background);
+    border-color: var(--prose-code-borders);
+    border-radius: 0.25rem;
+    border-width: 1px;
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
+    padding-top: 0.125rem;
+    padding-bottom: 0.125rem;
+  }
+
+  .prose :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    color: var(--prose-pre-code);
+    background-color: var(--prose-pre-background);
+    overflow-x: auto;
+    font-weight: 400;
+    line-height: 1.7142857;
+    margin-top: 1.7142857em;
+    margin-bottom: 1.7142857em;
+    border-radius: 0.375rem;
+    padding-top: 0.8571429em;
+    padding-inline-end: 1.1428571em;
+    padding-bottom: 0.8571429em;
+    padding-inline-start: 1.1428571em;
+  }
+
+  .prose :where(pre code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    background-color: initial;
+    border-width: 0;
+    border-radius: 0;
+    padding: 0;
+    font-weight: inherit;
+    color: inherit;
+    font-size: 1em;
+    font-family: inherit;
+    line-height: inherit;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

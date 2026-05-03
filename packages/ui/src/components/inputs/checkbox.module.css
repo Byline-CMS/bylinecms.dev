@@ -1,0 +1,278 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .container,
+  :global(.infonomic-checkbox-container) {
+    width: 100%;
+    padding: 0;
+  }
+
+  .component,
+  :global(.infonomic-checkbox-component) {
+    display: flex;
+    width: 100%;
+    padding: 0;
+    align-items: center;
+    gap: var(--gap-2);
+  }
+
+  .reverse,
+  :global(.infonomic-checkbox-reverse) {
+    flex-direction: row-reverse;
+  }
+
+  .checkbox,
+  :global(.infonomic-checkbox) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    outline: 1px solid transparent;
+    outline-offset: 2px;
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-normal);
+  }
+
+  .checkbox[data-checked],
+  :global(.infonomic-checkbox)[data-checked] {
+    outline-color: var(--ring-color);
+  }
+
+  .checkbox[data-disabled],
+  :global(.infonomic-checkbox)[data-disabled] {
+    pointer-events: none;
+  }
+
+  .indicator,
+  :global(.infonomic-checkbox-indicator) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon,
+  :global(.infonomic-checkbox-icon) {
+    width: 20px;
+    height: 20px;
+    color: var(--checkbox-icon-color);
+    /* Hidden by default — prevents flash on initial render before data-state is applied */
+    opacity: 0;
+    transform: scale(0.8);
+    /* Transition handles the unchecked→unchecked no-op and the checked→unchecked exit.
+       It only fires on state changes, never on initial mount, so no flash. */
+    transition:
+      opacity 0.2s ease-in,
+      transform 0.2s ease-in;
+  }
+
+  /* Style for the "checked" state — animation overrides the transition for bouncy entry */
+  .indicator[data-checked] .icon,
+  :global(.infonomic-checkbox-indicator)[data-checked] :global(.infonomic-checkbox-icon) {
+    animation: checkBoxIn 0.3s cubic-bezier(0.25, 1.5, 0.5, 1) forwards;
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Style for the "unchecked" state — no animation, let the CSS transition handle the exit */
+  .indicator[data-unchecked] .icon,
+  :global(.infonomic-checkbox-indicator)[data-unchecked] :global(.infonomic-checkbox-icon) {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  .label,
+  :global(.infonomic-checkbox-label) {
+    margin-left: 0.25rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--label-color);
+  }
+
+  .checkbox[data-disabled] ~ .label,
+  :global(.infonomic-checkbox)[data-disabled] ~ :global(.infonomic-checkbox-label) {
+    pointer-events: none;
+  }
+
+  .errorText,
+  :global(.infonomic-dropdown-error-text) {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: red;
+  }
+
+  /* Sizes */
+  .sm,
+  :global(.infonomic-checkbox-sm) {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sm .icon,
+  :global(.infonomic-checkbox-sm) :global(.infonomic-checkbox-icon) {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sm ~ .label,
+  :global(.infonomic-checkbox-sm) ~ :global(.infonomic-checkbox-label) {
+    font-size: 0.85rem;
+  }
+
+  .md,
+  :global(.infonomic-checkbox-md) {
+    width: 18px;
+    height: 18px;
+  }
+
+  .md .icon,
+  :global(.infonomic-checkbox-md) :global(.infonomic-checkbox-icon) {
+    width: 18px;
+    height: 18px;
+  }
+
+  .md ~ .label,
+  :global(.infonomic-checkbox-md) ~ :global(.infonomic-checkbox-label) {
+    font-size: 0.875rem;
+  }
+
+  .lg,
+  :global(.infonomic-checkbox-lg) {
+    width: 20px;
+    height: 20px;
+  }
+
+  .lg .icon,
+  :global(.infonomic-checkbox-lg) :global(.infonomic-checkbox-icon) {
+    width: 22px;
+    height: 22px;
+  }
+
+  .lg ~ .label,
+  :global(.infonomic-checkbox-lg) ~ :global(.infonomic-checkbox-label) {
+    font-size: 1rem;
+  }
+
+  /* Variants */
+  .outlined,
+  :global(.infonomic-checkbox-outlined) {
+    border: 2px solid var(--checkbox-variant-outlined-border);
+    --checkbox-icon-color: white;
+  }
+
+  .outlined[data-checked],
+  :global(.infonomic-checkbox-outlined)[data-checked] {
+    --ring-color: var(--checkbox-variant-outline-ring-color);
+    background-color: var(--checkbox-variant-outlined);
+  }
+
+  .filled,
+  :global(.infonomic-checkbox-filled) {
+    background-color: var(--checkbox-variant-filled);
+    --checkbox-icon-color: white;
+  }
+
+  .filled[data-checked],
+  :global(.infonomic-checkbox-filled)[data-checked] {
+    --ring-color: var(--checkbox-variant-outline-ring-color);
+  }
+
+  /* Intents */
+  .primary,
+  :global(.infonomic-checkbox-primary) {
+    --checkbox-variant-outlined-border: var(--fill-primary-strong);
+    --checkbox-variant-outlined: var(--fill-primary-strong);
+    --checkbox-variant-outlined-hover-border: var(--fill-primary-strong-hover);
+    --checkbox-variant-outline-ring-color: var(--ring-primary);
+    --checkbox-variant-filled: var(--fill-primary-strong);
+    --checkbox-icon-color: white;
+  }
+
+  .secondary,
+  :global(.infonomic-checkbox-secondary) {
+    --checkbox-variant-outlined-border: var(--fill-secondary-strong);
+    --checkbox-variant-outlined: var(--fill-secondary-strong);
+    --checkbox-variant-outlined-hover-border: var(--fill-secondary-strong-hover);
+    --checkbox-variant-outline-ring-color: var(--ring-secondary);
+    --checkbox-variant-filled: var(--fill-secondary-strong);
+    --checkbox-icon-color: black;
+  }
+
+  .noeffect,
+  :global(.infonomic-checkbox-noeffect) {
+    --checkbox-variant-outlined-border: var(--fill-noeffect-strong);
+    --checkbox-variant-outlined: var(--fill-noeffect-strong);
+    --checkbox-variant-outlined-hover-border: var(--fill-noeffect-strong-hover);
+    --checkbox-variant-outline-ring-color: var(--ring-noeffect);
+    --checkbox-variant-filled: var(--fill-noeffect-strong);
+    --checkbox-icon-color: var(--text-on-noeffect-strong);
+  }
+
+  .success,
+  :global(.infonomic-checkbox-success) {
+    --checkbox-variant-outlined-border: var(--fill-success-strong);
+    --checkbox-variant-outlined: var(--fill-success-strong);
+    --checkbox-variant-outlined-hover-border: var(--fill-success-strong-hover);
+    --checkbox-variant-outline-ring-color: var(--ring-success);
+    --checkbox-variant-filled: var(--fill-success-strong);
+    --checkbox-icon-color: white;
+  }
+
+  .info,
+  :global(.infonomic-checkbox-info) {
+    --checkbox-variant-outlined-border: var(--fill-info-strong);
+    --checkbox-variant-outlined: var(--fill-info-strong);
+    --checkbox-variant-outlined-hover-border: var(--fill-info-strong-hover);
+    --checkbox-variant-outline-ring-color: var(--ring-info);
+    --checkbox-variant-filled: var(--fill-info-strong);
+    --checkbox-icon-color: white;
+  }
+
+  .warning,
+  :global(.infonomic-checkbox-warning) {
+    --checkbox-variant-outlined-border: var(--fill-warning-strong);
+    --checkbox-variant-outlined: var(--fill-warning-strong);
+    --checkbox-variant-outlined-hover-border: var(--fill-warning-strong-hover);
+    --checkbox-variant-outline-ring-color: var(--ring-warning);
+    --checkbox-variant-filled: var(--fill-warning-strong);
+    --checkbox-icon-color: var(--text-on-warning-strong);
+  }
+
+  .danger,
+  :global(.infonomic-checkbox-danger) {
+    --checkbox-variant-outlined-border: var(--fill-danger-strong);
+    --checkbox-variant-outlined: var(--fill-danger-strong);
+    --checkbox-variant-outlined-hover-border: var(--fill-danger-strong-hover);
+    --checkbox-variant-outline-ring-color: var(--ring-danger);
+    --checkbox-variant-filled: var(--fill-danger-strong);
+    --checkbox-icon-color: white;
+  }
+
+  /* Dark mode handled by semantic tokens in theme layer */
+
+  @keyframes checkBoxIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+      /* Overshoot */
+    }
+
+    80% {
+      transform: scale(0.9);
+      /* Slight bounce back */
+    }
+
+    100% {
+      transform: scale(1);
+      /* Settle */
+    }
+  }
+}

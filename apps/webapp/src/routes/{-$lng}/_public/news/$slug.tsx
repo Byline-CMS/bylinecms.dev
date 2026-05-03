@@ -12,7 +12,7 @@ import {
   RouteError,
   RouteNotFound,
 } from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
-import { Container, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@byline/ui'
 
 import { NewsDetail } from '@/modules/news/components/detail'
 import { getNewsDetailFn } from '@/modules/news/detail'

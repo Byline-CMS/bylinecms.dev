@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { Button, CloseIcon, IconButton, Input, Modal } from '@infonomic/uikit/react'
+import { Button, CloseIcon, IconButton, Input, Modal } from '@byline/ui'
 import { type EmbedMatchResult, URL_MATCHER } from '@lexical/react/LexicalAutoEmbedPlugin'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 

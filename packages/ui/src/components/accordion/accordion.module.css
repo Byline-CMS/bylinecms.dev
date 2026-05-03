@@ -1,0 +1,56 @@
+@layer byline-base, byline-utilities, byline-theme, byline-components;
+
+@layer byline-components {
+  .item,
+  :global(.infonomic-accordion-item) {
+    overflow: hidden;
+    margin-top: 1px;
+  }
+
+  .header,
+  :global(.infonomic-accordion-header) {
+    margin: 0;
+    display: flex;
+  }
+
+  .trigger,
+  :global(.infonomic-accordion-trigger) {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    width: 100%;
+  }
+
+  .content,
+  :global(.infonomic-accordion-content) {
+    overflow: hidden;
+
+    &[data-open] {
+      animation: accordionSlideDown 300ms cubic-bezier(0.87, 0, 0.13, 1);
+    }
+
+    &[data-ending-style] {
+      animation: accordionSlideUp 300ms cubic-bezier(0.87, 0, 0.13, 1);
+    }
+  }
+
+  @keyframes accordionSlideDown {
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--accordion-panel-height);
+    }
+  }
+
+  @keyframes accordionSlideUp {
+    from {
+      height: var(--accordion-panel-height);
+    }
+
+    to {
+      height: 0;
+    }
+  }
+}

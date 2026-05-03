@@ -7,7 +7,7 @@
  */
 
 import type { DateTimeField as FieldType } from '@byline/core'
-import { DatePicker, ErrorText } from '@infonomic/uikit/react'
+import { DatePicker, ErrorText } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'

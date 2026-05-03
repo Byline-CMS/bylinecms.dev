@@ -7,7 +7,7 @@
  */
 
 import type { SelectField as FieldType } from '@byline/core'
-import { ErrorText, Select } from '@infonomic/uikit/react'
+import { ErrorText, Select } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'

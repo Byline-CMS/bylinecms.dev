@@ -9,7 +9,7 @@
 import { useEffect } from 'react'
 
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
-import { Button, HistoryIcon, IconButton, Label, Select } from '@infonomic/uikit/react'
+import { Button, HistoryIcon, IconButton, Label, Select } from '@byline/ui'
 import cx from 'classnames'
 
 import { useNavigate } from '../chrome/loose-router.js'

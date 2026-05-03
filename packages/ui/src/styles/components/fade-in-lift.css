@@ -1,0 +1,15 @@
+.component--fade-in-lift {
+  opacity: 0;
+  visibility: hidden;
+  transform: matrix(1, 0, 0, 1, 0, 18);
+  transition:
+    opacity 0.5s ease-out,
+    transform 0.7s ease-out;
+  will-change: opacity, visibility;
+}
+
+.component--fade-in-lift.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: matrix(1, 0, 0, 1, 0, 0);
+}

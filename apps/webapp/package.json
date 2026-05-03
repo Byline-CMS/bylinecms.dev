@@ -41,7 +41,6 @@
     "@byline/storage-local": "workspace:*",
     "@byline/ui": "workspace:*",
     "@formatjs/intl-localematcher": "^0.8.5",
-    "@infonomic/uikit": "^6.7.1",
     "@tanstack/react-form": "^1.29.1",
     "@tanstack/react-form-start": "^1.29.1",
     "@tanstack/react-query": "^5.100.8",

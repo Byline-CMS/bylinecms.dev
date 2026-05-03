@@ -21,7 +21,7 @@ import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import type { AdminRoleResponse } from '@byline/admin/admin-roles'
-import { Alert, Button, Input, LoaderEllipsis, TextArea } from '@infonomic/uikit/react'
+import { Alert, Button, Input, LoaderEllipsis, TextArea } from '../../../uikit.js'
 import cx from 'classnames'
 import { z } from 'zod'
 

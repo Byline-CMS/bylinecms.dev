@@ -11,7 +11,7 @@ import {
   isPendingStoredFileValue,
   type StoredFileValue,
 } from '@byline/core'
-import { ErrorText } from '@infonomic/uikit/react'
+import { ErrorText } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../../forms/form-context'

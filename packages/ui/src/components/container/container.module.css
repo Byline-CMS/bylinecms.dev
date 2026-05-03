@@ -1,0 +1,41 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .container,
+  :global(.infonomic-container) {
+    width: 100%;
+    padding: 0 1rem;
+    margin: 0 auto;
+    max-width: 60rem;
+  }
+
+  /* Shy edges */
+  /* Large */
+  @media (min-width: 66rem) {
+    .container,
+    :global(.infonomic-container) {
+      max-width: 64rem;
+    }
+  }
+
+  /* X-Large */
+  @media (min-width: 77rem) {
+    .container,
+    :global(.infonomic-container) {
+      max-width: 74.375rem;
+    }
+  }
+
+  /* 2X-Large */
+  @media (min-width: 94rem) {
+    .container,
+    :global(.infonomic-container) {
+      max-width: 87.5rem;
+    }
+  }
+}

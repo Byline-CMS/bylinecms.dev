@@ -1,0 +1,52 @@
+@layer byline-functional {
+  :root {
+    /* ========================================
+       GRID SYSTEM
+    ======================================== */
+    --grid-columns-2: 2;
+    --grid-columns-3: 3;
+    --grid-columns-4: 4;
+    --grid-columns-5: 5;
+    --grid-columns-6: 6;
+    --grid-columns-7: 7;
+    --grid-columns-8: 8;
+    --grid-columns-9: 9;
+    --grid-columns-10: 10;
+    --grid-columns-11: 11;
+    --grid-columns-12: 12;
+    --grid-gap-sm: 8px;
+    --grid-gap-md: 16px;
+    --grid-gap-lg: 24px;
+    --grid-column-size-xs: 240px;
+    --grid-column-size-sm: 260px;
+    --grid-column-size-md: 320px;
+    --grid-column-size-lg: 480px;
+
+    /* ========================================
+       GAP SYSTEM (For Grid & Flexbox)
+    ======================================== */
+    --gap-0: var(--spacing-0);
+    --gap-1: var(--spacing-4);
+    --gap-2: var(--spacing-8);
+    --gap-3: var(--spacing-12);
+    --gap-4: var(--spacing-16);
+    --gap-5: var(--spacing-20);
+    --gap-6: var(--spacing-6);
+    --gap-8: var(--spacing-8);
+    --gap-10: var(--spacing-40);
+    --gap-12: var(--spacing-48);
+    --gap-16: var(--spacing-64);
+    --gap-20: var(--spacing-80);
+    --gap-24: var(--spacing-96);
+    --gap-32: var(--spacing-128);
+
+    /* ========================================
+       FLEXBOX HELPERS
+    ======================================== */
+    --flex-row: row;
+    --flex-column: column;
+    --flex-wrap: wrap;
+    --flex-nowrap: nowrap;
+    --flex-center: center;
+  }
+}

@@ -1,0 +1,175 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+/* 'border-collapse w-full text-sm text-left text-gray-700 dark:text-gray-400 m-0', */
+@layer byline-components {
+  .column,
+  :global(.infonomic-radio-group-column) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-2);
+  }
+
+  .row,
+  :global(.infonomic-radio-group-row) {
+    display: flex;
+    flex-direction: row;
+    gap: var(--gap-2);
+  }
+
+  .item-container,
+  :global(.infonomic-radio-group-item-container) {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2);
+  }
+
+  .item,
+  :global(.infonomic-radio-group-item) {
+    all: unset;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--border-radius-full);
+    border: 2px solid var(--radio-border);
+    transition: all var(--transition-normal);
+  }
+
+  .item[data-disabled],
+  :global(.infonomic-radio-group-item[data-disabled]) {
+    pointer-events: none;
+  }
+
+  /* Style for the "checked" state */
+  .indicator[data-checked],
+  :global(.infonomic-radio-group-indicator[data-checked]) {
+    animation: radioIn 0.3s cubic-bezier(0.25, 1.5, 0.5, 1) forwards;
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Style for the "unchecked" state */
+  .indicator[data-unchecked],
+  :global(.infonomic-radio-group-indicator[data-unchecked]) {
+    animation: radioOut 0.2s ease-in;
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  .indicator,
+  :global(.infonomic-radio-group-indicator) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    position: relative;
+
+    &::after {
+      content: "";
+      display: block;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background-color: var(--radio-indicator-color);
+    }
+  }
+
+  .label,
+  :global(.infonomic-radio-group-label) {
+    color: var(--foreground);
+    font-size: 15px;
+    line-height: 1;
+    padding-left: var(--spacing-8);
+  }
+
+  .row .label,
+  :global(.infonomic-radio-group-row) :global(.infonomic-radio-group-label) {
+    padding-left: 0;
+    padding-right: var(--spacing-16);
+  }
+
+  /* Intents */
+  .primary,
+  :global(.infonomic-radio-group-primary) {
+    --radio-border: var(--fill-primary-strong);
+    --radio-indicator-color: var(--fill-primary-strong);
+  }
+
+  .secondary,
+  :global(.infonomic-radio-group-secondary) {
+    --radio-border: var(--fill-secondary-strong);
+    --radio-indicator-color: var(--fill-secondary-strong);
+  }
+
+  .noeffect,
+  :global(.infonomic-radio-group-noeffect) {
+    --radio-border: var(--fill-noeffect-strong);
+    --radio-indicator-color: var(--fill-noeffect-strong);
+  }
+
+  .success,
+  :global(.infonomic-radio-group-success) {
+    --radio-border: var(--fill-success-strong);
+    --radio-indicator-color: var(--fill-success-strong);
+  }
+
+  .info,
+  :global(.infonomic-radio-group-info) {
+    --radio-border: var(--fill-info-strong);
+    --radio-indicator-color: var(--fill-info-strong);
+  }
+
+  .warning,
+  :global(.infonomic-radio-group-warning) {
+    --radio-border: var(--fill-warning-strong);
+    --radio-indicator-color: var(--fill-warning-strong);
+  }
+
+  .danger,
+  :global(.infonomic-radio-group-danger) {
+    --radio-border: var(--fill-danger-strong);
+    --radio-indicator-color: var(--fill-danger-strong);
+  }
+
+  /* Dark mode handled by semantic tokens in theme layer */
+
+  @keyframes radioIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+      /* Overshoot */
+    }
+
+    80% {
+      transform: scale(0.9);
+      /* Slight bounce back */
+    }
+
+    100% {
+      transform: scale(1);
+      /* Settle */
+    }
+  }
+
+  /* Define keyframes for the "unchecked" state */
+  @keyframes radioOut {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    to {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+  }
+}

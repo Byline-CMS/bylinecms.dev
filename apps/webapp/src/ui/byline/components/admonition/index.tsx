@@ -2,8 +2,8 @@
 
 import type React from 'react'
 
-import type { Intent } from '@infonomic/uikit/react'
-import { Alert } from '@infonomic/uikit/react'
+import type { Intent } from '@byline/ui'
+import { Alert } from '@byline/ui'
 
 import type { Locale } from '@/i18n/i18n-config'
 import type { SerializeOptions, SerializeProps } from '../richtext-lexical/serialize/index.tsx'

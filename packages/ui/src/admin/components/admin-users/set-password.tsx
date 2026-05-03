@@ -26,7 +26,7 @@ import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import type { AdminUserResponse } from '@byline/admin/admin-users'
 import { passwordSchema } from '@byline/core/validation'
-import { Alert, Button, InputPassword, LoaderEllipsis } from '@infonomic/uikit/react'
+import { Alert, Button, InputPassword, LoaderEllipsis } from '../../../uikit.js'
 import cx from 'classnames'
 import { z } from 'zod'
 

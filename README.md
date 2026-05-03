@@ -75,15 +75,20 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 8. **[docs/RICHTEXT.md](docs/RICHTEXT.md)** — pluggable richtext editor
    adapter, the current Lexical implementation, and future phases for
    a second editor.
-9. **[docs/ACCESS-CONTROL-RECIPES.md](docs/ACCESS-CONTROL-RECIPES.md)**
-   — working cookbook of `beforeRead` patterns: owner-only drafts,
-   multi-tenant scoping, embargo, soft-delete hide, department
-   visibility, self-only.
-10. **[docs/COLLECTION-VERSIONING.md](docs/COLLECTION-VERSIONING.md)**
+9. **[docs/UIKIT.md](docs/UIKIT.md)** — `@byline/ui` as a single
+   brand-coherent UI surface: the foundational kit synced from
+   `@infonomic/uikit`, the byline-prefixed cascade-layer system, the
+   `pnpm sync:uikit` workflow, and the `./react/{admin,fields,forms,services}`
+   subpath exports.
+10. **[docs/ACCESS-CONTROL-RECIPES.md](docs/ACCESS-CONTROL-RECIPES.md)**
+    — working cookbook of `beforeRead` patterns: owner-only drafts,
+    multi-tenant scoping, embargo, soft-delete hide, department
+    visibility, self-only.
+11. **[docs/COLLECTION-VERSIONING.md](docs/COLLECTION-VERSIONING.md)**
     — Phase 1 (data model + fingerprinting) shipped; Phases 2–5
     (history table, fetch-by-version, in-memory forward migration,
     strict-CI mode) deferred.
-11. **[docs/CORE-COMPOSITION.md](docs/CORE-COMPOSITION.md)** —
+12. **[docs/CORE-COMPOSITION.md](docs/CORE-COMPOSITION.md)** —
     forward-looking roadmap for `createCommand`, module registries,
     a command tree on `BylineCore`, per-realm request-context
     builders, and `loadConfig()`.

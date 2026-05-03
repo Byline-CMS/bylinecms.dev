@@ -1,0 +1,20 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .label,
+  :global(.infonomic-label) {
+    display: block;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .required,
+  :global(.infonomic-label-required) {
+    color: var(--text-danger);
+  }
+}

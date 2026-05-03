@@ -13,7 +13,7 @@ import type {
   FloatField,
   IntegerField,
 } from '@byline/core'
-import { Input } from '@infonomic/uikit/react'
+import { Input } from '../../uikit.js'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 

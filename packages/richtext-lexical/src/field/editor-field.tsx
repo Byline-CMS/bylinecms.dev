@@ -34,7 +34,7 @@
 import type * as React from 'react'
 import { lazy, Suspense } from 'react'
 
-import { Shimmer } from '@infonomic/uikit/react'
+import { Shimmer } from '@byline/ui'
 
 import type { EditorFieldProps } from '../types'
 

@@ -13,7 +13,7 @@ import type {
   Field,
   GroupField as GroupFieldType,
 } from '@byline/core'
-import { Card, CloseIcon, IconButton, Modal, PlusIcon } from '@infonomic/uikit/react'
+import { Card, CloseIcon, IconButton, Modal, PlusIcon } from '../../uikit.js'
 import cx from 'classnames'
 
 import { DraggableSortable, moveItem } from '../../dnd/draggable-sortable'

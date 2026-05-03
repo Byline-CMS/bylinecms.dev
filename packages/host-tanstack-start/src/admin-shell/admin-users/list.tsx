@@ -11,7 +11,8 @@
 import { useState } from 'react'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 
-import { CreateAdminUser, LocalDateTime } from '@byline/ui'
+import { LocalDateTime } from '@byline/ui/react/fields'
+import { CreateAdminUser } from '@byline/ui/react/admin'
 import {
   CloseIcon,
   Container,
@@ -23,7 +24,7 @@ import {
   Select,
   Table,
   useToastManager,
-} from '@infonomic/uikit/react'
+} from '@byline/ui'
 import cx from 'classnames'
 
 import { Link, useNavigate } from '../chrome/loose-router.js'

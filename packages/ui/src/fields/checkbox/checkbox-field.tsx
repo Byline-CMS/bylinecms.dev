@@ -7,7 +7,7 @@
  */
 
 import type { CheckboxField as FieldType } from '@byline/core'
-import { Checkbox } from '@infonomic/uikit/react'
+import { Checkbox } from '../../uikit.js'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 

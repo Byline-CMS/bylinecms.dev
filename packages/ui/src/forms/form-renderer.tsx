@@ -16,7 +16,7 @@ import type {
   TabSetDefinition,
   WorkflowStatus,
 } from '@byline/core'
-import { Button, ComboButton, Modal } from '@infonomic/uikit/react'
+import { Button, ComboButton, Modal } from '../uikit.js'
 import cx from 'classnames'
 
 import { Group } from '../admin/group'

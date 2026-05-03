@@ -7,7 +7,7 @@
  */
 
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
-import { DateTimeFormatter } from '@byline/ui'
+import { DateTimeFormatter } from '@byline/ui/react/fields'
 
 import { MediaListView } from './components/media-list-view.js'
 import { MediaThumbnail } from './components/media-thumbnail.js'

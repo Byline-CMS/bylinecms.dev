@@ -11,7 +11,8 @@ import { useRouterState } from '@tanstack/react-router'
 
 import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { renderFormatted, StatusBadge } from '@byline/ui'
+import { renderFormatted } from '@byline/ui/react/fields'
+import { StatusBadge } from '@byline/ui/react/admin'
 import {
   Container,
   IconButton,
@@ -21,7 +22,7 @@ import {
   Section,
   Select,
   Table,
-} from '@infonomic/uikit/react'
+} from '@byline/ui'
 import cx from 'classnames'
 
 import { Link, useNavigate } from '../chrome/loose-router.js'

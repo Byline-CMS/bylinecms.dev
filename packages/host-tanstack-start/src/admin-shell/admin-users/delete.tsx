@@ -23,7 +23,7 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
-import { Alert, Button, LoaderEllipsis, Modal } from '@infonomic/uikit/react'
+import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui'
 import cx from 'classnames'
 
 import { type AdminUserResponse, deleteAdminUser } from '../../server-fns/admin-users/index.js'

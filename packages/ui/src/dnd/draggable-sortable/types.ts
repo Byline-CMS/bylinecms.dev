@@ -15,7 +15,7 @@ import type { Ref } from 'react'
 
 import type { DragEndEvent } from '@dnd-kit/core'
 
-export type Props = {
+export type DraggableSortableProps = {
   children: React.ReactNode
   className?: string
   droppableRef?: Ref<HTMLElement>

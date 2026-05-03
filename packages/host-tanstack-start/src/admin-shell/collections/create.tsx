@@ -9,8 +9,8 @@
 import { useState } from 'react'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
-import { FormRenderer } from '@byline/ui'
-import { Container, Section, useToastManager } from '@infonomic/uikit/react'
+import { FormRenderer } from '@byline/ui/react/forms'
+import { Container, Section, useToastManager } from '@byline/ui'
 
 import { createCollectionDocument } from '../../server-fns/collections/index.js'
 import { useNavigate } from '../chrome/loose-router.js'

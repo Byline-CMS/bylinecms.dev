@@ -9,7 +9,7 @@
 import { useCallback } from 'react'
 
 import type { Field, FieldComponentSlots, TextField as FieldType } from '@byline/core'
-import { Input, Label } from '@infonomic/uikit/react'
+import { Input, Label } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'

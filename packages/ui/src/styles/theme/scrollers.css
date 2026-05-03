@@ -1,0 +1,54 @@
+@layer byline-theme {
+  :root {
+    --scroll-bar-thumb: var(--theme-400);
+    --scroll-bar-track: var(--theme-600);
+  }
+
+  /* rgb(44, 47, 86) = theme secondary 900  */
+  :root.dark,
+  :root[data-theme="dark"] {
+    --scroll-bar-thumb: var(--canvas-700);
+    --scroll-bar-track: var(--canvas-900);
+  }
+
+  /* For Google Chrome */
+  ::-webkit-scrollbar {
+    width: 0.6em;
+    height: 0.6em;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scroll-bar-thumb);
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scroll-bar-track);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: var(--scroll-bar-track);
+  }
+
+  /* Firefox */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-bar-thumb) var(--scroll-bar-track);
+  }
+
+  .component--scroller {
+    --scroll-bar-thumb: var(--scroll-bar-thumb);
+    --scroll-bar-track: var(--scroll-bar-track);
+  }
+
+  .dark .component--scroller,
+  [data-theme="dark"] .component--scroller {
+    --scroll-bar-thumb: var(--scroll-bar-thumb);
+    --scroll-bar-track: var(--scroll-bar-track);
+  }
+
+  .component--scroller {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-bar-thumb) var(--scroll-bar-track);
+  }
+}

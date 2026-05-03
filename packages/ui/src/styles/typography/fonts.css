@@ -1,0 +1,33 @@
+@layer byline-typography {
+  :root {
+    --font-sans:
+      "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+      "Segoe UI Symbol", "Noto Color Emoji";
+
+    --font-display:
+      "Roboto", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+      "Segoe UI Symbol", "Noto Color Emoji";
+
+    --font-serif: "Merriweather", Georgia, Cambria, "Times New Roman", Times, serif;
+
+    --font-mono:
+      "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+  }
+
+  .sans {
+    font-family: var(--font-sans);
+  }
+
+  .serif {
+    font-family: var(--font-serif);
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+  }
+
+  .display {
+    font-family: var(--font-display);
+  }
+}

@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { IconButton, Tooltip } from '@infonomic/uikit/react'
+import { IconButton, Tooltip } from '@byline/ui'
 import cx from 'classnames'
 
 import styles from './drawer-toggle.module.css'

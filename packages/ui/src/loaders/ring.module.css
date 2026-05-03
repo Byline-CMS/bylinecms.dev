@@ -1,0 +1,55 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .loader-ring,
+  :global(.infonomic-loader-ring) {
+    --_size: var(--loader-ring-size, 60px);
+    --_color: var(--loader-ring-color, var(--loader-color, currentColor));
+    display: inline-block;
+    position: relative;
+    width: var(--_size);
+    height: var(--_size);
+  }
+
+  .loader-ring-arc,
+  :global(.infonomic-loader-ring-arc) {
+    box-sizing: border-box;
+    display: block;
+    position: absolute;
+    width: calc(var(--_size) * 0.8);
+    height: calc(var(--_size) * 0.8);
+    margin: calc(var(--_size) * 0.1);
+    border-width: calc(var(--_size) * 0.1);
+    border-radius: 50%;
+    animation: loader-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    border-style: solid;
+    border-color: var(--_color) transparent transparent transparent;
+  }
+
+  .loader-ring-arc:nth-child(1) {
+    animation-delay: -0.45s;
+  }
+
+  .loader-ring-arc:nth-child(2) {
+    animation-delay: -0.3s;
+  }
+
+  .loader-ring-arc:nth-child(3) {
+    animation-delay: -0.15s;
+  }
+
+  @keyframes loader-ring {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+}

@@ -28,10 +28,12 @@
     "build": "run-s build:*",
     "build:clean": "rimraf dist build",
     "build:code": "rslib build",
+    "build:css": "lightningcss --bundle ./src/styles/reset.css ./src/styles/styles.css ./src/styles/typography.css --output-dir ./dist/styles",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf node_modules dist build types .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "skip:test": "vitest"
+    "skip:test": "vitest",
+    "sync:uikit": "./scripts/sync-from-uikit.sh"
   },
   "sideEffects": [
     "**/*.css"
@@ -56,32 +58,41 @@
       "main": "./dist/react.js",
       "default": "./dist/react.js"
     },
-    "./admin/*": {
-      "types": "./dist/admin/*.d.ts",
-      "import": "./dist/admin/*.js"
+    "./react/admin": {
+      "types": "./dist/admin.d.ts",
+      "import": "./dist/admin.js",
+      "default": "./dist/admin.js"
     },
-    "./components/*": {
-      "types": "./dist/components/*.d.ts",
-      "import": "./dist/components/*.js"
+    "./react/fields": {
+      "types": "./dist/fields.d.ts",
+      "import": "./dist/fields.js",
+      "default": "./dist/fields.js"
     },
-    "./dnd/*": {
-      "types": "./dist/dnd/*.d.ts",
-      "import": "./dist/dnd/*.js"
+    "./react/forms": {
+      "types": "./dist/forms.d.ts",
+      "import": "./dist/forms.js",
+      "default": "./dist/forms.js"
     },
-    "./fields/*": {
-      "types": "./dist/fields/*.d.ts",
-      "import": "./dist/fields/*.js"
+    "./react/services": {
+      "types": "./dist/services.d.ts",
+      "import": "./dist/services.js",
+      "default": "./dist/services.js"
     },
-    "./forms/*": {
-      "types": "./dist/forms/*.d.ts",
-      "import": "./dist/forms/*.js"
+    "./reset.css": {
+      "import": "./dist/styles/reset.css",
+      "default": "./dist/styles/reset.css"
     },
-    "./services/*": {
-      "types": "./dist/services/*.d.ts",
-      "import": "./dist/services/*.js"
+    "./styles.css": {
+      "import": "./dist/styles/styles.css",
+      "default": "./dist/styles/styles.css"
+    },
+    "./typography.css": {
+      "import": "./dist/styles/typography.css",
+      "default": "./dist/styles/typography.css"
     }
   },
   "dependencies": {
+    "@base-ui/react": "^1.4.0",
     "@byline/admin": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
@@ -89,11 +100,13 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@infonomic/uikit": "^6.7.1",
     "@tanstack/react-form-start": "^1.29.1",
     "classnames": "^2.5.1",
+    "date-fns": "^4.1.0",
     "lodash-es": "^4.18.1",
+    "motion": "^12.38.0",
     "npm-run-all": "^4.1.5",
+    "react-day-picker": "^9.14.0",
     "react-diff-viewer-continued": "^4.2.2",
     "zod": "^4.4.2",
     "zod-form-data": "^3.0.1"

@@ -30,7 +30,7 @@ export default defineConfig({
     ],
   },
   ssr: {
-    noExternal: ['@infonomic/uikit'],
+    noExternal: ['@byline/ui'],
     // Packages that load platform-specific native `.node` binaries at
     // runtime via dynamic require(). Rollup cannot bundle these, so we
     // keep them external and let Node.js resolve them from node_modules

@@ -1,4 +1,4 @@
-import { Button, Container, GithubIcon, Section } from '@infonomic/uikit/react'
+import { Button, Container, GithubIcon, Section } from '@byline/ui'
 
 export function GettingStarted() {
   return (

@@ -4,7 +4,7 @@ import type React from 'react'
 
 import type { StoredFileValue } from '@byline/core'
 import type { InlineImagePosition, SerializedInlineImageNode } from '@byline/richtext-lexical'
-import { FadeInLift } from '@infonomic/uikit/react'
+import { FadeInLift } from '@byline/ui'
 
 import { ResponsiveImage } from '../responsive-image/index.tsx'
 import type { Locale } from '@/i18n/i18n-config.ts'

@@ -9,7 +9,7 @@
 import { useCallback, useMemo } from 'react'
 
 import { slugify } from '@byline/core'
-import { Input, Label } from '@infonomic/uikit/react'
+import { Input, Label } from '../uikit.js'
 import cx from 'classnames'
 
 import { useFieldValue, useFormContext, useSystemPath } from './form-context'

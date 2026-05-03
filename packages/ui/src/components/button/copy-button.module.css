@@ -1,0 +1,61 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .copy-button-container,
+  :global(.infonomic-copy-button-container) {
+    display: inline-block;
+  }
+
+  .copy-button svg,
+  :global(.infonomic-copy-button) svg {
+    width: 90%;
+    height: 90%;
+    display: block;
+  }
+
+  /* Sizes */
+  .xs,
+  :global(.infonomic-copy-button-xs) {
+    width: 26px;
+    height: 26px;
+    min-height: 26px;
+    padding: 0.25rem;
+  }
+
+  .sm,
+  :global(.infonomic-copy-button-sm) {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0.35rem;
+  }
+
+  .md,
+  :global(.infonomic-copy-button-md) {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0.45rem;
+  }
+
+  .lg,
+  :global(.infonomic-copy-button-lg) {
+    width: 46px;
+    height: 46px;
+    min-height: 46px;
+    padding: 0.55rem;
+  }
+
+  .xl,
+  :global(.infonomic-copy-button-xl) {
+    width: 54px;
+    height: 54px;
+    min-height: 54px;
+    padding: 0.65rem;
+  }
+}

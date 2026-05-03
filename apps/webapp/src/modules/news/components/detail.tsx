@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { Badge } from '@infonomic/uikit/react'
+import { Badge } from '@byline/ui'
 
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'

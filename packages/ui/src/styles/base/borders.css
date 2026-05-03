@@ -1,0 +1,30 @@
+@layer byline-base {
+  :root {
+    /* ========================================
+       BORDER & RADIUS
+    ======================================== */
+    --border-width-thin: 1px;
+    --border-width-normal: 2px;
+    --border-width-thick: 4px;
+
+    --border-style-solid: solid;
+    --border-style-dashed: dashed;
+    --border-style-dotted: dotted;
+
+    --border-radius-none: 0px;
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
+    --border-radius-2xl: 24px;
+    --border-radius-full: 9999px;
+
+    /* ========================================
+       RINGS
+    ======================================== */
+
+    --ring-offset-width: 2px;
+    --ring-inset: ;
+    --ring-shadow: 0 0 #0000;
+  }
+}

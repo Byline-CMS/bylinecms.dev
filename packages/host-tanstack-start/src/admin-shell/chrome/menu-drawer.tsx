@@ -18,7 +18,7 @@ import {
   SettingsSlidersIcon,
   UserIcon,
   UsersIcon,
-} from '@infonomic/uikit/react'
+} from '@byline/ui'
 import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 

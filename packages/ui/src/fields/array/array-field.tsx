@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 
 import type { ArrayField as ArrayFieldType, Field } from '@byline/core'
-import { IconButton, PlusIcon } from '@infonomic/uikit/react'
+import { IconButton, PlusIcon } from '../../uikit.js'
 import cx from 'classnames'
 
 import { DraggableSortable, moveItem } from '../../dnd/draggable-sortable'

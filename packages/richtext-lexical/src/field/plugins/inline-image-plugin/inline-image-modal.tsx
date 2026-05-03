@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react'
 
 import type { CollectionDefinition, StoredFileValue } from '@byline/core'
 import { getCollectionDefinition } from '@byline/core'
-import { RelationPicker } from '@byline/ui'
+import { RelationPicker } from '@byline/ui/react/fields'
 import {
   Button,
   Checkbox,
@@ -25,7 +25,7 @@ import {
   Modal,
   RadioGroup,
   RadioGroupItem,
-} from '@infonomic/uikit/react'
+} from '@byline/ui'
 
 import { useEditorConfig } from '../../config/editor-config-context'
 import { useModalFormState } from '../../shared/useModalFormState'

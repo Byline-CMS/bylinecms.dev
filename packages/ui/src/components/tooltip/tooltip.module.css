@@ -1,0 +1,80 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .tooltip,
+  :global(.infonomic-tooltip) {
+    font-size: 0.75rem;
+    line-height: 1;
+    color: var(--surface-item-text);
+    user-select: none;
+    padding: 0.625rem 1rem;
+    border-radius: var(--border-radius-sm);
+    border-width: var(--border-width-thin);
+    border-style: var(--border-style-solid);
+    background-color: var(--surface-panel-elevated);
+    border-color: var(--surface-panel-border);
+    box-shadow: var(--shadow-xs);
+    will-change: transform, opacity;
+    animation: var(--transition-normal);
+  }
+
+  /* Dark mode handled by semantic tokens in theme layer */
+
+  .tooltip[data-open][data-side="top"] :global {
+    animation-name: slideDownAndFade;
+  }
+
+  .tooltip[data-open][data-side="right"] :global {
+    animation-name: slideLeftAndFade;
+  }
+
+  .tooltip[data-open][data-side="left"] :global {
+    animation-name: slideRightAndFade;
+  }
+
+  .tooltip[data-open][data-side="bottom"] :global {
+    animation-name: slideUpAndFade;
+  }
+
+  .tooltip-arrow,
+  :global(.infonomic-tooltip-arrow) {
+    display: flex;
+
+    &[data-side="top"] {
+      bottom: -6px;
+      rotate: 180deg;
+    }
+
+    &[data-side="bottom"] {
+      top: -6px;
+      rotate: 0deg;
+    }
+
+    &[data-side="left"] {
+      right: -10px;
+      rotate: 90deg;
+    }
+
+    &[data-side="right"] {
+      left: -10px;
+      rotate: -90deg;
+    }
+  }
+
+  .arrow-fill {
+    fill: var(--surface-panel-elevated);
+  }
+
+  .arrow-outer-stroke {
+    fill: var(--surface-panel-border);
+  }
+
+  .arrow-inner-stroke {
+    fill: var(--surface-panel-elevated);
+  }
+}

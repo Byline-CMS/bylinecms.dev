@@ -8,7 +8,7 @@
 
 import { Link } from '@tanstack/react-router'
 
-import { Badge, Card } from '@infonomic/uikit/react'
+import { Badge, Card } from '@byline/ui'
 
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { RouterPager } from '@/ui/components/router-pager'

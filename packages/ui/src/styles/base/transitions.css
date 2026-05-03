@@ -1,0 +1,7 @@
+@layer byline-base {
+  :root {
+    --transition-fast: 175ms ease-in-out;
+    --transition-normal: 230ms ease-in-out;
+    --transition-slow: 400ms ease-in-out;
+  }
+}

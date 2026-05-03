@@ -12,7 +12,7 @@ import {
   WORKFLOW_STATUS_DRAFT,
   WORKFLOW_STATUS_PUBLISHED,
 } from '@byline/core'
-import { Badge } from '@infonomic/uikit/react'
+import { Badge } from '../../../uikit.js'
 import cx from 'classnames'
 
 import styles from './status-badge.module.css'

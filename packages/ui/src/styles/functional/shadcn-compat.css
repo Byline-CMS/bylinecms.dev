@@ -1,0 +1,90 @@
+/**
+ * SHADCN COMPATIBILITY ALIAS LAYER
+ *
+ * Additive translation layer that maps Infonomic semantic tokens onto the
+ * naming ShadCN-style UI snippets and AI-generated markup expect. The
+ * Infonomic token model remains the source of truth - these aliases are
+ * strictly for compatibility with consumer apps that register Tailwind
+ * semantic utilities (bg-card, text-muted-foreground, border-border, etc.).
+ *
+ * Important notes on mapping intent:
+ * - ShadCN `accent` is an interactive neutral surface, NOT a brand accent.
+ *   It is mapped to --surface-subtle-hover, not --accent.
+ * - ShadCN `muted` is a subdued surface, NOT Infonomic's --muted text token.
+ *   Surface aliases use --surface-subtle*; text aliases use --text-subtle.
+ * - ShadCN `primary` is a high-emphasis action surface, matched to
+ *   --fill-primary-strong (not the raw --primary palette token).
+ * - ShadCN's default dark theme inverts `primary` toward near-white.
+ *   The Infonomic mapping intentionally keeps `primary` brand-tinted in
+ *   dark mode via --fill-primary-strong, which itself swaps per mode.
+ *
+ * Mode switching is handled entirely by the underlying functional tokens:
+ * --surface-panel, --fill-primary-strong, --text, etc. all redefine
+ * themselves in .dark and .not-dark scopes, so the var() chains here
+ * resolve to the correct values automatically. No per-mode duplication
+ * of the --shadcn-* aliases is required.
+ *
+ * This file is imported after the rest of the functional layer so the
+ * aliases always resolve against the current mode's semantic values.
+ */
+
+@layer byline-functional {
+  :root {
+    /* Core surface + content roles */
+    --shadcn-background: var(--background);
+    --shadcn-foreground: var(--foreground);
+
+    --shadcn-card: var(--surface-panel);
+    --shadcn-card-foreground: var(--text);
+
+    --shadcn-popover: var(--surface-panel-elevated);
+    --shadcn-popover-foreground: var(--text);
+
+    --shadcn-primary: var(--fill-primary-strong);
+    --shadcn-primary-foreground: var(--text-on-primary-strong);
+
+    --shadcn-secondary: var(--fill-secondary-strong);
+    --shadcn-secondary-foreground: var(--text-on-secondary-strong);
+
+    --shadcn-muted: var(--surface-subtle-hover);
+    --shadcn-muted-foreground: var(--text-subtle);
+
+    --shadcn-accent: var(--surface-subtle-hover);
+    --shadcn-accent-foreground: var(--text);
+
+    --shadcn-destructive: var(--fill-danger-strong);
+    --shadcn-destructive-foreground: var(--text-on-danger-strong);
+
+    --shadcn-border: var(--border-color);
+    --shadcn-input: var(--field-border);
+    --shadcn-ring: var(--focus-ring);
+
+    /* Radius scale - mapped to the uikit's base radius tokens so
+       rounded-sm/md/lg/xl utilities land on uikit values rather than
+       Tailwind defaults. --shadcn-radius is the ShadCN base alias. */
+    --shadcn-radius-sm: var(--border-radius-sm);
+    --shadcn-radius-md: var(--border-radius-md);
+    --shadcn-radius-lg: var(--border-radius-lg);
+    --shadcn-radius-xl: var(--border-radius-xl);
+    --shadcn-radius: var(--shadcn-radius-md);
+
+    /* Chart palette - five sequential hues for the ShadCN Chart component.
+       Uses functional intent base tokens so dark-mode shades inherit. */
+    --shadcn-chart-1: var(--primary);
+    --shadcn-chart-2: var(--secondary);
+    --shadcn-chart-3: var(--info);
+    --shadcn-chart-4: var(--warning);
+    --shadcn-chart-5: var(--success);
+
+    /* Sidebar primitive - mirrors the core surface/content roles within
+       the sidebar's own token namespace. */
+    --shadcn-sidebar: var(--surface-panel);
+    --shadcn-sidebar-foreground: var(--text);
+    --shadcn-sidebar-primary: var(--fill-primary-strong);
+    --shadcn-sidebar-primary-foreground: var(--text-on-primary-strong);
+    --shadcn-sidebar-accent: var(--surface-subtle-hover);
+    --shadcn-sidebar-accent-foreground: var(--text);
+    --shadcn-sidebar-border: var(--border-color);
+    --shadcn-sidebar-ring: var(--focus-ring);
+  }
+}

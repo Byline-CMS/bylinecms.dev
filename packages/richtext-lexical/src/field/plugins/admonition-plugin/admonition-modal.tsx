@@ -19,7 +19,7 @@ import {
   Modal,
   RadioGroup,
   RadioGroupItem,
-} from '@infonomic/uikit/react'
+} from '@byline/ui'
 
 import { admonitionTypeOptions, getInitialState, validateFields } from './fields'
 import type { AdmonitionType } from '../../nodes/admonition-node/types'

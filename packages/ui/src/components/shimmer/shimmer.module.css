@@ -1,0 +1,61 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+/* 'border-collapse w-full text-sm text-left text-gray-700 dark:text-gray-400 m-0', */
+@layer byline-components {
+  .shimmer,
+  :global(.infonomic-shimmer) {
+    position: relative;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  :global(.dark),
+  :global([data-theme="dark"]) {
+    .shimmer,
+    :global(.infonomic-shimmer) {
+      background-color: #141414;
+      background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.01), transparent);
+    }
+  }
+
+  .shimmerContainer,
+  :global(.infonomic-shimmer-container) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rectangular,
+  :global(.infonomic-shimmer-rectangular) {
+    border-radius: 0.25rem;
+  }
+
+  .text,
+  :global(.infonomic-shimmer-text) {
+    border-radius: 0.125rem;
+    height: 1rem;
+  }
+
+  .circular,
+  :global(.infonomic-shimmer-circular) {
+    border-radius: 50%;
+    aspect-ratio: 1;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}

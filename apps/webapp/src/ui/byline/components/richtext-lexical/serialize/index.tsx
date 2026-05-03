@@ -3,7 +3,7 @@
 import { Fragment } from 'react'
 
 import type { SerializedInlineImageNode, SerializedTextNode } from '@byline/richtext-lexical'
-import { Table } from '@infonomic/uikit/react'
+import { Table } from '@byline/ui'
 
 import { AdmonitionSerializer } from '../../admonition/index.tsx'
 import { CodeSerializer } from '../../code/code-serializer.tsx'

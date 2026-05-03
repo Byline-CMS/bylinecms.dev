@@ -1,0 +1,24 @@
+@import "./typography/fonts.css";
+@import "./typography/prose.css";
+
+@layer byline-typography {
+  html {
+    font-family: var(--font-sans);
+  }
+
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}

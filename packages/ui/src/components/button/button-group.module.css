@@ -1,0 +1,19 @@
+@layer byline-base, byline-utilities, byline-theme, byline-components;
+
+@layer byline-components {
+  .button-group,
+  :global(.infonomic-button-group) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-items: center;
+    gap: var(--gap-2);
+  }
+
+  @media screen and (min-width: 40rem) {
+    .button-group,
+    :global(.infonomic-button-group) {
+      flex-direction: row;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { Container, Section } from '@infonomic/uikit/react'
+import { Container, Section } from '@byline/ui'
 
 export function FeatureGrid() {
   return (

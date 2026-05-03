@@ -2,7 +2,7 @@
 
 import type React from 'react'
 
-import { LightIcon, MoonIcon } from '@infonomic/uikit/react'
+import { LightIcon, MoonIcon } from '@byline/ui'
 import cx from 'classnames'
 
 import { useTheme } from './provider'

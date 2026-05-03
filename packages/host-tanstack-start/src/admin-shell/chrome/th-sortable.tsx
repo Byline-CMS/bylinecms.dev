@@ -10,7 +10,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
-import { Table } from '@infonomic/uikit/react'
+import { Table } from '@byline/ui'
 import cx from 'classnames'
 
 import { useNavigate } from './loose-router.js'

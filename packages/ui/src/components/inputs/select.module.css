@@ -1,0 +1,152 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .positioner,
+  :global(.infonomic-select-positioner) {
+    z-index: 50;
+  }
+
+  .popup,
+  :global(.infonomic-select-popup) {
+    z-index: 50;
+    margin-top: 2px;
+    border: 1px solid var(--surface-panel-border);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--border-radius-md);
+    background-color: var(--surface-panel-elevated);
+    padding: 6px;
+  }
+
+  .popup-xs {
+    padding: 4px;
+  }
+
+  .popup-sm {
+    padding: 4px;
+  }
+
+  .popup-md {
+    padding: 6px;
+  }
+
+  .popup-lg {
+    padding: 6px;
+  }
+
+  .popup-xl {
+    padding: 8px;
+  }
+
+  .list,
+  :global(.infonomic-select-list) {
+    z-index: 50;
+  }
+
+  .scroll-arrow,
+  :global(.infonomic-select-scroll-arrow) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--surface-item-text);
+    border: 1px solid var(--surface-panel-border);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--border-radius-md);
+    background-color: var(--surface-panel-elevated);
+    padding: 2px;
+  }
+
+  .select-item,
+  :global(.infonomic-select-item) {
+    position: relative;
+    user-select: none;
+    color: var(--surface-item-text);
+    background-color: var(--surface-item);
+    font-size: 1rem;
+    line-height: 1;
+    padding-right: 32px;
+    padding-left: 24px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+  }
+
+  .select-item[data-disabled],
+  :global(.infonomic-select-item[data-disabled]) {
+    color: var(--surface-item-text-disabled);
+    pointer-events: none;
+  }
+
+  .select-item[data-highlighted],
+  :global(.infonomic-select-item[data-highlighted]) {
+    outline: none;
+    background-color: var(--surface-item-hover);
+    color: var(--surface-item-text-hover);
+  }
+
+  .select-item-indicator,
+  :global(.infonomic-select-item-indicator) {
+    position: absolute;
+    left: 0;
+    width: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* size variants — treat current values as 'md' */
+  .popup-xs .select-item {
+    font-size: 0.75rem;
+    height: 24px;
+    padding-right: 28px;
+    padding-left: 20px;
+    border-radius: 4px;
+  }
+
+  .popup-xs .select-item-indicator {
+    width: 20px;
+  }
+
+  .popup-sm .select-item {
+    font-size: 0.875rem;
+    height: 28px;
+    padding-right: 30px;
+    padding-left: 22px;
+    border-radius: 5px;
+  }
+
+  .popup-sm .select-item-indicator {
+    width: 22px;
+  }
+
+  /* .popup-md — inherits base .select-item values */
+
+  .popup-lg .select-item {
+    font-size: 1.125rem;
+    height: 34px;
+    padding-right: 32px;
+    padding-left: 24px;
+    border-radius: 6px;
+  }
+
+  .popup-lg .select-item-indicator {
+    width: 24px;
+  }
+
+  .popup-xl .select-item {
+    font-size: 1.25rem;
+    height: 40px;
+    padding-right: 36px;
+    padding-left: 28px;
+    border-radius: 8px;
+  }
+
+  .popup-xl .select-item-indicator {
+    width: 28px;
+  }
+}

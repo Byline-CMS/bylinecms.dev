@@ -1,0 +1,17 @@
+/**
+ * THEME
+ *
+ * This file now primarily serves as a convenient import aggregator for
+ * theme-related concerns: autofill behavior, scrollbar styling, and
+ * HTML element defaults.
+ *
+ * CSS variable definitions have been moved to functional token files:
+ * - functional/surfaces.css (backgrounds, shadows, loader)
+ * - functional/typography-tokens.css (text, headings, muted)
+ * - functional/borders.css (border colors)
+ * - functional/colors.css (intent-based color tokens)
+ */
+
+@import "./autofill.css";
+@import "./scrollers.css";
+@import "./defaults.css";

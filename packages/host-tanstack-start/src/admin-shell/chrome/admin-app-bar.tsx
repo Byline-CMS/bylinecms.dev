@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 
-import { Button } from '@infonomic/uikit/react'
+import { Button } from '@byline/ui'
 import cx from 'classnames'
 
 import { adminSignOut, type CurrentAdminUser } from '../../server-fns/auth/index.js'

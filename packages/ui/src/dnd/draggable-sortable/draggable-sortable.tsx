@@ -28,11 +28,11 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 
-import type { Props } from './types.js'
+import type { DraggableSortableProps } from './types.js'
 
-export type { Props }
+export type { DraggableSortableProps }
 
-export const DraggableSortable: React.FC<Props> = (props) => {
+export const DraggableSortable: React.FC<DraggableSortableProps> = (props) => {
   const { children, className, ids, onDragEnd } = props
 
   const id = useId()

@@ -1,0 +1,45 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  /* relative inline-flex h-10 w-10 rounded-full */
+  .avatar-root,
+  :global(.infonomic-avatar-root) {
+    position: relative;
+    display: inline-flex;
+    height: 100%;
+    width: 100%;
+    border-radius: 50%;
+  }
+
+  .avatar-image,
+  :global(.infonomic-avatar-image) {
+    height: 100%;
+    width: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .avatar-fallback,
+  :global(.infonomic-avatar-fallback) {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: var(--surface-panel-elevated);
+  }
+
+  .avatar-text,
+  :global(.infonomic-avatar-text) {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    color: var(--text-subtle);
+  }
+}

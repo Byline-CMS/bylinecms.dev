@@ -2,7 +2,7 @@
 
 import type React from 'react'
 
-import { Container, FadeInLift } from '@infonomic/uikit/react'
+import { Container, FadeInLift } from '@byline/ui'
 import cx from 'classnames'
 
 import type { PhotoBlockData } from '~/blocks/photo-block'

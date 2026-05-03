@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { Badge } from '@infonomic/uikit/react'
+import { Badge } from '../uikit.js'
 import cx from 'classnames'
 
 import styles from './tabs.module.css'

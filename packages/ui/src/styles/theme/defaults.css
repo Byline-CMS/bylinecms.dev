@@ -1,0 +1,75 @@
+/**
+ * HTML ELEMENT DEFAULTS
+ *
+ * Opinionated starter styles for HTML elements to provide sensible defaults
+ * for new installations. These live in the byline-theme layer and are
+ * easily overridden by consuming applications.
+ */
+
+@layer byline-theme {
+  html {
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  /* Redeclared here to change the specificity and scope of --prose-body */
+  html .not-dark {
+    color: var(--text);
+  }
+
+  /* Default (light mode) */
+  ::selection {
+    background-color: var(--theme-600);
+    color: white;
+  }
+
+  /* Dark mode */
+  .dark ::selection,
+  [data-theme="dark"] ::selection {
+    background-color: var(--theme-200);
+    color: var(--gray-900);
+  }
+
+  /* Headings */
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.125;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.125;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  /* External link indicator */
+  .external-link::after {
+    content: "";
+    display: inline-block;
+    background-image: url("/external-link-light.svg");
+    background-repeat: no-repeat;
+    background-position: 20% 50%;
+    background-size: 65% auto;
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-right: -5px;
+  }
+
+  .dark .external-link::after,
+  [data-theme="dark"] .external-link::after {
+    background-image: url("/external-link-dark.svg");
+  }
+}

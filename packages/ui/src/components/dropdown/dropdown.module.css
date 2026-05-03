@@ -1,0 +1,128 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .dropdown-content,
+  .dropdown-subcontent,
+  :global(.infonomic-dropdown-content),
+  :global(.infonomic-dropdown-subcontent) {
+    z-index: 20;
+    background-color: var(--surface-panel-elevated);
+    padding: 4px;
+    animation-duration: 400ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+    border-width: var(--border-width-thin);
+    border-color: var(--surface-panel-border);
+    border-style: var(--border-style-solid);
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-sm);
+
+    &[data-side="top"] {
+      animation-name: slideDownAndFade;
+    }
+
+    &[data-side="right"] {
+      animation-name: slideLeftAndFade;
+    }
+
+    &[data-side="bottom"] {
+      animation-name: slideUpAndFade;
+    }
+
+    &[data-side="left"] {
+      animation-name: slideRightAndFade;
+    }
+  }
+
+  .dropdown-item,
+  :global(.infonomic-dropdown-item) {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-1);
+    width: 100%;
+    padding: 5px 2px;
+    font-size: var(--font-size-sm);
+    color: var(--surface-item-text);
+    background-color: var(--surface-item);
+    transition: background-color 0.2s;
+    cursor: default;
+    outline: none;
+    border-radius: var(--border-radius-sm);
+  }
+
+  /* Updated to also cover data-highlighted presence */
+  .dropdown-item:hover,
+  .dropdown-item:focus,
+  .dropdown-item[data-highlighted],
+  :global(.infonomic-dropdown-item):hover,
+  :global(.infonomic-dropdown-item):focus,
+  :global(.infonomic-dropdown-item)[data-highlighted] {
+    background-color: var(--surface-item-hover);
+    color: var(--surface-item-text-hover);
+  }
+
+  .dropdown-separator,
+  :global(.infonomic-dropdown-separator) {
+    width: 90%;
+    background-color: var(--surface-panel-border);
+    margin: var(--spacing-4) 0;
+    border-top-width: var(--border-width-thin);
+    border-top-color: var(--surface-panel-border);
+    border-top-style: var(--border-style-solid);
+  }
+
+  /* Dark mode handled by surface tokens in theme layer */
+
+  @keyframes slideUpAndFade {
+    from {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideRightAndFade {
+    from {
+      opacity: 0;
+      transform: translateX(-2px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideDownAndFade {
+    from {
+      opacity: 0;
+      transform: translateY(-2px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideLeftAndFade {
+    from {
+      opacity: 0;
+      transform: translateX(2px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+}

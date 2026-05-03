@@ -1,0 +1,90 @@
+@layer byline-base,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .scroll-to-top,
+  :global(.infonomic-scroll-to-top) {
+    display: flex;
+    position: fixed;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    visibility: hidden;
+    align-items: center;
+    text-decoration: none;
+    border-style: none;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    z-index: 20;
+    justify-content: center;
+    bottom: 45px;
+    right: 30px;
+    color: var(--text-on-primary-strong);
+    background-color: var(--fill-primary-strong);
+    transition-property: all, color;
+    transition-duration: 0.3s, 1ms;
+    transition-timing-function: cubic-bezier(0.25, 0.8, 0.5, 1), ease;
+    transition-delay: 0s, 0s;
+    cursor: pointer;
+  }
+
+  .scroll-to-top span,
+  :global(.infonomic-scroll-to-top span) {
+    width: 18px;
+    padding-bottom: 3px;
+  }
+
+  .scroll-to-top span svg path,
+  :global(.infonomic-scroll-to-top span svg path) {
+    stroke: none;
+    fill: var(--text-on-primary-strong);
+  }
+
+  .scroll-to-top:hover,
+  .scroll-to-top:focus,
+  :global(.infonomic-scroll-to-top:hover),
+  :global(.infonomic-scroll-to-top:focus) {
+    color: var(--text-on-primary-strong);
+    background-color: var(--fill-primary-strong-hover);
+    transform: translateY(-5px);
+  }
+
+  .scroll-to-top-shown,
+  :global(.infonomic-scroll-to-top-shown) {
+    min-width: 0;
+    opacity: 1;
+    visibility: visible;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    bottom: 20px;
+    right: 10px;
+    border-radius: 20px;
+  }
+
+  @media screen and (min-width: 587px) {
+    .scroll-to-top,
+    :global(.infonomic-scroll-to-top) {
+      bottom: 45px;
+      right: 45px;
+    }
+
+    .scroll-to-top span,
+    :global(.infonomic-scroll-to-top span) {
+      width: 18px;
+    }
+
+    .scroll-to-top-shown,
+    :global(.infonomic-scroll-to-top-shown) {
+      width: 42px;
+      height: 42px;
+      border-radius: 21px;
+      bottom: 22px;
+      right: 22px;
+    }
+  }
+}

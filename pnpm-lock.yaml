@@ -59,9 +59,6 @@ importers:
       '@formatjs/intl-localematcher':
         specifier: ^0.8.5
         version: 0.8.5
-      '@infonomic/uikit':
-        specifier: ^6.7.1
-        version: 6.7.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@tanstack/react-form':
         specifier: ^1.29.1
         version: 1.29.1(@tanstack/react-start@1.167.61(@rsbuild/core@2.0.3(core-js@3.47.0))(@rspack/core@2.0.1(@swc/helpers@0.5.21))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0)(yaml@2.8.0)))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -453,9 +450,6 @@ importers:
       '@byline/ui':
         specifier: workspace:*
         version: link:../ui
-      '@infonomic/uikit':
-        specifier: ^6.7.1
-        version: 6.7.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
@@ -538,9 +532,6 @@ importers:
       '@byline/ui':
         specifier: workspace:*
         version: link:../ui
-      '@infonomic/uikit':
-        specifier: ^6.7.1
-        version: 6.7.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@lexical/clipboard':
         specifier: 0.44.0
         version: 0.44.0
@@ -736,6 +727,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@base-ui/react':
+        specifier: ^1.4.0
+        version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@byline/admin':
         specifier: workspace:*
         version: link:../admin
@@ -757,21 +751,27 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.5)
-      '@infonomic/uikit':
-        specifier: ^6.7.1
-        version: 6.7.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@tanstack/react-form-start':
         specifier: ^1.29.1
         version: 1.29.1(@tanstack/react-start@1.167.61(@rsbuild/core@2.0.3(core-js@3.47.0))(@rspack/core@2.0.1(@swc/helpers@0.5.21))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0)(yaml@2.8.0)))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       lodash-es:
         specifier: ^4.18.1
         version: 4.18.1
+      motion:
+        specifier: ^12.38.0
+        version: 12.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      react-day-picker:
+        specifier: ^9.14.0
+        version: 9.14.0(react@19.2.5)
       react-diff-viewer-continued:
         specifier: ^4.2.2
         version: 4.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -2090,12 +2090,6 @@ packages:
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [win32]
-
-  '@infonomic/uikit@6.7.1':
-    resolution: {integrity: sha512-Xhu0weUkFzSBgCuCHPhB8cltJyBKqdoat9rpNNjfiR3oZIS/AxrJhfUTtQmq4FzAAMXgShFyB/QDcT3sFDhS4g==}
-    peerDependencies:
-      react: 19.2.5
-      react-dom: 19.2.5
 
   '@inquirer/external-editor@1.0.3':
     resolution: {integrity: sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA==}
@@ -7109,24 +7103,6 @@ snapshots:
 
   '@img/sharp-win32-x64@0.34.5':
     optional: true
-
-  '@infonomic/uikit@6.7.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
-    dependencies:
-      '@base-ui/react': 1.4.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      classnames: 2.5.1
-      date-fns: 4.1.0
-      motion: 12.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      npm-run-all: 4.1.5
-      prism-react-renderer: 2.4.1(react@19.2.5)
-      react: 19.2.5
-      react-day-picker: 9.14.0(react@19.2.5)
-      react-dom: 19.2.5(react@19.2.5)
-      zod: 4.4.2
-      zod-form-data: 3.0.1(zod@4.4.2)
-    transitivePeerDependencies:
-      - '@date-fns/tz'
-      - '@emotion/is-prop-valid'
-      - '@types/react'
 
   '@inquirer/external-editor@1.0.3(@types/node@25.6.0)':
     dependencies:

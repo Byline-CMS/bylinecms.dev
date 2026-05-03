@@ -25,13 +25,9 @@ import type React from 'react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
-import {
-  CreateAdminRole,
-  DraggableSortable,
-  LocalDateTime,
-  moveItem,
-  useSortable,
-} from '@byline/ui'
+import { DraggableSortable, moveItem, useSortable } from '@byline/ui'
+import { LocalDateTime } from '@byline/ui/react/fields'
+import { CreateAdminRole } from '@byline/ui/react/admin'
 import {
   Button,
   CloseIcon,
@@ -44,7 +40,7 @@ import {
   Section,
   Table,
   useToastManager,
-} from '@infonomic/uikit/react'
+} from '@byline/ui'
 import cx from 'classnames'
 
 import { reorderAdminRoles } from '../../server-fns/admin-roles/reorder.js'

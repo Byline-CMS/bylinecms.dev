@@ -1,0 +1,14 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .section,
+  :global(.infonomic-section) {
+    width: 100%;
+    position: relative;
+  }
+}

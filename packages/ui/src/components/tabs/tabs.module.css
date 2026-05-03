@@ -1,0 +1,64 @@
+@layer byline-base,
+  byline-functional,
+  byline-utilities,
+  byline-theme,
+  byline-typography,
+  byline-components;
+
+@layer byline-components {
+  .tabs-root,
+  :global(.infonomic-tabs-root) {
+    display: flex;
+    padding: var(--spacing-8);
+    flex-direction: column;
+    gap: var(--spacing-4);
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--border-color);
+  }
+
+  .tabs-list,
+  :global(.infonomic-tabs-list) {
+    display: flex;
+    width: 100%;
+    gap: var(--gap-2);
+    align-items: center;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-4);
+    border: 1px solid var(--border-color);
+
+    &:focus-visible {
+      outline: none;
+    }
+  }
+
+  .tabs-trigger,
+  :global(.infonomic-tabs-trigger) {
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    width: 100%;
+
+    &:focus {
+      position: relative;
+    }
+  }
+
+  .tabs-content,
+  :global(.infonomic-tabs-content) {
+    margin-top: var(--spacing-8);
+    padding: 6px;
+    outline: none;
+
+    &[data-hidden] {
+      display: none;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: none;
+    }
+  }
+}

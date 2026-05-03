@@ -14,7 +14,7 @@ import {
   EllipsisIcon,
   IconButton,
   PlusIcon,
-} from '@infonomic/uikit/react'
+} from '../uikit.js'
 import cx from 'classnames'
 
 import styles from './draggable-context-menu.module.css'

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { Card, GripperVerticalIcon } from '@infonomic/uikit/react'
+import { Card, GripperVerticalIcon } from '../../../uikit.js'
 import cx from 'classnames'
 
 import { DraggableSortable, moveItem, useSortable } from '..'

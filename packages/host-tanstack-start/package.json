@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "TanStack Start host adapter for Byline CMS — server fns, auth context, integration glue, admin shell, and route factories",
+  "description": "TanStack Start host adapter for Byline CMS \u2014 server fns, auth context, integration glue, admin shell, and route factories",
   "keywords": [
     "cms",
     "headless cms",
@@ -111,7 +111,6 @@
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
     "@byline/ui": "workspace:*",
-    "@infonomic/uikit": "^6.7.1",
     "classnames": "^2.5.1",
     "npm-run-all": "^4.1.5",
     "react-json-view-lite": "^2.5.0",

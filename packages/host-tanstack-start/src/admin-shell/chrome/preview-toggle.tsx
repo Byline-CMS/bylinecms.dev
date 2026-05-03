@@ -23,7 +23,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { EyeClosedIcon, EyeOpenIcon } from '@infonomic/uikit/react'
+import { EyeClosedIcon, EyeOpenIcon } from '@byline/ui'
 import cx from 'classnames'
 
 import {

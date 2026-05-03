@@ -2,7 +2,7 @@
 
 import type React from 'react'
 
-import { Button, type Intent } from '@infonomic/uikit/react'
+import { Button, type Intent } from '@byline/ui'
 import cx from 'classnames'
 
 import { LangLink } from '@/i18n/components/lang-link'

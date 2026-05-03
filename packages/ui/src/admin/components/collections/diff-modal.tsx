@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { CloseIcon, IconButton, LoaderRing, Modal } from '@infonomic/uikit/react'
+import { CloseIcon, IconButton, LoaderRing, Modal } from '../../../uikit.js'
 import cx from 'classnames'
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
 
