@@ -69,6 +69,14 @@ COLLECTION-VERSIONING Phase 2 — the smallest useful follow-up to the schema-ve
 
 Phases 0–3 of host packaging shipped (per memory, 2026-04-30); next is the developer-facing CLI and the project template that uses it. Specific scope lives in `packages/host-tanstack-start` README and any planning notes nearby; this entry exists so the priority is visible alongside the others.
 
+### All things AI
+
+Native MCP Server and AI / content integration.
+
+### Admin UI Translations
+
+Isolated admin UI string translations
+
 ---
 
 ## Deferred
