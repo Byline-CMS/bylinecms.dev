@@ -1,11 +1,11 @@
 # Byline CMS
 
-A developer-friendly, open-source headless CMS — built so versioning,
-editorial workflow, and content translation are first-class concerns rather
+A developer-friendly, open-source headless CMS — built with versioning,
+editorial workflow, and content translation as first-class concerns rather
 than features bolted on later.
 
-> Status: early beta. The shape is settling, the core is stable enough to
-> build on, and you're welcome to follow along.
+> Status: early beta. Core is stable enough to build on,
+> and you're welcome to follow along.
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
@@ -26,8 +26,8 @@ than features bolted on later.
   applies them against the reconstructed document. A foundation for
   collaborative editing later.
 - **Schema separated from presentation.** Collection definitions are
-  server-safe data; admin UI lives in a parallel `defineAdmin()` config —
-  Django models vs ModelAdmin, applied to headless content.
+  server-safe data; admin UI lives in a parallel `defineAdmin()` config 
+  (think Django models vs ModelAdmin, applied to headless content).
 
 For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
