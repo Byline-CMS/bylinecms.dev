@@ -2,6 +2,7 @@
 
 import { Fragment } from 'react'
 
+import type { SerializedInlineImageNode, SerializedTextNode } from '@byline/richtext-lexical'
 import { Table } from '@infonomic/uikit/react'
 
 import { AdmonitionSerializer } from '../../admonition/index.tsx'
@@ -46,38 +47,35 @@ export function Serialize({
     <Fragment>
       {nodes?.map((node, index): React.JSX.Element | null => {
         if (node.type === 'text') {
-          const text = node.text
-          // We'll let React/JSX escape the text for us - no need to use dangerouslySetInnerHTML
-          // let text = (
-          //   <span key={index} dangerouslySetInnerHTML={{ __html: escapeHTML(node.text) }} />
-          // )
-          if (node.format & IS_BOLD) {
+          const textNode = node as SerializedTextNode
+          const { text, format } = textNode
+          if (format & IS_BOLD) {
             return <strong key={index}>{text}</strong>
           }
-          if (node.format & IS_ITALIC) {
+          if (format & IS_ITALIC) {
             return <em key={index}>{text}</em>
           }
-          if (node.format & IS_STRIKETHROUGH) {
+          if (format & IS_STRIKETHROUGH) {
             return (
               <span key={index} className="line-through">
                 {text}
               </span>
             )
           }
-          if (node.format & IS_UNDERLINE) {
+          if (format & IS_UNDERLINE) {
             return (
               <span key={index} className="underline">
                 {text}
               </span>
             )
           }
-          if (node.format & IS_CODE) {
+          if (format & IS_CODE) {
             return <code key={index}>{text}</code>
           }
-          if (node.format & IS_SUBSCRIPT) {
+          if (format & IS_SUBSCRIPT) {
             return <sub key={index}>{text}</sub>
           }
-          if (node.format & IS_SUPERSCRIPT) {
+          if (format & IS_SUPERSCRIPT) {
             return <sup key={index}> {text} </sup>
           }
           return <Fragment key={index}>{text}</Fragment>
@@ -171,7 +169,7 @@ export function Serialize({
             return (
               <InlineImageSerializer
                 key={index}
-                node={node}
+                node={node as SerializedInlineImageNode}
                 serialize={Serialize}
                 lng={lng}
                 options={options}

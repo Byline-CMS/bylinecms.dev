@@ -14,10 +14,11 @@ export function ListItemSerializer({
   if (node?.checked != null) {
     return (
       <li
-        className={`not-prose component--list-item-checkbox ${node.checked === true
-          ? 'component--list-item-checkbox-checked'
-          : 'component--list-item-checked-unchecked'
-          }`}
+        className={`not-prose component--list-item-checkbox ${
+          node.checked === true
+            ? 'component--list-item-checkbox-checked'
+            : 'component--list-item-checked-unchecked'
+        }`}
         value={node?.value}
         // aria-checked={node.checked === true ? 'true' : 'false'}
         tabIndex={-1}

@@ -8,9 +8,9 @@
 
 import { Link } from '@tanstack/react-router'
 
-import type { PersistedVariant, StoredFileValue } from '@byline/core'
 import { Badge, Card } from '@infonomic/uikit/react'
 
+import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { RouterPager } from '@/ui/components/router-pager'
 import { truncate } from '@/utils/utils.general'
 import type { NewsListResult } from '@/modules/news/list'
@@ -25,23 +25,6 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   year: 'numeric',
 })
-
-// Pick a named variant URL from a stored image, falling back to the next
-// preferred variant and finally the original `storageUrl`. The variant list
-// itself is just `image.variants`, but the fallback chain is real logic
-// worth a name.
-function pickVariantUrl(
-  image: StoredFileValue | undefined,
-  ...preferred: string[]
-): string | undefined {
-  if (!image) return undefined
-  const variants: PersistedVariant[] = image.variants ?? []
-  for (const name of preferred) {
-    const hit = variants.find((v) => v.name === name)
-    if (hit?.storageUrl) return hit.storageUrl
-  }
-  return image.storageUrl
-}
 
 export function NewsList({ result, category }: NewsListProps) {
   const { docs, meta } = result
@@ -68,12 +51,9 @@ export function NewsList({ result, category }: NewsListProps) {
           {docs.map((doc) => {
             const title = doc.fields.title ?? doc.path ?? doc.id
             const categoryLabel = doc.fields.category?.document?.fields.name
-            const featureImage = doc.fields.featureImage?.document?.fields.image
-            const thumbnailUrl = pickVariantUrl(featureImage, 'thumbnail', 'card')
-            const imageAlt =
-              doc.fields.featureImage?.document?.fields.altText ??
-              doc.fields.featureImage?.document?.fields.title ??
-              title
+            const featureMedia = doc.fields.featureImage?.document?.fields
+            const featureImage = featureMedia?.image
+            const imageAlt = featureMedia?.altText ?? featureMedia?.title ?? title
             const publishedOn = doc.fields.publishedOn
               ? dateFormatter.format(new Date(doc.fields.publishedOn))
               : undefined
@@ -87,14 +67,14 @@ export function NewsList({ result, category }: NewsListProps) {
                 className="no-underline text-inherit"
               >
                 <Card className="flex overflow-hidden group h-full">
-                  {thumbnailUrl ? (
-                    <div className="aspect-video w-full shrink-0 overflow-hidden bg-gray-100">
-                      <img
-                        src={thumbnailUrl}
-                        alt={imageAlt}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out"
-                      />
-                    </div>
+                  {featureImage ? (
+                    <ResponsiveImage
+                      image={featureImage}
+                      size="small"
+                      alt={imageAlt}
+                      className="aspect-video w-full shrink-0 bg-gray-100"
+                      imgClassName="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out"
+                    />
                   ) : null}
                   <div className="flex flex-1 flex-col gap-2 p-4">
                     <div className="flex items-center gap-2">

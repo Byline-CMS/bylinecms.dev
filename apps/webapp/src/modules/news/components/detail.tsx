@@ -6,9 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { PersistedVariant, StoredFileValue } from '@byline/core'
 import { Badge } from '@infonomic/uikit/react'
 
+import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
 import type { NewsDetailResult } from '@/modules/news/detail'
 
@@ -22,33 +22,19 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
-function pickVariantUrl(
-  image: StoredFileValue | undefined,
-  ...preferred: string[]
-): string | undefined {
-  if (!image) return undefined
-  const variants: PersistedVariant[] = image.variants ?? []
-  for (const name of preferred) {
-    const hit = variants.find((v) => v.name === name)
-    if (hit?.storageUrl) return hit.storageUrl
-  }
-  return image.storageUrl
-}
-
 export function NewsDetail({ result }: NewsDetailProps) {
   const { fields } = result
   const title = fields.title ?? result.path ?? result.id
   const categoryLabel = fields.category?.document?.fields.name
-  const featureImage = fields.featureImage?.document?.fields.image
-  const heroUrl = pickVariantUrl(featureImage, 'hero', 'card', 'thumbnail')
-  const imageAlt =
-    fields.featureImage?.document?.fields.altText ??
-    fields.featureImage?.document?.fields.title ??
-    title
+  const featureMedia = fields.featureImage?.document?.fields
+  const featureImage = featureMedia?.image
+  const imageAlt = featureMedia?.altText ?? featureMedia?.title ?? title
   const publishedOn = fields.publishedOn
     ? dateFormatter.format(new Date(fields.publishedOn))
     : undefined
 
+  // TODO: richText is a Lexical document — type properly once the
+  // Lexical node shape is modelled in @byline/core.
   const content = fields.content as Record<string, any> | undefined
 
   return (
@@ -63,17 +49,17 @@ export function NewsDetail({ result }: NewsDetailProps) {
           <p className="mt-3 text-base text-gray-600 leading-relaxed">{fields.summary}</p>
         ) : null}
       </header>
-      {heroUrl ? (
-        <div className="mb-6 overflow-hidden">
-          <img src={heroUrl} alt={imageAlt} className="h-auto w-full object-cover" />
-        </div>
+      {featureImage ? (
+        <ResponsiveImage
+          image={featureImage}
+          size="large"
+          alt={imageAlt}
+          className="mb-6"
+          imgClassName="h-auto w-full object-cover"
+          loading="eager"
+          fetchPriority="high"
+        />
       ) : null}
-      {/*
-        Rich-text rendering is not yet wired on the public side. The
-        `content` field is a Lexical document — render with a public
-        Lexical reader (e.g. a tree-walker over `content.root.children`)
-        once one ships in `@byline/richtext-lexical`.
-      */}
       <LexicalRichText
         nodes={content?.root?.children}
         lng="en"

@@ -2,29 +2,56 @@
 
 import type React from 'react'
 
+import type { StoredFileValue } from '@byline/core'
+import type { InlineImagePosition, SerializedInlineImageNode } from '@byline/richtext-lexical'
 import { FadeInLift } from '@infonomic/uikit/react'
 
-import { PhotoComponent } from '../photo/index.tsx'
+import { ResponsiveImage } from '../responsive-image/index.tsx'
 import type { Locale } from '@/i18n/i18n-config.ts'
 import type { SerializeOptions, SerializeProps } from '../richtext-lexical/serialize/index.tsx'
-import type { SerializedLexicalNode } from '../richtext-lexical/serialize/types.ts'
 
-export function InlineImageSerializer({
-  node,
-  serialize,
-  lng,
-  options,
-}: {
-  node: SerializedLexicalNode
+/**
+ * Map the inline-image `position` (a layout choice the editor exposes
+ * via radio buttons) onto the public renderer's `<ResponsiveImage>`
+ * size cap and constrained-layout flag. Mirrors the editor-side
+ * `variantFor()` heuristic in `@byline/richtext-lexical`'s
+ * `inline-image-plugin/utils.ts` so the public render and the editor
+ * preview agree on which variants matter.
+ *
+ * - `left` / `right` — floated 50% column on desktop. Cap at the tablet
+ *    variant; flag `constrainedLayout` so the `sizes` hint halves the
+ *    desktop viewport portion.
+ * - `full` / `default` — main article column (~920px). Tablet cap is
+ *    plenty; no extra constraint.
+ * - `wide` — bleeds beyond the article. Full variant set; no constraint.
+ */
+const POSITION_TO_SIZE: Record<
+  NonNullable<InlineImagePosition>,
+  { size: 'large' | 'medium' | 'small'; constrainedLayout: boolean }
+> = {
+  left: { size: 'medium', constrainedLayout: true },
+  right: { size: 'medium', constrainedLayout: true },
+  full: { size: 'medium', constrainedLayout: false },
+  default: { size: 'medium', constrainedLayout: false },
+  wide: { size: 'large', constrainedLayout: false },
+}
+
+interface Props {
+  node: SerializedInlineImageNode
   serialize: ({ nodes, options }: SerializeProps) => React.JSX.Element
   lng: Locale
   options: SerializeOptions
-}): React.JSX.Element {
-  const showCaption = node?.showCaption != null && node.showCaption === true
-  const isFloat = node?.position === 'left' || node?.position === 'right'
-  const floatLeft = node?.position === 'left'
-  const floatRight = node?.position === 'right'
-  const _size = node?.size ?? 'auto'
+}
+
+export function InlineImageSerializer({ node, serialize, lng, options }: Props): React.JSX.Element {
+  const { showCaption, position, altText, document: pickerDoc, caption } = node
+  const image = pickerDoc?.image as StoredFileValue | undefined
+
+  const floatLeft = position === 'left'
+  const floatRight = position === 'right'
+  const isFloat = floatLeft || floatRight
+
+  const { size, constrainedLayout } = POSITION_TO_SIZE[position ?? 'default']
 
   let classes: string
   if (floatLeft) {
@@ -37,34 +64,36 @@ export function InlineImageSerializer({
     classes = 'inline-image-block block w-full mt-5 mb-5'
   }
 
+  // For now, if animation is disabled we must be inside a table cell
+  // (or similar non-animatable host); also disable bleed-to-edge.
+  const animationDisabled = options?.disableAnimation === true
+
+  const Img = (
+    <ResponsiveImage
+      image={image}
+      size={size}
+      constrainedLayout={constrainedLayout}
+      bleedOnMobile={!animationDisabled && !isFloat}
+      alt={altText}
+    />
+  )
+
+  const ImgSlot = animationDisabled ? (
+    Img
+  ) : (
+    <FadeInLift as="span" delay={0.1} className="block">
+      {Img}
+    </FadeInLift>
+  )
+
   if (showCaption) {
     return (
       <span className={classes}>
-        {options != null && options.disableAnimation === true ? (
-          <PhotoComponent
-            constrainedLayout={isFloat} // For now if we've disabled animation we must be in a table cell, so disable
-            // bleed to edge on mobile
-            bleedOnMobile={options.disableAnimation !== true}
-            photo={node?.doc?.data}
-            alt={node.altText}
-          />
-        ) : (
-          <FadeInLift as="span" delay={0.1} className="block">
-            <PhotoComponent
-              constrainedLayout={isFloat}
-              // For now if we've disabled animation we must be in a table cell, so disable
-              // bleed to edge on mobile
-              bleedOnMobile={options.disableAnimation !== true}
-              photo={node?.doc?.data}
-              alt={node.altText}
-            />
-          </FadeInLift>
-        )}
-
+        {ImgSlot}
         <span className="block inline-image-block--caption">
-          {node?.caption?.editorState?.root?.children != null ? (
+          {caption?.editorState?.root?.children != null ? (
             serialize({
-              nodes: node?.caption?.editorState?.root?.children,
+              nodes: caption.editorState.root.children,
               lng,
               options: { renderParagraphInline: true },
             })
@@ -74,30 +103,7 @@ export function InlineImageSerializer({
         </span>
       </span>
     )
-  } else {
-    return (
-      <span className={classes}>
-        {options != null && options.disableAnimation === true ? (
-          <PhotoComponent
-            constrainedLayout={isFloat} // For now if we've disabled animation we must be in a table cell, so disable
-            // bleed to edge on mobile
-            bleedOnMobile={options.disableAnimation !== true}
-            photo={node?.doc?.data}
-            alt={node.altText}
-          />
-        ) : (
-          <FadeInLift as="span" delay={0.1} className="block">
-            <PhotoComponent
-              constrainedLayout={isFloat}
-              // For now if we've disabled animation we must be in a table cell, so disable
-              // bleed to edge on mobile
-              bleedOnMobile={options.disableAnimation !== true}
-              photo={node?.doc?.data}
-              alt={node.altText}
-            />
-          </FadeInLift>
-        )}
-      </span>
-    )
   }
+
+  return <span className={classes}>{ImgSlot}</span>
 }

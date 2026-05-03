@@ -69,6 +69,7 @@ function getHref(args: LinkFieldAttributes): string {
     args.reference?.data?.slug != null
   ) {
     const collection = args?.reference?.relationTo
+    // biome-ignore lint/correctness/noUnsafeOptionalChaining: To be refactored in the future
     const { slug, collectionAlias } = args?.reference?.data
     if (collectionAlias != null) {
       // The alias might be for the root

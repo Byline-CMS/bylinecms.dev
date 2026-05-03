@@ -5,11 +5,12 @@ import type React from 'react'
 import { Container, FadeInLift } from '@infonomic/uikit/react'
 import cx from 'classnames'
 
-import { PhotoComponent } from '@/ui/byline/components/photo'
-import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
-import type { Locale } from '@/i18n/i18n-config'
 import type { PhotoBlockData } from '~/blocks/photo-block'
 import type { MediaFields } from '~/collections/media/schema'
+
+import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
+import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
+import type { Locale } from '@/i18n/i18n-config'
 
 interface Props {
   id: string
@@ -56,14 +57,11 @@ export function PhotoBlock({
       )}
     >
       <FadeInLift as="div" delay={0.25}>
-        <PhotoComponent
+        <ResponsiveImage
+          image={media.image}
+          size="large"
           constrainedLayout={constrainedLayout}
-          photo={media}
-          // No bleed inside a dedicated photo block — there is no parent
-          // text flow to bleed against.
-          bleedOnMobile={false}
-          position={display}
-          alt={alt}
+          alt={alt ?? media.altText ?? ''}
           className="photo-block"
           imgClassName="photo-block--photo"
         />

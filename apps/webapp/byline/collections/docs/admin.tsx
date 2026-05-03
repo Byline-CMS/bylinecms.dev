@@ -10,6 +10,7 @@ import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '
 import { DateTimeFormatter } from '@byline/ui'
 
 import { SummaryLength } from '~/components/summary-length.js'
+
 import { FeaturedFormatter } from './components/feature-formatter.js'
 import { Docs } from './schema.js'
 
