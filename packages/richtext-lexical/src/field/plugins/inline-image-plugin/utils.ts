@@ -106,7 +106,7 @@ export function deriveImageSizes(image: StoredFileValue | null | undefined): Der
       url: variant.storageUrl,
       width: variant.width,
       height: variant.height,
-      format: variant.format ?? 'webp',
+      format: variant.format ?? 'avif',
     })
   }
   return out

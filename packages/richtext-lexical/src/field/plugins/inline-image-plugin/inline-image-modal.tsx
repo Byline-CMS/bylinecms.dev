@@ -95,7 +95,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
     if (!pickedImage?.storageUrl) return null
     if (pickedImage.mimeType === 'image/svg+xml') return pickedImage.storageUrl
     if (pickedImage.thumbnailGenerated) {
-      return pickedImage.storageUrl.replace(/\.[^.]+$/, '-thumbnail.webp')
+      return pickedImage.storageUrl.replace(/\.[^.]+$/, '-thumbnail.avif')
     }
     return pickedImage.storageUrl
   }, [pickedImage])
@@ -161,10 +161,10 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
     const persistedRelation = editorSettings.embedRelationsOnSave
       ? state.documentRelation
       : {
-          targetDocumentId: state.documentRelation.targetDocumentId,
-          targetCollectionId: state.documentRelation.targetCollectionId,
-          targetCollectionPath: state.documentRelation.targetCollectionPath,
-        }
+        targetDocumentId: state.documentRelation.targetDocumentId,
+        targetCollectionId: state.documentRelation.targetCollectionId,
+        targetCollectionPath: state.documentRelation.targetCollectionPath,
+      }
     const data: InlineImageData = {
       documentRelation: persistedRelation,
       src: preferred?.url ?? pickedImage.storageUrl ?? '',

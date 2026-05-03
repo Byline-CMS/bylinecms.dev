@@ -14,7 +14,7 @@
 
 // // import { INSERT_INLINE_IMAGE_COMMAND } from '../inline-image-plugin'
 
-// const ACCEPTABLE_IMAGE_TYPES = ['image/', 'image/heic', 'image/heif', 'image/gif', 'image/webp']
+// const ACCEPTABLE_IMAGE_TYPES = ['image/', 'image/heic', 'image/heif', 'image/gif', 'image/webp' , 'image/avif']
 
 // export function DragDropPaste(): null {
 //   const [editor] = useLexicalComposerContext()
