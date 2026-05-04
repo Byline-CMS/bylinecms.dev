@@ -1,5 +1,15 @@
 # @byline/ui
 
+## 0.10.6
+
+### Patch Changes
+
+- d58a16f: Updated vite.config.ts configuration in webapp and CLI template.
+- Updated dependencies [d58a16f]
+  - @byline/admin@0.10.6
+  - @byline/client@0.10.6
+  - @byline/core@0.10.6
+
 ## 0.10.5
 
 ### Patch Changes
