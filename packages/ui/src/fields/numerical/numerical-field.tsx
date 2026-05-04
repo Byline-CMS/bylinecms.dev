@@ -13,9 +13,9 @@ import type {
   FloatField,
   IntegerField,
 } from '@byline/core'
-import { Input } from '../../uikit.js'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import { Input } from '../../uikit.js'
 
 export const NumericalField = ({
   field,

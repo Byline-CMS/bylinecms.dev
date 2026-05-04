@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 
-import { Card, GripperVerticalIcon } from '../../../uikit.js'
 import cx from 'classnames'
 
+import { Card, GripperVerticalIcon } from '../../../uikit.js'
 import { DraggableSortable, moveItem, useSortable } from '..'
 import styles from './draggable-list-demo.module.css'
 

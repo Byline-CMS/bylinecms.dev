@@ -6,9 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { Badge } from '../uikit.js'
 import cx from 'classnames'
 
+import { Badge } from '../uikit.js'
 import styles from './tabs.module.css'
 
 export interface TabItem {

@@ -13,7 +13,6 @@ import type {
   Field,
   GroupField as GroupFieldType,
 } from '@byline/core'
-import { Card, CloseIcon, IconButton, Modal, PlusIcon } from '../../uikit.js'
 import cx from 'classnames'
 
 import { DraggableSortable, moveItem } from '../../dnd/draggable-sortable'
@@ -21,6 +20,7 @@ import { defaultScalarForField } from '../../fields/field-helpers'
 import { GroupField } from '../../fields/group/group-field'
 import { SortableItem } from '../../fields/sortable-item'
 import { useFormContext } from '../../forms/form-context'
+import { Card, CloseIcon, IconButton, Modal, PlusIcon } from '../../uikit.js'
 import styles from './blocks-field.module.css'
 
 // ---------------------------------------------------------------------------

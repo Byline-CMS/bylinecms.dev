@@ -11,8 +11,8 @@ import { useState } from 'react'
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getDefaultStatus, getWorkflowStatuses } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { FormRenderer } from '@byline/ui/react/forms'
 import { Container, Section, useToastManager } from '@byline/ui'
+import { FormRenderer } from '@byline/ui/react/forms'
 
 import {
   deleteDocument,

@@ -7,10 +7,10 @@
  */
 
 import type { FileField as FieldType, StoredFileValue } from '@byline/core'
-import { ErrorText } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import { ErrorText } from '../../uikit.js'
 import styles from './file-field.module.css'
 
 interface FileFieldProps {

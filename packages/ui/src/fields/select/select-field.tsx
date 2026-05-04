@@ -7,10 +7,10 @@
  */
 
 import type { SelectField as FieldType } from '@byline/core'
-import { ErrorText, Select } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import { ErrorText, Select } from '../../uikit.js'
 import styles from './select-field.module.css'
 
 export const SelectField = ({

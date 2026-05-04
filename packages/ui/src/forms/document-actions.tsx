@@ -8,6 +8,8 @@
 
 import { useState } from 'react'
 
+import cx from 'classnames'
+
 import {
   Button,
   CloseIcon,
@@ -17,8 +19,6 @@ import {
   IconButton,
   Modal,
 } from '../uikit.js'
-import cx from 'classnames'
-
 import styles from './document-actions.module.css'
 import type { PublishedVersionInfo } from './form-renderer'
 

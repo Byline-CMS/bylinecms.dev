@@ -15,10 +15,10 @@ import type {
   RelatedDocumentValue,
 } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
-import { Button, ErrorText, Label } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import { Button, ErrorText, Label } from '../../uikit.js'
 import styles from './relation-field.module.css'
 import { RelationPicker } from './relation-picker'
 import { RelationSummary } from './relation-summary'

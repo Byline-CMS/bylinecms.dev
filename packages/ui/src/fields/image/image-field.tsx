@@ -11,10 +11,10 @@ import {
   isPendingStoredFileValue,
   type StoredFileValue,
 } from '@byline/core'
-import { ErrorText } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../../forms/form-context'
+import { ErrorText } from '../../uikit.js'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import styles from './image-field.module.css'
 import { ImageUploadField } from './image-upload-field'

@@ -9,10 +9,10 @@
 import { useCallback } from 'react'
 
 import type { Field, FieldComponentSlots, TextField as FieldType } from '@byline/core'
-import { Input, Label } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import { Input, Label } from '../../uikit.js'
 import { LocaleBadge } from '../locale-badge'
 import styles from './text-field.module.css'
 

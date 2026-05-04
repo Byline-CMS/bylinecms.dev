@@ -10,10 +10,10 @@ import { useCallback, useEffect, useState } from 'react'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig } from '@byline/core'
-import { Button, LoaderRing, Modal, Search } from '../../uikit.js'
 import cx from 'classnames'
 
 import { useBylineFieldServices } from '../../services/field-services-context'
+import { Button, LoaderRing, Modal, Search } from '../../uikit.js'
 import {
   PickerCell,
   resolveFallbackDisplayField,

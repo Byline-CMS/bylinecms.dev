@@ -9,9 +9,9 @@
 import { useCallback, useMemo } from 'react'
 
 import { slugify } from '@byline/core'
-import { Input, Label } from '../uikit.js'
 import cx from 'classnames'
 
+import { Input, Label } from '../uikit.js'
 import { useFieldValue, useFormContext, useSystemPath } from './form-context'
 import styles from './path-widget.module.css'
 

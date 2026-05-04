@@ -9,12 +9,12 @@
 import { useMemo } from 'react'
 
 import type { Field, GroupField as GroupFieldType } from '@byline/core'
-import { ErrorText } from '../../uikit.js'
 import cx from 'classnames'
 
 import { placeholderForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { useFieldError } from '../../forms/form-context'
+import { ErrorText } from '../../uikit.js'
 import styles from './group-field.module.css'
 
 // ---------------------------------------------------------------------------

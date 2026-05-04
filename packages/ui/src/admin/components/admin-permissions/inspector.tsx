@@ -34,10 +34,10 @@ import type {
   ListRegisteredAbilitiesResponse,
   WhoHasAbilityResponse,
 } from '@byline/admin/admin-permissions'
-import { Button, Container, LoaderRing, Section } from '../../../uikit.js'
 import cx from 'classnames'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
+import { Button, Container, LoaderRing, Section } from '../../../uikit.js'
 import styles from './inspector.module.css'
 
 // --- helpers ---------------------------------------------------------------

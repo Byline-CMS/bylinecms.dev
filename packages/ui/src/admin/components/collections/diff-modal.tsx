@@ -8,11 +8,11 @@
 
 import { useEffect, useState } from 'react'
 
-import { CloseIcon, IconButton, LoaderRing, Modal } from '../../../uikit.js'
 import cx from 'classnames'
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
+import { CloseIcon, IconButton, LoaderRing, Modal } from '../../../uikit.js'
 import styles from './diff-modal.module.css'
 
 // Keys that are per-version metadata rather than content — strip before diffing

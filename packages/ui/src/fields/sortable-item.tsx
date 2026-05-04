@@ -8,10 +8,10 @@
 
 import { type ReactNode, useState } from 'react'
 
-import { ChevronDownIcon, GripperVerticalIcon } from '../uikit.js'
 import cx from 'classnames'
 
 import { useSortable } from '../dnd/draggable-sortable'
+import { ChevronDownIcon, GripperVerticalIcon } from '../uikit.js'
 import { DraggableContextMenu } from './draggable-context-menu'
 import styles from './sortable-item.module.css'
 

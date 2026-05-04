@@ -12,13 +12,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { ADMIN_PERMISSIONS_ABILITIES } from '@byline/admin/admin-permissions'
 import { ADMIN_ROLES_ABILITIES } from '@byline/admin/admin-roles'
 import { ADMIN_USERS_ABILITIES } from '@byline/admin/admin-users'
-import {
-  HomeIcon,
-  RolesIcon,
-  SettingsSlidersIcon,
-  UserIcon,
-  UsersIcon,
-} from '@byline/ui'
+import { HomeIcon, RolesIcon, SettingsSlidersIcon, UserIcon, UsersIcon } from '@byline/ui'
 import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 

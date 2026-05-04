@@ -8,6 +8,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import cx from 'classnames'
+
 import {
   DeleteIcon,
   Dropdown as DropdownMenu,
@@ -15,8 +17,6 @@ import {
   IconButton,
   PlusIcon,
 } from '../uikit.js'
-import cx from 'classnames'
-
 import styles from './draggable-context-menu.module.css'
 
 interface DraggableContextMenuProps {

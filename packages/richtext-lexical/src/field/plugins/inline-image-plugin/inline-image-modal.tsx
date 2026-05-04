@@ -13,7 +13,6 @@ import { useMemo, useState } from 'react'
 
 import type { CollectionDefinition, StoredFileValue } from '@byline/core'
 import { getCollectionDefinition } from '@byline/core'
-import { RelationPicker } from '@byline/ui/react/fields'
 import {
   Button,
   Checkbox,
@@ -26,6 +25,7 @@ import {
   RadioGroup,
   RadioGroupItem,
 } from '@byline/ui'
+import { RelationPicker } from '@byline/ui/react/fields'
 
 import { useEditorConfig } from '../../config/editor-config-context'
 import { useModalFormState } from '../../shared/useModalFormState'
@@ -161,10 +161,10 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
     const persistedRelation = editorSettings.embedRelationsOnSave
       ? state.documentRelation
       : {
-        targetDocumentId: state.documentRelation.targetDocumentId,
-        targetCollectionId: state.documentRelation.targetCollectionId,
-        targetCollectionPath: state.documentRelation.targetCollectionPath,
-      }
+          targetDocumentId: state.documentRelation.targetDocumentId,
+          targetCollectionId: state.documentRelation.targetCollectionId,
+          targetCollectionPath: state.documentRelation.targetCollectionPath,
+        }
     const data: InlineImageData = {
       documentRelation: persistedRelation,
       src: preferred?.url ?? pickedImage.storageUrl ?? '',

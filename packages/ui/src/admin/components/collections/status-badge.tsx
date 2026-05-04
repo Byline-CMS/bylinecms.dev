@@ -12,9 +12,9 @@ import {
   WORKFLOW_STATUS_DRAFT,
   WORKFLOW_STATUS_PUBLISHED,
 } from '@byline/core'
-import { Badge } from '../../../uikit.js'
 import cx from 'classnames'
 
+import { Badge } from '../../../uikit.js'
 import styles from './status-badge.module.css'
 
 function statusIntent(status: string): 'success' | 'warning' | 'info' | 'noeffect' {

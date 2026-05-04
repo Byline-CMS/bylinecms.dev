@@ -7,9 +7,9 @@
  */
 
 import type { CheckboxField as FieldType } from '@byline/core'
-import { Checkbox } from '../../uikit.js'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import { Checkbox } from '../../uikit.js'
 
 export const CheckboxField = ({
   field,

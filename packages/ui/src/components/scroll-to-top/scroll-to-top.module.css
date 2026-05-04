@@ -1,8 +1,4 @@
-@layer byline-base,
-  byline-utilities,
-  byline-theme,
-  byline-typography,
-  byline-components;
+@layer byline-base, byline-utilities, byline-theme, byline-typography, byline-components;
 
 @layer byline-components {
   .scroll-to-top,
