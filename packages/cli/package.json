@@ -34,7 +34,7 @@
     "dev": "tsc -w -p tsconfig.json",
     "clean": "rimraf node_modules dist .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "files": [
