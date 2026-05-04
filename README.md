@@ -122,7 +122,7 @@ If there are any issues, you can follow the example application in this repo und
 
 IMPORTANT: The core Byline routes will be placed under a pathless route at `routes/_byline`, with its own route.tsx template. To prevent your front-end Tanstack Start application's styling from 'leaking' into the Byline dashboard, you'll need to create or move your top-most layout route into its own pathless layout route - for example, under `routes/_font-end` or `routes/_public` - with any styling, headers, footers etc., that might have been in __root.tsx - moved into the route.tsx layout file inside your front-end pathless layout route.
 
-## Quick start (development environment and example application)
+## Quick start - Development environment and example application (this repo)
 
 ```sh
 git clone git@github.com:Byline-CMS/bylinecms.dev.git
