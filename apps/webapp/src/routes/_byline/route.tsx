@@ -23,7 +23,14 @@
  * existing pattern).
  */
 
+import { ToastProvider, ToastViewport } from '@byline/ui'
+
+// Initialize Byline admin config — must be imported here so it runs in both
+// the SSR rendering and client module graphs (see byline/admin.config.ts).
+
 import { createFileRoute, Outlet } from '@tanstack/react-router'
+
+import { BreadcrumbsProvider } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-provider'
 
 import '@byline/ui/reset.css'
 import '@byline/ui/styles.css'
@@ -33,5 +40,12 @@ export const Route = createFileRoute('/_byline')({
 })
 
 function BylineLayout() {
-  return <Outlet />
+  return (
+    <ToastProvider timeout={5000}>
+      <BreadcrumbsProvider>
+        <Outlet />
+      </BreadcrumbsProvider>
+      <ToastViewport position="bottom-right" />
+    </ToastProvider>
+  )
 }

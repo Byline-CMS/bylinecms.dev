@@ -88,6 +88,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
 
   // ---- Runtime third-party ------------------------------------------------
   {
+    name: 'dotenv',
+    version: '^17.4.2',
+    group: 'runtime',
+    note: 'used by byline/seed',
+  },
+  {
     name: 'lodash-es',
     version: '^4.17.21',
     group: 'runtime',

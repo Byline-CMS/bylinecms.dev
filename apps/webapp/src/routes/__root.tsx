@@ -55,16 +55,11 @@ function RootComponent() {
   return (
     <RootDocument>
       <ThemeProvider force={Theme.DARK}>
-        <ToastProvider timeout={5000}>
-          <BreadcrumbsProvider>
-            <Outlet />
-            {/* <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
+        <Outlet />
+        {/* <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
               <Outlet />
             </div> */}
-            <TanStackRouterDevtools />
-          </BreadcrumbsProvider>
-          <ToastViewport position="bottom-right" />
-        </ToastProvider>
+        <TanStackRouterDevtools />
       </ThemeProvider>
     </RootDocument>
   )
