@@ -120,7 +120,18 @@ cd packages/db-postgres && cp .env.example .env
 cd src/database && ./db_init.sh && cd ../..
 pnpm drizzle:migrate
 
+# .env configuration
 cd ../../apps/webapp && cp .env.example .env
+
+# generate JWT session key
+openssl rand -base64 48
+# past the above output into your .env file for
+# BYLINE_JWT_SECRET
+
+# Set the seed superadmin username email address and password
+# BYLINE_SUPERADMIN_EMAIL=admin@byline.local
+# BYLINE_SUPERADMIN_PASSWORD=change-me
+
 pnpm tsx --env-file=.env byline/seed.ts
 ```
 
