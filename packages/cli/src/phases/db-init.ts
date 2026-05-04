@@ -91,17 +91,18 @@ export const dbInitPhase: Phase = {
 async function resolveAppPassword(ctx: Context): Promise<string | null> {
   const fromEnv = process.env.BYLINE_DB_PASSWORD
   if (fromEnv) {
+    if (fromEnv.length < 8) {
+      ctx.logger.error('BYLINE_DB_PASSWORD must be at least 8 characters')
+      return null
+    }
     ctx.logger.info('using app role password from BYLINE_DB_PASSWORD')
     return fromEnv
   }
   const pw = await ctx.prompter.password({
-    message: 'Choose a password for the application database role',
+    message: 'Choose a password for the application database role (min 8 chars)',
+    validate: (v) => (v.length < 8 ? 'must be at least 8 characters' : undefined),
   })
-  if (!pw || pw.length < 8) {
-    ctx.logger.error('password must be at least 8 characters')
-    return null
-  }
-  return pw
+  return pw || null
 }
 
 interface ProvisionArgs {

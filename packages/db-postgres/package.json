@@ -85,17 +85,6 @@
   },
   "publishConfig": {
     "access": "public",
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "import": "./dist/index.js",
-        "require": "./dist/index.js"
-      },
-      "./package.json": "./package.json"
-    },
-    "main": "dist/index.js",
-    "index": "dist/index.js",
-    "types": "dist/index.d.ts",
     "registry": "https://registry.npmjs.org/"
   }
 }

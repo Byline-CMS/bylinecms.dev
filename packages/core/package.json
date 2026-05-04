@@ -97,32 +97,6 @@
   },
   "publishConfig": {
     "access": "public",
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "import": "./dist/index.js",
-        "require": "./dist/index.js"
-      },
-      "./zod-schemas": {
-        "types": "./dist/schemas/zod/index.d.ts",
-        "import": "./dist/schemas/zod/index.js",
-        "require": "./dist/schemas/zod/index.js"
-      },
-      "./logger": {
-        "types": "./dist/logger/index.d.ts",
-        "import": "./dist/logger/index.js",
-        "require": "./dist/logger/index.js"
-      },
-      "./validation": {
-        "types": "./dist/validation/index.d.ts",
-        "import": "./dist/validation/index.js",
-        "require": "./dist/validation/index.js"
-      },
-      "./package.json": "./package.json"
-    },
-    "main": "dist/index.js",
-    "index": "dist/index.js",
-    "types": "dist/index.d.ts",
     "registry": "https://registry.npmjs.org/"
   }
 }

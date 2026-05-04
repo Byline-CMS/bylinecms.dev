@@ -62,12 +62,23 @@ export async function runInit(opts: InitOptions): Promise<void> {
   }
 
   for (const phase of phases) {
+    let state_: Awaited<ReturnType<typeof runPhase>> | undefined
     try {
-      await runPhase(phase, ctx)
+      state_ = await runPhase(phase, ctx)
     } catch (e) {
       logger.error(`${phase.id} failed: ${(e as Error).message}`)
       logger.info(`re-run with: byline init --from ${phase.id}`)
       state.flush()
+      process.exit(1)
+    }
+    // Stop the run when a phase is blocked — every downstream phase needs
+    // this one's output (db answers, env values, scaffolded files, etc.)
+    // and would either fail confusingly or silently misbehave. `partial`
+    // is a soft warning (wire's manual sub-edits) — keep going on that.
+    if (state_ === 'blocked') {
+      logger.info(`re-run with: byline init --from ${phase.id}`)
+      state.flush()
+      prompter.outro('installation halted — fix the issue above and re-run')
       process.exit(1)
     }
   }

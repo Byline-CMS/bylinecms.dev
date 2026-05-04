@@ -5,17 +5,22 @@ import { execa } from 'execa'
 
 import { renderDiff } from './ui/diff.js'
 import type { Context } from './context.js'
-import type { Phase, Plan } from './types.js'
+import type { Phase, PhaseState, Plan } from './types.js'
 
-export async function runPhase(phase: Phase, ctx: Context): Promise<void> {
+/**
+ * Returned phase state — caller decides whether to continue. `'blocked'`
+ * means the next phase should NOT run; `'partial'` is a soft warning
+ * (e.g. wire phase had a manual sub-edit) and the caller may continue.
+ */
+export async function runPhase(phase: Phase, ctx: Context): Promise<PhaseState> {
   const detected = await phase.detect(ctx)
   if (detected === 'done' && !ctx.cliFlags.force) {
     ctx.logger.success(`${phase.id} — already complete`)
-    return
+    return 'done'
   }
   if (detected === 'blocked') {
     ctx.logger.error(`${phase.id} — blocked; cannot proceed`)
-    return
+    return 'blocked'
   }
 
   ctx.logger.step(`${phase.id} — planning`)
@@ -25,20 +30,20 @@ export async function runPhase(phase: Phase, ctx: Context): Promise<void> {
     ctx.logger.info(`${phase.id} — nothing to do`)
     ctx.state.markPhaseComplete(phase.id)
     ctx.state.flush()
-    return
+    return 'done'
   }
 
   previewPlan(phase, plan, ctx)
 
   if (ctx.dryRun) {
     ctx.logger.info(`${phase.id} — dry-run; skipping apply`)
-    return
+    return 'pending'
   }
 
   const shouldApply = await decideApply(phase, ctx)
   if (!shouldApply) {
     ctx.logger.warn(`${phase.id} — skipped by user`)
-    return
+    return 'pending'
   }
 
   const result = await phase.apply(plan, ctx)
@@ -53,6 +58,7 @@ export async function runPhase(phase: Phase, ctx: Context): Promise<void> {
     ctx.logger.error(`${phase.id} — blocked`)
   }
   ctx.state.flush()
+  return result.state
 }
 
 function previewPlan(phase: Phase, plan: Plan, ctx: Context): void {

@@ -2,7 +2,16 @@ import * as p from '@clack/prompts'
 
 export interface Prompter {
   text(opts: { message: string; placeholder?: string; defaultValue?: string }): Promise<string>
-  password(opts: { message: string }): Promise<string>
+  /**
+   * Password prompt. The optional `validate` callback returns an error string
+   * to keep the prompt re-prompting the same field, or `undefined` when the
+   * value is acceptable. Mirrors `@clack/prompts` semantics — failed
+   * validation does NOT count as a cancel, the user gets another try.
+   */
+  password(opts: {
+    message: string
+    validate?: (value: string) => string | undefined
+  }): Promise<string>
   select<T extends string>(opts: {
     message: string
     options: { value: T; label: string; hint?: string }[]
@@ -25,8 +34,8 @@ export function createPrompter(opts: { yes?: boolean } = {}): Prompter {
       if (p.isCancel(v)) cancel('cancelled')
       return v as string
     },
-    async password({ message }) {
-      const v = await p.password({ message })
+    async password({ message, validate }) {
+      const v = await p.password({ message, validate })
       if (p.isCancel(v)) cancel('cancelled')
       return v as string
     },

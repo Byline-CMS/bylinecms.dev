@@ -88,12 +88,9 @@ export const envPhase: Phase = {
 
     if (missing.has('BYLINE_SUPERADMIN_PASSWORD')) {
       const pw = await ctx.prompter.password({
-        message: 'Super-admin password (min 12 chars)',
+        message: 'Super-admin password (min 8 chars)',
+        validate: (v) => (v.length < 8 ? 'must be at least 8 characters' : undefined),
       })
-      if (!pw || pw.length < 12) {
-        ctx.logger.error('password must be at least 12 characters')
-        return { state: 'blocked' }
-      }
       values.BYLINE_SUPERADMIN_PASSWORD = pw
     }
 
