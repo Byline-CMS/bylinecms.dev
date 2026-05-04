@@ -7,7 +7,13 @@
  */
 
 import { type AbilityDescriptor, AbilityRegistry, type SessionProvider } from '@byline/auth'
-import { type Logger as PinoLogger, pino } from 'pino'
+// IMPORTANT: pino is imported as a TYPE ONLY at module scope. The runtime
+// import is deferred to `initBylineCore` via `await import('pino')` so
+// that this module stays bundleable on the client side. Static imports
+// of pino's runtime entry resolve to `pino/browser.js` (a stub without a
+// named `pino` export), which crashes Vite's module graph the moment any
+// client file transitively imports `@byline/core`.
+import type { Logger as PinoLogger } from 'pino'
 
 import { registerCollectionAbilities } from './auth/register-collection-abilities.js'
 import { defineBylineCore, defineServerConfig, getBylineCoreUnsafe } from './config/config.js'
@@ -86,12 +92,18 @@ export interface BylineCore<TAdminStore = unknown> {
  * backward compatibility with `getServerConfig()`.
  *
  * @param config - Server configuration (collections, db, storage, i18n).
- * @param pinoLogger - Optional raw Pino instance. Defaults to `pino({ level: 'info' })`.
+ * @param pinoLogger - Optional raw Pino instance. When omitted a default
+ *   `pino({ level: 'info' })` is constructed via dynamic import so the
+ *   pino runtime stays out of the client bundle (see import comment above).
  */
 export const initBylineCore = async <TAdminStore = unknown>(
   config: ServerConfig<TAdminStore>,
-  pinoLogger: PinoLogger = pino({ level: 'info' })
+  pinoLogger?: PinoLogger
 ): Promise<BylineCore<TAdminStore>> => {
+  if (!pinoLogger) {
+    const { pino } = await import('pino')
+    pinoLogger = pino({ level: 'info' })
+  }
   const registry = new Registry()
     .addValue('config', config)
     .addValue('collections', config.collections)

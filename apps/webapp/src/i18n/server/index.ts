@@ -3,16 +3,16 @@
 
 import { IntlMessageFormat } from 'intl-messageformat'
 
+// Translations are TS modules, not JSON — see `../translations/index.ts`
+// for the rationale (Vite 8 + Nitro turn `.json` imports into URL fetches
+// that 404 in dev).
+import en from '../translations/en'
+import es from '../translations/es'
 import type { Locale } from '@/i18n/i18n-config'
 
-// We enumerate all translations here for better linting and typescript support
-// We also get the default import for cleaner types
-const translations = {
-  en: () => import('../translations/en.json').then((module) => module.default),
-  es: () => import('../translations/es.json').then((module) => module.default),
-}
+const translations: Record<string, typeof en> = { en, es }
 
-export const getTranslations = async (lng: Locale) => translations[lng]?.() ?? translations.en()
+export const getTranslations = async (lng: Locale) => translations[lng] ?? translations.en
 
 export type Translations = Awaited<ReturnType<typeof getTranslations>>
 

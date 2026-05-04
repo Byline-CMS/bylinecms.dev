@@ -4,8 +4,8 @@ import { dirname, join, relative } from 'node:path'
 import type { Context } from '../context.js'
 import type { Phase } from '../types.js'
 
-const TEMPLATE_DIR = 'routes/(byline)'
-const TARGET_GROUP_DIR = 'src/routes/(byline)'
+const TEMPLATE_DIR = 'routes/_byline'
+const TARGET_GROUP_DIR = 'src/routes/_byline'
 const DEFAULT_ADMIN_PATH = '/admin'
 const ADMIN_SLUG_REGEX = /^[a-z][a-z0-9-]*$/
 
@@ -19,7 +19,7 @@ interface CopyEntry {
 
 export const routesPhase: Phase = {
   id: 'routes',
-  title: 'Routes — drop (byline)/admin route stubs into src/routes/',
+  title: 'Routes — drop _byline/admin pathless layout into src/routes/',
   defaultMode: 'confirm',
 
   async detect(ctx) {
@@ -48,8 +48,8 @@ export const routesPhase: Phase = {
       `target: ${ctx.resolve(TARGET_GROUP_DIR)}/`,
       `admin path: ${ctx.state.get().answers.adminPath === undefined ? `will prompt (default ${DEFAULT_ADMIN_PATH})` : adminPath}`,
       slug !== 'admin'
-        ? `route group: (byline)/${slug}  (renamed from (byline)/admin)`
-        : 'route group: (byline)/admin',
+        ? `pathless layout: _byline/${slug}  (renamed from _byline/admin)`
+        : 'pathless layout: _byline/admin',
       `${created} file(s) to create, ${skipped} already-existing skipped`,
     ]
     return { writes: [], commands: [], notes }
@@ -101,6 +101,32 @@ export const routesPhase: Phase = {
         `${skipped} file(s) already existed and were left untouched — re-running routes is non-destructive`
       )
     }
+
+    ctx.prompter.note(
+      [
+        'The routes were dropped under a TanStack Router pathless layout',
+        "(`src/routes/_byline/`). The `_byline` segment doesn't add to the URL —",
+        '`/_byline/admin/users` resolves to `/admin/users` — but it does scope',
+        'the Byline UI kit stylesheets (loaded by `_byline/route.tsx`) to admin',
+        '+ sign-in pages only.',
+        '',
+        'If your app has front-end routes at the root of `src/routes/`, consider',
+        'moving them under their own pathless layout (e.g. `_front-end/`) so the',
+        "Byline reset / styles don't bleed into them. If you DO want to use the",
+        'Byline UI kit on your public site too, just import the same stylesheets',
+        'from your front-end layout:',
+        '',
+        "  import '@byline/ui/reset.css'",
+        "  import '@byline/ui/styles.css'",
+        '',
+        'See the reference webapp at https://github.com/Byline-CMS/bylinecms.dev',
+        '— `apps/webapp/src/routes/_byline/route.tsx` (admin) and',
+        '  `apps/webapp/src/routes/{-$lng}/_public/route.tsx` (front-end) both',
+        'demonstrate this pattern.',
+      ].join('\n'),
+      'Pathless layout + style isolation'
+    )
+
     return { state: 'done' }
   },
 }
@@ -145,15 +171,15 @@ function renameAdminSegment(rel: string, slug: string): string {
 /**
  * Rewrite route-id strings inside the file contents. Route ids are passed
  * positionally to the `create*Route(...)` factories from
- * `@byline/host-tanstack-start/routes` and look like `/(byline)/admin/...`.
+ * `@byline/host-tanstack-start/routes` and look like `/_byline/admin/...`.
  *
- * We match the literal `/(byline)/admin` prefix only — we do not touch
+ * We match the literal `/_byline/admin` prefix only — we do not touch
  * other occurrences of "admin" elsewhere in the file (comments, prop
  * names, etc.).
  */
 function rewriteRouteIds(source: string, slug: string): string {
   if (slug === 'admin') return source
-  return source.replace(/(['"])\/\(byline\)\/admin\b/g, `$1/(byline)/${slug}`)
+  return source.replace(/(['"])\/_byline\/admin\b/g, `$1/_byline/${slug}`)
 }
 
 function walkFiles(root: string): string[] {

@@ -8,6 +8,7 @@ export type PhaseId =
   | 'env'
   | 'deps'
   | 'scaffold'
+  | 'seed-admin'
   | 'wire'
   | 'routes'
   | 'ui'

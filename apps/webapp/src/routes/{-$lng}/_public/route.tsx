@@ -10,6 +10,13 @@ import {
 import { getCurrentAdminUserSoft } from '@byline/host-tanstack-start/server-fns/auth'
 import { getPreviewStateFn } from '@byline/host-tanstack-start/server-fns/preview'
 
+// Byline UI kit stylesheets — scoped to this front-end layout. The
+// admin / sign-in pages get them via `_byline/route.tsx`. If your
+// front-end doesn't use the Byline UI kit, just delete these imports;
+// the admin styles stay isolated under their own pathless layout.
+import '@byline/ui/reset.css'
+import '@byline/ui/styles.css'
+
 import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBar } from '@/ui/components/app-bar'
 import { ContentAdminBar } from '@/ui/components/content-admin-bar'

@@ -4,21 +4,25 @@
  * Replaces the previous server/index.ts which depended on the Next.js
  * 'server-only' module. This version works in both client (SPA) and
  * server (SSR / createServerFn) contexts.
+ *
+ * NOTE: translation files are TS modules, not JSON. Under TanStack
+ * Start's Nitro-based dev server (Nitro v3+), Vite 8 transforms
+ * `import x from './x.json'` into a URL-based import (`/x.json?import`)
+ * rather than inlining at compile time, and Nitro's dev middleware
+ * 404s the URL because `.json` is not in its asset-extension allowlist.
+ * Plain TS modules go through the standard JS pipeline and bypass the
+ * issue entirely.
  */
 
 import { IntlMessageFormat } from 'intl-messageformat'
 
+import en from './en'
+import es from './es'
 import type { Locale } from '@/i18n/i18n-config'
 
-// We enumerate all translations here for better linting and TypeScript support.
-// We also get the default import for cleaner types.
-const translationLoaders = {
-  en: () => import('./en.json').then((module) => module.default),
-  es: () => import('./es.json').then((module) => module.default),
-}
+const translations: Record<string, typeof en> = { en, es }
 
-export const getTranslations = async (lng: Locale) =>
-  translationLoaders[lng]?.() ?? translationLoaders.en()
+export const getTranslations = async (lng: Locale) => translations[lng] ?? translations.en
 
 export type Translations = Awaited<ReturnType<typeof getTranslations>>
 

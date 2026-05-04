@@ -93,8 +93,26 @@ export const DEP_SPECS: readonly DepSpec[] = [
     group: 'runtime',
     note: 'used by byline/ config helpers',
   },
+  {
+    name: 'pino',
+    version: '^10.3.1',
+    group: 'runtime',
+    note: 'logger imported directly by @byline/core; Nitro tracer needs it owned at the app boundary',
+  },
+  {
+    name: 'nitro',
+    version: 'npm:nitro-nightly@latest',
+    group: 'runtime',
+    note: 'Nitro plugin that drives TanStack Start SSR builds (vite.config.ts plugin)',
+  },
 
   // ---- Dev ---------------------------------------------------------------
+  {
+    name: '@tanstack/devtools-vite',
+    version: '^0.6.0',
+    group: 'dev',
+    note: 'TanStack devtools Vite plugin (used by canonical vite.config.ts)',
+  },
   {
     name: '@types/lodash-es',
     version: '^4.17.12',

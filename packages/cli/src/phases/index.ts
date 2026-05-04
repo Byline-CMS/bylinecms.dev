@@ -6,6 +6,7 @@ import { hostPhase } from './host.js'
 import { preflightPhase } from './preflight.js'
 import { routesPhase } from './routes.js'
 import { scaffoldPhase } from './scaffold.js'
+import { seedAdminPhase } from './seed-admin.js'
 import { stubPhase } from './stub.js'
 import { uiPhase } from './ui.js'
 import { wirePhase } from './wire/index.js'
@@ -19,6 +20,7 @@ export const PHASES: Phase[] = [
   envPhase,
   depsPhase,
   scaffoldPhase,
+  seedAdminPhase,
   wirePhase,
   routesPhase,
   uiPhase,

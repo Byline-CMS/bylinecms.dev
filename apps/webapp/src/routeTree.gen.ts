@@ -10,44 +10,49 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as Char123LngChar125RouteRouteImport } from './routes/{-$lng}/route'
-import { Route as bylineSignInRouteImport } from './routes/(byline)/sign-in'
+import { Route as BylineRouteRouteImport } from './routes/_byline/route'
+import { Route as BylineSignInRouteImport } from './routes/_byline/sign-in'
 import { Route as Char123LngChar125PublicRouteRouteImport } from './routes/{-$lng}/_public/route'
-import { Route as bylineAdminRouteRouteImport } from './routes/(byline)/admin/route'
+import { Route as BylineAdminRouteRouteImport } from './routes/_byline/admin/route'
 import { Route as Char123LngChar125PublicIndexRouteImport } from './routes/{-$lng}/_public/index'
-import { Route as bylineAdminIndexRouteImport } from './routes/(byline)/admin/index'
+import { Route as BylineAdminIndexRouteImport } from './routes/_byline/admin/index'
 import { Route as Char123LngChar125PublicNewsIndexRouteImport } from './routes/{-$lng}/_public/news/index'
-import { Route as bylineAdminUsersIndexRouteImport } from './routes/(byline)/admin/users/index'
-import { Route as bylineAdminRolesIndexRouteImport } from './routes/(byline)/admin/roles/index'
-import { Route as bylineAdminPermissionsIndexRouteImport } from './routes/(byline)/admin/permissions/index'
-import { Route as bylineAdminAccountIndexRouteImport } from './routes/(byline)/admin/account/index'
+import { Route as BylineAdminUsersIndexRouteImport } from './routes/_byline/admin/users/index'
+import { Route as BylineAdminRolesIndexRouteImport } from './routes/_byline/admin/roles/index'
+import { Route as BylineAdminPermissionsIndexRouteImport } from './routes/_byline/admin/permissions/index'
+import { Route as BylineAdminAccountIndexRouteImport } from './routes/_byline/admin/account/index'
 import { Route as Char123LngChar125PublicNewsSlugRouteImport } from './routes/{-$lng}/_public/news/$slug'
-import { Route as bylineAdminUsersIdIndexRouteImport } from './routes/(byline)/admin/users/$id/index'
-import { Route as bylineAdminRolesIdIndexRouteImport } from './routes/(byline)/admin/roles/$id/index'
-import { Route as bylineAdminCollectionsCollectionIndexRouteImport } from './routes/(byline)/admin/collections/$collection/index'
-import { Route as bylineAdminCollectionsCollectionCreateRouteImport } from './routes/(byline)/admin/collections/$collection/create'
-import { Route as bylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/(byline)/admin/collections/$collection/$id/index'
-import { Route as bylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/(byline)/admin/collections/$collection/$id/history'
-import { Route as bylineAdminCollectionsCollectionIdApiRouteImport } from './routes/(byline)/admin/collections/$collection/$id/api'
+import { Route as BylineAdminUsersIdIndexRouteImport } from './routes/_byline/admin/users/$id/index'
+import { Route as BylineAdminRolesIdIndexRouteImport } from './routes/_byline/admin/roles/$id/index'
+import { Route as BylineAdminCollectionsCollectionIndexRouteImport } from './routes/_byline/admin/collections/$collection/index'
+import { Route as BylineAdminCollectionsCollectionCreateRouteImport } from './routes/_byline/admin/collections/$collection/create'
+import { Route as BylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/_byline/admin/collections/$collection/$id/index'
+import { Route as BylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/_byline/admin/collections/$collection/$id/history'
+import { Route as BylineAdminCollectionsCollectionIdApiRouteImport } from './routes/_byline/admin/collections/$collection/$id/api'
 
 const Char123LngChar125RouteRoute = Char123LngChar125RouteRouteImport.update({
   id: '/{-$lng}',
   path: '/{-$lng}',
   getParentRoute: () => rootRouteImport,
 } as any)
-const bylineSignInRoute = bylineSignInRouteImport.update({
-  id: '/(byline)/sign-in',
-  path: '/sign-in',
+const BylineRouteRoute = BylineRouteRouteImport.update({
+  id: '/_byline',
   getParentRoute: () => rootRouteImport,
+} as any)
+const BylineSignInRoute = BylineSignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => BylineRouteRoute,
 } as any)
 const Char123LngChar125PublicRouteRoute =
   Char123LngChar125PublicRouteRouteImport.update({
     id: '/_public',
     getParentRoute: () => Char123LngChar125RouteRoute,
   } as any)
-const bylineAdminRouteRoute = bylineAdminRouteRouteImport.update({
-  id: '/(byline)/admin',
+const BylineAdminRouteRoute = BylineAdminRouteRouteImport.update({
+  id: '/admin',
   path: '/admin',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => BylineRouteRoute,
 } as any)
 const Char123LngChar125PublicIndexRoute =
   Char123LngChar125PublicIndexRouteImport.update({
@@ -55,10 +60,10 @@ const Char123LngChar125PublicIndexRoute =
     path: '/',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
   } as any)
-const bylineAdminIndexRoute = bylineAdminIndexRouteImport.update({
+const BylineAdminIndexRoute = BylineAdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => bylineAdminRouteRoute,
+  getParentRoute: () => BylineAdminRouteRoute,
 } as any)
 const Char123LngChar125PublicNewsIndexRoute =
   Char123LngChar125PublicNewsIndexRouteImport.update({
@@ -66,26 +71,26 @@ const Char123LngChar125PublicNewsIndexRoute =
     path: '/news/',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
   } as any)
-const bylineAdminUsersIndexRoute = bylineAdminUsersIndexRouteImport.update({
+const BylineAdminUsersIndexRoute = BylineAdminUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
-  getParentRoute: () => bylineAdminRouteRoute,
+  getParentRoute: () => BylineAdminRouteRoute,
 } as any)
-const bylineAdminRolesIndexRoute = bylineAdminRolesIndexRouteImport.update({
+const BylineAdminRolesIndexRoute = BylineAdminRolesIndexRouteImport.update({
   id: '/roles/',
   path: '/roles/',
-  getParentRoute: () => bylineAdminRouteRoute,
+  getParentRoute: () => BylineAdminRouteRoute,
 } as any)
-const bylineAdminPermissionsIndexRoute =
-  bylineAdminPermissionsIndexRouteImport.update({
+const BylineAdminPermissionsIndexRoute =
+  BylineAdminPermissionsIndexRouteImport.update({
     id: '/permissions/',
     path: '/permissions/',
-    getParentRoute: () => bylineAdminRouteRoute,
+    getParentRoute: () => BylineAdminRouteRoute,
   } as any)
-const bylineAdminAccountIndexRoute = bylineAdminAccountIndexRouteImport.update({
+const BylineAdminAccountIndexRoute = BylineAdminAccountIndexRouteImport.update({
   id: '/account/',
   path: '/account/',
-  getParentRoute: () => bylineAdminRouteRoute,
+  getParentRoute: () => BylineAdminRouteRoute,
 } as any)
 const Char123LngChar125PublicNewsSlugRoute =
   Char123LngChar125PublicNewsSlugRouteImport.update({
@@ -93,110 +98,114 @@ const Char123LngChar125PublicNewsSlugRoute =
     path: '/news/$slug',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
   } as any)
-const bylineAdminUsersIdIndexRoute = bylineAdminUsersIdIndexRouteImport.update({
+const BylineAdminUsersIdIndexRoute = BylineAdminUsersIdIndexRouteImport.update({
   id: '/users/$id/',
   path: '/users/$id/',
-  getParentRoute: () => bylineAdminRouteRoute,
+  getParentRoute: () => BylineAdminRouteRoute,
 } as any)
-const bylineAdminRolesIdIndexRoute = bylineAdminRolesIdIndexRouteImport.update({
+const BylineAdminRolesIdIndexRoute = BylineAdminRolesIdIndexRouteImport.update({
   id: '/roles/$id/',
   path: '/roles/$id/',
-  getParentRoute: () => bylineAdminRouteRoute,
+  getParentRoute: () => BylineAdminRouteRoute,
 } as any)
-const bylineAdminCollectionsCollectionIndexRoute =
-  bylineAdminCollectionsCollectionIndexRouteImport.update({
+const BylineAdminCollectionsCollectionIndexRoute =
+  BylineAdminCollectionsCollectionIndexRouteImport.update({
     id: '/collections/$collection/',
     path: '/collections/$collection/',
-    getParentRoute: () => bylineAdminRouteRoute,
+    getParentRoute: () => BylineAdminRouteRoute,
   } as any)
-const bylineAdminCollectionsCollectionCreateRoute =
-  bylineAdminCollectionsCollectionCreateRouteImport.update({
+const BylineAdminCollectionsCollectionCreateRoute =
+  BylineAdminCollectionsCollectionCreateRouteImport.update({
     id: '/collections/$collection/create',
     path: '/collections/$collection/create',
-    getParentRoute: () => bylineAdminRouteRoute,
+    getParentRoute: () => BylineAdminRouteRoute,
   } as any)
-const bylineAdminCollectionsCollectionIdIndexRoute =
-  bylineAdminCollectionsCollectionIdIndexRouteImport.update({
+const BylineAdminCollectionsCollectionIdIndexRoute =
+  BylineAdminCollectionsCollectionIdIndexRouteImport.update({
     id: '/collections/$collection/$id/',
     path: '/collections/$collection/$id/',
-    getParentRoute: () => bylineAdminRouteRoute,
+    getParentRoute: () => BylineAdminRouteRoute,
   } as any)
-const bylineAdminCollectionsCollectionIdHistoryRoute =
-  bylineAdminCollectionsCollectionIdHistoryRouteImport.update({
+const BylineAdminCollectionsCollectionIdHistoryRoute =
+  BylineAdminCollectionsCollectionIdHistoryRouteImport.update({
     id: '/collections/$collection/$id/history',
     path: '/collections/$collection/$id/history',
-    getParentRoute: () => bylineAdminRouteRoute,
+    getParentRoute: () => BylineAdminRouteRoute,
   } as any)
-const bylineAdminCollectionsCollectionIdApiRoute =
-  bylineAdminCollectionsCollectionIdApiRouteImport.update({
+const BylineAdminCollectionsCollectionIdApiRoute =
+  BylineAdminCollectionsCollectionIdApiRouteImport.update({
     id: '/collections/$collection/$id/api',
     path: '/collections/$collection/$id/api',
-    getParentRoute: () => bylineAdminRouteRoute,
+    getParentRoute: () => BylineAdminRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof BylineRouteRouteWithChildren
   '/{-$lng}': typeof Char123LngChar125PublicRouteRouteWithChildren
-  '/admin': typeof bylineAdminRouteRouteWithChildren
-  '/sign-in': typeof bylineSignInRoute
-  '/admin/': typeof bylineAdminIndexRoute
+  '/admin': typeof BylineAdminRouteRouteWithChildren
+  '/sign-in': typeof BylineSignInRoute
+  '/admin/': typeof BylineAdminIndexRoute
   '/{-$lng}/': typeof Char123LngChar125PublicIndexRoute
   '/{-$lng}/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
-  '/admin/account/': typeof bylineAdminAccountIndexRoute
-  '/admin/permissions/': typeof bylineAdminPermissionsIndexRoute
-  '/admin/roles/': typeof bylineAdminRolesIndexRoute
-  '/admin/users/': typeof bylineAdminUsersIndexRoute
+  '/admin/account/': typeof BylineAdminAccountIndexRoute
+  '/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
+  '/admin/roles/': typeof BylineAdminRolesIndexRoute
+  '/admin/users/': typeof BylineAdminUsersIndexRoute
   '/{-$lng}/news/': typeof Char123LngChar125PublicNewsIndexRoute
-  '/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
-  '/admin/collections/$collection/': typeof bylineAdminCollectionsCollectionIndexRoute
-  '/admin/roles/$id/': typeof bylineAdminRolesIdIndexRoute
-  '/admin/users/$id/': typeof bylineAdminUsersIdIndexRoute
-  '/admin/collections/$collection/$id/api': typeof bylineAdminCollectionsCollectionIdApiRoute
-  '/admin/collections/$collection/$id/history': typeof bylineAdminCollectionsCollectionIdHistoryRoute
-  '/admin/collections/$collection/$id/': typeof bylineAdminCollectionsCollectionIdIndexRoute
+  '/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
+  '/admin/collections/$collection/': typeof BylineAdminCollectionsCollectionIndexRoute
+  '/admin/roles/$id/': typeof BylineAdminRolesIdIndexRoute
+  '/admin/users/$id/': typeof BylineAdminUsersIdIndexRoute
+  '/admin/collections/$collection/$id/api': typeof BylineAdminCollectionsCollectionIdApiRoute
+  '/admin/collections/$collection/$id/history': typeof BylineAdminCollectionsCollectionIdHistoryRoute
+  '/admin/collections/$collection/$id/': typeof BylineAdminCollectionsCollectionIdIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof BylineRouteRouteWithChildren
   '/{-$lng}': typeof Char123LngChar125PublicIndexRoute
-  '/sign-in': typeof bylineSignInRoute
-  '/admin': typeof bylineAdminIndexRoute
+  '/sign-in': typeof BylineSignInRoute
+  '/admin': typeof BylineAdminIndexRoute
   '/{-$lng}/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
-  '/admin/account': typeof bylineAdminAccountIndexRoute
-  '/admin/permissions': typeof bylineAdminPermissionsIndexRoute
-  '/admin/roles': typeof bylineAdminRolesIndexRoute
-  '/admin/users': typeof bylineAdminUsersIndexRoute
+  '/admin/account': typeof BylineAdminAccountIndexRoute
+  '/admin/permissions': typeof BylineAdminPermissionsIndexRoute
+  '/admin/roles': typeof BylineAdminRolesIndexRoute
+  '/admin/users': typeof BylineAdminUsersIndexRoute
   '/{-$lng}/news': typeof Char123LngChar125PublicNewsIndexRoute
-  '/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
-  '/admin/collections/$collection': typeof bylineAdminCollectionsCollectionIndexRoute
-  '/admin/roles/$id': typeof bylineAdminRolesIdIndexRoute
-  '/admin/users/$id': typeof bylineAdminUsersIdIndexRoute
-  '/admin/collections/$collection/$id/api': typeof bylineAdminCollectionsCollectionIdApiRoute
-  '/admin/collections/$collection/$id/history': typeof bylineAdminCollectionsCollectionIdHistoryRoute
-  '/admin/collections/$collection/$id': typeof bylineAdminCollectionsCollectionIdIndexRoute
+  '/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
+  '/admin/collections/$collection': typeof BylineAdminCollectionsCollectionIndexRoute
+  '/admin/roles/$id': typeof BylineAdminRolesIdIndexRoute
+  '/admin/users/$id': typeof BylineAdminUsersIdIndexRoute
+  '/admin/collections/$collection/$id/api': typeof BylineAdminCollectionsCollectionIdApiRoute
+  '/admin/collections/$collection/$id/history': typeof BylineAdminCollectionsCollectionIdHistoryRoute
+  '/admin/collections/$collection/$id': typeof BylineAdminCollectionsCollectionIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/_byline': typeof BylineRouteRouteWithChildren
   '/{-$lng}': typeof Char123LngChar125RouteRouteWithChildren
-  '/(byline)/admin': typeof bylineAdminRouteRouteWithChildren
+  '/_byline/admin': typeof BylineAdminRouteRouteWithChildren
   '/{-$lng}/_public': typeof Char123LngChar125PublicRouteRouteWithChildren
-  '/(byline)/sign-in': typeof bylineSignInRoute
-  '/(byline)/admin/': typeof bylineAdminIndexRoute
+  '/_byline/sign-in': typeof BylineSignInRoute
+  '/_byline/admin/': typeof BylineAdminIndexRoute
   '/{-$lng}/_public/': typeof Char123LngChar125PublicIndexRoute
   '/{-$lng}/_public/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
-  '/(byline)/admin/account/': typeof bylineAdminAccountIndexRoute
-  '/(byline)/admin/permissions/': typeof bylineAdminPermissionsIndexRoute
-  '/(byline)/admin/roles/': typeof bylineAdminRolesIndexRoute
-  '/(byline)/admin/users/': typeof bylineAdminUsersIndexRoute
+  '/_byline/admin/account/': typeof BylineAdminAccountIndexRoute
+  '/_byline/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
+  '/_byline/admin/roles/': typeof BylineAdminRolesIndexRoute
+  '/_byline/admin/users/': typeof BylineAdminUsersIndexRoute
   '/{-$lng}/_public/news/': typeof Char123LngChar125PublicNewsIndexRoute
-  '/(byline)/admin/collections/$collection/create': typeof bylineAdminCollectionsCollectionCreateRoute
-  '/(byline)/admin/collections/$collection/': typeof bylineAdminCollectionsCollectionIndexRoute
-  '/(byline)/admin/roles/$id/': typeof bylineAdminRolesIdIndexRoute
-  '/(byline)/admin/users/$id/': typeof bylineAdminUsersIdIndexRoute
-  '/(byline)/admin/collections/$collection/$id/api': typeof bylineAdminCollectionsCollectionIdApiRoute
-  '/(byline)/admin/collections/$collection/$id/history': typeof bylineAdminCollectionsCollectionIdHistoryRoute
-  '/(byline)/admin/collections/$collection/$id/': typeof bylineAdminCollectionsCollectionIdIndexRoute
+  '/_byline/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
+  '/_byline/admin/collections/$collection/': typeof BylineAdminCollectionsCollectionIndexRoute
+  '/_byline/admin/roles/$id/': typeof BylineAdminRolesIdIndexRoute
+  '/_byline/admin/users/$id/': typeof BylineAdminUsersIdIndexRoute
+  '/_byline/admin/collections/$collection/$id/api': typeof BylineAdminCollectionsCollectionIdApiRoute
+  '/_byline/admin/collections/$collection/$id/history': typeof BylineAdminCollectionsCollectionIdHistoryRoute
+  '/_byline/admin/collections/$collection/$id/': typeof BylineAdminCollectionsCollectionIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
     | '/{-$lng}'
     | '/admin'
     | '/sign-in'
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/admin/collections/$collection/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/{-$lng}'
     | '/sign-in'
     | '/admin'
@@ -235,31 +245,31 @@ export interface FileRouteTypes {
     | '/admin/collections/$collection/$id'
   id:
     | '__root__'
+    | '/_byline'
     | '/{-$lng}'
-    | '/(byline)/admin'
+    | '/_byline/admin'
     | '/{-$lng}/_public'
-    | '/(byline)/sign-in'
-    | '/(byline)/admin/'
+    | '/_byline/sign-in'
+    | '/_byline/admin/'
     | '/{-$lng}/_public/'
     | '/{-$lng}/_public/news/$slug'
-    | '/(byline)/admin/account/'
-    | '/(byline)/admin/permissions/'
-    | '/(byline)/admin/roles/'
-    | '/(byline)/admin/users/'
+    | '/_byline/admin/account/'
+    | '/_byline/admin/permissions/'
+    | '/_byline/admin/roles/'
+    | '/_byline/admin/users/'
     | '/{-$lng}/_public/news/'
-    | '/(byline)/admin/collections/$collection/create'
-    | '/(byline)/admin/collections/$collection/'
-    | '/(byline)/admin/roles/$id/'
-    | '/(byline)/admin/users/$id/'
-    | '/(byline)/admin/collections/$collection/$id/api'
-    | '/(byline)/admin/collections/$collection/$id/history'
-    | '/(byline)/admin/collections/$collection/$id/'
+    | '/_byline/admin/collections/$collection/create'
+    | '/_byline/admin/collections/$collection/'
+    | '/_byline/admin/roles/$id/'
+    | '/_byline/admin/users/$id/'
+    | '/_byline/admin/collections/$collection/$id/api'
+    | '/_byline/admin/collections/$collection/$id/history'
+    | '/_byline/admin/collections/$collection/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  BylineRouteRoute: typeof BylineRouteRouteWithChildren
   Char123LngChar125RouteRoute: typeof Char123LngChar125RouteRouteWithChildren
-  bylineAdminRouteRoute: typeof bylineAdminRouteRouteWithChildren
-  bylineSignInRoute: typeof bylineSignInRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -271,12 +281,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LngChar125RouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/(byline)/sign-in': {
-      id: '/(byline)/sign-in'
+    '/_byline': {
+      id: '/_byline'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof BylineRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_byline/sign-in': {
+      id: '/_byline/sign-in'
       path: '/sign-in'
       fullPath: '/sign-in'
-      preLoaderRoute: typeof bylineSignInRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof BylineSignInRouteImport
+      parentRoute: typeof BylineRouteRoute
     }
     '/{-$lng}/_public': {
       id: '/{-$lng}/_public'
@@ -285,12 +302,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LngChar125PublicRouteRouteImport
       parentRoute: typeof Char123LngChar125RouteRoute
     }
-    '/(byline)/admin': {
-      id: '/(byline)/admin'
+    '/_byline/admin': {
+      id: '/_byline/admin'
       path: '/admin'
       fullPath: '/admin'
-      preLoaderRoute: typeof bylineAdminRouteRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof BylineAdminRouteRouteImport
+      parentRoute: typeof BylineRouteRoute
     }
     '/{-$lng}/_public/': {
       id: '/{-$lng}/_public/'
@@ -299,12 +316,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LngChar125PublicIndexRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
-    '/(byline)/admin/': {
-      id: '/(byline)/admin/'
+    '/_byline/admin/': {
+      id: '/_byline/admin/'
       path: '/'
       fullPath: '/admin/'
-      preLoaderRoute: typeof bylineAdminIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
     '/{-$lng}/_public/news/': {
       id: '/{-$lng}/_public/news/'
@@ -313,33 +330,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LngChar125PublicNewsIndexRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
-    '/(byline)/admin/users/': {
-      id: '/(byline)/admin/users/'
+    '/_byline/admin/users/': {
+      id: '/_byline/admin/users/'
       path: '/users'
       fullPath: '/admin/users/'
-      preLoaderRoute: typeof bylineAdminUsersIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminUsersIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/roles/': {
-      id: '/(byline)/admin/roles/'
+    '/_byline/admin/roles/': {
+      id: '/_byline/admin/roles/'
       path: '/roles'
       fullPath: '/admin/roles/'
-      preLoaderRoute: typeof bylineAdminRolesIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminRolesIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/permissions/': {
-      id: '/(byline)/admin/permissions/'
+    '/_byline/admin/permissions/': {
+      id: '/_byline/admin/permissions/'
       path: '/permissions'
       fullPath: '/admin/permissions/'
-      preLoaderRoute: typeof bylineAdminPermissionsIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminPermissionsIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/account/': {
-      id: '/(byline)/admin/account/'
+    '/_byline/admin/account/': {
+      id: '/_byline/admin/account/'
       path: '/account'
       fullPath: '/admin/account/'
-      preLoaderRoute: typeof bylineAdminAccountIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminAccountIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
     '/{-$lng}/_public/news/$slug': {
       id: '/{-$lng}/_public/news/$slug'
@@ -348,57 +365,109 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char123LngChar125PublicNewsSlugRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
-    '/(byline)/admin/users/$id/': {
-      id: '/(byline)/admin/users/$id/'
+    '/_byline/admin/users/$id/': {
+      id: '/_byline/admin/users/$id/'
       path: '/users/$id'
       fullPath: '/admin/users/$id/'
-      preLoaderRoute: typeof bylineAdminUsersIdIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminUsersIdIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/roles/$id/': {
-      id: '/(byline)/admin/roles/$id/'
+    '/_byline/admin/roles/$id/': {
+      id: '/_byline/admin/roles/$id/'
       path: '/roles/$id'
       fullPath: '/admin/roles/$id/'
-      preLoaderRoute: typeof bylineAdminRolesIdIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminRolesIdIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/collections/$collection/': {
-      id: '/(byline)/admin/collections/$collection/'
+    '/_byline/admin/collections/$collection/': {
+      id: '/_byline/admin/collections/$collection/'
       path: '/collections/$collection'
       fullPath: '/admin/collections/$collection/'
-      preLoaderRoute: typeof bylineAdminCollectionsCollectionIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminCollectionsCollectionIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/collections/$collection/create': {
-      id: '/(byline)/admin/collections/$collection/create'
+    '/_byline/admin/collections/$collection/create': {
+      id: '/_byline/admin/collections/$collection/create'
       path: '/collections/$collection/create'
       fullPath: '/admin/collections/$collection/create'
-      preLoaderRoute: typeof bylineAdminCollectionsCollectionCreateRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminCollectionsCollectionCreateRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/collections/$collection/$id/': {
-      id: '/(byline)/admin/collections/$collection/$id/'
+    '/_byline/admin/collections/$collection/$id/': {
+      id: '/_byline/admin/collections/$collection/$id/'
       path: '/collections/$collection/$id'
       fullPath: '/admin/collections/$collection/$id/'
-      preLoaderRoute: typeof bylineAdminCollectionsCollectionIdIndexRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminCollectionsCollectionIdIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/collections/$collection/$id/history': {
-      id: '/(byline)/admin/collections/$collection/$id/history'
+    '/_byline/admin/collections/$collection/$id/history': {
+      id: '/_byline/admin/collections/$collection/$id/history'
       path: '/collections/$collection/$id/history'
       fullPath: '/admin/collections/$collection/$id/history'
-      preLoaderRoute: typeof bylineAdminCollectionsCollectionIdHistoryRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminCollectionsCollectionIdHistoryRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
-    '/(byline)/admin/collections/$collection/$id/api': {
-      id: '/(byline)/admin/collections/$collection/$id/api'
+    '/_byline/admin/collections/$collection/$id/api': {
+      id: '/_byline/admin/collections/$collection/$id/api'
       path: '/collections/$collection/$id/api'
       fullPath: '/admin/collections/$collection/$id/api'
-      preLoaderRoute: typeof bylineAdminCollectionsCollectionIdApiRouteImport
-      parentRoute: typeof bylineAdminRouteRoute
+      preLoaderRoute: typeof BylineAdminCollectionsCollectionIdApiRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
     }
   }
 }
+
+interface BylineAdminRouteRouteChildren {
+  BylineAdminIndexRoute: typeof BylineAdminIndexRoute
+  BylineAdminAccountIndexRoute: typeof BylineAdminAccountIndexRoute
+  BylineAdminPermissionsIndexRoute: typeof BylineAdminPermissionsIndexRoute
+  BylineAdminRolesIndexRoute: typeof BylineAdminRolesIndexRoute
+  BylineAdminUsersIndexRoute: typeof BylineAdminUsersIndexRoute
+  BylineAdminCollectionsCollectionCreateRoute: typeof BylineAdminCollectionsCollectionCreateRoute
+  BylineAdminCollectionsCollectionIndexRoute: typeof BylineAdminCollectionsCollectionIndexRoute
+  BylineAdminRolesIdIndexRoute: typeof BylineAdminRolesIdIndexRoute
+  BylineAdminUsersIdIndexRoute: typeof BylineAdminUsersIdIndexRoute
+  BylineAdminCollectionsCollectionIdApiRoute: typeof BylineAdminCollectionsCollectionIdApiRoute
+  BylineAdminCollectionsCollectionIdHistoryRoute: typeof BylineAdminCollectionsCollectionIdHistoryRoute
+  BylineAdminCollectionsCollectionIdIndexRoute: typeof BylineAdminCollectionsCollectionIdIndexRoute
+}
+
+const BylineAdminRouteRouteChildren: BylineAdminRouteRouteChildren = {
+  BylineAdminIndexRoute: BylineAdminIndexRoute,
+  BylineAdminAccountIndexRoute: BylineAdminAccountIndexRoute,
+  BylineAdminPermissionsIndexRoute: BylineAdminPermissionsIndexRoute,
+  BylineAdminRolesIndexRoute: BylineAdminRolesIndexRoute,
+  BylineAdminUsersIndexRoute: BylineAdminUsersIndexRoute,
+  BylineAdminCollectionsCollectionCreateRoute:
+    BylineAdminCollectionsCollectionCreateRoute,
+  BylineAdminCollectionsCollectionIndexRoute:
+    BylineAdminCollectionsCollectionIndexRoute,
+  BylineAdminRolesIdIndexRoute: BylineAdminRolesIdIndexRoute,
+  BylineAdminUsersIdIndexRoute: BylineAdminUsersIdIndexRoute,
+  BylineAdminCollectionsCollectionIdApiRoute:
+    BylineAdminCollectionsCollectionIdApiRoute,
+  BylineAdminCollectionsCollectionIdHistoryRoute:
+    BylineAdminCollectionsCollectionIdHistoryRoute,
+  BylineAdminCollectionsCollectionIdIndexRoute:
+    BylineAdminCollectionsCollectionIdIndexRoute,
+}
+
+const BylineAdminRouteRouteWithChildren =
+  BylineAdminRouteRoute._addFileChildren(BylineAdminRouteRouteChildren)
+
+interface BylineRouteRouteChildren {
+  BylineAdminRouteRoute: typeof BylineAdminRouteRouteWithChildren
+  BylineSignInRoute: typeof BylineSignInRoute
+}
+
+const BylineRouteRouteChildren: BylineRouteRouteChildren = {
+  BylineAdminRouteRoute: BylineAdminRouteRouteWithChildren,
+  BylineSignInRoute: BylineSignInRoute,
+}
+
+const BylineRouteRouteWithChildren = BylineRouteRoute._addFileChildren(
+  BylineRouteRouteChildren,
+)
 
 interface Char123LngChar125PublicRouteRouteChildren {
   Char123LngChar125PublicIndexRoute: typeof Char123LngChar125PublicIndexRoute
@@ -434,48 +503,9 @@ const Char123LngChar125RouteRouteWithChildren =
     Char123LngChar125RouteRouteChildren,
   )
 
-interface bylineAdminRouteRouteChildren {
-  bylineAdminIndexRoute: typeof bylineAdminIndexRoute
-  bylineAdminAccountIndexRoute: typeof bylineAdminAccountIndexRoute
-  bylineAdminPermissionsIndexRoute: typeof bylineAdminPermissionsIndexRoute
-  bylineAdminRolesIndexRoute: typeof bylineAdminRolesIndexRoute
-  bylineAdminUsersIndexRoute: typeof bylineAdminUsersIndexRoute
-  bylineAdminCollectionsCollectionCreateRoute: typeof bylineAdminCollectionsCollectionCreateRoute
-  bylineAdminCollectionsCollectionIndexRoute: typeof bylineAdminCollectionsCollectionIndexRoute
-  bylineAdminRolesIdIndexRoute: typeof bylineAdminRolesIdIndexRoute
-  bylineAdminUsersIdIndexRoute: typeof bylineAdminUsersIdIndexRoute
-  bylineAdminCollectionsCollectionIdApiRoute: typeof bylineAdminCollectionsCollectionIdApiRoute
-  bylineAdminCollectionsCollectionIdHistoryRoute: typeof bylineAdminCollectionsCollectionIdHistoryRoute
-  bylineAdminCollectionsCollectionIdIndexRoute: typeof bylineAdminCollectionsCollectionIdIndexRoute
-}
-
-const bylineAdminRouteRouteChildren: bylineAdminRouteRouteChildren = {
-  bylineAdminIndexRoute: bylineAdminIndexRoute,
-  bylineAdminAccountIndexRoute: bylineAdminAccountIndexRoute,
-  bylineAdminPermissionsIndexRoute: bylineAdminPermissionsIndexRoute,
-  bylineAdminRolesIndexRoute: bylineAdminRolesIndexRoute,
-  bylineAdminUsersIndexRoute: bylineAdminUsersIndexRoute,
-  bylineAdminCollectionsCollectionCreateRoute:
-    bylineAdminCollectionsCollectionCreateRoute,
-  bylineAdminCollectionsCollectionIndexRoute:
-    bylineAdminCollectionsCollectionIndexRoute,
-  bylineAdminRolesIdIndexRoute: bylineAdminRolesIdIndexRoute,
-  bylineAdminUsersIdIndexRoute: bylineAdminUsersIdIndexRoute,
-  bylineAdminCollectionsCollectionIdApiRoute:
-    bylineAdminCollectionsCollectionIdApiRoute,
-  bylineAdminCollectionsCollectionIdHistoryRoute:
-    bylineAdminCollectionsCollectionIdHistoryRoute,
-  bylineAdminCollectionsCollectionIdIndexRoute:
-    bylineAdminCollectionsCollectionIdIndexRoute,
-}
-
-const bylineAdminRouteRouteWithChildren =
-  bylineAdminRouteRoute._addFileChildren(bylineAdminRouteRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
+  BylineRouteRoute: BylineRouteRouteWithChildren,
   Char123LngChar125RouteRoute: Char123LngChar125RouteRouteWithChildren,
-  bylineAdminRouteRoute: bylineAdminRouteRouteWithChildren,
-  bylineSignInRoute: bylineSignInRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
