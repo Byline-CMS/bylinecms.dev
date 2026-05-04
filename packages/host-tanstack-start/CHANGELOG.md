@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 1.0.2
+
+### Patch Changes
+
+- Fixups for packages exports.
+- Updated dependencies
+  - @byline/storage-local@0.10.2
+  - @byline/db-postgres@0.10.2
+  - @byline/client@0.10.2
+  - @byline/admin@0.10.2
+  - @byline/auth@0.10.2
+  - @byline/core@0.10.2
+  - @byline/ui@0.10.2
+
 ## 1.0.1
 
 ### Patch Changes

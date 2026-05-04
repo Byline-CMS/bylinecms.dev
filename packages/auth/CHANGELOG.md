@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 0.10.2
+
+### Patch Changes
+
+- Fixups for packages exports.
+
 ## 0.10.1
 
 ### Patch Changes

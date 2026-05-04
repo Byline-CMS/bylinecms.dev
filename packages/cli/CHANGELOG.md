@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 0.1.2
+
+### Patch Changes
+
+- Fixups for packages exports.
+
 ## 0.1.1
 
 ### Patch Changes

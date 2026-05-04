@@ -1,5 +1,15 @@
 # @byline/ui
 
+## 0.10.2
+
+### Patch Changes
+
+- Fixups for packages exports.
+- Updated dependencies
+  - @byline/client@0.10.2
+  - @byline/admin@0.10.2
+  - @byline/core@0.10.2
+
 ## 0.10.1
 
 ### Patch Changes

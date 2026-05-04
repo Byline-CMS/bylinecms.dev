@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 0.10.2
+
+### Patch Changes
+
+- Fixups for packages exports.
+- Updated dependencies
+  - @byline/admin@0.10.2
+  - @byline/auth@0.10.2
+  - @byline/core@0.10.2
+
 ## 0.10.1
 
 ### Patch Changes
