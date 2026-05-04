@@ -104,7 +104,7 @@ export const HistoryView = ({
   defaultContentLocale: string
 }) => {
   const { id, collection } = useParams({
-    from: '/(byline)/admin/collections/$collection/$id/history',
+    from: '/_byline/admin/collections/$collection/$id/history',
   })
   const navigate = useNavigate()
   const columns = adminConfig?.columns || []

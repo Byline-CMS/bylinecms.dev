@@ -14,7 +14,7 @@
  * `createFileRoute(path)({...})`. The host's route file collapses to:
  *
  *   import { createCollectionListRoute } from '@byline/host-tanstack-start/routes'
- *   export const Route = createCollectionListRoute('/(byline)/admin/collections/$collection/')
+ *   export const Route = createCollectionListRoute('/_byline/admin/collections/$collection/')
  *
  * Routes that need host-specific data (i18n bridge component, content
  * locales) take a second `opts` argument.

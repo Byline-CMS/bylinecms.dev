@@ -12,7 +12,7 @@
  *
  * Scope: this list is intentionally minimal — only packages that are
  * directly imported by files we drop into the user's tree (`byline/`,
- * `src/routes/(byline)/`, `src/ui/byline/`). Transitive deps reach the
+ * `src/routes/_byline/`, `src/ui/byline/`). Transitive deps reach the
  * user via the `@byline/*` package boundary and don't need declaring.
  */
 

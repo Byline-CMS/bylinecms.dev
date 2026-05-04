@@ -39,7 +39,7 @@ import type React from 'react'
 import { useRouteContext } from '@tanstack/react-router'
 
 /** Route id of the admin shell — the layout route that owns `user` on context. */
-const ADMIN_ROUTE_ID = '/(byline)/admin' as const
+const ADMIN_ROUTE_ID = '/_byline/admin' as const
 
 /**
  * `true` when the current admin holds the given ability (or is a
