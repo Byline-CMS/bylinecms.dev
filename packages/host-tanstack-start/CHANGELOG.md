@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 1.0.4
+
+### Patch Changes
+
+- 74fc714: Fixups for nitro, and new \_byline pathless route.
+- Updated dependencies [74fc714]
+  - @byline/admin@0.10.4
+  - @byline/auth@0.10.4
+  - @byline/client@0.10.4
+  - @byline/core@0.10.4
+  - @byline/db-postgres@0.10.4
+  - @byline/storage-local@0.10.4
+  - @byline/ui@0.10.4
+
 ## 1.0.3
 
 ### Patch Changes

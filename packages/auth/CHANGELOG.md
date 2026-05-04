@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 0.10.4
+
+### Patch Changes
+
+- 74fc714: Fixups for nitro, and new \_byline pathless route.
+
 ## 0.10.3
 
 ### Patch Changes

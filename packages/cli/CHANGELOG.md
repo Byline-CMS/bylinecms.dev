@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 0.1.4
+
+### Patch Changes
+
+- 74fc714: Fixups for nitro, and new \_byline pathless route.
+
 ## 0.1.3
 
 ### Patch Changes
