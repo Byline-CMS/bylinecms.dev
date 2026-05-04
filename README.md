@@ -98,7 +98,7 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 
 ## Quick start - Experimental CLI
 
-Note: We have an experimental CLI that will attempt to install Byline into an existing Tanstack Start application. This has only been tested against up-to-date Tanstack Start sites created with the Nitro (agnostic adapter). You can install Tanstack Start with:
+Note: We have an experimental CLI that will attempt to install Byline into an existing TanStack Start application. This has only been tested against up-to-date TanStack Start sites created with the Nitro (agnostic adapter). You can install TanStack Start with:
 
 ```sh
 npx @tanstack/cli@latest create
@@ -113,14 +113,14 @@ Then be sure to select the Nitro (agnostic) adapter.
 │  ○ Railway
 └
 ```
-Once your Tanstack Start application is ready you can initialize a Byline installation with:
+Once your TanStack Start application is ready you can initialize a Byline installation with:
 
 ```sh
 npx @byline/cli@latest init
 ```
 If there are any issues, you can follow the example application in this repo under `apps/webapp`.
 
-IMPORTANT: The core Byline routes will be placed under a pathless route at `routes/_byline`, with its own route.tsx template. To prevent your front-end Tanstack Start application's styling from 'leaking' into the Byline dashboard, you'll need to create or move your top-most layout route into its own pathless layout route - for example, under `routes/_font-end` or `routes/_public` - with any styling, headers, footers etc., that might have been in __root.tsx - moved into the route.tsx layout file inside your front-end pathless layout route.
+IMPORTANT: The core Byline routes will be placed under a pathless route at `routes/_byline`, with its own route.tsx template. To prevent your front-end TanStack Start application's styling from 'leaking' into the Byline dashboard, you'll need to create or move your top-most layout route into its own pathless layout route - for example, under `routes/_font-end` or `routes/_public` - with any styling, headers, footers etc., that might have been in __root.tsx - moved into the route.tsx layout file inside your front-end pathless layout route.
 
 See the TanStack Router docs for [File-Based Routing](https://tanstack.com/router/latest/docs/routing/file-based-routing) and [Virtual File Routes](https://tanstack.com/router/latest/docs/routing/virtual-file-routes) for more information.
 
