@@ -5,7 +5,7 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "declaration": true,
     "moduleResolution": "bundler",
-    "declarationMap": true,
+    "declarationMap": false,
     "emitDecoratorMetadata": true,
     "jsx": "preserve",
     "incremental": true,
@@ -19,7 +19,7 @@
     "module": "esnext",
     "rootDir": "./src",
     "declarationDir": "./dist",
-    "sourceMap": true,
+    "sourceMap": false,
     "outDir": "./dist",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true

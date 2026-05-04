@@ -19,9 +19,9 @@
     "module": "NodeNext",
     "outDir": "dist",
     "rootDir": "src",
-    "sourceMap": true,
+    "sourceMap": false,
     "declaration": true,
-    "declarationMap": true,
+    "declarationMap": false,
     "lib": ["es2024"], // No DOM or browser libraries
     "types": ["node"],
 
