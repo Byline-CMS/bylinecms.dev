@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 0.10.3
+
+### Patch Changes
+
+- Removed sourcemaps from outputs.
+- Updated dependencies
+  - @byline/client@0.10.3
+  - @byline/core@0.10.3
+  - @byline/ui@0.10.3
+
 ## 0.10.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @byline/storage-s3
 
+## 0.10.3
+
+### Patch Changes
+
+- Removed sourcemaps from outputs.
+- Updated dependencies
+  - @byline/core@0.10.3
+
 ## 0.10.2
 
 ### Patch Changes

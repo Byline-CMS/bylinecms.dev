@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 0.10.3
+
+### Patch Changes
+
+- Removed sourcemaps from outputs.
+
 ## 0.10.2
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 0.10.3
+
+### Patch Changes
+
+- Removed sourcemaps from outputs.
+- Updated dependencies
+  - @byline/admin@0.10.3
+  - @byline/auth@0.10.3
+  - @byline/core@0.10.3
+
 ## 0.10.2
 
 ### Patch Changes

@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 1.0.3
+
+### Patch Changes
+
+- Removed sourcemaps from outputs.
+- Updated dependencies
+  - @byline/storage-local@0.10.3
+  - @byline/db-postgres@0.10.3
+  - @byline/client@0.10.3
+  - @byline/admin@0.10.3
+  - @byline/auth@0.10.3
+  - @byline/core@0.10.3
+  - @byline/ui@0.10.3
+
 ## 1.0.2
 
 ### Patch Changes
