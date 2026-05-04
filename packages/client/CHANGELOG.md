@@ -1,5 +1,16 @@
 # @byline/client
 
+## 0.10.5
+
+### Patch Changes
+
+- 7cae939: More work on experimental CLI
+- 3185c48: More work on Nitro compatible vite.config.ts template.
+- Updated dependencies [7cae939]
+- Updated dependencies [3185c48]
+  - @byline/auth@0.10.5
+  - @byline/core@0.10.5
+
 ## 0.10.4
 
 ### Patch Changes
