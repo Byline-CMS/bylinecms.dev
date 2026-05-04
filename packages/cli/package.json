@@ -1,0 +1,67 @@
+{
+  "name": "@byline/cli",
+  "private": false,
+  "license": "MPL-2.0",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "description": "Guided installer for Byline CMS into an existing TanStack Start application",
+  "keywords": [
+    "cms",
+    "headless cms",
+    "content management",
+    "installer",
+    "cli"
+  ],
+  "homepage": "https://github.com/Byline-CMS/bylinecms.dev",
+  "bugs": {
+    "url": "https://github.com/Byline-CMS/bylinecms.dev/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
+    "directory": "packages/cli"
+  },
+  "type": "module",
+  "bin": {
+    "byline": "./dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc-alias && node ./scripts/copy-templates.js && chmod +x dist/cli.js",
+    "dev": "tsc -w -p tsconfig.json",
+    "clean": "rimraf node_modules dist .turbo",
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "commander": "^13.1.0",
+    "diff": "^7.0.0",
+    "drizzle-orm": "^0.45.2",
+    "execa": "^9.5.2",
+    "pg": "^8.20.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.14",
+    "@types/diff": "^7.0.0",
+    "@types/node": "^25.6.0",
+    "@types/pg": "^8.20.0",
+    "rimraf": "^6.0.1",
+    "tsc-alias": "^1.8.17",
+    "tsx": "^4.21.0",
+    "typescript": "6.0.3",
+    "vitest": "^4.1.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
