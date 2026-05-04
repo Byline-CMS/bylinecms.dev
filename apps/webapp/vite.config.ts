@@ -4,7 +4,32 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
-import { defineConfig } from 'vite'
+import { fileURLToPath } from 'node:url'
+import { defineConfig, type Plugin } from 'vite'
+
+// Browser-only stub for `node:async_hooks`. @byline/core's logger module does
+// `await import('node:async_hooks')` at top level and falls back to a no-op
+// store on failure — but Vite's externalized-Node-builtin shim warns on every
+// property access (including `.then`), polluting the dev console. Aliasing to
+// our own shim short-circuits the warnings while preserving identical runtime
+// behaviour. SSR keeps the real Node module via the unscoped import.
+const browserAsyncHooksShim = fileURLToPath(
+  new URL('./byline/async-hooks.browser.ts', import.meta.url),
+)
+
+// Vite plugin form of the alias above. `EnvironmentResolveOptions.alias`
+// doesn't exist in Vite 8's per-environment types, so we scope the
+// rewrite via `this.environment.name` inside `resolveId`. SSR keeps the
+// real Node module untouched.
+const browserAsyncHooksAlias = (): Plugin => ({
+  name: 'byline:browser-async-hooks-alias',
+  enforce: 'pre',
+  resolveId(source) {
+    if (source !== 'node:async_hooks') return null
+    if (this.environment?.name !== 'client') return null
+    return browserAsyncHooksShim
+  },
+})
 
 // Inline every `@byline/*` package through Vite's SSR pipeline. The
 // regex catches future packages without requiring a config edit. The
@@ -36,37 +61,59 @@ const config = defineConfig({
     tsconfigPaths: true,
   },
   environments: {
-    // In Vite 8's environments API, per-environment `optimizeDeps`
-    // takes precedence over root-level `optimizeDeps`. TanStack Start's
-    // plugin sets `environments.client.optimizeDeps.include` with its
-    // own entries, which means root-level `optimizeDeps.include` is
-    // superseded and never applied to the browser build.
-    //
-    // We therefore place our client-side pre-bundling overrides here,
-    // alongside the SSR resolver config.
-    //
-    // `@base-ui/react` and `@base-ui/utils` need eager pre-bundling for
-    // two reasons working in tension:
-    //
-    //   1. `@base-ui/utils/store/useStore` imports `use-sync-external-
-    //      store/shim`, which is pure CJS (`module.exports = require(…)`).
-    //      Vite's CJS-to-ESM conversion can fail to synthesise the named
-    //      `useSyncExternalStore` export when the module is discovered
-    //      mid-graph — the browser then throws SyntaxError on first import.
-    //      Pre-bundling as an upfront optimisation unit fixes synthesis.
-    //
-    //   2. @byline/ui imports many @base-ui/react subpaths (`/accordion`,
-    //      `/dialog`, etc.) and each LATE discovery triggers a re-optimise
-    //      that shifts cache hashes — leaving in-flight imports referencing
-    //      old hashes. Eager `include` brings them into the first
-    //      optimisation pass and reduces re-optimisation churn.
+    // In Vite 8's environments API, per-environment `optimizeDeps` and
+    // `resolve` take precedence over root-level equivalents. TanStack Start's
+    // plugin populates `environments.client.optimizeDeps.include` with its
+    // own entries, which supersedes any root-level include. Client-side
+    // pre-bundling overrides therefore live here, alongside the SSR
+    // resolver config.
     client: {
       optimizeDeps: {
+        // Vite's `resolve.alias` runs in its own request pipeline — it does
+        // NOT propagate into the dep-optimizer's pre-bundle pass. @byline/core
+        // is pre-bundled, so we additionally rewrite `node:async_hooks` inside
+        // Rolldown. Without this, the optimized chunk keeps a bare
+        // `import('node:async_hooks')` that Vite's runtime then resolves to
+        // its noisy browser-external stub.
+        rolldownOptions: {
+          plugins: [
+            {
+              name: 'alias-node-async-hooks',
+              resolveId(source) {
+                if (source === 'node:async_hooks') {
+                  return browserAsyncHooksShim
+                }
+                return null
+              },
+            },
+          ],
+        },
         include: [
-          '@base-ui/react',
-          '@base-ui/utils',
-          'use-sync-external-store/shim',
-          'use-sync-external-store/shim/with-selector',
+          // Force pre-bundling of these @byline/ui subpaths so the dep
+          // optimizer walks into them and inlines their CJS deps — notably
+          // `@base-ui/utils/store/useStore` and `use-sync-external-store/shim`.
+          //
+          // Without this, those CJS modules are reached via Vite's regular
+          // module pipeline at runtime, where the on-the-fly CJS->ESM interop
+          // can fail to synthesise the named `useSyncExternalStore` export.
+          // The browser then throws a SyntaxError, the route never hydrates,
+          // and forms fall back to native GET behaviour.
+          //
+          // A workspace consumer (e.g. apps/webapp inside the bylinecms.dev
+          // monorepo) doesn't strictly need this list — Vite's scanner walks
+          // workspace source directly and auto-discovers each @base-ui/react
+          // subpath. Published @byline/ui pre-bundles as a single artifact,
+          // so the scanner never sees those subpaths and they leak through to
+          // runtime CJS interop. Listing the subpaths here is harmless in the
+          // workspace case and required in the published case.
+          //
+          // We intentionally do NOT pre-bundle @byline/host-tanstack-start
+          // subpaths — they transitively pull in @tanstack/start-server-core,
+          // which references Vite-virtual modules (e.g.
+          // `tanstack-start-injected-head-scripts:v`) that the dep optimizer
+          // cannot resolve.
+          '@byline/ui/react/admin',
+          '@byline/ui/react/services',
         ],
       },
     },
@@ -84,6 +131,7 @@ const config = defineConfig({
     exclude: ssrExternal,
   },
   plugins: [
+    browserAsyncHooksAlias(),
     devtools(),
     nitro({
       // @byline/ui ships compiled JS that does `import './foo_module.css'`.
@@ -99,7 +147,7 @@ const config = defineConfig({
       // bundled, so we externalize it (and other native deps) here at
       // the Nitro level — Vite's `ssr.external` only applies to Vite's
       // own builder, not Nitro's.
-      rollupConfig: {
+      rolldownConfig: {
         external: [
           // Explicit problem-packages kept external so Node resolves them
           // as singletons from the module cache at runtime.
@@ -115,7 +163,7 @@ const config = defineConfig({
           // throws: "Cannot read properties of null (reading
           // 'useSyncExternalStore')".
           //
-          // Marking react/react-dom as Rollup externals forces `_libs` to
+          // Marking react/react-dom as bundler externals forces `_libs` to
           // emit `__require('react')` instead of inlining a closure, so both
           // code paths hit the same Node.js module-cache singleton.
           'react',
