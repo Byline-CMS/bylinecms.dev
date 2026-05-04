@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 1.0.1
+
+### Patch Changes
+
+- 10bf19a: Re-publish with removed argon2 dependency. Experimental CLI.
+- Updated dependencies [10bf19a]
+  - @byline/admin@0.10.1
+  - @byline/auth@0.10.1
+  - @byline/client@0.10.1
+  - @byline/core@0.10.1
+  - @byline/db-postgres@0.10.1
+  - @byline/storage-local@0.10.1
+  - @byline/ui@0.10.1
+
 ## 1.0.0
 
 ### Minor Changes

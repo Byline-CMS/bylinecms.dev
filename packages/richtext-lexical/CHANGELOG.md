@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 0.10.1
+
+### Patch Changes
+
+- 10bf19a: Re-publish with removed argon2 dependency. Experimental CLI.
+- Updated dependencies [10bf19a]
+  - @byline/client@0.10.1
+  - @byline/core@0.10.1
+  - @byline/ui@0.10.1
+
 ## 0.10.0
 
 ### Minor Changes
