@@ -36,6 +36,40 @@ const config = defineConfig({
     tsconfigPaths: true,
   },
   environments: {
+    // In Vite 8's environments API, per-environment `optimizeDeps`
+    // takes precedence over root-level `optimizeDeps`. TanStack Start's
+    // plugin sets `environments.client.optimizeDeps.include` with its
+    // own entries, which means root-level `optimizeDeps.include` is
+    // superseded and never applied to the browser build.
+    //
+    // We therefore place our client-side pre-bundling overrides here,
+    // alongside the SSR resolver config.
+    //
+    // `@base-ui/react` and `@base-ui/utils` need eager pre-bundling for
+    // two reasons working in tension:
+    //
+    //   1. `@base-ui/utils/store/useStore` imports `use-sync-external-
+    //      store/shim`, which is pure CJS (`module.exports = require(…)`).
+    //      Vite's CJS-to-ESM conversion can fail to synthesise the named
+    //      `useSyncExternalStore` export when the module is discovered
+    //      mid-graph — the browser then throws SyntaxError on first import.
+    //      Pre-bundling as an upfront optimisation unit fixes synthesis.
+    //
+    //   2. @byline/ui imports many @base-ui/react subpaths (`/accordion`,
+    //      `/dialog`, etc.) and each LATE discovery triggers a re-optimise
+    //      that shifts cache hashes — leaving in-flight imports referencing
+    //      old hashes. Eager `include` brings them into the first
+    //      optimisation pass and reduces re-optimisation churn.
+    client: {
+      optimizeDeps: {
+        include: [
+          '@base-ui/react',
+          '@base-ui/utils',
+          'use-sync-external-store/shim',
+          'use-sync-external-store/shim/with-selector',
+        ],
+      },
+    },
     ssr: {
       resolve: {
         noExternal: bylineSsrNoExternal,
@@ -46,40 +80,8 @@ const config = defineConfig({
     noExternal: bylineSsrNoExternal,
     external: ssrExternal,
   },
-  // Mirror the externals into Vite's client-side dep pre-bundling step.
-  // TanStack Start strips server-only imports from server-fn modules
-  // during its own compile pass, but `optimizeDeps` runs BEFORE that
-  // and tries to pre-bundle anything reachable from a client file —
-  // including transitive imports through `@byline/admin/admin-*` barrels.
-  //
-  // `@base-ui/react` and `@base-ui/utils` need eager pre-bundling for
-  // two reasons working in tension:
-  //
-  //   1. `@base-ui/utils/store/useStore` imports `use-sync-external-store/
-  //      shim`, which is pure CJS (`module.exports = require(...)`).
-  //      Vite's CJS-to-ESM conversion can fail to synthesize the named
-  //      `useSyncExternalStore` export when the module is discovered
-  //      mid-graph — the browser then throws SyntaxError on first import.
-  //      Pre-bundling as an upfront optimization unit fixes synthesis.
-  //
-  //   2. @byline/ui imports many @base-ui/react subpaths (`/accordion`,
-  //      `/dialog`, etc.) and each LATE discovery triggers a re-optimize
-  //      that shifts cache hashes — leaving in-flight imports referencing
-  //      old hashes. Eager `include` brings them into the first
-  //      optimization pass and reduces re-optimization churn.
-  //
-  // `entries` is required so Vite's crawler walks the byline scaffold
-  // (its file imports start outside `index.html`); without it, the
-  // optimizer doesn't see anything reached only via TanStack file-route
-  // codegen and Lazy components.
   optimizeDeps: {
     exclude: ssrExternal,
-    include: [
-      '@base-ui/react',
-      '@base-ui/utils',
-      'use-sync-external-store/shim',
-      'use-sync-external-store/shim/with-selector',
-    ],
   },
   plugins: [
     devtools(),
@@ -98,7 +100,30 @@ const config = defineConfig({
       // the Nitro level — Vite's `ssr.external` only applies to Vite's
       // own builder, not Nitro's.
       rollupConfig: {
-        external: ['pino', 'sharp', /^@byline\/(admin|db-postgres|storage-local)/],
+        external: [
+          // Explicit problem-packages kept external so Node resolves them
+          // as singletons from the module cache at runtime.
+          //
+          // react + react-dom MUST be here. TanStack Start's Nitro build
+          // otherwise wraps them in a `__commonJSMin` closure inside `_libs`
+          // — a self-contained module that is NOT registered in Node's module
+          // cache. Any code that calls the real `require('react')` (e.g.
+          // `use-sync-external-store/shim` pre-bundled inside @byline/ui's
+          // dist files) gets a second, separate React instance. Because
+          // `ReactSharedInternals.H` (the dispatcher) is set on the `_libs`
+          // closure-React during rendering, the other instance has H=null and
+          // throws: "Cannot read properties of null (reading
+          // 'useSyncExternalStore')".
+          //
+          // Marking react/react-dom as Rollup externals forces `_libs` to
+          // emit `__require('react')` instead of inlining a closure, so both
+          // code paths hit the same Node.js module-cache singleton.
+          'react',
+          'react-dom',
+          'pino',
+          'sharp',
+          /^@byline\/(admin|db-postgres|storage-local)/,
+        ],
       },
     }),
     tailwindcss(),
