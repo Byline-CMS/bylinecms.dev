@@ -43,7 +43,7 @@ export function NewsList({ result, category }: NewsListProps) {
         />
       </div>
       {docs.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-500">
+        <div className="p-6 text-center text-gray-800 dark:text-gray-300">
           <p>No news items found.</p>
         </div>
       ) : (
