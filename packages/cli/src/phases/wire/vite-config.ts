@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import type { Context } from '../../context.js'
@@ -41,11 +41,21 @@ async function run(ctx: Context, _dryRun: boolean): Promise<SubEditResult> {
     return { status: 'skipped', message: `${REL}: already matches the canonical Byline config` }
   }
 
-  // Per design decision #2: do not attempt to merge. Print canonical, bail to manual.
+  if (_dryRun) {
+    return {
+      status: 'manual',
+      message: `${REL}: differs from canonical — apply will back up existing file to vite.config.bak and replace it`,
+      snippet: canonical,
+    }
+  }
+
+  // Back up the user's existing config then install the canonical template.
+  const backupPath = ctx.resolve('vite.config.bak')
+  copyFileSync(path, backupPath)
+  writeFileSync(path, canonical, 'utf8')
   return {
-    status: 'manual',
-    message: `${REL}: differs from canonical — see snippet for required content`,
-    snippet: canonical,
+    status: 'done',
+    message: `${REL}: existing file backed up to vite.config.bak and replaced with the canonical Byline vite.config.ts config`,
   }
 }
 

@@ -126,6 +126,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'types for lodash-es',
   },
   {
+    name: 'classnames',
+    version: '^2.5.1',
+    group: 'dev',
+    note: 'utility for conditionally joining classNames',
+  },
+  {
     name: 'tsx',
     version: '^4.21.0',
     group: 'dev',

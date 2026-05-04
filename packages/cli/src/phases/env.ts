@@ -79,7 +79,7 @@ export const envPhase: Phase = {
 
     if (missing.has('BYLINE_SUPERADMIN_EMAIL')) {
       const email = await ctx.prompter.text({
-        message: 'Super-admin email',
+        message: 'Byline super-admin email',
         defaultValue: a.adminEmail ?? 'admin@byline.local',
       })
       ctx.state.patchAnswers({ adminEmail: email })
@@ -88,7 +88,7 @@ export const envPhase: Phase = {
 
     if (missing.has('BYLINE_SUPERADMIN_PASSWORD')) {
       const pw = await ctx.prompter.password({
-        message: 'Super-admin password (min 8 chars)',
+        message: 'Byline super-admin password (min 8 chars)',
         validate: (v) => (v.length < 8 ? 'must be at least 8 characters' : undefined),
       })
       values.BYLINE_SUPERADMIN_PASSWORD = pw

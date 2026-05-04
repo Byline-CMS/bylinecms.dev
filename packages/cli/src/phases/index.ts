@@ -7,7 +7,7 @@ import { preflightPhase } from './preflight.js'
 import { routesPhase } from './routes.js'
 import { scaffoldPhase } from './scaffold.js'
 import { seedAdminPhase } from './seed-admin.js'
-import { stubPhase } from './stub.js'
+// import { stubPhase } from './stub.js'
 import { uiPhase } from './ui.js'
 import { wirePhase } from './wire/index.js'
 import type { Phase, PhaseId } from '../types.js'
@@ -24,7 +24,7 @@ export const PHASES: Phase[] = [
   routesPhase,
   seedAdminPhase,
   uiPhase,
-  stubPhase('verify', 'Verify — typecheck and smoke-test admin route'),
+  // stubPhase('verify', 'Verify — typecheck and smoke-test admin route'),
 ]
 
 export const PHASE_IDS = PHASES.map((p) => p.id) as PhaseId[]
