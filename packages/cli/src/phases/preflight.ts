@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 
+import type { Context } from '../context.js'
 import type { PackageManager, Phase } from '../types.js'
 
 export const preflightPhase: Phase = {
@@ -31,13 +32,35 @@ export const preflightPhase: Phase = {
       if (!ok) return { state: 'blocked' }
     }
 
-    const pm = detectPackageManager(ctx.cwd)
+    const pm = await resolvePackageManager(ctx)
     ctx.pm = pm
     ctx.state.patchAnswers({ pm })
     ctx.logger.info(`package manager: ${pm}`)
 
     return { state: 'done' }
   },
+}
+
+async function resolvePackageManager(ctx: Context): Promise<PackageManager> {
+  const fromFlag = ctx.cliFlags.pm as PackageManager | undefined
+  if (fromFlag) {
+    ctx.logger.info(`using --pm ${fromFlag}`)
+    return fromFlag
+  }
+  const detected = detectPackageManager(ctx.cwd)
+  if (ctx.yes) return detected
+
+  // Put the detected manager first so --yes / pressing Enter accepts it,
+  // but let the user pick another if their fresh app has no lockfile yet
+  // and the detection defaulted to pnpm.
+  const others = (['pnpm', 'npm', 'yarn', 'bun'] as PackageManager[]).filter((p) => p !== detected)
+  return ctx.prompter.select<PackageManager>({
+    message: 'Package manager to use for installs',
+    options: [
+      { value: detected, label: detected, hint: 'detected' },
+      ...others.map((p) => ({ value: p, label: p })),
+    ],
+  })
 }
 
 export function detectPackageManager(cwd: string): PackageManager {

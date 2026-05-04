@@ -1,10 +1,31 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 
 import type { Context } from '../context.js'
 import type { Phase, PhaseState } from '../types.js'
 
 const TANSTACK_DEP = '@tanstack/react-start'
-const REQUIRED_FILES = ['src/server.ts', 'src/start.ts', 'src/routes/__root.tsx']
+const REQUIRED_FILE = 'src/routes/__root.tsx'
+const CREATABLE_FILES: { rel: string; stub: string }[] = [
+  {
+    rel: 'src/server.ts',
+    stub: `import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
+
+export default createServerEntry({
+  fetch(request) {
+    return handler.fetch(request)
+  },
+})
+`,
+  },
+  {
+    rel: 'src/start.ts',
+    stub: `import { createStart } from '@tanstack/react-start'
+
+export const startInstance = createStart(() => ({}))
+`,
+  },
+]
 
 export const hostPhase: Phase = {
   id: 'host',
@@ -16,8 +37,7 @@ export const hostPhase: Phase = {
   },
 
   async plan(ctx) {
-    const r = inspectHost(ctx)
-    return { writes: [], commands: [], notes: r.notes }
+    return { writes: [], commands: [], notes: inspectHost(ctx).notes }
   },
 
   async apply(_plan, ctx) {
@@ -31,6 +51,15 @@ export const hostPhase: Phase = {
       return { state: 'blocked' }
     }
     for (const n of r.notes) ctx.logger.info(n)
+
+    for (const f of CREATABLE_FILES) {
+      const abs = ctx.resolve(f.rel)
+      if (existsSync(abs)) continue
+      mkdirSync(dirname(abs), { recursive: true })
+      writeFileSync(abs, f.stub, 'utf8')
+      ctx.logger.success(`created ${f.rel} (minimal stub — wire phase will register Byline)`)
+    }
+
     return { state: 'done' }
   },
 }
@@ -65,14 +94,25 @@ function inspectHost(ctx: Context): HostInspection {
   }
   notes.push(`${TANSTACK_DEP} ${deps[TANSTACK_DEP]} — detected`)
 
-  const missing = REQUIRED_FILES.filter((f) => !existsSync(ctx.resolve(f)))
-  if (missing.length > 0) {
+  // __root.tsx is the only hard requirement — without it the app has no
+  // routes whatsoever and isn't really a TanStack Start app yet.
+  if (!existsSync(ctx.resolve(REQUIRED_FILE))) {
     return {
       state: 'blocked',
-      notes: [...notes, `missing required files: ${missing.join(', ')}`],
+      notes: [...notes, `missing required file: ${REQUIRED_FILE}`],
     }
   }
-  notes.push('found src/server.ts, src/start.ts, src/routes/__root.tsx')
 
+  // server.ts / start.ts are optional in some bare TanStack Start templates
+  // — we'll create minimal stubs in apply() if they're absent so the wire
+  // phase has something to inject into.
+  const willCreate = CREATABLE_FILES.filter((f) => !existsSync(ctx.resolve(f.rel))).map(
+    (f) => f.rel
+  )
+  if (willCreate.length > 0) {
+    notes.push(`will create minimal stubs for: ${willCreate.join(', ')}`)
+    return { state: 'pending', notes }
+  }
+  notes.push('found src/server.ts, src/start.ts, src/routes/__root.tsx')
   return { state: 'done', notes }
 }

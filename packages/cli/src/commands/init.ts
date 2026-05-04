@@ -4,7 +4,7 @@ import { createPrompter } from '../prompts.js'
 import { runPhase } from '../runner.js'
 import { StateStore } from '../state.js'
 import { createLogger } from '../ui/logger.js'
-import type { PhaseId } from '../types.js'
+import type { PackageManager, PhaseId } from '../types.js'
 
 export interface InitOptions {
   from?: PhaseId
@@ -15,6 +15,7 @@ export interface InitOptions {
   yes?: boolean
   reset?: boolean
   resetIMeanIt?: boolean
+  pm?: PackageManager
   quiet?: boolean
   noColor?: boolean
 }
@@ -39,6 +40,19 @@ export async function runInit(opts: InitOptions): Promise<void> {
   })
 
   prompter.intro('Byline CMS installer')
+  prompter.note(
+    [
+      'This installer adds Byline CMS to a TanStack Start app you already own.',
+      '',
+      'A working reference monorepo (the demo webapp the installer is modelled',
+      'on, with example collections, seeds, and route stubs) lives at:',
+      '  https://github.com/Byline-CMS/bylinecms.dev',
+      '',
+      'Useful while installing — keep it open in another tab if you hit a phase',
+      'that prints a snippet and bails out to manual.',
+    ].join('\n'),
+    'Reference: bylinecms.dev'
+  )
 
   const phases = pickPhases(opts, state.get().completedPhases)
   if (phases.length === 0) {

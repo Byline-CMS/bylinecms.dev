@@ -4,7 +4,9 @@ import { Command } from 'commander'
 import { runDoctor } from './commands/doctor.js'
 import { runInit } from './commands/init.js'
 import { PHASE_IDS } from './phases/index.js'
-import type { PhaseId } from './types.js'
+import type { PackageManager, PhaseId } from './types.js'
+
+const PACKAGE_MANAGERS: PackageManager[] = ['pnpm', 'npm', 'yarn', 'bun']
 
 const program = new Command()
 
@@ -24,6 +26,7 @@ program
   .option('-y, --yes', 'assume yes to non-write prompts')
   .option('--reset', 'destructive: drop existing database in db-init')
   .option('--i-mean-it', 'second confirmation required by --reset')
+  .option('--pm <pm>', `force package manager: ${PACKAGE_MANAGERS.join('|')}`)
   .option('-q, --quiet', 'suppress decorative output')
   .option('--no-color', 'disable color output')
   .action(async (raw) => {
@@ -31,6 +34,7 @@ program
     if (opts.from) assertPhaseId(opts.from as string, '--from')
     if (opts.to) assertPhaseId(opts.to as string, '--to')
     if (opts.only) assertPhaseId(opts.only as string, '--only')
+    if (opts.pm) assertPackageManager(opts.pm as string)
     await runInit({
       from: opts.from as PhaseId | undefined,
       to: opts.to as PhaseId | undefined,
@@ -40,6 +44,7 @@ program
       yes: opts.yes as boolean | undefined,
       reset: opts.reset as boolean | undefined,
       resetIMeanIt: opts.iMeanIt as boolean | undefined,
+      pm: opts.pm as PackageManager | undefined,
       quiet: opts.quiet as boolean | undefined,
       noColor: opts.color === false,
     })
@@ -60,6 +65,13 @@ program.parseAsync(process.argv).catch((e: Error) => {
 function assertPhaseId(value: string, flag: string): asserts value is PhaseId {
   if (!(PHASE_IDS as readonly string[]).includes(value)) {
     console.error(`${flag}: invalid phase "${value}". Valid: ${PHASE_IDS.join(', ')}`)
+    process.exit(1)
+  }
+}
+
+function assertPackageManager(value: string): asserts value is PackageManager {
+  if (!(PACKAGE_MANAGERS as readonly string[]).includes(value)) {
+    console.error(`--pm: invalid value "${value}". Valid: ${PACKAGE_MANAGERS.join(', ')}`)
     process.exit(1)
   }
 }

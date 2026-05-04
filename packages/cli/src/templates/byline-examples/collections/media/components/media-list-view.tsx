@@ -1,0 +1,330 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/**
+ * MediaListView — card-grid list view for the Media collection.
+ *
+ * Registered via `CollectionAdminConfig.listView` in MediaAdmin, replacing
+ * the default table-based ListView. Receives the same paginated API data, so
+ * no additional API parameters or endpoints are required.
+ *
+ * Controls:
+ *  - Search bar (delegates to `?query=` URL param)
+ *  - Order-by dropdown (maps to `?order=` + `?desc=` URL params)
+ *  - Top + bottom pagination (RouterPager)
+ */
+
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+
+import type { ListViewComponentProps, StoredFileValue, WorkflowStatus } from '@byline/core'
+import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { RouterPager } from '@byline/host-tanstack-start/admin-shell/chrome/router-pager'
+import { Container, IconButton, LoaderRing, PlusIcon, Search, Section, Select } from '@byline/ui'
+import { LocalDateTime } from '@byline/ui/react/fields'
+
+import { FormatBadge } from './media-thumbnail'
+
+function formatNumber(n: number, decimalPlaces: number): string {
+  if (typeof n !== 'number' || Number.isNaN(n)) {
+    throw new TypeError('Input must be a valid number')
+  }
+  return n.toLocaleString('en-US', {
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: decimalPlaces,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive the avif thumbnail URL from the original storageUrl using the same
+ * convention as MediaThumbnailCell / the Sharp upload processor.
+ *   `/uploads/media/2026/02/img.jpg` → `/uploads/media/2026/02/img-thumbnail.avif`
+ */
+function deriveThumbnailUrl(storageUrl: string): string {
+  return storageUrl.replace(/\.[^.]+$/, '-thumbnail.avif')
+}
+
+// ---------------------------------------------------------------------------
+// Order-by config
+// ---------------------------------------------------------------------------
+
+/**
+ * Composite order values that encode both `order` field and `desc` direction.
+ * Format: `"<field>_<asc|desc>"` — split at the last underscore when applied.
+ */
+const ORDER_OPTIONS = [
+  { value: 'updated_at_desc', label: 'Recently Updated' },
+  { value: 'updated_at_asc', label: 'Oldest Updated' },
+  { value: 'title_asc', label: 'Title A–Z' },
+  { value: 'title_desc', label: 'Title Z–A' },
+  { value: 'created_at_desc', label: 'Newest Created' },
+  { value: 'created_at_asc', label: 'Oldest Created' },
+] as const
+
+type OrderValue = (typeof ORDER_OPTIONS)[number]['value']
+
+function parseOrderValue(order?: string, desc?: boolean): OrderValue {
+  if (!order) return 'updated_at_desc'
+  const candidate = `${order}_${desc ? 'desc' : 'asc'}` as OrderValue
+  return ORDER_OPTIONS.some((o) => o.value === candidate) ? candidate : 'updated_at_desc'
+}
+
+function splitOrderValue(value: OrderValue): { order: string; desc: boolean } {
+  const i = value.lastIndexOf('_')
+  return { order: value.slice(0, i), desc: value.slice(i + 1) === 'desc' }
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function Stats({ total }: { total: number }) {
+  return (
+    <span className="flex items-center justify-center h-7 min-w-7 px-1.5 py-1.25 -mb-1 whitespace-nowrap text-sm leading-0 bg-gray-25 dark:bg-canvas-700 border rounded-md">
+      {formatNumber(total, 0)}
+    </span>
+  )
+}
+
+function StatusBadge({
+  status,
+  workflowStatuses,
+}: {
+  status: string
+  workflowStatuses: WorkflowStatus[]
+}) {
+  const label = workflowStatuses.find((s) => s.name === status)?.label ?? status
+  const colour =
+    status === 'published'
+      ? 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/30'
+      : status === 'archived'
+        ? 'bg-gray-500/15 text-gray-400 ring-gray-500/30'
+        : 'bg-amber-500/15 text-amber-400 ring-amber-500/30'
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${colour}`}
+    >
+      {label}
+    </span>
+  )
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
+      <LoaderRing className="mb-4 opacity-0" size={1} color="transparent" />
+      <p className="text-sm">No media items found.</p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// MediaListView
+// ---------------------------------------------------------------------------
+
+export function MediaListView({
+  data,
+  workflowStatuses = [],
+}: ListViewComponentProps<AnyCollectionSchemaTypes['ListType']>) {
+  const navigate = useNavigate()
+  const location = useRouterState({ select: (s) => s.location })
+  const collectionPath = data.included.collection.path
+  const search = location.search as Record<string, any>
+
+  // ---- search ----
+
+  const handleOnSearch = (query: string): void => {
+    if (query != null && query.length > 0) {
+      const params = structuredClone(search)
+      delete params.page
+      params.query = query
+      navigate({
+        to: '/admin/collections/$collection',
+        params: { collection: collectionPath },
+        search: params,
+      })
+    }
+  }
+
+  const handleOnClear = (): void => {
+    const params = structuredClone(search)
+    delete params.page
+    delete params.query
+    navigate({
+      to: '/admin/collections/$collection',
+      params: { collection: collectionPath },
+      search: params,
+    })
+  }
+
+  // ---- order-by ----
+
+  const currentOrder = parseOrderValue(search.order, search.desc)
+
+  const handleOrderChange = (value: string | null): void => {
+    if (value == null) return
+    const { order, desc } = splitOrderValue(value as OrderValue)
+    const params = structuredClone(search)
+    delete params.page
+    params.order = order
+    params.desc = desc
+    navigate({
+      to: '/admin/collections/$collection',
+      params: { collection: collectionPath },
+      search: params,
+    })
+  }
+
+  // ---- render ----
+
+  return (
+    <Section>
+      <Container>
+        {/* ---- Header ---- */}
+        <div className="flex items-center gap-3 py-0.5">
+          <h1 className="m-0! pb-0.5">{data.included.collection.labels.plural as string}</h1>
+          <Stats total={data.meta.total} />
+          <IconButton
+            aria-label="Upload New Media"
+            render={
+              <Link
+                className="ml-auto"
+                to="/admin/collections/$collection/create"
+                params={{ collection: collectionPath }}
+              />
+            }
+          >
+            <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
+          </IconButton>
+        </div>
+
+        {/* ---- Toolbar ---- */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap items-start sm:items-center mt-3 mb-4">
+          <Search
+            onSearch={handleOnSearch}
+            onClear={handleOnClear}
+            inputSize="sm"
+            placeholder="Search media…"
+            className="w-full max-w-87.5"
+          />
+
+          {/* Order-by */}
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <label
+              htmlFor="media_order"
+              className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap"
+            >
+              Order by
+            </label>
+            <Select
+              id="media_order"
+              name="media_order"
+              size="sm"
+              value={currentOrder}
+              onValueChange={handleOrderChange}
+              items={[...ORDER_OPTIONS]}
+            />
+          </div>
+
+          {/* Top pager */}
+          <RouterPager
+            page={data.meta.page}
+            count={data.meta.totalPages}
+            showFirstButton
+            showLastButton
+            componentName="pagerTop"
+            aria-label="Top Pager"
+          />
+        </div>
+
+        {/* ---- Card grid ---- */}
+        {data.docs.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6 mt-4">
+            {(data.docs as any[]).map((doc) => {
+              const fields = doc.fields ?? {}
+              const img = fields.image as StoredFileValue | null | undefined
+              const thumbUrl = img?.storageUrl
+                ? img.thumbnailGenerated
+                  ? deriveThumbnailUrl(img.storageUrl)
+                  : img.storageUrl
+                : null
+
+              const updatedAt = doc.updatedAt ?? null
+
+              return (
+                <Link
+                  key={doc.id}
+                  to="/admin/collections/$collection/$id"
+                  params={{ collection: collectionPath, id: doc.id }}
+                  className="group flex flex-col overflow-hidden rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-canvas-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors no-underline"
+                >
+                  {/* Thumbnail */}
+                  <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-canvas-700">
+                    {thumbUrl ? (
+                      <img
+                        src={thumbUrl}
+                        alt={fields.altText ?? img?.originalFilename ?? ''}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-xs text-gray-400 dark:text-gray-600">
+                        No image
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Card meta */}
+                  <div className="flex flex-col gap-1.5 p-2 min-w-0">
+                    <span
+                      className="truncate text-sm font-medium leading-snug"
+                      title={fields.title ?? ''}
+                    >
+                      {fields.title ?? '—'}
+                    </span>
+                    <div className="flex flex-wrap items-center justify-between gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
+                        {doc.status && (
+                          <StatusBadge status={doc.status} workflowStatuses={workflowStatuses} />
+                        )}
+                        {img?.imageFormat && <FormatBadge format={img.imageFormat} />}
+                      </div>
+                      {updatedAt && (
+                        <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                          <LocalDateTime value={updatedAt} mode="date" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+
+        {/* ---- Bottom pagination ---- */}
+        <div className="flex justify-end mb-5">
+          <RouterPager
+            smoothScrollToTop={true}
+            page={data.meta.page}
+            count={data.meta.totalPages}
+            showFirstButton
+            showLastButton
+            componentName="pagerBottom"
+            aria-label="Bottom Pager"
+          />
+        </div>
+      </Container>
+    </Section>
+  )
+}

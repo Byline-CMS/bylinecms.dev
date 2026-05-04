@@ -1,0 +1,10 @@
+import type { FormatterProps } from '@byline/core'
+
+export function FeaturedFormatter({ value, record }: FormatterProps) {
+  if (value == null || value === false) return null
+  return (
+    <span title={`"${record.title}" is featured`} className="text-amber-500">
+      ★
+    </span>
+  )
+}

@@ -51,6 +51,7 @@ export const dbInitPhase: Phase = {
 
     const password = await resolveAppPassword(ctx)
     if (!password) return { state: 'blocked' }
+    ctx.secrets.dbPassword = password
 
     const sup = parsePgUrl(a.superuserUrl)
 

@@ -20,6 +20,10 @@ export interface ContextOptions {
   state: StateStore
 }
 
+export interface Secrets {
+  dbPassword?: string
+}
+
 export class Context {
   readonly cwd: string
   readonly apply: boolean
@@ -32,6 +36,7 @@ export class Context {
   readonly logger: Logger
   readonly prompter: Prompter
   readonly state: StateStore
+  readonly secrets: Secrets = {}
 
   constructor(opts: ContextOptions) {
     this.cwd = opts.cwd

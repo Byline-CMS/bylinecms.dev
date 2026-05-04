@@ -1,8 +1,14 @@
 import { dbPhase } from './db.js'
 import { dbInitPhase } from './db-init.js'
+import { depsPhase } from './deps.js'
+import { envPhase } from './env.js'
 import { hostPhase } from './host.js'
 import { preflightPhase } from './preflight.js'
+import { routesPhase } from './routes.js'
+import { scaffoldPhase } from './scaffold.js'
 import { stubPhase } from './stub.js'
+import { uiPhase } from './ui.js'
+import { wirePhase } from './wire/index.js'
 import type { Phase, PhaseId } from '../types.js'
 
 export const PHASES: Phase[] = [
@@ -10,15 +16,12 @@ export const PHASES: Phase[] = [
   hostPhase,
   dbPhase,
   dbInitPhase,
-  stubPhase('env', 'Env — generate .env (JWT secret, admin credentials, DATABASE_URL)'),
-  stubPhase('deps', 'Deps — install required @byline/* packages'),
-  stubPhase('scaffold', 'Scaffold — copy byline/ config tree into app root'),
-  stubPhase(
-    'wire',
-    'Wire — inject imports into server.ts, start.ts, __root.tsx, tsconfig, vite.config'
-  ),
-  stubPhase('routes', 'Routes — drop src/routes/(byline)/admin route stubs'),
-  stubPhase('ui', 'UI — copy serialization components to src/ui/byline'),
+  envPhase,
+  depsPhase,
+  scaffoldPhase,
+  wirePhase,
+  routesPhase,
+  uiPhase,
   stubPhase('verify', 'Verify — typecheck and smoke-test admin route'),
 ]
 
