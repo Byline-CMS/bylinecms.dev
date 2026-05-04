@@ -20,9 +20,9 @@ export const PHASES: Phase[] = [
   envPhase,
   depsPhase,
   scaffoldPhase,
-  seedAdminPhase,
   wirePhase,
   routesPhase,
+  seedAdminPhase,
   uiPhase,
   stubPhase('verify', 'Verify — typecheck and smoke-test admin route'),
 ]
