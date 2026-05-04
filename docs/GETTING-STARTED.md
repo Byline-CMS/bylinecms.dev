@@ -18,7 +18,7 @@ Then be sure to select the Nitro (agnostic) adapter.
 Once your Tanstack Start application is ready you can initialize a Byline installation with:
 
 ```sh
-npx @byline/cli@latest byline init
+npx @byline/cli@latest init
 ```
 If there are any issues, you can follow the example application in this repo under `apps/webapp`.
 
