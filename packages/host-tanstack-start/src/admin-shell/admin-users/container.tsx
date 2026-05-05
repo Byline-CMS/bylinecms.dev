@@ -12,8 +12,19 @@ import type React from 'react'
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
-import { Button, CloseIcon, Drawer, EditIcon, IconButton, Modal, useToastManager } from '@byline/ui/react'
-import { LocalDateTime, SetPassword, UpdateUser, UserRoles } from '@byline/ui/react'
+import {
+  Button,
+  CloseIcon,
+  Drawer,
+  EditIcon,
+  IconButton,
+  LocalDateTime,
+  Modal,
+  SetPassword,
+  UpdateUser,
+  UserRoles,
+  useToastManager,
+} from '@byline/ui/react'
 import cx from 'classnames'
 
 import styles from './container.module.css'

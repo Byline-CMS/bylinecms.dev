@@ -24,7 +24,6 @@
 }
 
 @media (min-width: 40rem) {
-
   .head,
   :global(.byline-coll-history-head) {
     flex-direction: row;
@@ -74,7 +73,6 @@
 }
 
 @media (min-width: 40rem) {
-
   .options,
   :global(.byline-coll-history-options) {
     flex-direction: row;
@@ -197,7 +195,6 @@
 }
 
 @media (min-width: 40rem) {
-
   .pageSize,
   :global(.byline-coll-history-page-size) {
     margin-left: auto;

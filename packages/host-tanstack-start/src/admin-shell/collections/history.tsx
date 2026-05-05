@@ -11,8 +11,18 @@ import { useParams, useRouterState } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Button, CloseIcon, Container, IconButton, Modal, Section, Select, Table } from '@byline/ui/react'
-import { renderFormatted, StatusBadge } from '@byline/ui/react'
+import {
+  Button,
+  CloseIcon,
+  Container,
+  IconButton,
+  Modal,
+  renderFormatted,
+  Section,
+  Select,
+  StatusBadge,
+  Table,
+} from '@byline/ui/react'
 import cx from 'classnames'
 
 import { Link, useNavigate } from '../chrome/loose-router.js'
@@ -75,7 +85,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-        }`}
+      }`}
       className={cx('byline-coll-history-pad-row', styles.padRow)}
     >
       &nbsp;
@@ -262,15 +272,15 @@ export const HistoryView = ({
                                 >
                                   {column.formatter
                                     ? renderFormatted(
-                                      getColumnValue(document, column.fieldName as string),
-                                      document,
-                                      column.formatter
-                                    )
+                                        getColumnValue(document, column.fieldName as string),
+                                        document,
+                                        column.formatter
+                                      )
                                     : resolveDisplayValue(
-                                      getColumnValue(document, column.fieldName as string),
-                                      locale,
-                                      defaultContentLocale
-                                    ) || '------'}
+                                        getColumnValue(document, column.fieldName as string),
+                                        locale,
+                                        defaultContentLocale
+                                      ) || '------'}
                                 </button>
                               ) : (
                                 <Link
@@ -282,15 +292,15 @@ export const HistoryView = ({
                                 >
                                   {column.formatter
                                     ? renderFormatted(
-                                      getColumnValue(document, column.fieldName as string),
-                                      document,
-                                      column.formatter
-                                    )
+                                        getColumnValue(document, column.fieldName as string),
+                                        document,
+                                        column.formatter
+                                      )
                                     : resolveDisplayValue(
-                                      getColumnValue(document, column.fieldName as string),
-                                      locale,
-                                      defaultContentLocale
-                                    ) || '------'}
+                                        getColumnValue(document, column.fieldName as string),
+                                        locale,
+                                        defaultContentLocale
+                                      ) || '------'}
                                 </Link>
                               )
                             ) : column.formatter ? (

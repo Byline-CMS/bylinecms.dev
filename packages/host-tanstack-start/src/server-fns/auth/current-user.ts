@@ -55,7 +55,7 @@ export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
       throw new Error('unexpected null actor after getAdminRequestContext')
     }
 
-    const row = await bylineCore().adminStore!.adminUsers.getById(actor.id)
+    const row = await bylineCore().adminStore?.adminUsers.getById(actor.id)
     if (!row) {
       // Session resolved to an admin id that no longer exists — force the
       // caller back through sign-in rather than return partial data.
@@ -93,7 +93,7 @@ export const getCurrentAdminUserSoft = createServerFn({ method: 'GET' }).handler
       }
       if (!actor) return null
 
-      const row = await bylineCore().adminStore!.adminUsers.getById(actor.id)
+      const row = await bylineCore().adminStore?.adminUsers.getById(actor.id)
       if (!row) return null
 
       return {

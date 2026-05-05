@@ -371,10 +371,7 @@ export class CollectionHandle {
    * a `restore: { sourceVersionId }` field on the hook context so userland
    * hooks can branch.
    */
-  async restoreVersion(
-    documentId: string,
-    sourceVersionId: string
-  ): Promise<RestoreVersionResult> {
+  async restoreVersion(documentId: string, sourceVersionId: string): Promise<RestoreVersionResult> {
     const ctx = await this.buildLifecycleContext()
     return restoreDocumentVersion(ctx, { documentId, sourceVersionId })
   }
