@@ -67,8 +67,8 @@ export const envPhase: Phase = {
       )
       values.VITE_SERVER_URL = await ctx.prompter.text({
         message: 'Public origin URL',
-        placeholder: 'http://localhost:5173/',
-        defaultValue: 'http://localhost:5173/',
+        placeholder: 'http://localhost:3000/',
+        defaultValue: 'http://localhost:3000/',
       })
     }
 

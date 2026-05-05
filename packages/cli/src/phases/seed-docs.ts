@@ -5,19 +5,23 @@ import { execa } from 'execa'
 import type { Context } from '../context.js'
 import type { PackageManager, Phase, ShellCommand } from '../types.js'
 
-const SEED_ENTRY = 'byline/seed-admin.ts'
+const SEED_ENTRY = 'byline/seed-docs.ts'
 
-export const seedAdminPhase: Phase = {
-  id: 'seed-admin',
-  title: 'Seed admin — bootstrap the super-admin user from .env credentials',
+export const seedDocsPhase: Phase = {
+  id: 'seed-docs',
+  title: 'Seed example docs — bootstrap example docs',
   defaultMode: 'confirm',
 
   async detect(ctx) {
-    if (ctx.state.isComplete('seed-admin')) return 'done'
+    if (ctx.state.isComplete('seed-docs')) return 'done'
     return preflightCheck(ctx) ?? 'pending'
   },
 
   async plan(ctx) {
+    if (ctx.state.get().answers.examples === false) {
+      ctx.logger.info('seed-docs — skipped (examples not installed)')
+      return { writes: [], commands: [], notes: [] }
+    }
     const blocked = preflightCheck(ctx)
     if (blocked) {
       return {
@@ -64,8 +68,8 @@ function preflightCheck(ctx: Context): 'blocked' | null {
     ctx.logger.error(`${SEED_ENTRY} not found — run scaffold first`)
     return 'blocked'
   }
-  if (!existsSync(ctx.resolve('byline/seeds/admin.ts'))) {
-    ctx.logger.error('byline/seeds/admin.ts not found — run scaffold first')
+  if (!existsSync(ctx.resolve('byline/seeds/docs.ts'))) {
+    ctx.logger.error('byline/seeds/docs.ts not found — run scaffold first')
     return 'blocked'
   }
   if (!existsSync(ctx.resolve('.env'))) {

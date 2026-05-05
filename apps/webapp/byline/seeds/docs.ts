@@ -242,7 +242,7 @@ const sampleDocument = {
   links: [{ link: 'https://example.com' }, { link: 'https://another-example.com' }],
 }
 
-export async function seedDocs(count = 1000) {
+export async function seedDocs(count = 15) {
   const db = getServerConfig().db
 
   const collectionDefinition = getCollectionDefinition('docs')

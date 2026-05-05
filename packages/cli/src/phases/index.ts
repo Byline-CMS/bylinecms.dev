@@ -7,6 +7,7 @@ import { preflightPhase } from './preflight.js'
 import { routesPhase } from './routes.js'
 import { scaffoldPhase } from './scaffold.js'
 import { seedAdminPhase } from './seed-admin.js'
+import { seedDocsPhase } from './seed-docs.js'
 // import { stubPhase } from './stub.js'
 import { uiPhase } from './ui.js'
 import { wirePhase } from './wire/index.js'
@@ -19,10 +20,11 @@ export const PHASES: Phase[] = [
   dbInitPhase,
   envPhase,
   depsPhase,
-  scaffoldPhase,
   wirePhase,
   routesPhase,
+  scaffoldPhase,
   seedAdminPhase,
+  seedDocsPhase,
   uiPhase,
   // stubPhase('verify', 'Verify — typecheck and smoke-test admin route'),
 ]
