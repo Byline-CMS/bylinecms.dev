@@ -2,6 +2,23 @@
 
 ## 2.0.0
 
+### Minor Changes
+
+- a5127f5: Removed lodash-es and updated CLI deps. Collapsed @byline/ui exports to single /react entry. Renamed admin Row/Group/Tabs to AdminRow/AdminGroup/AdminTabs.
+
+### Patch Changes
+
+- Updated dependencies [a5127f5]
+  - @byline/ui@1.1.0
+  - @byline/admin@1.1.0
+  - @byline/auth@1.1.0
+  - @byline/client@1.1.0
+  - @byline/core@1.1.0
+  - @byline/db-postgres@1.1.0
+  - @byline/storage-local@1.1.0
+
+## 2.0.0
+
 ### Major Changes
 
 - 002a29a: First major verison of Byline. Initial version of CLI.

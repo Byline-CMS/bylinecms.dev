@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.1.0
+
+### Minor Changes
+
+- a5127f5: Removed lodash-es and updated CLI deps. Collapsed @byline/ui exports to single /react entry. Renamed admin Row/Group/Tabs to AdminRow/AdminGroup/AdminTabs.
+
 ## 1.0.0
 
 ### Major Changes
