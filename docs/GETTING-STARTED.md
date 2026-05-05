@@ -7,7 +7,7 @@ npx @tanstack/cli@latest create
 
 #or
 
-pnpm dlx @byline/cli@latest init
+pnpm dlx @tanstack/cli@latest create
 ```
 Then be sure to select the Nitro (agnostic) adapter.
 ```
@@ -23,6 +23,10 @@ Once your TanStack Start application is ready you can initialize a Byline instal
 
 ```sh
 npx @byline/cli@latest init
+
+# or
+
+pnpm dlx @byline/cli@latest init
 ```
 If there are any issues, you can follow the example application in this repo under `apps/webapp`.
 
