@@ -8,7 +8,6 @@
 
 import type { RichTextField } from '@byline/core'
 import { defaultEditorConfig, type EditorConfig } from '@byline/richtext-lexical'
-import { cloneDeep } from 'lodash-es'
 
 type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
   /**
@@ -75,7 +74,7 @@ function applyCompactPreset(config: EditorConfig): EditorConfig {
  */
 export function lexicalRichTextCompact(options: Options = {}): RichTextField {
   const { configure, ...rest } = options
-  const base = applyCompactPreset(cloneDeep(defaultEditorConfig))
+  const base = applyCompactPreset(structuredClone(defaultEditorConfig))
   const editorConfig = configure ? configure(base) : base
 
   return {

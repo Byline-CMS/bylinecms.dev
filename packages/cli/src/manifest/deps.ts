@@ -26,7 +26,7 @@ export interface DepSpec {
   note: string
 }
 
-export const BYLINE_VERSION = '^0.10.0'
+export const BYLINE_VERSION = '^1.0.0'
 export const HOST_TANSTACK_VERSION = '^1.0.0'
 
 export const DEP_SPECS: readonly DepSpec[] = [
@@ -88,16 +88,16 @@ export const DEP_SPECS: readonly DepSpec[] = [
 
   // ---- Runtime third-party ------------------------------------------------
   {
+    name: 'classnames',
+    version: '^2.5.1',
+    group: 'runtime',
+    note: 'utility for conditionally joining classNames; imported by ui/byline templates',
+  },
+  {
     name: 'dotenv',
     version: '^17.4.2',
     group: 'runtime',
     note: 'used by byline/seed',
-  },
-  {
-    name: 'lodash-es',
-    version: '^4.17.21',
-    group: 'runtime',
-    note: 'used by byline/ config helpers',
   },
   {
     name: 'pino',
@@ -118,18 +118,6 @@ export const DEP_SPECS: readonly DepSpec[] = [
     version: '^0.6.0',
     group: 'dev',
     note: 'TanStack devtools Vite plugin (used by canonical vite.config.ts)',
-  },
-  {
-    name: '@types/lodash-es',
-    version: '^4.17.12',
-    group: 'dev',
-    note: 'types for lodash-es',
-  },
-  {
-    name: 'classnames',
-    version: '^2.5.1',
-    group: 'dev',
-    note: 'utility for conditionally joining classNames',
   },
   {
     name: 'tsx',
