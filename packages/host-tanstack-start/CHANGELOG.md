@@ -1,6 +1,6 @@
 # @byline/host-tanstack-start
 
-## 2.0.0
+## 1.2.0
 
 ### Minor Changes
 
@@ -19,7 +19,7 @@
   - @byline/auth@1.2.0
   - @byline/storage-local@1.2.0
 
-## 2.0.0
+## 1.1.0
 
 ### Minor Changes
 
@@ -36,7 +36,7 @@
   - @byline/db-postgres@1.1.0
   - @byline/storage-local@1.1.0
 
-## 2.0.0
+## 1.0.0
 
 ### Major Changes
 
@@ -53,7 +53,7 @@
   - @byline/storage-local@1.0.0
   - @byline/ui@1.0.0
 
-## 1.0.6
+## 0.10.6
 
 ### Patch Changes
 
@@ -67,7 +67,7 @@
   - @byline/storage-local@0.10.6
   - @byline/ui@0.10.6
 
-## 1.0.5
+## 0.10.5
 
 ### Patch Changes
 
@@ -83,7 +83,7 @@
   - @byline/core@0.10.5
   - @byline/ui@0.10.5
 
-## 1.0.4
+## 0.10.4
 
 ### Patch Changes
 
@@ -97,7 +97,7 @@
   - @byline/storage-local@0.10.4
   - @byline/ui@0.10.4
 
-## 1.0.3
+## 0.10.3
 
 ### Patch Changes
 
@@ -111,7 +111,7 @@
   - @byline/core@0.10.3
   - @byline/ui@0.10.3
 
-## 1.0.2
+## 0.10.2
 
 ### Patch Changes
 
@@ -125,7 +125,7 @@
   - @byline/core@0.10.2
   - @byline/ui@0.10.2
 
-## 1.0.1
+## 0.10.1
 
 ### Patch Changes
 
@@ -139,7 +139,7 @@
   - @byline/storage-local@0.10.1
   - @byline/ui@0.10.1
 
-## 1.0.0
+## 0.9.3
 
 ### Minor Changes
 
@@ -156,7 +156,7 @@
   - @byline/storage-local@0.10.0
   - @byline/ui@0.10.0
 
-## 0.9.3
+## 0.9.2
 
 ### Patch Changes
 
