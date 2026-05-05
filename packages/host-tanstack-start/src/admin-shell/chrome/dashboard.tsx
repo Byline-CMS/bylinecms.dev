@@ -8,7 +8,7 @@
 
 import type { WorkflowStatus } from '@byline/core'
 import { getClientConfig, getWorkflowStatuses } from '@byline/core'
-import { Card, Container, Section } from '@byline/ui'
+import { Card, Container, Section } from '@byline/ui/react'
 import cx from 'classnames'
 
 import styles from './dashboard.module.css'

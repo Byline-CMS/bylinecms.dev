@@ -11,7 +11,7 @@
 import type React from 'react'
 import { memo, useCallback, useMemo, useRef } from 'react'
 
-import { HelpText, Label } from '@byline/ui'
+import { HelpText, Label } from '@byline/ui/react'
 import type { EditorState, SerializedEditorState } from 'lexical'
 import { ErrorBoundary } from 'react-error-boundary'
 

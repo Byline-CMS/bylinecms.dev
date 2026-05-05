@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 
-import { Button } from '@byline/ui'
+import { Button } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { adminSignOut, type CurrentAdminUser } from '../../server-fns/auth/index.js'

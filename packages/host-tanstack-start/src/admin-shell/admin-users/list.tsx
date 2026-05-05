@@ -22,7 +22,7 @@ import {
   Select,
   Table,
   useToastManager,
-} from '@byline/ui'
+} from '@byline/ui/react'
 import { CreateAdminUser, LocalDateTime } from '@byline/ui/react'
 import cx from 'classnames'
 

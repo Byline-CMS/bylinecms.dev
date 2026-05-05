@@ -20,7 +20,7 @@ import {
   Section,
   Select,
   Table,
-} from '@byline/ui'
+} from '@byline/ui/react'
 import { renderFormatted, StatusBadge } from '@byline/ui/react'
 import cx from 'classnames'
 

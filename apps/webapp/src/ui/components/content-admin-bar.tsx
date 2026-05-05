@@ -22,7 +22,7 @@ import {
   EyeOpenIcon,
   InfonomicIcon,
   SignOutIcon,
-} from '@byline/ui'
+} from '@byline/ui/react'
 
 export type ContentAdminBarProps = {
   user: CurrentAdminUser | null

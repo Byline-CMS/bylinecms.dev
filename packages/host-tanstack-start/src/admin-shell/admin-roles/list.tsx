@@ -40,7 +40,7 @@ import {
   Table,
   useSortable,
   useToastManager,
-} from '@byline/ui'
+} from '@byline/ui/react'
 import { CreateAdminRole, LocalDateTime } from '@byline/ui/react'
 import cx from 'classnames'
 

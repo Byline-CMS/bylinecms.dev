@@ -1,4 +1,4 @@
-import { Container, Section } from '@byline/ui'
+import { Container, Section } from '@byline/ui/react'
 
 export function FeatureGrid() {
   return (

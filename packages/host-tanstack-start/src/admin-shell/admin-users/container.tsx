@@ -12,7 +12,7 @@ import type React from 'react'
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
-import { Button, CloseIcon, Drawer, EditIcon, IconButton, Modal, useToastManager } from '@byline/ui'
+import { Button, CloseIcon, Drawer, EditIcon, IconButton, Modal, useToastManager } from '@byline/ui/react'
 import { LocalDateTime, SetPassword, UpdateUser, UserRoles } from '@byline/ui/react'
 import cx from 'classnames'
 

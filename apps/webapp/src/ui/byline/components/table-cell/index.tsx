@@ -1,4 +1,4 @@
-import { Table } from '@byline/ui'
+import { Table } from '@byline/ui/react'
 
 import type { Locale } from '@/i18n/i18n-config'
 import type { SerializeOptions, SerializeProps } from '../richtext-lexical/serialize/index.tsx'

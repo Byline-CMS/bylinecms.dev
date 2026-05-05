@@ -1,6 +1,6 @@
 import type React from 'react'
 
-import { CheckIcon } from '@byline/ui'
+import { CheckIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { useLocale, useLocaleNavigation } from '@/i18n/hooks/use-locale-navigation'

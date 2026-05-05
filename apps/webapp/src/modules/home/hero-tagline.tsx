@@ -1,4 +1,4 @@
-import { Container, Section } from '@byline/ui'
+import { Container, Section } from '@byline/ui/react'
 
 import { LangLink } from '@/i18n/components/lang-link'
 

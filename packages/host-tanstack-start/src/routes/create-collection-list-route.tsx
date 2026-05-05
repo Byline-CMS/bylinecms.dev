@@ -15,7 +15,7 @@ import {
   getCollectionDefinition,
   getWorkflowStatuses,
 } from '@byline/core'
-import { useToastManager } from '@byline/ui'
+import { useToastManager } from '@byline/ui/react'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'

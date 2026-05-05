@@ -23,7 +23,7 @@
  * existing pattern).
  */
 
-import { ToastProvider, ToastViewport } from '@byline/ui'
+import { ToastProvider, ToastViewport } from '@byline/ui/react'
 
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 

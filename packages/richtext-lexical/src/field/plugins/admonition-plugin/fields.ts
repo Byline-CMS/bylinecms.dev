@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { RadioGroupValue } from '@byline/ui'
+import type { RadioGroupValue } from '@byline/ui/react'
 
 import type { AdmonitionType } from '../../nodes/admonition-node'
 import type { AdmonitionFormState } from './types'

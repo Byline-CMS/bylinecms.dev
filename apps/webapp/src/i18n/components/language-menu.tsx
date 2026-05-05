@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckIcon, Dropdown as DropdownMenu, GlobeIcon } from '@byline/ui'
+import { CheckIcon, Dropdown as DropdownMenu, GlobeIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { useLanguageSwitcher } from '@/i18n/hooks/use-language-switcher'

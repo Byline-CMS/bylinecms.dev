@@ -1,4 +1,4 @@
-import { Container, Section } from '@byline/ui'
+import { Container, Section } from '@byline/ui/react'
 
 import { WYSIWYGAnimation } from '@/modules/home/wysiwyg-animation'
 

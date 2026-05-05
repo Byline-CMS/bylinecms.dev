@@ -9,7 +9,7 @@
 import { useEffect } from 'react'
 
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
-import { Button, HistoryIcon, IconButton, Label, Select } from '@byline/ui'
+import { Button, HistoryIcon, IconButton, Label, Select } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { useNavigate } from '../chrome/loose-router.js'

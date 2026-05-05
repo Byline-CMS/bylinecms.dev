@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { SelectValue } from '@byline/ui'
+import type { SelectValue } from '@byline/ui/react'
 
 export const positionOptions: SelectValue[] = [
   { label: 'Full', value: 'full' },

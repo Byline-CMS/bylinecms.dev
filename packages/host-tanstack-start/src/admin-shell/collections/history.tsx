@@ -11,7 +11,7 @@ import { useParams, useRouterState } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Button, CloseIcon, Container, IconButton, Modal, Section, Select, Table } from '@byline/ui'
+import { Button, CloseIcon, Container, IconButton, Modal, Section, Select, Table } from '@byline/ui/react'
 import { renderFormatted, StatusBadge } from '@byline/ui/react'
 import cx from 'classnames'
 

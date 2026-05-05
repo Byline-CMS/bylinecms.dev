@@ -2,8 +2,8 @@
 
 import type React from 'react'
 
-import type { Intent } from '@byline/ui'
-import { Alert } from '@byline/ui'
+import type { Intent } from '@byline/ui/react'
+import { Alert } from '@byline/ui/react'
 
 import type { Locale } from '@/ui/byline/types/i18n'
 import type { SerializeOptions, SerializeProps } from '../richtext-lexical/serialize/index.tsx'

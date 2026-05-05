@@ -23,7 +23,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { EyeClosedIcon, EyeOpenIcon } from '@byline/ui'
+import { EyeClosedIcon, EyeOpenIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
 import {

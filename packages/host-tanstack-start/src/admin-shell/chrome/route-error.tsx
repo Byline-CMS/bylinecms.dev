@@ -16,7 +16,7 @@ import type { ErrorComponentProps, NotFoundRouteProps } from '@tanstack/react-ro
 import { useRouter } from '@tanstack/react-router'
 
 import { BylineError, ErrorCodes } from '@byline/core'
-import { Alert, Button, Container, Section } from '@byline/ui'
+import { Alert, Button, Container, Section } from '@byline/ui/react'
 import cx from 'classnames'
 
 import styles from './route-error.module.css'

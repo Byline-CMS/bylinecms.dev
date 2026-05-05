@@ -1,6 +1,6 @@
 'use client'
 
-import { CopyButton } from '@byline/ui'
+import { CopyButton } from '@byline/ui/react'
 /* eslint-disable no-param-reassign */
 import cx from 'classnames'
 import { Highlight, themes } from 'prism-react-renderer'

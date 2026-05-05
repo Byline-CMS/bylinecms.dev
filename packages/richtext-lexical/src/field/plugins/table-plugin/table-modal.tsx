@@ -19,7 +19,7 @@
 import type * as React from 'react'
 import { useEffect, useState } from 'react'
 
-import { Button, CloseIcon, IconButton, Input, Modal } from '@byline/ui'
+import { Button, CloseIcon, IconButton, Input, Modal } from '@byline/ui/react'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { INSERT_TABLE_COMMAND } from '@lexical/table'
 

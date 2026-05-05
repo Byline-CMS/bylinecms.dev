@@ -19,7 +19,7 @@
 import type * as React from 'react'
 import { useState } from 'react'
 
-import { Button, CloseIcon, IconButton, Modal, Select, type SelectValue } from '@byline/ui'
+import { Button, CloseIcon, IconButton, Modal, Select, type SelectValue } from '@byline/ui/react'
 
 const layouts: SelectValue[] = [
   { label: '2 columns (equal width)', value: '1fr 1fr' },

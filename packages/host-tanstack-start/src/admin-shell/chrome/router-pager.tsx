@@ -8,14 +8,14 @@
 
 import { useRouterState } from '@tanstack/react-router'
 
-import type { PaginationProps } from '@byline/ui'
+import type { PaginationProps } from '@byline/ui/react'
 import {
   ChevronLeftDoubleIcon,
   ChevronLeftIcon,
   ChevronRightDoubleIcon,
   ChevronRightIcon,
   Pagination,
-} from '@byline/ui'
+} from '@byline/ui/react'
 
 import { Link } from './loose-router.js'
 

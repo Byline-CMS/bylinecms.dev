@@ -23,7 +23,7 @@
  * existing pattern).
  */
 
-import { ToastProvider, ToastViewport } from '@byline/ui'
+import { ToastProvider, ToastViewport } from '@byline/ui/react'
 
 // Initialize Byline admin config — must be imported here so it runs in both
 // the SSR rendering and client module graphs (see byline/admin.config.ts).

@@ -1,5 +1,5 @@
 import type { BlocksUnion } from '@byline/core'
-import { Section } from '@byline/ui'
+import { Section } from '@byline/ui/react'
 
 import { PhotoBlock as PhotoBlockDef } from '~/blocks/photo-block'
 import { RichTextBlock as RichTextBlockDef } from '~/blocks/richtext-block'

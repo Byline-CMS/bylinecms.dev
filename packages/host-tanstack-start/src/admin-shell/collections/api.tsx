@@ -8,7 +8,7 @@
 
 import type { CollectionDefinition } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Container, Section } from '@byline/ui'
+import { Container, Section } from '@byline/ui/react'
 import cx from 'classnames'
 import { allExpanded, darkStyles, JsonView } from 'react-json-view-lite'
 

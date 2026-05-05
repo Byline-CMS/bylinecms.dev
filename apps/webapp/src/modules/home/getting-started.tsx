@@ -1,4 +1,4 @@
-import { Button, Container, GithubIcon, Section } from '@byline/ui'
+import { Button, Container, GithubIcon, Section } from '@byline/ui/react'
 
 export function GettingStarted() {
   return (
