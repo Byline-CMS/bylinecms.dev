@@ -11,7 +11,7 @@ import { useParams, useRouterState } from '@tanstack/react-router'
 
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
-import { Container, IconButton, Section, Select, Table } from '@byline/ui'
+import { Button, CloseIcon, Container, IconButton, Modal, Section, Select, Table } from '@byline/ui'
 import { renderFormatted, StatusBadge } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -20,6 +20,7 @@ import { RouterPager } from '../chrome/router-pager.js'
 import { TableHeadingCellSortable } from '../chrome/th-sortable.js'
 import { formatNumber } from '../chrome/utils.js'
 import styles from './history.module.css'
+import { RestoreVersionModal } from './restore-version-modal.js'
 import { ViewMenu } from './view-menu.js'
 import type { ContentLocaleOption } from './view-menu.js'
 
@@ -27,7 +28,6 @@ import type { ContentLocaleOption } from './view-menu.js'
  * Resolve a column value from a document, checking `fields` first (user-defined
  * collection fields) then the root (metadata like status, updated_at).
  */
-// biome-ignore lint/suspicious/noExplicitAny: collection rows are heterogeneous
 function getColumnValue(document: any, fieldName: string): any {
   if (document.fields && fieldName in document.fields) {
     return document.fields[fieldName]
@@ -75,7 +75,7 @@ function padRows(value: number) {
       key={`empty-row-${
         // biome-ignore lint/suspicious/noArrayIndexKey: we're okay here
         index
-      }`}
+        }`}
       className={cx('byline-coll-history-pad-row', styles.padRow)}
     >
       &nbsp;
@@ -112,6 +112,15 @@ export const HistoryView = ({
     versionId: string
     label: string
   } | null>(null)
+  const [restoreTarget, setRestoreTarget] = useState<{
+    versionId: string
+    label: string
+    versionNumber: number
+  } | null>(null)
+  const currentVersionId =
+    currentDocument && typeof currentDocument.versionId === 'string'
+      ? (currentDocument.versionId as string)
+      : null
 
   function handleOnPageSizeChange(value: string | null): void {
     if (typeof value !== 'string' || value.length === 0) return
@@ -164,8 +173,8 @@ export const HistoryView = ({
                     scope="col"
                     className={cx('byline-coll-history-col-version', styles.colVersion)}
                   />
-                  {columns.map((column) => {
-                    return (
+                  {columns.flatMap((column) => {
+                    const cell = (
                       <TableHeadingCellSortable
                         key={String(column.fieldName)}
                         fieldName={String(column.fieldName)}
@@ -176,6 +185,17 @@ export const HistoryView = ({
                         className={column.className}
                       />
                     )
+                    if (column.fieldName === 'title') {
+                      return [
+                        cell,
+                        <th
+                          key="__restore"
+                          scope="col"
+                          className={cx('byline-coll-history-col-restore', styles.colRestore)}
+                        />,
+                      ]
+                    }
+                    return [cell]
                   })}
                 </Table.Row>
               </Table.Header>
@@ -214,84 +234,119 @@ export const HistoryView = ({
                           </IconButton>
                         ) : null}
                       </Table.Cell>
-                      {columns.map((column) => (
-                        <Table.Cell
-                          key={String(column.fieldName)}
-                          className={cx({
-                            'byline-coll-history-cell-right': column.align === 'right',
-                            [styles.cellRight]: column.align === 'right',
-                            'byline-coll-history-cell-center': column.align === 'center',
-                            [styles.cellCenter]: column.align === 'center',
-                          })}
-                        >
-                          {column.fieldName === 'title' ? (
-                            versionId && currentDocument ? (
-                              <button
-                                type="button"
-                                className={cx(
-                                  'byline-coll-history-title-button',
-                                  styles.titleButton
-                                )}
-                                onClick={() =>
-                                  setSelectedVersion({
-                                    versionId,
-                                    label: new Date(document.createdAt).toLocaleString(),
-                                  })
-                                }
-                              >
-                                {column.formatter
-                                  ? renderFormatted(
+                      {columns.flatMap((column) => {
+                        const dataCell = (
+                          <Table.Cell
+                            key={String(column.fieldName)}
+                            className={cx({
+                              'byline-coll-history-cell-right': column.align === 'right',
+                              [styles.cellRight]: column.align === 'right',
+                              'byline-coll-history-cell-center': column.align === 'center',
+                              [styles.cellCenter]: column.align === 'center',
+                            })}
+                          >
+                            {column.fieldName === 'title' ? (
+                              versionId && currentDocument ? (
+                                <button
+                                  type="button"
+                                  className={cx(
+                                    'byline-coll-history-title-button',
+                                    styles.titleButton
+                                  )}
+                                  onClick={() =>
+                                    setSelectedVersion({
+                                      versionId,
+                                      label: new Date(document.createdAt).toLocaleString(),
+                                    })
+                                  }
+                                >
+                                  {column.formatter
+                                    ? renderFormatted(
                                       getColumnValue(document, column.fieldName as string),
                                       document,
                                       column.formatter
                                     )
-                                  : resolveDisplayValue(
+                                    : resolveDisplayValue(
                                       getColumnValue(document, column.fieldName as string),
                                       locale,
                                       defaultContentLocale
                                     ) || '------'}
-                              </button>
+                                </button>
+                              ) : (
+                                <Link
+                                  to={'/admin/collections/$collection/$id' as never}
+                                  params={{
+                                    collection,
+                                    id: document.id,
+                                  }}
+                                >
+                                  {column.formatter
+                                    ? renderFormatted(
+                                      getColumnValue(document, column.fieldName as string),
+                                      document,
+                                      column.formatter
+                                    )
+                                    : resolveDisplayValue(
+                                      getColumnValue(document, column.fieldName as string),
+                                      locale,
+                                      defaultContentLocale
+                                    ) || '------'}
+                                </Link>
+                              )
+                            ) : column.formatter ? (
+                              renderFormatted(
+                                getColumnValue(document, column.fieldName as string),
+                                document,
+                                column.formatter
+                              )
+                            ) : column.fieldName === 'status' && workflowStatuses ? (
+                              <StatusBadge
+                                status={document.status}
+                                workflowStatuses={workflowStatuses}
+                              />
                             ) : (
-                              <Link
-                                to={'/admin/collections/$collection/$id' as never}
-                                params={{
-                                  collection,
-                                  id: document.id,
-                                }}
-                              >
-                                {column.formatter
-                                  ? renderFormatted(
-                                      getColumnValue(document, column.fieldName as string),
-                                      document,
-                                      column.formatter
-                                    )
-                                  : resolveDisplayValue(
-                                      getColumnValue(document, column.fieldName as string),
-                                      locale,
-                                      defaultContentLocale
-                                    ) || '------'}
-                              </Link>
-                            )
-                          ) : column.formatter ? (
-                            renderFormatted(
-                              getColumnValue(document, column.fieldName as string),
-                              document,
-                              column.formatter
-                            )
-                          ) : column.fieldName === 'status' && workflowStatuses ? (
-                            <StatusBadge
-                              status={document.status}
-                              workflowStatuses={workflowStatuses}
-                            />
-                          ) : (
-                            resolveDisplayValue(
-                              getColumnValue(document, column.fieldName as string),
-                              locale,
-                              defaultContentLocale
-                            ) || ''
-                          )}
-                        </Table.Cell>
-                      ))}
+                              resolveDisplayValue(
+                                getColumnValue(document, column.fieldName as string),
+                                locale,
+                                defaultContentLocale
+                              ) || ''
+                            )}
+                          </Table.Cell>
+                        )
+                        if (column.fieldName === 'title') {
+                          return [
+                            dataCell,
+                            <Table.Cell
+                              key="__restore"
+                              className={cx('byline-coll-history-restore-cell', styles.restoreCell)}
+                            >
+                              {versionId && versionId !== currentVersionId ? (
+                                <Button
+                                  type="button"
+                                  variant="outlined"
+                                  size="xs"
+                                  intent="noeffect"
+                                  onClick={() =>
+                                    setRestoreTarget({
+                                      versionId,
+                                      label: new Date(document.createdAt).toLocaleString(),
+                                      versionNumber,
+                                    })
+                                  }
+                                  className={cx(
+                                    'byline-coll-history-restore-button',
+                                    styles.restoreButton
+                                  )}
+                                  title="Restore this version as the current draft"
+                                >
+                                  Restore
+                                </Button>
+                              ) : null}
+                            </Table.Cell>,
+                          ]
+                        }
+                        return [dataCell]
+                      })}
                     </Table.Row>
                   )
                 })}
@@ -347,6 +402,33 @@ export const HistoryView = ({
           />
         </Suspense>
       )}
+
+      <Modal
+        isOpen={restoreTarget != null}
+        onDismiss={() => setRestoreTarget(null)}
+        closeOnOverlayClick={false}
+      >
+        <Modal.Container className={cx('byline-coll-history-restore-modal', styles.restoreModal)}>
+          <Modal.Header
+            className={cx('byline-coll-history-restore-modal-head', styles.restoreModalHead)}
+          >
+            <h3 className="m-0">Restore version</h3>
+            <IconButton aria-label="Close" size="xs" onClick={() => setRestoreTarget(null)}>
+              <CloseIcon width="14px" height="14px" svgClassName="white-icon" />
+            </IconButton>
+          </Modal.Header>
+          {restoreTarget ? (
+            <RestoreVersionModal
+              collection={collection}
+              documentId={id}
+              versionId={restoreTarget.versionId}
+              versionLabel={restoreTarget.label}
+              versionNumber={restoreTarget.versionNumber}
+              onClose={() => setRestoreTarget(null)}
+            />
+          ) : null}
+        </Modal.Container>
+      </Modal>
     </>
   )
 }

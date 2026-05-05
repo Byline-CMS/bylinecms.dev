@@ -24,6 +24,7 @@
 }
 
 @media (min-width: 40rem) {
+
   .head,
   :global(.byline-coll-history-head) {
     flex-direction: row;
@@ -73,6 +74,7 @@
 }
 
 @media (min-width: 40rem) {
+
   .options,
   :global(.byline-coll-history-options) {
     flex-direction: row;
@@ -143,12 +145,59 @@
   opacity: 0.75;
 }
 
+.colRestore,
+:global(.byline-coll-history-col-restore) {
+  width: 1%;
+  white-space: nowrap;
+  background-color: var(--gray-50);
+}
+
+:is([data-theme="dark"], :global(.dark)) .colRestore,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-coll-history-col-restore) {
+  background-color: oklch(from var(--canvas-800) calc(l * 1.1) c h);
+}
+
+.restoreCell,
+:global(.byline-coll-history-restore-cell) {
+  white-space: nowrap;
+}
+
+.restoreButton,
+:global(.byline-coll-history-restore-button) {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+:global(tr:hover) .restoreButton,
+:global(tr:hover .byline-coll-history-restore-button) {
+  opacity: 1;
+}
+
+.restoreButton:focus,
+:global(.byline-coll-history-restore-button:focus) {
+  opacity: 1;
+}
+
+.restoreModal,
+:global(.byline-coll-history-restore-modal) {
+  max-width: 32rem;
+}
+
+.restoreModalHead,
+:global(.byline-coll-history-restore-modal-head) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
 .pageSize,
 :global(.byline-coll-history-page-size) {
   /* fallback */
 }
 
 @media (min-width: 40rem) {
+
   .pageSize,
   :global(.byline-coll-history-page-size) {
     margin-left: auto;

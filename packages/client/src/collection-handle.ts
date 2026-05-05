@@ -17,6 +17,7 @@ import type {
   PopulateSpec,
   ReadContext,
   ReadMode,
+  RestoreVersionResult,
   UnpublishResult,
   UpdateDocumentResult,
 } from '@byline/core'
@@ -33,6 +34,7 @@ import {
   parseWhere,
   populateDocuments,
   populateRichTextFields,
+  restoreDocumentVersion,
   unpublishDocument,
   updateDocument,
 } from '@byline/core'
@@ -356,6 +358,25 @@ export class CollectionHandle {
   async unpublish(documentId: string): Promise<UnpublishResult> {
     const ctx = await this.buildLifecycleContext()
     return unpublishDocument(ctx, { documentId })
+  }
+
+  /**
+   * Restore a historical version as the new current version of this
+   * document. Creates a new immutable version row whose content is copied
+   * from the source version (all locales, with block / array `_id` identity
+   * preserved) and whose status defaults to the workflow's first status —
+   * never re-publishes silently.
+   *
+   * Reuses the `update` ability. Fires `beforeUpdate` / `afterUpdate` with
+   * a `restore: { sourceVersionId }` field on the hook context so userland
+   * hooks can branch.
+   */
+  async restoreVersion(
+    documentId: string,
+    sourceVersionId: string
+  ): Promise<RestoreVersionResult> {
+    const ctx = await this.buildLifecycleContext()
+    return restoreDocumentVersion(ctx, { documentId, sourceVersionId })
   }
 
   /**

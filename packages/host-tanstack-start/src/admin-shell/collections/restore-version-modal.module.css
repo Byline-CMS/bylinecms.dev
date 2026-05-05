@@ -1,0 +1,48 @@
+/**
+ * RestoreVersionModal — modal body for the "make current" action on the
+ * collection history view.
+ *
+ * Override handles:
+ *   .byline-coll-restore-content   — outer Modal.Content (gap)
+ *   .byline-coll-restore-body      — vertical stack of identity rows
+ *   .byline-coll-restore-warning   — warning paragraph
+ *   .byline-coll-restore-actions   — Cancel/Restore row
+ *   .byline-coll-restore-button    — action buttons (min-width)
+ */
+
+.content,
+:global(.byline-coll-restore-content) {
+  gap: 0.25rem;
+}
+
+.body,
+:global(.byline-coll-restore-body) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.row,
+:global(.byline-coll-restore-row) {
+  margin: 0;
+}
+
+.warning,
+:global(.byline-coll-restore-warning) {
+  margin-top: 0.75rem;
+}
+
+.actions,
+:global(.byline-coll-restore-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.button,
+:global(.byline-coll-restore-button) {
+  min-width: 4rem;
+}

@@ -24,6 +24,7 @@ export {
   type PopulateSpec,
   type ReadContext,
   type ReadMode,
+  type RestoreVersionResult,
   type UnpublishResult,
   type UnresolvedRelationValue,
   type UpdateDocumentResult,

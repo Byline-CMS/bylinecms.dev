@@ -20,6 +20,7 @@ import {
   changeDocumentStatus,
   createDocument,
   deleteDocument,
+  restoreDocumentVersion,
   unpublishDocument,
   updateDocument,
   updateDocumentWithPatches,
@@ -837,6 +838,211 @@ describe('Document lifecycle service', () => {
       await unpublishDocument(ctx, { documentId: 'doc-1' })
 
       expect(callOrder).toEqual(['before-1', 'before-2', 'archive', 'after-1', 'after-2'])
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // restoreDocumentVersion
+  // -----------------------------------------------------------------------
+  describe('restoreDocumentVersion', () => {
+    function setupRestore(opts?: {
+      sourceFields?: Record<string, any>
+      sourceDocumentId?: string
+      currentVersionId?: string
+      currentPath?: string
+    }) {
+      const sourceDocumentId = opts?.sourceDocumentId ?? 'doc-1'
+      const currentVersionId = opts?.currentVersionId ?? 'ver-current'
+      const sourceVersionId = 'ver-source'
+      const currentPath = opts?.currentPath ?? 'sticky-path'
+      const sourceFields = opts?.sourceFields ?? {
+        title: { en: 'Old EN', fr: 'Vieux FR' },
+      }
+
+      const mocks = createMockDb()
+      const { db } = mocks
+
+      ;(db.queries.documents.getDocumentByVersion as any).mockResolvedValue({
+        document_version_id: sourceVersionId,
+        document_id: sourceDocumentId,
+        path: 'long-ago-path',
+        status: 'archived',
+        fields: sourceFields,
+      })
+      mocks.getCurrentVersionMetadata.mockResolvedValue({
+        document_version_id: currentVersionId,
+        document_id: 'doc-1',
+        collection_id: 'col-1',
+        path: currentPath,
+        status: 'published',
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      mocks.getDocumentById.mockResolvedValue({
+        document_version_id: currentVersionId,
+        path: currentPath,
+        status: 'published',
+        fields: { title: 'Currently Published' },
+      })
+      mocks.createDocumentVersion.mockResolvedValue({
+        document: { id: 'ver-restored', document_id: 'doc-1' },
+        fieldCount: 5,
+      })
+
+      return { ...mocks, sourceVersionId, currentVersionId, sourceFields, currentPath }
+    }
+
+    it('reads the source with locale: "all" and re-emits via createDocumentVersion', async () => {
+      const { db, createDocumentVersion, sourceVersionId, sourceFields, currentVersionId } =
+        setupRestore()
+      const ctx = buildCtx(db)
+
+      const result = await restoreDocumentVersion(ctx, {
+        documentId: 'doc-1',
+        sourceVersionId,
+      })
+
+      expect(db.queries.documents.getDocumentByVersion).toHaveBeenCalledWith({
+        document_version_id: sourceVersionId,
+        locale: 'all',
+      })
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
+      const call = createDocumentVersion.mock.calls[0]?.[0]
+      expect(call.action).toBe('restore')
+      expect(call.locale).toBe('all')
+      expect(call.documentData).toEqual(sourceFields)
+      expect(call.previousVersionId).toBe(currentVersionId)
+      expect(result).toEqual({
+        documentId: 'doc-1',
+        documentVersionId: 'ver-restored',
+        sourceVersionId,
+      })
+    })
+
+    it('hard-defaults the new version status to the workflow default (never inherits source status)', async () => {
+      const { db, createDocumentVersion, sourceVersionId } = setupRestore()
+      const ctx = buildCtx(db)
+
+      await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+
+      // Source version was 'archived'; default status for minimalCollection is 'draft'.
+      expect(createDocumentVersion.mock.calls[0]?.[0].status).toBe('draft')
+    })
+
+    it('keeps path sticky from the current version, not the source', async () => {
+      const { db, createDocumentVersion, sourceVersionId } = setupRestore({
+        currentPath: 'sticky-path',
+      })
+      const ctx = buildCtx(db)
+
+      await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+
+      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBe('sticky-path')
+    })
+
+    it('rejects when the source version belongs to a different document', async () => {
+      const { db, sourceVersionId, createDocumentVersion } = setupRestore({
+        sourceDocumentId: 'doc-OTHER',
+      })
+      const ctx = buildCtx(db)
+
+      try {
+        await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+        expect.fail('expected ERR_VALIDATION')
+      } catch (err) {
+        expect(err).toBeInstanceOf(BylineError)
+        expect((err as BylineError).code).toBe(ErrorCodes.VALIDATION)
+      }
+      expect(createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('rejects when the source is already the current version', async () => {
+      const sourceVersionId = 'ver-source'
+      const mocks = createMockDb()
+      const { db } = mocks
+      ;(db.queries.documents.getDocumentByVersion as any).mockResolvedValue({
+        document_version_id: sourceVersionId,
+        document_id: 'doc-1',
+        path: 'p',
+        status: 'draft',
+        fields: {},
+      })
+      mocks.getCurrentVersionMetadata.mockResolvedValue({
+        document_version_id: sourceVersionId, // SAME as source
+        document_id: 'doc-1',
+        collection_id: 'col-1',
+        path: 'p',
+        status: 'draft',
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      const ctx = buildCtx(db)
+
+      try {
+        await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+        expect.fail('expected ERR_INVALID_TRANSITION')
+      } catch (err) {
+        expect((err as BylineError).code).toBe(ErrorCodes.INVALID_TRANSITION)
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('fires beforeUpdate / afterUpdate with restore: { sourceVersionId } context', async () => {
+      const beforeUpdate = vi.fn()
+      const afterUpdate = vi.fn()
+      const { db, sourceVersionId } = setupRestore()
+      const definition = { ...minimalCollection, hooks: { beforeUpdate, afterUpdate } }
+      const ctx = buildCtx(db, definition)
+
+      await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+
+      expect(beforeUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collectionPath: 'articles',
+          restore: { sourceVersionId },
+          originalData: expect.objectContaining({
+            fields: expect.objectContaining({ title: 'Currently Published' }),
+          }),
+        })
+      )
+      expect(afterUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: 'doc-1',
+          documentVersionId: 'ver-restored',
+          restore: { sourceVersionId },
+        })
+      )
+    })
+
+    it('throws ERR_FORBIDDEN when actor lacks collections.<path>.update', async () => {
+      const { db, sourceVersionId } = setupRestore()
+      const ctx = buildCtx(db)
+      const actor = new AdminAuth({
+        id: 'editor',
+        abilities: ['collections.articles.read'],
+      })
+      ctx.requestContext = createRequestContext({ actor })
+
+      try {
+        await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+        expect.fail('expected ERR_FORBIDDEN')
+      } catch (err) {
+        expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
+        expect((err as AuthError).message).toContain('collections.articles.update')
+      }
+    })
+
+    it('permits restore when actor holds only collections.<path>.update (no separate restore verb needed)', async () => {
+      const { db, createDocumentVersion, sourceVersionId } = setupRestore()
+      const ctx = buildCtx(db)
+      const actor = new AdminAuth({
+        id: 'editor',
+        abilities: ['collections.articles.update', 'collections.articles.read'],
+      })
+      ctx.requestContext = createRequestContext({ actor })
+
+      await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
     })
   })
 

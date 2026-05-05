@@ -401,15 +401,21 @@ export interface AfterCreateContext {
 }
 
 /**
- * Context passed to `beforeUpdate` hooks — both PUT and patch flows.
+ * Context passed to `beforeUpdate` hooks — PUT, patch, and restore flows.
  *
  * `data` is the next version (mutable). `originalData` is the previous
  * version as reconstructed from storage.
+ *
+ * `restore` is set only when the update originates from a "make current"
+ * action against a historical version. Userland hooks that need to react
+ * differently (e.g. tag the audit entry, skip search re-index) can branch
+ * on its presence.
  */
 export interface BeforeUpdateContext {
   data: Record<string, any>
   originalData: Record<string, any>
   collectionPath: string
+  restore?: { sourceVersionId: string }
 }
 
 /**
@@ -417,6 +423,9 @@ export interface BeforeUpdateContext {
  *
  * Includes the `documentId` and `documentVersionId` of the newly created
  * version so the hook can reference the persisted document.
+ *
+ * `restore` mirrors `BeforeUpdateContext.restore` — present only when the
+ * update was triggered by restoring a historical version.
  */
 export interface AfterUpdateContext {
   data: Record<string, any>
@@ -424,6 +433,7 @@ export interface AfterUpdateContext {
   collectionPath: string
   documentId: string
   documentVersionId: string
+  restore?: { sourceVersionId: string }
 }
 
 /**
