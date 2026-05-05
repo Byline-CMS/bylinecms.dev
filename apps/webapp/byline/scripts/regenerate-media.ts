@@ -59,8 +59,8 @@ import {
   getWorkflowStatuses,
   type StoredFileValue,
 } from '@byline/core'
+import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 import { uploadField as coreUploadField } from '@byline/core/services'
-import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/storage-local'
 
 const COLLECTION_PATH = 'media'
 const FIELD_NAME = 'image'

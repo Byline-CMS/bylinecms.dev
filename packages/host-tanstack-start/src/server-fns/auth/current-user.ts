@@ -21,11 +21,9 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { type Actor, AuthError } from '@byline/auth'
-import { getServerConfig } from '@byline/core'
-import type { PgAdapter } from '@byline/db-postgres'
-import { createAdminUsersRepository } from '@byline/db-postgres/admin'
 
 import { getAdminRequestContext } from '../../auth/auth-context.js'
+import { bylineCore } from '../../integrations/byline-core.js'
 
 export interface CurrentAdminUser {
   id: string
@@ -57,9 +55,7 @@ export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
       throw new Error('unexpected null actor after getAdminRequestContext')
     }
 
-    const db = (getServerConfig().db as PgAdapter).drizzle
-    const users = createAdminUsersRepository(db)
-    const row = await users.getById(actor.id)
+    const row = await bylineCore().adminStore!.adminUsers.getById(actor.id)
     if (!row) {
       // Session resolved to an admin id that no longer exists — force the
       // caller back through sign-in rather than return partial data.
@@ -97,9 +93,7 @@ export const getCurrentAdminUserSoft = createServerFn({ method: 'GET' }).handler
       }
       if (!actor) return null
 
-      const db = (getServerConfig().db as PgAdapter).drizzle
-      const users = createAdminUsersRepository(db)
-      const row = await users.getById(actor.id)
+      const row = await bylineCore().adminStore!.adminUsers.getById(actor.id)
       if (!row) return null
 
       return {

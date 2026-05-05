@@ -6,11 +6,5 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-export {
-  extractImageMeta,
-  generateImageVariants,
-  isBypassMimeType,
-} from './image-processor.js'
 export { localStorageProvider } from './local-storage-provider.js'
-export type { ImageMeta, ImageVariantResult, ProcessImageResult } from './image-processor.js'
 export type { LocalStorageConfig } from './local-storage-provider.js'

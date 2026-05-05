@@ -10,7 +10,7 @@ import type {
 import { ERR_NOT_FOUND, ERR_VALIDATION, getServerConfig, getUploadFields } from '@byline/core'
 import { getLogger, withLogContext } from '@byline/core/logger'
 import { uploadField as coreUploadField } from '@byline/core/services'
-import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/storage-local'
+import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 
 import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { ensureCollection } from '../../integrations/api-utils.js'

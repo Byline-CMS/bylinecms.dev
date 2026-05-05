@@ -9,9 +9,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import type { BylineLogger, ImageSize } from '@byline/core'
 // Sharp ships its own types; no @types/sharp needed.
 import sharp from 'sharp'
+
+import type { ImageSize } from '../@types/collection-types.js'
+import type { BylineLogger } from '../logger/index.js'
 
 // ---------------------------------------------------------------------------
 // Types

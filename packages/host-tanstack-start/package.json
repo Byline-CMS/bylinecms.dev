@@ -119,25 +119,13 @@
     "zod": "^4.4.2"
   },
   "peerDependencies": {
-    "@byline/db-postgres": "workspace:*",
-    "@byline/storage-local": "workspace:*",
     "@tanstack/react-router": "^1.167.0",
     "@tanstack/react-start": "^1.167.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
-  "peerDependenciesMeta": {
-    "@byline/db-postgres": {
-      "optional": false
-    },
-    "@byline/storage-local": {
-      "optional": false
-    }
-  },
   "devDependencies": {
     "@biomejs/biome": "2.4.14",
-    "@byline/db-postgres": "workspace:*",
-    "@byline/storage-local": "workspace:*",
     "@rsbuild/plugin-react": "^2.0.0",
     "@rslib/core": "^0.21.3",
     "@tanstack/react-router": "^1.169.1",
