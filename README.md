@@ -102,6 +102,10 @@ Note: We have an experimental CLI that will attempt to install Byline into an ex
 
 ```sh
 npx @tanstack/cli@latest create
+
+#or
+
+pnpm dlx @byline/cli@latest init
 ```
 Then be sure to select the Nitro (agnostic) adapter.
 ```
