@@ -38,8 +38,15 @@ interface FlattenedDateTimeFieldValue extends BaseFlattenedFieldData {
   field_type: 'datetime'
   date_type: 'datetime' | 'date' | 'time'
   value_time?: string
-  value_date?: Date
-  value_timestamp_tz?: Date
+  // `value_date` is a Date when flattened from form input, or a 'YYYY-MM-DD'
+  // string when re-flattened from previously-read storage content (drizzle's
+  // `date()` column returns strings by default). `value_timestamp_tz` is a
+  // Date from form widgets but a string from the EAV UNION ALL read path
+  // (the manifest's nullCast collapses the column to `timestamp` without
+  // TZ, which node-postgres returns as a string). The insert path accepts
+  // both shapes for both columns.
+  value_date?: Date | string
+  value_timestamp_tz?: Date | string
 }
 
 interface FlattenedFileFieldValue extends BaseFlattenedFieldData {

@@ -104,9 +104,20 @@ export const prepareFieldInsertBuckets = (
         buckets.datetime.push({
           ...base,
           date_type: field.date_type,
-          value_date: field.value_date?.toISOString(), // TODO: Is this the appropriate conversion?
+          // The Postgres `date` column (drizzle default mode) round-trips as
+          // a 'YYYY-MM-DD' string, while admin form widgets produce `Date`
+          // objects. Both shapes need to flatten cleanly because restore
+          // (and any other path that re-feeds previously-read content)
+          // hands us the string form.
+          value_date: toDateOnlyString(field.value_date),
           value_time: field.value_time,
-          value_timestamp_tz: field.value_timestamp_tz,
+          // `value_timestamp_tz` arrives as a `Date` from form widgets but
+          // as a string from `getAllFieldValues` — the UNION ALL declares
+          // the column as `timestamp` (no TZ) via `storage-store-manifest`,
+          // and node-postgres maps non-TZ timestamps to strings. Drizzle's
+          // own `mapToDriverValue` calls `.toISOString()` unguarded on
+          // insert, so we coerce here.
+          value_timestamp_tz: toDate(field.value_timestamp_tz),
         })
         continue
 
@@ -157,4 +168,33 @@ export const prepareFieldInsertBuckets = (
   }
 
   return buckets
+}
+
+/**
+ * Coerce a date-only field value to the 'YYYY-MM-DD' string shape the
+ * Postgres `date` column uses on read. Accepts:
+ *   - `Date`  → ISO date prefix
+ *   - string  → passed through (already in storage shape)
+ *   - null / undefined → undefined (no insert)
+ */
+function toDateOnlyString(value: Date | string | null | undefined): string | undefined {
+  if (value == null) return undefined
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  return value
+}
+
+/**
+ * Coerce a timestamp-with-tz field value to a `Date` instance. Accepts:
+ *   - `Date`   → passed through
+ *   - string   → parsed via `new Date(...)` (ISO or PG `timestamp` shape)
+ *   - null / undefined → undefined (no insert)
+ *
+ * Drizzle's `mapToDriverValue` for `timestamp({ withTimezone: true })` calls
+ * `.toISOString()` on the supplied value with no guard, so callers must
+ * present a `Date`.
+ */
+function toDate(value: Date | string | null | undefined): Date | undefined {
+  if (value == null) return undefined
+  if (value instanceof Date) return value
+  return new Date(value)
 }
