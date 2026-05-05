@@ -44,6 +44,21 @@ export interface UploadFileOptions {
    * Providers may use this to namespace storage paths.
    */
   collection?: string
+  /**
+   * Explicit, fully-qualified storage path / object key the provider must
+   * write to verbatim. When set, providers MUST place the file at exactly
+   * this path — no UUID prefix, year/month rewrite, or `pathPrefix` injection.
+   *
+   * Used by the image-variant pipeline (`generateImageVariants`) to write
+   * sibling files alongside an already-stored original (e.g. so the
+   * `thumbnail` variant of `media/2026/05/abc-photo.jpg` lands at
+   * `media/2026/05/abc-photo-thumbnail.webp`).
+   *
+   * Always POSIX-style (forward slashes), no leading slash. Callers are
+   * responsible for sanitisation and collision-avoidance — providers do
+   * not second-guess the path when this is set.
+   */
+  targetStoragePath?: string
 }
 
 /**

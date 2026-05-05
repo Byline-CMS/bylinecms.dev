@@ -8,9 +8,9 @@ import type {
   StoredFileValue,
 } from '@byline/core'
 import { ERR_NOT_FOUND, ERR_VALIDATION, getServerConfig, getUploadFields } from '@byline/core'
+import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 import { getLogger, withLogContext } from '@byline/core/logger'
 import { uploadField as coreUploadField } from '@byline/core/services'
-import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 
 import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { ensureCollection } from '../../integrations/api-utils.js'
@@ -208,23 +208,15 @@ export const uploadCollectionField = createServerFn({ method: 'POST' })
           imageProcessor: {
             extractMeta: extractImageMeta,
             isBypassMimeType,
-            generateVariants: async ({ buffer, mimeType, storedFile, storage, upload, logger }) => {
-              if (!('uploadDir' in storage) || typeof (storage as any).uploadDir !== 'string') {
-                return []
-              }
-
-              const uploadDir = (storage as any).uploadDir as string
-              const absoluteOriginalPath = `${uploadDir}/${storedFile.storagePath}`
-
-              return generateImageVariants(
+            generateVariants: ({ buffer, mimeType, storedFile, storage, upload, logger }) =>
+              generateImageVariants(
                 buffer,
                 mimeType,
-                absoluteOriginalPath,
-                uploadDir,
+                storedFile,
+                storage,
                 upload.sizes ?? [],
                 logger
-              )
-            },
+              ),
           },
         }
 

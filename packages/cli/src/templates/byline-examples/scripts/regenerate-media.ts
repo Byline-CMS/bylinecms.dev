@@ -40,8 +40,10 @@
  * `current_published_documents` returns to public readers.
  *
  * Currently requires the local storage provider — pulls bytes back via
- * the provider's `uploadDir`. An S3-capable variant would add a
- * `download(storagePath)` to `IStorageProvider` and route through that.
+ * the provider's `uploadDir`. Variant generation itself is provider-
+ * agnostic; the local-only piece is reading the *original* bytes back
+ * from disk. An S3-capable variant would add a `download(storagePath)`
+ * primitive to `IStorageProvider` and route through that.
  */
 
 import 'dotenv/config'
@@ -143,18 +145,15 @@ async function run(): Promise<void> {
     imageProcessor: {
       extractMeta: extractImageMeta,
       isBypassMimeType,
-      generateVariants: async ({ buffer, mimeType, storedFile, storage, upload, logger }) => {
-        const dir = (storage as { uploadDir?: unknown }).uploadDir as string
-        const absoluteOriginalPath = path.join(dir, storedFile.storagePath)
-        return generateImageVariants(
+      generateVariants: ({ buffer, mimeType, storedFile, storage, upload, logger }) =>
+        generateImageVariants(
           buffer,
           mimeType,
-          absoluteOriginalPath,
-          dir,
+          storedFile,
+          storage,
           upload.sizes ?? [],
           logger
-        )
-      },
+        ),
     },
   }
 

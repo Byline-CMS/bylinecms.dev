@@ -119,13 +119,34 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // addition to) this site-wide default.
     //
     // Local filesystem is suitable for development and self-hosted
-    // deployments. Swap for '@byline/storage-s3' (s3StorageProvider) for
-    // cloud/production. The `uploadDir` is served as a static path at
-    // `baseUrl` by your web server.
+    // deployments. The `uploadDir` is served as a static path at `baseUrl`
+    // by your web server. For cloud/production deployments, swap to
+    // `@byline/storage-s3` — see the commented example below.
     storage: localStorageProvider({
       uploadDir: './public/uploads',
       baseUrl: '/uploads',
     }),
+    // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace
+    // the `localStorageProvider` block above with the call below and add
+    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env`.
+    //
+    // On AWS with an IAM role / instance profile, omit `accessKeyId` and
+    // `secretAccessKey` so the SDK resolves credentials via its default
+    // provider chain — never bake long-lived keys into a deployed image.
+    //
+    // import { s3StorageProvider } from '@byline/storage-s3'
+    //
+    // storage: s3StorageProvider({
+    //   bucket: process.env.BYLINE_STORAGE_S3_BUCKET!,
+    //   region: process.env.BYLINE_STORAGE_S3_REGION!,
+    //   accessKeyId: process.env.BYLINE_STORAGE_S3_ACCESS_KEY_ID,
+    //   secretAccessKey: process.env.BYLINE_STORAGE_S3_SECRET_ACCESS_KEY,
+    //   publicUrl: process.env.BYLINE_STORAGE_S3_PUBLIC_URL,
+    //   endpoint: process.env.BYLINE_STORAGE_S3_ENDPOINT,
+    //   forcePathStyle: process.env.BYLINE_STORAGE_S3_FORCE_PATH_STYLE === 'true',
+    //   pathPrefix: process.env.BYLINE_STORAGE_S3_PATH_PREFIX,
+    //   cacheControl: 'public, max-age=31536000, immutable',
+    // }),
     sessionProvider,
     fields: {
       // Server-side richtext adapter — refreshes embedded relation

@@ -6,13 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import fs from 'node:fs'
 import path from 'node:path'
 
 // Sharp ships its own types; no @types/sharp needed.
 import sharp from 'sharp'
 
 import type { ImageSize } from '../@types/collection-types.js'
+import type { IStorageProvider, StoredFileLocation } from '../@types/storage-types.js'
 import type { BylineLogger } from '../logger/index.js'
 
 // ---------------------------------------------------------------------------
@@ -101,18 +101,43 @@ function tryParseSvgDimensions(buffer: Buffer): { width: number | null; height: 
 // ---------------------------------------------------------------------------
 
 /**
- * Generate the named image variants (sizes) defined in `UploadConfig.sizes`.
+ * Map a Sharp output format keyword to the corresponding image MIME type.
+ * Unknown formats fall back to `application/octet-stream` — the storage
+ * provider will accept it; only the served `Content-Type` is affected.
+ */
+function mimeTypeForFormat(format: string): string {
+  switch (format) {
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'png':
+      return 'image/png'
+    case 'webp':
+      return 'image/webp'
+    case 'avif':
+      return 'image/avif'
+    default:
+      return 'application/octet-stream'
+  }
+}
+
+/**
+ * Generate the named image variants (sizes) defined in `UploadConfig.sizes`
+ * and persist them through the configured `IStorageProvider`.
  *
  * - SVG and GIF files are skipped entirely (bypass types).
- * - Each variant is written as a sibling file to the original, using the
- *   naming convention: `<basename>-<variantName>.<ext>`
+ * - Each variant is uploaded as a sibling object to `storedFile.storagePath`,
+ *   using the naming convention: `<dir>/<basename>-<variantName>.<ext>`
+ *   (POSIX paths — both local filesystem keys and S3 object keys).
+ * - Variant bytes are produced in-memory by Sharp and written via
+ *   `storage.upload(buffer, { targetStoragePath })` — no direct filesystem
+ *   access, so the function is provider-agnostic.
  * - Returns an array of `ImageVariantResult` describing what was created.
  */
 export async function generateImageVariants(
   sourceBuffer: Buffer,
   mimeType: string,
-  absoluteOriginalPath: string,
-  storageBaseDir: string,
+  storedFile: StoredFileLocation,
+  storage: IStorageProvider,
   sizes: ImageSize[],
   logger?: BylineLogger
 ): Promise<ImageVariantResult[]> {
@@ -120,21 +145,19 @@ export async function generateImageVariants(
     return []
   }
 
-  const originalExt = path.extname(absoluteOriginalPath)
-  const originalBase = path.basename(absoluteOriginalPath, originalExt)
-  const variantDir = path.dirname(absoluteOriginalPath)
+  // Storage paths are POSIX-style across providers; use `path.posix` so
+  // Windows local-fs hosts don't introduce backslashes into S3 object keys.
+  const sourcePath = storedFile.storagePath
+  const originalExt = path.posix.extname(sourcePath)
+  const originalBase = path.posix.basename(sourcePath, originalExt)
+  const variantDir = path.posix.dirname(sourcePath)
   const variants: ImageVariantResult[] = []
 
   for (const size of sizes) {
     const outputFormat = size.format ?? 'webp'
-    const outputExt = `.${outputFormat}`
-    const variantFilename = `${originalBase}-${size.name}${outputExt}`
-    const variantAbsolutePath = path.join(variantDir, variantFilename)
-
-    // Derive the storage-relative path (relative to storageBaseDir).
-    const variantStoragePath = path
-      .relative(storageBaseDir, variantAbsolutePath)
-      .replace(/\\/g, '/')
+    const variantFilename = `${originalBase}-${size.name}.${outputFormat}`
+    const variantStoragePath =
+      variantDir === '.' ? variantFilename : `${variantDir}/${variantFilename}`
 
     try {
       let pipeline = sharp(sourceBuffer)
@@ -167,10 +190,14 @@ export async function generateImageVariants(
       }
 
       const variantBuffer = await pipeline.toBuffer()
-      fs.mkdirSync(path.dirname(variantAbsolutePath), { recursive: true })
-      await fs.promises.writeFile(variantAbsolutePath, variantBuffer)
-
       const sharpMeta = await sharp(variantBuffer).metadata()
+
+      await storage.upload(variantBuffer, {
+        filename: variantFilename,
+        mimeType: mimeTypeForFormat(outputFormat),
+        size: variantBuffer.byteLength,
+        targetStoragePath: variantStoragePath,
+      })
 
       variants.push({
         name: size.name,

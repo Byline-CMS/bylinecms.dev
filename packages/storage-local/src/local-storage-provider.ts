@@ -90,7 +90,8 @@ class LocalStorageProvider implements IStorageProvider {
     stream: NodeJS.ReadableStream | Buffer,
     options: UploadFileOptions
   ): Promise<StoredFileLocation> {
-    const storagePath = buildStoragePath(options.collection, options.filename)
+    const storagePath =
+      options.targetStoragePath ?? buildStoragePath(options.collection, options.filename)
     const absolutePath = path.join(this.uploadDir, storagePath)
 
     // Ensure the target directory exists.

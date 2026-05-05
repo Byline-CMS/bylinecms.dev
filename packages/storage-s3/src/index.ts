@@ -7,4 +7,4 @@
  */
 
 export { s3StorageProvider } from './s3-storage-provider.js'
-export type { S3StorageConfig } from './s3-storage-provider.js'
+export type { S3MetadataSupplier, S3StorageConfig } from './s3-storage-provider.js'
