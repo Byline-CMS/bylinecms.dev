@@ -38,20 +38,11 @@
   "sideEffects": [
     "**/*.css"
   ],
-  "types": "./dist/react.d.ts",
-  "module": "./dist/react.js",
-  "main": "./dist/react.js",
   "files": [
     "dist/",
     "src/"
   ],
   "exports": {
-    ".": {
-      "types": "./dist/react.d.ts",
-      "import": "./dist/react.js",
-      "main": "./dist/react.js",
-      "default": "./dist/react.js"
-    },
     "./react": {
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js",
