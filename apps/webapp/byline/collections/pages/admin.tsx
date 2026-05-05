@@ -7,7 +7,7 @@
  */
 
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
-import { DateTimeFormatter } from '@byline/ui/react/fields'
+import { DateTimeFormatter } from '@byline/ui/react'
 
 import { SummaryLength } from '~/components/summary-length.js'
 

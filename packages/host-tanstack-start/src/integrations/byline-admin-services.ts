@@ -22,7 +22,7 @@
  * inside the host's deferred router-coupled containers.
  */
 
-import type { BylineAdminServices } from '@byline/ui/react/admin'
+import type { BylineAdminServices } from '@byline/ui/react'
 
 import { changeAccountPassword, updateAccount } from '../server-fns/admin-account/index.js'
 import { setRoleAbilities, whoHasAbility } from '../server-fns/admin-permissions/index.js'

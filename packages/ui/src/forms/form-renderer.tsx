@@ -22,7 +22,7 @@ import cx from 'classnames'
 
 import { Group } from '../admin/group'
 import { Row } from '../admin/row'
-import { Tabs } from '../admin/tabs'
+import { AdminTabs } from '../admin/tabs'
 import { FieldRenderer } from '../fields/field-renderer'
 import { LocalDateTime } from '../fields/local-date-time'
 import { useBylineFieldServices } from '../services/field-services-context'
@@ -579,7 +579,7 @@ const FormContent = ({
     return (
       <div key={`tabset:${set.name}`} className={cx('byline-form-tabset', styles.tabset)}>
         {visibleTabs.length > 0 && (
-          <Tabs
+          <AdminTabs
             tabs={visibleTabs}
             activeTab={resolvedActive}
             onChange={(tabName) => handleTabChange(set.name, tabName)}

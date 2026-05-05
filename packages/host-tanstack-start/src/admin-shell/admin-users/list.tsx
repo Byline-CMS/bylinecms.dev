@@ -23,8 +23,7 @@ import {
   Table,
   useToastManager,
 } from '@byline/ui'
-import { CreateAdminUser } from '@byline/ui/react/admin'
-import { LocalDateTime } from '@byline/ui/react/fields'
+import { CreateAdminUser, LocalDateTime } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { Link, useNavigate } from '../chrome/loose-router.js'

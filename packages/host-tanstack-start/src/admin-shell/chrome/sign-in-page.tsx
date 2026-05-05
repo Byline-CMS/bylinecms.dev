@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { BylineAdminServicesProvider, SignInForm } from '@byline/ui/react/admin'
+import { BylineAdminServicesProvider, SignInForm } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { bylineAdminServices } from '../../integrations/byline-admin-services.js'

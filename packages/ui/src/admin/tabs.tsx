@@ -38,7 +38,7 @@ interface TabsProps {
  * `.byline-admin-tab-active`, `.byline-admin-tab-label`,
  * `.byline-admin-tab-badge`.
  */
-export const Tabs = ({ tabs, activeTab, onChange, errorCounts, className }: TabsProps) => {
+export const AdminTabs = ({ tabs, activeTab, onChange, errorCounts, className }: TabsProps) => {
   return (
     <div
       role="tablist"

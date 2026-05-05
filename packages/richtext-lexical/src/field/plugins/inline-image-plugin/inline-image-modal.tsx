@@ -25,7 +25,7 @@ import {
   RadioGroup,
   RadioGroupItem,
 } from '@byline/ui'
-import { RelationPicker } from '@byline/ui/react/fields'
+import { RelationPicker } from '@byline/ui/react'
 
 import { useEditorConfig } from '../../config/editor-config-context'
 import { useModalFormState } from '../../shared/useModalFormState'

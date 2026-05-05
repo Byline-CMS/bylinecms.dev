@@ -58,26 +58,6 @@
       "main": "./dist/react.js",
       "default": "./dist/react.js"
     },
-    "./react/admin": {
-      "types": "./dist/admin.d.ts",
-      "import": "./dist/admin.js",
-      "default": "./dist/admin.js"
-    },
-    "./react/fields": {
-      "types": "./dist/fields.d.ts",
-      "import": "./dist/fields.js",
-      "default": "./dist/fields.js"
-    },
-    "./react/forms": {
-      "types": "./dist/forms.d.ts",
-      "import": "./dist/forms.js",
-      "default": "./dist/forms.js"
-    },
-    "./react/services": {
-      "types": "./dist/services.d.ts",
-      "import": "./dist/services.js",
-      "default": "./dist/services.js"
-    },
     "./reset.css": {
       "import": "./dist/styles/reset.css",
       "default": "./dist/styles/reset.css"

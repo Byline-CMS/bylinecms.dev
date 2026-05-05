@@ -7,7 +7,7 @@
  */
 
 import type { FieldHelpTextSlotProps, SlotComponent } from '@byline/core'
-import { useFieldValue } from '@byline/ui/react/forms'
+import { useFieldValue } from '@byline/ui/react'
 
 import { LengthIndicator } from './length-indicator'
 

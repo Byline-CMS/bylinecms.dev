@@ -21,8 +21,7 @@ import {
   Select,
   Table,
 } from '@byline/ui'
-import { StatusBadge } from '@byline/ui/react/admin'
-import { renderFormatted } from '@byline/ui/react/fields'
+import { renderFormatted, StatusBadge } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { Link, useNavigate } from '../chrome/loose-router.js'

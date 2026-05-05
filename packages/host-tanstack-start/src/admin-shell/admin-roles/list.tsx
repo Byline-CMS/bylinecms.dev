@@ -41,8 +41,7 @@ import {
   useSortable,
   useToastManager,
 } from '@byline/ui'
-import { CreateAdminRole } from '@byline/ui/react/admin'
-import { LocalDateTime } from '@byline/ui/react/fields'
+import { CreateAdminRole, LocalDateTime } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { reorderAdminRoles } from '../../server-fns/admin-roles/reorder.js'

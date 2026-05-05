@@ -89,8 +89,8 @@ const config = defineConfig({
           ],
         },
         include: [
-          // Force pre-bundling of these @byline/ui subpaths so the dep
-          // optimizer walks into them and inlines their CJS deps — notably
+          // Force pre-bundling of @byline/ui so Vite's dep optimizer walks
+          // into it and inlines its CJS deps — notably
           // `@base-ui/utils/store/useStore` and `use-sync-external-store/shim`.
           //
           // Without this, those CJS modules are reached via Vite's regular
@@ -99,21 +99,19 @@ const config = defineConfig({
           // The browser then throws a SyntaxError, the route never hydrates,
           // and forms fall back to native GET behaviour.
           //
-          // A workspace consumer (e.g. apps/webapp inside the bylinecms.dev
-          // monorepo) doesn't strictly need this list — Vite's scanner walks
-          // workspace source directly and auto-discovers each @base-ui/react
-          // subpath. Published @byline/ui pre-bundles as a single artifact,
-          // so the scanner never sees those subpaths and they leak through to
-          // runtime CJS interop. Listing the subpaths here is harmless in the
-          // workspace case and required in the published case.
+          // @byline/ui ships React-side code through a single
+          // `@byline/ui/react` entry point — there are no per-area subpaths
+          // to pre-bundle individually. That single-entry shape is also why
+          // pre-bundling here is now safe: the React Contexts in
+          // `services/*` resolve to one module instance regardless of which
+          // file in @byline/ui imports them.
           //
           // We intentionally do NOT pre-bundle @byline/host-tanstack-start
           // subpaths — they transitively pull in @tanstack/start-server-core,
           // which references Vite-virtual modules (e.g.
           // `tanstack-start-injected-head-scripts:v`) that the dep optimizer
           // cannot resolve.
-          '@byline/ui/react/admin',
-          '@byline/ui/react/services',
+          '@byline/ui/react',
         ],
       },
     },

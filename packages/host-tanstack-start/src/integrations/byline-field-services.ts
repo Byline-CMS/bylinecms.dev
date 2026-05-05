@@ -16,11 +16,7 @@
  * @byline/ui surface is unchanged.
  */
 
-import type {
-  BylineFieldServices,
-  GetCollectionDocumentsFn,
-  UploadFieldFn,
-} from '@byline/ui/react/services'
+import type { BylineFieldServices, GetCollectionDocumentsFn, UploadFieldFn } from '@byline/ui/react'
 
 import { getCollectionDocuments as serverGetCollectionDocuments } from '../server-fns/collections/list.js'
 import { uploadField as serverUploadField } from '../server-fns/collections/upload.js'

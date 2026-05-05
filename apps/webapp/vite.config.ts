@@ -1,10 +1,11 @@
+import { fileURLToPath } from 'node:url'
+
 import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
-import { fileURLToPath } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 
 // Browser-only stub for `node:async_hooks`. @byline/core's logger module does
@@ -14,7 +15,7 @@ import { defineConfig, type Plugin } from 'vite'
 // our own shim short-circuits the warnings while preserving identical runtime
 // behaviour. SSR keeps the real Node module via the unscoped import.
 const browserAsyncHooksShim = fileURLToPath(
-  new URL('./byline/async-hooks.browser.ts', import.meta.url),
+  new URL('./byline/async-hooks.browser.ts', import.meta.url)
 )
 
 // Vite plugin form of the alias above. `EnvironmentResolveOptions.alias`
@@ -88,33 +89,12 @@ const config = defineConfig({
             },
           ],
         },
-        include: [
-          // Force pre-bundling of these @byline/ui subpaths so the dep
-          // optimizer walks into them and inlines their CJS deps — notably
-          // `@base-ui/utils/store/useStore` and `use-sync-external-store/shim`.
-          //
-          // Without this, those CJS modules are reached via Vite's regular
-          // module pipeline at runtime, where the on-the-fly CJS->ESM interop
-          // can fail to synthesise the named `useSyncExternalStore` export.
-          // The browser then throws a SyntaxError, the route never hydrates,
-          // and forms fall back to native GET behaviour.
-          //
-          // A workspace consumer (e.g. apps/webapp inside the bylinecms.dev
-          // monorepo) doesn't strictly need this list — Vite's scanner walks
-          // workspace source directly and auto-discovers each @base-ui/react
-          // subpath. Published @byline/ui pre-bundles as a single artifact,
-          // so the scanner never sees those subpaths and they leak through to
-          // runtime CJS interop. Listing the subpaths here is harmless in the
-          // workspace case and required in the published case.
-          //
-          // We intentionally do NOT pre-bundle @byline/host-tanstack-start
-          // subpaths — they transitively pull in @tanstack/start-server-core,
-          // which references Vite-virtual modules (e.g.
-          // `tanstack-start-injected-head-scripts:v`) that the dep optimizer
-          // cannot resolve.
-          '@byline/ui/react/admin',
-          '@byline/ui/react/services',
-        ],
+        // No `include` entries here — workspace consumers don't need them.
+        // Vite's scanner walks the workspace @byline/ui source directly via
+        // the symlinked workspace package, and the CJS deps that motivate
+        // the published-consumer include list (see
+        // packages/cli/src/templates/host/vite.config.ts) are auto-discovered
+        // through the source graph here.
       },
     },
     ssr: {

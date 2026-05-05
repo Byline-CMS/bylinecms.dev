@@ -8,7 +8,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { AbilitiesInspector } from '@byline/ui/react/admin'
+import { AbilitiesInspector } from '@byline/ui/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import {
