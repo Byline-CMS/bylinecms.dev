@@ -4,6 +4,25 @@
 
 ### Minor Changes
 
+- 74a3013: - @byline/ui — consolidated the React entry surface. Standardised every consumer import on @byline/ui/react and removed the bare @byline/ui JS export from the exports map. The bare specifier now raises ERR_PACKAGE_PATH_NOT_EXPORTED; switch any external imports to @byline/ui/react. CSS subpath exports are unchanged.
+  - Admin / document history — added a "make current" restore action on the document history view, letting an admin promote any prior version back to the current revision from the history UI.
+  - @byline/db-postgres — fixed an EAV insert-boundary regression where datetime field values arriving as ISO strings (rather than Date instances) were rejected. The adapter now tolerates string-shaped date values and coerces them at the insert boundary.
+
+### Patch Changes
+
+- Updated dependencies [74a3013]
+  - @byline/db-postgres@1.2.0
+  - @byline/client@1.2.0
+  - @byline/core@1.2.0
+  - @byline/ui@1.2.0
+  - @byline/admin@1.2.0
+  - @byline/auth@1.2.0
+  - @byline/storage-local@1.2.0
+
+## 2.0.0
+
+### Minor Changes
+
 - a5127f5: Removed lodash-es and updated CLI deps. Collapsed @byline/ui exports to single /react entry. Renamed admin Row/Group/Tabs to AdminRow/AdminGroup/AdminTabs.
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @byline/storage-s3
 
+## 1.2.0
+
+### Minor Changes
+
+- 74a3013: - @byline/ui — consolidated the React entry surface. Standardised every consumer import on @byline/ui/react and removed the bare @byline/ui JS export from the exports map. The bare specifier now raises ERR_PACKAGE_PATH_NOT_EXPORTED; switch any external imports to @byline/ui/react. CSS subpath exports are unchanged.
+  - Admin / document history — added a "make current" restore action on the document history view, letting an admin promote any prior version back to the current revision from the history UI.
+  - @byline/db-postgres — fixed an EAV insert-boundary regression where datetime field values arriving as ISO strings (rather than Date instances) were rejected. The adapter now tolerates string-shaped date values and coerces them at the insert boundary.
+
+### Patch Changes
+
+- Updated dependencies [74a3013]
+  - @byline/core@1.2.0
+
 ## 1.1.0
 
 ### Minor Changes
