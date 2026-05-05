@@ -1,5 +1,22 @@
 # @byline/host-tanstack-start
 
+## 2.0.0
+
+### Major Changes
+
+- 002a29a: First major verison of Byline. Initial version of CLI.
+
+### Patch Changes
+
+- Updated dependencies [002a29a]
+  - @byline/admin@1.0.0
+  - @byline/auth@1.0.0
+  - @byline/client@1.0.0
+  - @byline/core@1.0.0
+  - @byline/db-postgres@1.0.0
+  - @byline/storage-local@1.0.0
+  - @byline/ui@1.0.0
+
 ## 1.0.6
 
 ### Patch Changes

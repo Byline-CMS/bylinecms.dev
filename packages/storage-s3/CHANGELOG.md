@@ -1,5 +1,16 @@
 # @byline/storage-s3
 
+## 1.0.0
+
+### Major Changes
+
+- 002a29a: First major verison of Byline. Initial version of CLI.
+
+### Patch Changes
+
+- Updated dependencies [002a29a]
+  - @byline/core@1.0.0
+
 ## 0.10.6
 
 ### Patch Changes
