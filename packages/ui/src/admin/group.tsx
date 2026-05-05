@@ -12,7 +12,7 @@ import cx from 'classnames'
 
 import styles from './group.module.css'
 
-interface GroupProps {
+interface AdminGroupProps {
   /** Optional heading rendered as a `<legend>` above the cluster. */
   label?: string
   children: ReactNode
@@ -30,7 +30,7 @@ interface GroupProps {
  * `.byline-admin-group-legend` on the legend (alongside the hashed
  * CSS-modules locals).
  */
-export const Group = ({ label, children, className }: GroupProps) => {
+export const AdminGroup = ({ label, children, className }: AdminGroupProps) => {
   return (
     <fieldset className={cx('byline-admin-group', styles.group, className)}>
       {label && <legend className={cx('byline-admin-group-legend', styles.legend)}>{label}</legend>}

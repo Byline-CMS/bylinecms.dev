@@ -12,7 +12,7 @@ import cx from 'classnames'
 
 import styles from './row.module.css'
 
-interface RowProps {
+interface AdminRowProps {
   children: ReactNode
   className?: string
 }
@@ -28,6 +28,6 @@ interface RowProps {
  * The element carries `.byline-admin-row` as a stable global class for
  * host overrides (alongside the hashed CSS-modules local).
  */
-export const Row = ({ children, className }: RowProps) => {
+export const AdminRow = ({ children, className }: AdminRowProps) => {
   return <div className={cx('byline-admin-row', styles.row, className)}>{children}</div>
 }

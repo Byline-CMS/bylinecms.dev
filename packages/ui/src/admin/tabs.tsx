@@ -13,13 +13,13 @@ import cx from 'classnames'
 import { Badge } from '../uikit.js'
 import styles from './tabs.module.css'
 
-export interface TabItem {
+export interface AdminTabItem {
   name: string
   label: string
 }
 
-interface TabsProps {
-  tabs: TabItem[]
+interface AdminTabsProps {
+  tabs: AdminTabItem[]
   activeTab: string
   onChange: (name: string) => void
   /** Error counts keyed by tab name — shows a danger badge when > 0. */
@@ -38,7 +38,7 @@ interface TabsProps {
  * `.byline-admin-tab-active`, `.byline-admin-tab-label`,
  * `.byline-admin-tab-badge`.
  */
-export const AdminTabs = ({ tabs, activeTab, onChange, errorCounts, className }: TabsProps) => {
+export const AdminTabs = ({ tabs, activeTab, onChange, errorCounts, className }: AdminTabsProps) => {
   return (
     <div
       role="tablist"

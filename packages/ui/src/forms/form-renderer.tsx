@@ -20,8 +20,8 @@ import type {
 } from '@byline/core'
 import cx from 'classnames'
 
-import { Group } from '../admin/group'
-import { Row } from '../admin/row'
+import { AdminGroup } from '../admin/group'
+import { AdminRow } from '../admin/row'
 import { AdminTabs } from '../admin/tabs'
 import { FieldRenderer } from '../fields/field-renderer'
 import { LocalDateTime } from '../fields/local-date-time'
@@ -558,13 +558,13 @@ const FormContent = ({
   }
 
   const renderRow = (row: RowDefinition): ReactNode => (
-    <Row key={`row:${row.name}`}>{row.fields.map((name) => renderField(name))}</Row>
+    <AdminRow key={`row:${row.name}`}>{row.fields.map((name) => renderField(name))}</AdminRow>
   )
 
   const renderGroup = (group: GroupDefinition): ReactNode => (
-    <Group key={`group:${group.name}`} label={group.label}>
+    <AdminGroup key={`group:${group.name}`} label={group.label}>
       {group.fields.map((name) => renderItem(name))}
-    </Group>
+    </AdminGroup>
   )
 
   const renderTabSet = (set: TabSetDefinition): ReactNode => {
