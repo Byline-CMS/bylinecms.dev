@@ -903,6 +903,44 @@ export type BlocksUnion<Bs extends readonly Block[]> = Bs[number] extends infer 
     : never
   : never
 
+// ---------------------------------------------------------------------------
+// Field helpers — mirror of defineCollection / defineBlock for single fields.
+// ---------------------------------------------------------------------------
+
+/**
+ * Type-safe factory for creating a single `Field`. Returns the definition
+ * as-is, but locks in literal types for `name`, `type`, select option
+ * `value`s, etc. — so `FieldData<typeof MyField>` resolves precisely.
+ *
+ * Useful for fields that are shared across multiple collections (e.g. a
+ * `publishedOnField` factory) or for surfacing definition-site type errors
+ * on hand-authored fields without waiting for them to be placed inside a
+ * `fields: [...]` array. Replaces the `as const satisfies Field` pattern.
+ *
+ * For factories that *generate* a field shape from input (e.g. mapped-type
+ * driven fields like `availableLanguagesField`), a custom return type is
+ * still the right tool — `defineField` is for identity / passthrough cases.
+ *
+ * The companion data-shape extractor `FieldData<F>` lives in
+ * `field-data-types.ts` and is re-exported from the package root.
+ *
+ * @example
+ * ```ts
+ * // A shared "publishedOn" field used across many collections.
+ * export const publishedOnField = defineField({
+ *   name: 'publishedOn',
+ *   label: 'Published On',
+ *   type: 'datetime',
+ *   mode: 'datetime',
+ * })
+ *
+ * // FieldData<typeof publishedOnField> resolves to `Date`.
+ * ```
+ */
+export function defineField<const F extends Field>(definition: F & Field): F {
+  return definition
+}
+
 export type CollectionData<C extends CollectionDefinition> = Prettify<
   {
     document_id: string

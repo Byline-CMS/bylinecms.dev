@@ -10,6 +10,7 @@ import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { availableLanguagesField } from '~/fields/available-languages-field.js'
+import { publishedOnField } from '~/fields/published-on-field'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -76,12 +77,7 @@ export const Pages = defineCollection({
       helpText: 'Enter the main content for this page.',
       localized: true,
     },
-    {
-      name: 'publishedOn',
-      label: 'Published On',
-      type: 'datetime',
-      mode: 'datetime',
-    },
+    publishedOnField,
     {
       name: 'featured',
       label: 'Featured',

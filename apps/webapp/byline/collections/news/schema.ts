@@ -10,6 +10,7 @@ import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { availableLanguagesField } from '~/fields/available-languages-field.js'
+import { publishedOnField } from '~/fields/published-on-field.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -73,12 +74,7 @@ export const News = defineCollection({
       localized: true,
       embedRelationsOnSave: true, // See type definition for details.
     },
-    {
-      name: 'publishedOn',
-      label: 'Published On',
-      type: 'datetime',
-      mode: 'datetime',
-    },
+    publishedOnField,
     availableLanguagesField(),
   ],
 })
