@@ -22,7 +22,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --port 5173",
     "clean": "rimraf node_modules dist build .output .nitro .tanstack .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --mode=jsdom && vitest run --mode=node --passWithNoTests",
