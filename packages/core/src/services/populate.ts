@@ -137,6 +137,7 @@ import { ERR_READ_BUDGET_EXCEEDED } from '../lib/errors.js'
 import { parseWhere } from '../query/parse-where.js'
 import { applyAfterRead } from './document-read.js'
 import { populateRichTextFields } from './richtext-populate.js'
+import { walkFieldTree } from './walk-field-tree.js'
 import type {
   CollectionDefinition,
   DocumentFilter,
@@ -679,11 +680,14 @@ interface RelationLeafRef {
 }
 
 /**
- * Walk `fields` against `fieldDefs` and collect every relation leaf whose
- * name matches `populate`. Recurses through `group` / `array` / `blocks`
- * using the same populate spec (structure field names do not scope the
- * match — if `populate: { author: true }` is given, every `author`
- * relation found in the tree matches).
+ * Collect every relation leaf whose name matches `populate`. Structure
+ * field names do not scope the match — if `populate: { author: true }`
+ * is given, every `author` relation found anywhere in the tree matches.
+ *
+ * Tree traversal is delegated to the shared `walkFieldTree` walker; this
+ * function applies the relation-specific filters: populate-spec match,
+ * envelope shape, and "skip already-populated" (via the `_resolved`
+ * discriminator left behind by a previous populate pass).
  */
 function collectRelationLeaves(
   fields: Record<string, any>,
@@ -691,60 +695,22 @@ function collectRelationLeaves(
   populate: PopulateSpec,
   acc: RelationLeafRef[]
 ): void {
-  for (const def of fieldDefs) {
-    const rawValue = fields[def.name]
-    if (rawValue == null) continue
-
-    if (def.type === 'relation') {
-      const sub = matchesPopulate(def.name, populate)
-      if (sub === undefined) continue
-      if (!isRelatedDocumentValue(rawValue)) continue
-      // Skip leaves that have already been replaced (e.g. via shared-ref
-      // duplication at the previous level); only raw RelatedDocumentValues
-      // are candidates for population.
-      if ('_resolved' in (rawValue as Record<string, any>)) continue
-      acc.push({
-        parent: fields,
-        key: def.name,
-        field: def,
-        value: rawValue,
-        sub,
-      })
-      continue
-    }
-
-    if (def.type === 'group') {
-      if (typeof rawValue === 'object' && !Array.isArray(rawValue)) {
-        collectRelationLeaves(rawValue as Record<string, any>, def.fields, populate, acc)
-      }
-      continue
-    }
-
-    if (def.type === 'array') {
-      if (Array.isArray(rawValue)) {
-        for (const item of rawValue) {
-          if (item && typeof item === 'object' && !Array.isArray(item)) {
-            collectRelationLeaves(item as Record<string, any>, def.fields, populate, acc)
-          }
-        }
-      }
-      continue
-    }
-
-    if (def.type === 'blocks') {
-      if (Array.isArray(rawValue)) {
-        for (const item of rawValue) {
-          if (item && typeof item === 'object' && !Array.isArray(item)) {
-            // Reconstructed block items carry `_type` set to the variant's `blockType`.
-            const blockType = (item as Record<string, any>)._type
-            if (typeof blockType !== 'string') continue
-            const block = def.blocks.find((b) => b.blockType === blockType)
-            if (!block) continue
-            collectRelationLeaves(item as Record<string, any>, block.fields, populate, acc)
-          }
-        }
-      }
-    }
+  for (const leaf of walkFieldTree(fieldDefs, fields)) {
+    if (leaf.field.type !== 'relation') continue
+    const sub = matchesPopulate(leaf.field.name, populate)
+    if (sub === undefined) continue
+    if (!isRelatedDocumentValue(leaf.value)) continue
+    // Skip leaves that have already been replaced (e.g. via shared-ref
+    // duplication at the previous level); only raw RelatedDocumentValues
+    // are candidates for population.
+    if ('_resolved' in (leaf.value as Record<string, any>)) continue
+    acc.push({
+      parent: leaf.parent,
+      key: leaf.key,
+      field: leaf.field,
+      value: leaf.value,
+      sub,
+    })
   }
 }
 

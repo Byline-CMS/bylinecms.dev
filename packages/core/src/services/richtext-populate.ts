@@ -34,6 +34,7 @@ import {
   type RichTextField,
   type RichTextPopulateFn,
 } from '../@types/field-types.js'
+import { walkFieldTree } from './walk-field-tree.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
 import type { ReadContext } from '../@types/index.js'
 
@@ -52,68 +53,27 @@ export interface RichTextLeaf {
 /**
  * Walk a field set and a matching reconstructed data tree in lockstep,
  * yielding every rich-text leaf the schema declares regardless of nesting
- * depth. Recurses through `group` (nested object), `array` (array of
- * sub-objects), and `blocks` (array of `_type`-discriminated sub-objects).
+ * depth.
+ *
+ * Tree traversal is delegated to the shared `walkFieldTree` walker; this
+ * function is the rich-text-specific filter — it surfaces only leaves
+ * whose declared `type === 'richText'` and re-shapes the leaf as a
+ * `RichTextLeaf` for downstream callers.
  *
  * Tolerates missing data — a `group` whose data is absent simply yields
- * nothing under that subtree, rather than throwing. The schema is the
- * source of truth for *where* a richText might be; the data is the source
- * of truth for *whether one is currently set*.
+ * nothing under that subtree. The schema is the source of truth for
+ * *where* a richText might be; the data is the source of truth for
+ * *whether one is currently set*.
  */
 export function* collectRichTextLeaves(
   fields: FieldSet,
   data: Record<string, any> | null | undefined,
   pathPrefix = ''
 ): Generator<RichTextLeaf, void, void> {
-  if (data == null) return
-  for (const field of fields) {
-    const here = pathPrefix === '' ? field.name : `${pathPrefix}.${field.name}`
-    yield* walkField(field, data[field.name], here)
+  for (const leaf of walkFieldTree(fields, data, pathPrefix)) {
+    if (leaf.field.type !== 'richText') continue
+    yield { field: leaf.field, value: leaf.value, fieldPath: leaf.fieldPath }
   }
-}
-
-function* walkField(
-  field: Field,
-  value: unknown,
-  fieldPath: string
-): Generator<RichTextLeaf, void, void> {
-  if (field.type === 'richText') {
-    if (value === undefined || value === null) return
-    yield { field, value, fieldPath }
-    return
-  }
-
-  if (isGroupField(field)) {
-    if (value == null || typeof value !== 'object') return
-    yield* collectRichTextLeaves(field.fields, value as Record<string, any>, fieldPath)
-    return
-  }
-
-  if (isArrayField(field)) {
-    if (!Array.isArray(value)) return
-    for (let i = 0; i < value.length; i++) {
-      const item = value[i]
-      if (item == null || typeof item !== 'object') continue
-      yield* collectRichTextLeaves(field.fields, item as Record<string, any>, `${fieldPath}.${i}`)
-    }
-    return
-  }
-
-  if (isBlocksField(field)) {
-    if (!Array.isArray(value)) return
-    for (let i = 0; i < value.length; i++) {
-      const item = value[i] as Record<string, any> | null | undefined
-      if (item == null || typeof item !== 'object') continue
-      const blockType = item._type as string | undefined
-      if (!blockType) continue
-      const block = field.blocks.find((b) => b.blockType === blockType)
-      if (!block) continue
-      yield* collectRichTextLeaves(block.fields, item, `${fieldPath}.${i}`)
-    }
-    return
-  }
-
-  // Any other field type — value-only leaves with no nested richText.
 }
 
 // ---------------------------------------------------------------------------

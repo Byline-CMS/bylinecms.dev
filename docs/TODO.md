@@ -14,17 +14,6 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ## Now
 
-### Extract `walkFieldTree(fields, data, visitor)` into `@byline/core`
-
-CLAUDE.md flagged this as the right move "the next time anything needs to touch a walker." That moment arrived: this round added `collectRichTextLeaves` in `packages/core/src/services/richtext-populate.ts`, the fourth field-tree walker in the codebase. Time to extract the shared shape and re-implement the existing three on top:
-
-- `flattenFieldSetData` / `restoreFieldSetData` (`packages/db-postgres/src/modules/storage/storage-utils.ts`)
-- `walkRelationLeaves` (`packages/core/src/services/populate.ts`)
-- the `afterRead` walker (`packages/core/src/services/document-read.ts`)
-- the new `collectRichTextLeaves` (`packages/core/src/services/richtext-populate.ts`)
-
-Wants its own PR with proper unit-test coverage across all four consumers — a bug in a shared walker would affect populate, reconstruct, afterRead, and richtext populate simultaneously. CLAUDE.md "Risks worth tracking" entry under [RELATIONSHIPS.md → Risks worth tracking](./RELATIONSHIPS.md#risks-worth-tracking) is the existing trail head.
-
 ### Richtext populate integration test
 
 Deferred from the round that landed the populate primitive. Needs a running Postgres. Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate) for the populate primitive itself.
@@ -122,6 +111,21 @@ Each entry names the trigger that would move it into Next. No work happens until
 ### Auth — declared but unimplemented
 
 **Trigger:** a concrete end-user feature, real demand for SSO/OIDC, role-editable rules pressure, or a site-settings need. The contract surface is in place; the implementations wait. Specifically: `UserAuth` sign-in surface, magic-link / SSO / OIDC adapters, UI-editable conditional rules (CASL-style), site-settings storage. See [AUTHN-AUTHZ.md → Explicitly deferred](./AUTHN-AUTHZ.md#explicitly-deferred).
+
+### Fold storage flatten / restore into `walkFieldTree`
+
+**Trigger:** a third walker of the same shape as `flattenFieldSetData` / `restoreFieldSetData` appears, or one of those two grows a feature that would benefit from sharing the leaf-yield primitive.
+
+The narrow `walkFieldTree` extraction shipped covers the two walkers that share its shape: `collectRelationLeaves` (`packages/core/src/services/populate.ts`) and `collectRichTextLeaves` (`packages/core/src/services/richtext-populate.ts`). Both are now thin filters over `walkFieldTree` in `packages/core/src/services/walk-field-tree.ts`, with a contract test covering every nesting shape, the parent/key invariant, and tolerance paths.
+
+The two storage-side walkers were intentionally left out:
+
+- `flattenFieldSetData` (`packages/db-postgres/src/modules/storage/storage-flatten.ts`) — emits per-store-table rows with locale fan-out and synthetic `_id` minting. Shares a *traversal skeleton* with `walkFieldTree` but the per-field branches all do bespoke work; folding it in would force a fat-context visitor (`{ kind: 'leaf' | 'meta' | 'localized-fan-out' }`) that just relocates branching from the call site into the visitor — no real reuse.
+- `restoreFieldSetData` (`packages/db-postgres/src/modules/storage/storage-restore.ts`) — not a tree walk at all. It consumes flattened rows via a path-index cursor and constructs the tree as it goes. Different primitive; cannot share.
+
+The original `applyAfterRead` (`packages/core/src/services/document-read.ts`) listed in the prior entry is **not a walker** — it fires the hook once per top-level document. No traversal to share.
+
+Rationale and the audit that drove this scoping is captured in the conversation that landed `walkFieldTree`. Re-open if a third call site appears or if storage-side work changes shape enough that the abstraction stops straining at the seams.
 
 ### Stable HTTP transport for `path`
 

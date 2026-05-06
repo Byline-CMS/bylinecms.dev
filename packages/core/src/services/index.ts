@@ -43,3 +43,4 @@ export {
   resolvePopulateOnRead,
   validateRichTextFieldFlags,
 } from './richtext-populate.js'
+export { type FieldLeaf, walkFieldTree } from './walk-field-tree.js'
