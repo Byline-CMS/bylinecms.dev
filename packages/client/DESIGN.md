@@ -102,12 +102,21 @@ through populate). Nested filters recurse against the target
 version's own `td${depth}.id`. Aliases are depth-scoped (`r0`/`td0`,
 `r1`/`td1`, …) so nested EXISTS never shadow their outer scope.
 
-Document-level reserved keys (`status`, `query`, `path`) are
-top-level only. Inside a nested sub-where they fall through to
-ordinary field resolution on the target — so `{ category: { path: 'news' } }`
-filters on the target's `path` *field*, not the target version's
-path *column*. Target-side document-level conditions can be added
-later if needed; the current phase keeps scope tight.
+Document-level reserved keys (`status`, `path`) inside a nested
+sub-where map to the target version's `document_versions.status` /
+`path` columns — same precedence as the top level, with no
+field-shadow exception. The parser emits `DocumentColumnFilter`
+entries; the adapter wires them through the inner relation scope so
+they read `td${depth}.status` / `td${depth}.path` rather than the
+top-level `d.status` / `d.path`. So `{ category: { path: 'news' } }`
+filters by the target's document path column (slugified from
+`useAsPath`), which matches the consumer-intuitive reading.
+
+`query` is dropped inside a relation sub-clause (with a
+`logger.debug` line). Text search has no sensible composition
+through a relation hop — same rationale as the existing rule for
+`query` inside a combinator. A target-scoped text search could be
+added later as a new filter kind without breaking compatibility.
 
 `hasMany` semantics (`$some` / `$every` / `$none`) are out of scope
 for this phase. When `hasMany: true` lands on `RelationField`, the

@@ -112,11 +112,15 @@ where: { $or: [{ status: 'published' }, { authorId: actor.id }] }
 where: { $and: [{ tags: { $in: ['featured'] } }, { archived: false }] }
 
 // Cross-collection relation filters (Phase 6 semantics)
-where: { category: { path: 'news' } }              // category target's path === 'news'
-where: { category: { parent: { path: 'news' } } }  // 2-hop
+where: { category: { slug: 'news' } }              // target's `slug` field === 'news'
+where: { category: { path: 'news' } }              // target version's `document_versions.path` column === 'news'
+where: { category: { status: 'draft' } }           // target version's `document_versions.status` column === 'draft'
+where: { category: { parent: { path: 'news' } } }  // 2-hop, doc-column at depth 2
 ```
 
 The compiler emits `EXISTS` subqueries against the typed `store_*` tables for field filters, and depth-scoped nested `EXISTS` joins through `store_relation` for relation sub-wheres. All filter predicates respect the read mode — published-mode reads use `current_published_documents` even at the inner side of a relation join.
+
+Document-level reserved keys (`status`, `path`) inside a nested sub-clause map to the target version's `document_versions` columns — same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `query` (text search) is not supported inside a nested sub-clause and is silently dropped with a debug log.
 
 ### Sorting
 

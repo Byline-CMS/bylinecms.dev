@@ -124,6 +124,13 @@ const DOCUMENT_SORT_COLUMNS: Record<string, string> = {
  * are resolved into `RelationFilter` entries; otherwise only
  * direct/operator predicates against the relation's own
  * `target_document_id` are emitted.
+ *
+ * Reserved-key rules inside a nested sub-clause: `status` and `path`
+ * downshift to `DocumentColumnFilter` entries against the target
+ * version's `document_versions` columns (the adapter wires these to
+ * `td${depth}.status` / `td${depth}.path` via the inner relation scope);
+ * `query` is dropped with a debug log because text search has no
+ * sensible composition through a relation hop.
  */
 export async function parseWhere(
   where: WhereClause | undefined,
@@ -156,10 +163,15 @@ export function mergePredicates(
 }
 
 /**
- * Recursion entry point. `isNested: true` disables the top-level reserved
- * keys (`status`, `query`, `path`) so that on a nested sub-where, those
- * names resolve as ordinary fields on the target collection (where `path`
- * and `status` are typically real text fields).
+ * Recursion entry point. `isNested: true` rewires the document-level
+ * reserved keys: `status` / `path` downshift to `DocumentColumnFilter`
+ * entries against the target version's columns (the adapter resolves
+ * those via the inner relation scope, e.g. `td${depth}.status`); `query`
+ * is dropped with a debug log because text search has no sensible
+ * composition through a relation hop. Reserved keys still take precedence
+ * over field lookups — a target collection that happens to declare a
+ * `path` or `status` field will not see those clauses resolve as field
+ * filters; rename the offending field if that conflict matters.
  */
 async function parseWhereInternal(
   where: WhereClause | undefined,
@@ -241,70 +253,90 @@ async function parseWhereInternal(
     }
 
     // --- Document-level reserved keys --------------------------------------
-    // At the top level (not nested in a relation, not inside a combinator)
-    // these keys map to direct adapter scalar parameters
-    // (`ParsedWhere.status` / `query` / `pathFilter`) which compile to the
-    // outermost WHERE clause. Inside a combinator that mapping no longer
-    // composes — the predicate needs to OR with siblings, which the scalar
-    // parameter form cannot express — so `status` / `path` downshift to a
-    // `DocumentColumnFilter` and `query` is dropped (text search has no
-    // sensible OR-composing form here).
-    if (!isNested) {
-      if (key === 'status') {
-        if (inCombinator) {
-          const parsed = normaliseToOperator(rawValue)
-          if (parsed) {
-            result.filters.push({
-              kind: 'docColumn',
-              column: 'status',
-              operator: parsed.operator,
-              value: parsed.value === null ? null : String(parsed.value),
-            } satisfies DocumentColumnFilter)
-          }
-          continue
-        }
-        if (typeof rawValue === 'string') {
-          result.status = rawValue
-        }
-        continue
-      }
-
-      if (key === 'query') {
-        if (inCombinator) {
-          ctx?.logger?.debug(
-            { collection: definition.path },
-            'parse-where: dropping `query` inside a combinator — text search does not compose with OR/AND'
-          )
-          continue
-        }
-        if (typeof rawValue === 'string') {
-          result.query = rawValue
-        }
-        continue
-      }
-
-      if (key === 'path') {
-        if (inCombinator) {
-          const parsed = normaliseToOperator(rawValue)
-          if (parsed) {
-            result.filters.push({
-              kind: 'docColumn',
-              column: 'path',
-              operator: parsed.operator,
-              value: parsed.value === null ? null : String(parsed.value),
-            } satisfies DocumentColumnFilter)
-          }
-          continue
-        }
+    // `status` / `path` / `query` are reserved on every collection — they
+    // never resolve to a field of the same name (no field-shadow exception),
+    // mirroring the consumer-intuitive rule that these names refer to the
+    // document version's metadata columns.
+    //
+    // Where they compile depends on scope:
+    //
+    //   • Top level (not nested in a relation, not inside a combinator):
+    //     map to direct adapter scalar parameters
+    //     (`ParsedWhere.status` / `query` / `pathFilter`) which compile to
+    //     the outermost WHERE clause.
+    //
+    //   • Inside a combinator, OR inside a relation sub-clause: the scalar-
+    //     parameter mapping no longer composes (the predicate needs to OR
+    //     with siblings, or anchor against the *target's* doc version), so
+    //     `status` / `path` downshift to a `DocumentColumnFilter`. The SQL
+    //     compiler reads `outerScope.status` / `outerScope.path`, which the
+    //     adapter rewires per-scope (`d.path` at the top level,
+    //     `td${depth}.path` inside a relation hop).
+    //
+    //   • `query` is dropped with a debug log in both downshift cases —
+    //     text search has no sensible OR-composing form, and a per-target
+    //     EXISTS over `store_text` is intentionally deferred.
+    if (key === 'status') {
+      if (isNested || inCombinator) {
         const parsed = normaliseToOperator(rawValue)
         if (parsed) {
-          result.pathFilter = {
+          result.filters.push({
+            kind: 'docColumn',
+            column: 'status',
             operator: parsed.operator,
-            value: String(parsed.value),
-          }
+            value: parsed.value === null ? null : String(parsed.value),
+          } satisfies DocumentColumnFilter)
         }
         continue
       }
+      if (typeof rawValue === 'string') {
+        result.status = rawValue
+      }
+      continue
+    }
+
+    if (key === 'query') {
+      if (isNested) {
+        ctx?.logger?.debug(
+          { collection: definition.path },
+          'parse-where: dropping `query` inside a relation sub-clause — text search does not compose through a relation hop'
+        )
+        continue
+      }
+      if (inCombinator) {
+        ctx?.logger?.debug(
+          { collection: definition.path },
+          'parse-where: dropping `query` inside a combinator — text search does not compose with OR/AND'
+        )
+        continue
+      }
+      if (typeof rawValue === 'string') {
+        result.query = rawValue
+      }
+      continue
+    }
+
+    if (key === 'path') {
+      if (isNested || inCombinator) {
+        const parsed = normaliseToOperator(rawValue)
+        if (parsed) {
+          result.filters.push({
+            kind: 'docColumn',
+            column: 'path',
+            operator: parsed.operator,
+            value: parsed.value === null ? null : String(parsed.value),
+          } satisfies DocumentColumnFilter)
+        }
+        continue
+      }
+      const parsed = normaliseToOperator(rawValue)
+      if (parsed) {
+        result.pathFilter = {
+          operator: parsed.operator,
+          value: String(parsed.value),
+        }
+      }
+      continue
     }
 
     // --- Field-level keys --------------------------------------------------
@@ -349,11 +381,11 @@ async function parseWhereInternal(
         inCombinator: false,
       })
 
-      // Flatten nested: only field-level / relation-level conditions make
-      // sense inside a relation subclause. Document-level keys (status,
-      // path, query) on the target are deliberately out of scope for this
-      // first phase — they can be added later by promoting them into
-      // the nested filter list here.
+      // Splice nested filters straight in. The nested parse runs with
+      // `isNested: true`, which promotes `status` / `path` into
+      // `DocumentColumnFilter` entries the adapter resolves against the
+      // target version's columns (`td${depth}.status` / `td${depth}.path`)
+      // via the inner relation scope. `query` is dropped one level up.
       result.filters.push({
         kind: 'relation',
         fieldName: key,

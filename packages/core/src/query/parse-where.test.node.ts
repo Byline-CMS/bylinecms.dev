@@ -45,7 +45,11 @@ const categoriesCollection = defineCollection({
   }),
   fields: [
     { name: 'name', type: 'text', label: 'Name', localized: true },
-    { name: 'path', type: 'text', label: 'Path' },
+    // `slug`, not `path` — `path` is a reserved key that resolves to the
+    // target version's `document_versions.path` column inside a nested
+    // sub-clause (same precedence as the top level), so a real `path`
+    // field would be unreachable through the where clause.
+    { name: 'slug', type: 'text', label: 'Slug' },
     {
       name: 'parent',
       type: 'relation',
@@ -253,8 +257,8 @@ describe('parseWhere', () => {
     })
   })
 
-  it('should emit a RelationFilter for a nested plain-object sub-where', async () => {
-    const result = await parseWhere({ category: { path: 'news' } }, testCollection, ctx)
+  it('should emit a RelationFilter for a nested plain-object sub-where (field key)', async () => {
+    const result = await parseWhere({ category: { slug: 'news' } }, testCollection, ctx)
     expect(result.filters).toHaveLength(1)
     expect(result.filters[0]).toEqual({
       kind: 'relation',
@@ -263,7 +267,7 @@ describe('parseWhere', () => {
       nested: [
         {
           kind: 'field',
-          fieldName: 'path',
+          fieldName: 'slug',
           storeType: 'text',
           valueColumn: 'value',
           operator: '$eq',
@@ -271,6 +275,57 @@ describe('parseWhere', () => {
         },
       ],
     })
+  })
+
+  it('promotes `path` inside a nested sub-where to a DocumentColumnFilter', async () => {
+    // Reserved-key precedence: `path` inside a relation sub-clause maps to
+    // the target version's `document_versions.path` column, never to a
+    // field of the same name. The adapter wires it to `td${depth}.path`
+    // via the inner relation scope.
+    const result = await parseWhere({ category: { path: 'news' } }, testCollection, ctx)
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toEqual({
+      kind: 'relation',
+      fieldName: 'category',
+      targetCollectionId: 'id-test-categories',
+      nested: [
+        {
+          kind: 'docColumn',
+          column: 'path',
+          operator: '$eq',
+          value: 'news',
+        },
+      ],
+    })
+  })
+
+  it('promotes `status` inside a nested sub-where to a DocumentColumnFilter', async () => {
+    const result = await parseWhere({ category: { status: 'draft' } }, testCollection, ctx)
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toEqual({
+      kind: 'relation',
+      fieldName: 'category',
+      targetCollectionId: 'id-test-categories',
+      nested: [
+        {
+          kind: 'docColumn',
+          column: 'status',
+          operator: '$eq',
+          value: 'draft',
+        },
+      ],
+    })
+  })
+
+  it('drops `query` inside a nested sub-where (no nested filter emitted)', async () => {
+    // Same rationale as `query` inside a combinator: text search has no
+    // sensible composition through a relation hop.
+    const result = await parseWhere({ category: { query: 'news' } }, testCollection, ctx)
+    expect(result.filters).toHaveLength(1)
+    const relation = result.filters[0]
+    expect(relation?.kind).toBe('relation')
+    if (relation?.kind !== 'relation') return
+    expect(relation.nested).toEqual([])
   })
 
   it('should support operator objects inside a nested sub-where', async () => {
@@ -295,7 +350,7 @@ describe('parseWhere', () => {
   })
 
   it('should recurse into multi-hop relation sub-wheres', async () => {
-    const result = await parseWhere({ category: { parent: { path: 'news' } } }, testCollection, ctx)
+    const result = await parseWhere({ category: { parent: { slug: 'news' } } }, testCollection, ctx)
     const top = result.filters[0]
     expect(top?.kind).toBe('relation')
     if (top?.kind !== 'relation') return
@@ -311,9 +366,28 @@ describe('parseWhere', () => {
     expect(inner.nested).toEqual([
       {
         kind: 'field',
-        fieldName: 'path',
+        fieldName: 'slug',
         storeType: 'text',
         valueColumn: 'value',
+        operator: '$eq',
+        value: 'news',
+      },
+    ])
+  })
+
+  it('recurses multi-hop with the doc-column form (target.path at depth 2)', async () => {
+    const result = await parseWhere({ category: { parent: { path: 'news' } } }, testCollection, ctx)
+    const top = result.filters[0]
+    expect(top?.kind).toBe('relation')
+    if (top?.kind !== 'relation') return
+    expect(top.nested).toHaveLength(1)
+    const inner = top.nested[0]
+    expect(inner?.kind).toBe('relation')
+    if (inner?.kind !== 'relation') return
+    expect(inner.nested).toEqual([
+      {
+        kind: 'docColumn',
+        column: 'path',
         operator: '$eq',
         value: 'news',
       },
@@ -615,6 +689,11 @@ describe('parseWhere — combinators', () => {
   })
 
   it('parses combinators inside a nested relation sub-where', async () => {
+    // Inside the nested sub-where: `name` is a real field on the target
+    // (resolves to a FieldFilter) and `path` is a reserved key that
+    // downshifts to a `DocumentColumnFilter` against the target version's
+    // path column. Inside an `$or` either side composes — the OR is
+    // emitted as a CombinatorFilter wrapping both children.
     const result = await parseWhere(
       {
         category: {
@@ -633,7 +712,7 @@ describe('parseWhere — combinators', () => {
       kind: 'or',
       children: [
         { kind: 'field', fieldName: 'name' },
-        { kind: 'field', fieldName: 'path' },
+        { kind: 'docColumn', column: 'path', operator: '$eq', value: 'announcements' },
       ],
     })
   })

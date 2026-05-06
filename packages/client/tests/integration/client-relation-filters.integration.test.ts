@@ -9,7 +9,7 @@
 /**
  * Cross-collection filter integration tests. Exercises the nested-EXISTS
  * path emitted by `parseWhere` when a relation field's value is a plain
- * sub-where (e.g. `{ category: { path: 'news' } }`).
+ * sub-where (e.g. `{ category: { slug: 'news' } }`).
  *
  * Verifies:
  *  - single-hop filter narrows docs by a related collection's field
@@ -17,7 +17,9 @@
  *  - locale propagation through the join
  *  - composition with ordinary field filters + relation-id filters
  *  - deleted target yields no matches (not a crash)
- *  - 2-hop recursion (category → parent → path)
+ *  - 2-hop recursion (category → parent → slug)
+ *  - document-level reserved keys (`status`, `path`) inside a nested
+ *    sub-clause map to the target version's columns; `query` is dropped
  */
 
 import { createSuperAdminContext } from '@byline/auth'
@@ -45,9 +47,12 @@ const categoriesDefinition = defineCollection({
     draft: { label: 'Draft', verb: 'Revert to Draft' },
     published: { label: 'Published', verb: 'Publish' },
   }),
+  // Derive `document_versions.path` from the slugified name so the
+  // doc-column tests below have predictable values to assert against.
+  useAsPath: 'name',
   fields: [
     { name: 'name', type: 'text', label: 'Name', localized: true },
-    { name: 'path', type: 'text', label: 'Path' },
+    { name: 'slug', type: 'text', label: 'Slug' },
     {
       name: 'parent',
       type: 'relation',
@@ -65,9 +70,10 @@ const articlesDefinition = defineCollection({
     draft: { label: 'Draft', verb: 'Revert to Draft' },
     published: { label: 'Published', verb: 'Publish' },
   }),
+  useAsPath: 'title',
   fields: [
     { name: 'title', type: 'text', label: 'Title', localized: true },
-    { name: 'path', type: 'text', label: 'Path' },
+    { name: 'slug', type: 'text', label: 'Slug' },
     {
       name: 'category',
       type: 'relation',
@@ -85,7 +91,7 @@ interface Ctx {
   categoriesCollectionId: string
   articlesDefinition: CollectionDefinition
   categoriesDefinition: CollectionDefinition
-  /** documentId per category by path */
+  /** documentId per category by slug */
   categoryIds: Map<string, string>
 }
 
@@ -138,14 +144,16 @@ beforeAll(async () => {
   ctx = await setup()
 
   // Seed two categories: news (published) + features (published).
+  // `useAsPath: 'name'` means each gets a doc-level path slugified from
+  // its name ("News" → "news", etc.) — the doc-column tests rely on that.
   for (const seed of [
-    { name: 'News', path: 'news' },
-    { name: 'Features', path: 'features' },
+    { name: 'News', slug: 'news' },
+    { name: 'Features', slug: 'features' },
   ]) {
     const handle = ctx.client.collection(ctx.categoriesDefinition.path)
-    const created = await handle.create({ name: seed.name, path: seed.path })
+    const created = await handle.create({ name: seed.name, slug: seed.slug })
     await handle.changeStatus(created.documentId, 'published')
-    ctx.categoryIds.set(seed.path, created.documentId)
+    ctx.categoryIds.set(seed.slug, created.documentId)
   }
 
   // Seed a third category that is kept in DRAFT so we can test the
@@ -153,14 +161,14 @@ beforeAll(async () => {
   // disappear in the published view).
   const draftCat = await ctx.client
     .collection(ctx.categoriesDefinition.path)
-    .create({ name: 'Hidden', path: 'hidden' })
+    .create({ name: 'Hidden', slug: 'hidden' })
   ctx.categoryIds.set('hidden', draftCat.documentId)
 
   // A nested parent category for 2-hop tests. Parent is "News" itself,
   // already seeded above.
   const subCat = await ctx.client.collection(ctx.categoriesDefinition.path).create({
     name: 'Breaking',
-    path: 'breaking',
+    slug: 'breaking',
     parent: {
       targetDocumentId: ctx.categoryIds.get('news'),
       targetCollectionId: ctx.categoriesCollectionId,
@@ -174,18 +182,18 @@ beforeAll(async () => {
   // Seed articles, each categorised into one of the categories.
   const articlesHandle = ctx.client.collection(ctx.articlesDefinition.path)
   const articleSeeds = [
-    { title: 'News A', path: 'news-a', cat: 'news' },
-    { title: 'News B', path: 'news-b', cat: 'news' },
-    { title: 'Features A', path: 'features-a', cat: 'features' },
+    { title: 'News A', slug: 'news-a', cat: 'news' },
+    { title: 'News B', slug: 'news-b', cat: 'news' },
+    { title: 'Features A', slug: 'features-a', cat: 'features' },
     // Points at the draft-only category. Should vanish from published reads.
-    { title: 'Orphan', path: 'orphan', cat: 'hidden' },
+    { title: 'Orphan', slug: 'orphan', cat: 'hidden' },
     // Points at the nested "breaking" category (child of "news").
-    { title: 'Breaking Story', path: 'breaking-story', cat: 'breaking' },
+    { title: 'Breaking Story', slug: 'breaking-story', cat: 'breaking' },
   ]
   for (const seed of articleSeeds) {
     const created = await articlesHandle.create({
       title: seed.title,
-      path: seed.path,
+      slug: seed.slug,
       category: {
         targetDocumentId: ctx.categoryIds.get(seed.cat),
         targetCollectionId: ctx.categoriesCollectionId,
@@ -204,9 +212,9 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe('cross-collection relation filter (nested where)', () => {
-  it('narrows docs by a relation target field (category.path = news)', async () => {
+  it('narrows docs by a relation target field (category.slug = news)', async () => {
     const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
-      where: { category: { path: 'news' } },
+      where: { category: { slug: 'news' } },
     })
     const titles = result.docs.map((d) => d.fields.title as string).sort()
     expect(titles).toEqual(['News A', 'News B'])
@@ -223,7 +231,7 @@ describe('cross-collection relation filter (nested where)', () => {
     const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
       where: {
         title: { $contains: 'A' },
-        category: { path: 'news' },
+        category: { slug: 'news' },
       },
     })
     expect(result.docs.map((d) => d.fields.title)).toEqual(['News A'])
@@ -242,7 +250,7 @@ describe('cross-collection relation filter (nested where)', () => {
     // current_published_documents on the target side finds nothing, and
     // Orphan must not appear.
     const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
-      where: { category: { path: 'hidden' } },
+      where: { category: { slug: 'hidden' } },
     })
     expect(result.docs).toEqual([])
   })
@@ -250,27 +258,72 @@ describe('cross-collection relation filter (nested where)', () => {
   it("finds the draft-target article under status: 'any'", async () => {
     const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
       status: 'any',
-      where: { category: { path: 'hidden' } },
+      where: { category: { slug: 'hidden' } },
     })
     expect(result.docs.map((d) => d.fields.title)).toEqual(['Orphan'])
   })
 
   it('returns no rows when the target field predicate matches nothing', async () => {
     const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
-      where: { category: { path: 'does-not-exist' } },
+      where: { category: { slug: 'does-not-exist' } },
     })
     expect(result.docs).toEqual([])
   })
 
-  it('recurses 2 hops (category → parent → path)', async () => {
+  it('recurses 2 hops (category → parent → slug)', async () => {
     // Sanity on the inner hop (breaking → parent=news).
     const oneHop = await ctx.client.collection(ctx.categoriesDefinition.path).find({
-      where: { parent: { path: 'news' } },
+      where: { parent: { slug: 'news' } },
     })
     expect(oneHop.docs.map((d) => d.fields.name)).toEqual(['Breaking'])
 
     // "Breaking Story" → breaking → parent=news. So a filter
-    // `{ category: { parent: { path: 'news' } } }` should find it.
+    // `{ category: { parent: { slug: 'news' } } }` should find it.
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      where: { category: { parent: { slug: 'news' } } },
+    })
+    expect(result.docs.map((d) => d.fields.title)).toEqual(['Breaking Story'])
+  })
+})
+
+describe('document-level reserved keys inside a nested where', () => {
+  it('filters by the target version `path` column (`category.path`)', async () => {
+    // `useAsPath: 'name'` slugifies "News" → "news" into
+    // document_versions.path. The reserved-key promotion at parse-where
+    // emits a DocumentColumnFilter that the adapter wires to td0.path.
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      where: { category: { path: 'news' } },
+    })
+    const titles = result.docs.map((d) => d.fields.title as string).sort()
+    expect(titles).toEqual(['News A', 'News B'])
+  })
+
+  it("filters by the target version `status` column (target draft + status: 'any')", async () => {
+    // Hidden category is in 'draft'; under status: 'any' both source and
+    // target use current_documents, so Orphan surfaces and the doc-column
+    // filter on `category.status = 'draft'` keeps it.
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      status: 'any',
+      where: { category: { status: 'draft' } },
+    })
+    expect(result.docs.map((d) => d.fields.title)).toEqual(['Orphan'])
+  })
+
+  it('drops `query` inside a relation sub-clause (no row filter applied)', async () => {
+    // With `query` dropped, the relation filter degenerates to "has any
+    // category at all". Under status: 'published' the join to the target's
+    // current_published_documents still excludes the draft-target Orphan,
+    // so the result is the four published-target articles.
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      where: { category: { query: 'whatever' } },
+    })
+    const titles = result.docs.map((d) => d.fields.title as string).sort()
+    expect(titles).toEqual(['Breaking Story', 'Features A', 'News A', 'News B'])
+  })
+
+  it('recurses 2 hops with the doc-column form (`category.parent.path`)', async () => {
+    // Same shape as the slug-based 2-hop test, but anchored on the inner
+    // hop's document_versions.path column at depth 2 (td1.path).
     const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
       where: { category: { parent: { path: 'news' } } },
     })

@@ -6,10 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
+import { getNewsCategoriesFn } from '@/modules/news/categories'
 import { NewsList } from '@/modules/news/components/list'
 import { getNewsListFn } from '@/modules/news/list'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
@@ -23,14 +24,34 @@ export const Route = createFileRoute('/{-$lng}/_public/news/')({
     category: typeof search.category === 'string' ? search.category : undefined,
   }),
   loaderDeps: ({ search: { category } }) => ({ category }),
-  loader: ({ deps: { category } }) => getNewsListFn({ data: { category } }),
+  loader: async ({ deps: { category } }) => {
+    const [result, categories] = await Promise.all([
+      getNewsListFn({ data: { category } }),
+      getNewsCategoriesFn({ data: {} }),
+    ])
+    return { result, categories }
+  },
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  const result = Route.useLoaderData()
+  const { result, categories } = Route.useLoaderData()
   const { category } = Route.useSearch()
-  // console.log('News list result', JSON.stringify({ result, category }, null, 2))
+  const navigate = useNavigate()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  const onCategoryChange = (next: string | undefined) => {
+    navigate({
+      to: pathname as never,
+      search: ((current: Record<string, unknown>) => {
+        const out: Record<string, unknown> = { ...current }
+        if (next == null) delete out.category
+        else out.category = next
+        return out
+      }) as never,
+    })
+  }
+
   return (
     <>
       <div id="byline-cms-meta" className="invisible max-h-0" aria-hidden data-collection="news" />
@@ -41,7 +62,12 @@ function RouteComponent() {
       </Section>
       <Section>
         <Container>
-          <NewsList result={result} category={category} />
+          <NewsList
+            result={result}
+            categories={categories}
+            category={category}
+            onCategoryChange={onCategoryChange}
+          />
         </Container>
       </Section>
     </>

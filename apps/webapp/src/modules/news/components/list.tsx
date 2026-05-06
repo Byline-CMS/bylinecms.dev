@@ -8,17 +8,22 @@
 
 import { Link } from '@tanstack/react-router'
 
-import { Badge, Card } from '@byline/ui/react'
+import { Badge, Card, Select } from '@byline/ui/react'
 
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { RouterPager } from '@/ui/components/router-pager'
 import { truncate } from '@/utils/utils.general'
+import type { NewsCategoriesListResult } from '@/modules/news/categories'
 import type { NewsListResult } from '@/modules/news/list'
 
 interface NewsListProps {
   result: NewsListResult
+  categories: NewsCategoriesListResult
   category?: string
+  onCategoryChange: (next: string | undefined) => void
 }
+
+const ALL_CATEGORIES = '__all__'
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -26,13 +31,34 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
-export function NewsList({ result, category }: NewsListProps) {
+export function NewsList({ result, categories, category, onCategoryChange }: NewsListProps) {
   const { docs, meta } = result
+
+  const categoryItems = [
+    { value: ALL_CATEGORIES, label: 'All Categories' },
+    ...categories.docs.map((doc) => ({
+      value: doc.path ?? doc.id,
+      label: doc.fields.name ?? doc.path ?? doc.id,
+    })),
+  ]
+
+  const handleCategoryChange = (value: string | null) => {
+    if (value == null) return
+    onCategoryChange(value === ALL_CATEGORIES ? undefined : value)
+  }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 prose">
-        <h1 className="m-0">News</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center  mb-4 prose">
+        <h1 className="m-0 mr-auto mb-2 sm:mb-0">News</h1>
+        <Select<string>
+          ariaLabel="Filter by category"
+          size="sm"
+          variant="outlined"
+          value={category ?? ALL_CATEGORIES}
+          items={categoryItems}
+          onValueChange={handleCategoryChange}
+        />
         <RouterPager
           page={meta.page}
           count={meta.totalPages}
