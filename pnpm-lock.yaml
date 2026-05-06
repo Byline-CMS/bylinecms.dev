@@ -89,6 +89,9 @@ importers:
       nitro:
         specifier: npm:nitro-nightly@latest
         version: nitro-nightly@3.0.1-20260501-164602-aee73f19(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@types/pg@8.20.0)(pg@8.20.0))(jiti@2.6.1)(lru-cache@11.3.5)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0)(yaml@2.8.0))
+      pino:
+        specifier: ^10.3.1
+        version: 10.3.1
       prism-react-renderer:
         specifier: ^2.4.1
         version: 2.4.1(react@19.2.5)
