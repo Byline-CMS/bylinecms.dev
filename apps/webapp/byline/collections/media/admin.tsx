@@ -127,11 +127,17 @@ export const MediaAdmin: CollectionAdminConfig = defineAdmin(Media, {
   // fields: {},
 
   /**
-   * Preview URL builder for live preview links. Receives the document and an
-   * optional locale and should return a fully-qualified URL string.
+   * Preview URL builder for live preview links. Returns a URL string (relative
+   * or absolute), or `null` to hide the preview affordance.
+   *
+   * `doc.path` is the top-level slug (derived from `useAsPath`), not a field.
+   * Direct relations are auto-populated by the edit view (depth 1, picker
+   * projection) and appear under `doc.fields.<name>?.document`.
    *
    * @example
-   * preview: (doc, { locale }) => `https://example.com/media/${doc.fields.path}`
+   * preview: {
+   *   url: (doc) => (doc.path ? `/media/${doc.path}` : null),
+   * }
    */
   // preview: undefined,
 

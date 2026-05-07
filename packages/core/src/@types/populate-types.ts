@@ -10,9 +10,9 @@
  * Pure type aliases for the populate DSL. The runtime orchestrator
  * (`populateDocuments`) lives in `services/populate.ts` and re-exports
  * these for backward compatibility, but they live here so other type
- * surfaces — notably `CollectionAdminConfig.preview.populate` — can
- * reference them without importing the services layer (which would
- * create a cycle, since `populate.ts` imports from this folder).
+ * surfaces (e.g. `@byline/client`'s `FindOptions.populate`) can reference
+ * them without importing the services layer — which would create a cycle,
+ * since `populate.ts` imports from this folder.
  */
 
 /**

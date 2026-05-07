@@ -25,10 +25,12 @@
  * document yet, so offering a preview link would just lead to a 404.
  *
  * The component does not load the document itself. Callers pass the
- * already-loaded `doc` from their route loader. If `preview.populate`
- * is configured, it's the loader's responsibility to apply that hint
- * when fetching the document so `url(doc, ctx)` sees the resolved
- * relation values it expects (e.g. `doc.fields.area?.document?.path`).
+ * already-loaded `doc` from their route loader. The edit-view loader
+ * applies a blanket depth-1 populate (picker projection) so direct
+ * relation targets are available as `doc.fields.<name>?.document` —
+ * `url(doc, ctx)` inherits that populated tree without further work.
+ * Deeper hops or fields outside the picker projection are not available;
+ * see `CollectionAdminConfig.preview` for the full contract.
  *
  * Two-step "enable cookie then navigate" intentionally avoids the
  * Payload-style `/routes/draft?url=...&secret=...` redirect handler:

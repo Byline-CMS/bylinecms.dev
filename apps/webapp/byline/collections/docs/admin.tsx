@@ -119,11 +119,25 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   },
 
   /**
-   * Preview URL builder for live preview links. Receives the document and an
-   * optional locale and should return a fully-qualified URL string.
+   * Preview URL builder for live preview links. Returns a URL string (relative
+   * or absolute), or `null` to hide the preview affordance.
+   *
+   * `doc.path` is the top-level slug (derived from `useAsPath`), not a field.
+   * Direct relations are auto-populated by the edit view (depth 1, picker
+   * projection) and appear under `doc.fields.<name>?.document`.
    *
    * @example
-   * preview: (doc, { locale }) => `https://example.com/${locale}/docs/${doc.fields.path}`
+   * preview: {
+   *   url: (doc, { locale }) => {
+   *     if (!doc.path) return null
+   *     // `category` is a direct relation — auto-populated to depth 1.
+   *     const category = doc.fields.category?.document?.path
+   *     const prefix = locale && locale !== 'en' ? `/${locale}` : ''
+   *     return category
+   *       ? `${prefix}/docs/${category}/${doc.path}`
+   *       : `${prefix}/docs/${doc.path}`
+   *   },
+   * }
    */
   // preview: undefined,
 

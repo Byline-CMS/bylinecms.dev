@@ -8,7 +8,6 @@
 
 import type { CollectionDefinition, WorkflowStatus } from './collection-types.js'
 import type { FieldComponentSlots } from './field-types.js'
-import type { PopulateSpec } from './populate-types.js'
 
 /**
  * Props passed to a custom list-view component registered via
@@ -247,35 +246,43 @@ export interface CollectionAdminConfig<T = any> {
    * the preview link defaults to `/${collectionPath}/${doc.path}` — fine
    * for collections whose public URL mirrors the collection path.
    *
-   * Two parts:
+   * `url(doc, ctx)` — pure function returning the preview URL. Receives
+   * the loaded document and a small request-scoped context object
+   * carrying `locale`. Return `null` to indicate "no preview URL is
+   * meaningful for this document yet" — `<PreviewLink>` hides itself
+   * in that case (e.g. missing path, missing required relation, draft
+   * awaiting first save).
    *
-   *   - `populate` (optional) — populate hint applied when the admin loads
-   *     the document for the preview link. Lets `url(doc, ctx)` see resolved
-   *     relation values (e.g. `doc.fields.area?.document?.path`) instead
-   *     of the bare `RelatedDocumentValue` envelope. Selective by design —
-   *     full populate per-row would be expensive for list views if/when
-   *     preview links land there too.
+   * What's available on `doc`:
    *
-   *   - `url(doc, ctx)` — pure function returning the preview URL. Receives
-   *     the (optionally populated) document and a small request-scoped
-   *     context object carrying `locale`. Return `null` to indicate "no
-   *     preview URL is meaningful for this document yet" — `<PreviewLink>`
-   *     hides itself in that case (e.g. missing slug, missing required
-   *     relation, draft awaiting first save).
+   *   - **Top-level columns** — `id`, `path`, `status`. `path` is the
+   *     slug derived server-side from the collection's `useAsPath`
+   *     field; it is a reserved column on every document, not a
+   *     user-defined field. Address as `doc.path`, not `doc.fields.path`.
    *
-   * Example for a `pages` collection routed by `area` relation:
+   *   - **Field values** under `doc.fields` — every scalar / array /
+   *     block field of the source collection.
+   *
+   *   - **Direct relation targets** under `doc.fields.<name>?.document`
+   *     — the edit-view loader applies a blanket depth-1 populate so
+   *     relation tiles render with target data on first paint, and
+   *     `url(...)` inherits the same populated tree. The projection
+   *     follows the target's `picker` columns (plus top-level columns
+   *     like `path`, which are always present). Deeper hops, or fields
+   *     outside the target's picker projection, are NOT populated.
+   *
+   * Example for a `news` collection routed by its `category` relation:
    *
    * ```ts
    * preview: {
-   *   populate: { area: '*' },
    *   url: (doc, { locale }) => {
-   *     const area = doc.fields.area?.document?.path
-   *     const slug = doc.fields.slug
-   *     if (!slug) return null
+   *     if (!doc.path) return null
+   *     // `category` is a direct relation — auto-populated to depth 1.
+   *     const category = doc.fields.category?.document?.path
    *     const prefix = locale && locale !== 'en' ? `/${locale}` : ''
-   *     return area && area !== 'root'
-   *       ? `${prefix}/${area}/${slug}`
-   *       : `${prefix}/${slug}`
+   *     return category
+   *       ? `${prefix}/news/${category}/${doc.path}`
+   *       : `${prefix}/news/${doc.path}`
    *   },
    * }
    * ```
@@ -283,9 +290,17 @@ export interface CollectionAdminConfig<T = any> {
    * Returned URLs may be relative (`/news/foo`) for same-origin hosts
    * or absolute (`https://example.com/news/foo`) for hosts deployed
    * separately from the admin.
+   *
+   * Future consideration — a per-collection `preview.populate` hint
+   * (`PopulateSpec`) was prototyped and removed. The edit-view loader
+   * already issues a depth-1 populate to render relation tiles, so any
+   * selective override would have to coexist with the picker projection
+   * (additive? overriding? both?) — extra surface area for a case no
+   * current collection needs. Revisit if a real use case emerges
+   * (deeper relation traversal, or a field outside the picker
+   * projection that the URL builder needs).
    */
   preview?: {
-    populate?: PopulateSpec
     url: (doc: PreviewDocument<T>, ctx: { locale?: string }) => string | null
   }
 
