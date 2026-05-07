@@ -10,7 +10,7 @@ import type { SelectField as FieldType } from '@byline/core'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
-import { ErrorText, Select } from '../../uikit.js'
+import { ErrorText, Label, Select } from '../../uikit.js'
 import styles from './select-field.module.css'
 
 export const SelectField = ({
@@ -33,16 +33,21 @@ export const SelectField = ({
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<string | undefined>(fieldPath)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
+  const htmlId = id ?? fieldPath
 
   return (
     <div className={`byline-field-select ${field.name}`}>
+      {field.label && (
+        <Label id={htmlId} htmlFor={htmlId} label={field.label} required={!field.optional} />
+      )}
       <Select<string>
         size="xs"
-        id={id ?? fieldPath}
+        id={htmlId}
         name={field.name}
         placeholder="Select an option"
         required={!field.optional}
         value={incomingValue}
+        ariaLabel={field.label}
         helpText={field.helpText}
         items={field.options.map((opt) => ({ value: opt.value, label: opt.label }))}
         onValueChange={(value) => {
