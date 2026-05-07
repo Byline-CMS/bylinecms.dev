@@ -119,6 +119,13 @@ export const EditView = ({
   // biome-ignore lint/suspicious/noExplicitAny: storage shape
   const publishedVersion = (initialData as any)?._publishedVersion ?? null
 
+  // Schema-mismatch warnings — attached by getCollectionDocument when the
+  // document was loaded leniently (admin edit path) and at least one
+  // orphan row was skipped because the collection schema has moved on
+  // since the document was written.
+  // biome-ignore lint/suspicious/noExplicitAny: storage shape
+  const restoreWarnings = (initialData as any)?._restoreWarnings as string[] | undefined
+
   const handleUnpublish = async () => {
     try {
       await unpublishDocument({ data: { collection: path, id: String(initialData.id) } })
@@ -302,6 +309,7 @@ export const EditView = ({
           onUnpublish={publishedVersion ? handleUnpublish : undefined}
           onDelete={handleDelete}
           publishedVersion={publishedVersion}
+          restoreWarnings={restoreWarnings}
           nextStatus={nextStatus}
           workflowStatuses={workflowStatuses}
           onCancel={() =>

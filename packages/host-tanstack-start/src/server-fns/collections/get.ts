@@ -88,6 +88,10 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       populate,
       depth: resolvedDepth,
       status: 'any',
+      // Admin edit path: tolerate schema-mismatch warnings rather than
+      // hard-failing the load. Warnings (if any) come back on the document
+      // as `_restoreWarnings` and the edit form surfaces them via an Alert.
+      lenient: true,
     })
 
     if (!document) {
@@ -136,7 +140,21 @@ const getDocumentFn = createServerFn({ method: 'GET' })
         : null
     }
 
-    return { ...(parsed as Record<string, any>), _publishedVersion: publishedVersion }
+    // Preserve `_restoreWarnings` across the Zod parse — the parse strips
+    // unknown keys, so the warnings list (set by `findById({ lenient: true })`
+    // when older rows can't be reconstructed against the current schema)
+    // would otherwise be lost before reaching the edit form.
+    const restoreWarnings = (serialised as Record<string, any>)._restoreWarnings as
+      | string[]
+      | undefined
+
+    return {
+      ...(parsed as Record<string, any>),
+      _publishedVersion: publishedVersion,
+      ...(restoreWarnings && restoreWarnings.length > 0
+        ? { _restoreWarnings: restoreWarnings }
+        : {}),
+    }
   })
 
 // ---------------------------------------------------------------------------

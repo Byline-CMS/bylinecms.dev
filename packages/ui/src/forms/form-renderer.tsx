@@ -26,7 +26,7 @@ import { AdminTabs } from '../admin/tabs'
 import { FieldRenderer } from '../fields/field-renderer'
 import { LocalDateTime } from '../fields/local-date-time'
 import { useBylineFieldServices } from '../services/field-services-context'
-import { Button, ComboButton, Modal } from '../uikit.js'
+import { Alert, Button, ComboButton, Modal } from '../uikit.js'
 import { DocumentActions } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import styles from './form-renderer.module.css'
@@ -77,6 +77,14 @@ export interface FormRendererProps {
   initialLocale?: string
   /** Called when the user picks a different content locale. */
   onLocaleChange?: (locale: string) => void
+  /**
+   * Schema-mismatch warnings produced by a "best-effort" reconstruction
+   * of the document (`findById({ lenient: true })`). When present, the
+   * form renders an inline Alert telling the editor that fields from a
+   * previous schema have been dropped — saving the form will overwrite
+   * them with the new shape.
+   */
+  restoreWarnings?: string[]
   /**
    * Default content locale used when no `initialLocale` is supplied and as the
    * fallback inside `PathWidget`. Hosts typically pass their app-wide
@@ -260,6 +268,7 @@ const FormContent = ({
   onLocaleChange,
   defaultLocale = 'en',
   useNavigationGuard: useNavigationGuardProp,
+  restoreWarnings,
   _activeTabBySet,
   _onTabChange,
 }: FormRendererProps & {
@@ -677,6 +686,30 @@ const FormContent = ({
           />
         </div>
       </div>
+      {restoreWarnings && restoreWarnings.length > 0 && (
+        <Alert
+          className="m-0 mt-4"
+          intent="warning"
+          icon={true}
+          close={false}
+          title="This document was loaded with a best-effort reconstruction"
+        >
+          <p>
+            The collection schema has changed since this document was last saved, and{' '}
+            {restoreWarnings.length === 1
+              ? '1 field could not be restored against the current shape.'
+              : `${restoreWarnings.length} fields could not be restored against the current shape.`}{' '}
+            The form below shows only the fields that match the new schema. Saving will overwrite
+            the document with the new shape — any data that did not match will be lost. To preserve
+            it, copy what you need before saving, or delete this document and recreate it. Errors:
+          </p>
+          <ul>
+            {restoreWarnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </Alert>
+      )}
       <div className={cx('byline-form-layout', styles.layout)}>
         <div className={cx('byline-form-content', styles.content)}>
           {layout.main.map((name) => renderItem(name))}
@@ -684,13 +717,13 @@ const FormContent = ({
         <div className={cx('byline-form-sidebar', styles.sidebar)}>
           {(useAsPath ||
             (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
-            <PathWidget
-              useAsPath={useAsPath}
-              collectionPath={collectionPath ?? ''}
-              defaultLocale={defaultLocale}
-              mode={mode}
-            />
-          )}
+              <PathWidget
+                useAsPath={useAsPath}
+                collectionPath={collectionPath ?? ''}
+                defaultLocale={defaultLocale}
+                mode={mode}
+              />
+            )}
           {(layout.sidebar ?? []).map((name) => renderItem(name))}
         </div>
       </div>
@@ -746,6 +779,7 @@ export const FormRenderer = ({
   onLocaleChange,
   defaultLocale,
   useNavigationGuard,
+  restoreWarnings,
 }: FormRendererProps) => {
   // Persists per-tab-set active tab across locale-change remounts of FormContent.
   // useRef so mutations never trigger a re-render of FormRenderer itself.
@@ -778,6 +812,7 @@ export const FormRenderer = ({
         onLocaleChange={onLocaleChange}
         defaultLocale={defaultLocale}
         useNavigationGuard={useNavigationGuard}
+        restoreWarnings={restoreWarnings}
         _activeTabBySet={savedTabsRef.current}
         _onTabChange={(tabSetName, tabName) => {
           savedTabsRef.current = { ...savedTabsRef.current, [tabSetName]: tabName }

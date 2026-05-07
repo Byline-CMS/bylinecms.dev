@@ -197,6 +197,7 @@ export class CollectionHandle {
       reconstruct: true,
       readMode,
       filters,
+      lenient: options.lenient,
     })
 
     if (raw == null) return null

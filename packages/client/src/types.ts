@@ -217,6 +217,15 @@ export interface FindByIdOptions<F = Record<string, any>>
     BeforeReadControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
+  /**
+   * "Best-effort" reconstruction. When `true`, schema-mismatch warnings
+   * (e.g. a field's type was changed and old rows can't be rebuilt against
+   * the new shape) are surfaced on the returned `ClientDocument` as
+   * `_restoreWarnings` instead of being thrown. Intended for the admin
+   * edit path only — public reads should leave this `false` so partial
+   * data never reaches end users.
+   */
+  lenient?: boolean
 }
 
 export interface FindByPathOptions<F = Record<string, any>>
@@ -361,6 +370,15 @@ export interface ClientDocument<F = Record<string, any>> {
   updatedAt: Date
   /** Reconstructed field data. */
   fields: F
+  /**
+   * Schema-mismatch warnings produced by a "best-effort" reconstruction
+   * (`findById` with `lenient: true`). Present only when the document was
+   * loaded leniently and at least one orphan row was skipped — for example,
+   * after a `CollectionDefinition` change retired or replaced a field and
+   * older rows can no longer be rebuilt against the new shape. Absent on
+   * normal reads.
+   */
+  _restoreWarnings?: string[]
 }
 
 export interface FindResult<F = Record<string, any>> {

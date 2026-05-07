@@ -156,13 +156,21 @@ export class DocumentQueries implements IDocumentQueries {
    * restoration. Meta rows (from store_meta) are converted to
    * FlattenedFieldValue entries so that restoreFieldSetData can inject
    * _id and _type for blocks and array items inline.
+   *
+   * Returns `{ fields, warnings }`. When `lenient` is false (default), any
+   * non-empty `warnings` are promoted to a thrown `BylineError` — preserving
+   * the original strict behaviour. When `lenient` is true, the caller
+   * receives the partial reconstruction and the warnings list and decides
+   * how to surface them (the admin edit path uses this to render a
+   * "best-effort load" banner against an out-of-date document).
    */
   private reconstructFromUnifiedRows(
     unifiedFieldValues: UnionRowValue[],
     definition: CollectionDefinition,
     locale: string,
-    metaRows?: MetaRow[]
-  ): any {
+    metaRows?: MetaRow[],
+    lenient = false
+  ): { fields: any; warnings: string[] } {
     const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
       extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
     )
@@ -180,7 +188,16 @@ export class DocumentQueries implements IDocumentQueries {
     }
 
     const resolveLocale = locale !== 'all' ? locale : undefined
-    return restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
+    const { data, warnings } = restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
+
+    if (!lenient && warnings.length > 0) {
+      throw ERR_DATABASE({
+        message: `document reconstruction failed with ${warnings.length} warnings`,
+        details: { warnings },
+      }).log(getLogger())
+    }
+
+    return { fields: data, warnings }
   }
 
   /**
@@ -239,6 +256,11 @@ export class DocumentQueries implements IDocumentQueries {
 
   /**
    * getDocumentById — gets the current version of a document by its logical document ID.
+   *
+   * When `lenient` is true, schema-mismatch warnings emitted during
+   * reconstruction are surfaced on the returned object as `restoreWarnings`
+   * rather than thrown. This is the admin edit path's "best-effort load"
+   * mode for documents written under a previous collection schema.
    */
   async getDocumentById({
     collection_id,
@@ -247,6 +269,7 @@ export class DocumentQueries implements IDocumentQueries {
     reconstruct = true,
     readMode,
     filters,
+    lenient = false,
   }: {
     collection_id: string
     document_id: string
@@ -254,6 +277,7 @@ export class DocumentQueries implements IDocumentQueries {
     reconstruct?: boolean
     readMode?: ReadMode
     filters?: DocumentFilter[]
+    lenient?: boolean
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
@@ -297,11 +321,12 @@ export class DocumentQueries implements IDocumentQueries {
         .from(metaStore)
         .where(eq(metaStore.document_version_id, document.id))
 
-      const fields = this.reconstructFromUnifiedRows(
+      const { fields, warnings } = this.reconstructFromUnifiedRows(
         unifiedFieldValues,
         definition,
         locale,
-        metaRows as MetaRow[]
+        metaRows as MetaRow[],
+        lenient
       )
 
       return {
@@ -312,6 +337,7 @@ export class DocumentQueries implements IDocumentQueries {
         created_at: document.created_at,
         updated_at: document.updated_at,
         fields,
+        ...(lenient && warnings.length > 0 ? { restoreWarnings: warnings } : {}),
       }
     }
     // Non-reconstructed: return raw flattened values
@@ -381,7 +407,7 @@ export class DocumentQueries implements IDocumentQueries {
         .from(metaStore)
         .where(eq(metaStore.document_version_id, document.id))
 
-      const fields = this.reconstructFromUnifiedRows(
+      const { fields } = this.reconstructFromUnifiedRows(
         unifiedFieldValues,
         definition,
         locale,
@@ -445,7 +471,7 @@ export class DocumentQueries implements IDocumentQueries {
       .from(metaStore)
       .where(eq(metaStore.document_version_id, document.id))
 
-    const enrichedDocument = this.reconstructFromUnifiedRows(
+    const { fields } = this.reconstructFromUnifiedRows(
       unifiedFieldValues,
       definition,
       locale,
@@ -459,7 +485,7 @@ export class DocumentQueries implements IDocumentQueries {
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
-      fields: enrichedDocument,
+      fields,
     }
 
     return documentWithFields
@@ -831,7 +857,7 @@ export class DocumentQueries implements IDocumentQueries {
     for (const doc of documents) {
       const versionFieldValues = fieldValuesByVersion.get(doc.id) || []
       const docMetaRows = (metaByVersion.get(doc.id) ?? []) as MetaRow[]
-      const fields = this.reconstructFromUnifiedRows(
+      const { fields } = this.reconstructFromUnifiedRows(
         versionFieldValues,
         definition,
         locale,

@@ -310,6 +310,16 @@ export interface IDocumentQueries {
      * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md.
      */
     requestContext?: RequestContext
+    /**
+     * "Best-effort" reconstruction. When `true`, schema-mismatch warnings
+     * (orphan rows, unrecognised block paths, etc. — typically the result
+     * of editing a `CollectionDefinition` while older documents linger in
+     * the store) are surfaced on the returned object as `restoreWarnings`
+     * instead of being thrown as `ERR_DATABASE`. Reserved for the admin
+     * edit path; public reads should leave this `false` so partial data
+     * never silently leaks into a live site.
+     */
+    lenient?: boolean
   }): Promise<any | null>
 
   /**

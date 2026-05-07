@@ -241,8 +241,9 @@ describe('01 Document Flattening and Reconstruction', () => {
     assert(flattened, 'Flattened document should not be null or undefined')
     assert(flattened.length > 0, 'Flattened document should contain field values')
 
-    const restored = restoreFieldSetData(DocsCollectionConfig.fields, flattened)
+    const { data: restored, warnings } = restoreFieldSetData(DocsCollectionConfig.fields, flattened)
     assert(restored, 'Restored document should not be null or undefined')
+    assert.deepStrictEqual(warnings, [], 'Round-trip restore should produce no warnings')
 
     const restoredJson = JSON.stringify(restored, null, 2)
     const expectedJson = JSON.stringify(expectedRestored, null, 2)
@@ -257,7 +258,7 @@ describe('01 Document Flattening and Reconstruction', () => {
   it('should resolve localized fields when a specific locale is requested', () => {
     const flattened = flattenFieldSetData(DocsCollectionConfig.fields, sampleDocument as any, 'all')
 
-    const restored = restoreFieldSetData(DocsCollectionConfig.fields, flattened, 'en')
+    const { data: restored } = restoreFieldSetData(DocsCollectionConfig.fields, flattened, 'en')
     assert.strictEqual(restored.title, 'My First Document')
     assert.strictEqual(restored.summary, 'This is a sample document for testing purposes.')
   })
@@ -337,7 +338,7 @@ describe('reserved field-name tolerance on restore', () => {
       value: 'Hello',
     } as const
 
-    const restored = restoreFieldSetData(
+    const { data: restored, warnings } = restoreFieldSetData(
       DocsCollectionConfig.fields,
       [orphanPathRow, titleRow] as any,
       'en'
@@ -349,9 +350,14 @@ describe('reserved field-name tolerance on restore', () => {
       'reserved-name row must not land on the reconstructed document'
     )
     assert.strictEqual(restored.title, 'Hello', 'non-reserved rows must still be restored')
+    assert.deepStrictEqual(
+      warnings,
+      [],
+      'reserved-name orphan must not surface as a restore warning'
+    )
   })
 
-  it('does not throw when the only row present is a reserved-name orphan', () => {
+  it('does not raise warnings when the only row present is a reserved-name orphan', () => {
     const orphanPathRow = {
       locale: 'all',
       field_path: ['path'],
@@ -359,8 +365,11 @@ describe('reserved field-name tolerance on restore', () => {
       value: 'whatever',
     } as const
 
-    assert.doesNotThrow(() => {
-      restoreFieldSetData(DocsCollectionConfig.fields, [orphanPathRow] as any)
-    }, 'a reserved-name orphan must not be treated as an unknown field')
+    const { warnings } = restoreFieldSetData(DocsCollectionConfig.fields, [orphanPathRow] as any)
+    assert.deepStrictEqual(
+      warnings,
+      [],
+      'a reserved-name orphan must not be treated as an unknown field'
+    )
   })
 })

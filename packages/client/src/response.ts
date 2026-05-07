@@ -27,7 +27,7 @@ function toDate(value: unknown, fieldName: string): Date {
 export function shapeDocument<F = Record<string, any>>(
   raw: Record<string, any>
 ): ClientDocument<F> {
-  return {
+  const shaped: ClientDocument<F> = {
     id: raw.document_id ?? '',
     versionId: raw.document_version_id ?? '',
     path: raw.path ?? '',
@@ -36,6 +36,10 @@ export function shapeDocument<F = Record<string, any>>(
     updatedAt: toDate(raw.updated_at, 'updated_at'),
     fields: (raw.fields ?? {}) as F,
   }
+  if (Array.isArray(raw.restoreWarnings) && raw.restoreWarnings.length > 0) {
+    shaped._restoreWarnings = raw.restoreWarnings as string[]
+  }
+  return shaped
 }
 
 /**

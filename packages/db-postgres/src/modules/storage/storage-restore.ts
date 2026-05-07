@@ -16,9 +16,20 @@ import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 // nested structure.
 // ------------------------------------------------------------------------------
 
+export interface RestoreResult {
+  data: any
+  warnings: string[]
+}
+
 /**
  * Main entrypoint for restoring a document's field data from flattened form
  * back into the original nested structure.
+ *
+ * Always returns `{ data, warnings }`. Warnings carry per-row reasons (e.g.
+ * "Invalid block index 'undefined'") that are typically the result of a
+ * collection schema change leaving orphan rows behind. Callers decide what
+ * to do with them — strict reads reject any non-empty `warnings`, lenient
+ * reads (the admin edit path) surface them to the UI.
  *
  * @param fields - The field definitions for the collection.
  * @param flattenedData - The flattened field data to restore.
@@ -27,7 +38,7 @@ export const restoreFieldSetData = (
   fields: FieldSet,
   flattenedData: FlattenedFieldValue[],
   resolveLocale?: string
-): any => {
+): RestoreResult => {
   const result: any = {}
   const warnings: string[] = []
 
@@ -64,14 +75,7 @@ export const restoreFieldSetData = (
     }
   }
 
-  if (warnings.length > 0) {
-    throw ERR_DATABASE({
-      message: `document reconstruction failed with ${warnings.length} warnings`,
-      details: { warnings },
-    }).log(getLogger())
-  }
-
-  return result
+  return { data: result, warnings }
 }
 
 const restoreFieldData = (
