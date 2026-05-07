@@ -155,7 +155,23 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    * Each tab's `fields` array accepts schema field names, row names, and group names.
    * An optional `condition` function can show/hide a tab based on live form data.
    */
-  // tabSets: [],
+  tabSets: [
+    {
+      name: 'tabs',
+      tabs: [
+        {
+          name: 'details',
+          label: 'Details',
+          fields: ['title', 'area', 'summary', 'featureImage'],
+        },
+        {
+          name: 'content',
+          label: 'Content',
+          fields: ['content'],
+        },
+      ],
+    },
+  ],
 
   /**
    * Named horizontal-row layouts. Fields listed inside a row are rendered
@@ -187,7 +203,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    * schema field in `main` in declaration order.
    */
   layout: {
-    main: ['title', 'summary', 'featureImage', 'category', 'content'],
+    main: ['tabs'],
     sidebar: ['publishedOn', 'featured', 'availableLanguages'],
   },
 })

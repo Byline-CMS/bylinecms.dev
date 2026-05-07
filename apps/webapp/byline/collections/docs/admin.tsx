@@ -161,7 +161,7 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    */
   tabSets: [
     {
-      name: 'main',
+      name: 'tabs',
       tabs: [
         {
           name: 'details',
@@ -212,7 +212,7 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * schema field in `main` in declaration order.
    */
   layout: {
-    main: ['main'],
+    main: ['tabs'],
     sidebar: ['publishedOn', 'availableLanguages'],
   },
 })
