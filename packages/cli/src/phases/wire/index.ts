@@ -1,12 +1,25 @@
 import { wireRootTsx } from './root-tsx.js'
 import { wireServerTs } from './server-ts.js'
+import { wireServerUploads } from './server-uploads.js'
 import { wireStartTs } from './start-ts.js'
 import { wireTsconfig } from './tsconfig.js'
 import { wireViteConfig } from './vite-config.js'
 import type { Phase, PhaseResult, PhaseState } from '../../types.js'
 import type { SubEdit, SubEditResult } from './shared.js'
 
-const SUB_EDITS: SubEdit[] = [wireServerTs, wireStartTs, wireRootTsx, wireTsconfig, wireViteConfig]
+// Order matters: `wireServerTs` injects the side-effect import for
+// `byline/server.config` at the top of `src/server.ts`; `wireServerUploads`
+// then runs in the same file to wrap the `fetch` handler with the runtime
+// uploads helper. The two sub-edits are independent, but keeping them
+// adjacent makes the resulting diff easier to read.
+const SUB_EDITS: SubEdit[] = [
+  wireServerTs,
+  wireServerUploads,
+  wireStartTs,
+  wireRootTsx,
+  wireTsconfig,
+  wireViteConfig,
+]
 
 export const wirePhase: Phase = {
   id: 'wire',

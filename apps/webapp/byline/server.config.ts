@@ -119,11 +119,16 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // addition to) this site-wide default.
     //
     // Local filesystem is suitable for development and self-hosted
-    // deployments. The `uploadDir` is served as a static path at `baseUrl`
-    // by your web server. For cloud/production deployments, swap to
-    // `@byline/storage-s3` — see the commented example below.
+    // deployments. The `uploadDir` is served at `baseUrl` by a runtime
+    // handler in `src/server.ts` — NOT by the framework's static-asset
+    // pipeline. Keeping uploads outside `public/` is what lets newly-
+    // uploaded files appear without a rebuild: `vite build` snapshots
+    // `public/` into `.output/public/`, but the runtime handler reads
+    // `uploadDir` directly on every request. For cloud/production
+    // deployments, swap to `@byline/storage-s3` — see the commented
+    // example below.
     storage: localStorageProvider({
-      uploadDir: './public/uploads',
+      uploadDir: './uploads',
       baseUrl: '/uploads',
     }),
     // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace

@@ -78,7 +78,7 @@ import { collections } from './byline/collections'
 const client = createBylineClient({
   db: pgAdapter({ connectionString: process.env.BYLINE_DB_URL! }),
   collections,
-  storage: localStorageProvider({ uploadDir: './public/uploads', baseUrl: '/uploads' }),
+  storage: localStorageProvider({ uploadDir: './uploads', baseUrl: '/uploads' }),
   // logger?: BylineLogger     // priority: explicit → getLogger() → silent no-op
 })
 ```

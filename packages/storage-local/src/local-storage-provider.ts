@@ -22,7 +22,14 @@ export interface LocalStorageConfig {
    * Absolute or project-relative path to the root directory where uploaded
    * files will be stored.
    *
-   * @example `'./public/uploads'`
+   * For TanStack Start + Nitro hosts, keep this OUTSIDE `public/` — anything
+   * under `public/` is snapshotted into `.output/public/` at build time and
+   * served by Nitro's static handler from that snapshot, so files written at
+   * runtime won't appear until the next rebuild. Pair `uploadDir` with a
+   * runtime handler in your server entry that streams from this directory
+   * on every request.
+   *
+   * @example `'./uploads'`
    */
   uploadDir: string
   /**
@@ -139,9 +146,17 @@ class LocalStorageProvider implements IStorageProvider {
  *   `<collection>/<year>/<month>/<uuid>-<filename>`
  *
  * The provider generates a public URL by prepending `baseUrl` to the
- * storage path. Pair this with a static file server (e.g. Express
- * `express.static`, TanStack Start's static file serving, or nginx) that
+ * storage path. Pair this with a runtime file handler (Express
+ * `express.static`, an h3 handler, an nginx location block, or a small
+ * `Request → Response` shim in your TanStack Start `server.ts`) that
  * serves the `uploadDir` directory at the `baseUrl` path.
+ *
+ * On TanStack Start + Nitro, do NOT use `nitro.publicAssets` for this:
+ * `publicAssets` copies into `.output/public/<baseURL>/` at build time
+ * and the Nitro static handler reads from a build-time virtual asset
+ * registry, so files written after the build never resolve. Use a
+ * runtime handler in `src/server.ts` instead — see the host scaffold
+ * shipped by `@byline/cli` for a worked example.
  *
  * @example
  * ```ts
@@ -152,7 +167,7 @@ class LocalStorageProvider implements IStorageProvider {
  *   ...config,
  *   db: pgAdapter({ connectionString: process.env.DB_CONNECTION_STRING! }),
  *   storage: localStorageProvider({
- *     uploadDir: './public/uploads',
+ *     uploadDir: './uploads',
  *     baseUrl: '/uploads',
  *   }),
  * })

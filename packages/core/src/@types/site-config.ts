@@ -121,7 +121,7 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * @example
    * ```ts
    * import { localStorageProvider } from '@byline/storage-local'
-   * storage: localStorageProvider({ uploadDir: './public/uploads', baseUrl: '/uploads' })
+   * storage: localStorageProvider({ uploadDir: './uploads', baseUrl: '/uploads' })
    * ```
    */
   storage?: IStorageProvider

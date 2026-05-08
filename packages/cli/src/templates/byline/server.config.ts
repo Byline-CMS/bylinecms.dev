@@ -77,8 +77,15 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // Local filesystem — suitable for development and self-hosted
     // deployments. For cloud/production, swap to `@byline/storage-s3`
     // (see the commented example below).
+    //
+    // IMPORTANT: `uploadDir` lives OUTSIDE `public/` on purpose. With
+    // TanStack Start + Nitro, anything under `public/` is snapshotted
+    // into `.output/public/` at build time, and the static handler reads
+    // from that snapshot — so newly-uploaded files 404 until the next
+    // rebuild. Pair this with a runtime `/uploads/*` handler in
+    // `src/server.ts` that streams from `uploadDir` on every request.
     storage: localStorageProvider({
-      uploadDir: './public/uploads',
+      uploadDir: './uploads',
       baseUrl: '/uploads',
     }),
     // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace

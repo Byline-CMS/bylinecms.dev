@@ -16,10 +16,18 @@ import '../byline/server.config.ts'
 // environment, which is isolated from the SSR render environment in
 // TanStack Start / Vite 8.
 
+import { serveUploads } from '@byline/host-tanstack-start/integrations/serve-uploads'
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 
+// Runtime mount for `/uploads/*`. The local storage provider writes to
+// `<cwd>/uploads`; `serveUploads` streams that directory back on every
+// request so new uploads appear without a rebuild. See the helper module
+// for why `nitro.publicAssets` cannot be used here. Must match `uploadDir`
+// in `byline/server.config.ts`.
 export default createServerEntry({
-  fetch(request) {
+  async fetch(request) {
+    const upload = await serveUploads(request)
+    if (upload) return upload
     return handler.fetch(request)
   },
 })

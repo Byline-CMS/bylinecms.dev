@@ -75,7 +75,7 @@ export interface UploadFileOptions {
  * defineServerConfig({
  *   ...config,
  *   db: pgAdapter({ connectionString: process.env.DB_CONNECTION_STRING! }),
- *   storage: localStorageProvider({ uploadDir: './public/uploads', baseUrl: '/uploads' }),
+ *   storage: localStorageProvider({ uploadDir: './uploads', baseUrl: '/uploads' }),
  * })
  * ```
  */
