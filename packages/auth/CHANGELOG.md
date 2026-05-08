@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 1.7.0
+
+### Minor Changes
+
+- Correct thumbnail rendering from variants and new lightbox widget.
+
 ## 1.6.2
 
 ### Patch Changes

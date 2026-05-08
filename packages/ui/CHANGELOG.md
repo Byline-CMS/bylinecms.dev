@@ -1,5 +1,18 @@
 # @byline/ui
 
+## 1.7.0
+
+### Minor Changes
+
+- Correct thumbnail rendering from variants and new lightbox widget.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@1.7.0
+  - @byline/client@1.7.0
+  - @byline/core@1.7.0
+
 ## 1.6.2
 
 ### Patch Changes
