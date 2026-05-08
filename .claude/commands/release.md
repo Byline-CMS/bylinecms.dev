@@ -28,11 +28,35 @@ Before doing anything, verify:
    - Remote umbrella tag exists? `git ls-remote --tags origin v<version>`. If yes, skip the push step.
    - Existing GitHub release? `gh release view v<version> --repo Byline-CMS/bylinecms.dev` (capture exit code, don't fail). If a release already exists, show its URL and ask the user whether to (a) leave it alone, (b) edit its notes, or (c) delete + recreate. Don't proceed silently.
 
-4. **Synthesize release notes.** Compose a short summary (3–6 bullets, one per affected package) describing what shipped in this version. Match the shape of v1.2.1's release:
-   - Lead each bullet with the package name in backticks: `` `@byline/host-tanstack-start` ``.
-   - Mark breaking changes inline with **breaking**: in bold.
+4. **Synthesize release notes.** Group changes into the following sections, in this order. Omit any section that has no entries — never include an empty heading.
+
+   ```markdown
+   ## Highlights
+
+   New features, enhancements, and any other non-breaking, non-migrating changes likely to be of user interest. Lead each bullet with the affected package(s) in bold backticks: **`@byline/host-tanstack-start`**.
+
+   ## Bug Fixes
+
+   Direct bug fixes — regressions, packaging fixes, runtime corrections. Same bullet shape as Highlights.
+
+   ## Chores
+
+   Internal-tooling and dev-experience changes that don't alter consumer behaviour but are worth recording in the cycle (e.g. wiring a bundle analyzer, updating the CLI dep manifest). Brief — usually one line per item.
+
+   ## Migrations
+
+   Non-breaking changes that nonetheless require the user to migrate existing data, run a script, or update configuration to take advantage of (or stay compatible with) the new behaviour. State the migration step explicitly.
+
+   ## Breaking Changes
+
+   Anything that requires the user to change code, config, or dependencies *before* the release will run. State both the breaking change and the required user action. Mark inline mentions elsewhere with **breaking**: in bold.
+   ```
+
+   Within each section:
+   - Lead each bullet with the package name(s) in bold backticks (matching the v1.2.1 shape): **`@byline/core`**, **`@byline/host-tanstack-start`**.
    - Focus on user-visible behaviour and migration impact, not implementation detail.
    - Skip "patch dependencies updated" noise — those are auto-generated CHANGELOG entries, not release-note prose.
+   - For trivial lockstep version bumps with no behavioural change, end the notes with a single closing line: *"All other `@byline/*` packages bumped to `<version>` in lockstep with no behavioural changes this cycle."* — outside any section.
 
    **Source priority for the prose:**
    1. The current conversation's context — if you've been doing the work in this session, you already have the best summary.
