@@ -1,5 +1,13 @@
 # @byline/storage-local
 
+## 1.6.1
+
+### Patch Changes
+
+- Updated CLI templates.
+- Updated dependencies
+  - @byline/core@1.6.1
+
 ## 1.6.0
 
 ### Minor Changes

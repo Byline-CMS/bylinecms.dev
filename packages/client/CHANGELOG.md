@@ -1,5 +1,14 @@
 # @byline/client
 
+## 1.6.1
+
+### Patch Changes
+
+- Updated CLI templates.
+- Updated dependencies
+  - @byline/auth@1.6.1
+  - @byline/core@1.6.1
+
 ## 1.6.0
 
 ### Minor Changes
