@@ -9,18 +9,6 @@
 import type { FormatterProps, StoredFileValue } from '@byline/core'
 
 /**
- * Derive the thumbnail URL from the original storageUrl.
- *
- * Sharp writes variants as siblings of the original file using the naming
- * convention `<basename>-<variantName>.<outputExt>`:
- *   `/uploads/media/2026/02/abc-photo.jpg`
- *   → `/uploads/media/2026/02/abc-photo-thumbnail.avif`
- */
-function deriveThumbnailUrl(storageUrl: string): string {
-  return storageUrl.replace(/\.[^.]+$/, '-thumbnail.avif')
-}
-
-/**
  * FormatBadge renders a muted pill showing the image format (e.g. JPEG, PNG, SVG).
  * Intended for use alongside the status badge in list-view card meta.
  */
@@ -34,7 +22,7 @@ export function FormatBadge({ format }: { format: string }) {
 
 /**
  * MediaThumbnailCell renders a small preview image in the Media list view.
- * When the `thumbnail` variant has been generated, the smaller avif is used;
+ * When a `thumbnail` variant has been generated its `storageUrl` is used;
  * otherwise the original storage URL is shown.
  */
 export function MediaThumbnail({ record }: FormatterProps) {
@@ -50,7 +38,8 @@ export function MediaThumbnail({ record }: FormatterProps) {
     )
   }
 
-  const thumbUrl = img.thumbnailGenerated ? deriveThumbnailUrl(img.storageUrl) : img.storageUrl
+  const thumbVariant = img.variants?.find((v) => v.name === 'thumbnail')
+  const thumbUrl = thumbVariant?.storageUrl ?? img.storageUrl
 
   return (
     <img

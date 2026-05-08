@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { useState } from 'react'
+
 import {
   type ImageField as FieldType,
   isPendingStoredFileValue,
@@ -15,6 +17,7 @@ import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../../forms/form-context'
 import { ErrorText } from '../../uikit.js'
+import { ImageLightbox } from '../../widgets/image-lightbox/image-lightbox.js'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import styles from './image-field.module.css'
 import { ImageUploadField } from './image-upload-field'
@@ -68,6 +71,14 @@ export const ImageField = ({
   // Show upload widget only if no value or old placeholder
   const showUploadWidget = incomingValue == null || isOldPlaceholder(incomingValue)
 
+  // Prefer the generated thumbnail variant for the preview tile. SVGs and
+  // other bypass types have no variants — fall back to the original.
+  const thumbVariant =
+    incomingValue && !isPendingStoredFileValue(incomingValue)
+      ? incomingValue.variants?.find((v) => v.name === 'thumbnail')
+      : undefined
+  const previewUrl = thumbVariant?.storageUrl ?? incomingValue?.storageUrl
+
   // Handle remove, including cleanup of pending uploads
   const handleRemove = () => {
     if (isPending) {
@@ -75,6 +86,11 @@ export const ImageField = ({
     }
     handleChange(null)
   }
+
+  // Lightbox state — only enabled for stored (non-pending) images that have a
+  // resolvable original storageUrl.
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const canOpenLightbox = !isPending && !!incomingValue?.storageUrl
 
   return (
     <div className={`byline-field-image ${field.name}`}>
@@ -116,20 +132,42 @@ export const ImageField = ({
       ) : (
         <div className={cx('byline-field-image-tile', styles.tile)}>
           {/* Preview */}
-          {incomingValue?.storageUrl && (
+          {previewUrl && (
             <div className={cx('byline-field-image-preview-wrap', styles['preview-wrap'])}>
-              <img
-                src={incomingValue.storageUrl}
-                alt={incomingValue.originalFilename ?? incomingValue.filename}
-                className={cx(
-                  'byline-field-image-preview',
-                  styles.preview,
-                  incomingValue.mimeType === 'image/svg+xml' && [
-                    'byline-field-image-preview-svg',
-                    styles['preview-svg'],
-                  ]
-                )}
-              />
+              {canOpenLightbox ? (
+                <button
+                  type="button"
+                  onClick={() => setLightboxOpen(true)}
+                  aria-label="Open full-size preview"
+                  className={cx('byline-field-image-preview-button', styles['preview-button'])}
+                >
+                  <img
+                    src={previewUrl}
+                    alt={incomingValue.originalFilename ?? incomingValue.filename}
+                    className={cx(
+                      'byline-field-image-preview',
+                      styles.preview,
+                      incomingValue.mimeType === 'image/svg+xml' && [
+                        'byline-field-image-preview-svg',
+                        styles['preview-svg'],
+                      ]
+                    )}
+                  />
+                </button>
+              ) : (
+                <img
+                  src={previewUrl}
+                  alt={incomingValue.originalFilename ?? incomingValue.filename}
+                  className={cx(
+                    'byline-field-image-preview',
+                    styles.preview,
+                    incomingValue.mimeType === 'image/svg+xml' && [
+                      'byline-field-image-preview-svg',
+                      styles['preview-svg'],
+                    ]
+                  )}
+                />
+              )}
               {/* Pending upload badge */}
               {isPending && (
                 <div className={cx('byline-field-image-pending', styles.pending)}>
@@ -198,7 +236,7 @@ export const ImageField = ({
                   <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
                     Thumbnail:
                   </span>{' '}
-                  {incomingValue?.thumbnailGenerated ? 'Generated' : 'Pending'}
+                  {thumbVariant ? 'Generated' : 'Pending'}
                 </div>
               </>
             )}
@@ -207,6 +245,23 @@ export const ImageField = ({
       )}
 
       {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+
+      {canOpenLightbox && incomingValue?.storageUrl && (
+        <ImageLightbox
+          isOpen={lightboxOpen}
+          onDismiss={() => setLightboxOpen(false)}
+          src={incomingValue.storageUrl}
+          alt={incomingValue.originalFilename ?? incomingValue.filename}
+          downloadFilename={incomingValue.originalFilename ?? incomingValue.filename}
+          title={incomingValue.originalFilename ?? incomingValue.filename}
+          meta={{
+            width: incomingValue.imageWidth,
+            height: incomingValue.imageHeight,
+            fileSize: incomingValue.fileSize,
+            mimeType: incomingValue.mimeType,
+          }}
+        />
+      )}
     </div>
   )
 }

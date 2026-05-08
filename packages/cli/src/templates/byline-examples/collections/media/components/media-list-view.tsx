@@ -48,19 +48,6 @@ function formatNumber(n: number, decimalPlaces: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Derive the avif thumbnail URL from the original storageUrl using the same
- * convention as MediaThumbnailCell / the Sharp upload processor.
- *   `/uploads/media/2026/02/img.jpg` → `/uploads/media/2026/02/img-thumbnail.avif`
- */
-function deriveThumbnailUrl(storageUrl: string): string {
-  return storageUrl.replace(/\.[^.]+$/, '-thumbnail.avif')
-}
-
-// ---------------------------------------------------------------------------
 // Order-by config
 // ---------------------------------------------------------------------------
 
@@ -261,11 +248,8 @@ export function MediaListView({
             {(data.docs as any[]).map((doc) => {
               const fields = doc.fields ?? {}
               const img = fields.image as StoredFileValue | null | undefined
-              const thumbUrl = img?.storageUrl
-                ? img.thumbnailGenerated
-                  ? deriveThumbnailUrl(img.storageUrl)
-                  : img.storageUrl
-                : null
+              const thumbVariant = img?.variants?.find((v) => v.name === 'thumbnail')
+              const thumbUrl = thumbVariant?.storageUrl ?? img?.storageUrl ?? null
 
               const updatedAt = doc.updatedAt ?? null
 

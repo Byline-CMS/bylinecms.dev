@@ -79,6 +79,34 @@
   position: relative;
 }
 
+.preview-button,
+:global(.byline-field-image-preview-button) {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: block;
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+}
+
+.preview-button:focus-visible,
+:global(.byline-field-image-preview-button):focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
+
+.preview-button img,
+:global(.byline-field-image-preview-button) img {
+  transition: opacity 120ms ease;
+}
+
+.preview-button:hover img,
+:global(.byline-field-image-preview-button):hover img {
+  opacity: 0.85;
+}
+
 .preview,
 :global(.byline-field-image-preview) {
   max-height: 10rem;

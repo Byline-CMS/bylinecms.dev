@@ -94,10 +94,8 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   const pickedThumbUrl: string | null = useMemo(() => {
     if (!pickedImage?.storageUrl) return null
     if (pickedImage.mimeType === 'image/svg+xml') return pickedImage.storageUrl
-    if (pickedImage.thumbnailGenerated) {
-      return pickedImage.storageUrl.replace(/\.[^.]+$/, '-thumbnail.avif')
-    }
-    return pickedImage.storageUrl
+    const thumbVariant = pickedImage.variants?.find((v) => v.name === 'thumbnail')
+    return thumbVariant?.storageUrl ?? pickedImage.storageUrl
   }, [pickedImage])
 
   const pickedTitle: string | null = useMemo(() => {
