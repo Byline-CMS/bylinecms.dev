@@ -1,5 +1,22 @@
 # @byline/admin
 
+## 1.6.0
+
+### Minor Changes
+
+- - Lenient document reconstruction (@byline/client, @byline/db-postgres, @byline/ui): the admin edit path now does a best-effort reconstruction of
+    documents even when stored data is partially inconsistent, rather than failing hard. The form renderer gracefully handles missing or mismatched
+    field data.
+    - SelectField label fix (@byline/ui): field.label was not being rendered; fixed.
+    - Pages preview URLs (webapp): pages collection now supports area-based preview URLs, with new public routes for /about/:slug and /legal/:slug.
+      Example collection schemas updated accordingly.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@1.6.0
+  - @byline/core@1.6.0
+
 ## 1.4.0
 
 ### Minor Changes
