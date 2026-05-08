@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 1.7.1
+
+### Patch Changes
+
+- Served uploads at runtime when using the local storage provider so new files appear without a rebuild.
+
 ## 1.7.0
 
 ### Minor Changes
