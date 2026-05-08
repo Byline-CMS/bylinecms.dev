@@ -7,10 +7,12 @@
  */
 
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
-// import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
+import { RenderBlocks } from '@/ui/byline/render-blocks'
+import type { Locale } from '@/i18n/i18n-config'
 import type { PageDetailResult } from '@/modules/pages/detail'
 
 interface PageDetailProps {
+  lng: Locale
   result: NonNullable<PageDetailResult>
 }
 
@@ -20,18 +22,15 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
-export function PageDetail({ result }: PageDetailProps) {
+export function PageDetail({ result, lng }: PageDetailProps) {
   const { fields } = result
   const title = fields.title ?? result.path ?? result.id
   const featureMedia = fields.featureImage?.document?.fields
   const featureImage = featureMedia?.image
-  const imageAlt = featureMedia?.altText ?? featureMedia?.title ?? title
-    ? dateFormatter.format(new Date(fields.publishedOn))
-    : undefined
-
-  // TODO: richText is a Lexical document — type properly once the
-  // Lexical node shape is modelled in @byline/core.
-  // const content = fields.content as Record<string, any> | undefined
+  const imageAlt =
+    (featureMedia?.altText ?? featureMedia?.title ?? title)
+      ? dateFormatter.format(new Date(fields.publishedOn))
+      : undefined
 
   return (
     <article className="prose max-w-[940px] mx-auto mt-4">
@@ -52,7 +51,7 @@ export function PageDetail({ result }: PageDetailProps) {
           fetchPriority="high"
         />
       ) : null}
-      <p>Block renderer here...</p>
+      <RenderBlocks lng={lng} blocks={fields.content} />
     </article>
   )
 }
