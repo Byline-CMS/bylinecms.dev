@@ -80,13 +80,6 @@ export const Pages = defineCollection({
       blocks: [RichTextBlock, PhotoBlock],
     },
     publishedOnField,
-    {
-      name: 'featured',
-      label: 'Featured',
-      type: 'checkbox',
-      optional: true,
-      helpText: 'Feature this page.',
-    },
     availableLanguagesField(),
   ],
 })

@@ -10,6 +10,7 @@ import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '
 import { DateTimeFormatter } from '@byline/ui/react'
 
 import { SummaryLength } from '~/components/summary-length.js'
+import { i18n } from '~/i18n'
 
 import { Pages } from './schema.js'
 
@@ -37,11 +38,10 @@ const listViewColumns: ColumnDefinition[] = [
     className: 'w-[30%]',
   },
   {
-    fieldName: 'featured',
-    label: 'Featured',
+    fieldName: 'area',
+    label: 'Area',
     align: 'center',
     className: 'w-[10%]',
-    formatter: (value) => (value ? '★' : ''),
   },
   {
     fieldName: 'status',
@@ -135,7 +135,14 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    *   },
    * }
    */
-  // preview: undefined,
+  preview: {
+    url: (doc, { locale }) => {
+      if (!doc.path) return null
+      const prefix = locale && locale !== i18n.interface.defaultLocale ? `/${locale}` : ''
+      const pathWithArea = doc.fields?.area && doc.fields.area !== 'root' ? `${doc.fields.area}/${doc.path}` : doc.path
+      return `${prefix}/${pathWithArea}`
+    },
+  },
 
   // ---------------------------------------------------------------------------
   // UI Layout
@@ -204,6 +211,6 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    */
   layout: {
     main: ['tabs'],
-    sidebar: ['publishedOn', 'featured', 'availableLanguages'],
+    sidebar: ['publishedOn', 'availableLanguages'],
   },
 })

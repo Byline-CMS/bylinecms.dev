@@ -41,7 +41,7 @@ export const SelectField = ({
         <Label id={htmlId} htmlFor={htmlId} label={field.label} required={!field.optional} />
       )}
       <Select<string>
-        size="xs"
+        size="sm"
         id={htmlId}
         name={field.name}
         placeholder="Select an option"
