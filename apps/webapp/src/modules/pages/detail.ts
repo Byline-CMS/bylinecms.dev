@@ -31,25 +31,25 @@ type PageDetailFields = WithPopulated<PageFields, 'featureImage', MediaFields>
 export type PageDetailResult = ClientDocument<PageDetailFields> | null
 
 export interface PageDetailInput {
-  slug: string
-  locale?: string
+  path: string
+  lng?: string
 }
 
 export const getPageDetailFn = createServerFn({ method: 'GET' })
   .inputValidator(
     (input: PageDetailInput): PageDetailInput => ({
-      slug: input.slug,
-      locale: input.locale,
+      path: input.path,
+      lng: input.lng,
     })
   )
   .handler(async (ctx): Promise<PageDetailResult> => {
-    const { slug, locale } = ctx.data as PageDetailInput
+    const { path, lng } = ctx.data as PageDetailInput
     const client = getViewerBylineClient()
     const preview = await isPreviewActive()
 
-    return client.collection('pages').findByPath<PageDetailFields>(slug, {
+    return client.collection('pages').findByPath<PageDetailFields>(path, {
       populate: { featureImage: '*' },
-      locale,
+      locale: lng,
       status: preview ? 'any' : 'published',
     })
   })

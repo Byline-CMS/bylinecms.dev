@@ -9,17 +9,34 @@ import { RichTextBlock } from '@/ui/byline/blocks/richtext-block'
 import { toKebabCase } from '@/ui/utils/to-kebab-case'
 import type { Locale } from '@/i18n/i18n-config'
 
-/**
- * Registered block schemas. Add a new block here (and a matching `case`
- * in the switch below) to wire it into the front-end renderer.
- */
 const Blocks = [PhotoBlockDef, RichTextBlockDef] as const
 
-/**
- * Discriminated union of every registered block's instance shape. Use
- * this as the `blocks` prop type when calling `RenderBlocks`.
- */
 export type AnyBlock = BlocksUnion<typeof Blocks>
+
+// Mapped type ensures every AnyBlock['_type'] has a registered component.
+// TypeScript errors here if Blocks gains a new type without a matching entry.
+type BlockRegistry = {
+  [K in AnyBlock['_type']]: React.ComponentType<{
+    id: string
+    block: Extract<AnyBlock, { _type: K }>
+    lng: Locale
+    constrainedLayout?: boolean
+  }>
+}
+
+const blockComponents: BlockRegistry = {
+  photoBlock: PhotoBlock,
+  richTextBlock: RichTextBlock,
+}
+
+// Loose alias for the call site — BlockRegistry enforces correctness at
+// definition time; TypeScript can't infer the correlation during the map loop.
+type AnyBlockComponent = React.ComponentType<{
+  id: string
+  block: AnyBlock
+  lng: Locale
+  constrainedLayout?: boolean
+}>
 
 interface Props {
   blocks: AnyBlock[] | undefined | null
@@ -37,34 +54,12 @@ export function RenderBlocks({
   return (
     <>
       {blocks.map((block) => {
-        switch (block._type) {
-          case 'photoBlock':
-            return (
-              <Section className={toKebabCase(block._type)} key={block._id}>
-                <PhotoBlock
-                  id={block._id}
-                  block={block}
-                  lng={lng}
-                  constrainedLayout={constrainedLayout}
-                />
-              </Section>
-            )
-          case 'richTextBlock':
-            return (
-              <Section className={toKebabCase(block._type)} key={block._id}>
-                <RichTextBlock
-                  id={block._id}
-                  block={block}
-                  lng={lng}
-                  constrainedLayout={constrainedLayout}
-                />
-              </Section>
-            )
-          default: {
-            const _exhaustive: never = block
-            return null
-          }
-        }
+        const Block = blockComponents[block._type] as AnyBlockComponent
+        return (
+          <Section className={toKebabCase(block._type)} key={block._id}>
+            <Block id={block._id} block={block} lng={lng} constrainedLayout={constrainedLayout} />
+          </Section>
+        )
       })}
     </>
   )

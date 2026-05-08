@@ -88,8 +88,8 @@ export function NewsList({ result, categories, category, onCategoryChange }: New
             return (
               <Link
                 key={doc.id}
-                to="/{-$lng}/news/$slug"
-                params={{ slug: doc.path ?? doc.id }}
+                to="/{-$lng}/news/$path"
+                params={{ path: doc.path ?? doc.id }}
                 className="no-underline text-inherit"
               >
                 <Card className="flex overflow-hidden group h-full">

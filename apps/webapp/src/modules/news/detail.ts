@@ -37,25 +37,25 @@ type NewsDetailFields = WithPopulated<
 export type NewsDetailResult = ClientDocument<NewsDetailFields> | null
 
 export interface NewsDetailInput {
-  slug: string
-  locale?: string
+  path: string
+  lng?: string
 }
 
 export const getNewsDetailFn = createServerFn({ method: 'GET' })
   .inputValidator(
     (input: NewsDetailInput): NewsDetailInput => ({
-      slug: input.slug,
-      locale: input.locale,
+      path: input.path,
+      lng: input.lng,
     })
   )
   .handler(async (ctx): Promise<NewsDetailResult> => {
-    const { slug, locale } = ctx.data as NewsDetailInput
+    const { path, lng } = ctx.data as NewsDetailInput
     const client = getViewerBylineClient()
     const preview = await isPreviewActive()
 
-    return client.collection('news').findByPath<NewsDetailFields>(slug, {
+    return client.collection('news').findByPath<NewsDetailFields>(path, {
       populate: { category: '*', featureImage: '*' },
-      locale,
+      locale: lng,
       status: preview ? 'any' : 'published',
     })
   })

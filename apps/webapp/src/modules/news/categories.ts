@@ -28,24 +28,24 @@ import type { NewsCategoryFields } from '~/collections/news-categories/schema.js
 export type NewsCategoriesListResult = FindResult<NewsCategoryFields>
 
 export interface NewsCategoriesListInput {
-  locale?: string
+  lng?: string
 }
 
 export const getNewsCategoriesFn = createServerFn({ method: 'GET' })
   .inputValidator(
     (input: NewsCategoriesListInput | undefined): NewsCategoriesListInput => ({
-      locale: input?.locale,
+      lng: input?.lng,
     })
   )
   .handler(async (ctx): Promise<NewsCategoriesListResult> => {
-    const { locale } = ctx.data as NewsCategoriesListInput
+    const { lng } = ctx.data as NewsCategoriesListInput
     const client = getViewerBylineClient()
     const preview = await isPreviewActive()
 
     return client.collection('news-categories').find<NewsCategoryFields>({
       sort: { name: 'asc' },
       pageSize: 200,
-      locale,
+      locale: lng,
       status: preview ? 'any' : 'published',
     })
   })

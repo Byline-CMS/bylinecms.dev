@@ -16,15 +16,15 @@ import { Route as Char123LngChar125PublicRouteRouteImport } from './routes/{-$ln
 import { Route as BylineAdminRouteRouteImport } from './routes/_byline/admin/route'
 import { Route as Char123LngChar125PublicIndexRouteImport } from './routes/{-$lng}/_public/index'
 import { Route as BylineAdminIndexRouteImport } from './routes/_byline/admin/index'
-import { Route as Char123LngChar125PublicSlugRouteImport } from './routes/{-$lng}/_public/$slug'
+import { Route as Char123LngChar125PublicPathRouteImport } from './routes/{-$lng}/_public/$path'
 import { Route as Char123LngChar125PublicNewsIndexRouteImport } from './routes/{-$lng}/_public/news/index'
 import { Route as BylineAdminUsersIndexRouteImport } from './routes/_byline/admin/users/index'
 import { Route as BylineAdminRolesIndexRouteImport } from './routes/_byline/admin/roles/index'
 import { Route as BylineAdminPermissionsIndexRouteImport } from './routes/_byline/admin/permissions/index'
 import { Route as BylineAdminAccountIndexRouteImport } from './routes/_byline/admin/account/index'
-import { Route as Char123LngChar125PublicNewsSlugRouteImport } from './routes/{-$lng}/_public/news/$slug'
-import { Route as Char123LngChar125PublicLegalSlugRouteImport } from './routes/{-$lng}/_public/legal/$slug'
-import { Route as Char123LngChar125PublicAboutSlugRouteImport } from './routes/{-$lng}/_public/about/$slug'
+import { Route as Char123LngChar125PublicNewsPathRouteImport } from './routes/{-$lng}/_public/news/$path'
+import { Route as Char123LngChar125PublicLegalPathRouteImport } from './routes/{-$lng}/_public/legal/$path'
+import { Route as Char123LngChar125PublicAboutPathRouteImport } from './routes/{-$lng}/_public/about/$path'
 import { Route as BylineAdminUsersIdIndexRouteImport } from './routes/_byline/admin/users/$id/index'
 import { Route as BylineAdminRolesIdIndexRouteImport } from './routes/_byline/admin/roles/$id/index'
 import { Route as BylineAdminCollectionsCollectionIndexRouteImport } from './routes/_byline/admin/collections/$collection/index'
@@ -68,10 +68,10 @@ const BylineAdminIndexRoute = BylineAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => BylineAdminRouteRoute,
 } as any)
-const Char123LngChar125PublicSlugRoute =
-  Char123LngChar125PublicSlugRouteImport.update({
-    id: '/$slug',
-    path: '/$slug',
+const Char123LngChar125PublicPathRoute =
+  Char123LngChar125PublicPathRouteImport.update({
+    id: '/$path',
+    path: '/$path',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
   } as any)
 const Char123LngChar125PublicNewsIndexRoute =
@@ -101,22 +101,22 @@ const BylineAdminAccountIndexRoute = BylineAdminAccountIndexRouteImport.update({
   path: '/account/',
   getParentRoute: () => BylineAdminRouteRoute,
 } as any)
-const Char123LngChar125PublicNewsSlugRoute =
-  Char123LngChar125PublicNewsSlugRouteImport.update({
-    id: '/news/$slug',
-    path: '/news/$slug',
+const Char123LngChar125PublicNewsPathRoute =
+  Char123LngChar125PublicNewsPathRouteImport.update({
+    id: '/news/$path',
+    path: '/news/$path',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
   } as any)
-const Char123LngChar125PublicLegalSlugRoute =
-  Char123LngChar125PublicLegalSlugRouteImport.update({
-    id: '/legal/$slug',
-    path: '/legal/$slug',
+const Char123LngChar125PublicLegalPathRoute =
+  Char123LngChar125PublicLegalPathRouteImport.update({
+    id: '/legal/$path',
+    path: '/legal/$path',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
   } as any)
-const Char123LngChar125PublicAboutSlugRoute =
-  Char123LngChar125PublicAboutSlugRouteImport.update({
-    id: '/about/$slug',
-    path: '/about/$slug',
+const Char123LngChar125PublicAboutPathRoute =
+  Char123LngChar125PublicAboutPathRouteImport.update({
+    id: '/about/$path',
+    path: '/about/$path',
     getParentRoute: () => Char123LngChar125PublicRouteRoute,
   } as any)
 const BylineAdminUsersIdIndexRoute = BylineAdminUsersIdIndexRouteImport.update({
@@ -165,12 +165,12 @@ export interface FileRoutesByFullPath {
   '/{-$lng}': typeof Char123LngChar125PublicRouteRouteWithChildren
   '/admin': typeof BylineAdminRouteRouteWithChildren
   '/sign-in': typeof BylineSignInRoute
-  '/{-$lng}/$slug': typeof Char123LngChar125PublicSlugRoute
+  '/{-$lng}/$path': typeof Char123LngChar125PublicPathRoute
   '/admin/': typeof BylineAdminIndexRoute
   '/{-$lng}/': typeof Char123LngChar125PublicIndexRoute
-  '/{-$lng}/about/$slug': typeof Char123LngChar125PublicAboutSlugRoute
-  '/{-$lng}/legal/$slug': typeof Char123LngChar125PublicLegalSlugRoute
-  '/{-$lng}/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
+  '/{-$lng}/about/$path': typeof Char123LngChar125PublicAboutPathRoute
+  '/{-$lng}/legal/$path': typeof Char123LngChar125PublicLegalPathRoute
+  '/{-$lng}/news/$path': typeof Char123LngChar125PublicNewsPathRoute
   '/admin/account/': typeof BylineAdminAccountIndexRoute
   '/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
   '/admin/roles/': typeof BylineAdminRolesIndexRoute
@@ -188,11 +188,11 @@ export interface FileRoutesByTo {
   '/': typeof BylineRouteRouteWithChildren
   '/{-$lng}': typeof Char123LngChar125PublicIndexRoute
   '/sign-in': typeof BylineSignInRoute
-  '/{-$lng}/$slug': typeof Char123LngChar125PublicSlugRoute
+  '/{-$lng}/$path': typeof Char123LngChar125PublicPathRoute
   '/admin': typeof BylineAdminIndexRoute
-  '/{-$lng}/about/$slug': typeof Char123LngChar125PublicAboutSlugRoute
-  '/{-$lng}/legal/$slug': typeof Char123LngChar125PublicLegalSlugRoute
-  '/{-$lng}/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
+  '/{-$lng}/about/$path': typeof Char123LngChar125PublicAboutPathRoute
+  '/{-$lng}/legal/$path': typeof Char123LngChar125PublicLegalPathRoute
+  '/{-$lng}/news/$path': typeof Char123LngChar125PublicNewsPathRoute
   '/admin/account': typeof BylineAdminAccountIndexRoute
   '/admin/permissions': typeof BylineAdminPermissionsIndexRoute
   '/admin/roles': typeof BylineAdminRolesIndexRoute
@@ -213,12 +213,12 @@ export interface FileRoutesById {
   '/_byline/admin': typeof BylineAdminRouteRouteWithChildren
   '/{-$lng}/_public': typeof Char123LngChar125PublicRouteRouteWithChildren
   '/_byline/sign-in': typeof BylineSignInRoute
-  '/{-$lng}/_public/$slug': typeof Char123LngChar125PublicSlugRoute
+  '/{-$lng}/_public/$path': typeof Char123LngChar125PublicPathRoute
   '/_byline/admin/': typeof BylineAdminIndexRoute
   '/{-$lng}/_public/': typeof Char123LngChar125PublicIndexRoute
-  '/{-$lng}/_public/about/$slug': typeof Char123LngChar125PublicAboutSlugRoute
-  '/{-$lng}/_public/legal/$slug': typeof Char123LngChar125PublicLegalSlugRoute
-  '/{-$lng}/_public/news/$slug': typeof Char123LngChar125PublicNewsSlugRoute
+  '/{-$lng}/_public/about/$path': typeof Char123LngChar125PublicAboutPathRoute
+  '/{-$lng}/_public/legal/$path': typeof Char123LngChar125PublicLegalPathRoute
+  '/{-$lng}/_public/news/$path': typeof Char123LngChar125PublicNewsPathRoute
   '/_byline/admin/account/': typeof BylineAdminAccountIndexRoute
   '/_byline/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
   '/_byline/admin/roles/': typeof BylineAdminRolesIndexRoute
@@ -239,12 +239,12 @@ export interface FileRouteTypes {
     | '/{-$lng}'
     | '/admin'
     | '/sign-in'
-    | '/{-$lng}/$slug'
+    | '/{-$lng}/$path'
     | '/admin/'
     | '/{-$lng}/'
-    | '/{-$lng}/about/$slug'
-    | '/{-$lng}/legal/$slug'
-    | '/{-$lng}/news/$slug'
+    | '/{-$lng}/about/$path'
+    | '/{-$lng}/legal/$path'
+    | '/{-$lng}/news/$path'
     | '/admin/account/'
     | '/admin/permissions/'
     | '/admin/roles/'
@@ -262,11 +262,11 @@ export interface FileRouteTypes {
     | '/'
     | '/{-$lng}'
     | '/sign-in'
-    | '/{-$lng}/$slug'
+    | '/{-$lng}/$path'
     | '/admin'
-    | '/{-$lng}/about/$slug'
-    | '/{-$lng}/legal/$slug'
-    | '/{-$lng}/news/$slug'
+    | '/{-$lng}/about/$path'
+    | '/{-$lng}/legal/$path'
+    | '/{-$lng}/news/$path'
     | '/admin/account'
     | '/admin/permissions'
     | '/admin/roles'
@@ -286,12 +286,12 @@ export interface FileRouteTypes {
     | '/_byline/admin'
     | '/{-$lng}/_public'
     | '/_byline/sign-in'
-    | '/{-$lng}/_public/$slug'
+    | '/{-$lng}/_public/$path'
     | '/_byline/admin/'
     | '/{-$lng}/_public/'
-    | '/{-$lng}/_public/about/$slug'
-    | '/{-$lng}/_public/legal/$slug'
-    | '/{-$lng}/_public/news/$slug'
+    | '/{-$lng}/_public/about/$path'
+    | '/{-$lng}/_public/legal/$path'
+    | '/{-$lng}/_public/news/$path'
     | '/_byline/admin/account/'
     | '/_byline/admin/permissions/'
     | '/_byline/admin/roles/'
@@ -362,11 +362,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BylineAdminIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
-    '/{-$lng}/_public/$slug': {
-      id: '/{-$lng}/_public/$slug'
-      path: '/$slug'
-      fullPath: '/{-$lng}/$slug'
-      preLoaderRoute: typeof Char123LngChar125PublicSlugRouteImport
+    '/{-$lng}/_public/$path': {
+      id: '/{-$lng}/_public/$path'
+      path: '/$path'
+      fullPath: '/{-$lng}/$path'
+      preLoaderRoute: typeof Char123LngChar125PublicPathRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
     '/{-$lng}/_public/news/': {
@@ -404,25 +404,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BylineAdminAccountIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
-    '/{-$lng}/_public/news/$slug': {
-      id: '/{-$lng}/_public/news/$slug'
-      path: '/news/$slug'
-      fullPath: '/{-$lng}/news/$slug'
-      preLoaderRoute: typeof Char123LngChar125PublicNewsSlugRouteImport
+    '/{-$lng}/_public/news/$path': {
+      id: '/{-$lng}/_public/news/$path'
+      path: '/news/$path'
+      fullPath: '/{-$lng}/news/$path'
+      preLoaderRoute: typeof Char123LngChar125PublicNewsPathRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
-    '/{-$lng}/_public/legal/$slug': {
-      id: '/{-$lng}/_public/legal/$slug'
-      path: '/legal/$slug'
-      fullPath: '/{-$lng}/legal/$slug'
-      preLoaderRoute: typeof Char123LngChar125PublicLegalSlugRouteImport
+    '/{-$lng}/_public/legal/$path': {
+      id: '/{-$lng}/_public/legal/$path'
+      path: '/legal/$path'
+      fullPath: '/{-$lng}/legal/$path'
+      preLoaderRoute: typeof Char123LngChar125PublicLegalPathRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
-    '/{-$lng}/_public/about/$slug': {
-      id: '/{-$lng}/_public/about/$slug'
-      path: '/about/$slug'
-      fullPath: '/{-$lng}/about/$slug'
-      preLoaderRoute: typeof Char123LngChar125PublicAboutSlugRouteImport
+    '/{-$lng}/_public/about/$path': {
+      id: '/{-$lng}/_public/about/$path'
+      path: '/about/$path'
+      fullPath: '/{-$lng}/about/$path'
+      preLoaderRoute: typeof Char123LngChar125PublicAboutPathRouteImport
       parentRoute: typeof Char123LngChar125PublicRouteRoute
     }
     '/_byline/admin/users/$id/': {
@@ -530,23 +530,23 @@ const BylineRouteRouteWithChildren = BylineRouteRoute._addFileChildren(
 )
 
 interface Char123LngChar125PublicRouteRouteChildren {
-  Char123LngChar125PublicSlugRoute: typeof Char123LngChar125PublicSlugRoute
+  Char123LngChar125PublicPathRoute: typeof Char123LngChar125PublicPathRoute
   Char123LngChar125PublicIndexRoute: typeof Char123LngChar125PublicIndexRoute
-  Char123LngChar125PublicAboutSlugRoute: typeof Char123LngChar125PublicAboutSlugRoute
-  Char123LngChar125PublicLegalSlugRoute: typeof Char123LngChar125PublicLegalSlugRoute
-  Char123LngChar125PublicNewsSlugRoute: typeof Char123LngChar125PublicNewsSlugRoute
+  Char123LngChar125PublicAboutPathRoute: typeof Char123LngChar125PublicAboutPathRoute
+  Char123LngChar125PublicLegalPathRoute: typeof Char123LngChar125PublicLegalPathRoute
+  Char123LngChar125PublicNewsPathRoute: typeof Char123LngChar125PublicNewsPathRoute
   Char123LngChar125PublicNewsIndexRoute: typeof Char123LngChar125PublicNewsIndexRoute
 }
 
 const Char123LngChar125PublicRouteRouteChildren: Char123LngChar125PublicRouteRouteChildren =
   {
-    Char123LngChar125PublicSlugRoute: Char123LngChar125PublicSlugRoute,
+    Char123LngChar125PublicPathRoute: Char123LngChar125PublicPathRoute,
     Char123LngChar125PublicIndexRoute: Char123LngChar125PublicIndexRoute,
-    Char123LngChar125PublicAboutSlugRoute:
-      Char123LngChar125PublicAboutSlugRoute,
-    Char123LngChar125PublicLegalSlugRoute:
-      Char123LngChar125PublicLegalSlugRoute,
-    Char123LngChar125PublicNewsSlugRoute: Char123LngChar125PublicNewsSlugRoute,
+    Char123LngChar125PublicAboutPathRoute:
+      Char123LngChar125PublicAboutPathRoute,
+    Char123LngChar125PublicLegalPathRoute:
+      Char123LngChar125PublicLegalPathRoute,
+    Char123LngChar125PublicNewsPathRoute: Char123LngChar125PublicNewsPathRoute,
     Char123LngChar125PublicNewsIndexRoute:
       Char123LngChar125PublicNewsIndexRoute,
   }

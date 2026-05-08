@@ -49,14 +49,14 @@ export interface NewsListInput {
   category?: string
   page?: number
   pageSize?: number
-  locale?: string
+  lng?: string
 }
 
 interface ResolvedNewsListInput {
   category: string | undefined
   page: number
   pageSize: number
-  locale: string | undefined
+  lng: string | undefined
 }
 
 export const getNewsListFn = createServerFn({ method: 'GET' })
@@ -65,7 +65,7 @@ export const getNewsListFn = createServerFn({ method: 'GET' })
       category: input?.category || undefined,
       page: input?.page ?? 1,
       pageSize: input?.pageSize ?? 12,
-      locale: input?.locale,
+      lng: input?.lng,
     })
   )
   .handler(async (ctx): Promise<NewsListResult> => {
@@ -79,7 +79,7 @@ export const getNewsListFn = createServerFn({ method: 'GET' })
       populate: { category: '*', featureImage: '*' },
       page: data.page,
       pageSize: data.pageSize,
-      locale: data.locale,
+      locale: data.lng,
       status: preview ? 'any' : 'published',
     })
   })
