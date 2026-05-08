@@ -9,7 +9,10 @@
 import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
+import { PhotoBlock } from '~/blocks/photo-block'
+import { RichTextBlock } from '~/blocks/richtext-block'
 import { availableLanguagesField } from '~/fields/available-languages-field.js'
+import { publishedOnField } from '~/fields/published-on-field'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -58,37 +61,25 @@ export const Pages = defineCollection({
       optional: true,
     },
     {
-      name: 'category',
-      label: 'Category',
+      name: 'area',
+      label: 'Area',
       type: 'select',
-      optional: true,
-      helpText: 'Select a category for this page',
+      defaultValue: 'root',
+      helpText: 'Select an area for this page',
       options: [
-        { label: 'Foo', value: 'foo' },
-        { label: 'Bar', value: 'bar' },
-        { label: 'Baz', value: 'baz' },
+        { label: 'Root', value: 'root' },
+        { label: 'About', value: 'about' },
+        { label: 'Legal', value: 'legal' },
       ],
     },
     {
       name: 'content',
       label: 'Content',
-      type: 'richText',
-      helpText: 'Enter the main content for this page.',
-      localized: true,
-    },
-    {
-      name: 'publishedOn',
-      label: 'Published On',
-      type: 'datetime',
-      mode: 'datetime',
-    },
-    {
-      name: 'featured',
-      label: 'Featured',
-      type: 'checkbox',
+      type: 'blocks',
       optional: true,
-      helpText: 'Feature this page.',
+      blocks: [RichTextBlock, PhotoBlock],
     },
+    publishedOnField,
     availableLanguagesField(),
   ],
 })

@@ -10,6 +10,7 @@ import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '
 import { DateTimeFormatter } from '@byline/ui/react'
 
 import { SummaryLength } from '~/components/summary-length.js'
+import { i18n } from '~/i18n'
 
 import { Pages } from './schema.js'
 
@@ -37,11 +38,10 @@ const listViewColumns: ColumnDefinition[] = [
     className: 'w-[30%]',
   },
   {
-    fieldName: 'featured',
-    label: 'Featured',
+    fieldName: 'area',
+    label: 'Area',
     align: 'center',
     className: 'w-[10%]',
-    formatter: (value) => (value ? '★' : ''),
   },
   {
     fieldName: 'status',
@@ -119,13 +119,30 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   },
 
   /**
-   * Preview URL builder for live preview links. Receives the document and an
-   * optional locale and should return a fully-qualified URL string.
+   * Preview URL builder for live preview links. Returns a URL string (relative
+   * or absolute), or `null` to hide the preview affordance.
+   *
+   * `doc.path` is the top-level slug (derived from `useAsPath`), not a field.
+   * Direct relations are auto-populated by the edit view (depth 1, picker
+   * projection) and appear under `doc.fields.<name>?.document`.
    *
    * @example
-   * preview: (doc, { locale }) => `https://example.com/${locale}/pages/${doc.fields.path}`
+   * preview: {
+   *   url: (doc, { locale }) => {
+   *     if (!doc.path) return null
+   *     const prefix = locale && locale !== 'en' ? `/${locale}` : ''
+   *     return `${prefix}/${doc.path}`
+   *   },
+   * }
    */
-  // preview: undefined,
+  preview: {
+    url: (doc, { locale }) => {
+      if (!doc.path) return null
+      const prefix = locale && locale !== i18n.interface.defaultLocale ? `/${locale}` : ''
+      const pathWithArea = doc.fields?.area && doc.fields.area !== 'root' ? `${doc.fields.area}/${doc.path}` : doc.path
+      return `${prefix}/${pathWithArea}`
+    },
+  },
 
   // ---------------------------------------------------------------------------
   // UI Layout
@@ -145,7 +162,23 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    * Each tab's `fields` array accepts schema field names, row names, and group names.
    * An optional `condition` function can show/hide a tab based on live form data.
    */
-  // tabSets: [],
+  tabSets: [
+    {
+      name: 'tabs',
+      tabs: [
+        {
+          name: 'details',
+          label: 'Details',
+          fields: ['title', 'area', 'summary', 'featureImage'],
+        },
+        {
+          name: 'content',
+          label: 'Content',
+          fields: ['content'],
+        },
+      ],
+    },
+  ],
 
   /**
    * Named horizontal-row layouts. Fields listed inside a row are rendered
@@ -177,7 +210,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    * schema field in `main` in declaration order.
    */
   layout: {
-    main: ['title', 'summary', 'featureImage', 'category', 'content'],
-    sidebar: ['publishedOn', 'featured', 'availableLanguages'],
+    main: ['tabs'],
+    sidebar: ['publishedOn', 'availableLanguages'],
   },
 })

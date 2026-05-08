@@ -12,6 +12,7 @@ import { defineCollection, defineWorkflow } from '@byline/core'
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'
 import { availableLanguagesField } from '../../fields/available-languages-field.js'
+import { publishedOnField } from '../../fields/published-on-field.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
 
@@ -146,12 +147,7 @@ export const Docs = defineCollection({
       displayField: 'title',
       optional: true,
     },
-    {
-      name: 'publishedOn',
-      label: 'Published On',
-      type: 'datetime',
-      mode: 'datetime',
-    },
+    publishedOnField,
     {
       name: 'category',
       label: 'Category',

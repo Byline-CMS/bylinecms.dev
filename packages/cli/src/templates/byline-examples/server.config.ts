@@ -128,7 +128,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     }),
     // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace
     // the `localStorageProvider` block above with the call below and add
-    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env`.
+    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env`
+    // (see `apps/webapp/.env.example`).
     //
     // On AWS with an IAM role / instance profile, omit `accessKeyId` and
     // `secretAccessKey` so the SDK resolves credentials via its default

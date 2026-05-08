@@ -146,14 +146,7 @@ async function run(): Promise<void> {
       extractMeta: extractImageMeta,
       isBypassMimeType,
       generateVariants: ({ buffer, mimeType, storedFile, storage, upload, logger }) =>
-        generateImageVariants(
-          buffer,
-          mimeType,
-          storedFile,
-          storage,
-          upload.sizes ?? [],
-          logger
-        ),
+        generateImageVariants(buffer, mimeType, storedFile, storage, upload.sizes ?? [], logger),
     },
   }
 
