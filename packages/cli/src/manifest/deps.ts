@@ -106,6 +106,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'logger imported directly by @byline/core; Nitro tracer needs it owned at the app boundary',
   },
   {
+    name: 'sharp',
+    version: '^0.34.5',
+    group: 'runtime',
+    note: 'native libvips binding imported by @byline/core/image; externalised at the SSR boundary so pnpm must symlink it into the host app',
+  },
+  {
     name: 'nitro',
     version: 'npm:nitro-nightly@latest',
     group: 'runtime',

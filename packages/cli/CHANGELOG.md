@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.6.2
+
+### Patch Changes
+
+- Bundle analyzer and updated cli/manifest deps to include sharp.
+
 ## 1.6.1
 
 ### Patch Changes

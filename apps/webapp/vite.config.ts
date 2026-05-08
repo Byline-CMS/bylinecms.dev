@@ -6,7 +6,8 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
-import { defineConfig, type Plugin } from 'vite'
+import { visualizer } from 'rollup-plugin-visualizer'
+import { defineConfig, type Plugin, type PluginOption } from 'vite'
 
 // Browser-only stub for `node:async_hooks`. @byline/core's logger module does
 // `await import('node:async_hooks')` at top level and falls back to a no-op
@@ -111,6 +112,19 @@ const config = defineConfig({
     exclude: ssrExternal,
   },
   plugins: [
+    // Bundle composition treemap. Off by default — opt in with `ANALYZE=1
+    // pnpm --filter @byline/webapp build`, then open the emitted
+    // `bundle-stats.html` files (one per Vite environment, scattered
+    // through `.output/` and `node_modules/.nitro/`). Works through
+    // Rolldown's Rollup-plugin compat layer.
+    process.env.ANALYZE
+      ? (visualizer({
+          filename: 'bundle-stats.html',
+          emitFile: true,
+          gzipSize: true,
+          template: 'treemap',
+        }) as PluginOption)
+      : null,
     browserAsyncHooksAlias(),
     devtools(),
     nitro({

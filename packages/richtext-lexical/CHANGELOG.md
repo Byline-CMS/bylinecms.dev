@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 1.6.2
+
+### Patch Changes
+
+- Bundle analyzer and updated cli/manifest deps to include sharp.
+- Updated dependencies
+  - @byline/client@1.6.2
+  - @byline/core@1.6.2
+  - @byline/ui@1.6.2
+
 ## 1.6.1
 
 ### Patch Changes
