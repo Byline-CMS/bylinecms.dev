@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 1.7.2
+
+### Patch Changes
+
+- Scoped byline-ui to .byline-ui boundary and pinned cascade-layer order with tailwind. Updated cli template media list view.
+- Updated dependencies
+  - @byline/admin@1.7.2
+  - @byline/auth@1.7.2
+  - @byline/core@1.7.2
+
 ## 1.7.1
 
 ### Patch Changes

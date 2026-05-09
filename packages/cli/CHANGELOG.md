@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.7.2
+
+### Patch Changes
+
+- Scoped byline-ui to .byline-ui boundary and pinned cascade-layer order with tailwind. Updated cli template media list view.
+
 ## 1.7.1
 
 ### Patch Changes
