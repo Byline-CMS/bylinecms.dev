@@ -38,7 +38,7 @@ export const Route = createFileRoute('/_byline')({
 
 function BylineLayout() {
   return (
-    <div className="byline-ui">
+    <div className="byline-ui flex flex-col flex-1 w-full max-w-full h-full">
       <ToastProvider timeout={5000}>
         <BreadcrumbsProvider>
           <Outlet />
