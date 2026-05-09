@@ -1,5 +1,13 @@
 # @byline/core
 
+## 1.7.5
+
+### Patch Changes
+
+- Inlined formatNumber helper in example media list view (webapp and cli template).
+- Updated dependencies
+  - @byline/auth@1.7.5
+
 ## 1.7.4
 
 ### Patch Changes
