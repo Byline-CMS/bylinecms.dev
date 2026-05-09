@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 1.7.3
+
+### Patch Changes
+
+- Correct byline-ui scoped container divs in webapp and cli templates.
+
 ## 1.7.2
 
 ### Patch Changes

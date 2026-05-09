@@ -1,5 +1,17 @@
 # @byline/host-tanstack-start
 
+## 1.7.3
+
+### Patch Changes
+
+- Correct byline-ui scoped container divs in webapp and cli templates.
+- Updated dependencies
+  - @byline/admin@1.7.3
+  - @byline/auth@1.7.3
+  - @byline/client@1.7.3
+  - @byline/core@1.7.3
+  - @byline/ui@1.7.3
+
 ## 1.7.2
 
 ### Patch Changes
