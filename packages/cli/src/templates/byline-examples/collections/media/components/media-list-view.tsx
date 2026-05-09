@@ -35,9 +35,21 @@ import {
   Select,
 } from '@byline/ui/react'
 
-import { formatNumber } from '@/utils/utils.general'
 import styles from './media-list-view.module.css'
 import { FormatBadge } from './media-thumbnail'
+
+export function formatNumber(number: number, decimalPlaces: number) {
+  if (typeof number !== 'number' || Number.isNaN(number)) {
+    throw new TypeError('Input must be a valid number')
+  }
+
+  const options = {
+    minimumFractionDigits: decimalPlaces !== undefined ? decimalPlaces : 0,
+    maximumFractionDigits: decimalPlaces !== undefined ? decimalPlaces : 20,
+  }
+
+  return number.toLocaleString('en-US', options)
+}
 
 // ---------------------------------------------------------------------------
 // Order-by config
