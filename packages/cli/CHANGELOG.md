@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.7.7
+
+### Patch Changes
+
+- Reordered @layer cascade so typography sits below components and utils are highest precedence.
+
 ## 1.7.6
 
 ### Patch Changes

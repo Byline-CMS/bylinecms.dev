@@ -2,7 +2,7 @@
   "name": "@byline/auth",
   "private": false,
   "license": "MPL-2.0",
-  "version": "1.7.6",
+  "version": "1.7.7",
   "engines": {
     "node": ">=20.9.0"
   },

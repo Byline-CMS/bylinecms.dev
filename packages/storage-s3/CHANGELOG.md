@@ -1,5 +1,13 @@
 # @byline/storage-s3
 
+## 1.7.7
+
+### Patch Changes
+
+- Reordered @layer cascade so typography sits below components and utils are highest precedence.
+- Updated dependencies
+  - @byline/core@1.7.7
+
 ## 1.7.6
 
 ### Patch Changes
