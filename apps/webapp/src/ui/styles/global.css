@@ -3,6 +3,13 @@
  * colors, scales, utils  etc., which can be optionally
  * integrated with Tailwind (colors, breakpoints etc.) via
  * Tailwind theme configuration.
+ *
+ * Cascade-layer order is declared by @byline/ui itself — every CSS file
+ * the package ships declares the full integration order
+ * (`theme, base, components, utilities, byline-base, ..., byline-components`)
+ * at the top, so byline-components always beats Tailwind's `base` regardless
+ * of which file in the bundle parses first. Hosts using Tailwind don't
+ * need any layer-order declaration of their own.
  */
 
 @import "@byline/ui/reset.css";
@@ -14,14 +21,14 @@
 @import "@byline/ui/typography.css";
 
 /**
+  * Tailwind - should come after the above.
+  */
+@import "./tailwind.css";
+
+/**
  * Custom uikit overrides
  */
 @import "./overrides.css";
-
-/**
- * Tailwind - should come after the above.
- */
-@import "./tailwind.css";
 
 /**
  * Application styles

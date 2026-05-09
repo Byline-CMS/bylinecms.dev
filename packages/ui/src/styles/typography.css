@@ -1,24 +1,30 @@
+@layer base, byline-base, components, byline-components,
+  byline-functional, utilities, byline-utilities,
+  theme, byline-theme, byline-typography;
+
 @import "./typography/fonts.css";
 @import "./typography/prose.css";
 
 @layer byline-typography {
-  html {
-    font-family: var(--font-sans);
-  }
+  @scope (.byline-ui) {
+    :scope {
+      font-family: var(--font-sans);
+    }
 
-  .font-sans {
-    font-family: var(--font-sans);
-  }
+    .font-sans {
+      font-family: var(--font-sans);
+    }
 
-  .font-display {
-    font-family: var(--font-display);
-  }
+    .font-display {
+      font-family: var(--font-display);
+    }
 
-  .font-serif {
-    font-family: var(--font-serif);
-  }
+    .font-serif {
+      font-family: var(--font-serif);
+    }
 
-  .font-mono {
-    font-family: var(--font-mono);
+    .font-mono {
+      font-family: var(--font-mono);
+    }
   }
 }

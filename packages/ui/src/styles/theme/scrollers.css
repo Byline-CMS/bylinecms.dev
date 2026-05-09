@@ -1,4 +1,7 @@
 @layer byline-theme {
+  /* Custom property declarations stay on :root so they cascade everywhere.
+     They don't conflict with host CSS and are read by .component--scroller
+     instances anywhere in the tree. */
   :root {
     --scroll-bar-thumb: var(--theme-400);
     --scroll-bar-track: var(--theme-600);
@@ -11,44 +14,50 @@
     --scroll-bar-track: var(--canvas-900);
   }
 
-  /* For Google Chrome */
-  ::-webkit-scrollbar {
-    width: 0.6em;
-    height: 0.6em;
-  }
+  /* Scrollbar styling itself is scoped to .byline-ui — without this, the
+     ::-webkit-scrollbar pseudo-elements would re-style the host page's
+     scrollbars too. */
+  @scope (.byline-ui) {
+    /* For Google Chrome */
+    ::-webkit-scrollbar {
+      width: 0.6em;
+      height: 0.6em;
+    }
 
-  ::-webkit-scrollbar-thumb {
-    background: var(--scroll-bar-thumb);
-  }
+    ::-webkit-scrollbar-thumb {
+      background: var(--scroll-bar-thumb);
+    }
 
-  ::-webkit-scrollbar-track {
-    background: var(--scroll-bar-track);
-  }
+    ::-webkit-scrollbar-track {
+      background: var(--scroll-bar-track);
+    }
 
-  ::-webkit-scrollbar-corner {
-    background: var(--scroll-bar-track);
-  }
+    ::-webkit-scrollbar-corner {
+      background: var(--scroll-bar-track);
+    }
 
-  /* Firefox */
-  html {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scroll-bar-thumb) var(--scroll-bar-track);
-  }
+    /* Firefox — applied to the scope root (html in whole-app mode, the
+       wrapper div in admin-only mode) */
+    :scope {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scroll-bar-thumb) var(--scroll-bar-track);
+    }
 
-  .component--scroller {
-    --scroll-bar-thumb: var(--scroll-bar-thumb);
-    --scroll-bar-track: var(--scroll-bar-track);
-  }
+    .component--scroller {
+      --scroll-bar-thumb: var(--scroll-bar-thumb);
+      --scroll-bar-track: var(--scroll-bar-track);
+    }
 
-  .dark .component--scroller,
-  [data-theme="dark"] .component--scroller {
-    --scroll-bar-thumb: var(--scroll-bar-thumb);
-    --scroll-bar-track: var(--scroll-bar-track);
-  }
+    .dark .component--scroller,
+    [data-theme="dark"] .component--scroller {
+      --scroll-bar-thumb: var(--scroll-bar-thumb);
+      --scroll-bar-track: var(--scroll-bar-track);
+    }
 
-  .component--scroller {
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--scroll-bar-thumb) var(--scroll-bar-track);
+    .component--scroller {
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--scroll-bar-thumb) var(--scroll-bar-track);
+    }
   }
 }

@@ -52,9 +52,6 @@ function RootComponent() {
     <RootDocument>
       <ThemeProvider force={Theme.DARK}>
         <Outlet />
-        {/* <div className="layout flex flex-col w-full max-w-full min-h-screen h-full selection:text-white selection:bg-primary-400">
-              <Outlet />
-            </div> */}
         <TanStackRouterDevtools />
       </ThemeProvider>
     </RootDocument>
@@ -70,7 +67,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       : i18nConfig.defaultLocale
 
   return (
-    <html className="dark" lang={lang} suppressHydrationWarning>
+    <html className="dark byline-ui" lang={lang} suppressHydrationWarning>
       <head>
         <EarlyThemeDetector />
         <HeadContent />

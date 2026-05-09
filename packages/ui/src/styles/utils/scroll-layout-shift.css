@@ -1,9 +1,0 @@
-@layer byline-utilities {
-  .fix-scroll-layout-shift-right {
-    padding-right: var(--removed-body-scroll-bar-size);
-  }
-
-  .fix-scroll-layout-shift-left {
-    padding-left: var(--removed-body-scroll-bar-size);
-  }
-}

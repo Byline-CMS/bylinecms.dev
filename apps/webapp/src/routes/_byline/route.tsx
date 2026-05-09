@@ -32,20 +32,19 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { BreadcrumbsProvider } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-provider'
 
-import '@byline/ui/reset.css'
-import '@byline/ui/styles.css'
-
 export const Route = createFileRoute('/_byline')({
   component: BylineLayout,
 })
 
 function BylineLayout() {
   return (
-    <ToastProvider timeout={5000}>
-      <BreadcrumbsProvider>
-        <Outlet />
-      </BreadcrumbsProvider>
-      <ToastViewport position="bottom-right" />
-    </ToastProvider>
+    <div className="byline-ui">
+      <ToastProvider timeout={5000}>
+        <BreadcrumbsProvider>
+          <Outlet />
+        </BreadcrumbsProvider>
+        <ToastViewport position="bottom-right" />
+      </ToastProvider>
+    </div>
   )
 }
