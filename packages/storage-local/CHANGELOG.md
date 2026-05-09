@@ -1,5 +1,13 @@
 # @byline/storage-local
 
+## 1.7.6
+
+### Patch Changes
+
+- Reordered cascade layers so theme sits below components.
+- Updated dependencies
+  - @byline/core@1.7.6
+
 ## 1.7.5
 
 ### Patch Changes

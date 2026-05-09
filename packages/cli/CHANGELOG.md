@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.7.6
+
+### Patch Changes
+
+- Reordered cascade layers so theme sits below components.
+
 ## 1.7.5
 
 ### Patch Changes

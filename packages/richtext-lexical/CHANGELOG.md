@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 1.7.6
+
+### Patch Changes
+
+- Reordered cascade layers so theme sits below components.
+- Updated dependencies
+  - @byline/client@1.7.6
+  - @byline/core@1.7.6
+  - @byline/ui@1.7.6
+
 ## 1.7.5
 
 ### Patch Changes
