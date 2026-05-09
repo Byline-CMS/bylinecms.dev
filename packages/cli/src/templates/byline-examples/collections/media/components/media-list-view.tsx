@@ -261,7 +261,7 @@ export function MediaListView({
                   className="group flex flex-col overflow-hidden rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-canvas-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors no-underline"
                 >
                   {/* Thumbnail */}
-                  <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-canvas-700">
+                  <div className="relative aspect-5/4 overflow-hidden bg-gray-100 dark:bg-canvas-700">
                     {thumbUrl ? (
                       <img
                         src={thumbUrl}
