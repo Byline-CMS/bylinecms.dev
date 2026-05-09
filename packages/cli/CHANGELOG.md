@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.7.4
+
+### Patch Changes
+
+- Migrated example media list and thumbnail views to CSS modules, updated CLI templates, and fixed up image field label and helptext.
+
 ## 1.7.3
 
 ### Patch Changes

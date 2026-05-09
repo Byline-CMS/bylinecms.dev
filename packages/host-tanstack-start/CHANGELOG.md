@@ -1,5 +1,17 @@
 # @byline/host-tanstack-start
 
+## 1.7.4
+
+### Patch Changes
+
+- Migrated example media list and thumbnail views to CSS modules, updated CLI templates, and fixed up image field label and helptext.
+- Updated dependencies
+  - @byline/ui@1.7.4
+  - @byline/admin@1.7.4
+  - @byline/auth@1.7.4
+  - @byline/client@1.7.4
+  - @byline/core@1.7.4
+
 ## 1.7.3
 
 ### Patch Changes
