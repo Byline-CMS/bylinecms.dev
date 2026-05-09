@@ -7,11 +7,13 @@
  * area only, or on <html> to apply it everywhere (in which case the host
  * should NOT also import tailwindcss/preflight.css).
  *
- * The preamble below pins the cascade-layer order, interleaving byline
- * layers with their Tailwind equivalents by type so each byline layer sits
- * just above its matching Tailwind layer:
- *   base < byline-base < components < byline-components < byline-functional
- *   < utilities < byline-utilities < theme < byline-theme < byline-typography
+ * The preamble below pins the cascade-layer order. Theme sits below
+ * components so theme tokens cannot override component styles, and byline
+ * layers are interleaved with their Tailwind equivalents by type so each
+ * byline layer sits just above its matching Tailwind layer:
+ *   base < byline-base < theme < byline-theme < byline-functional
+ *   < components < byline-components < utilities < byline-utilities
+ *   < byline-typography
  *
  * This ensures byline-base beats Tailwind preflight, byline-components beats
  * Tailwind components, byline-utilities beats Tailwind utilities — each in
@@ -20,9 +22,9 @@
  *
  * Hosts using Tailwind don't need to declare layer order themselves.
 */
-@layer base, byline-base, components, byline-components,
-  byline-functional, utilities, byline-utilities,
-  theme, byline-theme, byline-typography;
+@layer base, byline-base, theme, byline-theme,
+  byline-functional, components, byline-components,
+  utilities, byline-utilities, byline-typography;
 
 @layer byline-base {
   @scope (.byline-ui) {
