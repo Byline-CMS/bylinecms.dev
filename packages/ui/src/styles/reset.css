@@ -23,8 +23,8 @@
  * Hosts using Tailwind don't need to declare layer order themselves.
 */
 @layer base, byline-base, theme, byline-theme,
-  byline-functional, components, byline-components,
-  utilities, byline-utilities, byline-typography;
+  byline-functional, byline-typography, components, byline-components,
+  utilities, byline-utilities;
 
 @layer byline-base {
   @scope (.byline-ui) {
