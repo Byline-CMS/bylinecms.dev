@@ -16,7 +16,7 @@ import {
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../../forms/form-context'
-import { ErrorText } from '../../uikit.js'
+import { ErrorText, HelpText, Label } from '../../uikit.js'
 import { ImageLightbox } from '../../widgets/image-lightbox/image-lightbox.js'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import styles from './image-field.module.css'
@@ -92,18 +92,17 @@ export const ImageField = ({
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const canOpenLightbox = !isPending && !!incomingValue?.storageUrl
 
+  const htmlId = fieldPath
+
   return (
     <div className={`byline-field-image ${field.name}`}>
       <div className={cx('byline-field-image-header', styles.header)}>
-        <div>
-          <div className={cx('byline-field-image-label', styles.label)}>
-            {field.label ?? field.name}
-            {field.optional ? '' : ' *'}
-          </div>
-          {field.helpText && (
-            <div className={cx('byline-field-image-help', styles.help)}>{field.helpText}</div>
-          )}
-        </div>
+        <Label
+          id={htmlId}
+          htmlFor={htmlId}
+          label={field.label ?? field.name}
+          required={!field.optional}
+        />
         {/* Remove button — shown when an image is set (including pending) */}
         {!showUploadWidget && collectionPath && (
           <button
@@ -243,6 +242,8 @@ export const ImageField = ({
           </div>
         </div>
       )}
+
+      {field.helpText && <HelpText text={field.helpText} />}
 
       {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
 

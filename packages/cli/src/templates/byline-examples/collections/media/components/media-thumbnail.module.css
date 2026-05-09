@@ -1,0 +1,35 @@
+/**
+ * MediaThumbnail / FormatBadge — list-view thumbnail and image-format pill.
+ */
+
+.format-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--border-radius-full);
+  padding: 0.125rem 0.5rem;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-400);
+  background-color: color-mix(in oklab, var(--color-gray-500) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-gray-500) 20%, transparent);
+}
+
+.placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--gray-800);
+  color: var(--gray-600);
+  font-size: 0.6rem;
+}
+
+.thumbnail {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+  border-radius: var(--border-radius-sm);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
+}

@@ -36,6 +36,7 @@ import {
 } from '@byline/ui/react'
 
 import { formatNumber } from '@/utils/utils.general'
+import styles from './media-list-view.module.css'
 import { FormatBadge } from './media-thumbnail'
 
 // ---------------------------------------------------------------------------
@@ -73,11 +74,13 @@ function splitOrderValue(value: OrderValue): { order: string; desc: boolean } {
 // ---------------------------------------------------------------------------
 
 function Stats({ total }: { total: number }) {
-  return (
-    <span className="flex items-center justify-center h-7 min-w-7 px-1.5 py-1.25 -mb-1 whitespace-nowrap text-sm leading-0 bg-gray-25 dark:bg-canvas-700 border rounded-md">
-      {formatNumber(total, 0)}
-    </span>
-  )
+  return <span className={styles.stats}>{formatNumber(total, 0)}</span>
+}
+
+function statusClassName(status: string): string {
+  if (status === 'published') return styles['status-published']
+  if (status === 'archived') return styles['status-archived']
+  return styles['status-default']
 }
 
 function StatusBadge({
@@ -88,26 +91,14 @@ function StatusBadge({
   workflowStatuses: WorkflowStatus[]
 }) {
   const label = workflowStatuses.find((s) => s.name === status)?.label ?? status
-  const colour =
-    status === 'published'
-      ? 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/30'
-      : status === 'archived'
-        ? 'bg-gray-500/15 text-gray-400 ring-gray-500/30'
-        : 'bg-amber-500/15 text-amber-400 ring-amber-500/30'
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${colour}`}
-    >
-      {label}
-    </span>
-  )
+  return <span className={`${styles['status-badge']} ${statusClassName(status)}`}>{label}</span>
 }
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
-      <LoaderRing className="mb-4 opacity-0" size={1} color="transparent" />
-      <p className="text-sm">No media items found.</p>
+    <div className={styles['empty-state']}>
+      <LoaderRing className={styles['empty-loader']} size={1} color="transparent" />
+      <p className={styles['empty-text']}>No media items found.</p>
     </div>
   )
 }
@@ -175,14 +166,14 @@ export function MediaListView({
     <Section>
       <Container>
         {/* ---- Header ---- */}
-        <div className="flex items-center gap-3 py-0.5">
-          <h1 className="m-0! pb-0.5">{data.included.collection.labels.plural as string}</h1>
+        <div className={styles.header}>
+          <h1 className={styles.heading}>{data.included.collection.labels.plural as string}</h1>
           <Stats total={data.meta.total} />
           <IconButton
             aria-label="Upload New Media"
             render={
               <Link
-                className="ml-auto"
+                className={styles['create-link']}
                 to="/admin/collections/$collection/create"
                 params={{ collection: collectionPath }}
               />
@@ -193,21 +184,18 @@ export function MediaListView({
         </div>
 
         {/* ---- Toolbar ---- */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap items-start sm:items-center mt-3 mb-4">
+        <div className={styles.toolbar}>
           <Search
             onSearch={handleOnSearch}
             onClear={handleOnClear}
             inputSize="sm"
             placeholder="Search media…"
-            className="w-full max-w-87.5"
+            className={styles.search}
           />
 
           {/* Order-by */}
-          <div className="flex items-center gap-2 sm:ml-auto">
-            <label
-              htmlFor="media_order"
-              className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap"
-            >
+          <div className={styles['order-group']}>
+            <label htmlFor="media_order" className={styles['order-label']}>
               Order by
             </label>
             <Select
@@ -235,7 +223,7 @@ export function MediaListView({
         {data.docs.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6 mt-4">
+          <div className={styles.grid}>
             {(data.docs as any[]).map((doc) => {
               const fields = doc.fields ?? {}
               const img = fields.image as StoredFileValue | null | undefined
@@ -249,41 +237,36 @@ export function MediaListView({
                   key={doc.id}
                   to="/admin/collections/$collection/$id"
                   params={{ collection: collectionPath, id: doc.id }}
-                  className="group flex flex-col overflow-hidden rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-canvas-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors no-underline"
+                  className={styles.card}
                 >
                   {/* Thumbnail */}
-                  <div className="relative aspect-5/4 overflow-hidden bg-gray-100 dark:bg-canvas-700">
+                  <div className={styles['thumb-wrap']}>
                     {thumbUrl ? (
                       <img
                         src={thumbUrl}
                         alt={fields.altText ?? img?.originalFilename ?? ''}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        className={styles['thumb-img']}
                         loading="lazy"
                       />
                     ) : (
-                      <span className="flex h-full w-full items-center justify-center text-xs text-gray-400 dark:text-gray-600">
-                        No image
-                      </span>
+                      <span className={styles['thumb-placeholder']}>No image</span>
                     )}
                   </div>
 
                   {/* Card meta */}
-                  <div className="flex flex-col gap-1.5 p-2 min-w-0">
-                    <span
-                      className="truncate text-sm font-medium leading-snug"
-                      title={fields.title ?? ''}
-                    >
+                  <div className={styles['card-meta']}>
+                    <span className={styles['card-title']} title={fields.title ?? ''}>
                       {fields.title ?? '—'}
                     </span>
-                    <div className="flex flex-wrap items-center justify-between gap-1">
-                      <div className="flex flex-wrap items-center gap-1">
+                    <div className={styles['card-meta-row']}>
+                      <div className={styles.badges}>
                         {doc.status && (
                           <StatusBadge status={doc.status} workflowStatuses={workflowStatuses} />
                         )}
                         {img?.imageFormat && <FormatBadge format={img.imageFormat} />}
                       </div>
                       {updatedAt && (
-                        <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                        <span className={styles['updated-at']}>
                           <LocalDateTime value={updatedAt} mode="date" />
                         </span>
                       )}
@@ -296,7 +279,7 @@ export function MediaListView({
         )}
 
         {/* ---- Bottom pagination ---- */}
-        <div className="flex justify-end mb-5">
+        <div className={styles['bottom-pager']}>
           <RouterPager
             smoothScrollToTop={true}
             page={data.meta.page}

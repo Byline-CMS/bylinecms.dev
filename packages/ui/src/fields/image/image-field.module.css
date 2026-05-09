@@ -4,8 +4,6 @@
  * Override handles:
  *   .byline-field-image                — wrapper div
  *   .byline-field-image-header         — label + remove button row
- *   .byline-field-image-label          — primary label text
- *   .byline-field-image-help           — secondary help text
  *   .byline-field-image-remove         — remove-button text-link
  *   .byline-field-image-empty          — empty-state hint text
  *   .byline-field-image-tile           — bordered preview/metadata tile
@@ -24,20 +22,6 @@
   align-items: baseline;
   gap: var(--spacing-8);
   margin-bottom: 0.25rem;
-}
-
-.label,
-:global(.byline-field-image-label) {
-  color: var(--gray-100);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.help,
-:global(.byline-field-image-help) {
-  margin-top: 0.125rem;
-  color: var(--gray-400);
-  font-size: var(--font-size-xs);
 }
 
 .remove,

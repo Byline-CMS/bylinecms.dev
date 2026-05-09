@@ -1,6 +1,11 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
+/* NOTE: This example webapp front-end is using the same @byline/ui
+  kit in both the front end and the back-end admin area - and has
+  its own reset (although loading both Tailwind CSS preflight
+  and @byline/ui reset will work - albeit unnessary.)
+  */
+/*@import "tailwindcss/preflight.css" layer(base);*/
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @custom-variant dark (&:is(.dark *));

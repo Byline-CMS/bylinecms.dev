@@ -1,0 +1,21 @@
+/**
+ * SummaryLength — HelpText slot wrapping LengthIndicator + helpText description.
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.help-text {
+  margin-bottom: 0.25rem;
+  font-size: var(--font-size-sm);
+  line-height: 1.25;
+  color: var(--gray-500);
+}
+
+:is([data-theme="dark"], :global(.dark)) .help-text {
+  color: var(--gray-400);
+}

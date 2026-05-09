@@ -10,6 +10,7 @@ import type { FieldHelpTextSlotProps, SlotComponent } from '@byline/core'
 import { useFieldValue } from '@byline/ui/react'
 
 import { LengthIndicator } from './length-indicator'
+import styles from './summary-length.module.css'
 
 /**
  * Custom HelpText slot component for summary-style textArea fields.
@@ -29,11 +30,9 @@ export const SummaryLength: SlotComponent<FieldHelpTextSlotProps> = ({ path, hel
   const value = useFieldValue<string>(path)
 
   return (
-    <div className="mt-2 flex flex-col gap-1">
+    <div className={styles.wrap}>
       <LengthIndicator minLength={100} maxLength={300} text={value} />
-      {helpText && (
-        <p className="text-sm text-gray-500 dark:text-gray-400 leading-tight mb-1">{helpText}</p>
-      )}
+      {helpText && <p className={styles['help-text']}>{helpText}</p>}
     </div>
   )
 }

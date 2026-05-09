@@ -8,16 +8,14 @@
 
 import type { FormatterProps, StoredFileValue } from '@byline/core'
 
+import styles from './media-thumbnail.module.css'
+
 /**
  * FormatBadge renders a muted pill showing the image format (e.g. JPEG, PNG, SVG).
  * Intended for use alongside the status badge in list-view card meta.
  */
 export function FormatBadge({ format }: { format: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset bg-gray-500/10 text-gray-400 ring-gray-500/20">
-      {format.toUpperCase()}
-    </span>
-  )
+  return <span className={styles['format-badge']}>{format.toUpperCase()}</span>
 }
 
 /**
@@ -31,11 +29,7 @@ export function MediaThumbnail({ record }: FormatterProps) {
   const img = fields.image as StoredFileValue | null | undefined
 
   if (!img?.storageUrl) {
-    return (
-      <span className="inline-flex items-center justify-center w-18 h-18 bg-gray-800 rounded text-gray-600 text-[0.6rem]">
-        —
-      </span>
-    )
+    return <span className={styles.placeholder}>—</span>
   }
 
   const thumbVariant = img.variants?.find((v) => v.name === 'thumbnail')
@@ -45,7 +39,7 @@ export function MediaThumbnail({ record }: FormatterProps) {
     <img
       src={thumbUrl}
       alt={img.originalFilename ?? img.filename}
-      className="w-18 h-18 object-cover rounded border border-gray-700"
+      className={styles.thumbnail}
       loading="lazy"
     />
   )
