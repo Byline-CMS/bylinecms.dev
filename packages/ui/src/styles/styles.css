@@ -6,3 +6,7 @@
 @import "./functional/functional.css";
 @import "./theme/theme.css";
 @import "./components/components.css";
+
+.byline-ui {
+  isolation: isolate;
+}
