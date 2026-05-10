@@ -14,9 +14,17 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ## Now
 
+### CI integration-test pipeline
+
+The integration tests under `**/*.integration.test.ts` cover the load-bearing storage, lifecycle, populate, before-read, and relation-filter machinery, but they require a live Postgres so they don't run on every PR — every change is currently merged on dev-machine confidence. Wire a GitHub Actions workflow that brings up a Postgres service container, runs `pnpm drizzle:migrate` against it, and runs the integration suite alongside the existing `pnpm typecheck` / `pnpm test` jobs. Highest-leverage missing item; protects every subsequent change.
+
+### `createCommand({ auth, schemas, handler })` wrapper
+
+CORE-COMPOSITION Phase 1. Each `@byline/admin` command repeats the same four-step sequence verbatim (validate / authorise / invoke / shape). The wrapper folds it into one declaration. Track-opener for Phases 2–3 (module registries, command tree on `BylineCore`) but independently useful. Promoted from Next because it's small, foundational, and every additional admin command shipped without it becomes a mechanical conversion later. See [CORE-COMPOSITION.md → Phase 1 — createCommand wrapper](./CORE-COMPOSITION.md#phase-1--createcommand-wrapper).
+
 ### Richtext populate integration test
 
-Deferred from the round that landed the populate primitive. Needs a running Postgres. Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate) for the populate primitive itself.
+Deferred from the round that landed the populate primitive. Needs a running Postgres (and now the CI pipeline above). Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate) for the populate primitive itself.
 
 ---
 
@@ -41,10 +49,6 @@ Periodic admin command that scans richtext fields and `store_relation` rows for 
 ### Relation column formatter
 
 List views currently render `target_document_id` as a string for relation fields. A formatter that resolves to the target's `useAsTitle` (with the picker's `displayField` fallback chain) is small, self-contained, and worth doing alongside `hasMany` so the formatter handles "A, B, +3 more" from the start. See [RELATIONSHIPS.md → Phase — relation column formatter](./RELATIONSHIPS.md#phase--relation-column-formatter).
-
-### `createCommand({ auth, schemas, handler })` wrapper
-
-CORE-COMPOSITION Phase 1. Each `@byline/admin` command repeats the same four-step sequence verbatim (validate / authorise / invoke / shape). The wrapper folds it into one declaration. Track-opener for Phases 2–3 (module registries, command tree on `BylineCore`) but independently useful. See [CORE-COMPOSITION.md → Phase 1 — createCommand wrapper](./CORE-COMPOSITION.md#phase-1--createcommand-wrapper).
 
 ### Historical config snapshots — `collection_versions` history table
 
