@@ -2,7 +2,7 @@
 
 > Companions:
 > - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — the foundational EAV layer that relations read and write against (`store_relation` is one of the seven typed stores).
-> - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — `path` on `documentVersions` is a first-class column used by relation filters (`where: { category: { path: 'news' } }`) and resolved via `findByPath` under the same `readMode` rule populate honours.
+> - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and resolved via `findByPath` under the same `readMode` rule populate honours, with locale fallback applied per request.
 > - [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
 > - [FILE-MEDIA-UPLOADS.md](./FILE-MEDIA-UPLOADS.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
 

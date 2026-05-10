@@ -55,8 +55,8 @@ export const Pages: CollectionDefinition = {
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   useAsTitle: 'title',
-  // `path` is a reserved system attribute on documentVersions; opt into
-  // automatic derivation by naming the source field with useAsPath.
+  // `path` is a reserved system attribute (stored in byline_document_paths);
+  // opt into automatic derivation by naming the source field with useAsPath.
   useAsPath: 'title',
   search: { fields: ['title'] },
   fields: [

@@ -113,14 +113,14 @@ where: { $and: [{ tags: { $in: ['featured'] } }, { archived: false }] }
 
 // Cross-collection relation filters (Phase 6 semantics)
 where: { category: { slug: 'news' } }              // target's `slug` field === 'news'
-where: { category: { path: 'news' } }              // target version's `document_versions.path` column === 'news'
+where: { category: { path: 'news' } }              // target document's path (locale-resolved via `byline_document_paths`) === 'news'
 where: { category: { status: 'draft' } }           // target version's `document_versions.status` column === 'draft'
 where: { category: { parent: { path: 'news' } } }  // 2-hop, doc-column at depth 2
 ```
 
 The compiler emits `EXISTS` subqueries against the typed `store_*` tables for field filters, and depth-scoped nested `EXISTS` joins through `store_relation` for relation sub-wheres. All filter predicates respect the read mode — published-mode reads use `current_published_documents` even at the inner side of a relation join.
 
-Document-level reserved keys (`status`, `path`) inside a nested sub-clause map to the target version's `document_versions` columns — same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `query` (text search) is not supported inside a nested sub-clause and is silently dropped with a debug log.
+Document-level reserved keys (`status`, `path`) inside a nested sub-clause are document metadata, not field filters — same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `status` resolves to `document_versions.status` on the relation hop's target row; `path` resolves through a `byline_document_paths` subquery against the hop's `document_id` (locale-resolved via the request's `[requested, default]` priority chain). `query` (text search) is not supported inside a nested sub-clause and is silently dropped with a debug log.
 
 ### Sorting
 
@@ -130,7 +130,7 @@ sort: '-publishedAt'            // descending
 sort: ['-publishedAt', 'title'] // multi-key
 ```
 
-Field sort compiles to `LEFT JOIN LATERAL` against the appropriate store; document-level columns (`status`, `path`, `created_at`, `updated_at`) use direct outer-scope comparisons.
+Field sort compiles to `LEFT JOIN LATERAL` against the appropriate store; document-level columns (`status`, `created_at`, `updated_at`) use direct outer-scope comparisons. Sorting by `path` is intentionally not supported (`path` lives in `byline_document_paths` and is locale-resolved per request); reintroduce via the `pathProjection` subquery if a real consumer surfaces.
 
 ### Selective field loading
 

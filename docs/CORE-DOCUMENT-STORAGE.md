@@ -2,7 +2,7 @@
 
 > Companions:
 > - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — the first read consumer that spans collections.
-> - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — the first system attribute promoted out of the EAV layer onto `documentVersions`.
+> - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
 > - [COLLECTION-VERSIONING.md](./COLLECTION-VERSIONING.md) — schema versioning sits beside, but is independent of, document versioning.
 > - [Storage benchmark sweep — 2026-04-18](../benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
 
@@ -34,9 +34,15 @@ document_versions                  ── one row per saved version, immutable
   collection_id       uuid    fk
   collection_version  int          ── schema version this version was written against
   status              text         ── 'draft' | 'published' | <workflow state>
+  is_deleted          bool         ── tombstone for soft delete
+  created_at, updated_at
+
+document_paths                     ── per-(document, locale) URL slug, separate from versions
+  document_id         uuid    pk   ── (composite with locale)
+  locale              text    pk
+  collection_id       uuid    fk
   path                text         ── derived via useAsPath + slugifier
-  schema_path         text         ── stable system path
-  created_at, updated_at, deleted_at
+                                   UNIQUE(collection_id, locale, path)
 
 store_text         (document_version_id, locale, path, value text)
 store_numeric      (document_version_id, locale, path, value numeric)
@@ -140,9 +146,9 @@ Saved versions are **immutable by default** and identified by a UUIDv7 `document
 
 ```sql
 SELECT *,
-       ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY created_at DESC, id DESC) AS rn
+       ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY id DESC) AS rn
 FROM document_versions
-WHERE deleted_at IS NULL
+WHERE is_deleted = false
 ```
 
 …then filters to `rn = 1`. Status changes mutate the existing version row in place — `status` is lifecycle metadata, not content, so there is no need to fork a new version when a draft becomes published.
@@ -155,9 +161,9 @@ Public consumers (the in-process `@byline/client` defaulting to `status: 'publis
 
 ```sql
 SELECT *,
-       ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY created_at DESC, id DESC) AS rn
+       ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY id DESC) AS rn
 FROM document_versions
-WHERE deleted_at IS NULL
+WHERE is_deleted = false
   AND status = 'published'                 -- filter BEFORE the window
 ```
 
@@ -248,7 +254,7 @@ The `_id` UUIDv7 on blocks and array items is **synthetic metadata**, not a data
 | `IDocumentQueries` interface             | `packages/core/src/@types/db-types.ts`                                                  |
 | Postgres schema                          | `packages/db-postgres/src/database/schema/index.ts`                                     |
 | Migrations                               | `packages/db-postgres/src/database/migrations/`                                         |
-| `current_documents` views                | migration `0000_*.sql` (current) + `0001_*.sql` (current_published)                     |
+| `current_documents` views                | both views (`current_documents`, `current_published_documents`) and the `byline_document_paths` table ship in the unified migration `0000_hard_madame_hydra.sql`; Drizzle definitions live in `packages/db-postgres/src/database/schema/index.ts` |
 | Reserved field names                     | `RESERVED_FIELD_NAMES` exported from `@byline/core`                                     |
 | Benchmark harness                        | `benchmarks/storage/harness/`                                                           |
 | Benchmark sweep results                  | `benchmarks/storage/results/2026-04-18-storage-cold-summary.md`                         |
