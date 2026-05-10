@@ -108,6 +108,17 @@ CREATE TABLE "byline_store_datetime" (
 	CONSTRAINT "unique_datetime_field" UNIQUE("document_version_id","field_path","locale")
 );
 --> statement-breakpoint
+CREATE TABLE "byline_document_paths" (
+	"document_id" uuid NOT NULL,
+	"locale" varchar(10) NOT NULL,
+	"collection_id" uuid NOT NULL,
+	"path" varchar(255) NOT NULL,
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "unique_document_paths_document_locale" UNIQUE("document_id","locale"),
+	CONSTRAINT "idx_document_paths_collection_locale_path" UNIQUE("collection_id","locale","path")
+);
+--> statement-breakpoint
 CREATE TABLE "byline_document_relationships" (
 	"parent_document_id" uuid NOT NULL,
 	"child_document_id" uuid NOT NULL,
@@ -120,7 +131,6 @@ CREATE TABLE "byline_document_versions" (
 	"document_id" uuid NOT NULL,
 	"collection_id" uuid NOT NULL,
 	"collection_version" integer NOT NULL,
-	"path" varchar(255) NOT NULL,
 	"doc" jsonb,
 	"event_type" varchar(20) DEFAULT 'create' NOT NULL,
 	"status" varchar(50) DEFAULT 'draft',
@@ -162,6 +172,7 @@ CREATE TABLE "byline_store_file" (
 	"image_format" varchar(20),
 	"processing_status" varchar(20) DEFAULT 'pending',
 	"thumbnail_generated" boolean DEFAULT false,
+	"variants" jsonb,
 	CONSTRAINT "unique_file_field" UNIQUE("document_version_id","field_path","locale")
 );
 --> statement-breakpoint
@@ -251,6 +262,8 @@ ALTER TABLE "byline_store_boolean" ADD CONSTRAINT "byline_store_boolean_document
 ALTER TABLE "byline_store_boolean" ADD CONSTRAINT "byline_store_boolean_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_datetime" ADD CONSTRAINT "byline_store_datetime_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_datetime" ADD CONSTRAINT "byline_store_datetime_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_paths" ADD CONSTRAINT "byline_document_paths_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_paths" ADD CONSTRAINT "byline_document_paths_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_parent_document_id_byline_documents_id_fk" FOREIGN KEY ("parent_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_child_document_id_byline_documents_id_fk" FOREIGN KEY ("child_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_versions" ADD CONSTRAINT "byline_document_versions_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -283,10 +296,10 @@ CREATE INDEX "idx_datetime_date" ON "byline_store_datetime" USING btree ("value_
 CREATE INDEX "idx_datetime_timestamp_tz" ON "byline_store_datetime" USING btree ("value_timestamp_tz");--> statement-breakpoint
 CREATE INDEX "idx_datetime_path_date" ON "byline_store_datetime" USING btree ("field_path","value_timestamp_tz");--> statement-breakpoint
 CREATE INDEX "idx_datetime_collection_date" ON "byline_store_datetime" USING btree ("collection_id","value_timestamp_tz");--> statement-breakpoint
+CREATE INDEX "idx_document_paths_document_id" ON "byline_document_paths" USING btree ("document_id");--> statement-breakpoint
 CREATE INDEX "idx_document_relationships_parent" ON "byline_document_relationships" USING btree ("parent_document_id");--> statement-breakpoint
 CREATE INDEX "idx_document_relationships_child" ON "byline_document_relationships" USING btree ("child_document_id");--> statement-breakpoint
 CREATE INDEX "idx_documents_document_id" ON "byline_document_versions" USING btree ("document_id");--> statement-breakpoint
-CREATE INDEX "idx_documents_collection_path_deleted" ON "byline_document_versions" USING btree ("collection_id","path","is_deleted");--> statement-breakpoint
 CREATE INDEX "idx_documents_collection_document_deleted" ON "byline_document_versions" USING btree ("collection_id","document_id","is_deleted");--> statement-breakpoint
 CREATE INDEX "idx_documents_current_view" ON "byline_document_versions" USING btree ("collection_id","document_id","is_deleted","id");--> statement-breakpoint
 CREATE INDEX "idx_documents_event_type" ON "byline_document_versions" USING btree ("event_type");--> statement-breakpoint
@@ -320,5 +333,5 @@ CREATE INDEX "idx_text_value" ON "byline_store_text" USING btree ("value");--> s
 CREATE INDEX "idx_text_fulltext" ON "byline_store_text" USING gin (to_tsvector('english', "value"));--> statement-breakpoint
 CREATE INDEX "idx_text_locale_value" ON "byline_store_text" USING btree ("locale","value");--> statement-breakpoint
 CREATE INDEX "idx_text_path_value" ON "byline_store_text" USING btree ("field_path","value");--> statement-breakpoint
-CREATE VIEW "public"."byline_current_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "path", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false) select "id", "document_id", "collection_id", "collection_version", "path", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary" from "sq" where "rn" = 1);--> statement-breakpoint
-CREATE VIEW "public"."byline_current_published_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "path", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false AND "byline_document_versions"."status" = 'published') select "id", "document_id", "collection_id", "collection_version", "path", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary" from "sq" where "rn" = 1);
+CREATE VIEW "public"."byline_current_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false) select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary" from "sq" where "rn" = 1);--> statement-breakpoint
+CREATE VIEW "public"."byline_current_published_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false AND "byline_document_versions"."status" = 'published') select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary" from "sq" where "rn" = 1);

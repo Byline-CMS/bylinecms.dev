@@ -50,6 +50,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   const db = pgAdapter({
     connectionString: process.env.DB_CONNECTION_STRING || '',
     collections,
+    defaultContentLocale: i18n.content.defaultLocale,
   })
 
   const adminStore = createAdminStore(db.drizzle)

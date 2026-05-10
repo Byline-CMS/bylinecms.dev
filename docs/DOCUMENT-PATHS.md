@@ -54,16 +54,6 @@ Two helpers in the lifecycle module own this policy:
 
 The reserved name set is exported as `RESERVED_FIELD_NAMES` so the storage layer can consume it.
 
-## Storage tolerance for legacy data
-
-`restoreFieldSetData` in `packages/db-postgres/src/modules/storage/storage-utils.ts` silently skips rows whose `field_name` is in `RESERVED_FIELD_NAMES`. This is the data-drift tolerance for documents written before the migration — their `store_text` rows for `path` are inert, never reach the schema-walking lookup, and don't trigger the "field not found" warning that would normally be promoted to a `BylineError`.
-
-The orphan rows are harmless and left in place. A one-shot cleanup is available but optional:
-
-```sql
-DELETE FROM store_text WHERE field_name = 'path';
-```
-
 ## The path widget
 
 `packages/ui/src/forms/path-widget.tsx`. Rendered in the form sidebar, conceptually grouped with status and timestamps — `path` is identity metadata, not per-locale content.
@@ -180,10 +170,8 @@ The widget currently posts through TanStack Start server functions. Once Byline 
 | Lifecycle derivation + sticky update + locale rules | `packages/core/src/services/document-lifecycle.ts`                        |
 | `ERR_PATH_CONFLICT` error type                      | `packages/core/src/lib/errors.ts`                                         |
 | `byline_document_paths` schema                      | `packages/db-postgres/src/database/schema/index.ts`                       |
-| Phase-1 backfill (custom SQL)                       | `packages/db-postgres/src/database/sql/document_paths.sql`                |
 | Storage adapter — locale-aware path resolution      | `packages/db-postgres/src/modules/storage/storage-queries.ts` (`pathProjection`, `resolveDocumentIdByPath`, `viewProjection`) |
 | Storage adapter — path upsert on write              | `packages/db-postgres/src/modules/storage/storage-commands.ts` (`createDocumentVersion`) |
-| Storage tolerance for orphan rows                   | `packages/db-postgres/src/modules/storage/storage-utils.ts`               |
 | Adapter `defaultContentLocale` plumbing             | `packages/db-postgres/src/index.ts` (`pgAdapter`)                         |
 | Client SDK options + locale defaults                | `packages/client/src/{types,collection-handle,client}.ts`                 |
 | Admin server fns accept `path`                      | `packages/host-tanstack-start/src/server-fns/collections/{create,update}.ts` |
