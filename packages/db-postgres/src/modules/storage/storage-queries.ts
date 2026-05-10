@@ -351,9 +351,10 @@ export class DocumentQueries implements IDocumentQueries {
   /**
    * getCurrentVersionMetadata — narrow metadata fetch for the current version.
    *
-   * Hits `current_documents` only; no field reconstruction, no meta fetch.
-   * Used by lifecycle operations (status changes, delete checks) that need
-   * `document_version_id` / `status` / `path` but not the document body.
+   * Hits `current_documents` only; no field reconstruction, no meta fetch,
+   * no path subquery. Used by lifecycle operations (status changes,
+   * restore, delete checks) that only need `document_version_id` /
+   * `status` / timestamps before mutating.
    */
   async getCurrentVersionMetadata({
     collection_id,
@@ -365,7 +366,6 @@ export class DocumentQueries implements IDocumentQueries {
     document_version_id: string
     document_id: string
     collection_id: string
-    path: string
     status: string
     created_at: Date
     updated_at: Date
@@ -375,10 +375,6 @@ export class DocumentQueries implements IDocumentQueries {
         document_version_id: currentDocumentsView.id,
         document_id: currentDocumentsView.document_id,
         collection_id: currentDocumentsView.collection_id,
-        // Lifecycle metadata fetch — always reads the default-locale path.
-        // This is internal lifecycle plumbing (status changes, delete checks),
-        // not a user-facing read, so the request locale never applies.
-        path: this.pathProjection(sql`${currentDocumentsView.document_id}`),
         status: currentDocumentsView.status,
         created_at: currentDocumentsView.created_at,
         updated_at: currentDocumentsView.updated_at,
@@ -398,7 +394,6 @@ export class DocumentQueries implements IDocumentQueries {
       document_version_id: row.document_version_id,
       document_id: row.document_id,
       collection_id: row.collection_id ?? '',
-      path: row.path ?? '',
       status: row.status ?? 'draft',
       created_at: row.created_at ?? new Date(),
       updated_at: row.updated_at ?? new Date(),
@@ -1494,21 +1489,19 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Build a condition for a document-level column (status, path).
-   */
-  private buildDocumentLevelCondition(column: string, operator: string, value: string): SQL {
-    const col = sql.raw(column)
-    return this.buildFilterCondition(col, operator, value)
-  }
-
-  /**
    * Build an ORDER BY clause for a document-level column.
+   *
+   * `path` is intentionally not sortable here: it lives in
+   * `byline_document_paths` (locale-resolved per request) rather than on
+   * the version row, so a literal `d.path` reference would refer to a
+   * non-existent column. Sorting documents by URL slug has no meaningful
+   * call site today; reintroduce via `pathProjection` if a real need
+   * arrives.
    */
   private buildDocumentOrderClause(orderBy: string, direction: 'asc' | 'desc'): SQL {
     const columnMap: Record<string, string> = {
       created_at: 'd.created_at',
       updated_at: 'd.updated_at',
-      path: 'd.path',
     }
     const col = columnMap[orderBy] ?? 'd.created_at'
     return direction === 'desc' ? sql`${sql.raw(col)} DESC` : sql`${sql.raw(col)} ASC`

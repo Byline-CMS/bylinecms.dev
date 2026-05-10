@@ -312,10 +312,9 @@ export interface IDocumentQueries {
      */
     filters?: DocumentFilter[]
     /**
-     * Request-scoped auth context. Plumbing only in Phase 0 — adapters
-     * currently ignore it. Phase 4 uses it for `collections.<path>.read`
-     * ability assertion and for `beforeRead`-hook query scoping.
-     * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md.
+     * Request-scoped auth context. Adapters thread it through to
+     * `assertActorCanPerform` for ability assertion and to `beforeRead`
+     * hooks for query scoping. See docs/AUTHN-AUTHZ.md.
      */
     requestContext?: RequestContext
     /**
@@ -334,9 +333,12 @@ export interface IDocumentQueries {
    * Fetch only the current version's metadata row (no field reconstruction).
    *
    * Use this when the caller only needs `{document_version_id, status,
-   * path, ...}` — for example, workflow transitions that read the current
-   * status and version ID before mutating. Skipping reconstruction avoids
-   * the full 7-way UNION ALL and the meta-row fetch.
+   * created_at, updated_at}` — for example, workflow transitions that read
+   * the current status and version ID before mutating. Skipping
+   * reconstruction avoids the full 7-way UNION ALL and the meta-row fetch.
+   *
+   * `path` is intentionally not returned: callers that need it should
+   * use `getDocumentById` (which projects the locale-resolved path).
    *
    * Returns `null` when the document does not exist (or has been soft-deleted).
    */
@@ -344,7 +346,6 @@ export interface IDocumentQueries {
     document_version_id: string
     document_id: string
     collection_id: string
-    path: string
     status: string
     created_at: Date
     updated_at: Date
@@ -487,7 +488,7 @@ export interface IDocumentQueries {
     /** Text search across the collection's configured search fields. */
     query?: string
     sort?: FieldSort
-    /** Document-level sort column (created_at, updated_at, path). Used when sort is not a field-level sort. */
+    /** Document-level sort column (`created_at`, `updated_at`). Used when `sort` is not a field-level sort. */
     orderBy?: string
     orderDirection?: 'asc' | 'desc'
     locale?: string
