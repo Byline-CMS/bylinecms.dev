@@ -4,13 +4,13 @@ A developer-friendly, open-source headless CMS — built with versioning,
 editorial workflow, and content translation as first-class concerns rather
 than features bolted on later.
 
-> Status: v1 release line — though we'd argue it's better treated as
-> a release candidate. The architecture is settled and the API surface
-> is stable, but several v1-level capabilities (collection-versioning
-> history, `hasMany` relations, list-view materialisation under load)
-> are deferred until a real workload demands them. Suitable for
-> projects whose constraints fit today's surface; the rest fills in
-> across 1.x.
+> Status: v1 release — although realistically, it is better to treat
+> the current v1 line as a late release candidate. While v1 is stable,
+> several v1-level capabilities (collection-versioning history, `hasMany`
+> relations, and list-view materialisation under load) have yet to be
+> implemented or are deferred until a real workload demands them.
+> If you're interested in Byline, v1 will serve as an excellent introduction
+> and a solid base for evaluation.
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
