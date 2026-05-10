@@ -32,6 +32,9 @@ importers:
       '@byline/admin':
         specifier: workspace:*
         version: link:../../packages/admin
+      '@byline/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@byline/auth':
         specifier: workspace:*
         version: link:../../packages/auth

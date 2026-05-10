@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@byline/admin": "workspace:*",
+    "@byline/ai": "workspace:*",
     "@byline/auth": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
