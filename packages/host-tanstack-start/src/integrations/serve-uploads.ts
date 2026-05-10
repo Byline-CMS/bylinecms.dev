@@ -42,6 +42,7 @@
  * `createUploadsHandler({ dir, prefix })`.
  */
 
+import type { Stats } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { resolve as resolvePath } from 'node:path'
 
@@ -123,7 +124,7 @@ export function createUploadsHandler(
       return new Response('Forbidden', { status: 403 })
     }
 
-    let info
+    let info: Stats
     try {
       info = await stat(abs)
     } catch {
