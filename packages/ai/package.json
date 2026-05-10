@@ -1,0 +1,107 @@
+{
+  "name": "@byline/ai",
+  "private": false,
+  "license": "MPL-2.0",
+  "version": "1.8.2",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "type": "module",
+  "description": "Byline CMS AI subsystem.",
+  "keywords": [
+    "ai",
+    "cms",
+    "headless cms",
+    "content management"
+  ],
+  "homepage": "https://github.com/Byline-CMS/bylinecms.dev",
+  "bugs": {
+    "url": "https://github.com/Byline-CMS/bylinecms.dev/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
+    "directory": "packages/ai"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "dev": "chokidar 'src/**/*' -c 'npm-run-all build'",
+    "build": "tsc -p tsconfig.json && tsc-alias && node copy-assets.js",
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "clean": "rimraf node_modules dist build .turbo",
+    "test": "LOG_LEVEL=off tsx --env-file=.env --test $(find . -name \"*.test.ts\")",
+    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test",
+    "test:vitest": "vitest run",
+    "test:vitest:node": "vitest run --mode node",
+    "list:models": "tsx --env-file=.env src/scripts/list-models.ts"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./plugins/lexical": {
+      "types": "./dist/plugins/lexical/index.d.ts",
+      "import": "./dist/plugins/lexical/index.js"
+    },
+    "./plugins/text": {
+      "types": "./dist/plugins/text/index.d.ts",
+      "import": "./dist/plugins/text/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.75",
+    "@ai-sdk/google": "^3.0.67",
+    "@ai-sdk/openai": "^3.0.61",
+    "@ai-sdk/provider-utils": "^4.0.26",
+    "@ai-sdk/react": "^3.0.177",
+    "@ai-sdk/ui-utils": "^1.2.11",
+    "@anthropic-ai/sdk": "^0.94.0",
+    "@byline/ui": "workspace:*",
+    "@google/genai": "^1.52.0",
+    "@infonomic/schemas": "^2.4.0",
+    "@lexical/html": "^0.44.0",
+    "@lexical/react": "^0.44.0",
+    "@lexical/utils": "^0.44.0",
+    "ai": "^6.0.175",
+    "ajv": "^8.20.0",
+    "classnames": "^2.5.1",
+    "cross-env": "^10.1.0",
+    "json-schema": "^0.4.0",
+    "lexical": "^0.44.0",
+    "openai": "^6.36.0",
+    "pino": "^10.3.1",
+    "react-error-boundary": "^6.1.1",
+    "uuid": "^14.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.14",
+    "@infonomic/uikit": "^6.7.1",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^25.6.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "chokidar": "^5.0.0",
+    "chokidar-cli": "^3.0.0",
+    "dotenv": "^17.4.2",
+    "jsdom": "^29.1.1",
+    "npm-run-all": "^4.1.5",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tsc-alias": "^1.8.17",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.5"
+  }
+}

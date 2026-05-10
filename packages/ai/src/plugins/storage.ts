@@ -1,0 +1,55 @@
+import { PROVIDERS, type Provider, SDKS, type Sdk } from '@byline/ai'
+
+const STORAGE_KEY = 'editor-chat-configuration'
+
+export interface ChatConfiguration {
+  mode: 'new' | 'new_with_context' | 'patch'
+  provider: Provider
+  model: string
+  sdk: Sdk
+}
+
+const isChatConfiguration = (value: unknown): value is ChatConfiguration => {
+  if (value == null || typeof value !== 'object') return false
+  const v = value as Record<string, unknown>
+  return (
+    typeof v.mode === 'string' &&
+    ['new', 'new_with_context', 'patch'].includes(v.mode) &&
+    typeof v.provider === 'string' &&
+    PROVIDERS.some((p) => p[0] === v.provider) &&
+    typeof v.model === 'string' &&
+    typeof v.sdk === 'string' &&
+    SDKS.includes(v.sdk as Sdk)
+  )
+}
+
+export const saveChatConfiguration = (config: ChatConfiguration) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+  } catch (error) {
+    console.warn('Failed to save chat configuration:', error)
+  }
+}
+
+export const loadChatConfiguration = (): ChatConfiguration | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    return isChatConfiguration(parsed) ? parsed : null
+  } catch (error) {
+    console.warn('Failed to load chat configuration:', error)
+    return null
+  }
+}
+
+export const clearChatConfiguration = () => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch (error) {
+    console.warn('Failed to clear chat configuration:', error)
+  }
+}

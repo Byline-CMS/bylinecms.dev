@@ -1,0 +1,1 @@
+export { AiPluginText } from './plugin'
