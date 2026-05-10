@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from 'node:fs'
 
 import {
   type CallExpression,
-  type Node as TsMorphNode,
   Node,
   type ObjectLiteralElementLike,
   type ObjectLiteralExpression,
@@ -10,6 +9,7 @@ import {
   Project,
   type SourceFile,
   SyntaxKind,
+  type Node as TsMorphNode,
 } from 'ts-morph'
 
 import type { Context } from '../../context.js'

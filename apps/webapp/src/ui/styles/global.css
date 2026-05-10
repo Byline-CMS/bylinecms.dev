@@ -21,8 +21,8 @@
 @import "@byline/ui/typography.css";
 
 /**
-  * Tailwind - should come after the above.
-  */
+ * Tailwind - should come after the above.
+ */
 @import "./tailwind.css";
 
 /**

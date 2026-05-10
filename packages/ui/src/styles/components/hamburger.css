@@ -1,8 +1,15 @@
 /* No longer used in our actual hamburger React and Astro components
 but left here as a reference. */
-@layer base, byline-base, theme, byline-theme,
-  byline-functional, byline-typography, components, byline-components,
-  utilities, byline-utilities;
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  utilities,
+  byline-utilities;
 
 @layer byline-components {
   .component--hamburger {

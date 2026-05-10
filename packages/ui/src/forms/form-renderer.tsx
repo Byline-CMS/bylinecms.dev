@@ -717,14 +717,14 @@ const FormContent = ({
         <div className={cx('byline-form-sidebar', styles.sidebar)}>
           {(useAsPath ||
             (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
-              <PathWidget
-                useAsPath={useAsPath}
-                collectionPath={collectionPath ?? ''}
-                defaultLocale={defaultLocale}
-                activeLocale={contentLocale}
-                mode={mode}
-              />
-            )}
+            <PathWidget
+              useAsPath={useAsPath}
+              collectionPath={collectionPath ?? ''}
+              defaultLocale={defaultLocale}
+              activeLocale={contentLocale}
+              mode={mode}
+            />
+          )}
           {(layout.sidebar ?? []).map((name) => renderItem(name))}
         </div>
       </div>

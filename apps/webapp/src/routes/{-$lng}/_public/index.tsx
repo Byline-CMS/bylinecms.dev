@@ -24,7 +24,7 @@ export const Route = createFileRoute('/{-$lng}/_public/')({
 
 function Index() {
   const { lng: lngParam } = Route.useParams()
-  const lng = (i18nConfig.locales as readonly string[]).includes(lngParam ?? '')
+  const _lng = (i18nConfig.locales as readonly string[]).includes(lngParam ?? '')
     ? (lngParam as Locale)
     : i18nConfig.defaultLocale
   return (

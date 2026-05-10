@@ -14,10 +14,10 @@ import {
 } from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { Container, Section } from '@byline/ui/react'
 
-// NOTE: This will restrict our retrieved content to front-end interface locales 
+// NOTE: This will restrict our retrieved content to front-end interface locales
 // defined in i18nConfig, which is not exactly what we want. We want the available
-// locales to be determined by the content locales in the CMS, but this is a 
-// good starting point for now until we settle on a content locale vs interface 
+// locales to be determined by the content locales in the CMS, but this is a
+// good starting point for now until we settle on a content locale vs interface
 // locale fallback or detection strategy.
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 import { PageDetail } from '@/modules/pages/components/detail'

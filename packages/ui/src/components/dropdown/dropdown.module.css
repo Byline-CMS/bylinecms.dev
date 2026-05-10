@@ -1,6 +1,13 @@
-@layer base, byline-base, theme, byline-theme,
-  byline-functional, byline-typography, components, byline-components,
-  utilities, byline-utilities;
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  utilities,
+  byline-utilities;
 
 @layer byline-components {
   .dropdown-content,

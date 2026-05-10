@@ -1,6 +1,13 @@
-@layer base, byline-base, theme, byline-theme,
-  byline-functional, byline-typography, components, byline-components,
-  utilities, byline-utilities;
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  utilities,
+  byline-utilities;
 
 /* 'border-collapse w-full text-sm text-left text-gray-700 dark:text-gray-400 m-0', */
 @layer byline-components {
