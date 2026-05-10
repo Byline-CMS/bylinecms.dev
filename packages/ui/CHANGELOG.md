@@ -1,5 +1,15 @@
 # @byline/ui
 
+## 1.8.2
+
+### Patch Changes
+
+- Sweep, clean, refactor and docs.
+- Updated dependencies
+  - @byline/client@1.8.2
+  - @byline/admin@1.8.2
+  - @byline/core@1.8.2
+
 ## 1.8.1
 
 ### Patch Changes

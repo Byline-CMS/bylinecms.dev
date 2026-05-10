@@ -1,5 +1,13 @@
 # @byline/storage-local
 
+## 1.8.2
+
+### Patch Changes
+
+- Sweep, clean, refactor and docs.
+- Updated dependencies
+  - @byline/core@1.8.2
+
 ## 1.8.1
 
 ### Patch Changes

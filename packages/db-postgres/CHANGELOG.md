@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 1.8.2
+
+### Patch Changes
+
+- Sweep, clean, refactor and docs.
+- Updated dependencies
+  - @byline/admin@1.8.2
+  - @byline/auth@1.8.2
+  - @byline/core@1.8.2
+
 ## 1.8.1
 
 ### Patch Changes
