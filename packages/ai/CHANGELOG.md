@@ -1,5 +1,16 @@
 # @infonomic/ai
 
+## 1.9.0
+
+### Minor Changes
+
+- First phase of AI development - AI support in editable fields and richtext.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/ui@1.9.0
+
 ## 2.4.1
 
 ### Patch Changes
