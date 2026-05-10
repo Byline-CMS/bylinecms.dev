@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 1.8.1
+
+### Patch Changes
+
+- isolation: isolate - for base UI context stacking
+- Updated dependencies
+  - @byline/client@1.8.1
+  - @byline/core@1.8.1
+  - @byline/ui@1.8.1
+
 ## 1.8.0
 
 ### Minor Changes

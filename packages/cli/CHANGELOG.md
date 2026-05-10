@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.8.1
+
+### Patch Changes
+
+- isolation: isolate - for base UI context stacking
+
 ## 1.8.0
 
 ### Minor Changes

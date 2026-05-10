@@ -1,5 +1,13 @@
 # @byline/core
 
+## 1.8.1
+
+### Patch Changes
+
+- isolation: isolate - for base UI context stacking
+- Updated dependencies
+  - @byline/auth@1.8.1
+
 ## 1.8.0
 
 ### Minor Changes
