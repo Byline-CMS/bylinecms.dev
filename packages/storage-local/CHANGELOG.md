@@ -1,5 +1,58 @@
 # @byline/storage-local
 
+## 1.8.0
+
+### Minor Changes
+
+- feat — Per-collection path uniqueness, enforced at the database level.
+
+  path has been promoted out of byline_document_versions into a dedicated byline_document_paths table keyed by (document_id, locale) with a unique
+  constraint on (collection_id, locale, path). Two documents in the same collection can no longer share a path within the same locale.
+
+  Storage adapter
+  - pgAdapter() now requires defaultContentLocale (sourced from ServerConfig.i18n.content.defaultLocale).
+  - Reads resolve path through a [requested, default] locale fallback chain via a single subquery — no double round-trips.
+  - findByPath, list projections, and the relation-filter compiler all flow through the new path-resolution helpers.
+  - current_documents / current_published_documents views no longer project path — locale is request-scoped, not view-scoped.
+
+  Lifecycle
+  - New ERR_PATH_CONFLICT error type. Postgres unique-violations on the path index are translated to it (walks the Drizzle / pg cause chain).
+  - Translation-locale (locale !== defaultLocale) writes drop params.path silently with a logger.warn — phase 1 keeps paths default-locale territory;
+    the existing path row is left untouched. The save proceeds normally.
+  - restoreDocumentVersion no longer touches the path row (the existing row is sticky).
+
+  @byline/client
+  - Read methods default locale to the client's resolved defaultContentLocale instead of a hardcoded 'en'. Works correctly for non-'en' installations.
+
+  Path widget
+  - Renders read-only when editing a non-default content locale, with a help-text line explaining why. Prevents the lifecycle's translation-locale
+    warn-and-drop being hit through the admin form.
+
+  Schema reset
+  - All prior migrations (0000–0003) collapsed into a single unified 0000_hard_madame_hydra.sql. CLI templates synced. No production installations
+    exist; this is a clean reset.
+
+  Tests
+  - New integration tests in packages/db-postgres/src/modules/storage/tests/storage-document-paths.test.ts cover collision rejection, self-upsert
+    idempotency, in-place path update, locale fallback in reads, and null-on-no-match.
+  - New lifecycle tests in packages/core/src/services/document-lifecycle.test.node.ts cover translation-locale warn + drop, idempotent same-path
+    no-warn, ERR_PATH_CONFLICT translation, and non-23505 rethrow.
+
+  Docs
+  - docs/DOCUMENT-PATHS.md rewritten to reflect the shipped model. Per-locale-paths phase reframed as purely additive (schema is already
+    locale-keyed). Stale "Path uniqueness — decision and policy" entry removed from docs/TODO.md.
+
+  Breaking changes
+  - pgAdapter({ ... }) requires the new defaultContentLocale: string argument. Installations must add defaultContentLocale: i18n.content.defaultLocale
+    to their server.config.ts.
+  - byline_document_versions.path column has been dropped; downstream consumers reading it directly will need to query byline_document_paths (or use
+    the storage adapter's read methods which transparently project it).
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@1.8.0
+
 ## 1.7.7
 
 ### Patch Changes
