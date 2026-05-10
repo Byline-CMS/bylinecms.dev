@@ -44,8 +44,8 @@ way that made extraction painful and lossy.
 
 We're not trying to be the next WordPress or the next Contentful. We're not
 building a platform that does everything for everyone. And we're not pretending
-we have all the answers. Byline is in early beta and there's still meaningful
-work ahead.
+we have all the answers. Byline is shipping under the 1.x line but is best
+treated as a release candidate, and there's still meaningful work ahead.
 
 ## Building in the Open
 

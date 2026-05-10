@@ -37,8 +37,8 @@ See the TanStack Router docs for [File-Based Routing](https://tanstack.com/route
 
 ## Getting started - Development environment and example application (this repo)
 
-Byline is in early beta. It builds and runs if you'd like to poke around or
-follow along.
+Byline is shipping under the 1.x line — best treated as a release candidate.
+It builds and runs if you'd like to poke around or follow along.
 
 ## 1. Clone and install dependencies
 

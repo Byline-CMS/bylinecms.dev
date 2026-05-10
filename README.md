@@ -4,8 +4,13 @@ A developer-friendly, open-source headless CMS — built with versioning,
 editorial workflow, and content translation as first-class concerns rather
 than features bolted on later.
 
-> Status: early beta. Core is stable enough to build on,
-> and you're welcome to follow along.
+> Status: v1 release line — though we'd argue it's better treated as
+> a release candidate. The architecture is settled and the API surface
+> is stable, but several v1-level capabilities (collection-versioning
+> history, `hasMany` relations, list-view materialisation under load)
+> are deferred until a real workload demands them. Suitable for
+> projects whose constraints fit today's surface; the rest fills in
+> across 1.x.
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
@@ -193,7 +198,7 @@ We’re pretty much nobody — at least not within the usual spheres of influenc
 
 <details>
 <summary>2. Will this work?</summary>
-We hope so. Early beta means the core is stable enough to build on, but we're still discovering what the edges should look like.
+We hope so. The 1.x line is best treated as a release candidate — the core is stable enough to build on, but we're still filling in the edges and discovering where production workloads will press hardest.
 </details>
 
 <details>
@@ -213,7 +218,7 @@ We’re not certain yet, and likely not at this early stage. Our priority is to 
 
 <details>
 <summary>6. What's here now?</summary>
-Byline is in early beta. The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. Expect changes as we move toward v1, but the core architecture is stable.
+The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 1.x line but treating it as a release candidate: APIs are stable and the core architecture is settled, with several v1-level capabilities (collection-versioning history, `hasMany` relations, list-view materialisation under load) deferred to fill in across 1.x.
 </details>
 
 <details>

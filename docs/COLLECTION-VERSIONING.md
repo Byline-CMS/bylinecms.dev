@@ -37,7 +37,7 @@ document_versions
   collection_version  integer  NOT NULL
 ```
 
-Both `current_documents` and `current_published_documents` views project `collection_version` so it surfaces on every read. The columns landed in the baseline schema migration `0000_condemned_kronos.sql` (the pre-beta migrations were consolidated; they are not separate as-shipped). Every pre-existing row is implicitly v1.
+Both `current_documents` and `current_published_documents` views project `collection_version` so it surfaces on every read. The columns landed in the baseline schema migration `0000_hard_madame_hydra.sql` (earlier migrations were consolidated into this one; they are not separate as-shipped). Every pre-existing row is implicitly v1.
 
 `schema_hash` stays nullable until Phase 2 introduces the `collection_versions` history table — at that point the post-`ensureCollections()` invariant ("any row written by Byline has a hash") becomes a database constraint.
 
