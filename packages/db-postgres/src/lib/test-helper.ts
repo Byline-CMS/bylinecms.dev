@@ -34,12 +34,12 @@ export function setupTestDB(collections: CollectionDefinition[] = []) {
   }
 
   if (!commandBuilders) {
-    commandBuilders = createCommandBuilders(db)
+    commandBuilders = createCommandBuilders(db, 'en')
   }
 
   // Recreate queryBuilders when collections are provided so that
   // DocumentQueries can resolve collection definitions by path.
-  queryBuilders = createQueryBuilders(db, collections)
+  queryBuilders = createQueryBuilders(db, collections, 'en')
 
   return { pool, db, commandBuilders, queryBuilders }
 }

@@ -76,7 +76,6 @@ export const documentVersions = pgTable(
     // shapes. Phase 1 records the number; no composite FK yet — that
     // anchors in Phase 2 alongside the history table.
     collection_version: integer('collection_version').notNull(),
-    path: varchar('path', { length: 255 }).notNull(), // Can change between versions
     doc: jsonb('doc'), // optionally store the original document
     event_type: varchar('event_type', { length: 20 }).notNull().default('create'), // 'create', 'update', 'delete'
     status: varchar('status', { length: 50 }).default('draft'),
@@ -89,12 +88,6 @@ export const documentVersions = pgTable(
   (table) => [
     // Index for finding all versions of a logical document
     index('idx_documents_document_id').on(table.document_id),
-    // Index for current document lookup by path
-    index('idx_documents_collection_path_deleted').on(
-      table.collection_id,
-      table.path,
-      table.is_deleted
-    ),
     // Index for current document lookup by logical document ID
     index('idx_documents_collection_document_deleted').on(
       table.collection_id,
@@ -113,10 +106,43 @@ export const documentVersions = pgTable(
     index('idx_documents_created_at').on(table.created_at),
     // Ensure logical document belongs to only one collection
     index('idx_documents_document_collection').on(table.document_id, table.collection_id),
-    // Per-collection path uniqueness is a DEFERRED design decision — it
-    // depends on a collision-handling policy (reject vs auto-suffix) and
-    // is planned to land alongside preview-link UX. See
-    // `docs/analysis/DOCUMENT-PATH-ANALYSIS.md` § "Path uniqueness".
+  ]
+)
+
+// Document paths — one row per (logical document, content locale).
+// Promotes `path` out of the version row so per-collection uniqueness can
+// be enforced at the DB layer without colliding with the sticky
+// carry-forward of path across versions. Phase 1 only ever writes the
+// installation's default content locale; per-locale UI is a future phase
+// that adds rows for additional locales without reshaping the schema.
+// History is intentionally not preserved here — path rows are updated in
+// place. See `docs/DOCUMENT-PATHS.md` § "Path uniqueness".
+export const documentPaths = pgTable(
+  'byline_document_paths',
+  {
+    document_id: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    locale: varchar('locale', { length: 10 }).notNull(),
+    collection_id: uuid('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    path: varchar('path', { length: 255 }).notNull(),
+    created_at: timestamp('created_at').defaultNow(),
+    updated_at: timestamp('updated_at').defaultNow(),
+  },
+  (table) => [
+    // One path per (logical document, locale).
+    unique('unique_document_paths_document_locale').on(table.document_id, table.locale),
+    // Per-collection per-locale path uniqueness. Column order matches the
+    // resolution lookup pattern: WHERE collection_id = ? AND locale = ? AND path = ?.
+    unique('idx_document_paths_collection_locale_path').on(
+      table.collection_id,
+      table.locale,
+      table.path
+    ),
+    // Reverse lookup by document.
+    index('idx_document_paths_document_id').on(table.document_id),
   ]
 )
 
@@ -147,6 +173,11 @@ export const documentRelationships = pgTable(
 // `ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY id DESC)`.
 // `selectDistinct` is not an option here: it distincts on the whole row,
 // not on `document_id`.
+//
+// `path` is intentionally NOT projected here. Path resolution is locale-
+// aware and lives in the storage adapter's read functions, which join
+// `byline_document_paths` with the requested locale + default-locale
+// fallback. See docs/DOCUMENT-PATHS.md.
 export const currentDocumentsView = pgView('byline_current_documents').as((qb) => {
   const sq = qb.$with('sq').as(
     qb
@@ -155,7 +186,6 @@ export const currentDocumentsView = pgView('byline_current_documents').as((qb) =
         document_id: documentVersions.document_id,
         collection_id: documentVersions.collection_id,
         collection_version: documentVersions.collection_version,
-        path: documentVersions.path,
         event_type: documentVersions.event_type,
         status: documentVersions.status,
         is_deleted: documentVersions.is_deleted,
@@ -177,7 +207,6 @@ export const currentDocumentsView = pgView('byline_current_documents').as((qb) =
       document_id: sq.document_id,
       collection_id: sq.collection_id,
       collection_version: sq.collection_version,
-      path: sq.path,
       event_type: sq.event_type,
       status: sq.status,
       is_deleted: sq.is_deleted,
@@ -204,7 +233,6 @@ export const currentPublishedDocumentsView = pgView('byline_current_published_do
           document_id: documentVersions.document_id,
           collection_id: documentVersions.collection_id,
           collection_version: documentVersions.collection_version,
-          path: documentVersions.path,
           event_type: documentVersions.event_type,
           status: documentVersions.status,
           is_deleted: documentVersions.is_deleted,
@@ -228,7 +256,6 @@ export const currentPublishedDocumentsView = pgView('byline_current_published_do
         document_id: sq.document_id,
         collection_id: sq.collection_id,
         collection_version: sq.collection_version,
-        path: sq.path,
         event_type: sq.event_type,
         status: sq.status,
         is_deleted: sq.is_deleted,

@@ -413,7 +413,7 @@ describe('Document lifecycle service', () => {
       )
     })
 
-    it('keeps path sticky from the previous version when no explicit path is supplied', async () => {
+    it('does not pass path to the storage primitive when no explicit path is supplied', async () => {
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
       getDocumentById.mockResolvedValue({
         document_version_id: 'prev-ver',
@@ -429,8 +429,9 @@ describe('Document lifecycle service', () => {
         data: { title: 'Brand New Title' },
       })
 
-      // Path is NOT re-derived from the now-changed title
-      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBe('original-path')
+      // Sticky path semantics: the storage layer is not asked to write the
+      // path row; the existing byline_document_paths row stays as-is.
+      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBeUndefined()
     })
 
     it('uses an explicit params.path verbatim on update, overriding the sticky value', async () => {
@@ -466,6 +467,115 @@ describe('Document lifecycle service', () => {
       })
 
       expect(createDocumentVersion.mock.calls[0]?.[0].status).toBe('draft')
+    })
+
+    it('drops path changes silently with a logger.warn on non-default-locale (translation) saves', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'about',
+        status: 'draft',
+        fields: { title: 'About' },
+      })
+      const ctx = buildCtx(db)
+      const warn = ctx.logger?.warn as ReturnType<typeof vi.fn>
+      warn.mockClear()
+
+      await updateDocument(ctx, {
+        documentId: 'doc-1',
+        data: { title: 'À propos' },
+        locale: 'fr',
+        path: 'a-propos',
+      })
+
+      // Save still proceeds — the version row is created — but the path
+      // row is left untouched (no `path` flows to the storage primitive).
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
+      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBeUndefined()
+      expect(createDocumentVersion.mock.calls[0]?.[0].locale).toBe('fr')
+
+      // The caller is informed via a structured warn.
+      expect(warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: 'doc-1',
+          requestedLocale: 'fr',
+          defaultLocale: 'en',
+          suppliedPath: 'a-propos',
+          currentPath: 'about',
+        }),
+        expect.stringContaining('path changes apply only on default-locale writes')
+      )
+    })
+
+    it('does not warn when a translation save supplies the same path as current', async () => {
+      const { db, getDocumentById } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'about',
+        status: 'draft',
+        fields: { title: 'About' },
+      })
+      const ctx = buildCtx(db)
+      const warn = ctx.logger?.warn as ReturnType<typeof vi.fn>
+      warn.mockClear()
+
+      await updateDocument(ctx, {
+        documentId: 'doc-1',
+        data: { title: 'À propos' },
+        locale: 'fr',
+        path: 'about', // same as currentPath — idempotent, no warn
+      })
+
+      expect(warn).not.toHaveBeenCalled()
+    })
+
+    it('translates a Postgres unique-constraint violation on the path index to ERR_PATH_CONFLICT', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'about',
+        status: 'draft',
+        fields: { title: 'About' },
+      })
+      // Simulate the pg driver throwing a unique-violation on the path
+      // constraint when the upsert tries to claim a slug owned by another
+      // document in the same (collection, locale).
+      createDocumentVersion.mockRejectedValueOnce(
+        Object.assign(new Error('duplicate key value violates unique constraint'), {
+          code: '23505',
+          constraint: 'idx_document_paths_collection_locale_path',
+        })
+      )
+      const ctx = buildCtx(db)
+
+      try {
+        await updateDocument(ctx, {
+          documentId: 'doc-1',
+          data: { title: 'About' },
+          path: 'home', // collides
+        })
+        throw new Error('expected ERR_PATH_CONFLICT')
+      } catch (err) {
+        expect(err).toBeInstanceOf(BylineError)
+        expect((err as BylineError).code).toBe(ErrorCodes.PATH_CONFLICT)
+      }
+    })
+
+    it('rethrows non-23505 errors unchanged', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'about',
+        status: 'draft',
+        fields: { title: 'About' },
+      })
+      const original = new Error('connection refused')
+      createDocumentVersion.mockRejectedValueOnce(original)
+      const ctx = buildCtx(db)
+
+      await expect(
+        updateDocument(ctx, { documentId: 'doc-1', data: { title: 'X' }, path: 'home' })
+      ).rejects.toBe(original)
     })
 
     it('supports an array of beforeUpdate and afterUpdate hooks', async () => {
@@ -929,7 +1039,7 @@ describe('Document lifecycle service', () => {
       expect(createDocumentVersion.mock.calls[0]?.[0].status).toBe('draft')
     })
 
-    it('keeps path sticky from the current version, not the source', async () => {
+    it('does not pass path on restore — the existing path row is sticky', async () => {
       const { db, createDocumentVersion, sourceVersionId } = setupRestore({
         currentPath: 'sticky-path',
       })
@@ -937,7 +1047,10 @@ describe('Document lifecycle service', () => {
 
       await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
 
-      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBe('sticky-path')
+      // Restore never changes a document's path: the existing
+      // byline_document_paths row carries forward unchanged. The storage
+      // primitive only writes to document_paths when `path` is supplied.
+      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBeUndefined()
     })
 
     it('rejects when the source version belongs to a different document', async () => {

@@ -721,6 +721,7 @@ const FormContent = ({
                 useAsPath={useAsPath}
                 collectionPath={collectionPath ?? ''}
                 defaultLocale={defaultLocale}
+                activeLocale={contentLocale}
                 mode={mode}
               />
             )}

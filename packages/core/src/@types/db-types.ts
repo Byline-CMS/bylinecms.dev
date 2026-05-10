@@ -237,7 +237,15 @@ export interface IDocumentCommands {
     collectionConfig: CollectionDefinition
     action: string
     documentData: any
-    path: string
+    /**
+     * Optional. When provided, the adapter upserts a row into
+     * `byline_document_paths` keyed by `(document_id, defaultContentLocale)`.
+     * When omitted, no path write occurs — the lifecycle uses this to
+     * skip path writes during translation (non-default-locale) saves.
+     * The unique constraint on `(collection_id, locale, path)` may
+     * surface as `ERR_PATH_CONFLICT` from the lifecycle layer.
+     */
+    path?: string
     locale?: string
     status?: string
     createdBy?: string

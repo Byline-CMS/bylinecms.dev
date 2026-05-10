@@ -35,6 +35,15 @@ export interface PathWidgetProps {
   collectionPath: string
   /** Default content locale, forwarded to the slugifier as context. */
   defaultLocale: string
+  /**
+   * The locale currently being edited in the form. When this differs
+   * from `defaultLocale` (i.e. the editor is editing a translation),
+   * the widget renders read-only — phase 1 paths are default-locale
+   * territory, and the lifecycle drops translation-locale path changes
+   * with a warn. Locking the input prevents the warn path being hit
+   * through the admin form and gives editors a clear cue.
+   */
+  activeLocale: string
   /** `'create'` shows the live derived preview as placeholder text. */
   mode: 'create' | 'edit'
 }
@@ -53,10 +62,22 @@ export interface PathWidgetProps {
  * Stable override handles: `.byline-form-path`, `.byline-form-path-header`,
  * `.byline-form-path-regenerate`.
  */
-export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: PathWidgetProps) => {
+export const PathWidget = ({
+  useAsPath,
+  collectionPath,
+  defaultLocale,
+  activeLocale,
+  mode,
+}: PathWidgetProps) => {
   const { setSystemPath } = useFormContext()
   const systemPath = useSystemPath()
   const sourceValue = useFieldValue<unknown>(useAsPath ?? '')
+
+  // Phase 1: paths are written/edited only under the default content
+  // locale. When editing a translation, the widget locks down — the
+  // input is read-only, the Regenerate action is suppressed, and a
+  // helpText line explains why.
+  const isReadOnly = activeLocale !== defaultLocale
 
   // Live preview — what the server would derive from the current source
   // field value if no override were set. Used as placeholder in create
@@ -93,26 +114,40 @@ export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: P
     return slugify(inputValue, { locale: defaultLocale, collectionPath })
   }, [inputValue, defaultLocale, collectionPath])
 
-  const hint =
+  const validationHint =
     inputValue.length > 0 && formatted !== inputValue ? `Suggested: "${formatted}"` : undefined
 
+  // When read-only, replace the live validation hint with a fixed
+  // explanatory line so editors understand why the field is locked.
+  const readOnlyHint = isReadOnly
+    ? `Path is set in the default locale ("${defaultLocale}") and applies across translations.`
+    : undefined
+
+  const hint = readOnlyHint ?? validationHint
+
   const placeholder =
-    mode === 'create' && livePreview.length > 0 ? `Will be saved as "${livePreview}"` : undefined
+    !isReadOnly && mode === 'create' && livePreview.length > 0
+      ? `Will be saved as "${livePreview}"`
+      : undefined
 
   // Screen-reader description. The input's base purpose ("System-managed
   // URL path") plus whichever of the visible hints (placeholder preview
-  // in create mode, "Suggested" validation hint) currently applies. The
-  // visible helpText/placeholder cover sighted users; this element makes
-  // the same information addressable via aria-describedby for AT.
+  // in create mode, "Suggested" validation hint, or read-only explainer)
+  // currently applies. The visible helpText/placeholder cover sighted
+  // users; this element makes the same information addressable via
+  // aria-describedby for AT.
   const srDescription = ['System-managed URL path for this document.', placeholder, hint]
     .filter(Boolean)
     .join(' ')
+
+  const showRegenerate =
+    !isReadOnly && useAsPath && livePreview.length > 0 && livePreview !== systemPath
 
   return (
     <div className="byline-form-path">
       <div className={cx('byline-form-path-header', styles.header)}>
         <Label id="system-path-label" htmlFor="system-path" label="Path" />
-        {useAsPath && livePreview.length > 0 && livePreview !== systemPath && (
+        {showRegenerate && (
           <button
             type="button"
             onClick={handleRegenerate}
@@ -130,6 +165,7 @@ export const PathWidget = ({ useAsPath, collectionPath, defaultLocale, mode }: P
         placeholder={placeholder}
         onChange={(e) => handleChange(e.target.value)}
         helpText={hint}
+        readOnly={isReadOnly}
         aria-describedby="system-path-description"
       />
       <span

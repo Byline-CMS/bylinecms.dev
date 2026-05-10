@@ -15,6 +15,20 @@
       "when": 1777600377018,
       "tag": "0001_sudden_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778381740339,
+      "tag": "0002_tiresome_komodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778384477296,
+      "tag": "0003_fine_jackpot",
+      "breakpoints": true
     }
   ]
 }

@@ -32,13 +32,17 @@ import {
   collections,
   currentDocumentsView,
   currentPublishedDocumentsView,
+  documentPaths,
   documentVersions,
   metaStore,
 } from '../../database/schema/index.js'
 import type * as schema from '../../database/schema/index.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
-type Document = Omit<typeof documentVersions.$inferSelect, 'doc'>
+// `path` was dropped from documentVersions in favour of byline_document_paths;
+// SELECT projections re-attach it via a locale-aware subquery (see
+// `pathProjection`), so the in-memory Document shape continues to carry it.
+type Document = Omit<typeof documentVersions.$inferSelect, 'doc'> & { path: string | null }
 
 import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-restore.js'
 import {
@@ -95,11 +99,17 @@ export class CollectionQueries implements ICollectionQueries {
 export class DocumentQueries implements IDocumentQueries {
   private db: DatabaseConnection
   private collections: CollectionDefinition[]
+  private defaultContentLocale: string
   private collectionPathCache = new Map<string, string>()
 
-  constructor(db: DatabaseConnection, collections: CollectionDefinition[]) {
+  constructor(
+    db: DatabaseConnection,
+    collections: CollectionDefinition[],
+    defaultContentLocale: string
+  ) {
     this.db = db
     this.collections = collections
+    this.defaultContentLocale = defaultContentLocale
   }
 
   /**
@@ -149,6 +159,144 @@ export class DocumentQueries implements IDocumentQueries {
     readMode: ReadMode | undefined
   ): typeof currentDocumentsView | typeof currentPublishedDocumentsView {
     return readMode === 'published' ? currentPublishedDocumentsView : currentDocumentsView
+  }
+
+  /**
+   * Build the locale priority chain for path resolution:
+   * `[requested, default]`, deduplicated when both are the same.
+   *
+   * Used by every read path that touches `byline_document_paths`. In
+   * phase 1 only the default-locale row is ever populated, so a non-
+   * default `requested` locale always falls through to the default —
+   * but the chain shape is correct for phase 2 when per-locale rows
+   * begin to exist.
+   */
+  private buildLocaleChain(requestedLocale: string | undefined): string[] {
+    const requested = requestedLocale ?? this.defaultContentLocale
+    return requested === this.defaultContentLocale
+      ? [requested]
+      : [requested, this.defaultContentLocale]
+  }
+
+  /**
+   * Emit a SQL fragment that resolves the path string for a document via
+   * the locale priority chain. Used as a projected column expression
+   * inside `SELECT` lists.
+   *
+   * ```sql
+   * (SELECT path FROM byline_document_paths
+   *  WHERE document_id = <docIdSql>
+   *    AND locale = ANY(<chain>)
+   *  ORDER BY array_position(<chain>, locale)
+   *  LIMIT 1)
+   * ```
+   */
+  private pathProjection(documentIdCol: SQL, requestedLocale?: string): SQL<string | null> {
+    const chain = this.buildLocaleChain(requestedLocale)
+    // Build a `ARRAY[$1, $2, ...]::text[]` literal so each locale is its
+    // own parameter. Passing a JS array as a single `${chain}` placeholder
+    // serialises as a scalar string (`'en'`), which Postgres rejects when
+    // cast to `text[]` ("malformed array literal").
+    const chainSql = sql.join(
+      chain.map((l) => sql`${l}`),
+      sql`, `
+    )
+    return sql<string | null>`(
+      SELECT ${documentPaths.path} FROM ${documentPaths}
+      WHERE ${documentPaths.document_id} = ${documentIdCol}
+        AND ${documentPaths.locale} = ANY(ARRAY[${chainSql}]::text[])
+      ORDER BY array_position(ARRAY[${chainSql}]::text[], ${documentPaths.locale})
+      LIMIT 1
+    )`
+  }
+
+  /**
+   * Project list for `current_documents` / `current_published_documents`
+   * reads, with `path` resolved through the locale priority chain. Used
+   * everywhere a read previously did `.select()` (which auto-pulls every
+   * view column) — `path` is no longer projected by the views, so call
+   * sites must list the projection explicitly. This helper keeps the
+   * shape consistent and the call sites tidy.
+   */
+  private viewProjection(
+    view: typeof currentDocumentsView | typeof currentPublishedDocumentsView,
+    requestedLocale: string | undefined
+  ) {
+    return {
+      id: view.id,
+      document_id: view.document_id,
+      collection_id: view.collection_id,
+      collection_version: view.collection_version,
+      event_type: view.event_type,
+      status: view.status,
+      is_deleted: view.is_deleted,
+      created_at: view.created_at,
+      updated_at: view.updated_at,
+      created_by: view.created_by,
+      change_summary: view.change_summary,
+      path: this.pathProjection(sql`${view.document_id}`, requestedLocale),
+    }
+  }
+
+  /**
+   * Project list for direct `byline_document_versions` reads (history,
+   * version-by-id lookups). Mirrors `viewProjection` but against the
+   * underlying table — `path` is sourced from `byline_document_paths` via
+   * the locale priority chain, since it no longer lives on the version row.
+   */
+  private documentVersionsProjection(requestedLocale: string | undefined) {
+    return {
+      id: documentVersions.id,
+      document_id: documentVersions.document_id,
+      collection_id: documentVersions.collection_id,
+      collection_version: documentVersions.collection_version,
+      event_type: documentVersions.event_type,
+      status: documentVersions.status,
+      is_deleted: documentVersions.is_deleted,
+      created_at: documentVersions.created_at,
+      updated_at: documentVersions.updated_at,
+      created_by: documentVersions.created_by,
+      change_summary: documentVersions.change_summary,
+      path: this.pathProjection(sql`${documentVersions.document_id}`, requestedLocale),
+    }
+  }
+
+  /**
+   * Emit a SQL fragment that resolves a `(collection_id, path)` tuple to
+   * a `document_id` via the locale priority chain. Used inside `WHERE`
+   * clauses for findByPath-style lookups:
+   *
+   * ```sql
+   * WHERE document_id = (
+   *   SELECT document_id FROM byline_document_paths
+   *   WHERE collection_id = ? AND path = ?
+   *     AND locale = ANY(<chain>)
+   *   ORDER BY array_position(<chain>, locale)
+   *   LIMIT 1
+   * )
+   * ```
+   *
+   * Returns NULL when no row matches in any locale, which makes the
+   * outer `=` predicate fail cleanly (no document found).
+   */
+  private resolveDocumentIdByPath(
+    collection_id: string,
+    path: string,
+    requestedLocale?: string
+  ): SQL {
+    const chain = this.buildLocaleChain(requestedLocale)
+    const chainSql = sql.join(
+      chain.map((l) => sql`${l}`),
+      sql`, `
+    )
+    return sql`(
+      SELECT ${documentPaths.document_id} FROM ${documentPaths}
+      WHERE ${documentPaths.collection_id} = ${collection_id}
+        AND ${documentPaths.path} = ${path}
+        AND ${documentPaths.locale} = ANY(ARRAY[${chainSql}]::text[])
+      ORDER BY array_position(ARRAY[${chainSql}]::text[], ${documentPaths.locale})
+      LIMIT 1
+    )`
   }
 
   /**
@@ -227,7 +375,10 @@ export class DocumentQueries implements IDocumentQueries {
         document_version_id: currentDocumentsView.id,
         document_id: currentDocumentsView.document_id,
         collection_id: currentDocumentsView.collection_id,
-        path: currentDocumentsView.path,
+        // Lifecycle metadata fetch — always reads the default-locale path.
+        // This is internal lifecycle plumbing (status changes, delete checks),
+        // not a user-facing read, so the request locale never applies.
+        path: this.pathProjection(sql`${currentDocumentsView.document_id}`),
         status: currentDocumentsView.status,
         created_at: currentDocumentsView.created_at,
         updated_at: currentDocumentsView.updated_at,
@@ -247,7 +398,7 @@ export class DocumentQueries implements IDocumentQueries {
       document_version_id: row.document_version_id,
       document_id: row.document_id,
       collection_id: row.collection_id ?? '',
-      path: row.path,
+      path: row.path ?? '',
       status: row.status ?? 'draft',
       created_at: row.created_at ?? new Date(),
       updated_at: row.updated_at ?? new Date(),
@@ -289,14 +440,14 @@ export class DocumentQueries implements IDocumentQueries {
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
         status: sql`${view.status}`,
-        path: sql`${view.path}`,
+        path: this.pathProjection(sql`${view.document_id}`, locale),
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
       }
     }
     const [document] = await this.db
-      .select()
+      .select(this.viewProjection(view, locale))
       .from(view)
       .where(and(...baseConditions))
 
@@ -332,7 +483,7 @@ export class DocumentQueries implements IDocumentQueries {
       return {
         document_version_id: document.id,
         document_id: document.document_id,
-        path: document.path,
+        path: document.path ?? '',
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
@@ -345,7 +496,7 @@ export class DocumentQueries implements IDocumentQueries {
     return {
       document_version_id: document.id,
       document_id: document.document_id,
-      path: document.path,
+      path: document.path ?? '',
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
@@ -370,19 +521,27 @@ export class DocumentQueries implements IDocumentQueries {
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
-    const baseConditions: SQL[] = [eq(view.collection_id, collection_id), eq(view.path, path)]
+    //
+    // findByPath: resolve `(collection_id, path, locale-chain)` to a
+    // document_id via the document_paths subquery, then look up the
+    // current version by that id. Returns NULL when no path matches in
+    // any locale, which makes the outer `=` predicate fail cleanly.
+    const baseConditions: SQL[] = [
+      eq(view.collection_id, collection_id),
+      sql`${view.document_id} = ${this.resolveDocumentIdByPath(collection_id, path, locale)}`,
+    ]
     if (filters?.length) {
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
         status: sql`${view.status}`,
-        path: sql`${view.path}`,
+        path: this.pathProjection(sql`${view.document_id}`, locale),
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
       }
     }
     const [document] = await this.db
-      .select()
+      .select(this.viewProjection(view, locale))
       .from(view)
       .where(and(...baseConditions))
 
@@ -417,7 +576,7 @@ export class DocumentQueries implements IDocumentQueries {
       return {
         document_version_id: document.id,
         document_id: document.document_id,
-        path: document.path,
+        path: document.path ?? '',
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
@@ -429,7 +588,7 @@ export class DocumentQueries implements IDocumentQueries {
     return {
       document_version_id: document.id,
       document_id: document.document_id,
-      path: document.path,
+      path: document.path ?? '',
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
@@ -447,9 +606,11 @@ export class DocumentQueries implements IDocumentQueries {
     document_version_id: string
     locale?: string
   }): Promise<any> {
-    const document = await this.db.query.documentVersions.findFirst({
-      where: eq(documentVersions.id, document_version_id),
-    })
+    const projectionLocale = locale === 'all' ? undefined : locale
+    const [document] = await this.db
+      .select(this.documentVersionsProjection(projectionLocale))
+      .from(documentVersions)
+      .where(eq(documentVersions.id, document_version_id))
 
     if (document == null) {
       throw ERR_NOT_FOUND({
@@ -481,7 +642,7 @@ export class DocumentQueries implements IDocumentQueries {
     const documentWithFields = {
       document_version_id: document.id,
       document_id: document.document_id,
-      path: document.path,
+      path: document.path ?? '',
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
@@ -506,7 +667,7 @@ export class DocumentQueries implements IDocumentQueries {
     if (document_version_ids.length === 0) return []
 
     const docs = await this.db
-      .select()
+      .select(this.documentVersionsProjection(locale === 'all' ? undefined : locale))
       .from(documentVersions)
       .where(inArray(documentVersions.id, document_version_ids))
 
@@ -547,9 +708,9 @@ export class DocumentQueries implements IDocumentQueries {
     // The locale used to compile filter EXISTS subqueries should resolve
     // values from a real locale, even when the surrounding read uses the
     // sentinel `'all'` (populate batches that span every locale do this).
-    // Falling back to `'en'` here matches the default used by the
-    // single-doc lookup methods.
-    const filterLocale = locale === 'all' ? 'en' : locale
+    // Falling back to the installation default here matches the default
+    // used by the single-doc lookup methods.
+    const filterLocale = locale === 'all' ? this.defaultContentLocale : locale
     const baseConditions: SQL[] = [
       eq(view.collection_id, collection_id),
       inArray(view.document_id, document_ids),
@@ -558,14 +719,14 @@ export class DocumentQueries implements IDocumentQueries {
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
         status: sql`${view.status}`,
-        path: sql`${view.path}`,
+        path: this.pathProjection(sql`${view.document_id}`, filterLocale),
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, filterLocale, outerScope, readMode, 0))
       }
     }
     const docs = await this.db
-      .select()
+      .select(this.viewProjection(view, filterLocale))
       .from(view)
       .where(and(...baseConditions))
 
@@ -630,11 +791,15 @@ export class DocumentQueries implements IDocumentQueries {
     const total = Number(totalResult[0]?.count) || 0
     const total_pages = Math.ceil(total / page_size)
     const offset = (page - 1) * page_size
-    const orderColumn = order === 'path' ? documentVersions.path : documentVersions.created_at
+    // History is per-document; path is sticky so every version row has the
+    // same value. `order === 'path'` is degenerate and was removed when
+    // path moved to byline_document_paths — fall back to created_at.
+    const orderColumn = documentVersions.created_at
     const orderFunc = desc === true ? sql`DESC` : sql`ASC`
 
+    const projectionLocale = locale === 'all' ? undefined : locale
     const result: Document[] = await this.db
-      .select()
+      .select(this.documentVersionsProjection(projectionLocale))
       .from(documentVersions)
       .where(
         and(
@@ -763,10 +928,15 @@ export class DocumentQueries implements IDocumentQueries {
       const outerScope: OuterScope = {
         docVersionId: sql`${currentDocumentsView.id}`,
         status: sql`${currentDocumentsView.status}`,
-        path: sql`${currentDocumentsView.path}`,
+        path: this.pathProjection(
+          sql`${currentDocumentsView.document_id}`,
+          this.defaultContentLocale
+        ),
       }
       for (const f of filters) {
-        conditions.push(this.buildFilterExists(f, 'en', outerScope, undefined, 0))
+        conditions.push(
+          this.buildFilterExists(f, this.defaultContentLocale, outerScope, undefined, 0)
+        )
       }
     }
     const rows = await this.db
@@ -875,7 +1045,7 @@ export class DocumentQueries implements IDocumentQueries {
       const documentWithFields = {
         document_version_id: doc.id,
         document_id: doc.document_id,
-        path: doc.path,
+        path: doc.path ?? '',
         status: doc.status,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
@@ -1002,7 +1172,11 @@ export class DocumentQueries implements IDocumentQueries {
 
     if (pathFilter) {
       conditions.push(
-        this.buildDocumentLevelCondition('d.path', pathFilter.operator, pathFilter.value)
+        this.buildFilterCondition(
+          this.pathProjection(sql`d.document_id`, locale),
+          pathFilter.operator,
+          pathFilter.value
+        )
       )
     }
 
@@ -1029,7 +1203,11 @@ export class DocumentQueries implements IDocumentQueries {
         this.buildFilterExists(
           filter,
           locale,
-          { docVersionId: sql`d.id`, status: sql`d.status`, path: sql`d.path` },
+          {
+            docVersionId: sql`d.id`,
+            status: sql`d.status`,
+            path: this.pathProjection(sql`d.document_id`, locale),
+          },
           readMode,
           0
         )
@@ -1081,8 +1259,14 @@ export class DocumentQueries implements IDocumentQueries {
     }
 
     // -- Main query -----------------------------------------------------------
+    //
+    // `d.*` no longer includes `path` (it lives in byline_document_paths
+    // keyed by document_id + locale). Project it via the locale-aware
+    // subquery so the result rows still carry `path` for the in-memory
+    // Document shape.
+    const pathProjectionSql = this.pathProjection(sql`d.document_id`, locale)
     const mainQuery = sql`
-      SELECT d.*
+      SELECT d.*, ${pathProjectionSql} AS path
       FROM ${sourceTable} d
       ${sortJoin}
       WHERE ${whereClause}
@@ -1097,7 +1281,7 @@ export class DocumentQueries implements IDocumentQueries {
       document_id: row.document_id as string,
       collection_id: row.collection_id as string,
       collection_version: row.collection_version as number,
-      path: row.path as string,
+      path: (row.path as string | null) ?? null,
       event_type: row.event_type as string,
       status: row.status as string,
       is_deleted: row.is_deleted as boolean,
@@ -1246,7 +1430,9 @@ export class DocumentQueries implements IDocumentQueries {
     const innerScope: OuterScope = {
       docVersionId: sql.raw(`td${depth}.id`),
       status: sql.raw(`td${depth}.status`),
-      path: sql.raw(`td${depth}.path`),
+      // `td${depth}.path` no longer exists on the view; resolve via the
+      // locale priority chain against byline_document_paths instead.
+      path: this.pathProjection(sql.raw(`td${depth}.document_id`), locale),
     }
 
     const nestedConditions: SQL[] = filter.nested.map((nested) =>
@@ -1426,9 +1612,13 @@ export class DocumentQueries implements IDocumentQueries {
   }
 }
 
-export function createQueryBuilders(db: DatabaseConnection, collections: CollectionDefinition[]) {
+export function createQueryBuilders(
+  db: DatabaseConnection,
+  collections: CollectionDefinition[],
+  defaultContentLocale: string
+) {
   return {
     collections: new CollectionQueries(db),
-    documents: new DocumentQueries(db, collections),
+    documents: new DocumentQueries(db, collections, defaultContentLocale),
   }
 }

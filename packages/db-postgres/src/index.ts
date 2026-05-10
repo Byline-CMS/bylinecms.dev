@@ -33,9 +33,18 @@ export interface PgAdapter extends IDbAdapter {
 export const pgAdapter = ({
   connectionString,
   collections,
+  defaultContentLocale,
 }: {
   connectionString: string
   collections: CollectionDefinition[]
+  /**
+   * The installation's default content locale, sourced from
+   * `ServerConfig.i18n.content.defaultLocale`. Used by the storage layer
+   * for path resolution: read functions build a `[requested, default]`
+   * fallback chain when looking up `byline_document_paths`, and write
+   * functions tag default-locale path rows with this value.
+   */
+  defaultContentLocale: string
 }): PgAdapter => {
   const pool = new pg.Pool({
     connectionString: connectionString,
@@ -46,8 +55,8 @@ export const pgAdapter = ({
 
   const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema })
 
-  const commandBuilders = createCommandBuilders(db)
-  const queryBuilders = createQueryBuilders(db, collections)
+  const commandBuilders = createCommandBuilders(db, defaultContentLocale)
+  const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale)
 
   return {
     commands: commandBuilders,

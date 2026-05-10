@@ -15,6 +15,7 @@ import {
   booleanStore,
   collections,
   datetimeStore,
+  documentPaths,
   documents,
   documentVersions,
   fileStore,
@@ -80,7 +81,10 @@ export class CollectionCommands implements ICollectionCommands {
  * DocumentCommands
  */
 export class DocumentCommands implements IDocumentCommands {
-  constructor(private db: DatabaseConnection) {}
+  constructor(
+    private db: DatabaseConnection,
+    private defaultContentLocale: string
+  ) {}
 
   /**
    * createDocumentVersion
@@ -97,7 +101,13 @@ export class DocumentCommands implements IDocumentCommands {
     collectionConfig: CollectionDefinition
     action: string
     documentData: any
-    path: string
+    /**
+     * Optional. When provided, upserts a row into byline_document_paths
+     * keyed by (document_id, this.defaultContentLocale). Omitted by the
+     * lifecycle for non-default-locale (translation) saves so the
+     * existing path row is left untouched.
+     */
+    path?: string
     locale?: string
     status?: string
     createdBy?: string
@@ -127,12 +137,36 @@ export class DocumentCommands implements IDocumentCommands {
           document_id: documentId,
           collection_id: params.collectionId,
           collection_version: params.collectionVersion,
-          path: params.path,
           event_type: params.action ?? 'create',
           status: params.status ?? 'draft',
         })
         .returning()
         .then(getFirstOrThrow('Failed to create document version'))
+
+      // 2a. Upsert the document_paths row when a path is supplied. Path
+      // is only ever written under the installation's default content
+      // locale in phase 1; the lifecycle layer skips this param for
+      // non-default-locale (translation) saves. Unique-constraint
+      // violations on (collection_id, locale, path) bubble up as a
+      // Postgres error which the lifecycle wraps as ERR_PATH_CONFLICT.
+      if (params.path !== undefined) {
+        await tx
+          .insert(documentPaths)
+          .values({
+            document_id: documentId,
+            locale: this.defaultContentLocale,
+            collection_id: params.collectionId,
+            path: params.path,
+          })
+          .onConflictDoUpdate({
+            target: [documentPaths.document_id, documentPaths.locale],
+            set: {
+              path: params.path,
+              collection_id: params.collectionId,
+              updated_at: new Date(),
+            },
+          })
+      }
 
       // 3. Flatten the document data to field values
       const flattenedFields = flattenFieldSetData(
@@ -339,9 +373,9 @@ export class DocumentCommands implements IDocumentCommands {
   }
 }
 
-export function createCommandBuilders(db: DatabaseConnection) {
+export function createCommandBuilders(db: DatabaseConnection, defaultContentLocale: string) {
   return {
     collections: new CollectionCommands(db),
-    documents: new DocumentCommands(db),
+    documents: new DocumentCommands(db, defaultContentLocale),
   }
 }

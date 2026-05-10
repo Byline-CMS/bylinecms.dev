@@ -72,8 +72,15 @@ export interface BylineClientConfig {
    */
   logger?: BylineLogger
   /**
-   * Default content locale. Forwarded to `DocumentLifecycleContext` and
-   * used to anchor `path` derivation. Defaults to `'en'` when omitted.
+   * Default content locale. Forwarded to `DocumentLifecycleContext`,
+   * used to anchor `path` derivation, and applied as the implicit
+   * default for `locale` on every read method (`find`, `findOne`,
+   * `findById`, `findByPath`). Resolved in priority order:
+   *   1. explicit `defaultLocale` on the client config
+   *   2. `config.i18n.content.defaultLocale` when a `ServerConfig` is
+   *      passed via `config`
+   *   3. `'en'` as a last-resort fallback for tests / migration scripts
+   *      that never configure i18n.
    */
   defaultLocale?: string
   /**
@@ -194,7 +201,7 @@ export interface FindOptions<F = Record<string, any>>
   select?: (keyof F & string)[] | string[]
   /** Sort specification. Keys are field names or document-level columns. */
   sort?: SortSpec
-  /** Locale for field value resolution. Defaults to 'en'. */
+  /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
   locale?: string
   /** Page number (1-based). Defaults to 1. */
   page?: number
@@ -268,7 +275,7 @@ export interface FindByVersionOptions<F = Record<string, any>> {
 // ---------------------------------------------------------------------------
 
 export interface CreateOptions {
-  /** Locale for field value resolution. Defaults to 'en'. */
+  /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
   locale?: string
   /**
    * Initial workflow status. When omitted, `document-lifecycle` derives
@@ -283,7 +290,7 @@ export interface CreateOptions {
 }
 
 export interface UpdateOptions {
-  /** Locale for field value resolution. Defaults to 'en'. */
+  /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
   locale?: string
   /**
    * Explicit path override. When omitted, the previous version's path

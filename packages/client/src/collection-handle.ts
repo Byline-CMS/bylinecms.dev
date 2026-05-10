@@ -81,7 +81,14 @@ export class CollectionHandle {
   async find<F = Record<string, any>>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
     const requestContext = await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
-    const { where, select, sort, locale = 'en', page = 1, pageSize = 20 } = options
+    const {
+      where,
+      select,
+      sort,
+      locale = this.client.defaultLocale,
+      page = 1,
+      pageSize = 20,
+    } = options
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
 
@@ -180,7 +187,7 @@ export class CollectionHandle {
   ): Promise<ClientDocument<F> | null> {
     const requestContext = await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
-    const { locale = 'en' } = options
+    const { locale = this.client.defaultLocale } = options
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
 
@@ -242,7 +249,7 @@ export class CollectionHandle {
   ): Promise<ClientDocument<F> | null> {
     const requestContext = await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
-    const { locale = 'en' } = options
+    const { locale = this.client.defaultLocale } = options
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
 
@@ -447,7 +454,7 @@ export class CollectionHandle {
     const _requestContext = await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const readCtx = options._readContext ?? createReadContext()
-    const locale = options.locale ?? 'en'
+    const locale = options.locale ?? this.client.defaultLocale
     const page = options.page ?? 1
     const pageSize = options.pageSize ?? 20
 
@@ -511,7 +518,7 @@ export class CollectionHandle {
     options: FindByVersionOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
     await this.resolveAndAssertRead()
-    const locale = options.locale ?? 'en'
+    const locale = options.locale ?? this.client.defaultLocale
     const raw = await this.client.db.queries.documents.getDocumentByVersion({
       document_version_id: versionId,
       locale,

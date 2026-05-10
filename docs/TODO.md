@@ -18,10 +18,6 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 Deferred from the round that landed the populate primitive. Needs a running Postgres. Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate) for the populate primitive itself.
 
-### Path uniqueness — decision and policy
-
-The partial unique index on `(collection_id, path)` is committed-out at `packages/db-postgres/src/database/schema/index.ts` ready to enable, but it needs a collision-handling policy (reject vs. auto-suffix) before it can ship. Worth deciding **before preview-link UX lands**, since preview links implicitly assume `path` uniquely identifies a document within a collection. See [DOCUMENT-PATHS.md → Phase — path uniqueness](./DOCUMENT-PATHS.md#phase--path-uniqueness).
-
 ---
 
 ## Next

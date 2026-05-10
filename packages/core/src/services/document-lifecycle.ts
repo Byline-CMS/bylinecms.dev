@@ -37,6 +37,7 @@ import {
   ERR_INVALID_TRANSITION,
   ERR_NOT_FOUND,
   ERR_PATCH_FAILED,
+  ERR_PATH_CONFLICT,
   ERR_VALIDATION,
 } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
@@ -178,6 +179,80 @@ function extractVersionId(document: any): string {
   return document?.id ?? document?.document_version_id ?? ''
 }
 
+/**
+ * Detect a Postgres unique-constraint violation on
+ * `byline_document_paths(collection_id, locale, path)` and translate it
+ * to `ERR_PATH_CONFLICT`. Any other error is rethrown unchanged.
+ *
+ * The Postgres SQLSTATE for unique violations is `23505`. Drivers carry
+ * the constraint name on the error object (`constraint`); matching by
+ * name keeps this targeted to the path constraint and avoids spuriously
+ * rebranding unrelated unique violations as path conflicts.
+ *
+ * Drizzle wraps the underlying pg error in `DrizzleQueryError` with the
+ * original attached as `cause`, so we walk a short cause chain to find
+ * the carried `code` / `constraint`.
+ */
+function rethrowPathConflict(err: unknown, path: string, locale: string): never {
+  type PgLikeError = { code?: string; constraint?: string; cause?: unknown }
+  let e: PgLikeError | undefined = err as PgLikeError | undefined
+  // Walk at most a few `cause` hops — DrizzleQueryError → underlying pg error.
+  for (let i = 0; i < 3 && e; i++) {
+    if (
+      e.code === '23505' &&
+      typeof e.constraint === 'string' &&
+      e.constraint.includes('document_paths_collection_locale_path')
+    ) {
+      throw ERR_PATH_CONFLICT({
+        message: `path "${path}" is already in use in this collection (locale: ${locale})`,
+        details: { path, locale, constraint: e.constraint },
+      })
+    }
+    e = e.cause as PgLikeError | undefined
+  }
+  throw err as Error
+}
+
+/**
+ * Resolve the path argument the storage primitive should receive on an
+ * update operation. Phase 1 only writes path rows under the default
+ * content locale; on translation saves a supplied path is dropped with
+ * a `logger.warn`, leaving the existing default-locale row untouched.
+ *
+ * Returns `undefined` to signal the storage primitive should skip the
+ * path write entirely (no upsert).
+ */
+function resolvePathForUpdate(args: {
+  explicitPath: string | null
+  currentPath: string | undefined
+  requestLocale: string
+  defaultLocale: string
+  documentId: string
+  logger?: BylineLogger
+}): string | undefined {
+  const { explicitPath, currentPath, requestLocale, defaultLocale, documentId, logger } = args
+  if (requestLocale === defaultLocale) {
+    // Default-locale write: pass path through when supplied; otherwise
+    // skip the write (existing path row stays as-is — sticky).
+    return explicitPath ?? undefined
+  }
+  // Non-default-locale write: reject any path change with a warn so the
+  // operation succeeds but the editor / API caller is informed.
+  if (explicitPath !== null && explicitPath !== currentPath) {
+    logger?.warn(
+      {
+        documentId,
+        requestedLocale: requestLocale,
+        defaultLocale,
+        suppliedPath: explicitPath,
+        currentPath,
+      },
+      'path changes apply only on default-locale writes; ignored on translation save'
+    )
+  }
+  return undefined
+}
+
 /** Extract the logical document id from the document object returned by `createDocumentVersion`. */
 function extractDocumentId(document: any): string {
   return document?.document_id ?? ''
@@ -271,16 +346,18 @@ export async function createDocument(
         typeof params.path === 'string' && params.path.length > 0 ? params.path : null
       const resolvedPath = explicitPath ?? derivePath(definition, data, defaultLocale, slugifier)
 
-      const result = await db.commands.documents.createDocumentVersion({
-        collectionId,
-        collectionVersion: ctx.collectionVersion,
-        collectionConfig: definition,
-        action: 'create',
-        documentData: data,
-        path: resolvedPath,
-        status: params.status ?? data.status,
-        locale: params.locale ?? defaultLocale,
-      })
+      const result = await db.commands.documents
+        .createDocumentVersion({
+          collectionId,
+          collectionVersion: ctx.collectionVersion,
+          collectionConfig: definition,
+          action: 'create',
+          documentData: data,
+          path: resolvedPath,
+          status: params.status ?? data.status,
+          locale: params.locale ?? defaultLocale,
+        })
+        .catch((err: unknown) => rethrowPathConflict(err, resolvedPath, defaultLocale))
 
       const documentId = extractDocumentId(result.document)
       const documentVersionId = extractVersionId(result.document)
@@ -352,21 +429,32 @@ export async function updateDocument(
 
       const explicitPath =
         typeof params.path === 'string' && params.path.length > 0 ? params.path : null
-      const resolvedPath =
-        explicitPath ?? (originalData.path as string | undefined) ?? crypto.randomUUID()
-
-      const result = await db.commands.documents.createDocumentVersion({
+      const requestLocale = params.locale ?? defaultLocale
+      const pathForCommand = resolvePathForUpdate({
+        explicitPath,
+        currentPath: originalData.path as string | undefined,
+        requestLocale,
+        defaultLocale,
         documentId: params.documentId,
-        collectionId,
-        collectionVersion: ctx.collectionVersion,
-        collectionConfig: definition,
-        action: 'update',
-        documentData: data,
-        path: resolvedPath,
-        status: defaultStatus,
-        locale: params.locale ?? defaultLocale,
-        previousVersionId: originalData.document_version_id as string | undefined,
+        logger: ctx.logger,
       })
+
+      const result = await db.commands.documents
+        .createDocumentVersion({
+          documentId: params.documentId,
+          collectionId,
+          collectionVersion: ctx.collectionVersion,
+          collectionConfig: definition,
+          action: 'update',
+          documentData: data,
+          path: pathForCommand,
+          status: defaultStatus,
+          locale: requestLocale,
+          previousVersionId: originalData.document_version_id as string | undefined,
+        })
+        .catch((err: unknown) =>
+          rethrowPathConflict(err, pathForCommand ?? '', defaultLocale)
+        )
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
@@ -480,21 +568,32 @@ export async function updateDocumentWithPatches(
 
       const explicitPath =
         typeof params.path === 'string' && params.path.length > 0 ? params.path : null
-      const resolvedPath =
-        explicitPath ?? (originalData.path as string | undefined) ?? crypto.randomUUID()
-
-      const result = await db.commands.documents.createDocumentVersion({
+      const requestLocale = params.locale ?? defaultLocale
+      const pathForCommand = resolvePathForUpdate({
+        explicitPath,
+        currentPath: originalData.path as string | undefined,
+        requestLocale,
+        defaultLocale,
         documentId: params.documentId,
-        collectionId,
-        collectionVersion: ctx.collectionVersion,
-        collectionConfig: definition,
-        action: 'update',
-        documentData: nextData,
-        path: resolvedPath,
-        status: defaultStatus,
-        locale: params.locale ?? defaultLocale,
-        previousVersionId: originalData.document_version_id as string | undefined,
+        logger: ctx.logger,
       })
+
+      const result = await db.commands.documents
+        .createDocumentVersion({
+          documentId: params.documentId,
+          collectionId,
+          collectionVersion: ctx.collectionVersion,
+          collectionConfig: definition,
+          action: 'update',
+          documentData: nextData,
+          path: pathForCommand,
+          status: defaultStatus,
+          locale: requestLocale,
+          previousVersionId: originalData.document_version_id as string | undefined,
+        })
+        .catch((err: unknown) =>
+          rethrowPathConflict(err, pathForCommand ?? '', defaultLocale)
+        )
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
@@ -797,6 +896,9 @@ export async function restoreDocumentVersion(
       //    the source tree forward in a single flatten pass — the
       //    cross-locale carry-forward branch in createDocumentVersion does
       //    not fire when locale === 'all'.
+      //
+      // No `path` is passed: restore does not change the document's path
+      // (the existing byline_document_paths row stays as-is — sticky).
       const result = await db.commands.documents.createDocumentVersion({
         documentId: params.documentId,
         collectionId,
@@ -804,7 +906,6 @@ export async function restoreDocumentVersion(
         collectionConfig: definition,
         action: 'restore',
         documentData: sourceFields,
-        path: currentMeta.path,
         status: getDefaultStatus(definition),
         locale: 'all',
         previousVersionId: currentMeta.document_version_id,
