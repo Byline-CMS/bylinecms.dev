@@ -32,7 +32,7 @@ import type { CollectionDefinition } from '../@types/index.js'
  * avoids hidden conditional logic downstream.
  *
  * Called from `initBylineCore()` for each declared collection. See
- * docs/analysis/AUTHN-AUTHZ-ANALYSIS.md §3 and Phase 1.
+ * docs/AUTHN-AUTHZ.md.
  */
 export function registerCollectionAbilities(
   registry: AbilityRegistry,

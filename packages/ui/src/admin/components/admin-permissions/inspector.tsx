@@ -9,7 +9,7 @@
  */
 
 /**
- * Read-only abilities inspector — Phase 8 in AUTHN-AUTHZ-ANALYSIS.md.
+ * Read-only abilities inspector — see docs/AUTHN-AUTHZ.md.
  *
  * Top level: a collapsible group per ability source (collections.docs,
  * admin.users, etc.), each containing the abilities that group

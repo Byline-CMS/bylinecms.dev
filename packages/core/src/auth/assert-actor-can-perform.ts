@@ -39,7 +39,7 @@ import {
  * bypass this helper — the same escape hatch that skips collection
  * hooks. Seeds, migrations, and internal tooling live there.
  *
- * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md §8.
+ * See docs/AUTHN-AUTHZ.md.
  */
 export function assertActorCanPerform(
   context: RequestContext | undefined,

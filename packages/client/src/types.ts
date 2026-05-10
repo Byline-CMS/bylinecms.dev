@@ -283,7 +283,8 @@ export interface CreateOptions {
    */
   status?: string
   /**
-   * Explicit `documentVersions.path` override. When omitted the lifecycle
+   * Explicit `path` override (written into `byline_document_paths` keyed
+   * by `(document_id, defaultContentLocale)`). When omitted the lifecycle
    * derives a path from `definition.useAsPath` (or falls back to a UUID).
    */
   path?: string

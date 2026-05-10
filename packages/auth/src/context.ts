@@ -15,10 +15,11 @@ import { type Actor, AdminAuth } from './actor.js'
  * `document-lifecycle` service, `IDocumentQueries` method, `@byline/client`
  * entry point, and collection hook.
  *
- * The auth subsystem populates `actor`; downstream code reads it. Today
- * the threading is plumbing only — `actor.assertAbility(...)` is not yet
- * called at the `document-lifecycle` / `IDocumentQueries` boundary. See
- * the Phase status table in AUTHN-AUTHZ-ANALYSIS.md.
+ * The auth subsystem populates `actor`; downstream code reads it.
+ * Service-layer enforcement is live: `assertActorCanPerform` runs at
+ * every `document-lifecycle` write entry and on `@byline/client` reads;
+ * `assertAdminActor` runs inside every admin-management `*Command`.
+ * See docs/AUTHN-AUTHZ.md for the present-state reference.
  *
  * `RequestContext` is intentionally independent of the existing
  * `ReadContext` (populate / `afterRead` recursion guard) for now. Merging

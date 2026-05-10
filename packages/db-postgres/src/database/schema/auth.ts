@@ -21,8 +21,8 @@
  *     to 1; bumped by write paths when needed).
  *   - snake_case column names matching the rest of the Byline schema.
  *
- * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md for the full data model and
- * phased rollout.
+ * See docs/AUTHN-AUTHZ.md for the full data model and present-state
+ * reference.
  */
 
 import { relations } from 'drizzle-orm'

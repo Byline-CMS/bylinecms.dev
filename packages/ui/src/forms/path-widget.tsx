@@ -49,9 +49,11 @@ export interface PathWidgetProps {
 }
 
 /**
- * System-managed `documentVersions.path` widget.
+ * System-managed `path` widget.
  *
- * Displays the current persisted/overridden path as an editable input.
+ * Edits the path stored in `byline_document_paths` for the current
+ * (document, locale) row. Displays the current persisted/overridden
+ * value as an editable input.
  * In create mode, when the user hasn't supplied an override, the input
  * shows the live-derived preview (slugified `useAsPath` source field) as
  * a placeholder so the user sees what will be saved. The "Regenerate"

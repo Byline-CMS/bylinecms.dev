@@ -65,9 +65,10 @@ interface FormContextType {
   getPendingUploads: () => Map<string, PendingUpload>
   hasPendingUploads: () => boolean
   clearPendingUploads: () => void
-  // System-managed `documentVersions.path` slot, edited by the path widget.
-  // `null` means the widget will fall back to live-derived preview / the
-  // server-side default; a non-null value is sent verbatim to the server.
+  // System-managed `path` slot (persisted in `byline_document_paths`),
+  // edited by the path widget. `null` means the widget will fall back
+  // to live-derived preview / the server-side default; a non-null value
+  // is sent verbatim to the server.
   getSystemPath: () => string | null
   setSystemPath: (value: string | null) => void
   subscribeSystemPath: (listener: SystemPathListener) => () => void

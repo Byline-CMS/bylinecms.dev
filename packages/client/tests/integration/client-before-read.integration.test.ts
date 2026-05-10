@@ -14,7 +14,7 @@
  * hatch all need to behave correctly when the SQL actually runs.
  *
  * Doubles as a worked example for the recipes in
- * `docs/analysis/ACCESS-CONTROL-RECIPES.md` — Recipe 1 (owner-only
+ * `docs/ACCESS-CONTROL-RECIPES.md` — Recipe 1 (owner-only
  * drafts) is wired on the `posts` collection here, Recipe 2 (multi-
  * tenant scoping) on `authors`. Each scenario below demonstrates one
  * of the recipe patterns end-to-end.

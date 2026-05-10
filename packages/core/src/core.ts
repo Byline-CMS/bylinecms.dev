@@ -55,9 +55,8 @@ export interface BylineCore<TAdminStore = unknown> {
    * `registerAbility()` — or directly against `core.abilities` — typically
    * during server bootstrap and before any admin UI renders.
    *
-   * Consumed at runtime by `AdminAuth.assertAbility()` (Phase 4) and at
-   * design time by the admin role-editor UI (Phase 6). See
-   * docs/analysis/AUTHN-AUTHZ-ANALYSIS.md §3.
+   * Consumed at runtime by `AdminAuth.assertAbility()` and at design
+   * time by the admin role-editor UI. See docs/AUTHN-AUTHZ.md.
    */
   abilities: AbilityRegistry
   /** Convenience wrapper around `abilities.register()`. */

@@ -16,8 +16,7 @@
  * shape, populate-spec match, `_resolved` skip, richText null handling).
  *
  * Both `collectRelationLeaves` (populate.ts) and `collectRichTextLeaves`
- * (richtext-populate.ts) are now thin filters over this primitive — see
- * docs/TODO.md "walkFieldTree" entry for the rationale.
+ * (richtext-populate.ts) are thin filters over this primitive.
  */
 
 import {

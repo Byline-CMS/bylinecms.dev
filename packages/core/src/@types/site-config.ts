@@ -126,8 +126,9 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    */
   storage?: IStorageProvider
   /**
-   * Installation-wide slugifier used to derive `documentVersions.path`
-   * from the field named by `CollectionDefinition.useAsPath`.
+   * Installation-wide slugifier used to derive a document's `path` (stored
+   * in `byline_document_paths`) from the field named by
+   * `CollectionDefinition.useAsPath`.
    *
    * Falls back to the default `slugify` from `@byline/core` when not set.
    * Must be pure and synchronous — it runs server-side at write time and

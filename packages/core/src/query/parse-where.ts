@@ -78,7 +78,10 @@ export interface ParsedWhere {
   status?: string
   /** Text search query (for collection-configured search fields). */
   query?: string
-  /** Filter on document_versions.path with an operator. */
+  /**
+   * Filter on a document's `path` (resolved against `byline_document_paths`
+   * via the locale priority chain) with an operator.
+   */
   pathFilter?: { operator: FieldFilterOperator; value: string }
   /**
    * Adapter-facing filter list: ordinary field filters and cross-collection

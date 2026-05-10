@@ -46,7 +46,7 @@ const categoriesCollection = defineCollection({
   fields: [
     { name: 'name', type: 'text', label: 'Name', localized: true },
     // `slug`, not `path` — `path` is a reserved key that resolves to the
-    // target version's `document_versions.path` column inside a nested
+    // target document's `byline_document_paths` row inside a nested
     // sub-clause (same precedence as the top level), so a real `path`
     // field would be unreachable through the where clause.
     { name: 'slug', type: 'text', label: 'Slug' },
@@ -279,9 +279,9 @@ describe('parseWhere', () => {
 
   it('promotes `path` inside a nested sub-where to a DocumentColumnFilter', async () => {
     // Reserved-key precedence: `path` inside a relation sub-clause maps to
-    // the target version's `document_versions.path` column, never to a
-    // field of the same name. The adapter wires it to `td${depth}.path`
-    // via the inner relation scope.
+    // the target document's `byline_document_paths` row, never to a field
+    // of the same name. The adapter resolves it via a `pathProjection`
+    // subquery scoped to the inner relation hop's `td${depth}.document_id`.
     const result = await parseWhere({ category: { path: 'news' } }, testCollection, ctx)
     expect(result.filters).toHaveLength(1)
     expect(result.filters[0]).toEqual({

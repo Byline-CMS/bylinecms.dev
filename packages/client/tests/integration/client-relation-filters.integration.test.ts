@@ -47,8 +47,9 @@ const categoriesDefinition = defineCollection({
     draft: { label: 'Draft', verb: 'Revert to Draft' },
     published: { label: 'Published', verb: 'Publish' },
   }),
-  // Derive `document_versions.path` from the slugified name so the
-  // doc-column tests below have predictable values to assert against.
+  // Derive each row's `byline_document_paths.path` from the slugified
+  // name so the doc-column tests below have predictable values to assert
+  // against.
   useAsPath: 'name',
   fields: [
     { name: 'name', type: 'text', label: 'Name', localized: true },
@@ -287,10 +288,12 @@ describe('cross-collection relation filter (nested where)', () => {
 })
 
 describe('document-level reserved keys inside a nested where', () => {
-  it('filters by the target version `path` column (`category.path`)', async () => {
-    // `useAsPath: 'name'` slugifies "News" → "news" into
-    // document_versions.path. The reserved-key promotion at parse-where
-    // emits a DocumentColumnFilter that the adapter wires to td0.path.
+  it('filters by the target document `path` (`category.path`)', async () => {
+    // `useAsPath: 'name'` slugifies "News" → "news" into the target's
+    // `byline_document_paths` row. The reserved-key promotion at
+    // parse-where emits a DocumentColumnFilter that the adapter resolves
+    // via a `pathProjection` subquery against the relation hop's
+    // `td0.document_id`.
     const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
       where: { category: { path: 'news' } },
     })
@@ -323,7 +326,8 @@ describe('document-level reserved keys inside a nested where', () => {
 
   it('recurses 2 hops with the doc-column form (`category.parent.path`)', async () => {
     // Same shape as the slug-based 2-hop test, but anchored on the inner
-    // hop's document_versions.path column at depth 2 (td1.path).
+    // hop's `byline_document_paths` row resolved via a `pathProjection`
+    // subquery against the depth-2 `td1.document_id`.
     const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
       where: { category: { parent: { path: 'news' } } },
     })

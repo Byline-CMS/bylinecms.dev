@@ -605,9 +605,7 @@ export interface UploadHooks {
  * by populate. A hook that performs its own reads should thread this
  * context back in via `client.collection(...).findById(id, { _readContext:
  * readContext })` so the visited set and read budget are preserved —
- * essential to foreclose the A→B→A loop (see
- * `docs/analysis/RELATIONSHIPS-ANALYSIS.md` § "Special consideration:
- * recursive-read safety").
+ * essential to foreclose the A→B→A loop (see `docs/RELATIONSHIPS.md`).
  */
 export interface AfterReadContext {
   /** The raw reconstructed document. Mutate in place — changes persist. */
@@ -641,9 +639,8 @@ export interface AfterReadContext {
  *   - `collectionPath` — the collection being queried (useful when the
  *     same hook function is reused across collections).
  *
- * See `docs/analysis/AUTHN-AUTHZ-ANALYSIS.md` (Phase 7) for the strategic
- * rationale and `docs/analysis/ACCESS-CONTROL-RECIPES.md` for worked
- * examples.
+ * See `docs/AUTHN-AUTHZ.md` for the strategic rationale and
+ * `docs/ACCESS-CONTROL-RECIPES.md` for worked examples.
  */
 export interface BeforeReadContext {
   collectionPath: string
@@ -746,7 +743,7 @@ export interface CollectionHooks {
    * read-side row scoping (multi-tenant, owner-only-drafts, soft-delete
    * hide, etc). Returning `void` applies no scoping. Multiple functions
    * combine with implicit AND. See
-   * `docs/analysis/ACCESS-CONTROL-RECIPES.md`.
+   * `docs/ACCESS-CONTROL-RECIPES.md`.
    */
   beforeRead?: BeforeReadHookSlot
   /**
@@ -795,11 +792,12 @@ export interface CollectionDefinition {
    */
   useAsTitle?: string
   /**
-   * Names the field whose value initialises this collection's
-   * `documentVersions.path` column. The value is slugified (in the
-   * default content locale) using the installation slugifier and stored
-   * as system metadata — `path` itself is a reserved name and cannot be
-   * declared as a field.
+   * Names the field whose value initialises a document's `path` row in
+   * `byline_document_paths` (the dedicated per-(document, locale) URL slug
+   * table, separate from `documentVersions`). The value is slugified (in
+   * the default content locale) using the installation slugifier and
+   * stored as system metadata — `path` itself is a reserved name and
+   * cannot be declared as a field.
    *
    * `path` is sticky after creation: subsequent updates do not
    * re-derive. Users edit it via the system path widget; collections

@@ -10,7 +10,8 @@
  * Context passed to a `SlugifierFn`.
  *
  * `locale`         - The content locale being slugified (e.g. the default
- *                    content locale when deriving `documentVersions.path`).
+ *                    content locale when deriving a document's `path`
+ *                    row in `byline_document_paths`).
  * `collectionPath` - The collection that owns the value being slugified.
  *                    Lets installation-supplied slugifiers branch by
  *                    collection if URL policies differ.

@@ -20,7 +20,7 @@
  * the admin UI render affordances appropriate to whatever provider is
  * wired up.
  *
- * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md §7.
+ * See docs/AUTHN-AUTHZ.md.
  */
 
 import type { AdminAuth } from './actor.js'

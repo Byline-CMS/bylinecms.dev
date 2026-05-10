@@ -112,10 +112,12 @@ export interface DocumentLifecycleContext {
    * entry points will call `context.requestContext?.actor?.assertAbility(...)`
    * before any storage mutation.
    *
-   * Optional in Phase 0 so that existing callers (admin server fns, seed
-   * scripts, tests) continue to compile. Phase 4 tightens the type.
+   * Optional so that internal-tooling callers (seed scripts, migration
+   * tools) continue to compile. Production write paths always supply it
+   * — `assertActorCanPerform` runs at every lifecycle entry and rejects
+   * a missing context.
    *
-   * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md.
+   * See docs/AUTHN-AUTHZ.md.
    */
   requestContext?: RequestContext
 }
@@ -259,7 +261,8 @@ function extractDocumentId(document: any): string {
 }
 
 /**
- * Derive a `documentVersions.path` value at create time.
+ * Derive the `path` value written into `byline_document_paths` at
+ * create time.
  *
  *   1. `definition.useAsPath` set → slugify the named source field's value
  *      in the default content locale.
@@ -452,9 +455,7 @@ export async function updateDocument(
           locale: requestLocale,
           previousVersionId: originalData.document_version_id as string | undefined,
         })
-        .catch((err: unknown) =>
-          rethrowPathConflict(err, pathForCommand ?? '', defaultLocale)
-        )
+        .catch((err: unknown) => rethrowPathConflict(err, pathForCommand ?? '', defaultLocale))
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
@@ -591,9 +592,7 @@ export async function updateDocumentWithPatches(
           locale: requestLocale,
           previousVersionId: originalData.document_version_id as string | undefined,
         })
-        .catch((err: unknown) =>
-          rethrowPathConflict(err, pathForCommand ?? '', defaultLocale)
-        )
+        .catch((err: unknown) => rethrowPathConflict(err, pathForCommand ?? '', defaultLocale))
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)

@@ -19,9 +19,9 @@ import type {
   WorkflowConfig,
 } from '../@types/index.js'
 
-// Reasoning: see `docs/analysis` discussions on collection versioning. The
-// fingerprint is intentionally narrow — it's a hash of the data shape that
-// matters for read-back migration, NOT of every field in the definition.
+// Reasoning: see `docs/COLLECTION-VERSIONING.md`. The fingerprint is
+// intentionally narrow — it's a hash of the data shape that matters for
+// read-back migration, NOT of every field in the definition.
 // Cosmetic changes (labels, admin metadata, search config) must not churn
 // the version, because the version is written into every document row and
 // will anchor the Phase-2 history table.

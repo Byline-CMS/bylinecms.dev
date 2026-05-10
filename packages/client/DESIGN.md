@@ -347,15 +347,17 @@ The `where` object maps field names to values or operator objects:
 ```ts
 where: {
   status: 'published',       // document_versions.status
-  path: { $contains: 'news' }, // document_versions.path
+  path: { $contains: 'news' }, // byline_document_paths (locale-resolved)
   // Field-level filters:
   title: { $contains: 'launch' },
 }
 ```
 
-`status` and `path` are reserved names that filter on document metadata columns
-rather than EAV stores. All other keys are resolved against the collection's
-field definitions.
+`status` and `path` are reserved names that filter on document metadata
+rather than EAV stores. `status` resolves to `document_versions.status`;
+`path` resolves through `byline_document_paths` via the locale priority
+chain. All other keys are resolved against the collection's field
+definitions.
 
 **Cross-collection filters.** On relation fields, a plain-object value with
 no `$`-prefixed keys is a nested where against the target collection. See

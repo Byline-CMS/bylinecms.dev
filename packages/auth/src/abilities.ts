@@ -26,7 +26,7 @@
  * collection registrar in `@byline/core`. Future plugins (media,
  * uploads, settings) contribute their own groups.
  *
- * See docs/analysis/AUTHN-AUTHZ-ANALYSIS.md §3.
+ * See docs/AUTHN-AUTHZ.md.
  */
 
 /**

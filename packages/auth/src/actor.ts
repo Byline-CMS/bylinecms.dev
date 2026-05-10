@@ -24,12 +24,12 @@
  * The `Actor` union (`AdminAuth | UserAuth | null`) is the canonical shape
  * carried on `RequestContext`. A `null` actor represents an
  * unauthenticated request — only permitted on public read paths
- * (`readMode === 'published'`) once service-layer enforcement lands
- * (the outstanding item in AUTHN-AUTHZ-ANALYSIS.md).
+ * (`readMode === 'published'`); service-layer enforcement is now in
+ * place (`assertActorCanPerform`, `assertAdminActor`).
  *
  * Ability keys are flat dotted strings (e.g. `collections.pages.publish`,
- * `media.manage`). See AUTHN-AUTHZ-ANALYSIS.md §4 for the rationale and
- * §1 (Phase 1) for the registry that mints them.
+ * `media.manage`). See docs/AUTHN-AUTHZ.md for the rationale and the
+ * registry that mints them.
  */
 
 import { ERR_FORBIDDEN } from './errors.js'
