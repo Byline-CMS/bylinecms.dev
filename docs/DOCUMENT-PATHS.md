@@ -133,7 +133,7 @@ The current model deliberately doesn't address two things. Both are deferred unt
 
 Add when a real need surfaces — for example a media collection that wants to preserve filename extensions. The plumbing point is well-defined: `useAsPath: { source, formatter }` would be the natural shape, with the per-collection formatter taking precedence over `ServerConfig.slugifier`.
 
-### Phase — per-locale paths (translated slugs)
+### Phase — per-locale paths (translated paths)
 
 The current rule — one `path` per document, written under the installation's default content locale — is a deliberate simplification, not a structural limit. From a pure web-resource perspective it is technically correct: a document has one canonical resource identifier, and locale-prefixed variants (`/en/about`, `/de/ueber-uns`) are presentation/routing concerns expressed via `<link rel="alternate">` and equivalent. Most sites need nothing more.
 
@@ -163,7 +163,7 @@ The reads already resolve through a `[requested, default]` priority chain — a 
 
 #### Why this is a future phase, not a current plan
 
-No real consumer needs this today. The current design supports multilingual content (every other field can be localised) and multilingual routing (a frontend can prefix `/{locale}/{path}` without any CMS-side change). The wrinkle is only sites that want **translated slugs** as a CMS concern, and that's a niche requirement worth deferring until someone asks. The structural answer is on file and the schema is ready: phase 2 is widget UX, lifecycle write-side, and a small set of admin server fns — no migrations.
+No real consumer needs this today. The current design supports multilingual content (every other field can be localised) and multilingual routing (a frontend can prefix `/{locale}/{path}` without any CMS-side change). The wrinkle is only sites that want **translated paths** as a CMS concern, and that's a niche requirement worth deferring until someone asks. The structural answer is on file and the schema is ready: phase 2 is widget UX, lifecycle write-side, and a small set of admin server fns — no migrations.
 
 ### Phase — stable HTTP transport for `path`
 

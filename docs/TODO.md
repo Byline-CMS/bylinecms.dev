@@ -104,24 +104,20 @@ Each entry names the trigger that would move it into Next. No work happens until
 
 **Trigger:** Phase 1 lands and the per-line repetition cost in admin commands becomes the bottleneck. Phase 2 = module-level registry factories. Phase 3 = compose registries in `initBylineCore()` + expose a command tree on `BylineCore`. Phase 4 = typed request-context builders per actor realm. Phase 5 = `loadConfig()` single env-parsing boundary. Phases 4 and 5 are independent of 2/3. See [CORE-COMPOSITION.md → Future phases of work](./CORE-COMPOSITION.md#future-phases-of-work).
 
-### Auth — declared but unimplemented
+### `UserAuth` (end-user authentication) and adjacent deferred surfaces
 
-**Trigger:** a concrete end-user feature, real demand for SSO/OIDC, role-editable rules pressure, or a site-settings need. The contract surface is in place; the implementations wait. Specifically: `UserAuth` sign-in surface, magic-link / SSO / OIDC adapters, UI-editable conditional rules (CASL-style), site-settings storage. See [AUTHN-AUTHZ.md → Explicitly deferred](./AUTHN-AUTHZ.md#explicitly-deferred).
+Distinct from the shipped admin-auth subsystem (`AdminAuth`, `JwtSessionProvider`, admin user/role/permission management, document-collection and admin-management ability enforcement, `beforeRead` row-scoping). The pieces below are reserved in the contract — `Actor = AdminAuth | UserAuth | null`, the `SessionProvider` interface — but the implementations wait.
 
-### Fold storage flatten / restore into `walkFieldTree`
+**Trigger:** a concrete end-user-facing feature (public sign-in, gated content, member-only routes), real demand for SSO/OIDC, role-editable rules pressure, or a site-settings need.
 
-**Trigger:** a third walker of the same shape as `flattenFieldSetData` / `restoreFieldSetData` appears, or one of those two grows a feature that would benefit from sharing the leaf-yield primitive.
+Specifically:
 
-The narrow `walkFieldTree` extraction shipped covers the two walkers that share its shape: `collectRelationLeaves` (`packages/core/src/services/populate.ts`) and `collectRichTextLeaves` (`packages/core/src/services/richtext-populate.ts`). Both are now thin filters over `walkFieldTree` in `packages/core/src/services/walk-field-tree.ts`, with a contract test covering every nesting shape, the parent/key invariant, and tolerance paths.
+- **`UserAuth` sign-in surface** — end-user authentication realm. The `Actor` union already accepts `UserAuth`; the DB tables, sign-in flow, and UI wait.
+- **Magic-link / SSO / OIDC providers** — `SessionProvider` accommodates them; only the built-in `JwtSessionProvider` ships today.
+- **UI-editable conditional rules (CASL-style)** — currently expressed via collection hooks; a UI for role-editable rules is the deferred bit.
+- **Site-settings storage and editor** — orthogonal to auth; bundled here because it surfaces with similar UI/runtime concerns.
 
-The two storage-side walkers were intentionally left out:
-
-- `flattenFieldSetData` (`packages/db-postgres/src/modules/storage/storage-flatten.ts`) — emits per-store-table rows with locale fan-out and synthetic `_id` minting. Shares a *traversal skeleton* with `walkFieldTree` but the per-field branches all do bespoke work; folding it in would force a fat-context visitor (`{ kind: 'leaf' | 'meta' | 'localized-fan-out' }`) that just relocates branching from the call site into the visitor — no real reuse.
-- `restoreFieldSetData` (`packages/db-postgres/src/modules/storage/storage-restore.ts`) — not a tree walk at all. It consumes flattened rows via a path-index cursor and constructs the tree as it goes. Different primitive; cannot share.
-
-The original `applyAfterRead` (`packages/core/src/services/document-read.ts`) listed in the prior entry is **not a walker** — it fires the hook once per top-level document. No traversal to share.
-
-Rationale and the audit that drove this scoping is captured in the conversation that landed `walkFieldTree`. Re-open if a third call site appears or if storage-side work changes shape enough that the abstraction stops straining at the seams.
+See [AUTHN-AUTHZ.md → Explicitly deferred](./AUTHN-AUTHZ.md#explicitly-deferred).
 
 ### Stable HTTP transport for `path`
 
