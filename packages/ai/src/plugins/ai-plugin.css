@@ -1,10 +1,3 @@
-.root {
-  --border-radius-none: 0;
-  --border-radius-sm: 0;
-  --border-radius-md: 0;
-  --border-radius-lg: 0;
-}
-
 .ai-plugin__drawer {
   display: flex;
   flex-direction: column;
@@ -17,7 +10,10 @@
   overflow: hidden;
   border-radius: 4px;
   transform: translateY(-4px);
-  transition: max-height 220ms ease, opacity 180ms ease, transform 220ms ease;
+  transition:
+    max-height 220ms ease,
+    opacity 180ms ease,
+    transform 220ms ease;
 }
 
 .ai-plugin__drawer--visible {
@@ -44,7 +40,10 @@
   opacity: 0;
   overflow: hidden;
   transform: translateY(-4px);
-  transition: max-height 220ms ease, opacity 180ms ease, transform 220ms ease;
+  transition:
+    max-height 220ms ease,
+    opacity 180ms ease,
+    transform 220ms ease;
   gap: 8px;
 }
 
@@ -66,7 +65,10 @@
   border-radius: 0;
   overflow: hidden;
   transform: translateY(-4px);
-  transition: max-height 220ms ease, opacity 180ms ease, transform 220ms ease;
+  transition:
+    max-height 220ms ease,
+    opacity 180ms ease,
+    transform 220ms ease;
 }
 
 .ai-plugin__stream-preview--visible {
@@ -85,8 +87,9 @@
 
 .ai-plugin__stream-preview__content {
   height: 50px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
   font-size: 12px;
   line-height: 1.25;
   white-space: pre-wrap;
@@ -111,7 +114,6 @@
   font-size: 14px;
   margin-top: 4px;
 }
-
 
 .ai-plugin__footer {
   display: flex;
@@ -146,8 +148,6 @@
   fill: #222222;
   cursor: pointer;
 }
-
-
 
 .dark,
 [data-theme="dark"],

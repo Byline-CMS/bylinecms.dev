@@ -32,6 +32,7 @@ import { AdminMenuDrawer } from '../admin-shell/chrome/menu-drawer.js'
 import { AdminMenuProvider } from '../admin-shell/chrome/menu-provider.js'
 import { RouteError, RouteNotFound } from '../admin-shell/chrome/route-error.js'
 import { bylineAdminServices } from '../integrations/byline-admin-services.js'
+import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
 
@@ -67,16 +68,18 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
       return (
         <BylineAdminServicesProvider services={bylineAdminServices}>
           <BylineFieldServicesProvider services={bylineFieldServices}>
-            <AdminMenuProvider>
-              <AdminAppBar user={user} />
-              <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
-                <DrawerToggle />
-                <AdminMenuDrawer />
-                <Content>
-                  <Outlet />
-                </Content>
-              </main>
-            </AdminMenuProvider>
+            <BylineAiAdminProvider>
+              <AdminMenuProvider>
+                <AdminAppBar user={user} />
+                <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
+                  <DrawerToggle />
+                  <AdminMenuDrawer />
+                  <Content>
+                    <Outlet />
+                  </Content>
+                </main>
+              </AdminMenuProvider>
+            </BylineAiAdminProvider>
           </BylineFieldServicesProvider>
         </BylineAdminServicesProvider>
       )

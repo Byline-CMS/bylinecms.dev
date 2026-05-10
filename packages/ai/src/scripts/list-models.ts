@@ -1,3 +1,11 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import { listAllModels as listAnthropic } from '../models/anthropic/anthropic-models'
 import { listAllModels as listGoogle } from '../models/google/google-models'
 import { listAllModels as listOpenAI } from '../models/openai/openai-models'

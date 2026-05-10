@@ -44,12 +44,14 @@
       "react-dom": "19.2.5"
     },
     "onlyBuiltDependencies": [
+      "@google/genai",
       "@parcel/watcher",
       "@tailwindcss/oxide",
       "argon2",
       "core-js",
       "esbuild",
       "lightningcss-cli",
+      "protobufjs",
       "sharp"
     ]
   }

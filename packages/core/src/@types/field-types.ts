@@ -410,6 +410,11 @@ export interface RichTextField extends LocalizableField {
    * each editor adapter defines what it accepts. For `@byline/richtext-lexical`
    * this is its `EditorConfig`. Per-field config takes precedence over any
    * baked-in config supplied at registration via `lexicalEditor()`.
+   *
+   * This is **data**, not React — schemas stay tsx-loadable for seeds
+   * and the server bootstrap. To swap the rendered editor *component*
+   * for a single field, use the admin-side lever:
+   * `CollectionAdminConfig.fields.<name>.editor` (see admin-types).
    */
   editorConfig?: unknown
   /**

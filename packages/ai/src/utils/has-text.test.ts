@@ -1,3 +1,11 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import type {
   SerializedEditorState,
   SerializedLexicalNode,
@@ -12,14 +20,14 @@ import { hasText } from './has-text'
 
 type State = SerializedEditorState<SerializedLexicalNode>
 
-function rootState(children: SerializedRootNode['children']): State {
+function rootState(_children: SerializedRootNode['children']): State {
   return {
     root: {
       direction: null,
-      format: "",
+      format: '',
       indent: 0,
-      type: "root",
-      version: 1
+      type: 'root',
+      version: 1,
     } as SerializedRootNode,
   }
 }
@@ -35,7 +43,7 @@ function emptyParagraph(
     type: 'paragraph',
     version: 1,
     textFormat: 0,
-    textStyle: ''
+    textStyle: '',
   } as SerializedParagraphNode
 }
 

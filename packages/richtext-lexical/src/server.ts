@@ -34,8 +34,16 @@ import { type LexicalNodeVisitor, runLexicalPopulate } from './field/lexical-pop
 import { inlineImageVisitor } from './field/plugins/inline-image-plugin/populate'
 import { linkVisitor } from './field/plugins/link-plugin/populate'
 
+// ---------------------------------------------------------------------------
+// Schema-data re-exports — data-only Lexical config that's safe to evaluate
+// outside Vite (e.g. tsx-loaded seeds). Importing these from the root barrel
+// (`@byline/richtext-lexical`) drags in `RichTextField` / `EditorField` and
+// their CSS imports; the `/server` subpath stays React-free.
+// ---------------------------------------------------------------------------
+export { defaultEditorConfig } from './field/config/default'
 export { inlineImageVisitor } from './field/plugins/inline-image-plugin/populate'
 export { linkVisitor } from './field/plugins/link-plugin/populate'
+export type { EditorConfig, EditorSettings, EditorSettingsOverride } from './field/config/types'
 export type {
   LexicalNodeLike,
   LexicalNodeVisitor,

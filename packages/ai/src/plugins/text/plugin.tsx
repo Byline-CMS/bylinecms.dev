@@ -1,10 +1,19 @@
 'use client'
 
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import * as React from 'react'
 import { useCallback } from 'react'
 
 import type { ExecuteInstruction, InstructionState } from '@byline/ai'
 
+import { useAiPublicConfig } from '../../config/ai-provider'
 import { AiPluginBase, type AiPluginSubmitContext } from '../ai-plugin-base'
 
 const emptyInstructionState: InstructionState = {
@@ -28,6 +37,7 @@ export const AiPluginText = React.memo(function AiPlugin(
   props: AiPluginTextProps
 ): React.JSX.Element | undefined {
   const { onApplyResult, onClearInput } = props
+  const aiConfig = useAiPublicConfig()
   const applyResult = useCallback(
     (nextState: InstructionState) => {
       if (nextState.status !== 'success') return
@@ -87,10 +97,12 @@ export const AiPluginText = React.memo(function AiPlugin(
           },
         }
 
-        const response = await fetch('/routes/ai', {
+        const fetchImpl = aiConfig.fetch ?? fetch
+        const response = await fetchImpl(aiConfig.endpoint, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
+            ...(aiConfig.headers ?? {}),
           },
           signal: abortController.signal,
           body: JSON.stringify(payload),
@@ -131,7 +143,7 @@ export const AiPluginText = React.memo(function AiPlugin(
         abortControllerRef.current = null
       }
     },
-    [applyResult, props.inputText]
+    [aiConfig, applyResult, props.inputText]
   )
 
   const handleOnSubmitStreaming = useCallback(
@@ -187,10 +199,12 @@ export const AiPluginText = React.memo(function AiPlugin(
           },
         }
 
-        const response = await fetch('/routes/ai', {
+        const fetchImpl = aiConfig.fetch ?? fetch
+        const response = await fetchImpl(aiConfig.endpoint, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
+            ...(aiConfig.headers ?? {}),
           },
           signal: abortController.signal,
           body: JSON.stringify(payload),
@@ -289,7 +303,7 @@ export const AiPluginText = React.memo(function AiPlugin(
         abortControllerRef.current = null
       }
     },
-    [applyResult, props.inputText]
+    [aiConfig, applyResult, props.inputText]
   )
 
   function handleOnDebug(): void {

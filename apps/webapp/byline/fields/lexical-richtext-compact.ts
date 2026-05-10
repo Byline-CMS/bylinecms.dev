@@ -6,8 +6,25 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+/**
+ * **Schema-side helper.** Returns a `RichTextField` schema — drop into a
+ * collection's `fields` array in `<collection>/schema.ts`. Bakes a
+ * compact Lexical `editorConfig` (toolbar / options data) into the
+ * schema. Pure data: no React, no CSS — schema files must stay
+ * tsx-loadable for seeds (see `byline/server.config.ts`).
+ *
+ * To AI-enable the resulting field, pair this with `aiRichTextAdmin()`
+ * on the admin side — see `lexical-richtext-ai.tsx`.
+ *
+ * See `docs/FIELD-API.md` for the full schema-vs-admin model.
+ */
+
 import type { RichTextField } from '@byline/core'
-import { defaultEditorConfig, type EditorConfig } from '@byline/richtext-lexical'
+// Import from `/server` (data-only) rather than the package root so this
+// schema helper stays tsx-loadable. The root barrel evaluates `RichTextField`
+// / `EditorField` and their CSS imports, which would break seeds that load
+// any collection schema using this factory.
+import { defaultEditorConfig, type EditorConfig } from '@byline/richtext-lexical/server'
 
 type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
   /**

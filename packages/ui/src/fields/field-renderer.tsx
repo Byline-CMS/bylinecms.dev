@@ -12,6 +12,7 @@ import type {
   Field,
   FieldComponentSlots,
   GroupField as GroupFieldType,
+  RichTextEditorComponent,
 } from '@byline/core'
 import { getClientConfig } from '@byline/core'
 import cx from 'classnames'
@@ -56,6 +57,13 @@ interface FieldRendererProps {
    * Forwarded to value-field widgets that support custom slots.
    */
   components?: FieldComponentSlots
+  /**
+   * Per-field rich-text editor component override from the admin config.
+   * Takes precedence over the globally registered
+   * `ClientConfig.fields.richText.editor` for this single field.
+   * Ignored when `field.type !== 'richText'`.
+   */
+  editor?: RichTextEditorComponent
 }
 
 export const FieldRenderer = ({
@@ -67,6 +75,7 @@ export const FieldRenderer = ({
   collectionPath,
   contentLocale,
   components,
+  editor,
 }: FieldRendererProps) => {
   const path = basePath ? `${basePath}.${field.name}` : field.name
   const htmlId = path.replace(/[[\].]/g, '-')
@@ -131,7 +140,12 @@ export const FieldRenderer = ({
           />
         )
       case 'richText': {
-        const RichTextEditor = getClientConfig().fields?.richText?.editor
+        // Admin-side per-field override takes precedence over the globally
+        // registered editor (`ClientConfig.fields.richText.editor`). The
+        // override travels via `FieldAdminConfig.fields.<name>.editor` —
+        // see admin-types — so React component references stay out of the
+        // schema graph that's loaded by the server bootstrap.
+        const RichTextEditor = editor ?? getClientConfig().fields?.richText?.editor
         if (!RichTextEditor) {
           throw new Error(
             'No richText editor registered. Install @byline/richtext-lexical and set ' +

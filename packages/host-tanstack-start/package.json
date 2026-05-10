@@ -56,6 +56,10 @@
       "types": "./dist/server-fns/admin-account/index.d.ts",
       "import": "./dist/server-fns/admin-account/index.js"
     },
+    "./server-fns/ai": {
+      "types": "./dist/server-fns/ai/index.d.ts",
+      "import": "./dist/server-fns/ai/index.js"
+    },
     "./server-fns/admin-permissions": {
       "types": "./dist/server-fns/admin-permissions/index.d.ts",
       "import": "./dist/server-fns/admin-permissions/index.js"
@@ -107,6 +111,7 @@
   },
   "dependencies": {
     "@byline/admin": "workspace:*",
+    "@byline/ai": "workspace:*",
     "@byline/auth": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",

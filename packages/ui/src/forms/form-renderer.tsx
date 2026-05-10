@@ -549,6 +549,7 @@ const FormContent = ({
         collectionPath={collectionPath}
         contentLocale={contentLocale}
         components={adminConfig?.fields?.[field.name]?.components}
+        editor={adminConfig?.fields?.[field.name]?.editor}
       />
     )
   }

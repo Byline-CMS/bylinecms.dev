@@ -6,6 +6,15 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+/**
+ * **Schema-side field.** A pre-built `datetime` field definition. Drop
+ * the exported `publishedOnField` (the value, not a call) into a
+ * collection's `fields` array in `<collection>/schema.ts`. Pure data;
+ * safe to import from any schema file.
+ *
+ * See `docs/FIELD-API.md` for the schema-vs-admin model.
+ */
+
 import { defineField, type FieldData } from '@byline/core'
 
 /**

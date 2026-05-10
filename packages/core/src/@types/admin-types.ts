@@ -7,7 +7,7 @@
  */
 
 import type { CollectionDefinition, WorkflowStatus } from './collection-types.js'
-import type { FieldComponentSlots } from './field-types.js'
+import type { FieldComponentSlots, RichTextEditorComponent } from './field-types.js'
 
 /**
  * Props passed to a custom list-view component registered via
@@ -165,6 +165,21 @@ export interface FieldAdminConfig {
    * @see FieldComponentSlots
    */
   components?: FieldComponentSlots
+  /**
+   * Per-field rich-text editor component override. When set on a
+   * `type: 'richText'` field's admin entry, the framework renders this
+   * component instead of the globally registered
+   * `ClientConfig.fields.richText.editor`. Use to opt one specific field
+   * into an alternate editor (e.g. an AI-enabled wrapper around the
+   * default Lexical field) without changing the site-wide registration.
+   *
+   * Lives on the admin side rather than the schema side because it
+   * carries a React component reference, and schemas must remain
+   * tsx-loadable for seeds and the server bootstrap.
+   *
+   * Ignored for non-`richText` fields.
+   */
+  editor?: RichTextEditorComponent
 }
 
 /**

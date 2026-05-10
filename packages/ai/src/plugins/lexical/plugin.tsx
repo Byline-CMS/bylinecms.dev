@@ -1,5 +1,13 @@
 'use client'
 
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import * as React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -16,6 +24,7 @@ import {
   type SerializedEditorState,
 } from 'lexical'
 
+import { useAiPublicConfig } from '../../config/ai-provider'
 import { AiPluginBase, type AiPluginSubmitContext } from '../ai-plugin-base'
 import { createEmptyEditorState } from './create-empty-editor-state'
 import { importHtmlToSerializedEditorState } from './import-html'
@@ -32,6 +41,7 @@ const emptyInstructionState: InstructionState = {
 
 export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element | undefined {
   const submitEditorRef = useRef<LexicalEditor | null>(null)
+  const aiConfig = useAiPublicConfig()
   const [editor] = useLexicalComposerContext()
   const [activeEditor, setActiveEditor] = useState(editor)
   const [open, setOpen] = useState(false)
@@ -122,10 +132,12 @@ export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element
           },
         }
 
-        const response = await fetch('/routes/ai', {
+        const fetchImpl = aiConfig.fetch ?? fetch
+        const response = await fetchImpl(aiConfig.endpoint, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
+            ...(aiConfig.headers ?? {}),
           },
           signal: abortController.signal,
           body: JSON.stringify(payload),
@@ -166,7 +178,7 @@ export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element
         abortControllerRef.current = null
       }
     },
-    [activeEditor, applyInstructionStateToEditor]
+    [aiConfig, activeEditor, applyInstructionStateToEditor]
   )
 
   const handleOnSubmitStreaming = useCallback(
@@ -222,10 +234,12 @@ export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element
           },
         }
 
-        const response = await fetch('/routes/ai', {
+        const fetchImpl = aiConfig.fetch ?? fetch
+        const response = await fetchImpl(aiConfig.endpoint, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
+            ...(aiConfig.headers ?? {}),
           },
           signal: abortController.signal,
           body: JSON.stringify(payload),
@@ -323,7 +337,7 @@ export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element
         abortControllerRef.current = null
       }
     },
-    [activeEditor, applyInstructionStateToEditor]
+    [aiConfig, activeEditor, applyInstructionStateToEditor]
   )
 
   function handleOnDebug(): void {

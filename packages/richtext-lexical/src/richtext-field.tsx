@@ -28,6 +28,22 @@ interface Props {
   path?: string
   /** When provided, renders a LocaleBadge next to the field label. */
   locale?: string
+  /**
+   * Feature nodes rendered **before** the editor surface (inside the
+   * `LexicalComposer` tree, so plugins can use `useLexicalComposerContext`).
+   * Use for plugins like AI assistants that need editor access.
+   */
+  featureBeforeEditor?: React.ReactNode[]
+  /**
+   * Feature nodes rendered **after** the editor surface. Same composer
+   * context as `featureBeforeEditor`.
+   */
+  featureAfterEditor?: React.ReactNode[]
+  /**
+   * Feature nodes rendered as additional composer children — e.g. plugins
+   * that need to register commands or listeners without rendering UI.
+   */
+  featureChildren?: React.ReactNode[]
 }
 
 export const RichTextField = ({
@@ -40,6 +56,9 @@ export const RichTextField = ({
   onChange,
   path,
   locale,
+  featureBeforeEditor,
+  featureAfterEditor,
+  featureChildren,
 }: Props) => {
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
@@ -102,6 +121,9 @@ export const RichTextField = ({
           required={!field.optional}
           value={incomingValue}
           defaultValue={incomingDefault}
+          featureBeforeEditor={featureBeforeEditor}
+          featureAfterEditor={featureAfterEditor}
+          featureChildren={featureChildren}
           // Ensure React fully remounts when instanceKey changes
           key={fieldId}
         />

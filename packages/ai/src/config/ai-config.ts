@@ -1,3 +1,11 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import { z } from 'zod'
 
 import type { Provider } from '../@types'
@@ -82,35 +90,41 @@ export const getAiServerConfig = (): AiServerConfig => {
 }
 
 /**
- * Public configuration schema and functions. Note that these
- * values are populated via .env.public and NEXT_PUBLIC_... vars
- * which are available at 'build time', and are compiled into
- * the Next.js client application - and therefore shipped to
- * the browser. .env.public is also committed to the project's
- * Git repo - and so it's essential that these values
- * DO NOT contain secrets.
+ * Default path for the AI execute endpoint. Host adapters mount the
+ * actual handler at this path (or override via AiPublicConfigProvider).
  */
-const aiPublicSchema = z.object({})
+export const DEFAULT_AI_ENDPOINT = '/api/admin/ai'
 
-export type AiPublicConfig = z.infer<typeof aiPublicSchema>
+/**
+ * Public configuration. These values are passed to the browser via
+ * <AiPublicConfigProvider> and read by the AI plugins. Must NOT contain
+ * secrets — only transport configuration.
+ *
+ * - `endpoint`: URL the plugins POST `ExecuteInstruction` to
+ * - `enabled`: when explicitly `false`, wrappers may hide AI affordances
+ * - `fetch`: optional fetch override (auth interceptors, tests, etc.)
+ * - `headers`: optional headers merged into every request
+ */
+const aiPublicSchema = z.object({
+  endpoint: z.string().default(DEFAULT_AI_ENDPOINT),
+  enabled: z.boolean().optional(),
+})
 
-const initAiPublicConfig = () =>
+type AiPublicEnvConfig = z.infer<typeof aiPublicSchema>
+
+export type AiPublicConfig = AiPublicEnvConfig & {
+  fetch?: typeof fetch
+  headers?: HeadersInit
+}
+
+const initAiPublicConfig = (): AiPublicEnvConfig =>
   aiPublicSchema.parse({
-    // siteName: process.env.NEXT_PUBLIC_SITE_NAME,
-    // siteDescription: process.env.NEXT_PUBLIC_SITE_DESCRIPTION,
-    // publicServerUrl: process.env.NEXT_PUBLIC_PUBLIC_SERVER_URL,
-    // apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
-    // cspEnabled: process.env.NEXT_PUBLIC_CSP_ENABLED,
-    // recaptcha: {
-    //   enabled: process.env.NEXT_PUBLIC_RECAPTCHA_ENABLED,
-    //   mandatory: process.env.NEXT_PUBLIC_RECAPTCHA_MANDATORY,
-    //   siteKey: process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY,
-    // },
+    endpoint: process.env.BYLINE_AI_ENDPOINT ?? DEFAULT_AI_ENDPOINT,
   })
 
-let cachedAiPublicConfig: AiPublicConfig
+let cachedAiPublicConfig: AiPublicEnvConfig
 
-export const getAiPublicConfig = (): AiPublicConfig => {
+export const getAiPublicConfig = (): AiPublicEnvConfig => {
   if (cachedAiPublicConfig == null) {
     cachedAiPublicConfig = initAiPublicConfig()
   }

@@ -68,6 +68,18 @@ export const config: ClientConfig = {
     //   }),
     // },
     // ---------------------------------------------------------------------
+    //
+    // Or — enable the AI assistant on every richtext field globally by
+    // registering the `LexicalRichTextAi` wrapper. It forwards all props
+    // to `LexicalRichTextField` and injects `<AiPluginLexical />` into
+    // `featureAfterEditor`, which registers a toolbar icon and renders
+    // the AI panel below the editor. Server-side auth is provided by
+    // `executeAiInstruction` via `<BylineAiAdminProvider>` in the admin
+    // layout.
+    //
+    // import { LexicalRichTextAi } from './fields/lexical-richtext-ai.js'
+    // richText: { editor: LexicalRichTextAi },
+    // ---------------------------------------------------------------------
   },
 }
 
