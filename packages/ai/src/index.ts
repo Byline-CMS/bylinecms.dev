@@ -11,7 +11,7 @@
  *
  * Importing this entry pulls only: type definitions, the public config
  * provider, and small provider/model helpers. It does NOT pull in the
- * AI execution code (which depends on pino, the Anthropic/OpenAI/Google
+ * AI execution code (which depends on the Anthropic/OpenAI/Google
  * SDKs, etc., and would crash in the browser).
  *
  * Server-only execution APIs live at `@byline/ai/server`.
@@ -39,19 +39,16 @@ export type {
   InstructionState,
   OutputPreference,
   Provider,
-  Sdk,
 } from './@types'
 
 import { DEFAULT_MODELS } from './config/ai-config'
-import type { Provider, Sdk } from './@types'
+import type { Provider } from './@types'
 
 export const PROVIDERS: Array<[Provider, string]> = [
   ['openai', 'OpenAI'],
   ['google', 'Google'],
   ['anthropic', 'Anthropic'],
 ]
-
-export const SDKS: Sdk[] = ['native', 'vercel']
 
 export const isProvider = (value: string): value is Provider => {
   return value === 'openai' || value === 'google' || value === 'anthropic'
@@ -62,10 +59,4 @@ export const getDefaultModel = (provider: Provider): string => {
     throw new Error(`Invalid provider: ${provider}`)
   }
   return DEFAULT_MODELS[provider]
-}
-
-export const normalizeSdk = (value: unknown): Sdk => {
-  if (typeof value !== 'string') return 'native'
-  const normalized = value.trim().toLowerCase()
-  return normalized === 'vercel' ? 'vercel' : 'native'
 }

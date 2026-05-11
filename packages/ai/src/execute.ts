@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { stdSerializers } from 'pino'
+import { withLogContext } from '@byline/core/logger'
 import { z } from 'zod'
 
 import { instructionSchema } from './@types'
@@ -25,7 +25,6 @@ import type {
   ExecuteInstructionOptions,
   ExecuteInstructionParams,
   InstructionMode,
-  InstructionSdk,
   InstructionState,
   OutputPreference,
   Provider,
@@ -34,7 +33,6 @@ import type { GenerateStreamingResult } from './generate'
 import type { PatchStreamingResult } from './patch'
 
 type ValidatedInstruction = {
-  sdk: InstructionSdk
   mode: InstructionMode
   apiKey: string
   input: { type: 'structured' | 'text'; value: any | null }
@@ -86,7 +84,7 @@ const validateInstructionFields = (
     }
   }
 
-  const { prompt, input, provider, model: modelName, sdk, mode } = validatedFields.data
+  const { prompt, input, provider, model: modelName, mode } = validatedFields.data
   const output = validatedFields.data.output ?? ({ type: 'structured' } as const)
 
   // Validate that the appropriate API key exists for the selected provider
@@ -148,7 +146,6 @@ const validateInstructionFields = (
   return {
     ok: true,
     data: {
-      sdk,
       mode,
       apiKey,
       input: {
@@ -167,10 +164,18 @@ export async function executeInstruction(
   params: ExecuteInstructionParams,
   options?: ExecuteInstructionOptions
 ): Promise<InstructionState> {
+  return withLogContext({ domain: 'ai', module: 'execute', function: 'executeInstruction' }, () =>
+    executeInstructionImpl(params, options)
+  )
+}
+
+async function executeInstructionImpl(
+  params: ExecuteInstructionParams,
+  options?: ExecuteInstructionOptions
+): Promise<InstructionState> {
   const startedAt = Date.now()
 
   const withLastRun = (state: InstructionState): InstructionState => {
-    // console.log('executeInstruction result', state)
     return { ...state, lastRun: Date.now() - startedAt }
   }
 
@@ -181,7 +186,7 @@ export async function executeInstruction(
     return withLastRun(validated.errorState)
   }
 
-  const { prompt, input, provider, modelName, sdk, apiKey, output, mode } = validated.data
+  const { prompt, input, provider, modelName, apiKey, output, mode } = validated.data
 
   // Resolve existing content as plain text for use as context in new_with_context / patch modes.
   const contextText =
@@ -198,7 +203,6 @@ export async function executeInstruction(
         apiKey,
         modelName,
         prompt,
-        sdk,
         inputText: contextText,
         signal: options?.signal,
       })
@@ -226,7 +230,6 @@ export async function executeInstruction(
         apiKey,
         modelName,
         prompt,
-        sdk,
         inputText: contextText,
         maxLength: output.maxLength,
         signal: options?.signal,
@@ -264,7 +267,6 @@ export async function executeInstruction(
         apiKey,
         modelName,
         prompt,
-        sdk,
         editorState: input.value,
         signal: options?.signal,
       })
@@ -292,7 +294,6 @@ export async function executeInstruction(
       apiKey,
       modelName,
       prompt,
-      sdk,
       inputText: contextText,
       signal: options?.signal,
     })
@@ -341,14 +342,7 @@ export async function executeInstruction(
       })
     }
 
-    logger.error({
-      instruction: {
-        status: 'failed',
-        message: 'error calling instruction action',
-        method: 'instruction',
-        error: stdSerializers.err(error as Error),
-      },
-    })
+    logger.error({ err: error }, 'error calling instruction action')
 
     return withLastRun({
       errors: {},
@@ -367,6 +361,16 @@ export function executeInstructionStreaming(
   params: ExecuteInstructionParams,
   options?: ExecuteInstructionOptions
 ): ExecuteInstructionStreamingResult {
+  return withLogContext(
+    { domain: 'ai', module: 'execute', function: 'executeInstructionStreaming' },
+    () => executeInstructionStreamingImpl(params, options)
+  )
+}
+
+function executeInstructionStreamingImpl(
+  params: ExecuteInstructionParams,
+  options?: ExecuteInstructionOptions
+): ExecuteInstructionStreamingResult {
   const startedAt = Date.now()
   const withLastRun = (state: InstructionState): InstructionState => {
     return { ...state, lastRun: Date.now() - startedAt }
@@ -382,7 +386,7 @@ export function executeInstructionStreaming(
     }
   }
 
-  const { prompt, input, provider, modelName, sdk, apiKey, output, mode } = validated.data
+  const { prompt, input, provider, modelName, apiKey, output, mode } = validated.data
 
   // Resolve existing content as plain text for use as context in new_with_context / patch modes.
   const contextText =
@@ -401,7 +405,6 @@ export function executeInstructionStreaming(
         apiKey,
         modelName,
         prompt,
-        sdk,
         inputText: contextText,
         signal: options?.signal,
       })
@@ -411,7 +414,6 @@ export function executeInstructionStreaming(
         apiKey,
         modelName,
         prompt,
-        sdk,
         inputText: contextText,
         maxLength: output.maxLength,
         signal: options?.signal,
@@ -436,7 +438,6 @@ export function executeInstructionStreaming(
           apiKey,
           modelName,
           prompt,
-          sdk,
           editorState: input.value,
           signal: options?.signal,
         })
@@ -447,7 +448,6 @@ export function executeInstructionStreaming(
           apiKey,
           modelName,
           prompt,
-          sdk,
           inputText: contextText,
           signal: options?.signal,
         })
@@ -512,14 +512,7 @@ export function executeInstructionStreaming(
           })
         }
 
-        logger.error({
-          instruction: {
-            status: 'failed',
-            message: 'error calling instruction action',
-            method: 'instruction-streaming',
-            error: stdSerializers.err(error as Error),
-          },
-        })
+        logger.error({ err: error }, 'error calling instruction action')
 
         return withLastRun({
           errors: {},
@@ -544,14 +537,7 @@ export function executeInstructionStreaming(
       }
     }
 
-    logger.error({
-      instruction: {
-        status: 'failed',
-        message: 'error calling instruction action',
-        method: 'instruction-streaming',
-        error: stdSerializers.err(error as Error),
-      },
-    })
+    logger.error({ err: error }, 'error calling instruction action')
 
     return {
       text: createEmptyTextStream(),

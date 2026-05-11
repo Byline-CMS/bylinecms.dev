@@ -11,8 +11,8 @@
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 
-import type { InstructionState, Provider, Sdk } from '@byline/ai'
-import { getDefaultModel, isProvider, normalizeSdk, PROVIDER_MODELS } from '@byline/ai'
+import type { InstructionState, Provider } from '@byline/ai'
+import { getDefaultModel, isProvider, PROVIDER_MODELS } from '@byline/ai'
 import {
   Button,
   Checkbox,
@@ -38,7 +38,6 @@ import './ai-plugin.css'
 
 type EditorChatState = {
   mode: 'new' | 'new_with_context' | 'patch'
-  sdk: Sdk
   provider: Provider
   model: string
 }
@@ -48,7 +47,6 @@ export type AiPluginSubmitContext = {
   mode: 'new' | 'new_with_context' | 'patch'
   provider: Provider
   model: string
-  sdk: Sdk
   isPending: boolean
   setIsPending: React.Dispatch<React.SetStateAction<boolean>>
   instructionState: InstructionState
@@ -83,7 +81,6 @@ const initialInstructionState: InstructionState = {
 
 const initialEditorChatState: EditorChatState = {
   mode: 'new',
-  sdk: 'native',
   provider: 'openai',
   model: getDefaultModel('openai'),
 }
@@ -157,14 +154,6 @@ export const AiPluginBase = React.memo(function AiPluginBase(
     }))
   }
 
-  const handleOnSdkChange = (value: unknown, _eventDetails: unknown) => {
-    if (value !== 'native' && value !== 'vercel') return
-    setState((prev) => ({
-      ...prev,
-      sdk: value,
-    }))
-  }
-
   const handleOnModelChange = (value: unknown, _eventDetails: unknown) => {
     if (typeof value !== 'string' || !value) return
     const modelsForProvider = PROVIDER_MODELS[state.provider] ?? []
@@ -177,7 +166,6 @@ export const AiPluginBase = React.memo(function AiPluginBase(
     mode: state.mode,
     provider: state.provider,
     model: state.model,
-    sdk: state.sdk,
     isPending,
     setIsPending,
     instructionState,
@@ -232,7 +220,6 @@ export const AiPluginBase = React.memo(function AiPluginBase(
         : getDefaultModel(config.provider)
 
       setState({
-        sdk: normalizeSdk(config.sdk),
         mode: config.mode,
         provider: config.provider,
         model,
@@ -252,9 +239,8 @@ export const AiPluginBase = React.memo(function AiPluginBase(
       mode: state.mode,
       provider: state.provider,
       model: state.model,
-      sdk: state.sdk,
     })
-  }, [state.mode, state.provider, state.model, state.sdk])
+  }, [state.mode, state.provider, state.model])
 
   useEffect(() => {
     return () => {
@@ -319,6 +305,7 @@ export const AiPluginBase = React.memo(function AiPluginBase(
         <Button
           fullWidth={false}
           type="button"
+          intent="success"
           size="sm"
           onClick={useStreaming ? handleOnSubmitStreaming : handleOnSubmit}
           disabled={!prompt.trim() || isPending === true}
@@ -381,20 +368,6 @@ export const AiPluginBase = React.memo(function AiPluginBase(
           )}
         />
 
-        <Select
-          key={state.sdk}
-          name="sdk"
-          value={state.sdk}
-          size="sm"
-          onValueChange={handleOnSdkChange}
-          disabled={isPending === true || settingsOpen === false}
-          variant="outlined"
-          items={[
-            { label: 'Native', value: 'native' },
-            { label: 'Vercel', value: 'vercel' },
-          ]}
-        />
-
         <div className="mr-2">
           <Checkbox
             name="streaming"
@@ -443,10 +416,10 @@ export const AiPluginBase = React.memo(function AiPluginBase(
       <Modal isOpen={isOpen} onDismiss={onDismiss} closeOnOverlayClick={true}>
         <Modal.Container style={{ maxWidth: '600px', borderRadius: '4px' }}>
           <Modal.Header style={{ marginBottom: '0.5rem' }}>
-            <h2 style={{ fontSize: '1.75rem' }}>{props.helpTitle ?? 'AI Help'}</h2>
+            <h2 style={{ fontSize: '1.65rem' }}>{props.helpTitle ?? 'AI Help'}</h2>
             <IconButton
               arial-label="Close"
-              size="sm"
+              size="xs"
               onClick={() => {
                 setIsOpen(false)
               }}

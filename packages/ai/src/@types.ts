@@ -26,7 +26,6 @@ export type ExecuteInstructionParams = {
   prompt: string
   mode: InstructionMode
   input: ExecuteInstructionInput
-  sdk: InstructionSdk
   provider: Provider
   model: string
   output?: OutputPreference
@@ -42,15 +41,6 @@ export type ExecuteInstructionOptions = {
 export type ExecuteInstruction = {
   params: ExecuteInstructionParams
   options?: ExecuteInstructionOptions
-}
-
-export const SDKS = ['native', 'vercel'] as const
-export type Sdk = (typeof SDKS)[number]
-
-export const normalizeSdk = (value: unknown): Sdk => {
-  if (typeof value !== 'string') return 'native'
-  const normalized = value.trim().toLowerCase()
-  return normalized === 'vercel' ? 'vercel' : 'native'
 }
 
 export interface InstructionState {
@@ -119,11 +109,7 @@ export const instructionSchema = z.object({
     error: (issue) =>
       issue.input === undefined ? 'Model is required.' : 'Model must be a string.',
   }),
-  sdk: z.enum(SDKS, {
-    error: 'SDK must be one of native or vercel.',
-  }),
   output: outputPreferenceSchema,
 })
 
 export type Provider = z.infer<typeof instructionSchema>['provider']
-export type InstructionSdk = z.infer<typeof instructionSchema>['sdk']

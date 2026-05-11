@@ -8,25 +8,24 @@
 
 import { extractTextNodesFromLexicalState, setAtPath } from './lexical-text-edits'
 import {
-  getPatchDoc as getPatchAnthropicDoc,
-  getPatchDocStreaming as getPatchAnthropicDocStreaming,
+  patchDoc as patchAnthropicDoc,
+  patchDocStreaming as patchAnthropicDocStreaming,
 } from './models/anthropic/patch'
 import {
-  getPatchDoc as getPatchGeminiDoc,
-  getPatchDocStreaming as getPatchGeminiDocStreaming,
+  patchDoc as patchGeminiDoc,
+  patchDocStreaming as patchGeminiDocStreaming,
 } from './models/google/patch'
 import {
-  getPatchDoc as getPatchOpenAIDoc,
-  getPatchDocStreaming as getPatchOpenAIDocStreaming,
+  patchDoc as patchOpenAIDoc,
+  patchDocStreaming as patchOpenAIDocStreaming,
 } from './models/openai/patch'
-import type { Provider, Sdk } from './@types'
+import type { Provider } from './@types'
 
 export interface PatchOptions {
   provider: Provider
   apiKey: string
   modelName: string
   prompt: string
-  sdk: Sdk
   editorState: any
   signal?: AbortSignal
 }
@@ -52,6 +51,20 @@ const createEmptyTextStream = (): AsyncIterable<string> =>
   (async function* () {
     // intentionally empty
   })()
+
+const pickPatchDoc = (provider: Provider) =>
+  provider === 'openai'
+    ? patchOpenAIDoc
+    : provider === 'google'
+      ? patchGeminiDoc
+      : patchAnthropicDoc
+
+const pickPatchDocStreaming = (provider: Provider) =>
+  provider === 'openai'
+    ? patchOpenAIDocStreaming
+    : provider === 'google'
+      ? patchGeminiDocStreaming
+      : patchAnthropicDocStreaming
 
 async function processPatchResult(
   result: { edits: Array<{ id: number; text: string }> },
@@ -106,7 +119,7 @@ async function processPatchResult(
  * while only modifying the text content.
  */
 export async function patch(options: PatchOptions): Promise<PatchResult | PatchError> {
-  const { provider, apiKey, modelName, prompt, sdk, editorState, signal } = options
+  const { provider, apiKey, modelName, prompt, editorState, signal } = options
 
   const extracted = extractTextNodesFromLexicalState(editorState)
   const inputTextNodes = extracted.map(({ id, text }) => ({ id, text }))
@@ -128,12 +141,7 @@ export async function patch(options: PatchOptions): Promise<PatchResult | PatchE
     }
   }
 
-  const patch =
-    provider === 'openai'
-      ? getPatchOpenAIDoc(sdk)
-      : provider === 'google'
-        ? getPatchGeminiDoc(sdk)
-        : getPatchAnthropicDoc(sdk)
+  const patch = pickPatchDoc(provider)
 
   const result = await patch({
     apiKey,
@@ -147,10 +155,10 @@ export async function patch(options: PatchOptions): Promise<PatchResult | PatchE
 }
 
 /**
- * Streams a Lexical document patch. Only OpenAI supports streaming for now.
+ * Streams a Lexical document patch.
  */
 export function patchStreaming(options: PatchOptions): PatchStreamingResult {
-  const { provider, apiKey, modelName, prompt, sdk, editorState, signal } = options
+  const { provider, apiKey, modelName, prompt, editorState, signal } = options
 
   const extracted = extractTextNodesFromLexicalState(editorState)
   const inputTextNodes = extracted.map(({ id, text }) => ({ id, text }))
@@ -177,12 +185,7 @@ export function patchStreaming(options: PatchOptions): PatchStreamingResult {
     }
   }
 
-  const patchStreaming =
-    provider === 'openai'
-      ? getPatchOpenAIDocStreaming(sdk)
-      : provider === 'google'
-        ? getPatchGeminiDocStreaming(sdk)
-        : getPatchAnthropicDocStreaming(sdk)
+  const patchStreaming = pickPatchDocStreaming(provider)
 
   const streamResult = patchStreaming({
     apiKey,

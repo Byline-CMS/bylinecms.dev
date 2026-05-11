@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { PROVIDERS, type Provider, SDKS, type Sdk } from '@byline/ai'
+import { PROVIDERS, type Provider } from '@byline/ai'
 
 const STORAGE_KEY = 'editor-chat-configuration'
 
@@ -14,7 +14,6 @@ export interface ChatConfiguration {
   mode: 'new' | 'new_with_context' | 'patch'
   provider: Provider
   model: string
-  sdk: Sdk
 }
 
 const isChatConfiguration = (value: unknown): value is ChatConfiguration => {
@@ -25,9 +24,7 @@ const isChatConfiguration = (value: unknown): value is ChatConfiguration => {
     ['new', 'new_with_context', 'patch'].includes(v.mode) &&
     typeof v.provider === 'string' &&
     PROVIDERS.some((p) => p[0] === v.provider) &&
-    typeof v.model === 'string' &&
-    typeof v.sdk === 'string' &&
-    SDKS.includes(v.sdk as Sdk)
+    typeof v.model === 'string'
   )
 }
 

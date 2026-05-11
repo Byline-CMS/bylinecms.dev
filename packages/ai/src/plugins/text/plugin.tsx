@@ -54,7 +54,6 @@ export const AiPluginText = React.memo(function AiPlugin(
         mode,
         provider,
         model,
-        sdk,
         isPending,
         setIsPending,
         setInstructionState,
@@ -83,7 +82,6 @@ export const AiPluginText = React.memo(function AiPlugin(
               type: 'text',
               text: inputText,
             },
-            sdk,
             provider,
             model,
             output: {
@@ -153,7 +151,6 @@ export const AiPluginText = React.memo(function AiPlugin(
         mode,
         provider,
         model,
-        sdk,
         isPending,
         setIsPending,
         setInstructionState,
@@ -185,7 +182,6 @@ export const AiPluginText = React.memo(function AiPlugin(
               type: 'text',
               text: inputText,
             },
-            sdk,
             provider,
             model,
             output: {
@@ -323,11 +319,8 @@ export const AiPluginText = React.memo(function AiPlugin(
   const helpContent = (
     <>
       <p style={{ margin: '0.5rem 0', fontSize: '16px' }}>
-        This is an experimental feature that allows you to generate and edit content using AI.
-      </p>
-      <p style={{ margin: '0.5rem 0', fontSize: '16px' }}>
-        It can currently be used to generate new content as well as translate, summarize, rephrase,
-        check spelling, grammar and clarity in existing text.
+        Byline's AI editing feature can currently be used to generate new content as well as
+        translate, summarize, rephrase, check spelling, grammar and clarity in existing text.
       </p>
       <p style={{ margin: '0.5rem 0', fontSize: '16px' }}>Here are a few example prompts:</p>
       <ul style={{ margin: '0.5rem 0', fontSize: '16px' }}>
@@ -354,13 +347,6 @@ export const AiPluginText = React.memo(function AiPlugin(
           grammar, clarity, and tone edits.
         </li>
       </ol>
-      <p style={{ margin: '0.5rem 0', fontSize: '16px' }}>
-        <strong style={{ color: 'var(--primary-500)' }}>Note:</strong> At the time of writing -
-        2026-01-24 - OpenAI GPT-5.2 is likely the strongest all-round model for both generating new
-        content, as well as for modifying / translating existing content. Anthropic's Sonnet model
-        is also very capable, especially for editing existing text. Google's Gemini models are
-        improving rapidly, but still seem to lag slightly behind in our tests.
-      </p>
       <p className="ai-plugin__disclaimer--modal">
         Warning: AI-generated content may be inaccurate, incomplete, or misleading. Please use
         caution and verify information from reliable sources.

@@ -35,6 +35,7 @@ export function AiFieldLabel({
       <IconButton
         size="sm"
         variant="text"
+        className="outline-none"
         type="button"
         aria-label={open ? 'Hide AI assistant' : 'Show AI assistant'}
         aria-pressed={open}
