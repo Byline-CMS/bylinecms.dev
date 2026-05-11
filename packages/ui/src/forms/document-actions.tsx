@@ -188,6 +188,7 @@ export function DocumentActions({
             </button>
             <Button
               size="sm"
+              style={{ minWidth: '80px' }}
               intent="noeffect"
               onClick={() => {
                 setShowDeleteConfirm(false)
@@ -195,7 +196,7 @@ export function DocumentActions({
             >
               Cancel
             </Button>
-            <Button size="sm" intent="danger" onClick={handleOnDelete}>
+            <Button size="sm" style={{ minWidth: '80px' }} intent="danger" onClick={handleOnDelete}>
               Delete
             </Button>
           </Modal.Actions>
@@ -224,18 +225,18 @@ export function DocumentActions({
               <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
             </IconButton>
           </Modal.Header>
-          <Modal.Content>
-            <p>
-              A new document will be created with all translations cloned from this one. After the
-              duplicate is created you should:
+          <Modal.Content className="prose">
+            <p className="m-0">
+              A new document will be created with all translations (if any) cloned from this one.
+              After the duplicate is created you should:
             </p>
             <ul className={cx('byline-form-actions-list', styles.list)}>
               <li>
-                Update the title in every locale — each title is currently suffixed with{' '}
-                <code>{DUPLICATE_TITLE_SUFFIX.trim()}</code>.
+                Update the title of the docuiment (including any translated versions). The title is
+                currently suffixed with <code>{DUPLICATE_TITLE_SUFFIX.trim()}</code>.
               </li>
               <li>
-                Review the system path in the path widget — the auto-generated slug will reflect the
+                Review the system path in the path widget — the auto-generated path will reflect the
                 suffixed title and is unlikely to be what you want long-term.
               </li>
             </ul>
@@ -275,6 +276,7 @@ export function DocumentActions({
             </button>
             <Button
               size="sm"
+              style={{ minWidth: '80px' }}
               intent="noeffect"
               onClick={() => {
                 if (!duplicateBusy) setShowDuplicateConfirm(false)
@@ -283,7 +285,13 @@ export function DocumentActions({
             >
               Cancel
             </Button>
-            <Button size="sm" intent="primary" onClick={handleOnDuplicate} disabled={duplicateBusy}>
+            <Button
+              size="sm"
+              style={{ minWidth: '80px' }}
+              intent="primary"
+              onClick={handleOnDuplicate}
+              disabled={duplicateBusy}
+            >
               {duplicateBusy ? 'Duplicating...' : 'Duplicate'}
             </Button>
           </Modal.Actions>
