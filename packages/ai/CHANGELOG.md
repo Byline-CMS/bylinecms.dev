@@ -1,5 +1,14 @@
 # @infonomic/ai
 
+## 1.9.1
+
+### Patch Changes
+
+- AI package clean up. Removed Vercel SDK options, cleaned up logging and help modal.
+- Updated dependencies
+  - @byline/core@1.9.1
+  - @byline/ui@1.9.1
+
 ## 1.9.0
 
 ### Minor Changes
