@@ -6,9 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { RequestContext } from '@byline/auth'
-
-import { requireAdminActor } from '../../lib/assert-admin-actor.js'
+import { type Command, createCommand } from '../../lib/create-command.js'
 import { adminUserResponseSchema } from '../admin-users/schemas.js'
 import {
   changeAccountPasswordRequestSchema,
@@ -17,20 +15,23 @@ import {
 } from './schemas.js'
 import { AdminAccountService } from './service.js'
 import type { AdminStore } from '../../store.js'
-import type { AccountResponse } from './schemas.js'
+import type {
+  AccountResponse,
+  ChangeAccountPasswordRequest,
+  GetAccountRequest,
+  UpdateAccountRequest,
+} from './schemas.js'
 
 /**
  * Transport-agnostic commands for admin-account self-service.
  *
- * Same shape as the other admin module commands (`*-users`, `*-roles`,
- * `*-permissions`) with one deliberate difference: enforcement uses
- * `requireAdminActor` rather than `assertAdminActor`. There is no
- * ability key to gate against — the security property is "you may
- * only mutate your own row," and these commands enforce it
- * structurally by sourcing the target id from `actor.id` rather than
- * from the request payload. A request with an `id` field would have
- * no way to express "operate on someone else" because the schemas
- * don't accept one.
+ * Same `createCommand` shape as the other admin modules, with one
+ * deliberate difference: `auth` is `{ authenticated: true }` rather than
+ * `{ ability }`. There is no ability key to gate against — the security
+ * property is "you may only mutate your own row," enforced structurally
+ * by sourcing the target id from `actor.id` rather than from the request
+ * payload. The request schemas do not accept an `id` field, so a caller
+ * has no way to express "operate on someone else."
  */
 
 export interface AdminAccountCommandDeps {
@@ -41,38 +42,35 @@ function serviceOf(deps: AdminAccountCommandDeps): AdminAccountService {
   return new AdminAccountService({ repo: deps.store.adminUsers })
 }
 
-export async function getAccountCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminAccountCommandDeps
-): Promise<AccountResponse> {
-  // No-op parse — `getAccountRequestSchema` is `{}.strict()` so it
-  // rejects stray payloads but yields no usable data. The schema is
-  // validated for shape consistency with the other commands.
-  getAccountRequestSchema.parse(input ?? {})
-  const actor = requireAdminActor(context, 'reading own admin account')
-  const result = await serviceOf(deps).getAccount(actor.id)
-  return adminUserResponseSchema.parse(result)
-}
+export const getAccountCommand: Command<
+  GetAccountRequest,
+  AccountResponse,
+  AdminAccountCommandDeps
+> = createCommand({
+  method: 'getAccount',
+  auth: { authenticated: true },
+  schemas: { input: getAccountRequestSchema, output: adminUserResponseSchema },
+  handler: ({ deps, actor }) => serviceOf(deps).getAccount(actor.id),
+})
 
-export async function updateAccountCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminAccountCommandDeps
-): Promise<AccountResponse> {
-  const parsed = updateAccountRequestSchema.parse(input)
-  const actor = requireAdminActor(context, 'updating own admin account')
-  const result = await serviceOf(deps).updateAccount(actor.id, parsed)
-  return adminUserResponseSchema.parse(result)
-}
+export const updateAccountCommand: Command<
+  UpdateAccountRequest,
+  AccountResponse,
+  AdminAccountCommandDeps
+> = createCommand({
+  method: 'updateAccount',
+  auth: { authenticated: true },
+  schemas: { input: updateAccountRequestSchema, output: adminUserResponseSchema },
+  handler: ({ input, deps, actor }) => serviceOf(deps).updateAccount(actor.id, input),
+})
 
-export async function changeAccountPasswordCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminAccountCommandDeps
-): Promise<AccountResponse> {
-  const parsed = changeAccountPasswordRequestSchema.parse(input)
-  const actor = requireAdminActor(context, 'changing own admin password')
-  const result = await serviceOf(deps).changePassword(actor.id, parsed)
-  return adminUserResponseSchema.parse(result)
-}
+export const changeAccountPasswordCommand: Command<
+  ChangeAccountPasswordRequest,
+  AccountResponse,
+  AdminAccountCommandDeps
+> = createCommand({
+  method: 'changeAccountPassword',
+  auth: { authenticated: true },
+  schemas: { input: changeAccountPasswordRequestSchema, output: adminUserResponseSchema },
+  handler: ({ input, deps, actor }) => serviceOf(deps).changePassword(actor.id, input),
+})

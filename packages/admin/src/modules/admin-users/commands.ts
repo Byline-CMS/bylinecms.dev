@@ -6,9 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { RequestContext } from '@byline/auth'
-
-import { assertAdminActor } from '../../lib/assert-admin-actor.js'
+import { type Command, createCommand } from '../../lib/create-command.js'
 import { ADMIN_USERS_ABILITIES } from './abilities.js'
 import {
   adminUserListResponseSchema,
@@ -25,26 +23,28 @@ import {
 } from './schemas.js'
 import { AdminUsersService } from './service.js'
 import type { AdminStore } from '../../store.js'
-import type { AdminUserListResponse, AdminUserResponse, OkResponse } from './schemas.js'
+import type {
+  AdminUserListResponse,
+  AdminUserResponse,
+  CreateAdminUserRequest,
+  DeleteAdminUserRequest,
+  DisableAdminUserRequest,
+  EnableAdminUserRequest,
+  GetAdminUserRequest,
+  ListAdminUsersRequest,
+  OkResponse,
+  SetAdminUserPasswordRequest,
+  UpdateAdminUserRequest,
+} from './schemas.js'
 
 /**
  * Transport-agnostic commands for the admin-users module.
  *
- * Each command is a plain exported function — not a class method — to
- * match Byline's existing `document-lifecycle` shape. Every command
- * follows the same four steps in the same order:
- *
- *   1. `schema.parse(input)` — Zod-validate and normalise the raw input.
- *      Throws `ZodError` on invalid shape; transport adapters translate
- *      that into a 400-ish response.
- *   2. `assertAdminActor(context, ability)` — require an `AdminAuth`
- *      actor holding the specific ability. Throws `ERR_UNAUTHENTICATED`
- *      or `ERR_FORBIDDEN`.
- *   3. Call the `AdminUsersService` method with the validated input
- *      (plus the actor where an invariant needs it).
- *   4. Parse the response through its output schema. In production the
- *      check is redundant with the DTO's type; in tests it catches
- *      drift between schema and DTO early.
+ * Each command is built through `createCommand`, which folds the four
+ * standard steps (Zod-validate input → assert admin actor + ability →
+ * call the service → Zod-validate output) into a single declaration.
+ * The wrapper preserves the historical `(context, input, deps)` call
+ * signature so server fns keep working without change.
  *
  * The `deps` argument holds the `AdminStore`. The webapp wraps these in
  * server fns that supply `deps` from the application's singleton store;
@@ -59,90 +59,99 @@ function serviceOf(deps: AdminUsersCommandDeps): AdminUsersService {
   return new AdminUsersService({ repo: deps.store.adminUsers })
 }
 
-export async function listAdminUsersCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminUsersCommandDeps
-): Promise<AdminUserListResponse> {
-  const parsed = listAdminUsersRequestSchema.parse(input ?? {})
-  assertAdminActor(context, ADMIN_USERS_ABILITIES.read)
-  const result = await serviceOf(deps).listUsers(parsed)
-  return adminUserListResponseSchema.parse(result)
-}
+export const listAdminUsersCommand: Command<
+  ListAdminUsersRequest,
+  AdminUserListResponse,
+  AdminUsersCommandDeps
+> = createCommand({
+  method: 'listAdminUsers',
+  auth: { ability: ADMIN_USERS_ABILITIES.read },
+  schemas: { input: listAdminUsersRequestSchema, output: adminUserListResponseSchema },
+  handler: ({ input, deps }) => serviceOf(deps).listUsers(input),
+})
 
-export async function getAdminUserCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminUsersCommandDeps
-): Promise<AdminUserResponse> {
-  const parsed = getAdminUserRequestSchema.parse(input)
-  assertAdminActor(context, ADMIN_USERS_ABILITIES.read)
-  const result = await serviceOf(deps).getUser(parsed)
-  return adminUserResponseSchema.parse(result)
-}
+export const getAdminUserCommand: Command<
+  GetAdminUserRequest,
+  AdminUserResponse,
+  AdminUsersCommandDeps
+> = createCommand({
+  method: 'getAdminUser',
+  auth: { ability: ADMIN_USERS_ABILITIES.read },
+  schemas: { input: getAdminUserRequestSchema, output: adminUserResponseSchema },
+  handler: ({ input, deps }) => serviceOf(deps).getUser(input),
+})
 
-export async function createAdminUserCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminUsersCommandDeps
-): Promise<AdminUserResponse> {
-  const parsed = createAdminUserRequestSchema.parse(input)
-  assertAdminActor(context, ADMIN_USERS_ABILITIES.create)
-  const result = await serviceOf(deps).createUser(parsed)
-  return adminUserResponseSchema.parse(result)
-}
+export const createAdminUserCommand: Command<
+  CreateAdminUserRequest,
+  AdminUserResponse,
+  AdminUsersCommandDeps
+> = createCommand({
+  method: 'createAdminUser',
+  auth: { ability: ADMIN_USERS_ABILITIES.create },
+  schemas: { input: createAdminUserRequestSchema, output: adminUserResponseSchema },
+  handler: ({ input, deps }) => serviceOf(deps).createUser(input),
+})
 
-export async function updateAdminUserCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminUsersCommandDeps
-): Promise<AdminUserResponse> {
-  const parsed = updateAdminUserRequestSchema.parse(input)
-  assertAdminActor(context, ADMIN_USERS_ABILITIES.update)
-  const result = await serviceOf(deps).updateUser(parsed)
-  return adminUserResponseSchema.parse(result)
-}
+export const updateAdminUserCommand: Command<
+  UpdateAdminUserRequest,
+  AdminUserResponse,
+  AdminUsersCommandDeps
+> = createCommand({
+  method: 'updateAdminUser',
+  auth: { ability: ADMIN_USERS_ABILITIES.update },
+  schemas: { input: updateAdminUserRequestSchema, output: adminUserResponseSchema },
+  handler: ({ input, deps }) => serviceOf(deps).updateUser(input),
+})
 
-export async function setAdminUserPasswordCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminUsersCommandDeps
-): Promise<AdminUserResponse> {
-  const parsed = setAdminUserPasswordRequestSchema.parse(input)
-  assertAdminActor(context, ADMIN_USERS_ABILITIES.changePassword)
-  const result = await serviceOf(deps).setPassword(parsed)
-  return adminUserResponseSchema.parse(result)
-}
+export const setAdminUserPasswordCommand: Command<
+  SetAdminUserPasswordRequest,
+  AdminUserResponse,
+  AdminUsersCommandDeps
+> = createCommand({
+  method: 'setAdminUserPassword',
+  auth: { ability: ADMIN_USERS_ABILITIES.changePassword },
+  schemas: { input: setAdminUserPasswordRequestSchema, output: adminUserResponseSchema },
+  handler: ({ input, deps }) => serviceOf(deps).setPassword(input),
+})
 
-export async function enableAdminUserCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminUsersCommandDeps
-): Promise<OkResponse> {
-  const parsed = enableAdminUserRequestSchema.parse(input)
-  assertAdminActor(context, ADMIN_USERS_ABILITIES.update)
-  await serviceOf(deps).enableUser(parsed)
-  return okResponseSchema.parse({ ok: true })
-}
+export const enableAdminUserCommand: Command<
+  EnableAdminUserRequest,
+  OkResponse,
+  AdminUsersCommandDeps
+> = createCommand({
+  method: 'enableAdminUser',
+  auth: { ability: ADMIN_USERS_ABILITIES.update },
+  schemas: { input: enableAdminUserRequestSchema, output: okResponseSchema },
+  handler: async ({ input, deps }) => {
+    await serviceOf(deps).enableUser(input)
+    return { ok: true } as const
+  },
+})
 
-export async function disableAdminUserCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminUsersCommandDeps
-): Promise<OkResponse> {
-  const parsed = disableAdminUserRequestSchema.parse(input)
-  const actor = assertAdminActor(context, ADMIN_USERS_ABILITIES.update)
-  await serviceOf(deps).disableUser(actor, parsed)
-  return okResponseSchema.parse({ ok: true })
-}
+export const disableAdminUserCommand: Command<
+  DisableAdminUserRequest,
+  OkResponse,
+  AdminUsersCommandDeps
+> = createCommand({
+  method: 'disableAdminUser',
+  auth: { ability: ADMIN_USERS_ABILITIES.update },
+  schemas: { input: disableAdminUserRequestSchema, output: okResponseSchema },
+  handler: async ({ input, deps, actor }) => {
+    await serviceOf(deps).disableUser(actor, input)
+    return { ok: true } as const
+  },
+})
 
-export async function deleteAdminUserCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminUsersCommandDeps
-): Promise<OkResponse> {
-  const parsed = deleteAdminUserRequestSchema.parse(input)
-  const actor = assertAdminActor(context, ADMIN_USERS_ABILITIES.delete)
-  await serviceOf(deps).deleteUser(actor, parsed)
-  return okResponseSchema.parse({ ok: true })
-}
+export const deleteAdminUserCommand: Command<
+  DeleteAdminUserRequest,
+  OkResponse,
+  AdminUsersCommandDeps
+> = createCommand({
+  method: 'deleteAdminUser',
+  auth: { ability: ADMIN_USERS_ABILITIES.delete },
+  schemas: { input: deleteAdminUserRequestSchema, output: okResponseSchema },
+  handler: async ({ input, deps, actor }) => {
+    await serviceOf(deps).deleteUser(actor, input)
+    return { ok: true } as const
+  },
+})

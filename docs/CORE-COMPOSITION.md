@@ -19,7 +19,7 @@ Two consequences worth flagging for any future field-level adapter:
 
 A user-land lifecycle hook surface on adapters (Phase 3b in `RICHTEXT.md`) is deliberately *not* part of this pattern. That layer waits for a second editor implementation to reveal what it should look like; today's slot is for framework-managed phases only.
 
-> **Status: forward-looking.** This document describes the planned evolution of Byline's dependency-injection and composition story. None of the phases below have shipped — today's setup (described under "Where we are now") is intentionally minimal. The phases are ordered by leverage and by how independent each one is.
+> **Status: Phase 1 shipped.** `createCommand` is live in `@byline/admin` and every admin module's `commands.ts` is built on it. Phases 2–5 remain forward-looking. The phases below are ordered by leverage and by how independent each one is.
 
 ## Where we are now
 
@@ -28,22 +28,19 @@ Byline already has the DI infrastructure it would need for richer composition �
 - **`Registry` / `AsyncRegistry`** — a typed DI container in `packages/core/src/lib/registry.ts` with compile-time dependency-graph validation via TypeScript conditional types.
 - **`initBylineCore()`** — composes `config`, `collections`, `db`, `storage`, `logger`, plus the `AdminStore` aggregate, into a `BylineCore` instance. Server-side callers retrieve the resolved core via `getBylineCore<AdminStore>()`.
 - **Admin modules in `@byline/admin`** — each module ships as `commands.ts` + `repository.ts` + `service.ts` + `dto.ts` + `schemas.ts` + `errors.ts` + `abilities.ts`. Repositories are plugged into `AdminStore` from `@byline/db-postgres/admin`.
-- **Hand-wired command contract.** Each command in `@byline/admin` is a plain exported function that runs the same four steps in the same order:
+- **Commands built on `createCommand` (Phase 1, shipped).** Each command in `@byline/admin` is a `createCommand` declaration that folds the four standard steps (validate → authorise → invoke → shape) into one spec:
 
   ```ts
-  export async function listAdminUsersCommand(
-    context: RequestContext | undefined,
-    input: unknown,
-    deps: AdminUsersCommandDeps,
-  ): Promise<AdminUserListResponse> {
-    const parsed = listAdminUsersRequestSchema.parse(input ?? {})              // 1. validate
-    assertAdminActor(context, ADMIN_USERS_ABILITIES.read)                       // 2. authorise
-    const result = await serviceOf(deps).listUsers(parsed)                      // 3. invoke
-    return adminUserListResponseSchema.parse(result)                            // 4. shape
-  }
+  export const listAdminUsersCommand = createCommand({
+    method: 'listAdminUsers',
+    auth: { ability: ADMIN_USERS_ABILITIES.read },
+    schemas: { input: listAdminUsersRequestSchema, output: adminUserListResponseSchema },
+    handler: ({ input, deps }) =>
+      new AdminUsersService({ repo: deps.store.adminUsers }).listUsers(input),
+  })
   ```
 
-  The pattern works and is uniform across every module — but the four steps repeat verbatim in every command, and every server-fn call site has to thread `{ store }` through `deps` by hand.
+  The wrapper preserves the historical `(context, input, deps) => Promise<Output>` call signature, so server fns and tests need no change. Every server-fn call site still has to thread `{ store }` through `deps` by hand — that's what Phases 2/3 retire.
 
 - **One request-context builder.** `getAdminRequestContext()` resolves the admin actor for admin server fns. There is no equivalent yet for a public-user realm or any future agent realm; `RequestContext.actor` is typed as `Actor = AdminAuth | UserAuth | null` so the slot is reserved, but only `AdminAuth | null` is populated at runtime today.
 
@@ -53,9 +50,9 @@ This shape is a deliberate baseline. It keeps the package boundaries decoupled �
 
 ## Future phases of work
 
-| Phase | Goal                                                                                  | Independent? |
+| Phase | Goal                                                                                  | Status       |
 |-------|---------------------------------------------------------------------------------------|--------------|
-| 1     | `createCommand({ auth, schemas, handler })` wrapper                                   | Yes          |
+| 1     | `createCommand({ auth, schemas, handler })` wrapper                                   | **Shipped**  |
 | 2     | Module-level registry factories inside `@byline/admin`                                | Builds on 1  |
 | 3     | Compose module registries inside `initBylineCore()`; expose a command tree on `BylineCore` | Builds on 2  |
 | 4     | Typed request-context builders per actor realm (`AdminAuth`, `UserAuth`, future agent) | Yes          |
@@ -63,31 +60,38 @@ This shape is a deliberate baseline. It keeps the package boundaries decoupled �
 
 Phases 1 → 2 → 3 form one track (command/registry shape); Phases 4 and 5 are independent. The whole roadmap is reversible — none of these phases are load-bearing for shipped functionality.
 
-### Phase 1 — `createCommand` wrapper
+### Phase 1 — `createCommand` wrapper (shipped)
 
-Highest per-line leverage. The four-step contract above (validate → authorise → invoke → shape) repeats in every command. A small wrapper inside `@byline/admin` collapses the boilerplate to:
+`createCommand` lives at `packages/admin/src/lib/create-command.ts` and is exported from `@byline/admin`. Every command in the four admin modules (`admin-users`, `admin-roles`, `admin-permissions`, `admin-account`) is built on it. Worked example:
 
 ```ts
-export const listAdminUsers = createCommand({
+export const listAdminUsersCommand = createCommand({
   method: 'listAdminUsers',
-  auth: { abilities: [ADMIN_USERS_ABILITIES.read] },
+  auth: { ability: ADMIN_USERS_ABILITIES.read },
   schemas: { input: listAdminUsersRequestSchema, output: adminUserListResponseSchema },
-  handler: (ctx, input, { store }) => new AdminUsersService({ repo: store.adminUsers }).listUsers(input),
+  handler: ({ input, deps }) =>
+    new AdminUsersService({ repo: deps.store.adminUsers }).listUsers(input),
 })
 ```
 
-The wrapper does the four steps in fixed order; the handler stays focused on the actual work. Three benefits:
+The wrapper does the four steps in fixed order — Zod-parse input → resolve admin actor → invoke handler → Zod-parse output — and returns a function with today's `(context, input, deps) => Promise<Output>` signature so existing server-fn call sites and tests need no change.
 
-- **Halves the line count** of each `commands.ts` file. The current admin-users module has ~10 commands × ~10 lines each in repetitive structure; a wrapper cuts that to ~10 commands × ~5 lines of declaration.
-- **Makes the contract inspectable.** The wrapper can log every command call uniformly, emit OpenAPI / JSON-Schema descriptors from the typed `schemas` slot, and — eventually — power a "what's registered" admin inspector view that mirrors the ability registry.
-- **No cross-package API change.** Adopting the wrapper is a refactor inside `@byline/admin` only. Server-fn call sites still import the same exported names.
+**`auth` slot — discriminated union.** Two variants:
 
-Implementation notes:
+- `{ ability: 'admin.users.read' }` — full admin gate. Delegates to `assertAdminActor`, which requires an `AdminAuth` actor holding the named ability. Inherits the super-admin bypass from `AdminAuth.assertAbility`.
+- `{ authenticated: true }` — identity gate only. Delegates to `requireAdminActor`. No ability check. Used by `admin-account` self-service commands where the security property is "you may only mutate your own row," enforced structurally by sourcing the target id from `actor.id`.
 
-- The wrapper takes an **ability expression** or a list of keys — *not* an enumerated `mode: 'admin' | 'user' | 'agent'` field. Byline's `AbilityRegistry` is open-ended; ability keys are contributed by collections at registration time, and the wrapper has to stay agnostic about which realm is asserting them.
-- `auth` should support both `assertAdminActor`-style admin gates and the more general `assertActorCanPerform` shape used for collection writes. A discriminator on the auth slot (`{ admin: ... }` vs `{ collection: ... }`) is one option; a single helper that dispatches on the ability key prefix is another. Decided when Phase 1 lands.
+The single-key form (`ability`) rather than `abilities: [...]` reflects that no command today asserts multiple abilities; an array variant remains additive if/when it surfaces. The ability key is opaque — the wrapper does not parse it or branch on its prefix.
 
-The wrapper is the smallest, most reversible step. It can land before any of the registry-tree work and would still pay for itself in line count.
+**`handler` slot — args-object form.** The handler receives `{ context, input, deps, actor }` so it can cherry-pick what it needs without positional ordering. `actor` is already narrowed to `AdminAuth` by the auth step; commands that perform self-checks (e.g. `disableAdminUser`, `deleteAdminUser`) read it directly.
+
+**Out of scope for Phase 1.** Document collection operations (create / update / delete / status / upload) are gated by `assertActorCanPerform` inside the `document-lifecycle` service functions in `@byline/core`. They do not flow through this wrapper today. If the two enforcement paths converge later — most likely as a Phase 2/3 thing where a uniform `createCommand` shape wraps both admin and document collection commands — the `auth` discriminator can grow a `collection` variant without breaking existing call sites.
+
+Three downstream benefits the wrapper unlocks:
+
+- **Halves the line count** of each `commands.ts` file.
+- **Makes the contract inspectable.** A future revision can log every command call uniformly, emit OpenAPI / JSON-Schema descriptors from the typed `schemas` slot, and power a "what's registered" admin inspector view.
+- **No cross-package API change.** The refactor was internal to `@byline/admin`; server-fn call sites import the same exported names.
 
 ### Phase 2 — Module-level registry factories
 

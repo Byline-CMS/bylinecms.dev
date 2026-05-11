@@ -6,9 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { AbilityRegistry, RequestContext } from '@byline/auth'
+import type { AbilityRegistry } from '@byline/auth'
 
-import { assertAdminActor } from '../../lib/assert-admin-actor.js'
+import { type Command, createCommand } from '../../lib/create-command.js'
 import { ADMIN_PERMISSIONS_ABILITIES } from './abilities.js'
 import {
   getRoleAbilitiesRequestSchema,
@@ -23,18 +23,23 @@ import {
 import { AdminPermissionsService } from './service.js'
 import type { AdminStore } from '../../store.js'
 import type {
+  GetRoleAbilitiesRequest,
   GetRoleAbilitiesResponse,
+  ListRegisteredAbilitiesRequest,
   ListRegisteredAbilitiesResponse,
+  SetRoleAbilitiesRequest,
   SetRoleAbilitiesResponse,
+  WhoHasAbilityRequest,
   WhoHasAbilityResponse,
 } from './schemas.js'
 
 /**
  * Transport-agnostic commands for the admin-permissions inspector.
  *
- * Same four-step shape as the other modules — Zod-validate, assert the
- * admin actor + ability, call the service, validate the output. The
- * inspector commands all gate on `admin.permissions.read`.
+ * Built through `createCommand`, which folds the four standard steps
+ * (validate → assert admin actor + ability → invoke service → validate
+ * output) into one declaration. All inspector reads gate on
+ * `admin.permissions.read`; the write gates on `admin.permissions.update`.
  *
  * Deps include the `AbilityRegistry` alongside the `AdminStore` because
  * the inspector reads the registered abilities directly from the
@@ -50,46 +55,49 @@ function serviceOf(deps: AdminPermissionsCommandDeps): AdminPermissionsService {
   return new AdminPermissionsService({ store: deps.store, abilities: deps.abilities })
 }
 
-export async function listRegisteredAbilitiesCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminPermissionsCommandDeps
-): Promise<ListRegisteredAbilitiesResponse> {
-  listRegisteredAbilitiesRequestSchema.parse(input ?? {})
-  assertAdminActor(context, ADMIN_PERMISSIONS_ABILITIES.read)
-  const result = serviceOf(deps).listRegisteredAbilities()
-  return listRegisteredAbilitiesResponseSchema.parse(result)
-}
+export const listRegisteredAbilitiesCommand: Command<
+  ListRegisteredAbilitiesRequest,
+  ListRegisteredAbilitiesResponse,
+  AdminPermissionsCommandDeps
+> = createCommand({
+  method: 'listRegisteredAbilities',
+  auth: { ability: ADMIN_PERMISSIONS_ABILITIES.read },
+  schemas: {
+    input: listRegisteredAbilitiesRequestSchema,
+    output: listRegisteredAbilitiesResponseSchema,
+  },
+  handler: ({ deps }) => serviceOf(deps).listRegisteredAbilities(),
+})
 
-export async function whoHasAbilityCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminPermissionsCommandDeps
-): Promise<WhoHasAbilityResponse> {
-  const parsed = whoHasAbilityRequestSchema.parse(input)
-  assertAdminActor(context, ADMIN_PERMISSIONS_ABILITIES.read)
-  const result = await serviceOf(deps).whoHasAbility(parsed)
-  return whoHasAbilityResponseSchema.parse(result)
-}
+export const whoHasAbilityCommand: Command<
+  WhoHasAbilityRequest,
+  WhoHasAbilityResponse,
+  AdminPermissionsCommandDeps
+> = createCommand({
+  method: 'whoHasAbility',
+  auth: { ability: ADMIN_PERMISSIONS_ABILITIES.read },
+  schemas: { input: whoHasAbilityRequestSchema, output: whoHasAbilityResponseSchema },
+  handler: ({ input, deps }) => serviceOf(deps).whoHasAbility(input),
+})
 
-export async function getRoleAbilitiesCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminPermissionsCommandDeps
-): Promise<GetRoleAbilitiesResponse> {
-  const parsed = getRoleAbilitiesRequestSchema.parse(input)
-  assertAdminActor(context, ADMIN_PERMISSIONS_ABILITIES.read)
-  const result = await serviceOf(deps).getRoleAbilities(parsed)
-  return getRoleAbilitiesResponseSchema.parse(result)
-}
+export const getRoleAbilitiesCommand: Command<
+  GetRoleAbilitiesRequest,
+  GetRoleAbilitiesResponse,
+  AdminPermissionsCommandDeps
+> = createCommand({
+  method: 'getRoleAbilities',
+  auth: { ability: ADMIN_PERMISSIONS_ABILITIES.read },
+  schemas: { input: getRoleAbilitiesRequestSchema, output: getRoleAbilitiesResponseSchema },
+  handler: ({ input, deps }) => serviceOf(deps).getRoleAbilities(input),
+})
 
-export async function setRoleAbilitiesCommand(
-  context: RequestContext | undefined,
-  input: unknown,
-  deps: AdminPermissionsCommandDeps
-): Promise<SetRoleAbilitiesResponse> {
-  const parsed = setRoleAbilitiesRequestSchema.parse(input)
-  assertAdminActor(context, ADMIN_PERMISSIONS_ABILITIES.update)
-  const result = await serviceOf(deps).setRoleAbilities(parsed)
-  return setRoleAbilitiesResponseSchema.parse(result)
-}
+export const setRoleAbilitiesCommand: Command<
+  SetRoleAbilitiesRequest,
+  SetRoleAbilitiesResponse,
+  AdminPermissionsCommandDeps
+> = createCommand({
+  method: 'setRoleAbilities',
+  auth: { ability: ADMIN_PERMISSIONS_ABILITIES.update },
+  schemas: { input: setRoleAbilitiesRequestSchema, output: setRoleAbilitiesResponseSchema },
+  handler: ({ input, deps }) => serviceOf(deps).setRoleAbilities(input),
+})

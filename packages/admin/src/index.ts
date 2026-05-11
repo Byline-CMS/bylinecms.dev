@@ -24,6 +24,13 @@
 
 export { registerAdminAbilities } from './abilities.js'
 export { assertAdminActor, requireAdminActor } from './lib/assert-admin-actor.js'
+export {
+  type Command,
+  type CreateCommandAuthSpec,
+  type CreateCommandHandlerArgs,
+  type CreateCommandSpec,
+  createCommand,
+} from './lib/create-command.js'
 export * from './modules/admin-account/index.js'
 export * from './modules/admin-permissions/index.js'
 export * from './modules/admin-roles/index.js'
