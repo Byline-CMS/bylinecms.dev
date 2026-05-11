@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 1.10.1
+
+### Patch Changes
+
+- Styling of Copy to Locale modal actions.
+- Updated dependencies
+  - @byline/admin@1.10.1
+  - @byline/auth@1.10.1
+  - @byline/core@1.10.1
+
 ## 1.10.0
 
 ### Minor Changes

@@ -1,5 +1,18 @@
 # @byline/host-tanstack-start
 
+## 1.10.1
+
+### Patch Changes
+
+- Styling of Copy to Locale modal actions.
+- Updated dependencies
+  - @byline/ui@1.10.1
+  - @byline/admin@1.10.1
+  - @byline/ai@1.10.1
+  - @byline/auth@1.10.1
+  - @byline/client@1.10.1
+  - @byline/core@1.10.1
+
 ## 1.10.0
 
 ### Minor Changes

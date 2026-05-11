@@ -1,5 +1,13 @@
 # @byline/storage-s3
 
+## 1.10.1
+
+### Patch Changes
+
+- Styling of Copy to Locale modal actions.
+- Updated dependencies
+  - @byline/core@1.10.1
+
 ## 1.10.0
 
 ### Minor Changes
