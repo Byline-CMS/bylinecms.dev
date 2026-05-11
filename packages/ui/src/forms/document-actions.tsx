@@ -164,7 +164,7 @@ export function DocumentActions({
             data-side="top"
             sideOffset={10}
           >
-            {publishedVersion && (
+            {/*{publishedVersion && (
               <>
                 <DropdownComponent.Item onClick={onUnpublish}>
                   <div className={cx('byline-form-actions-item', styles.item)}>
@@ -176,7 +176,7 @@ export function DocumentActions({
                 </DropdownComponent.Item>
                 <DropdownComponent.Separator />
               </>
-            )}
+            )}*/}
             {copyToLocaleAvailable && (
               <DropdownComponent.Item onClick={handleOpenCopyToLocale}>
                 <div className={cx('byline-form-actions-item', styles.item)}>
