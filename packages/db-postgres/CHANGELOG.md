@@ -1,5 +1,18 @@
 # @byline/db-postgres
 
+## 1.10.0
+
+### Minor Changes
+
+- Duplicate and Copy to Locale document lifecycle actions.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@1.10.0
+  - @byline/auth@1.10.0
+  - @byline/core@1.10.0
+
 ## 1.9.1
 
 ### Patch Changes

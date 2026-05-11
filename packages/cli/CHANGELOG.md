@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.10.0
+
+### Minor Changes
+
+- Duplicate and Copy to Locale document lifecycle actions.
+
 ## 1.9.1
 
 ### Patch Changes

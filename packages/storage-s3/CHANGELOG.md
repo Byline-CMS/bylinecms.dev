@@ -1,5 +1,16 @@
 # @byline/storage-s3
 
+## 1.10.0
+
+### Minor Changes
+
+- Duplicate and Copy to Locale document lifecycle actions.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@1.10.0
+
 ## 1.9.1
 
 ### Patch Changes
