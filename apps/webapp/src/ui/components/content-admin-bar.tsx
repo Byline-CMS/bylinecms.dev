@@ -231,7 +231,7 @@ export function ContentAdminBar({ user, admin, preview = false }: ContentAdminBa
             width="16px"
           />
         </span>
-        <span className="hidden sm:block">{signingOut ? 'Signing out…' : 'Log out'}</span>
+        <span className="hidden sm:block">{signingOut ? 'Signing out…' : 'Sign out'}</span>
       </Button>
     </div>
   )

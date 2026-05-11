@@ -100,9 +100,18 @@ export function RestoreVersionModal({
         </p>
       </div>
       <div className={cx('byline-coll-restore-actions', styles.actions)}>
+        <button
+          data-autofocus
+          type="button"
+          tabIndex={0}
+          className={cx('byline-form-actions-sr-only', styles['sr-only'])}
+        >
+          no action
+        </button>
         <Button
           type="button"
-          intent="secondary"
+          style={{ minWidth: '80px' }}
+          intent="noeffect"
           size="sm"
           onClick={onClose}
           disabled={pending}
@@ -114,6 +123,7 @@ export function RestoreVersionModal({
           size="sm"
           intent="primary"
           onClick={handleRestore}
+          style={{ minWidth: '80px' }}
           disabled={pending}
           className={cx('byline-coll-restore-button', styles.button)}
         >
