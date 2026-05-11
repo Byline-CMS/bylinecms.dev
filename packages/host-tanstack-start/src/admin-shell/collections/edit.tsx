@@ -15,6 +15,7 @@ import { Container, FormRenderer, Section, useToastManager } from '@byline/ui/re
 
 import {
   deleteDocument,
+  duplicateCollectionDocument,
   unpublishDocument,
   updateCollectionDocumentWithPatches,
   updateDocumentStatus,
@@ -167,6 +168,51 @@ export const EditView = ({
     }
   }
 
+  const handleDuplicate = async () => {
+    try {
+      const result = await duplicateCollectionDocument({
+        data: { collection: path, id: String(initialData.id) },
+      })
+      toastManager.add({
+        title: `${labels.singular} Duplicated`,
+        description: result.pathRetried
+          ? `Created with auto-generated path "${result.newPath}" (the preferred slug was already in use).`
+          : `Created with path "${result.newPath}". Update the title and path in the new document.`,
+        data: {
+          intent: 'success',
+          iconType: 'success',
+          icon: true,
+          close: true,
+        },
+      })
+      setEditState({
+        status: 'success',
+        message: `${labels.singular} duplicated.`,
+      })
+      // Navigate to the new document's edit view.
+      navigate({
+        to: '/admin/collections/$collection/$id' as never,
+        params: { collection: path, id: result.documentId },
+      })
+    } catch (err) {
+      console.error('Duplicate error:', err)
+      toastManager.add({
+        title: `${labels.singular} Duplicate`,
+        description: `Failed to duplicate: ${(err as Error).message}`,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
+      setEditState({
+        status: 'failed',
+        message: `Failed to duplicate: ${(err as Error).message}`,
+      })
+    }
+  }
+
   const handleDelete = async () => {
     try {
       await deleteDocument({ data: { collection: path, id: String(initialData.id) } })
@@ -308,6 +354,7 @@ export const EditView = ({
           onStatusChange={handleStatusChange}
           onUnpublish={publishedVersion ? handleUnpublish : undefined}
           onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
           publishedVersion={publishedVersion}
           restoreWarnings={restoreWarnings}
           nextStatus={nextStatus}

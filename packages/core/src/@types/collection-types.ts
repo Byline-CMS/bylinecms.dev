@@ -381,10 +381,18 @@ export function defineWorkflow(input: DefineWorkflowInput = {}): WorkflowConfig 
  * Context passed to `beforeCreate` hooks.
  *
  * The hook can mutate `data` before it is persisted.
+ *
+ * `duplicate` is set only when the create originates from a
+ * `duplicateDocument` call. Userland hooks that need to react differently
+ * (e.g. skip outbound webhooks, tag analytics) can branch on its presence.
+ * When set, `data` carries the multi-locale tree shape (localized fields
+ * appear as `{ locale: value }` objects) — mirroring the multi-locale
+ * `data` precedent set by `restoreDocumentVersion`'s `beforeUpdate` hook.
  */
 export interface BeforeCreateContext {
   data: Record<string, any>
   collectionPath: string
+  duplicate?: { sourceDocumentId: string }
 }
 
 /**
@@ -392,12 +400,16 @@ export interface BeforeCreateContext {
  *
  * Includes the `documentId` and `documentVersionId` returned by storage
  * so the hook can reference the persisted document.
+ *
+ * `duplicate` mirrors `BeforeCreateContext.duplicate` — present only when
+ * the create was triggered by `duplicateDocument`.
  */
 export interface AfterCreateContext {
   data: Record<string, any>
   collectionPath: string
   documentId: string
   documentVersionId: string
+  duplicate?: { sourceDocumentId: string }
 }
 
 /**

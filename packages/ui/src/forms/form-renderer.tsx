@@ -53,6 +53,13 @@ export interface FormRendererProps {
   onStatusChange?: (nextStatus: string) => Promise<void>
   onUnpublish?: () => Promise<void>
   onDelete?: () => Promise<void>
+  /**
+   * Called when the editor confirms the duplicate modal in
+   * `DocumentActions`. Edit views provide a handler that invokes the
+   * `duplicateCollectionDocument` server fn and navigates to the new doc.
+   * When omitted, the Duplicate menu item is hidden.
+   */
+  onDuplicate?: () => Promise<void>
   nextStatus?: WorkflowStatus
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
@@ -254,6 +261,7 @@ const FormContent = ({
   onStatusChange,
   onUnpublish,
   onDelete,
+  onDuplicate,
   nextStatus,
   workflowStatuses,
   publishedVersion,
@@ -684,6 +692,15 @@ const FormContent = ({
             publishedVersion={publishedVersion}
             onUnpublish={onUnpublish}
             onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            sourceTitle={
+              useAsTitle != null && initialData != null
+                ? ((initialData as Record<string, unknown>)[useAsTitle] as
+                    | string
+                    | null
+                    | undefined)
+                : null
+            }
           />
         </div>
       </div>
@@ -767,6 +784,7 @@ export const FormRenderer = ({
   onStatusChange,
   onUnpublish,
   onDelete,
+  onDuplicate,
   nextStatus,
   workflowStatuses,
   publishedVersion,
@@ -800,6 +818,7 @@ export const FormRenderer = ({
         onStatusChange={onStatusChange}
         onUnpublish={onUnpublish}
         onDelete={onDelete}
+        onDuplicate={onDuplicate}
         nextStatus={nextStatus}
         workflowStatuses={workflowStatuses}
         publishedVersion={publishedVersion}

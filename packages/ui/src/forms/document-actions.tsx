@@ -24,16 +24,34 @@ import {
 import styles from './document-actions.module.css'
 import type { PublishedVersionInfo } from './form-renderer'
 
+const DUPLICATE_TITLE_SUFFIX = ' (copy)'
+
 export function DocumentActions({
   publishedVersion,
   onUnpublish,
   onDelete,
+  onDuplicate,
+  sourceTitle,
 }: {
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
   onDelete?: () => Promise<void>
+  /**
+   * Called when the editor confirms the duplicate modal. The parent runs
+   * the server fn, surfaces a toast, and navigates to the new document.
+   */
+  onDuplicate?: () => Promise<void>
+  /**
+   * The current (saved) value of the source document's `useAsTitle`
+   * field, used to render the suffix preview inside the duplicate modal.
+   * Sourced from the form's `initialData`, not live form state, so the
+   * preview reflects what will actually be duplicated.
+   */
+  sourceTitle?: string | null
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
+  const [duplicateBusy, setDuplicateBusy] = useState(false)
 
   const handleOnDelete = () => {
     setShowDeleteConfirm(false)
@@ -41,6 +59,22 @@ export function DocumentActions({
       onDelete()
     }
   }
+
+  const handleOnDuplicate = async () => {
+    if (!onDuplicate) return
+    setDuplicateBusy(true)
+    try {
+      await onDuplicate()
+      setShowDuplicateConfirm(false)
+    } finally {
+      setDuplicateBusy(false)
+    }
+  }
+
+  // Preview text shown inside the modal. Falls back to the literal suffix
+  // when no source title is supplied (collections without `useAsTitle`).
+  const duplicatePreviewBefore = sourceTitle ?? ''
+  const duplicatePreviewAfter = (sourceTitle ?? '') + DUPLICATE_TITLE_SUFFIX
 
   return (
     <>
@@ -75,6 +109,27 @@ export function DocumentActions({
                 <DropdownComponent.Separator />
               </>
             )}
+            <DropdownComponent.Item>
+              <div className={cx('byline-form-actions-item', styles.item)}>
+                <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                  <button type="button">Copy to Locale</button>
+                </span>
+              </div>
+            </DropdownComponent.Item>
+            {onDuplicate && (
+              <DropdownComponent.Item
+                onClick={() => {
+                  setShowDuplicateConfirm(true)
+                }}
+              >
+                <div className={cx('byline-form-actions-item', styles.item)}>
+                  <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                    <button type="button">Duplicate</button>
+                  </span>
+                </div>
+              </DropdownComponent.Item>
+            )}
+            <DropdownComponent.Separator />
             <DropdownComponent.Item
               onClick={() => {
                 setShowDeleteConfirm(true)
@@ -142,6 +197,94 @@ export function DocumentActions({
             </Button>
             <Button size="sm" intent="danger" onClick={handleOnDelete}>
               Delete
+            </Button>
+          </Modal.Actions>
+        </Modal.Container>
+      </Modal>
+
+      <Modal
+        isOpen={showDuplicateConfirm}
+        closeOnOverlayClick={!duplicateBusy}
+        onDismiss={() => {
+          if (!duplicateBusy) setShowDuplicateConfirm(false)
+        }}
+      >
+        <Modal.Container style={{ maxWidth: '560px' }}>
+          <Modal.Header className={cx('byline-form-actions-modal-head', styles['modal-head'])}>
+            <h3 className={cx('byline-form-actions-modal-title', styles['modal-title'])}>
+              Duplicate Document
+            </h3>
+            <IconButton
+              arial-label="Close"
+              size="xs"
+              onClick={() => {
+                if (!duplicateBusy) setShowDuplicateConfirm(false)
+              }}
+            >
+              <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
+            </IconButton>
+          </Modal.Header>
+          <Modal.Content>
+            <p>
+              A new document will be created with all translations cloned from this one. After the
+              duplicate is created you should:
+            </p>
+            <ul className={cx('byline-form-actions-list', styles.list)}>
+              <li>
+                Update the title in every locale — each title is currently suffixed with{' '}
+                <code>{DUPLICATE_TITLE_SUFFIX.trim()}</code>.
+              </li>
+              <li>
+                Review the system path in the path widget — the auto-generated slug will reflect the
+                suffixed title and is unlikely to be what you want long-term.
+              </li>
+            </ul>
+            {sourceTitle != null && sourceTitle.length > 0 && (
+              <div className={cx('byline-form-actions-preview', styles.preview)}>
+                <div className={cx('byline-form-actions-preview-label', styles['preview-label'])}>
+                  Preview (current locale):
+                </div>
+                <div className={cx('byline-form-actions-preview-row', styles['preview-row'])}>
+                  <span
+                    className={cx('byline-form-actions-preview-before', styles['preview-before'])}
+                  >
+                    {duplicatePreviewBefore}
+                  </span>
+                  <span
+                    className={cx('byline-form-actions-preview-arrow', styles['preview-arrow'])}
+                  >
+                    →
+                  </span>
+                  <span
+                    className={cx('byline-form-actions-preview-after', styles['preview-after'])}
+                  >
+                    {duplicatePreviewAfter}
+                  </span>
+                </div>
+              </div>
+            )}
+          </Modal.Content>
+          <Modal.Actions>
+            <button
+              data-autofocus
+              type="button"
+              tabIndex={0}
+              className={cx('byline-form-actions-sr-only', styles['sr-only'])}
+            >
+              no action
+            </button>
+            <Button
+              size="sm"
+              intent="noeffect"
+              onClick={() => {
+                if (!duplicateBusy) setShowDuplicateConfirm(false)
+              }}
+              disabled={duplicateBusy}
+            >
+              Cancel
+            </Button>
+            <Button size="sm" intent="primary" onClick={handleOnDuplicate} disabled={duplicateBusy}>
+              {duplicateBusy ? 'Duplicating...' : 'Duplicate'}
             </Button>
           </Modal.Actions>
         </Modal.Container>

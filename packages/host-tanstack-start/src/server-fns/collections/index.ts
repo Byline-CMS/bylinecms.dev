@@ -7,6 +7,7 @@
 
 export * from './create'
 export * from './delete'
+export * from './duplicate'
 export * from './get'
 export * from './history'
 export * from './list'

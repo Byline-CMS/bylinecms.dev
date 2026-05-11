@@ -15,11 +15,12 @@ import {
 } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
-import { BylineError, ErrorCodes } from '../lib/errors.js'
+import { BylineError, ERR_PATH_CONFLICT, ErrorCodes } from '../lib/errors.js'
 import {
   changeDocumentStatus,
   createDocument,
   deleteDocument,
+  duplicateDocument,
   restoreDocumentVersion,
   unpublishDocument,
   updateDocument,
@@ -1156,6 +1157,333 @@ describe('Document lifecycle service', () => {
 
       await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
       expect(createDocumentVersion).toHaveBeenCalledOnce()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // duplicateDocument
+  // -----------------------------------------------------------------------
+  describe('duplicateDocument', () => {
+    /** Collection with a localized title (drives the per-locale suffix path). */
+    const localizedCollection: CollectionDefinition = {
+      path: 'articles',
+      labels: { singular: 'Article', plural: 'Articles' },
+      useAsTitle: 'title',
+      useAsPath: 'title',
+      fields: [
+        { name: 'title', type: 'text', localized: true },
+        { name: 'tagline', type: 'text' },
+      ],
+    }
+
+    /** Helper: seed the source read with `locale: 'all'`. */
+    function setupSource(
+      mocks: ReturnType<typeof createMockDb>,
+      opts?: {
+        sourceFields?: Record<string, any>
+        sourceDocumentId?: string
+      }
+    ) {
+      const sourceDocumentId = opts?.sourceDocumentId ?? 'doc-source'
+      const sourceFields = opts?.sourceFields ?? {
+        title: { en: 'Hello', fr: 'Bonjour' },
+        tagline: 'A tagline',
+      }
+      mocks.getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-source',
+        document_id: sourceDocumentId,
+        path: 'hello',
+        status: 'draft',
+        created_at: new Date(),
+        updated_at: new Date(),
+        fields: sourceFields,
+      })
+      mocks.createDocumentVersion.mockResolvedValue({
+        document: { id: 'ver-new', document_id: 'doc-new' },
+        fieldCount: 5,
+      })
+      return { sourceDocumentId, sourceFields }
+    }
+
+    it('reads the source with locale: "all" and writes via createDocumentVersion with locale: "all", action: "create", no documentId', async () => {
+      const mocks = createMockDb()
+      const { sourceDocumentId } = setupSource(mocks)
+      const ctx = buildCtx(mocks.db, localizedCollection)
+
+      const result = await duplicateDocument(ctx, { sourceDocumentId })
+
+      expect(mocks.getDocumentById).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection_id: 'col-1',
+          document_id: sourceDocumentId,
+          locale: 'all',
+          reconstruct: true,
+          lenient: true,
+        })
+      )
+      expect(mocks.createDocumentVersion).toHaveBeenCalledOnce()
+      const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
+      expect(call.action).toBe('create')
+      expect(call.locale).toBe('all')
+      expect(call.documentId).toBeUndefined()
+      expect(result.documentId).toBe('doc-new')
+      expect(result.documentVersionId).toBe('ver-new')
+      expect(result.sourceDocumentId).toBe(sourceDocumentId)
+      expect(result.pathRetried).toBe(false)
+    })
+
+    it('appends " (copy)" to every locale of a localized useAsTitle field', async () => {
+      const mocks = createMockDb()
+      setupSource(mocks, {
+        sourceFields: {
+          title: { en: 'Hello', fr: 'Bonjour' },
+          tagline: 'A tagline',
+        },
+      })
+      const ctx = buildCtx(mocks.db, localizedCollection)
+
+      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+
+      const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
+      expect(call.documentData.title).toEqual({
+        en: 'Hello (copy)',
+        fr: 'Bonjour (copy)',
+      })
+      // Non-title fields pass through untouched.
+      expect(call.documentData.tagline).toBe('A tagline')
+    })
+
+    it('appends " (copy)" once to a non-localized useAsTitle field', async () => {
+      const nonLocalizedCollection: CollectionDefinition = {
+        ...localizedCollection,
+        fields: [
+          { name: 'title', type: 'text' },
+          { name: 'tagline', type: 'text' },
+        ],
+      }
+      const mocks = createMockDb()
+      setupSource(mocks, {
+        sourceFields: {
+          title: 'Hello',
+          tagline: 'A tagline',
+        },
+      })
+      const ctx = buildCtx(mocks.db, nonLocalizedCollection)
+
+      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+
+      const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
+      expect(call.documentData.title).toBe('Hello (copy)')
+    })
+
+    it('derives the candidate path from the default-locale suffixed title', async () => {
+      const mocks = createMockDb()
+      setupSource(mocks, {
+        sourceFields: {
+          title: { en: 'Hello World', fr: 'Bonjour Monde' },
+          tagline: 'A tagline',
+        },
+      })
+      const ctx = buildCtx(mocks.db, localizedCollection)
+
+      const result = await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+
+      const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
+      // Default locale is 'en'; "Hello World (copy)" slugifies to "hello-world-copy".
+      expect(call.path).toBe('hello-world-copy')
+      expect(result.newPath).toBe('hello-world-copy')
+    })
+
+    it('strips _id and _type metadata from blocks and array items so the new doc gets fresh identities', async () => {
+      const mocks = createMockDb()
+      setupSource(mocks, {
+        sourceFields: {
+          title: { en: 'Hello', fr: 'Bonjour' },
+          tagline: 'A tagline',
+          sections: [
+            {
+              _id: 'section-id-1',
+              _type: 'section',
+              heading: 'Intro',
+              blocks: [
+                { _id: 'block-id-1', _type: 'photoBlock', display: 'wide' },
+                { _id: 'block-id-2', _type: 'textBlock', body: 'inner' },
+              ],
+            },
+          ],
+        },
+      })
+      const ctx = buildCtx(mocks.db, localizedCollection)
+
+      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+
+      const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
+      const sections = call.documentData.sections as any[]
+      expect(sections[0]._id).toBeUndefined()
+      expect(sections[0]._type).toBeUndefined()
+      expect(sections[0].blocks[0]._id).toBeUndefined()
+      expect(sections[0].blocks[1]._id).toBeUndefined()
+      // Content survives — only meta is stripped.
+      expect(sections[0].heading).toBe('Intro')
+      expect(sections[0].blocks[0].display).toBe('wide')
+    })
+
+    it('does not mutate the source object returned by getDocumentById (deep-clones before suffix / strip)', async () => {
+      const originalFields = {
+        title: { en: 'Hello', fr: 'Bonjour' },
+        tagline: 'A tagline',
+        sections: [{ _id: 'sec-1', heading: 'Intro' }],
+      }
+      const mocks = createMockDb()
+      mocks.getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-source',
+        document_id: 'doc-source',
+        path: 'hello',
+        status: 'draft',
+        created_at: new Date(),
+        updated_at: new Date(),
+        fields: originalFields,
+      })
+      mocks.createDocumentVersion.mockResolvedValue({
+        document: { id: 'ver-new', document_id: 'doc-new' },
+        fieldCount: 5,
+      })
+      const ctx = buildCtx(mocks.db, localizedCollection)
+
+      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+
+      // Source title should be unchanged in memory.
+      expect(originalFields.title).toEqual({ en: 'Hello', fr: 'Bonjour' })
+      expect(originalFields.sections[0]?._id).toBe('sec-1')
+    })
+
+    it('retries once with a short-UUID suffix when the candidate path collides', async () => {
+      const mocks = createMockDb()
+      setupSource(mocks)
+      const ctx = buildCtx(mocks.db, localizedCollection)
+
+      // First call: throw a path-conflict error. Second call: succeed.
+      let attempt = 0
+      mocks.createDocumentVersion.mockImplementation(() => {
+        attempt += 1
+        if (attempt === 1) {
+          const err = ERR_PATH_CONFLICT({ message: 'path conflict' })
+          return Promise.reject(err)
+        }
+        return Promise.resolve({
+          document: { id: 'ver-new', document_id: 'doc-new' },
+          fieldCount: 5,
+        })
+      })
+
+      const result = await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+
+      expect(mocks.createDocumentVersion).toHaveBeenCalledTimes(2)
+      const firstPath = mocks.createDocumentVersion.mock.calls[0]?.[0].path as string
+      const retryPath = mocks.createDocumentVersion.mock.calls[1]?.[0].path as string
+      expect(retryPath.startsWith(`${firstPath}-`)).toBe(true)
+      // 4-char UUID slice
+      expect(retryPath.length).toBe(firstPath.length + 5)
+      expect(result.pathRetried).toBe(true)
+      expect(result.newPath).toBe(retryPath)
+    })
+
+    it('only retries once — a second conflict propagates to the caller', async () => {
+      const mocks = createMockDb()
+      setupSource(mocks)
+      const ctx = buildCtx(mocks.db, localizedCollection)
+
+      // Both attempts throw path-conflict.
+      mocks.createDocumentVersion.mockImplementation(() => {
+        return Promise.reject(ERR_PATH_CONFLICT({ message: 'path conflict' }))
+      })
+
+      await expect(
+        duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      ).rejects.toMatchObject({ code: ErrorCodes.PATH_CONFLICT })
+      // Bounded to exactly two attempts.
+      expect(mocks.createDocumentVersion).toHaveBeenCalledTimes(2)
+    })
+
+    it('throws ERR_NOT_FOUND when the source document does not exist', async () => {
+      const mocks = createMockDb()
+      mocks.getDocumentById.mockResolvedValue(null)
+      const ctx = buildCtx(mocks.db, localizedCollection)
+
+      try {
+        await duplicateDocument(ctx, { sourceDocumentId: 'doc-missing' })
+        expect.fail('expected ERR_NOT_FOUND')
+      } catch (err) {
+        expect((err as BylineError).code).toBe(ErrorCodes.NOT_FOUND)
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('fires beforeCreate / afterCreate hooks with a duplicate marker', async () => {
+      const beforeCreate = vi.fn()
+      const afterCreate = vi.fn()
+      const withHooks: CollectionDefinition = {
+        ...localizedCollection,
+        hooks: {
+          beforeCreate,
+          afterCreate,
+        },
+      }
+      const mocks = createMockDb()
+      setupSource(mocks, { sourceDocumentId: 'doc-source' })
+      const ctx = buildCtx(mocks.db, withHooks)
+
+      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+
+      expect(beforeCreate).toHaveBeenCalledOnce()
+      const beforeCtx = beforeCreate.mock.calls[0]?.[0]
+      expect(beforeCtx.duplicate).toEqual({ sourceDocumentId: 'doc-source' })
+      expect(beforeCtx.collectionPath).toBe('articles')
+      // Hook sees the multi-locale shape (mirrors restoreDocumentVersion's
+      // multi-locale-data precedent on beforeUpdate).
+      expect(beforeCtx.data.title).toEqual({ en: 'Hello (copy)', fr: 'Bonjour (copy)' })
+
+      expect(afterCreate).toHaveBeenCalledOnce()
+      const afterCtx = afterCreate.mock.calls[0]?.[0]
+      expect(afterCtx.duplicate).toEqual({ sourceDocumentId: 'doc-source' })
+      expect(afterCtx.documentId).toBe('doc-new')
+      expect(afterCtx.documentVersionId).toBe('ver-new')
+    })
+
+    it('enforces collections.<path>.create — rejects an admin actor missing the ability', async () => {
+      const mocks = createMockDb()
+      setupSource(mocks)
+      const ctx = buildCtx(mocks.db, localizedCollection)
+      // Replace super-admin with an admin who only has read.
+      const actor = new AdminAuth({
+        id: 'reader',
+        abilities: ['collections.articles.read'],
+      })
+      ctx.requestContext = createRequestContext({ actor })
+
+      try {
+        await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+        expect.fail('expected ERR_FORBIDDEN')
+      } catch (err) {
+        expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
+        expect((err as AuthError).message).toContain('collections.articles.create')
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('rejects when requestContext is absent (ERR_UNAUTHENTICATED)', async () => {
+      const mocks = createMockDb()
+      setupSource(mocks)
+      const ctx = buildCtx(mocks.db, localizedCollection)
+      ;(ctx as any).requestContext = undefined
+
+      try {
+        await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+        expect.fail('expected ERR_UNAUTHENTICATED')
+      } catch (err) {
+        expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
     })
   })
 

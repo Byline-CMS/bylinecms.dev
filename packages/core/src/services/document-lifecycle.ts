@@ -39,6 +39,7 @@ import {
   ERR_PATCH_FAILED,
   ERR_PATH_CONFLICT,
   ERR_VALIDATION,
+  ErrorCodes,
 } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
 import { applyPatches } from '../patches/index.js'
@@ -158,6 +159,28 @@ export interface RestoreVersionResult {
   documentId: string
   documentVersionId: string
   sourceVersionId: string
+}
+
+export interface DuplicateDocumentResult {
+  /** The newly-created document's id. */
+  documentId: string
+  /** The newly-created version id (every duplicate starts at version 1). */
+  documentVersionId: string
+  /** The id of the document this duplicate was cloned from. */
+  sourceDocumentId: string
+  /**
+   * Final `path` written into `byline_document_paths` for the new document.
+   * Surfaced in the result so the UI can include it in success toasts /
+   * navigate to it directly.
+   */
+  newPath: string
+  /**
+   * `true` when the candidate path collided with an existing row and the
+   * lifecycle retried with a short-UUID suffix. UIs can surface a hint that
+   * the auto-generated path is uglier than usual so the editor knows to
+   * adjust it via the path widget.
+   */
+  pathRetried: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -1040,5 +1063,268 @@ export async function deleteDocument(
 
       return { deletedVersionCount }
     }
+  )
+}
+
+/**
+ * Strip the synthetic `_id` / `_type` meta keys from every block and
+ * array-item node in a reconstructed document tree.
+ *
+ * Reconstructed `locale: 'all'` trees carry stable `_id` values for
+ * blocks and array items (see CLAUDE.md → "Block/array items carry a
+ * stable `_id`"). For a *duplicate*, the new document is conceptually a
+ * fresh entity — its blocks should get fresh meta ids rather than
+ * inheriting the source's. Mutates the tree in place.
+ *
+ * Distinct from `restoreDocumentVersion`, which deliberately preserves
+ * `_id`s so block identity is stable across history.
+ */
+function stripMetaIdsInPlace(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      stripMetaIdsInPlace(item)
+    }
+    return
+  }
+  if (value != null && typeof value === 'object' && !(value instanceof Date)) {
+    const obj = value as Record<string, unknown>
+    delete obj._id
+    delete obj._type
+    for (const key of Object.keys(obj)) {
+      stripMetaIdsInPlace(obj[key])
+    }
+  }
+}
+
+/**
+ * Apply the `" (copy)"` suffix to the configured `useAsTitle` field on a
+ * duplicate's data tree. Handles both shapes:
+ *
+ *   - Localized title — `fields[useAsTitle]` is `{ en: '...', fr: '...' }`,
+ *     suffix is applied to every locale's value.
+ *   - Non-localized title — `fields[useAsTitle]` is a plain string;
+ *     suffix appended once.
+ *
+ * No-op when the collection has no `useAsTitle` or the title is null /
+ * undefined; the duplicate proceeds with the source's title verbatim and
+ * the editor can rename it. Mutates the tree in place.
+ */
+function applyDuplicateTitleSuffix(
+  definition: CollectionDefinition,
+  fields: Record<string, any>,
+  suffix: string
+): void {
+  const titleField = definition.useAsTitle
+  if (titleField == null) return
+  const value = fields[titleField]
+  if (value == null) return
+  if (typeof value === 'string') {
+    fields[titleField] = value + suffix
+    return
+  }
+  if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+    const localized = value as Record<string, unknown>
+    for (const loc of Object.keys(localized)) {
+      const v = localized[loc]
+      if (typeof v === 'string') {
+        localized[loc] = v + suffix
+      }
+    }
+  }
+}
+
+/**
+ * Compute the candidate path for a duplicate.
+ *
+ * Reads the default-locale value of `definition.useAsPath` (peeling the
+ * localized-shape wrapper if present) and runs it through the existing
+ * `derivePath` helper. Falls back to `crypto.randomUUID()` when no source
+ * value is available — matches `createDocument`'s behaviour for paths
+ * that can't be slugged.
+ */
+function deriveDuplicateCandidatePath(
+  definition: CollectionDefinition,
+  fields: Record<string, any>,
+  defaultLocale: string,
+  slugifier: SlugifierFn
+): string {
+  const useAsPath = definition.useAsPath
+  if (useAsPath == null) {
+    return crypto.randomUUID()
+  }
+  const raw = fields[useAsPath]
+  // Peel the localized wrapper to find the default-locale value.
+  let sourceValue: any = raw
+  if (raw != null && typeof raw === 'object' && !Array.isArray(raw) && !(raw instanceof Date)) {
+    sourceValue = (raw as Record<string, unknown>)[defaultLocale]
+  }
+  return derivePath(definition, { [useAsPath]: sourceValue }, defaultLocale, slugifier)
+}
+
+/**
+ * Duplicate a document, cloning all of its locales into a brand-new
+ * document atomically.
+ *
+ * Flow:
+ *   1. `assertActorCanPerform('create')` — duplicating is a create at the
+ *      ability level. The source must be readable (any RBAC scoping the
+ *      caller has applies via the storage read).
+ *   2. Fetch the source with `locale: 'all'` so a single read carries the
+ *      full multi-locale tree forward.
+ *   3. Deep-clone the source fields; strip block / array-item `_id` meta
+ *      so the new doc gets fresh identities.
+ *   4. Append `" (copy)"` to the `useAsTitle` field's value(s).
+ *   5. Derive a candidate path from the default-locale suffixed title.
+ *   6. `hooks.beforeCreate({ data, collectionPath, duplicate })`.
+ *   7. `db.commands.documents.createDocumentVersion(...)` with `locale:
+ *      'all'`, `action: 'create'`, no `documentId` → fresh document_id.
+ *      On `ERR_PATH_CONFLICT` retry once with the candidate path plus a
+ *      4-char UUID suffix; bounded to two attempts, no existence
+ *      pre-check, no TOCTOU race.
+ *   8. `hooks.afterCreate({ data, collectionPath, documentId,
+ *      documentVersionId, duplicate })`.
+ *
+ * The write is atomic at the storage layer — a partial duplicate is
+ * structurally impossible. Editors are expected to rename both the
+ * title and the system path after the operation; the UI surfaces a
+ * confirmation modal that calls this out.
+ */
+export async function duplicateDocument(
+  ctx: DocumentLifecycleContext,
+  params: { sourceDocumentId: string }
+): Promise<DuplicateDocumentResult> {
+  return withLogContext(
+    { domain: 'services', module: 'lifecycle', function: 'duplicateDocument' },
+    async () => {
+      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
+      const slugifier = ctx.slugifier ?? slugify
+      const hooks: CollectionHooks | undefined = definition.hooks
+
+      // 1. Read source with locale='all' — single read, full multi-locale tree.
+      const source = await db.queries.documents.getDocumentById({
+        collection_id: collectionId,
+        document_id: params.sourceDocumentId,
+        locale: 'all',
+        reconstruct: true,
+        lenient: true,
+        requestContext: ctx.requestContext,
+      })
+
+      if (source == null) {
+        throw ERR_NOT_FOUND({
+          message: 'source document not found',
+          details: { sourceDocumentId: params.sourceDocumentId, collectionPath },
+        }).log(ctx.logger)
+      }
+
+      const sourceRecord = source as Record<string, any>
+      const sourceFields: Record<string, any> = sourceRecord.fields ?? {}
+
+      // 2. Deep clone — we'll mutate (suffix titles, strip meta ids).
+      const clonedFields = structuredClone(sourceFields) as Record<string, any>
+
+      // 3. Fresh block / array-item identities for the new doc.
+      stripMetaIdsInPlace(clonedFields)
+
+      // 4. Suffix titles per locale (or once if non-localized).
+      const titleSuffix = ' (copy)'
+      applyDuplicateTitleSuffix(definition, clonedFields, titleSuffix)
+
+      // 5. Derive candidate path from the (now suffixed) default-locale title.
+      const candidatePath = deriveDuplicateCandidatePath(
+        definition,
+        clonedFields,
+        defaultLocale,
+        slugifier
+      )
+
+      // 6. beforeCreate hook with duplicate marker.
+      const duplicateMarker = { sourceDocumentId: params.sourceDocumentId }
+      await invokeHook(hooks?.beforeCreate, {
+        data: clonedFields,
+        collectionPath,
+        duplicate: duplicateMarker,
+      })
+
+      // 7. Atomic write. Try the candidate path; on ERR_PATH_CONFLICT
+      //    retry once with a 4-char UUID suffix.
+      const defaultStatus = getDefaultStatus(definition)
+      let finalPath = candidatePath
+      let pathRetried = false
+      let result: { document: any; fieldCount: number }
+      try {
+        result = await db.commands.documents
+          .createDocumentVersion({
+            collectionId,
+            collectionVersion: ctx.collectionVersion,
+            collectionConfig: definition,
+            action: 'create',
+            documentData: clonedFields,
+            path: finalPath,
+            status: defaultStatus,
+            locale: 'all',
+          })
+          .catch((err: unknown) => rethrowPathConflict(err, finalPath, defaultLocale))
+      } catch (err: unknown) {
+        if (!isPathConflictError(err)) {
+          throw err
+        }
+        // Single retry with a short UUID suffix. crypto.randomUUID() is
+        // 36 chars; take the first 4 hex digits for a compact disambiguator.
+        const shortDisambiguator = crypto.randomUUID().slice(0, 4)
+        finalPath = `${candidatePath}-${shortDisambiguator}`
+        pathRetried = true
+        ctx.logger?.info(
+          { candidatePath, retryPath: finalPath, sourceDocumentId: params.sourceDocumentId },
+          'duplicateDocument: candidate path collided, retrying with short-UUID suffix'
+        )
+        result = await db.commands.documents
+          .createDocumentVersion({
+            collectionId,
+            collectionVersion: ctx.collectionVersion,
+            collectionConfig: definition,
+            action: 'create',
+            documentData: clonedFields,
+            path: finalPath,
+            status: defaultStatus,
+            locale: 'all',
+          })
+          .catch((retryErr: unknown) => rethrowPathConflict(retryErr, finalPath, defaultLocale))
+      }
+
+      const newDocumentId = extractDocumentId(result.document)
+      const newDocumentVersionId = extractVersionId(result.document)
+
+      // 8. afterCreate hook with duplicate marker.
+      await invokeHook(hooks?.afterCreate, {
+        data: clonedFields,
+        collectionPath,
+        documentId: newDocumentId,
+        documentVersionId: newDocumentVersionId,
+        duplicate: duplicateMarker,
+      })
+
+      return {
+        documentId: newDocumentId,
+        documentVersionId: newDocumentVersionId,
+        sourceDocumentId: params.sourceDocumentId,
+        newPath: finalPath,
+        pathRetried,
+      }
+    }
+  )
+}
+
+/**
+ * Detect whether an error is the `ERR_PATH_CONFLICT` raised by
+ * `rethrowPathConflict`. Used by `duplicateDocument`'s retry logic to
+ * keep the conflict-handling path separate from genuine errors.
+ */
+function isPathConflictError(err: unknown): boolean {
+  return (
+    err != null &&
+    typeof err === 'object' &&
+    (err as { code?: string }).code === ErrorCodes.PATH_CONFLICT
   )
 }
