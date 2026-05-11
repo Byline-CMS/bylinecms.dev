@@ -403,8 +403,8 @@ export function DocumentActions({
                 className={cx('byline-form-actions-copy-label', styles['copy-label'])}
                 style={{ fontWeight: 500 }}
               >
-                From:
-              </span>{' '}
+                From:&nbsp;
+              </span>
               <span className={cx('byline-form-actions-copy-source', styles['copy-source'])}>
                 {sourceLocaleLabel}
               </span>
@@ -461,6 +461,7 @@ export function DocumentActions({
             </button>
             <Button
               size="sm"
+              style={{ minWidth: '80px' }}
               intent="noeffect"
               onClick={() => {
                 if (!copyToLocaleBusy) setShowCopyToLocaleConfirm(false)
@@ -471,6 +472,7 @@ export function DocumentActions({
             </Button>
             <Button
               size="sm"
+              style={{ minWidth: '80px' }}
               intent="primary"
               onClick={handleOnCopyToLocale}
               disabled={copyToLocaleBusy || !copyTargetLocale}
