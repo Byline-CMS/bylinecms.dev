@@ -1,4 +1,4 @@
-# Field API
+# Fields API
 
 > Companions:
 > - [RICHTEXT.md](./RICHTEXT.md) — the Lexical adapter, its `EditorConfig`, and how `lexicalEditor()` / `defaultEditorConfig` plug in.

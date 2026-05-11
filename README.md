@@ -62,6 +62,7 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
    system attribute (stored in a dedicated `byline_document_paths`
    table keyed by `(document_id, locale)`), `useAsPath`, the slugifier,
    the path widget, and per-locale paths as a future phase.
+3. **[docs/FIELDS-API.md](docs/FIELDS-API.md)** - field schemas, admin and  field helpers
 3. **[docs/RELATIONSHIPS.md](docs/RELATIONSHIPS.md)** — cross-collection
    relations, populate, the relation envelope, recursion safety via
    `ReadContext`, and `hasMany` as a future phase.
