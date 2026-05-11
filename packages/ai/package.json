@@ -30,10 +30,8 @@
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "clean": "rimraf node_modules dist build .turbo",
     "typecheck": "tsc --noEmit",
-    "test": "LOG_LEVEL=off tsx --env-file=.env --test $(find . -name \"*.test.ts\")",
-    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test",
-    "test:vitest": "vitest run",
-    "test:vitest:node": "vitest run --mode node",
+    "test": "LOG_LEVEL=off vitest run --mode=node",
+    "test:watch": "LOG_LEVEL=off vitest --mode=node",
     "list:models": "tsx --env-file=.env src/scripts/list-models.ts"
   },
   "exports": {
