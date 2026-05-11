@@ -413,21 +413,25 @@ export interface AfterCreateContext {
 }
 
 /**
- * Context passed to `beforeUpdate` hooks — PUT, patch, and restore flows.
+ * Context passed to `beforeUpdate` hooks — PUT, patch, restore, and
+ * copy-to-locale flows.
  *
  * `data` is the next version (mutable). `originalData` is the previous
  * version as reconstructed from storage.
  *
  * `restore` is set only when the update originates from a "make current"
- * action against a historical version. Userland hooks that need to react
- * differently (e.g. tag the audit entry, skip search re-index) can branch
- * on its presence.
+ * action against a historical version. `copyToLocale` is set only when
+ * the update originates from a Copy-to-Locale operation. The two are
+ * mutually exclusive in practice. Userland hooks that need to react
+ * differently (e.g. tag the audit entry, skip search re-index, suppress
+ * translation webhooks during a bulk seed) can branch on their presence.
  */
 export interface BeforeUpdateContext {
   data: Record<string, any>
   originalData: Record<string, any>
   collectionPath: string
   restore?: { sourceVersionId: string }
+  copyToLocale?: { sourceLocale: string; targetLocale: string }
 }
 
 /**
@@ -438,6 +442,8 @@ export interface BeforeUpdateContext {
  *
  * `restore` mirrors `BeforeUpdateContext.restore` — present only when the
  * update was triggered by restoring a historical version.
+ * `copyToLocale` mirrors `BeforeUpdateContext.copyToLocale` — present only
+ * when the update was triggered by `copyToLocale`.
  */
 export interface AfterUpdateContext {
   data: Record<string, any>
@@ -446,6 +452,7 @@ export interface AfterUpdateContext {
   documentId: string
   documentVersionId: string
   restore?: { sourceVersionId: string }
+  copyToLocale?: { sourceLocale: string; targetLocale: string }
 }
 
 /**

@@ -133,6 +133,23 @@
   font-weight: 500;
 }
 
+.copy-row,
+:global(.byline-form-actions-copy-row) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.copy-label,
+:global(.byline-form-actions-copy-label) {
+  /* Layout-only handle; spacing is set inline alongside the field. */
+}
+
+.copy-source,
+:global(.byline-form-actions-copy-source) {
+  font-family: var(--font-mono, monospace);
+}
+
 /* ─── Dark theme variants ───────────────────────────────────── */
 
 :is([data-theme="dark"], :global(.dark)) {

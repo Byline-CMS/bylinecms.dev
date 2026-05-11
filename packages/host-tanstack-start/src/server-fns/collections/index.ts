@@ -5,6 +5,7 @@
  * function and exports a clean public API.
  */
 
+export * from './copy-to-locale'
 export * from './create'
 export * from './delete'
 export * from './duplicate'

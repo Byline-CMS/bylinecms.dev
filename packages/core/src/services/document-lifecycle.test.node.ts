@@ -18,6 +18,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { BylineError, ERR_PATH_CONFLICT, ErrorCodes } from '../lib/errors.js'
 import {
   changeDocumentStatus,
+  copyToLocale,
   createDocument,
   deleteDocument,
   duplicateDocument,
@@ -1479,6 +1480,334 @@ describe('Document lifecycle service', () => {
 
       try {
         await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+        expect.fail('expected ERR_UNAUTHENTICATED')
+      } catch (err) {
+        expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // copyToLocale
+  // -----------------------------------------------------------------------
+  describe('copyToLocale', () => {
+    /** Collection with mixed localized / non-localized fields, including
+     *  nested structure (array of groups, blocks). */
+    const mixedCollection: CollectionDefinition = {
+      path: 'articles',
+      labels: { singular: 'Article', plural: 'Articles' },
+      useAsTitle: 'title',
+      fields: [
+        { name: 'title', type: 'text', localized: true },
+        { name: 'tagline', type: 'text', localized: true },
+        { name: 'sku', type: 'text' /* non-localized */ },
+        {
+          name: 'sections',
+          type: 'array',
+          fields: [
+            { name: 'heading', type: 'text', localized: true },
+            { name: 'order', type: 'integer' /* non-localized */ },
+          ],
+        },
+      ],
+    }
+
+    function setupSourceTarget(opts?: {
+      sourceFields?: Record<string, any>
+      targetFields?: Record<string, any>
+      currentVersionId?: string
+    }) {
+      const mocks = createMockDb()
+      const sourceFields = opts?.sourceFields ?? {
+        title: 'Hello',
+        tagline: 'World',
+        sku: 'SKU-1',
+        sections: [{ _id: 'sec-1', heading: 'Intro', order: 1 }],
+      }
+      const targetFields = opts?.targetFields ?? {
+        title: '',
+        tagline: 'Already translated',
+        sku: 'SKU-1',
+        sections: [{ _id: 'sec-1', heading: '', order: 1 }],
+      }
+      const currentVersionId = opts?.currentVersionId ?? 'ver-current'
+
+      mocks.getDocumentById.mockImplementation(
+        async (params: { locale?: string }): Promise<any> => {
+          if (params.locale === 'en') {
+            return {
+              document_version_id: currentVersionId,
+              document_id: 'doc-1',
+              path: 'hello',
+              status: 'draft',
+              fields: sourceFields,
+            }
+          }
+          if (params.locale === 'fr') {
+            return {
+              document_version_id: currentVersionId,
+              document_id: 'doc-1',
+              path: 'hello',
+              status: 'draft',
+              fields: targetFields,
+            }
+          }
+          return null
+        }
+      )
+      mocks.createDocumentVersion.mockResolvedValue({
+        document: { id: 'ver-new', document_id: 'doc-1' },
+        fieldCount: 5,
+      })
+
+      return { mocks, sourceFields, targetFields, currentVersionId }
+    }
+
+    it('reads both source and target locales, writes target with action="copy_to_locale", locale=target, previousVersionId threaded', async () => {
+      const { mocks, currentVersionId } = setupSourceTarget()
+      const ctx = buildCtx(mocks.db, mixedCollection)
+
+      const result = await copyToLocale(ctx, {
+        documentId: 'doc-1',
+        sourceLocale: 'en',
+        targetLocale: 'fr',
+        overwrite: false,
+      })
+
+      // Source + target read.
+      const readCalls = mocks.getDocumentById.mock.calls.map((c) => c[0])
+      expect(readCalls.some((p: any) => p.locale === 'en')).toBe(true)
+      expect(readCalls.some((p: any) => p.locale === 'fr')).toBe(true)
+
+      // Single write to target locale.
+      expect(mocks.createDocumentVersion).toHaveBeenCalledOnce()
+      const writeCall = mocks.createDocumentVersion.mock.calls[0]?.[0]
+      expect(writeCall.action).toBe('copy_to_locale')
+      expect(writeCall.locale).toBe('fr')
+      expect(writeCall.documentId).toBe('doc-1')
+      expect(writeCall.previousVersionId).toBe(currentVersionId)
+      expect(writeCall.path).toBeUndefined()
+
+      // Result envelope.
+      expect(result.documentId).toBe('doc-1')
+      expect(result.sourceLocale).toBe('en')
+      expect(result.targetLocale).toBe('fr')
+    })
+
+    it('overwrite=false: fills empty target slots from source, preserves populated target slots, never touches non-localized fields', async () => {
+      const { mocks } = setupSourceTarget({
+        sourceFields: {
+          title: 'EN Title',
+          tagline: 'EN Tagline',
+          sku: 'SKU-EN',
+          sections: [{ _id: 'sec-1', heading: 'EN Heading', order: 5 }],
+        },
+        targetFields: {
+          title: '', // empty → should be filled
+          tagline: 'FR Tagline Already', // populated → should be kept
+          sku: 'SKU-FR', // non-localized, target value preserved
+          sections: [{ _id: 'sec-1', heading: '', order: 9 }],
+        },
+      })
+      const ctx = buildCtx(mocks.db, mixedCollection)
+
+      const result = await copyToLocale(ctx, {
+        documentId: 'doc-1',
+        sourceLocale: 'en',
+        targetLocale: 'fr',
+        overwrite: false,
+      })
+
+      const data = mocks.createDocumentVersion.mock.calls[0]?.[0].documentData
+      expect(data.title).toBe('EN Title') // filled
+      expect(data.tagline).toBe('FR Tagline Already') // kept
+      expect(data.sku).toBe('SKU-FR') // non-localized: target preserved
+      expect(data.sections[0].heading).toBe('EN Heading') // filled
+      expect(data.sections[0].order).toBe(9) // non-localized: target preserved
+      expect(data.sections[0]._id).toBe('sec-1') // identity preserved
+      expect(result.fieldsUpdated).toBe(2) // title + sections[0].heading
+    })
+
+    it('overwrite=true: replaces every localized leaf with source value, even when source is empty', async () => {
+      const { mocks } = setupSourceTarget({
+        sourceFields: {
+          title: 'EN Title',
+          tagline: '', // empty source
+          sku: 'SKU-EN',
+          sections: [{ _id: 'sec-1', heading: 'EN Heading', order: 5 }],
+        },
+        targetFields: {
+          title: 'FR Title',
+          tagline: 'FR Tagline',
+          sku: 'SKU-FR',
+          sections: [{ _id: 'sec-1', heading: 'FR Heading', order: 9 }],
+        },
+      })
+      const ctx = buildCtx(mocks.db, mixedCollection)
+
+      await copyToLocale(ctx, {
+        documentId: 'doc-1',
+        sourceLocale: 'en',
+        targetLocale: 'fr',
+        overwrite: true,
+      })
+
+      const data = mocks.createDocumentVersion.mock.calls[0]?.[0].documentData
+      expect(data.title).toBe('EN Title') // overwritten
+      expect(data.tagline).toBe('') // overwritten even though source is empty
+      expect(data.sku).toBe('SKU-FR') // non-localized: still target preserved
+      expect(data.sections[0].heading).toBe('EN Heading') // overwritten
+      expect(data.sections[0].order).toBe(9) // non-localized preserved
+    })
+
+    it('does not pass `path` — path is sticky on copy-to-locale', async () => {
+      const { mocks } = setupSourceTarget()
+      const ctx = buildCtx(mocks.db, mixedCollection)
+      await copyToLocale(ctx, {
+        documentId: 'doc-1',
+        sourceLocale: 'en',
+        targetLocale: 'fr',
+        overwrite: false,
+      })
+      expect(mocks.createDocumentVersion.mock.calls[0]?.[0].path).toBeUndefined()
+    })
+
+    it('rejects when sourceLocale === targetLocale (ERR_VALIDATION)', async () => {
+      const { mocks } = setupSourceTarget()
+      const ctx = buildCtx(mocks.db, mixedCollection)
+
+      try {
+        await copyToLocale(ctx, {
+          documentId: 'doc-1',
+          sourceLocale: 'en',
+          targetLocale: 'en',
+          overwrite: false,
+        })
+        expect.fail('expected ERR_VALIDATION')
+      } catch (err) {
+        expect((err as BylineError).code).toBe(ErrorCodes.VALIDATION)
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('throws ERR_NOT_FOUND when the source-locale read returns null', async () => {
+      const mocks = createMockDb()
+      mocks.getDocumentById.mockResolvedValue(null) // both reads fail
+      const ctx = buildCtx(mocks.db, mixedCollection)
+
+      try {
+        await copyToLocale(ctx, {
+          documentId: 'doc-1',
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
+        expect.fail('expected ERR_NOT_FOUND')
+      } catch (err) {
+        expect((err as BylineError).code).toBe(ErrorCodes.NOT_FOUND)
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('throws ERR_NOT_FOUND when the target-locale read returns null', async () => {
+      const mocks = createMockDb()
+      // Source returns a doc; target returns null.
+      mocks.getDocumentById.mockImplementation(
+        async (params: { locale?: string }): Promise<any> => {
+          if (params.locale === 'en') {
+            return {
+              document_version_id: 'ver-current',
+              document_id: 'doc-1',
+              path: 'hello',
+              status: 'draft',
+              fields: { title: 'EN Title' },
+            }
+          }
+          return null
+        }
+      )
+      const ctx = buildCtx(mocks.db, mixedCollection)
+
+      try {
+        await copyToLocale(ctx, {
+          documentId: 'doc-1',
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
+        expect.fail('expected ERR_NOT_FOUND')
+      } catch (err) {
+        expect((err as BylineError).code).toBe(ErrorCodes.NOT_FOUND)
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('fires beforeUpdate / afterUpdate with the copyToLocale discriminator', async () => {
+      const beforeUpdate = vi.fn()
+      const afterUpdate = vi.fn()
+      const withHooks: CollectionDefinition = {
+        ...mixedCollection,
+        hooks: { beforeUpdate, afterUpdate },
+      }
+      const { mocks } = setupSourceTarget()
+      const ctx = buildCtx(mocks.db, withHooks)
+
+      await copyToLocale(ctx, {
+        documentId: 'doc-1',
+        sourceLocale: 'en',
+        targetLocale: 'fr',
+        overwrite: false,
+      })
+
+      expect(beforeUpdate).toHaveBeenCalledOnce()
+      expect(beforeUpdate.mock.calls[0]?.[0].copyToLocale).toEqual({
+        sourceLocale: 'en',
+        targetLocale: 'fr',
+      })
+      expect(afterUpdate).toHaveBeenCalledOnce()
+      expect(afterUpdate.mock.calls[0]?.[0].copyToLocale).toEqual({
+        sourceLocale: 'en',
+        targetLocale: 'fr',
+      })
+    })
+
+    it('enforces collections.<path>.update — rejects an admin actor missing the ability', async () => {
+      const { mocks } = setupSourceTarget()
+      const ctx = buildCtx(mocks.db, mixedCollection)
+      const actor = new AdminAuth({
+        id: 'reader',
+        abilities: ['collections.articles.read'],
+      })
+      ctx.requestContext = createRequestContext({ actor })
+
+      try {
+        await copyToLocale(ctx, {
+          documentId: 'doc-1',
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
+        expect.fail('expected ERR_FORBIDDEN')
+      } catch (err) {
+        expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
+        expect((err as AuthError).message).toContain('collections.articles.update')
+      }
+      expect(mocks.createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('rejects when requestContext is absent (ERR_UNAUTHENTICATED)', async () => {
+      const { mocks } = setupSourceTarget()
+      const ctx = buildCtx(mocks.db, mixedCollection)
+      ;(ctx as any).requestContext = undefined
+
+      try {
+        await copyToLocale(ctx, {
+          documentId: 'doc-1',
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
         expect.fail('expected ERR_UNAUTHENTICATED')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)

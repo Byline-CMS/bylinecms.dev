@@ -27,7 +27,7 @@ import { FieldRenderer } from '../fields/field-renderer'
 import { LocalDateTime } from '../fields/local-date-time'
 import { useBylineFieldServices } from '../services/field-services-context'
 import { Alert, Button, ComboButton, Modal } from '../uikit.js'
-import { DocumentActions } from './document-actions'
+import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import styles from './form-renderer.module.css'
 import { useNavigationGuardAdapter } from './navigation-guard'
@@ -60,6 +60,20 @@ export interface FormRendererProps {
    * When omitted, the Duplicate menu item is hidden.
    */
   onDuplicate?: () => Promise<void>
+  /**
+   * Called when the editor confirms the Copy-to-Locale modal in
+   * `DocumentActions`. Edit views provide a handler that invokes the
+   * `copyDocumentToLocale` server fn and navigates to the target-locale
+   * view. When omitted (or when fewer than two `contentLocales` are
+   * configured), the Copy-to-Locale menu item is hidden.
+   */
+  onCopyToLocale?: (args: { targetLocale: string; overwrite: boolean }) => Promise<void>
+  /**
+   * All configured content locales (code + display label) — required for
+   * the Copy-to-Locale modal's target Select. Threaded as an opaque list
+   * through to `DocumentActions`.
+   */
+  contentLocales?: ReadonlyArray<DocumentActionsLocaleOption>
   nextStatus?: WorkflowStatus
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
@@ -262,6 +276,8 @@ const FormContent = ({
   onUnpublish,
   onDelete,
   onDuplicate,
+  onCopyToLocale,
+  contentLocales,
   nextStatus,
   workflowStatuses,
   publishedVersion,
@@ -701,6 +717,9 @@ const FormContent = ({
                     | undefined)
                 : null
             }
+            onCopyToLocale={onCopyToLocale}
+            sourceLocale={contentLocale}
+            contentLocales={contentLocales}
           />
         </div>
       </div>
@@ -785,6 +804,8 @@ export const FormRenderer = ({
   onUnpublish,
   onDelete,
   onDuplicate,
+  onCopyToLocale,
+  contentLocales,
   nextStatus,
   workflowStatuses,
   publishedVersion,
@@ -819,6 +840,8 @@ export const FormRenderer = ({
         onUnpublish={onUnpublish}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
+        onCopyToLocale={onCopyToLocale}
+        contentLocales={contentLocales}
         nextStatus={nextStatus}
         workflowStatuses={workflowStatuses}
         publishedVersion={publishedVersion}

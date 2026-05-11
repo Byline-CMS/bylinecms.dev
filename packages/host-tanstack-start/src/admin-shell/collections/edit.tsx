@@ -14,6 +14,7 @@ import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { Container, FormRenderer, Section, useToastManager } from '@byline/ui/react'
 
 import {
+  copyDocumentToLocale,
   deleteDocument,
   duplicateCollectionDocument,
   unpublishDocument,
@@ -213,6 +214,70 @@ export const EditView = ({
     }
   }
 
+  const handleCopyToLocale = async ({
+    targetLocale,
+    overwrite,
+  }: {
+    targetLocale: string
+    overwrite: boolean
+  }) => {
+    try {
+      const result = await copyDocumentToLocale({
+        data: {
+          collection: path,
+          id: String(initialData.id),
+          sourceLocale: locale ?? defaultContentLocale,
+          targetLocale,
+          overwrite,
+        },
+      })
+      const sourceLabel =
+        contentLocales.find((l) => l.code === result.sourceLocale)?.label ?? result.sourceLocale
+      const targetLabel =
+        contentLocales.find((l) => l.code === result.targetLocale)?.label ?? result.targetLocale
+      toastManager.add({
+        title: `${labels.singular} Copy to Locale`,
+        description:
+          result.fieldsUpdated > 0
+            ? `Copied ${result.fieldsUpdated} field${result.fieldsUpdated === 1 ? '' : 's'} from ${sourceLabel} to ${targetLabel}.`
+            : `No fields needed copying from ${sourceLabel} to ${targetLabel} under the current rule.`,
+        data: {
+          intent: 'success',
+          iconType: 'success',
+          icon: true,
+          close: true,
+        },
+      })
+      setEditState({
+        status: 'success',
+        message: `Copied ${sourceLabel} → ${targetLabel}.`,
+      })
+      // Switch the form to the target locale so the editor sees the
+      // copied content immediately.
+      navigate({
+        to: '/admin/collections/$collection/$id' as never,
+        params: { collection: path, id: String(initialData.id) },
+        search: { locale: targetLocale },
+      })
+    } catch (err) {
+      console.error('Copy to locale error:', err)
+      toastManager.add({
+        title: `${labels.singular} Copy to Locale`,
+        description: `Failed to copy: ${(err as Error).message}`,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
+      setEditState({
+        status: 'failed',
+        message: `Failed to copy: ${(err as Error).message}`,
+      })
+    }
+  }
+
   const handleDelete = async () => {
     try {
       await deleteDocument({ data: { collection: path, id: String(initialData.id) } })
@@ -355,6 +420,8 @@ export const EditView = ({
           onUnpublish={publishedVersion ? handleUnpublish : undefined}
           onDelete={handleDelete}
           onDuplicate={handleDuplicate}
+          onCopyToLocale={handleCopyToLocale}
+          contentLocales={contentLocales}
           publishedVersion={publishedVersion}
           restoreWarnings={restoreWarnings}
           nextStatus={nextStatus}

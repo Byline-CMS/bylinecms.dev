@@ -27,8 +27,13 @@ import {
   type CollectionDefinition,
   type CollectionHookSlot,
   type CollectionHooks,
+  type Field,
+  type FieldSet,
   type IDbAdapter,
   type IStorageProvider,
+  isArrayField,
+  isBlocksField,
+  isGroupField,
   normalizeCollectionHook,
 } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
@@ -159,6 +164,23 @@ export interface RestoreVersionResult {
   documentId: string
   documentVersionId: string
   sourceVersionId: string
+}
+
+export interface CopyToLocaleResult {
+  documentId: string
+  documentVersionId: string
+  /** Source locale read for the copy. */
+  sourceLocale: string
+  /** Target locale into which the source's localized leaves were written. */
+  targetLocale: string
+  /**
+   * Number of localized field values copied from source to target. Useful
+   * for UI toasts ("Copied 4 fields from EN to FR"). A zero result means
+   * the source had no localized content to copy into the target under the
+   * chosen merge rule (e.g. `overwrite: false` and target was already
+   * fully populated).
+   */
+  fieldsUpdated: number
 }
 
 export interface DuplicateDocumentResult {
@@ -1326,5 +1348,360 @@ function isPathConflictError(err: unknown): boolean {
     err != null &&
     typeof err === 'object' &&
     (err as { code?: string }).code === ErrorCodes.PATH_CONFLICT
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Copy-to-Locale merge walker
+// ---------------------------------------------------------------------------
+
+/**
+ * Treat null, undefined, and empty string as "no value" for the purpose
+ * of the `overwrite: false` merge rule. We intentionally do NOT treat
+ * `0`, `false`, or `[]` / `{}` as empty — they are meaningful values an
+ * editor may have set deliberately.
+ */
+function isEmptyLeafValue(value: unknown): boolean {
+  return value == null || value === ''
+}
+
+/**
+ * Result of merging source-locale and target-locale data trees for
+ * `copyToLocale`. `data` is the payload to hand to
+ * `createDocumentVersion`; `fieldsUpdated` counts every localized leaf
+ * the merge rule chose to overwrite (used for UI toasts).
+ */
+interface CopyToLocaleMergeResult {
+  data: Record<string, any>
+  fieldsUpdated: number
+}
+
+/**
+ * Build the payload `copyToLocale` will write into the target locale.
+ *
+ * Walks `definition.fields` and the two reconstructed data trees in
+ * lockstep, applying the merge rule at every leaf:
+ *
+ *   - **Localized leaf, `overwrite: true`** — take source's value (even
+ *     when source is empty; overwriting means overwriting).
+ *   - **Localized leaf, `overwrite: false`** — take source's value only
+ *     when target is empty AND source is non-empty. Otherwise keep
+ *     target's value. Empties under this rule are treated by
+ *     `isEmptyLeafValue` — `null` / `undefined` / `''`.
+ *   - **Non-localized leaf** — always keep target's value. Non-localized
+ *     fields live on `locale: 'all'` rows in storage and would be wiped
+ *     by the upcoming write if we did not pass them through verbatim.
+ *
+ * Structure (number of array items, blocks, etc.) follows the *target*
+ * tree — copy-to-locale never restructures the document; it only fills
+ * in localized leaves at positions the target already has.
+ *
+ * Pure: mutates nothing. The returned `data` is a fresh tree suitable
+ * to pass to `createDocumentVersion`.
+ */
+function mergeLocaleData(
+  fields: FieldSet,
+  sourceData: Record<string, any> | null | undefined,
+  targetData: Record<string, any> | null | undefined,
+  overwrite: boolean
+): CopyToLocaleMergeResult {
+  const source = (sourceData ?? {}) as Record<string, any>
+  const target = (targetData ?? {}) as Record<string, any>
+  const out: Record<string, any> = {}
+  let fieldsUpdated = 0
+
+  for (const field of fields) {
+    const updated = mergeFieldValue(field, source[field.name], target[field.name], overwrite)
+    out[field.name] = updated.value
+    fieldsUpdated += updated.fieldsUpdated
+  }
+
+  return { data: out, fieldsUpdated }
+}
+
+interface MergeFieldOutcome {
+  value: any
+  fieldsUpdated: number
+}
+
+function mergeFieldValue(
+  field: Field,
+  sourceValue: unknown,
+  targetValue: unknown,
+  overwrite: boolean
+): MergeFieldOutcome {
+  if (isGroupField(field)) {
+    const childSource = isPlainObject(sourceValue) ? sourceValue : {}
+    const childTarget = isPlainObject(targetValue) ? targetValue : {}
+    const merged = mergeLocaleData(field.fields, childSource, childTarget, overwrite)
+    return { value: merged.data, fieldsUpdated: merged.fieldsUpdated }
+  }
+
+  if (isArrayField(field)) {
+    if (!Array.isArray(targetValue)) {
+      // Target has no array here — keep that. Source is not authoritative
+      // for structure under copy-to-locale.
+      return { value: targetValue, fieldsUpdated: 0 }
+    }
+    const sourceItems = Array.isArray(sourceValue) ? sourceValue : []
+    const mergedItems: any[] = []
+    let count = 0
+    for (let i = 0; i < targetValue.length; i++) {
+      const tItem = targetValue[i]
+      const sItem = sourceItems[i]
+      if (!isPlainObject(tItem)) {
+        mergedItems.push(tItem)
+        continue
+      }
+      const itemMerge = mergeLocaleData(
+        field.fields,
+        isPlainObject(sItem) ? sItem : {},
+        tItem,
+        overwrite
+      )
+      // Preserve `_id` / `_type` meta on the target item — same identity
+      // is carried forward across this update.
+      const merged = { ...itemMerge.data } as Record<string, any>
+      if (tItem._id !== undefined) merged._id = tItem._id
+      if (tItem._type !== undefined) merged._type = tItem._type
+      mergedItems.push(merged)
+      count += itemMerge.fieldsUpdated
+    }
+    return { value: mergedItems, fieldsUpdated: count }
+  }
+
+  if (isBlocksField(field)) {
+    if (!Array.isArray(targetValue)) {
+      return { value: targetValue, fieldsUpdated: 0 }
+    }
+    const sourceItems = Array.isArray(sourceValue) ? sourceValue : []
+    const mergedItems: any[] = []
+    let count = 0
+    for (let i = 0; i < targetValue.length; i++) {
+      const tItem = targetValue[i] as Record<string, any> | null | undefined
+      if (!isPlainObject(tItem)) {
+        mergedItems.push(tItem)
+        continue
+      }
+      const blockType = tItem._type
+      const block = field.blocks.find((b) => b.blockType === blockType)
+      if (block == null) {
+        // Unknown block — pass through unchanged.
+        mergedItems.push(tItem)
+        continue
+      }
+      const sItem = sourceItems[i]
+      const itemMerge = mergeLocaleData(
+        block.fields,
+        isPlainObject(sItem) && sItem._type === blockType ? sItem : {},
+        tItem,
+        overwrite
+      )
+      const merged = { ...itemMerge.data } as Record<string, any>
+      if (tItem._id !== undefined) merged._id = tItem._id
+      merged._type = blockType
+      mergedItems.push(merged)
+      count += itemMerge.fieldsUpdated
+    }
+    return { value: mergedItems, fieldsUpdated: count }
+  }
+
+  // Leaf field.
+  const localized = (field as { localized?: boolean }).localized === true
+  if (!localized) {
+    // Non-localized leaves live on locale: 'all' rows. Pass the target's
+    // value through verbatim so the write does not wipe them.
+    return { value: targetValue, fieldsUpdated: 0 }
+  }
+
+  if (overwrite) {
+    return {
+      value: sourceValue,
+      fieldsUpdated: sourceValue === targetValue ? 0 : 1,
+    }
+  }
+
+  // overwrite: false — fill only when target is empty AND source has content.
+  if (isEmptyLeafValue(targetValue) && !isEmptyLeafValue(sourceValue)) {
+    return { value: sourceValue, fieldsUpdated: 1 }
+  }
+  return { value: targetValue, fieldsUpdated: 0 }
+}
+
+function isPlainObject(value: unknown): value is Record<string, any> {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+}
+
+// ---------------------------------------------------------------------------
+// copyToLocale
+// ---------------------------------------------------------------------------
+
+/**
+ * Copy a document's content from one locale into another, in place on
+ * the same document.
+ *
+ * Reads the source and target locales separately (the storage layer
+ * resolves localized fields to flat single-locale shapes when given a
+ * specific `resolveLocale`). A schema-aware merge walker decides, leaf
+ * by leaf, whether to take the source's value or keep the target's,
+ * driven by the `overwrite` flag. The merged tree is written via
+ * `createDocumentVersion({ action: 'copy_to_locale', locale: target })`
+ * — the existing cross-locale carry-forward in the storage primitive
+ * preserves every *other* locale's rows untouched.
+ *
+ * Non-localized fields are never altered by this operation: they live
+ * on `locale: 'all'` rows and the merge walker passes the target's
+ * value through so the write does not blank them.
+ *
+ * Path is sticky and lives on default-locale only; this operation never
+ * touches `byline_document_paths`. Status resets to the workflow
+ * default — translations land as drafts.
+ *
+ * Flow:
+ *   1. `assertActorCanPerform('update')` — same gate as a translation save.
+ *   2. Reject if `sourceLocale === targetLocale`.
+ *   3. Fetch source via `getDocumentById({ locale: sourceLocale })`.
+ *   4. Fetch target via `getDocumentById({ locale: targetLocale })`.
+ *   5. `mergeLocaleData(definition.fields, source.fields, target.fields, overwrite)`.
+ *   6. `hooks.beforeUpdate({ data, originalData, collectionPath, copyToLocale })`.
+ *   7. `createDocumentVersion({ documentId, action: 'copy_to_locale',
+ *      locale: targetLocale, documentData, previousVersionId, status })`.
+ *   8. `hooks.afterUpdate({ ..., copyToLocale })`.
+ */
+export async function copyToLocale(
+  ctx: DocumentLifecycleContext,
+  params: {
+    documentId: string
+    sourceLocale: string
+    targetLocale: string
+    overwrite: boolean
+  }
+): Promise<CopyToLocaleResult> {
+  return withLogContext(
+    { domain: 'services', module: 'lifecycle', function: 'copyToLocale' },
+    async () => {
+      const { db, definition, collectionId, collectionPath } = ctx
+      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
+
+      if (params.sourceLocale === params.targetLocale) {
+        throw ERR_VALIDATION({
+          message: 'sourceLocale and targetLocale must differ',
+          details: {
+            documentId: params.documentId,
+            sourceLocale: params.sourceLocale,
+            targetLocale: params.targetLocale,
+          },
+        }).log(ctx.logger)
+      }
+
+      // 1. Source read.
+      const source = await db.queries.documents.getDocumentById({
+        collection_id: collectionId,
+        document_id: params.documentId,
+        locale: params.sourceLocale,
+        reconstruct: true,
+        lenient: true,
+        requestContext: ctx.requestContext,
+      })
+
+      if (source == null) {
+        throw ERR_NOT_FOUND({
+          message: 'document not found in source locale',
+          details: {
+            documentId: params.documentId,
+            sourceLocale: params.sourceLocale,
+            collectionPath,
+          },
+        }).log(ctx.logger)
+      }
+
+      // 2. Target read — needed for both originalData (hooks) and to
+      //    preserve non-localized values + structural shape.
+      const target = await db.queries.documents.getDocumentById({
+        collection_id: collectionId,
+        document_id: params.documentId,
+        locale: params.targetLocale,
+        reconstruct: true,
+        lenient: true,
+        requestContext: ctx.requestContext,
+      })
+
+      if (target == null) {
+        throw ERR_NOT_FOUND({
+          message: 'document not found in target locale',
+          details: {
+            documentId: params.documentId,
+            targetLocale: params.targetLocale,
+            collectionPath,
+          },
+        }).log(ctx.logger)
+      }
+
+      const sourceRecord = source as Record<string, any>
+      const targetRecord = target as Record<string, any>
+      const sourceFields: Record<string, any> = sourceRecord.fields ?? {}
+      const targetFields: Record<string, any> = targetRecord.fields ?? {}
+
+      // 3. Merge.
+      const merged = mergeLocaleData(
+        definition.fields,
+        sourceFields,
+        targetFields,
+        params.overwrite
+      )
+
+      // 4. Hooks see the target-locale view as originalData (consistent
+      //    with how updateDocument scopes originalData to the active
+      //    locale) and the merged payload as the next `data`.
+      const hooks: CollectionHooks | undefined = definition.hooks
+      const copyToLocaleMarker = {
+        sourceLocale: params.sourceLocale,
+        targetLocale: params.targetLocale,
+      }
+      await invokeHook(hooks?.beforeUpdate, {
+        data: merged.data,
+        originalData: targetFields,
+        collectionPath,
+        copyToLocale: copyToLocaleMarker,
+      })
+
+      // 5. Write. previousVersionId threads the current version id so the
+      //    storage primitive's cross-locale carry-forward fires for every
+      //    *other* locale (not source, not target — those rows are
+      //    rewritten by this call).
+      const previousVersionId =
+        (targetRecord.document_version_id as string | undefined) ?? undefined
+
+      const writeResult = await db.commands.documents.createDocumentVersion({
+        documentId: params.documentId,
+        collectionId,
+        collectionVersion: ctx.collectionVersion,
+        collectionConfig: definition,
+        action: 'copy_to_locale',
+        documentData: merged.data,
+        status: getDefaultStatus(definition),
+        locale: params.targetLocale,
+        previousVersionId,
+      })
+
+      const documentVersionId = extractVersionId(writeResult.document)
+
+      await invokeHook(hooks?.afterUpdate, {
+        data: merged.data,
+        originalData: targetFields,
+        collectionPath,
+        documentId: params.documentId,
+        documentVersionId,
+        copyToLocale: copyToLocaleMarker,
+      })
+
+      return {
+        documentId: params.documentId,
+        documentVersionId,
+        sourceLocale: params.sourceLocale,
+        targetLocale: params.targetLocale,
+        fieldsUpdated: merged.fieldsUpdated,
+      }
+    }
   )
 }

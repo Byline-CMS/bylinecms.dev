@@ -14,17 +14,29 @@ import cx from 'classnames'
 
 import {
   Button,
+  Checkbox,
   CloseIcon,
   DeleteIcon,
   Dropdown as DropdownComponent,
   EllipsisIcon,
   IconButton,
   Modal,
+  Select,
 } from '../uikit.js'
 import styles from './document-actions.module.css'
 import type { PublishedVersionInfo } from './form-renderer'
 
 const DUPLICATE_TITLE_SUFFIX = ' (copy)'
+
+/**
+ * Shape of a content-locale option as consumed by the Copy-to-Locale
+ * modal. Matches the host adapter's `ContentLocaleOption`; declared
+ * locally so this package does not take a dependency on host code.
+ */
+export interface DocumentActionsLocaleOption {
+  code: string
+  label: string
+}
 
 export function DocumentActions({
   publishedVersion,
@@ -32,6 +44,9 @@ export function DocumentActions({
   onDelete,
   onDuplicate,
   sourceTitle,
+  onCopyToLocale,
+  sourceLocale,
+  contentLocales,
 }: {
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
@@ -48,10 +63,40 @@ export function DocumentActions({
    * preview reflects what will actually be duplicated.
    */
   sourceTitle?: string | null
+  /**
+   * Called when the editor confirms the Copy-to-Locale modal. The
+   * parent runs the server fn, surfaces a toast, and navigates to the
+   * target locale view. Menu item is hidden when omitted, or when fewer
+   * than two content locales are configured.
+   */
+  onCopyToLocale?: (args: { targetLocale: string; overwrite: boolean }) => Promise<void>
+  /**
+   * The locale the form is currently displaying. Used as the read-only
+   * "From" label in the Copy-to-Locale modal and excluded from the
+   * target Select.
+   */
+  sourceLocale?: string
+  /**
+   * All configured content locales (code + display label). The
+   * Copy-to-Locale Select lists every locale except `sourceLocale`.
+   */
+  contentLocales?: ReadonlyArray<DocumentActionsLocaleOption>
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
   const [duplicateBusy, setDuplicateBusy] = useState(false)
+
+  // Copy-to-Locale modal state. The menu item is hidden entirely unless
+  // the host has supplied a handler AND there is at least one *other*
+  // locale to copy into.
+  const availableTargetLocales = (contentLocales ?? []).filter((loc) => loc.code !== sourceLocale)
+  const copyToLocaleAvailable = onCopyToLocale != null && availableTargetLocales.length > 0
+  const [showCopyToLocaleConfirm, setShowCopyToLocaleConfirm] = useState(false)
+  const [copyToLocaleBusy, setCopyToLocaleBusy] = useState(false)
+  const [copyTargetLocale, setCopyTargetLocale] = useState<string>(
+    availableTargetLocales[0]?.code ?? ''
+  )
+  const [copyOverwrite, setCopyOverwrite] = useState(false)
 
   const handleOnDelete = () => {
     setShowDeleteConfirm(false)
@@ -71,10 +116,33 @@ export function DocumentActions({
     }
   }
 
+  const handleOpenCopyToLocale = () => {
+    // Reset on open: pick the first available target and clear the
+    // overwrite checkbox so a previous-session "overwrite=true" choice
+    // is not silently sticky.
+    setCopyTargetLocale(availableTargetLocales[0]?.code ?? '')
+    setCopyOverwrite(false)
+    setShowCopyToLocaleConfirm(true)
+  }
+
+  const handleOnCopyToLocale = async () => {
+    if (!onCopyToLocale || !copyTargetLocale) return
+    setCopyToLocaleBusy(true)
+    try {
+      await onCopyToLocale({ targetLocale: copyTargetLocale, overwrite: copyOverwrite })
+      setShowCopyToLocaleConfirm(false)
+    } finally {
+      setCopyToLocaleBusy(false)
+    }
+  }
+
   // Preview text shown inside the modal. Falls back to the literal suffix
   // when no source title is supplied (collections without `useAsTitle`).
   const duplicatePreviewBefore = sourceTitle ?? ''
   const duplicatePreviewAfter = (sourceTitle ?? '') + DUPLICATE_TITLE_SUFFIX
+
+  const sourceLocaleLabel =
+    contentLocales?.find((loc) => loc.code === sourceLocale)?.label ?? sourceLocale ?? ''
 
   return (
     <>
@@ -109,13 +177,15 @@ export function DocumentActions({
                 <DropdownComponent.Separator />
               </>
             )}
-            <DropdownComponent.Item>
-              <div className={cx('byline-form-actions-item', styles.item)}>
-                <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                  <button type="button">Copy to Locale</button>
-                </span>
-              </div>
-            </DropdownComponent.Item>
+            {copyToLocaleAvailable && (
+              <DropdownComponent.Item onClick={handleOpenCopyToLocale}>
+                <div className={cx('byline-form-actions-item', styles.item)}>
+                  <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                    <button type="button">Copy to Locale</button>
+                  </span>
+                </div>
+              </DropdownComponent.Item>
+            )}
             {onDuplicate && (
               <DropdownComponent.Item
                 onClick={() => {
@@ -293,6 +363,119 @@ export function DocumentActions({
               disabled={duplicateBusy}
             >
               {duplicateBusy ? 'Duplicating...' : 'Duplicate'}
+            </Button>
+          </Modal.Actions>
+        </Modal.Container>
+      </Modal>
+
+      <Modal
+        isOpen={showCopyToLocaleConfirm}
+        closeOnOverlayClick={!copyToLocaleBusy}
+        onDismiss={() => {
+          if (!copyToLocaleBusy) setShowCopyToLocaleConfirm(false)
+        }}
+      >
+        <Modal.Container style={{ maxWidth: '560px' }}>
+          <Modal.Header className={cx('byline-form-actions-modal-head', styles['modal-head'])}>
+            <h3 className={cx('byline-form-actions-modal-title', styles['modal-title'])}>
+              Copy to Locale
+            </h3>
+            <IconButton
+              arial-label="Close"
+              size="xs"
+              onClick={() => {
+                if (!copyToLocaleBusy) setShowCopyToLocaleConfirm(false)
+              }}
+            >
+              <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
+            </IconButton>
+          </Modal.Header>
+          <Modal.Content>
+            <p>
+              Copy this document's content from one locale to another. Non-localized fields are
+              shared across locales and will not change.
+            </p>
+            <div
+              className={cx('byline-form-actions-copy-row', styles['copy-row'])}
+              style={{ marginTop: 'var(--spacing-12)' }}
+            >
+              <span
+                className={cx('byline-form-actions-copy-label', styles['copy-label'])}
+                style={{ fontWeight: 500 }}
+              >
+                From:
+              </span>{' '}
+              <span className={cx('byline-form-actions-copy-source', styles['copy-source'])}>
+                {sourceLocaleLabel}
+              </span>
+            </div>
+            <div
+              className={cx('byline-form-actions-copy-row', styles['copy-row'])}
+              style={{ marginTop: 'var(--spacing-12)' }}
+            >
+              <span
+                className={cx('byline-form-actions-copy-label', styles['copy-label'])}
+                style={{ fontWeight: 500, marginRight: 'var(--spacing-8)' }}
+              >
+                To:
+              </span>
+              <Select<string>
+                size="sm"
+                ariaLabel="Target locale"
+                value={copyTargetLocale}
+                items={availableTargetLocales.map((loc) => ({
+                  value: loc.code,
+                  label: loc.label,
+                }))}
+                onValueChange={(value) => {
+                  if (value != null) setCopyTargetLocale(value)
+                }}
+                disabled={copyToLocaleBusy}
+              />
+            </div>
+            <div
+              className={cx('byline-form-actions-copy-row', styles['copy-row'])}
+              style={{ marginTop: 'var(--spacing-16)' }}
+            >
+              <Checkbox
+                id="copy-to-locale-overwrite"
+                name="overwrite"
+                label="Overwrite existing field data in target locale"
+                checked={copyOverwrite}
+                disabled={copyToLocaleBusy}
+                helpText="Unchecked: only fill in target fields that are currently empty. Checked: replace every translated field with the source's value."
+                onCheckedChange={(value) => {
+                  setCopyOverwrite(value === true)
+                }}
+              />
+            </div>
+          </Modal.Content>
+          <Modal.Actions>
+            <button
+              data-autofocus
+              type="button"
+              tabIndex={0}
+              className={cx('byline-form-actions-sr-only', styles['sr-only'])}
+            >
+              no action
+            </button>
+            <Button
+              size="sm"
+              intent="noeffect"
+              onClick={() => {
+                if (!copyToLocaleBusy) setShowCopyToLocaleConfirm(false)
+              }}
+              disabled={copyToLocaleBusy}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              intent="primary"
+              onClick={handleOnCopyToLocale}
+              disabled={copyToLocaleBusy || !copyTargetLocale}
+            >
+              {copyToLocaleBusy ? 'Copying...' : 'Copy'}
             </Button>
           </Modal.Actions>
         </Modal.Container>
