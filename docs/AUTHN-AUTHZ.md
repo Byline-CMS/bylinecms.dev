@@ -137,10 +137,10 @@ Policy:
 
 Call sites:
 
-- Every `document-lifecycle.*` write entry point (`createDocument`, `updateDocument`, `updateDocumentWithPatches`, `changeStatus`, `unpublishDocument`, `deleteDocument`).
+- Every `document-lifecycle.*` write entry point (`createDocument`, `updateDocument`, `updateDocumentWithPatches`, `changeStatus`, `unpublishDocument`, `deleteDocument`, `restoreDocumentVersion`, `duplicateDocument`, `copyToLocale`).
 - `field-upload.uploadField` — uploads are effectively a write under collection scope, gated on `create` even when `shouldCreateDocument: false`. See [FILE-MEDIA-UPLOADS.md](./FILE-MEDIA-UPLOADS.md).
 - `@byline/client` `CollectionHandle` on every read path (`find`, `findById`, `findByPath`, `findOne`, `countByStatus`, `history`, `findByVersion`).
-- Every admin webapp document-collection server fn (`packages/host-tanstack-start/src/server-fns/collections/{list,get,history,stats,create,update,delete,status,upload}.ts`). Writes thread `requestContext` into `DocumentLifecycleContext`; reads call `assertActorCanPerform` directly before the adapter call.
+- Every admin webapp document-collection server fn (`packages/host-tanstack-start/src/server-fns/collections/{list,get,history,stats,create,update,delete,status,upload,restore-version,duplicate,copy-to-locale}.ts`). Writes thread `requestContext` into `DocumentLifecycleContext`; reads call `assertActorCanPerform` directly before the adapter call.
 
 ### `assertAdminActor` — admin management
 
