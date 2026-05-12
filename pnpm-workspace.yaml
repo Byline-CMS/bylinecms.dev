@@ -1,5 +1,11 @@
 packages:
-  - 'packages/*'
-  - 'apps/*'
-  - 'benchmarks/storage'
-
+  - "packages/*"
+  - "apps/*"
+  - "benchmarks/storage"
+allowBuilds:
+  "@google/genai": true
+  "@parcel/watcher": true
+  esbuild: true
+  lightningcss-cli: true
+  protobufjs: true
+  sharp: true

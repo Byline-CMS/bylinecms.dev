@@ -45,13 +45,14 @@
     "test": {
       "outputs": []
     },
-    "start": {
-      "cache": false,
-      "dependsOn": ["^start"]
-    },
     "preview": {
       "cache": false,
       "dependsOn": ["^preview"],
+      "persistent": true
+    },
+    "start": {
+      "cache": false,
+      "dependsOn": ["^start"],
       "persistent": true
     }
   },

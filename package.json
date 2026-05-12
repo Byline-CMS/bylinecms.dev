@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.33.2",
+  "packageManager": "pnpm@11.1.0",
   "scripts": {
     "clean": "turbo run clean && rimraf node_modules",
     "db:init": "TURBO_UI=true turbo run db:init",
@@ -13,6 +13,7 @@
     "build": "turbo run build",
     "build:packages": "turbo run build --filter=\"./packages/*\"",
     "preview": "turbo run preview",
+    "start": "turbo run start",
     "storybook": "turbo run storybook",
     "dev": "turbo run dev",
     "lint": "turbo run lint --continue",
@@ -23,11 +24,11 @@
     "release:npm": "turbo run build --filter=\"./packages/*\" && changeset publish"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.14",
+    "@biomejs/biome": "2.4.15",
     "@changesets/cli": "^2.31.0"
   },
   "dependencies": {
-    "turbo": "^2.9.8",
+    "turbo": "^2.9.12",
     "typescript": "6.0.3"
   },
   "engines": {

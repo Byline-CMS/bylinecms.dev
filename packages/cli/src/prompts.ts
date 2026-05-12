@@ -35,7 +35,10 @@ export function createPrompter(opts: { yes?: boolean } = {}): Prompter {
       return v as string
     },
     async password({ message, validate }) {
-      const v = await p.password({ message, validate })
+      const v = await p.password({
+        message,
+        validate: validate ? (value: string | undefined) => validate(value ?? '') : undefined,
+      })
       if (p.isCancel(v)) cancel('cancelled')
       return v as string
     },
