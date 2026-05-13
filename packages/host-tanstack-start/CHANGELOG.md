@@ -1,5 +1,18 @@
 # @byline/host-tanstack-start
 
+## 1.11.2
+
+### Patch Changes
+
+- refactor(orderable): moved orderable flag from defineAdmin to defineCollection.
+- Updated dependencies
+  - @byline/core@1.11.2
+  - @byline/admin@1.11.2
+  - @byline/ai@1.11.2
+  - @byline/auth@1.11.2
+  - @byline/client@1.11.2
+  - @byline/ui@1.11.2
+
 ## 1.11.1
 
 ### Patch Changes

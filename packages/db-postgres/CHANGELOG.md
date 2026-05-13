@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 1.11.2
+
+### Patch Changes
+
+- refactor(orderable): moved orderable flag from defineAdmin to defineCollection.
+- Updated dependencies
+  - @byline/core@1.11.2
+  - @byline/admin@1.11.2
+  - @byline/auth@1.11.2
+
 ## 1.11.1
 
 ### Patch Changes
