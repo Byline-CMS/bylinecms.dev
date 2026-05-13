@@ -202,8 +202,12 @@ const FormStatusDisplay = ({
 
 /**
  * Compute the primary and secondary status transitions for the ComboButton.
- * - Primary: the main action (forward step, or back step if at the end)
- * - Secondary: other available transitions to show as dropdown options
+ * - Primary: the main action (forward step), or the current status itself
+ *   when the document has reached the final workflow step (terminal state).
+ * - Secondary: other available transitions to show as dropdown options.
+ * - isTerminal: true when the document is at the final workflow status —
+ *   the primary button renders as a non-actionable indicator and all
+ *   back-steps move into the dropdown.
  */
 function computeStatusTransitions(
   currentStatus: string | undefined,
@@ -212,20 +216,21 @@ function computeStatusTransitions(
 ): {
   primaryStatus: WorkflowStatus | undefined
   secondaryStatuses: WorkflowStatus[]
+  isTerminal: boolean
 } {
   if (!workflowStatuses || workflowStatuses.length === 0 || !currentStatus) {
-    return { primaryStatus: nextStatus, secondaryStatuses: [] }
+    return { primaryStatus: nextStatus, secondaryStatuses: [], isTerminal: false }
   }
 
   // Single-status workflows (e.g. SINGLE_STATUS_WORKFLOW for lookups) have
   // no transitions — short-circuit so the form shows only Close / Save.
   if (workflowStatuses.length <= 1) {
-    return { primaryStatus: undefined, secondaryStatuses: [] }
+    return { primaryStatus: undefined, secondaryStatuses: [], isTerminal: false }
   }
 
   const currentIndex = workflowStatuses.findIndex((s) => s.name === currentStatus)
   if (currentIndex === -1) {
-    return { primaryStatus: nextStatus, secondaryStatuses: [] }
+    return { primaryStatus: nextStatus, secondaryStatuses: [], isTerminal: false }
   }
 
   const isAtEnd = currentIndex === workflowStatuses.length - 1
@@ -249,22 +254,23 @@ function computeStatusTransitions(
     availableTargets.push(workflowStatuses[currentIndex + 1])
   }
 
-  // Determine primary and secondary
-  let primaryStatus: WorkflowStatus | undefined
-  let secondaryStatuses: WorkflowStatus[]
-
   if (isAtEnd) {
-    // At the last status: primary is the back step (previous status)
-    const prevStatus = workflowStatuses[currentIndex - 1]
-    primaryStatus = prevStatus
-    secondaryStatuses = availableTargets.filter((s) => s.name !== prevStatus?.name)
-  } else {
-    // Not at end: primary is the forward step (nextStatus)
-    primaryStatus = nextStatus
-    secondaryStatuses = availableTargets.filter((s) => s.name !== nextStatus?.name)
+    // Terminal state: the primary button is a non-actionable indicator of the
+    // current status; both back-steps (revert to previous / reset to first)
+    // are surfaced in the dropdown.
+    return {
+      primaryStatus: workflowStatuses[currentIndex],
+      secondaryStatuses: availableTargets,
+      isTerminal: true,
+    }
   }
 
-  return { primaryStatus, secondaryStatuses }
+  // Not at end: primary is the forward step (nextStatus)
+  return {
+    primaryStatus: nextStatus,
+    secondaryStatuses: availableTargets.filter((s) => s.name !== nextStatus?.name),
+    isTerminal: false,
+  }
 }
 
 const FormContent = ({
@@ -461,7 +467,7 @@ const FormContent = ({
 
   // Compute available status transitions
   const currentStatus = initialData?.status
-  const { primaryStatus, secondaryStatuses } = computeStatusTransitions(
+  const { primaryStatus, secondaryStatuses, isTerminal } = computeStatusTransitions(
     currentStatus,
     workflowStatuses,
     nextStatus
@@ -673,13 +679,15 @@ const FormContent = ({
                   styles['actions-combo-trigger']
                 )}
                 options={secondaryStatuses.map((s) => ({
-                  label: s.verb ?? s.label ?? s.name,
+                  label: isTerminal
+                    ? `Revert to ${s.label ?? s.name}`
+                    : (s.verb ?? s.label ?? s.name),
                   value: s.name,
                 }))}
                 sideOffset={5}
                 size="sm"
                 type="button"
-                intent="success"
+                intent={isTerminal ? 'info' : 'success'}
                 disabled={statusBusy}
                 onOptionSelect={async (value: string) => {
                   setStatusBusy(true)
@@ -689,18 +697,24 @@ const FormContent = ({
                     setStatusBusy(false)
                   }
                 }}
-                onButtonClick={async () => {
-                  setStatusBusy(true)
-                  try {
-                    await onStatusChange(primaryStatus.name)
-                  } finally {
-                    setStatusBusy(false)
-                  }
-                }}
+                onButtonClick={
+                  isTerminal
+                    ? undefined
+                    : async () => {
+                        setStatusBusy(true)
+                        try {
+                          await onStatusChange(primaryStatus.name)
+                        } finally {
+                          setStatusBusy(false)
+                        }
+                      }
+                }
               >
                 {statusBusy
                   ? '...'
-                  : (primaryStatus.verb ?? primaryStatus.label ?? primaryStatus.name)}
+                  : isTerminal
+                    ? (primaryStatus.label ?? primaryStatus.name)
+                    : (primaryStatus.verb ?? primaryStatus.label ?? primaryStatus.name)}
               </ComboButton>
             </div>
           )}
