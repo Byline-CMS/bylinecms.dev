@@ -1,5 +1,13 @@
 # @byline/storage-local
 
+## 1.11.1
+
+### Patch Changes
+
+- Re-sync'd CLI deps and templates.
+- Updated dependencies
+  - @byline/core@1.11.1
+
 ## 1.11.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 1.11.1
+
+### Patch Changes
+
+- Re-sync'd CLI deps and templates.
+- Updated dependencies
+  - @byline/client@1.11.1
+  - @byline/core@1.11.1
+  - @byline/ui@1.11.1
+
 ## 1.11.0
 
 ### Minor Changes

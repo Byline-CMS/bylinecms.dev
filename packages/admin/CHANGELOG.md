@@ -1,5 +1,14 @@
 # @byline/admin
 
+## 1.11.1
+
+### Patch Changes
+
+- Re-sync'd CLI deps and templates.
+- Updated dependencies
+  - @byline/auth@1.11.1
+  - @byline/core@1.11.1
+
 ## 1.11.0
 
 ### Minor Changes

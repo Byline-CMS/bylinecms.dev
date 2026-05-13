@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.11.1
+
+### Patch Changes
+
+- Re-sync'd CLI deps and templates.
+
 ## 1.11.0
 
 ### Minor Changes
