@@ -85,8 +85,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       nitro:
-        specifier: ^3.0.260429-beta
-        version: 3.0.260429-beta(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@types/pg@8.20.0)(pg@8.20.0))(jiti@2.7.0)(lru-cache@11.3.6)(vite@8.0.12(@types/node@25.6.2)(esbuild@0.27.7)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0))
+        specifier: npm:nitro-nightly@latest
+        version: nitro-nightly@3.0.1-20260512-093145-0498ce70(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@types/pg@8.20.0)(pg@8.20.0))(jiti@2.7.0)(lru-cache@11.3.6)(vite@8.0.12(@types/node@25.6.2)(esbuild@0.27.7)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0))
       pino:
         specifier: ^10.3.1
         version: 10.3.1
@@ -4371,6 +4371,16 @@ packages:
       crossws:
         optional: true
 
+  h3@2.0.1-rc.22:
+    resolution: {integrity: sha512-Esv0DMIuPkCTSWCA0vO73vcTqwzH1wjSrAO1TXNu/K3up1sZHa9EKMapbmxCDYBeymC3fVTk4qxp7ogQWQ+KgA==}
+    engines: {node: '>=20.11.1'}
+    hasBin: true
+    peerDependencies:
+      crossws: ^0.4.1
+    peerDependenciesMeta:
+      crossws:
+        optional: true
+
   happy-dom@20.9.0:
     resolution: {integrity: sha512-GZZ9mKe8r646NUAf/zemnGbjYh4Bt8/MqASJY+pSm5ZDtc3YQox+4gsLI7yi1hba6o+eCsGxpHn5+iEVn31/FQ==}
     engines: {node: '>=20.0.0'}
@@ -5025,8 +5035,8 @@ packages:
   nice-try@1.0.5:
     resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
 
-  nitro@3.0.260429-beta:
-    resolution: {integrity: sha512-KweLVCUN5X9v9g+4yxAyRcz3FcOlnjmt9FyrAIWDxJETJmNT7I0JV0clgsONjo2nI0U5gwedXYA3RaNtF5XWzg==}
+  nitro-nightly@3.0.1-20260512-093145-0498ce70:
+    resolution: {integrity: sha512-5vIbEn1ORiNIymy9RtRx3AavX4CAQqWNnsh1vOLag/fzsEQRD2wLBhR+ZcMeVTUbQb0mo8fIbMH2NkSeiGu6fw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -5034,7 +5044,7 @@ packages:
       dotenv: '*'
       giget: '*'
       jiti: ^2.6.1
-      rollup: ^4.60.2
+      rollup: ^4.60.3
       vite: ^7 || ^8
       xml2js: ^0.6.2
       zephyr-agent: ^0.2.0
@@ -10012,6 +10022,13 @@ snapshots:
     optionalDependencies:
       crossws: 0.4.5(srvx@0.11.15)
 
+  h3@2.0.1-rc.22(crossws@0.4.5(srvx@0.11.15)):
+    dependencies:
+      rou3: 0.8.1
+      srvx: 0.11.15
+    optionalDependencies:
+      crossws: 0.4.5(srvx@0.11.15)
+
   happy-dom@20.9.0:
     dependencies:
       '@types/node': 25.6.2
@@ -10590,13 +10607,13 @@ snapshots:
 
   nice-try@1.0.5: {}
 
-  nitro@3.0.260429-beta(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@types/pg@8.20.0)(pg@8.20.0))(jiti@2.7.0)(lru-cache@11.3.6)(vite@8.0.12(@types/node@25.6.2)(esbuild@0.27.7)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0)):
+  nitro-nightly@3.0.1-20260512-093145-0498ce70(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@types/pg@8.20.0)(pg@8.20.0))(jiti@2.7.0)(lru-cache@11.3.6)(vite@8.0.12(@types/node@25.6.2)(esbuild@0.27.7)(jiti@2.7.0)(less@4.6.4)(sass@1.99.0)(stylus@0.62.0)(tsx@4.21.0)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.5(srvx@0.11.15)
       db0: 0.3.4(drizzle-orm@0.45.2(@types/pg@8.20.0)(pg@8.20.0))
       env-runner: 0.1.7
-      h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
+      h3: 2.0.1-rc.22(crossws@0.4.5(srvx@0.11.15))
       hookable: 6.1.1
       nf3: 0.3.17
       ocache: 0.1.4
