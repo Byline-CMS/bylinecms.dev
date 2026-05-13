@@ -55,7 +55,7 @@ export function ToastViewport({ position = 'bottom-right', className }: ToastVie
   return (
     <ToastPrimitive.Portal>
       <ToastPrimitive.Viewport
-        className={cx('infonomic-toast-viewport', styles.viewport, styles[position], className)}
+        className={cx('byline-toast-viewport', styles.viewport, styles[position], className)}
       >
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} />
@@ -78,10 +78,10 @@ function ToastItem({ toast }: { toast: ToastPrimitive.Root.ToastObject<ToastData
     <ToastPrimitive.Root
       toast={toast}
       swipeDirection={swipeDirection}
-      className={cx('infonomic-toast', styles.root)}
+      className={cx('byline-toast', styles.root)}
     >
-      <ToastPrimitive.Content className={cx('infonomic-toast-content', styles.content)}>
-        <div className={cx('infonomic-toast-header', styles.header)}>
+      <ToastPrimitive.Content className={cx('byline-toast-content', styles.content)}>
+        <div className={cx('byline-toast-header', styles.header)}>
           <time dateTime={eventDateRef.current.toISOString()} className="text-sm">
             {new Intl.DateTimeFormat('default', {
               hour12: true,
@@ -97,7 +97,7 @@ function ToastItem({ toast }: { toast: ToastPrimitive.Root.ToastObject<ToastData
                   tabIndex={0}
                   variant="filled"
                   aria-label="Close"
-                  className={cx('infonomic-toast-close', styles.close)}
+                  className={cx('byline-toast-close', styles.close)}
                   type="button"
                 />
               }
@@ -106,13 +106,11 @@ function ToastItem({ toast }: { toast: ToastPrimitive.Root.ToastObject<ToastData
             </ToastPrimitive.Close>
           )}
         </div>
-        <ToastPrimitive.Title className={cx('infonomic-toast-title', styles.title)}>
+        <ToastPrimitive.Title className={cx('byline-toast-title', styles.title)}>
           {icon && Icon && <Icon />}
           {toast.title}
         </ToastPrimitive.Title>
-        <ToastPrimitive.Description
-          className={cx('infonomic-toast-description', styles.description)}
-        >
+        <ToastPrimitive.Description className={cx('byline-toast-description', styles.description)}>
           {toast.description}
         </ToastPrimitive.Description>
       </ToastPrimitive.Content>

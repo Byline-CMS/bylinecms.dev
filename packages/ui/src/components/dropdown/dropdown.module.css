@@ -12,8 +12,8 @@
 @layer byline-components {
   .dropdown-content,
   .dropdown-subcontent,
-  :global(.infonomic-dropdown-content),
-  :global(.infonomic-dropdown-subcontent) {
+  :global(.byline-dropdown-content),
+  :global(.byline-dropdown-subcontent) {
     z-index: 20;
     background-color: var(--surface-panel-elevated);
     padding: 4px;
@@ -44,7 +44,7 @@
   }
 
   .dropdown-item,
-  :global(.infonomic-dropdown-item) {
+  :global(.byline-dropdown-item) {
     display: flex;
     align-items: center;
     gap: var(--gap-1);
@@ -63,15 +63,15 @@
   .dropdown-item:hover,
   .dropdown-item:focus,
   .dropdown-item[data-highlighted],
-  :global(.infonomic-dropdown-item):hover,
-  :global(.infonomic-dropdown-item):focus,
-  :global(.infonomic-dropdown-item)[data-highlighted] {
+  :global(.byline-dropdown-item):hover,
+  :global(.byline-dropdown-item):focus,
+  :global(.byline-dropdown-item)[data-highlighted] {
     background-color: var(--surface-item-hover);
     color: var(--surface-item-text-hover);
   }
 
   .dropdown-separator,
-  :global(.infonomic-dropdown-separator) {
+  :global(.byline-dropdown-separator) {
     width: 90%;
     background-color: var(--surface-panel-border);
     margin: var(--spacing-4) 0;

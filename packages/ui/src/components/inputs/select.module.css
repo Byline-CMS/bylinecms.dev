@@ -11,12 +11,12 @@
 
 @layer byline-components {
   .positioner,
-  :global(.infonomic-select-positioner) {
+  :global(.byline-select-positioner) {
     z-index: 50;
   }
 
   .popup,
-  :global(.infonomic-select-popup) {
+  :global(.byline-select-popup) {
     z-index: 50;
     margin-top: 2px;
     border: 1px solid var(--surface-panel-border);
@@ -47,12 +47,12 @@
   }
 
   .list,
-  :global(.infonomic-select-list) {
+  :global(.byline-select-list) {
     z-index: 50;
   }
 
   .scroll-arrow,
-  :global(.infonomic-select-scroll-arrow) {
+  :global(.byline-select-scroll-arrow) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -65,7 +65,7 @@
   }
 
   .select-item,
-  :global(.infonomic-select-item) {
+  :global(.byline-select-item) {
     position: relative;
     user-select: none;
     color: var(--surface-item-text);
@@ -81,20 +81,20 @@
   }
 
   .select-item[data-disabled],
-  :global(.infonomic-select-item[data-disabled]) {
+  :global(.byline-select-item[data-disabled]) {
     color: var(--surface-item-text-disabled);
     pointer-events: none;
   }
 
   .select-item[data-highlighted],
-  :global(.infonomic-select-item[data-highlighted]) {
+  :global(.byline-select-item[data-highlighted]) {
     outline: none;
     background-color: var(--surface-item-hover);
     color: var(--surface-item-text-hover);
   }
 
   .select-item-indicator,
-  :global(.infonomic-select-item-indicator) {
+  :global(.byline-select-item-indicator) {
     position: absolute;
     left: 0;
     width: 24px;

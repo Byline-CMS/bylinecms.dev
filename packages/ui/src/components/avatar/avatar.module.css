@@ -12,7 +12,7 @@
 @layer byline-components {
   /* relative inline-flex h-10 w-10 rounded-full */
   .avatar-root,
-  :global(.infonomic-avatar-root) {
+  :global(.byline-avatar-root) {
     position: relative;
     display: inline-flex;
     height: 100%;
@@ -21,7 +21,7 @@
   }
 
   .avatar-image,
-  :global(.infonomic-avatar-image) {
+  :global(.byline-avatar-image) {
     height: 100%;
     width: 100%;
     border-radius: 50%;
@@ -29,7 +29,7 @@
   }
 
   .avatar-fallback,
-  :global(.infonomic-avatar-fallback) {
+  :global(.byline-avatar-fallback) {
     display: flex;
     height: 100%;
     width: 100%;
@@ -40,7 +40,7 @@
   }
 
   .avatar-text,
-  :global(.infonomic-avatar-text) {
+  :global(.byline-avatar-text) {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     text-transform: uppercase;

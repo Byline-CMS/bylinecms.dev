@@ -14,7 +14,7 @@ function Table({
 }: TableProps & {
   ref?: React.RefObject<HTMLTableElement>
 }): React.JSX.Element {
-  const classes = cx(styles.table, 'infonomic-table', className)
+  const classes = cx(styles.table, 'byline-table', className)
 
   return (
     <table ref={ref} className={classes} {...rest}>
@@ -33,10 +33,10 @@ function Container({
 }: TableContainerProps & {
   ref?: React.RefObject<HTMLDivElement>
 }) {
-  const classes = cx(styles['table-container'], 'infonomic-table-container', className)
+  const classes = cx(styles['table-container'], 'byline-table-container', className)
   return (
     <div ref={ref} className={classes} {...rest}>
-      <div className={cx('infonomic-table-scroller', styles['table-scroller'])}>{children}</div>
+      <div className={cx('byline-table-scroller', styles['table-scroller'])}>{children}</div>
     </div>
   )
 }
@@ -52,7 +52,7 @@ function Body({
   ref?: React.RefObject<HTMLTableSectionElement>
 }): React.JSX.Element {
   return (
-    <tbody ref={ref} className={cx('infonomic-table-body', className)} {...rest}>
+    <tbody ref={ref} className={cx('byline-table-body', className)} {...rest}>
       {children}
     </tbody>
   )
@@ -68,7 +68,7 @@ function Header({
 }: TableHeaderProps & {
   ref?: React.RefObject<HTMLTableSectionElement>
 }): React.JSX.Element {
-  const classes = cx(styles['table-header'], 'infonomic-table-header', className)
+  const classes = cx(styles['table-header'], 'byline-table-header', className)
 
   return (
     <thead ref={ref} className={classes} {...rest}>
@@ -87,7 +87,7 @@ function Row({
 }: TableRowProps & {
   ref?: React.RefObject<HTMLTableRowElement>
 }): React.JSX.Element {
-  const classes = cx(styles['table-row'], 'infonomic-table-row', className)
+  const classes = cx(styles['table-row'], 'byline-table-row', className)
 
   return (
     <tr ref={ref} className={classes} {...rest}>
@@ -108,7 +108,7 @@ function HeadingCell({
 }): React.JSX.Element {
   const classes = cx(
     styles['table-heading-cell'],
-    'infonomic-table-heading-cell',
+    'byline-table-heading-cell',
     'not-prose',
     className
   )
@@ -129,7 +129,7 @@ function Cell({
 }: TableCellProps & {
   ref?: React.RefObject<HTMLTableCellElement>
 }): React.JSX.Element {
-  const classes = cx(styles['table-cell'], 'infonomic-table-cell', className)
+  const classes = cx(styles['table-cell'], 'byline-table-cell', className)
 
   return (
     <td ref={ref} className={classes} {...rest}>

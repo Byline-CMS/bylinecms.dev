@@ -12,7 +12,7 @@
   /* Backdrop overlay (replaces previous Overlay component) */
 
   .backdrop,
-  :global(.infonomic-drawer-backdrop) {
+  :global(.byline-drawer-backdrop) {
     position: fixed;
     top: 0;
     left: 0;
@@ -29,15 +29,15 @@
 
   :global(.dark) .backdrop,
   :global([data-theme="dark"]) .backdrop,
-  :global(.dark .infonomic-drawer-backdrop),
-  :global([data-theme="dark"] .infonomic-drawer-backdrop) {
+  :global(.dark .byline-drawer-backdrop),
+  :global([data-theme="dark"] .byline-drawer-backdrop) {
     background-color: rgba(0, 0, 0, 0.5);
   }
 
   /* Drawer wrapper / popup — the sliding panel itself */
 
   .drawer-wrapper,
-  :global(.infonomic-drawer-wrapper) {
+  :global(.byline-drawer-wrapper) {
     position: fixed;
     display: flex;
     flex-direction: column;
@@ -66,14 +66,14 @@
   /* Container (inner wrapper, no longer needs positioning) */
 
   .drawer-container,
-  :global(.infonomic-drawer-container) {
+  :global(.byline-drawer-container) {
     height: 100%;
   }
 
   /* Width variant: narrow */
 
   .drawer-narrow,
-  :global(.infonomic-drawer-narrow) {
+  :global(.byline-drawer-narrow) {
     width: calc(100% - 32px);
     max-width: 400px;
   }
@@ -112,7 +112,7 @@
   /* Sub-component styles */
 
   .drawer-top-actions,
-  :global(.infonomic-drawer-top-actions) {
+  :global(.byline-drawer-top-actions) {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -124,7 +124,7 @@
   }
 
   .drawer-header,
-  :global(.infonomic-drawer-header) {
+  :global(.byline-drawer-header) {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -137,13 +137,13 @@
 
   .drawer-header h2,
   .drawer-header h3,
-  :global(.infonomic-drawer-header h2),
-  :global(.infonomic-drawer-header h3) {
+  :global(.byline-drawer-header h2),
+  :global(.byline-drawer-header h3) {
     margin: 0;
   }
 
   .drawer-content,
-  :global(.infonomic-drawer-content) {
+  :global(.byline-drawer-content) {
     padding: var(--spacing-12);
   }
 }

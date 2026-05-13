@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .tooltip,
-  :global(.infonomic-tooltip) {
+  :global(.byline-tooltip) {
     font-size: 0.75rem;
     line-height: 1;
     color: var(--surface-item-text);
@@ -46,7 +46,7 @@
   }
 
   .tooltip-arrow,
-  :global(.infonomic-tooltip-arrow) {
+  :global(.byline-tooltip-arrow) {
     display: flex;
 
     &[data-side="top"] {

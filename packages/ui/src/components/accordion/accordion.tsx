@@ -28,7 +28,7 @@ const Root = ({
   return (
     <AccordionPrimitive.Root
       ref={ref}
-      className={cx('infonomic-accordion-root', className)}
+      className={cx('byline-accordion-root', className)}
       {...props}
     >
       {children}
@@ -47,7 +47,7 @@ const Item = function AccordionItem({
 }) {
   return (
     <AccordionPrimitive.Item
-      className={cx('infonomic-accordion-item', className)}
+      className={cx('byline-accordion-item', className)}
       {...props}
       ref={ref}
     >
@@ -67,7 +67,7 @@ const Header = function AccordionHeader({
 }) {
   return (
     <AccordionPrimitive.Header
-      className={cx('infonomic-accordion-header', className)}
+      className={cx('byline-accordion-header', className)}
       {...props}
       ref={ref}
     >
@@ -88,7 +88,7 @@ const Trigger = function AccordionTrigger({
   return (
     <AccordionPrimitive.Trigger
       ref={ref}
-      className={cx('infonomic-accordion-trigger', styles.trigger, className)}
+      className={cx('byline-accordion-trigger', styles.trigger, className)}
       {...props}
     >
       {children}
@@ -107,7 +107,7 @@ const Panel = function AccordionPanel({
 }) {
   return (
     <AccordionPrimitive.Panel
-      className={cx('infonomic-accordion-content', styles.content, className)}
+      className={cx('byline-accordion-content', styles.content, className)}
       {...props}
       ref={ref}
     >

@@ -10,7 +10,7 @@
   byline-utilities;
 @layer byline-components {
   .scroll-to-top,
-  :global(.infonomic-scroll-to-top) {
+  :global(.byline-scroll-to-top) {
     display: flex;
     position: fixed;
     width: 0;
@@ -37,28 +37,28 @@
   }
 
   .scroll-to-top span,
-  :global(.infonomic-scroll-to-top span) {
+  :global(.byline-scroll-to-top span) {
     width: 18px;
     padding-bottom: 3px;
   }
 
   .scroll-to-top span svg path,
-  :global(.infonomic-scroll-to-top span svg path) {
+  :global(.byline-scroll-to-top span svg path) {
     stroke: none;
     fill: var(--text-on-primary-strong);
   }
 
   .scroll-to-top:hover,
   .scroll-to-top:focus,
-  :global(.infonomic-scroll-to-top:hover),
-  :global(.infonomic-scroll-to-top:focus) {
+  :global(.byline-scroll-to-top:hover),
+  :global(.byline-scroll-to-top:focus) {
     color: var(--text-on-primary-strong);
     background-color: var(--fill-primary-strong-hover);
     transform: translateY(-5px);
   }
 
   .scroll-to-top-shown,
-  :global(.infonomic-scroll-to-top-shown) {
+  :global(.byline-scroll-to-top-shown) {
     min-width: 0;
     opacity: 1;
     visibility: visible;
@@ -72,18 +72,18 @@
 
   @media screen and (min-width: 587px) {
     .scroll-to-top,
-    :global(.infonomic-scroll-to-top) {
+    :global(.byline-scroll-to-top) {
       bottom: 45px;
       right: 45px;
     }
 
     .scroll-to-top span,
-    :global(.infonomic-scroll-to-top span) {
+    :global(.byline-scroll-to-top span) {
       width: 18px;
     }
 
     .scroll-to-top-shown,
-    :global(.infonomic-scroll-to-top-shown) {
+    :global(.byline-scroll-to-top-shown) {
       width: 42px;
       height: 42px;
       border-radius: 21px;

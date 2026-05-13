@@ -20,7 +20,7 @@ const Trigger = ({
   ref?: React.RefObject<React.ComponentRef<'button'>>
 }): React.JSX.Element => {
   return (
-    <Menu.Trigger className={cx('infonomic-dropdown-trigger', className)} ref={ref} {...rest}>
+    <Menu.Trigger className={cx('byline-dropdown-trigger', className)} ref={ref} {...rest}>
       {children}
     </Menu.Trigger>
   )
@@ -64,7 +64,7 @@ const Content = ({
     >
       <Menu.Popup
         ref={ref}
-        className={cx('infonomic-dropdown-content', styles['dropdown-content'], className)}
+        className={cx('byline-dropdown-content', styles['dropdown-content'], className)}
         {...rest}
       >
         {children}
@@ -83,7 +83,7 @@ const Group = ({
   ref?: React.RefObject<React.ComponentRef<'div'>>
 }): React.JSX.Element => {
   return (
-    <Menu.Group ref={ref} className={cx('infonomic-dropdown-group', className)} {...rest}>
+    <Menu.Group ref={ref} className={cx('byline-dropdown-group', className)} {...rest}>
       {children}
     </Menu.Group>
   )
@@ -101,7 +101,7 @@ const Item = ({
   return (
     <Menu.Item
       ref={ref}
-      className={cx('infonomic-dropdown-item', styles['dropdown-item'], className)}
+      className={cx('byline-dropdown-item', styles['dropdown-item'], className)}
       {...rest}
     >
       {children}
@@ -119,7 +119,7 @@ const Label = ({
   ref?: React.RefObject<React.ComponentRef<'div'>>
 }): React.JSX.Element => {
   return (
-    <Menu.GroupLabel ref={ref} className={cx('infonomic-dropdown-label', className)} {...rest}>
+    <Menu.GroupLabel ref={ref} className={cx('byline-dropdown-label', className)} {...rest}>
       {children}
     </Menu.GroupLabel>
   )
@@ -136,7 +136,7 @@ const Separator = ({
   return (
     <Menu.Separator
       ref={ref}
-      className={cx('infonomic-dropdown-separator', styles['dropdown-separator'], className)}
+      className={cx('byline-dropdown-separator', styles['dropdown-separator'], className)}
       {...props}
     />
   )
@@ -180,7 +180,7 @@ const SubContent = ({
     >
       <Menu.Popup
         ref={ref}
-        className={cx('infonomic-dropdown-subcontent', styles['dropdown-subcontent'], className)}
+        className={cx('byline-dropdown-subcontent', styles['dropdown-subcontent'], className)}
         {...rest}
       >
         {children}
@@ -201,7 +201,7 @@ const SubTrigger = ({
   return (
     <Menu.SubmenuTrigger
       ref={ref}
-      className={cx('infonomic-dropdown-subtrigger', className)}
+      className={cx('byline-dropdown-subtrigger', className)}
       {...rest}
     >
       {children}

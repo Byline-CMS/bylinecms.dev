@@ -19,7 +19,7 @@ export const ModalHeader = function ModalHeader({
 }: ModalHeaderProps & {
   ref?: React.RefObject<HTMLDivElement>
 }) {
-  const classes = cx('infonomic-modal-header', styles['modal-header'], 'prose', className)
+  const classes = cx('byline-modal-header', styles['modal-header'], 'prose', className)
   return (
     <div style={{ overflowWrap: 'anywhere' }} ref={ref} {...rest} className={classes}>
       {children}

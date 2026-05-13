@@ -11,14 +11,14 @@
 
 @layer byline-components {
   .input-wrapper,
-  :global(.infonomic-input-wrapper) {
+  :global(.byline-input-wrapper) {
     display: flex;
     flex-direction: column;
     gap: var(--gap-1);
   }
 
   .input-container,
-  :global(.infonomic-input-container) {
+  :global(.byline-input-container) {
     position: relative;
     width: 100%;
     padding: 0;
@@ -28,7 +28,7 @@
   }
 
   .input,
-  :global(.infonomic-input) {
+  :global(.byline-input) {
     border: none;
     outline: 1px solid transparent;
     outline-offset: 2px;
@@ -43,20 +43,20 @@
 
   .input:focus,
   .input:active,
-  :global(.infonomic-input):focus,
-  :global(.infonomic-input):active {
+  :global(.byline-input):focus,
+  :global(.byline-input):active {
     outline-color: var(--ring-color);
   }
 
   .input:disabled,
   .input[disabled],
-  :global(.infonomic-input):disabled,
-  :global(.infonomic-input)[disabled] {
+  :global(.byline-input):disabled,
+  :global(.byline-input)[disabled] {
     pointer-events: none;
   }
 
   .label,
-  :global(.infonomic-input-label) {
+  :global(.byline-input-label) {
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--label-color);
@@ -64,7 +64,7 @@
 
   /* Sizes */
   .sm,
-  :global(.infonomic-input-sm) {
+  :global(.byline-input-sm) {
     min-height: 32px;
     font-size: 0.875rem;
     line-height: 0;
@@ -72,7 +72,7 @@
   }
 
   .md,
-  :global(.infonomic-input-md) {
+  :global(.byline-input-md) {
     min-height: 36px;
     font-size: 1rem;
     line-height: 0;
@@ -80,7 +80,7 @@
   }
 
   .lg,
-  :global(.infonomic-input-lg) {
+  :global(.byline-input-lg) {
     min-height: 40px;
     font-size: 1.175rem;
     line-height: 0;
@@ -89,50 +89,50 @@
 
   .start-adornment,
   .end-adornment,
-  :global(.infonomic-input-start-adornment),
-  :global(.infonomic-input-end-adornment) {
+  :global(.byline-input-start-adornment),
+  :global(.byline-input-end-adornment) {
     position: absolute;
     display: flex;
     align-items: center;
   }
 
   .start-adornment,
-  :global(.infonomic-input-start-adornment) {
+  :global(.byline-input-start-adornment) {
     left: 5px;
   }
 
   .end-adornment,
-  :global(.infonomic-input-end-adornment) {
+  :global(.byline-input-end-adornment) {
     right: 5px;
   }
 
   .help-text,
-  :global(.infonomic-input-help-text) {
+  :global(.byline-input-help-text) {
     font-size: 0.75rem;
     color: var(--help-text-color);
   }
 
   /* Variants */
   .outlined,
-  :global(.infonomic-input-outlined) {
+  :global(.byline-input-outlined) {
     border: 1px solid var(--input-variant-outlined-border);
     background-color: transparent;
   }
 
   .outlined:hover,
-  :global(.infonomic-input-outlined):hover {
+  :global(.byline-input-outlined):hover {
     border: 1px solid var(--input-variant-outlined-hover-border);
   }
 
   .outlined:focus,
   .outlined:active,
-  :global(.infonomic-input-outlined):focus,
-  :global(.infonomic-input-outlined):active {
+  :global(.byline-input-outlined):focus,
+  :global(.byline-input-outlined):active {
     --ring-color: var(--input-variant-outline-ring-color);
   }
 
   .underlined,
-  :global(.infonomic-input-underlined) {
+  :global(.byline-input-underlined) {
     border-bottom: 1px solid var(--input-variant-underlined-border);
     border-radius: 0;
     gap: var(--gap-1);
@@ -141,86 +141,86 @@
 
   /* Sizes */
   .underlined.sm,
-  :global(.infonomic-input-underlined.input-sm) {
+  :global(.byline-input-underlined.input-sm) {
     padding: 0.25rem 0.1rem;
     min-height: 26px;
   }
 
   .underlined.md,
-  :global(.infonomic-input-underlined.input-md) {
+  :global(.byline-input-underlined.input-md) {
     padding: 0.25rem 0.1rem;
     min-height: 30px;
   }
 
   .underlined.lg,
-  :global(.infonomic-input-underlined.input-lg) {
+  :global(.byline-input-underlined.input-lg) {
     padding: 0 0.1rem;
     min-height: 34px;
   }
 
   .underlined:hover,
-  :global(.infonomic-input-underlined):hover {
+  :global(.byline-input-underlined):hover {
     border-bottom: 1px solid var(--input-variant-underlined-hover-border);
   }
 
   .underlined:focus,
   .underlined:active,
-  :global(.infonomic-input-underlined):focus,
-  :global(.infonomic-input-underlined):active {
+  :global(.byline-input-underlined):focus,
+  :global(.byline-input-underlined):active {
     outline: none;
   }
 
   .filled,
-  :global(.infonomic-input-filled) {
+  :global(.byline-input-filled) {
     background-color: var(--input-variant-filled);
   }
 
   /* Error classes last, so that they override all
     of the above */
   .error,
-  :global(.infonomic-input-error) {
+  :global(.byline-input-error) {
     border: 1px solid var(--field-border-invalid);
   }
 
   .error:hover,
-  :global(.infonomic-input-error):hover {
+  :global(.byline-input-error):hover {
     border: 1px solid var(--field-border-invalid);
   }
 
   .error:focus,
   .error:active,
-  :global(.infonomic-input-error):focus,
-  :global(.infonomic-input-error):active {
+  :global(.byline-input-error):focus,
+  :global(.byline-input-error):active {
     --ring-color: var(--field-ring-invalid);
   }
 
   .underlined.start-adornment-padding,
   .start-adornment-padding,
-  :global(.infonomic-input-underlined.input-start-adornment-padding),
-  :global(.infonomic-input-start-adornment-padding) {
+  :global(.byline-input-underlined.input-start-adornment-padding),
+  :global(.byline-input-start-adornment-padding) {
     padding-left: 2rem;
   }
 
   .underlined.end-adornment-padding,
   .end-adornment-padding,
-  :global(.infonomic-input-underlined.input-end-adornment-padding),
-  :global(.infonomic-input-end-adornment-padding) {
+  :global(.byline-input-underlined.input-end-adornment-padding),
+  :global(.byline-input-end-adornment-padding) {
     padding-right: 2rem;
   }
 
   .underlined.start-adornment,
-  :global(.infonomic-input-underlined.input-start-adornment) {
+  :global(.byline-input-underlined.input-start-adornment) {
     left: 0;
   }
 
   .underlined.end-adornment,
-  :global(.infonomic-input-underlined.input-end-adornment) {
+  :global(.byline-input-underlined.input-end-adornment) {
     right: 0;
   }
 
   /* Intents */
   .primary,
-  :global(.infonomic-input-primary) {
+  :global(.byline-input-primary) {
     --input-variant-outlined-border: var(--stroke-primary);
     --input-variant-outlined-hover-border: var(--stroke-primary-hover);
     --input-variant-outline-ring-color: var(--ring-primary);
@@ -230,7 +230,7 @@
   }
 
   .secondary,
-  :global(.infonomic-input-secondary) {
+  :global(.byline-input-secondary) {
     --input-variant-outlined-border: var(--stroke-secondary);
     --input-variant-outlined-hover-border: var(--stroke-secondary-hover);
     --input-variant-outline-ring-color: var(--ring-secondary);
@@ -240,7 +240,7 @@
   }
 
   .noeffect,
-  :global(.infonomic-input-noeffect) {
+  :global(.byline-input-noeffect) {
     --input-variant-outlined-border: var(--stroke-noeffect);
     --input-variant-outlined-hover-border: var(--stroke-noeffect-hover);
     --input-variant-outline-ring-color: var(--ring-noeffect);
@@ -250,7 +250,7 @@
   }
 
   .success,
-  :global(.infonomic-input-success) {
+  :global(.byline-input-success) {
     --input-variant-outlined-border: var(--stroke-success);
     --input-variant-outlined-hover-border: var(--stroke-success-hover);
     --input-variant-outline-ring-color: var(--ring-success);
@@ -260,7 +260,7 @@
   }
 
   .info,
-  :global(.infonomic-input-info) {
+  :global(.byline-input-info) {
     --input-variant-outlined-border: var(--stroke-info);
     --input-variant-outlined-hover-border: var(--stroke-info-hover);
     --input-variant-outline-ring-color: var(--ring-info);
@@ -270,7 +270,7 @@
   }
 
   .warning,
-  :global(.infonomic-input-warning) {
+  :global(.byline-input-warning) {
     --input-variant-outlined-border: var(--stroke-warning);
     --input-variant-outlined-hover-border: var(--stroke-warning-hover);
     --input-variant-outline-ring-color: var(--ring-warning);
@@ -280,7 +280,7 @@
   }
 
   .danger,
-  :global(.infonomic-input-danger) {
+  :global(.byline-input-danger) {
     --input-variant-outlined-border: var(--stroke-danger);
     --input-variant-outlined-hover-border: var(--stroke-danger-hover);
     --input-variant-outline-ring-color: var(--ring-danger);

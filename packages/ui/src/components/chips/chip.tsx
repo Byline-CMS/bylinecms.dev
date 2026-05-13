@@ -138,7 +138,7 @@ export const Chip = ({
       onClick={handleRemoveClick}
       onKeyDown={handleRemoveKeyDown}
     >
-      <CloseIcon className={cx('infonomic-chip-close-icon', styles.icon, styles['close-icon'])} />
+      <CloseIcon className={cx('byline-chip-close-icon', styles.icon, styles['close-icon'])} />
     </button>
   ) : (
     endIcon
@@ -154,10 +154,10 @@ export const Chip = ({
     'aria-pressed': isSelectable ? isSelected : undefined,
     'aria-selected': isSelectable ? isSelected : undefined,
     className: cx(
-      'infonomic-chip',
-      `infonomic-chip-${variant}`,
-      `infonomic-chip-${intent}`,
-      `infonomic-chip-${size}`,
+      'byline-chip',
+      `byline-chip-${variant}`,
+      `byline-chip-${intent}`,
+      `byline-chip-${size}`,
       { selected: isSelected, disabled, removable: isRemovable },
       styles.chip,
       styles[appliedVariant],
@@ -171,15 +171,11 @@ export const Chip = ({
     children: (
       <>
         {leadingIcon != null && (
-          <span className={cx('infonomic-chip-icon-wrapper', styles.iconWrapper)}>
-            {leadingIcon}
-          </span>
+          <span className={cx('byline-chip-icon-wrapper', styles.iconWrapper)}>{leadingIcon}</span>
         )}
-        <span className={cx('infonomic-chip-label', styles.label)}>{children}</span>
+        <span className={cx('byline-chip-label', styles.label)}>{children}</span>
         {trailingIcon != null && (
-          <span className={cx('infonomic-chip-icon-wrapper', styles.iconWrapper)}>
-            {trailingIcon}
-          </span>
+          <span className={cx('byline-chip-icon-wrapper', styles.iconWrapper)}>{trailingIcon}</span>
         )}
       </>
     ),

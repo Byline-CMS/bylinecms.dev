@@ -38,10 +38,10 @@ export const Button = ({
   const defaultProps: Record<string, unknown> = {
     type,
     className: cx(
-      'infonomic-button',
-      `infonomic-button-${intent}`,
-      `infonomic-button-${variant}`,
-      `infonomic-button-${size}`,
+      'byline-button',
+      `byline-button-${intent}`,
+      `byline-button-${variant}`,
+      `byline-button-${size}`,
       styles.button,
       styles[variant],
       styles[size],

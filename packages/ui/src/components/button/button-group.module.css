@@ -10,7 +10,7 @@
   byline-utilities;
 @layer byline-components {
   .button-group,
-  :global(.infonomic-button-group) {
+  :global(.byline-button-group) {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -20,7 +20,7 @@
 
   @media screen and (min-width: 40rem) {
     .button-group,
-    :global(.infonomic-button-group) {
+    :global(.byline-button-group) {
       flex-direction: row;
     }
   }

@@ -11,14 +11,14 @@
 
 @layer byline-components {
   .label,
-  :global(.infonomic-label) {
+  :global(.byline-label) {
     display: block;
     font-weight: 500;
     color: var(--text);
   }
 
   .required,
-  :global(.infonomic-label-required) {
+  :global(.byline-label-required) {
     color: var(--text-danger);
   }
 }

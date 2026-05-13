@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .loader-ellipsis,
-  :global(.infonomic-loader-ellipsis) {
+  :global(.byline-loader-ellipsis) {
     --_size: var(--loader-ellipsis-size, 80px);
     --_color: var(--loader-ellipsis-color, var(--loader-color, currentColor));
     display: inline-block;
@@ -21,7 +21,7 @@
   }
 
   .loader-ellipsis-dot,
-  :global(.infonomic-loader-ellipsis-dot) {
+  :global(.byline-loader-ellipsis-dot) {
     position: absolute;
     top: 41.25%;
     width: 16.25%;

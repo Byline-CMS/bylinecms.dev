@@ -23,7 +23,7 @@ export const ModalActions = function ModalActions({
     <div
       ref={ref}
       {...rest}
-      className={cx('infonomic-modal-actions', styles['modal-actions'], className)}
+      className={cx('byline-modal-actions', styles['modal-actions'], className)}
     >
       {children}
     </div>

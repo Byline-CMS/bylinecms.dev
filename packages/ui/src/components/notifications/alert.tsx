@@ -66,8 +66,8 @@ export const Alert = function Alert({
     <div
       ref={ref}
       className={cx(
-        'infonomic-alert',
-        `infonomic-alert-${intent}`,
+        'byline-alert',
+        `byline-alert-${intent}`,
         styles.alert,
         styles[intent],
         className,
@@ -78,10 +78,10 @@ export const Alert = function Alert({
       {...rest}
     >
       {title != null ? (
-        <div className={cx('infonomic-alert-with-title', styles['alert-with-title'])}>
-          <div className={cx('infonomic-alert-header', styles.header)}>
-            {icon && <Icon className={cx('infonomic-alert-icon', styles.icon)} />}
-            <div className={cx('infonomic-alert-title', styles.title)}>
+        <div className={cx('byline-alert-with-title', styles['alert-with-title'])}>
+          <div className={cx('byline-alert-header', styles.header)}>
+            {icon && <Icon className={cx('byline-alert-icon', styles.icon)} />}
+            <div className={cx('byline-alert-title', styles.title)}>
               <span>{title}</span>
             </div>
             {close === true && (
@@ -89,7 +89,7 @@ export const Alert = function Alert({
                 intent={intent}
                 variant="filled"
                 aria-label="Close"
-                className={cx('infonomic-alert-close', styles.close)}
+                className={cx('byline-alert-close', styles.close)}
                 type="button"
                 onClick={handleOnClose}
                 {...rest}
@@ -98,18 +98,18 @@ export const Alert = function Alert({
               </Button>
             )}
           </div>
-          <div className={cx('infonomic-alert-content', styles.content)}>{children}</div>
+          <div className={cx('byline-alert-content', styles.content)}>{children}</div>
         </div>
       ) : (
         <>
-          {icon && <Icon className={cx('infonomic-alert-icon', styles.icon)} />}
-          <div className={cx('infonomic-alert-content', styles.content)}>{children}</div>
+          {icon && <Icon className={cx('byline-alert-icon', styles.icon)} />}
+          <div className={cx('byline-alert-content', styles.content)}>{children}</div>
           {close === true && (
             <Button
               intent={intent}
               variant="filled"
               aria-label="Close"
-              className={cx('infonomic-alert-close', styles.close)}
+              className={cx('byline-alert-close', styles.close)}
               type="button"
               onClick={handleOnClose}
               {...rest}

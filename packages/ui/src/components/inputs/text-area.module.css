@@ -11,22 +11,22 @@
 
 @layer byline-components {
   .text-area,
-  :global(.infonomic-text-area) {
+  :global(.byline-text-area) {
     font-size: 1rem;
     width: 100%;
     padding: 0.5rem;
   }
 
   .underlined,
-  :global(.infonomic-text-area--underlined) {
+  :global(.byline-text-area--underlined) {
     padding-left: 0;
     padding-right: 0;
   }
 
   .underlined:focus,
   .underlined:active,
-  :global(.infonomic-text-area--underlined):focus,
-  :global(.infonomic-text-area--underlined):active {
+  :global(.byline-text-area--underlined):focus,
+  :global(.byline-text-area--underlined):active {
     outline: none;
   }
 

@@ -18,13 +18,10 @@ export function LoaderSpinner({
       // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
       <div
         key={index}
-        className={cx('infonomic-loader-spinner-blade', styles['loader-spinner-blade'])}
+        className={cx('byline-loader-spinner-blade', styles['loader-spinner-blade'])}
       >
         <div
-          className={cx(
-            'infonomic-loader-spinner-blade-inner',
-            styles['loader-spinner-blade-inner']
-          )}
+          className={cx('byline-loader-spinner-blade-inner', styles['loader-spinner-blade-inner'])}
         />
       </div>
     )
@@ -42,7 +39,7 @@ export function LoaderSpinner({
 
   return (
     <div
-      className={cx('infonomic-loader-spinner', styles['loader-spinner'], className)}
+      className={cx('byline-loader-spinner', styles['loader-spinner'], className)}
       style={spinnerStyle}
       {...rest}
     >

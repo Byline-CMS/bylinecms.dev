@@ -68,12 +68,12 @@ const Drawer = ({
     >
       <BaseDrawer.Portal>
         <BaseDrawer.Backdrop
-          className={cx('infonomic-drawer-backdrop', styles.backdrop)}
+          className={cx('byline-drawer-backdrop', styles.backdrop)}
           style={hasTopOffset ? { top: topOffset } : undefined}
         />
         <BaseDrawer.Popup
           className={cx(
-            'infonomic-drawer-wrapper',
+            'byline-drawer-wrapper',
             styles['drawer-wrapper'],
             typedStyles[`drawer-${width}`],
             typedStyles[`drawer-depth-${depth.toString()}`],

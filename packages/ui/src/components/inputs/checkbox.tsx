@@ -56,9 +56,9 @@ export const Checkbox = function Checkbox({
   ref?: React.RefObject<HTMLButtonElement>
 }): React.JSX.Element {
   return (
-    <div className={cx('infonomic-checkbox-container', styles.container, containerClasses)}>
+    <div className={cx('byline-checkbox-container', styles.container, containerClasses)}>
       <div
-        className={cx('infonomic-checkbox-component', styles.component, componentClasses, {
+        className={cx('byline-checkbox-component', styles.component, componentClasses, {
           [styles.reverse]: reverse,
         })}
       >
@@ -69,10 +69,10 @@ export const Checkbox = function Checkbox({
           nativeButton
           render={<button type="button" />}
           className={cx(
-            'infonomic-checkbox',
-            `infonomic-checkbox-${variant}`,
-            `infonomic-checkbox-${size}`,
-            `infonomic-checkbox-${intent}`,
+            'byline-checkbox',
+            `byline-checkbox-${variant}`,
+            `byline-checkbox-${size}`,
+            `byline-checkbox-${intent}`,
             styles.checkbox,
             styles[variant],
             styles[size],
@@ -84,17 +84,14 @@ export const Checkbox = function Checkbox({
         >
           <CheckboxPrimitive.Indicator
             keepMounted
-            className={cx('infonomic-checkbox-indicator', styles.indicator)}
+            className={cx('byline-checkbox-indicator', styles.indicator)}
           >
             <CheckIcon className={styles.icon} />
           </CheckboxPrimitive.Indicator>
         </CheckboxPrimitive.Root>
 
         {label != null && (
-          <label
-            htmlFor={id}
-            className={cx('infonomic-checkbox-label', styles.label, labelClasses)}
-          >
+          <label htmlFor={id} className={cx('byline-checkbox-label', styles.label, labelClasses)}>
             {label}
           </label>
         )}

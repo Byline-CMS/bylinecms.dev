@@ -10,7 +10,7 @@
   byline-utilities;
 
 @layer byline-components {
-  :global(.infonomic-checkbox-group),
+  :global(.byline-checkbox-group),
   .checkbox-group {
     display: flex;
     flex-direction: column;

@@ -10,19 +10,19 @@
   byline-utilities;
 @layer byline-components {
   .item,
-  :global(.infonomic-accordion-item) {
+  :global(.byline-accordion-item) {
     overflow: hidden;
     margin-top: 1px;
   }
 
   .header,
-  :global(.infonomic-accordion-header) {
+  :global(.byline-accordion-header) {
     margin: 0;
     display: flex;
   }
 
   .trigger,
-  :global(.infonomic-accordion-trigger) {
+  :global(.byline-accordion-trigger) {
     display: flex;
     cursor: pointer;
     align-items: center;
@@ -30,7 +30,7 @@
   }
 
   .content,
-  :global(.infonomic-accordion-content) {
+  :global(.byline-accordion-content) {
     overflow: hidden;
 
     &[data-open] {

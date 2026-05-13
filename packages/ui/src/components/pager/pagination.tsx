@@ -231,7 +231,7 @@ const Root = ({
       data-testid={dataTestId}
       ref={ref}
       className={cx(
-        'infonomic-pagination-root',
+        'byline-pagination-root',
         styles['pagination-root'],
         'pagination-root',
         className
@@ -241,7 +241,7 @@ const Root = ({
     >
       <ul
         className={cx(
-          'infonomic-pagination-items',
+          'byline-pagination-items',
           styles['pagination-items'],
           styles[variant],
           itemsClassName

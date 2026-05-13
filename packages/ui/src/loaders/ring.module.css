@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .loader-ring,
-  :global(.infonomic-loader-ring) {
+  :global(.byline-loader-ring) {
     --_size: var(--loader-ring-size, 60px);
     --_color: var(--loader-ring-color, var(--loader-color, currentColor));
     display: inline-block;
@@ -21,7 +21,7 @@
   }
 
   .loader-ring-arc,
-  :global(.infonomic-loader-ring-arc) {
+  :global(.byline-loader-ring-arc) {
     box-sizing: border-box;
     display: block;
     position: absolute;

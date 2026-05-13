@@ -60,9 +60,9 @@ export const TextArea = function TextArea({
         aria-errormessage={errorText}
         aria-describedby={error ? `error-for-${id}` : undefined}
         className={cx(
-          'infonomic-text-area',
-          `infonomic-text-area-${variant}`,
-          `infonomic-text-area-${intent}`,
+          'byline-text-area',
+          `byline-text-area-${variant}`,
+          `byline-text-area-${intent}`,
           inputStyles.input,
           inputStyles[variant],
           inputStyles[intent],

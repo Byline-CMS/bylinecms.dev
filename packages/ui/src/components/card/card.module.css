@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .card,
-  :global(.infonomic-card) {
+  :global(.byline-card) {
     display: flex;
     flex-direction: column;
     text-decoration: none;
@@ -27,25 +27,25 @@
   }
 
   .card-hover,
-  :global(.infonomic-card-hover) {
+  :global(.byline-card-hover) {
     transition: background 0.2s ease-in-out;
   }
 
   .card-hover:hover,
-  :global(.infonomic-card-hover):hover {
+  :global(.byline-card-hover):hover {
     background: oklch(from var(--theme-50) 1 0.03 h);
   }
 
   :global(.dark),
   :global([data-theme="dark"]) {
     .card-hover:hover,
-    :global(.infonomic-card-hover):hover {
+    :global(.byline-card-hover):hover {
       background: oklch(from var(--canvas-800) 0.2 c h);
     }
   }
 
   .card-header,
-  :global(.infonomic-card-header) {
+  :global(.byline-card-header) {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -53,7 +53,7 @@
   }
 
   .card-title,
-  :global(.infonomic-card-title) {
+  :global(.byline-card-title) {
     color: var(--headings);
     font-size: 1.8rem;
     font-weight: bold;
@@ -62,20 +62,20 @@
   }
 
   .card-description,
-  :global(.infonomic-card-description) {
+  :global(.byline-card-description) {
     font-size: 0.875rem;
     color: var(--muted);
   }
 
   .card-content,
-  :global(.infonomic-card-content) {
+  :global(.byline-card-content) {
     flex: 1;
     padding: 1rem;
     padding-top: 0;
   }
 
   .card-footer,
-  :global(.infonomic-card-footer) {
+  :global(.byline-card-footer) {
     display: flex;
     align-items: center;
     padding: 1rem;

@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .hamburger,
-  :global(.infonomic-hamburger) {
+  :global(.byline-hamburger) {
     --hamburger-color: currentColor;
     --hamburger-focus-ring-color: currentColor;
 
@@ -38,14 +38,14 @@
   }
 
   .hamburger:focus-visible,
-  :global(.infonomic-hamburger):focus-visible {
+  :global(.byline-hamburger):focus-visible {
     outline: 2px solid var(--hamburger-focus-ring-color);
     outline-offset: 2px;
   }
 
   /* Box container for the bars */
   .box,
-  :global(.infonomic-hamburger-box) {
+  :global(.byline-hamburger-box) {
     width: 24px;
     height: 24px;
     display: block;
@@ -55,7 +55,7 @@
 
   /* Inner bar + ::before/::after pseudo-elements form the 3 lines */
   .inner,
-  :global(.infonomic-hamburger-inner) {
+  :global(.byline-hamburger-inner) {
     display: block;
     top: 50%;
     margin-top: -1px;
@@ -66,9 +66,9 @@
   .inner,
   .inner::before,
   .inner::after,
-  :global(.infonomic-hamburger-inner),
-  :global(.infonomic-hamburger-inner)::before,
-  :global(.infonomic-hamburger-inner)::after {
+  :global(.byline-hamburger-inner),
+  :global(.byline-hamburger-inner)::before,
+  :global(.byline-hamburger-inner)::after {
     position: absolute;
     width: 24px;
     height: 2px;
@@ -81,14 +81,14 @@
 
   .inner::before,
   .inner::after,
-  :global(.infonomic-hamburger-inner)::before,
-  :global(.infonomic-hamburger-inner)::after {
+  :global(.byline-hamburger-inner)::before,
+  :global(.byline-hamburger-inner)::after {
     content: "";
     display: block;
   }
 
   .inner::before,
-  :global(.infonomic-hamburger-inner)::before {
+  :global(.byline-hamburger-inner)::before {
     top: -8px;
     transition:
       top 0.075s 0.12s ease,
@@ -96,7 +96,7 @@
   }
 
   .inner::after,
-  :global(.infonomic-hamburger-inner)::after {
+  :global(.byline-hamburger-inner)::after {
     bottom: -8px;
     transition:
       bottom 0.075s 0.12s ease,
@@ -105,14 +105,14 @@
 
   /* Open state */
   .open .inner,
-  :global(.infonomic-hamburger-open) :global(.infonomic-hamburger-inner) {
+  :global(.byline-hamburger-open) :global(.byline-hamburger-inner) {
     transform: rotate(45deg);
     transition-delay: 0.12s;
     transition-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
   }
 
   .open .inner::before,
-  :global(.infonomic-hamburger-open) :global(.infonomic-hamburger-inner)::before {
+  :global(.byline-hamburger-open) :global(.byline-hamburger-inner)::before {
     top: 0;
     opacity: 0;
     transition:
@@ -121,7 +121,7 @@
   }
 
   .open .inner::after,
-  :global(.infonomic-hamburger-open) :global(.infonomic-hamburger-inner)::after {
+  :global(.byline-hamburger-open) :global(.byline-hamburger-inner)::after {
     bottom: 0;
     transform: rotate(-90deg);
     transition:
@@ -131,14 +131,14 @@
 
   /* Color scheme: onDark (white bars for dark backgrounds) */
   .onDark,
-  :global(.infonomic-hamburger-on-dark) {
+  :global(.byline-hamburger-on-dark) {
     --hamburger-color: white;
     --hamburger-focus-ring-color: rgba(255, 255, 255, 0.7);
   }
 
   /* Color scheme: onLight (dark bars for light backgrounds) */
   .onLight,
-  :global(.infonomic-hamburger-on-light) {
+  :global(.byline-hamburger-on-light) {
     --hamburger-color: var(--foreground, #1a1a1a);
     --hamburger-focus-ring-color: var(--foreground, #1a1a1a);
   }

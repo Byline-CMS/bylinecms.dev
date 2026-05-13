@@ -12,9 +12,9 @@
   .stop-button,
   .play-button,
   .directional-button,
-  :global(.infonomic-stop-button),
-  :global(.infonomic-play-button),
-  :global(.infonomic-directional-button) {
+  :global(.byline-stop-button),
+  :global(.byline-play-button),
+  :global(.byline-directional-button) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -136,7 +136,7 @@
     transform: translateX(5px);
   }
 
-  /* No dark theme overrides needed! 
-   * Tokens automatically switch in .dark and respect .not-dark 
+  /* No dark theme overrides needed!
+   * Tokens automatically switch in .dark and respect .not-dark
   */
 }

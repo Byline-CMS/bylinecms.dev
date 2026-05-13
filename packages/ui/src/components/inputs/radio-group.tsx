@@ -64,7 +64,7 @@ export const RadioGroup = ({
 }) => (
   <RadioGroupPrimitive
     ref={forwardedRef}
-    className={cx('infonomic-radio-group', styles[direction], className)}
+    className={cx('byline-radio-group', styles[direction], className)}
     {...props}
   >
     {children}

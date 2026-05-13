@@ -54,13 +54,13 @@ export const Input = <_C extends React.ElementType = 'input'>({
   ...rest
 }: InputProps) => {
   return (
-    <div className={cx('infonomic-input-wrapper', styles['input-wrapper'], inputWrapperClassName)}>
+    <div className={cx('byline-input-wrapper', styles['input-wrapper'], inputWrapperClassName)}>
       {label != null && <Label id={id} htmlFor={id} required={required} label={label} />}
-      <div className={cx('infonomic-input-container', styles['input-container'])}>
+      <div className={cx('byline-input-container', styles['input-container'])}>
         {startAdornment != null && (
           <div
             className={cx(
-              'infonomic-input-start-adornment',
+              'byline-input-start-adornment',
               styles['start-adornment'],
               styles[variant]
             )}
@@ -82,10 +82,10 @@ export const Input = <_C extends React.ElementType = 'input'>({
           aria-errormessage={errorText}
           aria-describedby={error ? `error-for-${id}` : undefined}
           className={cx(
-            'infonomic-input',
-            `infonomic-input-${variant}`,
-            `infonomic-input-${inputSize}`,
-            `infonomic-input-${intent}`,
+            'byline-input',
+            `byline-input-${variant}`,
+            `byline-input-${inputSize}`,
+            `byline-input-${intent}`,
             styles.input,
             styles[variant],
             styles[inputSize],
@@ -99,11 +99,7 @@ export const Input = <_C extends React.ElementType = 'input'>({
         />
         {endAdornment != null && (
           <div
-            className={cx(
-              'infonomic-input-end-adornment',
-              styles['end-adornment'],
-              styles[variant]
-            )}
+            className={cx('byline-input-end-adornment', styles['end-adornment'], styles[variant])}
           >
             {endAdornment}
           </div>

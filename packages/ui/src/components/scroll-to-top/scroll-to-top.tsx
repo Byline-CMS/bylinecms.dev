@@ -61,10 +61,10 @@ export function ScrollToTop({
       aria-label={ariaLabel}
       onClick={handleOnClick}
       className={cx(
-        'infonomic-scroll-to-top',
+        'byline-scroll-to-top',
         styles['scroll-to-top'],
         {
-          'infonomic-scroll-to-top-shown': show,
+          'byline-scroll-to-top-shown': show,
           [styles['scroll-to-top-shown']]: show,
         },
         className

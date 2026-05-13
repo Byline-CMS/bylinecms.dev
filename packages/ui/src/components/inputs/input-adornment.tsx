@@ -22,8 +22,8 @@ export function InputAdornment({
   return (
     <div
       className={cx(
-        'infonomic-input-adornment',
-        `infonomic-input-adornment-${position}`,
+        'byline-input-adornment',
+        `byline-input-adornment-${position}`,
         styles.adornment,
         { [styles.start]: position === 'start' },
         { [styles.end]: position === 'end' },

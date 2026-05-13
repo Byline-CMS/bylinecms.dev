@@ -16,7 +16,7 @@
      ============================================ */
 
   .viewport,
-  :global(.infonomic-toast-viewport) {
+  :global(.byline-toast-viewport) {
     --viewport-padding: 16px;
     position: fixed;
     display: flex;
@@ -29,28 +29,28 @@
   /* Mobile: full-width at all positions */
 
   .top-left,
-  :global(.infonomic-toast-top-left) {
+  :global(.byline-toast-top-left) {
     top: 88px;
     right: var(--viewport-padding);
     left: var(--viewport-padding);
   }
 
   .top-right,
-  :global(.infonomic-toast-top-right) {
+  :global(.byline-toast-top-right) {
     top: 88px;
     right: var(--viewport-padding);
     left: var(--viewport-padding);
   }
 
   .bottom-left,
-  :global(.infonomic-toast-bottom-left) {
+  :global(.byline-toast-bottom-left) {
     bottom: var(--viewport-padding);
     right: var(--viewport-padding);
     left: var(--viewport-padding);
   }
 
   .bottom-right,
-  :global(.infonomic-toast-bottom-right) {
+  :global(.byline-toast-bottom-right) {
     bottom: var(--viewport-padding);
     right: var(--viewport-padding);
     left: var(--viewport-padding);
@@ -58,7 +58,7 @@
 
   @media (min-width: 48rem) {
     .bottom-right,
-    :global(.infonomic-toast-bottom-right) {
+    :global(.byline-toast-bottom-right) {
       bottom: var(--viewport-padding);
       right: var(--viewport-padding);
       left: auto;
@@ -67,7 +67,7 @@
     }
 
     .bottom-left,
-    :global(.infonomic-toast-bottom-left) {
+    :global(.byline-toast-bottom-left) {
       bottom: var(--viewport-padding);
       left: var(--viewport-padding);
       right: auto;
@@ -76,7 +76,7 @@
     }
 
     .top-left,
-    :global(.infonomic-toast-top-left) {
+    :global(.byline-toast-top-left) {
       top: 88px;
       left: var(--viewport-padding);
       right: auto;
@@ -86,7 +86,7 @@
     }
 
     .top-right,
-    :global(.infonomic-toast-top-right) {
+    :global(.byline-toast-top-right) {
       top: 88px;
       right: var(--viewport-padding);
       bottom: auto;
@@ -101,7 +101,7 @@
      ============================================ */
 
   .root,
-  :global(.infonomic-toast-root) {
+  :global(.byline-toast-root) {
     display: flex;
     flex-direction: column;
     gap: var(--gap-1);
@@ -122,7 +122,7 @@
 
   /* Entry animation */
   .root[data-starting-style],
-  :global(.infonomic-toast-root[data-starting-style]) {
+  :global(.byline-toast-root[data-starting-style]) {
     opacity: 0;
     transform: translateY(calc(100% + var(--viewport-padding)));
   }
@@ -130,16 +130,25 @@
   @media (min-width: 48rem) {
     .viewport.top-right .root[data-starting-style],
     .viewport.bottom-right .root[data-starting-style],
-    :global(.infonomic-toast-viewport.top-right .infonomic-toast-root[data-starting-style]),
-    :global(.infonomic-toast-viewport.bottom-right .infonomic-toast-root[data-starting-style]) {
+    :global(
+      .byline-toast-viewport.top-right .byline-toast-root[data-starting-style]
+    ),
+    :global(
+      .byline-toast-viewport.bottom-right
+        .byline-toast-root[data-starting-style]
+    ) {
       opacity: 0;
       transform: translateX(calc(100% + var(--viewport-padding)));
     }
 
     .viewport.top-left .root[data-starting-style],
     .viewport.bottom-left .root[data-starting-style],
-    :global(.infonomic-toast-viewport.top-left .infonomic-toast-root[data-starting-style]),
-    :global(.infonomic-toast-viewport.bottom-left .infonomic-toast-root[data-starting-style]) {
+    :global(
+      .byline-toast-viewport.top-left .byline-toast-root[data-starting-style]
+    ),
+    :global(
+      .byline-toast-viewport.bottom-left .byline-toast-root[data-starting-style]
+    ) {
       opacity: 0;
       transform: translateX(calc(-100% - var(--viewport-padding)));
     }
@@ -147,22 +156,26 @@
 
   /* Exit animation */
   .root[data-ending-style],
-  :global(.infonomic-toast-root[data-ending-style]) {
+  :global(.byline-toast-root[data-ending-style]) {
     opacity: 0;
   }
 
   .root[data-ending-style][data-swipe-direction="right"],
-  :global(.infonomic-toast-root[data-ending-style][data-swipe-direction="right"]) {
-    transform: translateX(calc(var(--toast-swipe-movement-x, 0) + 100% + var(--viewport-padding)));
+  :global(.byline-toast-root[data-ending-style][data-swipe-direction="right"]) {
+    transform: translateX(
+      calc(var(--toast-swipe-movement-x, 0) + 100% + var(--viewport-padding))
+    );
   }
 
   .root[data-ending-style][data-swipe-direction="left"],
-  :global(.infonomic-toast-root[data-ending-style][data-swipe-direction="left"]) {
-    transform: translateX(calc(var(--toast-swipe-movement-x, 0) - 100% - var(--viewport-padding)));
+  :global(.byline-toast-root[data-ending-style][data-swipe-direction="left"]) {
+    transform: translateX(
+      calc(var(--toast-swipe-movement-x, 0) - 100% - var(--viewport-padding))
+    );
   }
 
   .root[data-ending-style][data-swipe-direction="down"],
-  :global(.infonomic-toast-root[data-ending-style][data-swipe-direction="down"]) {
+  :global(.byline-toast-root[data-ending-style][data-swipe-direction="down"]) {
     transform: translateY(calc(var(--toast-swipe-movement-y, 0) + 150%));
   }
 
@@ -171,7 +184,7 @@
      ============================================ */
 
   .content,
-  :global(.infonomic-toast-content) {
+  :global(.byline-toast-content) {
     display: flex;
     flex-direction: column;
     gap: var(--gap-1);
@@ -182,7 +195,7 @@
      ============================================ */
 
   .header,
-  :global(.infonomic-toast-header) {
+  :global(.byline-toast-header) {
     display: flex;
     padding: 0 16px 0 12px;
     align-items: start;
@@ -191,7 +204,7 @@
   }
 
   .close,
-  :global(.infonomic-toast-close) {
+  :global(.byline-toast-close) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -206,12 +219,12 @@
   }
 
   .close svg,
-  :global(.infonomic-toast-close svg) {
+  :global(.byline-toast-close svg) {
     fill: white;
   }
 
   .title,
-  :global(.infonomic-toast-title) {
+  :global(.byline-toast-title) {
     display: flex;
     padding: 0 12px 0 8px;
     align-items: start;
@@ -222,7 +235,7 @@
   }
 
   .description,
-  :global(.infonomic-toast-description) {
+  :global(.byline-toast-description) {
     margin: 0;
     padding: 0 8px 0 12px;
     font-size: var(--font-size-sm);
@@ -230,7 +243,7 @@
   }
 
   .action,
-  :global(.infonomic-toast-action) {
+  :global(.byline-toast-action) {
     display: flex;
     justify-content: end;
     padding: 0 12px 0 12px;

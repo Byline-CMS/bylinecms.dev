@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .section,
-  :global(.infonomic-section) {
+  :global(.byline-section) {
     width: 100%;
     position: relative;
   }

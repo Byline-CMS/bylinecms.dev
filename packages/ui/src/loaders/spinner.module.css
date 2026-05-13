@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .loader-spinner,
-  :global(.infonomic-loader-spinner) {
+  :global(.byline-loader-spinner) {
     --_size: var(--loader-spinner-size, 56px);
     --_color: var(--loader-spinner-color, var(--loader-color, currentColor));
     display: inline-block;
@@ -21,13 +21,13 @@
   }
 
   .loader-spinner-blade,
-  :global(.infonomic-loader-spinner-blade) {
+  :global(.byline-loader-spinner-blade) {
     transform-origin: calc(var(--_size) * 0.5) calc(var(--_size) * 0.5714);
     animation: loader-spinner 1.2s linear infinite;
   }
 
   .loader-spinner-blade-inner,
-  :global(.infonomic-loader-spinner-blade-inner) {
+  :global(.byline-loader-spinner-blade-inner) {
     display: block;
     position: absolute;
     top: 0;

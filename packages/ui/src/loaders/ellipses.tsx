@@ -27,13 +27,13 @@ export function LoaderEllipsis({
     <div
       // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
       key={index}
-      className={cx('infonomic-loader-ellipsis-dot', styles['loader-ellipsis-dot'])}
+      className={cx('byline-loader-ellipsis-dot', styles['loader-ellipsis-dot'])}
     />
   ))
 
   return (
     <div
-      className={cx('infonomic-loader-ellipsis', styles['loader-ellipsis'], className)}
+      className={cx('byline-loader-ellipsis', styles['loader-ellipsis'], className)}
       style={ellipsisStyle}
       {...rest}
     >

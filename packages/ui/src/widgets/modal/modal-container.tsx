@@ -22,7 +22,7 @@ export const ModalContainer = function ModalContainer({
   return (
     <div
       ref={ref}
-      className={cx('infonomic-modal-container', styles['modal-container'], className)}
+      className={cx('byline-modal-container', styles['modal-container'], className)}
       {...rest}
     >
       {children}

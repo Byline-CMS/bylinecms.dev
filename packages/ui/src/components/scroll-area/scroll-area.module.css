@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .root,
-  :global(.infonomic-scroll-area) {
+  :global(.byline-scroll-area) {
     border-radius: 4px;
     overflow: hidden;
     background-color: inherit;
@@ -19,14 +19,14 @@
   }
 
   .viewport,
-  :global(.infonomic-scroll-area-viewport) {
+  :global(.byline-scroll-area-viewport) {
     width: 100%;
     height: 100%;
     border-radius: inherit;
   }
 
   .scrollbar,
-  :global(.infonomic-scroll-area-scrollbar) {
+  :global(.byline-scroll-area-scrollbar) {
     display: flex;
     /* ensures no selection */
     user-select: none;
@@ -51,7 +51,7 @@
   }
 
   .thumb,
-  :global(.infonomic-scroll-area-thumb) {
+  :global(.byline-scroll-area-thumb) {
     flex: 1;
     background: var(--surface-panel-scrollbar-thumb);
     border-radius: var(--border-radius-sm);
@@ -72,7 +72,7 @@
   }
 
   .corner,
-  :global(.infonomic-scroll-area-corner) {
+  :global(.byline-scroll-area-corner) {
     background: var(--surface-panel-scrollbar);
   }
 }

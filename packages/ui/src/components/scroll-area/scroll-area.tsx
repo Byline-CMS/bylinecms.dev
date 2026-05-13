@@ -10,23 +10,23 @@ interface ScrollAreaProps extends React.ComponentProps<typeof ScrollAreaPrimitiv
 export const ScrollArea = ({ children, style, className }: ScrollAreaProps) => (
   <ScrollAreaPrimitive.Root
     style={style}
-    className={cx('infonomic-scroll-area', styles.root, className)}
+    className={cx('byline-scroll-area', styles.root, className)}
   >
-    <ScrollAreaPrimitive.Viewport className={cx('infonomic-scroll-area-viewport', styles.viewport)}>
+    <ScrollAreaPrimitive.Viewport className={cx('byline-scroll-area-viewport', styles.viewport)}>
       <ScrollAreaPrimitive.Content>{children}</ScrollAreaPrimitive.Content>
     </ScrollAreaPrimitive.Viewport>
     <ScrollAreaPrimitive.Scrollbar
-      className={cx('infonomic-scroll-area-scrollbar', styles.scrollbar)}
+      className={cx('byline-scroll-area-scrollbar', styles.scrollbar)}
       orientation="vertical"
     >
-      <ScrollAreaPrimitive.Thumb className={cx('infonomic-scroll-area-thumb', styles.thumb)} />
+      <ScrollAreaPrimitive.Thumb className={cx('byline-scroll-area-thumb', styles.thumb)} />
     </ScrollAreaPrimitive.Scrollbar>
     <ScrollAreaPrimitive.Scrollbar
-      className={cx('infonomic-scroll-area-scrollbar', styles.scrollbar)}
+      className={cx('byline-scroll-area-scrollbar', styles.scrollbar)}
       orientation="horizontal"
     >
-      <ScrollAreaPrimitive.Thumb className={cx('infonomic-scroll-area-thumb', styles.thumb)} />
+      <ScrollAreaPrimitive.Thumb className={cx('byline-scroll-area-thumb', styles.thumb)} />
     </ScrollAreaPrimitive.Scrollbar>
-    <ScrollAreaPrimitive.Corner className={cx('infonomic-scroll-area-corner', styles.corner)} />
+    <ScrollAreaPrimitive.Corner className={cx('byline-scroll-area-corner', styles.corner)} />
   </ScrollAreaPrimitive.Root>
 )

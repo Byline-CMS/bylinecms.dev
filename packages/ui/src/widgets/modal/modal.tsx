@@ -68,8 +68,8 @@ function Modal({
         disablePointerDismissal={closeOnOverlayClick !== true}
       >
         <Dialog.Portal>
-          <Dialog.Backdrop className={cx('infonomic-modal-backdrop', styles.backdrop)} />
-          <Dialog.Popup className={cx('infonomic-modal-wrapper', styles['modal-wrapper'])}>
+          <Dialog.Backdrop className={cx('byline-modal-backdrop', styles.backdrop)} />
+          <Dialog.Popup className={cx('byline-modal-wrapper', styles['modal-wrapper'])}>
             {children}
           </Dialog.Popup>
         </Dialog.Portal>

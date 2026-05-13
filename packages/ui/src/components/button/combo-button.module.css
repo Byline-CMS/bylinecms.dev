@@ -10,7 +10,7 @@
   byline-utilities;
 @layer byline-components {
   .combo-button-wrapper,
-  :global(.infonomic-combo-button-wrapper) {
+  :global(.byline-combo-button-wrapper) {
     display: flex;
     align-items: center;
     gap: 0.075rem;
@@ -22,13 +22,13 @@
 
   .combo-button-wrapper:focus-within,
   .combo-button-wrapper:has([data-popup-open]),
-  :global(.infonomic-combo-button-wrapper):focus-within,
-  :global(.infonomic-combo-button-wrapper):has([data-popup-open]) {
+  :global(.byline-combo-button-wrapper):focus-within,
+  :global(.byline-combo-button-wrapper):has([data-popup-open]) {
     outline-color: var(--ring-color);
   }
 
   .combo-button-button,
-  :global(.infonomic-combo-button-button) {
+  :global(.byline-combo-button-button) {
     border-bottom-right-radius: 0;
     border-top-right-radius: 0;
   }
@@ -39,7 +39,7 @@
   }
 
   .combo-button-trigger,
-  :global(.infonomic-combo-button-trigger) {
+  :global(.byline-combo-button-trigger) {
     border-bottom-left-radius: 0;
     border-top-left-radius: 0;
   }
@@ -50,11 +50,11 @@
   }
 
   .combo-button-options,
-  :global(.infonomic-combo-button-options) {
+  :global(.byline-combo-button-options) {
     min-width: 120px;
   }
 
   .combo-button-options-item,
-  :global(.infonomic-combo-button-options-item) {
+  :global(.byline-combo-button-options-item) {
   }
 }

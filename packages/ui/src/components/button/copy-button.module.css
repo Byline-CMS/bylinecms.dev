@@ -11,12 +11,12 @@
 
 @layer byline-components {
   .copy-button-container,
-  :global(.infonomic-copy-button-container) {
+  :global(.byline-copy-button-container) {
     display: inline-block;
   }
 
   .copy-button svg,
-  :global(.infonomic-copy-button) svg {
+  :global(.byline-copy-button) svg {
     width: 90%;
     height: 90%;
     display: block;
@@ -24,7 +24,7 @@
 
   /* Sizes */
   .xs,
-  :global(.infonomic-copy-button-xs) {
+  :global(.byline-copy-button-xs) {
     width: 26px;
     height: 26px;
     min-height: 26px;
@@ -32,7 +32,7 @@
   }
 
   .sm,
-  :global(.infonomic-copy-button-sm) {
+  :global(.byline-copy-button-sm) {
     width: 32px;
     height: 32px;
     min-height: 32px;
@@ -40,7 +40,7 @@
   }
 
   .md,
-  :global(.infonomic-copy-button-md) {
+  :global(.byline-copy-button-md) {
     width: 38px;
     height: 38px;
     min-height: 38px;
@@ -48,7 +48,7 @@
   }
 
   .lg,
-  :global(.infonomic-copy-button-lg) {
+  :global(.byline-copy-button-lg) {
     width: 46px;
     height: 46px;
     min-height: 46px;
@@ -56,7 +56,7 @@
   }
 
   .xl,
-  :global(.infonomic-copy-button-xl) {
+  :global(.byline-copy-button-xl) {
     width: 54px;
     height: 54px;
     min-height: 54px;

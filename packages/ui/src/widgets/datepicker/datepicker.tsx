@@ -136,7 +136,7 @@ export function DatePicker({
   })
 
   return (
-    <div className={cx('infonomic-datepicker-container', styles.container, containerClassName)}>
+    <div className={cx('byline-datepicker-container', styles.container, containerClassName)}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-8)' }}>
         <Input
           id={id}
@@ -148,9 +148,9 @@ export function DatePicker({
           intent={intent}
           inputSize={inputSize}
           ref={inputRef}
-          className={cx('infonomic-datepicker-input', styles.input, inputClassName)}
+          className={cx('byline-datepicker-input', styles.input, inputClassName)}
           inputWrapperClassName={cx(
-            'infonomic-datepicker-input-wrapper',
+            'byline-datepicker-input-wrapper',
             styles['input-wrapper'],
             inputWrapperClassName
           )}
@@ -207,13 +207,10 @@ export function DatePicker({
         <Popover.Portal>
           <Popover.Positioner sideOffset={5}>
             <Popover.Popup
-              className={cx('infonomic-datepicker-content', styles.content, contentClassName)}
+              className={cx('byline-datepicker-content', styles.content, contentClassName)}
             >
               <div
-                className={cx(
-                  'infonomic-datepicker-content-components',
-                  styles['content-components']
-                )}
+                className={cx('byline-datepicker-content-components', styles['content-components'])}
               >
                 <div ref={calendarRef}>
                   <Calendar
@@ -284,25 +281,18 @@ export function DatePicker({
                 )}
               </div>
               <div
-                className={cx(
-                  'infonomic-datepicker-status-and-actions',
-                  styles['status-and-actions']
-                )}
+                className={cx('byline-datepicker-status-and-actions', styles['status-and-actions'])}
               >
-                <div
-                  className={cx('infonomic-datepicker-content-status', styles['content-status'])}
-                >
+                <div className={cx('byline-datepicker-content-status', styles['content-status'])}>
                   {date ? format(date, mode === 'datetime' ? 'PPPp' : 'PPP') : 'No date selected'}
                 </div>
-                <div
-                  className={cx('infonomic-datepicker-content-actions', styles['content-actions'])}
-                >
+                <div className={cx('byline-datepicker-content-actions', styles['content-actions'])}>
                   <div>
                     <Button
                       variant="outlined"
                       size="sm"
                       className={cx(
-                        'infonomic-datepicker-content-actions-button',
+                        'byline-datepicker-content-actions-button',
                         styles['content-actions-button']
                       )}
                       onClick={() => {
@@ -320,7 +310,7 @@ export function DatePicker({
                       size="sm"
                       intent="noeffect"
                       className={cx(
-                        'infonomic-datepicker-content-actions-button',
+                        'byline-datepicker-content-actions-button',
                         styles['content-actions-button']
                       )}
                       onClick={() => {
@@ -333,7 +323,7 @@ export function DatePicker({
                       variant="outlined"
                       size="sm"
                       className={cx(
-                        'infonomic-datepicker-content-actions-button',
+                        'byline-datepicker-content-actions-button',
                         styles['content-actions-button']
                       )}
                       onClick={() => {

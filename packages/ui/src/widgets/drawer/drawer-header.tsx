@@ -19,7 +19,7 @@ export const DrawerHeader = function DrawerHeader({
 }: DrawerHeaderProps & {
   ref?: React.RefObject<HTMLDivElement>
 }) {
-  const classes = cx('infonomic-drawer-header', styles['drawer-header'], className)
+  const classes = cx('byline-drawer-header', styles['drawer-header'], className)
   return (
     <div style={{ overflowWrap: 'anywhere' }} ref={ref} {...rest} className={classes}>
       {children}

@@ -67,7 +67,7 @@ export function CopyButton({
   return (
     <div
       className={cx(
-        'infonomic-copy-button-container',
+        'byline-copy-button-container',
         styles['copy-button-container'],
         containerClassName
       )}
@@ -91,10 +91,10 @@ export function CopyButton({
           fullWidth={fullWidth}
           ripple={ripple}
           className={cx(
-            'infonomic-copy-button',
-            `infonomic-copy-button-${variant}`,
-            `infonomic-copy-button-${size}`,
-            `infonomic-copy-button-${intent}`,
+            'byline-copy-button',
+            `byline-copy-button-${variant}`,
+            `byline-copy-button-${size}`,
+            `byline-copy-button-${intent}`,
             styles[size],
             className
           )}

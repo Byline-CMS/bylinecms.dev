@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .container,
-  :global(.infonomic-container) {
+  :global(.byline-container) {
     width: 100%;
     padding: 0 1rem;
     margin: 0 auto;
@@ -22,7 +22,7 @@
   /* Large */
   @media (min-width: 66rem) {
     .container,
-    :global(.infonomic-container) {
+    :global(.byline-container) {
       max-width: 64rem;
     }
   }
@@ -30,7 +30,7 @@
   /* X-Large */
   @media (min-width: 77rem) {
     .container,
-    :global(.infonomic-container) {
+    :global(.byline-container) {
       max-width: 74.375rem;
     }
   }
@@ -38,7 +38,7 @@
   /* 2X-Large */
   @media (min-width: 94rem) {
     .container,
-    :global(.infonomic-container) {
+    :global(.byline-container) {
       max-width: 87.5rem;
     }
   }

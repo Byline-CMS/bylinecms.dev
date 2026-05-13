@@ -16,7 +16,7 @@ export const Container = function Container({
   ref?: React.RefObject<HTMLDivElement>
 }): React.JSX.Element {
   return (
-    <div ref={ref} {...rest} className={cx('infonomic-container', styles.container, className)}>
+    <div ref={ref} {...rest} className={cx('byline-container', styles.container, className)}>
       {children}
     </div>
   )

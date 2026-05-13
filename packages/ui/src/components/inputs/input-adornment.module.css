@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .adornment,
-  :global(.infonomic-input-adornment) {
+  :global(.byline-input-adornment) {
     display: flex;
     align-items: center;
     line-height: 0;
@@ -19,12 +19,12 @@
   }
 
   .start,
-  :global(.infonomic-input-adornment-start) {
+  :global(.byline-input-adornment-start) {
     justify-content: flex-start;
   }
 
   .end,
-  :global(.infonomic-input-adornment-end) {
+  :global(.byline-input-adornment-end) {
     justify-content: flex-end;
   }
 }

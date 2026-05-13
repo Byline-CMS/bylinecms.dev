@@ -67,9 +67,9 @@ export const Tooltip = function Tooltip({
         <TooltipPrimitive.Trigger render={children} />
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Positioner ref={ref} side={side} sideOffset={sideOffset}>
-            <TooltipPrimitive.Popup className={cx(styles.tooltip, 'infonomic-tooltip')}>
+            <TooltipPrimitive.Popup className={cx(styles.tooltip, 'byline-tooltip')}>
               <TooltipPrimitive.Arrow
-                className={cx(styles['tooltip-arrow'], 'infonomic-tooltip-arrow')}
+                className={cx(styles['tooltip-arrow'], 'byline-tooltip-arrow')}
               >
                 <ArrowSvg />
               </TooltipPrimitive.Arrow>

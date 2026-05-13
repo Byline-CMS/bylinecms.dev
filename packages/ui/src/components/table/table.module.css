@@ -13,7 +13,7 @@
 @layer byline-components {
   /* 'table--container break-normal overflow-hidden relative shadow-md rounded-md my-[16px] dark:border dark:border-canvas-700', */
   .table-container,
-  :global(.infonomic-table-container) {
+  :global(.byline-table-container) {
     display: block;
     overflow: hidden;
     word-break: normal;
@@ -24,13 +24,13 @@
   }
 
   .table-scroller,
-  :global(.infonomic-table-scroller) {
+  :global(.byline-table-scroller) {
     overflow-x: auto;
     max-width: calc(100vw - 32px);
   }
 
   .table,
-  :global(.infonomic-table) {
+  :global(.byline-table) {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
@@ -40,7 +40,7 @@
 
   /* 'text-xs text-gray-700 uppercase bg-canvas-100 dark:bg-canvas-700 dark:text-gray-400', */
   .table-header,
-  :global(.infonomic-table-header) {
+  :global(.byline-table-header) {
     font-size: var(--font-size-sm);
     /* text-transform: uppercase; */
     background-color: var(--canvas-50);
@@ -48,19 +48,19 @@
 
   /* 'border-b border-solid border-canvas-200 bg-white hover:bg-canvas-100/50 dark:border-canvas-700/60 dark:bg-canvas-800/50 dark:hover:bg-canvas-700/50', */
   .table-row,
-  :global(.infonomic-table-row) {
+  :global(.byline-table-row) {
     border-bottom: 1px solid var(--canvas-50);
     background-color: white;
   }
 
   .table-row:hover,
-  :global(.infonomic-table-row:hover) {
+  :global(.byline-table-row:hover) {
     background-color: var(--canvas-50);
   }
 
   /* 'whitespace-nowrap px-2 py-4 text-sm text-gray-700 uppercase bg-canvas-100/50 dark:bg-canvas-800/50 dark:text-gray-200', */
   .table-heading-cell,
-  :global(.infonomic-table-heading-cell) {
+  :global(.byline-table-heading-cell) {
     white-space: nowrap;
     padding: var(--spacing-8) var(--spacing-8);
     font-size: 0.975rem;
@@ -71,7 +71,7 @@
 
   /* not-prose px-2 py-2 text-sm [&_a]:underline */
   .table-cell,
-  :global(.infonomic-table-cell) {
+  :global(.byline-table-cell) {
     padding: var(--spacing-8);
     font-size: var(--font-size-sm);
 
@@ -82,13 +82,13 @@
 
   /* 'text-xs text-gray-700 uppercase bg-canvas-100 dark:bg-canvas-700 dark:text-gray-400', */
   .table-footer,
-  :global(.infonomic-table-footer) {
+  :global(.byline-table-footer) {
     font-size: var(--font-size-sm);
     /* text-transform: uppercase; */
     background-color: var(--canvas-100);
   }
 
-  /* 🌙 Dark via `.dark` class. We rely on the 
+  /* 🌙 Dark via `.dark` class. We rely on the
   * consuming application to detect a user's preferred
   * color scheme - either by header or cookie, and set
   * a root html class accordingly
@@ -96,28 +96,28 @@
   :global(.dark),
   :global([data-theme="dark"]) {
     .table-header,
-    :global(.infonomic-table-header) {
+    :global(.byline-table-header) {
       background-color: var(--canvas-700);
     }
 
     .table-row,
-    :global(.infonomic-table-row) {
+    :global(.byline-table-row) {
       border-bottom: 1px solid var(--canvas-700);
       background-color: var(--canvas-800);
     }
 
     .table-row:hover,
-    :global(.infonomic-table-row:hover) {
+    :global(.byline-table-row:hover) {
       background-color: oklch(from var(--canvas-800) calc(l * 1.1) c h);
     }
 
     .table-heading-cell,
-    :global(.infonomic-table-heading-cell) {
+    :global(.byline-table-heading-cell) {
       background-color: oklch(from var(--canvas-800) calc(l * 1.1) c h);
     }
 
     .table-footer,
-    :global(.infonomic-table-footer) {
+    :global(.byline-table-footer) {
       background-color: var(--canvas-800);
     }
   }

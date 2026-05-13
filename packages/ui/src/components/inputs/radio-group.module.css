@@ -12,28 +12,28 @@
 /* 'border-collapse w-full text-sm text-left text-gray-700 dark:text-gray-400 m-0', */
 @layer byline-components {
   .column,
-  :global(.infonomic-radio-group-column) {
+  :global(.byline-radio-group-column) {
     display: flex;
     flex-direction: column;
     gap: var(--gap-2);
   }
 
   .row,
-  :global(.infonomic-radio-group-row) {
+  :global(.byline-radio-group-row) {
     display: flex;
     flex-direction: row;
     gap: var(--gap-2);
   }
 
   .item-container,
-  :global(.infonomic-radio-group-item-container) {
+  :global(.byline-radio-group-item-container) {
     display: flex;
     align-items: center;
     gap: var(--gap-2);
   }
 
   .item,
-  :global(.infonomic-radio-group-item) {
+  :global(.byline-radio-group-item) {
     all: unset;
     width: 18px;
     height: 18px;
@@ -43,13 +43,13 @@
   }
 
   .item[data-disabled],
-  :global(.infonomic-radio-group-item[data-disabled]) {
+  :global(.byline-radio-group-item[data-disabled]) {
     pointer-events: none;
   }
 
   /* Style for the "checked" state */
   .indicator[data-checked],
-  :global(.infonomic-radio-group-indicator[data-checked]) {
+  :global(.byline-radio-group-indicator[data-checked]) {
     animation: radioIn 0.3s cubic-bezier(0.25, 1.5, 0.5, 1) forwards;
     opacity: 1;
     transform: scale(1);
@@ -57,14 +57,14 @@
 
   /* Style for the "unchecked" state */
   .indicator[data-unchecked],
-  :global(.infonomic-radio-group-indicator[data-unchecked]) {
+  :global(.byline-radio-group-indicator[data-unchecked]) {
     animation: radioOut 0.2s ease-in;
     opacity: 0;
     transform: scale(0.8);
   }
 
   .indicator,
-  :global(.infonomic-radio-group-indicator) {
+  :global(.byline-radio-group-indicator) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -83,7 +83,7 @@
   }
 
   .label,
-  :global(.infonomic-radio-group-label) {
+  :global(.byline-radio-group-label) {
     color: var(--foreground);
     font-size: 15px;
     line-height: 1;
@@ -91,50 +91,50 @@
   }
 
   .row .label,
-  :global(.infonomic-radio-group-row) :global(.infonomic-radio-group-label) {
+  :global(.byline-radio-group-row) :global(.byline-radio-group-label) {
     padding-left: 0;
     padding-right: var(--spacing-16);
   }
 
   /* Intents */
   .primary,
-  :global(.infonomic-radio-group-primary) {
+  :global(.byline-radio-group-primary) {
     --radio-border: var(--fill-primary-strong);
     --radio-indicator-color: var(--fill-primary-strong);
   }
 
   .secondary,
-  :global(.infonomic-radio-group-secondary) {
+  :global(.byline-radio-group-secondary) {
     --radio-border: var(--fill-secondary-strong);
     --radio-indicator-color: var(--fill-secondary-strong);
   }
 
   .noeffect,
-  :global(.infonomic-radio-group-noeffect) {
+  :global(.byline-radio-group-noeffect) {
     --radio-border: var(--fill-noeffect-strong);
     --radio-indicator-color: var(--fill-noeffect-strong);
   }
 
   .success,
-  :global(.infonomic-radio-group-success) {
+  :global(.byline-radio-group-success) {
     --radio-border: var(--fill-success-strong);
     --radio-indicator-color: var(--fill-success-strong);
   }
 
   .info,
-  :global(.infonomic-radio-group-info) {
+  :global(.byline-radio-group-info) {
     --radio-border: var(--fill-info-strong);
     --radio-indicator-color: var(--fill-info-strong);
   }
 
   .warning,
-  :global(.infonomic-radio-group-warning) {
+  :global(.byline-radio-group-warning) {
     --radio-border: var(--fill-warning-strong);
     --radio-indicator-color: var(--fill-warning-strong);
   }
 
   .danger,
-  :global(.infonomic-radio-group-danger) {
+  :global(.byline-radio-group-danger) {
     --radio-border: var(--fill-danger-strong);
     --radio-indicator-color: var(--fill-danger-strong);
   }

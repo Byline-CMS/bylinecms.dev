@@ -53,7 +53,7 @@ export function Hamburger({
       type="button"
       onClick={handleClick}
       className={cx(
-        'infonomic-hamburger',
+        'byline-hamburger',
         styles.hamburger,
         {
           [styles.open]: open,
@@ -67,8 +67,8 @@ export function Hamburger({
       aria-expanded={open}
       {...other}
     >
-      <span className={cx('infonomic-hamburger-box', styles.box)} aria-hidden="true">
-        <span className={cx('infonomic-hamburger-inner', styles.inner)} />
+      <span className={cx('byline-hamburger-box', styles.box)} aria-hidden="true">
+        <span className={cx('byline-hamburger-inner', styles.inner)} />
       </span>
     </button>
   )

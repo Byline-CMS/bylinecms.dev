@@ -56,7 +56,7 @@ export function Select<Value extends string | number = string>({
   ...rest
 }: SelectProps<Value>): React.JSX.Element {
   return (
-    <div className={cx('infonomic-select-container', containerClassName)}>
+    <div className={cx('byline-select-container', containerClassName)}>
       <SelectPrimitive.Root<Value> items={items} {...rest}>
         <SelectPrimitive.Trigger
           aria-label={ariaLabel ?? 'Select'}
@@ -117,12 +117,12 @@ export const SelectItem = ({
 }) => {
   return (
     <SelectPrimitive.Item
-      className={cx('infonomic-select-item', styles['select-item'], className)}
+      className={cx('byline-select-item', styles['select-item'], className)}
       {...props}
       ref={forwardedRef}
     >
       <SelectPrimitive.ItemIndicator
-        className={cx('infonomic-select-item-indicator', styles['select-item-indicator'])}
+        className={cx('byline-select-item-indicator', styles['select-item-indicator'])}
       >
         <CheckIcon />
       </SelectPrimitive.ItemIndicator>

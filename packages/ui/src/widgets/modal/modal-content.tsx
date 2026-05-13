@@ -23,7 +23,7 @@ export const ModalContent = function ModalContent({
     <div
       ref={ref}
       {...rest}
-      className={cx('infonomic-modal-content', styles['modal-content'], className)}
+      className={cx('byline-modal-content', styles['modal-content'], className)}
     >
       {children}
     </div>

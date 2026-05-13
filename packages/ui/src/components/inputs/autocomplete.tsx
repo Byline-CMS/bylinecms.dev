@@ -59,7 +59,7 @@ export function Autocomplete<Item = string>({
   return (
     <div
       className={cx(
-        'infonomic-autocomplete-wrapper',
+        'byline-autocomplete-wrapper',
         styles['autocomplete-wrapper'],
         wrapperClassName
       )}
@@ -76,10 +76,10 @@ export function Autocomplete<Item = string>({
           aria-errormessage={error ? errorText : undefined}
           aria-describedby={error ? `error-for-${id}` : undefined}
           className={cx(
-            'infonomic-autocomplete-input',
-            `infonomic-autocomplete-input-${variant}`,
-            `infonomic-autocomplete-input-${inputSize}`,
-            `infonomic-autocomplete-input-${intent}`,
+            'byline-autocomplete-input',
+            `byline-autocomplete-input-${variant}`,
+            `byline-autocomplete-input-${inputSize}`,
+            `byline-autocomplete-input-${intent}`,
             styles.input,
             styles[variant],
             styles[inputSize],
@@ -92,24 +92,22 @@ export function Autocomplete<Item = string>({
 
         <AutocompletePrimitive.Portal>
           <AutocompletePrimitive.Positioner
-            className={cx('infonomic-autocomplete-positioner', styles.positioner)}
+            className={cx('byline-autocomplete-positioner', styles.positioner)}
             sideOffset={sideOffset}
           >
             <AutocompletePrimitive.Popup
               className={cx(
-                'infonomic-autocomplete-popup',
+                'byline-autocomplete-popup',
                 styles.popup,
                 inputSize != null && styles[`popup-${inputSize}`]
               )}
             >
               <AutocompletePrimitive.Empty
-                className={cx('infonomic-autocomplete-empty', styles.empty)}
+                className={cx('byline-autocomplete-empty', styles.empty)}
               >
                 {emptyText}
               </AutocompletePrimitive.Empty>
-              <AutocompletePrimitive.List
-                className={cx('infonomic-autocomplete-list', styles.list)}
-              >
+              <AutocompletePrimitive.List className={cx('byline-autocomplete-list', styles.list)}>
                 {children}
               </AutocompletePrimitive.List>
             </AutocompletePrimitive.Popup>
@@ -135,7 +133,7 @@ export const AutocompleteItem = ({
 }) => {
   return (
     <AutocompletePrimitive.Item
-      className={cx('infonomic-autocomplete-item', styles['autocomplete-item'], className)}
+      className={cx('byline-autocomplete-item', styles['autocomplete-item'], className)}
       {...props}
       ref={forwardedRef}
     >
@@ -154,7 +152,7 @@ export const AutocompleteGroupLabel = ({
 }: React.ComponentProps<typeof AutocompletePrimitive.GroupLabel>) => {
   return (
     <AutocompletePrimitive.GroupLabel
-      className={cx('infonomic-autocomplete-group-label', styles['group-label'], className)}
+      className={cx('byline-autocomplete-group-label', styles['group-label'], className)}
       {...props}
     >
       {children}
@@ -170,7 +168,7 @@ export const AutocompleteSeparator = ({
 }: React.ComponentProps<typeof AutocompletePrimitive.Separator>) => {
   return (
     <AutocompletePrimitive.Separator
-      className={cx('infonomic-autocomplete-separator', styles.separator, className)}
+      className={cx('byline-autocomplete-separator', styles.separator, className)}
       {...props}
     />
   )

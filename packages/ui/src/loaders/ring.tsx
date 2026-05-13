@@ -28,14 +28,14 @@ export function LoaderRing({
       <div
         // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
         key={index}
-        className={cx('infonomic-loader-ring-arc', styles['loader-ring-arc'])}
+        className={cx('byline-loader-ring-arc', styles['loader-ring-arc'])}
       />
     )
   })
 
   return (
     <div
-      className={cx('infonomic-loader-ring', styles['loader-ring'], className)}
+      className={cx('byline-loader-ring', styles['loader-ring'], className)}
       style={ringStyle}
       {...rest}
     >

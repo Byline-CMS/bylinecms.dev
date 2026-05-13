@@ -11,7 +11,7 @@
 
 @layer byline-components {
   .alert,
-  :global(.infonomic-alert) {
+  :global(.byline-alert) {
     display: flex;
     align-items: start;
     width: 100%;
@@ -28,14 +28,14 @@
   }
 
   .alert-with-title,
-  :global(.infonomic-alert-with-title) {
+  :global(.byline-alert-with-title) {
     display: flex;
     flex-direction: column;
     width: 100%;
   }
 
   .icon,
-  :global(.infonomic-alert-icon) {
+  :global(.byline-alert-icon) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -46,7 +46,7 @@
   }
 
   .close,
-  :global(.infonomic-alert-close) {
+  :global(.byline-alert-close) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -61,13 +61,13 @@
   }
 
   .fade,
-  :global(.infonomic-alert-fade) {
+  :global(.byline-alert-fade) {
     opacity: 0;
     transition: opacity 0.4s ease-in-out;
   }
 
   .header,
-  :global(.infonomic-alert-header) {
+  :global(.byline-alert-header) {
     display: flex;
     align-items: start;
     width: 100%;
@@ -76,7 +76,7 @@
   }
 
   .title,
-  :global(.infonomic-alert-title) {
+  :global(.byline-alert-title) {
     display: flex;
     font-weight: bold;
     font-size: 1.2rem;
@@ -85,55 +85,55 @@
   }
 
   .content,
-  :global(.infonomic-alert-content) {
+  :global(.byline-alert-content) {
     padding-top: 1px;
     font-size: var(--font-size-sm);
   }
 
   .content:first-child,
-  :global(.infonomic-alert-content:first-child) {
+  :global(.byline-alert-content:first-child) {
     margin-top: 0;
   }
 
   /* Intents */
   .primary,
-  :global(.infonomic-alert-primary) {
+  :global(.byline-alert-primary) {
     --alert-border: var(--stroke-primary);
     --alert-background: var(--fill-primary-weak);
   }
 
   .secondary,
-  :global(.infonomic-alert-secondary) {
+  :global(.byline-alert-secondary) {
     --alert-border: var(--stroke-secondary);
     --alert-background: var(--fill-secondary-weak);
   }
 
   .noeffect,
-  :global(.infonomic-alert-noeffect) {
+  :global(.byline-alert-noeffect) {
     --alert-border: var(--stroke-noeffect);
     --alert-background: var(--fill-noeffect-weak);
   }
 
   .success,
-  :global(.infonomic-alert-success) {
+  :global(.byline-alert-success) {
     --alert-border: var(--stroke-success);
     --alert-background: var(--fill-success-weak);
   }
 
   .info,
-  :global(.infonomic-alert-info) {
+  :global(.byline-alert-info) {
     --alert-border: var(--stroke-info);
     --alert-background: var(--fill-info-weak);
   }
 
   .warning,
-  :global(.infonomic-alert-warning) {
+  :global(.byline-alert-warning) {
     --alert-border: var(--stroke-warning);
     --alert-background: var(--fill-warning-weak);
   }
 
   .danger,
-  :global(.infonomic-alert-danger) {
+  :global(.byline-alert-danger) {
     --alert-border: var(--stroke-danger);
     --alert-background: var(--fill-danger-weak);
   }

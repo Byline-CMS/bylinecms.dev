@@ -12,7 +12,7 @@
   /* Backdrop overlay */
 
   .backdrop,
-  :global(.infonomic-modal-backdrop) {
+  :global(.byline-modal-backdrop) {
     position: fixed;
     top: 0;
     left: 0;
@@ -29,15 +29,15 @@
 
   :global(.dark) .backdrop,
   :global([data-theme="dark"]) .backdrop,
-  :global(.dark .infonomic-modal-backdrop),
-  :global([data-theme="dark"] .infonomic-modal-backdrop) {
+  :global(.dark .byline-modal-backdrop),
+  :global([data-theme="dark"] .byline-modal-backdrop) {
     background-color: rgba(0, 0, 0, 0.5);
   }
 
   /* Modal wrapper / popup — the dialog surface */
 
   .modal-wrapper,
-  :global(.infonomic-modal-wrapper) {
+  :global(.byline-modal-wrapper) {
     position: fixed;
     display: flex;
     flex-direction: column;
@@ -57,7 +57,7 @@
 
   @media screen and (min-width: 40rem) {
     .modal-wrapper,
-    :global(.infonomic-modal-wrapper) {
+    :global(.byline-modal-wrapper) {
       justify-content: center;
     }
   }
@@ -65,7 +65,7 @@
   /* Container — the visible dialog box */
 
   .modal-container,
-  :global(.infonomic-modal-container) {
+  :global(.byline-modal-container) {
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-md);
@@ -81,7 +81,7 @@
 
   @media screen and (min-width: 40rem) {
     .modal-container,
-    :global(.infonomic-modal-container) {
+    :global(.byline-modal-container) {
       max-height: calc(100vh - 24px);
       min-height: auto;
       width: auto;
@@ -91,7 +91,7 @@
   /* Sub-component styles */
 
   .modal-header,
-  :global(.infonomic-modal-header) {
+  :global(.byline-modal-header) {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -104,13 +104,13 @@
 
   .modal-header h2,
   .modal-header h3,
-  :global(.infonomic-modal-header h2),
-  :global(.infonomic-modal-header h3) {
+  :global(.byline-modal-header h2),
+  :global(.byline-modal-header h3) {
     margin: 0;
   }
 
   .modal-content,
-  :global(.infonomic-modal-content) {
+  :global(.byline-modal-content) {
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -122,7 +122,7 @@
   }
 
   .modal-actions,
-  :global(.infonomic-modal-actions) {
+  :global(.byline-modal-actions) {
     display: flex;
     align-items: center;
     justify-content: flex-end;

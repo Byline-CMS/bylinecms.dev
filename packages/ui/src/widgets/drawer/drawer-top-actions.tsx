@@ -19,7 +19,7 @@ export const DrawerTopActions = function DrawerHeader({
 }: DrawerTopActionProps & {
   ref?: React.RefObject<HTMLDivElement>
 }) {
-  const classes = cx('infonomic-drawer-top-actions', styles['drawer-top-actions'], className)
+  const classes = cx('byline-drawer-top-actions', styles['drawer-top-actions'], className)
   return (
     <div style={{ whiteSpace: 'nowrap' }} ref={ref} {...rest} className={classes}>
       {children}

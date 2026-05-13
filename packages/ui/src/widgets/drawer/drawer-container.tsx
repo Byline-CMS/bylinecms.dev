@@ -22,7 +22,7 @@ export function DrawerContainer({
   return (
     <div
       ref={ref}
-      className={cx('infonomic-drawer-container', styles['drawer-container'], className)}
+      className={cx('byline-drawer-container', styles['drawer-container'], className)}
       {...rest}
     >
       {children}

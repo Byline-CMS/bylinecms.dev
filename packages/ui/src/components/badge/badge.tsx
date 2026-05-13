@@ -26,8 +26,8 @@ export const Badge = ({
     props: {
       ...rest,
       className: cx(
-        'infonomic-badge',
-        `infonomic-badge-${intent}`,
+        'byline-badge',
+        `byline-badge-${intent}`,
         styles.badge,
         styles[intent],
         className
