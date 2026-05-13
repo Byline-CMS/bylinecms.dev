@@ -49,3 +49,13 @@
   width: 1.5rem;
   height: 1.5rem;
 }
+
+/* Sort indicator SVGs are rendered with class `byline-sort-icon` (see
+   sort-icons.tsx) inside a flex container; without explicit dimensions
+   they collapse to zero. Size them here so every consumer of the icons
+   picks the rule up automatically. */
+:global(.byline-sort-icon) {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+}

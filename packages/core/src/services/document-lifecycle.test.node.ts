@@ -72,6 +72,7 @@ function createMockDb() {
         setDocumentStatus,
         archivePublishedVersions,
         softDeleteDocument,
+        setOrderKey: vi.fn() as any,
       },
     },
     queries: {
@@ -92,6 +93,9 @@ function createMockDb() {
         getPublishedDocumentIds: vi.fn(),
         getDocumentCountsByStatus: vi.fn(),
         findDocuments: vi.fn(),
+        getLastOrderKey: vi.fn() as any,
+        getNeighborOrderKeys: vi.fn() as any,
+        getCanonicalDocumentOrder: vi.fn() as any,
       },
     },
   }

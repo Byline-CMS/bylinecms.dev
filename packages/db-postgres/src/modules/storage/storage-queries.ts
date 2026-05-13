@@ -25,7 +25,7 @@ import type {
 // logger. A future refactor could inject the logger at construction time by
 // either deferring adapter construction or accepting a lazy logger parameter.
 import { ERR_DATABASE, ERR_NOT_FOUND, getLogger } from '@byline/core'
-import { and, eq, inArray, type SQL, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import {
@@ -33,6 +33,7 @@ import {
   currentDocumentsView,
   currentPublishedDocumentsView,
   documentPaths,
+  documents,
   documentVersions,
   metaStore,
 } from '../../database/schema/index.js'
@@ -905,6 +906,83 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * getLastOrderKey
+   *
+   * Largest `order_key` currently in use for the given collection. Used
+   * at create-time on `orderable: true` collections to append the new
+   * row at the end. Returns `null` when no keyed rows exist yet.
+   */
+  async getLastOrderKey({ collection_id }: { collection_id: string }): Promise<string | null> {
+    const rows = await this.db
+      .select({ order_key: documents.order_key })
+      .from(documents)
+      .where(and(eq(documents.collection_id, collection_id), isNotNull(documents.order_key)))
+      .orderBy(desc(documents.order_key))
+      .limit(1)
+    return rows[0]?.order_key ?? null
+  }
+
+  /**
+   * getNeighborOrderKeys
+   *
+   * Resolve the `order_key` values bracketing a target gap in one query.
+   * `before_document_id` is the doc the moved row should land *after*;
+   * `after_document_id` is the doc it should land *before*. Either or
+   * both may be null (append / prepend / empty collection).
+   *
+   * Resolves both keys in a single round trip to keep the read consistent
+   * with the next-key computation that follows in the caller.
+   */
+  async getNeighborOrderKeys({
+    collection_id,
+    before_document_id,
+    after_document_id,
+  }: {
+    collection_id: string
+    before_document_id: string | null
+    after_document_id: string | null
+  }): Promise<{ left: string | null; right: string | null }> {
+    const ids: string[] = []
+    if (before_document_id) ids.push(before_document_id)
+    if (after_document_id) ids.push(after_document_id)
+    if (ids.length === 0) {
+      return { left: null, right: null }
+    }
+    const rows = await this.db
+      .select({ id: documents.id, order_key: documents.order_key })
+      .from(documents)
+      .where(and(eq(documents.collection_id, collection_id), inArray(documents.id, ids)))
+    const byId = new Map(rows.map((r) => [r.id, r.order_key]))
+    return {
+      left: before_document_id ? (byId.get(before_document_id) ?? null) : null,
+      right: after_document_id ? (byId.get(after_document_id) ?? null) : null,
+    }
+  }
+
+  /**
+   * getCanonicalDocumentOrder
+   *
+   * Returns every document in the collection in its canonical list-view
+   * order: `order_key ASC NULLS LAST, created_at DESC`. Used by the reorder
+   * server fn for backfill and recovery from key corruption.
+   */
+  async getCanonicalDocumentOrder({
+    collection_id,
+  }: {
+    collection_id: string
+  }): Promise<Array<{ id: string; order_key: string | null }>> {
+    const rows = await this.db
+      .select({ id: documents.id, order_key: documents.order_key })
+      .from(documents)
+      .where(eq(documents.collection_id, collection_id))
+      .orderBy(
+        sql`${documents.order_key} ASC NULLS LAST`,
+        desc(documents.created_at)
+      )
+    return rows
+  }
+
+  /**
    * getDocumentCountsByStatus
    *
    * Returns a count of current documents grouped by workflow status for a
@@ -1499,6 +1577,16 @@ export class DocumentQueries implements IDocumentQueries {
    * arrives.
    */
   private buildDocumentOrderClause(orderBy: string, direction: 'asc' | 'desc'): SQL {
+    // `order_key` is the fractional-index column for `orderable: true`
+    // collections. Always sort NULLS LAST with a `created_at DESC` tiebreaker
+    // so unkeyed rows (existing rows in a newly-opted-in collection, or rows
+    // from before the column existed) fall to the bottom in a stable order
+    // until the editor drags them into position.
+    if (orderBy === 'order_key') {
+      return direction === 'desc'
+        ? sql`d.order_key DESC NULLS LAST, d.created_at DESC`
+        : sql`d.order_key ASC NULLS LAST, d.created_at DESC`
+    }
     const columnMap: Record<string, string> = {
       created_at: 'd.created_at',
       updated_at: 'd.updated_at',

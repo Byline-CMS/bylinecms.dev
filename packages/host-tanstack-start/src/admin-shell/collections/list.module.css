@@ -111,6 +111,78 @@
   border: 0;
 }
 
+.dragCell,
+:global(.byline-coll-list-drag-cell) {
+  /* "Shrink to content" — table layout distributes the row width across cells
+     without an explicit width; setting 1% with nowrap forces this column to
+     take only the space its inner button needs. */
+  width: 1%;
+  padding: 0 0.5rem 0 0.25rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.dragHandle,
+:global(.byline-coll-list-drag-handle) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: grab;
+  opacity: 0.45;
+  touch-action: none;
+}
+
+.dragHandle:hover,
+:global(.byline-coll-list-drag-handle:hover) {
+  opacity: 1;
+}
+
+.dragHandle:disabled,
+:global(.byline-coll-list-drag-handle:disabled) {
+  cursor: not-allowed;
+  opacity: 0.2;
+}
+
+.dragHandle:active,
+:global(.byline-coll-list-drag-handle:active) {
+  cursor: grabbing;
+}
+
+/* Column-header button in the drag column. Clicking returns to canonical
+   `order_key` sort. Active when the current view is canonical so the user
+   sees the affordance is "selected" — matches the visual semantics of
+   the sortable column headers next to it. */
+.orderHeader,
+:global(.byline-coll-list-order-header) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.45;
+}
+
+.orderHeader:hover,
+:global(.byline-coll-list-order-header:hover) {
+  opacity: 0.85;
+}
+
+.orderHeaderActive,
+:global(.byline-coll-list-order-header-active) {
+  opacity: 1;
+}
+
 .pageSize,
 :global(.byline-coll-list-page-size) {
   /* fallback */

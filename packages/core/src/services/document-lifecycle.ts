@@ -37,6 +37,7 @@ import {
   normalizeCollectionHook,
 } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
+import { getCollectionAdminConfig } from '../config/config.js'
 import {
   ERR_CONFLICT,
   ERR_INVALID_TRANSITION,
@@ -46,6 +47,7 @@ import {
   ERR_VALIDATION,
   ErrorCodes,
 } from '../lib/errors.js'
+import { generateKeyBetween } from '../lib/fractional-index.js'
 import { withLogContext } from '../lib/logger.js'
 import { applyPatches } from '../patches/index.js'
 import { normaliseDateFields } from '../utils/normalise-dates.js'
@@ -221,6 +223,25 @@ async function invokeHook<Ctx>(hook: CollectionHookSlot<Ctx> | undefined, ctx: C
   }
 }
 
+/**
+ * For collections with `orderable: true` in their admin config, compute an
+ * append-at-end fractional-index key for a newly-inserted document.
+ * Returns `undefined` when the collection hasn't opted in (or has no admin
+ * config registered, e.g. in unit-test environments), so the storage row
+ * gets `order_key = NULL` and the existing "no ordering" behavior holds.
+ */
+async function maybeAppendOrderKey(
+  ctx: DocumentLifecycleContext,
+  collectionPath: string
+): Promise<string | undefined> {
+  const adminConfig = getCollectionAdminConfig(collectionPath)
+  if (adminConfig?.orderable !== true) return undefined
+  const last = await ctx.db.queries.documents.getLastOrderKey({
+    collection_id: ctx.collectionId,
+  })
+  return generateKeyBetween(last, null)
+}
+
 /** Extract `id` from the document object returned by `createDocumentVersion`. */
 function extractVersionId(document: any): string {
   return document?.id ?? document?.document_version_id ?? ''
@@ -394,6 +415,12 @@ export async function createDocument(
         typeof params.path === 'string' && params.path.length > 0 ? params.path : null
       const resolvedPath = explicitPath ?? derivePath(definition, data, defaultLocale, slugifier)
 
+      // Append-at-end order_key for `orderable: true` collections.
+      // Computed before the insert so the single createDocumentVersion call
+      // carries the key into the byline_documents row. No effect when the
+      // admin config opts out or isn't registered.
+      const orderKey = await maybeAppendOrderKey(ctx, collectionPath)
+
       const result = await db.commands.documents
         .createDocumentVersion({
           collectionId,
@@ -404,6 +431,7 @@ export async function createDocument(
           path: resolvedPath,
           status: params.status ?? data.status,
           locale: params.locale ?? defaultLocale,
+          orderKey,
         })
         .catch((err: unknown) => rethrowPathConflict(err, resolvedPath, defaultLocale))
 
@@ -1275,6 +1303,10 @@ export async function duplicateDocument(
       let finalPath = candidatePath
       let pathRetried = false
       let result: { document: any; fieldCount: number }
+      // Append-at-end order_key for `orderable: true` collections. Computed
+      // before the insert; the source row's order is intentionally not
+      // copied — duplicates land at the end of the list.
+      const orderKey = await maybeAppendOrderKey(ctx, collectionPath)
       try {
         result = await db.commands.documents
           .createDocumentVersion({
@@ -1286,6 +1318,7 @@ export async function duplicateDocument(
             path: finalPath,
             status: defaultStatus,
             locale: 'all',
+            orderKey,
           })
           .catch((err: unknown) => rethrowPathConflict(err, finalPath, defaultLocale))
       } catch (err: unknown) {
@@ -1311,6 +1344,7 @@ export async function duplicateDocument(
             path: finalPath,
             status: defaultStatus,
             locale: 'all',
+            orderKey,
           })
           .catch((retryErr: unknown) => rethrowPathConflict(retryErr, finalPath, defaultLocale))
       }

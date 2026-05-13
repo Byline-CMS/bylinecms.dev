@@ -10,6 +10,7 @@ import { eq, relations, sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  customType,
   date,
   decimal,
   index,
@@ -25,6 +26,32 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
+
+/**
+ * `varchar(...)` with explicit byte-wise (C) collation.
+ *
+ * Used for `byline_documents.order_key` so the column sorts the same way
+ * JavaScript string comparison does. The fractional-index algorithm in
+ * `@byline/core` (`generateKeyBetween`, `generateNKeysBetween`) is designed
+ * against byte-wise ordering; the database default collation (e.g.
+ * `en_US.utf8` on most modern installs) is locale-aware and disagrees with
+ * JS on cases like `'Zz' vs 'a0'` — which causes a refetch after a drag-
+ * reorder to "snap" the moved row back to its original position.
+ *
+ * Captured here (rather than only in a hand-written migration) so future
+ * regenerations from this schema reproduce the COLLATE clause cleanly.
+ * See migration `0003_order_key_byte_collation.sql` and `docs/ORDERABLE.md`.
+ */
+const varcharByteSorted = customType<{
+  data: string
+  driverData: string
+  config: { length: number }
+}>({
+  dataType(config) {
+    const len = config?.length ?? 255
+    return `varchar(${len}) COLLATE "C"`
+  },
+})
 
 // Collections table
 export const collections = pgTable('byline_collections', {
@@ -54,10 +81,23 @@ export const documents = pgTable(
     collection_id: uuid('collection_id')
       .notNull()
       .references(() => collections.id, { onDelete: 'cascade' }),
+    // Fractional-index sort key for collections with `orderable: true` in
+    // their admin config. Null on collections that haven't opted in, and on
+    // pre-existing rows in newly-`orderable` collections (sort NULLS LAST).
+    // Admin metadata — never per-version, never EAV; updated by the reorder
+    // server fn without bumping documentVersions.
+    //
+    // Uses `varcharByteSorted` (COLLATE "C") so DB ordering matches JS string
+    // comparison — the fractional-index algorithm requires this. See
+    // `varcharByteSorted` above and docs/ORDERABLE.md.
+    order_key: varcharByteSorted('order_key', { length: 128 }),
     created_at: timestamp('created_at').defaultNow(),
     updated_at: timestamp('updated_at').defaultNow(),
   },
-  (table) => [index('idx_documents_collection').on(table.collection_id)]
+  (table) => [
+    index('idx_documents_collection').on(table.collection_id),
+    index('idx_documents_collection_order').on(table.collection_id, table.order_key),
+  ]
 )
 
 // Document versions table
@@ -200,6 +240,11 @@ export const currentDocumentsView = pgView('byline_current_documents').as((qb) =
       .from(documentVersions)
       .where(eq(documentVersions.is_deleted, false))
   )
+  // `order_key` is sourced from `byline_documents` (the logical-document
+  // row, not the version row). Joining it through the view keeps
+  // `d.order_key` addressable in findDocuments' ORDER BY without an
+  // ad-hoc join per query. Always nullable; null sorts last for
+  // collections that haven't opted in to `orderable: true`.
   return qb
     .with(sq)
     .select({
@@ -214,8 +259,10 @@ export const currentDocumentsView = pgView('byline_current_documents').as((qb) =
       updated_at: sq.updated_at,
       created_by: sq.created_by,
       change_summary: sq.change_summary,
+      order_key: documents.order_key,
     })
     .from(sq)
+    .innerJoin(documents, eq(documents.id, sq.document_id))
     .where(eq(sq.rn, 1))
 })
 
@@ -263,8 +310,10 @@ export const currentPublishedDocumentsView = pgView('byline_current_published_do
         updated_at: sq.updated_at,
         created_by: sq.created_by,
         change_summary: sq.change_summary,
+        order_key: documents.order_key,
       })
       .from(sq)
+      .innerJoin(documents, eq(documents.id, sq.document_id))
       .where(eq(sq.rn, 1))
   }
 )

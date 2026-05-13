@@ -213,6 +213,24 @@ export interface CollectionAdminConfig<T = any> {
   /** Group name for organising collections in the admin sidebar. */
   group?: string
 
+  /**
+   * When true, documents in this collection carry a fractional-index
+   * `order_key` and the list view sorts by it ascending by default, with
+   * drag-to-reorder enabled in the admin UI.
+   *
+   * Storage: `byline_documents.order_key` — admin metadata, never per-version
+   * and never EAV. Reordering writes the single column and does NOT mint a
+   * new document version.
+   *
+   * Backfill: existing rows in newly-`orderable` collections start with
+   * `order_key = NULL`. They sort to the bottom (NULLS LAST) until the
+   * editor drags them into position.
+   *
+   * Orthogonal to `hasMany` array order. Use this for top-level order
+   * inside a collection (bios, team members, FAQ items, sections).
+   */
+  orderable?: boolean
+
   /** Column definitions for the collection list view. */
   columns?: ColumnDefinition<T>[]
 

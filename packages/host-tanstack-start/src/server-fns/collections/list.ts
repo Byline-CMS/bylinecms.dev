@@ -10,6 +10,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import {
   ERR_NOT_FOUND,
+  getCollectionAdminConfig,
   getCollectionSchemasForPath,
   getLogger,
   getServerConfig,
@@ -65,9 +66,19 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
     if (params.status) where.status = params.status
     if (params.query) where.query = params.query
 
+    // Default sort for `orderable: true` collections is the fractional
+    // `order_key` ascending. Caller's explicit `params.order` always wins
+    // so the admin can re-sort by other columns without surprise.
+    const adminConfig = getCollectionAdminConfig(path)
+    const defaultSort: Record<string, 'asc' | 'desc'> | undefined =
+      adminConfig?.orderable === true ? { order_key: 'asc' } : undefined
+    const sortSpec: Record<string, 'asc' | 'desc'> | undefined = params.order
+      ? { [params.order]: params.desc === false ? 'asc' : 'desc' }
+      : defaultSort
+
     const result = await handle.find({
       where: Object.keys(where).length > 0 ? where : undefined,
-      sort: params.order ? { [params.order]: params.desc === false ? 'asc' : 'desc' } : undefined,
+      sort: sortSpec,
       locale: params.locale ?? 'en',
       page: params.page,
       pageSize,

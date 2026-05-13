@@ -21,7 +21,10 @@ import { z } from 'zod'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { useNavigate } from '../admin-shell/chrome/loose-router.js'
 import { ListView } from '../admin-shell/collections/list.js'
-import { getCollectionDocuments } from '../server-fns/collections/index.js'
+import {
+  getCollectionDocuments,
+  reorderCollectionDocument,
+} from '../server-fns/collections/index.js'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -164,6 +167,17 @@ export function createCollectionListRoute(path: string) {
               columns={columns}
               workflowStatuses={workflowStatuses}
               useAsTitle={collectionDef.useAsTitle}
+              orderable={adminConfig?.orderable === true}
+              onReorder={async ({ documentId, beforeDocumentId, afterDocumentId }) => {
+                await reorderCollectionDocument({
+                  data: {
+                    collection,
+                    documentId,
+                    beforeDocumentId,
+                    afterDocumentId,
+                  },
+                })
+              }}
             />
           )}
         </>

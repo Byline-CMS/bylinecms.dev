@@ -166,6 +166,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         setDocumentStatus: vi.fn(),
         archivePublishedVersions: vi.fn(),
         softDeleteDocument: vi.fn(),
+        setOrderKey: vi.fn(),
       },
     },
     queries: {
@@ -186,6 +187,9 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         getPublishedDocumentIds: vi.fn(),
         getDocumentCountsByStatus: vi.fn(),
         findDocuments: vi.fn(),
+        getLastOrderKey: vi.fn(),
+        getNeighborOrderKeys: vi.fn(),
+        getCanonicalDocumentOrder: vi.fn(),
       },
     },
   } satisfies IDbAdapter

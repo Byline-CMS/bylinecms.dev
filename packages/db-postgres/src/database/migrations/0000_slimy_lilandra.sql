@@ -144,6 +144,7 @@ CREATE TABLE "byline_document_versions" (
 CREATE TABLE "byline_documents" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"collection_id" uuid NOT NULL,
+	"order_key" varchar(128) COLLATE "C",
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
 );
@@ -306,6 +307,7 @@ CREATE INDEX "idx_documents_event_type" ON "byline_document_versions" USING btre
 CREATE INDEX "idx_documents_created_at" ON "byline_document_versions" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "idx_documents_document_collection" ON "byline_document_versions" USING btree ("document_id","collection_id");--> statement-breakpoint
 CREATE INDEX "idx_documents_collection" ON "byline_documents" USING btree ("collection_id");--> statement-breakpoint
+CREATE INDEX "idx_documents_collection_order" ON "byline_documents" USING btree ("collection_id","order_key");--> statement-breakpoint
 CREATE INDEX "idx_file_file_id" ON "byline_store_file" USING btree ("file_id");--> statement-breakpoint
 CREATE INDEX "idx_file_mime_type" ON "byline_store_file" USING btree ("mime_type");--> statement-breakpoint
 CREATE INDEX "idx_file_size" ON "byline_store_file" USING btree ("file_size");--> statement-breakpoint
@@ -333,5 +335,5 @@ CREATE INDEX "idx_text_value" ON "byline_store_text" USING btree ("value");--> s
 CREATE INDEX "idx_text_fulltext" ON "byline_store_text" USING gin (to_tsvector('english', "value"));--> statement-breakpoint
 CREATE INDEX "idx_text_locale_value" ON "byline_store_text" USING btree ("locale","value");--> statement-breakpoint
 CREATE INDEX "idx_text_path_value" ON "byline_store_text" USING btree ("field_path","value");--> statement-breakpoint
-CREATE VIEW "public"."byline_current_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false) select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary" from "sq" where "rn" = 1);--> statement-breakpoint
-CREATE VIEW "public"."byline_current_published_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false AND "byline_document_versions"."status" = 'published') select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary" from "sq" where "rn" = 1);
+CREATE VIEW "public"."byline_current_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false) select "sq"."id", "sq"."document_id", "sq"."collection_id", "sq"."collection_version", "sq"."event_type", "sq"."status", "sq"."is_deleted", "sq"."created_at", "sq"."updated_at", "sq"."created_by", "sq"."change_summary", "byline_documents"."order_key" from "sq" inner join "byline_documents" on "byline_documents"."id" = "sq"."document_id" where "rn" = 1);--> statement-breakpoint
+CREATE VIEW "public"."byline_current_published_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false AND "byline_document_versions"."status" = 'published') select "sq"."id", "sq"."document_id", "sq"."collection_id", "sq"."collection_version", "sq"."event_type", "sq"."status", "sq"."is_deleted", "sq"."created_at", "sq"."updated_at", "sq"."created_by", "sq"."change_summary", "byline_documents"."order_key" from "sq" inner join "byline_documents" on "byline_documents"."id" = "sq"."document_id" where "rn" = 1);

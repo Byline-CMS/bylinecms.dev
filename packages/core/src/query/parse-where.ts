@@ -114,6 +114,8 @@ const DOCUMENT_SORT_COLUMNS: Record<string, string> = {
   path: 'path',
   created_at: 'created_at',
   updated_at: 'updated_at',
+  orderKey: 'order_key',
+  order_key: 'order_key',
 }
 
 // ---------------------------------------------------------------------------

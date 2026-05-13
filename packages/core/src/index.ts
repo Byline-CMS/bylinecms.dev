@@ -48,6 +48,11 @@ export {
   ErrorCodes,
   type ErrorReport,
 } from './lib/errors.js'
+export {
+  generateKeyBetween,
+  generateNKeysBetween,
+  validateOrderKey,
+} from './lib/fractional-index.js'
 export { type BylineLogger, getLogger } from './lib/logger.js'
 export { AsyncRegistry, type RegisteredServices, Registry } from './lib/registry.js'
 export * from './patches/index.js'

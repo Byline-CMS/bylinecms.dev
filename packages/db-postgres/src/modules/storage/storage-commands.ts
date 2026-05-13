@@ -112,6 +112,7 @@ export class DocumentCommands implements IDocumentCommands {
     status?: string
     createdBy?: string
     previousVersionId?: string
+    orderKey?: string
   }) {
     return await this.db.transaction(async (tx) => {
       let documentId = params.documentId
@@ -124,6 +125,7 @@ export class DocumentCommands implements IDocumentCommands {
           .values({
             id: documentId,
             collection_id: params.collectionId,
+            order_key: params.orderKey ?? null,
           })
           .returning()
           .then(getFirstOrThrow('Failed to create document'))
@@ -370,6 +372,21 @@ export class DocumentCommands implements IDocumentCommands {
       })
       .where(eq(documentVersions.document_id, params.document_id))
     return (result as any).rowCount ?? 0
+  }
+
+  /**
+   * Write `order_key` on a single `byline_documents` row. Single-column
+   * metadata update — no new version row, no `documentVersions` touch.
+   * `updated_at` on the document row is bumped so list caches invalidate.
+   */
+  async setOrderKey(params: { document_id: string; order_key: string }): Promise<void> {
+    await this.db
+      .update(documents)
+      .set({
+        order_key: params.order_key,
+        updated_at: new Date(),
+      })
+      .where(eq(documents.id, params.document_id))
   }
 }
 

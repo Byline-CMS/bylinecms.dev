@@ -52,6 +52,7 @@ function createMockDb(options: {
         setDocumentStatus: vi.fn(fail),
         archivePublishedVersions: vi.fn(fail) as any,
         softDeleteDocument: vi.fn(fail) as any,
+        setOrderKey: vi.fn(fail) as any,
       },
     },
     queries: {
@@ -72,6 +73,9 @@ function createMockDb(options: {
         getPublishedDocumentIds: vi.fn(fail),
         getDocumentCountsByStatus: vi.fn(fail),
         findDocuments: vi.fn(fail),
+        getLastOrderKey: vi.fn(fail) as any,
+        getNeighborOrderKeys: vi.fn(fail) as any,
+        getCanonicalDocumentOrder: vi.fn(fail) as any,
       },
     },
   }
@@ -210,6 +214,7 @@ describe('ensureCollections', () => {
           setDocumentStatus: vi.fn(),
           archivePublishedVersions: vi.fn() as any,
           softDeleteDocument: vi.fn() as any,
+          setOrderKey: vi.fn() as any,
         },
       },
       queries: {
@@ -230,6 +235,9 @@ describe('ensureCollections', () => {
           getPublishedDocumentIds: vi.fn(),
           getDocumentCountsByStatus: vi.fn(),
           findDocuments: vi.fn(),
+          getLastOrderKey: vi.fn() as any,
+          getNeighborOrderKeys: vi.fn() as any,
+          getCanonicalDocumentOrder: vi.fn() as any,
         },
       },
     }

@@ -256,6 +256,14 @@ export interface IDocumentCommands {
      * into the new one so that per-locale content is not lost.
      */
     previousVersionId?: string
+    /**
+     * Fractional-index order key written onto the new `byline_documents` row.
+     * Only set on the initial create (when `documentId` is undefined) for
+     * collections with `orderable: true`. Ignored on subsequent versions of
+     * an existing document — order is admin metadata on the logical document,
+     * not per-version content. See docs/ORDERABLE.md.
+     */
+    orderKey?: string
   }): Promise<{ document: any; fieldCount: number }>
 
   /**
@@ -288,6 +296,16 @@ export interface IDocumentCommands {
    * Returns the number of version rows marked as deleted.
    */
   softDeleteDocument(params: { document_id: string }): Promise<number>
+
+  /**
+   * Write the fractional-index `order_key` on a single `byline_documents`
+   * row. Used by the reorder server fn for `orderable: true` collections.
+   *
+   * This is a single-column metadata update — it does NOT create a new
+   * document version and does NOT touch `documentVersions`. `updated_at`
+   * on the row is refreshed so list-view caches can invalidate cleanly.
+   */
+  setOrderKey(params: { document_id: string; order_key: string }): Promise<void>
 }
 
 export interface ICollectionQueries {
@@ -503,4 +521,52 @@ export interface IDocumentQueries {
     documents: any[]
     total: number
   }>
+
+  /**
+   * Return the largest `order_key` currently in use for the given collection,
+   * or `null` if there are no keyed rows yet. Used at create-time on
+   * `orderable: true` collections to append the new row to the end.
+   *
+   * Ignores `is_deleted` rows (soft-deleted documents) and rows with a
+   * NULL `order_key`. If every document in the collection is unkeyed,
+   * returns `null` and the caller seeds the first key from scratch.
+   */
+  getLastOrderKey(params: { collection_id: string }): Promise<string | null>
+
+  /**
+   * Resolve the `order_key` values immediately bracketing a target gap.
+   *
+   * Called by the reorder server fn. The caller passes the IDs of the
+   * documents the dragged row should land **between** (`before` is the doc
+   * that should come immediately before, `after` immediately after). Either
+   * can be `null` to mean "the end" (`after: null`) or "the start"
+   * (`before: null`); both null is "append to a collection with no rows."
+   *
+   * Resolving keys in one query (instead of two round-trips that read
+   * each neighbor separately) keeps the read consistent with the moment
+   * the next-key computation runs, so concurrent reorders don't race into
+   * a degenerate gap.
+   */
+  getNeighborOrderKeys(params: {
+    collection_id: string
+    before_document_id: string | null
+    after_document_id: string | null
+  }): Promise<{ left: string | null; right: string | null }>
+
+  /**
+   * Return every document in the collection in its canonical list-view
+   * order: `order_key ASC NULLS LAST, created_at DESC`. Keyed rows come
+   * first (in key order), then any unkeyed rows fall through to newest-
+   * first by creation time — exactly what the editor sees in the list
+   * view today.
+   *
+   * Used by the reorder server fn to lazily backfill unkeyed rows AND to
+   * detect / recover from pathological key state (duplicates, descending
+   * runs) by re-keying the entire collection in displayed order. Collection
+   * sizes for `orderable` use cases are small by design (bios, FAQs,
+   * sections), so the full read is cheap.
+   */
+  getCanonicalDocumentOrder(params: {
+    collection_id: string
+  }): Promise<Array<{ id: string; order_key: string | null }>>
 }
