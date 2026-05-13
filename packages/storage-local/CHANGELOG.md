@@ -1,5 +1,23 @@
 # @byline/storage-local
 
+## 1.10.3
+
+### Patch Changes
+
+- @byline/ui (patch)
+
+  ▎ Fixed inline field error messages not appearing when fields mount after validation has already run (e.g. switching to a tab whose error badge is
+  ▎ non-zero after a failed save). Also addressed fixups for the search and calendar widgets.
+
+  @byline/ui (patch)
+
+  ▎ Renamed infonomic-_ class prefixes to byline-_ across the UI kit (button, input, label, alert, toast, dropdown, etc.) so global override handles
+  ▎ match the package name. Migration: consumers overriding kit styles via the .infonomic-_ global classes (e.g. .infonomic-button, .infonomic-input)
+  ▎ need to update their selectors to the .byline-_ equivalents. Internal CSS-module class names are unchanged.
+
+- Updated dependencies
+  - @byline/core@1.10.3
+
 ## 1.10.2
 
 ### Patch Changes
