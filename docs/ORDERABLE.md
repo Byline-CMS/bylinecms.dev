@@ -10,19 +10,26 @@
 
 Three rules anchor the model:
 
-1. **Opt-in per collection.** `defineAdmin({ orderable: true })`. Off by default; nothing changes for collections that don't opt in.
-2. **Admin metadata, not content.** `order_key` lives on the logical-document row (`byline_documents.order_key`), not on `documentVersions`. Reordering does **not** create a new document version, does **not** flow through patches, and does **not** trigger collection write hooks.
+1. **Opt-in per collection.** `defineCollection({ orderable: true })`. Off by default; nothing changes for collections that don't opt in.
+2. **System metadata, not content.** `order_key` lives on the logical-document row (`byline_documents.order_key`), not on `documentVersions`. Reordering does **not** create a new document version, does **not** flow through patches, and does **not** trigger collection write hooks.
 3. **Fractional-index, no rebalancing.** Keys are base-62 strings that sort lexicographically (Greenspan's algorithm, [Observable article](https://observablehq.com/@dgreensp/implementing-fractional-indexing)). Inserting between two rows produces a new string strictly between their keys — no rebalancing pass, no global re-write.
 
 ## Enabling on a collection
 
-```ts
-// apps/webapp/byline/collections/team-members/admin.tsx
-import { defineAdmin } from '@byline/core'
+`orderable` lives on the schema (`CollectionDefinition`), not on `defineAdmin`. The flag has structural consequences across layers — `document-lifecycle` appends a key on create, the reorder server fn gates on it, and the `@byline/client` SDK can sort by it without crossing into presentation config.
 
-export const TeamMembersAdmin = defineAdmin(TeamMembers, {
-  columns: listViewColumns,
+```ts
+// apps/webapp/byline/collections/team-members/schema.ts
+import { defineCollection } from '@byline/core'
+
+export const TeamMembers = defineCollection({
+  path: 'team-members',
+  labels: { singular: 'Team Member', plural: 'Team Members' },
+  useAsTitle: 'name',
   orderable: true,
+  fields: [
+    /* … */
+  ],
 })
 ```
 
@@ -43,7 +50,7 @@ When `orderable: true`:
 | Drag-to-reorder UI                | `host-tanstack-start` → `admin-shell/collections/list.tsx`                  |
 | Reorder API                       | `host-tanstack-start/server-fns/collections/reorder.ts`                     |
 | Key generator                     | `@byline/core` → `generateKeyBetween`, `generateNKeysBetween`               |
-| Default sort wiring               | `getCollectionDocuments` (list server fn) consults admin config             |
+| Default sort wiring               | `getCollectionDocuments` (list server fn) consults `definition.orderable`   |
 | Sort allowlist                    | `DOCUMENT_SORT_COLUMNS` in `parse-where.ts` (`orderKey` / `order_key`)      |
 
 ## Why a column on `byline_documents`, not elsewhere
@@ -81,6 +88,25 @@ Reordering across pages is also disabled in this iteration — only same-page dr
 `hasMany` relation arrays carry their own order in the field value (array positions inside `store_relation`). The drag-handle on a `hasMany` picker reorders array entries inside a single document's content — that's a content edit and mints a new document version.
 
 `orderable: true` is the orthogonal axis: the canonical sort of the **collection's documents** independent of any single field's value. Both can be used together: a `sections` collection can be `orderable: true` (root order) while each section document carries a `children: relation(hasMany)` field (per-section order).
+
+## Reading orderable collections from `@byline/client`
+
+The SDK does **not** auto-default to `order_key` ordering — request it explicitly:
+
+```ts
+const sections = await client
+  .collection('sections')
+  .find({ sort: { orderKey: 'asc' } })   // or order_key: 'asc'
+```
+
+Both `orderKey` and `order_key` are accepted (`DOCUMENT_SORT_COLUMNS` in `packages/core/src/query/parse-where.ts`). The admin list view defaults to `order_key asc` automatically when the collection is `orderable: true`; SDK callers ask explicitly so reads from outside the admin UI stay predictable.
+
+Two known gaps on the SDK path, both acceptable for v1:
+
+- **No `NULLS LAST` qualifier.** `parseSort` emits a single `ORDER BY order_key <dir>`. On Postgres, `ASC` puts `NULL` last by default — backfilled-but-undragged rows sink, which matches admin-view intent. `DESC` would float `NULL`s to the top.
+- **Single sort key only.** `parseSort` reads only the first entry of the `sort` object, so a fallback tiebreaker (`{ orderKey: 'asc', createdAt: 'desc' }`) is silently dropped. Unkeyed rows therefore have no stable secondary order on the SDK path.
+
+If either becomes load-bearing for an external consumer, the fix lives in `parseSort` / the adapter's `ORDER BY` emission — at which point matching the admin's `order_key ASC NULLS LAST, created_at DESC` is the obvious target.
 
 ## What is intentionally NOT in scope
 

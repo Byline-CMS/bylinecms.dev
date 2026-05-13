@@ -37,7 +37,7 @@ import {
   normalizeCollectionHook,
 } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
-import { getCollectionAdminConfig } from '../config/config.js'
+import { getCollectionDefinition } from '../config/config.js'
 import {
   ERR_CONFLICT,
   ERR_INVALID_TRANSITION,
@@ -224,18 +224,18 @@ async function invokeHook<Ctx>(hook: CollectionHookSlot<Ctx> | undefined, ctx: C
 }
 
 /**
- * For collections with `orderable: true` in their admin config, compute an
- * append-at-end fractional-index key for a newly-inserted document.
- * Returns `undefined` when the collection hasn't opted in (or has no admin
- * config registered, e.g. in unit-test environments), so the storage row
+ * For collections with `orderable: true` on their schema definition, compute
+ * an append-at-end fractional-index key for a newly-inserted document.
+ * Returns `undefined` when the collection hasn't opted in (or has no
+ * definition registered, e.g. in unit-test environments), so the storage row
  * gets `order_key = NULL` and the existing "no ordering" behavior holds.
  */
 async function maybeAppendOrderKey(
   ctx: DocumentLifecycleContext,
   collectionPath: string
 ): Promise<string | undefined> {
-  const adminConfig = getCollectionAdminConfig(collectionPath)
-  if (adminConfig?.orderable !== true) return undefined
+  const definition = getCollectionDefinition(collectionPath)
+  if (definition?.orderable !== true) return undefined
   const last = await ctx.db.queries.documents.getLastOrderKey({
     collection_id: ctx.collectionId,
   })

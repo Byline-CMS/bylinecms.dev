@@ -838,6 +838,28 @@ export interface CollectionDefinition {
    */
   showStats?: boolean
   /**
+   * When `true`, documents in this collection carry a fractional-index
+   * `order_key` and the list view sorts by it ascending by default, with
+   * drag-to-reorder enabled in the admin UI.
+   *
+   * Storage: `byline_documents.order_key` — system metadata, never per-version
+   * and never EAV. Reordering writes the single column and does NOT mint a
+   * new document version.
+   *
+   * Backfill: existing rows in newly-`orderable` collections start with
+   * `order_key = NULL`. They sort to the bottom (NULLS LAST) until the
+   * editor drags them into position.
+   *
+   * Lives on the schema (not admin config) because it has structural
+   * consequences across layers — `document-lifecycle` appends a key on
+   * create, the reorder server fn gates on it, and the `@byline/client`
+   * SDK can default-sort on it without crossing into presentation config.
+   *
+   * Orthogonal to `hasMany` array order. Use this for top-level order
+   * inside a collection (bios, team members, FAQ items, sections).
+   */
+  orderable?: boolean
+  /**
    * Optional explicit version pin. When omitted, the startup bootstrap
    * auto-increments the collection's stored version any time the schema
    * fingerprint changes. When set, the value is used verbatim as long as it

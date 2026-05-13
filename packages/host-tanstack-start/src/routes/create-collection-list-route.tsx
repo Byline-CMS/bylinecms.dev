@@ -167,7 +167,7 @@ export function createCollectionListRoute(path: string) {
               columns={columns}
               workflowStatuses={workflowStatuses}
               useAsTitle={collectionDef.useAsTitle}
-              orderable={adminConfig?.orderable === true}
+              orderable={collectionDef.orderable === true}
               onReorder={async ({ documentId, beforeDocumentId, afterDocumentId }) => {
                 await reorderCollectionDocument({
                   data: {

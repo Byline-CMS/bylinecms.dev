@@ -14,7 +14,6 @@ import {
   ERR_VALIDATION,
   generateKeyBetween,
   generateNKeysBetween,
-  getCollectionAdminConfig,
   getLogger,
   getServerConfig,
 } from '@byline/core'
@@ -59,10 +58,9 @@ export const reorderCollectionDocument = createServerFn({ method: 'POST' })
       }).log(logger)
     }
 
-    const adminConfig = getCollectionAdminConfig(path)
-    if (adminConfig?.orderable !== true) {
+    if (config.definition.orderable !== true) {
       throw ERR_VALIDATION({
-        message: `collection '${path}' is not orderable; set \`orderable: true\` on its admin config to enable reordering`,
+        message: `collection '${path}' is not orderable; set \`orderable: true\` on its collection definition to enable reordering`,
         details: { collectionPath: path },
       }).log(logger)
     }

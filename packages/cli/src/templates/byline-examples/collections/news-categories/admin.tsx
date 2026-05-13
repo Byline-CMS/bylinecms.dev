@@ -75,9 +75,4 @@ const pickerViewColumns: ColumnDefinition[] = [
 export const NewsCategoriesAdmin: CollectionAdminConfig = defineAdmin(NewsCategories, {
   columns: listViewColumns,
   picker: pickerViewColumns,
-  // Demonstration of `orderable: true` — short, finite, naturally ordered.
-  // Editors can drag rows in the list view to set a canonical order; the
-  // value persists on `byline_documents.order_key` without bumping the
-  // document version. See docs/ORDERABLE.md.
-  orderable: true,
 })
