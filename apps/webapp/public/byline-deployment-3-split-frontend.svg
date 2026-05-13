@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 740" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Byline CMS — Deployment Scenario 3: Admin + HTTP API host with a separate front-end host</title>
+  <desc>Two hosts. The Byline host carries the admin dashboard and exposes an HTTP API. The front-end application is deployed to a separate host that consumes the HTTP API over the network.</desc>
+
+  <style>
+    .title       { font-size: 22px; font-weight: 700; }
+    .subtitle    { font-size: 13px; }
+    .title-fg    { fill: #475569; }
+    .subtitle-fg { fill: #475569; }
+
+    .host-stroke { stroke: #94a3b8; fill: none; stroke-dasharray: 6 5; stroke-width: 1.6; }
+    .host-label  { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; fill: #64748b; }
+
+    .box-label    { fill: #ffffff; font-weight: 600; font-size: 15px; text-anchor: middle; }
+    .box-sublabel { fill: #ffffff; opacity: 0.85; font-size: 11px; text-anchor: middle; }
+
+    .ext-label   { font-size: 13px; fill: #334155; text-anchor: middle; font-weight: 600; }
+    .ext-sub     { font-size: 11px; fill: #64748b; text-anchor: middle; }
+    .ext-fill    { fill: #475569; }
+
+    .arrow       { stroke: #64748b; fill: none; stroke-width: 1.6; }
+    .arrow-net   { stroke: #b91c1c; fill: none; stroke-width: 2; stroke-dasharray: 7 4; }
+    .net-label   { font-size: 11px; font-weight: 600; fill: #b91c1c; text-anchor: middle; letter-spacing: 0.05em; }
+
+    @media (prefers-color-scheme: dark) {
+      .title-fg    { fill: #94a3b8; }
+      .subtitle-fg { fill: #94a3b8; }
+      .host-stroke { stroke: #64748b; }
+      .host-label  { fill: #94a3b8; }
+      .ext-label   { fill: #e2e8f0; }
+      .ext-sub     { fill: #94a3b8; }
+      .ext-fill    { fill: #64748b; }
+      .arrow       { stroke: #94a3b8; }
+      .arrow-net   { stroke: #f87171; }
+      .net-label   { fill: #f87171; }
+    }
+  </style>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-net" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#b91c1c"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="38" class="title title-fg" text-anchor="middle">Scenario 3 — Byline host + separate front-end host</text>
+  <text x="600" y="62" class="subtitle subtitle-fg" text-anchor="middle">
+    Byline host carries the admin dashboard and exposes the HTTP API. A separate front-end host consumes the API over the network.
+  </text>
+
+  <!-- Editors (top left, above admin host) -->
+  <g transform="translate(280, 110)">
+    <rect x="-90" y="-32" width="180" height="64" rx="8" class="ext-fill"/>
+    <text x="0" y="-4" class="box-label">Editors</text>
+    <text x="0" y="16" class="box-sublabel">admin users</text>
+  </g>
+  <line x1="280" y1="145" x2="280" y2="195" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- Visitors (top right, above frontend host) -->
+  <g transform="translate(960, 110)">
+    <rect x="-90" y="-32" width="180" height="64" rx="8" class="ext-fill"/>
+    <text x="0" y="-4" class="box-label">Visitors</text>
+    <text x="0" y="16" class="box-sublabel">browsers · search bots</text>
+  </g>
+  <line x1="960" y1="145" x2="960" y2="375" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- HOST A: Byline (admin + API) -->
+  <rect x="60" y="200" width="640" height="420" rx="14" class="host-stroke"/>
+  <text x="80" y="222" class="host-label">HOST A · BYLINE (ADMIN + API)</text>
+
+  <!-- Admin Dashboard -->
+  <g transform="translate(100, 246)">
+    <rect width="560" height="74" rx="8" fill="#1d4ed8"/>
+    <text x="280" y="32" class="box-label">Admin Dashboard</text>
+    <text x="280" y="52" class="box-sublabel">editor UI · auth realm: admin</text>
+  </g>
+  <line x1="380" y1="320" x2="380" y2="354" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- HTTP API -->
+  <g transform="translate(100, 358)">
+    <rect width="560" height="74" rx="8" fill="#b91c1c"/>
+    <text x="280" y="32" class="box-label">HTTP API</text>
+    <text x="280" y="52" class="box-sublabel">routes map 1:1 to Client SDK · network boundary</text>
+  </g>
+  <line x1="380" y1="432" x2="380" y2="466" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- Client SDK -->
+  <g transform="translate(100, 470)">
+    <rect width="560" height="60" rx="8" fill="#b45309"/>
+    <text x="280" y="26" class="box-label">@byline/client — Client SDK</text>
+    <text x="280" y="46" class="box-sublabel">in-process · read DSL · write surface</text>
+  </g>
+  <line x1="380" y1="530" x2="380" y2="558" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- Byline Core -->
+  <g transform="translate(100, 562)">
+    <rect width="560" height="46" rx="8" fill="#334155"/>
+    <text x="280" y="20" class="box-label">Byline Core runtime</text>
+    <text x="280" y="38" class="box-sublabel">collections · versioning · workflow · services</text>
+  </g>
+
+  <!-- HOST B: Front-end -->
+  <rect x="780" y="380" width="360" height="160" rx="14" class="host-stroke"/>
+  <text x="800" y="402" class="host-label">HOST B · FRONT-END</text>
+
+  <g transform="translate(815, 425)">
+    <rect width="290" height="100" rx="8" fill="#15803d"/>
+    <text x="145" y="42" class="box-label">Front-end Web App</text>
+    <text x="145" y="62" class="box-sublabel">primary client</text>
+    <text x="145" y="80" class="box-sublabel">calls HTTP API over the network</text>
+  </g>
+
+  <!-- Cross-host arrow: Frontend host → HTTP API (Host A) -->
+  <path d="M 780,475 C 740,475 720,395 660,395" class="arrow-net" marker-end="url(#arrow-net)"/>
+  <text x="730" y="370" class="net-label">HTTPS · 1:1 SDK routes</text>
+
+  <!-- Postgres -->
+  <line x1="380" y1="620" x2="380" y2="650" class="arrow" marker-end="url(#arrow)"/>
+  <g transform="translate(380, 690)">
+    <ellipse cx="0" cy="-18" rx="110" ry="12" fill="#0f172a"/>
+    <path d="M -110,-18 L -110,18 A 110,12 0 0 0 110,18 L 110,-18 Z" fill="#0f172a"/>
+    <ellipse cx="0" cy="-18" rx="110" ry="12" fill="#1e293b"/>
+    <text x="0" y="6" class="box-label">Postgres</text>
+    <text x="0" y="24" class="box-sublabel">store_* tables · EAV per type</text>
+  </g>
+</svg>

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Byline CMS — Deployment Scenario 2: Integrated host with exposed HTTP API</title>
+  <desc>A single host runs admin, front-end and a public HTTP API that maps 1:1 to the Client SDK. The front-end uses the Client SDK in-process; external clients reach Byline through the HTTP API.</desc>
+
+  <style>
+    .title       { font-size: 22px; font-weight: 700; }
+    .subtitle    { font-size: 13px; }
+    .title-fg    { fill: #475569; }
+    .subtitle-fg { fill: #475569; }
+
+    .host-stroke { stroke: #94a3b8; fill: none; stroke-dasharray: 6 5; stroke-width: 1.6; }
+    .host-label  { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; fill: #64748b; }
+
+    .box-label    { fill: #ffffff; font-weight: 600; font-size: 15px; text-anchor: middle; }
+    .box-sublabel { fill: #ffffff; opacity: 0.85; font-size: 11px; text-anchor: middle; }
+
+    .ext-label   { font-size: 13px; fill: #334155; text-anchor: middle; font-weight: 600; }
+    .ext-sub     { font-size: 11px; fill: #64748b; text-anchor: middle; }
+    .ext-fill    { fill: #475569; }
+
+    .arrow       { stroke: #64748b; fill: none; stroke-width: 1.6; }
+    .legend-txt  { font-size: 11px; fill: #64748b; }
+
+    @media (prefers-color-scheme: dark) {
+      .title-fg    { fill: #94a3b8; }
+      .subtitle-fg { fill: #94a3b8; }
+      .host-stroke { stroke: #64748b; }
+      .host-label  { fill: #94a3b8; }
+      .ext-label   { fill: #e2e8f0; }
+      .ext-sub     { fill: #94a3b8; }
+      .ext-fill    { fill: #64748b; }
+      .arrow       { stroke: #94a3b8; }
+      .legend-txt  { fill: #94a3b8; }
+    }
+  </style>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="550" y="38" class="title title-fg" text-anchor="middle">Scenario 2 — Integrated host with exposed HTTP API</text>
+  <text x="550" y="62" class="subtitle subtitle-fg" text-anchor="middle">
+    Admin and front-end remain in-process. An HTTP transport, mirroring the Client SDK 1:1, is exposed for other clients (mobile, third-party frameworks).
+  </text>
+
+  <!-- External actors -->
+  <g transform="translate(300, 110)">
+    <rect x="-90" y="-32" width="180" height="64" rx="8" class="ext-fill"/>
+    <text x="0" y="-4" class="box-label">Visitors</text>
+    <text x="0" y="16" class="box-sublabel">browsers · search bots</text>
+  </g>
+  <g transform="translate(800, 110)">
+    <rect x="-110" y="-32" width="220" height="64" rx="8" class="ext-fill"/>
+    <text x="0" y="-4" class="box-label">Other clients</text>
+    <text x="0" y="16" class="box-sublabel">mobile · other frameworks · partners</text>
+  </g>
+
+  <line x1="300" y1="145" x2="300" y2="195" class="arrow" marker-end="url(#arrow)"/>
+  <line x1="800" y1="145" x2="800" y2="195" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- Host container -->
+  <rect x="120" y="200" width="860" height="380" rx="14" class="host-stroke"/>
+  <text x="140" y="222" class="host-label">SINGLE HOST · CLUSTERABLE</text>
+
+  <!-- Admin Dashboard -->
+  <g transform="translate(160, 246)">
+    <rect width="260" height="78" rx="8" fill="#1d4ed8"/>
+    <text x="130" y="34" class="box-label">Admin Dashboard</text>
+    <text x="130" y="54" class="box-sublabel">editor UI · auth realm: admin</text>
+  </g>
+
+  <!-- Frontend Web App -->
+  <g transform="translate(440, 246)">
+    <rect width="260" height="78" rx="8" fill="#15803d"/>
+    <text x="130" y="34" class="box-label">Front-end Web App</text>
+    <text x="130" y="54" class="box-sublabel">primary client · in-process SDK</text>
+  </g>
+
+  <!-- HTTP API -->
+  <g transform="translate(720, 246)">
+    <rect width="220" height="78" rx="8" fill="#b91c1c"/>
+    <text x="110" y="34" class="box-label">HTTP API</text>
+    <text x="110" y="54" class="box-sublabel">1:1 with Client SDK</text>
+  </g>
+
+  <!-- Three down-arrows into SDK -->
+  <line x1="290" y1="324" x2="290" y2="358" class="arrow" marker-end="url(#arrow)"/>
+  <line x1="570" y1="324" x2="570" y2="358" class="arrow" marker-end="url(#arrow)"/>
+  <line x1="830" y1="324" x2="830" y2="358" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- Client SDK -->
+  <g transform="translate(160, 362)">
+    <rect width="780" height="66" rx="8" fill="#b45309"/>
+    <text x="390" y="30" class="box-label">@byline/client — Client SDK</text>
+    <text x="390" y="50" class="box-sublabel">read DSL · write surface · populate · status modes</text>
+  </g>
+
+  <line x1="550" y1="428" x2="550" y2="462" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- Byline Core -->
+  <g transform="translate(160, 466)">
+    <rect width="780" height="78" rx="8" fill="#334155"/>
+    <text x="390" y="34" class="box-label">Byline Core runtime</text>
+    <text x="390" y="54" class="box-sublabel">collections · immutable versioning · workflow · services</text>
+  </g>
+
+  <line x1="550" y1="580" x2="550" y2="620" class="arrow" marker-end="url(#arrow)"/>
+
+  <!-- Postgres -->
+  <g transform="translate(550, 660)">
+    <ellipse cx="0" cy="-18" rx="110" ry="12" fill="#0f172a"/>
+    <path d="M -110,-18 L -110,18 A 110,12 0 0 0 110,18 L 110,-18 Z" fill="#0f172a"/>
+    <ellipse cx="0" cy="-18" rx="110" ry="12" fill="#1e293b"/>
+    <text x="0" y="6" class="box-label">Postgres</text>
+    <text x="0" y="24" class="box-sublabel">store_* tables · EAV per type</text>
+  </g>
+</svg>
