@@ -975,10 +975,7 @@ export class DocumentQueries implements IDocumentQueries {
       .select({ id: documents.id, order_key: documents.order_key })
       .from(documents)
       .where(eq(documents.collection_id, collection_id))
-      .orderBy(
-        sql`${documents.order_key} ASC NULLS LAST`,
-        desc(documents.created_at)
-      )
+      .orderBy(sql`${documents.order_key} ASC NULLS LAST`, desc(documents.created_at))
     return rows
   }
 

@@ -75,8 +75,7 @@
 
   /* Style for the "checked" state — animation overrides the transition for bouncy entry */
   .indicator[data-checked] .icon,
-  :global(.byline-checkbox-indicator)[data-checked]
-    :global(.byline-checkbox-icon) {
+  :global(.byline-checkbox-indicator)[data-checked] :global(.byline-checkbox-icon) {
     animation: checkBoxIn 0.3s cubic-bezier(0.25, 1.5, 0.5, 1) forwards;
     opacity: 1;
     transform: scale(1);
@@ -84,8 +83,7 @@
 
   /* Style for the "unchecked" state — no animation, let the CSS transition handle the exit */
   .indicator[data-unchecked] .icon,
-  :global(.byline-checkbox-indicator)[data-unchecked]
-    :global(.byline-checkbox-icon) {
+  :global(.byline-checkbox-indicator)[data-unchecked] :global(.byline-checkbox-icon) {
     opacity: 0;
     transform: scale(0.8);
   }
@@ -201,9 +199,7 @@
   :global(.byline-checkbox-secondary) {
     --checkbox-variant-outlined-border: var(--fill-secondary-strong);
     --checkbox-variant-outlined: var(--fill-secondary-strong);
-    --checkbox-variant-outlined-hover-border: var(
-      --fill-secondary-strong-hover
-    );
+    --checkbox-variant-outlined-hover-border: var(--fill-secondary-strong-hover);
     --checkbox-variant-outline-ring-color: var(--ring-secondary);
     --checkbox-variant-filled: var(--fill-secondary-strong);
     --checkbox-icon-color: black;

@@ -361,10 +361,7 @@ export const ListView = ({
                 <Table>
                   <Table.Header>
                     <Table.Row>
-                      <th
-                        scope="col"
-                        className={cx('byline-coll-list-drag-cell', styles.dragCell)}
-                      >
+                      <th scope="col" className={cx('byline-coll-list-drag-cell', styles.dragCell)}>
                         <button
                           type="button"
                           className={cx(

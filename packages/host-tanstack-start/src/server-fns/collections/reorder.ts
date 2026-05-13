@@ -110,7 +110,7 @@ export const reorderCollectionDocument = createServerFn({ method: 'POST' })
       const allKeys = generateNKeysBetween(null, null, canonical.length)
       for (let i = 0; i < canonical.length; i++) {
         await serverConfig.db.commands.documents.setOrderKey({
-          document_id: canonical[i]!.id,
+          document_id: canonical[i]?.id,
           order_key: allKeys[i]!,
         })
       }
@@ -121,12 +121,11 @@ export const reorderCollectionDocument = createServerFn({ method: 'POST' })
       const firstNullIdx = canonical.findIndex((d) => d.order_key == null)
       if (firstNullIdx !== -1) {
         const nullDocs = canonical.slice(firstNullIdx)
-        const lastExistingKey =
-          firstNullIdx === 0 ? null : canonical[firstNullIdx - 1]!.order_key
+        const lastExistingKey = firstNullIdx === 0 ? null : canonical[firstNullIdx - 1]?.order_key
         const newKeys = generateNKeysBetween(lastExistingKey, null, nullDocs.length)
         for (let i = 0; i < nullDocs.length; i++) {
           await serverConfig.db.commands.documents.setOrderKey({
-            document_id: nullDocs[i]!.id,
+            document_id: nullDocs[i]?.id,
             order_key: newKeys[i]!,
           })
         }

@@ -123,10 +123,7 @@
     );
     color: var(
       --button-variant-filled-foreground-disabled,
-      oklch(
-        from var(--button-variant-filled-foreground) calc(l * 0.9)
-          calc(c * 0.85) h
-      )
+      oklch(from var(--button-variant-filled-foreground) calc(l * 0.9) calc(c * 0.85) h)
     );
   }
 
@@ -157,16 +154,11 @@
   :global(.byline-button-filled-weak)[disabled] {
     background-color: var(
       --button-variant-filled-weak-disabled,
-      oklch(
-        from var(--button-variant-filled-weak) calc(l * 1.1) calc(c * 0.85) h
-      )
+      oklch(from var(--button-variant-filled-weak) calc(l * 1.1) calc(c * 0.85) h)
     );
     color: var(
       --button-variant-filled-weak-foreground-disabled,
-      oklch(
-        from var(--button-variant-filled-weak-foreground) calc(l * 0.9)
-          calc(c * 0.85) h
-      )
+      oklch(from var(--button-variant-filled-weak-foreground) calc(l * 0.9) calc(c * 0.85) h)
     );
   }
 
@@ -183,16 +175,11 @@
   :global(.byline-button-outlined)[disabled] {
     border-color: var(
       --button-variant-outlined-border-disabled,
-      oklch(
-        from var(--button-variant-outlined-border) calc(l * 1.5) calc(c * 0.8) h
-      )
+      oklch(from var(--button-variant-outlined-border) calc(l * 1.5) calc(c * 0.8) h)
     );
     color: var(
       --button-variant-outlined-foreground-disabled,
-      oklch(
-        from var(--button-variant-outlined-foreground) calc(l * 1.1)
-          calc(c * 0.7) h
-      )
+      oklch(from var(--button-variant-outlined-foreground) calc(l * 1.1) calc(c * 0.7) h)
     );
   }
 
@@ -225,16 +212,11 @@
     background: unset;
     background-color: var(
       --button-variant-gradient-disabled,
-      oklch(
-        from var(--button-variant-gradient-end) calc(l * 1.2) calc(c * 0.85) h
-      )
+      oklch(from var(--button-variant-gradient-end) calc(l * 1.2) calc(c * 0.85) h)
     );
     color: var(
       --button-variant-gradient-foreground-disabled,
-      oklch(
-        from var(--button-variant-gradient-foreground) calc(l * 0.9)
-          calc(c * 0.85) h
-      )
+      oklch(from var(--button-variant-gradient-foreground) calc(l * 0.9) calc(c * 0.85) h)
     );
   }
 
@@ -265,9 +247,7 @@
   .text[disabled],
   :global(.byline-button-text):disabled,
   :global(.byline-button-text)[disabled] {
-    color: oklch(
-      from var(--button-variant-text-foreground) calc(l * 1.5) calc(c * 0.5) h
-    );
+    color: oklch(from var(--button-variant-text-foreground) calc(l * 1.5) calc(c * 0.5) h);
   }
 
   .text:hover,
@@ -292,18 +272,14 @@
     --button-variant-filled-hover: var(--fill-primary-strong-hover);
     --button-variant-filled-disabled: var(--fill-primary-strong-disabled);
     --button-variant-filled-foreground: var(--text-on-primary-strong);
-    --button-variant-filled-foreground-disabled: var(
-      --text-on-primary-strong-disabled
-    );
+    --button-variant-filled-foreground-disabled: var(--text-on-primary-strong-disabled);
 
     /* Filled Weak */
     --button-variant-filled-weak: var(--fill-primary-weak);
     --button-variant-filled-weak-hover: var(--fill-primary-weak-hover);
     --button-variant-filled-weak-disabled: var(--fill-primary-weak-disabled);
     --button-variant-filled-weak-foreground: var(--text-on-primary-weak);
-    --button-variant-filled-weak-foreground-disabled: var(
-      --text-on-primary-weak-disabled
-    );
+    --button-variant-filled-weak-foreground-disabled: var(--text-on-primary-weak-disabled);
 
     /* Outlined */
     --button-variant-outlined: var(--fill-primary-outlined);
@@ -311,9 +287,7 @@
     --button-variant-outlined-border: var(--stroke-primary);
     --button-variant-outlined-border-disabled: var(--stroke-primary-disabled);
     --button-variant-outlined-foreground: var(--text-on-primary-outlined);
-    --button-variant-outlined-foreground-disabled: var(
-      --text-on-primary-outlined-disabled
-    );
+    --button-variant-outlined-foreground-disabled: var(--text-on-primary-outlined-disabled);
 
     /* Text */
     --button-variant-text: var(--fill-primary-text);
@@ -325,9 +299,7 @@
     --button-variant-gradient-end: var(--gradient-primary-end);
     --button-variant-gradient-foreground: var(--gradient-primary-foreground);
     --button-variant-gradient-disabled: var(--gradient-primary-disabled);
-    --button-variant-gradient-foreground-disabled: var(
-      --text-on-primary-strong-disabled
-    );
+    --button-variant-gradient-foreground-disabled: var(--text-on-primary-strong-disabled);
   }
 
   .secondary,
@@ -339,18 +311,14 @@
     --button-variant-filled-hover: var(--fill-secondary-strong-hover);
     --button-variant-filled-disabled: var(--fill-secondary-strong-disabled);
     --button-variant-filled-foreground: var(--text-on-secondary-strong);
-    --button-variant-filled-foreground-disabled: var(
-      --text-on-secondary-strong-disabled
-    );
+    --button-variant-filled-foreground-disabled: var(--text-on-secondary-strong-disabled);
 
     /* Filled Weak */
     --button-variant-filled-weak: var(--fill-secondary-weak);
     --button-variant-filled-weak-hover: var(--fill-secondary-weak-hover);
     --button-variant-filled-weak-disabled: var(--fill-secondary-weak-disabled);
     --button-variant-filled-weak-foreground: var(--text-on-secondary-weak);
-    --button-variant-filled-weak-foreground-disabled: var(
-      --text-on-secondary-weak-disabled
-    );
+    --button-variant-filled-weak-foreground-disabled: var(--text-on-secondary-weak-disabled);
 
     /* Outlined */
     --button-variant-outlined: var(--fill-secondary-outlined);
@@ -358,9 +326,7 @@
     --button-variant-outlined-border-disabled: var(--stroke-secondary-disabled);
     --button-variant-outlined-hover: var(--fill-secondary-outlined-hover);
     --button-variant-outlined-foreground: var(--text-on-secondary-outlined);
-    --button-variant-outlined-foreground-disabled: var(
-      --text-on-secondary-outlined-disabled
-    );
+    --button-variant-outlined-foreground-disabled: var(--text-on-secondary-outlined-disabled);
 
     /* Text */
     --button-variant-text: var(--fill-secondary-text);
@@ -372,9 +338,7 @@
     --button-variant-gradient-end: var(--gradient-secondary-end);
     --button-variant-gradient-foreground: var(--gradient-secondary-foreground);
     --button-variant-gradient-disabled: var(--gradient-secondary-disabled);
-    --button-variant-gradient-foreground-disabled: var(
-      --text-on-secondary-strong-disabled
-    );
+    --button-variant-gradient-foreground-disabled: var(--text-on-secondary-strong-disabled);
   }
 
   .noeffect,
@@ -386,18 +350,14 @@
     --button-variant-filled-hover: var(--fill-noeffect-strong-hover);
     --button-variant-filled-disabled: var(--fill-noeffect-strong-disabled);
     --button-variant-filled-foreground: var(--text-on-noeffect-strong);
-    --button-variant-filled-foreground-disabled: var(
-      --text-on-noeffect-strong-disabled
-    );
+    --button-variant-filled-foreground-disabled: var(--text-on-noeffect-strong-disabled);
 
     /* Filled Weak */
     --button-variant-filled-weak: var(--fill-noeffect-weak);
     --button-variant-filled-weak-hover: var(--fill-noeffect-weak-hover);
     --button-variant-filled-weak-disabled: var(--fill-noeffect-weak-disabled);
     --button-variant-filled-weak-foreground: var(--text-on-noeffect-weak);
-    --button-variant-filled-weak-foreground-disabled: var(
-      --text-on-noeffect-weak-disabled
-    );
+    --button-variant-filled-weak-foreground-disabled: var(--text-on-noeffect-weak-disabled);
 
     /* Outlined */
     --button-variant-outlined: var(--fill-noeffect-outlined);
@@ -406,9 +366,7 @@
     --button-variant-outlined-border: var(--stroke-noeffect);
     --button-variant-outlined-border-disabled: var(--stroke-noeffect-disabled);
     --button-variant-outlined-foreground: var(--text-on-noeffect-outlined);
-    --button-variant-outlined-foreground-disabled: var(
-      --text-on-noeffect-outlined-disabled
-    );
+    --button-variant-outlined-foreground-disabled: var(--text-on-noeffect-outlined-disabled);
 
     /* Text */
     --button-variant-text: var(--fill-noeffect-text);
@@ -420,9 +378,7 @@
     --button-variant-gradient-end: var(--gradient-noeffect-end);
     --button-variant-gradient-foreground: var(--gradient-noeffect-foreground);
     --button-variant-gradient-disabled: var(--gradient-noeffect-disabled);
-    --button-variant-gradient-foreground-disabled: var(
-      --text-on-noeffect-strong-disabled
-    );
+    --button-variant-gradient-foreground-disabled: var(--text-on-noeffect-strong-disabled);
   }
 
   .success,
@@ -434,18 +390,14 @@
     --button-variant-filled-hover: var(--fill-success-strong-hover);
     --button-variant-filled-disabled: var(--fill-success-strong-disabled);
     --button-variant-filled-foreground: var(--text-on-success-strong);
-    --button-variant-filled-foreground-disabled: var(
-      --text-on-success-strong-disabled
-    );
+    --button-variant-filled-foreground-disabled: var(--text-on-success-strong-disabled);
 
     /* Filled Weak */
     --button-variant-filled-weak: var(--fill-success-weak);
     --button-variant-filled-weak-hover: var(--fill-success-weak-hover);
     --button-variant-filled-weak-disabled: var(--fill-success-weak-disabled);
     --button-variant-filled-weak-foreground: var(--text-on-success-weak);
-    --button-variant-filled-weak-foreground-disabled: var(
-      --text-on-success-weak-disabled
-    );
+    --button-variant-filled-weak-foreground-disabled: var(--text-on-success-weak-disabled);
 
     /* Outlined */
     --button-variant-outlined: var(--fill-success-outlined);
@@ -453,9 +405,7 @@
     --button-variant-outlined-border: var(--stroke-success);
     --button-variant-outlined-border-disabled: var(--stroke-success-disabled);
     --button-variant-outlined-foreground: var(--text-on-success-outlined);
-    --button-variant-outlined-foreground-disabled: var(
-      --text-on-success-outlined-disabled
-    );
+    --button-variant-outlined-foreground-disabled: var(--text-on-success-outlined-disabled);
 
     /* Text */
     --button-variant-text: transparent;
@@ -467,9 +417,7 @@
     --button-variant-gradient-end: var(--gradient-success-end);
     --button-variant-gradient-foreground: var(--gradient-success-foreground);
     --button-variant-gradient-disabled: var(--gradient-success-disabled);
-    --button-variant-gradient-foreground-disabled: var(
-      --text-on-success-strong-disabled
-    );
+    --button-variant-gradient-foreground-disabled: var(--text-on-success-strong-disabled);
   }
 
   .info,
@@ -481,18 +429,14 @@
     --button-variant-filled-hover: var(--fill-info-strong-hover);
     --button-variant-filled-disabled: var(--fill-info-strong-disabled);
     --button-variant-filled-foreground: var(--text-on-info-strong);
-    --button-variant-filled-foreground-disabled: var(
-      --text-on-info-strong-disabled
-    );
+    --button-variant-filled-foreground-disabled: var(--text-on-info-strong-disabled);
 
     /* Filled Weak */
     --button-variant-filled-weak: var(--fill-info-weak);
     --button-variant-filled-weak-hover: var(--fill-info-weak-hover);
     --button-variant-filled-weak-disabled: var(--fill-info-weak-disabled);
     --button-variant-filled-weak-foreground: var(--text-on-info-weak);
-    --button-variant-filled-weak-foreground-disabled: var(
-      --text-on-info-weak-disabled
-    );
+    --button-variant-filled-weak-foreground-disabled: var(--text-on-info-weak-disabled);
 
     /* Outlined */
     --button-variant-outlined: transparent;
@@ -500,9 +444,7 @@
     --button-variant-outlined-border: var(--stroke-info);
     --button-variant-outlined-border-disabled: var(--stroke-info-disabled);
     --button-variant-outlined-foreground: var(--text-on-info-outlined);
-    --button-variant-outlined-foreground-disabled: var(
-      --text-on-info-outlined-disabled
-    );
+    --button-variant-outlined-foreground-disabled: var(--text-on-info-outlined-disabled);
 
     /* Text */
     --button-variant-text: transparent;
@@ -514,9 +456,7 @@
     --button-variant-gradient-end: var(--gradient-info-end);
     --button-variant-gradient-foreground: var(--gradient-info-foreground);
     --button-variant-gradient-disabled: var(--gradient-info-disabled);
-    --button-variant-gradient-foreground-disabled: var(
-      --text-on-info-strong-disabled
-    );
+    --button-variant-gradient-foreground-disabled: var(--text-on-info-strong-disabled);
   }
 
   .warning,
@@ -528,18 +468,14 @@
     --button-variant-filled-hover: var(--fill-warning-strong-hover);
     --button-variant-filled-disabled: var(--fill-warning-strong-disabled);
     --button-variant-filled-foreground: var(--text-on-warning-strong);
-    --button-variant-filled-foreground-disabled: var(
-      --text-on-warning-strong-disabled
-    );
+    --button-variant-filled-foreground-disabled: var(--text-on-warning-strong-disabled);
 
     /* Filled Weak */
     --button-variant-filled-weak: var(--fill-warning-weak);
     --button-variant-filled-weak-hover: var(--fill-warning-weak-hover);
     --button-variant-filled-weak-disabled: var(--fill-warning-weak-disabled);
     --button-variant-filled-weak-foreground: var(--text-on-warning-weak);
-    --button-variant-filled-weak-foreground-disabled: var(
-      --text-on-warning-weak-disabled
-    );
+    --button-variant-filled-weak-foreground-disabled: var(--text-on-warning-weak-disabled);
 
     /* Outlined */
     --button-variant-outlined: var(--fill-warning-outlined);
@@ -547,9 +483,7 @@
     --button-variant-outlined-border: var(--stroke-warning);
     --button-variant-outlined-border-disabled: var(--stroke-warning-disabled);
     --button-variant-outlined-foreground: var(--text-on-warning-outlined);
-    --button-variant-outlined-foreground-disabled: var(
-      --text-on-warning-outlined-disabled
-    );
+    --button-variant-outlined-foreground-disabled: var(--text-on-warning-outlined-disabled);
 
     /* Text */
     --button-variant-text: transparent;
@@ -561,9 +495,7 @@
     --button-variant-gradient-end: var(--gradient-warning-end);
     --button-variant-gradient-foreground: var(--gradient-warning-foreground);
     --button-variant-gradient-disabled: var(--gradient-warning-disabled);
-    --button-variant-gradient-foreground-disabled: var(
-      --text-on-warning-strong-disabled
-    );
+    --button-variant-gradient-foreground-disabled: var(--text-on-warning-strong-disabled);
   }
 
   .danger,
@@ -575,18 +507,14 @@
     --button-variant-filled-hover: var(--fill-danger-strong-hover);
     --button-variant-filled-disabled: var(--fill-danger-strong-disabled);
     --button-variant-filled-foreground: var(--text-on-danger-strong);
-    --button-variant-filled-foreground-disabled: var(
-      --text-on-danger-strong-disabled
-    );
+    --button-variant-filled-foreground-disabled: var(--text-on-danger-strong-disabled);
 
     /* Filled Weak */
     --button-variant-filled-weak: var(--fill-danger-weak);
     --button-variant-filled-weak-hover: var(--fill-danger-weak-hover);
     --button-variant-filled-weak-disabled: var(--fill-danger-weak-disabled);
     --button-variant-filled-weak-foreground: var(--text-on-danger-weak);
-    --button-variant-filled-weak-foreground-disabled: var(
-      --text-on-danger-weak-disabled
-    );
+    --button-variant-filled-weak-foreground-disabled: var(--text-on-danger-weak-disabled);
 
     /* Outlined */
     --button-variant-outlined: transparent;
@@ -594,9 +522,7 @@
     --button-variant-outlined-border: var(--stroke-danger);
     --button-variant-outlined-border-disabled: var(--stroke-danger-disabled);
     --button-variant-outlined-foreground: var(--text-on-danger-outlined);
-    --button-variant-outlined-foreground-disabled: var(
-      --text-on-danger-outlined-disabled
-    );
+    --button-variant-outlined-foreground-disabled: var(--text-on-danger-outlined-disabled);
 
     /* Text */
     --button-variant-text: transparent;
@@ -608,9 +534,7 @@
     --button-variant-gradient-end: var(--gradient-danger-end);
     --button-variant-gradient-foreground: var(--gradient-danger-foreground);
     --button-variant-gradient-disabled: var(--gradient-danger-disabled);
-    --button-variant-gradient-foreground-disabled: var(
-      --text-on-danger-strong-disabled
-    );
+    --button-variant-gradient-foreground-disabled: var(--text-on-danger-strong-disabled);
   }
 
   /* Full width */
