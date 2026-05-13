@@ -102,6 +102,46 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 **Package design docs** sit close to their packages — e.g.
 [packages/client/DESIGN.md](packages/client/DESIGN.md).
 
+## Deployment Scenarios (Current and Future)
+
+Byline is designed to support a spectrum of deployment shapes, from a single
+all-in-one host today to fully split admin / API / front-end topologies in the
+future. The four diagrams below sketch the progression.
+
+### 1. Integrated all-in-one host (current)
+
+A single host runs the admin dashboard and the front-end application together.
+The Client SDK runs in-process; the host talks directly to Postgres.
+
+<img width="900" alt="Byline CMS deployment scenario 1: integrated all-in-one host with admin, front-end and Client SDK co-located, connected to Postgres" src="apps/webapp/public/byline-deployment-1-integrated.svg" />
+
+### 2. Integrated host with an exposed HTTP API
+
+The same single host now also exposes a public HTTP API that maps 1:1 to the
+Client SDK. The front-end keeps using the SDK in-process; external clients
+reach Byline through the HTTP API.
+
+<img width="900" alt="Byline CMS deployment scenario 2: integrated host with admin, front-end and an exposed HTTP API mapping 1:1 to the Client SDK" src="apps/webapp/public/byline-deployment-2-integrated-with-api.svg" />
+
+### 3. Admin + HTTP API host with a separate front-end host
+
+Two hosts. The Byline host carries the admin dashboard and exposes the HTTP
+API; the front-end is deployed independently and consumes that API over the
+network.
+
+<img width="900" alt="Byline CMS deployment scenario 3: Byline admin and HTTP API on one host, with a separate front-end host consuming the API over the network" src="apps/webapp/public/byline-deployment-3-split-frontend.svg" />
+
+### 4. Three dedicated hosts
+
+A dedicated HTTP API server, a dedicated admin host (no exposed HTTP), and a
+dedicated front-end host. The front-end consumes the API host over the
+network; the admin and API hosts share the database.
+
+<img width="900" alt="Byline CMS deployment scenario 4: three dedicated hosts — admin, HTTP API, and front-end — with admin and API sharing a Postgres database" src="apps/webapp/public/byline-deployment-4-three-hosts.svg" />
+
+
+
+
 ## Quick start - Experimental CLI
 
 Note: We have an experimental CLI that will attempt to install Byline into an existing TanStack Start application. This has only been tested against up-to-date TanStack Start sites created with the Nitro (agnostic adapter). You can install TanStack Start with:
