@@ -52,7 +52,7 @@
     "dotenv": "^17.4.2",
     "intl-messageformat": "^11.2.4",
     "negotiator": "^1.0.0",
-    "nitro": "^3.0.260429-beta",
+    "nitro": "npm:nitro-nightly@latest",
     "pino": "^10.3.1",
     "prism-react-renderer": "^2.4.1",
     "react": "19.2.6",

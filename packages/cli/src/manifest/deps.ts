@@ -106,6 +106,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'logger imported directly by @byline/core; Nitro tracer needs it owned at the app boundary',
   },
   {
+    name: 'prism-react-renderer',
+    version: '^2.4.1',
+    group: 'runtime',
+    note: 'code-block syntax highlighting; imported by src/ui/byline/components/code/code.tsx',
+  },
+  {
     name: 'sharp',
     version: '^0.34.5',
     group: 'runtime',
@@ -115,7 +121,7 @@ export const DEP_SPECS: readonly DepSpec[] = [
     name: 'nitro',
     version: 'npm:nitro-nightly@latest',
     group: 'runtime',
-    note: 'Nitro plugin that drives TanStack Start SSR builds (vite.config.ts plugin)',
+    note: 'Nitro plugin that drives TanStack Start SSR builds (vite.config.ts plugin); matches the spec TanStack Start scaffolds, so this is a no-op for users coming via `npx @tanstack/cli create`',
   },
 
   // ---- Dev ---------------------------------------------------------------
