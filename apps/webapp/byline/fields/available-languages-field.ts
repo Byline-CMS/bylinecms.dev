@@ -48,7 +48,7 @@ const builtInValidate = (value: Record<string, boolean> | undefined): string | u
     !Array.isArray(value) &&
     Object.values(value).some(Boolean)
   if (!hasSelection) {
-    return 'At least one language must be selected.'
+    return 'At least one language must be selected'
   }
   return undefined
 }

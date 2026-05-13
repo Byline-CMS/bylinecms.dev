@@ -10,6 +10,7 @@ import type { CheckboxField as FieldType } from '@byline/core'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { Checkbox } from '../../uikit.js'
+import styles from './checkbox-field.module.css'
 
 export const CheckboxField = ({
   field,
@@ -32,7 +33,7 @@ export const CheckboxField = ({
   const checked = value ?? fieldValue ?? defaultValue ?? false
 
   return (
-    <div className={`byline-field-checkbox ${field.name}`}>
+    <div className={`byline-field-checkbox ${field.name} ${styles['field-checkbox']}`}>
       <Checkbox
         id={id ?? fieldPath}
         name={field.name}

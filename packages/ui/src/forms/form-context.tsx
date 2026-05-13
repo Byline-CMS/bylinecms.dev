@@ -52,6 +52,7 @@ interface FormContextType {
   runFieldHooks: (fields: Field[]) => Promise<FormError[]>
   validateForm: (fields: Field[]) => FormError[]
   errors: FormError[]
+  getErrors: () => FormError[]
   clearErrors: () => void
   setFieldError: (field: string, message: string) => void
   clearFieldError: (field: string) => void
@@ -520,6 +521,7 @@ export const FormProvider = ({
         runFieldHooks,
         validateForm,
         errors: errorsRef.current,
+        getErrors: () => errorsRef.current,
         clearErrors,
         setFieldError,
         clearFieldError,
@@ -562,9 +564,15 @@ export const useFormStore = () => {
 }
 
 export const useFieldError = (name: string) => {
-  const { errors, subscribeErrors } = useFormContext()
+  const { getErrors, subscribeErrors } = useFormContext()
+  // Seed from the live errors ref via getErrors() rather than the context's
+  // `errors` snapshot — the snapshot is bound at FormProvider's first render
+  // and goes stale as soon as validateForm replaces errorsRef.current. Fields
+  // mounted after validation has already run (e.g. switching to a tab whose
+  // error badge is non-zero) would otherwise initialise to undefined and miss
+  // the existing error until something else fires notifyErrorListeners.
   const [error, setError] = useState<string | undefined>(
-    errors.find((e) => e.field === name)?.message
+    () => getErrors().find((e) => e.field === name)?.message
   )
 
   useEffect(() => {
