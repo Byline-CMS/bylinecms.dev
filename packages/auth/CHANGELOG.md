@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 1.10.2
+
+### Patch Changes
+
+- New terminal state and revert to draft or published in form-renderer.
+
 ## 1.10.1
 
 ### Patch Changes

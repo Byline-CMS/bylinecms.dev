@@ -1,5 +1,13 @@
 # @byline/storage-s3
 
+## 1.10.2
+
+### Patch Changes
+
+- New terminal state and revert to draft or published in form-renderer.
+- Updated dependencies
+  - @byline/core@1.10.2
+
 ## 1.10.1
 
 ### Patch Changes
