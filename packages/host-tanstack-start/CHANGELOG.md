@@ -1,5 +1,21 @@
 # @byline/host-tanstack-start
 
+## 1.11.0
+
+### Minor Changes
+
+- Added orderable collections with drag-to-reorder list view.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@1.11.0
+  - @byline/ui@1.11.0
+  - @byline/admin@1.11.0
+  - @byline/ai@1.11.0
+  - @byline/auth@1.11.0
+  - @byline/client@1.11.0
+
 ## 1.10.3
 
 ### Patch Changes

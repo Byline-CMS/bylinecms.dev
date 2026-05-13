@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 1.11.0
+
+### Minor Changes
+
+- Added orderable collections with drag-to-reorder list view.
+
 ## 1.10.3
 
 ### Patch Changes
