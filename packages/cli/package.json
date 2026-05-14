@@ -32,7 +32,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc-alias && node ./scripts/copy-templates.js && chmod +x dist/cli.js",
     "dev": "tsc -w -p tsconfig.json",
-    "clean": "rimraf node_modules dist .turbo",
+    "clean": "node scripts/clean.js node_modules dist .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"

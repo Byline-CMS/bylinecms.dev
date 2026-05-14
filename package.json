@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.1.0",
   "scripts": {
-    "clean": "turbo run clean && rimraf node_modules",
+    "clean": "pnpm -r run clean && node scripts/clean node_modules",
     "db:init": "TURBO_UI=true turbo run db:init",
     "byline:generate": "turbo run byline:generate",
     "drizzle:generate": "turbo run drizzle:generate",

@@ -28,7 +28,7 @@
   "scripts": {
     "dev": "chokidar 'src/**/*' -c 'npm-run-all build'",
     "build": "tsc -p tsconfig.json && tsc-alias",
-    "clean": "rimraf node_modules dist build .turbo",
+    "clean": "node scripts/clean.js node_modules dist build .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "skip": "tsx ./scripts/task-watch.js",
     "test": "vitest run --mode=node",

@@ -26,11 +26,11 @@
     "dev": "run-p dev:*",
     "dev:code": "rslib build --watch",
     "build": "run-s build:*",
-    "build:clean": "rimraf dist build",
+    "build:clean": "node scripts/clean.js dist build",
     "build:code": "rslib build",
     "build:css": "lightningcss --bundle ./src/styles/reset.css ./src/styles/styles.css ./src/styles/typography.css --output-dir ./dist/styles",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf node_modules dist build types .turbo",
+    "clean": "node scripts/clean.js node_modules dist build types .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "skip:test": "vitest",
     "sync:uikit": "./scripts/sync-from-uikit.sh"

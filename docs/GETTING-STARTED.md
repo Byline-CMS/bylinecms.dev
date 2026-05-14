@@ -52,9 +52,6 @@ It builds and runs if you'd like to poke around or follow along.
 # git clone this repo
 git clone git@github.com:Byline-CMS/bylinecms.dev.git
 cd bylinecms.dev
-# install rimraf global
-pnpm install -g rimraf
-# or npm install -g rimraf
 # install deps
 pnpm install
 # build once so that all workspace packages and apps have their deps

@@ -189,7 +189,6 @@ See the TanStack Router docs for [File-Based Routing](https://tanstack.com/route
 ```sh
 git clone git@github.com:Byline-CMS/bylinecms.dev.git
 cd bylinecms.dev
-pnpm install -g rimraf
 pnpm install
 pnpm build
 ```

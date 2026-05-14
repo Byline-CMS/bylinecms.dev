@@ -28,7 +28,7 @@
     "dev": "chokidar 'src/**/*' -c 'npm-run-all build'",
     "build": "tsc -p tsconfig.json && tsc-alias && node copy-assets.js",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "clean": "rimraf node_modules dist build .turbo",
+    "clean": "node scripts/clean.js node_modules dist build .turbo",
     "typecheck": "tsc --noEmit",
     "test": "LOG_LEVEL=off vitest run --mode=node",
     "test:watch": "LOG_LEVEL=off vitest --mode=node",
