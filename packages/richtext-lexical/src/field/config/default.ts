@@ -10,16 +10,7 @@ export const defaultEditorLexicalConfig: LexicalEditorConfig = {
 
 export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   options: {
-    disableBeforeInput: false,
-    autocomplete: false,
-    charLimit: false,
-    charLimitUtf8: false,
-    collab: false,
-    maxLength: false,
     richText: true,
-    measureTypingPerf: false,
-    showNestedEditorTreeView: false,
-    showTableOfContents: false,
     showTreeView: false,
     textAlignment: true,
     tablePlugin: true,
@@ -27,8 +18,6 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
     tableCellMerge: true,
     tableActionMenuPlugin: true,
     layoutPlugin: true,
-    outputHTML: false,
-    outputMarkdown: false,
     autoFocusPlugin: false,
     autoLinkPlugin: false,
     inlineImagePlugin: true,

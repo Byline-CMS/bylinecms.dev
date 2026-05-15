@@ -117,8 +117,8 @@ export function EditorContext(props: {
     if (tablePlugin) {
       dependencies.push(
         configExtension(TableExtension, {
-          hasCellMerge: true,
-          hasCellBackgroundColor: true,
+          hasCellMerge: editorConfig.settings.options.tableCellMerge,
+          hasCellBackgroundColor: editorConfig.settings.options.tableCellBackgroundColor,
         })
       )
     }
