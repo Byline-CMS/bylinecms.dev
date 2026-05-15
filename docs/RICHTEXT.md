@@ -143,7 +143,7 @@ type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
 
 export function lexicalRichTextCompact(options: Options = {}): RichTextField {
   const { configure, ...rest } = options
-  const base = applyCompactPreset(cloneDeep(defaultEditorConfig))
+  const base = applyCompactPreset(structuredClone(defaultEditorConfig))
   const editorConfig = configure ? configure(base) : base
   return { name: 'richText', label: 'RichText', ...rest, type: 'richText', editorConfig }
 }
@@ -203,9 +203,9 @@ Source-of-truth code:
 
 | Step | Location |
 |---|---|
-| Link modal embed | `packages/richtext-lexical/src/field/plugins/link-plugin/link/link-modal.tsx` (`handlePickerSelect`, `handleSave`) |
-| Inline-image modal embed | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/inline-image-modal.tsx` (`handlePickerSelect`, `handleSave`) |
-| Variant flattening | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/utils.ts` (`deriveImageSizes`, `getPreferredSize`) |
+| Link modal embed | `packages/richtext-lexical/src/field/extensions/link/link-modal.tsx` (`handlePickerSelect`, `handleSave`) |
+| Inline-image modal embed | `packages/richtext-lexical/src/field/extensions/inline-image/inline-image-modal.tsx` (`handlePickerSelect`, `handleSave`) |
+| Variant flattening | `packages/richtext-lexical/src/field/extensions/inline-image/utils.ts` (`deriveImageSizes`, `getPreferredSize`) |
 | Shared envelope shape | `packages/richtext-lexical/src/field/nodes/document-relation.ts` (`DocumentRelation`) |
 
 ### Persisted shapes
@@ -214,7 +214,7 @@ Two slightly different on-disk layouts, same envelope:
 
 ```ts
 // Link node — relation envelope nested under `attributes`.
-// (packages/richtext-lexical/src/field/nodes/link-nodes/types.ts)
+// (packages/richtext-lexical/src/field/extensions/link/types.ts)
 export type SerializedLinkNode = Spread<{ attributes: LinkAttributes }, SerializedElementNode>
 
 export type LinkAttributes =
@@ -238,7 +238,7 @@ export type LinkAttributes =
 
 ```ts
 // Inline-image node — relation envelope flattened directly onto the node.
-// (packages/richtext-lexical/src/field/nodes/inline-image-node/types.ts)
+// (packages/richtext-lexical/src/field/extensions/inline-image/node-types.ts)
 export type SerializedInlineImageNode = Spread<
   DocumentRelation & {
     src: string
@@ -305,8 +305,8 @@ The factory composes every Lexical plugin's populate visitor into a single `Rich
 
 | Visitor | File | Refreshes |
 |---|---|---|
-| `inlineImageVisitor` | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/populate.ts` | `node.document` ← `{ title, altText, image, sizes }` |
-| `linkVisitor` | `packages/richtext-lexical/src/field/plugins/link-plugin/populate.ts` | `attributes.document` ← `{ title, path }` (only when `linkType: 'internal'`) |
+| `inlineImageVisitor` | `packages/richtext-lexical/src/field/extensions/inline-image/populate.ts` | `node.document` ← `{ title, altText, image, sizes }` |
+| `linkVisitor` | `packages/richtext-lexical/src/field/extensions/link/populate.ts` | `attributes.document` ← `{ title, path }` (only when `linkType: 'internal'`) |
 
 Both visitors are pure / framework-agnostic — no React, no DOM, no Lexical runtime. They live next to the plugin's UI code so each plugin's write-time embed and read-time populate stay in lockstep, but only the populate file is reachable from the package's `server` entry.
 
@@ -371,12 +371,12 @@ The persisted node attributes flatten the relation envelope directly (`targetDoc
 
 | Concern | Location |
 |---|---|
-| Picker-time link embed | `packages/richtext-lexical/src/field/plugins/link-plugin/link/link-modal.tsx` |
-| Picker-time inline-image embed | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/inline-image-modal.tsx` |
-| Variant flattening | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/utils.ts` |
+| Picker-time link embed | `packages/richtext-lexical/src/field/extensions/link/link-modal.tsx` |
+| Picker-time inline-image embed | `packages/richtext-lexical/src/field/extensions/inline-image/inline-image-modal.tsx` |
+| Variant flattening | `packages/richtext-lexical/src/field/extensions/inline-image/utils.ts` |
 | `lexicalEditorServer()` factory | `packages/richtext-lexical/src/server.ts` |
-| Inline-image populate visitor | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/populate.ts` |
-| Link populate visitor | `packages/richtext-lexical/src/field/plugins/link-plugin/populate.ts` |
+| Inline-image populate visitor | `packages/richtext-lexical/src/field/extensions/inline-image/populate.ts` |
+| Link populate visitor | `packages/richtext-lexical/src/field/extensions/link/populate.ts` |
 | Shared tree walker / batch driver | `packages/richtext-lexical/src/field/lexical-populate-shared.ts` |
 | `RichTextField.embedRelationsOnSave` / `populateRelationsOnRead` | `packages/core/src/@types/field-types.ts` |
 | `RichTextPopulateFn` / `RichTextPopulateContext` types | `packages/core/src/@types/field-types.ts` |
@@ -449,6 +449,26 @@ Today's slot is site-wide. A future phase may want to register an editor per col
 
 The existing `FieldComponentSlots.Field` already provides the per-field escape hatch and works today. A more structured per-collection or per-field selection is only worth designing once there's a clear product reason.
 
+### Phase 7 — Extensibility (Lexical adapter — TODO)
+
+Distinct from the cross-editor phases above: this is about `@byline/richtext-lexical` exposing a **BYO-extension contract** so installations can add their own Lexical nodes / plugins without forking the package.
+
+Background. `@byline/richtext-lexical` was migrated to the new Lexical [Extensions API](https://lexical.dev/docs/extensions/intro): each of the package's built-in features (admonition, inline-image, layout, link, auto-link, auto-embed, code-highlight, list, table, YouTube, Vimeo, …) is now a `LexicalExtension` co-located under `packages/richtext-lexical/src/field/extensions/<name>/` with its node class(es), commands, modal, and decorator component in a single directory. The root `<EditorContext>` composes them into one `defineExtension({ dependencies: [...] })` and hands it to `LexicalExtensionComposer`. The wire-up for a user-provided extension is *almost* trivial — but only almost, for three reasons that need design choices.
+
+Three concrete pieces:
+
+1. **`additionalExtensions` prop on `<EditorContext>`.** The smallest piece. Collection authors pass their own `AnyLexicalExtensionArgument[]` alongside Byline's defaults; the root extension's `dependencies` becomes `[…bylineDefaults, …additionalExtensions]`. Just a typed prop plus an array concat at the call site — almost the whole thing modulo plumbing decisions (per-instance vs. site-wide, how it flows through `lexicalEditor(configure)`).
+
+2. **`BylineToolbarExtension` contract.** Today the package's `ToolbarExtensionsProvider` is a React-context registry that user code calls into. Phase 7 formalises that as a typed Lexical extension: external extensions declare `peerDependencies: [declarePeerDependency(BylineToolbarExtension)]` and contribute toolbar items via `build()` output, replacing the React-context dance with the extension dependency graph. The toolbar plugin reads the merged list at render time. Backwards compatibility for the existing provider needs a moment's thought.
+
+3. **Floating-UI registry.** The package's three floating UIs (`FloatingLinkEditorPlugin`, `FloatingTextFormatToolbarPlugin`, `TableActionMenuPlugin`) are still rendered as React plugins inside `Editor.tsx` because each needs the runtime `anchorElem` ref. Phase 7 introduces a Byline-owned floating-UI registry — a typed extension that holds `{ Component, shouldShow }` records — so an installation can contribute its own floating UI without modifying `Editor.tsx`. Once the registry exists, the three residual built-in floating UIs migrate alongside their respective features (the `FloatingLinkEditorPlugin` would join `extensions/link/` where it already lives on disk; the others move from `plugins/` to their feature dirs). This is the moment when the `plugins/` residual finally empties out.
+
+4. **Documentation contract.** A short README in `extensions/` describing the recipe for a third-party extension: define your node, define your `LexicalExtension`, optionally contribute toolbar items, optionally contribute a floating UI. Worked example end-to-end.
+
+Suggested order if/when this lands: `additionalExtensions` first (smallest, validates the surface), then the toolbar contract, then the floating-UI registry. The floating-UI registry is the moment the migration goal — "no Byline application ever needs to fork `Editor.tsx` to add a feature" — is actually met.
+
+This phase is genuinely Lexical-specific. A second editor package (Phase 2) would have its own extensibility surface shaped by its own plugin model; the Phase 7 design here doesn't generalise to TipTap or ProseMirror.
+
 ## Code map — adapter contract
 
 | Concern                                       | Location                                                                  |
@@ -465,10 +485,10 @@ The existing `FieldComponentSlots.Field` already provides the per-field escape h
 | `lexicalEditor()` registration factory        | `packages/richtext-lexical/src/lexical-editor.tsx`                        |
 | `lexicalEditorServer()` registration factory  | `packages/richtext-lexical/src/server.ts`                                 |
 | Default editor config + presets               | `packages/richtext-lexical/src/field/config/`                             |
-| Link plugin (UI)                              | `packages/richtext-lexical/src/field/plugins/link-plugin/`                |
-| Link plugin (populate visitor)                | `packages/richtext-lexical/src/field/plugins/link-plugin/populate.ts`     |
-| Inline image plugin (UI)                      | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/`        |
-| Inline image plugin (populate visitor)        | `packages/richtext-lexical/src/field/plugins/inline-image-plugin/populate.ts` |
+| Link extension (UI + extension)               | `packages/richtext-lexical/src/field/extensions/link/`                    |
+| Link extension (populate visitor)             | `packages/richtext-lexical/src/field/extensions/link/populate.ts`         |
+| Inline-image extension (UI + extension)       | `packages/richtext-lexical/src/field/extensions/inline-image/`            |
+| Inline-image extension (populate visitor)     | `packages/richtext-lexical/src/field/extensions/inline-image/populate.ts` |
 | Per-field component override                  | `FieldComponentSlots.Field` in `packages/core/src/@types/field-types.ts`  |
 | Worked compact custom field                   | `apps/webapp/byline/fields/lexical-richtext-compact.ts`                   |
 | Reference registration (client)               | `apps/webapp/byline/admin.config.ts`                                      |
