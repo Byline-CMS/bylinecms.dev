@@ -91,6 +91,7 @@ export const theme = {
   tableCellSortedIndicator: 'LexicalEditorTheme__tableCellSortedIndicator',
   tableResizeRuler: 'LexicalEditorTheme__tableCellResizeRuler',
   tableSelected: 'LexicalEditorTheme__tableSelected',
+  tableScrollableWrapper: 'LexicalEditorTheme__tableScrollableWrapper',
   text: {
     bold: 'LexicalEditorTheme__textBold',
     code: 'LexicalEditorTheme__textCode',

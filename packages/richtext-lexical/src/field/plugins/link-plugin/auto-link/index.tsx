@@ -1,14 +1,19 @@
 'use client'
 
 /**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
+ * Copyright (c) Infonomic Company Limited
  *
+ * Portions Copyright (c) Meta Platforms, Inc. and affiliates.
  */
 
 import type * as React from 'react'
+
+import { ReactExtension } from '@lexical/react/ReactExtension'
+import { configExtension, defineExtension } from 'lexical'
 
 import {
   createLinkMatcherWithRegExp,
@@ -33,3 +38,8 @@ const MATCHERS = [
 export function AutoLinkPlugin(): React.JSX.Element {
   return <LexicalAutoLinkPlugin matchers={MATCHERS} />
 }
+
+export const AutoLinkExtension = defineExtension({
+  name: '@byline/richtext-lexical/AutoLink',
+  dependencies: [configExtension(ReactExtension, { decorators: [<AutoLinkPlugin />] })],
+})

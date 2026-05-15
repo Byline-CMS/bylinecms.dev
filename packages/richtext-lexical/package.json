@@ -70,6 +70,7 @@
     "@byline/ui": "workspace:*",
     "@lexical/clipboard": "0.44.0",
     "@lexical/code": "0.44.0",
+    "@lexical/extension": "0.44.0",
     "@lexical/hashtag": "0.44.0",
     "@lexical/headless": "0.44.0",
     "@lexical/html": "0.44.0",

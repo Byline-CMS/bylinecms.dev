@@ -11,6 +11,7 @@
 import * as React from 'react'
 import { useEffect } from 'react'
 
+import { ReactExtension } from '@lexical/react/ReactExtension'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $insertNodeToNearestRoot, mergeRegister } from '@lexical/utils'
 import {
@@ -18,7 +19,9 @@ import {
   $isRangeSelection,
   COMMAND_PRIORITY_EDITOR,
   COMMAND_PRIORITY_NORMAL,
+  configExtension,
   createCommand,
+  defineExtension,
   type LexicalCommand,
 } from 'lexical'
 
@@ -103,3 +106,9 @@ export function AdmonitionPlugin(): React.JSX.Element {
     />
   )
 }
+
+export const AdmonitionExtension = defineExtension({
+  name: '@byline/richtext-lexical/Admonition',
+  nodes: () => [AdmonitionNode],
+  dependencies: [configExtension(ReactExtension, { decorators: [<AdmonitionPlugin />] })],
+})

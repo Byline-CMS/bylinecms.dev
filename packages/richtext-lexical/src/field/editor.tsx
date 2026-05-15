@@ -12,19 +12,12 @@ import type * as React from 'react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { TRANSFORMERS } from '@lexical/markdown'
-import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin'
-import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin'
-import { ClearEditorPlugin } from '@lexical/react/LexicalClearEditorPlugin'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
-import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin'
-import { ListPlugin } from '@lexical/react/LexicalListPlugin'
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
-import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin'
-import { TablePlugin } from '@lexical/react/LexicalTablePlugin'
 import type { EditorState, LexicalEditor } from 'lexical'
 
 import { useEditorConfig } from './config/editor-config-context'
@@ -32,23 +25,14 @@ import { ContentEditable } from './content-editable'
 import { useSharedHistoryContext } from './context/shared-history-context'
 import { useSharedOnChange } from './context/shared-on-change-context'
 import { Debug } from './debug'
-import { AdmonitionPlugin } from './plugins/admonition-plugin'
 // import { AiPlugin } from './plugins/ai-plugin'
-import { AutoEmbedPlugin } from './plugins/auto-embed-plugin'
-import { CodeHighlightPlugin } from './plugins/code-highlight-plugin'
 // import { DragDropPaste } from './plugins/drag-drop-paste-plugin'
 import { FloatingTextFormatToolbarPlugin } from './plugins/floating-text-format-toolbar-plugin'
-import { InlineImagePlugin } from './plugins/inline-image-plugin'
-import { LayoutPlugin } from './plugins/layout-plugin/layout-plugin'
-import { AutoLinkPlugin } from './plugins/link-plugin/auto-link'
-import { LinkPlugin } from './plugins/link-plugin/link'
 import { FloatingLinkEditorPlugin } from './plugins/link-plugin/link/floating-link-editor'
 import { TableActionMenuPlugin } from './plugins/table-action-menu-plugin'
 import { TablePlugin as PayloadTablePlugin } from './plugins/table-plugin'
 import { ToolbarPlugin } from './plugins/toolbar-plugin'
 import { TreeViewPlugin } from './plugins/treeview-plugin'
-import { VimeoPlugin } from './plugins/vimeo-plugin'
-import { YouTubePlugin } from './plugins/youtube-plugin'
 import { CAN_USE_DOM } from './shared/canUseDOM'
 import { Placeholder } from './ui/placeholder'
 
@@ -79,25 +63,13 @@ export const Editor = memo(function Editor({
         debug,
         richText,
         showTreeView,
-        autoFocusPlugin,
         tablePlugin,
         tableActionMenuPlugin,
-        layoutPlugin,
-        inlineImagePlugin,
-        admonitionPlugin,
-        links,
-        autoLinkPlugin,
-        checkListPlugin,
-        listPlugin,
-        codeHighlightPlugin,
-        horizontalRulePlugin,
         markdownShortcutPlugin,
         floatingLinkEditorPlugin,
         floatingTextFormatToolbarPlugin,
-        autoEmbedPlugin,
       },
       placeholderText,
-      inlineImageUploadCollection,
     },
   } = useEditorConfig()
 
@@ -162,11 +134,6 @@ export const Editor = memo(function Editor({
         }`}
       >
         {/* <DragDropPaste /> */}
-        {autoFocusPlugin && <AutoFocusPlugin />}
-        {links && <LinkPlugin />}
-        {autoEmbedPlugin && <AutoEmbedPlugin />}
-        <TabIndentationPlugin />
-        {autoLinkPlugin && <AutoLinkPlugin />}
         <OnChangePlugin
           // Ignore any onChange event triggered by focus or selection only
           ignoreSelectionChange={true}
@@ -190,17 +157,7 @@ export const Editor = memo(function Editor({
               ErrorBoundary={LexicalErrorBoundary}
             />
             <HistoryPlugin externalHistoryState={historyState} />
-            {inlineImagePlugin && <InlineImagePlugin collection={inlineImageUploadCollection} />}
-            {admonitionPlugin && <AdmonitionPlugin />}
-            {checkListPlugin && <CheckListPlugin />}
-            {listPlugin && <ListPlugin />}
-            {codeHighlightPlugin && <CodeHighlightPlugin />}
-            {horizontalRulePlugin && <HorizontalRulePlugin />}
-            {layoutPlugin && <LayoutPlugin />}
-            {autoEmbedPlugin && <YouTubePlugin />}
-            {autoEmbedPlugin && <VimeoPlugin />}
             {markdownShortcutPlugin && <MarkdownShortcutPlugin transformers={TRANSFORMERS} />}
-            {tablePlugin && <TablePlugin hasCellMerge={true} hasCellBackgroundColor={true} />}
             {floatingAnchorElem != null && !isSmallWidthViewport && (
               <>
                 {floatingLinkEditorPlugin && (
@@ -225,7 +182,6 @@ export const Editor = memo(function Editor({
             <HistoryPlugin externalHistoryState={historyState} />
           </>
         )}
-        <ClearEditorPlugin />
         {debug && (
           <>
             <Debug />

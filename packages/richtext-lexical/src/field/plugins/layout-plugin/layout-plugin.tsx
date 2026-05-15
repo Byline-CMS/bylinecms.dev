@@ -10,6 +10,7 @@ import { useEffect } from 'react'
  * LICENSE file in the root directory of this source tree.
  *
  */
+import { ReactExtension } from '@lexical/react/ReactExtension'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $insertNodeToNearestRoot, mergeRegister } from '@lexical/utils'
 import type { ElementNode, LexicalCommand, LexicalNode, NodeKey } from 'lexical'
@@ -18,7 +19,9 @@ import {
   $getNodeByKey,
   COMMAND_PRIORITY_EDITOR,
   COMMAND_PRIORITY_NORMAL,
+  configExtension,
   createCommand,
+  defineExtension,
 } from 'lexical'
 
 import {
@@ -160,3 +163,9 @@ export function LayoutPlugin(): React.JSX.Element {
 function getItemsCountFromTemplate(template: string): number {
   return template.trim().split(/\s+/).length
 }
+
+export const LayoutExtension = defineExtension({
+  name: '@byline/richtext-lexical/Layout',
+  nodes: () => [LayoutContainerNode, LayoutItemNode],
+  dependencies: [configExtension(ReactExtension, { decorators: [<LayoutPlugin />] })],
+})

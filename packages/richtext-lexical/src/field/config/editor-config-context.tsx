@@ -3,8 +3,6 @@
 import type * as React from 'react'
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-
 import { DEFAULT_EDITOR_SETTINGS } from './default'
 import type { EditorSettings, OptionName } from './types'
 
@@ -34,7 +32,6 @@ export const EditorConfigContext = ({
   const [config, setConfig] = useState(configFromProps ?? DEFAULT_EDITOR_SETTINGS)
   // State to store the UUID
   const [uuid] = useState(() => generateQuickGuid())
-  const [editor] = useLexicalComposerContext()
 
   const setOption = useCallback((option: OptionName, value: boolean) => {
     setConfig((config) => {
@@ -44,8 +41,8 @@ export const EditorConfigContext = ({
   }, [])
 
   const editorContext = useMemo(
-    () => ({ setOption, config, uuid, editor }),
-    [setOption, config, uuid, editor]
+    () => ({ setOption, config, uuid }),
+    [setOption, config, uuid]
   )
 
   return <Context.Provider value={editorContext}>{children}</Context.Provider>

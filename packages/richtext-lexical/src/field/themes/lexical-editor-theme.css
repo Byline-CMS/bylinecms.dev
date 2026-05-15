@@ -112,7 +112,8 @@
   font-family: Menlo, Consolas, Monaco, monospace;
 }
 
-html[data-theme="dark"] .LexicalEditorTheme__textCode {
+html[data-theme="dark"] .LexicalEditorTheme__textCode,
+.dark .LexicalEditorTheme__textCode {
   color: #f1f5f9;
   background-color: #1e293b;
   border-color: #495362;
@@ -165,11 +166,13 @@ html[data-theme="dark"] .LexicalEditorTheme__textCode {
   min-width: 25px;
 }
 
-html[data-theme="dark"] .LexicalEditorTheme__code {
+html[data-theme="dark"] .LexicalEditorTheme__code,
+.dark .LexicalEditorTheme__code {
   background-color: #1a1a1a;
 }
 
-html[data-theme="dark"] .LexicalEditorTheme__code:before {
+html[data-theme="dark"] .LexicalEditorTheme__code:before,
+.dark .LexicalEditorTheme__code:before {
   background-color: #161616;
   border-right: 1px solid #ccc;
   color: #777;

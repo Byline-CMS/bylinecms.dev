@@ -1,43 +1,37 @@
-'use client'
-
 /**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
+ * Copyright (c) Infonomic Company Limited
  *
+ * Portions Copyright (c) Meta Platforms, Inc. and affiliates.
  */
 
-import { useEffect } from 'react'
-
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $insertNodeToNearestRoot } from '@lexical/utils'
-import { COMMAND_PRIORITY_EDITOR, createCommand, type LexicalCommand } from 'lexical'
+import {
+  COMMAND_PRIORITY_EDITOR,
+  createCommand,
+  defineExtension,
+  type LexicalCommand,
+} from 'lexical'
 
 import { $createYouTubeNode, YouTubeNode } from '../../nodes/youtube-node'
 
 export const INSERT_YOUTUBE_COMMAND: LexicalCommand<string> =
   createCommand('INSERT_YOUTUBE_COMMAND')
 
-export function YouTubePlugin(): React.JSX.Element | null {
-  const [editor] = useLexicalComposerContext()
-
-  useEffect(() => {
-    if (!editor.hasNodes([YouTubeNode])) {
-      throw new Error('YouTubePlugin: YouTubeNode not registered on editor')
-    }
-
-    return editor.registerCommand<string>(
+export const YouTubeExtension = defineExtension({
+  name: '@byline/richtext-lexical/YouTube',
+  nodes: () => [YouTubeNode],
+  register: (editor) =>
+    editor.registerCommand<string>(
       INSERT_YOUTUBE_COMMAND,
       (payload) => {
         const youTubeNode = $createYouTubeNode(payload)
         $insertNodeToNearestRoot(youTubeNode)
-
         return true
       },
       COMMAND_PRIORITY_EDITOR
-    )
-  }, [editor])
-
-  return null
-}
+    ),
+})

@@ -17,7 +17,8 @@ import {
   type EmbedMatchResult,
   LexicalAutoEmbedPlugin,
 } from '@lexical/react/LexicalAutoEmbedPlugin'
-import type { LexicalEditor } from 'lexical'
+import { ReactExtension } from '@lexical/react/ReactExtension'
+import { configExtension, defineExtension, type LexicalEditor } from 'lexical'
 import * as ReactDOM from 'react-dom'
 
 import { INSERT_VIMEO_COMMAND } from '../vimeo-plugin'
@@ -321,3 +322,8 @@ export function AutoEmbedPlugin(): React.JSX.Element {
     </>
   )
 }
+
+export const AutoEmbedExtension = defineExtension({
+  name: '@byline/richtext-lexical/AutoEmbed',
+  dependencies: [configExtension(ReactExtension, { decorators: [<AutoEmbedPlugin />] })],
+})

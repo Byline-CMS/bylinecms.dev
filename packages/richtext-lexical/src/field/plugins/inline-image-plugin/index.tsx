@@ -14,6 +14,8 @@ import type * as React from 'react'
 import { useCallback, useEffect, useState } from 'react'
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { ReactExtension } from '@lexical/react/ReactExtension'
+import { useExtensionDependency } from '@lexical/react/useExtensionComponent'
 import { $wrapNodeInElement, mergeRegister } from '@lexical/utils'
 import {
   $createParagraphNode,
@@ -22,10 +24,13 @@ import {
   $isRootOrShadowRoot,
   COMMAND_PRIORITY_EDITOR,
   COMMAND_PRIORITY_NORMAL,
+  configExtension,
   createCommand,
+  defineExtension,
   type LexicalCommand,
   type LexicalEditor,
   type NodeKey,
+  safeCast,
 } from 'lexical'
 
 import {
@@ -102,8 +107,9 @@ function readNodeAsInitialData(
   return data
 }
 
-export function InlineImagePlugin({ collection }: { collection: string }): React.JSX.Element {
+export function InlineImagePlugin(): React.JSX.Element {
   const [editor] = useLexicalComposerContext()
+  const { collection } = useExtensionDependency(InlineImageExtension).config
   const [modalState, setModalState] = useState<ModalState>(CLOSED_STATE)
 
   useEffect(() => {
@@ -200,3 +206,15 @@ export function InlineImagePlugin({ collection }: { collection: string }): React
     />
   )
 }
+
+export interface InlineImageConfig {
+  /** Upload collection that the inline-image modal targets. Required. */
+  collection: string
+}
+
+export const InlineImageExtension = defineExtension({
+  name: '@byline/richtext-lexical/InlineImage',
+  nodes: () => [InlineImageNode],
+  config: safeCast<InlineImageConfig>({ collection: '' }),
+  dependencies: [configExtension(ReactExtension, { decorators: [<InlineImagePlugin />] })],
+})

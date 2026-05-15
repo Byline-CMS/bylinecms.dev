@@ -1,23 +1,18 @@
 /**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
+ * Copyright (c) Infonomic Company Limited
  *
+ * Portions Copyright (c) Meta Platforms, Inc. and affiliates.
  */
 
-import type * as React from 'react'
-import { useEffect } from 'react'
+import { CodeHighlightNode, CodeNode, registerCodeHighlighting } from '@lexical/code'
+import { defineExtension } from 'lexical'
 
-import { registerCodeHighlighting } from '@lexical/code'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-
-export function CodeHighlightPlugin(): React.JSX.Element | null {
-  const [editor] = useLexicalComposerContext()
-
-  useEffect(() => {
-    return registerCodeHighlighting(editor)
-  }, [editor])
-
-  return null
-}
+export const CodeHighlightExtension = defineExtension({
+  name: '@byline/richtext-lexical/CodeHighlight',
+  nodes: () => [CodeNode, CodeHighlightNode],
+  register: (editor) => registerCodeHighlighting(editor),
+})
