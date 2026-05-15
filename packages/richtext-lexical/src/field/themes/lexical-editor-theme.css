@@ -188,6 +188,18 @@ html[data-theme="dark"] .LexicalEditorTheme__code:before,
   margin: 30px 0;
 }
 
+.LexicalEditorTheme__tableScrollableWrapper {
+  overflow-x: auto;
+  margin: 30px 0;
+}
+
+/* When wrapped for horizontal scroll, the wrapper owns the vertical margin
+   so the table's own margin doesn't compound it. */
+.LexicalEditorTheme__tableScrollableWrapper > .LexicalEditorTheme__table {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 .LexicalEditorTheme__tableSelected {
   outline: 2px solid rgb(60, 132, 244);
 }

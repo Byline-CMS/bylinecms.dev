@@ -101,6 +101,7 @@ export const theme: EditorThemeClasses = {
   tableCellSelected: 'LexicalEditorTheme__tableCellSelected',
   tableCellSortedIndicator: 'LexicalEditorTheme__tableCellSortedIndicator',
   tableResizeRuler: 'LexicalEditorTheme__tableCellResizeRuler',
+  tableScrollableWrapper: 'LexicalEditorTheme__tableScrollableWrapper',
   tableSelected: 'LexicalEditorTheme__tableSelected',
   text: {
     bold: 'LexicalEditorTheme__textBold',
