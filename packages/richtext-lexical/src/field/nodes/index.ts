@@ -15,13 +15,13 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table'
 import type { Klass, LexicalNode } from 'lexical'
 
-import { AdmonitionNode } from './admonition-node/admonition-node'
-import { InlineImageNode } from './inline-image-node/inline-image-node'
-import { LayoutContainerNode } from './layout-container-node/layout-container-node'
-import { LayoutItemNode } from './layout-container-node/layout-item-node'
-import { AutoLinkNode, LinkNode } from './link-nodes'
-import { VimeoNode } from './vimeo-node'
-import { YouTubeNode } from './youtube-node'
+import { AdmonitionNode } from '../extensions/admonition/admonition-node'
+import { InlineImageNode } from '../extensions/inline-image/inline-image-node'
+import { LayoutContainerNode } from '../extensions/layout/layout-container-node'
+import { LayoutItemNode } from '../extensions/layout/layout-item-node'
+import { AutoLinkNode, LinkNode } from '../extensions/link'
+import { VimeoNode } from '../extensions/vimeo/vimeo-node'
+import { YouTubeNode } from '../extensions/youtube/youtube-node'
 
 export const Nodes: Array<Klass<LexicalNode>> = [
   HeadingNode,

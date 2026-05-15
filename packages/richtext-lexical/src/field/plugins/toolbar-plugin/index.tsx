@@ -81,16 +81,16 @@ import {
   type LinkAttributes,
   OPEN_LINK_MODAL_COMMAND,
   TOGGLE_LINK_COMMAND,
-} from '../../nodes/link-nodes'
+} from '../../extensions/link'
+import { OPEN_ADMONITION_MODAL_COMMAND } from '../../extensions/admonition/admonition-extension'
+import { EmbedConfigs } from '../../extensions/auto-embed/auto-embed-extension'
+import { OPEN_INLINE_IMAGE_MODAL_COMMAND } from '../../extensions/inline-image/inline-image-extension'
+import { OPEN_INSERT_LAYOUT_MODAL_COMMAND } from '../../extensions/layout/layout-extension'
 import { IS_APPLE } from '../../shared/environment'
 import { useToolbarExtensions } from '../../toolbar-extensions'
 import { DropDown, DropDownItem } from '../../ui/dropdown'
 import { getSelectedNode } from '../../utils/getSelectedNode'
 import { sanitizeUrl } from '../../utils/url'
-import { OPEN_ADMONITION_MODAL_COMMAND } from '../admonition-plugin'
-import { EmbedConfigs } from '../auto-embed-plugin'
-import { OPEN_INLINE_IMAGE_MODAL_COMMAND } from '../inline-image-plugin'
-import { OPEN_INSERT_LAYOUT_MODAL_COMMAND } from '../layout-plugin/layout-plugin'
 import { OPEN_TABLE_MODAL_COMMAND } from '../table-plugin'
 
 const blockTypeToBlockName = {

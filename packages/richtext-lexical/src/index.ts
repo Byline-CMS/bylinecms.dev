@@ -23,4 +23,4 @@ export type {
   InlineImageAttributes,
   Position as InlineImagePosition,
   SerializedInlineImageNode,
-} from './field/nodes/inline-image-node/types'
+} from './field/extensions/inline-image/node-types'
