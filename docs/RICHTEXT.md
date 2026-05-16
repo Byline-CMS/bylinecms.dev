@@ -20,6 +20,8 @@ Five things compose the present surface:
 
 `@byline/ui` no longer depends on Lexical at all. `@byline/richtext-lexical` ships two entry points: the default export carries the React render surface; `@byline/richtext-lexical/server` carries the server populate function. The subpath split keeps client bundles free of server populate code and vice versa.
 
+Beyond the framework-agnostic contract above, `@byline/richtext-lexical` exposes a **BYO-extension surface** built on Lexical's [Extensions API](https://lexical.dev/docs/extensions/intro). Site authors and third parties register Lexical extensions into the editor's dependency graph through a chainable `ExtensionsList` API, and contribute toolbar items via a typed peer-dependency on `BylineToolbarExtension`. This surface is genuinely Lexical-specific (a future TipTap or ProseMirror adapter would have its own); the cross-editor contract above stays minimal. See [Extensibility](#extensibility--extensions-list-settings-and-toolbar-contributions) below for the full reference and recipes.
+
 ## The contract
 
 ```ts
@@ -99,28 +101,68 @@ The throw is the failure mode by design. A `richText` field with no editor confi
 
 Per-field `FieldComponentSlots.Field` overrides keep precedence over the site-wide default — the existing per-field component override mechanism handles the "this one field needs a different editor entirely" case without a new override layer.
 
-## Editor configuration — three layers, opaque to core
+## Extensibility — extensions list, settings, and toolbar contributions
 
-Editor settings can come from three places. The wrapper in `@byline/richtext-lexical` resolves them in priority order:
+The Lexical adapter's configuration has two distinct parts that fall out of where they need to be evaluated:
 
-1. **`field.editorConfig`** — most specific. The schema author opted in for this field.
-2. **`editorConfig` prop** baked in via `lexicalEditor(configure)` at registration.
-3. **`defaultEditorConfig`** — package fallback.
+- **`settings`** — booleans, strings, the inline-image upload collection. JSON-safe, allowed to ride along with a `RichTextField` in the schema, survives tsx-loaded seeds and SSR.
+- **`extensions`** — a chainable `ExtensionsList` of Lexical extensions wired into the editor's dependency graph. Carries function references and React decorators, *not* JSON-safe; only meaningful at registration time (`lexicalEditor((c) => ...)`) or inside a client-only wrapper component, never persisted into a schema.
 
-`RichTextField.editorConfig` is typed `unknown` in `@byline/core`. The shape is opaque — each editor adapter defines what it accepts. For `@byline/richtext-lexical` this is the package's `EditorConfig`; for a hypothetical TipTap adapter it would be a TipTap extension list. The core contract does not interpret the value; the editor adapter casts at its own boundary.
+The wrapper in `@byline/richtext-lexical` resolves the full config at render time in priority order:
 
-### Site-wide reduced editor
+1. **`field.editorConfig`** — most specific. The schema author opted in for this field. Settings only — if it omits `extensions`, the package default is materialised at render.
+2. **`editorConfig` baked in via `lexicalEditor(configure)`** at registration. May customise both `settings` and `extensions`.
+3. **`defaultEditorConfig` + `defaultExtensionsList()`** — package fallbacks.
+
+`RichTextField.editorConfig` is still typed `unknown` in `@byline/core`. The shape is opaque to core — each editor adapter defines what it accepts. The Lexical adapter casts at its own boundary in `richtext-field.tsx`. This stays unchanged because the cross-editor contract has no opinion on plugin models.
+
+### The chainable extensions API
+
+Inside `lexicalEditor((c) => ...)` the seed always carries an `ExtensionsList` populated with every Byline built-in. Mutations to `c.extensions` are local to that one call — the next registration starts fresh.
+
+```ts
+// All four methods return `this`, so they chain.
+
+c.extensions.add(extension)                       // push to the end
+c.extensions.remove(extension)                    // remove by name (no-op if absent)
+c.extensions.replace(oldExtension, newExtension)  // preserve position
+c.extensions.configure(extension, config)         // re-wrap with configExtension(extension, config)
+c.extensions.has(extension)                       // boolean test by name
+```
+
+Comparison is by extension `name` (Lexical's own dedup key), so a bare `LinkExtension` and a `configExtension(LinkExtension, {...})` tuple are treated as the same entry. Trying to add two extensions with the same name throws at composer-build time — that's Lexical's behaviour, and it's the right failure mode: you replace built-ins via `remove(...)` + `add(yours)`, not by name collision.
+
+### Recipes
+
+#### 1. Default registration
+
+Every `richText` field gets the full feature set.
 
 ```ts
 // apps/webapp/byline/admin.config.ts
+import { RichTextField } from '@byline/richtext-lexical'
+
+defineClientConfig({
+  fields: {
+    richText: { editor: RichTextField },
+  },
+})
+```
+
+#### 2. Site-wide settings overrides
+
+Override package settings via `lexicalEditor` — for purely-settings tweaks no extension manipulation is needed.
+
+```ts
 import { lexicalEditor } from '@byline/richtext-lexical'
 
 defineClientConfig({
   fields: {
     richText: {
       editor: lexicalEditor((c) => {
-        c.settings.options.tablePlugin = false
-        c.settings.options.codeHighlightPlugin = false
+        c.settings.placeholderText = 'Start writing…'
+        c.settings.options.markdownShortcutPlugin = true
+        c.settings.options.debug = true
         return c
       }),
     },
@@ -128,41 +170,228 @@ defineClientConfig({
 })
 ```
 
-`lexicalEditor(configure?)` returns a `RichTextEditorComponent` with editor settings baked in via closure. The `configure` callback receives a `cloneDeep(defaultEditorConfig)` so mutating it is safe and never leaks across registrations. `lexicalEditor()` with no argument is equivalent to registering `RichTextField` directly.
+#### 3. Removing built-in extensions
 
-### Per-field compact custom field
-
-Define a custom field factory that bakes an `editorConfig` into the schema:
+Drop features the installation never wants.
 
 ```ts
-// apps/webapp/byline/fields/lexical-richtext-compact.ts
+import { lexicalEditor, TableExtension, AdmonitionExtension } from '@byline/richtext-lexical'
 
-type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
-  configure?: (config: EditorConfig) => EditorConfig
+defineClientConfig({
+  fields: {
+    richText: {
+      editor: lexicalEditor((c) => {
+        c.extensions.remove(TableExtension).remove(AdmonitionExtension)
+        return c
+      }),
+    },
+  },
+})
+```
+
+The matching toolbar items disappear automatically — they're contributed via `peerDependencies` on `BylineToolbarExtension`, and Lexical only delivers contributions from extensions that are actually in the graph. The block-format dropdown likewise hides Bullet/Numbered list, Check List, and Code Block entries when the relevant extension isn't present (`useOptionalExtensionDependency` gating).
+
+#### 4. Configuring a built-in extension
+
+Override the upstream config of a wrapped extension (`TableExtension` here delegates to `@lexical/table`'s `TableExtension` with cell-merge / cell-background-color knobs).
+
+```ts
+import { lexicalEditor, TableExtension } from '@byline/richtext-lexical'
+import { TableExtension as LexicalTableExtension } from '@lexical/table'
+
+defineClientConfig({
+  fields: {
+    richText: {
+      editor: lexicalEditor((c) => {
+        c.extensions.configure(LexicalTableExtension, {
+          hasCellMerge: false,
+          hasCellBackgroundColor: false,
+        })
+        return c
+      }),
+    },
+  },
+})
+```
+
+`InlineImageExtension`'s collection slot is the same pattern — you can override the editor-context's auto-wiring (which forwards `settings.inlineImageUploadCollection`) for a single registration:
+
+```ts
+c.extensions.configure(InlineImageExtension, { collection: 'media-2024' })
+```
+
+#### 5. Adding a third-party extension
+
+The simplest case — an extension that just registers commands or behaviour, no UI surface.
+
+```ts
+import { lexicalEditor } from '@byline/richtext-lexical'
+import { MyCustomExtension } from '@my-org/lexical-myfeature'
+
+defineClientConfig({
+  fields: {
+    richText: {
+      editor: lexicalEditor((c) => {
+        c.extensions.add(MyCustomExtension)
+        return c
+      }),
+    },
+  },
+})
+```
+
+#### 6. Authoring an extension that contributes a toolbar button
+
+Toolbar items come through Lexical's peer-dependency mechanism. Your extension declares an optional peer on `BylineToolbarExtension` and supplies an `items` array. The toolbar plugin reads the merged list at render time.
+
+```tsx
+// @my-org/lexical-callout/src/extension.tsx
+import {
+  BylineToolbarExtension,
+  type BylineToolbarConfig,
+  useToolbarActiveEditor,
+} from '@byline/richtext-lexical'
+import { ReactExtension } from '@lexical/react/ReactExtension'
+import { configExtension, declarePeerDependency, defineExtension } from 'lexical'
+
+import { CalloutNode } from './callout-node'
+import { CalloutModal, INSERT_CALLOUT_COMMAND } from './callout-modal'
+
+function CalloutInsertItem(): React.JSX.Element {
+  // Use the active editor (handles nested composers correctly).
+  const editor = useToolbarActiveEditor()
+  return (
+    <button
+      type="button"
+      onClick={() => editor.dispatchCommand(INSERT_CALLOUT_COMMAND, undefined)}
+    >
+      Insert callout
+    </button>
+  )
 }
 
-export function lexicalRichTextCompact(options: Options = {}): RichTextField {
-  const { configure, ...rest } = options
-  const base = applyCompactPreset(structuredClone(defaultEditorConfig))
-  const editorConfig = configure ? configure(base) : base
-  return { name: 'richText', label: 'RichText', ...rest, type: 'richText', editorConfig }
+export const CalloutExtension = defineExtension({
+  name: '@my-org/lexical-callout/Callout',
+  nodes: () => [CalloutNode],
+  dependencies: [configExtension(ReactExtension, { decorators: [<CalloutModal key="d" />] })],
+  peerDependencies: [
+    declarePeerDependency<typeof BylineToolbarExtension>(BylineToolbarExtension.name, {
+      items: [
+        {
+          id: '@my-org/lexical-callout/Callout/insert',
+          placement: 'insert-menu',  // 'toolbar' for top-level
+          order: 100,
+          node: <CalloutInsertItem />,
+        },
+      ],
+    } satisfies Partial<BylineToolbarConfig>),
+  ],
+})
+```
+
+Then register it the same way as any built-in:
+
+```ts
+defineClientConfig({
+  fields: {
+    richText: {
+      editor: lexicalEditor((c) => {
+        c.extensions.add(CalloutExtension)
+        return c
+      }),
+    },
+  },
+})
+```
+
+**Contract details:**
+
+- `placement: 'toolbar'` appends to the main row, after the built-in format buttons. `placement: 'insert-menu'` adds to the "Insert" dropdown, which only renders when at least one insert-menu contribution is present.
+- `order` is the sort key within a placement (lower first). Built-ins use 10/20/30/40/50/60 for horizontal-rule / layout / admonition / inline-image / table / embeds; pick something outside that range to avoid surprise re-orderings if a built-in shifts.
+- `id` doubles as the React key — convention is `<extension-name>/<purpose>` for uniqueness across third parties.
+- The contributed `node` renders inside `ToolbarActiveEditorProvider`, so `useToolbarActiveEditor()` returns the editor that owns the current selection (root editor, or a nested composer like an inline-image caption). For built-in insert items the toolbar suppresses the Insert dropdown when the active editor isn't the root, so an item dispatched against the active editor in that scope is harmless.
+
+#### 7. Per-field editor override (wrapper component pattern)
+
+Schema-side `editorConfig` can't carry extension references (they'd break tsx-loaded seeds). For per-field extension differences, register a wrapper component via `FieldAdminConfig.editor`. The wrapper builds its own `lexicalEditor((c) => ...)` once and forwards every render.
+
+```tsx
+// apps/webapp/byline/fields/lexical-richtext-ai.tsx
+import { AiLexicalExtension } from '@byline/ai/plugins/lexical'
+import type { FieldAdminConfig } from '@byline/core'
+import { lexicalEditor } from '@byline/richtext-lexical'
+
+export const LexicalRichTextAi = lexicalEditor((c) => {
+  c.extensions.add(AiLexicalExtension)
+  return c
+})
+
+export function aiRichTextAdmin(): FieldAdminConfig {
+  return { editor: LexicalRichTextAi }
 }
 ```
 
+Drop it into one collection's admin config:
+
 ```ts
-// In a collection schema
+// apps/webapp/byline/collections/news/admin.tsx
+fields: {
+  content: aiRichTextAdmin(),
+}
+```
+
+Or set it site-wide in `admin.config.ts`:
+
+```ts
+fields: {
+  richText: { editor: LexicalRichTextAi },
+}
+```
+
+The same pattern works to *narrow* the extension set per-field — define `lexicalRichTextCompactAdmin()` that calls `lexicalEditor((c) => c.extensions.remove(TableExtension)...)` and attach it via `FieldAdminConfig.editor`.
+
+#### 8. Schema-side settings preset (`lexicalRichTextCompact`)
+
+For per-field *settings* (not extensions) the schema can carry an `editorConfig`. `lexicalRichTextCompact` is the worked example — it lives in `apps/webapp/byline/fields/lexical-richtext-compact.ts` and bakes a slimmed toolbar configuration into the `RichTextField`:
+
+```ts
+// In a collection schema (loaded by tsx-seeds)
+import { lexicalRichTextCompact } from '../../fields/lexical-richtext-compact.js'
+
 fields: [
   lexicalRichTextCompact({ name: 'caption', label: 'Caption' }),
 
-  // Compact preset, but re-enable lists for this one field:
+  // Compact + per-field placeholder
   lexicalRichTextCompact({
     name: 'summary',
-    configure: (c) => { c.settings.options.listPlugin = true; return c },
+    label: 'Summary',
+    configure: (c) => {
+      c.settings.placeholderText = 'One-sentence summary…'
+      return c
+    },
   }),
 ]
 ```
 
-The factory pattern matches the project convention already established for `availableLanguagesField`: `Partial<Omit<TargetField, …computed props…>>` for options, an explicit narrow callback for any computed values, no surprises.
+The factory imports `defaultEditorConfig` from `@byline/richtext-lexical/server` (data-only, no React) so schemas using it remain tsx-loadable. To narrow the *extension* set for the same field, pair with a `FieldAdminConfig.editor` wrapper as in recipe 7.
+
+### Worked example — the AI plugin end-to-end
+
+The `@byline/ai/plugins/lexical` package is the canonical third-party example. It ships:
+
+- `AiPluginLexical` — the React component (drawer + command listener) the extension mounts.
+- `AiLexicalExtension` — a `defineExtension(...)` that wraps it. The extension declares `peerDependencies: [declarePeerDependency(BylineToolbarExtension, { items: [...] })]` for the toolbar button and `dependencies: [configExtension(ReactExtension, { decorators: [<AiPluginLexical key="d" />] })]` for the drawer mount.
+
+The host (`apps/webapp/byline/fields/lexical-richtext-ai.tsx`) is then a one-liner:
+
+```tsx
+export const LexicalRichTextAi = lexicalEditor((c) => {
+  c.extensions.add(AiLexicalExtension)
+  return c
+})
+```
+
+No `featureAfterEditor` injection, no React-context registry hop — the extension graph does both jobs. The toolbar button arrives via the peer-dependency contract; the drawer arrives via `ReactExtension.decorators`. The same shape is what every third-party extension follows.
 
 ### Why the core contract stays opaque
 
@@ -449,23 +678,27 @@ Today's slot is site-wide. A future phase may want to register an editor per col
 
 The existing `FieldComponentSlots.Field` already provides the per-field escape hatch and works today. A more structured per-collection or per-field selection is only worth designing once there's a clear product reason.
 
-### Phase 7 — Extensibility (Lexical adapter — TODO)
+### Phase 7 — Extensibility (Lexical adapter)
 
-Distinct from the cross-editor phases above: this is about `@byline/richtext-lexical` exposing a **BYO-extension contract** so installations can add their own Lexical nodes / plugins without forking the package.
+`@byline/richtext-lexical` exposes a **BYO-extension surface** so installations can add their own Lexical nodes / plugins without forking the package. Built-in features and third-party extensions both register through the same API.
 
-Background. `@byline/richtext-lexical` was migrated to the new Lexical [Extensions API](https://lexical.dev/docs/extensions/intro): each of the package's built-in features (admonition, inline-image, layout, link, auto-link, auto-embed, code-highlight, list, table, YouTube, Vimeo, …) is now a `LexicalExtension` co-located under `packages/richtext-lexical/src/field/extensions/<name>/` with its node class(es), commands, modal, and decorator component in a single directory. The root `<EditorContext>` composes them into one `defineExtension({ dependencies: [...] })` and hands it to `LexicalExtensionComposer`. The wire-up for a user-provided extension is *almost* trivial — but only almost, for three reasons that need design choices.
+Background. `@byline/richtext-lexical` migrated to the new Lexical [Extensions API](https://lexical.dev/docs/extensions/intro): each built-in feature (admonition, inline-image, layout, link, auto-link, auto-embed, code-highlight, list, table, YouTube, Vimeo, horizontal-rule, …) is a `LexicalExtension` co-located under `packages/richtext-lexical/src/field/extensions/<name>/` with its node class(es), commands, modal, and decorator component in a single directory.
 
-Three concrete pieces:
+Original plan split this work into four pieces. Status:
 
-1. **`additionalExtensions` prop on `<EditorContext>`.** The smallest piece. Collection authors pass their own `AnyLexicalExtensionArgument[]` alongside Byline's defaults; the root extension's `dependencies` becomes `[…bylineDefaults, …additionalExtensions]`. Just a typed prop plus an array concat at the call site — almost the whole thing modulo plumbing decisions (per-instance vs. site-wide, how it flows through `lexicalEditor(configure)`).
+1. **Unified extensions list (shipped).** The root extension's `dependencies` array is sourced from `editorConfig.extensions.toArray()`. Site authors manipulate the same list every built-in lives in via the chainable `ExtensionsList` API (`c.extensions.add()` / `.remove()` / `.replace()` / `.configure()`). The flag-based facade in `EditorSettings.options` was dropped for every per-extension toggle (the remaining flags are settings-only — toolbar UI, mode toggles, debug). Full reference and recipes in [Extensibility](#extensibility--extensions-list-settings-and-toolbar-contributions) above.
 
-2. **`BylineToolbarExtension` contract.** Today the package's `ToolbarExtensionsProvider` is a React-context registry that user code calls into. Phase 7 formalises that as a typed Lexical extension: external extensions declare `peerDependencies: [declarePeerDependency(BylineToolbarExtension)]` and contribute toolbar items via `build()` output, replacing the React-context dance with the extension dependency graph. The toolbar plugin reads the merged list at render time. Backwards compatibility for the existing provider needs a moment's thought.
+2. **`BylineToolbarExtension` contract (shipped).** The old `ToolbarExtensionsProvider` React-context registry is gone — replaced by a typed Lexical extension. Contributors (built-in and third-party alike) declare `peerDependencies: [declarePeerDependency(BylineToolbarExtension, { items: [...] })]`. The toolbar plugin reads the merged config via `useExtensionDependency(BylineToolbarExtension)`. Contributions specify `placement: 'toolbar' | 'insert-menu'` and an `order`; built-ins live in the same registry as third parties (no two-tier system).
 
-3. **Floating-UI registry.** The package's three floating UIs (`FloatingLinkEditorPlugin`, `FloatingTextFormatToolbarPlugin`, `TableActionMenuPlugin`) are still rendered as React plugins inside `Editor.tsx` because each needs the runtime `anchorElem` ref. Phase 7 introduces a Byline-owned floating-UI registry — a typed extension that holds `{ Component, shouldShow }` records — so an installation can contribute its own floating UI without modifying `Editor.tsx`. Once the registry exists, the three residual built-in floating UIs migrate alongside their respective features (the `FloatingLinkEditorPlugin` would join `extensions/link/` where it already lives on disk; the others move from `plugins/` to their feature dirs). This is the moment when the `plugins/` residual finally empties out.
+3. **Floating-UI registry (TODO).** The package's three floating UIs (`FloatingLinkEditorPlugin`, `FloatingTextFormatToolbarPlugin`, `TableActionMenuPlugin`) are still rendered as React plugins inside `Editor.tsx` because each needs the runtime `anchorElem` ref. The cleanest landing is either:
+   - **Lexical Output Components** — each floating UI's extension exposes a `Component` via `build()`, and `Editor.tsx` mounts them via `useExtensionComponent(MyFloatingExtension)` at the right position, passing `anchorElem` as a prop. Same positional control as today; third-party floating UIs use the same shape and slot in without touching `Editor.tsx`.
+   - **Byline-owned floating-UI registry extension** — a typed extension whose merged config is `{ Component, shouldShow }[]`; `Editor.tsx` iterates and renders them all under the shared anchor. Lower per-extension boilerplate but introduces a Byline-specific concept on top of the Lexical primitive.
 
-4. **Documentation contract.** A short README in `extensions/` describing the recipe for a third-party extension: define your node, define your `LexicalExtension`, optionally contribute toolbar items, optionally contribute a floating UI. Worked example end-to-end.
+   Either route hits the goal: "no Byline application ever needs to fork `Editor.tsx` to add a floating UI." Once that lands, the three built-ins migrate alongside their respective features (`FloatingLinkEditorPlugin` joins `extensions/link/` where it already lives on disk; the others move from `plugins/` to their feature directories), and the `plugins/` directory finally empties out except for the toolbar itself.
 
-Suggested order if/when this lands: `additionalExtensions` first (smallest, validates the surface), then the toolbar contract, then the floating-UI registry. The floating-UI registry is the moment the migration goal — "no Byline application ever needs to fork `Editor.tsx` to add a feature" — is actually met.
+   `ToolbarPlugin` stays where it is — it's a *consumer* of `BylineToolbarExtension` (not a contributor) and needs a fixed DOM position above the content-editable, which the decorator slot can't express. If we ever want it under the extension graph, the same Output Component pattern works: have the toolbar's extension `build()` return `{ Component: ToolbarPlugin }` and let `Editor.tsx` mount it via `useExtensionComponent`. Mechanically straightforward; not currently a pain point.
+
+4. **Extensions README (this doc + an in-tree pointer — TODO).** The recipe section above covers the full third-party authoring contract. A short pointer README in `packages/richtext-lexical/src/field/extensions/` deep-linking back here would close the loop for anyone browsing the source tree.
 
 This phase is genuinely Lexical-specific. A second editor package (Phase 2) would have its own extensibility surface shaped by its own plugin model; the Phase 7 design here doesn't generalise to TipTap or ProseMirror.
 
@@ -484,12 +717,27 @@ This phase is genuinely Lexical-specific. A second editor package (Phase 2) woul
 | Lexical editor package — server entry         | `packages/richtext-lexical/src/server.ts`                                 |
 | `lexicalEditor()` registration factory        | `packages/richtext-lexical/src/lexical-editor.tsx`                        |
 | `lexicalEditorServer()` registration factory  | `packages/richtext-lexical/src/server.ts`                                 |
-| Default editor config + presets               | `packages/richtext-lexical/src/field/config/`                             |
+| Default editor settings (server-safe)         | `packages/richtext-lexical/src/field/config/default.ts`                   |
+| Default extensions list (client-only)         | `packages/richtext-lexical/src/field/config/default-extensions.ts`        |
+| `ExtensionsList` chainable wrapper            | `packages/richtext-lexical/src/field/config/extensions-list.ts`           |
+| `EditorConfig` / `EditorSettings` types       | `packages/richtext-lexical/src/field/config/types.ts`                     |
+| `BylineToolbarExtension` + `selectToolbarItems` | `packages/richtext-lexical/src/field/extensions/byline-toolbar/`        |
+| `ToolbarActiveEditorProvider` / `useToolbarActiveEditor` hook | `packages/richtext-lexical/src/field/plugins/toolbar-plugin/toolbar-active-editor.tsx` |
+| Toolbar consumer (reads contributed items)    | `packages/richtext-lexical/src/field/plugins/toolbar-plugin/index.tsx`    |
+| Editor-context composition (root extension)   | `packages/richtext-lexical/src/field/editor-context.tsx`                  |
+| Byline `TableExtension` wrapper               | `packages/richtext-lexical/src/field/extensions/table/`                   |
+| Byline `HorizontalRuleExtension` wrapper      | `packages/richtext-lexical/src/field/extensions/horizontal-rule/`         |
 | Link extension (UI + extension)               | `packages/richtext-lexical/src/field/extensions/link/`                    |
 | Link extension (populate visitor)             | `packages/richtext-lexical/src/field/extensions/link/populate.ts`         |
 | Inline-image extension (UI + extension)       | `packages/richtext-lexical/src/field/extensions/inline-image/`            |
 | Inline-image extension (populate visitor)     | `packages/richtext-lexical/src/field/extensions/inline-image/populate.ts` |
+| Admonition extension                          | `packages/richtext-lexical/src/field/extensions/admonition/`              |
+| Layout extension                              | `packages/richtext-lexical/src/field/extensions/layout/`                  |
+| Auto-embed (YouTube/Vimeo) extension          | `packages/richtext-lexical/src/field/extensions/auto-embed/`              |
+| Code-highlight extension                      | `packages/richtext-lexical/src/field/extensions/code-highlight/`          |
+| AI plugin Lexical extension (worked third-party example) | `packages/ai/src/plugins/lexical/extension.tsx`                |
 | Per-field component override                  | `FieldComponentSlots.Field` in `packages/core/src/@types/field-types.ts`  |
-| Worked compact custom field                   | `apps/webapp/byline/fields/lexical-richtext-compact.ts`                   |
+| Worked compact custom field (settings only)   | `apps/webapp/byline/fields/lexical-richtext-compact.ts`                   |
+| Worked per-field AI editor (`aiRichTextAdmin`) | `apps/webapp/byline/fields/lexical-richtext-ai.tsx`                      |
 | Reference registration (client)               | `apps/webapp/byline/admin.config.ts`                                      |
 | Reference registration (server)               | `apps/webapp/byline/server.config.ts`                                     |
