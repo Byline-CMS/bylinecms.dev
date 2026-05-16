@@ -38,66 +38,67 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 
 ## Documentation
 
-**Start here**
+### Start Here
 
-- **[docs/MISSION.md](docs/MISSION.md)** — why Byline exists, the three
-  pillars, building in the open, and a note on how we use AI in
-  development.
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — key architectural
-  decisions in depth, with code examples.
 - **[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)** — full setup,
   including Postgres bring-up and seeding.
-- **[docs/CONTENT-IN-THE-TIME-OF-AI.md](docs/CONTENT-IN-THE-TIME-OF-AI.md)**
-  — why we think structured content management matters more, not less,
-  alongside generative AI.
 
-**Subsystem reference**
+### Background
 
+1. **[docs/MISSION.md](docs/MISSION.md)** — why Byline exists, the three
+  pillars, building in the open, and a note on how we use AI in
+  development.
+1. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — key architectural
+  decisions in depth, with code examples.
 1. **[docs/CORE-DOCUMENT-STORAGE.md](docs/CORE-DOCUMENT-STORAGE.md)** —
    universal storage (EAV-per-type), the seven typed `store_*` tables,
    flatten/reconstruct, immutable versioning, and indicative benchmark
    numbers.
-2. **[docs/DOCUMENT-PATHS.md](docs/DOCUMENT-PATHS.md)** — the `path`
-   system attribute (stored in a dedicated `byline_document_paths`
-   table keyed by `(document_id, locale)`), `useAsPath`, the slugifier,
-   the path widget, and per-locale paths as a future phase.
-3. **[docs/FIELDS.md](docs/FIELDS.md)** - field schemas, admin and field helpers
-3. **[docs/RELATIONSHIPS.md](docs/RELATIONSHIPS.md)** — cross-collection
-   relations, populate, the relation envelope, recursion safety via
-   `ReadContext`, and `hasMany` as a future phase.
-4. **[docs/FILE-MEDIA-UPLOADS.md](docs/FILE-MEDIA-UPLOADS.md)** —
-   field-level uploads, the two-round-trip flow (field upload then
-   document save), `beforeStore`/`afterStore` hooks, and variant
-   persistence.
-5. **[docs/ROUTING-API.md](docs/ROUTING-API.md)** — the internal
-   TanStack-server-fn transport phase, today's server-fn surface, and
-   what triggers a stable HTTP boundary.
-6. **[docs/AUTHN-AUTHZ.md](docs/AUTHN-AUTHZ.md)** — two auth realms,
-   abilities and roles, the `AbilityRegistry`, service-layer
-   enforcement, and the `beforeRead` hook.
-7. **[docs/CLIENT-SDK.md](docs/CLIENT-SDK.md)** — `@byline/client` as
-   an in-process, server-side SDK: read DSL, write surface, populate,
-   status modes, and what it deliberately is *not*.
-8. **[docs/RICHTEXT.md](docs/RICHTEXT.md)** — pluggable richtext editor
-   adapter, the current Lexical implementation, and future phases for
-   a second editor.
-9. **[docs/UIKIT.md](docs/UIKIT.md)** — `@byline/ui` as a single
-   brand-coherent UI surface: the foundational kit synced from
-   `@infonomic/uikit`, the byline-prefixed cascade-layer system, the
-   `pnpm sync:uikit` workflow, and the `./react/{admin,fields,forms,services}`
-   subpath exports.
-10. **[docs/COLLECTIONS.md](docs/COLLECTIONS.md)** — collection schema and
+1. **[docs/CORE-COMPOSITION.md](docs/CORE-COMPOSITION.md)** —
+    forward-looking roadmap for `createCommand`, module registries,
+    a command tree on `BylineCore`, per-realm request-context
+    builders, and `loadConfig()`.
+1. **[docs/CONTENT-IN-THE-TIME-OF-AI.md](docs/CONTENT-IN-THE-TIME-OF-AI.md)**
+  — why we think structured content management matters more, not less,
+  alongside generative AI.
+
+### Subsystem Reference
+
+1. **[docs/COLLECTIONS.md](docs/COLLECTIONS.md)** — collection schema and
     admin (columns, layout, preview, custom list views) plus schema
     versioning: Phase 1 (data model + fingerprinting) shipped; Phases
     2–5 (history table, fetch-by-version, in-memory forward migration,
     strict-CI mode) deferred.
-11. **[docs/CORE-COMPOSITION.md](docs/CORE-COMPOSITION.md)** —
-    forward-looking roadmap for `createCommand`, module registries,
-    a command tree on `BylineCore`, per-realm request-context
-    builders, and `loadConfig()`.
+1. **[docs/FIELDS.md](docs/FIELDS.md)** - field schemas, admin and field helpers
+1. **[docs/DOCUMENT-PATHS.md](docs/DOCUMENT-PATHS.md)** — the `path`
+   system attribute (stored in a dedicated `byline_document_paths`
+   table keyed by `(document_id, locale)`), `useAsPath`, the slugifier,
+   the path widget, and per-locale paths as a future phase.
 
-**Package design docs** sit close to their packages — e.g.
-[packages/client/DESIGN.md](packages/client/DESIGN.md).
+1. **[docs/RELATIONSHIPS.md](docs/RELATIONSHIPS.md)** — cross-collection
+   relations, populate, the relation envelope, recursion safety via
+   `ReadContext`, and `hasMany` as a future phase.
+1. **[docs/FILE-MEDIA-UPLOADS.md](docs/FILE-MEDIA-UPLOADS.md)** —
+   field-level uploads, the two-round-trip flow (field upload then
+   document save), `beforeStore`/`afterStore` hooks, and variant
+   persistence.
+1. **[docs/ROUTING-API.md](docs/ROUTING-API.md)** — the internal
+   TanStack-server-fn transport phase, today's server-fn surface, and
+   what triggers a stable HTTP boundary.
+1. **[docs/AUTHN-AUTHZ.md](docs/AUTHN-AUTHZ.md)** — two auth realms,
+   abilities and roles, the `AbilityRegistry`, service-layer
+   enforcement, and the `beforeRead` hook.
+1. **[docs/CLIENT-SDK.md](docs/CLIENT-SDK.md)** — `@byline/client` as
+   an in-process, server-side SDK: read DSL, write surface, populate,
+   status modes, and what it deliberately is *not*.
+1. **[docs/RICHTEXT.md](docs/RICHTEXT.md)** — pluggable richtext editor
+   adapter, the current Lexical implementation, and future phases for
+   a second editor.
+1. **[docs/UIKIT.md](docs/UIKIT.md)** — `@byline/ui` as a single
+   brand-coherent UI surface: the foundational kit synced from
+   `@infonomic/uikit`, the byline-prefixed cascade-layer system, the
+   `pnpm sync:uikit` workflow, and the `./react/{admin,fields,forms,services}`
+   subpath exports.
 
 ## Deployment Scenarios (Current and Future)
 
@@ -209,7 +210,7 @@ cd ../../apps/webapp && cp .env.example .env
 
 # generate JWT session key
 openssl rand -base64 48
-# past the above output into your .env file for
+# paste the above output into your .env file for
 # BYLINE_JWT_SECRET
 
 # Set the seed superadmin username email address and password
