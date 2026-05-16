@@ -10,12 +10,10 @@
 import 'dotenv/config'
 import './server.config.js'
 
-import { seedDocsCategories } from './seeds/doc-categories.js'
 import { seedDocs } from './seeds/docs.js'
 import { seedNewsCategories } from './seeds/news-categories.js'
 
 async function run() {
-  await seedDocsCategories()
   await seedNewsCategories()
   await seedDocs()
 }

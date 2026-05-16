@@ -29,7 +29,6 @@ import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
 // import { lexicalEditor } from '@byline/richtext-lexical'
 
 import { Docs, DocsAdmin } from './collections/docs/index.js'
-import { DocsCategories, DocsCategoriesAdmin } from './collections/docs-categories/index.js'
 import { Media, MediaAdmin } from './collections/media/index.js'
 import { News, NewsAdmin } from './collections/news/index.js'
 import { NewsCategories, NewsCategoriesAdmin } from './collections/news-categories/index.js'
@@ -43,8 +42,8 @@ export const config: ClientConfig = {
   serverURL,
   i18n,
   routes,
-  collections: [Docs, News, Pages, Media, DocsCategories, NewsCategories],
-  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, DocsCategoriesAdmin, NewsCategoriesAdmin],
+  collections: [Docs, News, Pages, Media, NewsCategories],
+  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   fields: {
     // Default registration — every `type: 'richText'` field gets the full
     // Lexical feature set unless overridden per-field via

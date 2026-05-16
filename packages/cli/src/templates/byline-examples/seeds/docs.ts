@@ -24,7 +24,6 @@ const sampleDocument = {
   //   targetCollectionId: "cat-123",
   //   targetDocumentId: "electronics-audio"
   // },
-  featured: false,
   publishedOn: new Date('2024-01-15T10:00:00'),
   content: [
     {
@@ -165,81 +164,6 @@ const sampleDocument = {
       },
     },
   ],
-  reviews: [
-    {
-      reviewItem: {
-        rating: 5,
-        comment: {
-          root: {
-            children: [
-              {
-                children: [
-                  {
-                    detail: 0,
-                    format: 0,
-                    mode: 'normal',
-                    style: '',
-                    text: 'Some review text here...',
-                    type: 'text',
-                    version: 1,
-                  },
-                ],
-                direction: 'ltr',
-                format: '',
-                indent: 0,
-                type: 'paragraph',
-                version: 1,
-                textFormat: 0,
-                textStyle: '',
-              },
-            ],
-            direction: 'ltr',
-            format: '',
-            indent: 0,
-            type: 'root',
-            version: 1,
-          },
-        },
-      },
-    },
-    {
-      reviewItem: {
-        rating: 3,
-        comment: {
-          root: {
-            children: [
-              {
-                children: [
-                  {
-                    detail: 0,
-                    format: 0,
-                    mode: 'normal',
-                    style: '',
-                    text: 'Some review text here...',
-                    type: 'text',
-                    version: 1,
-                  },
-                ],
-                direction: 'ltr',
-                format: '',
-                indent: 0,
-                type: 'paragraph',
-                version: 1,
-                textFormat: 0,
-                textStyle: '',
-              },
-            ],
-            direction: 'ltr',
-            format: '',
-            indent: 0,
-            type: 'root',
-            version: 1,
-          },
-        },
-      },
-    },
-  ],
-  links: [{ link: 'https://example.com' }, { link: 'https://another-example.com' }],
 }
 
 export async function seedDocs(count = 15) {

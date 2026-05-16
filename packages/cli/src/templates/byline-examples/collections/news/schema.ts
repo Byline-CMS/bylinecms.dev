@@ -67,6 +67,13 @@ export const News = defineCollection({
       optional: true,
     },
     {
+      name: 'featured',
+      label: 'Featured',
+      type: 'checkbox',
+      optional: true,
+      helpText: 'Feature this document.',
+    },
+    {
       name: 'content',
       label: 'Content',
       type: 'richText',

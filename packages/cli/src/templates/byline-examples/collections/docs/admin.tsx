@@ -11,7 +11,6 @@ import { DateTimeFormatter } from '@byline/ui/react'
 
 import { SummaryLength } from '~/components/summary-length.js'
 
-import { FeaturedFormatter } from './components/feature-formatter.js'
 import { Docs } from './schema.js'
 
 /**
@@ -34,14 +33,7 @@ const listViewColumns: ColumnDefinition[] = [
     label: 'Title',
     sortable: true,
     align: 'left',
-    className: 'w-[30%]',
-  },
-  {
-    fieldName: 'featured',
-    label: 'Featured',
-    align: 'center',
-    className: 'w-[10%]',
-    formatter: { component: FeaturedFormatter },
+    className: 'w-[50%]',
   },
   {
     fieldName: 'status',
@@ -54,7 +46,7 @@ const listViewColumns: ColumnDefinition[] = [
     label: 'Last Updated',
     sortable: true,
     align: 'right',
-    className: 'w-[20%]',
+    className: 'w-[35%]',
     formatter: { component: DateTimeFormatter },
   },
 ]
@@ -166,17 +158,12 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
         {
           name: 'details',
           label: 'Details',
-          fields: ['title', 'summary', 'featureImage', 'category'],
+          fields: ['title', 'summary', 'featureImage'],
         },
         {
           name: 'content',
           label: 'Content',
           fields: ['content'],
-        },
-        {
-          name: 'reviews',
-          label: 'Reviews & Links',
-          fields: ['reviews', 'links'],
         },
       ],
     },
@@ -213,6 +200,6 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    */
   layout: {
     main: ['tabs'],
-    sidebar: ['publishedOn', 'featured', 'availableLanguages'],
+    sidebar: ['publishedOn', 'availableLanguages'],
   },
 })
