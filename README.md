@@ -61,7 +61,7 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
    system attribute (stored in a dedicated `byline_document_paths`
    table keyed by `(document_id, locale)`), `useAsPath`, the slugifier,
    the path widget, and per-locale paths as a future phase.
-3. **[docs/FIELDS-API.md](docs/FIELDS-API.md)** - field schemas, admin and  field helpers
+3. **[docs/FIELDS.md](docs/FIELDS.md)** - field schemas, admin and field helpers
 3. **[docs/RELATIONSHIPS.md](docs/RELATIONSHIPS.md)** — cross-collection
    relations, populate, the relation envelope, recursion safety via
    `ReadContext`, and `hasMany` as a future phase.
@@ -86,15 +86,12 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
    `@infonomic/uikit`, the byline-prefixed cascade-layer system, the
    `pnpm sync:uikit` workflow, and the `./react/{admin,fields,forms,services}`
    subpath exports.
-10. **[docs/ACCESS-CONTROL-RECIPES.md](docs/ACCESS-CONTROL-RECIPES.md)**
-    — working cookbook of `beforeRead` patterns: owner-only drafts,
-    multi-tenant scoping, embargo, soft-delete hide, department
-    visibility, self-only.
-11. **[docs/COLLECTION-VERSIONING.md](docs/COLLECTION-VERSIONING.md)**
-    — Phase 1 (data model + fingerprinting) shipped; Phases 2–5
-    (history table, fetch-by-version, in-memory forward migration,
+10. **[docs/COLLECTIONS.md](docs/COLLECTIONS.md)** — collection schema and
+    admin (columns, layout, preview, custom list views) plus schema
+    versioning: Phase 1 (data model + fingerprinting) shipped; Phases
+    2–5 (history table, fetch-by-version, in-memory forward migration,
     strict-CI mode) deferred.
-12. **[docs/CORE-COMPOSITION.md](docs/CORE-COMPOSITION.md)** —
+11. **[docs/CORE-COMPOSITION.md](docs/CORE-COMPOSITION.md)** —
     forward-looking roadmap for `createCommand`, module registries,
     a command tree on `BylineCore`, per-realm request-context
     builders, and `loadConfig()`.

@@ -658,8 +658,8 @@ export interface AfterReadContext {
  *   - `collectionPath` — the collection being queried (useful when the
  *     same hook function is reused across collections).
  *
- * See `docs/AUTHN-AUTHZ.md` for the strategic rationale and
- * `docs/ACCESS-CONTROL-RECIPES.md` for worked examples.
+ * See `docs/AUTHN-AUTHZ.md` for the strategic rationale; the Quick
+ * Reference there carries six worked recipes.
  */
 export interface BeforeReadContext {
   collectionPath: string
@@ -761,8 +761,8 @@ export interface CollectionHooks {
    * that the query layer ANDs onto the caller's `where` to enforce
    * read-side row scoping (multi-tenant, owner-only-drafts, soft-delete
    * hide, etc). Returning `void` applies no scoping. Multiple functions
-   * combine with implicit AND. See
-   * `docs/ACCESS-CONTROL-RECIPES.md`.
+   * combine with implicit AND. See `docs/AUTHN-AUTHZ.md` (Read-side
+   * scoping + Quick Reference recipes).
    */
   beforeRead?: BeforeReadHookSlot
   /**

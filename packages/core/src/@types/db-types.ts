@@ -261,7 +261,7 @@ export interface IDocumentCommands {
      * Only set on the initial create (when `documentId` is undefined) for
      * collections with `orderable: true`. Ignored on subsequent versions of
      * an existing document — order is admin metadata on the logical document,
-     * not per-version content. See docs/ORDERABLE.md.
+     * not per-version content. See docs/COLLECTIONS.md (Orderable collections).
      */
     orderKey?: string
   }): Promise<{ document: any; fieldCount: number }>

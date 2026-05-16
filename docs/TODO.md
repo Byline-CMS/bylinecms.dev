@@ -48,7 +48,7 @@ List views currently render `target_document_id` as a string for relation fields
 
 ### Historical config snapshots — `collection_versions` history table
 
-COLLECTION-VERSIONING Phase 2 — the smallest useful follow-up to the schema-version recording that already ships. One row per version-bump carrying the snapshot of `CollectionDefinition` at that version. Unblocks Phase 3 (fetch-by-version) and is the prerequisite for any future read-time forward-migration work. See [COLLECTION-VERSIONING.md → Phase 2 — historical config snapshots](./COLLECTION-VERSIONING.md#phase-2--historical-config-snapshots).
+COLLECTIONS versioning Phase 2 — the smallest useful follow-up to the schema-version recording that already ships. One row per version-bump carrying the snapshot of `CollectionDefinition` at that version. Unblocks Phase 3 (fetch-by-version) and is the prerequisite for any future read-time forward-migration work. See [COLLECTIONS.md → Phase 2 — historical config snapshots](./COLLECTIONS.md#phase-2--historical-config-snapshots).
 
 ### Host packaging Phase 4 — CLI / template
 
@@ -98,7 +98,7 @@ Each entry names the trigger that would move it into Next. No work happens until
 
 ### Collection-versioning Phases 3–5
 
-**Trigger:** something needs to render an old document against its original schema, or CI needs strict version pinning. Phase 3 (fetch by version) is the smallest read-side piece that unblocks anything interesting; Phase 4 (in-memory forward-migration) is the load-bearing one; Phase 5 (`strictCollectionVersions: true`) is a CI ergonomics flag. Each is independently shippable once Phase 2 lands. See [COLLECTION-VERSIONING.md](./COLLECTION-VERSIONING.md#whats-next--phases-25).
+**Trigger:** something needs to render an old document against its original schema, or CI needs strict version pinning. Phase 3 (fetch by version) is the smallest read-side piece that unblocks anything interesting; Phase 4 (in-memory forward-migration) is the load-bearing one; Phase 5 (`strictCollectionVersions: true`) is a CI ergonomics flag. Each is independently shippable once Phase 2 lands. See [COLLECTIONS.md → Future phases](./COLLECTIONS.md#future-phases-versioning-phases-25).
 
 ### CORE-COMPOSITION Phases 2–5
 

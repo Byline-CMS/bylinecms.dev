@@ -27,7 +27,7 @@ export const NewsCategories = defineCollection({
   // Demonstration of `orderable: true` — short, finite, naturally ordered.
   // Editors can drag rows in the list view to set a canonical order; the
   // value persists on `byline_documents.order_key` without bumping the
-  // document version. See docs/ORDERABLE.md.
+  // document version. See docs/COLLECTIONS.md (Orderable collections).
   orderable: true,
   fields: [
     { name: 'name', label: 'Name', type: 'text', localized: true },

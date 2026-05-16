@@ -23,7 +23,7 @@ We save document versions by default (UUIDv7 time-ordered). This gives us
 built-in version history, enables eventual audit trails, and avoids in-place
 mutation. We use `ROW_NUMBER() OVER PARTITION` for resolving "latest" versions.
 
-See [COLLECTION-VERSIONING](./COLLECTION-VERSIONING.md).
+See [COLLECTIONS → Versioning](./COLLECTIONS.md#versioning).
 
 ## 3. Patch-Based Updates
 
@@ -151,5 +151,4 @@ path. Service-layer enforcement asserts collection abilities on the write
 side; the `beforeRead` collection hook AND-merges per-actor `QueryPredicate`s
 into the same SQL machinery the public client uses.
 
-For the full story, see [AUTHN-AUTHZ](./AUTHN-AUTHZ.md)
-and the worked recipes in [ACCESS-CONTROL-RECIPES](./ACCESS-CONTROL-RECIPES.md).
+For the full story, including six worked `beforeRead` recipes (owner-only drafts, multi-tenant scoping, embargo, soft-delete hide, department visibility, self-only), see [AUTHN-AUTHZ](./AUTHN-AUTHZ.md).

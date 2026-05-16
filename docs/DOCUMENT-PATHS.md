@@ -3,7 +3,7 @@
 > Companions:
 > - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
 > - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `path` is the routing identifier used by relation filters (`where: { category: { path: 'news' } }`) and resolved via `findByPath` under the same `readMode` rule populate honours, with locale fallback applied per request.
-> - [COLLECTION-VERSIONING.md](./COLLECTION-VERSIONING.md) — `useAsPath` participates in the collection schema fingerprint.
+> - [COLLECTIONS.md](./COLLECTIONS.md) — `useAsPath` participates in the collection schema fingerprint (see the Fingerprint section).
 
 ## Overview
 

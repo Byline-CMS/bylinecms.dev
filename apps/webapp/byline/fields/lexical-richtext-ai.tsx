@@ -22,7 +22,7 @@
  * Pairs with a plain `{ type: 'richText' }` entry on the schema side —
  * schema files must stay React-free and tsx-loadable.
  *
- * See `docs/FIELDS-API.md` for the schema-vs-admin model.
+ * See `docs/FIELDS.md` for the schema-vs-admin model.
  */
 
 import { AiLexicalExtension } from '@byline/ai/plugins/lexical'

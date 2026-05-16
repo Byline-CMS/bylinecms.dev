@@ -40,7 +40,7 @@ import {
  *
  * Captured here (rather than only in a hand-written migration) so future
  * regenerations from this schema reproduce the COLLATE clause cleanly.
- * See migration `0003_order_key_byte_collation.sql` and `docs/ORDERABLE.md`.
+ * See migration `0003_order_key_byte_collation.sql` and `docs/COLLECTIONS.md` (Orderable collections).
  */
 const varcharByteSorted = customType<{
   data: string
@@ -89,7 +89,7 @@ export const documents = pgTable(
     //
     // Uses `varcharByteSorted` (COLLATE "C") so DB ordering matches JS string
     // comparison — the fractional-index algorithm requires this. See
-    // `varcharByteSorted` above and docs/ORDERABLE.md.
+    // `varcharByteSorted` above and docs/COLLECTIONS.md (Orderable collections).
     order_key: varcharByteSorted('order_key', { length: 128 }),
     created_at: timestamp('created_at').defaultNow(),
     updated_at: timestamp('updated_at').defaultNow(),

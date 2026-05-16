@@ -3,7 +3,7 @@
 > Companions:
 > - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — the first read consumer that spans collections.
 > - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
-> - [COLLECTION-VERSIONING.md](./COLLECTION-VERSIONING.md) — schema versioning sits beside, but is independent of, document versioning.
+> - [COLLECTIONS.md](./COLLECTIONS.md) — schema versioning (Versioning section) sits beside, but is independent of, document versioning.
 > - [Storage benchmark sweep — 2026-04-18](../benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
 
 ## Overview

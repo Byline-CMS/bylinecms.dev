@@ -12,7 +12,7 @@
  * a collection's `fields` array in `<collection>/schema.ts`. Pure data;
  * the only imports are `@byline/core` types and the i18n locale list.
  *
- * See `docs/FIELDS-API.md` for the schema-vs-admin model.
+ * See `docs/FIELDS.md` for the schema-vs-admin model.
  */
 
 import type { GroupField } from '@byline/core'

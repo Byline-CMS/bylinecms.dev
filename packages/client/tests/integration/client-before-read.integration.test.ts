@@ -14,10 +14,10 @@
  * hatch all need to behave correctly when the SQL actually runs.
  *
  * Doubles as a worked example for the recipes in
- * `docs/ACCESS-CONTROL-RECIPES.md` — Recipe 1 (owner-only
- * drafts) is wired on the `posts` collection here, Recipe 2 (multi-
- * tenant scoping) on `authors`. Each scenario below demonstrates one
- * of the recipe patterns end-to-end.
+ * `docs/AUTHN-AUTHZ.md` — Recipe 1 (owner-only drafts) is wired
+ * on the `posts` collection here, Recipe 2 (multi-tenant scoping)
+ * on `authors`. Each scenario below demonstrates one of the recipe
+ * patterns end-to-end.
  *
  * Two collections (posts → author) so the populate-fanout test has
  * something to fan out across. Wired inline because the shared
