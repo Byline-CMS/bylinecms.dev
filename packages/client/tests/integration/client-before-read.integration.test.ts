@@ -37,12 +37,11 @@ import type {
   QueryPredicate,
 } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
-import { pgAdapter } from '@byline/db-postgres'
-import 'dotenv/config'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { type BylineClient, createBylineClient } from '../../src/index.js'
+import type { BylineClient } from '../../src/index.js'
+import { setupMultiCollectionTestClient } from '../fixtures/setup.js'
 
 // ---------------------------------------------------------------------------
 // Test scaffolding
@@ -158,29 +157,12 @@ interface Ctx {
 let ctx: Ctx
 
 async function setup(): Promise<Ctx> {
-  const connectionString = process.env.POSTGRES_CONNECTION_STRING
-  if (!connectionString) {
-    throw new Error(
-      'POSTGRES_CONNECTION_STRING is not set. Copy .env.example to .env and configure it.'
-    )
-  }
-
-  const collections: CollectionDefinition[] = [authorsDefinition, postsDefinition]
-  const db = pgAdapter({ connectionString, collections })
-
-  const client = createBylineClient({
-    db,
-    collections,
-    requestContext: () => currentRequestContext,
-  })
-
-  const [authorsRow] = await db.commands.collections.create(
-    authorsDefinition.path,
-    authorsDefinition
+  const { client, db, collectionIds } = await setupMultiCollectionTestClient(
+    [authorsDefinition, postsDefinition],
+    { requestContext: () => currentRequestContext }
   )
-  const [postsRow] = await db.commands.collections.create(postsDefinition.path, postsDefinition)
-  if (!authorsRow || !postsRow) throw new Error('Failed to register test collections')
-
+  const authorsRow = { id: collectionIds[authorsDefinition.path] as string }
+  const postsRow = { id: collectionIds[postsDefinition.path] as string }
   return {
     client,
     db,

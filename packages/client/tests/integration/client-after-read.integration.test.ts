@@ -34,12 +34,13 @@ function testCollection(suffix: string | number): CollectionDefinition {
     }),
     search: { fields: ['title'] },
     useAsTitle: 'title',
-    // Slugify the `path` field into the version path so the `findByPath`
-    // test resolves docs by the value supplied in `data.path`.
-    useAsPath: 'path',
+    // Slugify the `slug` field into the system path column so the
+    // `findByPath` test resolves docs by the value supplied in `data.slug`.
+    // (A field literally named `path` is reserved — see validate-collections.)
+    useAsPath: 'slug',
     fields: [
       { name: 'title', type: 'text', label: 'Title' },
-      { name: 'path', type: 'text', label: 'Path' },
+      { name: 'slug', type: 'text', label: 'Slug' },
       { name: 'secret', type: 'text', label: 'Secret', optional: true },
     ],
     hooks: {
@@ -70,7 +71,7 @@ describe('afterRead integration', () => {
 
     const { documentId } = await handle.create({
       title: 'Original',
-      path: 'ar-findbyid',
+      slug: 'ar-findbyid',
       secret: 'visible',
     })
     await handle.changeStatus(documentId, 'published')
@@ -88,7 +89,7 @@ describe('afterRead integration', () => {
 
     const { documentId } = await handle.create({
       title: 'By Path',
-      path: 'ar-bypath',
+      slug: 'ar-bypath',
       secret: 'visible',
     })
     await handle.changeStatus(documentId, 'published')
@@ -105,7 +106,7 @@ describe('afterRead integration', () => {
     for (let i = 0; i < 2; i++) {
       const { documentId } = await handle.create({
         title: `List ${i}`,
-        path: `ar-list-${i}`,
+        slug: `ar-list-${i}`,
         secret: 'visible',
       })
       await handle.changeStatus(documentId, 'published')
@@ -126,7 +127,7 @@ describe('afterRead integration', () => {
 
     const { documentId } = await handle.create({
       title: 'Dedup',
-      path: 'ar-dedup',
+      slug: 'ar-dedup',
       secret: 'visible',
     })
     await handle.changeStatus(documentId, 'published')
@@ -148,7 +149,7 @@ describe('afterRead integration', () => {
 
     const { documentId } = await handle.create({
       title: 'Fresh',
-      path: 'ar-fresh',
+      slug: 'ar-fresh',
       secret: 'visible',
     })
     await handle.changeStatus(documentId, 'published')

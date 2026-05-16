@@ -25,12 +25,11 @@
 import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
-import { pgAdapter } from '@byline/db-postgres'
-import 'dotenv/config'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { type BylineClient, createBylineClient } from '../../src/index.js'
+import type { BylineClient } from '../../src/index.js'
+import { setupMultiCollectionTestClient } from '../fixtures/setup.js'
 
 const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
@@ -99,29 +98,15 @@ interface Ctx {
 let ctx: Ctx
 
 async function setup(): Promise<Ctx> {
-  const connectionString = process.env.POSTGRES_CONNECTION_STRING
-  if (!connectionString) {
-    throw new Error(
-      'POSTGRES_CONNECTION_STRING is not set. Copy .env.example to .env and configure it.'
-    )
-  }
-
-  const collections = [categoriesDefinition, articlesDefinition]
-  const db = pgAdapter({ connectionString, collections })
-  const client = createBylineClient({ db, collections, requestContext: superAdmin })
-
-  const [catRow] = await db.commands.collections.create(
-    categoriesDefinition.path,
-    categoriesDefinition
+  const { client, db, collectionIds } = await setupMultiCollectionTestClient(
+    [categoriesDefinition, articlesDefinition],
+    { requestContext: superAdmin }
   )
-  const [artRow] = await db.commands.collections.create(articlesDefinition.path, articlesDefinition)
-  if (!catRow || !artRow) throw new Error('Failed to register test collections')
-
   return {
     client,
     db,
-    articlesCollectionId: artRow.id as string,
-    categoriesCollectionId: catRow.id as string,
+    articlesCollectionId: collectionIds[articlesDefinition.path] as string,
+    categoriesCollectionId: collectionIds[categoriesDefinition.path] as string,
     articlesDefinition,
     categoriesDefinition,
     categoryIds: new Map(),

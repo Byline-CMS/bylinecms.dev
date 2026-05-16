@@ -31,7 +31,6 @@ export function createTestArticlesCollection(suffix: string | number = Date.now(
     useAsPath: 'title',
     fields: [
       { name: 'title', type: 'text', label: 'Title', localized: true },
-      { name: 'path', type: 'text', label: 'Path' },
       { name: 'summary', type: 'textArea', label: 'Summary', localized: true },
       { name: 'views', type: 'integer', label: 'Views', optional: true },
       {

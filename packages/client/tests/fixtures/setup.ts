@@ -6,11 +6,63 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createSuperAdminContext } from '@byline/auth'
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import { createSuperAdminContext, type RequestContext } from '@byline/auth'
+import { type CollectionDefinition, defineServerConfig, type IDbAdapter } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 
 import { type BylineClient, createBylineClient } from '../../src/index.js'
+
+/**
+ * Wire a BylineClient + adapter against the live `byline_test` Postgres,
+ * register the supplied collections in `byline_collections`, and register a
+ * minimal `ServerConfig` so `getCollectionDefinition()` resolves at runtime.
+ *
+ * Returns the `db` adapter, `client`, and the collection-id row map keyed
+ * by `definition.path`. Multi-collection callers (relations, populate)
+ * read the ids from the map; single-collection callers use the
+ * convenience wrapper below.
+ */
+export interface MultiCollectionTestContext {
+  client: BylineClient
+  db: IDbAdapter
+  collectionIds: Record<string, string>
+}
+
+export async function setupMultiCollectionTestClient(
+  definitions: CollectionDefinition[],
+  options: { requestContext?: RequestContext | (() => RequestContext) } = {}
+): Promise<MultiCollectionTestContext> {
+  const connectionString = process.env.POSTGRES_CONNECTION_STRING
+  if (!connectionString) {
+    throw new Error('POSTGRES_CONNECTION_STRING is not set. Copy .env.test.example to .env.test.')
+  }
+
+  const db = pgAdapter({ connectionString, collections: definitions, defaultContentLocale: 'en' })
+
+  defineServerConfig({
+    db,
+    serverURL: 'http://localhost:3000',
+    i18n: {
+      interface: { defaultLocale: 'en', locales: ['en'] },
+      content: { defaultLocale: 'en', locales: ['en'] },
+    },
+    collections: definitions,
+  })
+
+  const requestContext =
+    options.requestContext ?? createSuperAdminContext({ id: 'test-super-admin' })
+
+  const client = createBylineClient({ db, collections: definitions, requestContext })
+
+  const collectionIds: Record<string, string> = {}
+  for (const def of definitions) {
+    const [row] = await db.commands.collections.create(def.path, def)
+    if (!row) throw new Error(`Failed to create test collection '${def.path}'`)
+    collectionIds[def.path] = row.id as string
+  }
+
+  return { client, db, collectionIds }
+}
 
 // Env is loaded by `tests/_per-file-setup.ts` (.env.test) before any test
 // file's imports resolve. No dotenv side-effect import here.
@@ -23,38 +75,17 @@ export interface TestContext {
 }
 
 /**
- * Create a fully wired BylineClient backed by a real Postgres instance.
- *
- * Also registers the test collection in the database and returns the
- * collection row ID so tests can seed documents directly via the adapter.
+ * Single-collection convenience wrapper around
+ * `setupMultiCollectionTestClient`. Preserves the legacy `TestContext`
+ * shape (single `collectionId` + `definition`) used by tests that don't
+ * need a multi-collection setup.
  */
 export async function setupTestClient(definition: CollectionDefinition): Promise<TestContext> {
-  const connectionString = process.env.POSTGRES_CONNECTION_STRING
-  if (!connectionString) {
-    throw new Error('POSTGRES_CONNECTION_STRING is not set. Copy .env.test.example to .env.test.')
-  }
-
-  const collections = [definition]
-
-  const db = pgAdapter({ connectionString, collections, defaultContentLocale: 'en' })
-
-  const client = createBylineClient({
-    db,
-    collections,
-    requestContext: createSuperAdminContext({ id: 'test-super-admin' }),
-  })
-
-  // Register the collection in the database.
-  const result = await db.commands.collections.create(definition.path, definition)
-  const row = result[0]
-  if (!row) {
-    throw new Error(`Failed to create test collection '${definition.path}'`)
-  }
-
+  const { client, db, collectionIds } = await setupMultiCollectionTestClient([definition])
   return {
     client,
     db,
-    collectionId: row.id as string,
+    collectionId: collectionIds[definition.path] as string,
     definition,
   }
 }
