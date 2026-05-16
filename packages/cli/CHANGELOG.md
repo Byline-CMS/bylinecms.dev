@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.12.1
+
+### Patch Changes
+
+- Simplified docs schema and admin examples, re-synced CLI templates.
+
 ## 1.12.0
 
 ### Minor Changes

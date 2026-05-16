@@ -1,5 +1,14 @@
 # @byline/client
 
+## 1.12.1
+
+### Patch Changes
+
+- Simplified docs schema and admin examples, re-synced CLI templates.
+- Updated dependencies
+  - @byline/auth@1.12.1
+  - @byline/core@1.12.1
+
 ## 1.12.0
 
 ### Minor Changes

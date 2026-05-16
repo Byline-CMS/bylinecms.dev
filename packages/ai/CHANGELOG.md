@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 2.0.1
+
+### Patch Changes
+
+- Simplified docs schema and admin examples, re-synced CLI templates.
+- Updated dependencies
+  - @byline/core@1.12.1
+  - @byline/richtext-lexical@1.12.1
+  - @byline/ui@1.12.1
+
 ## 2.0.0
 
 ### Minor Changes
