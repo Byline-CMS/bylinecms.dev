@@ -6,6 +6,23 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+/**
+ * **Schema-side helper.** Returns a `RichTextField` schema — drop into a
+ * collection's `fields` array in `<collection>/schema.ts`. Bakes a
+ * compact Lexical `editorConfig` (settings only) into the schema. Pure
+ * data: no React, no CSS — schema files must stay tsx-loadable for
+ * seeds (see `byline/server.config.ts`).
+ *
+ * **Constraint** — `editorConfig` baked into a schema can only override
+ * **settings** (placeholder, toolbar UI flags, `embedRelationsOnSave`).
+ * Extension references (TableExtension, AdmonitionExtension, etc.) are
+ * not JSON-safe and would break tsx-loaded seeds; per-field extension
+ * removal goes through a client-side wrapper component registered via
+ * `FieldAdminConfig.editor`.
+ *
+ * See `docs/FIELDS.md` for the full schema-vs-admin model.
+ */
+
 import type { RichTextField } from '@byline/core'
 // Import from `/server` (data-only) rather than the package root so this
 // schema helper stays tsx-loadable. The root barrel evaluates `RichTextField`
@@ -34,10 +51,9 @@ type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
  *
  * To narrow the *extension* set per-field — drop tables, lists, embeds,
  * the floating format toolbar, the table action menu — register a
- * `LexicalRichTextCompact` wrapper component via `FieldAdminConfig.editor`
- * (same pattern as `aiRichTextAdmin()`). Extension references aren't safe
- * to bake into schemas, and floating UIs are now extension-presence
- * controlled rather than settings-controlled.
+ * `LexicalRichTextCompact` wrapper component via `FieldAdminConfig.editor`.
+ * Extension references aren't safe to bake into schemas, and floating
+ * UIs are now extension-presence controlled rather than settings-controlled.
  */
 function applyCompactPreset(config: EditorConfig): EditorConfig {
   const o = config.settings.options

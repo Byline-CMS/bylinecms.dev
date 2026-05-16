@@ -38,7 +38,7 @@ import {
 import styles from './media-list-view.module.css'
 import { FormatBadge } from './media-thumbnail'
 
-export function formatNumber(number: number, decimalPlaces: number) {
+function formatNumber(number: number, decimalPlaces: number) {
   if (typeof number !== 'number' || Number.isNaN(number)) {
     throw new TypeError('Input must be a valid number')
   }

@@ -28,7 +28,6 @@ import { localStorageProvider } from '@byline/storage-local'
 // admin UI configs (React components, CSS modules) that are not loadable
 // outside Vite (e.g. when running seeds via tsx).
 import { Docs } from './collections/docs/schema.js'
-import { DocsCategories } from './collections/docs-categories/schema.js'
 import { Media } from './collections/media/schema.js'
 import { News } from './collections/news/schema.js'
 import { NewsCategories } from './collections/news-categories/schema.js'
@@ -38,7 +37,7 @@ import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
 const serverURL = process.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
 
-const collections = [Docs, News, Pages, Media, DocsCategories, NewsCategories]
+const collections = [Docs, News, Pages, Media, NewsCategories]
 
 // HMR-safe singleton. Vite's program reload re-evaluates this module
 // without disposing the previous module's resources — every reload

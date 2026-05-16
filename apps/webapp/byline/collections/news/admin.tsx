@@ -14,6 +14,7 @@ import { SummaryLength } from '~/components/summary-length.js'
 import { aiTextFieldAdmin } from '../../fields/ai-text.js'
 import { aiTextAreaFieldAdmin } from '../../fields/ai-textarea.js'
 import { aiRichTextAdmin } from '../../fields/lexical-richtext-ai.js'
+import { FeaturedFormatter } from './components/feature-formatter.js'
 import { News } from './schema.js'
 
 /**
@@ -36,7 +37,14 @@ const listViewColumns: ColumnDefinition[] = [
     label: 'Title',
     sortable: true,
     align: 'left',
-    className: 'w-[25%]',
+    className: 'w-[30%]',
+  },
+  {
+    fieldName: 'featured',
+    label: 'Featured',
+    align: 'center',
+    className: 'w-[10%]',
+    formatter: { component: FeaturedFormatter },
   },
   {
     fieldName: 'status',
@@ -206,6 +214,6 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
    */
   layout: {
     main: ['main'],
-    sidebar: ['availableLanguages', 'publishedOn'],
+    sidebar: ['featured', 'availableLanguages', 'publishedOn'],
   },
 })

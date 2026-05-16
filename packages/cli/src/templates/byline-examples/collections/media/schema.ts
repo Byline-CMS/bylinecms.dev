@@ -56,6 +56,7 @@ export const Media = defineCollection({
       name: 'image',
       label: 'Image',
       type: 'image',
+      helpText: 'Select an image for this media item.',
       upload: {
         // Allow common image types. Extend with 'video/*', 'application/pdf'
         // etc. for a more general media field.

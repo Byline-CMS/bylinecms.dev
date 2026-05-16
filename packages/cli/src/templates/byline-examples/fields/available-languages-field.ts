@@ -6,6 +6,15 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+/**
+ * **Schema-side helper.** Returns a `GroupField` schema that emits one
+ * `checkbox` field per configured content locale. Drop the result into
+ * a collection's `fields` array in `<collection>/schema.ts`. Pure data;
+ * the only imports are `@byline/core` types and the i18n locale list.
+ *
+ * See `docs/FIELDS.md` for the schema-vs-admin model.
+ */
+
 import type { GroupField } from '@byline/core'
 
 import { contentLocales, type LocaleDefinition } from '../i18n.js'
@@ -39,7 +48,7 @@ const builtInValidate = (value: Record<string, boolean> | undefined): string | u
     !Array.isArray(value) &&
     Object.values(value).some(Boolean)
   if (!hasSelection) {
-    return 'At least one language must be selected.'
+    return 'At least one language must be selected'
   }
   return undefined
 }

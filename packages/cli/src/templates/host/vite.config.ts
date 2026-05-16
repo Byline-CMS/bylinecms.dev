@@ -132,6 +132,7 @@ const config = defineConfig({
     browserAsyncHooksAlias(),
     devtools(),
     nitro({
+      preset: 'node',
       // @byline/ui ships compiled JS that does `import './foo_module.css'`.
       // @byline/host-tanstack-start re-exports route factories from
       // @byline/ui at runtime in the SSR graph. Nitro externalizes

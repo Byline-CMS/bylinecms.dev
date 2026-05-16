@@ -166,7 +166,7 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
         {
           name: 'details',
           label: 'Details',
-          fields: ['title', 'summary', 'featureImage', 'category', 'featured'],
+          fields: ['title', 'summary', 'featureImage', 'category'],
         },
         {
           name: 'content',
@@ -213,6 +213,6 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    */
   layout: {
     main: ['tabs'],
-    sidebar: ['publishedOn', 'availableLanguages'],
+    sidebar: ['publishedOn', 'featured', 'availableLanguages'],
   },
 })
