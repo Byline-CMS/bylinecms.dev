@@ -14,6 +14,7 @@ import type * as React from 'react'
 import { type ReactPortal, useCallback, useEffect, useRef, useState } from 'react'
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { useExtensionDependency } from '@lexical/react/useExtensionComponent'
 import { useLexicalEditable } from '@lexical/react/useLexicalEditable'
 import {
   $deleteTableColumnAtSelection,
@@ -31,6 +32,7 @@ import {
   $unmergeCell,
   getTableObserverFromTableElement,
   type HTMLTableElementWithWithTableSelectionState,
+  TableExtension as LexicalTableExtension,
   TableCellHeaderStates,
   TableCellNode,
   type TableRowNode,
@@ -48,9 +50,9 @@ import {
 } from 'lexical'
 import { createPortal } from 'react-dom'
 
-import useModal from '../../hooks/use-modal'
-import invariant from '../../shared/invariant'
-import ColorPicker from '../../ui/color-picker'
+import useModal from '../../../hooks/use-modal'
+import invariant from '../../../shared/invariant'
+import ColorPicker from '../../../ui/color-picker'
 
 function computeSelectionCount(selection: TableSelection): {
   columns: number
@@ -788,16 +790,18 @@ function TableCellActionMenuContainer({
 }
 
 export function TableActionMenuPlugin({
-  anchorElem = document.body,
-  cellMerge = false,
+  anchorElem,
 }: {
-  anchorElem?: HTMLElement
-  cellMerge?: boolean
+  anchorElem: HTMLElement
 }): null | ReactPortal {
   const isEditable = useLexicalEditable()
+  // Read the upstream `@lexical/table` config so the cell-merge UI lives
+  // in lockstep with `c.extensions.configure(LexicalTableExtension, {...})`
+  // instead of needing a separate prop wired from `Editor.tsx`.
+  const { hasCellMerge } = useExtensionDependency(LexicalTableExtension).config
   return createPortal(
     isEditable ? (
-      <TableCellActionMenuContainer anchorElem={anchorElem} cellMerge={cellMerge} />
+      <TableCellActionMenuContainer anchorElem={anchorElem} cellMerge={hasCellMerge ?? false} />
     ) : null,
     anchorElem
   )

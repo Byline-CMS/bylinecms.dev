@@ -7,40 +7,41 @@
  */
 
 import type { RichTextField } from '@byline/core'
-import { defaultEditorConfig, type EditorConfig } from '@byline/richtext-lexical'
+// Import from `/server` (data-only) rather than the package root so this
+// schema helper stays tsx-loadable. The root barrel evaluates `RichTextField`
+// / `EditorField` and their CSS imports, which would break seeds that load
+// any collection schema using this factory.
+import { defaultEditorConfig, type EditorConfig } from '@byline/richtext-lexical/server'
 
 type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
   /**
    * Optional callback to further customise the compact defaults. Receives a
-   * mutable copy of the compact config; mutate and return, or return a new
+   * mutable copy of the compact settings; mutate and return, or return a new
    * object. Runs after the compact preset is applied, so callers can re-enable
    * specific options for a particular field without re-listing the full set.
+   *
+   * The compact preset only touches `settings`. Do not assign extensions
+   * here — schema-side `editorConfig` must remain JSON-safe.
    */
   configure?: (config: EditorConfig) => EditorConfig
 }
 
 /**
- * Compact preset — disables block-level features (tables, layouts,
- * admonitions, code highlight, lists, embeds, inline images, alignment) and
- * keeps a slim toolbar suitable for inline body copy like image captions,
- * byline strap-lines, or compact form fields.
+ * Compact preset — disables secondary toolbar UI (text alignment,
+ * inline-code, undo/redo, text style) for inline body copy like image
+ * captions, byline strap-lines, or compact form fields. Bold / italic /
+ * link editing remain on.
+ *
+ * To narrow the *extension* set per-field — drop tables, lists, embeds,
+ * the floating format toolbar, the table action menu — register a
+ * `LexicalRichTextCompact` wrapper component via `FieldAdminConfig.editor`
+ * (same pattern as `aiRichTextAdmin()`). Extension references aren't safe
+ * to bake into schemas, and floating UIs are now extension-presence
+ * controlled rather than settings-controlled.
  */
 function applyCompactPreset(config: EditorConfig): EditorConfig {
   const o = config.settings.options
   o.textAlignment = false
-  o.tablePlugin = false
-  o.tableActionMenuPlugin = false
-  o.tableCellBackgroundColor = false
-  o.tableCellMerge = false
-  o.layoutPlugin = false
-  o.admonitionPlugin = false
-  o.codeHighlightPlugin = false
-  o.horizontalRulePlugin = false
-  o.listPlugin = false
-  o.checkListPlugin = false
-  o.inlineImagePlugin = false
-  o.autoEmbedPlugin = false
-  o.floatingTextFormatToolbarPlugin = false
   o.textStyle = false
   o.inlineCode = false
   o.undoRedo = false
@@ -48,24 +49,20 @@ function applyCompactPreset(config: EditorConfig): EditorConfig {
 }
 
 /**
- * Returns a `RichTextField` with a reduced Lexical feature set baked into
- * `editorConfig`. Use this for caption-style or otherwise constrained rich-text
- * fields where the full editor surface would be inappropriate.
- *
- * The compact preset disables tables, layouts, lists, code highlight, inline
- * images, embeds, and most secondary toolbar features while keeping bold /
- * italic / link editing and the floating link editor.
+ * Returns a `RichTextField` with reduced toolbar settings baked into
+ * `editorConfig`. Use this for caption-style or otherwise constrained
+ * rich-text fields where the full editor toolbar would be inappropriate.
  *
  * @example
  * ```ts
  * fields: [
  *   lexicalRichTextCompact({ name: 'caption', label: 'Caption' }),
- *   // Compact + re-enable lists for a specific field:
+ *   // Compact + custom placeholder for one field:
  *   lexicalRichTextCompact({
  *     name: 'summary',
  *     label: 'Summary',
  *     configure: (c) => {
- *       c.settings.options.listPlugin = true
+ *       c.settings.placeholderText = 'One sentence summary…'
  *       return c
  *     },
  *   }),

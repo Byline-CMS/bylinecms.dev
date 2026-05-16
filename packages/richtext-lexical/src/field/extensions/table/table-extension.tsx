@@ -15,9 +15,14 @@ import { OPEN_TABLE_MODAL_COMMAND } from '../../plugins/table-plugin'
 import { useToolbarActiveEditor } from '../../plugins/toolbar-plugin/toolbar-active-editor'
 import { DropDownItem } from '../../ui/dropdown'
 import {
+  type BylineFloatingUIConfig,
+  BylineFloatingUIExtension,
+} from '../byline-floating-ui/byline-floating-ui-extension'
+import {
   type BylineToolbarConfig,
   BylineToolbarExtension,
 } from '../byline-toolbar/byline-toolbar-extension'
+import { TableActionMenuPlugin } from './table-action-menu-plugin'
 
 function TableInsertItem(): React.JSX.Element {
   const editor = useToolbarActiveEditor()
@@ -69,5 +74,13 @@ export const TableExtension = defineExtension({
         },
       ],
     } satisfies Partial<BylineToolbarConfig>),
+    declarePeerDependency<typeof BylineFloatingUIExtension>(BylineFloatingUIExtension.name, {
+      items: [
+        {
+          id: '@byline/richtext-lexical/Table/action-menu',
+          Component: TableActionMenuPlugin,
+        },
+      ],
+    } satisfies Partial<BylineFloatingUIConfig>),
   ],
 })

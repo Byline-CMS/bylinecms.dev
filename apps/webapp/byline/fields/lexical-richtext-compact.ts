@@ -48,20 +48,20 @@ type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
 
 /**
  * Compact preset — disables secondary toolbar UI (text alignment,
- * inline-code, undo/redo, the floating format toolbar) for inline body
- * copy like image captions, byline strap-lines, or compact form fields.
- * Bold / italic / link editing remain on.
+ * inline-code, undo/redo, text style) for inline body copy like image
+ * captions, byline strap-lines, or compact form fields. Bold / italic /
+ * link editing remain on.
  *
- * To narrow the *extension* set per-field (drop tables, lists, embeds,
- * etc.) register a `LexicalRichTextCompact` wrapper component via
- * `FieldAdminConfig.editor` — same pattern as `aiRichTextAdmin()` —
- * because extension references aren't safe to bake into schemas.
+ * To narrow the *extension* set per-field — drop tables, lists, embeds,
+ * the floating format toolbar, the table action menu — register a
+ * `LexicalRichTextCompact` wrapper component via `FieldAdminConfig.editor`
+ * (same pattern as `aiRichTextAdmin()`). Extension references aren't safe
+ * to bake into schemas, and floating UIs are now extension-presence
+ * controlled rather than settings-controlled.
  */
 function applyCompactPreset(config: EditorConfig): EditorConfig {
   const o = config.settings.options
   o.textAlignment = false
-  o.tableActionMenuPlugin = false
-  o.floatingTextFormatToolbarPlugin = false
   o.textStyle = false
   o.inlineCode = false
   o.undoRedo = false

@@ -13,13 +13,10 @@ export type OptionName =
   | 'richText'
   | 'showTreeView'
   | 'textAlignment'
-  | 'tableActionMenuPlugin'
   | 'markdownShortcutPlugin'
   | 'undoRedo'
   | 'textStyle'
   | 'inlineCode'
-  | 'floatingLinkEditorPlugin'
-  | 'floatingTextFormatToolbarPlugin'
   | 'debug'
 
 export interface EditorSettings {

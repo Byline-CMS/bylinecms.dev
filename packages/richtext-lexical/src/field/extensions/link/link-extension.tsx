@@ -19,13 +19,19 @@ import {
   $isElementNode,
   $isRangeSelection,
   COMMAND_PRIORITY_LOW,
+  declarePeerDependency,
   defineExtension,
   type LexicalEditor,
   PASTE_COMMAND,
 } from 'lexical'
 
 import { validateUrl } from '../../utils/url'
+import {
+  type BylineFloatingUIConfig,
+  BylineFloatingUIExtension,
+} from '../byline-floating-ui/byline-floating-ui-extension'
 import { $toggleLink, AutoLinkNode, type LinkAttributes, LinkNode, TOGGLE_LINK_COMMAND } from '.'
+import { FloatingLinkEditorPlugin } from './floating-link-editor'
 
 /**
  * Registers Byline's custom link command + paste handling on `editor`.
@@ -112,4 +118,14 @@ export const LinkExtension = defineExtension({
   name: '@byline/richtext-lexical/Link',
   nodes: () => [LinkNode, AutoLinkNode],
   register: registerLink,
+  peerDependencies: [
+    declarePeerDependency<typeof BylineFloatingUIExtension>(BylineFloatingUIExtension.name, {
+      items: [
+        {
+          id: '@byline/richtext-lexical/Link/floating-editor',
+          Component: FloatingLinkEditorPlugin,
+        },
+      ],
+    } satisfies Partial<BylineFloatingUIConfig>),
+  ],
 })

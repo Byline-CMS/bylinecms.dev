@@ -27,10 +27,10 @@ import {
 } from 'lexical'
 import { createPortal } from 'react-dom'
 
-import { $isLinkNode, type LinkAttributes, TOGGLE_LINK_COMMAND } from '../../extensions/link'
 import { getDOMRangeRect } from '../../utils/getDOMRangeRect'
 import { getSelectedNode } from '../../utils/getSelectedNode'
 import { setFloatingElemPosition } from '../../utils/setFloatingElemPosition'
+import { $isLinkNode, type LinkAttributes, TOGGLE_LINK_COMMAND } from '../link'
 
 function TextFormatFloatingToolbar({
   editor,

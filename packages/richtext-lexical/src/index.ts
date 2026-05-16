@@ -24,6 +24,13 @@ export { EditorField } from './field/editor-field'
 export { AdmonitionExtension } from './field/extensions/admonition/admonition-extension'
 export { AutoEmbedExtension } from './field/extensions/auto-embed/auto-embed-extension'
 export {
+  type BylineFloatingUIConfig,
+  BylineFloatingUIExtension,
+  type BylineFloatingUIItem,
+  type BylineFloatingUIProps,
+  selectFloatingUIItems,
+} from './field/extensions/byline-floating-ui'
+export {
   type BylineToolbarConfig,
   BylineToolbarExtension,
   type BylineToolbarItem,
@@ -31,6 +38,7 @@ export {
   selectToolbarItems,
 } from './field/extensions/byline-toolbar'
 export { CodeHighlightExtension } from './field/extensions/code-highlight/code-highlight-extension'
+export { FloatingTextFormatExtension } from './field/extensions/floating-text-format/floating-text-format-extension'
 export { HorizontalRuleExtension } from './field/extensions/horizontal-rule/horizontal-rule-extension'
 export {
   type InlineImageConfig,

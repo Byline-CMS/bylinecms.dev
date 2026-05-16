@@ -375,6 +375,116 @@ fields: [
 
 The factory imports `defaultEditorConfig` from `@byline/richtext-lexical/server` (data-only, no React) so schemas using it remain tsx-loadable. To narrow the *extension* set for the same field, pair with a `FieldAdminConfig.editor` wrapper as in recipe 7.
 
+### Floating UIs — Byline floating-UI registry
+
+The editor's three built-in floating UIs (the link editor pop-over, the table action menu, the floating text-format toolbar) and any third-party equivalents all flow through `BylineFloatingUIExtension`. It's the floating-UI sibling of `BylineToolbarExtension`: contributors declare a peer dependency and supply a `{ id, Component }`; `Editor.tsx` reads the merged list once and renders every contributor under the shared `anchorElem`.
+
+Removing a contributing extension is the *only* suppression knob. There are no boolean toggles for individual floating UIs.
+
+#### Contract
+
+```ts
+// packages/richtext-lexical/src/field/extensions/byline-floating-ui/byline-floating-ui-extension.ts
+
+export interface BylineFloatingUIProps {
+  anchorElem: HTMLElement
+}
+
+export interface BylineFloatingUIItem {
+  /** Stable id — React key + dedup. Convention: `<extension-name>/<purpose>`. */
+  id: string
+  /** Component receives `anchorElem` and is expected to portal into it. */
+  Component: React.ComponentType<BylineFloatingUIProps>
+  /** Optional sort key — lower numbers render first. */
+  order?: number
+}
+
+export interface BylineFloatingUIConfig {
+  items: BylineFloatingUIItem[]
+}
+```
+
+#### Authoring a third-party floating UI
+
+```tsx
+import {
+  type BylineFloatingUIConfig,
+  BylineFloatingUIExtension,
+  type BylineFloatingUIProps,
+} from '@byline/richtext-lexical'
+import { declarePeerDependency, defineExtension } from 'lexical'
+
+function MyFloatingPopover({ anchorElem }: BylineFloatingUIProps): React.ReactPortal | null {
+  // Portal into anchorElem, position against the current selection, etc.
+  // …
+}
+
+export const MyFloatingExtension = defineExtension({
+  name: '@my-org/lexical-my-popover',
+  peerDependencies: [
+    declarePeerDependency<typeof BylineFloatingUIExtension>(BylineFloatingUIExtension.name, {
+      items: [
+        {
+          id: '@my-org/lexical-my-popover/popover',
+          Component: MyFloatingPopover,
+        },
+      ],
+    } satisfies Partial<BylineFloatingUIConfig>),
+  ],
+})
+```
+
+Register it the same way as any other extension:
+
+```ts
+defineClientConfig({
+  fields: {
+    richText: {
+      editor: lexicalEditor((c) => {
+        c.extensions.add(MyFloatingExtension)
+        return c
+      }),
+    },
+  },
+})
+```
+
+#### Suppressing a built-in floating UI
+
+Remove the extension that contributes it. The floating UI disappears with the same call that removes the underlying feature; there's no separate toggle.
+
+```ts
+import { lexicalEditor, FloatingTextFormatExtension, TableExtension } from '@byline/richtext-lexical'
+
+defineClientConfig({
+  fields: {
+    richText: {
+      editor: lexicalEditor((c) => {
+        c.extensions.remove(FloatingTextFormatExtension) // hides selection format pop-over
+        c.extensions.remove(TableExtension)              // also hides TableActionMenu
+        return c
+      }),
+    },
+  },
+})
+```
+
+For tables specifically, the `cellMerge` UI inside `TableActionMenuPlugin` mirrors the upstream `LexicalTableExtension.config.hasCellMerge`. Override it via:
+
+```ts
+c.extensions.configure(LexicalTableExtension, { hasCellMerge: false })
+```
+
+— the action menu reads the merged config at render time, so the UI follows.
+
+#### What gets contributed today
+
+| Extension | Contributed component | Notes |
+|---|---|---|
+| `LinkExtension` | `FloatingLinkEditorPlugin` | Edit / unlink pop-over above a link node. |
+| `TableExtension` | `TableActionMenuPlugin` | Reads `hasCellMerge` from upstream `LexicalTableExtension`. |
+| `FloatingTextFormatExtension` | `FloatingTextFormatToolbarPlugin` | Standalone — owns the selection format pop-over. |
+
 ### Worked example — the AI plugin end-to-end
 
 The `@byline/ai/plugins/lexical` package is the canonical third-party example. It ships:
@@ -690,15 +800,11 @@ Original plan split this work into four pieces. Status:
 
 2. **`BylineToolbarExtension` contract (shipped).** The old `ToolbarExtensionsProvider` React-context registry is gone — replaced by a typed Lexical extension. Contributors (built-in and third-party alike) declare `peerDependencies: [declarePeerDependency(BylineToolbarExtension, { items: [...] })]`. The toolbar plugin reads the merged config via `useExtensionDependency(BylineToolbarExtension)`. Contributions specify `placement: 'toolbar' | 'insert-menu'` and an `order`; built-ins live in the same registry as third parties (no two-tier system).
 
-3. **Floating-UI registry (TODO).** The package's three floating UIs (`FloatingLinkEditorPlugin`, `FloatingTextFormatToolbarPlugin`, `TableActionMenuPlugin`) are still rendered as React plugins inside `Editor.tsx` because each needs the runtime `anchorElem` ref. The cleanest landing is either:
-   - **Lexical Output Components** — each floating UI's extension exposes a `Component` via `build()`, and `Editor.tsx` mounts them via `useExtensionComponent(MyFloatingExtension)` at the right position, passing `anchorElem` as a prop. Same positional control as today; third-party floating UIs use the same shape and slot in without touching `Editor.tsx`.
-   - **Byline-owned floating-UI registry extension** — a typed extension whose merged config is `{ Component, shouldShow }[]`; `Editor.tsx` iterates and renders them all under the shared anchor. Lower per-extension boilerplate but introduces a Byline-specific concept on top of the Lexical primitive.
+3. **Floating-UI registry (shipped).** A typed `BylineFloatingUIExtension` (mirror of `BylineToolbarExtension`) is the registry for every floating UI mounted under the editor's shared anchor. Contributors — built-in or third-party — list it in `peerDependencies` and supply `{ id, Component }`. `Editor.tsx` iterates the merged list and renders each contributor; the three built-ins now arrive through this path (`LinkExtension` contributes `FloatingLinkEditorPlugin`, `TableExtension` contributes `TableActionMenuPlugin`, standalone `FloatingTextFormatExtension` contributes `FloatingTextFormatToolbarPlugin`). The three per-plugin booleans in `EditorSettings.options` (`floatingLinkEditorPlugin` / `floatingTextFormatToolbarPlugin` / `tableActionMenuPlugin`) were dropped — suppression is now `c.extensions.remove(...)`, symmetric with how toolbar items disappear when their extension leaves the graph. `TableActionMenuPlugin` reads `hasCellMerge` from the upstream `@lexical/table` `TableExtension` config via `useExtensionDependency` rather than receiving it as a prop, so `c.extensions.configure(LexicalTableExtension, { hasCellMerge: false })` flows through automatically. See [Floating UIs](#floating-uis--byline-floating-ui-registry) below for the contract and recipes.
 
-   Either route hits the goal: "no Byline application ever needs to fork `Editor.tsx` to add a floating UI." Once that lands, the three built-ins migrate alongside their respective features (`FloatingLinkEditorPlugin` joins `extensions/link/` where it already lives on disk; the others move from `plugins/` to their feature directories), and the `plugins/` directory finally empties out except for the toolbar itself.
+   `ToolbarPlugin` stays where it is — it's a *consumer* of `BylineToolbarExtension` (not a contributor) and needs a fixed DOM position above the content-editable, which the decorator slot can't express. If we ever want it under the extension graph, an Output Component pattern works: have the toolbar's extension `build()` return `{ Component: ToolbarPlugin }` and let `Editor.tsx` mount it via `useExtensionComponent`. Mechanically straightforward; not currently a pain point.
 
-   `ToolbarPlugin` stays where it is — it's a *consumer* of `BylineToolbarExtension` (not a contributor) and needs a fixed DOM position above the content-editable, which the decorator slot can't express. If we ever want it under the extension graph, the same Output Component pattern works: have the toolbar's extension `build()` return `{ Component: ToolbarPlugin }` and let `Editor.tsx` mount it via `useExtensionComponent`. Mechanically straightforward; not currently a pain point.
-
-4. **Extensions README (this doc + an in-tree pointer — TODO).** The recipe section above covers the full third-party authoring contract. A short pointer README in `packages/richtext-lexical/src/field/extensions/` deep-linking back here would close the loop for anyone browsing the source tree.
+4. **Extensions README (shipped).** Recipe section above covers the third-party authoring contract for extensions and toolbar contributions; [Floating UIs](#floating-uis--byline-floating-ui-registry) covers the floating-UI contract. An in-tree pointer at `packages/richtext-lexical/src/field/extensions/README.md` deep-links back here for anyone browsing the source tree.
 
 This phase is genuinely Lexical-specific. A second editor package (Phase 2) would have its own extensibility surface shaped by its own plugin model; the Phase 7 design here doesn't generalise to TipTap or ProseMirror.
 
@@ -722,13 +828,15 @@ This phase is genuinely Lexical-specific. A second editor package (Phase 2) woul
 | `ExtensionsList` chainable wrapper            | `packages/richtext-lexical/src/field/config/extensions-list.ts`           |
 | `EditorConfig` / `EditorSettings` types       | `packages/richtext-lexical/src/field/config/types.ts`                     |
 | `BylineToolbarExtension` + `selectToolbarItems` | `packages/richtext-lexical/src/field/extensions/byline-toolbar/`        |
+| `BylineFloatingUIExtension` + `selectFloatingUIItems` | `packages/richtext-lexical/src/field/extensions/byline-floating-ui/`     |
+| `FloatingTextFormatExtension` (standalone)    | `packages/richtext-lexical/src/field/extensions/floating-text-format/`    |
 | `ToolbarActiveEditorProvider` / `useToolbarActiveEditor` hook | `packages/richtext-lexical/src/field/plugins/toolbar-plugin/toolbar-active-editor.tsx` |
 | Toolbar consumer (reads contributed items)    | `packages/richtext-lexical/src/field/plugins/toolbar-plugin/index.tsx`    |
 | Editor-context composition (root extension)   | `packages/richtext-lexical/src/field/editor-context.tsx`                  |
-| Byline `TableExtension` wrapper               | `packages/richtext-lexical/src/field/extensions/table/`                   |
 | Byline `HorizontalRuleExtension` wrapper      | `packages/richtext-lexical/src/field/extensions/horizontal-rule/`         |
-| Link extension (UI + extension)               | `packages/richtext-lexical/src/field/extensions/link/`                    |
+| Link extension (UI + extension + floating editor) | `packages/richtext-lexical/src/field/extensions/link/`                |
 | Link extension (populate visitor)             | `packages/richtext-lexical/src/field/extensions/link/populate.ts`         |
+| Byline `TableExtension` (incl. action-menu floating UI) | `packages/richtext-lexical/src/field/extensions/table/`           |
 | Inline-image extension (UI + extension)       | `packages/richtext-lexical/src/field/extensions/inline-image/`            |
 | Inline-image extension (populate visitor)     | `packages/richtext-lexical/src/field/extensions/inline-image/populate.ts` |
 | Admonition extension                          | `packages/richtext-lexical/src/field/extensions/admonition/`              |

@@ -22,8 +22,10 @@ import type { AnyLexicalExtensionArgument } from 'lexical'
 
 import { AdmonitionExtension } from '../extensions/admonition/admonition-extension'
 import { AutoEmbedExtension } from '../extensions/auto-embed/auto-embed-extension'
+import { BylineFloatingUIExtension } from '../extensions/byline-floating-ui/byline-floating-ui-extension'
 import { BylineToolbarExtension } from '../extensions/byline-toolbar/byline-toolbar-extension'
 import { CodeHighlightExtension } from '../extensions/code-highlight/code-highlight-extension'
+import { FloatingTextFormatExtension } from '../extensions/floating-text-format/floating-text-format-extension'
 import { HorizontalRuleExtension } from '../extensions/horizontal-rule/horizontal-rule-extension'
 import { InlineImageExtension } from '../extensions/inline-image/inline-image-extension'
 import { LayoutExtension } from '../extensions/layout/layout-extension'
@@ -54,9 +56,10 @@ export function defaultExtensionsArray(): AnyLexicalExtensionArgument[] {
     TabIndentationExtension,
     AutoFocusExtension,
 
-    // Toolbar contract — must be present before any extension that
-    // contributes toolbar items via `peerDependencies`.
+    // Toolbar + floating-UI contracts — must be present before any
+    // extension that contributes items to them via `peerDependencies`.
     BylineToolbarExtension,
+    BylineFloatingUIExtension,
 
     // Block- / list-level features.
     ListExtension,
@@ -76,6 +79,10 @@ export function defaultExtensionsArray(): AnyLexicalExtensionArgument[] {
     YouTubeExtension,
     VimeoExtension,
     AutoEmbedExtension,
+
+    // Floating UIs (the text-format popover lives at the floating-UI layer
+    // rather than the toolbar contract, so it gets its own extension).
+    FloatingTextFormatExtension,
   ]
 }
 
