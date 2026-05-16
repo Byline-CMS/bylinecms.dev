@@ -44,6 +44,8 @@ Two layers prevent any test from ever pointing at the wrong database:
 
 Parallelisation across test files (template-database clone) is deferred until wall-clock pain shows up — current `--test-concurrency=1` + vitest default-serial is fast enough.
 
+The root `pnpm test:integration` runs Turbo with `--concurrency=1` so the `@byline/client` and `@byline/db-postgres` test suites don't race on the shared `byline_test` database (each one's `TRUNCATE` between files would otherwise wipe the other's mid-test state).
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request and on direct pushes to `develop` / `main`. Two jobs:
