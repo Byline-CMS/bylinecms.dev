@@ -23,7 +23,7 @@ We save document versions by default (UUIDv7 time-ordered). This gives us
 built-in version history, enables eventual audit trails, and avoids in-place
 mutation. We use `ROW_NUMBER() OVER PARTITION` for resolving "latest" versions.
 
-See [COLLECTIONS → Versioning](./COLLECTIONS.md#versioning).
+See [CORE-DOCUMENT-STORAGE → Versioning](./CORE-DOCUMENT-STORAGE.md#versioning) for the document-versioning runtime, and [COLLECTIONS → Versioning](./COLLECTIONS.md#versioning) for the *schema*-versioning track that records which schema shape each document was authored against.
 
 ## 3. Patch-Based Updates
 
@@ -31,6 +31,11 @@ We accumulate `DocumentPatch[]` on the client and apply them server-side
 against the reconstructed document. Three patch families (field, array, block)
 cover the essential operations. We also feel our patch-based strategy is a
 good foundation for future collaborative editing (OT/CRDT).
+
+Patches are admin-form internal — public writes go whole-document. See
+`packages/core/src/patches/` for the implementation, and
+[CLIENT-SDK → Write surface](./CLIENT-SDK.md#write-surface) for the public
+write contract.
 
 ## 4. Schema and Presentation Are Separate Systems
 
@@ -72,8 +77,8 @@ export const Pages: CollectionDefinition = {
 ```tsx
 // collections/pages/admin.tsx  (client-safe, presentation only)
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
+import { DateTimeFormatter } from '@byline/ui/react'
 
-import { DateTimeFormatter } from '@/ui/fields/date-time-formatter.js'
 import { Pages } from './schema.js'
 
 const listViewColumns: ColumnDefinition[] = [
@@ -86,7 +91,7 @@ const listViewColumns: ColumnDefinition[] = [
   },
   { fieldName: 'status', label: 'Status', align: 'center' },
   {
-    fieldName: 'updated_at',
+    fieldName: 'updatedAt',
     label: 'Last Updated',
     sortable: true,
     align: 'right',
@@ -96,11 +101,12 @@ const listViewColumns: ColumnDefinition[] = [
 
 export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   columns: listViewColumns,
-  fields: {
-    path: { position: 'sidebar' },
-    availableLanguages: { position: 'sidebar' },
-    publishedOn: { position: 'sidebar' },
-    featured: { position: 'sidebar' },
+  layout: {
+    // 'main' / 'sidebar' accept schema field names and named layout primitives
+    // (tabSets, rows, groups). The 'path' widget is form chrome rendered
+    // structurally from the schema's useAsPath — it is NOT addressable here.
+    main: ['title', 'content'],
+    sidebar: ['availableLanguages', 'publishedOn', 'featured'],
   },
 })
 ```
@@ -127,9 +133,15 @@ What it costs:
 
 - Two files instead of one (or two declarations in a single file — though
   this is arguably better separation of concerns).
-- A "linking" mechanism is needed so the framework knows which admin config
-  belongs to which schema.
+- A linking step is needed so the framework knows which admin config
+  belongs to which schema. In Byline today this is `defineAdmin(schema, …)` —
+  it sets the admin config's `slug` from `schema.path` automatically.
 - Harder to see "the whole picture" at a glance for a single collection.
+
+See [COLLECTIONS](./COLLECTIONS.md) for the full collection-level reference
+(columns, layout primitives, preview URL, custom list views, versioning) and
+[FIELDS](./FIELDS.md) for the equivalent split applied at the field level
+(component slots, helper factories, the per-field richtext editor swap).
 
 ### Prior art for this split
 
