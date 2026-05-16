@@ -5,6 +5,7 @@ import pg from 'pg'
 import * as schema from '../database/schema/index.js'
 import { createCommandBuilders } from '../modules/storage/storage-commands.js'
 import { createQueryBuilders } from '../modules/storage/storage-queries.js'
+import { assertTestDatabase } from './test-db.js'
 
 let pool: pg.Pool
 let db: NodePgDatabase<typeof schema>
@@ -13,16 +14,14 @@ let queryBuilders: ReturnType<typeof createQueryBuilders>
 
 export function setupTestDB(collections: CollectionDefinition[] = []) {
   if (!pool) {
+    assertTestDatabase(process.env.POSTGRES_CONNECTION_STRING)
     pool = new pg.Pool({
       connectionString: process.env.POSTGRES_CONNECTION_STRING,
-      // Integration tests share the dev database with the running webapp,
-      // and node:test may run multiple test files in separate processes.
-      // A pool-per-file of 20 connections × N files + the webapp's own
-      // pool of 20 blows past Postgres's default `max_connections=100`
-      // and throws `FATAL: sorry, too many clients already`. The tests
-      // are serial and run one query at a time, so a small pool is
-      // sufficient — keep total test connections low regardless of
-      // process / file parallelism.
+      // node:test runs each test file in its own process. Even though
+      // tests target a dedicated `byline_test` database, a pool-per-file
+      // of 20 connections × N files can still pressure Postgres's default
+      // `max_connections=100`. Tests are serial and run one query at a
+      // time, so a small pool is sufficient.
       max: 4,
       idleTimeoutMillis: 2000,
       connectionTimeoutMillis: 1000,

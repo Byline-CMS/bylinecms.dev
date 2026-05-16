@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+# Run one job per ref; cancel earlier in-flight runs on the same ref to
+# save minutes when a contributor pushes a quick fix-up.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-typecheck:
+    # Skip release commits (`chore(release): 1.2.3`) — they only bump versions
+    # and CHANGELOG entries; the underlying code has already been gated by an
+    # earlier run. PRs evaluate the head_commit context as empty, so this
+    # condition only filters direct pushes to develop/main.
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+  integration:
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: byline
+          POSTGRES_PASSWORD: byline
+          POSTGRES_DB: byline_test
+        ports:
+          - 5432:5432
+        # Wait for Postgres to be ready before the workflow steps run.
+        options: >-
+          --health-cmd "pg_isready -U byline -d byline_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POSTGRES_CONNECTION_STRING: postgres://byline:byline@127.0.0.1:5432/byline_test
+      POSTGRES_HOSTNAME: 127.0.0.1
+      POSTGRES_PORT: '5432'
+      POSTGRES_DATABASE: byline_test
+      POSTGRES_USER: byline
+      POSTGRES_PASSWORD: byline
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      # @byline/db-postgres exposes the test-db helper under the `./testing`
+      # subpath; @byline/client imports it from its built `dist/`. Building
+      # all packages ensures every import path resolves.
+      - run: pnpm build:packages
+
+      # Both test runners read POSTGRES_CONNECTION_STRING from `.env.test`
+      # files. CI writes them from the job-level env block; they're
+      # gitignored so committing them by accident isn't possible.
+      - name: Write .env.test files
+        run: |
+          cat > packages/db-postgres/.env.test <<EOF
+          POSTGRES_CONNECTION_STRING=$POSTGRES_CONNECTION_STRING
+          POSTGRES_HOSTNAME=$POSTGRES_HOSTNAME
+          POSTGRES_PORT=$POSTGRES_PORT
+          POSTGRES_DATABASE=$POSTGRES_DATABASE
+          POSTGRES_USER=$POSTGRES_USER
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          EOF
+          cat > packages/client/.env.test <<EOF
+          POSTGRES_CONNECTION_STRING=$POSTGRES_CONNECTION_STRING
+          EOF
+
+      - run: pnpm test:integration

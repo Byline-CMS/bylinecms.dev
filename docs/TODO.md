@@ -14,13 +14,9 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ## Now
 
-### CI integration-test pipeline
-
-The integration tests under `**/*.integration.test.ts` cover the load-bearing storage, lifecycle, populate, before-read, and relation-filter machinery, but they require a live Postgres so they don't run on every PR — every change is currently merged on dev-machine confidence. Wire a GitHub Actions workflow that brings up a Postgres service container, runs `pnpm drizzle:migrate` against it, and runs the integration suite alongside the existing `pnpm typecheck` / `pnpm test` jobs. Highest-leverage missing item; protects every subsequent change.
-
 ### Richtext populate integration test
 
-Deferred from the round that landed the populate primitive. Needs a running Postgres (and now the CI pipeline above). Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate) for the populate primitive itself.
+Deferred from the round that landed the populate primitive. The CI integration-test pipeline now runs the suite on every PR (see [TESTING.md](./TESTING.md)) so this can land at any time. Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate) for the populate primitive itself.
 
 ---
 

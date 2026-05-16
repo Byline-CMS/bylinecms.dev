@@ -45,6 +45,12 @@
     "test": {
       "outputs": []
     },
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "cache": false,
+      "env": ["POSTGRES_CONNECTION_STRING"]
+    },
     "preview": {
       "cache": false,
       "dependsOn": ["^preview"],

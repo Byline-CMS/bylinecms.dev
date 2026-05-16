@@ -37,8 +37,9 @@
     "drizzle:push": "tsc -p tsconfig.json && drizzle-kit push --config=drizzle.config.ts",
     "drizzle:drop": "drizzle-kit drop --config=drizzle.config.ts",
     "drizzle:seed": "tsx --no-warnings --env-file=.env ./src/database/seeds/index.ts",
-    "test": "LOG_LEVEL=off tsx --env-file=.env --test --test-concurrency=1 $(find . -name \"*.test.ts\")",
-    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env --test",
+    "test": "echo 'db-postgres has no unit tests; run pnpm test:integration for the DB-backed suite.'",
+    "test:integration": "LOG_LEVEL=off tsx --env-file=.env.test --import ./src/lib/test-bootstrap.ts --test --test-concurrency=1 $(find . -name \"*.test.ts\" -not -path \"*/node_modules/*\" -not -path \"*/dist/*\")",
+    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env.test --import ./src/lib/test-bootstrap.ts --test",
     "typecheck": "tsc --noEmit"
   },
   "exports": {
@@ -56,6 +57,11 @@
       "types": "./dist/database/schema/index.d.ts",
       "import": "./dist/database/schema/index.js",
       "require": "./dist/database/schema/index.js"
+    },
+    "./testing": {
+      "types": "./dist/lib/test-db.d.ts",
+      "import": "./dist/lib/test-db.js",
+      "require": "./dist/lib/test-db.js"
     },
     "./package.json": "./package.json"
   },

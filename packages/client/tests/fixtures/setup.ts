@@ -9,9 +9,11 @@
 import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
-import 'dotenv/config'
 
 import { type BylineClient, createBylineClient } from '../../src/index.js'
+
+// Env is loaded by `tests/_per-file-setup.ts` (.env.test) before any test
+// file's imports resolve. No dotenv side-effect import here.
 
 export interface TestContext {
   client: BylineClient
@@ -29,14 +31,12 @@ export interface TestContext {
 export async function setupTestClient(definition: CollectionDefinition): Promise<TestContext> {
   const connectionString = process.env.POSTGRES_CONNECTION_STRING
   if (!connectionString) {
-    throw new Error(
-      'POSTGRES_CONNECTION_STRING is not set. Copy .env.example to .env and configure it.'
-    )
+    throw new Error('POSTGRES_CONNECTION_STRING is not set. Copy .env.test.example to .env.test.')
   }
 
   const collections = [definition]
 
-  const db = pgAdapter({ connectionString, collections })
+  const db = pgAdapter({ connectionString, collections, defaultContentLocale: 'en' })
 
   const client = createBylineClient({
     db,
