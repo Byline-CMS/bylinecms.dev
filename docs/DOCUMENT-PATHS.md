@@ -17,6 +17,106 @@ Three rules anchor the model:
 
 This work was the first time a system attribute was promoted out of the user-defined field tree. It establishes a pattern for any future "system metadata that needs editing in the admin form": reserve the name, expose it via a directive, render it through a non-field widget, and persist it via a top-level lifecycle parameter — not a `field.set` patch.
 
+---
+
+## Quick reference
+
+Each entry is the minimal shape for one task. The "Edit" line tells you which file you actually change; the link at the end points at the deeper section.
+
+### 1. Set `useAsPath` on a collection
+
+Name the field whose slugified value initialises a document's `path` on first create. Must be a top-level field of a path-compatible type (`text`, `textArea`, `select`, `date`, `datetime`, `time`).
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+export const News = defineCollection({
+  path: 'news',
+  useAsTitle: 'title',
+  useAsPath: 'title',           // ← slugified from `title` on first create
+  fields: [
+    { name: 'title', type: 'text', localized: true },
+    /* … */
+  ],
+})
+```
+
+`path` is sticky after creation — subsequent saves don't re-derive. Editors can re-anchor explicitly via the path widget's "Regenerate from {source}" action.
+
+→ [Derivation cascade](#derivation-cascade)
+
+### 2. Override `path` explicitly on create or update
+
+Both `CollectionHandle.create` and `CollectionHandle.update` accept a top-level `path` parameter (separate from `data`). Useful for seeds, imports, and any caller that needs a specific URL slug.
+
+**Edit:** any write call site — typically a seed under `apps/webapp/byline/seeds/` or a one-off script.
+
+```ts
+await client.collection('news').create({
+  data: { title: 'Launch announcement' },
+  path: 'launch-2026',           // ← overrides the useAsPath derivation
+  locale: 'en',
+})
+
+await client.collection('news').update(id, {
+  data: { title: 'Revised title' },
+  path: 'new-canonical-slug',    // ← only honoured on default-locale writes
+})
+```
+
+On a non-default-locale (translation) update, `path` is dropped silently with a `logger.warn` — phase 1 paths are default-locale-territory.
+
+→ [Lifecycle wiring](#lifecycle-wiring)
+
+### 3. Install a custom slugifier
+
+The default slugifier is pure, sync, Unicode-aware (NFC), CJK-preserving, and recognises ISO 8601 date prefixes. Override site-wide if you need stricter URL policies, a different transliteration, or a domain-specific format. The contract is **sync + pure** because the same function runs server-side at write time and client-side in the path widget's live preview — the two must agree.
+
+**Edit:** `apps/webapp/byline/server.config.ts`
+
+```ts
+import type { SlugifierFn } from '@byline/core'
+
+const myStrictSlugifier: SlugifierFn = (value, _ctx) => {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+await initBylineCore({
+  // …db, collections, storage, sessionProvider, adminStore, …
+  slugifier: myStrictSlugifier,
+})
+```
+
+→ [The slugifier](#the-slugifier)
+
+### 4. Handle `ERR_PATH_CONFLICT`
+
+Per-collection path uniqueness is enforced at the database level via a unique index on `(collection_id, locale, path)`. Collisions across different documents surface as `ERR_PATH_CONFLICT` from the lifecycle layer; re-saving the same path for the *same* document is idempotent.
+
+**Edit:** any write call site that surfaces user-supplied paths.
+
+```ts
+import { BylineError, ErrorCodes } from '@byline/core'
+
+try {
+  await client.collection('news').update(id, {
+    data: { title },
+    path: requestedPath,
+  })
+} catch (err) {
+  if (err instanceof BylineError && err.code === ErrorCodes.PATH_CONFLICT) {
+    return { error: `The slug "${requestedPath}" is already in use.` }
+  }
+  throw err
+}
+```
+
+Auto-suffixing is intentionally not implemented — silent rename is footgun-shaped. Seeders / bulk imports can pre-resolve uniqueness in caller code if they need to.
+
+→ [Path uniqueness — shipped](#path-uniqueness--shipped)
+
+---
+
 ## Derivation cascade
 
 `createDocument` runs three derivation steps in order:
