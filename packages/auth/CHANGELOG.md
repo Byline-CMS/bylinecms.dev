@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 1.12.0
+
+### Minor Changes
+
+- Richtext refactor to Lexical extensions API, extensibility, and updated docs.
+
 ## 1.11.2
 
 ### Patch Changes

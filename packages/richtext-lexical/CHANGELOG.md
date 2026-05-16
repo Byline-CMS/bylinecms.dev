@@ -1,5 +1,18 @@
 # @byline/richtext-lexical
 
+## 1.12.0
+
+### Minor Changes
+
+- Richtext refactor to Lexical extensions API, extensibility, and updated docs.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/client@1.12.0
+  - @byline/core@1.12.0
+  - @byline/ui@1.12.0
+
 ## 1.11.2
 
 ### Patch Changes
