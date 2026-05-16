@@ -19,6 +19,7 @@
     right: 0;
     bottom: 0;
     background-color: rgba(245, 245, 245, 0.35);
+    z-index: var(--z-index-modal);
     transition: opacity 200ms ease;
   }
 
@@ -47,6 +48,7 @@
     left: 0;
     right: 0;
     bottom: 0;
+    z-index: var(--z-index-modal);
     transition: opacity 200ms ease;
   }
 
