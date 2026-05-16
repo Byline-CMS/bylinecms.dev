@@ -1,8 +1,11 @@
 # File / Media Uploads
 
 > Companions:
+> - [COLLECTIONS.md](./COLLECTIONS.md) — collection schema and admin (the Media collection is a worked example).
+> - [FIELDS.md](./FIELDS.md) — schema/admin split applied to fields, including upload fields.
 > - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — `store_file` is the row that backs a persisted upload.
 > - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `populate` over a `relation` to a media collection carries the file envelope and its variants in one round-trip.
+> - [CLIENT-SDK.md](./CLIENT-SDK.md) — reading uploaded files (and their variants) via `@byline/client`.
 > - [ROUTING-API.md](./ROUTING-API.md) — the upload transport is an internal TanStack Start server function today; a stable public HTTP boundary is deferred.
 
 ## Overview
@@ -20,17 +23,315 @@ This is unlike the more common "the collection *is* a media library" model. In B
 1. A single collection can carry multiple, independently-configured upload fields. A `Profile` collection can have `avatar` (image, square crops, 5 MB) *and* `signaturePdf` (file, application/pdf, 2 MB) without any schema gymnastics.
 2. Two image fields on the same collection can route to different storage backends — avatars on the local disk, editorial images on S3 — without inventing a new abstraction.
 
-## Two patterns, one mechanism
+**Two patterns, one mechanism:**
 
-**A. Shared media library.** A dedicated `Media` collection has a single upload-capable `image` field. Other collections relate to it via `relation { targetCollection: 'media' }`. Variants ride along on the populated relation envelope because populate already returns the full target document's `fields` — no extra projection ceremony. This is the right choice when assets are reused across documents (a hero image used across 20 posts, shared brand assets, an editor-browseable gallery).
-
-**B. Inline upload on a non-media collection.** A `Page` schema drops `{ type: 'image', name: 'heroImage', upload: { sizes: [...] } }` straight into its own fields. No `Media` row, no relation hop, no second admin screen. This is the right choice when the file is intrinsic to the document — a user's avatar, a page's OG image used nowhere else, a contract's PDF attachment.
-
-**C. Both, in the same schema.** A `Page` can have `heroImage` inline *and* `gallery: [{ type: 'relation', targetCollection: 'media' }]` for the editorial library, side by side.
+- **Shared media library.** A dedicated `Media` collection has a single upload-capable `image` field. Other collections relate to it via `relation { targetCollection: 'media' }`. Variants ride along on the populated relation envelope. Right when assets are reused across documents.
+- **Inline upload on a non-media collection.** A `Page` schema drops `{ type: 'image', name: 'heroImage', upload: { sizes: [...] } }` straight into its own fields. No `Media` row, no relation hop, no second admin screen. Right when the file is intrinsic to the document.
+- **Both, in the same schema.** A `Page` can have `heroImage` inline *and* `gallery: relation(many) → media` side by side.
 
 The "is this a media library?" question is a UI concern, not a schema one — the admin shows gallery affordances for collections it knows about by convention, not by a flag in the schema.
 
-## `UploadConfig` reference
+---
+
+## Quick reference
+
+Each entry is the minimal shape for one task. The "Edit" line tells you which file you actually change; the link at the end points at the deeper architecture section.
+
+### 1. Add an upload field
+
+The minimum: `{ type: 'image' | 'file', upload: {} }`. Defaults work — every mime type accepted, no size cap, no variants. Tighten as needed.
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+import { defineCollection } from '@byline/core'
+
+export const Profiles = defineCollection({
+  path: 'profiles',
+  fields: [
+    { name: 'name', type: 'text' },
+    {
+      name: 'avatar',
+      type: 'image',
+      upload: {
+        mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+        maxFileSize: 5 * 1024 * 1024,   // 5 MB
+      },
+    },
+  ],
+})
+```
+
+→ [`UploadConfig` reference](#uploadconfig-reference)
+
+### 2. Configure named image variants
+
+`upload.sizes[]` lists Sharp-driven variants. Each entry produces one stored file at write time; the envelope returned to the client includes a `variants[]` array with one entry per size.
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+{
+  name: 'image',
+  type: 'image',
+  upload: {
+    sizes: [
+      { name: 'thumbnail', width: 400, height: 400, fit: 'cover',  format: 'avif', quality: 55 },
+      { name: 'card',      width: 600,              fit: 'inside', format: 'avif', quality: 55 },
+      { name: 'mobile',    width: 768,              fit: 'inside', format: 'avif', quality: 55 },
+      { name: 'tablet',    width: 1280,             fit: 'inside', format: 'avif', quality: 55 },
+      { name: 'desktop',   width: 2100,             fit: 'inside', format: 'avif', quality: 55 },
+    ],
+  },
+}
+```
+
+AVIF is widely supported across modern browsers (Chrome 85+, Firefox 93+, Safari 16.4+) and typically yields ~20–30% smaller files than WebP at comparable quality. Sharp's avif quality scale is lower-numbered than webp/jpeg — `quality: 55` is a sensible AVIF default; bump to ~80 for WebP.
+
+→ [Variant persistence on `store_file`](#variant-persistence-on-store_file)
+
+### 3. Multiple upload fields in one collection
+
+Each upload-capable field is configured independently. The admin shell selects which field receives a given uploaded file via the `field` selector on the upload server fn.
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+export const Profiles = defineCollection({
+  path: 'profiles',
+  fields: [
+    {
+      name: 'avatar',
+      type: 'image',
+      upload: {
+        mimeTypes: ['image/jpeg', 'image/png'],
+        maxFileSize: 5 * 1024 * 1024,
+        sizes: [{ name: 'thumbnail', width: 200, height: 200, fit: 'cover', format: 'webp' }],
+      },
+    },
+    {
+      name: 'signature',
+      type: 'file',
+      upload: {
+        mimeTypes: ['application/pdf'],
+        maxFileSize: 2 * 1024 * 1024,
+      },
+    },
+  ],
+})
+```
+
+The auto-mounted upload endpoint resolves the field by name. Disambiguation rules live in [The transport endpoint](#the-transport-endpoint).
+
+→ [Files vs images](#files-vs-images)
+
+### 4. Route one field to a different storage provider
+
+`UploadConfig.storage` overrides `ServerConfig.storage` per field. Avatars on local disk, editorial images on S3, signatures on a separate bucket — all without inventing a new abstraction.
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+import { s3StorageProvider } from '@byline/storage-s3'
+import { localStorageProvider } from '@byline/storage-local'
+
+fields: [
+  {
+    name: 'avatar',
+    type: 'image',
+    upload: {
+      storage: localStorageProvider({ uploadDir: './uploads/avatars', baseUrl: '/uploads/avatars' }),
+    },
+  },
+  {
+    name: 'heroImage',
+    type: 'image',
+    upload: {
+      storage: s3StorageProvider({
+        bucket: process.env.S3_EDITORIAL_BUCKET!,
+        region: 'eu-west-1',
+        // …credentials, publicUrl, etc.
+      }),
+    },
+  },
+]
+```
+
+A storage provider is identified at write time by `storedFile.storageProvider`; the read path doesn't need to know which provider produced a given file beyond what's already in the envelope.
+
+→ [Storage routing](#storage-routing)
+
+### 5. Rename uploaded files via `beforeStore`
+
+The `beforeStore` hook fires after auth + mime/size validation and before the storage write. Return a string to rewrite the filename; return `{ error }` to reject. Generated variant filenames inherit the new prefix automatically (`<basename>-<variantName>.<ext>`).
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+import type { BeforeStoreContext } from '@byline/core'
+
+fields: [
+  {
+    name: 'image',
+    type: 'image',
+    upload: {
+      hooks: {
+        beforeStore: [
+          // tenant-prefix everything
+          ({ filename, requestContext }) =>
+            `${requestContext.actor?.id ?? 'anon'}-${filename}`,
+          // …then prefix with publication ID if present in the form
+          ({ filename, fields }) =>
+            fields.publicationId ? `${fields.publicationId}-${filename}` : undefined,
+          // …then enforce uniqueness within the collection
+          async ({ filename, collectionPath }) => {
+            if (await isAssetTaken(collectionPath, filename)) {
+              return { error: `An asset with name '${filename}' already exists.` }
+            }
+          },
+        ],
+      },
+    },
+  },
+]
+```
+
+Multi-function chains stack with fold semantics — each function sees the previous function's filename override. Returning `void` keeps the current filename; returning `{ error }` short-circuits with `ERR_VALIDATION` — no file is written, no variants generated, no later hook runs.
+
+→ [`beforeStore` and `afterStore` hooks](#beforestore-and-afterstore-hooks)
+
+### 6. Audit / notify on success via `afterStore`
+
+`afterStore` runs after the storage write and variant generation, with the persisted `StoredFileValue` in hand. Failures are logged via `logger.error` but do **not** roll back the storage write — consistent with `afterCreate` / `afterUpdate`.
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+import type { AfterStoreContext } from '@byline/core'
+
+fields: [
+  {
+    name: 'image',
+    type: 'image',
+    upload: {
+      hooks: {
+        afterStore: async ({ storedFile, fieldName, collectionPath, requestContext }) => {
+          await auditLog.write({
+            actor: requestContext.actor?.id ?? 'anon',
+            event: 'upload.complete',
+            collection: collectionPath,
+            field: fieldName,
+            fileId: storedFile.fileId,
+            bytes: storedFile.fileSize,
+          })
+        },
+      },
+    },
+  },
+]
+```
+
+→ [`beforeStore` and `afterStore` hooks](#beforestore-and-afterstore-hooks)
+
+### 7. Read an uploaded image on the public side
+
+The `StoredFileValue` envelope round-trips intact through `@byline/client`. Variants ride along — no second round-trip — so you can build a `<picture>` / `srcset` directly.
+
+**Edit:** a server fn or component reading the document — for the Media collection, `apps/webapp/src/modules/news/detail.ts` reads `featureImage` via populate.
+
+```ts
+import type { StoredFileValue } from '@byline/core'
+
+const doc = await client.collection('media').findById(id)
+const image = doc?.fields.image as StoredFileValue | undefined
+
+console.log(image?.storageUrl)              // /uploads/media/abc.jpg
+console.log(image?.imageWidth)              // 2048
+console.log(image?.variants?.length)        // 5
+```
+
+For per-image rendering, `apps/webapp/src/ui/byline/components/responsive-image/index.tsx` is the reference `<picture>` component — AVIF-first source order, srcSet computed from the variants, sensible `sizes` defaults.
+
+→ [Reading uploaded files](#reading-uploaded-files)
+
+### 8. Pick a single named variant
+
+For thumbnails and other fixed-size renders, look up the variant by name. The pattern used by `MediaThumbnail`:
+
+**Edit:** any component reading a media document.
+
+```tsx
+import type { StoredFileValue } from '@byline/core'
+
+const img = doc.fields.image as StoredFileValue | undefined
+const thumb = img?.variants?.find((v) => v.name === 'thumbnail')
+const url = thumb?.storageUrl ?? img?.storageUrl   // fallback to original
+```
+
+→ [Variant persistence on `store_file`](#variant-persistence-on-store_file)
+
+### 9. Read an uploaded image through a populated relation
+
+When a non-media collection references the Media library, populate carries the entire `StoredFileValue` (including variants) on the related document's `fields.image`. No extra round-trip.
+
+**Edit:** the server fn for the parent collection — `apps/webapp/src/modules/news/list.ts` is the worked example.
+
+```ts
+import type { WithPopulated } from '@byline/client'
+
+type NewsListFields = WithPopulated<NewsFields, 'featureImage', MediaFields>
+
+const result = await client.collection('news').find<NewsListFields>({
+  populate: { featureImage: '*' },
+  // …
+})
+
+// Per-doc access:
+const featureImage = result.docs[0]?.fields.featureImage?.document?.fields.image
+// featureImage.variants is populated; build a <picture> directly.
+```
+
+→ [Reading uploaded files](#reading-uploaded-files)
+
+### 10. Call the upload endpoint directly
+
+For non-form callers (CLI imports, scripted ingest, eventual drag-into-list-view shortcuts), the auto-mounted endpoint accepts FormData. Pass `createDocument: 'true'` to skip the two-round-trip dance — bytes and document write happen in one shot, with storage rollback on failure.
+
+```ts
+const form = new FormData()
+form.append('file', file)
+form.append('collection', 'media')
+form.append('field', 'image')          // required when collection has >1 upload field
+form.append('createDocument', 'true')  // single-shot path
+
+const response = await fetch('/admin/api/media/upload', {
+  method: 'POST',
+  body: form,
+  credentials: 'include',
+})
+```
+
+For in-form uploads the admin shell handles this automatically via `executeUploads` and posts with `createDocument: 'false'` so the document save is a separate round-trip carrying the `StoredFileValue` in `data`.
+
+→ [The transport endpoint](#the-transport-endpoint)
+
+### 11. Use SVG safely
+
+SVG bypass is built in. `ResponsiveImage` short-circuits to the raw `<img src>` when `image.mimeType === 'image/svg+xml'` because variants aren't generated for SVG (no rasterisation, no upscaling). If you accept SVG, ensure your image-rendering component honours that bypass — Byline's `ResponsiveImage` already does.
+
+**Edit:** `apps/webapp/byline/collections/media/schema.ts` — include `'image/svg+xml'` in `mimeTypes`.
+
+```ts
+mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml']
+```
+
+→ [Files vs images](#files-vs-images)
+
+---
+
+## Architecture
+
+### `UploadConfig` reference
 
 ```ts
 interface UploadConfig {
@@ -56,42 +357,11 @@ interface UploadHooks {
 }
 ```
 
-A worked schema (`apps/webapp/byline/collections/media/schema.ts`):
-
-```ts
-export const Media: CollectionDefinition = {
-  path: 'media',
-  fields: [
-    {
-      name: 'image',
-      label: 'Image',
-      type: 'image',
-      upload: {
-        mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml'],
-        maxFileSize: 20 * 1024 * 1024,
-        sizes: [
-          { name: 'thumbnail', width: 400, height: 400, fit: 'cover',  format: 'webp', quality: 80 },
-          { name: 'card',      width: 600,              fit: 'inside', format: 'webp', quality: 82 },
-          { name: 'mobile',    width: 768,              fit: 'inside', format: 'webp', quality: 85 },
-          { name: 'tablet',    width: 1280,             fit: 'inside', format: 'webp', quality: 85 },
-          { name: 'desktop',   width: 2100,             fit: 'inside', format: 'webp', quality: 85 },
-        ],
-        hooks: {
-          beforeStore: (ctx) => { /* may rename, may reject */ },
-          afterStore:  (ctx) => { /* fan-out, audit, notify, etc. */ },
-        },
-      },
-    },
-    { name: 'title',   label: 'Title',   type: 'text' },
-    { name: 'altText', label: 'Alt Text', type: 'text' },
-    // ...
-  ],
-}
-```
-
 The same shape works on a `FileField` for non-image uploads — `sizes` is simply ignored, and `imageProcessor.generateVariants` is skipped at runtime.
 
-## End-to-end flow
+The reference Media schema in `apps/webapp/byline/collections/media/schema.ts` carries every knob set deliberately (avif variants, 20 MB cap, common image mimetypes including SVG) and is the canonical worked example.
+
+### End-to-end flow
 
 The diagram below traces what happens when a user picks an image in the Media admin form and clicks Save. Two server round-trips:
 
@@ -181,11 +451,7 @@ The diagram below traces what happens when a user picks an image in the Media ad
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### When `field-upload.ts` is invoked
-
-In the form flow above the service is called **once per pending file**, on a separate round-trip *before* the document save, with `shouldCreateDocument: false`. The document save is a second, independent server fn (`create.ts` / `update.ts`) that goes through `document-lifecycle.ts`.
-
-The `shouldCreateDocument: true` branch — which calls `createDocument` from `document-lifecycle` and rolls back storage on failure — is the alternate, **single-shot** path. It exists for callers that aren't going through a form (CLI imports, scripted ingest, an eventual drag-into-list-view shortcut). It is *not* what the admin form takes.
+**When `field-upload.ts` is invoked.** In the form flow above the service is called **once per pending file**, on a separate round-trip *before* the document save, with `shouldCreateDocument: false`. The document save is a second, independent server fn (`create.ts` / `update.ts`) that goes through `document-lifecycle.ts`. The `shouldCreateDocument: true` branch — which calls `createDocument` from `document-lifecycle` and rolls back storage on failure — is the alternate, **single-shot** path for callers that aren't going through a form (CLI imports, scripted ingest). It is *not* what the admin form takes.
 
 ### Files vs images
 
@@ -196,7 +462,9 @@ Both are handled. The code is symmetric on `'image' | 'file'`:
 - Image-only steps (`extractMeta`, `generateVariants`) are gated by `mimeType.startsWith('image/')` and `imageProcessor?.generateVariants` — `file` fields just skip them and persist the raw `StoredFileValue`.
 - The UI ships both `ImageUploadField` and `FileField`; both register through the same `addPendingUpload` → `executeUploads` → `uploadField` transport.
 
-## How uploaded files are stored
+**SVG bypass.** The storage-local image processor exports `isBypassMimeType(mimeType)` which returns `true` for `image/svg+xml`. The processor skips meta extraction and variant generation for those; the persisted `StoredFileValue.variants` is absent. `ResponsiveImage` (`apps/webapp/src/ui/byline/components/responsive-image/`) detects the SVG case and falls through to the raw `<img src>` — see QR recipe 11.
+
+### How uploaded files are stored
 
 The upload round-trip writes **bytes only**, not database rows. With `shouldCreateDocument: false`, the only durable state `field-upload.ts` touches is `storage.upload(buffer, ...)` (and, for images, the variant writes inside `imageProcessor.generateVariants`). For the local provider that means:
 
@@ -224,9 +492,7 @@ The service then synthesises a `StoredFileValue` in memory:
 
 …and returns it. **No row in `store_file`, `store_meta`, `documents`, or `document_versions` is created on this round-trip.** That is by design: there is no document yet to attach `store_*` rows to (`document_version_id` is the FK target).
 
-### What carries the file across the gap
-
-The `StoredFileValue` JSON. The browser receives it, `setFieldValue(fieldPath, storedFile)` stores it in form state replacing the `PendingStoredFileValue` placeholder, and `onSubmit({ data, patches })` ships `data.image = StoredFileValue` to `create.ts` / `update.ts`. The lifecycle write goes through `flattenFieldSetData` and lands a `store_file` row whose value column holds the paths the upload step already wrote. **The file row is the first DB record that knows the bytes exist.**
+**What carries the file across the gap.** The `StoredFileValue` JSON. The browser receives it, `setFieldValue(fieldPath, storedFile)` stores it in form state replacing the `PendingStoredFileValue` placeholder, and `onSubmit({ data, patches })` ships `data.image = StoredFileValue` to `create.ts` / `update.ts`. The lifecycle write goes through `flattenFieldSetData` and lands a `store_file` row whose value column holds the paths the upload step already wrote. **The file row is the first DB record that knows the bytes exist.**
 
 ```
 Round-trip 1 (field upload):       bytes → storage.   StoredFileValue → browser.
@@ -237,9 +503,7 @@ Round-trip 2 (document save):      data.image: StoredFileValue → store_file ro
                                                               + store_meta + document_version
 ```
 
-### Consequences of the gap
-
-Orphaned files are possible. There is no orphan sweeper today. Failure modes that leak files:
+**Consequences of the gap.** Orphaned files are possible. There is no orphan sweeper today. Failure modes that leak files:
 
 - User closes the tab after upload and before Save.
 - User picks a file, fails form validation, picks a different file, saves — first file is orphaned.
@@ -247,11 +511,9 @@ Orphaned files are possible. There is no orphan sweeper today. Failure modes tha
 - Network blip between the two round-trips.
 - Hard browser refresh — the `StoredFileValue` only lives in form state, so a reload before save abandons the file in storage.
 
-The single-shot `shouldCreateDocument: true` path does not have this gap. Storage write and document write are in the same handler, and the explicit `storage.delete(...)` rollback runs on document-creation failure inside `field-upload.ts`.
+The single-shot `shouldCreateDocument: true` path does not have this gap. Storage write and document write are in the same handler, and the explicit `storage.delete(...)` rollback runs on document-creation failure inside `field-upload.ts`. Closing the gap on the form path is tracked as a future direction — see [Open questions](#open-questions).
 
-Closing the gap on the form path is tracked as a future direction — see [Open questions](#open-questions).
-
-## Variant persistence on `store_file`
+### Variant persistence on `store_file`
 
 `byline_store_file` carries a `variants jsonb` column that round-trips an array of:
 
@@ -262,7 +524,7 @@ interface PersistedVariant {
   storageUrl?: string
   width?: number
   height?: number
-  format?: string               // e.g. 'webp'
+  format?: string               // e.g. 'webp', 'avif'
 }
 ```
 
@@ -281,8 +543,8 @@ A jsonb column rather than a sidecar `byline_store_file_variants` table because 
     "imageFormat": "jpeg",
     "processingStatus": "complete",
     "variants": [
-      { "name": "thumbnail", "storagePath": "media/abc-thumbnail.webp", "storageUrl": "/uploads/media/abc-thumbnail.webp", "width": 400, "height": 400, "format": "webp" },
-      { "name": "card",      "storagePath": "media/abc-card.webp",      "storageUrl": "/uploads/media/abc-card.webp",      "width": 600,             "format": "webp" },
+      { "name": "thumbnail", "storagePath": "media/abc-thumbnail.avif", "storageUrl": "/uploads/media/abc-thumbnail.avif", "width": 400, "height": 400, "format": "avif" },
+      { "name": "card",      "storagePath": "media/abc-card.avif",      "storageUrl": "/uploads/media/abc-card.avif",      "width": 600,             "format": "avif" },
       // ...
     ]
   }
@@ -291,7 +553,7 @@ A jsonb column rather than a sidecar `byline_store_file_variants` table because 
 
 This is the single source of truth — the upload service does not return a separate top-level variants list. Public clients reading via `@byline/client` see `result.fields.image.variants` and can build a `<picture>` / `srcset` without a second round-trip. When the field is reached via a relation, `populateDocuments` carries the same envelope on the populated relation value.
 
-## The transport endpoint
+### The transport endpoint
 
 The upload route is auto-mounted as a TanStack Start server function at:
 
@@ -320,13 +582,11 @@ The endpoint always operates on a **single field at a time**. Multi-file forms u
 
 > **Stable HTTP boundary.** The current transport is internal to the TanStack Start app. A stable, framework-agnostic HTTP upload boundary is intentionally deferred until the first non-admin client (mobile, desktop, third-party) lands and forces the transport surface to be designed across the full read / write / upload surface, not just uploads. See [ROUTING-API.md](./ROUTING-API.md).
 
-## `beforeStore` and `afterStore` hooks
+### `beforeStore` and `afterStore` hooks
 
 Server-side hooks live on `field.upload.hooks`. They bracket the storage provider's write step — not the network transmission, since by the time a hook fires the bytes are already on the server (an in-memory `Buffer` today; a `/tmp` file with a future streaming adapter — the contract is agnostic).
 
-### Validation order
-
-Hooks never see a file that's about to be rejected. The full pipeline:
+**Validation order.** Hooks never see a file that's about to be rejected. The full pipeline:
 
 1. `assertActorCanPerform(rc, collectionPath, 'create')` — auth gate
 2. resolve target field, read `field.upload`
@@ -339,7 +599,7 @@ Hooks never see a file that's about to be rejected. The full pipeline:
 9. `afterStore` chain
 10. (single-shot mode only) document version creation
 
-### `beforeStore`
+**`beforeStore` signature:**
 
 ```ts
 interface BeforeStoreContext {
@@ -364,33 +624,9 @@ type BeforeStoreHookFn = (
 ) => BeforeStoreResult | Promise<BeforeStoreResult>
 ```
 
-The hook may return a single function or an ordered array. Multiple functions stack with **fold** semantics — each function in the chain sees the previous function's filename override:
+Multi-function chains stack with **fold semantics** — see Quick Reference recipe 5 for a worked three-step chain. Returning a string (or `{ filename }`) substitutes the new filename for the next function's `ctx.filename`. Returning `void` keeps the current filename. Returning `{ error }` short-circuits with `ERR_VALIDATION` — no file is written, no variants generated, no later hook runs, no document is created. The override threads through to `storage.upload(...)`, so generated variant filenames (`<basename>-<variantName>.<ext>`) automatically inherit the new prefix.
 
-```ts
-upload: {
-  hooks: {
-    beforeStore: [
-      // 1. tenant-prefix everything
-      ({ filename, requestContext }) => `${requestContext.actor?.id ?? 'anon'}-${filename}`,
-      // 2. then prefix with the publication ID if present
-      ({ filename, fields }) =>
-        fields.publicationId ? `${fields.publicationId}-${filename}` : undefined,
-      // 3. then enforce uniqueness within the collection
-      async ({ filename, collectionPath }) => {
-        if (await isAssetTaken(collectionPath, filename)) {
-          return { error: `An asset with name '${filename}' already exists.` }
-        }
-      },
-    ],
-  },
-}
-```
-
-Returning a string (or `{ filename }`) substitutes the new filename for the next function's `ctx.filename`. Returning `void` keeps the current filename. Returning `{ error }` short-circuits with `ERR_VALIDATION` — no file is written, no variants generated, no later hook runs, no document is created.
-
-The override threads through to `storage.upload(...)`, so generated variant filenames (`<basename>-<variantName>.<ext>`) automatically inherit the new prefix. "Rename file *and* its variants by publication ID" reduces to "let `beforeStore` see the form fields and rewrite the filename."
-
-### `afterStore`
+**`afterStore` signature:**
 
 ```ts
 interface AfterStoreContext {
@@ -409,13 +645,9 @@ type AfterStoreHookFn = (
 
 `afterStore` runs every function in declaration order. Failures are logged via `logger.error` but do **not** roll back the storage write, consistent with how `afterCreate` / `afterUpdate` behave — hooks run *outside* the storage transaction.
 
-### Why `beforeStore` / `afterStore` and not `beforeUpload` / `afterUpload`
+**Why `beforeStore` / `afterStore` and not `beforeUpload` / `afterUpload`.** The names bracket the *storage provider's write step*, not the client→server transmission. By the time the hook fires, the bytes have already crossed the network. `beforeStore` / `afterStore` is unambiguous, leaves /tmp / streaming / buffering mechanics to the framework, and composes cleanly with the storage provider naming (`storage-local`, `storage-s3`). This deliberately diverges from a more common `beforeUpload` / `afterUpload` convention. Hooks for non-upload field types — when they eventually arrive — will live under a separate `field.serverHooks` slot rather than colliding with this contract or with the existing client-side `field.hooks`.
 
-The names brackets the *storage provider's write step*, not the client→server transmission. By the time the hook fires, the bytes have already crossed the network. `beforeStore` / `afterStore` is unambiguous, leaves /tmp / streaming / buffering mechanics to the framework, and composes cleanly with the storage provider naming (`storage-local`, `storage-s3`).
-
-This deliberately diverges from a more common `beforeUpload` / `afterUpload` convention. Hooks for non-upload field types — when they eventually arrive — will live under a separate `field.serverHooks` slot rather than colliding with this contract or with the existing client-side `field.hooks`.
-
-## Reading uploaded files
+### Reading uploaded files
 
 The `StoredFileValue` envelope is the read shape, identical whether the field is read directly off a document or through a populated relation:
 
@@ -440,17 +672,27 @@ interface StoredFileValue {
 ```
 
 - **Direct read** — `client.collection('media').findById(id)` returns a document whose `fields.image` is a `StoredFileValue`.
-- **Through a relation** — `client.collection('news').find({ populate: { featureImage: '*' } })` returns each news document with `fields.featureImage.target.fields.image` as the same envelope. `populateDocuments` carries the variants along; no second round-trip.
+- **Through a relation** — `client.collection('news').find({ populate: { featureImage: '*' } })` returns each news document with `fields.featureImage.document.fields.image` as the same envelope. `populateDocuments` carries the variants along; no second round-trip.
 
 For non-image uploads, `variants` is absent and `imageWidth` / `imageHeight` / `imageFormat` are absent — the rest of the envelope is identical.
 
-## Storage routing
+**Reference rendering components** (in this repo, not in the package — copy as a starting point for your own host):
+
+| Component | Location | Role |
+|---|---|---|
+| `ResponsiveImage` | `apps/webapp/src/ui/byline/components/responsive-image/index.tsx` | `<picture>` with AVIF + WebP source order, srcSet from variants, sensible `sizes` defaults, SVG bypass. |
+| `MediaThumbnail` | `apps/webapp/byline/collections/media/components/media-thumbnail.tsx` | Single-variant lookup (`variants.find((v) => v.name === 'thumbnail')`) for table cells and list rows. |
+| Image-source utils | `apps/webapp/src/ui/utils/image-sources.ts` | `getVariant`, `getVariantSrcSet`, `hasVariantFormat`, `VARIANT_MIME` — building blocks `ResponsiveImage` composes. |
+
+### Storage routing
 
 `UploadConfig.storage` is per-field. It falls through to `ServerConfig.storage` (the site-wide default) when omitted. This means:
 
 - Two image fields on the same collection can route to different backends.
 - A collection with no per-field overrides uses the site-wide provider for everything.
 - A storage provider is identified at write time by `storedFile.storageProvider`; the read path doesn't need to know which provider produced a given file beyond what's already in the envelope.
+
+---
 
 ## Open questions
 
@@ -462,17 +704,21 @@ For non-image uploads, `variants` is absent and `imageWidth` / `imageHeight` / `
 
 ## Code map
 
-| Concern                          | Location                                                                            |
-|----------------------------------|-------------------------------------------------------------------------------------|
-| Field-level upload service       | `packages/core/src/services/field-upload.ts`                                        |
-| Storage provider interface       | `packages/core/src/@types/storage-types.ts`                                         |
-| Local storage provider           | `packages/storage-local/src/local-storage-provider.ts`                              |
-| S3 storage provider              | `packages/storage-s3/src/`                                                          |
-| Image processor (Sharp)          | `packages/storage-local/src/` (`extractImageMeta`, `generateImageVariants`)         |
-| Persistence (`store_file`)       | `packages/db-postgres/src/database/schema/index.ts` + `modules/storage/`            |
-| TanStack server fn (transport)   | `packages/host-tanstack-start/src/server-fns/collections/upload.ts`                 |
-| Host integration adapter         | `packages/host-tanstack-start/src/integrations/byline-field-services.ts`            |
-| In-form upload orchestrator      | `packages/ui/src/forms/upload-executor.ts`                                          |
-| Image upload widget              | `packages/ui/src/fields/image/image-upload-field.tsx`                               |
-| File upload widget               | `packages/ui/src/fields/file/file-field.tsx`                                        |
-| Reference Media schema           | `apps/webapp/byline/collections/media/schema.ts`                                    |
+| Concern | Location |
+|---|---|
+| Field-level upload service | `packages/core/src/services/field-upload.ts` |
+| Storage provider interface | `packages/core/src/@types/storage-types.ts` |
+| `BeforeStoreContext` / `AfterStoreContext` types | `packages/core/src/@types/field-types.ts` |
+| Local storage provider | `packages/storage-local/src/local-storage-provider.ts` |
+| S3 storage provider | `packages/storage-s3/src/` |
+| Image processor (Sharp) | `packages/storage-local/src/image-processor.ts` (`extractImageMeta`, `generateImageVariants`, `isBypassMimeType`) |
+| Persistence (`store_file`) | `packages/db-postgres/src/database/schema/index.ts` + `modules/storage/` |
+| TanStack server fn (transport) | `packages/host-tanstack-start/src/server-fns/collections/upload.ts` |
+| Host integration adapter | `packages/host-tanstack-start/src/integrations/byline-field-services.ts` |
+| In-form upload orchestrator | `packages/ui/src/forms/upload-executor.ts` |
+| Image upload widget | `packages/ui/src/fields/image/image-upload-field.tsx` |
+| File upload widget | `packages/ui/src/fields/file/file-field.tsx` |
+| Reference Media schema | `apps/webapp/byline/collections/media/schema.ts` |
+| Reference responsive `<picture>` | `apps/webapp/src/ui/byline/components/responsive-image/index.tsx` |
+| Reference single-variant lookup | `apps/webapp/byline/collections/media/components/media-thumbnail.tsx` |
+| Reference image-source utils | `apps/webapp/src/ui/utils/image-sources.ts` |
