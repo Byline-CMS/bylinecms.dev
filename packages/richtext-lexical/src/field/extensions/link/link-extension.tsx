@@ -24,14 +24,8 @@ import {
   PASTE_COMMAND,
 } from 'lexical'
 
-import {
-  $toggleLink,
-  AutoLinkNode,
-  type LinkAttributes,
-  LinkNode,
-  TOGGLE_LINK_COMMAND,
-} from '.'
 import { validateUrl } from '../../utils/url'
+import { $toggleLink, AutoLinkNode, type LinkAttributes, LinkNode, TOGGLE_LINK_COMMAND } from '.'
 
 /**
  * Registers Byline's custom link command + paste handling on `editor`.

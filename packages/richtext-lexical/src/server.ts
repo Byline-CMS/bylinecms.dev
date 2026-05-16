@@ -30,9 +30,9 @@
 import type { BylineClient } from '@byline/client'
 import type { RichTextPopulateContext, RichTextPopulateFn } from '@byline/core'
 
-import { type LexicalNodeVisitor, runLexicalPopulate } from './field/lexical-populate-shared'
 import { inlineImageVisitor } from './field/extensions/inline-image/populate'
 import { linkVisitor } from './field/extensions/link/populate'
+import { type LexicalNodeVisitor, runLexicalPopulate } from './field/lexical-populate-shared'
 
 // ---------------------------------------------------------------------------
 // Schema-data re-exports — data-only Lexical config that's safe to evaluate

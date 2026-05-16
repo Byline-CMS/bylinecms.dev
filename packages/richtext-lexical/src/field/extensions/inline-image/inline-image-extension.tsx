@@ -26,6 +26,7 @@ import {
   COMMAND_PRIORITY_NORMAL,
   configExtension,
   createCommand,
+  declarePeerDependency,
   defineExtension,
   type LexicalCommand,
   type LexicalEditor,
@@ -33,12 +34,14 @@ import {
   safeCast,
 } from 'lexical'
 
+import { useToolbarActiveEditor } from '../../plugins/toolbar-plugin/toolbar-active-editor'
+import { DropDownItem } from '../../ui/dropdown'
 import {
-  $createInlineImageNode,
-  $isInlineImageNode,
-  InlineImageNode,
-} from './inline-image-node'
+  type BylineToolbarConfig,
+  BylineToolbarExtension,
+} from '../byline-toolbar/byline-toolbar-extension'
 import { InlineImageModal } from './inline-image-modal'
+import { $createInlineImageNode, $isInlineImageNode, InlineImageNode } from './inline-image-node'
 import type { InlineImageAttributes } from './node-types'
 import type { InlineImageData } from './types'
 
@@ -212,9 +215,36 @@ export interface InlineImageConfig {
   collection: string
 }
 
+function InlineImageInsertItem(): React.JSX.Element {
+  const editor = useToolbarActiveEditor()
+  return (
+    <DropDownItem
+      onClick={() => {
+        editor.dispatchCommand(OPEN_INLINE_IMAGE_MODAL_COMMAND, null)
+      }}
+      className="item"
+    >
+      <i className="icon image" />
+      <span className="text">Inline Image</span>
+    </DropDownItem>
+  )
+}
+
 export const InlineImageExtension = defineExtension({
   name: '@byline/richtext-lexical/InlineImage',
   nodes: () => [InlineImageNode],
   config: safeCast<InlineImageConfig>({ collection: '' }),
-  dependencies: [configExtension(ReactExtension, { decorators: [<InlineImagePlugin />] })],
+  dependencies: [configExtension(ReactExtension, { decorators: [<InlineImagePlugin key="d" />] })],
+  peerDependencies: [
+    declarePeerDependency<typeof BylineToolbarExtension>(BylineToolbarExtension.name, {
+      items: [
+        {
+          id: '@byline/richtext-lexical/InlineImage/insert',
+          placement: 'insert-menu',
+          order: 40,
+          node: <InlineImageInsertItem />,
+        },
+      ],
+    } satisfies Partial<BylineToolbarConfig>),
+  ],
 })

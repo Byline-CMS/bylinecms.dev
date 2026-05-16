@@ -15,12 +15,24 @@ import {
   AutoEmbedOption,
   type EmbedConfig,
   type EmbedMatchResult,
+  INSERT_EMBED_COMMAND,
   LexicalAutoEmbedPlugin,
 } from '@lexical/react/LexicalAutoEmbedPlugin'
 import { ReactExtension } from '@lexical/react/ReactExtension'
-import { configExtension, defineExtension, type LexicalEditor } from 'lexical'
+import {
+  configExtension,
+  declarePeerDependency,
+  defineExtension,
+  type LexicalEditor,
+} from 'lexical'
 import * as ReactDOM from 'react-dom'
 
+import { useToolbarActiveEditor } from '../../plugins/toolbar-plugin/toolbar-active-editor'
+import { DropDownItem } from '../../ui/dropdown'
+import {
+  type BylineToolbarConfig,
+  BylineToolbarExtension,
+} from '../byline-toolbar/byline-toolbar-extension'
 import { INSERT_VIMEO_COMMAND } from '../vimeo/vimeo-extension'
 import { INSERT_YOUTUBE_COMMAND } from '../youtube/youtube-extension'
 
@@ -323,7 +335,32 @@ export function AutoEmbedPlugin(): React.JSX.Element {
   )
 }
 
+function EmbedInsertItem({ embedConfig }: { embedConfig: AutoEmbedConfig }): React.JSX.Element {
+  const editor = useToolbarActiveEditor()
+  return (
+    <DropDownItem
+      onClick={() => {
+        editor.dispatchCommand(INSERT_EMBED_COMMAND, embedConfig.type)
+      }}
+      className="item"
+    >
+      {embedConfig.icon}
+      <span className="text">{embedConfig.contentName}</span>
+    </DropDownItem>
+  )
+}
+
 export const AutoEmbedExtension = defineExtension({
   name: '@byline/richtext-lexical/AutoEmbed',
-  dependencies: [configExtension(ReactExtension, { decorators: [<AutoEmbedPlugin />] })],
+  dependencies: [configExtension(ReactExtension, { decorators: [<AutoEmbedPlugin key="d" />] })],
+  peerDependencies: [
+    declarePeerDependency<typeof BylineToolbarExtension>(BylineToolbarExtension.name, {
+      items: EmbedConfigs.map((embedConfig, idx) => ({
+        id: `@byline/richtext-lexical/AutoEmbed/${embedConfig.type}`,
+        placement: 'insert-menu' as const,
+        order: 60 + idx,
+        node: <EmbedInsertItem embedConfig={embedConfig} />,
+      })),
+    } satisfies Partial<BylineToolbarConfig>),
+  ],
 })

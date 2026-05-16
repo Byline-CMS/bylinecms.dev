@@ -13,27 +13,13 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
     richText: true,
     showTreeView: false,
     textAlignment: true,
-    tablePlugin: true,
-    tableCellBackgroundColor: true,
-    tableCellMerge: true,
     tableActionMenuPlugin: true,
-    layoutPlugin: true,
-    autoFocusPlugin: false,
-    autoLinkPlugin: false,
-    inlineImagePlugin: true,
-    admonitionPlugin: true,
-    checkListPlugin: true,
-    listPlugin: true,
-    codeHighlightPlugin: true,
-    horizontalRulePlugin: true,
     markdownShortcutPlugin: false,
     undoRedo: true,
     textStyle: true,
     inlineCode: true,
-    links: true,
     floatingLinkEditorPlugin: true,
     floatingTextFormatToolbarPlugin: false,
-    autoEmbedPlugin: true,
     debug: false,
   },
   inlineImageUploadCollection: 'media',
@@ -41,6 +27,14 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   embedRelationsOnSave: true,
 }
 
+/**
+ * Server-safe editor config — settings + Lexical core config only. The
+ * `extensions` field is intentionally omitted because extension entries
+ * carry React-bearing decorators that would break tsx-loaded seeds and
+ * other server-side schema consumers. The client-side
+ * `defaultClientEditorConfig` (in `default-extensions.tsx`) layers the
+ * extensions list on top.
+ */
 export const defaultEditorConfig: EditorConfig = {
   settings: DEFAULT_EDITOR_SETTINGS,
   lexical: defaultEditorLexicalConfig,

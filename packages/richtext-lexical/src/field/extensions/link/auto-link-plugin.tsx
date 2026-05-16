@@ -15,6 +15,7 @@ import { mergeRegister } from '@lexical/utils'
 import type { ElementNode, LexicalEditor, LexicalNode } from 'lexical'
 import { $createTextNode, $isElementNode, $isLineBreakNode, $isTextNode, TextNode } from 'lexical'
 
+import invariant from '../../shared/invariant'
 import {
   $createAutoLinkNode,
   $isAutoLinkNode,
@@ -23,7 +24,6 @@ import {
   type CustomLinkAttributes,
   type LinkAttributes,
 } from '.'
-import invariant from '../../shared/invariant'
 
 type ChangeHandler = (url: string | null, prevUrl: string | null) => void
 

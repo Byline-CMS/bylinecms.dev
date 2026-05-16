@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useEffect } from 'react'
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { COMMAND_PRIORITY_NORMAL, createCommand } from 'lexical'
@@ -13,17 +14,16 @@ export function TablePlugin(): React.JSX.Element {
   const [editor] = useLexicalComposerContext()
   const [open, setOpen] = React.useState(false)
 
-  editor.registerCommand<null>(
-    OPEN_TABLE_MODAL_COMMAND,
-    () => {
-      if (open === false) {
-        setOpen(true)
+  useEffect(() => {
+    return editor.registerCommand<null>(
+      OPEN_TABLE_MODAL_COMMAND,
+      () => {
+        setOpen((prev) => (prev ? prev : true))
         return true
-      }
-      return false
-    },
-    COMMAND_PRIORITY_NORMAL
-  )
+      },
+      COMMAND_PRIORITY_NORMAL
+    )
+  }, [editor])
 
   const handleOnClose = (): void => {
     setOpen(false)

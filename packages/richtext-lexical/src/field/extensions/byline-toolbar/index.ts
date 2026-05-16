@@ -6,5 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-export { AiLexicalExtension } from './extension'
-export { AiPluginLexical, TOGGLE_AI_DRAWER_COMMAND } from './plugin'
+export {
+  type BylineToolbarConfig,
+  BylineToolbarExtension,
+  type BylineToolbarItem,
+  type BylineToolbarPlacement,
+  selectToolbarItems,
+} from './byline-toolbar-extension'

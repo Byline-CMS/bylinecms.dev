@@ -53,10 +53,6 @@
       "main": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./toolbar-extensions": {
-      "types": "./dist/field/toolbar-extensions.d.ts",
-      "import": "./dist/field/toolbar-extensions.js"
-    },
     "./server": {
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js",

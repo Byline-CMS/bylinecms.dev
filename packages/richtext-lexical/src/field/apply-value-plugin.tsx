@@ -61,12 +61,12 @@ export function ApplyValuePlugin({
 
     const nextState = editor.parseEditorState(value)
 
-    editor.update(
-      () => {
-        editor.setEditorState(nextState)
-      },
-      { tag: APPLY_VALUE_TAG }
-    )
+    // Must NOT be wrapped in editor.update — setEditorState defers its commit
+    // when called inside an active update, leaving selection/node references
+    // pointing into the pre-swap nodeMap. Surfaces as @lexical/table observer
+    // errors ("Expected node with key N to exist") on the very next selection
+    // change. setEditorState applies the tag itself.
+    editor.setEditorState(nextState, { tag: APPLY_VALUE_TAG })
     lastAppliedHashRef.current = nextRawHash
 
     let cancelled = false

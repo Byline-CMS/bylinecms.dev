@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { useEffect } from 'react'
 
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -11,7 +12,6 @@ import { useEffect } from 'react'
  *
  */
 import { ReactExtension } from '@lexical/react/ReactExtension'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $insertNodeToNearestRoot, mergeRegister } from '@lexical/utils'
 import type { ElementNode, LexicalCommand, LexicalNode, NodeKey } from 'lexical'
 import {
@@ -21,20 +21,23 @@ import {
   COMMAND_PRIORITY_NORMAL,
   configExtension,
   createCommand,
+  declarePeerDependency,
   defineExtension,
 } from 'lexical'
 
+import { useToolbarActiveEditor } from '../../plugins/toolbar-plugin/toolbar-active-editor'
+import { DropDownItem } from '../../ui/dropdown'
+import {
+  type BylineToolbarConfig,
+  BylineToolbarExtension,
+} from '../byline-toolbar/byline-toolbar-extension'
+import { InsertLayoutModal } from './insert-layout-modal'
 import {
   $createLayoutContainerNode,
   $isLayoutContainerNode,
   LayoutContainerNode,
 } from './layout-container-node'
-import {
-  $createLayoutItemNode,
-  $isLayoutItemNode,
-  LayoutItemNode,
-} from './layout-item-node'
-import { InsertLayoutModal } from './insert-layout-modal'
+import { $createLayoutItemNode, $isLayoutItemNode, LayoutItemNode } from './layout-item-node'
 
 export const OPEN_INSERT_LAYOUT_MODAL_COMMAND = createCommand('OPEN_INSERT_LAYOUT_MODAL_COMMAND')
 
@@ -164,8 +167,35 @@ function getItemsCountFromTemplate(template: string): number {
   return template.trim().split(/\s+/).length
 }
 
+function LayoutInsertItem(): React.JSX.Element {
+  const editor = useToolbarActiveEditor()
+  return (
+    <DropDownItem
+      onClick={() => {
+        editor.dispatchCommand(OPEN_INSERT_LAYOUT_MODAL_COMMAND, null)
+      }}
+      className="item"
+    >
+      <i className="icon columns" />
+      <span className="text">Columns Layout</span>
+    </DropDownItem>
+  )
+}
+
 export const LayoutExtension = defineExtension({
   name: '@byline/richtext-lexical/Layout',
   nodes: () => [LayoutContainerNode, LayoutItemNode],
-  dependencies: [configExtension(ReactExtension, { decorators: [<LayoutPlugin />] })],
+  dependencies: [configExtension(ReactExtension, { decorators: [<LayoutPlugin key="d" />] })],
+  peerDependencies: [
+    declarePeerDependency<typeof BylineToolbarExtension>(BylineToolbarExtension.name, {
+      items: [
+        {
+          id: '@byline/richtext-lexical/Layout/insert',
+          placement: 'insert-menu',
+          order: 20,
+          node: <LayoutInsertItem />,
+        },
+      ],
+    } satisfies Partial<BylineToolbarConfig>),
+  ],
 })

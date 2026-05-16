@@ -18,6 +18,7 @@ import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPl
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
+import { useOptionalExtensionDependency } from '@lexical/react/useExtensionComponent'
 import type { EditorState, LexicalEditor } from 'lexical'
 
 import { useEditorConfig } from './config/editor-config-context'
@@ -25,12 +26,13 @@ import { ContentEditable } from './content-editable'
 import { useSharedHistoryContext } from './context/shared-history-context'
 import { useSharedOnChange } from './context/shared-on-change-context'
 import { Debug } from './debug'
+import { FloatingLinkEditorPlugin } from './extensions/link/floating-link-editor'
+import { TableExtension as BylineTableExtension } from './extensions/table/table-extension'
 // import { AiPlugin } from './plugins/ai-plugin'
 // import { DragDropPaste } from './plugins/drag-drop-paste-plugin'
 import { FloatingTextFormatToolbarPlugin } from './plugins/floating-text-format-toolbar-plugin'
-import { FloatingLinkEditorPlugin } from './extensions/link/floating-link-editor'
 import { TableActionMenuPlugin } from './plugins/table-action-menu-plugin'
-import { TablePlugin as PayloadTablePlugin } from './plugins/table-plugin'
+import { TablePlugin } from './plugins/table-plugin'
 import { ToolbarPlugin } from './plugins/toolbar-plugin'
 import { TreeViewPlugin } from './plugins/treeview-plugin'
 import { CAN_USE_DOM } from './shared/canUseDOM'
@@ -63,7 +65,6 @@ export const Editor = memo(function Editor({
         debug,
         richText,
         showTreeView,
-        tablePlugin,
         tableActionMenuPlugin,
         markdownShortcutPlugin,
         floatingLinkEditorPlugin,
@@ -72,6 +73,7 @@ export const Editor = memo(function Editor({
       placeholderText,
     },
   } = useEditorConfig()
+  const hasTableExtension = useOptionalExtensionDependency(BylineTableExtension) !== undefined
 
   const onRef = useCallback((_floatingAnchorElem: HTMLDivElement): void => {
     if (_floatingAnchorElem != null) {
@@ -126,7 +128,7 @@ export const Editor = memo(function Editor({
 
   const content = (
     <>
-      {tablePlugin && <PayloadTablePlugin />}
+      {hasTableExtension && <TablePlugin />}
       {richText && <ToolbarPlugin />}
       <div
         className={`editor-container ${showTreeView ? 'tree-view' : ''} ${

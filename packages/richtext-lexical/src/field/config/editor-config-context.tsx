@@ -40,10 +40,7 @@ export const EditorConfigContext = ({
     })
   }, [])
 
-  const editorContext = useMemo(
-    () => ({ setOption, config, uuid }),
-    [setOption, config, uuid]
-  )
+  const editorContext = useMemo(() => ({ setOption, config, uuid }), [setOption, config, uuid])
 
   return <Context.Provider value={editorContext}>{children}</Context.Provider>
 }

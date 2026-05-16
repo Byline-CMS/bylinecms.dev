@@ -71,12 +71,11 @@ export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element
         const nextEditorState = targetEditor.parseEditorState(
           nextState.editor as SerializedEditorState
         )
-        targetEditor.update(
-          () => {
-            targetEditor.setEditorState(nextEditorState)
-          },
-          { discrete: true }
-        )
+        // Must NOT be wrapped in editor.update — setEditorState defers its
+        // commit when called inside an active update, leaving selection/node
+        // references pointing into the pre-swap nodeMap (surfaces as stale
+        // node-key errors from @lexical/table observers).
+        targetEditor.setEditorState(nextEditorState)
       }
     },
     [editor]
@@ -348,12 +347,7 @@ export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element
 
   const handleOnClear = () => {
     const emptyState = activeEditor.parseEditorState(createEmptyEditorState())
-    activeEditor.update(
-      () => {
-        activeEditor.setEditorState(emptyState)
-      },
-      { discrete: true }
-    )
+    activeEditor.setEditorState(emptyState)
     activeEditor.focus()
   }
 

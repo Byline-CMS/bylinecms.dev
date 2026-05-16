@@ -29,6 +29,9 @@ import {
 } from 'lexical'
 import { createPortal } from 'react-dom'
 
+import { getSelectedNode } from '../../utils/getSelectedNode'
+import { setFloatingElemPositionForLinkEditor } from '../../utils/setFloatingElemPositionForLinkEditor'
+import { sanitizeUrl } from '../../utils/url'
 import {
   $isAutoLinkNode,
   $isLinkNode,
@@ -36,9 +39,6 @@ import {
   OPEN_LINK_MODAL_COMMAND,
   TOGGLE_LINK_COMMAND,
 } from '.'
-import { getSelectedNode } from '../../utils/getSelectedNode'
-import { setFloatingElemPositionForLinkEditor } from '../../utils/setFloatingElemPositionForLinkEditor'
-import { sanitizeUrl } from '../../utils/url'
 import { LinkModal } from './link-modal'
 import type { LinkData } from './link-modal-types'
 

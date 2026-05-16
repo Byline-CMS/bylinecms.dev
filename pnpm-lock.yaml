@@ -310,6 +310,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.4.15
         version: 2.4.15
+      '@byline/richtext-lexical':
+        specifier: workspace:*
+        version: link:../richtext-lexical
       '@infonomic/uikit':
         specifier: ^6.7.1
         version: 6.7.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)

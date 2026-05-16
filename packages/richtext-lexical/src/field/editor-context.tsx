@@ -11,39 +11,22 @@
 import type * as React from 'react'
 import { useMemo } from 'react'
 
-import {
-  AutoFocusExtension,
-  ClearEditorExtension,
-  HorizontalRuleExtension,
-  TabIndentationExtension,
-} from '@lexical/extension'
-import { CheckListExtension, ListExtension } from '@lexical/list'
 import { LexicalExtensionComposer } from '@lexical/react/LexicalExtensionComposer'
-import { TableExtension } from '@lexical/table'
 import {
   type AnyLexicalExtensionArgument,
-  configExtension,
   defineExtension,
   type EditorState,
   type LexicalEditor,
   type SerializedEditorState,
 } from 'lexical'
 
+import { defaultExtensionsList } from './config/default-extensions'
 import { EditorConfigContext } from './config/editor-config-context'
 import { SharedHistoryContext } from './context/shared-history-context'
 import { SharedOnChangeContext } from './context/shared-on-change-context'
 import { Editor } from './editor'
-import { Nodes } from './nodes'
-import { AdmonitionExtension } from './extensions/admonition/admonition-extension'
-import { AutoEmbedExtension } from './extensions/auto-embed/auto-embed-extension'
-import { CodeHighlightExtension } from './extensions/code-highlight/code-highlight-extension'
 import { InlineImageExtension } from './extensions/inline-image/inline-image-extension'
-import { LayoutExtension } from './extensions/layout/layout-extension'
-import { AutoLinkExtension } from './extensions/link/auto-link-extension'
-import { LinkExtension } from './extensions/link/link-extension'
-import { VimeoExtension } from './extensions/vimeo/vimeo-extension'
-import { YouTubeExtension } from './extensions/youtube/youtube-extension'
-import { ToolbarExtensionsProvider } from './toolbar-extensions'
+import { Nodes } from './nodes'
 import type { EditorConfig } from './config/types'
 
 // Catch any errors that occur during Lexical updates and log them
@@ -89,52 +72,21 @@ export function EditorContext(props: {
   // when readOnly toggles, so a fresh extension is built then.
   // biome-ignore lint/correctness/useExhaustiveDependencies: capture-once on mount; remount via `key` handles editable transitions
   const rootExtension = useMemo<AnyLexicalExtensionArgument>(() => {
-    const {
-      admonitionPlugin,
-      autoEmbedPlugin,
-      autoFocusPlugin,
-      autoLinkPlugin,
-      checkListPlugin,
-      codeHighlightPlugin,
-      horizontalRulePlugin,
-      inlineImagePlugin,
-      layoutPlugin,
-      links,
-      listPlugin,
-      tablePlugin,
-    } = editorConfig.settings.options
-    const { inlineImageUploadCollection } = editorConfig.settings
+    // Source of truth for the extension graph: editorConfig.extensions,
+    // optionally manipulated by site code via lexicalEditor((c) => ...).
+    // Server-loaded EditorConfigs (e.g. via /server) carry no extensions
+    // field; in that case we materialise the package default here.
+    const extensionsList = editorConfig.extensions ?? defaultExtensionsList()
 
-    const dependencies: AnyLexicalExtensionArgument[] = [
-      // Always-on stock extensions (mirroring the prior unconditional JSX plugins).
-      ClearEditorExtension,
-      TabIndentationExtension,
-    ]
-    if (autoFocusPlugin) dependencies.push(AutoFocusExtension)
-    if (horizontalRulePlugin) dependencies.push(HorizontalRuleExtension)
-    if (listPlugin) dependencies.push(ListExtension)
-    if (checkListPlugin) dependencies.push(CheckListExtension)
-    if (tablePlugin) {
-      dependencies.push(
-        configExtension(TableExtension, {
-          hasCellMerge: editorConfig.settings.options.tableCellMerge,
-          hasCellBackgroundColor: editorConfig.settings.options.tableCellBackgroundColor,
-        })
-      )
-    }
-    if (codeHighlightPlugin) dependencies.push(CodeHighlightExtension)
-    if (links) dependencies.push(LinkExtension)
-    if (autoLinkPlugin) dependencies.push(AutoLinkExtension)
-    if (admonitionPlugin) dependencies.push(AdmonitionExtension)
-    if (layoutPlugin) dependencies.push(LayoutExtension)
-    if (inlineImagePlugin) {
-      dependencies.push(
-        configExtension(InlineImageExtension, { collection: inlineImageUploadCollection })
-      )
-    }
-    if (autoEmbedPlugin) {
-      dependencies.push(YouTubeExtension, VimeoExtension, AutoEmbedExtension)
-    }
+    // Forward the inline-image upload collection from the settings facade
+    // onto the InlineImageExtension's typed config, but only when the
+    // user hasn't already configured the extension explicitly.
+    const dependencies = extensionsList
+      .clone()
+      .configure(InlineImageExtension, {
+        collection: editorConfig.settings.inlineImageUploadCollection,
+      })
+      .toArray()
 
     return defineExtension({
       name: '[root]',
@@ -162,8 +114,7 @@ export function EditorContext(props: {
   // local history state instead of being shared with the root editor.
   //
   // Hoisting these providers above the composer puts the node decorators
-  // back inside their React tree. ToolbarExtensionsProvider stays inside
-  // because it calls useLexicalComposerContext.
+  // back inside their React tree.
   return (
     <EditorConfigContext config={editorConfig.settings}>
       <SharedOnChangeContext onChange={onChange}>
@@ -173,14 +124,12 @@ export function EditorContext(props: {
             contentEditable={null}
             key={composerKey + editable}
           >
-            <ToolbarExtensionsProvider>
-              <div className="editor-shell">
-                {beforeEditor}
-                <Editor minHeight={props.minHeight} maxHeight={props.maxHeight} />
-                {afterEditor}
-                {children}
-              </div>
-            </ToolbarExtensionsProvider>
+            <div className="editor-shell">
+              {beforeEditor}
+              <Editor minHeight={props.minHeight} maxHeight={props.maxHeight} />
+              {afterEditor}
+              {children}
+            </div>
           </LexicalExtensionComposer>
         </SharedHistoryContext>
       </SharedOnChangeContext>

@@ -10,8 +10,10 @@
  * **Admin-side module.** Exports two things — both consumed admin-side,
  * never from a schema:
  *
- *   - `LexicalRichTextAi` — a React component (the AI-enabled editor).
- *     Register globally in `apps/webapp/byline/admin.config.ts` under
+ *   - `LexicalRichTextAi` — a `RichTextEditorComponent` that registers
+ *     the AI assistant by adding `AiLexicalExtension` to the editor's
+ *     extension graph. Register globally in
+ *     `apps/webapp/byline/admin.config.ts` under
  *     `fields.richText.editor` to AI-enable every richtext field.
  *   - `aiRichTextAdmin()` — a `FieldAdminConfig` factory. Drop into a
  *     collection's `fields` map in `<collection>/admin.tsx` to opt one
@@ -23,69 +25,18 @@
  * See `docs/FIELD-API.md` for the schema-vs-admin model.
  */
 
-import { useEffect } from 'react'
-
-import { AiPluginLexical, TOGGLE_AI_DRAWER_COMMAND } from '@byline/ai/plugins/lexical'
+import { AiLexicalExtension } from '@byline/ai/plugins/lexical'
 import type { FieldAdminConfig, RichTextEditorProps } from '@byline/core'
-import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
-import { useToolbarExtensions } from '@byline/richtext-lexical/toolbar-extensions'
-import { AiIcon } from '@byline/ui/react'
+import { lexicalEditor } from '@byline/richtext-lexical'
 
 /**
- * Host-side glue between `@byline/ai`'s Lexical plugin and
- * `@byline/richtext-lexical`'s toolbar-extensions API.
+ * AI-enabled wrapper around `@byline/richtext-lexical`'s editor.
  *
- * The plugin (`AiPluginLexical`) only ships the drawer/panel and a
- * `TOGGLE_AI_DRAWER_COMMAND` command; it does NOT register a toolbar
- * button itself, because the toolbar API lives in the editor adapter
- * (which the plugin doesn't depend on). This wrapper closes that gap:
- *
- *   - Registers a single toolbar icon under the canonical
- *     `toolbar-item spaced` class so it inherits the existing button
- *     styling. Clicking dispatches `TOGGLE_AI_DRAWER_COMMAND` on the
- *     root editor, which the plugin's listener toggles the drawer on.
- *   - Renders `<AiPluginLexical />` as a sibling so the drawer mounts
- *     in the same composer context the toolbar registration uses.
- *
- * Must render inside the `LexicalComposer` tree — that's what
- * `featureAfterEditor` already guarantees.
- */
-function AiPluginLexicalWithToolbar(): React.JSX.Element {
-  const { register, rootEditor } = useToolbarExtensions()
-
-  useEffect(() => {
-    return register({
-      id: 'ai-toolbar-button',
-      // Push to the end of the toolbar (alongside other "auxiliary"
-      // buttons that ship with higher orders).
-      order: 100_001,
-      node: (
-        <button
-          type="button"
-          className="toolbar-item spaced"
-          aria-label="Toggle AI assistant"
-          onClick={() => {
-            rootEditor.dispatchCommand(TOGGLE_AI_DRAWER_COMMAND, undefined)
-          }}
-        >
-          <AiIcon />
-        </button>
-      ),
-    })
-  }, [register, rootEditor])
-
-  return <AiPluginLexical />
-}
-
-/**
- * AI-enabled wrapper around `@byline/richtext-lexical`'s `RichTextField`.
- *
- * Injects `<AiPluginLexicalWithToolbar />` into `featureAfterEditor`,
- * which (a) registers the toolbar icon via the toolbar-extensions
- * context and (b) renders the AI drawer. Authentication for the
- * underlying AI endpoint is enforced by the `executeAiInstruction`
- * server function in `@byline/host-tanstack-start`, wired by
- * `<BylineAiAdminProvider>` inside the admin layout.
+ * Composes a `lexicalEditor()` with `AiLexicalExtension` added to the
+ * extensions graph. The extension contributes a toolbar button via the
+ * `BylineToolbarExtension` peer-dependency contract and mounts the AI
+ * drawer via `ReactExtension.decorators` — no `featureAfterEditor`, no
+ * React-context registry hop.
  *
  * **Global** opt-in — register in `apps/webapp/byline/admin.config.ts`:
  *
@@ -97,14 +48,10 @@ function AiPluginLexicalWithToolbar(): React.JSX.Element {
  *
  * **Per-field** opt-in — see `aiRichTextAdmin()` below.
  */
-export function LexicalRichTextAi(props: RichTextEditorProps): React.JSX.Element {
-  return (
-    <LexicalRichTextField
-      {...props}
-      featureAfterEditor={[<AiPluginLexicalWithToolbar key="ai-plugin" />]}
-    />
-  )
-}
+export const LexicalRichTextAi = lexicalEditor((c) => {
+  c.extensions.add(AiLexicalExtension)
+  return c
+}) satisfies (props: RichTextEditorProps) => React.JSX.Element
 
 /**
  * Returns a `FieldAdminConfig` that opts a single richText field into

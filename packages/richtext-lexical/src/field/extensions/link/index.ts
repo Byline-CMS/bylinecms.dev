@@ -1,3 +1,5 @@
+export { AutoLinkExtension } from './auto-link-extension'
 export * from './auto-link-node'
+export { LinkExtension, registerLink } from './link-extension'
 export * from './link-node'
 export * from './types'

@@ -41,5 +41,5 @@ export function AutoLinkPlugin(): React.JSX.Element {
 
 export const AutoLinkExtension = defineExtension({
   name: '@byline/richtext-lexical/AutoLink',
-  dependencies: [configExtension(ReactExtension, { decorators: [<AutoLinkPlugin />] })],
+  dependencies: [configExtension(ReactExtension, { decorators: [<AutoLinkPlugin key="d" />] })],
 })

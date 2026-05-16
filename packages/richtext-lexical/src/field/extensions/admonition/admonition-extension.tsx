@@ -11,8 +11,8 @@
 import * as React from 'react'
 import { useEffect } from 'react'
 
-import { ReactExtension } from '@lexical/react/ReactExtension'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { ReactExtension } from '@lexical/react/ReactExtension'
 import { $insertNodeToNearestRoot, mergeRegister } from '@lexical/utils'
 import {
   $getSelection,
@@ -21,12 +21,19 @@ import {
   COMMAND_PRIORITY_NORMAL,
   configExtension,
   createCommand,
+  declarePeerDependency,
   defineExtension,
   type LexicalCommand,
 } from 'lexical'
 
-import { $createAdmonitionNode, AdmonitionNode } from './admonition-node'
+import { useToolbarActiveEditor } from '../../plugins/toolbar-plugin/toolbar-active-editor'
+import { DropDownItem } from '../../ui/dropdown'
+import {
+  type BylineToolbarConfig,
+  BylineToolbarExtension,
+} from '../byline-toolbar/byline-toolbar-extension'
 import { AdmonitionModal } from './admonition-modal'
+import { $createAdmonitionNode, AdmonitionNode } from './admonition-node'
 import type { AdmonitionAttributes } from './node-types'
 import type { AdmonitionData } from './types'
 
@@ -107,8 +114,35 @@ export function AdmonitionPlugin(): React.JSX.Element {
   )
 }
 
+function AdmonitionInsertItem(): React.JSX.Element {
+  const editor = useToolbarActiveEditor()
+  return (
+    <DropDownItem
+      onClick={() => {
+        editor.dispatchCommand(OPEN_ADMONITION_MODAL_COMMAND, null)
+      }}
+      className="item"
+    >
+      <i className="icon admonition" />
+      <span className="text">Admonition</span>
+    </DropDownItem>
+  )
+}
+
 export const AdmonitionExtension = defineExtension({
   name: '@byline/richtext-lexical/Admonition',
   nodes: () => [AdmonitionNode],
-  dependencies: [configExtension(ReactExtension, { decorators: [<AdmonitionPlugin />] })],
+  dependencies: [configExtension(ReactExtension, { decorators: [<AdmonitionPlugin key="d" />] })],
+  peerDependencies: [
+    declarePeerDependency<typeof BylineToolbarExtension>(BylineToolbarExtension.name, {
+      items: [
+        {
+          id: '@byline/richtext-lexical/Admonition/insert',
+          placement: 'insert-menu',
+          order: 30,
+          node: <AdmonitionInsertItem />,
+        },
+      ],
+    } satisfies Partial<BylineToolbarConfig>),
+  ],
 })

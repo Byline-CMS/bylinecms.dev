@@ -13,6 +13,7 @@ import { ErrorText, Label, LocaleBadge, useFieldError, useFieldValue } from '@by
 import cx from 'classnames'
 
 import { defaultEditorConfig } from './field/config/default'
+import { defaultExtensionsList } from './field/config/default-extensions'
 import { EditorField } from './field/editor-field'
 import styles from './richtext-field.module.css'
 import type { EditorConfig } from './field/config/types'
@@ -74,8 +75,14 @@ export const RichTextField = ({
   //   3. `defaultEditorConfig` — package default.
   // The schema-level value is typed as `unknown` at the `@byline/core` boundary,
   // so the cast lives here where the Lexical config shape is known.
-  const baseEditorConfig: EditorConfig =
+  const resolved: EditorConfig =
     (field.editorConfig as EditorConfig | undefined) ?? editorConfig ?? defaultEditorConfig
+  // Schema-side configs and the server-safe `defaultEditorConfig` carry no
+  // `extensions` field — extension references aren't JSON-safe. Materialise
+  // the package's client-only default list when one isn't already present so
+  // every render has a complete graph to feed `EditorContext`.
+  const baseEditorConfig: EditorConfig =
+    resolved.extensions != null ? resolved : { ...resolved, extensions: defaultExtensionsList() }
 
   // Adapter-agnostic field-level lever — when present, override the resolved
   // editor settings so the inline-image / link modals see this field's policy.

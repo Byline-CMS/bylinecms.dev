@@ -16,27 +16,32 @@
  *
  */
 import type * as React from 'react'
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   $createCodeNode,
   $isCodeNode,
   CODE_LANGUAGE_FRIENDLY_NAME_MAP,
   CODE_LANGUAGE_MAP,
+  CodeNode,
   getLanguageFriendlyName,
 } from '@lexical/code'
 import {
   $isListNode,
+  CheckListExtension,
   INSERT_CHECK_LIST_COMMAND,
   INSERT_ORDERED_LIST_COMMAND,
   INSERT_UNORDERED_LIST_COMMAND,
+  ListExtension,
   ListNode,
   REMOVE_LIST_COMMAND,
 } from '@lexical/list'
-import { INSERT_EMBED_COMMAND } from '@lexical/react/LexicalAutoEmbedPlugin'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $isDecoratorBlockNode } from '@lexical/react/LexicalDecoratorBlockNode'
-import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode'
+import {
+  useExtensionDependency,
+  useOptionalExtensionDependency,
+} from '@lexical/react/useExtensionComponent'
 import {
   $createHeadingNode,
   $createQuoteNode,
@@ -77,21 +82,21 @@ import {
 
 import { useEditorConfig } from '../../config/editor-config-context'
 import {
+  BylineToolbarExtension,
+  selectToolbarItems,
+} from '../../extensions/byline-toolbar/byline-toolbar-extension'
+import {
   $isLinkNode,
   type LinkAttributes,
+  LinkExtension,
   OPEN_LINK_MODAL_COMMAND,
   TOGGLE_LINK_COMMAND,
 } from '../../extensions/link'
-import { OPEN_ADMONITION_MODAL_COMMAND } from '../../extensions/admonition/admonition-extension'
-import { EmbedConfigs } from '../../extensions/auto-embed/auto-embed-extension'
-import { OPEN_INLINE_IMAGE_MODAL_COMMAND } from '../../extensions/inline-image/inline-image-extension'
-import { OPEN_INSERT_LAYOUT_MODAL_COMMAND } from '../../extensions/layout/layout-extension'
 import { IS_APPLE } from '../../shared/environment'
-import { useToolbarExtensions } from '../../toolbar-extensions'
 import { DropDown, DropDownItem } from '../../ui/dropdown'
 import { getSelectedNode } from '../../utils/getSelectedNode'
 import { sanitizeUrl } from '../../utils/url'
-import { OPEN_TABLE_MODAL_COMMAND } from '../table-plugin'
+import { ToolbarActiveEditorProvider } from './toolbar-active-editor'
 
 const blockTypeToBlockName = {
   bullet: 'Bulleted List',
@@ -141,11 +146,14 @@ function BlockFormatDropDown({
   editor: LexicalEditor
   disabled?: boolean
 }): React.JSX.Element {
-  const {
-    config: {
-      options: { checkListPlugin, listPlugin, codeHighlightPlugin },
-    },
-  } = useEditorConfig()
+  // Block-format dropdown entries are gated on whether the underlying
+  // extensions are present in the editor's extension graph. Removing
+  // ListExtension via lexicalEditor((c) => c.extensions.remove(ListExtension))
+  // hides the list options here without any flag in EditorSettings.
+  const hasList = useOptionalExtensionDependency(ListExtension) !== undefined
+  const hasCheckList = useOptionalExtensionDependency(CheckListExtension) !== undefined
+  const [composerEditor] = useLexicalComposerContext()
+  const hasCodeHighlight = composerEditor.hasNodes([CodeNode])
 
   const formatParagraph = (): void => {
     editor.update(() => {
@@ -275,7 +283,7 @@ function BlockFormatDropDown({
         <i className="icon h4" />
         <span className="text">Heading 4</span>
       </DropDownItem>
-      {listPlugin && (
+      {hasList && (
         <>
           <DropDownItem
             className={`item ${dropDownActiveClass(blockType === 'bullet')}`}
@@ -294,7 +302,7 @@ function BlockFormatDropDown({
         </>
       )}
 
-      {checkListPlugin && (
+      {hasCheckList && (
         <DropDownItem
           className={`item ${dropDownActiveClass(blockType === 'check')}`}
           onClick={formatCheckList}
@@ -311,7 +319,7 @@ function BlockFormatDropDown({
         <i className="icon quote" />
         <span className="text">Quote</span>
       </DropDownItem>
-      {codeHighlightPlugin && (
+      {hasCodeHighlight && (
         <DropDownItem
           className={`item ${dropDownActiveClass(blockType === 'code')}`}
           onClick={formatCode}
@@ -351,23 +359,20 @@ export function ToolbarPlugin(): React.JSX.Element {
   const [isRTL, _setIsRTL] = useState(false)
   const [codeLanguage, setCodeLanguage] = useState<string>('')
   const [isEditable, setIsEditable] = useState(() => editor.isEditable())
-  const { items: toolbarExtensionItems } = useToolbarExtensions()
+  const { config: toolbarConfig } = useExtensionDependency(BylineToolbarExtension)
+  const insertMenuItems = useMemo(
+    () => selectToolbarItems(toolbarConfig.items, 'insert-menu'),
+    [toolbarConfig.items]
+  )
+  const trailingToolbarItems = useMemo(
+    () => selectToolbarItems(toolbarConfig.items, 'toolbar'),
+    [toolbarConfig.items]
+  )
+  const hasLinkExtension = useOptionalExtensionDependency(LinkExtension) !== undefined
   const {
     uuid,
     config: {
-      options: {
-        textAlignment,
-        tablePlugin,
-        inlineImagePlugin,
-        admonitionPlugin,
-        horizontalRulePlugin,
-        layoutPlugin,
-        autoEmbedPlugin,
-        undoRedo,
-        textStyle,
-        inlineCode,
-        links,
-      },
+      options: { textAlignment, undoRedo, textStyle, inlineCode },
     },
   } = useEditorConfig()
   // const { openModal } = usePayloadModal()
@@ -773,7 +778,7 @@ export function ToolbarPlugin(): React.JSX.Element {
               <i className="format code" />
             </button>
           )}
-          {links && (
+          {hasLinkExtension && (
             <button
               key="link"
               type="button"
@@ -838,100 +843,32 @@ export function ToolbarPlugin(): React.JSX.Element {
             </DropDownItem>
           </DropDown>
 
-          {activeEditor === editor &&
-            (horizontalRulePlugin || inlineImagePlugin || tablePlugin || admonitionPlugin) && (
-              <>
-                <Divider />
-                <DropDown
-                  disabled={!isEditable}
-                  buttonClassName="toolbar-item spaced"
-                  buttonLabel="Insert"
-                  buttonAriaLabel="Insert specialized editor node"
-                  buttonIconClassName="icon plus"
-                >
-                  {horizontalRulePlugin && (
-                    <DropDownItem
-                      onClick={() => {
-                        activeEditor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)
-                      }}
-                      className="item"
-                    >
-                      <i className="icon horizontal-rule" />
-                      <span className="text">Horizontal Rule</span>
-                    </DropDownItem>
-                  )}
-
-                  {layoutPlugin && (
-                    <DropDownItem
-                      onClick={() => {
-                        activeEditor.dispatchCommand(OPEN_INSERT_LAYOUT_MODAL_COMMAND, null)
-                      }}
-                      className="item"
-                    >
-                      <i className="icon columns" />
-                      <span className="text">Columns Layout</span>
-                    </DropDownItem>
-                  )}
-
-                  {admonitionPlugin && (
-                    <DropDownItem
-                      onClick={() => {
-                        activeEditor.dispatchCommand(OPEN_ADMONITION_MODAL_COMMAND, null)
-                      }}
-                      className="item"
-                    >
-                      <i className="icon admonition" />
-                      <span className="text">Admonition</span>
-                    </DropDownItem>
-                  )}
-
-                  {inlineImagePlugin && (
-                    <DropDownItem
-                      onClick={() => {
-                        activeEditor.dispatchCommand(OPEN_INLINE_IMAGE_MODAL_COMMAND, null)
-                      }}
-                      className="item"
-                    >
-                      <i className="icon image" />
-                      <span className="text">Inline Image</span>
-                    </DropDownItem>
-                  )}
-                  {tablePlugin && (
-                    <DropDownItem
-                      onClick={() => {
-                        activeEditor.dispatchCommand(OPEN_TABLE_MODAL_COMMAND, null)
-                      }}
-                      className="item"
-                    >
-                      <i className="icon table" />
-                      <span className="text">Table</span>
-                    </DropDownItem>
-                  )}
-                  {autoEmbedPlugin &&
-                    EmbedConfigs.map((embedConfig) => (
-                      <DropDownItem
-                        key={embedConfig.type}
-                        onClick={() => {
-                          activeEditor.dispatchCommand(INSERT_EMBED_COMMAND, embedConfig.type)
-                        }}
-                        className="item"
-                      >
-                        {embedConfig.icon}
-                        <span className="text">{embedConfig.contentName}</span>
-                      </DropDownItem>
-                    ))}
-                </DropDown>
-              </>
-            )}
+          {activeEditor === editor && insertMenuItems.length > 0 && (
+            <>
+              <Divider />
+              <DropDown
+                disabled={!isEditable}
+                buttonClassName="toolbar-item spaced"
+                buttonLabel="Insert"
+                buttonAriaLabel="Insert specialized editor node"
+                buttonIconClassName="icon plus"
+              >
+                <ToolbarActiveEditorProvider editor={activeEditor}>
+                  {insertMenuItems.map((item) => (
+                    <Fragment key={item.id}>{item.node}</Fragment>
+                  ))}
+                </ToolbarActiveEditorProvider>
+              </DropDown>
+            </>
+          )}
         </>
       )}
 
-      {toolbarExtensionItems
-        .slice()
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map((item) => (
+      <ToolbarActiveEditorProvider editor={activeEditor}>
+        {trailingToolbarItems.map((item) => (
           <Fragment key={item.id}>{item.node}</Fragment>
         ))}
+      </ToolbarActiveEditorProvider>
     </div>
   )
 }
