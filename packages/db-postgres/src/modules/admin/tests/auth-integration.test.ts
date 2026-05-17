@@ -48,6 +48,14 @@ let store: AdminStore
 const trackedUserIds = new Set<string>()
 const trackedRoleIds = new Set<string>()
 
+// Pure-JS argon2id takes ~1 s per hash; this suite makes ~20 users, only
+// one of which is later verified against its plaintext (the
+// getByEmailForSignIn test). Pre-compute one hash for the common-case
+// password ('pw') and reuse it for every test that doesn't care about
+// the actual hash value — saves ~20 s on every run.
+const SHARED_PASSWORD = 'pw'
+let SHARED_HASH = ''
+
 function trackUser(id: string) {
   trackedUserIds.add(id)
 }
@@ -65,7 +73,12 @@ async function createUser(input: {
   const email = input.email.toLowerCase()
   // Clear any stale row left by a crashed prior run.
   await db.delete(adminUsers).where(eq(adminUsers.email, email))
-  const password_hash = await hashPassword(input.password)
+  // Reuse the pre-computed hash when the password is the shared marker;
+  // tests that actually verify the plaintext (verifyPassword,
+  // signInWithPassword) supply their own password and pay the real hash
+  // cost.
+  const password_hash =
+    input.password === SHARED_PASSWORD ? SHARED_HASH : await hashPassword(input.password)
   const row = await store.adminUsers.create({
     email: input.email,
     password_hash,
@@ -103,10 +116,11 @@ async function cleanupTrackedRows() {
 // ---------------------------------------------------------------------------
 
 describe('auth integration', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     const testDB = setupTestDB([])
     db = testDB.db
     store = createAdminStore(db)
+    SHARED_HASH = await hashPassword(SHARED_PASSWORD)
   })
 
   afterEach(async () => {

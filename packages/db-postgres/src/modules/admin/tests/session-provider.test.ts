@@ -34,6 +34,14 @@ let store: AdminStore
 
 const trackedUserIds = new Set<string>()
 
+// Pure-JS argon2id takes ~1 s per hash; most tests here use the same
+// 'pw' password for both the create and the subsequent sign-in. Hash it
+// once and reuse — saves ~10–15 s on every run. Tests that need a
+// different password (alice's 'pw-alice', bob's 'correct') pay the
+// per-hash cost on demand.
+const SHARED_PASSWORD = 'pw'
+let SHARED_HASH = ''
+
 const SIGNING_SECRET = 'test-signing-secret-at-least-32-bytes-long-here'
 
 function makeProvider(options?: {
@@ -50,12 +58,16 @@ function makeProvider(options?: {
   })
 }
 
+async function hashFor(password: string): Promise<string> {
+  return password === SHARED_PASSWORD ? SHARED_HASH : await hashPassword(password)
+}
+
 async function createEnabledUser(email: string, password: string) {
   // Clear any stale row left by a crashed prior run.
   await db.delete(adminUsers).where(eq(adminUsers.email, email.toLowerCase()))
   const row = await store.adminUsers.create({
     email,
-    password_hash: await hashPassword(password),
+    password_hash: await hashFor(password),
     is_enabled: true,
   })
   trackedUserIds.add(row.id)
@@ -66,7 +78,7 @@ async function createDisabledUser(email: string, password: string) {
   await db.delete(adminUsers).where(eq(adminUsers.email, email.toLowerCase()))
   const row = await store.adminUsers.create({
     email,
-    password_hash: await hashPassword(password),
+    password_hash: await hashFor(password),
     is_enabled: false,
   })
   trackedUserIds.add(row.id)
@@ -83,10 +95,11 @@ async function cleanupTrackedRows() {
 // ---------------------------------------------------------------------------
 
 describe('JwtSessionProvider', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     const testDB = setupTestDB([])
     db = testDB.db
     store = createAdminStore(db)
+    SHARED_HASH = await hashPassword(SHARED_PASSWORD)
   })
 
   afterEach(async () => {
