@@ -28,167 +28,83 @@ What it does *not* do: speak HTTP, run in browsers, or hide the trust boundary. 
 
 ## Quick reference
 
-Each entry is the minimal shape for one task. The "Edit" line tells you which file you actually change; the link at the end points at the deeper architecture section. The patterns mirror the working `news` module in `apps/webapp/src/modules/news/`.
+Each entry is the minimal SDK shape for one task — plain `client.collection(...)` calls, no host-framework wrappers. The link at the end of each entry points at the deeper architecture section. Host-adapter helpers (TanStack Start server fns, viewer client, preview-cookie plumbing) are framework concerns and live under [Preview mode](#preview-mode-admin-draft-viewing-on-the-public-host).
 
-### 1. List documents (paginated, sorted)
+### 1. Instantiate a client
 
-The simplest list shape — sort, page size, locale, preview-aware status. Returns `FindResult<F>` (`{ docs, meta }`).
-
-**Edit:** `apps/webapp/src/modules/<your-collection>/list.ts` (a server fn).
+The standalone shape — pass an `IDbAdapter`, the collection definitions, optional storage, and a `requestContext`. No `initBylineCore()` required; the SDK runs equally well from a script, a test, or a host adapter.
 
 ```ts
-import { createServerFn } from '@tanstack/react-start'
-import type { FindResult } from '@byline/client'
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
-import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
+import { createBylineClient } from '@byline/client'
+import { createSuperAdminContext } from '@byline/auth'
+import { pgAdapter } from '@byline/db-postgres'
+import { localStorageProvider } from '@byline/storage-local'
 
-export type NewsCategoriesListResult = FindResult<NewsCategoryFields>
+import { collections } from './byline/collections'
 
-export const getNewsCategoriesFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: { lng?: string } | undefined) => ({ lng: input?.lng }))
-  .handler(async (ctx): Promise<NewsCategoriesListResult> => {
-    const client = getViewerBylineClient()
-    const preview = await isPreviewActive()
-
-    return client.collection('news-categories').find<NewsCategoryFields>({
-      sort: { name: 'asc' },
-      pageSize: 200,
-      locale: ctx.data.lng,
-      status: preview ? 'any' : 'published',
-    })
-  })
-```
-
-→ [Read surface](#read-surface)
-
-### 2. List with a relation filter and populate
-
-Filter by a relation target's column (here `category.path`), populate the relation and another image relation for in-page rendering, paginate.
-
-**Edit:** `apps/webapp/src/modules/<your-collection>/list.ts`.
-
-```ts
-import type { FindResult, WithPopulated } from '@byline/client'
-import type { MediaFields } from '~/collections/media/schema.js'
-import type { NewsFields } from '~/collections/news/schema.js'
-import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
-
-type NewsListFields = WithPopulated<
-  WithPopulated<NewsFields, 'category', NewsCategoryFields>,
-  'featureImage',
-  MediaFields
->
-
-export type NewsListResult = FindResult<NewsListFields>
-
-export const getNewsListFn = createServerFn({ method: 'GET' })
-  .inputValidator(/* … category?, page?, pageSize?, lng? */)
-  .handler(async (ctx): Promise<NewsListResult> => {
-    const client = getViewerBylineClient()
-    const preview = await isPreviewActive()
-
-    return client.collection('news').find<NewsListFields>({
-      where: ctx.data.category ? { category: { path: ctx.data.category } } : undefined,
-      sort: { publishedOn: 'desc' },
-      populate: { category: '*', featureImage: '*' },
-      page: ctx.data.page,
-      pageSize: ctx.data.pageSize,
-      locale: ctx.data.lng,
-      status: preview ? 'any' : 'published',
-    })
-  })
-```
-
-The `where: { category: { path: ... } }` is a *cross-collection relation filter* — `path` is locale-resolved against the target's `byline_document_paths` row. See [Filtering](#filtering).
-
-→ [Read surface](#read-surface) · [Relation filters](#filtering) · [`WithPopulated` typing](#typing-populated-relations)
-
-### 3. Find one document by path
-
-For document-detail routes. `findByPath` resolves through `byline_document_paths` (locale-aware) and returns `ClientDocument<F> | null`.
-
-**Edit:** `apps/webapp/src/modules/<your-collection>/detail.ts`.
-
-```ts
-import type { ClientDocument, WithPopulated } from '@byline/client'
-
-type NewsDetailFields = WithPopulated<
-  WithPopulated<NewsFields, 'category', NewsCategoryFields>,
-  'featureImage',
-  MediaFields
->
-
-export type NewsDetailResult = ClientDocument<NewsDetailFields> | null
-
-export const getNewsDetailFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: { path: string; lng?: string }) => input)
-  .handler(async (ctx): Promise<NewsDetailResult> => {
-    const client = getViewerBylineClient()
-    const preview = await isPreviewActive()
-
-    return client.collection('news').findByPath<NewsDetailFields>(ctx.data.path, {
-      populate: { category: '*', featureImage: '*' },
-      locale: ctx.data.lng,
-      status: preview ? 'any' : 'published',
-    })
-  })
-```
-
-Populated relations are addressable as `result.fields.category?.document?.fields.name` etc. — `WithPopulated` makes the chain fully typed.
-
-→ [Read surface](#read-surface)
-
-### 4. Find one document by id
-
-When you already have the document id (e.g. from an admin route param) and want the same SDK semantics as `findByPath`.
-
-```ts
-const doc = await client.collection('news').findById<NewsDetailFields>(id, {
-  populate: { category: '*' },
-  locale: lng,
-  status: preview ? 'any' : 'published',
+const client = createBylineClient({
+  db: pgAdapter({ connectionString: process.env.BYLINE_DB_URL! }),
+  collections,
+  storage: localStorageProvider({ uploadDir: './uploads', baseUrl: '/uploads' }),
+  requestContext: createSuperAdminContext({ id: 'my-script' }),
 })
 ```
 
-Returns `ClientDocument<F> | null`. The `id` is the logical document id (UUID), not a version id.
-
-→ [Read surface](#read-surface)
-
-### 5. Find first match (`findOne`)
-
-Equivalent to `find({ ..., pageSize: 1 }).docs[0] ?? null`, but communicates intent and skips the count query when supported.
+When the process has already called `initBylineCore()` (the usual case in a host application), the shorthand is just `config: getServerConfig()`:
 
 ```ts
-const featured = await client.collection('news').findOne<NewsListFields>({
-  where: { featured: true, status: 'published' },
-  sort: { publishedOn: 'desc' },
-  populate: { featureImage: '*' },
+import { getServerConfig } from '@byline/core'
+
+const client = createBylineClient({
+  config: getServerConfig(),
+  requestContext: () => resolveRequestContextFromSession(),
 })
 ```
 
-Returns `ClientDocument<F> | null`.
+`requestContext` accepts either a static `RequestContext` (long-lived scripts) or a factory `() => RequestContext | Promise<RequestContext>` (per-request resolution). Omitting it makes every call fail closed with `ERR_UNAUTHENTICATED`.
+
+→ [Construction](#construction) · [Auth and the trust boundary](#auth-requestcontext-and-the-trust-boundary)
+
+### 2. Simple reads
+
+The five read entry points on a `CollectionHandle`. Each returns a camelCase-shaped `ClientDocument<F>` (or `FindResult<F>` / `number`).
+
+```ts
+// List — returns { docs, meta }
+const list = await client.collection('news').find()
+
+// By id (logical document id, not a version id)
+const doc = await client.collection('news').findById(id)
+
+// By path (locale-aware via byline_document_paths)
+const home = await client.collection('pages').findByPath('home')
+
+// First match (skips the count query)
+const featured = await client.collection('news').findOne({ where: { featured: true } })
+
+// Count — same status / locale / beforeRead machinery as find()
+const total = await client.collection('news').count()
+```
+
+`findById` / `findByPath` / `findOne` return `ClientDocument<F> | null`. `find` returns `{ docs, meta }`. `count` returns `number`.
 
 → [Read surface](#read-surface)
 
-### 6. Count documents
+### 3. Top-level `where` filters
 
-Returns `number`. Reads through the same status / locale / `beforeRead` machinery as `find()`, so it's a safe denominator for pagination.
+Field-level filters compile to `EXISTS` subqueries against the typed `store_*` tables. Equality is shorthand; operators (`$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$contains`, `$startsWith`, `$endsWith`) live under an object.
 
 ```ts
-const total = await client.collection('news').count({
-  where: { category: { path: 'press' } },
-  status: 'published',
+await client.collection('news').find({
+  where: {
+    title: { $contains: 'launch' },
+    views: { $gte: 100 },
+    publishedAt: { $lte: new Date().toISOString() },
+  },
 })
 ```
 
-→ [Read surface](#read-surface)
-
-### 7. Filter with `$or` / `$and` combinators
-
-Combinators wrap an array of sub-clauses. Field clauses inside a combinator behave the same as at the top level.
+Combinators wrap an array of sub-clauses and behave the same as at the top level:
 
 ```ts
 where: {
@@ -199,152 +115,196 @@ where: {
 }
 ```
 
-`status` and `path` inside a combinator (or inside a nested relation sub-clause) downshift from EAV-style `EXISTS` filters to direct outer-scope column comparisons via `DocumentColumnFilter` — so combinator clauses on document metadata compose correctly with field filters.
+`status` and `path` are document metadata, not field filters — they resolve to direct outer-scope column comparisons (`document_versions.status` and a `byline_document_paths` projection) and compose correctly inside combinators or nested relation hops.
 
 → [Filtering](#filtering)
 
-### 8. Filter on a relation target's columns
+### 4. Relation `where` filters
 
-`where: { <relation>: { <field>: ... } }` is the cross-collection relation filter form. The target collection's filter machinery runs at the inner depth. `path` resolves through the target's `byline_document_paths` row (locale-aware).
+`where: { <relation>: { <field>: ... } }` filters on a relation target's columns. The target collection's filter machinery runs at the inner depth; relation chains can nest.
 
 ```ts
-// "News articles whose category's path is 'press'"
+// News whose category's path is 'press'
 where: { category: { path: 'press' } }
 
-// "News whose category's parent's path is 'editorial' — 2-hop"
-where: { category: { parent: { path: 'editorial' } } }
-
-// "News whose category's `slug` field is 'press'"
+// News whose category's `slug` field is 'press'
 where: { category: { slug: 'press' } }
+
+// 2-hop — news whose category's parent's path is 'editorial'
+where: { category: { parent: { path: 'editorial' } } }
 ```
 
-`status` and `path` inside a nested sub-clause are document metadata, not field filters. A target collection that declares a `path` or `status` *field* won't see those clauses resolve as field filters — rename the field if that ever bites (e.g. `slug`).
+`path` is locale-resolved against the target's `byline_document_paths` row; `status` resolves to `document_versions.status` on the relation hop. A target collection that declares a `path` or `status` *field* won't see those clauses resolve as field filters — rename the field (e.g. to `slug`) if it ever bites.
 
 → [Filtering](#filtering)
 
-### 9. Type a populated relation with `WithPopulated`
+### 5. Sort and pagination
+
+```ts
+await client.collection('news').find({
+  sort: { publishedAt: 'desc' },   // also: 'publishedAt' / '-publishedAt' / ['-publishedAt', 'title']
+  page: 2,
+  pageSize: 20,
+  locale: 'en',
+})
+```
+
+Field sort compiles to `LEFT JOIN LATERAL` against the appropriate store table; document-level columns (`status`, `createdAt`, `updatedAt`) use direct outer-scope comparisons. Sorting by `path` is intentionally not supported.
+
+→ [Sorting](#sorting)
+
+### 6. Populate and depth
+
+`populate` replaces relation slots with their target documents. `depth` caps the traversal (default `1` when `populate` is set, `0` otherwise) and is clamped to the request's `ReadContext.maxDepth`.
+
+```ts
+// Every relation, default projection
+await client.collection('news').find({ populate: true })
+
+// Every relation, full doc, recursive
+await client.collection('news').find({ populate: '*', depth: 3 })
+
+// Selective — and a 2-hop populate on `author.department`
+await client.collection('news').find({
+  populate: {
+    featureImage: true,
+    author: { populate: { department: true } },
+  },
+  depth: 2,
+})
+```
+
+The default projection includes the target's `useAsTitle` field implicitly, so link labels keep working even if the caller didn't list it. Populate threads `readMode` through every hop — published-mode reads stay on `current_published_documents` all the way down.
+
+→ [Population](#population) · [RELATIONSHIPS.md § Populate](./RELATIONSHIPS.md#populate)
+
+### 7. Type a populated relation with `WithPopulated`
 
 Schema-derived field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). `WithPopulated<Fields, 'name', TargetFields>` overlays the populated envelope so `result.fields.name?.document?.fields.<field>` is fully typed.
 
-**Edit:** the same `list.ts` / `detail.ts` server fn.
-
 ```ts
 import type { WithPopulated } from '@byline/client'
+import type { NewsFields } from './collections/news/schema.js'
+import type { NewsCategoryFields } from './collections/news-categories/schema.js'
+import type { MediaFields } from './collections/media/schema.js'
 
 type NewsListFields = WithPopulated<
   WithPopulated<NewsFields, 'category', NewsCategoryFields>,
   'featureImage',
   MediaFields
 >
+
+const result = await client.collection('news').find<NewsListFields>({
+  populate: { category: '*', featureImage: '*' },
+})
+
+result.docs[0]?.fields.category?.document?.fields.name // fully typed
 ```
 
-The pattern composes — wrap once per relation. The pass-through is purely at the type level; you still need a matching `populate: { category: '*' }` at the call site for the runtime envelope to actually be populated.
+The wrapper composes — wrap once per populated relation. Type-level only: you still need a matching `populate` at the call site for the runtime envelope to actually be populated.
 
 → [Typing populated relations](#typing-populated-relations)
 
-### 10. Preview-aware reads
+### 8. Status-aware reads
 
-Editors need to see drafts on the public host without leaking them to ordinary visitors. The viewer client's `requestContext` upgrades to an admin actor when **both** the `byline_preview` cookie and a valid admin session resolve. `isPreviewActive()` performs the paired check; reads pass `status: 'any'` (admin sees drafts) or `'published'` (everyone else).
-
-**Edit:** any server fn that should honour editorial preview.
+`status: 'published'` (the SDK default) reads through `current_published_documents`; `status: 'any'` reads the latest version regardless of publish state. A draft over a previously-published version keeps returning the published content until the draft itself is published.
 
 ```ts
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
+// Public read — default
+await client.collection('news').find()
 
-const client = getViewerBylineClient()
-const preview = await isPreviewActive()
+// Admin / system — see the latest version regardless of publish state
+await client.collection('news').find({ status: 'any' })
 
+// 'status' selects the source view; where.status is an orthogonal column filter
 await client.collection('news').find({
-  // ...where / sort / populate / page / pageSize ...
-  status: preview ? 'any' : 'published',
+  status: 'any',
+  where: { status: 'draft' },
 })
 ```
 
-A stale cookie is failure-mode-neutral: it never escalates a non-admin request, and it never breaks one either. Preview is per-server-fn opt-in — a fn that doesn't pass `status: 'any'` always serves published content even with the cookie set.
+The mode threads through populate, so a published-mode read of `news` populating `category` reads both from `current_published_documents`.
 
-→ [Preview mode](#preview-mode-admin-draft-viewing-on-the-public-host)
+→ [Status awareness](#status-awareness)
 
-### 11. Choose the right viewer client
+### 9. Create / update / delete
 
-Three module-scoped singletons live next to each other under `@byline/host-tanstack-start/integrations/`. Pick by trust level at the call site rather than by configuring a single client.
-
-| Helper | Behaviour | Use for |
-|---|---|---|
-| `getPublicBylineClient()` | Always anonymous + `readMode: 'published'`. Never reads the preview cookie. Never elevates. | RSS, sitemaps, JSON endpoints exposed to third parties, any response a CDN / cache might serve without keying off `byline_preview`. |
-| `getViewerBylineClient()` | Anonymous + `'published'` by default; upgrades to admin actor when both the cookie *and* a valid admin session resolve. | User-facing public pages where editorial preview should be honoured. |
-| `getAdminBylineClient()` | Resolves a fresh `RequestContext` from the admin session cookie on every call. Throws if no admin actor resolves. | Admin server fns and admin-only loaders. |
-
-A viewer-client call that doesn't pass `status: 'any'` behaves identically to a public-client call. The viewer client is therefore strictly safe to default to on user-facing pages — the worst case is "preview cookie does nothing." Reach for the public client when "preview should never apply" is a load-bearing property.
-
-→ [Preview mode](#preview-mode-admin-draft-viewing-on-the-public-host)
-
-### 12. Create / update / delete (write surface)
-
-Writes delegate to the corresponding `document-lifecycle` service, so collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire identically to the admin UI write path. `update` accepts whole-document `data`; `patches` is admin-internal.
-
-**Edit:** any server fn or trusted-runtime caller.
+Writes delegate to the corresponding `document-lifecycle` service. Collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes. `update` accepts whole-document `data` — patches are admin-UI internal.
 
 ```ts
-// Create
-const created = await client.collection('news').create({
-  data: { title: 'New piece', summary: '…' },
-  locale: 'en',
-  status: 'draft',                          // optional; defaults to the workflow's first status
-  _requestContext: requestContext,
-})
+const created = await client.collection('news').create(
+  { title: 'New piece', summary: '…' },
+  { locale: 'en' /* status?: optional; defaults to the workflow's first status */ }
+)
 
-// Update
-await client.collection('news').update(id, {
-  data: { title: 'Revised title' },
-  locale: 'en',
-  _requestContext: requestContext,
-})
+await client.collection('news').update(
+  created.documentId,
+  { title: 'Revised title' },
+  { locale: 'en' }
+)
 
-// Workflow transition
-await client.collection('news').changeStatus(id, { from: 'draft', to: 'published' })
+await client.collection('news').changeStatus(created.documentId, 'published')
 
-// Delete
-await client.collection('news').delete(id)
+await client.collection('news').delete(created.documentId)
 ```
 
-The public surface is whole-document only — patches (`field.*`, `array.*`, `block.*`) are admin-UI internal.
+Every write resolves the client's configured `requestContext` and runs `assertActorCanPerform('collections.<path>.<verb>')`. `actor: null` is rejected on writes.
 
 → [Write surface](#write-surface)
 
-### 13. Use the SDK from a migration or seed
+### 10. A standalone script
 
-Standalone construction — no `initBylineCore()` required. Pass a `createSuperAdminContext` so the explicit super-admin path stays auditable.
+Putting it all together — a one-shot Node script that iterates a collection, regenerates the bytes behind every `media` document, and writes the new value back through the SDK. The script:
 
-**Edit:** any script under `apps/webapp/byline/seeds/` or a migration runner.
+- side-effect imports `server.config.ts` so `initBylineCore()` registers config + collections;
+- builds a client from `getServerConfig()` and a super-admin context;
+- pages through `media` with `status: 'any'` + `_bypassBeforeRead: true` (admin-only escape hatches);
+- runs the core upload service to re-derive variants, then `handle.update(...)` to point the document at the new `storedFile`;
+- walks the workflow ladder forward via `changeStatus` to restore each doc's original status (since `update` always stamps a new version with the workflow's default status).
+
+The full source — including orphan-file cleanup and the workflow-restore helper — lives at [`apps/webapp/byline/scripts/regenerate-media.ts`](../apps/webapp/byline/scripts/regenerate-media.ts). The shape, condensed:
 
 ```ts
-import { createBylineClient } from '@byline/client'
-import { createSuperAdminContext } from '@byline/auth'
-import { pgAdapter } from '@byline/db-postgres'
-import { localStorageProvider } from '@byline/storage-local'
+import 'dotenv/config'
+import '../server.config.js'
 
-import { collections } from '../byline/collections'
+import { createSuperAdminContext } from '@byline/auth'
+import { createBylineClient } from '@byline/client'
+import { getServerConfig } from '@byline/core'
 
 const client = createBylineClient({
-  db: pgAdapter({ connectionString: process.env.BYLINE_DB_URL! }),
-  collections,
-  storage: localStorageProvider({ uploadDir: './uploads', baseUrl: '/uploads' }),
+  config: getServerConfig(),
+  requestContext: createSuperAdminContext({ id: 'regenerate-media-script' }),
 })
 
-const ctx = createSuperAdminContext({ id: 'seed:initial-content' })
+const handle = client.collection('media')
 
-await client.collection('news').create({
-  data: { title: 'Hello world' },
-  _requestContext: ctx,
-})
+// Snapshot the full set up-front — every update bumps `updated_at` and
+// would reorder a moving paged window.
+const allDocs: { id: string; status: string; fields: Record<string, any> }[] = []
+for (let page = 1; ; page++) {
+  const result = await handle.find({
+    page,
+    pageSize: 100,
+    status: 'any',
+    _bypassBeforeRead: true,
+  })
+  for (const d of result.docs) {
+    allDocs.push({ id: d.id, status: d.status, fields: d.fields as Record<string, any> })
+  }
+  if (result.docs.length < 100) break
+}
+
+for (const doc of allDocs) {
+  // ...regenerate variants via the core upload service, then:
+  await handle.update(doc.id, { ...doc.fields, image: newStoredFile })
+  // ...walk the workflow forward to restore doc.status (see the full source).
+}
 ```
 
-`createBylineClient` resolves a logger in priority order: explicit `config.logger` → `getLogger()` if `initBylineCore()` has registered one → silent no-op. Scripts and tests work without setup.
+Run it with `pnpm tsx --env-file=.env byline/scripts/regenerate-media.ts`. The same pattern fits seeds, migrations, content imports, and one-shot maintenance jobs.
 
-→ [Construction](#construction) · [Auth and the trust boundary](#auth-requestcontext-and-the-trust-boundary)
+→ [Construction](#construction) · [Write surface](#write-surface) · [Auth and the trust boundary](#auth-requestcontext-and-the-trust-boundary)
 
 ---
 
@@ -555,10 +515,10 @@ A stale cookie is therefore failure-mode-neutral: it never escalates a non-admin
 ### Write surface
 
 ```ts
-client.collection('news').create({ data, locale, path?, status? })
-client.collection('news').update(id, { data, patches?, locale, path? })
+client.collection('news').create(data, { locale?, path?, status? })
+client.collection('news').update(id, data, { locale?, path? })
 client.collection('news').delete(id)
-client.collection('news').changeStatus(id, { from, to })
+client.collection('news').changeStatus(id, nextStatus)
 client.collection('news').unpublish(id)
 ```
 
@@ -570,13 +530,26 @@ Each method delegates to the corresponding `document-lifecycle` service. The han
 
 ### Auth, `RequestContext`, and the trust boundary
 
-Every read and write path runs `assertActorCanPerform` (for documents) or `assertActorCanPerform` plus the field-upload `create` gate (for uploads) before touching storage. The SDK accepts `RequestContext` on its read methods via an internal `_requestContext?` channel that admin call sites populate via `getAdminRequestContext`; standalone consumers can construct one explicitly:
+Every read and write path runs `assertActorCanPerform` (for documents) or `assertActorCanPerform` plus the field-upload `create` gate (for uploads) before touching storage. The SDK resolves the `RequestContext` from the client's configured `requestContext` (static value or factory) on every call — there is no per-call context argument on the public methods. Standalone consumers configure it at construction:
 
 ```ts
 import { createSuperAdminContext } from '@byline/auth'
 
-const ctx = createSuperAdminContext({ id: 'migration-script' })
-await client.collection('news').create({ data: { ... }, _requestContext: ctx })
+const client = createBylineClient({
+  config: getServerConfig(),
+  requestContext: createSuperAdminContext({ id: 'migration-script' }),
+})
+
+await client.collection('news').create({ title: '…' })
+```
+
+Host adapters typically pass a factory that resolves a session-scoped context per call:
+
+```ts
+createBylineClient({
+  config: getServerConfig(),
+  requestContext: () => getAdminRequestContext(),
+})
 ```
 
 Policy:
