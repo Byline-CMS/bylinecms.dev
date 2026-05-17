@@ -1,8 +1,14 @@
+---
+title: "UI Kit (@byline/ui)"
+path: "uikit"
+summary: "The shared @byline/ui component library — primitives, themed surfaces, design tokens, and the Rslib build pipeline used to ship it to admin and downstream consumers."
+---
+
 # UI Kit (`@byline/ui`)
 
-> Companions:
-> - [GETTING-STARTED.md](./GETTING-STARTED.md) — onboarding flow that pulls in `@byline/ui` styles and components.
-> - Upstream: [github.com/infonomic/uikit](https://github.com/infonomic/uikit) — the source of truth for the foundational components and stylesheets.
+Companions:
+- [GETTING-STARTED.md](./GETTING-STARTED.md) — onboarding flow that pulls in `@byline/ui` styles and components.
+- Upstream: [github.com/infonomic/uikit](https://github.com/infonomic/uikit) — the source of truth for the foundational components and stylesheets.
 
 ## Overview
 

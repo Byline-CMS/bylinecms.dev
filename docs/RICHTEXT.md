@@ -1,8 +1,14 @@
+---
+title: "Rich Text Editor"
+path: "richtext"
+summary: "Byline's Lexical-based rich text editor: the extension API, built-in nodes (links, inline images, admonitions, layout, code, tables), and the runtime serializer pipeline."
+---
+
 # Rich Text Editor
 
-> Companions:
-> - [CORE-COMPOSITION.md](./CORE-COMPOSITION.md) — the broader roadmap for how Byline composes adapter packages (db, storage, session, editors).
-> - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — the relation-field primitive that richtext links and inline images are layered on top of.
+Companions:
+- [CORE-COMPOSITION.md](./CORE-COMPOSITION.md) — the broader roadmap for how Byline composes adapter packages (db, storage, session, editors).
+- [RELATIONSHIPS.md](./RELATIONSHIPS.md) — the relation-field primitive that richtext links and inline images are layered on top of.
 
 ## Overview
 

@@ -1,3 +1,9 @@
+---
+title: "Getting Started"
+path: "getting-started"
+summary: "The experimental Byline CLI: 'byline init' against an existing TanStack Start app, plus 'doctor' and other commands for adding Byline to a fresh project."
+---
+
 ## Getting started - Experimental CLI
 
 Note: We have an experimental CLI that will attempt to install Byline into an existing TanStack Start application. This has only been tested against up-to-date TanStack Start sites created with the Nitro (agnostic adapter). You can install TanStack Start with:

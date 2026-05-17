@@ -1,3 +1,9 @@
+---
+title: "Mission & Vision"
+path: "mission"
+summary: "Why Byline exists: an AI-first, structurally sound headless CMS that takes versioning, workflow, translation, and editorial provenance seriously by default."
+---
+
 # Mission & Vision
 
 ## Why Byline Exists

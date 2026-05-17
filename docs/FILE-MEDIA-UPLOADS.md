@@ -1,12 +1,18 @@
+---
+title: "File / Media Uploads"
+path: "file-media-uploads"
+summary: "The full upload pipeline — field-level validation, storage providers, image variant generation via Sharp, and how the Media collection plus a relation forms a shared library."
+---
+
 # File / Media Uploads
 
-> Companions:
-> - [COLLECTIONS.md](./COLLECTIONS.md) — collection schema and admin (the Media collection is a worked example).
-> - [FIELDS.md](./FIELDS.md) — schema/admin split applied to fields, including upload fields.
-> - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — `store_file` is the row that backs a persisted upload.
-> - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `populate` over a `relation` to a media collection carries the file envelope and its variants in one round-trip.
-> - [CLIENT-SDK.md](./CLIENT-SDK.md) — reading uploaded files (and their variants) via `@byline/client`.
-> - [ROUTING-API.md](./ROUTING-API.md) — the upload transport is an internal TanStack Start server function today; a stable public HTTP boundary is deferred.
+Companions:
+- [COLLECTIONS.md](./COLLECTIONS.md) — collection schema and admin (the Media collection is a worked example).
+- [FIELDS.md](./FIELDS.md) — schema/admin split applied to fields, including upload fields.
+- [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — `store_file` is the row that backs a persisted upload.
+- [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `populate` over a `relation` to a media collection carries the file envelope and its variants in one round-trip.
+- [CLIENT-SDK.md](./CLIENT-SDK.md) — reading uploaded files (and their variants) via `@byline/client`.
+- [ROUTING-API.md](./ROUTING-API.md) — the upload transport is an internal TanStack Start server function today; a stable public HTTP boundary is deferred.
 
 ## Overview
 

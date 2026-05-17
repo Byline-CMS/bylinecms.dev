@@ -1,3 +1,9 @@
+---
+title: "Key Architectural Decisions"
+path: "architecture"
+summary: "The load-bearing design decisions behind Byline: universal EAV storage, immutable versioning, patch-based updates, the schema/admin split, and the workflow system."
+---
+
 # Key Architectural Decisions
 
 These are the load-bearing design decisions behind Byline. Each is described

@@ -1,3 +1,9 @@
+---
+title: "TODO — priority index"
+path: "todo"
+summary: "Single landing page for 'what's next?'. An index of authoritative phase sections across the docs — priority lives here, detail lives in the linked doc."
+---
+
 # TODO — priority index
 
 Single landing page for "what's the next thing to work on?". This is an **index**, not a spec — each entry points to the authoritative phase section in the relevant doc. Detail lives there; priority lives here.

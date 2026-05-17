@@ -1,13 +1,19 @@
+---
+title: "Relationships"
+path: "relationships"
+summary: "First-class typed relations: the populate pipeline, depth-bounded recursion via ReadContext, two-axis populate DSL, and the unified relation envelope across all states."
+---
+
 # Relationships
 
-> Companions:
-> - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — the foundational EAV layer relations read and write against (`store_relation` is one of the seven typed stores).
-> - [CLIENT-SDK.md](./CLIENT-SDK.md) — `@byline/client` is where most relation reads land; the populate / `WithPopulated` patterns are documented there too.
-> - [COLLECTIONS.md](./COLLECTIONS.md) — `picker` column definitions for relation-picker rows, and the `useAsTitle` field used by populate's default projection.
-> - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and locale-resolved per request.
-> - [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
-> - [FILE-MEDIA-UPLOADS.md](./FILE-MEDIA-UPLOADS.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
-> - [RICHTEXT.md](./RICHTEXT.md) — document links inside richtext field values are a second consumer of the relation envelope.
+Companions:
+- [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — the foundational EAV layer relations read and write against (`store_relation` is one of the seven typed stores).
+- [CLIENT-SDK.md](./CLIENT-SDK.md) — `@byline/client` is where most relation reads land; the populate / `WithPopulated` patterns are documented there too.
+- [COLLECTIONS.md](./COLLECTIONS.md) — `picker` column definitions for relation-picker rows, and the `useAsTitle` field used by populate's default projection.
+- [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and locale-resolved per request.
+- [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
+- [FILE-MEDIA-UPLOADS.md](./FILE-MEDIA-UPLOADS.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
+- [RICHTEXT.md](./RICHTEXT.md) — document links inside richtext field values are a second consumer of the relation envelope.
 
 ## Overview
 

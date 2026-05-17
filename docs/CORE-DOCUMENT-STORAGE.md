@@ -1,10 +1,16 @@
+---
+title: "Core Document Storage"
+path: "core-document-storage"
+summary: "Universal EAV-per-type storage: typed store_* tables, the path notation, flatten/reconstruct, immutable versioning, current_documents views, and selective field loading."
+---
+
 # Core Document Storage
 
-> Companions:
-> - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — the first read consumer that spans collections.
-> - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
-> - [COLLECTIONS.md](./COLLECTIONS.md) — schema versioning (Versioning section) sits beside, but is independent of, document versioning.
-> - [Storage benchmark sweep — 2026-04-18](../benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
+Companions:
+- [RELATIONSHIPS.md](./RELATIONSHIPS.md) — the first read consumer that spans collections.
+- [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
+- [COLLECTIONS.md](./COLLECTIONS.md) — schema versioning (Versioning section) sits beside, but is independent of, document versioning.
+- [Storage benchmark sweep — 2026-04-18](../benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
 
 ## Overview
 

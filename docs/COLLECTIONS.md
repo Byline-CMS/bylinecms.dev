@@ -1,11 +1,17 @@
+---
+title: "Collections"
+path: "collections"
+summary: "Defining collections in Byline: defineCollection, the workflow system, lifecycle hooks (beforeCreate, beforeRead, afterUpdate…), and the admin presentation split."
+---
+
 # Collections
 
-> Companions:
-> - [FIELDS.md](./FIELDS.md) — field-level schema and admin (slot components, helper factories, the per-field richtext editor swap).
-> - [RICHTEXT.md](./RICHTEXT.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
-> - [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
-> - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — *document* versioning (the sibling pillar — this doc covers *schema* versioning).
-> - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — how `useAsPath` lands in `byline_document_paths`.
+Companions:
+- [FIELDS.md](./FIELDS.md) — field-level schema and admin (slot components, helper factories, the per-field richtext editor swap).
+- [RICHTEXT.md](./RICHTEXT.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
+- [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
+- [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — *document* versioning (the sibling pillar — this doc covers *schema* versioning).
+- [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — how `useAsPath` lands in `byline_document_paths`.
 
 ## Overview
 

@@ -1,9 +1,15 @@
+---
+title: "Routing & API"
+path: "routing-api"
+summary: "The current internal-transport phase — TanStack Start server functions per area — and why a stable public HTTP API is deferred until a second client arrives."
+---
+
 # Routing & API
 
-> Companions:
-> - [FILE-MEDIA-UPLOADS.md](./FILE-MEDIA-UPLOADS.md) — uploads ride on the same internal transport described here.
-> - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — what the document write/read services persist.
-> - [CLIENT-SDK.md](./CLIENT-SDK.md) — the in-process client that admin server fns and (future) public HTTP routes both delegate to.
+Companions:
+- [FILE-MEDIA-UPLOADS.md](./FILE-MEDIA-UPLOADS.md) — uploads ride on the same internal transport described here.
+- [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — what the document write/read services persist.
+- [CLIENT-SDK.md](./CLIENT-SDK.md) — the in-process client that admin server fns and (future) public HTTP routes both delegate to.
 
 ## Overview
 

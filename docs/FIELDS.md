@@ -1,9 +1,15 @@
+---
+title: "Fields API"
+path: "fields"
+summary: "The Fields API: built-in types, optional, localized, validation, hooks, the schema-vs-admin split, and how to build reusable field helpers like availableLanguagesField."
+---
+
 # Fields API
 
-> Companions:
-> - [RICHTEXT.md](./RICHTEXT.md) — the Lexical adapter and how `lexicalEditor()` / per-field editor overrides plug in.
-> - [COLLECTIONS.md](./COLLECTIONS.md) — collection-level admin (columns, layout, preview URL, custom list views).
-> - [ARCHITECTURE.md](./ARCHITECTURE.md) — the schema / admin split (Django-style model vs ModelAdmin) at the framework level.
+Companions:
+- [RICHTEXT.md](./RICHTEXT.md) — the Lexical adapter and how `lexicalEditor()` / per-field editor overrides plug in.
+- [COLLECTIONS.md](./COLLECTIONS.md) — collection-level admin (columns, layout, preview URL, custom list views).
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — the schema / admin split (Django-style model vs ModelAdmin) at the framework level.
 
 ## Overview
 

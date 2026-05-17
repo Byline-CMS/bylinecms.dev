@@ -1,3 +1,9 @@
+---
+title: "Testing"
+path: "testing"
+summary: "Two suites, two commands: pnpm test (unit, no Postgres) and pnpm test:integration (real db). Isolation, safety guards, and how to run a single test file."
+---
+
 # Testing
 
 Two test suites, two commands:

@@ -1,12 +1,18 @@
+---
+title: "Client SDK (@byline/client)"
+path: "client-sdk"
+summary: "The in-process @byline/client SDK above the storage primitives — find, create, update, populate, status-aware reads, plus the read and write hook contracts."
+---
+
 # Client SDK (`@byline/client`)
 
-> Companions:
-> - [ROUTING-API.md](./ROUTING-API.md) — broader transport-phase context: admin UI is the only client today, stable HTTP is deferred. The SDK is what fills the gap.
-> - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — storage primitives the SDK sits above.
-> - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `populate` / `depth` machinery the SDK exposes.
-> - [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
-> - [COLLECTIONS.md](./COLLECTIONS.md) — `CollectionAdminConfig.preview.url` builder used by the admin preview affordance.
-> - [`packages/client/DESIGN.md`](../packages/client/DESIGN.md) — implementation-detail design doc; phase-by-phase status snapshot.
+Companions:
+- [ROUTING-API.md](./ROUTING-API.md) — broader transport-phase context: admin UI is the only client today, stable HTTP is deferred. The SDK is what fills the gap.
+- [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — storage primitives the SDK sits above.
+- [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `populate` / `depth` machinery the SDK exposes.
+- [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
+- [COLLECTIONS.md](./COLLECTIONS.md) — `CollectionAdminConfig.preview.url` builder used by the admin preview affordance.
+- [`packages/client/DESIGN.md`](../packages/client/DESIGN.md) — implementation-detail design doc; phase-by-phase status snapshot.
 
 ## Overview
 

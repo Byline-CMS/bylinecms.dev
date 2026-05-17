@@ -1,9 +1,15 @@
+---
+title: "Core Composition — Roadmap"
+path: "core-composition"
+summary: "Roadmap for how Byline's core packages compose: registry/DI, server config, the host adapter, and what's planned for framework-agnostic distribution."
+---
+
 # Core Composition — Roadmap
 
-> Companions:
-> - [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — the ability-key design that the future `createCommand({ auth: { abilities } })` slot will consume.
-> - [ROUTING-API.md](./ROUTING-API.md) — admin server fns are the current call sites that would benefit from a command-tree shape.
-> - [RICHTEXT.md](./RICHTEXT.md) — the richtext adapter is the first server-side adapter slot on `ServerConfig.fields.*`; pattern for future field-level server adapters.
+Companions:
+- [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — the ability-key design that the future `createCommand({ auth: { abilities } })` slot will consume.
+- [ROUTING-API.md](./ROUTING-API.md) — admin server fns are the current call sites that would benefit from a command-tree shape.
+- [RICHTEXT.md](./RICHTEXT.md) — the richtext adapter is the first server-side adapter slot on `ServerConfig.fields.*`; pattern for future field-level server adapters.
 
 ## Field-level server adapter slots — `ServerConfig.fields.*`
 

@@ -1,10 +1,16 @@
+---
+title: "Authentication & Authorization"
+path: "authn-authz"
+summary: "How actors, abilities, and request context flow through Byline — plus six worked beforeRead recipes for row-level access control on document reads and populate."
+---
+
 # Authentication & Authorization
 
-> Companions:
-> - [COLLECTIONS.md](./COLLECTIONS.md) — lifecycle hooks (including `beforeRead` / `afterRead`) live on the collection schema; this doc is the reference for the auth subsystem the hooks plug into.
-> - [ROUTING-API.md](./ROUTING-API.md) — server-fn transport that resolves `RequestContext` and passes it down.
-> - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `ReadContext` is the seed for the actor-carrying `RequestContext`; populate threads `beforeRead` through to populated target collections.
-> - [CLIENT-SDK.md](./CLIENT-SDK.md) — the in-process SDK is where actor threading becomes externally visible.
+Companions:
+- [COLLECTIONS.md](./COLLECTIONS.md) — lifecycle hooks (including `beforeRead` / `afterRead`) live on the collection schema; this doc is the reference for the auth subsystem the hooks plug into.
+- [ROUTING-API.md](./ROUTING-API.md) — server-fn transport that resolves `RequestContext` and passes it down.
+- [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `ReadContext` is the seed for the actor-carrying `RequestContext`; populate threads `beforeRead` through to populated target collections.
+- [CLIENT-SDK.md](./CLIENT-SDK.md) — the in-process SDK is where actor threading becomes externally visible.
 
 ## Overview
 

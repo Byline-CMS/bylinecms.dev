@@ -1,3 +1,9 @@
+---
+title: "Content Management in the Time of AI"
+path: "content-in-the-time-of-ai"
+summary: "Why structured versioning, workflow, and translation matter more — not less — when AI starts producing content at scale, and what provenance looks like in that world."
+---
+
 # Content Management in the Time of AI
 
 In a world where generative AI can produce content in seconds and translate it
