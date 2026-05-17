@@ -9,3 +9,4 @@ allowBuilds:
   lightningcss-cli: true
   protobufjs: true
   sharp: true
+  simple-git-hooks: true

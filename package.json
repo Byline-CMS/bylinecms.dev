@@ -23,11 +23,20 @@
     "test:integration": "turbo run test:integration --concurrency=1",
     "version-packages": "changeset version",
     "release:tag": "turbo run build --filter=\"./packages/*\" && changeset tag",
-    "release:npm": "turbo run build --filter=\"./packages/*\" && changeset publish"
+    "release:npm": "turbo run build --filter=\"./packages/*\" && changeset publish",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm exec lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,jsx,mjs,cjs,ts,tsx,json,jsonc}": "biome check --write --unsafe --no-errors-on-unmatched --diagnostic-level=error"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
-    "@changesets/cli": "^2.31.0"
+    "@changesets/cli": "^2.31.0",
+    "lint-staged": "^17.0.4",
+    "simple-git-hooks": "^2.13.1"
   },
   "dependencies": {
     "turbo": "^2.9.12",
@@ -55,7 +64,8 @@
       "esbuild",
       "lightningcss-cli",
       "protobufjs",
-      "sharp"
+      "sharp",
+      "simple-git-hooks"
     ]
   }
 }
