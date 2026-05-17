@@ -40,13 +40,20 @@ function setBylineCoreInstance(core: unknown) {
   ;(globalThis as any)[BYLINE_CORE] = core
 }
 
+/**
+ * Resolve a collection definition by `path`. Returns `null` either when
+ * no config has been registered (e.g. unit tests, isolated tooling) or
+ * when a config is registered but doesn't carry a collection at that
+ * path. Matches the `T | null` return contract so callers can branch
+ * without try/catch.
+ *
+ * If a caller genuinely *requires* a registered config to proceed, it
+ * should reach for `getClientConfig()` / `getServerConfig()` — those
+ * still throw the loud "Byline has not been configured" error.
+ */
 export const getCollectionDefinition = (path: string): CollectionDefinition | null => {
   const config = getClientConfigInstance() ?? getServerConfigInstance()
-  if (config == null) {
-    throw new Error(
-      'Byline has not been configured yet. Please call defineClientConfig or defineServerConfig in your admin/server config first.'
-    )
-  }
+  if (config == null) return null
 
   return config.collections.find((collection) => collection.path === path) ?? null
 }

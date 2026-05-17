@@ -21,21 +21,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'pnpm'
+          node-version: "22"
+          cache: "pnpm"
 
       - run: pnpm install --frozen-lockfile
-
       - run: pnpm lint
-
       - run: pnpm typecheck
 
-  integration:
+  test-suite:
     if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     runs-on: ubuntu-latest
 
@@ -58,20 +54,18 @@ jobs:
     env:
       POSTGRES_CONNECTION_STRING: postgres://byline:byline@127.0.0.1:5432/byline_test
       POSTGRES_HOSTNAME: 127.0.0.1
-      POSTGRES_PORT: '5432'
+      POSTGRES_PORT: "5432"
       POSTGRES_DATABASE: byline_test
       POSTGRES_USER: byline
       POSTGRES_PASSWORD: byline
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'pnpm'
+          node-version: "22"
+          cache: "pnpm"
 
       - run: pnpm install --frozen-lockfile
 
@@ -97,4 +91,8 @@ jobs:
           POSTGRES_CONNECTION_STRING=$POSTGRES_CONNECTION_STRING
           EOF
 
+      # Unit suites across every package (core/auth/admin/ai/host/client/...).
+      # Pure CPU, no DB
+      - run: pnpm test
+      # Integration tests now - require byline_test DB
       - run: pnpm test:integration

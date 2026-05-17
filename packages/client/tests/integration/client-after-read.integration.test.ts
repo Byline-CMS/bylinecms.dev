@@ -34,13 +34,12 @@ function testCollection(suffix: string | number): CollectionDefinition {
     }),
     search: { fields: ['title'] },
     useAsTitle: 'title',
-    // Slugify the `slug` field into the system path column so the
-    // `findByPath` test resolves docs by the value supplied in `data.slug`.
-    // (A field literally named `path` is reserved — see validate-collections.)
-    useAsPath: 'slug',
+    // System path is derived from `title` via the installation slugifier
+    // (the standard pattern). Test data uses unique titles so the derived
+    // slugs don't collide; `findByPath` uses the slugified form.
+    useAsPath: 'title',
     fields: [
       { name: 'title', type: 'text', label: 'Title' },
-      { name: 'slug', type: 'text', label: 'Slug' },
       { name: 'secret', type: 'text', label: 'Secret', optional: true },
     ],
     hooks: {
@@ -70,8 +69,7 @@ describe('afterRead integration', () => {
     const handle = ctx.client.collection(ctx.definition.path)
 
     const { documentId } = await handle.create({
-      title: 'Original',
-      slug: 'ar-findbyid',
+      title: 'AfterRead FindById',
       secret: 'visible',
     })
     await handle.changeStatus(documentId, 'published')
@@ -81,32 +79,33 @@ describe('afterRead integration', () => {
 
     expect(hookCalls.length).toBe(1)
     expect(hookCalls[0]?.collectionPath).toBe(ctx.definition.path)
-    expect(doc?.fields.computedTitle).toBe('Original!!')
+    expect(doc?.fields.computedTitle).toBe('AfterRead FindById!!')
   })
 
   it('fires on findByPath', async () => {
     const handle = ctx.client.collection(ctx.definition.path)
 
-    const { documentId } = await handle.create({
-      title: 'By Path',
-      slug: 'ar-bypath',
-      secret: 'visible',
-    })
-    await handle.changeStatus(documentId, 'published')
+    await handle.create({ title: 'AfterRead ByPath', secret: 'visible' })
+    // The lifecycle slugifies `title` → `useAsPath`. With the default
+    // slugifier "AfterRead ByPath" → "afterread-bypath". Publish so the
+    // default `status: 'published'` read can resolve it.
+    const published = await ctx.client
+      .collection(ctx.definition.path)
+      .findByPath('afterread-bypath', { status: 'any' })
+    await handle.changeStatus(published!.id, 'published')
 
     hookCalls.length = 0
-    const doc = await handle.findByPath('ar-bypath')
+    const doc = await handle.findByPath('afterread-bypath')
 
     expect(hookCalls.length).toBe(1)
-    expect(doc?.fields.computedTitle).toBe('By Path!!')
+    expect(doc?.fields.computedTitle).toBe('AfterRead ByPath!!')
   })
 
   it('fires once per doc on find() list results', async () => {
     const handle = ctx.client.collection(ctx.definition.path)
     for (let i = 0; i < 2; i++) {
       const { documentId } = await handle.create({
-        title: `List ${i}`,
-        slug: `ar-list-${i}`,
+        title: `AfterRead List ${i}`,
         secret: 'visible',
       })
       await handle.changeStatus(documentId, 'published')
@@ -126,8 +125,7 @@ describe('afterRead integration', () => {
     const handle = ctx.client.collection(ctx.definition.path)
 
     const { documentId } = await handle.create({
-      title: 'Dedup',
-      slug: 'ar-dedup',
+      title: 'AfterRead Dedup',
       secret: 'visible',
     })
     await handle.changeStatus(documentId, 'published')
@@ -148,8 +146,7 @@ describe('afterRead integration', () => {
     const handle = ctx.client.collection(ctx.definition.path)
 
     const { documentId } = await handle.create({
-      title: 'Fresh',
-      slug: 'ar-fresh',
+      title: 'AfterRead Fresh',
       secret: 'visible',
     })
     await handle.changeStatus(documentId, 'published')
