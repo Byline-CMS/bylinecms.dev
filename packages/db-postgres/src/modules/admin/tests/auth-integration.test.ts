@@ -6,15 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import assert from 'node:assert'
-import { after, afterEach, before, describe, it } from 'node:test'
-
 import type { AdminStore } from '@byline/admin'
 import { seedSuperAdmin } from '@byline/admin/admin-users'
 import { hashPassword, resolveActor, verifyPassword } from '@byline/admin/auth'
 import { AdminAuth } from '@byline/auth'
 import { eq, inArray } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   adminPermissions,
@@ -105,7 +103,7 @@ async function cleanupTrackedRows() {
 // ---------------------------------------------------------------------------
 
 describe('auth integration', () => {
-  before(() => {
+  beforeAll(() => {
     const testDB = setupTestDB([])
     db = testDB.db
     store = createAdminStore(db)
@@ -115,7 +113,7 @@ describe('auth integration', () => {
     await cleanupTrackedRows()
   })
 
-  after(async () => {
+  afterAll(async () => {
     await cleanupTrackedRows()
     await teardownTestDB()
   })
@@ -131,48 +129,48 @@ describe('auth integration', () => {
         password: 'alice-password',
         given_name: 'Alice',
       })
-      assert.ok(created.id)
-      assert.strictEqual(created.email, 'alice@example.com')
-      assert.strictEqual(created.given_name, 'Alice')
-      assert.strictEqual(created.is_enabled, false) // default false
-      assert.strictEqual(created.is_super_admin, false)
+      expect(created.id).toBeTruthy()
+      expect(created.email).toBe('alice@example.com')
+      expect(created.given_name).toBe('Alice')
+      expect(created.is_enabled).toBe(false) // default false
+      expect(created.is_super_admin).toBe(false)
       // Public columns: password_hash is never returned
-      assert.strictEqual((created as any).password_hash, undefined)
+      expect((created as any).password_hash).toBe(undefined)
 
       const fetched = await store.adminUsers.getById(created.id)
-      assert.strictEqual(fetched?.email, 'alice@example.com')
+      expect(fetched?.email).toBe('alice@example.com')
     })
 
     it('lowercases the email on insert and on lookup', async () => {
       await createUser({ email: 'Alice@Example.COM', password: 'pw' })
       const byMixed = await store.adminUsers.getByEmail('ALICE@example.com')
-      assert.ok(byMixed)
-      assert.strictEqual(byMixed.email, 'alice@example.com')
+      expect(byMixed).toBeTruthy()
+      expect(byMixed?.email).toBe('alice@example.com')
     })
 
     it('returns the password hash only via getByEmailForSignIn', async () => {
       await createUser({ email: 'b@example.com', password: 'pw-value' })
 
       const plain = await store.adminUsers.getByEmail('b@example.com')
-      assert.strictEqual((plain as any)?.password_hash, undefined)
+      expect((plain as any)?.password_hash).toBe(undefined)
 
       const withPw = await store.adminUsers.getByEmailForSignIn('b@example.com')
-      assert.ok(withPw)
-      assert.ok(await verifyPassword('pw-value', withPw.password_hash))
+      expect(withPw).toBeTruthy()
+      expect(await verifyPassword('pw-value', withPw?.password_hash)).toBeTruthy()
     })
 
     it('update applies partial patches and bumps vid', async () => {
       const created = await createUser({ email: 'c@example.com', password: 'pw' })
-      assert.strictEqual(created.vid, 1)
+      expect(created.vid).toBe(1)
       const updated = await store.adminUsers.update(created.id, created.vid, {
         given_name: 'Charlie',
         is_enabled: true,
       })
-      assert.strictEqual(updated.given_name, 'Charlie')
-      assert.strictEqual(updated.is_enabled, true)
+      expect(updated.given_name).toBe('Charlie')
+      expect(updated.is_enabled).toBe(true)
       // Unchanged fields remain
-      assert.strictEqual(updated.email, 'c@example.com')
-      assert.strictEqual(updated.vid, created.vid + 1)
+      expect(updated.email).toBe('c@example.com')
+      expect(updated.vid).toBe(created.vid + 1)
     })
 
     it('update throws VERSION_CONFLICT on a stale vid', async () => {
@@ -180,10 +178,9 @@ describe('auth integration', () => {
       // First update succeeds and bumps vid.
       await store.adminUsers.update(created.id, created.vid, { given_name: 'First' })
       // Replaying the same vid must conflict.
-      await assert.rejects(
-        () => store.adminUsers.update(created.id, created.vid, { given_name: 'Second' }),
-        (err: Error & { code?: string }) => err.code === 'admin.users.versionConflict'
-      )
+      await expect(() =>
+        store.adminUsers.update(created.id, created.vid, { given_name: 'Second' })
+      ).rejects.toMatchObject({ code: 'admin.users.versionConflict' })
     })
 
     it('setPasswordHash rehashes, bumps vid, and returns the fresh row', async () => {
@@ -193,23 +190,22 @@ describe('auth integration', () => {
         created.vid,
         await hashPassword('new-password')
       )
-      assert.strictEqual(updated.id, created.id)
-      assert.strictEqual(updated.vid, created.vid + 1)
+      expect(updated.id).toBe(created.id)
+      expect(updated.vid).toBe(created.vid + 1)
 
       const signIn = await store.adminUsers.getByEmailForSignIn('d@example.com')
-      assert.ok(signIn)
-      assert.ok(await verifyPassword('new-password', signIn.password_hash))
-      assert.strictEqual(await verifyPassword('old', signIn.password_hash), false)
-      assert.strictEqual(signIn.vid, created.vid + 1)
+      expect(signIn).toBeTruthy()
+      expect(await verifyPassword('new-password', signIn?.password_hash)).toBeTruthy()
+      expect(await verifyPassword('old', signIn?.password_hash)).toBe(false)
+      expect(signIn?.vid).toBe(created.vid + 1)
     })
 
     it('setPasswordHash throws VERSION_CONFLICT on a stale vid', async () => {
       const created = await createUser({ email: 'd2@example.com', password: 'pw' })
       await store.adminUsers.update(created.id, created.vid, { given_name: 'D' })
-      await assert.rejects(
-        () => store.adminUsers.setPasswordHash(created.id, created.vid, '$argon2id$stale-hash'),
-        (err: Error & { code?: string }) => err.code === 'admin.users.versionConflict'
-      )
+      await expect(() =>
+        store.adminUsers.setPasswordHash(created.id, created.vid, '$argon2id$stale-hash')
+      ).rejects.toMatchObject({ code: 'admin.users.versionConflict' })
     })
 
     it('recordLoginSuccess resets failed_login_attempts and stamps last_login', async () => {
@@ -217,31 +213,30 @@ describe('auth integration', () => {
       await store.adminUsers.recordLoginFailure(created.id)
       await store.adminUsers.recordLoginFailure(created.id)
       let row = await store.adminUsers.getById(created.id)
-      assert.strictEqual(row?.failed_login_attempts, 2)
+      expect(row?.failed_login_attempts).toBe(2)
 
       await store.adminUsers.recordLoginSuccess(created.id, '10.0.0.1')
       row = await store.adminUsers.getById(created.id)
-      assert.strictEqual(row?.failed_login_attempts, 0)
-      assert.strictEqual(row?.last_login_ip, '10.0.0.1')
-      assert.ok(row?.last_login)
+      expect(row?.failed_login_attempts).toBe(0)
+      expect(row?.last_login_ip).toBe('10.0.0.1')
+      expect(row?.last_login).toBeTruthy()
     })
 
     it('delete removes the row when vid matches', async () => {
       const created = await createUser({ email: 'f@example.com', password: 'pw' })
       await store.adminUsers.delete(created.id, created.vid)
       const fetched = await store.adminUsers.getById(created.id)
-      assert.strictEqual(fetched, null)
+      expect(fetched).toBe(null)
     })
 
     it('delete throws VERSION_CONFLICT on a stale vid', async () => {
       const created = await createUser({ email: 'f2@example.com', password: 'pw' })
       await store.adminUsers.update(created.id, created.vid, { given_name: 'F' })
-      await assert.rejects(
-        () => store.adminUsers.delete(created.id, created.vid),
-        (err: Error & { code?: string }) => err.code === 'admin.users.versionConflict'
-      )
+      await expect(() => store.adminUsers.delete(created.id, created.vid)).rejects.toMatchObject({
+        code: 'admin.users.versionConflict',
+      })
       // Row should still be present.
-      assert.ok(await store.adminUsers.getById(created.id))
+      expect(await store.adminUsers.getById(created.id)).toBeTruthy()
     })
 
     it('list applies pagination, order, and query filter', async () => {
@@ -258,7 +253,7 @@ describe('auth integration', () => {
         order: 'email',
         desc: false,
       })
-      assert.strictEqual(filtered.length, 3)
+      expect(filtered.length).toBe(3)
 
       const named = await store.adminUsers.list({
         page: 1,
@@ -267,11 +262,11 @@ describe('auth integration', () => {
         order: 'email',
         desc: false,
       })
-      assert.strictEqual(named.length, 1)
-      assert.strictEqual(named[0]?.given_name, 'Bea')
+      expect(named.length).toBe(1)
+      expect(named[0]?.given_name).toBe('Bea')
 
       const total = await store.adminUsers.count({ query: 'list' })
-      assert.strictEqual(total, 3)
+      expect(total).toBe(3)
     })
   })
 
@@ -286,9 +281,9 @@ describe('auth integration', () => {
         machine_name: 'test-editor',
         description: 'Can edit content',
       })
-      assert.strictEqual(role.machine_name, 'test-editor')
+      expect(role.machine_name).toBe('test-editor')
       const byMachine = await store.adminRoles.getByMachineName('test-editor')
-      assert.strictEqual(byMachine?.id, role.id)
+      expect(byMachine?.id).toBe(role.id)
     })
 
     it('assignToUser is idempotent and listRolesForUser returns the role', async () => {
@@ -299,11 +294,11 @@ describe('auth integration', () => {
       await store.adminRoles.assignToUser(role.id, user.id) // idempotent
 
       const userRoles = await store.adminRoles.listRolesForUser(user.id)
-      assert.strictEqual(userRoles.length, 1)
-      assert.strictEqual(userRoles[0]?.machine_name, 'test-r')
+      expect(userRoles.length).toBe(1)
+      expect(userRoles[0]?.machine_name).toBe('test-r')
 
       const usersForRole = await store.adminRoles.listUsersForRole(role.id)
-      assert.deepStrictEqual(usersForRole, [user.id])
+      expect(usersForRole).toEqual([user.id])
     })
 
     it('unassignFromUser removes the assignment', async () => {
@@ -311,7 +306,7 @@ describe('auth integration', () => {
       const role = await createRole({ name: 'test-r', machine_name: 'test-r' })
       await store.adminRoles.assignToUser(role.id, user.id)
       await store.adminRoles.unassignFromUser(role.id, user.id)
-      assert.strictEqual((await store.adminRoles.listRolesForUser(user.id)).length, 0)
+      expect((await store.adminRoles.listRolesForUser(user.id)).length).toBe(0)
     })
 
     it('delete cascades to permissions and role-user assignments', async () => {
@@ -323,21 +318,21 @@ describe('auth integration', () => {
       await store.adminRoles.delete(role.id, role.vid)
 
       // The role is gone…
-      assert.strictEqual(await store.adminRoles.getById(role.id), null)
+      expect(await store.adminRoles.getById(role.id)).toBe(null)
       // …and its grants are gone…
       const grantsForRole = await db
         .select()
         .from(adminPermissions)
         .where(eq(adminPermissions.admin_role_id, role.id))
-      assert.strictEqual(grantsForRole.length, 0)
+      expect(grantsForRole.length).toBe(0)
       // …and no assignment for the role remains.
       const assignsForRole = await db
         .select()
         .from(adminRoleAdminUser)
         .where(eq(adminRoleAdminUser.admin_role_id, role.id))
-      assert.strictEqual(assignsForRole.length, 0)
+      expect(assignsForRole.length).toBe(0)
       // The user still exists.
-      assert.ok(await store.adminUsers.getById(user.id))
+      expect(await store.adminUsers.getById(user.id)).toBeTruthy()
     })
   })
 
@@ -351,7 +346,7 @@ describe('auth integration', () => {
       await store.adminPermissions.grantAbility(role.id, 'collections.pages.publish')
       await store.adminPermissions.grantAbility(role.id, 'collections.pages.publish')
       const abilities = await store.adminPermissions.listAbilities(role.id)
-      assert.deepStrictEqual(abilities, ['collections.pages.publish'])
+      expect(abilities).toEqual(['collections.pages.publish'])
     })
 
     it('revokeAbility removes the grant', async () => {
@@ -360,7 +355,7 @@ describe('auth integration', () => {
       await store.adminPermissions.grantAbility(role.id, 'a.two')
       await store.adminPermissions.revokeAbility(role.id, 'a.one')
       const abilities = await store.adminPermissions.listAbilities(role.id)
-      assert.deepStrictEqual(abilities.sort(), ['a.two'])
+      expect(abilities.sort()).toEqual(['a.two'])
     })
 
     it('setAbilities replaces the ability set wholesale', async () => {
@@ -369,7 +364,7 @@ describe('auth integration', () => {
       await store.adminPermissions.grantAbility(role.id, 'a.two')
       await store.adminPermissions.setAbilities(role.id, ['a.three', 'a.four'])
       const abilities = await store.adminPermissions.listAbilities(role.id)
-      assert.deepStrictEqual(abilities.sort(), ['a.four', 'a.three'])
+      expect(abilities.sort()).toEqual(['a.four', 'a.three'])
     })
   })
 
@@ -380,14 +375,14 @@ describe('auth integration', () => {
   describe('resolveActor', () => {
     it('returns null for unknown user ids', async () => {
       const actor = await resolveActor(store, '00000000-0000-7000-8000-000000000000')
-      assert.strictEqual(actor, null)
+      expect(actor).toBe(null)
     })
 
     it('returns null for disabled users', async () => {
       const user = await createUser({ email: 'j@example.com', password: 'pw' })
       // Created with is_enabled: false by default
       const actor = await resolveActor(store, user.id)
-      assert.strictEqual(actor, null)
+      expect(actor).toBe(null)
     })
 
     it('builds an AdminAuth with the union of abilities across roles', async () => {
@@ -409,17 +404,17 @@ describe('auth integration', () => {
       await store.adminRoles.assignToUser(roleB.id, user.id)
 
       const actor = await resolveActor(store, user.id)
-      assert.ok(actor instanceof AdminAuth)
-      assert.strictEqual(actor.id, user.id)
-      assert.strictEqual(actor.isSuperAdmin, false)
+      expect(actor instanceof AdminAuth).toBeTruthy()
+      expect(actor?.id).toBe(user.id)
+      expect(actor?.isSuperAdmin).toBe(false)
 
-      assert.strictEqual(actor.hasAbility('collections.pages.read'), true)
-      assert.strictEqual(actor.hasAbility('collections.pages.update'), true)
-      assert.strictEqual(actor.hasAbility('collections.pages.publish'), true)
-      assert.strictEqual(actor.hasAbility('collections.pages.delete'), false)
+      expect(actor?.hasAbility('collections.pages.read')).toBe(true)
+      expect(actor?.hasAbility('collections.pages.update')).toBe(true)
+      expect(actor?.hasAbility('collections.pages.publish')).toBe(true)
+      expect(actor?.hasAbility('collections.pages.delete')).toBe(false)
 
       // Distinct — duplicates across roles collapse
-      assert.strictEqual(actor.abilities.size, 3)
+      expect(actor?.abilities.size).toBe(3)
     })
 
     it('honours the is_super_admin flag', async () => {
@@ -430,10 +425,10 @@ describe('auth integration', () => {
         is_enabled: true,
       })
       const actor = await resolveActor(store, user.id)
-      assert.ok(actor)
-      assert.strictEqual(actor.isSuperAdmin, true)
+      expect(actor).toBeTruthy()
+      expect(actor?.isSuperAdmin).toBe(true)
       // Even without granting any abilities, super-admins pass every check
-      assert.strictEqual(actor.hasAbility('anything.at.all'), true)
+      expect(actor?.hasAbility('anything.at.all')).toBe(true)
     })
   })
 
@@ -462,13 +457,13 @@ describe('auth integration', () => {
       trackUser(result.userId)
       trackRole(result.roleId)
 
-      assert.ok(result.userId)
-      assert.ok(result.roleId)
-      assert.deepStrictEqual(result.created, { user: true, role: true, assignment: true })
+      expect(result.userId).toBeTruthy()
+      expect(result.roleId).toBeTruthy()
+      expect(result.created).toEqual({ user: true, role: true, assignment: true })
 
       const actor = await resolveActor(store, result.userId)
-      assert.ok(actor)
-      assert.strictEqual(actor.isSuperAdmin, true)
+      expect(actor).toBeTruthy()
+      expect(actor?.isSuperAdmin).toBe(true)
     })
 
     it('is idempotent — second run reports nothing newly created', async () => {
@@ -480,7 +475,7 @@ describe('auth integration', () => {
       trackRole(first.roleId)
 
       const second = await seedSuperAdmin(store, seedInput)
-      assert.deepStrictEqual(second.created, {
+      expect(second.created).toEqual({
         user: false,
         role: false,
         assignment: false,

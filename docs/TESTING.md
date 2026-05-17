@@ -36,7 +36,7 @@ The integration runner auto-migrates `byline_test` on startup (Drizzle's migrato
 | `@byline/cli` | ✅ vitest `--passWithNoTests` | — |
 | `@byline/host-tanstack-start` | ✅ vitest `--mode=node` | — |
 | `@byline/client` | ✅ vitest `--mode=node` (`*.test.node.ts`) | ✅ vitest `--mode=integration` (`*.integration.test.ts`) |
-| `@byline/db-postgres` | ❌ no-op (every test needs a DB) | ✅ tsx + node:test (`*.test.ts`) |
+| `@byline/db-postgres` | ❌ no-op (every test needs a DB) | ✅ vitest `--mode=integration` (`src/**/tests/**/*.test.ts`) |
 
 Only `@byline/client` and `@byline/db-postgres` write to `byline_test`. Everything else is pure in-memory.
 
@@ -60,11 +60,11 @@ Two layers prevent any test from ever pointing at the wrong database:
 
 ## Isolation strategy
 
-- **Migrate once per test run** — vitest globalSetup migrates before any test file loads; node:test bootstrap migrates per file-process (idempotent, sub-second).
-- **TRUNCATE between files** — every table in `public` (except `__drizzle_migrations`) is truncated with `RESTART IDENTITY CASCADE` at the top of each test file. Existing per-test track-and-clean code (e.g. the admin tests) stays in place as a belt; TRUNCATE is the braces.
+- **Migrate once per test run** — vitest `globalSetup` migrates before any test file loads. Drizzle's migrator is idempotent so re-runs are cheap.
+- **TRUNCATE between files** — `setupFiles` truncates every table in `public` (except `__drizzle_migrations`) with `RESTART IDENTITY CASCADE` via a `beforeAll` at the top of each test file. Existing per-test track-and-clean code (e.g. the admin tests) stays in place as a belt; TRUNCATE is the braces.
 - **No transaction-per-test** — the storage code opens its own transactions; wrapping tests in one would break the lifecycle paths under test.
 
-Parallelisation across test files (template-database clone) is deferred until wall-clock pain shows up — current `--test-concurrency=1` + vitest default-serial is fast enough.
+Both `@byline/client` and `@byline/db-postgres` use the same vitest config shape (`globalSetup` + `setupFiles` + `fileParallelism: false` + single-fork pool), so the isolation story is identical across packages.
 
 ## CI
 
@@ -81,10 +81,24 @@ When branch protection is enabled in repo settings, CI becomes a hard gate with 
 
 ## Running a single test
 
+Both packages use vitest, so the invocation is the same shape:
+
 ```sh
-# vitest (client)
+# @byline/client
 cd packages/client && pnpm vitest run --mode=integration tests/integration/client-read.integration.test.ts
 
-# node:test (db-postgres) — pass the file as the last arg via test:one
-cd packages/db-postgres && pnpm test:one src/modules/storage/tests/storage-versioning.test.ts
+# @byline/db-postgres
+cd packages/db-postgres && pnpm vitest run --mode=integration src/modules/storage/tests/storage-versioning.test.ts
+```
+
+Filter by test name with `-t`:
+
+```sh
+pnpm vitest run --mode=integration -t "tampered"
+```
+
+Watch mode (re-runs on file change):
+
+```sh
+pnpm test:watch
 ```

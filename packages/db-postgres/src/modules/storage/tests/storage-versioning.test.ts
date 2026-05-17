@@ -6,10 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import assert from 'node:assert'
-import { after, before, describe, it } from 'node:test'
-
 import type { CollectionDefinition } from '@byline/core'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 
@@ -221,7 +219,7 @@ const complexProductDocument = {
 let testCollection: { id: string; name: string } = {} as any
 
 describe('03 Document Creation and Versioning', () => {
-  before(async () => {
+  beforeAll(async () => {
     // Connect to test database
     const testDB = setupTestDB([VersionsCollectionConfig])
     commandBuilders = testDB.commandBuilders
@@ -243,7 +241,7 @@ describe('03 Document Creation and Versioning', () => {
     console.log('Test collection created:', testCollection)
   })
 
-  after(async () => {
+  afterAll(async () => {
     // Clean up test collection (cascades to documents)
     try {
       await commandBuilders.collections.delete(testCollection.id)
@@ -276,7 +274,7 @@ describe('03 Document Creation and Versioning', () => {
 
       console.log('Document created:', result)
 
-      assert.notStrictEqual(result.document.document_id, null, 'Document creation failed')
+      expect(result.document.document_id, 'Document creation failed').not.toBe(null)
     })
 
     it('should create a document and document version with the same path', async () => {
@@ -299,7 +297,7 @@ describe('03 Document Creation and Versioning', () => {
 
       console.log('firstVersion created:', firstVersion)
 
-      assert.notStrictEqual(firstVersion.document.document_id, null, 'Document creation failed')
+      expect(firstVersion.document.document_id, 'Document creation failed').not.toBe(null)
 
       const secondVersion = await commandBuilders.documents.createDocumentVersion({
         documentId: firstVersion.document.document_id,
@@ -334,7 +332,7 @@ describe('03 Document Creation and Versioning', () => {
         status: 'draft',
       })
 
-      assert.notStrictEqual(firstVersion.document.document_id, null, 'Document creation failed')
+      expect(firstVersion.document.document_id, 'Document creation failed').not.toBe(null)
 
       const secondVersion = await commandBuilders.documents.createDocumentVersion({
         documentId: firstVersion.document.document_id,
@@ -348,7 +346,7 @@ describe('03 Document Creation and Versioning', () => {
         status: 'draft',
       })
 
-      assert.notStrictEqual(secondVersion.document.document_id, null, 'Document creation failed')
+      expect(secondVersion.document.document_id, 'Document creation failed').not.toBe(null)
 
       const thirdVersion = await commandBuilders.documents.createDocumentVersion({
         documentId: firstVersion.document.document_id,
@@ -362,7 +360,7 @@ describe('03 Document Creation and Versioning', () => {
         status: 'draft',
       })
 
-      assert.notStrictEqual(thirdVersion.document.document_id, null, 'Document creation failed')
+      expect(thirdVersion.document.document_id, 'Document creation failed').not.toBe(null)
 
       const versionHistory = await queryBuilders.documents.getDocumentHistory({
         collection_id: testCollection.id,

@@ -38,8 +38,8 @@
     "drizzle:drop": "drizzle-kit drop --config=drizzle.config.ts",
     "drizzle:seed": "tsx --no-warnings --env-file=.env ./src/database/seeds/index.ts",
     "test": "echo 'db-postgres has no unit tests; run pnpm test:integration for the DB-backed suite.'",
-    "test:integration": "LOG_LEVEL=off tsx --env-file=.env.test --import ./src/lib/test-bootstrap.ts --test --test-concurrency=1 $(find . -name \"*.test.ts\" -not -path \"*/node_modules/*\" -not -path \"*/dist/*\")",
-    "test:one": "LOG_LEVEL=off tsx --no-warnings --env-file=.env.test --import ./src/lib/test-bootstrap.ts --test",
+    "test:integration": "LOG_LEVEL=off vitest run --mode=integration",
+    "test:watch": "LOG_LEVEL=off vitest --mode=integration",
     "typecheck": "tsc --noEmit"
   },
   "exports": {
@@ -84,10 +84,12 @@
     "@types/pg": "^8.20.0",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",
+    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "tsc-alias": "^1.8.17",
     "tsx": "^4.21.0",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

@@ -6,11 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import assert from 'node:assert'
-import { describe, it } from 'node:test'
-
 import { type CollectionFieldDataAllLocales, defineCollection } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
+import { describe, expect, it } from 'vitest'
 
 import { flattenFieldSetData } from '../storage-flatten.js'
 import { restoreFieldSetData } from '../storage-restore.js'
@@ -238,36 +236,35 @@ const expectedRestored = {
 describe('01 Document Flattening and Reconstruction', () => {
   it('should flatten and reconstruct a document via schema-aware round-trip', () => {
     const flattened = flattenFieldSetData(DocsCollectionConfig.fields, sampleDocument as any, 'all')
-    assert(flattened, 'Flattened document should not be null or undefined')
-    assert(flattened.length > 0, 'Flattened document should contain field values')
+    expect(flattened, 'Flattened document should not be null or undefined').toBeTruthy()
+    expect(flattened.length > 0, 'Flattened document should contain field values').toBe(true)
 
     const { data: restored, warnings } = restoreFieldSetData(DocsCollectionConfig.fields, flattened)
-    assert(restored, 'Restored document should not be null or undefined')
-    assert.deepStrictEqual(warnings, [], 'Round-trip restore should produce no warnings')
+    expect(restored, 'Restored document should not be null or undefined').toBeTruthy()
+    expect(warnings, 'Round-trip restore should produce no warnings').toEqual([])
 
     const restoredJson = JSON.stringify(restored, null, 2)
     const expectedJson = JSON.stringify(expectedRestored, null, 2)
 
-    assert.deepStrictEqual(
+    expect(
       JSON.parse(restoredJson),
-      JSON.parse(expectedJson),
       'Restored document should match the expected flat block shape'
-    )
+    ).toEqual(JSON.parse(expectedJson))
   })
 
   it('should resolve localized fields when a specific locale is requested', () => {
     const flattened = flattenFieldSetData(DocsCollectionConfig.fields, sampleDocument as any, 'all')
 
     const { data: restored } = restoreFieldSetData(DocsCollectionConfig.fields, flattened, 'en')
-    assert.strictEqual(restored.title, 'My First Document')
-    assert.strictEqual(restored.summary, 'This is a sample document for testing purposes.')
+    expect(restored.title).toBe('My First Document')
+    expect(restored.summary).toBe('This is a sample document for testing purposes.')
   })
 })
 
 describe('resolveStoreTypes', () => {
   it('should resolve text fields to text store', () => {
     const stores = resolveStoreTypes(DocsCollectionConfig.fields, ['path', 'title', 'summary'])
-    assert.deepStrictEqual([...stores].sort(), ['text'])
+    expect([...stores].sort()).toEqual(['text'])
   })
 
   it('should resolve mixed field types to their respective stores', () => {
@@ -278,23 +275,23 @@ describe('resolveStoreTypes', () => {
       'views',
       'price',
     ])
-    assert.deepStrictEqual([...stores].sort(), ['boolean', 'datetime', 'numeric', 'text'])
+    expect([...stores].sort()).toEqual(['boolean', 'datetime', 'numeric', 'text'])
   })
 
   it('should resolve blocks field to all child store types', () => {
     const stores = resolveStoreTypes(DocsCollectionConfig.fields, ['content'])
     // content blocks contain: richText (json), boolean, text, image (file)
-    assert.ok(stores.has('json'), 'should include json for richText')
-    assert.ok(stores.has('boolean'), 'should include boolean for constrainedWidth')
-    assert.ok(stores.has('text'), 'should include text for display/alt')
-    assert.ok(stores.has('file'), 'should include file for photo/image')
+    expect(stores.has('json'), 'should include json for richText').toBeTruthy()
+    expect(stores.has('boolean'), 'should include boolean for constrainedWidth').toBeTruthy()
+    expect(stores.has('text'), 'should include text for display/alt').toBeTruthy()
+    expect(stores.has('file'), 'should include file for photo/image').toBeTruthy()
   })
 
   it('should resolve array field to child store types', () => {
     const stores = resolveStoreTypes(DocsCollectionConfig.fields, ['reviews'])
     // reviews array contains group with: integer (numeric), richText (json)
-    assert.ok(stores.has('numeric'), 'should include numeric for rating')
-    assert.ok(stores.has('json'), 'should include json for comment richText')
+    expect(stores.has('numeric'), 'should include numeric for rating').toBeTruthy()
+    expect(stores.has('json'), 'should include json for comment richText').toBeTruthy()
   })
 
   it('should ignore field names that do not exist in the collection', () => {
@@ -303,12 +300,12 @@ describe('resolveStoreTypes', () => {
       'updated_at',
       'nonexistent',
     ])
-    assert.strictEqual(stores.size, 0, 'metadata fields should not resolve to any store')
+    expect(stores.size, 'metadata fields should not resolve to any store').toBe(0)
   })
 
   it('should return empty set for empty field list', () => {
     const stores = resolveStoreTypes(DocsCollectionConfig.fields, [])
-    assert.strictEqual(stores.size, 0)
+    expect(stores.size).toBe(0)
   })
 })
 
@@ -344,17 +341,11 @@ describe('reserved field-name tolerance on restore', () => {
       'en'
     )
 
-    assert.strictEqual(
-      restored.path,
-      undefined,
-      'reserved-name row must not land on the reconstructed document'
+    expect(restored.path, 'reserved-name row must not land on the reconstructed document').toBe(
+      undefined
     )
-    assert.strictEqual(restored.title, 'Hello', 'non-reserved rows must still be restored')
-    assert.deepStrictEqual(
-      warnings,
-      [],
-      'reserved-name orphan must not surface as a restore warning'
-    )
+    expect(restored.title, 'non-reserved rows must still be restored').toBe('Hello')
+    expect(warnings, 'reserved-name orphan must not surface as a restore warning').toEqual([])
   })
 
   it('does not raise warnings when the only row present is a reserved-name orphan', () => {
@@ -366,10 +357,6 @@ describe('reserved field-name tolerance on restore', () => {
     } as const
 
     const { warnings } = restoreFieldSetData(DocsCollectionConfig.fields, [orphanPathRow] as any)
-    assert.deepStrictEqual(
-      warnings,
-      [],
-      'a reserved-name orphan must not be treated as an unknown field'
-    )
+    expect(warnings, 'a reserved-name orphan must not be treated as an unknown field').toEqual([])
   })
 })

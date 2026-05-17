@@ -6,11 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import assert from 'node:assert'
-import { after, before, describe, it } from 'node:test'
-
 import type { CollectionDefinition } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 
@@ -74,7 +72,7 @@ const sampleDocument = {
 let testCollection: { id: string; name: string } = {} as any
 
 describe('02 Field Types', () => {
-  before(async () => {
+  beforeAll(async () => {
     // Connect to test database
     const testDB = setupTestDB([FieldTypesCollectionConfig])
     commandBuilders = testDB.commandBuilders
@@ -96,7 +94,7 @@ describe('02 Field Types', () => {
     console.log('Test collection created:', testCollection)
   })
 
-  after(async () => {
+  afterAll(async () => {
     // Clean up test collection (cascades to documents and fields)
     try {
       await commandBuilders.collections.delete(testCollection.id)
@@ -150,20 +148,16 @@ describe('02 Field Types', () => {
       fields: ['title', 'views'],
     })
 
-    assert.ok(result.documents.length > 0, 'should return at least one document')
+    expect(result.documents.length > 0, 'should return at least one document').toBeTruthy()
 
     const doc = result.documents[0]
-    assert.ok(doc.fields, 'document should have fields')
-    assert.ok(doc.fields.title, 'should include title field')
-    assert.strictEqual(doc.fields.views, 100, 'should include views field')
+    expect(doc.fields, 'document should have fields').toBeTruthy()
+    expect(doc.fields.title, 'should include title field').toBeTruthy()
+    expect(doc.fields.views, 'should include views field').toBe(100)
 
     // Fields not requested should be absent or empty
-    assert.strictEqual(doc.fields.price, undefined, 'should not include unrequested decimal field')
-    assert.strictEqual(
-      doc.fields.attachment,
-      undefined,
-      'should not include unrequested file field'
-    )
+    expect(doc.fields.price, 'should not include unrequested decimal field').toBe(undefined)
+    expect(doc.fields.attachment, 'should not include unrequested file field').toBe(undefined)
   })
 
   it('should return all fields when no fields parameter is provided', async () => {
@@ -172,11 +166,11 @@ describe('02 Field Types', () => {
       locale: 'en',
     })
 
-    assert.ok(result.documents.length > 0, 'should return at least one document')
+    expect(result.documents.length > 0, 'should return at least one document').toBeTruthy()
 
     const doc = result.documents[0]
-    assert.ok(doc.fields, 'document should have fields')
-    assert.ok(doc.fields.title, 'should include title')
-    assert.ok(doc.path, 'should include the system path on the document envelope')
+    expect(doc.fields, 'document should have fields').toBeTruthy()
+    expect(doc.fields.title, 'should include title').toBeTruthy()
+    expect(doc.path, 'should include the system path on the document envelope').toBeTruthy()
   })
 })

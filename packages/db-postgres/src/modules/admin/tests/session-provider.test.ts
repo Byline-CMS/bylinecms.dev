@@ -6,14 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import assert from 'node:assert'
-import { after, afterEach, before, describe, it } from 'node:test'
-
 import type { AdminStore } from '@byline/admin'
 import { hashPassword, JwtSessionProvider } from '@byline/admin/auth'
 import { AdminAuth, AuthError, AuthErrorCodes } from '@byline/auth'
 import { eq, inArray } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { adminUsers } from '../../../database/schema/auth.js'
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
@@ -85,7 +83,7 @@ async function cleanupTrackedRows() {
 // ---------------------------------------------------------------------------
 
 describe('JwtSessionProvider', () => {
-  before(() => {
+  beforeAll(() => {
     const testDB = setupTestDB([])
     db = testDB.db
     store = createAdminStore(db)
@@ -95,22 +93,21 @@ describe('JwtSessionProvider', () => {
     await cleanupTrackedRows()
   })
 
-  after(async () => {
+  afterAll(async () => {
     await cleanupTrackedRows()
     await teardownTestDB()
   })
 
   describe('construction', () => {
     it('rejects a short signing secret', () => {
-      assert.throws(
-        () => new JwtSessionProvider({ store, signingSecret: 'too-short' }),
+      expect(() => new JwtSessionProvider({ store, signingSecret: 'too-short' })).toThrow(
         /at least 32 bytes/
       )
     })
 
     it('declares capabilities', () => {
       const provider = makeProvider()
-      assert.deepStrictEqual(provider.capabilities, {
+      expect(provider.capabilities).toEqual({
         passwordChange: true,
         magicLink: false,
         sso: false,
@@ -128,12 +125,12 @@ describe('JwtSessionProvider', () => {
         ip: '10.0.0.1',
         userAgent: 'test',
       })
-      assert.ok(result.accessToken)
-      assert.ok(result.refreshToken)
-      assert.ok(result.actor instanceof AdminAuth)
-      assert.strictEqual(result.actor.isSuperAdmin, false)
-      assert.ok(result.accessTokenExpiresAt.getTime() > Date.now())
-      assert.ok(result.refreshTokenExpiresAt.getTime() > Date.now())
+      expect(result.accessToken).toBeTruthy()
+      expect(result.refreshToken).toBeTruthy()
+      expect(result.actor instanceof AdminAuth).toBeTruthy()
+      expect(result.actor.isSuperAdmin).toBe(false)
+      expect(result.accessTokenExpiresAt.getTime() > Date.now()).toBeTruthy()
+      expect(result.refreshTokenExpiresAt.getTime() > Date.now()).toBeTruthy()
     })
 
     it('throws ERR_INVALID_CREDENTIALS on unknown email', async () => {
@@ -143,10 +140,10 @@ describe('JwtSessionProvider', () => {
           email: 'nobody@example.com',
           password: 'whatever',
         })
-        assert.fail('expected ERR_INVALID_CREDENTIALS')
+        throw new Error('expected ERR_INVALID_CREDENTIALS')
       } catch (err) {
-        assert.ok(err instanceof AuthError)
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.INVALID_CREDENTIALS)
+        expect(err instanceof AuthError).toBeTruthy()
+        expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_CREDENTIALS)
       }
       // Note: signInWithPassword runs a timing-equaliser argon2 verify on
       // the unknown-email path so the wrong-email and wrong-password
@@ -159,12 +156,12 @@ describe('JwtSessionProvider', () => {
       const provider = makeProvider()
       try {
         await provider.signInWithPassword({ email: 'bob@example.com', password: 'wrong' })
-        assert.fail('expected ERR_INVALID_CREDENTIALS')
+        throw new Error('expected ERR_INVALID_CREDENTIALS')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.INVALID_CREDENTIALS)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_CREDENTIALS)
       }
       const row = await store.adminUsers.getById(user.id)
-      assert.strictEqual(row?.failed_login_attempts, 1)
+      expect(row?.failed_login_attempts).toBe(1)
     })
 
     it('throws ERR_ACCOUNT_DISABLED for a correct-password but disabled account', async () => {
@@ -172,9 +169,9 @@ describe('JwtSessionProvider', () => {
       const provider = makeProvider()
       try {
         await provider.signInWithPassword({ email: 'disabled@example.com', password: 'pw' })
-        assert.fail('expected ERR_ACCOUNT_DISABLED')
+        throw new Error('expected ERR_ACCOUNT_DISABLED')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.ACCOUNT_DISABLED)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.ACCOUNT_DISABLED)
       }
     })
 
@@ -188,10 +185,10 @@ describe('JwtSessionProvider', () => {
         userAgent: 'Mozilla/test',
       })
       const rows = await store.refreshTokens.listAllForUser(user.id)
-      assert.strictEqual(rows.length, 1)
-      assert.strictEqual(rows[0]?.ip, '192.168.1.5')
-      assert.strictEqual(rows[0]?.user_agent, 'Mozilla/test')
-      assert.strictEqual(rows[0]?.revoked_at, null)
+      expect(rows.length).toBe(1)
+      expect(rows[0]?.ip).toBe('192.168.1.5')
+      expect(rows[0]?.user_agent).toBe('Mozilla/test')
+      expect(rows[0]?.revoked_at).toBe(null)
     })
   })
 
@@ -204,16 +201,16 @@ describe('JwtSessionProvider', () => {
         password: 'pw',
       })
       const { actor } = await provider.verifyAccessToken(accessToken)
-      assert.strictEqual(actor.id, user.id)
+      expect(actor.id).toBe(user.id)
     })
 
     it('throws ERR_INVALID_TOKEN for gibberish', async () => {
       const provider = makeProvider()
       try {
         await provider.verifyAccessToken('not-a-jwt')
-        assert.fail('expected ERR_INVALID_TOKEN')
+        throw new Error('expected ERR_INVALID_TOKEN')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.INVALID_TOKEN)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_TOKEN)
       }
     })
 
@@ -229,9 +226,9 @@ describe('JwtSessionProvider', () => {
       const freshProvider = makeProvider()
       try {
         await freshProvider.verifyAccessToken(accessToken)
-        assert.fail('expected ERR_INVALID_TOKEN')
+        throw new Error('expected ERR_INVALID_TOKEN')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.INVALID_TOKEN)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_TOKEN)
       }
     })
 
@@ -245,9 +242,9 @@ describe('JwtSessionProvider', () => {
       await store.adminUsers.setEnabled(user.id, false)
       try {
         await provider.verifyAccessToken(accessToken)
-        assert.fail('expected ERR_ACCOUNT_DISABLED')
+        throw new Error('expected ERR_ACCOUNT_DISABLED')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.ACCOUNT_DISABLED)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.ACCOUNT_DISABLED)
       }
     })
 
@@ -273,9 +270,9 @@ describe('JwtSessionProvider', () => {
       const tampered = parts.join('.')
       try {
         await provider.verifyAccessToken(tampered)
-        assert.fail('expected ERR_INVALID_TOKEN')
+        throw new Error('expected ERR_INVALID_TOKEN')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.INVALID_TOKEN)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_TOKEN)
       }
     })
   })
@@ -291,29 +288,29 @@ describe('JwtSessionProvider', () => {
 
       const refreshed = await provider.refreshSession({ refreshToken: signIn.refreshToken })
 
-      assert.notStrictEqual(refreshed.refreshToken, signIn.refreshToken)
-      assert.notStrictEqual(refreshed.accessToken, signIn.accessToken)
+      expect(refreshed.refreshToken).not.toBe(signIn.refreshToken)
+      expect(refreshed.accessToken).not.toBe(signIn.accessToken)
 
       // Old token is now revoked and points at the new one
       const rows = await store.refreshTokens.listAllForUser(user.id)
-      assert.strictEqual(rows.length, 2)
+      expect(rows.length).toBe(2)
       const [oldRow, newRow] = rows
-      assert.ok(oldRow?.revoked_at)
-      assert.strictEqual(oldRow?.rotated_to_id, newRow?.id)
-      assert.strictEqual(newRow?.revoked_at, null)
+      expect(oldRow?.revoked_at).toBeTruthy()
+      expect(oldRow?.rotated_to_id).toBe(newRow?.id)
+      expect(newRow?.revoked_at).toBe(null)
 
       // The new token verifies
       const { actor } = await provider.verifyAccessToken(refreshed.accessToken)
-      assert.strictEqual(actor.id, user.id)
+      expect(actor.id).toBe(user.id)
     })
 
     it('throws ERR_INVALID_TOKEN for an unknown refresh token', async () => {
       const provider = makeProvider()
       try {
         await provider.refreshSession({ refreshToken: 'totally-bogus' })
-        assert.fail('expected ERR_INVALID_TOKEN')
+        throw new Error('expected ERR_INVALID_TOKEN')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.INVALID_TOKEN)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_TOKEN)
       }
     })
 
@@ -328,9 +325,9 @@ describe('JwtSessionProvider', () => {
       const freshProvider = makeProvider()
       try {
         await freshProvider.refreshSession({ refreshToken })
-        assert.fail('expected ERR_INVALID_TOKEN')
+        throw new Error('expected ERR_INVALID_TOKEN')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.INVALID_TOKEN)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_TOKEN)
       }
     })
 
@@ -344,20 +341,20 @@ describe('JwtSessionProvider', () => {
       // Legitimate rotation: sign-in → refresh-1 → refresh-2
       const r1 = await provider.refreshSession({ refreshToken: signIn.refreshToken })
       const r2 = await provider.refreshSession({ refreshToken: r1.refreshToken })
-      assert.ok(r2.refreshToken)
+      expect(r2.refreshToken).toBeTruthy()
 
       // An attacker replays the original (already-rotated) refreshToken.
       try {
         await provider.refreshSession({ refreshToken: signIn.refreshToken })
-        assert.fail('expected ERR_REVOKED_TOKEN')
+        throw new Error('expected ERR_REVOKED_TOKEN')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.REVOKED_TOKEN)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.REVOKED_TOKEN)
       }
 
       // The entire chain descended from the replayed token is now revoked.
       const rows = await store.refreshTokens.listAllForUser(user.id)
       for (const row of rows) {
-        assert.ok(row.revoked_at, `row ${row.id} expected revoked, got null`)
+        expect(row.revoked_at, `row ${row.id} expected revoked, got null`).toBeTruthy()
       }
     })
 
@@ -371,9 +368,9 @@ describe('JwtSessionProvider', () => {
       await provider.revokeSession(signIn.refreshToken)
       try {
         await provider.refreshSession({ refreshToken: signIn.refreshToken })
-        assert.fail('expected ERR_REVOKED_TOKEN')
+        throw new Error('expected ERR_REVOKED_TOKEN')
       } catch (err) {
-        assert.strictEqual((err as AuthError).code, AuthErrorCodes.REVOKED_TOKEN)
+        expect((err as AuthError).code).toBe(AuthErrorCodes.REVOKED_TOKEN)
       }
     })
   })
@@ -390,8 +387,8 @@ describe('JwtSessionProvider', () => {
       await provider.revokeSession(signIn.refreshToken) // idempotent
 
       const rows = await store.refreshTokens.listAllForUser(user.id)
-      assert.strictEqual(rows.length, 1)
-      assert.ok(rows[0]?.revoked_at)
+      expect(rows.length).toBe(1)
+      expect(rows[0]?.revoked_at).toBeTruthy()
     })
 
     it('is a no-op for unknown tokens', async () => {
@@ -405,14 +402,14 @@ describe('JwtSessionProvider', () => {
       const user = await createEnabledUser('m@example.com', 'pw')
       const provider = makeProvider()
       const actor = await provider.resolveActor(user.id)
-      assert.ok(actor instanceof AdminAuth)
-      assert.strictEqual(actor.id, user.id)
+      expect(actor instanceof AdminAuth).toBeTruthy()
+      expect(actor?.id).toBe(user.id)
     })
 
     it('returns null for a disabled user', async () => {
       const user = await createDisabledUser('n@example.com', 'pw')
       const provider = makeProvider()
-      assert.strictEqual(await provider.resolveActor(user.id), null)
+      expect(await provider.resolveActor(user.id)).toBe(null)
     })
   })
 })

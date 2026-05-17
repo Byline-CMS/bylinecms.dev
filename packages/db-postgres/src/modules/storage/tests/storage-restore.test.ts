@@ -17,10 +17,8 @@
  * `packages/core/src/services/document-lifecycle.test.node.ts`.
  */
 
-import assert from 'node:assert'
-import { after, before, describe, it } from 'node:test'
-
 import type { CollectionDefinition } from '@byline/core'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 
@@ -55,7 +53,7 @@ const RestoreCollectionConfig: CollectionDefinition = {
 let testCollection: { id: string } = {} as any
 
 describe('Document version restore — storage round-trip', () => {
-  before(async () => {
+  beforeAll(async () => {
     const testDB = setupTestDB([RestoreCollectionConfig])
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
@@ -69,7 +67,7 @@ describe('Document version restore — storage round-trip', () => {
     testCollection = { id: collection.id }
   })
 
-  after(async () => {
+  afterAll(async () => {
     try {
       await commandBuilders.collections.delete(testCollection.id)
     } catch (err) {
@@ -112,10 +110,10 @@ describe('Document version restore — storage round-trip', () => {
     })
     const v1Sections = (v1Read as any).fields.sections as any[]
     const v1ItemIds = (v1Sections[0].sectionItem as any[]).map((item) => item._id)
-    assert.ok(
+    expect(
       v1ItemIds.every((id: unknown) => typeof id === 'string' && (id as string).length > 0),
       'v1 items should have stable _ids'
-    )
+    ).toBeTruthy()
 
     // Mutate to v2 (different content)
     const v2Data = {
@@ -156,10 +154,8 @@ describe('Document version restore — storage round-trip', () => {
       status: 'draft',
     })
 
-    assert.strictEqual(
-      (v3.document as any).event_type,
-      'restore',
-      'event_type should be persisted as "restore"'
+    expect((v3.document as any).event_type, 'event_type should be persisted as "restore"').toBe(
+      'restore'
     )
 
     // Reconstruct v3. Multi-locale fields, block _ids, and per-item content
@@ -170,30 +166,26 @@ describe('Document version restore — storage round-trip', () => {
     })
     const v3Fields = (v3Read as any).fields
 
-    assert.deepStrictEqual(
-      v3Fields.title,
-      v1Data.title,
-      'restored title should match v1 across all locales'
+    expect(v3Fields.title, 'restored title should match v1 across all locales').toEqual(
+      v1Data.title
     )
 
     const v3Sections = v3Fields.sections as any[]
     const v3ItemIds = (v3Sections[0].sectionItem as any[]).map((item: any) => item._id)
-    assert.deepStrictEqual(
+    expect(
       v3ItemIds,
-      v1ItemIds,
       'restored block items should keep the v1 _ids verbatim (identity preserved across restore)'
-    )
+    ).toEqual(v1ItemIds)
 
-    assert.strictEqual(
+    expect(
       v3Sections[0].sectionItem.length,
-      2,
       "restored version should have v1's two items, not v2's single item"
-    )
-    assert.deepStrictEqual(v3Sections[0].sectionItem[0].heading, {
+    ).toBe(2)
+    expect(v3Sections[0].sectionItem[0].heading).toEqual({
       en: 'Intro EN',
       fr: 'Intro FR',
     })
-    assert.deepStrictEqual(v3Sections[0].sectionItem[1].heading, {
+    expect(v3Sections[0].sectionItem[1].heading).toEqual({
       en: 'Body EN',
       fr: 'Body FR',
     })

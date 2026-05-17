@@ -6,8 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import assert from 'node:assert'
-import { describe, it } from 'node:test'
+import { describe, expect, it } from 'vitest'
 
 import {
   allStoreTypes,
@@ -46,18 +45,17 @@ describe('storage-store-manifest', () => {
   describe('column count', () => {
     it('UNIFIED_COLUMN_COUNT matches manifest', () => {
       // columns array has all columns except field_type, which is added during generation
-      assert.strictEqual(UNIFIED_COLUMN_COUNT, columns.length + 1)
+      expect(UNIFIED_COLUMN_COUNT).toBe(columns.length + 1)
     })
 
     for (const storeType of allStoreTypes) {
       it(`${storeType} SELECT list has ${UNIFIED_COLUMN_COUNT} columns`, () => {
         const selectList = buildSelectList(storeType)
         const cols = parseColumns(selectList)
-        assert.strictEqual(
+        expect(
           cols.length,
-          UNIFIED_COLUMN_COUNT,
           `Expected ${UNIFIED_COLUMN_COUNT} columns for ${storeType}, got ${cols.length}:\n${cols.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}`
-        )
+        ).toBe(UNIFIED_COLUMN_COUNT)
       })
     }
   })
@@ -69,10 +67,8 @@ describe('storage-store-manifest', () => {
       for (const storeType of allStoreTypes) {
         if (storeType === 'text') continue
         const aliases = parseColumns(buildSelectList(storeType)).map(extractAlias)
-        assert.deepStrictEqual(
-          aliases,
-          referenceAliases,
-          `Column order mismatch between text and ${storeType}`
+        expect(aliases, `Column order mismatch between text and ${storeType}`).toEqual(
+          referenceAliases
         )
       }
     })
@@ -83,10 +79,10 @@ describe('storage-store-manifest', () => {
       for (const storeType of allStoreTypes) {
         const selectList = buildSelectList(storeType)
         const expected = fieldTypeLiterals[storeType]
-        assert.ok(
+        expect(
           selectList.includes(`'${expected}' as "field_type"`),
           `Expected field_type '${expected}' for ${storeType}`
-        )
+        ).toBe(true)
       }
     })
   })
@@ -96,10 +92,10 @@ describe('storage-store-manifest', () => {
       for (const storeType of allStoreTypes) {
         const cols = parseColumns(buildSelectList(storeType))
         const fieldTypeCol = cols[3]
-        assert.ok(
+        expect(
           fieldTypeCol?.includes('field_type'),
           `Expected field_type at index 3 for ${storeType}, got: ${fieldTypeCol}`
-        )
+        ).toBe(true)
       }
     })
   })
@@ -108,28 +104,28 @@ describe('storage-store-manifest', () => {
     it('text store maps value → text_value', () => {
       const cols = parseColumns(buildSelectList('text'))
       const textValueCol = cols.find((c) => c.includes('text_value'))
-      assert.ok(textValueCol, 'text_value column not found')
-      assert.ok(
-        textValueCol.includes('value as "text_value"'),
+      expect(textValueCol, 'text_value column not found').toBeTruthy()
+      expect(
+        textValueCol?.includes('value as "text_value"'),
         `Expected 'value as "text_value"', got: ${textValueCol}`
-      )
+      ).toBe(true)
     })
 
     it('boolean store maps value → boolean_value', () => {
       const cols = parseColumns(buildSelectList('boolean'))
       const boolCol = cols.find((c) => c.includes('boolean_value'))
-      assert.ok(boolCol, 'boolean_value column not found')
-      assert.ok(
-        boolCol.includes('value as "boolean_value"'),
+      expect(boolCol, 'boolean_value column not found').toBeTruthy()
+      expect(
+        boolCol?.includes('value as "boolean_value"'),
         `Expected 'value as "boolean_value"', got: ${boolCol}`
-      )
+      ).toBe(true)
     })
 
     it('numeric store includes number_type, value_integer, value_decimal, value_float', () => {
       const cols = parseColumns(buildSelectList('numeric'))
       const colText = cols.join(' ')
       for (const field of ['number_type', 'value_integer', 'value_decimal', 'value_float']) {
-        assert.ok(colText.includes(field), `Expected ${field} in numeric SELECT list`)
+        expect(colText.includes(field), `Expected ${field} in numeric SELECT list`).toBe(true)
       }
     })
 
@@ -145,18 +141,18 @@ describe('storage-store-manifest', () => {
         'storage_provider',
         'storage_path',
       ]) {
-        assert.ok(colText.includes(field), `Expected ${field} in file SELECT list`)
+        expect(colText.includes(field), `Expected ${field} in file SELECT list`).toBe(true)
       }
     })
 
     it('non-owning stores emit NULL for type-specific columns', () => {
       const cols = parseColumns(buildSelectList('text'))
       const numericCol = cols.find((c) => c.includes('number_type'))
-      assert.ok(numericCol, 'number_type column not found')
-      assert.ok(
-        numericCol.includes('NULL::varchar'),
+      expect(numericCol, 'number_type column not found').toBeTruthy()
+      expect(
+        numericCol?.includes('NULL::varchar'),
         `Expected NULL for number_type in text store, got: ${numericCol}`
-      )
+      ).toBe(true)
     })
   })
 
@@ -175,7 +171,7 @@ describe('storage-store-manifest', () => {
         const cols = parseColumns(buildSelectList(storeType))
         for (const baseName of baseNames) {
           const col = cols.find((c) => c.trim() === baseName)
-          assert.ok(col, `Expected bare column '${baseName}' in ${storeType} SELECT list`)
+          expect(col, `Expected bare column '${baseName}' in ${storeType} SELECT list`).toBeTruthy()
         }
       }
     })

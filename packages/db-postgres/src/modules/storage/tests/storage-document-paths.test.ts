@@ -24,10 +24,8 @@
  *     `(document_id, locale)`, so the existing row is updated in place).
  */
 
-import assert from 'node:assert'
-import { after, before, describe, it } from 'node:test'
-
 import type { CollectionDefinition } from '@byline/core'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 
@@ -45,7 +43,7 @@ const PathsCollectionConfig: CollectionDefinition = {
 let testCollection: { id: string; name: string } = {} as any
 
 describe('byline_document_paths integration', () => {
-  before(async () => {
+  beforeAll(async () => {
     const testDB = setupTestDB([PathsCollectionConfig])
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
@@ -61,7 +59,7 @@ describe('byline_document_paths integration', () => {
     testCollection = { id: collection.id, name: collection.path }
   })
 
-  after(async () => {
+  afterAll(async () => {
     try {
       await commandBuilders.collections.delete(testCollection.id)
     } catch (error) {
@@ -103,18 +101,17 @@ describe('byline_document_paths integration', () => {
       caught = err
     }
 
-    assert.ok(caught, 'expected unique-constraint violation on duplicate path')
+    expect(caught, 'expected unique-constraint violation on duplicate path').toBeTruthy()
     // Drizzle wraps pg errors in DrizzleQueryError with the original error
     // attached as `cause`. The lifecycle layer's rethrowPathConflict reads
     // both the wrapper and the cause to detect 23505 + the path constraint
     // name; mirror that here.
     const original = caught.cause ?? caught
-    assert.strictEqual(original.code, '23505', `expected SQLSTATE 23505, got ${original?.code}`)
-    assert.match(
+    expect(original.code, `expected SQLSTATE 23505, got ${original?.code}`).toBe('23505')
+    expect(
       String(original.constraint ?? ''),
-      /document_paths_collection_locale_path/,
       `constraint name should reference the path index, got ${original?.constraint}`
-    )
+    ).toMatch(/document_paths_collection_locale_path/)
   })
 
   it('upserts in place when the same document re-saves the same path', async () => {
@@ -147,7 +144,7 @@ describe('byline_document_paths integration', () => {
       previousVersionId: first.document.id,
     })
 
-    assert.strictEqual(second.document.document_id, documentId, 'same logical document')
+    expect(second.document.document_id, 'same logical document').toBe(documentId)
   })
 
   it('updates the path row in place when a document changes its path', async () => {
@@ -185,15 +182,15 @@ describe('byline_document_paths integration', () => {
       path: updatedPath,
       reconstruct: false,
     })
-    assert.ok(found, 'updated path should resolve')
-    assert.strictEqual(found.document_id, documentId)
+    expect(found, 'updated path should resolve').toBeTruthy()
+    expect(found?.document_id).toBe(documentId)
 
     const oldNotFound = await queryBuilders.documents.getDocumentByPath({
       collection_id: testCollection.id,
       path: originalPath,
       reconstruct: false,
     })
-    assert.strictEqual(oldNotFound, null, 'original path no longer resolves')
+    expect(oldNotFound, 'original path no longer resolves').toBe(null)
   })
 
   it('falls back to the default-locale path row when the requested locale has no row', async () => {
@@ -220,9 +217,9 @@ describe('byline_document_paths integration', () => {
       reconstruct: false,
     })
 
-    assert.ok(found, 'fallback chain should resolve via the en row')
-    assert.strictEqual(found.document_id, documentId)
-    assert.strictEqual(found.path, onlyDefaultPath)
+    expect(found, 'fallback chain should resolve via the en row').toBeTruthy()
+    expect(found?.document_id).toBe(documentId)
+    expect(found?.path).toBe(onlyDefaultPath)
   })
 
   it('returns null on getDocumentByPath when no row matches in any locale', async () => {
@@ -232,6 +229,6 @@ describe('byline_document_paths integration', () => {
       locale: 'fr',
       reconstruct: false,
     })
-    assert.strictEqual(result, null)
+    expect(result).toBe(null)
   })
 })
