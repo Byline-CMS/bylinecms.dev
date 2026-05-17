@@ -17,16 +17,17 @@ export default defineConfig(({ mode }) => {
       // `_per-file-setup.ts` runs once per test file and truncates all
       // tables in a `beforeAll` so each file starts from a known state.
       //
-      // `fileParallelism: false` plus a single-fork pool forces files to
-      // run one at a time. Otherwise a sibling file's `beforeAll` truncate
+      // `maxWorkers: 1` + `isolate: false` forces files to run serially
+      // in a single worker, replacing the pre-Vitest-4 `singleFork: true`
+      // pool option. Otherwise a sibling file's `beforeAll` truncate
       // would wipe the active file's seeded fixtures mid-run.
       ...(isIntegration
         ? {
             globalSetup: ['./tests/_global-setup.ts'],
             setupFiles: ['./tests/_per-file-setup.ts'],
             fileParallelism: false,
-            pool: 'forks',
-            poolOptions: { forks: { singleFork: true } },
+            maxWorkers: 1,
+            isolate: false,
           }
         : {}),
     },

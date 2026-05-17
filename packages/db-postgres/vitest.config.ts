@@ -21,13 +21,15 @@ export default defineConfig(({ mode }) => {
         ? {
             // Same shape as @byline/client integration config: migrate
             // once via globalSetup, truncate per file via setupFiles, and
-            // force serial file execution so per-file TRUNCATEs don't
-            // wipe each other's seeded fixtures mid-run.
+            // force serial file execution (maxWorkers: 1 + isolate: false
+            // replaces the pre-Vitest-4 `singleFork: true` pool option)
+            // so per-file TRUNCATEs don't wipe each other's seeded
+            // fixtures mid-run.
             globalSetup: ['./tests/_global-setup.ts'],
             setupFiles: ['./tests/_per-file-setup.ts'],
             fileParallelism: false,
-            pool: 'forks',
-            poolOptions: { forks: { singleFork: true } },
+            maxWorkers: 1,
+            isolate: false,
           }
         : {}),
     },
