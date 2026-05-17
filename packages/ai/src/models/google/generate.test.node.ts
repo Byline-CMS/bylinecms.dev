@@ -16,7 +16,7 @@ const MODEL = 'gemini-2.5-flash'
 describe('google generate', () => {
   beforeEach(async () => {})
 
-  const runReal = true // = process.env.AI_RUN_REAL_TESTS === 'true'
+  const runReal = process.env.AI_RUN_REAL_TESTS === 'true'
 
   if (runReal) {
     it('makes a real Google request (manual run)', async () => {
