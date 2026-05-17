@@ -259,9 +259,16 @@ describe('JwtSessionProvider', () => {
         password: 'pw',
       })
       const parts = accessToken.split('.')
-      // Flip the last char of the signature
-      const last = parts[2] ?? ''
-      const flipped = `${last.slice(0, -1)}${last.at(-1) === 'a' ? 'b' : 'a'}`
+      // Flip a char in the middle of the signature, not at either end.
+      // HS256 sigs are 32 bytes → 43 base64url chars → 258 bits of capacity,
+      // so the *last* char carries 2 padding zero bits. A naive last-char
+      // flip can land on a different encoded char whose top 4 bits map to
+      // the same signature byte (e.g. `Y` ↔ `a` both decode to top-4=`0110`),
+      // leaving the signature unchanged and the test flaky. Middle chars
+      // span byte boundaries cleanly, so any flip guarantees a byte change.
+      const sig = parts[2] ?? ''
+      const mid = Math.floor(sig.length / 2)
+      const flipped = `${sig.slice(0, mid)}${sig[mid] === 'a' ? 'b' : 'a'}${sig.slice(mid + 1)}`
       parts[2] = flipped
       const tampered = parts.join('.')
       try {
