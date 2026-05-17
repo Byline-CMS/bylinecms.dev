@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 2.0.2
+
+### Patch Changes
+
+- Minor fixes in core (mostly CI / test / lint setup)
+- Updated dependencies
+  - @byline/core@1.12.2
+  - @byline/richtext-lexical@1.12.2
+  - @byline/ui@1.12.2
+
 ## 2.0.1
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @byline/host-tanstack-start
 
+## 1.12.2
+
+### Patch Changes
+
+- Minor fixes in core (mostly CI / test / lint setup)
+- Updated dependencies
+  - @byline/admin@1.12.2
+  - @byline/ai@2.0.2
+  - @byline/auth@1.12.2
+  - @byline/client@1.12.2
+  - @byline/core@1.12.2
+  - @byline/ui@1.12.2
+
 ## 1.12.1
 
 ### Patch Changes

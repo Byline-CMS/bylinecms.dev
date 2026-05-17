@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 1.12.2
+
+### Patch Changes
+
+- Minor fixes in core (mostly CI / test / lint setup)
+
 ## 1.12.1
 
 ### Patch Changes

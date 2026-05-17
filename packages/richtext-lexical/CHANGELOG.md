@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 1.12.2
+
+### Patch Changes
+
+- Minor fixes in core (mostly CI / test / lint setup)
+- Updated dependencies
+  - @byline/client@1.12.2
+  - @byline/core@1.12.2
+  - @byline/ui@1.12.2
+
 ## 1.12.1
 
 ### Patch Changes

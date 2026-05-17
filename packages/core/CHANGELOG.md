@@ -1,5 +1,13 @@
 # @byline/core
 
+## 1.12.2
+
+### Patch Changes
+
+- Minor fixes in core (mostly CI / test / lint setup)
+- Updated dependencies
+  - @byline/auth@1.12.2
+
 ## 1.12.1
 
 ### Patch Changes
