@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.1.0",
   "scripts": {
-    "clean": "pnpm -r run clean && node scripts/clean node_modules",
+    "clean": "pnpm -r run clean && node scripts/clean node_modules .turbo",
     "db:init": "TURBO_UI=true turbo run db:init",
     "db:init:test": "cd packages/db-postgres/src/database && ./db_init_test.sh",
     "byline:generate": "turbo run byline:generate",

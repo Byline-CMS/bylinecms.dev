@@ -23,7 +23,7 @@ export interface LocaleDefinition {
 /** Locales available in the CMS admin interface. */
 export const interfaceLocales: LocaleDefinition[] = [
   { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
 ]
 
 /** Locales a document can be published in. */

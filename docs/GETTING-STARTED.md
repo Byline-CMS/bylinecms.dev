@@ -34,7 +34,7 @@ npx @byline/cli@latest init
 
 pnpm dlx @byline/cli@latest init
 ```
-Note that if you use `pnpm` - installing dependencies may bail out asking you to `pnpm approve-builds`
+NOTE: If you use `pnpm` - installing dependencies may bail out asking you to `pnpm approve-builds`
 You can stop the `cli@latest init` - approve builds, and then re-run `pnpm dlx @byline/cli@latest init` and
 it will pick up where it left off. You may need to do this more than once.
 
@@ -45,6 +45,17 @@ NOTE: For AI-assisted editing, you'll need to add your API keys as shown in `app
 IMPORTANT: The core Byline routes will be placed under a pathless route at `routes/_byline`, with its own route.tsx template. To prevent your front-end TanStack Start application's styling from 'leaking' into the Byline dashboard, you'll need to create or move your top-most layout route into its own pathless layout route - for example, under `routes/_font-end` or `routes/_public` - with any styling, headers, footers etc., that might have been in __root.tsx - moved into the route.tsx layout file inside your front-end pathless layout route.
 
 See the TanStack Router docs for [File-Based Routing](https://tanstack.com/router/latest/docs/routing/file-based-routing) and [Virtual File Routes](https://tanstack.com/router/latest/docs/routing/virtual-file-routes) for more information.
+
+NOTE: If you have manually configured Byline by copying code from the example application here (byline directories, .env, start, server, __root.tsx, and vite.config.ts settings), and only want to initialized the database in the new application, you can run the following from the CLI:
+
+```
+byline init --only db # generate db answer state
+byline init --only db-init # init database
+byline init --only seed-admin # runs byline/seed-admin.ts
+byline init --only seed-docs  # runs byline/seed-docs.ts
+```
+
+We'll be updating the CLI soon to make all of this easier.
 
 
 ## Getting started - Development environment and example application (this repo)
