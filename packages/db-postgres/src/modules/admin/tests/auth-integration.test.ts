@@ -155,8 +155,11 @@ describe('auth integration', () => {
       expect((plain as any)?.password_hash).toBe(undefined)
 
       const withPw = await store.adminUsers.getByEmailForSignIn('b@example.com')
-      expect(withPw).toBeTruthy()
-      expect(await verifyPassword('pw-value', withPw?.password_hash)).toBeTruthy()
+      // `if !x throw` instead of `x!` so Biome's --unsafe rewrite (which
+      // turns `!` into `?.`) doesn't reintroduce `string | undefined`
+      // through verifyPassword's `hash: string` arg.
+      if (!withPw) throw new Error('expected withPw to be defined')
+      expect(await verifyPassword('pw-value', withPw.password_hash)).toBeTruthy()
     })
 
     it('update applies partial patches and bumps vid', async () => {
@@ -194,10 +197,10 @@ describe('auth integration', () => {
       expect(updated.vid).toBe(created.vid + 1)
 
       const signIn = await store.adminUsers.getByEmailForSignIn('d@example.com')
-      expect(signIn).toBeTruthy()
-      expect(await verifyPassword('new-password', signIn?.password_hash)).toBeTruthy()
-      expect(await verifyPassword('old', signIn?.password_hash)).toBe(false)
-      expect(signIn?.vid).toBe(created.vid + 1)
+      if (!signIn) throw new Error('expected signIn to be defined')
+      expect(await verifyPassword('new-password', signIn.password_hash)).toBeTruthy()
+      expect(await verifyPassword('old', signIn.password_hash)).toBe(false)
+      expect(signIn.vid).toBe(created.vid + 1)
     })
 
     it('setPasswordHash throws VERSION_CONFLICT on a stale vid', async () => {
