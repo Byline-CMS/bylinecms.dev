@@ -30,7 +30,7 @@
     "pre-commit": "pnpm exec lint-staged"
   },
   "lint-staged": {
-    "*.{js,jsx,mjs,cjs,ts,tsx,json,jsonc}": "biome check --write --unsafe --no-errors-on-unmatched --diagnostic-level=error"
+    "*.{js,jsx,mjs,cjs,ts,tsx,json,jsonc}": "biome check --write --no-errors-on-unmatched --diagnostic-level=error"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
