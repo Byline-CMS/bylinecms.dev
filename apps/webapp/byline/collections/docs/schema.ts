@@ -34,6 +34,7 @@ export const Docs = defineCollection({
     customStatuses: [{ name: 'needs_review', label: 'Needs Review', verb: 'Request Review' }],
   }),
   showStats: true,
+  orderable: true,
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
