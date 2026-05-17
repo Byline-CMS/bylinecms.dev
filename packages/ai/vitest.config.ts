@@ -1,5 +1,4 @@
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
@@ -10,7 +9,10 @@ export default defineConfig(({ mode }) => {
       : ['**/*.test.ts', '**/*.test.tsx']
 
   return {
-    plugins: [react(), tsconfigPaths()],
+    plugins: [react()],
+    // Native Vite tsconfig-paths resolution (Vite 6+/Vitest 4+). Replaces
+    // the deprecated `vite-tsconfig-paths` plugin.
+    resolve: { tsconfigPaths: true },
     test: {
       setupFiles: './vitest.setup.node.ts',
       environment: mode === 'node' ? 'node' : 'jsdom',
