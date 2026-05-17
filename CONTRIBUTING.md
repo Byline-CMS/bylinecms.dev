@@ -145,8 +145,40 @@ Closes #287
 
 ## Formatting and Linting ##
 
-We're currently using [Biome](https://biomejs.dev/) as our linter / formatter.
-There is a lint script command in packages.json, as well as plugins available for several IDEs.
+We use [Biome](https://biomejs.dev/) for both linting and formatting. There is
+no ESLint or Prettier in the project; please don't add them.
+
+**Three layers keep formatting consistent — you mostly don't have to think
+about it:**
+
+1. **Pre-commit hook (automatic).** `pnpm install` registers a
+   [`simple-git-hooks`](https://github.com/toplenboren/simple-git-hooks) +
+   [`lint-staged`](https://github.com/lint-staged/lint-staged) pre-commit hook
+   that runs `biome check --write --unsafe` against staged `.js` / `.ts` /
+   `.tsx` / `.json` / `.jsonc` files. Auto-fixable issues are corrected and
+   re-staged before the commit lands. Nothing you have to set up — it ships
+   with the repo.
+
+2. **Your editor (recommended).** Biome ships first-party plugins for VS
+   Code, JetBrains, Zed, neovim, and others. The
+   [Biome editor integrations page](https://biomejs.dev/guides/editors/first-party-extensions/)
+   covers every supported editor; pick yours, install the plugin, and enable
+   format-on-save. Once configured, your editor applies the same rules as
+   the hook and CI, so you see issues as you type.
+
+3. **CI (the authoritative gate).** Every PR runs `pnpm lint` (and
+   `pnpm typecheck`). A PR with lint failures cannot merge. If the
+   pre-commit hook didn't catch something — for example, a commit made
+   with `--no-verify` — CI will.
+
+If you need to run the linter manually:
+
+```sh
+pnpm lint        # entire workspace (auto-fix + format)
+pnpm typecheck   # type-check across packages
+```
+
+For the test suite, see [`docs/TESTING.md`](./docs/TESTING.md).
 
 
 ## Code of Conduct ##
