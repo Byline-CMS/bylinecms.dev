@@ -25,11 +25,10 @@
 import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
-
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { BylineClient } from '../../src/index.js'
 import { setupMultiCollectionTestClient } from '../fixtures/setup.js'
+import type { BylineClient } from '../../src/index.js'
 
 const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
