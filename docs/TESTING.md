@@ -1,6 +1,11 @@
 # Testing
 
-The integration suite (`**/*.integration.test.ts` plus the node:test files under `packages/db-postgres/src/modules/.../tests/`) runs against a dedicated `byline_test` Postgres database — never `byline_dev`. The same shape runs in CI against a Postgres service container.
+Two test suites, two commands:
+
+- **`pnpm test`** — unit tests across every package. Pure CPU, no Postgres needed.
+- **`pnpm test:integration`** — DB-backed tests for `@byline/client` and `@byline/db-postgres`. Runs against a dedicated `byline_test` Postgres database — never `byline_dev`.
+
+CI runs both, in the same job, against a Postgres service container.
 
 ## TL;DR
 
@@ -14,11 +19,28 @@ pnpm db:init       # create byline_dev (one-time)
 pnpm db:init:test  # create byline_test (one-time)
 
 # Every test run
-pnpm test              # unit tests only — no DB required
-pnpm test:integration  # integration suite — requires byline_test
+pnpm test              # unit suites — no DB
+pnpm test:integration  # integration suites — requires byline_test
 ```
 
 The integration runner auto-migrates `byline_test` on startup (Drizzle's migrator is idempotent) and truncates every public table between test files. A crashed prior run can't leak state into the next.
+
+## What runs where
+
+| Package | `pnpm test` (unit) | `pnpm test:integration` (DB-backed) |
+|---|---|---|
+| `@byline/core` | ✅ vitest `--mode=node` | — |
+| `@byline/auth` | ✅ vitest `--mode=node` | — |
+| `@byline/admin` | ✅ vitest `--mode=node` | — |
+| `@byline/ai` | ✅ vitest `--mode=node` | — |
+| `@byline/cli` | ✅ vitest `--passWithNoTests` | — |
+| `@byline/host-tanstack-start` | ✅ vitest `--mode=node` | — |
+| `@byline/client` | ✅ vitest `--mode=node` (`*.test.node.ts`) | ✅ vitest `--mode=integration` (`*.integration.test.ts`) |
+| `@byline/db-postgres` | ❌ no-op (every test needs a DB) | ✅ tsx + node:test (`*.test.ts`) |
+
+Only `@byline/client` and `@byline/db-postgres` write to `byline_test`. Everything else is pure in-memory.
+
+`pnpm test` (root) runs `turbo run test`. `pnpm test:integration` (root) runs `turbo run test:integration --concurrency=1` — the concurrency flag serialises the two DB-backed suites so each one's per-file `TRUNCATE` doesn't wipe the other's seeded fixtures mid-run.
 
 ## Two databases, two purposes
 
@@ -44,14 +66,12 @@ Two layers prevent any test from ever pointing at the wrong database:
 
 Parallelisation across test files (template-database clone) is deferred until wall-clock pain shows up — current `--test-concurrency=1` + vitest default-serial is fast enough.
 
-The root `pnpm test:integration` runs Turbo with `--concurrency=1` so the `@byline/client` and `@byline/db-postgres` test suites don't race on the shared `byline_test` database (each one's `TRUNCATE` between files would otherwise wipe the other's mid-test state).
-
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request and on direct pushes to `develop` / `main`. Two jobs:
 
 - **lint-and-typecheck** — `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm typecheck`.
-- **integration** — boots a Postgres service container with `byline_test` pre-created, writes `.env.test` files from job-level env, runs `pnpm test:integration`.
+- **test-suite** — boots a Postgres service container with `byline_test` pre-created, writes `.env.test` files from the job-level env block, then runs `pnpm test` (unit) followed by `pnpm test:integration`. Both run in the same job so they share one `pnpm install`.
 
 Both jobs skip when the head commit starts with `chore(release):` so version-bump pushes from `pnpm version-packages` don't trigger redundant runs. Tag pushes (`git push --tags`) and `gh release create` aren't listened to at all, so the local-only release flow stays silent.
 
