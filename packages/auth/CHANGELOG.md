@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 2.1.3
+
+### Patch Changes
+
+- Updated CLI with new dep versions and @byline/ai package. Updated vite.config.ts
+
 ## 2.1.2
 
 ### Patch Changes

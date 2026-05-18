@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 2.1.3
+
+### Patch Changes
+
+- Updated CLI with new dep versions and @byline/ai package. Updated vite.config.ts
+- Updated dependencies
+  - @byline/core@2.1.3
+  - @byline/richtext-lexical@2.1.3
+  - @byline/ui@2.1.3
+
 ## 2.1.2
 
 ### Patch Changes

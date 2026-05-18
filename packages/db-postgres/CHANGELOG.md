@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 2.1.3
+
+### Patch Changes
+
+- Updated CLI with new dep versions and @byline/ai package. Updated vite.config.ts
+- Updated dependencies
+  - @byline/admin@2.1.3
+  - @byline/auth@2.1.3
+  - @byline/core@2.1.3
+
 ## 2.1.2
 
 ### Patch Changes
