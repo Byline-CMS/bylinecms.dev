@@ -29,6 +29,23 @@ export const DEFAULT_MODELS: Record<Provider, string> = {
   anthropic: 'claude-haiku-4-5-20251001',
 }
 
+export const PROVIDERS: Array<[Provider, string]> = [
+  ['openai', 'OpenAI'],
+  ['google', 'Google'],
+  ['anthropic', 'Anthropic'],
+]
+
+export const isProvider = (value: string): value is Provider => {
+  return value === 'openai' || value === 'google' || value === 'anthropic'
+}
+
+export const getDefaultModel = (provider: Provider): string => {
+  if (!isProvider(provider)) {
+    throw new Error(`Invalid provider: ${provider}`)
+  }
+  return DEFAULT_MODELS[provider]
+}
+
 /**
  * Server configuration schema and functions. Note that these
  * values are ONLY available on the server and NOT available

@@ -6,7 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { PROVIDERS, type Provider } from '@byline/ai'
+import { PROVIDERS } from '../config/ai-config'
+import type { Provider } from '../@types'
 
 const STORAGE_KEY = 'editor-chat-configuration'
 

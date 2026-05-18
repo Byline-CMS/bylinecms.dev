@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.1.1
+
+### Patch Changes
+
+- fix(ai): use relative imports inside package to prevent duplicate React context.
+
 ## 2.1.0
 
 ### Minor Changes
