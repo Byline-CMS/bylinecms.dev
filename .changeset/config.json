@@ -2,7 +2,22 @@
   "$schema": "https://unpkg.com/@changesets/config@2.2.0/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@byline/admin",
+      "@byline/ai",
+      "@byline/auth",
+      "@byline/cli",
+      "@byline/client",
+      "@byline/core",
+      "@byline/db-postgres",
+      "@byline/host-tanstack-start",
+      "@byline/richtext-lexical",
+      "@byline/storage-local",
+      "@byline/storage-s3",
+      "@byline/ui"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
