@@ -1,5 +1,15 @@
 # @byline/ui
 
+## 2.1.1
+
+### Patch Changes
+
+- fix(ai): use relative imports inside package to prevent duplicate React context.
+- Updated dependencies
+  - @byline/admin@2.1.1
+  - @byline/client@2.1.1
+  - @byline/core@2.1.1
+
 ## 2.1.0
 
 ### Minor Changes
