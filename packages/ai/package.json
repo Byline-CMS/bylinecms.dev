@@ -26,7 +26,7 @@
   "sideEffects": false,
   "scripts": {
     "dev": "chokidar 'src/**/*' -c 'npm-run-all build'",
-    "build": "tsc -p tsconfig.json && tsc-alias && node copy-assets.js",
+    "build": "node scripts/clean.js dist && tsc -p tsconfig.json && tsc-alias && node copy-assets.js",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "clean": "node scripts/clean.js node_modules dist build .turbo",
     "typecheck": "tsc --noEmit",
