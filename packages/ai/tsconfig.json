@@ -27,7 +27,7 @@
     "moduleResolution": "bundler",
     "outDir": "dist",
     "rootDir": "src",
-    "sourceMap": true,
+    "sourceMap": false,
     "declaration": true,
     "declarationMap": true,
     "lib": ["dom", "dom.iterable", "esnext"],
