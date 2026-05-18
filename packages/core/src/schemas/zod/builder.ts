@@ -142,6 +142,12 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       schema = z.number().int()
       break
 
+    case 'counter':
+      // Counter values are allocator-assigned; the wrapping below forces
+      // the schema to allow undefined regardless of `field.optional`.
+      schema = z.number().int()
+      break
+
     case 'float':
     case 'decimal':
       schema = z.number()
@@ -208,9 +214,14 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       schema = z.string()
   }
 
+  // Counter fields are implicitly populated by the lifecycle layer (see
+  // assignCounterValues in document-lifecycle), so callers must be able to
+  // omit them on create. Treat them as always-optional in input schemas.
+  const implicitlySet = field.type === 'counter'
+
   // In strict mode respect field.optional; in lenient mode always allow null/undefined so reads
   // never fail on schema-evolved documents.
-  return strict && !field.optional ? schema : schema.nullable().optional()
+  return strict && !field.optional && !implicitlySet ? schema : schema.nullable().optional()
 }
 
 // Create the base schema that all collections share.

@@ -35,6 +35,9 @@ export const placeholderForField = (f: Field): any => {
       return false
     case 'integer':
       return 0
+    case 'counter':
+      // Allocator-assigned in the lifecycle layer; absent at form-init time.
+      return undefined
     case 'richText':
     case 'datetime':
       return undefined

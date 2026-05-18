@@ -32,6 +32,7 @@ type BaseFieldDataTypes = {
   float: number
   group: never
   integer: number
+  counter: number
   json: unknown
   object: unknown
   richText: unknown

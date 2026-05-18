@@ -31,6 +31,7 @@ const VALUE_FIELD_TYPES = [
   'integer',
   'float',
   'decimal',
+  'counter',
   'boolean',
   'checkbox',
   'date',

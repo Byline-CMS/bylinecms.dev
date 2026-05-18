@@ -519,6 +519,42 @@ export interface DecimalField extends NonlocalizableField {
 }
 
 // ---------------------------------------------------------------------------
+// Counter field
+// ---------------------------------------------------------------------------
+
+/**
+ * An allocator-assigned integer field whose value is drawn from a shared,
+ * monotonically-increasing pool identified by `group`. Multiple counter
+ * fields — across the same collection or different collections — that
+ * declare the same `group` share a single ID sequence. The first document
+ * created with a counter field gets `1`, the next `2`, and so on, regardless
+ * of which collection the create originated in.
+ *
+ * The use case is faceted filtering across small "term" collections (e.g.
+ * Topic, Format, Geography) with URLs like `/library?t=1&t=4&t=9`, where
+ * each numeric ID resolves to a term in one of the collections via the
+ * shared pool.
+ *
+ * Values are assigned at create time and immutable thereafter — the field
+ * has no `defaultValue`, no `validation` slot, and updates that touch the
+ * counter field are ignored by the lifecycle layer. Duplicates of a
+ * document receive a fresh counter value, not the source's.
+ *
+ * Backed by a Postgres `SEQUENCE` per group; gaps may occur on rolled-back
+ * transactions and deletes, which is fine for the facet-URL use case.
+ */
+export interface CounterField extends NonlocalizableField {
+  type: 'counter'
+  /**
+   * Counter group name. Shared across all counter fields — in any
+   * collection — that declare the same string. Pick something descriptive
+   * and stable (e.g. `'library-facets'`); renaming a group later means
+   * creating a new sequence and starting over at 1.
+   */
+  group: string
+}
+
+// ---------------------------------------------------------------------------
 // Json field
 // ---------------------------------------------------------------------------
 
@@ -611,6 +647,7 @@ export type ValueField =
   | FloatField
   | IntegerField
   | DecimalField
+  | CounterField
   | JsonField
   | ObjectField
   | RelationField

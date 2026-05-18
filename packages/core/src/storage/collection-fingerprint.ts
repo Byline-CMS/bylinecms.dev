@@ -41,6 +41,7 @@ type CanonicalField = {
   targetCollection?: string
   displayField?: string
   mode?: string
+  group?: string
   validation?: Record<string, unknown>
   upload?: Record<string, unknown>
 }
@@ -80,6 +81,12 @@ function canonicalField(field: Field): CanonicalField {
 
     case 'datetime':
       if (field.mode !== undefined) base.mode = field.mode
+      return base
+
+    case 'counter':
+      // Group name is load-bearing — renaming it picks a different
+      // sequence and is a real schema change worth fingerprinting.
+      base.group = field.group
       return base
 
     case 'image':

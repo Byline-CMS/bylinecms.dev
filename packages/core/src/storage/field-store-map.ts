@@ -72,6 +72,7 @@ export const fieldTypeToStore: Readonly<Record<string, FieldStoreMapping | undef
   integer: { storeType: 'numeric', valueColumn: 'value_integer' },
   float: { storeType: 'numeric', valueColumn: 'value_float' },
   decimal: { storeType: 'numeric', valueColumn: 'value_decimal' },
+  counter: { storeType: 'numeric', valueColumn: 'value_integer' },
 
   // Boolean store
   boolean: { storeType: 'boolean', valueColumn: 'value' },
