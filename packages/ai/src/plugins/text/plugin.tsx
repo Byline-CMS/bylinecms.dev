@@ -11,9 +11,8 @@
 import * as React from 'react'
 import { useCallback } from 'react'
 
-import type { ExecuteInstruction, InstructionState } from '@byline/ai'
+import { type ExecuteInstruction, type InstructionState, useAiPublicConfig } from '@byline/ai'
 
-import { useAiPublicConfig } from '../../config/ai-provider'
 import { AiPluginBase, type AiPluginSubmitContext } from '../ai-plugin-base'
 
 const emptyInstructionState: InstructionState = {

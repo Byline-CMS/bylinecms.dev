@@ -11,7 +11,7 @@
 import * as React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { ExecuteInstruction, InstructionState } from '@byline/ai'
+import { type ExecuteInstruction, type InstructionState, useAiPublicConfig } from '@byline/ai'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { mergeRegister } from '@lexical/utils'
 import {
@@ -24,7 +24,6 @@ import {
   type SerializedEditorState,
 } from 'lexical'
 
-import { useAiPublicConfig } from '../../config/ai-provider'
 import { AiPluginBase, type AiPluginSubmitContext } from '../ai-plugin-base'
 import { createEmptyEditorState } from './create-empty-editor-state'
 import { importHtmlToSerializedEditorState } from './import-html'
