@@ -77,6 +77,12 @@ const config = defineConfig({
         // Rolldown. Without this, the optimized chunk keeps a bare
         // `import('node:async_hooks')` that Vite's runtime then resolves to
         // its noisy browser-external stub.
+        include: [
+          '@byline/ui/react',
+          '@byline/ai',
+          '@byline/ai/plugins/text',
+          '@byline/ai/plugins/lexical',
+        ],
         rolldownOptions: {
           plugins: [
             {

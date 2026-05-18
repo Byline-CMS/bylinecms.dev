@@ -4,11 +4,10 @@
  * `deps` phase (to install missing entries) and by `doctor` (to report
  * what's missing without re-running the install).
  *
- * Versioning policy: `@byline/*` packages are released in lockstep, so
- * they share `BYLINE_VERSION`. `@byline/host-tanstack-start` rides its
- * own `1.x` line because its API surface (route stubs, integrations) is
- * stable across Byline minor bumps and consumers pin against it
- * separately.
+ * Versioning policy: all publishable `@byline/*` packages are released
+ * in lockstep, so they share `BYLINE_VERSION` — including
+ * `@byline/host-tanstack-start`, which previously rode its own `1.x`
+ * line but is now part of the lockstep set from 2.x onwards.
  *
  * Scope: this list is intentionally minimal — only packages that are
  * directly imported by files we drop into the user's tree (`byline/`,
@@ -26,8 +25,7 @@ export interface DepSpec {
   note: string
 }
 
-export const BYLINE_VERSION = '^1.0.0'
-export const HOST_TANSTACK_VERSION = '^1.0.0'
+export const BYLINE_VERSION = '^2.0.0'
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------
@@ -36,6 +34,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     version: BYLINE_VERSION,
     group: 'byline',
     note: 'admin user / role / permission modules + JwtSessionProvider',
+  },
+  {
+    name: '@byline/ai',
+    version: BYLINE_VERSION,
+    group: 'byline',
+    note: 'AI subsystem; pre-bundled by the host vite.config.ts via optimizeDeps.include',
   },
   {
     name: '@byline/auth',
@@ -63,7 +67,7 @@ export const DEP_SPECS: readonly DepSpec[] = [
   },
   {
     name: '@byline/host-tanstack-start',
-    version: HOST_TANSTACK_VERSION,
+    version: BYLINE_VERSION,
     group: 'byline',
     note: 'TanStack Start integrations + route stubs',
   },

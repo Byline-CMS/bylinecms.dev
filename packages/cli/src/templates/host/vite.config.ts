@@ -75,6 +75,39 @@ const config = defineConfig({
         // Rolldown. Without this, the optimized chunk keeps a bare
         // `import('node:async_hooks')` that Vite's runtime then resolves to
         // its noisy browser-external stub.
+        // Force pre-bundling of @byline/ui so Vite's dep optimizer walks
+        // into it and inlines its CJS deps — notably
+        // `@base-ui/utils/store/useStore` and `use-sync-external-store/shim`.
+        //
+        // Without this, those CJS modules are reached via Vite's regular
+        // module pipeline at runtime, where the on-the-fly CJS->ESM interop
+        // can fail to synthesise the named `useSyncExternalStore` export.
+        // The browser then throws a SyntaxError, the route never hydrates,
+        // and forms fall back to native GET behaviour.
+        //
+        // @byline/ui ships React-side code through a single
+        // `@byline/ui/react` entry point — there are no per-area subpaths
+        // to pre-bundle individually. That single-entry shape is also why
+        // pre-bundling here is now safe: the React Contexts in
+        // `services/*` resolve to one module instance regardless of which
+        // file in @byline/ui imports them.
+        //
+        // @byline/ai and its plugin subpaths are pre-bundled for the same
+        // reason — the published package ships compiled JS that the dep
+        // optimizer needs to walk so its CJS interop and `node:async_hooks`
+        // rewrite (below) take effect in the client bundle.
+        //
+        // We intentionally do NOT pre-bundle @byline/host-tanstack-start
+        // subpaths — they transitively pull in @tanstack/start-server-core,
+        // which references Vite-virtual modules (e.g.
+        // `tanstack-start-injected-head-scripts:v`) that the dep optimizer
+        // cannot resolve.
+        include: [
+          '@byline/ui/react',
+          '@byline/ai',
+          '@byline/ai/plugins/text',
+          '@byline/ai/plugins/lexical',
+        ],
         rolldownOptions: {
           plugins: [
             {
@@ -88,31 +121,6 @@ const config = defineConfig({
             },
           ],
         },
-        include: [
-          // Force pre-bundling of @byline/ui so Vite's dep optimizer walks
-          // into it and inlines its CJS deps — notably
-          // `@base-ui/utils/store/useStore` and `use-sync-external-store/shim`.
-          //
-          // Without this, those CJS modules are reached via Vite's regular
-          // module pipeline at runtime, where the on-the-fly CJS->ESM interop
-          // can fail to synthesise the named `useSyncExternalStore` export.
-          // The browser then throws a SyntaxError, the route never hydrates,
-          // and forms fall back to native GET behaviour.
-          //
-          // @byline/ui ships React-side code through a single
-          // `@byline/ui/react` entry point — there are no per-area subpaths
-          // to pre-bundle individually. That single-entry shape is also why
-          // pre-bundling here is now safe: the React Contexts in
-          // `services/*` resolve to one module instance regardless of which
-          // file in @byline/ui imports them.
-          //
-          // We intentionally do NOT pre-bundle @byline/host-tanstack-start
-          // subpaths — they transitively pull in @tanstack/start-server-core,
-          // which references Vite-virtual modules (e.g.
-          // `tanstack-start-injected-head-scripts:v`) that the dep optimizer
-          // cannot resolve.
-          '@byline/ui/react',
-        ],
       },
     },
     ssr: {
