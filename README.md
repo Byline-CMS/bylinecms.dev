@@ -182,16 +182,36 @@ IMPORTANT: The core Byline routes will be placed under a pathless route at `rout
 
 See the TanStack Router docs for [File-Based Routing](https://tanstack.com/router/latest/docs/routing/file-based-routing) and [Virtual File Routes](https://tanstack.com/router/latest/docs/routing/virtual-file-routes) for more information.
 
-NOTE: If you have manually configured Byline by copying code from the example application here (byline directories, .env, start, server, __root.tsx, and vite.config.ts settings), and only want to initialized the database in the new application, you can run the following from the CLI:
+NOTE: If you have manually configured Byline by copying code from the example application here (byline directories, .env, start, server, __root.tsx, and vite.config.ts settings), and only want to provision the database and seed the super-admin and example docs in the new application, use `byline setup` instead of `byline init`:
 
-```
-byline init --only db # generate db answer state
-byline init --only db-init # init database
-byline init --only seed-admin # runs byline/seed-admin.ts
-byline init --only seed-docs  # runs byline/seed-docs.ts
+```sh
+npx @byline/cli@latest setup
+
+# or
+
+pnpm dlx @byline/cli@latest setup
 ```
 
-We'll be updating the CLI soon to make all of this easier.
+`setup` runs only the database-provisioning and seed phases (`db` → `db-init` → `seed-admin` → `seed-docs`) — it does not touch project files. Useful flag examples:
+
+```sh
+# Provision the DB and seed both the super-admin and example docs (default)
+byline setup
+
+# Provision the DB and seed the super-admin only
+byline setup --no-seed-docs
+
+# Provision the DB and seed example docs only
+byline setup --no-seed-admin
+
+# Provision the DB without running either seed
+byline setup --no-seed-admin --no-seed-docs
+
+# Destructive: drop and recreate the database (requires both flags)
+byline setup --reset --i-mean-it
+```
+
+Before running any phase, `setup` performs a quick pre-flight: it bails if the core `@byline/*` packages aren't installed in your app's `package.json`, bails if `.env` is missing, and warns-and-confirms if `.env` is present but missing keys Byline expects (some keys may legitimately be supplied via shell env). For new TanStack Start apps that need the full scaffold, use `byline init` instead.
 
 ## Quick start - Development environment and example application (this repo)
 
