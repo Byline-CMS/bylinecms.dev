@@ -176,6 +176,6 @@ pnpm dev
 ```
 
 If you've built the project (above) and have Postgres up and running, you
-should be able to view the prototype on http://localhost:5173/.
+should be able to view the app on http://localhost:5173/.
 
 Enjoy and stay tuned!

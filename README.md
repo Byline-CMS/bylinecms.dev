@@ -4,12 +4,13 @@ A developer-friendly, open-source headless CMS — built with versioning,
 editorial workflow, and content translation as first-class concerns rather
 than features bolted on later.
 
-> Status: Byline is currently at a v1.x.x release — although realistically, 
-> the v1 line should probably be considered a late release candidate. 
-> While v1 is stable, and there are unlikely to be any major architectural 
-> changes, there is still work to do.
-> If you're interested in Byline, v1 will serve as an excellent introduction
-> and a solid base for evaluation.
+> Status: Byline is currently at a stable v2.x.x release. The jump from v1
+> to v2 was driven by lockstep versioning across the publishable `@byline/*`
+> packages rather than a breaking redesign — the architecture is settled
+> and there are unlikely to be any major architectural changes, though
+> there is still work to do.
+> If you're interested in Byline, v2 is a solid base for evaluation and
+> for building on.
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 

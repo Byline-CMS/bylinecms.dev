@@ -1,6 +1,6 @@
 # Copilot instructions (Byline CMS)
 
-Byline CMS is a **pnpm + Turborepo** monorepo (prototype / PoC). Key packages:
+Byline CMS is a **pnpm + Turborepo** monorepo (stable v2.x.x, lockstep `@byline/*` packages). Key packages:
 - `apps/webapp`: TanStack Start in SPA mode + React admin UI.
 - `packages/core` (`@byline/core`): core config, types, patch logic, workflow, Zod schema builder.
 - `packages/db-postgres` (`@byline/db-postgres`): Postgres adapter (Drizzle ORM).
@@ -14,7 +14,7 @@ Byline CMS is a **pnpm + Turborepo** monorepo (prototype / PoC). Key packages:
   - Core tests: `cd packages/core && pnpm test` (Vitest — patches + workflow).
   - DB tests: `cd packages/db-postgres && pnpm test` (tsx --test — requires running Postgres).
 
-## Database workflows (prototype)
+## Database workflows
 - Start Postgres (docker-compose wrapper): `cd postgres && ./postgres.sh up -d`
 - Initialize DB: `cd packages/db-postgres/src/database && ./db_init.sh`
 - Drizzle migrations (from repo root): `pnpm drizzle:generate` then `pnpm drizzle:migrate`
@@ -112,7 +112,7 @@ All admin API routes live under `apps/webapp/src/routes/admin/api/$collection/`:
 
 ## Repo conventions
 - Node engine is `^18.20.2 || >=20.9.0` (see root `package.json`).
-- Keep changes minimal and consistent with prototype intent (many files explicitly say "prototype").
+- Keep changes minimal and consistent with the existing architecture and conventions.
 - Always verify with `pnpm build` (4 packages must pass) and `pnpm test` after changes.
 - The `_id` field on array/block items is synthetic metadata — never persist it via `flattenFields`,
   never treat it as a data key in renderers.
