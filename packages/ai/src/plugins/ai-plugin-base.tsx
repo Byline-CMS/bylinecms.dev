@@ -11,8 +11,6 @@
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 
-import type { InstructionState, Provider } from '@byline/ai'
-import { getDefaultModel, isProvider, PROVIDER_MODELS } from '@byline/ai'
 import {
   Button,
   Checkbox,
@@ -31,8 +29,10 @@ import {
   useModal,
 } from '@byline/ui/react'
 
+import { getDefaultModel, isProvider, PROVIDER_MODELS } from '../config/ai-config'
 import { loadChatConfiguration, saveChatConfiguration } from './storage'
 import { appendRollingPreviewText } from './streaming-preview'
+import type { InstructionState, Provider } from '../@types'
 
 import './ai-plugin.css'
 

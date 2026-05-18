@@ -23,7 +23,10 @@ export {
   DEFAULT_AI_ENDPOINT,
   DEFAULT_MODELS,
   getAiPublicConfig,
+  getDefaultModel,
+  isProvider,
   PROVIDER_MODELS,
+  PROVIDERS,
 } from './config/ai-config'
 export {
   AiPublicConfigContext,
@@ -40,23 +43,3 @@ export type {
   OutputPreference,
   Provider,
 } from './@types'
-
-import { DEFAULT_MODELS } from './config/ai-config'
-import type { Provider } from './@types'
-
-export const PROVIDERS: Array<[Provider, string]> = [
-  ['openai', 'OpenAI'],
-  ['google', 'Google'],
-  ['anthropic', 'Anthropic'],
-]
-
-export const isProvider = (value: string): value is Provider => {
-  return value === 'openai' || value === 'google' || value === 'anthropic'
-}
-
-export const getDefaultModel = (provider: Provider): string => {
-  if (!isProvider(provider)) {
-    throw new Error(`Invalid provider: ${provider}`)
-  }
-  return DEFAULT_MODELS[provider]
-}
