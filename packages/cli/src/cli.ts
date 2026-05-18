@@ -3,6 +3,7 @@ import { Command } from 'commander'
 
 import { runDoctor } from './commands/doctor.js'
 import { runInit } from './commands/init.js'
+import { runSetup } from './commands/setup.js'
 import { PHASE_IDS } from './phases/index.js'
 import type { PackageManager, PhaseId } from './types.js'
 
@@ -39,6 +40,39 @@ program
       from: opts.from as PhaseId | undefined,
       to: opts.to as PhaseId | undefined,
       only: opts.only as PhaseId | undefined,
+      apply: opts.apply as boolean | undefined,
+      dryRun: opts.dryRun as boolean | undefined,
+      yes: opts.yes as boolean | undefined,
+      reset: opts.reset as boolean | undefined,
+      resetIMeanIt: opts.iMeanIt as boolean | undefined,
+      pm: opts.pm as PackageManager | undefined,
+      quiet: opts.quiet as boolean | undefined,
+      noColor: opts.color === false,
+    })
+  })
+
+program
+  .command('setup')
+  .description(
+    'Prepare DB and seed admin/docs for an app that is already wired (post-manual-config)'
+  )
+  .option('--no-seed-admin', 'skip the super-admin seed')
+  .option('--no-seed-docs', 'skip the example docs seed')
+  .option('--apply', 'skip per-phase confirmation prompts (still prints diffs)')
+  .option('--dry-run', 'show every change but write nothing')
+  .option('-y, --yes', 'assume yes to non-write prompts')
+  .option('--reset', 'destructive: drop existing database in db-init')
+  .option('--i-mean-it', 'second confirmation required by --reset')
+  .option('--pm <pm>', `force package manager: ${PACKAGE_MANAGERS.join('|')}`)
+  .option('-q, --quiet', 'suppress decorative output')
+  .option('--no-color', 'disable color output')
+  .action(async (raw) => {
+    const opts = raw as Record<string, unknown>
+    if (opts.pm) assertPackageManager(opts.pm as string)
+    await runSetup({
+      // commander flips `--no-seed-admin` to `seedAdmin: false`
+      noSeedAdmin: opts.seedAdmin === false,
+      noSeedDocs: opts.seedDocs === false,
       apply: opts.apply as boolean | undefined,
       dryRun: opts.dryRun as boolean | undefined,
       yes: opts.yes as boolean | undefined,

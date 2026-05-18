@@ -21,3 +21,18 @@ byline doctor                  Inspect the current app and report what's wired.
 ```
 
 See `byline init --help` for the full flag list.
+
+### Already-wired apps (post-manual-config)
+
+If you wired Byline into your app by hand (collections, `server.config.ts`, env, routes, scaffold files all in place) and just need to provision the database and seed, use `setup` instead of `init`:
+
+```sh
+byline setup                       Provision DB, then seed super-admin and example docs.
+byline setup --no-seed-admin       Provision DB and seed docs only.
+byline setup --no-seed-docs        Provision DB and seed super-admin only.
+byline setup --no-seed-admin --no-seed-docs
+                                   Provision DB only.
+byline setup --reset --i-mean-it   Destructive: drop and recreate the database.
+```
+
+`setup` runs only the `db` → `db-init` → `seed-admin` → `seed-docs` phases — it does not touch project files. For new TanStack Start apps that need the full scaffold, use `byline init`.
