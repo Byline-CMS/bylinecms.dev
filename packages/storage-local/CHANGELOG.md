@@ -1,5 +1,16 @@
 # @byline/storage-local
 
+## 2.1.0
+
+### Minor Changes
+
+- AI package import fixes, CLI updates for db setup only.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@2.1.0
+
 ## 1.12.2
 
 ### Patch Changes

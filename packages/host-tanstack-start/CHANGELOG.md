@@ -1,5 +1,21 @@
 # @byline/host-tanstack-start
 
+## 2.1.0
+
+### Minor Changes
+
+- AI package import fixes, CLI updates for db setup only.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/ai@2.1.0
+  - @byline/admin@2.1.0
+  - @byline/auth@2.1.0
+  - @byline/client@2.1.0
+  - @byline/core@2.1.0
+  - @byline/ui@2.1.0
+
 ## 1.12.2
 
 ### Patch Changes

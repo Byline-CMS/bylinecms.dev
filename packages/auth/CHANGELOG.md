@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 2.1.0
+
+### Minor Changes
+
+- AI package import fixes, CLI updates for db setup only.
+
 ## 1.12.2
 
 ### Patch Changes

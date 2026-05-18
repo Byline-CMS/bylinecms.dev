@@ -1,5 +1,18 @@
 # @infonomic/ai
 
+## 2.1.0
+
+### Minor Changes
+
+- AI package import fixes, CLI updates for db setup only.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@2.1.0
+  - @byline/richtext-lexical@2.1.0
+  - @byline/ui@2.1.0
+
 ## 2.0.2
 
 ### Patch Changes
