@@ -54,6 +54,7 @@ import { normaliseDateFields } from '../utils/normalise-dates.js'
 import { type SlugifierFn, slugify } from '../utils/slugify.js'
 import { getUploadFields } from '../utils/storage-utils.js'
 import { getDefaultStatus, getWorkflow, validateStatusTransition } from '../workflow/workflow.js'
+import { assignCounterValues } from './assign-counter-values.js'
 import type { BylineLogger } from '../lib/logger.js'
 import type { DocumentPatch } from '../patches/index.js'
 
@@ -411,6 +412,17 @@ export async function createDocument(
 
       await invokeHook(hooks?.beforeCreate, { data, collectionPath })
 
+      // Allocate counter-field values after beforeCreate so user-land hooks
+      // can run their own logic on the raw payload, but before the flatten/
+      // insert pass so the assigned values are persisted on the same write.
+      // Caller-supplied counter values are overwritten — counters are
+      // allocator-assigned, never user-set.
+      await assignCounterValues({
+        fields: definition.fields,
+        data,
+        counters: db.commands.counters,
+      })
+
       const explicitPath =
         typeof params.path === 'string' && params.path.length > 0 ? params.path : null
       const resolvedPath = explicitPath ?? derivePath(definition, data, defaultLocale, slugifier)
@@ -500,6 +512,19 @@ export async function updateDocument(
       normaliseDateFields(data)
 
       await invokeHook(hooks?.beforeUpdate, { data, originalData, collectionPath })
+
+      // Counter fields are immutable: carry their values forward from the
+      // previous version rather than trusting whatever (or nothing) the
+      // caller sent. Lazy-allocates when a counter was added to the
+      // collection after this document was first created.
+      // originalData is the document envelope (with `.fields`, `.path`,
+      // `.document_version_id`); assignCounterValues expects field-shape.
+      await assignCounterValues({
+        fields: definition.fields,
+        data,
+        previousData: (originalData.fields as Record<string, any>) ?? originalData,
+        counters: db.commands.counters,
+      })
 
       const defaultStatus = getDefaultStatus(definition)
 
@@ -636,6 +661,17 @@ export async function updateDocumentWithPatches(
 
       // 5. beforeUpdate hook.
       await invokeHook(hooks?.beforeUpdate, { data: nextData, originalData, collectionPath })
+
+      // 5b. Carry counter values forward from the previous version (or
+      // lazy-allocate if the previous version is missing a value). See
+      // updateDocument for the rationale — patch-based updates are
+      // subject to the same immutability contract.
+      await assignCounterValues({
+        fields: definition.fields,
+        data: nextData,
+        previousData: (originalData.fields as Record<string, any>) ?? {},
+        counters: db.commands.counters,
+      })
 
       // 6. Persist.
       const defaultStatus = getDefaultStatus(definition)
@@ -1295,6 +1331,16 @@ export async function duplicateDocument(
         data: clonedFields,
         collectionPath,
         duplicate: duplicateMarker,
+      })
+
+      // 6b. Reset counter fields to freshly-allocated values. The clone
+      // currently carries the source document's counter values; without
+      // this pass, the duplicate would alias the source's facet IDs and
+      // break the "one ID per term" contract.
+      await assignCounterValues({
+        fields: definition.fields,
+        data: clonedFields,
+        counters: db.commands.counters,
       })
 
       // 7. Atomic write. Try the candidate path; on ERR_PATH_CONFLICT
