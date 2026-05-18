@@ -20,6 +20,7 @@ import { defineBylineCore, defineServerConfig, getBylineCoreUnsafe } from './con
 import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logger.js'
 import { Registry } from './lib/registry.js'
 import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
+import { discoverCounterGroups } from './services/discover-counter-groups.js'
 import { validateRichTextFieldFlags } from './services/richtext-populate.js'
 import type {
   CollectionDefinition,
@@ -126,6 +127,18 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // bump schema versions when the fingerprint has drifted, and build the
   // in-memory record cache used by the lifecycle/upload/client paths.
   const collectionRecords = await ensureCollections({
+    definitions: composed.collections,
+    db: composed.db,
+    logger: composed.logger,
+  })
+
+  // Discover every distinct counter `group` across the registered
+  // collections and ensure each one has a backing sequence in the
+  // database. Runs after ensureCollections (collection-shape errors
+  // surface first) and throws on any structural ban (counter inside
+  // array/blocks) or adapter failure — both are fatal config issues
+  // that should fail boot rather than show up at request time.
+  await discoverCounterGroups({
     definitions: composed.collections,
     db: composed.db,
     logger: composed.logger,
