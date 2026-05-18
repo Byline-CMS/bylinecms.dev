@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.1.2
+
+### Patch Changes
+
+- fix(ai): clean dist before build to avoid shipping stale .js.map files.
+
 ## 2.1.1
 
 ### Patch Changes

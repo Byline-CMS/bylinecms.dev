@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 2.1.2
+
+### Patch Changes
+
+- fix(ai): clean dist before build to avoid shipping stale .js.map files.
+- Updated dependencies
+  - @byline/client@2.1.2
+  - @byline/core@2.1.2
+  - @byline/ui@2.1.2
+
 ## 2.1.1
 
 ### Patch Changes
