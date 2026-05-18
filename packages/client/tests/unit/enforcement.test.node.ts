@@ -50,6 +50,10 @@ function mockDb(): IDbAdapter {
         softDeleteDocument: vi.fn(),
         archivePublishedVersions: vi.fn(),
       },
+      counters: {
+        ensureCounterGroup: vi.fn(),
+        nextCounterValue: vi.fn(),
+      },
     },
     queries: {
       collections: { getCollectionByPath },

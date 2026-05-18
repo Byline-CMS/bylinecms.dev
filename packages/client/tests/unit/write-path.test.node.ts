@@ -85,6 +85,10 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
         archivePublishedVersions,
         softDeleteDocument,
       },
+      counters: {
+        ensureCounterGroup: vi.fn(),
+        nextCounterValue: vi.fn(),
+      },
     },
     queries: {
       collections: {

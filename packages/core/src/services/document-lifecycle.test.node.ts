@@ -74,6 +74,10 @@ function createMockDb() {
         softDeleteDocument,
         setOrderKey: vi.fn() as any,
       },
+      counters: {
+        ensureCounterGroup: vi.fn() as any,
+        nextCounterValue: vi.fn() as any,
+      },
     },
     queries: {
       collections: {

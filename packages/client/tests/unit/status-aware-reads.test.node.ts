@@ -70,6 +70,10 @@ function makeAdapter() {
         archivePublishedVersions: vi.fn(),
         softDeleteDocument: vi.fn(),
       },
+      counters: {
+        ensureCounterGroup: vi.fn(),
+        nextCounterValue: vi.fn(),
+      },
     },
     queries: {
       collections: {

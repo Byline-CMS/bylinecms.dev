@@ -70,6 +70,10 @@ function createMockDb() {
         softDeleteDocument: vi.fn(),
         setOrderKey: vi.fn(),
       },
+      counters: {
+        ensureCounterGroup: vi.fn(),
+        nextCounterValue: vi.fn(),
+      },
     },
     queries: {
       collections: {

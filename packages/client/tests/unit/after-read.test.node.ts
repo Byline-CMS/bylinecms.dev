@@ -80,6 +80,10 @@ function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
         archivePublishedVersions: vi.fn(),
         softDeleteDocument: vi.fn(),
       },
+      counters: {
+        ensureCounterGroup: vi.fn(),
+        nextCounterValue: vi.fn(),
+      },
     },
     queries: {
       collections: {

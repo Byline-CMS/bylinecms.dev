@@ -54,6 +54,10 @@ function createMockDb(options: {
         softDeleteDocument: vi.fn(fail) as any,
         setOrderKey: vi.fn(fail) as any,
       },
+      counters: {
+        ensureCounterGroup: vi.fn(fail) as any,
+        nextCounterValue: vi.fn(fail) as any,
+      },
     },
     queries: {
       collections: {
@@ -215,6 +219,10 @@ describe('ensureCollections', () => {
           archivePublishedVersions: vi.fn() as any,
           softDeleteDocument: vi.fn() as any,
           setOrderKey: vi.fn() as any,
+        },
+        counters: {
+          ensureCounterGroup: vi.fn() as any,
+          nextCounterValue: vi.fn() as any,
         },
       },
       queries: {
