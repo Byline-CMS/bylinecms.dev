@@ -11,6 +11,7 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
 import * as schema from './database/schema/index.js'
+import { createCounterCommands } from './modules/counters/counters-commands.js'
 import { createCommandBuilders } from './modules/storage/storage-commands.js'
 import { createQueryBuilders } from './modules/storage/storage-queries.js'
 
@@ -57,9 +58,13 @@ export const pgAdapter = ({
 
   const commandBuilders = createCommandBuilders(db, defaultContentLocale)
   const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale)
+  const counterCommands = createCounterCommands(db)
 
   return {
-    commands: commandBuilders,
+    commands: {
+      ...commandBuilders,
+      counters: counterCommands,
+    },
     queries: queryBuilders,
     drizzle: db,
     pool,

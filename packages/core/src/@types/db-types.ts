@@ -188,11 +188,53 @@ export interface IDbAdapter {
   commands: {
     collections: ICollectionCommands
     documents: IDocumentCommands
+    counters: ICounterCommands
   }
   queries: {
     collections: ICollectionQueries
     documents: IDocumentQueries
   }
+}
+
+/**
+ * Adapter capability for the shared-pool counter mechanism backing the
+ * `counter` field type. See `packages/core/src/@types/field-types.ts`
+ * (CounterField) for the field-level contract and `docs/COLLECTIONS.md`
+ * (Counter fields) for the conceptual overview.
+ *
+ * Both methods are keyed by the developer-facing `groupName` (the value
+ * of `CounterField.group`). The adapter is responsible for translating
+ * that into whatever backing primitive it uses (a Postgres SEQUENCE for
+ * the Postgres adapter) and for keeping the `byline_counter_groups`
+ * registry table in sync.
+ */
+export interface ICounterCommands {
+  /**
+   * Idempotently register a counter group and ensure its backing
+   * sequence exists. Called once per discovered group at boot by the
+   * collection-bootstrap layer (`@byline/core`). Safe to call
+   * concurrently across multiple booting processes — implementations
+   * must use `IF NOT EXISTS` / `ON CONFLICT DO NOTHING` semantics so
+   * two processes racing on the same group leave the system with
+   * exactly one sequence and one registry row.
+   *
+   * Returns the resolved sequence name so callers (tests, doctor
+   * tooling) can inspect what was created without re-deriving it.
+   */
+  ensureCounterGroup(groupName: string): Promise<{ groupName: string; sequenceName: string }>
+
+  /**
+   * Atomically allocate the next value from the named group's
+   * sequence. Called on every document create that includes one or
+   * more `counter` fields (see assignCounterValues in
+   * document-lifecycle). Throws if the group has not been registered
+   * via `ensureCounterGroup` — the lifecycle layer is expected to
+   * surface that as a configuration error, not silently retry.
+   *
+   * Gaps are expected: sequences leak on rolled-back transactions
+   * and deletes. The facet-URL use case does not require gapless IDs.
+   */
+  nextCounterValue(groupName: string): Promise<number>
 }
 
 export interface ICollectionCommands {
