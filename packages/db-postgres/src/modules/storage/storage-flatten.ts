@@ -201,6 +201,7 @@ const flattenValueFieldData = (
       }
 
     case 'integer':
+    case 'counter':
       return {
         locale,
         field_path,

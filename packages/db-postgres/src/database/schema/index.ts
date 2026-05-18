@@ -577,6 +577,27 @@ export const jsonStore = pgTable(
   ]
 )
 
+// ---------------------------------------------------------------------------
+// Counter groups registry
+// ---------------------------------------------------------------------------
+//
+// One row per counter `group` discovered in collection field definitions.
+// The actual ID allocator is a Postgres SEQUENCE (named in `sequence_name`),
+// reconciled at boot by `IDbAdapter.ensureCounterGroup`. The registry table
+// itself only records that the group exists and which sequence backs it —
+// it is not used in the hot allocation path (`nextval()` operates on the
+// sequence object directly).
+//
+// Why a separate table rather than reading sequences from
+// `information_schema`: the mapping from `group_name` → `sequence_name`
+// belongs in the application's schema, not in PG metadata, so backups and
+// adapter logic have a stable name to anchor against.
+export const counterGroups = pgTable('byline_counter_groups', {
+  group_name: text('group_name').primaryKey(),
+  sequence_name: text('sequence_name').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 // RELATIONS
 // =========
 
