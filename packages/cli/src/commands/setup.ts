@@ -19,6 +19,7 @@ export interface SetupOptions {
   yes?: boolean
   reset?: boolean
   resetIMeanIt?: boolean
+  force?: boolean
   pm?: PackageManager
   quiet?: boolean
   noColor?: boolean
@@ -65,6 +66,35 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
     ].join('\n'),
     'Setup (post-manual-config)'
   )
+
+  // --force re-runs every phase regardless of recorded state. Combine
+  // with --reset --i-mean-it to also drop & recreate the database; the
+  // db-init phase confirms the drop interactively unless --i-mean-it
+  // is passed.
+  if (opts.force) {
+    const notes = ['re-running every setup phase regardless of recorded state']
+    if (opts.reset) {
+      notes.push('--reset is set: the database WILL be dropped and recreated')
+      notes.push('existing document data WILL be lost')
+    } else {
+      notes.push('database is NOT being reset (pass --reset to drop and recreate)')
+      notes.push('migrations will run against the existing database (may be a no-op)')
+    }
+    prompter.note(notes.join('\n'), '--force')
+
+    if (!opts.yes) {
+      const ok = await prompter.confirm({
+        message: opts.reset
+          ? 'Continue? This will DROP your database.'
+          : 'Continue with forced re-run?',
+        defaultValue: false,
+      })
+      if (!ok) {
+        prompter.outro('setup cancelled')
+        return
+      }
+    }
+  }
 
   // Run the existing preflight phase first so Node version + git + the
   // package manager are resolved before any setup-specific checks read

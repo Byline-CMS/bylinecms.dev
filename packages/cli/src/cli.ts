@@ -63,6 +63,7 @@ program
   .option('-y, --yes', 'assume yes to non-write prompts')
   .option('--reset', 'destructive: drop existing database in db-init')
   .option('--i-mean-it', 'second confirmation required by --reset')
+  .option('--force', 're-run every phase even if recorded as complete')
   .option('--pm <pm>', `force package manager: ${PACKAGE_MANAGERS.join('|')}`)
   .option('-q, --quiet', 'suppress decorative output')
   .option('--no-color', 'disable color output')
@@ -78,6 +79,7 @@ program
       yes: opts.yes as boolean | undefined,
       reset: opts.reset as boolean | undefined,
       resetIMeanIt: opts.iMeanIt as boolean | undefined,
+      force: opts.force as boolean | undefined,
       pm: opts.pm as PackageManager | undefined,
       quiet: opts.quiet as boolean | undefined,
       noColor: opts.color === false,

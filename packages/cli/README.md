@@ -33,6 +33,11 @@ byline setup --no-seed-docs        Provision DB and seed super-admin only.
 byline setup --no-seed-admin --no-seed-docs
                                    Provision DB only.
 byline setup --reset --i-mean-it   Destructive: drop and recreate the database.
+byline setup --force               Re-run every phase even if recorded as complete.
+byline setup --force --reset --i-mean-it
+                                   Full re-run: drop and recreate the database, then re-seed.
 ```
 
 `setup` runs only the `db` → `db-init` → `seed-admin` → `seed-docs` phases — it does not touch project files. For new TanStack Start apps that need the full scaffold, use `byline init`.
+
+By default `setup` consults `.byline-install.json` and skips phases already recorded as complete. Use `--force` to bypass that and re-run every phase against fresh state — useful after a manual DB reset, when you want to re-seed, or to re-verify a setup is healthy. `--force` is non-destructive on its own (migrations re-apply as no-ops, seeds are idempotent); combine with `--reset --i-mean-it` for a full nuke-and-pave, which drops the database and discards all document data. A confirmation prompt fires before either flow runs, unless you pass `-y`.

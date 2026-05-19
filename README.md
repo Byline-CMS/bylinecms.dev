@@ -210,6 +210,13 @@ byline setup --no-seed-admin --no-seed-docs
 
 # Destructive: drop and recreate the database (requires both flags)
 byline setup --reset --i-mean-it
+
+# Re-run every phase even if recorded as complete (non-destructive on its own —
+# migrations re-apply as no-ops, seeds are idempotent)
+byline setup --force
+
+# Full nuke-and-pave: drop and recreate the database, then re-run every phase
+byline setup --force --reset --i-mean-it
 ```
 
 Before running any phase, `setup` performs a quick pre-flight: it bails if the core `@byline/*` packages aren't installed in your app's `package.json`, bails if `.env` is missing, and warns-and-confirms if `.env` is present but missing keys Byline expects (some keys may legitimately be supplied via shell env). For new TanStack Start apps that need the full scaffold, use `byline init` instead.
