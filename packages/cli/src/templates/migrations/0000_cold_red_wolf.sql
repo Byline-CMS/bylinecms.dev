@@ -3,8 +3,8 @@ CREATE TABLE "byline_admin_permissions" (
 	"vid" integer DEFAULT 1 NOT NULL,
 	"admin_role_id" uuid NOT NULL,
 	"ability" varchar(128) NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "uq_byline_admin_permissions_role_ability" UNIQUE("admin_role_id","ability")
 );
 --> statement-breakpoint
@@ -19,15 +19,15 @@ CREATE TABLE "byline_admin_refresh_tokens" (
 	"last_used_at" timestamp (6) with time zone,
 	"user_agent" varchar(512),
 	"ip" varchar(45),
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "byline_admin_refresh_tokens_token_hash_unique" UNIQUE("token_hash")
 );
 --> statement-breakpoint
 CREATE TABLE "byline_admin_role_admin_user" (
 	"admin_role_id" uuid NOT NULL,
 	"admin_user_id" uuid NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "byline_admin_role_admin_user_admin_role_id_admin_user_id_pk" PRIMARY KEY("admin_role_id","admin_user_id")
 );
 --> statement-breakpoint
@@ -38,8 +38,8 @@ CREATE TABLE "byline_admin_roles" (
 	"machine_name" varchar(128) NOT NULL,
 	"description" text,
 	"order" integer DEFAULT 0 NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "byline_admin_roles_machine_name_unique" UNIQUE("machine_name")
 );
 --> statement-breakpoint
@@ -58,8 +58,8 @@ CREATE TABLE "byline_admin_users" (
 	"is_super_admin" boolean DEFAULT false NOT NULL,
 	"is_enabled" boolean DEFAULT false NOT NULL,
 	"is_email_verified" boolean DEFAULT false NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "byline_admin_users_username_unique" UNIQUE("username"),
 	CONSTRAINT "byline_admin_users_email_unique" UNIQUE("email")
 );
@@ -72,8 +72,8 @@ CREATE TABLE "byline_store_boolean" (
 	"field_name" varchar(255) NOT NULL,
 	"locale" varchar(10) DEFAULT 'default' NOT NULL,
 	"parent_path" varchar(500),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"value" boolean NOT NULL,
 	CONSTRAINT "unique_boolean_field" UNIQUE("document_version_id","field_path","locale")
 );
@@ -86,9 +86,15 @@ CREATE TABLE "byline_collections" (
 	"config" jsonb NOT NULL,
 	"version" integer DEFAULT 1 NOT NULL,
 	"schema_hash" varchar(64),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "byline_collections_path_unique" UNIQUE("path")
+);
+--> statement-breakpoint
+CREATE TABLE "byline_counter_groups" (
+	"group_name" text PRIMARY KEY NOT NULL,
+	"sequence_name" text NOT NULL,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "byline_store_datetime" (
@@ -99,8 +105,8 @@ CREATE TABLE "byline_store_datetime" (
 	"field_name" varchar(255) NOT NULL,
 	"locale" varchar(10) DEFAULT 'default' NOT NULL,
 	"parent_path" varchar(500),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"date_type" varchar(20) NOT NULL,
 	"value_date" date,
 	"value_time" time,
@@ -113,8 +119,8 @@ CREATE TABLE "byline_document_paths" (
 	"locale" varchar(10) NOT NULL,
 	"collection_id" uuid NOT NULL,
 	"path" varchar(255) NOT NULL,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "unique_document_paths_document_locale" UNIQUE("document_id","locale"),
 	CONSTRAINT "idx_document_paths_collection_locale_path" UNIQUE("collection_id","locale","path")
 );
@@ -122,7 +128,7 @@ CREATE TABLE "byline_document_paths" (
 CREATE TABLE "byline_document_relationships" (
 	"parent_document_id" uuid NOT NULL,
 	"child_document_id" uuid NOT NULL,
-	"created_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "byline_document_relationships_parent_document_id_child_document_id_unique" UNIQUE("parent_document_id","child_document_id")
 );
 --> statement-breakpoint
@@ -135,8 +141,8 @@ CREATE TABLE "byline_document_versions" (
 	"event_type" varchar(20) DEFAULT 'create' NOT NULL,
 	"status" varchar(50) DEFAULT 'draft',
 	"is_deleted" boolean DEFAULT false,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"created_by" uuid,
 	"change_summary" text
 );
@@ -145,8 +151,8 @@ CREATE TABLE "byline_documents" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"collection_id" uuid NOT NULL,
 	"order_key" varchar(128) COLLATE "C",
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "byline_store_file" (
@@ -157,8 +163,8 @@ CREATE TABLE "byline_store_file" (
 	"field_name" varchar(255) NOT NULL,
 	"locale" varchar(10) DEFAULT 'default' NOT NULL,
 	"parent_path" varchar(500),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"file_id" uuid NOT NULL,
 	"filename" varchar(255) NOT NULL,
 	"original_filename" varchar(255) NOT NULL,
@@ -185,8 +191,8 @@ CREATE TABLE "byline_store_json" (
 	"field_name" varchar(255) NOT NULL,
 	"locale" varchar(10) DEFAULT 'default' NOT NULL,
 	"parent_path" varchar(500),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"value" jsonb NOT NULL,
 	"json_schema" varchar(100),
 	"object_keys" text[],
@@ -201,8 +207,8 @@ CREATE TABLE "byline_store_meta" (
 	"path" text NOT NULL,
 	"item_id" varchar(255) NOT NULL,
 	"meta" jsonb,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "unique_meta_node" UNIQUE("document_version_id","type","path")
 );
 --> statement-breakpoint
@@ -214,8 +220,8 @@ CREATE TABLE "byline_store_numeric" (
 	"field_name" varchar(255) NOT NULL,
 	"locale" varchar(10) DEFAULT 'default' NOT NULL,
 	"parent_path" varchar(500),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"number_type" varchar(20) NOT NULL,
 	"value_integer" integer,
 	"value_decimal" numeric(10, 2),
@@ -231,8 +237,8 @@ CREATE TABLE "byline_store_relation" (
 	"field_name" varchar(255) NOT NULL,
 	"locale" varchar(10) DEFAULT 'default' NOT NULL,
 	"parent_path" varchar(500),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"target_document_id" uuid NOT NULL,
 	"target_collection_id" uuid NOT NULL,
 	"relationship_type" varchar(50) DEFAULT 'reference',
@@ -248,8 +254,8 @@ CREATE TABLE "byline_store_text" (
 	"field_name" varchar(255) NOT NULL,
 	"locale" varchar(10) DEFAULT 'default' NOT NULL,
 	"parent_path" varchar(500),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"value" text NOT NULL,
 	"word_count" integer,
 	CONSTRAINT "unique_text_field" UNIQUE("document_version_id","field_path","locale")
