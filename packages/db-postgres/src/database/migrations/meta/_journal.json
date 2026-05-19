@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1778665271695,
-      "tag": "0000_slimy_lilandra",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1779126223880,
-      "tag": "0001_violet_loki",
+      "when": 1779150782562,
+      "tag": "0000_cold_red_wolf",
       "breakpoints": true
     }
   ]

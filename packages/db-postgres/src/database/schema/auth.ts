@@ -39,6 +39,8 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
+import { createdAt, timestamps } from './common.js'
+
 // ---------------------------------------------------------------------------
 // byline_admin_users
 // ---------------------------------------------------------------------------
@@ -72,8 +74,7 @@ export const adminUsers = pgTable(
      */
     is_enabled: boolean('is_enabled').notNull().default(false),
     is_email_verified: boolean('is_email_verified').notNull().default(false),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at').notNull().defaultNow(),
+    ...timestamps,
   },
   (table) => [index('idx_byline_admin_users_email').on(table.email)]
 )
@@ -94,8 +95,7 @@ export const adminRoles = pgTable(
     description: text('description'),
     /** Display ordering in the role-editor UI. */
     order: integer('order').notNull().default(0),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at').notNull().defaultNow(),
+    ...timestamps,
   },
   (table) => [index('idx_byline_admin_roles_machine_name').on(table.machine_name)]
 )
@@ -113,7 +113,7 @@ export const adminRoleAdminUser = pgTable(
     admin_user_id: uuid('admin_user_id')
       .notNull()
       .references(() => adminUsers.id, { onDelete: 'cascade' }),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    ...createdAt,
   },
   (table) => [
     primaryKey({ columns: [table.admin_role_id, table.admin_user_id] }),
@@ -135,8 +135,7 @@ export const adminPermissions = pgTable(
       .references(() => adminRoles.id, { onDelete: 'cascade' }),
     /** Flat dotted ability key — see `@byline/auth` AbilityRegistry. */
     ability: varchar('ability', { length: 128 }).notNull(),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at').notNull().defaultNow(),
+    ...timestamps,
   },
   (table) => [
     unique('uq_byline_admin_permissions_role_ability').on(table.admin_role_id, table.ability),
@@ -175,8 +174,7 @@ export const adminRefreshTokens = pgTable(
     last_used_at: timestamp('last_used_at', { precision: 6, withTimezone: true }),
     user_agent: varchar('user_agent', { length: 512 }),
     ip: varchar('ip', { length: 45 }),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at').notNull().defaultNow(),
+    ...timestamps,
   },
   (table) => [
     index('idx_byline_admin_refresh_tokens_user').on(table.admin_user_id),

@@ -27,6 +27,8 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
+import { createdAt, timestamps } from './common.js'
+
 /**
  * `varchar(...)` with explicit byte-wise (C) collation.
  *
@@ -69,8 +71,7 @@ export const collections = pgTable('byline_collections', {
   // `ensureCollections()` run post-migration, tightens to NOT NULL when
   // the `collection_versions` history table lands.
   schema_hash: varchar('schema_hash', { length: 64 }),
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').defaultNow(),
+  ...timestamps,
 })
 
 // Documents table
@@ -91,8 +92,7 @@ export const documents = pgTable(
     // comparison — the fractional-index algorithm requires this. See
     // `varcharByteSorted` above and docs/COLLECTIONS.md (Orderable collections).
     order_key: varcharByteSorted('order_key', { length: 128 }),
-    created_at: timestamp('created_at').defaultNow(),
-    updated_at: timestamp('updated_at').defaultNow(),
+    ...timestamps,
   },
   (table) => [
     index('idx_documents_collection').on(table.collection_id),
@@ -120,8 +120,7 @@ export const documentVersions = pgTable(
     event_type: varchar('event_type', { length: 20 }).notNull().default('create'), // 'create', 'update', 'delete'
     status: varchar('status', { length: 50 }).default('draft'),
     is_deleted: boolean('is_deleted').default(false), // Tombstone for soft deletes
-    created_at: timestamp('created_at').defaultNow(),
-    updated_at: timestamp('updated_at').defaultNow(),
+    ...timestamps,
     created_by: uuid('created_by'),
     change_summary: text('change_summary'),
   },
@@ -168,8 +167,7 @@ export const documentPaths = pgTable(
       .notNull()
       .references(() => collections.id, { onDelete: 'cascade' }),
     path: varchar('path', { length: 255 }).notNull(),
-    created_at: timestamp('created_at').defaultNow(),
-    updated_at: timestamp('updated_at').defaultNow(),
+    ...timestamps,
   },
   (table) => [
     // One path per (logical document, locale).
@@ -198,7 +196,7 @@ export const documentRelationships = pgTable(
     child_document_id: uuid('child_document_id')
       .notNull()
       .references(() => documents.id, { onDelete: 'cascade' }),
-    created_at: timestamp('created_at').defaultNow(),
+    ...createdAt,
   },
   (table) => [
     // Composite primary key to ensure a child is only parented once by the same parent.
@@ -331,8 +329,7 @@ const baseStoreColumns = {
   field_name: varchar('field_name', { length: 255 }).notNull(),
   locale: varchar('locale', { length: 10 }).notNull().default('default'),
   parent_path: varchar('parent_path', { length: 500 }),
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').defaultNow(),
+  ...timestamps,
 }
 
 // 1. TEXT FIELDS TABLE
@@ -486,8 +483,7 @@ export const metaStore = pgTable(
     // label, icon, collapsed state, etc. can be stored here.
     meta: jsonb('meta'),
 
-    created_at: timestamp('created_at').defaultNow(),
-    updated_at: timestamp('updated_at').defaultNow(),
+    ...timestamps,
   },
   (table) => [
     // Fast lookup by document and node type/path when enriching reconstructed
@@ -595,7 +591,7 @@ export const jsonStore = pgTable(
 export const counterGroups = pgTable('byline_counter_groups', {
   group_name: text('group_name').primaryKey(),
   sequence_name: text('sequence_name').notNull(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  ...createdAt,
 })
 
 // RELATIONS
