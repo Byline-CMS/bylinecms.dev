@@ -18,7 +18,10 @@
  * Extension references (TableExtension, AdmonitionExtension, etc.) are
  * not JSON-safe and would break tsx-loaded seeds; per-field extension
  * removal goes through a client-side wrapper component registered via
- * `FieldAdminConfig.editor`.
+ * `FieldAdminConfig.editor` — see `aiRichTextAdmin()` for the pattern.
+ *
+ * To AI-enable the resulting field, pair this with `aiRichTextAdmin()`
+ * on the admin side — see `lexical-richtext-ai.tsx`.
  *
  * See `docs/FIELDS.md` for the full schema-vs-admin model.
  */
@@ -51,9 +54,10 @@ type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
  *
  * To narrow the *extension* set per-field — drop tables, lists, embeds,
  * the floating format toolbar, the table action menu — register a
- * `LexicalRichTextCompact` wrapper component via `FieldAdminConfig.editor`.
- * Extension references aren't safe to bake into schemas, and floating
- * UIs are now extension-presence controlled rather than settings-controlled.
+ * `LexicalRichTextCompact` wrapper component via `FieldAdminConfig.editor`
+ * (same pattern as `aiRichTextAdmin()`). Extension references aren't safe
+ * to bake into schemas, and floating UIs are now extension-presence
+ * controlled rather than settings-controlled.
  */
 function applyCompactPreset(config: EditorConfig): EditorConfig {
   const o = config.settings.options

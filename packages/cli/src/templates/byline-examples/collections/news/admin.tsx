@@ -11,6 +11,9 @@ import { DateTimeFormatter } from '@byline/ui/react'
 
 import { SummaryLength } from '~/components/summary-length.js'
 
+import { aiTextFieldAdmin } from '../../fields/ai-text.js'
+import { aiTextAreaFieldAdmin } from '../../fields/ai-textarea.js'
+import { aiRichTextAdmin } from '../../fields/lexical-richtext-ai.js'
 import { FeaturedFormatter } from './components/feature-formatter.js'
 import { News } from './schema.js'
 
@@ -111,11 +114,13 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
    * Placement is controlled exclusively through the layout primitives below.
    */
   fields: {
-    summary: {
+    title: aiTextFieldAdmin(),
+    summary: aiTextAreaFieldAdmin({
       components: {
         HelpText: SummaryLength,
       },
-    },
+    }),
+    content: aiRichTextAdmin(),
   },
 
   /**

@@ -76,6 +76,18 @@ export const config: ClientConfig = {
     //   }),
     // },
     // ---------------------------------------------------------------------
+    //
+    // Or — enable the AI assistant on every richtext field globally by
+    // registering the `LexicalRichTextAi` editor. It is built with
+    // `lexicalEditor((c) => c.extensions.add(AiLexicalExtension))`, so
+    // the AI drawer mounts as a Lexical extension decorator and the
+    // toolbar button arrives via the BylineToolbarExtension peer
+    // contract. Server-side auth is provided by `executeAiInstruction`
+    // via `<BylineAiAdminProvider>` in the admin layout.
+    //
+    // import { LexicalRichTextAi } from './fields/lexical-richtext-ai.js'
+    // richText: { editor: LexicalRichTextAi },
+    // ---------------------------------------------------------------------
   },
 }
 
