@@ -141,4 +141,39 @@ export const DEP_SPECS: readonly DepSpec[] = [
     group: 'dev',
     note: 'runs byline/seed.ts and byline/scripts/* without a build step',
   },
+
+  // ---- Dev: required by byline/scripts/import-docs.ts --------------------
+  // Markdown ingestion stack used only by the optional import-docs example
+  // script. Kept in `dev` because the production app never imports them —
+  // they only matter when the developer runs `tsx byline/scripts/import-docs.ts`.
+  {
+    name: 'gray-matter',
+    version: '^4.0.3',
+    group: 'dev',
+    note: 'frontmatter parser used by byline/scripts/import-docs.ts',
+  },
+  {
+    name: 'unified',
+    version: '^11.0.5',
+    group: 'dev',
+    note: 'remark/mdast pipeline runner used by byline/scripts/import-docs.ts',
+  },
+  {
+    name: 'remark-parse',
+    version: '^11.0.0',
+    group: 'dev',
+    note: 'markdown → mdast parser used by byline/scripts/import-docs.ts',
+  },
+  {
+    name: 'remark-gfm',
+    version: '^4.0.1',
+    group: 'dev',
+    note: 'GitHub-Flavoured Markdown extensions for remark; used by byline/scripts/import-docs.ts',
+  },
+  {
+    name: '@types/mdast',
+    version: '^4.0.4',
+    group: 'dev',
+    note: 'TypeScript types for mdast nodes; consumed as type-only by byline/scripts/lib/mdast-to-lexical.ts',
+  },
 ] as const

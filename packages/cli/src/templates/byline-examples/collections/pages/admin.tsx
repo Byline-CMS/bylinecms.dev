@@ -139,7 +139,8 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
     url: (doc, { locale }) => {
       if (!doc.path) return null
       const prefix = locale && locale !== i18n.interface.defaultLocale ? `/${locale}` : ''
-      const pathWithArea = doc.fields?.area && doc.fields.area !== 'root' ? `${doc.fields.area}/${doc.path}` : doc.path
+      const pathWithArea =
+        doc.fields?.area && doc.fields.area !== 'root' ? `${doc.fields.area}/${doc.path}` : doc.path
       return `${prefix}/${pathWithArea}`
     },
   },
