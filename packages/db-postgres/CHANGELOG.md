@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 2.2.2
+
+### Patch Changes
+
+- typed json/object/richText field data as JsonValue / JsonObject
+- Updated dependencies
+  - @byline/core@2.2.2
+  - @byline/admin@2.2.2
+  - @byline/auth@2.2.2
+
 ## 2.2.1
 
 ### Patch Changes

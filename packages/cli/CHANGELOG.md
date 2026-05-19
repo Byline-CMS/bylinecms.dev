@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.2.2
+
+### Patch Changes
+
+- typed json/object/richText field data as JsonValue / JsonObject
+
 ## 2.2.1
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @byline/core
 
+## 2.2.2
+
+### Patch Changes
+
+- typed json/object/richText field data as JsonValue / JsonObject
+- Updated dependencies
+  - @byline/auth@2.2.2
+
 ## 2.2.1
 
 ### Patch Changes

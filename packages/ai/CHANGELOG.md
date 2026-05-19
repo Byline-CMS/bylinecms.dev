@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 2.2.2
+
+### Patch Changes
+
+- typed json/object/richText field data as JsonValue / JsonObject
+- Updated dependencies
+  - @byline/core@2.2.2
+  - @byline/richtext-lexical@2.2.2
+  - @byline/ui@2.2.2
+
 ## 2.2.1
 
 ### Patch Changes
