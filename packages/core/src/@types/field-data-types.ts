@@ -18,6 +18,25 @@ import type {
 } from './field-types.js'
 import type { Prettify, ValueUnion } from './type-utils.js'
 
+/**
+ * Structural type for any JSON-serializable value. Used as the type for
+ * `json` and `richText` field data — these columns are stored as JSON,
+ * and the underlying shape is plugin-defined (e.g. Lexical's
+ * `SerializedEditorState` for richText). Consumers narrow this at the
+ * read site to their plugin's specific state type.
+ *
+ * Typed as `JsonValue` rather than `unknown` so that values flow cleanly
+ * through framework serialization validators (e.g. TanStack Start's
+ * `createServerFn`) without being branded as un-serializable.
+ */
+export type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject
+
+/**
+ * A JSON object — the narrower form used by the `object` field type,
+ * whose definition constrains values to `Record<string, any>`.
+ */
+export type JsonObject = { [k: string]: JsonValue }
+
 // The base data type for each field -- group, array, blocks and select are
 // handled separately (so the corresponding type here is `never`), but for the
 // other leaf field types this is the underlying non-localized JS type.
@@ -33,9 +52,9 @@ type BaseFieldDataTypes = {
   group: never
   integer: number
   counter: number
-  json: unknown
-  object: unknown
-  richText: unknown
+  json: JsonValue
+  object: JsonObject
+  richText: JsonValue
   select: never
   textArea: string
   text: string
