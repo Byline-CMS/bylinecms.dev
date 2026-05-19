@@ -9,11 +9,16 @@ export {
   ERR_VALIDATION,
 } from '../lib/errors.js'
 export { normaliseDateFields } from '../utils/normalise-dates.js'
+export { type AssignCounterValuesInput, assignCounterValues } from './assign-counter-values.js'
 export {
   type CollectionRecord,
   type EnsureCollectionsInput,
   ensureCollections,
 } from './collection-bootstrap.js'
+export {
+  type DiscoverCounterGroupsInput,
+  discoverCounterGroups,
+} from './discover-counter-groups.js'
 export * from './document-lifecycle.js'
 export * from './document-read.js'
 export * from './field-upload.js'
