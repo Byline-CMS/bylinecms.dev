@@ -441,7 +441,7 @@ export async function createDocument(
           action: 'create',
           documentData: data,
           path: resolvedPath,
-          status: params.status ?? data.status,
+          status: params.status ?? data.status ?? getDefaultStatus(definition),
           locale: params.locale ?? defaultLocale,
           orderKey,
         })
