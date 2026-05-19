@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 2.2.1
+
+### Patch Changes
+
+- Fixed workflow status error in single status workflows. Updated CLI.
+- Updated dependencies
+  - @byline/core@2.2.1
+  - @byline/admin@2.2.1
+  - @byline/auth@2.2.1
+
 ## 2.2.0
 
 ### Minor Changes
