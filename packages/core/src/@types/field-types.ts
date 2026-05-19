@@ -235,6 +235,25 @@ interface BaseField {
   optional?: boolean
 
   /**
+   * When `true`, the field's input widget renders in a read-only state.
+   * The editor can see the value but cannot change it through the form UI.
+   *
+   * This is a **rendering hint only** — it does not enforce immutability
+   * on the server. A determined caller can still send a value via the
+   * API. Server-side immutability is a separate concern; for fields
+   * whose values must be locked at the storage layer (e.g. allocator-
+   * assigned counters), the lifecycle layer enforces that independently
+   * of this flag. Use this flag for editor UX (locking computed fields,
+   * externally-assigned IDs like DOIs, fields that should only be set
+   * by a workflow transition), not as a security boundary.
+   *
+   * Whether a given widget honours this flag is per-widget — most ui-kit
+   * input components support a native readOnly state, and widgets are
+   * being progressively updated to forward this prop through.
+   */
+  readOnly?: boolean
+
+  /**
    * Optional field-level hooks that run on the client during editing.
    * @see FieldHooks
    */

@@ -7,6 +7,7 @@
  */
 
 import type {
+  CounterField,
   DecimalField,
   Field,
   FieldComponentSlots,
@@ -26,7 +27,7 @@ export const NumericalField = ({
   path,
   components,
 }: {
-  field: IntegerField | FloatField | DecimalField
+  field: IntegerField | FloatField | DecimalField | CounterField
   value?: string | number | null
   defaultValue?: string | number | null
   onChange?: (value: string) => void
@@ -91,6 +92,7 @@ export const NumericalField = ({
         name={field.name}
         label={suppressInputLabel ? undefined : field.label}
         required={!field.optional}
+        readOnly={field.readOnly}
         helpText={suppressInputHelpText ? undefined : field.helpText}
         value={displayValue}
         onChange={(e) => onChange?.(e.target.value)}

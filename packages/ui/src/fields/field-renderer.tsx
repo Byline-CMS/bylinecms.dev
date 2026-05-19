@@ -184,6 +184,24 @@ export const FieldRenderer = ({
             components={components}
           />
         )
+      case 'counter':
+        // Counter values are allocator-assigned; force readOnly at the
+        // renderer level so the widget is always non-editable regardless
+        // of whether the developer set `field.readOnly` explicitly.
+        return (
+          <NumericalField
+            field={
+              hideLabel
+                ? { ...field, label: undefined, readOnly: true }
+                : { ...field, readOnly: true }
+            }
+            defaultValue={defaultValue}
+            onChange={handleChange}
+            path={path}
+            id={htmlId}
+            components={components}
+          />
+        )
       case 'file':
         return (
           <FileField
