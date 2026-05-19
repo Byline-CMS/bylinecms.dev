@@ -1549,11 +1549,26 @@ export class DocumentQueries implements IDocumentQueries {
         return sql`${column} ILIKE ${`%${String(value)}%`}`
       case '$in': {
         const arr = value as Array<string | number>
-        return sql`${column} = ANY(${arr})`
+        // Empty `$in` matches nothing — explicit FALSE avoids generating
+        // an invalid empty `IN ()` clause.
+        if (arr.length === 0) return sql`FALSE`
+        // Bind each element as its own parameter. Drizzle's `${arr}` would
+        // serialise as a single row-constructor (`($1, $2)`), which Postgres
+        // rejects when compared to a scalar column with `= ANY(...)`.
+        const items = sql.join(
+          arr.map((v) => sql`${v}`),
+          sql`, `
+        )
+        return sql`${column} IN (${items})`
       }
       case '$nin': {
         const arr = value as Array<string | number>
-        return sql`${column} != ALL(${arr})`
+        if (arr.length === 0) return sql`TRUE`
+        const items = sql.join(
+          arr.map((v) => sql`${v}`),
+          sql`, `
+        )
+        return sql`${column} NOT IN (${items})`
       }
       default:
         throw ERR_DATABASE({
