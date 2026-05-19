@@ -1,5 +1,41 @@
 # @byline/richtext-lexical
 
+## 2.2.0
+
+### Minor Changes
+
+- Highlights
+  - Counter field type — new allocator-assigned counter field that draws values from a shared group pool, perfect for cross-collection facet IDs (e.g.
+    /library?t=1&t=4&t=9). Backed by Postgres sequences, registered automatically at boot, immutable after assignment, with structural validation
+    banning counters inside array/blocks.
+  - readOnly attribute on BaseField — render-time-only flag any field can declare to mount its widget in a non-editable state. Useful for computed
+    values, externally-assigned IDs (DOIs, ISBNs), and workflow-locked fields. Honoured by NumericalField; other widgets will pick it up incrementally.
+  - Unified audit timestamps — every created_at / updated_at column across the schema is now uniformly TIMESTAMPTZ(6) NOT NULL DEFAULT now(). Closes
+    two pre-existing risks: locale-dependent reads on TIMESTAMP WITHOUT TIME ZONE, and ordering breaks from timestamp(0) second-truncation on fast
+    writes. Single fresh migration (0000_cold_red_wolf.sql) collapses the previous two.
+  - $in / $nin filter fix — field-level filters like where: { id: { $in: [...] } } now generate IN (...) SQL correctly. The previous shape emitted a
+    row-constructor that Postgres rejected. Empty arrays short-circuit safely.
+
+  CLI updates
+  - Bundled migration template updated to the new single migration.
+  - AI example wiring (@byline/ai) now ships out of the box on the news collection (title / summary / content). Six new AI files + the
+    LexicalRichTextAi editor pattern + ai-plugin-text plugin demo. Five markdown-ingestion dev-deps added so byline/scripts/import-docs.ts runs cleanly
+    in fresh installs.
+  - Closed remaining example-tree drift against apps/webapp/byline (pages admin, media list view CSS, import-docs script + lib).
+  - Interface locales now demo en + es to match where translations actually exist.
+
+  Behaviour preserved
+
+  All 169 integration tests, 591 unit tests, and the full typecheck stay green. No public-API breaks. The schema regen is non-destructive at the
+  column-value level for any fresh install — but existing dev databases will need a pnpm db:init reset since the migration history changed.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/client@2.2.0
+  - @byline/core@2.2.0
+  - @byline/ui@2.2.0
+
 ## 2.1.3
 
 ### Patch Changes
