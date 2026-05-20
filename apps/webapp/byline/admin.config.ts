@@ -21,12 +21,7 @@
 
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
-import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
-
-// Import `lexicalEditor` instead of (or alongside) `RichTextField` if you
-// want to register the editor with site-wide custom settings. See the
-// commented `richText` block below for the exact shape.
-// import { lexicalEditor } from '@byline/richtext-lexical'
+import { FloatingTextFormatExtension, lexicalEditor } from '@byline/richtext-lexical'
 
 import { Docs, DocsAdmin } from './collections/docs/index.js'
 import { Media, MediaAdmin } from './collections/media/index.js'
@@ -45,21 +40,27 @@ export const config: ClientConfig = {
   collections: [Docs, News, Pages, Media, NewsCategories],
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   fields: {
-    // Default registration — every `type: 'richText'` field gets the full
-    // Lexical feature set unless overridden per-field via
-    // `RichTextField.editorConfig` (see `byline/fields/lexical-richtext-compact.ts`
-    // for the per-field pattern).
-    richText: { editor: LexicalRichTextField },
+    // Site-wide registration with the floating text-format popover
+    // suppressed on the root editor. The popover still mounts inside
+    // nested composers (inline-image captions, admonition content) where
+    // `<FloatingTextFormatToolbarPlugin />` is rendered as a direct child
+    // of the `LexicalNestedComposer`.
+    richText: {
+      editor: lexicalEditor((c) => {
+        c.extensions.remove(FloatingTextFormatExtension)
+        return c
+      }),
+    },
 
     // ---------------------------------------------------------------------
-    // Alternatively — register the editor with site-wide custom settings
-    // and an edited extensions list. The `configure` callback receives a
-    // fresh seed (default settings + the canonical extensions list), and
-    // mutations are local to this call. Per-field `editorConfig`
-    // continues to take precedence over whatever is baked in here.
+    // Alternatively — register the editor with further site-wide custom
+    // settings and an edited extensions list. The `configure` callback
+    // receives a fresh seed (default settings + the canonical extensions
+    // list), and mutations are local to this call. Per-field
+    // `editorConfig` continues to take precedence over whatever is baked
+    // in here.
     //
     // import {
-    //   lexicalEditor,
     //   AdmonitionExtension,
     //   CodeHighlightExtension,
     //   TableExtension,

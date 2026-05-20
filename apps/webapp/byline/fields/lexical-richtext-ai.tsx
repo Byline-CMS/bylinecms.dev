@@ -27,7 +27,7 @@
 
 import { AiLexicalExtension } from '@byline/ai/plugins/lexical'
 import type { FieldAdminConfig, RichTextEditorProps } from '@byline/core'
-import { lexicalEditor } from '@byline/richtext-lexical'
+import { FloatingTextFormatExtension, lexicalEditor } from '@byline/richtext-lexical'
 
 /**
  * AI-enabled wrapper around `@byline/richtext-lexical`'s editor.
@@ -49,7 +49,7 @@ import { lexicalEditor } from '@byline/richtext-lexical'
  * **Per-field** opt-in — see `aiRichTextAdmin()` below.
  */
 export const LexicalRichTextAi = lexicalEditor((c) => {
-  c.extensions.add(AiLexicalExtension)
+  c.extensions.add(AiLexicalExtension).remove(FloatingTextFormatExtension)
   return c
 }) satisfies (props: RichTextEditorProps) => React.JSX.Element
 

@@ -35,12 +35,13 @@ import {
 } from 'lexical'
 
 import { useEditorConfig } from '../../config/editor-config-context'
-// import { LinkPlugin } from '../link/link-extension'
-// import { FloatingLinkEditorPlugin } from '../link/floating-link-editor'
 import { ContentEditable } from '../../content-editable'
 import { useSharedHistoryContext } from '../../context/shared-history-context'
 import { useSharedOnChange } from '../../context/shared-on-change-context'
 import { Placeholder } from '../../ui/placeholder'
+import { FloatingTextFormatToolbarPlugin } from '../floating-text-format'
+import { FloatingLinkEditorPlugin } from '../link/floating-link-editor'
+import { LinkPlugin } from '../link/link-extension'
 import { AdmonitionModal } from './admonition-modal'
 import { $isAdmonitionNode } from './admonition-node'
 import { DangerIcon, NoteIcon, TipIcon, WarningIcon } from './icons'
@@ -228,9 +229,9 @@ export default function AdmonitionNodeComponent({
                 if (onChange != null) onChange(editorState, editor, nestedTags)
               }}
             />
-            {/* <LinkPlugin />
+            <LinkPlugin />
             <FloatingLinkEditorPlugin />
-            <FloatingTextFormatToolbarPlugin /> */}
+            <FloatingTextFormatToolbarPlugin />
             <HistoryPlugin externalHistoryState={historyState} />
             <RichTextPlugin
               contentEditable={<ContentEditable className="AdmonitionNode__contentEditable" />}
