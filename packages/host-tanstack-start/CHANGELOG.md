@@ -1,5 +1,18 @@
 # @byline/host-tanstack-start
 
+## 2.2.5
+
+### Patch Changes
+
+- feat(richtext-lexical): scoped floating text-format popover to nested composers by default.
+- Updated dependencies
+  - @byline/admin@2.2.5
+  - @byline/ai@2.2.5
+  - @byline/auth@2.2.5
+  - @byline/client@2.2.5
+  - @byline/core@2.2.5
+  - @byline/ui@2.2.5
+
 ## 2.2.4
 
 ### Patch Changes

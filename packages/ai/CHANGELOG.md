@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 2.2.5
+
+### Patch Changes
+
+- feat(richtext-lexical): scoped floating text-format popover to nested composers by default.
+- Updated dependencies
+  - @byline/richtext-lexical@2.2.5
+  - @byline/core@2.2.5
+  - @byline/ui@2.2.5
+
 ## 2.2.4
 
 ### Patch Changes
