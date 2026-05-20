@@ -22,16 +22,13 @@
  * plan can be reviewed alongside the timing numbers.
  */
 
-import { pgAdapter } from '@byline/db-postgres'
-import { populateDocuments } from '@byline/core'
-import { Pool } from 'pg'
 import os from 'node:os'
 
-import {
-  BENCH_ARTICLES_PATH,
-  BENCH_MEDIA_PATH,
-  benchCollections,
-} from './collections.js'
+import { populateDocuments } from '@byline/core'
+import { pgAdapter } from '@byline/db-postgres'
+import { Pool } from 'pg'
+
+import { BENCH_ARTICLES_PATH, BENCH_MEDIA_PATH, benchCollections } from './collections.js'
 
 // ---------------------------------------------------------------------------
 // CLI + env
@@ -52,9 +49,9 @@ if (!Number.isFinite(scale) || scale <= 0) {
   process.exit(1)
 }
 
-const connectionString = process.env.POSTGRES_CONNECTION_STRING
+const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
 if (!connectionString) {
-  console.error('POSTGRES_CONNECTION_STRING is not set')
+  console.error('BYLINE_DB_POSTGRES_CONNECTION_STRING is not set')
   process.exit(1)
 }
 
@@ -96,9 +93,7 @@ async function measure(name: string, fn: () => Promise<unknown>): Promise<Stats>
   }
   const s = summarise(samples)
   // stderr so it doesn't pollute the markdown report written to stdout
-  console.error(
-    `  ${name.padEnd(52)} median=${s.median.toFixed(2)}ms p95=${s.p95.toFixed(2)}ms`
-  )
+  console.error(`  ${name.padEnd(52)} median=${s.median.toFixed(2)}ms p95=${s.p95.toFixed(2)}ms`)
   return s
 }
 
@@ -289,7 +284,7 @@ async function main() {
   )
 
   await explain(
-    "findDocuments with $contains + numeric sort",
+    'findDocuments with $contains + numeric sort',
     `
     SELECT d.*
     FROM current_documents d

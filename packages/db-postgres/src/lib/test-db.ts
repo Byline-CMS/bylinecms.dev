@@ -39,20 +39,24 @@ const MIGRATIONS_FOLDER = path.resolve(__dirname, '../../src/database/migrations
  */
 export function assertTestDatabase(connectionString: string | undefined): string {
   if (!connectionString) {
-    throw new Error('POSTGRES_CONNECTION_STRING is not set. Copy .env.test.example to .env.test.')
+    throw new Error(
+      'BYLINE_DB_POSTGRES_CONNECTION_STRING is not set. Copy .env.test.example to .env.test.'
+    )
   }
   let dbName: string
   try {
     const url = new URL(connectionString)
     dbName = url.pathname.replace(/^\//, '')
   } catch (err) {
-    throw new Error(`POSTGRES_CONNECTION_STRING is not a valid URL: ${(err as Error).message}`)
+    throw new Error(
+      `BYLINE_DB_POSTGRES_CONNECTION_STRING is not a valid URL: ${(err as Error).message}`
+    )
   }
   if (!dbName.endsWith('_test')) {
     throw new Error(
       `Refusing to run tests against database '${dbName}'. ` +
         `Integration tests require a database whose name ends in '_test'. ` +
-        `Update POSTGRES_CONNECTION_STRING in .env.test.`
+        `Update BYLINE_DB_POSTGRES_CONNECTION_STRING in .env.test.`
     )
   }
   return dbName

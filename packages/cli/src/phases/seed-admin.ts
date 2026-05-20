@@ -32,7 +32,7 @@ export const seedAdminPhase: Phase = {
       commands: [cmd],
       notes: [
         `runs ${SEED_ENTRY} via the ${ctx.pm} runner`,
-        'reads BYLINE_SUPERADMIN_EMAIL / BYLINE_SUPERADMIN_PASSWORD from .env',
+        'reads BYLINE_SUPERADMIN_EMAIL / BYLINE_SUPERADMIN_PASSWORD from .env.local',
         'idempotent — re-running is safe; already-seeded admin reports "no changes"',
       ],
     }
@@ -68,8 +68,8 @@ function preflightCheck(ctx: Context): 'blocked' | null {
     ctx.logger.error('byline/seeds/admin.ts not found — run scaffold first')
     return 'blocked'
   }
-  if (!existsSync(ctx.resolve('.env'))) {
-    ctx.logger.error('.env not found — run env phase first')
+  if (!existsSync(ctx.resolve('.env')) && !existsSync(ctx.resolve('.env.local'))) {
+    ctx.logger.error('neither .env nor .env.local found — run env phase first')
     return 'blocked'
   }
   return null

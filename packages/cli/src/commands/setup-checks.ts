@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 
 import { DEP_SPECS, type DepSpec } from '../manifest/deps.js'
-import { ENV_SPECS, type EnvKey } from '../manifest/env.js'
+import { ENV_FILE_PATHS, ENV_SPECS, type EnvFile, type EnvKey } from '../manifest/env.js'
 import type { Context } from '../context.js'
 
 export type SetupCheckResult = 'proceed' | 'aborted'
@@ -9,14 +9,16 @@ export type SetupCheckResult = 'proceed' | 'aborted'
 /**
  * Pre-flight gate for `byline setup`. Policy:
  *
- * - Missing core `@byline/*` deps  → hard bail (seeds will throw on import).
- * - Missing `.env` file            → hard bail (every downstream phase reads it).
- * - Missing keys inside `.env`     → warn and confirm (default No). Some keys
- *                                    may legitimately be supplied via shell env;
- *                                    the user is best placed to judge.
+ * - Missing core `@byline/*` deps     → hard bail (seeds will throw on import).
+ * - Missing both `.env` and `.env.local` → hard bail (every downstream phase
+ *                                       reads them).
+ * - Missing keys across either file   → warn and confirm (default No). Some
+ *                                       keys may legitimately be supplied via
+ *                                       shell env; the user is best placed
+ *                                       to judge.
  *
  * `--yes` does NOT auto-confirm the soft warning — the default is No, so
- * `-y` against a partial `.env` aborts. That matches the intent: `-y` is
+ * `-y` against a partial env aborts. That matches the intent: `-y` is
  * "I don't want to type defaults," not "I don't care if my env is broken."
  */
 export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
@@ -35,17 +37,23 @@ export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
     return 'aborted'
   }
 
-  if (!existsSync(ctx.resolve('.env'))) {
-    ctx.logger.error('.env not found — run `byline init --only env` to scaffold it')
+  const envFilesPresent = (Object.keys(ENV_FILE_PATHS) as EnvFile[]).filter((f) =>
+    existsSync(ctx.resolve(ENV_FILE_PATHS[f]))
+  )
+  if (envFilesPresent.length === 0) {
+    ctx.logger.error(
+      'neither .env nor .env.local found — run `byline init --only env` to scaffold them'
+    )
     return 'aborted'
   }
 
   const missingEnvKeys = findMissingEnvKeys(ctx)
   if (missingEnvKeys.length > 0) {
-    ctx.logger.warn('.env is missing keys Byline expects:')
+    ctx.logger.warn('env files are missing keys Byline expects:')
     for (const key of missingEnvKeys) {
       const spec = ENV_SPECS.find((s) => s.key === key)
-      ctx.logger.raw(`    - ${key}  (${spec?.group}) — ${spec?.description}`)
+      const target = spec ? ENV_FILE_PATHS[spec.file] : '.env'
+      ctx.logger.raw(`    - ${key}  (${spec?.group}, ${target}) — ${spec?.description}`)
     }
     ctx.logger.info(
       'these may be supplied via shell env instead; otherwise downstream phases will fail'
@@ -80,15 +88,19 @@ function findMissingBylineDeps(ctx: Context): DepSpec[] | null {
 }
 
 function findMissingEnvKeys(ctx: Context): EnvKey[] {
-  const envPath = ctx.resolve('.env')
-  let contents: string
-  try {
-    contents = readFileSync(envPath, 'utf8')
-  } catch {
-    return ENV_SPECS.map((s) => s.key)
+  // Read each file independently and check each spec against the file it
+  // actually belongs to. A key missing from `.env.local` is missing even if
+  // a stray copy lives in `.env` (and vice versa) — we want each value in
+  // the canonical place.
+  const present: Record<EnvFile, Set<string>> = { public: new Set(), secret: new Set() }
+  for (const file of Object.keys(ENV_FILE_PATHS) as EnvFile[]) {
+    try {
+      present[file] = parseEnvKeys(readFileSync(ctx.resolve(ENV_FILE_PATHS[file]), 'utf8'))
+    } catch {
+      // missing file → empty set; missing keys will be reported below
+    }
   }
-  const present = parseEnvKeys(contents)
-  return ENV_SPECS.filter((s) => !present.has(s.key)).map((s) => s.key)
+  return ENV_SPECS.filter((s) => !present[s.file].has(s.key)).map((s) => s.key)
 }
 
 /**

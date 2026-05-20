@@ -14,9 +14,9 @@ let queryBuilders: ReturnType<typeof createQueryBuilders>
 
 export function setupTestDB(collections: CollectionDefinition[] = []) {
   if (!pool) {
-    assertTestDatabase(process.env.POSTGRES_CONNECTION_STRING)
+    assertTestDatabase(process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING)
     pool = new pg.Pool({
-      connectionString: process.env.POSTGRES_CONNECTION_STRING,
+      connectionString: process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING,
       // node:test runs each test file in its own process. Even though
       // tests target a dedicated `byline_test` database, a pool-per-file
       // of 20 connections × N files can still pressure Postgres's default

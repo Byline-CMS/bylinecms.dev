@@ -32,9 +32,11 @@ export async function setupMultiCollectionTestClient(
   definitions: CollectionDefinition[],
   options: { requestContext?: RequestContext | (() => RequestContext) } = {}
 ): Promise<MultiCollectionTestContext> {
-  const connectionString = process.env.POSTGRES_CONNECTION_STRING
+  const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
   if (!connectionString) {
-    throw new Error('POSTGRES_CONNECTION_STRING is not set. Copy .env.test.example to .env.test.')
+    throw new Error(
+      'BYLINE_DB_POSTGRES_CONNECTION_STRING is not set. Copy .env.test.example to .env.test.'
+    )
   }
 
   const db = pgAdapter({ connectionString, collections: definitions, defaultContentLocale: 'en' })

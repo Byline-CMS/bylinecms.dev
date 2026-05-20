@@ -165,7 +165,7 @@ class LocalStorageProvider implements IStorageProvider {
  * // In your server config (e.g. byline/server.config.ts):
  * defineServerConfig({
  *   ...config,
- *   db: pgAdapter({ connectionString: process.env.DB_CONNECTION_STRING! }),
+ *   db: pgAdapter({ connectionString: process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING! }),
  *   storage: localStorageProvider({
  *     uploadDir: './uploads',
  *     baseUrl: '/uploads',

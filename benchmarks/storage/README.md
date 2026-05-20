@@ -141,7 +141,7 @@ reported as median and p95:
 Prerequisites:
 
 - Docker Postgres running (`cd postgres && ./postgres.sh up -d`).
-- `POSTGRES_CONNECTION_STRING` in either `packages/db-postgres/.env`
+- `BYLINE_DB_POSTGRES_CONNECTION_STRING` in either `packages/db-postgres/.env`
   or exported in the shell. The harness picks it up via `dotenv`.
 - Migrations applied (`pnpm drizzle:migrate`).
 

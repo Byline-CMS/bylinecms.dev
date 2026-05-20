@@ -48,7 +48,7 @@ declare global {
 
 async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   const db = pgAdapter({
-    connectionString: process.env.DB_CONNECTION_STRING || '',
+    connectionString: process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING || '',
     collections,
     defaultContentLocale: i18n.content.defaultLocale,
   })

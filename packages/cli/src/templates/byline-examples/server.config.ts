@@ -78,7 +78,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //   heavier until we have a second adapter or a second DI consumer
   //   to justify the ceremony.
   const db = pgAdapter({
-    connectionString: process.env.DB_CONNECTION_STRING || '',
+    connectionString: process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING || '',
     collections,
     defaultContentLocale: i18n.content.defaultLocale,
   })

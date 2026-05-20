@@ -19,7 +19,7 @@
  * documents and store rows via the FK graph) and recreates them before
  * seeding. Safe to rerun.
  *
- * Uses tsx's native --env-file to pick up POSTGRES_CONNECTION_STRING (avoids
+ * Uses tsx's native --env-file to pick up BYLINE_DB_POSTGRES_CONNECTION_STRING (avoids
  * needing `dotenv` as a dep). A missing connection string aborts with a
  * clear error rather than silently connecting to something unexpected.
  */
@@ -54,9 +54,9 @@ if (!teardownOnly && (!Number.isFinite(scale) || scale <= 0)) {
   process.exit(1)
 }
 
-const connectionString = process.env.POSTGRES_CONNECTION_STRING
+const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
 if (!connectionString) {
-  console.error('POSTGRES_CONNECTION_STRING is not set')
+  console.error('BYLINE_DB_POSTGRES_CONNECTION_STRING is not set')
   process.exit(1)
 }
 
@@ -107,7 +107,10 @@ function pad(n: number, width: number): string {
   return String(n).padStart(width, '0')
 }
 
-function articleContent(i: number, mediaIds: Array<{ document_id: string; collection_id: string }>) {
+function articleContent(
+  i: number,
+  mediaIds: Array<{ document_id: string; collection_id: string }>
+) {
   const topic = TOPICS[i % TOPICS.length]!
   const adj = ADJECTIVES[(i * 7) % ADJECTIVES.length]!
   const title = `${adj} ${topic.replace(/\b\w/g, (c) => c.toUpperCase())} ${pad(i, 6)}`
@@ -120,7 +123,15 @@ function articleContent(i: number, mediaIds: Array<{ document_id: string; collec
       children: [
         {
           children: [
-            { detail: 0, format: 0, mode: 'normal', style: '', text: bodyText, type: 'text', version: 1 },
+            {
+              detail: 0,
+              format: 0,
+              mode: 'normal',
+              style: '',
+              text: bodyText,
+              type: 'text',
+              version: 1,
+            },
           ],
           direction: 'ltr',
           format: '',

@@ -19,7 +19,7 @@ import { assertTestDatabase, migrateTestDatabase } from '../src/lib/test-db.js'
 export default async function setup() {
   loadEnv({ path: '.env.test' })
 
-  const connectionString = process.env.POSTGRES_CONNECTION_STRING
+  const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
   assertTestDatabase(connectionString)
   await migrateTestDatabase(connectionString as string)
 }

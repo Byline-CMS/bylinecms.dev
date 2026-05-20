@@ -61,7 +61,7 @@ Both live in the same local Postgres container (`postgres/docker-compose.yml`). 
 
 Two layers prevent any test from ever pointing at the wrong database:
 
-1. **Script-level (braces)** — `packages/db-postgres/src/database/common.sh` refuses to source any env whose `POSTGRES_DATABASE` doesn't end in `_dev` or `_test`. `db_init.sh` and `db_init_test.sh` both go through it.
+1. **Script-level (braces)** — `packages/db-postgres/src/database/common.sh` parses `BYLINE_DB_POSTGRES_CONNECTION_STRING` and refuses to continue unless the derived database name ends in `_dev` or `_test`. `db_init.sh` and `db_init_test.sh` both go through it.
 2. **Runtime (belt)** — `assertTestDatabase()` in `packages/db-postgres/src/lib/test-db.ts` parses the connection string at the top of every test bootstrap and throws unless the DB name ends in `_test`. Imported by both the vitest globalSetup (`packages/client/tests/_global-setup.ts`) and the node:test bootstrap (`packages/db-postgres/src/lib/test-bootstrap.ts`).
 
 ## Isolation strategy

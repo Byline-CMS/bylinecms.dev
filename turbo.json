@@ -49,7 +49,7 @@
       "dependsOn": ["^build"],
       "outputs": [],
       "cache": false,
-      "env": ["POSTGRES_CONNECTION_STRING"]
+      "env": ["BYLINE_DB_POSTGRES_CONNECTION_STRING"]
     },
     "preview": {
       "cache": false,

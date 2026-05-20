@@ -9,7 +9,7 @@ export default defineConfig({
   // },
   dbCredentials: {
     // @ts-expect-error
-    url: process.env.POSTGRES_CONNECTION_STRING as string,
+    url: process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING as string,
   },
   verbose: true,
   strict: true,

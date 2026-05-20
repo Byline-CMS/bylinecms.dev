@@ -52,12 +52,7 @@ jobs:
           --health-retries 10
 
     env:
-      POSTGRES_CONNECTION_STRING: postgres://byline:byline@127.0.0.1:5432/byline_test
-      POSTGRES_HOSTNAME: 127.0.0.1
-      POSTGRES_PORT: "5432"
-      POSTGRES_DATABASE: byline_test
-      POSTGRES_USER: byline
-      POSTGRES_PASSWORD: byline
+      BYLINE_DB_POSTGRES_CONNECTION_STRING: postgres://byline:byline@127.0.0.1:5432/byline_test
 
     steps:
       - uses: actions/checkout@v6
@@ -74,21 +69,16 @@ jobs:
       # all packages ensures every import path resolves.
       - run: pnpm build:packages
 
-      # Both test runners read POSTGRES_CONNECTION_STRING from `.env.test`
-      # files. CI writes them from the job-level env block; they're
+      # Both test runners read BYLINE_DB_POSTGRES_CONNECTION_STRING from
+      # `.env.test` files. CI writes them from the job-level env block; they're
       # gitignored so committing them by accident isn't possible.
       - name: Write .env.test files
         run: |
           cat > packages/db-postgres/.env.test <<EOF
-          POSTGRES_CONNECTION_STRING=$POSTGRES_CONNECTION_STRING
-          POSTGRES_HOSTNAME=$POSTGRES_HOSTNAME
-          POSTGRES_PORT=$POSTGRES_PORT
-          POSTGRES_DATABASE=$POSTGRES_DATABASE
-          POSTGRES_USER=$POSTGRES_USER
-          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          BYLINE_DB_POSTGRES_CONNECTION_STRING=$BYLINE_DB_POSTGRES_CONNECTION_STRING
           EOF
           cat > packages/client/.env.test <<EOF
-          POSTGRES_CONNECTION_STRING=$POSTGRES_CONNECTION_STRING
+          BYLINE_DB_POSTGRES_CONNECTION_STRING=$BYLINE_DB_POSTGRES_CONNECTION_STRING
           EOF
 
       # Unit suites across every package (core/auth/admin/ai/host/client/...).

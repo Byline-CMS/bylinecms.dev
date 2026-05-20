@@ -3,7 +3,7 @@
 #  Script to drop and recreate a Byline database (dev or test).
 #
 #  Usage:
-#    ./db_init.sh                          # uses ../../.env (POSTGRES_DATABASE must end _dev or _test)
+#    ./db_init.sh                          # uses ../../.env (DB name in BYLINE_DB_POSTGRES_CONNECTION_STRING must end _dev or _test)
 #    ./db_init.sh --env-file ../../.env.test
 #
 #  NOTE: Only do this if you are sure you know what you're doing.

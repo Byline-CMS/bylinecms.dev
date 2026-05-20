@@ -43,6 +43,68 @@ check_conf_var() {
 
 ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 #
+# FUNCTION: parse_pg_url
+# Parse a Postgres connection URL into POSTGRES_USER, POSTGRES_PASSWORD,
+# POSTGRES_HOSTNAME, POSTGRES_PORT, POSTGRES_DATABASE. The single env var
+# BYLINE_DB_POSTGRES_CONNECTION_STRING is the source of truth; the
+# downstream sed templates here and in db_init.sh consume the individual
+# variables. Expected shape:
+#
+#   postgres://user:password@host:port/database
+#
+# Strips `?...` query string. Defaults POSTGRES_PORT to 5432 if absent.
+#
+###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+parse_pg_url() {
+  local url="$1"
+  if [[ -z "${url}" ]]; then
+    echo "BYLINE_DB_POSTGRES_CONNECTION_STRING not defined"
+    CONF_BAD=true
+    return
+  fi
+  if [[ "${url}" != postgres://* && "${url}" != postgresql://* ]]; then
+    echo "BYLINE_DB_POSTGRES_CONNECTION_STRING must start with postgres:// or postgresql://"
+    CONF_BAD=true
+    return
+  fi
+
+  local rest="${url#*://}"
+
+  if [[ "${rest}" != *@* ]]; then
+    echo "BYLINE_DB_POSTGRES_CONNECTION_STRING is missing user:password@ portion"
+    CONF_BAD=true
+    return
+  fi
+
+  # Split on the LAST `@` so passwords containing `@` survive.
+  local userinfo="${rest%@*}"
+  local hostpart="${rest##*@}"
+
+  if [[ "${userinfo}" != *:* ]]; then
+    echo "BYLINE_DB_POSTGRES_CONNECTION_STRING is missing user:password@ portion"
+    CONF_BAD=true
+    return
+  fi
+
+  POSTGRES_USER="${userinfo%%:*}"
+  POSTGRES_PASSWORD="${userinfo#*:}"
+
+  local hostport="${hostpart%%/*}"
+  local dbpath="${hostpart#*/}"
+
+  if [[ "${hostport}" == *:* ]]; then
+    POSTGRES_HOSTNAME="${hostport%%:*}"
+    POSTGRES_PORT="${hostport#*:}"
+  else
+    POSTGRES_HOSTNAME="${hostport}"
+    POSTGRES_PORT="5432"
+  fi
+
+  POSTGRES_DATABASE="${dbpath%%\?*}"
+}
+
+###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+#
 # FUNCTION: check_db_suffix
 # Foot-gun guard: refuse to continue unless POSTGRES_DATABASE ends in
 # `_dev` or `_test`. Replaces the previous hard-coded `byline_dev`
@@ -53,7 +115,7 @@ check_conf_var() {
 check_db_suffix() {
   if [[ "${POSTGRES_DATABASE}" != *_dev && "${POSTGRES_DATABASE}" != *_test ]]
   then
-    echo "Refusing to operate on POSTGRES_DATABASE='${POSTGRES_DATABASE}'."
+    echo "Refusing to operate on database='${POSTGRES_DATABASE}'."
     echo "These scripts will only target a database whose name ends in '_dev' or '_test'."
     CONF_BAD=true
   fi
@@ -78,9 +140,10 @@ else
 fi
 
 CONF_BAD=false
-check_conf_var POSTGRES_USER
-check_conf_var POSTGRES_PASSWORD
-check_conf_var POSTGRES_DATABASE
+check_conf_var BYLINE_DB_POSTGRES_CONNECTION_STRING
+if $CONF_BAD; then exit 1; fi
+
+parse_pg_url "${BYLINE_DB_POSTGRES_CONNECTION_STRING}"
 if $CONF_BAD; then exit 1; fi
 
 check_db_suffix

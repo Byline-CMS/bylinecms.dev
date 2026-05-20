@@ -20,9 +20,9 @@ loadEnv({ path: '.env.test' })
  * crashed test in a prior file can't leak rows into the next.
  */
 beforeAll(async () => {
-  const connectionString = process.env.POSTGRES_CONNECTION_STRING
+  const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
   if (!connectionString) {
-    throw new Error('POSTGRES_CONNECTION_STRING is not set')
+    throw new Error('BYLINE_DB_POSTGRES_CONNECTION_STRING is not set')
   }
   await resetTestDatabase(connectionString)
 })
