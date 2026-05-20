@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 2.2.6
+
+### Patch Changes
+
+- Route progress indicator in admin shell. Admin shell mobile fixups.
+- Updated dependencies
+  - @byline/admin@2.2.6
+  - @byline/auth@2.2.6
+  - @byline/core@2.2.6
+
 ## 2.2.5
 
 ### Patch Changes

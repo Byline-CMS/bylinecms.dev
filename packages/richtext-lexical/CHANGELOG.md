@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 2.2.6
+
+### Patch Changes
+
+- Route progress indicator in admin shell. Admin shell mobile fixups.
+- Updated dependencies
+  - @byline/ui@2.2.6
+  - @byline/client@2.2.6
+  - @byline/core@2.2.6
+
 ## 2.2.5
 
 ### Patch Changes

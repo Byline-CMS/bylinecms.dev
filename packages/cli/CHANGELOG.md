@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.2.6
+
+### Patch Changes
+
+- Route progress indicator in admin shell. Admin shell mobile fixups.
+
 ## 2.2.5
 
 ### Patch Changes
