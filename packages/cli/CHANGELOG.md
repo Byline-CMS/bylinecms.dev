@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.2.3
+
+### Patch Changes
+
+- .env vars and byline postgres connection string refactor.
+
 ## 2.2.2
 
 ### Patch Changes

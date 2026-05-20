@@ -1,5 +1,18 @@
 # @byline/host-tanstack-start
 
+## 2.2.3
+
+### Patch Changes
+
+- .env vars and byline postgres connection string refactor.
+- Updated dependencies
+  - @byline/client@2.2.3
+  - @byline/core@2.2.3
+  - @byline/admin@2.2.3
+  - @byline/ai@2.2.3
+  - @byline/auth@2.2.3
+  - @byline/ui@2.2.3
+
 ## 2.2.2
 
 ### Patch Changes

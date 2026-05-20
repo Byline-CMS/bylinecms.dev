@@ -1,5 +1,13 @@
 # @byline/storage-local
 
+## 2.2.3
+
+### Patch Changes
+
+- .env vars and byline postgres connection string refactor.
+- Updated dependencies
+  - @byline/core@2.2.3
+
 ## 2.2.2
 
 ### Patch Changes
