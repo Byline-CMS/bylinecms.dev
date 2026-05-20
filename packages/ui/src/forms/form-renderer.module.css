@@ -212,13 +212,14 @@
 :global(.byline-form-layout) {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-32);
+  gap: var(--spacing-12);
   padding-top: var(--spacing-32);
 }
 
 @media (min-width: 60rem) {
   .layout,
   :global(.byline-form-layout) {
+    gap: var(--spacing-32);
     display: grid;
     grid-template-columns: minmax(0, 1fr) 0.4fr;
     grid-column-gap: 36px;
@@ -248,17 +249,20 @@
   flex-direction: column;
   gap: var(--spacing-20);
   margin-top: 0;
-  padding-right: 12px;
-  padding-left: var(--spacing-16);
-  padding-top: 0.25rem;
-  border-left: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
   background-color: oklch(from var(--canvas-50) l c h / 0.2);
   max-width: 100%;
+  margin-bottom: 4rem;
 }
 
 @media (min-width: 60rem) {
   .sidebar,
   :global(.byline-form-sidebar) {
+    margin-bottom: 0;
+    padding-right: 12px;
+    padding-top: 0.25rem;
+    padding-left: var(--spacing-16);
+    border-left: var(--border-width-thin) var(--border-style-solid)
+      var(--gray-100);
     position: sticky;
     top: 95px;
   }

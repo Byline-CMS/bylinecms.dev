@@ -16,14 +16,16 @@
 :global(.byline-admin-menu-drawer-aside) {
   display: flex;
   flex-direction: column;
-  border-right: var(--border-width-thin) var(--border-style-solid) var(--gray-50);
+  border-right: var(--border-width-thin) var(--border-style-solid)
+    var(--gray-50);
   background-color: var(--canvas-25);
-  z-index: 15;
+  z-index: 40;
   transition: all 300ms ease-in-out;
 }
 
 :is([data-theme="dark"], :global(.dark)) .aside,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer-aside) {
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer-aside) {
   border-right-color: var(--canvas-700);
   background-color: var(--canvas-800);
 }
@@ -132,18 +134,27 @@
 }
 
 .nav ul :global(li.menu-item) :is(a, button):disabled,
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item) :is(a, button):disabled {
+:global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item)
+  :is(a, button):disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .nav ul :global(li.menu-item.compact) :is(a, button),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact) :is(a, button) {
+:global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item.compact)
+  :is(a, button) {
   justify-content: center;
 }
 
 .nav ul :global(li.menu-item.active) :is(a, button),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.active) :is(a, button) {
+:global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item.active)
+  :is(a, button) {
   color: #111111;
   text-decoration: none;
 }
@@ -156,7 +167,11 @@
   background-color: #dddddd;
 }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item) :is(a, button),
+:is([data-theme="dark"], :global(.dark))
+  .nav
+  ul
+  :global(li.menu-item)
+  :is(a, button),
 :is([data-theme="dark"], :global(.dark))
   :global(.byline-admin-menu-drawer)
   ul
@@ -165,7 +180,11 @@
   color: #dddddd;
 }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active) :is(a, button),
+:is([data-theme="dark"], :global(.dark))
+  .nav
+  ul
+  :global(li.menu-item.active)
+  :is(a, button),
 :is([data-theme="dark"], :global(.dark))
   :global(.byline-admin-menu-drawer)
   ul
