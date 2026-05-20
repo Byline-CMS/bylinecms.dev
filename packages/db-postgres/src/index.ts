@@ -35,6 +35,9 @@ export const pgAdapter = ({
   connectionString,
   collections,
   defaultContentLocale,
+  max = 20,
+  idleTimeoutMillis = 2000,
+  connectionTimeoutMillis = 30000,
 }: {
   connectionString: string
   collections: CollectionDefinition[]
@@ -46,12 +49,29 @@ export const pgAdapter = ({
    * functions tag default-locale path rows with this value.
    */
   defaultContentLocale: string
+  /**
+   * Maximum number of clients in the pg connection pool. Defaults to 20.
+   * Tune via `BYLINE_DB_POSTGRES_MAX_POOL` in the host app.
+   */
+  max?: number
+  /**
+   * Milliseconds an idle client remains in the pool before being closed.
+   * Defaults to 2000. Tune via `BYLINE_DB_POSTGRES_IDLE_TIMEOUT_MILLIS`.
+   */
+  idleTimeoutMillis?: number
+  /**
+   * Milliseconds to wait for a new connection before erroring. Defaults
+   * to 30000 — long enough to absorb cold starts on serverless Postgres
+   * providers like Neon. Tune via
+   * `BYLINE_DB_POSTGRES_CONNECTION_TIMEOUT_MILLIS`.
+   */
+  connectionTimeoutMillis?: number
 }): PgAdapter => {
   const pool = new pg.Pool({
     connectionString: connectionString,
-    max: 20,
-    idleTimeoutMillis: 2000,
-    connectionTimeoutMillis: 1000,
+    max,
+    idleTimeoutMillis,
+    connectionTimeoutMillis,
   })
 
   const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema })

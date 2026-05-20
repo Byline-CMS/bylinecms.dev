@@ -51,6 +51,22 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     connectionString: process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING || '',
     collections,
     defaultContentLocale: i18n.content.defaultLocale,
+    // Optional pg connection pool tuning. Omit (or leave the env vars
+    // unset) to use the adapter defaults: max=20, idleTimeoutMillis=2000,
+    // connectionTimeoutMillis=30000. Worth tuning for serverless
+    // Postgres providers (e.g. Neon) where the database sleeps and cold
+    // starts can stretch past a short connect timeout — 30s is a safe
+    // starting point.
+    //
+    // max: process.env.BYLINE_DB_POSTGRES_MAX_POOL
+    //   ? Number(process.env.BYLINE_DB_POSTGRES_MAX_POOL)
+    //   : undefined,
+    // idleTimeoutMillis: process.env.BYLINE_DB_POSTGRES_IDLE_TIMEOUT_MILLIS
+    //   ? Number(process.env.BYLINE_DB_POSTGRES_IDLE_TIMEOUT_MILLIS)
+    //   : undefined,
+    // connectionTimeoutMillis: process.env.BYLINE_DB_POSTGRES_CONNECTION_TIMEOUT_MILLIS
+    //   ? Number(process.env.BYLINE_DB_POSTGRES_CONNECTION_TIMEOUT_MILLIS)
+    //   : undefined,
   })
 
   const adminStore = createAdminStore(db.drizzle)
