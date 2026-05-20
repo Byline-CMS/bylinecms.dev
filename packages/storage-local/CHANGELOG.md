@@ -1,5 +1,13 @@
 # @byline/storage-local
 
+## 2.2.4
+
+### Patch Changes
+
+- exposed pg pool tuning via BYLINE_DB_POSTGRES_MAX_POOL / IDLE_TIMEOUT_MILLIS / CONNECTION_TIMEOUT_MILLIS
+- Updated dependencies
+  - @byline/core@2.2.4
+
 ## 2.2.3
 
 ### Patch Changes
