@@ -1,0 +1,41 @@
+/**
+ * RouteProgressBar — top-of-viewport indeterminate progress indicator for
+ * admin route transitions.
+ *
+ * Override handles:
+ *   .byline-route-progress-bar            — base bar element
+ *   .byline-route-progress-bar-visible    — bar is growing (navigation in flight)
+ *   .byline-route-progress-bar-finishing  — bar is completing + fading out
+ */
+
+.bar,
+:global(.byline-route-progress-bar) {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  height: 2px;
+  width: 0%;
+  background-color: var(--primary-500);
+  opacity: 0;
+  pointer-events: none;
+  will-change: width, opacity;
+}
+
+.barVisible,
+:global(.byline-route-progress-bar-visible) {
+  width: 90%;
+  opacity: 1;
+  transition:
+    width 8s cubic-bezier(0, 0.6, 0.1, 1),
+    opacity 100ms linear;
+}
+
+.barFinishing,
+:global(.byline-route-progress-bar-finishing) {
+  width: 100%;
+  opacity: 0;
+  transition:
+    width 180ms ease-out,
+    opacity 250ms ease-out 80ms;
+}

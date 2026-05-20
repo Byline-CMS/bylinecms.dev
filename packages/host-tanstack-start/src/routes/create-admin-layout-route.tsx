@@ -31,6 +31,7 @@ import { DrawerToggle } from '../admin-shell/chrome/drawer-toggle.js'
 import { AdminMenuDrawer } from '../admin-shell/chrome/menu-drawer.js'
 import { AdminMenuProvider } from '../admin-shell/chrome/menu-provider.js'
 import { RouteError, RouteNotFound } from '../admin-shell/chrome/route-error.js'
+import { RouteProgressBar } from '../admin-shell/chrome/route-progress-bar.js'
 import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
@@ -70,6 +71,7 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
           <BylineFieldServicesProvider services={bylineFieldServices}>
             <BylineAiAdminProvider>
               <AdminMenuProvider>
+                <RouteProgressBar />
                 <AdminAppBar user={user} />
                 <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
                   <DrawerToggle />
