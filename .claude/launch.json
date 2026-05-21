@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "webapp",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 5173
+    },
+    {
+      "name": "postgres",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd postgres && ./postgres.sh up"],
+      "port": 5432
+    },
+    {
+      "name": "adminer",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd postgres && ./postgres.sh --profile adminer up"],
+      "port": 9000
+    }
+  ]
+}
