@@ -92,7 +92,7 @@ export interface S3StorageConfig {
    * uploads compute their key from the original's `storagePath`, which
    * already carries the prefix.
    *
-   * @example `'byline'` → keys stored as `byline/<collection>/<year>/...`
+   * @example `'byline'` → keys stored as `byline/<collection>/<uuid>-<filename>`
    */
   pathPrefix?: string
   /**
@@ -149,18 +149,24 @@ function sanitiseFilename(filename: string): string {
   return `${safe || 'file'}${ext.toLowerCase()}`
 }
 
+/**
+ * Build a namespaced object key, e.g.:
+ *   `[pathPrefix/]media/a1b2c3d4-e5f6-...-photo.jpg`
+ *
+ * The UUIDv4 prefix is sufficient to prevent filename collisions without
+ * year/month directory nesting, and it simplifies variant path derivation
+ * and cleanup on deletion. The high-entropy UUID prefix also gives S3
+ * enough scatter to auto-scale per prefix without a hot-partition concern.
+ */
 function buildObjectKey(
   pathPrefix: string | undefined,
   collection: string | undefined,
   filename: string
 ): string {
-  const now = new Date()
-  const year = now.getUTCFullYear()
-  const month = String(now.getUTCMonth() + 1).padStart(2, '0')
   const uid = uuidv4()
   const safe = sanitiseFilename(filename)
   const scope = collection ?? 'uploads'
-  const key = `${scope}/${year}/${month}/${uid}-${safe}`
+  const key = `${scope}/${uid}-${safe}`
   return pathPrefix ? `${pathPrefix}/${key}` : key
 }
 
@@ -294,7 +300,7 @@ class S3StorageProvider implements IStorageProvider {
  * `forcePathStyle: true` for non-AWS providers.
  *
  * Uploaded files are stored at:
- *   `[pathPrefix/]<collection>/<year>/<month>/<uuid>-<filename>`
+ *   `[pathPrefix/]<collection>/<uuid>-<filename>`
  *
  * Image variants (thumbnail / card / etc.) are written as siblings of the
  * original under the same prefix, e.g.:

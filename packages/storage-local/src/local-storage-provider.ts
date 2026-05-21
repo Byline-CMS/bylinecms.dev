@@ -143,7 +143,7 @@ class LocalStorageProvider implements IStorageProvider {
  * Create a local filesystem storage provider.
  *
  * Uploaded files are written under `uploadDir`, organised into sub-paths:
- *   `<collection>/<year>/<month>/<uuid>-<filename>`
+ *   `<collection>/<uuid>-<filename>`
  *
  * The provider generates a public URL by prepending `baseUrl` to the
  * storage path. Pair this with a runtime file handler (Express
