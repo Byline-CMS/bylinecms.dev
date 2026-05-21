@@ -1,5 +1,18 @@
 # @byline/host-tanstack-start
 
+## 2.2.7
+
+### Patch Changes
+
+- feat(host-tanstack-start): collapsed breadcrumb overflow into a dropdown on narrow viewports
+- Updated dependencies
+  - @byline/admin@2.2.7
+  - @byline/ai@2.2.7
+  - @byline/auth@2.2.7
+  - @byline/client@2.2.7
+  - @byline/core@2.2.7
+  - @byline/ui@2.2.7
+
 ## 2.2.6
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 2.2.7
+
+### Patch Changes
+
+- feat(host-tanstack-start): collapsed breadcrumb overflow into a dropdown on narrow viewports
+- Updated dependencies
+  - @byline/core@2.2.7
+  - @byline/richtext-lexical@2.2.7
+  - @byline/ui@2.2.7
+
 ## 2.2.6
 
 ### Patch Changes
