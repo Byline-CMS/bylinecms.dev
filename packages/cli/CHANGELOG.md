@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.2.8
+
+### Patch Changes
+
+- Opened preview link in the current tab instead of a new tab. Added byline-icon.tsx to ui kit and updated admin bar. Removed year/month nesting from upload paths in s3 storage provider.
+
 ## 2.2.7
 
 ### Patch Changes
