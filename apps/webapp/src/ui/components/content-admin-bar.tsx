@@ -16,11 +16,11 @@ import {
 } from '@byline/host-tanstack-start/server-fns/preview'
 import {
   Button,
+  BylineIcon,
   DocumentIcon,
   EditIcon,
   EyeClosedIcon,
   EyeOpenIcon,
-  InfonomicIcon,
   SignOutIcon,
 } from '@byline/ui/react'
 
@@ -115,7 +115,7 @@ export function ContentAdminBar({ user, admin, preview = false }: ContentAdminBa
   return (
     <div className="flex gap-2 text-sm items-center w-full z-10 py-[4px] px-[16px] bg-[#e3b836] text-[#222]">
       <a href={`${admin}`} className="h-[22px] w-[22px] mr-2">
-        <InfonomicIcon />
+        <BylineIcon />
       </a>
       <a
         href={`${admin}/users/${userID}`}
