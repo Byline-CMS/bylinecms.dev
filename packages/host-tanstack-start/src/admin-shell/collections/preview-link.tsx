@@ -14,8 +14,8 @@
  *      on the admin's session — so the front-end host's viewer client
  *      starts surfacing draft versions for this admin's subsequent
  *      requests.
- *   2. Opens the document's preview URL in a new tab via
- *      `window.open(url, '_blank', 'noopener,noreferrer')`.
+ *   2. Navigates the current tab to the document's preview URL via
+ *      `window.location.assign(url)`.
  *
  * The preview URL comes from `CollectionAdminConfig.preview.url(doc, ctx)`
  * when configured; otherwise it falls back to the conventional
@@ -101,13 +101,11 @@ export const PreviewLink = ({
     if (busy) return
     setBusy(true)
     try {
-      // Enable preview mode for the admin's browser session before opening
-      // the URL. The viewer client on the front-end host reads the cookie
-      // on subsequent requests and elevates the read context.
+      // Enable preview mode for the admin's browser session before
+      // navigating. The viewer client on the front-end host reads the
+      // cookie on subsequent requests and elevates the read context.
       await enablePreviewModeFn()
-      // `noopener,noreferrer` so the opened tab can't reach back into
-      // the admin window via `window.opener`.
-      window.open(url, '_blank', 'noopener,noreferrer')
+      window.location.assign(url)
     } catch (err) {
       toastManager.add({
         title: 'Preview',
@@ -131,7 +129,7 @@ export const PreviewLink = ({
       variant="text"
       disabled={busy}
       onClick={handleClick}
-      aria-label="Open preview in new tab"
+      aria-label="Open preview"
       title="Preview"
     >
       <ExternalLinkIcon width="20px" height="20px" className="byline-preview-link-icon" />
