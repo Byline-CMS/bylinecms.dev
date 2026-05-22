@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 2.2.10
+
+### Patch Changes
+
+- storage-s3 ssr external in vite.config.ts
+- Updated dependencies
+  - @byline/client@2.2.10
+  - @byline/core@2.2.10
+  - @byline/ui@2.2.10
+
 ## 2.2.9
 
 ### Patch Changes

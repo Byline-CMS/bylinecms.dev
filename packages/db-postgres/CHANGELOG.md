@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 2.2.10
+
+### Patch Changes
+
+- storage-s3 ssr external in vite.config.ts
+- Updated dependencies
+  - @byline/admin@2.2.10
+  - @byline/auth@2.2.10
+  - @byline/core@2.2.10
+
 ## 2.2.9
 
 ### Patch Changes

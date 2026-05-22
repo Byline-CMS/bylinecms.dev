@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.2.10
+
+### Patch Changes
+
+- storage-s3 ssr external in vite.config.ts
+
 ## 2.2.9
 
 ### Patch Changes
