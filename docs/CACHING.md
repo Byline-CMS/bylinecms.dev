@@ -36,20 +36,19 @@ It is applied to:
 
 ### Cookie-aware branching
 
-The middleware reads three cookies on every request:
+The middleware checks the admin **session** cookies on every request:
 
 - `byline_access_token` and `byline_refresh_token` — set by the admin session (see [`packages/host-tanstack-start/src/auth/auth-cookies.ts`](../packages/host-tanstack-start/src/auth/auth-cookies.ts)).
-- `byline_preview` — set by an admin who has toggled preview mode (see [`packages/host-tanstack-start/src/auth/preview-cookies.ts`](../packages/host-tanstack-start/src/auth/preview-cookies.ts)).
 
-If **any** of those cookies is present on the request, the response carries:
+If **either** session cookie is present on the request, the response carries:
 
 ```
 Cache-Control: private, no-store
 ```
 
-The CDN will neither store the response nor serve any previously-cached entry for that request. Signed-in editors therefore always reach the origin and see live content — including drafts when `byline_preview` is set and a valid admin session resolves.
+The CDN will neither store the response nor serve any previously-cached entry for that request. Signed-in editors therefore always reach the origin and see live content — including drafts when `byline_preview` is also set and a valid admin session resolves.
 
-If none of those cookies are present, the response carries:
+If neither session cookie is present, the response carries:
 
 ```
 Cache-Control: public, s-maxage=60, stale-while-revalidate=86400
@@ -58,6 +57,16 @@ Cache-Control: public, s-maxage=60, stale-while-revalidate=86400
 - `public` — shared caches may store the response.
 - `s-maxage=60` — the CDN treats the response as fresh for 60 seconds.
 - `stale-while-revalidate=86400` — for the next 24 hours after expiry the CDN may serve the stale copy while it refreshes in the background.
+
+### Why `byline_preview` is not a bypass signal
+
+The preview cookie (see [`packages/host-tanstack-start/src/auth/preview-cookies.ts`](../packages/host-tanstack-start/src/auth/preview-cookies.ts)) is deliberately **not** included in the cache-bypass check:
+
+- Preview mode only takes effect when paired with a valid admin session. `isPreviewActive()` checks the cookie *and* resolves `getAdminRequestContext()`; without a session it returns `false` and the server returns published content via `status: 'published'`.
+- A real preview session always carries the session cookies too, so bypass is already triggered by those — the preview cookie is redundant when it matters.
+- An anonymous browser carrying a stale `byline_preview` cookie (left over from a previous sign-in) receives the same published response any other anonymous browser would. That response is safe to cache and to serve from cache. Treating `byline_preview` as a bypass signal would force `no-store` on every page that browser visits for up to a day after sign-out, for no security benefit.
+
+Clearing `byline_preview` on sign-out is good hygiene but is **not** required for cache correctness — the bypass is keyed off the session cookies, which the sign-out flow already clears.
 
 ### Why explicit branching
 
@@ -71,11 +80,13 @@ Branching at the origin is the authoritative fix. A matching CDN-side Cache Rule
 
 ### Belt-and-braces: a CDN-side Cache Rule
 
-Independently of the origin middleware, configure your proxy to bypass cache when any of the same cookies are present. On Cloudflare this is a Cache Rule of the form:
+Independently of the origin middleware, configure your proxy to bypass cache when an admin session cookie is present. On Cloudflare this is a Cache Rule of the form:
 
-> If `http.cookie contains "byline_access_token"` or `http.cookie contains "byline_refresh_token"` or `http.cookie contains "byline_preview"` → **Bypass cache**.
+> If `http.cookie contains "byline_access_token"` or `http.cookie contains "byline_refresh_token"` → **Bypass cache**.
 
 This means that if the origin middleware ever fails to apply to a route (a new server function added without `publicCacheMiddleware`, for example), authenticated editors are still protected from stale anonymous HTML at the edge.
+
+Note: do not include `byline_preview` in this rule. The preview cookie is not a meaningful bypass signal on its own (see [Why `byline_preview` is not a bypass signal](#why-byline_preview-is-not-a-bypass-signal) above) — adding it would penalise users who once signed in with a stale `no-store` response for up to a day after sign-out.
 
 ### When to skip `publicCacheMiddleware`
 
@@ -115,11 +126,11 @@ End-to-end, what happens when an admin enables preview and reloads a page:
 
 1. Admin clicks "preview" in the admin shell → a server function sets the `byline_preview` cookie (`httpOnly`, 1-day max-age).
 2. Browser issues subsequent GETs with `Cookie: byline_access_token=…; byline_refresh_token=…; byline_preview=1`.
-3. `publicCacheMiddleware` at the origin sees the cookies → emits `Cache-Control: private, no-store`. The CDN does not serve a cached anonymous version and does not store the editor's draft view.
-4. `isPreviewActive()` returns `true` at origin → the public server function passes `status: 'any'` to the viewer client and (if L1 is wired) bypasses the in-memory cache.
+3. `publicCacheMiddleware` at the origin sees the **session cookies** → emits `Cache-Control: private, no-store`. The CDN does not serve a cached anonymous version and does not store the editor's draft view.
+4. `isPreviewActive()` returns `true` at origin — both the preview cookie and a valid admin session resolve — so the public server function passes `status: 'any'` to the viewer client and (if L1 is wired) bypasses the in-memory cache.
 5. Editor sees their draft.
 
-The mere *presence* of `byline_preview` is the signal; the actual safety check is the admin session. A stale `byline_preview` cookie on an anonymous browser falls through to public/published reads silently because the session resolution fails — but the cookie still triggers `private, no-store`, so such a browser sees degraded CDN performance until the cookie expires (1 day). Clearing the preview cookie on sign-out is a reasonable additional safeguard.
+After sign-out the session cookies are cleared and `publicCacheMiddleware` returns to emitting the public cache header — even if `byline_preview` is still present in the browser. The preview cookie has no effect without a session: `isPreviewActive()` returns `false`, the server returns published content, and that content is correctly cacheable for that (now-anonymous) browser.
 
 ## L1 — In-memory data cache (optional)
 
