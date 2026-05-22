@@ -137,7 +137,7 @@ describe('getAdminRequestContext', () => {
     expect(verifyAccessToken).toHaveBeenCalledWith('fresh-access')
   })
 
-  it('throws ERR_UNAUTHENTICATED and clears cookies when no session exists', async () => {
+  it('throws ERR_UNAUTHENTICATED without emitting Set-Cookie when no cookies are sent', async () => {
     cookiesReturn({})
 
     try {
@@ -147,7 +147,22 @@ describe('getAdminRequestContext', () => {
       expect(err).toBeInstanceOf(AuthError)
       expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
     }
-    // Cookie clear = setCookie with empty value and maxAge 0 for both names.
+    // Anonymous visitors must produce zero Set-Cookie headers so shared
+    // caches (Cloudflare) can cache public pages — a Set-Cookie on the
+    // response is a hard bypass signal for CDNs.
+    expect(setCookie).not.toHaveBeenCalled()
+  })
+
+  it('clears the stale access cookie when only an access token was sent', async () => {
+    cookiesReturn({ byline_access_token: 'stale' })
+    verifyAccessToken.mockRejectedValueOnce(new Error('expired'))
+
+    try {
+      await getAdminRequestContext()
+      expect.fail('expected ERR_UNAUTHENTICATED')
+    } catch (err) {
+      expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
+    }
     const clears = setCookie.mock.calls.filter((c) => c[2]?.maxAge === 0)
     const clearedNames = new Set(clears.map((c) => c[0]))
     expect(clearedNames.has('byline_access_token')).toBe(true)

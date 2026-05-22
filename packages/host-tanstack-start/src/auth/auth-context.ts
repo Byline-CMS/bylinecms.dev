@@ -80,8 +80,13 @@ export async function getAdminRequestContext(): Promise<RequestContext> {
   // Refresh path: swap the refresh cookie for a fresh token pair.
   const refreshToken = readRefreshTokenCookie()
   if (!refreshToken) {
-    // No session at all — clear anything stale and reject.
-    clearSessionCookies()
+    // Only emit cookie clears when the browser actually sent a stale access
+    // cookie — otherwise the response carries no Set-Cookie at all, which
+    // lets shared caches (Cloudflare) cache public pages for anonymous
+    // visitors. Set-Cookie on the response is a hard bypass signal for CDNs.
+    if (accessToken) {
+      clearSessionCookies()
+    }
     throw ERR_UNAUTHENTICATED({ message: 'no admin session' })
   }
 
