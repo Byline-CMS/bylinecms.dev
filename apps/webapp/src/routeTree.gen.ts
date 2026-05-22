@@ -162,7 +162,7 @@ const BylineAdminCollectionsCollectionIdApiRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof BylineRouteRouteWithChildren
-  '/{-$lng}': typeof Char123LngChar125PublicRouteRouteWithChildren
+  '/{-$lng}': typeof Char123LngChar125RouteRouteWithChildren
   '/admin': typeof BylineAdminRouteRouteWithChildren
   '/sign-in': typeof BylineSignInRoute
   '/{-$lng}/$path': typeof Char123LngChar125PublicPathRoute
