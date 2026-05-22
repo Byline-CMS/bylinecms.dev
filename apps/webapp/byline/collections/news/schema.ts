@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionFieldData } from '@byline/core'
+import type { AfterStoreContext, BeforeStoreContext, CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { availableLanguagesField } from '~/fields/available-languages-field.js'
@@ -65,6 +65,30 @@ export const News = defineCollection({
       targetCollection: 'media',
       displayField: 'title',
       optional: true,
+    },
+    {
+      name: 'attachment',
+      label: 'Attachment',
+      type: 'file',
+      optional: true,
+      helpText: 'Select an file to upload.',
+      upload: {
+        // Allow common types.
+        mimeTypes: [
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ],
+        // 20 MB limit per file.
+        maxFileSize: 20 * 1024 * 1024,
+        hooks: {
+          beforeStore: (ctx: BeforeStoreContext) => {
+            console.log('beforeStore hook called', ctx)
+          },
+          afterStore: (ctx: AfterStoreContext) => {
+            console.log('afterStore hook called', ctx)
+          },
+        },
+      },
     },
     {
       name: 'featured',

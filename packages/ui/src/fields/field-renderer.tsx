@@ -209,6 +209,7 @@ export const FieldRenderer = ({
             defaultValue={defaultValue}
             onChange={handleChange}
             path={path}
+            collectionPath={collectionPath}
           />
         )
       case 'image':

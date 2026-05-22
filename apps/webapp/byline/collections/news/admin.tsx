@@ -178,6 +178,11 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
           label: 'Content',
           fields: ['content'],
         },
+        {
+          name: 'attachments',
+          label: 'Attachments',
+          fields: ['attachment'], // soon to be array of attachments
+        },
       ],
     },
   ],
