@@ -3,12 +3,12 @@
  *
  * Override handles:
  *   .byline-field-relation               — outer wrapper
- *   .byline-field-relation-header        — label + remove-button row
- *   .byline-field-relation-remove        — text-link remove button
+ *   .byline-field-relation-header        — label row
  *   .byline-field-relation-help          — help text below the label
  *   .byline-field-relation-error-tile    — wrapper shown when target collection is unknown
  *   .byline-field-relation-error-text    — secondary error message below the title
- *   .byline-field-relation-tile          — bordered selected-value + change-button container
+ *   .byline-field-relation-tile          — bordered selected-value + actions container
+ *   .byline-field-relation-actions       — top-right icon-button group (edit + remove)
  *   .byline-field-relation-mono          — monospace `<code>` for field/collection names
  */
 
@@ -18,23 +18,6 @@
   align-items: baseline;
   gap: var(--spacing-8);
   margin-bottom: 0.25rem;
-}
-
-.remove,
-:global(.byline-field-relation-remove) {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--red-500);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
-}
-
-.remove:hover,
-:global(.byline-field-relation-remove):hover {
-  color: var(--red-400);
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .help,
@@ -66,7 +49,7 @@
 .tile,
 :global(.byline-field-relation-tile) {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--spacing-8);
   margin-top: 0.25rem;
@@ -75,6 +58,23 @@
   border-radius: var(--border-radius-md);
   color: var(--gray-200);
   font-size: var(--font-size-xs);
+}
+
+.actions,
+:global(.byline-field-relation-actions) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex-shrink: 0;
+}
+
+:global(.byline-field-relation-actions .byline-button) {
+  color: var(--gray-900);
+}
+
+:global(.dark .byline-field-relation-actions .byline-button),
+:global([data-theme='dark'] .byline-field-relation-actions .byline-button) {
+  color: var(--gray-200);
 }
 
 .mono,

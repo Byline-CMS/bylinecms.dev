@@ -44,6 +44,7 @@
   ],
   "exports": {
     "./react": {
+      "development": "./src/react.ts",
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js",
       "main": "./dist/react.js",

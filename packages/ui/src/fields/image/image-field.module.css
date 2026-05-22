@@ -27,9 +27,18 @@
 .remove,
 :global(.byline-field-image-remove) {
   position: absolute;
-  top: var(--spacing-4);
-  right: var(--spacing-4);
+  top: var(--spacing-6);
+  right: var(--spacing-6);
   z-index: 1;
+}
+
+:global(.byline-field-image-remove .byline-button) {
+  color: var(--gray-900);
+}
+
+:global(.dark .byline-field-image-remove .byline-button),
+:global([data-theme='dark'] .byline-field-image-remove .byline-button) {
+  color: var(--gray-200);
 }
 
 .empty,

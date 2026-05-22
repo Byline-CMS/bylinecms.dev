@@ -79,12 +79,15 @@ const config = defineConfig({
         // Rolldown. Without this, the optimized chunk keeps a bare
         // `import('node:async_hooks')` that Vite's runtime then resolves to
         // its noisy browser-external stub.
-        include: [
-          '@byline/ui/react',
-          '@byline/ai',
-          '@byline/ai/plugins/text',
-          '@byline/ai/plugins/lexical',
-        ],
+        //
+        // @byline/ui is intentionally NOT included here — the `development`
+        // export condition in `packages/ui/package.json` routes dev consumers
+        // to `src/react.ts`, which Vite serves through its own module graph
+        // (with HMR per source file). Pre-bundling would re-introduce the
+        // dist round-trip that this whole arrangement is meant to bypass.
+        // It's listed in `exclude` below for belt-and-suspenders safety.
+        include: ['@byline/ai', '@byline/ai/plugins/text', '@byline/ai/plugins/lexical'],
+        exclude: ['@byline/ui/react'],
         rolldownOptions: {
           plugins: [
             {

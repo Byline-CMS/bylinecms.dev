@@ -18,7 +18,9 @@ import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
-import { Button, ErrorText, Label } from '../../uikit.js'
+import { CloseIcon } from '../../icons/close-icon.js'
+import { EditIcon } from '../../icons/edit-icon.js'
+import { Button, ErrorText, IconButton, Label } from '../../uikit.js'
 import styles from './relation-field.module.css'
 import { RelationPicker } from './relation-picker'
 import { RelationSummary } from './relation-summary'
@@ -128,15 +130,6 @@ export const RelationField = ({
           label={field.label ?? field.name}
           required={!field.optional}
         />
-        {incomingValue && !isUnknown && (
-          <button
-            type="button"
-            className={cx('byline-field-relation-remove', styles.remove)}
-            onClick={handleRemove}
-          >
-            Remove
-          </button>
-        )}
       </div>
       {field.helpText && (
         <div className={cx('byline-field-relation-help', styles.help)}>{field.helpText}</div>
@@ -161,16 +154,27 @@ export const RelationField = ({
             value={incomingValue}
             cachedRecord={cachedRecord}
           />
-          <Button
-            id={htmlId}
-            size="xs"
-            variant="outlined"
-            intent="noeffect"
-            type="button"
-            onClick={() => setPickerOpen(true)}
-          >
-            Change
-          </Button>
+          <div className={cx('byline-field-relation-actions', styles.actions)}>
+            <IconButton
+              id={htmlId}
+              type="button"
+              intent="noeffect"
+              size="xs"
+              aria-label={`Change ${targetDef.labels.singular}`}
+              onClick={() => setPickerOpen(true)}
+            >
+              <EditIcon width="15px" height="15px" />
+            </IconButton>
+            <IconButton
+              type="button"
+              intent="noeffect"
+              size="xs"
+              aria-label={`Remove ${targetDef.labels.singular}`}
+              onClick={handleRemove}
+            >
+              <CloseIcon width="15px" height="15px" />
+            </IconButton>
+          </div>
         </div>
       ) : (
         <Button
