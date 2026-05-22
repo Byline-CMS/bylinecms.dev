@@ -1,5 +1,17 @@
 # @byline/admin
 
+## 2.3.0
+
+### Minor Changes
+
+- Upload progress indicators and redesigned image and field fields.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@2.3.0
+  - @byline/core@2.3.0
+
 ## 2.2.10
 
 ### Patch Changes

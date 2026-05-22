@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 2.3.0
+
+### Minor Changes
+
+- Upload progress indicators and redesigned image and field fields.
+
 ## 2.2.10
 
 ### Patch Changes
