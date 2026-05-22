@@ -94,7 +94,7 @@ export class CounterCommands implements ICounterCommands {
       )
     }
 
-    const sequenceName = rows[0]!.sequence_name
+    const sequenceName = rows[0]?.sequence_name
 
     // sql.raw is safe here: sequenceName came from our own registry row,
     // which was written by ensureCounterGroup from deriveSequenceName

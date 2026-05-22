@@ -261,8 +261,7 @@
     padding-right: 12px;
     padding-top: 0.25rem;
     padding-left: var(--spacing-16);
-    border-left: var(--border-width-thin) var(--border-style-solid)
-      var(--gray-100);
+    border-left: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
     position: sticky;
     top: 95px;
   }
