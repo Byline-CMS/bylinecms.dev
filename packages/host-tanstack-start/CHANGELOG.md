@@ -1,5 +1,18 @@
 # @byline/host-tanstack-start
 
+## 2.3.1
+
+### Patch Changes
+
+- fixed relation/file removal save crash in **`@byline/db-postgres`** and richtext caret-jump regression in **`@byline/richtext-lexical`**
+- Updated dependencies
+  - @byline/admin@2.3.1
+  - @byline/ai@2.3.1
+  - @byline/auth@2.3.1
+  - @byline/client@2.3.1
+  - @byline/core@2.3.1
+  - @byline/ui@2.3.1
+
 ## 2.3.0
 
 ### Minor Changes

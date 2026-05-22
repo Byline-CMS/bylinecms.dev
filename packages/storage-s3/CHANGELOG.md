@@ -1,5 +1,13 @@
 # @byline/storage-s3
 
+## 2.3.1
+
+### Patch Changes
+
+- fixed relation/file removal save crash in **`@byline/db-postgres`** and richtext caret-jump regression in **`@byline/richtext-lexical`**
+- Updated dependencies
+  - @byline/core@2.3.1
+
 ## 2.3.0
 
 ### Minor Changes
