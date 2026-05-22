@@ -57,18 +57,13 @@
     "dist"
   ],
   "peerDependencies": {
-    "@byline/richtext-lexical": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@byline/richtext-lexical": {
-      "optional": true
-    }
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
     "@byline/core": "workspace:*",
+    "@byline/richtext-lexical": "workspace:*",
     "@byline/ui": "workspace:*",
     "@google/genai": "^2.5.0",
     "@infonomic/schemas": "^2.4.0",
@@ -87,7 +82,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
-    "@byline/richtext-lexical": "workspace:*",
     "@infonomic/uikit": "^6.7.2",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^25.9.1",

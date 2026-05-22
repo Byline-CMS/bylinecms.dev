@@ -290,6 +290,9 @@ importers:
       '@byline/core':
         specifier: workspace:*
         version: link:../core
+      '@byline/richtext-lexical':
+        specifier: workspace:*
+        version: link:../richtext-lexical
       '@byline/ui':
         specifier: workspace:*
         version: link:../ui
@@ -339,9 +342,6 @@ importers:
       '@biomejs/biome':
         specifier: 2.4.15
         version: 2.4.15
-      '@byline/richtext-lexical':
-        specifier: workspace:*
-        version: link:../richtext-lexical
       '@infonomic/uikit':
         specifier: ^6.7.2
         version: 6.7.2(@date-fns/tz@1.4.1)(@types/react@19.2.15)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
