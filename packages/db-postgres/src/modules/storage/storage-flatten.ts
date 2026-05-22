@@ -55,7 +55,7 @@ function* flattenFieldSetDataGen(
   locale: string,
   parent_path: string[] = []
 ): Generator<FlattenedFieldValue> {
-  if (data === undefined) {
+  if (data == null) {
     return
   }
 
@@ -80,7 +80,11 @@ function* flattenFieldDataGen(
   locale: string,
   field_path: string[]
 ): Generator<FlattenedFieldValue> {
-  if (data === undefined) {
+  // Treat `null` the same as `undefined` — a removed/cleared field emits no
+  // storage rows for the new version, so reads reconstruct as absent. Without
+  // this guard, downstream value extractors (relation, file/image, group,
+  // localized) dereference `null` and crash.
+  if (data == null) {
     return
   }
 
