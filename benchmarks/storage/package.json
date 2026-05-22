@@ -12,12 +12,12 @@
   "dependencies": {
     "@byline/core": "workspace:*",
     "@byline/db-postgres": "workspace:*",
-    "pg": "^8.20.0"
+    "pg": "^8.21.0"
   },
   "devDependencies": {
-    "@types/node": "^25.6.2",
+    "@types/node": "^25.9.1",
     "@types/pg": "^8.20.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.3",
     "typescript": "6.0.3"
   }
 }

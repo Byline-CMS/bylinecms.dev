@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.1.0",
+  "packageManager": "pnpm@11.2.2",
   "scripts": {
     "clean": "pnpm -r run clean && node scripts/clean node_modules .turbo",
     "db:init": "TURBO_UI=true turbo run db:init",
@@ -35,37 +35,14 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
     "@changesets/cli": "^2.31.0",
-    "lint-staged": "^17.0.4",
+    "lint-staged": "^17.0.5",
     "simple-git-hooks": "^2.13.1"
   },
   "dependencies": {
-    "turbo": "^2.9.12",
+    "turbo": "^2.9.14",
     "typescript": "6.0.3"
   },
   "engines": {
     "node": ">=20.9.0"
-  },
-  "pnpm": {
-    "allowedDeprecatedVersions": {
-      "abab": "2",
-      "domexception": "4"
-    },
-    "overrides": {
-      "typescript": "$typescript",
-      "react": "19.2.5",
-      "react-dom": "19.2.5"
-    },
-    "onlyBuiltDependencies": [
-      "@google/genai",
-      "@parcel/watcher",
-      "@tailwindcss/oxide",
-      "argon2",
-      "core-js",
-      "esbuild",
-      "lightningcss-cli",
-      "protobufjs",
-      "sharp",
-      "simple-git-hooks"
-    ]
   }
 }

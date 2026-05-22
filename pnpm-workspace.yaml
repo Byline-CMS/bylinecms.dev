@@ -2,6 +2,10 @@ packages:
   - "packages/*"
   - "apps/*"
   - "benchmarks/storage"
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@infonomic/*"
+  - "@byline/*"
 allowBuilds:
   "@google/genai": true
   "@parcel/watcher": true
@@ -10,3 +14,13 @@ allowBuilds:
   protobufjs: true
   sharp: true
   simple-git-hooks: true
+  "@tailwindcss/oxide": true
+  argon2: true
+  core-js: true
+allowedDeprecatedVersions:
+  abab: "2"
+  domexception: "4"
+overrides:
+  typescript: $typescript
+  react: 19.2.5
+  react-dom: 19.2.5
