@@ -32,7 +32,7 @@ import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import styles from './form-renderer.module.css'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
-import { executeUploads } from './upload-executor'
+import { executeUploadsWithProgress } from './upload-executor'
 import type { UseNavigationGuard } from './navigation-guard'
 
 /** Metadata about a previously published version that is still live. */
@@ -321,6 +321,7 @@ const FormContent = ({
     setFieldError,
     getPendingUploads,
     clearPendingUploads,
+    setFieldUploading,
   } = useFormContext()
 
   const [errors, setErrors] = useState(initialErrors)
@@ -511,7 +512,13 @@ const FormContent = ({
       if (pendingUploads.size > 0) {
         setIsUploading(true)
         try {
-          const uploadResult = await executeUploads(pendingUploads, uploadField)
+          const uploadResult = await executeUploadsWithProgress(
+            pendingUploads,
+            uploadField,
+            ({ fieldPath, status }) => {
+              setFieldUploading(fieldPath, status === 'uploading')
+            }
+          )
 
           // Check for upload errors
           if (!uploadResult.allSucceeded) {

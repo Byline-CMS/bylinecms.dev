@@ -38,6 +38,7 @@ type FieldListener = (value: any) => void
 type ErrorsListener = (errors: FormError[]) => void
 type MetaListener = () => void
 type SystemPathListener = (value: string | null) => void
+type FieldUploadingListener = (uploading: boolean) => void
 
 interface FormContextType {
   setFieldValue: (name: string, value: any) => void
@@ -66,6 +67,12 @@ interface FormContextType {
   getPendingUploads: () => Map<string, PendingUpload>
   hasPendingUploads: () => boolean
   clearPendingUploads: () => void
+  // Per-field upload-in-flight tracking. Mirrors the pending-uploads map but
+  // for the window during which the upload-executor is actively transporting
+  // a given fieldPath, so widgets can render a localised spinner/overlay.
+  setFieldUploading: (fieldPath: string, uploading: boolean) => void
+  getIsFieldUploading: (fieldPath: string) => boolean
+  subscribeFieldUploading: (fieldPath: string, listener: FieldUploadingListener) => () => void
   // System-managed `path` slot (persisted in `byline_document_paths`),
   // edited by the path widget. `null` means the widget will fall back
   // to live-derived preview / the server-side default; a non-null value
@@ -100,6 +107,8 @@ export const FormProvider = ({
   const dirtyFields = useRef<Set<string>>(new Set())
   const patchesRef = useRef<DocumentPatch[]>([])
   const pendingUploadsRef = useRef<Map<string, PendingUpload>>(new Map())
+  const uploadingFieldsRef = useRef<Set<string>>(new Set())
+  const uploadingListenersRef = useRef<Map<string, Set<FieldUploadingListener>>>(new Map())
 
   const fieldListeners = useRef<Map<string, Set<FieldListener>>>(new Map())
   const errorListeners = useRef<Set<ErrorsListener>>(new Set())
@@ -340,6 +349,48 @@ export const FormProvider = ({
     pendingUploadsRef.current.clear()
   }, [])
 
+  // ---------------------------------------------------------------------------
+  // Per-field upload-in-flight tracking
+  // ---------------------------------------------------------------------------
+
+  const setFieldUploading = useCallback((fieldPath: string, uploading: boolean) => {
+    if (uploading) {
+      if (uploadingFieldsRef.current.has(fieldPath)) return
+      uploadingFieldsRef.current.add(fieldPath)
+    } else {
+      if (!uploadingFieldsRef.current.has(fieldPath)) return
+      uploadingFieldsRef.current.delete(fieldPath)
+    }
+    uploadingListenersRef.current.get(fieldPath)?.forEach((listener) => {
+      listener(uploading)
+    })
+  }, [])
+
+  const getIsFieldUploading = useCallback((fieldPath: string) => {
+    return uploadingFieldsRef.current.has(fieldPath)
+  }, [])
+
+  const subscribeFieldUploading = useCallback(
+    (fieldPath: string, listener: FieldUploadingListener) => {
+      let listeners = uploadingListenersRef.current.get(fieldPath)
+      if (!listeners) {
+        listeners = new Set()
+        uploadingListenersRef.current.set(fieldPath, listeners)
+      }
+      listeners.add(listener)
+      return () => {
+        const set = uploadingListenersRef.current.get(fieldPath)
+        if (set) {
+          set.delete(listener)
+          if (set.size === 0) {
+            uploadingListenersRef.current.delete(fieldPath)
+          }
+        }
+      }
+    },
+    []
+  )
+
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
@@ -534,6 +585,9 @@ export const FormProvider = ({
         getPendingUploads,
         hasPendingUploads,
         clearPendingUploads,
+        setFieldUploading,
+        getIsFieldUploading,
+        subscribeFieldUploading,
         getSystemPath,
         setSystemPath,
         subscribeSystemPath,
@@ -628,4 +682,23 @@ export const useFieldValue = <T = any>(name: string): T | undefined => {
   }, [subscribeField, name])
 
   return value
+}
+
+/**
+ * Subscribe to a single field's upload-in-flight state. Returns `true` while
+ * the form orchestrator is actively transporting this field's pending upload
+ * (between the `setFieldUploading(path, true)` and the matching `false`
+ * emitted by the upload executor's progress callback).
+ */
+export const useIsFieldUploading = (fieldPath: string): boolean => {
+  const { getIsFieldUploading, subscribeFieldUploading } = useFormContext()
+  const [uploading, setUploading] = useState<boolean>(() => getIsFieldUploading(fieldPath))
+
+  useEffect(() => {
+    return subscribeFieldUploading(fieldPath, (next) => {
+      setUploading(next)
+    })
+  }, [subscribeFieldUploading, fieldPath])
+
+  return uploading
 }

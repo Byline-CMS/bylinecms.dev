@@ -122,6 +122,18 @@
   border-radius: var(--border-radius-sm);
 }
 
+.uploading,
+:global(.byline-field-image-uploading) {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: oklch(from var(--gray-950) l c h / 0.5);
+  border-radius: var(--border-radius-md);
+}
+
 .meta,
 :global(.byline-field-image-meta) {
   display: flex;

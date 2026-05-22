@@ -16,9 +16,15 @@ import {
 import cx from 'classnames'
 
 import { IconButton } from '../../components/button/icon-button.js'
-import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../../forms/form-context'
+import {
+  useFieldError,
+  useFieldValue,
+  useFormContext,
+  useIsDirty,
+  useIsFieldUploading,
+} from '../../forms/form-context'
 import { CloseIcon } from '../../icons/close-icon.js'
-import { ErrorText, HelpText, Label } from '../../uikit.js'
+import { ErrorText, HelpText, Label, LoaderRing } from '../../uikit.js'
 import { ImageLightbox } from '../../widgets/image-lightbox/image-lightbox.js'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import styles from './image-field.module.css'
@@ -48,6 +54,7 @@ export const ImageField = ({
   const fieldError = useFieldError(fieldPath)
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<StoredFileValue | null | undefined>(fieldPath)
+  const isUploading = useIsFieldUploading(fieldPath)
   const { removePendingUpload } = useFormContext()
 
   // Re-use the standard field change handler so patches are emitted correctly.
@@ -122,6 +129,15 @@ export const ImageField = ({
         )
       ) : (
         <div className={cx('byline-field-image-tile', styles.tile)}>
+          {isUploading && (
+            <div
+              className={cx('byline-field-image-uploading', styles.uploading)}
+              aria-live="polite"
+              aria-busy="true"
+            >
+              <LoaderRing />
+            </div>
+          )}
           {/* Remove button — shown when an image is set (including pending) */}
           {collectionPath && (
             <div className={cx('byline-field-image-remove', styles.remove)}>
@@ -130,6 +146,7 @@ export const ImageField = ({
                 intent="noeffect"
                 onClick={handleRemove}
                 size="xs"
+                disabled={isUploading}
                 aria-label="Remove image"
               >
                 <CloseIcon width="15px" height="15px" />
