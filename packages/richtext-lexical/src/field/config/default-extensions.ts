@@ -12,11 +12,7 @@
  * this file.
  */
 
-import {
-  AutoFocusExtension,
-  ClearEditorExtension,
-  TabIndentationExtension,
-} from '@lexical/extension'
+import { ClearEditorExtension, TabIndentationExtension } from '@lexical/extension'
 import { CheckListExtension, ListExtension } from '@lexical/list'
 import type { AnyLexicalExtensionArgument } from 'lexical'
 
@@ -44,17 +40,22 @@ import type { EditorConfig } from './types'
  * itself so contributing extensions can attach their toolbar items via
  * `peerDependencies`.
  *
- * Order matters: stock framework extensions (clear-editor, tab-indent,
- * auto-focus) come first; toolbar contract sits ahead of any
- * contributing extension; relation-bearing extensions (link, image)
- * land near the end.
+ * Order matters: stock framework extensions (clear-editor, tab-indent)
+ * come first; toolbar contract sits ahead of any contributing extension;
+ * relation-bearing extensions (link, image) land near the end.
+ *
+ * Note: `AutoFocusExtension` is intentionally *not* included. Its root
+ * listener fires on every root re-attach (initial mount and after
+ * setEditorState swaps), pulling the caret to `rootEnd` — which surfaced
+ * as "cursor jumps to the end of the field on tab switch / after save."
+ * The pre-extensions default (`autoFocusPlugin: false`) was also off.
+ * Callers who want auto-focus can opt in via `lexicalEditor((c) => ...)`.
  */
 export function defaultExtensionsArray(): AnyLexicalExtensionArgument[] {
   return [
     // Always-on stock extensions.
     ClearEditorExtension,
     TabIndentationExtension,
-    AutoFocusExtension,
 
     // Toolbar + floating-UI contracts — must be present before any
     // extension that contributes items to them via `peerDependencies`.
