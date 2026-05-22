@@ -26,6 +26,8 @@ import {
 import type { MediaFields } from '~/collections/media/schema.js'
 import type { PageFields } from '~/collections/pages/schema.js'
 
+import { publicCacheMiddleware } from '@/middleware/public-cache'
+
 type PageDetailFields = WithPopulated<PageFields, 'featureImage', MediaFields>
 
 export type PageDetailResult = ClientDocument<PageDetailFields> | null
@@ -36,6 +38,7 @@ export interface PageDetailInput {
 }
 
 export const getPageDetailFn = createServerFn({ method: 'GET' })
+  .middleware([publicCacheMiddleware])
   .inputValidator(
     (input: PageDetailInput): PageDetailInput => ({
       path: input.path,

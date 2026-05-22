@@ -28,6 +28,8 @@ import type { MediaFields } from '~/collections/media/schema.js'
 import type { NewsFields } from '~/collections/news/schema.js'
 import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
 
+import { publicCacheMiddleware } from '@/middleware/public-cache'
+
 type NewsDetailFields = WithPopulated<
   WithPopulated<NewsFields, 'category', NewsCategoryFields>,
   'featureImage',
@@ -42,6 +44,7 @@ export interface NewsDetailInput {
 }
 
 export const getNewsDetailFn = createServerFn({ method: 'GET' })
+  .middleware([publicCacheMiddleware])
   .inputValidator(
     (input: NewsDetailInput): NewsDetailInput => ({
       path: input.path,

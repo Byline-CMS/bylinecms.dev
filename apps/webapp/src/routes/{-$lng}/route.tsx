@@ -22,6 +22,7 @@ import { TranslationsProvider } from '@/i18n/client/translations-provider'
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 import { detectLocaleFn } from '@/i18n/set-language-fn'
 import { getTranslations } from '@/i18n/translations'
+import { RouteProgressBar } from '@/ui/components/route-progress-bar'
 
 export const Route = createFileRoute('/{-$lng}')({
   beforeLoad: async ({ params, location }) => {
@@ -78,6 +79,7 @@ function LocaleLayout() {
 
   return (
     <TranslationsProvider translations={translations}>
+      <RouteProgressBar />
       <Outlet />
     </TranslationsProvider>
   )

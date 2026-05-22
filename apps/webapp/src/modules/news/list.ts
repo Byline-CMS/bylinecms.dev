@@ -31,6 +31,8 @@ import type { MediaFields } from '~/collections/media/schema.js'
 import type { NewsFields } from '~/collections/news/schema.js'
 import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
 
+import { publicCacheMiddleware } from '@/middleware/public-cache'
+
 /**
  * News field shape with `category` and `featureImage` re-typed for populate.
  * Schema-derived `NewsFields` types those slots as the unpopulated wire
@@ -60,6 +62,7 @@ interface ResolvedNewsListInput {
 }
 
 export const getNewsListFn = createServerFn({ method: 'GET' })
+  .middleware([publicCacheMiddleware])
   .inputValidator(
     (input: NewsListInput | undefined): ResolvedNewsListInput => ({
       category: input?.category || undefined,

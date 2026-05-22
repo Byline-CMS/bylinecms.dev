@@ -24,7 +24,7 @@ import { PageDetail } from '@/modules/pages/components/detail'
 import { getPageDetailFn } from '@/modules/pages/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 
-export const Route = createFileRoute('/{-$lng}/_public/legal/$path')({
+export const Route = createFileRoute('/{-$lng}/_frontend/$path')({
   loader: async ({ params }) => {
     const lng = (i18nConfig.locales as readonly string[]).includes(params.lng ?? '')
       ? (params.lng as Locale)
@@ -54,12 +54,7 @@ function RouteComponent() {
       />
       <Section>
         <Container className="mt-3">
-          <Breadcrumbs
-            breadcrumbs={[
-              { label: 'Legal', href: `/` },
-              { label: title, href: `/legal/${result.path}` },
-            ]}
-          />
+          <Breadcrumbs breadcrumbs={[{ label: title, href: `/${result.path}` }]} />
         </Container>
       </Section>
       <Section>

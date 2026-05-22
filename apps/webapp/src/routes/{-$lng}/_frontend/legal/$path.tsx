@@ -20,17 +20,17 @@ import { Container, Section } from '@byline/ui/react'
 // good starting point for now until we settle on a content locale vs interface
 // locale fallback or detection strategy.
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
-import { NewsDetail } from '@/modules/news/components/detail'
-import { getNewsDetailFn } from '@/modules/news/detail'
+import { PageDetail } from '@/modules/pages/components/detail'
+import { getPageDetailFn } from '@/modules/pages/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 
-export const Route = createFileRoute('/{-$lng}/_public/news/$path')({
+export const Route = createFileRoute('/{-$lng}/_frontend/legal/$path')({
   loader: async ({ params }) => {
     const lng = (i18nConfig.locales as readonly string[]).includes(params.lng ?? '')
       ? (params.lng as Locale)
       : i18nConfig.defaultLocale
     const path = params.path // string
-    const result = await getNewsDetailFn({ data: { path, lng } })
+    const result = await getPageDetailFn({ data: { path, lng } })
     if (result == null) throw notFound()
     return { result, lng }
   },
@@ -49,22 +49,22 @@ function RouteComponent() {
         id="byline-cms-meta"
         className="invisible max-h-0"
         aria-hidden
-        data-collection="news"
+        data-collection="pages"
         data-id={result.id}
       />
       <Section>
         <Container className="mt-3">
           <Breadcrumbs
             breadcrumbs={[
-              { label: 'News', href: '/news' },
-              { label: title, href: `/news/${result.path}` },
+              { label: 'Legal', href: `/` },
+              { label: title, href: `/legal/${result.path}` },
             ]}
           />
         </Container>
       </Section>
       <Section>
         <Container>
-          <NewsDetail result={result} />
+          <PageDetail result={result} lng={lng} />
         </Container>
       </Section>
     </>

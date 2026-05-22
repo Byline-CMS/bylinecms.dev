@@ -25,7 +25,7 @@ interface NewsSearch {
   category?: string
 }
 
-export const Route = createFileRoute('/{-$lng}/_public/news/')({
+export const Route = createFileRoute('/{-$lng}/_frontend/news/')({
   validateSearch: (search: Record<string, unknown>): NewsSearch => ({
     category: typeof search.category === 'string' ? search.category : undefined,
   }),

@@ -18,7 +18,7 @@ import { EditorAnimation } from '@/modules/home/editor-animation'
 import { FeatureGrid } from '@/modules/home/feature-grid'
 import { HeroTagline } from '@/modules/home/hero-tagline'
 
-export const Route = createFileRoute('/{-$lng}/_public/')({
+export const Route = createFileRoute('/{-$lng}/_frontend/')({
   component: Index,
 })
 

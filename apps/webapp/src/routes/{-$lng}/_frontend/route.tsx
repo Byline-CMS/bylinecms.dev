@@ -10,11 +10,12 @@ import {
 import { getCurrentAdminUserSoft } from '@byline/host-tanstack-start/server-fns/auth'
 import { getPreviewStateFn } from '@byline/host-tanstack-start/server-fns/preview'
 
+import { publicCacheMiddleware } from '@/middleware/public-cache'
 import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBar } from '@/ui/components/app-bar'
 import { ContentAdminBar } from '@/ui/components/content-admin-bar'
 
-export const Route = createFileRoute('/{-$lng}/_public')({
+export const Route = createFileRoute('/{-$lng}/_frontend')({
   loader: async () => {
     // Resolve in parallel — independent reads, no need to serialise.
     const [adminUser, previewState] = await Promise.all([
@@ -24,12 +25,15 @@ export const Route = createFileRoute('/{-$lng}/_public')({
     const { admin: adminPath } = resolveRoutes(getClientConfig().routes)
     return { adminUser, adminPath, preview: previewState.preview }
   },
-  component: PublicLayout,
+  server: {
+    middleware: [publicCacheMiddleware],
+  },
+  component: FrontEndLayout,
   errorComponent: RouteError,
   notFoundComponent: RouteNotFound,
 })
 
-function PublicLayout() {
+function FrontEndLayout() {
   const { adminUser, adminPath, preview } = Route.useLoaderData()
   return (
     <>
