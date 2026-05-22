@@ -95,6 +95,9 @@ For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
 1. **[docs/RICHTEXT.md](docs/RICHTEXT.md)** — pluggable richtext editor
    adapter, the current Lexical implementation, and future phases for
    a second editor.
+1. **[docs/CACHING.md](docs/CACHING.md)** — L1/L2 cache layers, the
+   reference `publicCacheMiddleware`, cookie-aware CDN bypass for
+   editors, invalidation strategies, and clustering trade-offs.
 1. **[docs/UIKIT.md](docs/UIKIT.md)** — `@byline/ui` as a single
    brand-coherent UI surface: the foundational kit synced from
    `@infonomic/uikit`, the byline-prefixed cascade-layer system, the

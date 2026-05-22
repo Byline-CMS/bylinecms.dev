@@ -21,18 +21,20 @@ A Byline application has several places where work can be skipped on a hot read 
 | **L3 — Browser** | Minor; mostly relevant for static assets, not HTML | `max-age=0` on HTML by default | n/a |
 | **L4 — Client-side route loaders (TanStack Query / Router)** | Smooth client-side transitions, request de-duplication | Per-query staleness | Tag-based refetch on mutation |
 
-Byline ships an opinionated **L2** strategy out of the box; **L1** is application code you wire in if and when origin load justifies it.
+The `@byline/*` packages do not ship a caching layer of their own — caching policy is the application's concern. The demo `apps/webapp` in this repository contains a worked **L2** example that adopters can copy or adapt; **L1** is opt-in application code wired in if and when origin load justifies it.
 
 ## L2 — CDN edge
 
-The mechanism is a single piece of middleware:
+The demo application carries a reference middleware that other TanStack Start hosts can copy verbatim or treat as a starting point:
 
 - [`apps/webapp/src/middleware/public-cache.ts`](../apps/webapp/src/middleware/public-cache.ts) — `publicCacheMiddleware`.
 
-It is applied to:
+In the demo it is applied to:
 
 - The public `_frontend` route layout (HTML page render path) — see `apps/webapp/src/routes/{-$lng}/_frontend/route.tsx`.
 - Public-read server functions under `apps/webapp/src/modules/**` — `getPageDetailFn`, `getNewsListFn`, `getNewsDetailFn`, etc. This means client-side route transitions that re-fetch their loader data also flow through the CDN, not just full-page navigations.
+
+The rest of this section describes the strategy the reference middleware implements. None of this is enforced by `@byline/*`; an adopter is free to swap TTLs, add cookies to the bypass list, or replace the middleware entirely.
 
 ### Cookie-aware branching
 
@@ -182,7 +184,7 @@ The right answer depends on the deployment topology (Fly.io regions, Kubernetes 
 
 ## Recommended order of adoption
 
-1. **Ship with the default L2 strategy.** `publicCacheMiddleware` on every public read; cookie-aware branching handles editor traffic. Add a matching CDN Cache Rule as defence in depth.
+1. **Start with the L2 reference strategy.** Copy `publicCacheMiddleware` (or write your own version of the same pattern) and apply it to every public read. Cookie-aware branching handles editor traffic. Add a matching CDN Cache Rule as defence in depth.
 2. **Measure.** Look at origin CPU, p95 DB query time on the hot read paths, and CDN hit rate before adding any in-memory layer.
 3. **Add L1 only where origin load justifies it.** Start with the two or three hottest server functions (typically a homepage list view and a few popular detail pages). Wire `afterChange` / `afterDelete` hooks for those collections.
 4. **Add active CDN purge only where 60-second propagation is too slow.** Keep the URL list short and tied to specific collections, not a generic "purge everything that might be affected" routine.
