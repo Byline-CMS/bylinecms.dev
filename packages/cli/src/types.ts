@@ -2,6 +2,7 @@ import type { Context } from './context.js'
 
 export type PhaseId =
   | 'preflight'
+  | 'prompts'
   | 'host'
   | 'db'
   | 'db-init'
@@ -64,6 +65,7 @@ export interface Answers {
   adminPath?: string
   uiDir?: string
   examples?: boolean
+  importDocs?: boolean
   pm?: PackageManager
   adminEmail?: string
 }

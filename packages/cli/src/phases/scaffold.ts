@@ -27,8 +27,8 @@ export const scaffoldPhase: Phase = {
   },
 
   async plan(ctx) {
-    const examples = ctx.state.get().answers.examples
-    const entries = collectEntries(ctx, examples ?? true)
+    const { examples, importDocs } = ctx.state.get().answers
+    const entries = collectEntries(ctx, examples ?? true, importDocs ?? false)
 
     const fromBase = entries.filter((e) => e.source === 'base' && e.status === 'create').length
     const fromExamples = entries.filter(
@@ -38,23 +38,17 @@ export const scaffoldPhase: Phase = {
 
     const notes: string[] = [
       `target: ${ctx.resolve(TARGET_DIR)}/`,
-      `examples overlay: ${examples === undefined ? 'will prompt (default yes)' : examples ? 'yes' : 'no'}`,
+      `examples overlay: ${examples === undefined ? 'unanswered (assuming yes)' : examples ? 'yes' : 'no'}`,
+      `import-docs script: ${importDocs ? 'yes' : 'no'}`,
       `${fromBase} base file(s), ${fromExamples} examples file(s), ${skipped} already-existing skipped`,
     ]
     return { writes: [], commands: [], notes }
   },
 
   async apply(_plan, ctx) {
-    let examples = ctx.state.get().answers.examples
-    if (examples === undefined) {
-      examples = await ctx.prompter.confirm({
-        message: 'Include the example collections, blocks, and fields?',
-        defaultValue: true,
-      })
-      ctx.state.patchAnswers({ examples })
-    }
+    const { examples = true, importDocs = false } = ctx.state.get().answers
 
-    const entries = collectEntries(ctx, examples)
+    const entries = collectEntries(ctx, examples, importDocs)
     if (entries.length === 0) {
       ctx.logger.error('no template files found — was the cli built with templates copied to dist?')
       return { state: 'blocked' }
@@ -82,12 +76,23 @@ export const scaffoldPhase: Phase = {
   },
 }
 
-function collectEntries(ctx: Context, examples: boolean): CopyEntry[] {
+function collectEntries(ctx: Context, examples: boolean, importDocs: boolean): CopyEntry[] {
   const targetRoot = ctx.resolve(TARGET_DIR)
   const baseRoot = join(ctx.templatesDir(), BASE_TEMPLATE)
   const examplesRoot = join(ctx.templatesDir(), EXAMPLES_TEMPLATE)
 
-  const examplesFiles = examples && existsSync(examplesRoot) ? walkFiles(examplesRoot) : []
+  const allExamples = examples && existsSync(examplesRoot) ? walkFiles(examplesRoot) : []
+  // The markdown → Byline import example script lives at
+  // `scripts/import-docs.ts` plus everything under `scripts/lib/`. Those
+  // files (and their devDependency stack) are opt-in via the `prompts`
+  // phase; everything else under `scripts/` (currently
+  // `regenerate-media.ts`) is part of the standard examples overlay.
+  const examplesFiles = importDocs
+    ? allExamples
+    : allExamples.filter((abs) => {
+        const rel = relative(examplesRoot, abs)
+        return rel !== 'scripts/import-docs.ts' && !rel.startsWith('scripts/lib/')
+      })
   const examplesRels = new Set(examplesFiles.map((abs) => relative(examplesRoot, abs)))
 
   const entries: CopyEntry[] = []

@@ -17,12 +17,22 @@
 
 export type DepGroup = 'byline' | 'runtime' | 'dev'
 
+/**
+ * Tag for opt-in deps. When set, the `deps` phase only installs the
+ * package if `answers[optional] === true`. Keeps the user's project free
+ * of dependencies they didn't ask for (e.g. the markdown ingestion stack
+ * that exists only to serve `byline/scripts/import-docs.ts`).
+ */
+export type DepOptionalFlag = 'importDocs'
+
 export interface DepSpec {
   name: string
   version: string
   group: DepGroup
   /** Short human-readable reason this is on the list. */
   note: string
+  /** When set, only install if the matching `answers` flag is true. */
+  optional?: DepOptionalFlag
 }
 
 export const BYLINE_VERSION = '^2.0.0'
@@ -142,38 +152,44 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'runs byline/seed.ts and byline/scripts/* without a build step',
   },
 
-  // ---- Dev: required by byline/scripts/import-docs.ts --------------------
+  // ---- Dev: optional, gated on `answers.importDocs` ---------------------
   // Markdown ingestion stack used only by the optional import-docs example
-  // script. Kept in `dev` because the production app never imports them —
-  // they only matter when the developer runs `tsx byline/scripts/import-docs.ts`.
+  // script. Skipped entirely when the user declines the import-docs prompt
+  // in the `prompts` phase — the production app never imports them, and
+  // they only matter when the developer runs `byline/scripts/import-docs.ts`.
   {
     name: 'gray-matter',
     version: '^4.0.3',
     group: 'dev',
+    optional: 'importDocs',
     note: 'frontmatter parser used by byline/scripts/import-docs.ts',
   },
   {
     name: 'unified',
     version: '^11.0.5',
     group: 'dev',
+    optional: 'importDocs',
     note: 'remark/mdast pipeline runner used by byline/scripts/import-docs.ts',
   },
   {
     name: 'remark-parse',
     version: '^11.0.0',
     group: 'dev',
+    optional: 'importDocs',
     note: 'markdown → mdast parser used by byline/scripts/import-docs.ts',
   },
   {
     name: 'remark-gfm',
     version: '^4.0.1',
     group: 'dev',
+    optional: 'importDocs',
     note: 'GitHub-Flavoured Markdown extensions for remark; used by byline/scripts/import-docs.ts',
   },
   {
     name: '@types/mdast',
     version: '^4.0.4',
     group: 'dev',
+    optional: 'importDocs',
     note: 'TypeScript types for mdast nodes; consumed as type-only by byline/scripts/lib/mdast-to-lexical.ts',
   },
 ] as const

@@ -88,8 +88,10 @@ function computeMissing(ctx: Context): DepStatus[] | null {
   const deps = pkg.dependencies ?? {}
   const devDeps = pkg.devDependencies ?? {}
 
+  const answers = ctx.state.get().answers
   const missing: DepStatus[] = []
   for (const spec of DEP_SPECS) {
+    if (spec.optional && answers[spec.optional] !== true) continue
     const inDeps = deps[spec.name]
     const inDev = devDeps[spec.name]
     const present = inDeps ?? inDev ?? null
