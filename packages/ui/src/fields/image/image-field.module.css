@@ -37,7 +37,7 @@
 }
 
 :global(.dark .byline-field-image-remove .byline-button),
-:global([data-theme='dark'] .byline-field-image-remove .byline-button) {
+:global([data-theme="dark"] .byline-field-image-remove .byline-button) {
   color: var(--gray-200);
 }
 

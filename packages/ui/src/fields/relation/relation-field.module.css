@@ -73,7 +73,7 @@
 }
 
 :global(.dark .byline-field-relation-actions .byline-button),
-:global([data-theme='dark'] .byline-field-relation-actions .byline-button) {
+:global([data-theme="dark"] .byline-field-relation-actions .byline-button) {
   color: var(--gray-200);
 }
 

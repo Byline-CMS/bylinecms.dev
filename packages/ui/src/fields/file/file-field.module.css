@@ -42,7 +42,7 @@
 }
 
 :global(.dark .byline-field-file-actions .byline-button),
-:global([data-theme='dark'] .byline-field-file-actions .byline-button) {
+:global([data-theme="dark"] .byline-field-file-actions .byline-button) {
   color: var(--gray-200);
 }
 
