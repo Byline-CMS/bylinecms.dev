@@ -15,7 +15,9 @@ import {
 } from '@byline/core'
 import cx from 'classnames'
 
+import { IconButton } from '../../components/button/icon-button.js'
 import { useFieldError, useFieldValue, useFormContext, useIsDirty } from '../../forms/form-context'
+import { CloseIcon } from '../../icons/close-icon.js'
 import { ErrorText, HelpText, Label } from '../../uikit.js'
 import { ImageLightbox } from '../../widgets/image-lightbox/image-lightbox.js'
 import { useFieldChangeHandler } from '../use-field-change-handler'
@@ -103,16 +105,6 @@ export const ImageField = ({
           label={field.label ?? field.name}
           required={!field.optional}
         />
-        {/* Remove button — shown when an image is set (including pending) */}
-        {!showUploadWidget && collectionPath && (
-          <button
-            type="button"
-            className={cx('byline-field-image-remove', styles.remove)}
-            onClick={handleRemove}
-          >
-            Remove
-          </button>
-        )}
       </div>
 
       {showUploadWidget ? (
@@ -130,6 +122,20 @@ export const ImageField = ({
         )
       ) : (
         <div className={cx('byline-field-image-tile', styles.tile)}>
+          {/* Remove button — shown when an image is set (including pending) */}
+          {collectionPath && (
+            <div className={cx('byline-field-image-remove', styles.remove)}>
+              <IconButton
+                type="button"
+                intent="noeffect"
+                onClick={handleRemove}
+                size="xs"
+                aria-label="Remove image"
+              >
+                <CloseIcon width="15px" height="15px" />
+              </IconButton>
+            </div>
+          )}
           {/* Preview */}
           {previewUrl && (
             <div className={cx('byline-field-image-preview-wrap', styles['preview-wrap'])}>

@@ -3,8 +3,8 @@
  *
  * Override handles:
  *   .byline-field-image                — wrapper div
- *   .byline-field-image-header         — label + remove button row
- *   .byline-field-image-remove         — remove-button text-link
+ *   .byline-field-image-header         — label row
+ *   .byline-field-image-remove         — remove-button (icon, top-right of tile)
  *   .byline-field-image-empty          — empty-state hint text
  *   .byline-field-image-tile           — bordered preview/metadata tile
  *   .byline-field-image-preview-wrap   — preview-image positioned wrapper
@@ -26,19 +26,10 @@
 
 .remove,
 :global(.byline-field-image-remove) {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--red-500);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
-}
-
-.remove:hover,
-:global(.byline-field-image-remove):hover {
-  color: var(--red-400);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  position: absolute;
+  top: var(--spacing-4);
+  right: var(--spacing-4);
+  z-index: 1;
 }
 
 .empty,
@@ -50,6 +41,7 @@
 
 .tile,
 :global(.byline-field-image-tile) {
+  position: relative;
   display: flex;
   gap: var(--spacing-16);
   margin-top: 0.25rem;

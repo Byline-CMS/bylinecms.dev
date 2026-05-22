@@ -19,10 +19,15 @@
  * `serverFns.fetch` overrides here as the app grows.
  */
 
-import { createStart } from '@tanstack/react-start'
+import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
 
 import { bylineCodedErrorAdapter } from '@byline/host-tanstack-start/integrations/start-errors'
 
+const csrfMiddleware = createCsrfMiddleware({
+  filter: (ctx) => ctx.handlerType === 'serverFn',
+})
+
 export const startInstance = createStart(() => ({
   serializationAdapters: [bylineCodedErrorAdapter],
+  requestMiddleware: [csrfMiddleware],
 }))
