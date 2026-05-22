@@ -9,10 +9,16 @@
 /**
  * Admin sign-out server function.
  *
- * Revokes the current refresh token (so a stolen copy cannot be reused)
- * and clears both session cookies. Idempotent — if the caller already
- * lacks a refresh cookie, we still clear whatever's there and return
- * successfully.
+ * Revokes the current refresh token (so a stolen copy cannot be reused),
+ * clears both session cookies, and clears the preview-mode cookie.
+ * Idempotent — if the caller already lacks a refresh cookie, we still
+ * clear whatever's there and return successfully.
+ *
+ * Note: clearing `byline_preview` here is hygiene, not a security
+ * requirement. The CDN cache-bypass middleware keys off the session
+ * cookies, not the preview cookie, so a stale preview cookie left in the
+ * browser does not affect cacheability of subsequent anonymous responses.
+ * Clearing it simply means the next sign-in starts in non-preview mode.
  */
 
 import { createServerFn } from '@tanstack/react-start'
@@ -20,6 +26,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getServerConfig } from '@byline/core'
 
 import { clearSessionCookies, readRefreshTokenCookie } from '../../auth/auth-cookies.js'
+import { clearPreviewCookie } from '../../auth/preview-cookies.js'
 
 export const adminSignOut = createServerFn({ method: 'POST' }).handler(async () => {
   const provider = getServerConfig().sessionProvider
@@ -38,5 +45,6 @@ export const adminSignOut = createServerFn({ method: 'POST' }).handler(async () 
   }
 
   clearSessionCookies()
+  clearPreviewCookie()
   return { status: 'ok' as const }
 })
