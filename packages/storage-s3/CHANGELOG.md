@@ -1,5 +1,13 @@
 # @byline/storage-s3
 
+## 2.2.9
+
+### Patch Changes
+
+- gated markdown import-docs example script and deps behind an opt-in prompt
+- Updated dependencies
+  - @byline/core@2.2.9
+
 ## 2.2.8
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @byline/richtext-lexical
 
+## 2.2.9
+
+### Patch Changes
+
+- gated markdown import-docs example script and deps behind an opt-in prompt
+- Updated dependencies
+  - @byline/client@2.2.9
+  - @byline/core@2.2.9
+  - @byline/ui@2.2.9
+
 ## 2.2.8
 
 ### Patch Changes

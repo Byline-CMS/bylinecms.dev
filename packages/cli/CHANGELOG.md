@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.2.9
+
+### Patch Changes
+
+- gated markdown import-docs example script and deps behind an opt-in prompt
+
 ## 2.2.8
 
 ### Patch Changes
