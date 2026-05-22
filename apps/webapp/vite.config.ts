@@ -44,6 +44,7 @@ const bylineSsrNoExternal = [/^@byline\//]
 // and therefore can't run through Vite's ESM module runner) must be
 // kept external so Node resolves them at runtime instead.
 //   - sharp + @byline/storage-local — image processing (libvips)
+//   - @byline/storage-s3 — bundles the AWS SDK; keep external for Node resolution
 //   - @byline/db-postgres — depends on `pg` native bindings
 //   - @byline/admin — re-exports server-only code that imports the above
 //   - pino — CJS entrypoints don't execute under Vite's module runner
@@ -51,6 +52,7 @@ const ssrExternal = [
   'sharp',
   'pino',
   '@byline/storage-local',
+  '@byline/storage-s3',
   '@byline/admin',
   '@byline/db-postgres',
 ]
@@ -171,7 +173,7 @@ const config = defineConfig({
           'react-dom',
           'pino',
           'sharp',
-          /^@byline\/(admin|db-postgres|storage-local)/,
+          /^@byline\/(admin|db-postgres|storage-local|storage-s3)/,
         ],
       },
     }),
