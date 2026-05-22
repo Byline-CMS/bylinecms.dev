@@ -61,11 +61,11 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.97.1",
+    "@anthropic-ai/sdk": "^0.98.0",
     "@byline/core": "workspace:*",
     "@byline/richtext-lexical": "workspace:*",
     "@byline/ui": "workspace:*",
-    "@google/genai": "^2.5.0",
+    "@google/genai": "^2.6.0",
     "@infonomic/schemas": "^2.4.0",
     "@lexical/html": "^0.44.0",
     "@lexical/react": "^0.44.0",
@@ -75,7 +75,7 @@
     "cross-env": "^10.1.0",
     "json-schema": "^0.4.0",
     "lexical": "^0.44.0",
-    "openai": "^6.38.0",
+    "openai": "^6.39.0",
     "react-error-boundary": "^6.1.1",
     "uuid": "^14.0.0",
     "zod": "^4.4.3"
