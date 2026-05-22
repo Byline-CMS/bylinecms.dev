@@ -1,5 +1,14 @@
 # @byline/admin
 
+## 2.3.2
+
+### Patch Changes
+
+- fixed an unconditional session cookie clear in **`@byline/host-tanstack-start`** that emitted `Set-Cookie` on every anonymous request, causing CDN cache bypass on public pages
+- Updated dependencies
+  - @byline/auth@2.3.2
+  - @byline/core@2.3.2
+
 ## 2.3.1
 
 ### Patch Changes
