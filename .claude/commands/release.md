@@ -1,34 +1,153 @@
 ---
 name: release
-description: Create the umbrella GitHub release for the current lockstep version. Run after `pnpm release:npm` and `git push --tags`.
-allowed-tools: Bash, Read, Write
-argument-hint: [optional version override, e.g. v1.2.1]
+description: Full lockstep release for @byline/* — changeset → version-packages → lint → release commit → npm publish → push tags → sync develop/main → umbrella GitHub release.
+allowed-tools: AskUserQuestion, Bash, Read, Write
+argument-hint: [optional bump level: patch|minor|major]
 ---
 
-Create the umbrella GitHub release for the current lockstep `@byline/*` version.
+Drive the full release loop for the `@byline/*` lockstep set, end to end. The 12 publishable packages listed under `fixed` in `.changeset/config.json` always move together to the same version.
 
-Context: this monorepo locks all `@byline/*` packages to a single version. `pnpm release:npm` publishes to npm and emits per-package git tags (`@byline/core@1.2.1`, `@byline/host-tanstack-start@1.2.1`, etc.). This command creates the **umbrella** `v<version>` tag + a single GitHub release that summarises the cycle. Per-package tags are not used as release anchors — they're npm bookkeeping only.
+## What this command does
+
+1. Asks the user for the bump level (patch / minor / major).
+2. Derives a one- or two-line changeset summary from the commits since the previous release and writes a changeset file naming every package in the fixed group at the chosen bump level.
+3. Runs `pnpm version-packages` and verifies every `@byline/*` package landed on the same new version and that the version delta matches the requested bump level.
+4. Runs `pnpm lint` to auto-fix any formatting churn on the bumped CHANGELOGs / package.json files.
+5. Stages the bump + lint output and creates a single `chore(release): X.Y.Z` commit on the current branch (usually `develop`).
+6. Pushes that branch.
+7. Runs `pnpm release:npm` — `changeset publish` reads the root `.npmrc` token, publishes to npm, and emits per-package tags locally.
+8. Pushes all new tags.
+9. Fast-forwards `main` to the release commit and pushes it, bringing `develop` and `main` back into sync.
+10. Creates the umbrella `v<version>` tag and a single GitHub release that summarises the cycle (the prior behaviour of this command, preserved).
+
+The command is idempotent at every step — re-running after a partial failure should detect what's already done and skip it.
 
 ## Preconditions
 
-Before doing anything, verify:
+Before any visible action, verify all of these. If any fails, stop and explain what the user needs to do:
 
-1. **`gh` is installed and authenticated** — `gh auth status` should show a logged-in account with `repo` scope. If not, stop and tell the user to install / log in.
-2. **Working tree is clean** — `git status --porcelain` should be empty. If not, stop and ask whether to proceed.
-3. **Per-package tags exist locally and on origin.** Read the version from `packages/core/package.json`. Then check that `@byline/core@<version>` exists locally (`git tag --list "@byline/core@<version>"`) and on origin (`git ls-remote --tags origin "@byline/core@<version>"`). If either is missing, stop and tell the user to run `pnpm release:npm` followed by `git push --tags` first — the umbrella release should never run ahead of the npm publishes.
+1. **`gh` is installed and authenticated** — `gh auth status` shows a logged-in account with `repo` scope.
+2. **Working tree is clean** — `git status --porcelain` is empty. (Otherwise the release commit would sweep up unrelated work.)
+3. **Both `develop` and `main` exist locally and on origin**, and both are up to date with their tracking branches (`git fetch origin && git rev-list --left-right --count <branch>...origin/<branch>` shows `0 0`).
+4. **You are on a branch where the release should land** — normally `develop`. If on `main` or a feature branch, confirm with the user before proceeding.
+5. **Read the *current* version** from `packages/core/package.json` and stash it as `PREV_VERSION`. This is the "before" anchor for the bump-level check.
 
-## Steps
+## Step 1 — Choose bump level
 
-1. **Resolve the version.** If `$ARGUMENTS` is non-empty, treat it as a version override (strip a leading `v` if present). Otherwise read `packages/core/package.json`'s `version` field. The umbrella tag will be `v<version>`.
+If `$ARGUMENTS` is one of `patch` / `minor` / `major`, use that. Otherwise ask via `AskUserQuestion`:
 
-2. **Find the anchor commit.** Run `git rev-list -n 1 "@byline/core@<version>"`. That commit is where `pnpm version-packages` ran — the umbrella tag must point at the same commit so the release diff matches the npm publishes.
+- Question: `"Release bump level for v<PREV_VERSION> → next?"`
+- Header: `"Bump level"`
+- Options (in this order): **Patch (Recommended)** (bug fixes, internal chores), **Minor** (backward-compatible features / migrations), **Major** (breaking changes).
 
-3. **Detect prior state (idempotency).**
-   - Local umbrella tag exists? `git tag --list v<version>`. If yes, verify it points at the same anchor commit (`git rev-list -n 1 v<version>`); if it diverges, stop and ask the user how to handle it. If it matches, skip the local-tag step.
-   - Remote umbrella tag exists? `git ls-remote --tags origin v<version>`. If yes, skip the push step.
-   - Existing GitHub release? `gh release view v<version> --repo Byline-CMS/bylinecms.dev` (capture exit code, don't fail). If a release already exists, show its URL and ask the user whether to (a) leave it alone, (b) edit its notes, or (c) delete + recreate. Don't proceed silently.
+## Step 2 — Derive the changeset summary from commits
 
-4. **Synthesize release notes.** Group changes into the following sections, in this order. Omit any section that has no entries — never include an empty heading.
+Do **not** ask the user for a summary. Build a short one (one or two lines, never a paragraph) from the commits between the previous release and `HEAD`:
+
+```sh
+git log --oneline "@byline/core@<PREV_VERSION>..HEAD"
+```
+
+Rules for synthesising the line(s):
+
+- Lead with the most user-visible change in the range. Bug fixes and features beat chores; chores beat dependency bumps.
+- Mention package scope in bold backticks when it disambiguates (e.g. **`@byline/db-postgres`**, **`@byline/richtext-lexical`**) — otherwise keep it general.
+- Past tense, lowercase, no trailing period. Style should read like a one-line changelog entry, e.g. *"fixed relation/file removal save crash and richtext caret-jump regression"*.
+- Skip release commits (`chore(release): …`), pure lint/format commits, and dep bumps unless that's literally all there is in the range.
+- Hard cap: two lines. If you can't compress the range into two lines, pick the two highest-impact items and drop the rest — the longer prose belongs in the umbrella GitHub release notes in Step 11, not in the per-package CHANGELOGs.
+
+This text goes verbatim into the changeset markdown body, where `pnpm version-packages` fans it out into every `@byline/*` CHANGELOG.
+
+## Step 3 — Write the changeset file
+
+Pick a slug — `release-<timestamp>` is fine (e.g. `release-2026-05-22-1545`). Write `.changeset/<slug>.md` with frontmatter listing every package in the fixed group, all at the chosen bump level, followed by the summary derived in Step 2:
+
+```markdown
+---
+"@byline/admin": <level>
+"@byline/ai": <level>
+"@byline/auth": <level>
+"@byline/cli": <level>
+"@byline/client": <level>
+"@byline/core": <level>
+"@byline/db-postgres": <level>
+"@byline/host-tanstack-start": <level>
+"@byline/richtext-lexical": <level>
+"@byline/storage-local": <level>
+"@byline/storage-s3": <level>
+"@byline/ui": <level>
+---
+
+<user-supplied summary>
+```
+
+The package list must match `fixed[0]` in `.changeset/config.json` — re-read it rather than hard-coding, so it stays in sync if the set changes.
+
+## Step 4 — Run version-packages
+
+`pnpm version-packages` (non-interactive — it consumes the changeset file). After it completes:
+
+- Read every `@byline/*` `packages/*/package.json` `version` field. Confirm they are all identical. If not, **stop** and show the divergence — something is wrong with the `fixed` group.
+- Compute the expected next version from `PREV_VERSION` and the chosen bump level (e.g. `2.3.0` + patch = `2.3.1`, + minor = `2.4.0`, + major = `3.0.0`). Confirm the new version matches. If not, stop and show the actual vs expected.
+- Record this as `NEXT_VERSION`.
+
+## Step 5 — Lint
+
+`pnpm lint` (the root script runs Biome with auto-fix). If it fails on unrelated issues, stop and surface the output. If only the CHANGELOG / package.json files got reformatted, continue.
+
+## Step 6 — Release commit
+
+Stage the bump artefacts explicitly — do **not** use `git add -A`:
+
+- `git add .changeset/` (the consumed changeset file is removed; the config stays — both diffs land here)
+- `git add packages/*/package.json packages/*/CHANGELOG.md`
+- If lint touched anything else (e.g. webapp / docs), include only the files actually modified by the bump or by lint in this turn.
+
+Commit with the literal message `chore(release): <NEXT_VERSION>` (match the format of past release commits — e.g. `chore(release): 2.3.0`). Then `git push` on the current branch.
+
+## Step 7 — Confirm before publishing
+
+Stop here and show the user:
+
+- `PREV_VERSION → NEXT_VERSION`
+- The anchor commit SHA (short form, just-pushed `HEAD`)
+- The changeset summary line(s) you derived in Step 2
+- The list of remaining steps: `pnpm release:npm` → push tags → fast-forward `main` and push → create umbrella tag + GitHub release.
+
+Wait for explicit approval. `pnpm release:npm` actually publishes to the public npm registry and is not trivially reversible — the user must confirm.
+
+## Step 8 — Publish to npm
+
+`pnpm release:npm` — runs `turbo run build` for all packages then `changeset publish`. This:
+
+- Publishes each package to npm using the token in the root `.npmrc`.
+- Creates per-package git tags locally (`@byline/core@<NEXT_VERSION>`, `@byline/host-tanstack-start@<NEXT_VERSION>`, etc.).
+
+If publish fails partway, surface the output verbatim and stop. Do not try to "recover" by retrying or by manually skipping packages — the user diagnoses.
+
+## Step 9 — Push tags
+
+`git push --tags`. (Pushes every new per-package tag to origin.)
+
+## Step 10 — Sync `main`
+
+Bring `main` up to the release commit so the two branches don't drift:
+
+- `git checkout main`
+- `git merge --ff-only develop` (or whichever branch the release landed on — use the branch you were on at the start). If fast-forward isn't possible because `main` has commits `develop` doesn't, **stop** and ask the user how to reconcile.
+- `git push origin main`
+- `git checkout <original-branch>` to return to where you started.
+
+## Step 11 — Umbrella GitHub release
+
+This is the original `/release` behaviour, run with `NEXT_VERSION`:
+
+1. **Find the anchor commit.** `git rev-list -n 1 "@byline/core@<NEXT_VERSION>"`. The umbrella tag points here.
+2. **Detect prior state (idempotency).**
+   - Local umbrella tag `v<NEXT_VERSION>` exists? Verify it points at the anchor commit; if it diverges, stop and ask. If it matches, skip the create step.
+   - Remote umbrella tag exists? Skip the push step.
+   - Existing GitHub release? `gh release view v<NEXT_VERSION> --repo Byline-CMS/bylinecms.dev` (capture exit code). If a release already exists, show its URL and ask whether to (a) leave it, (b) edit notes, or (c) delete + recreate.
+3. **Synthesize release notes.** Group changes into these sections, in this order. Omit any section that has no entries — never include an empty heading.
 
    ```markdown
    ## Highlights
@@ -53,42 +172,49 @@ Before doing anything, verify:
    ```
 
    Within each section:
-   - Lead each bullet with the package name(s) in bold backticks (matching the v1.2.1 shape): **`@byline/core`**, **`@byline/host-tanstack-start`**.
-   - Focus on user-visible behaviour and migration impact, not implementation detail.
+   - Lead each bullet with the package name(s) in bold backticks: **`@byline/core`**, **`@byline/host-tanstack-start`**. Use **monorepo** (no backticks) for cross-cutting items that aren't owned by a single package.
+   - Each bullet should be a substantive paragraph, not a commit subject. Explain *what* changed in user-visible terms, *why* it matters (the constraint or bug it addresses), and any *consumer-side effect* (migration step, bundle impact, new install footprint, behavioural change). Past tense.
+   - Focus on user-visible behaviour and migration impact, not implementation detail. But name specific symbols (component names, hook names, env vars, route paths) when the user would search for them.
    - Skip "patch dependencies updated" noise — those are auto-generated CHANGELOG entries, not release-note prose.
-   - For trivial lockstep version bumps with no behavioural change, end the notes with a single closing line: *"All other `@byline/*` packages bumped to `<version>` in lockstep with no behavioural changes this cycle."* — outside any section.
+
+   **Always** end the notes with this exact closing line, outside any section, even if all sections were populated:
+
+   ```
+   All other `@byline/*` packages bumped to `<NEXT_VERSION>` in lockstep with no behavioural changes this cycle.
+   ```
+
+   This is the standing convention for lockstep releases (see v2.3.0, v2.2.10, etc.) — it signals to consumers that any package they pin from the set has the same baseline as the rest, regardless of whether that specific package shows up in the sections above.
 
    **Source priority for the prose:**
-   1. The current conversation's context — if you've been doing the work in this session, you already have the best summary.
-   2. The most recent changeset summary — git log around the anchor commit usually has it as a `chore: changeset` commit.
-   3. The top section of `packages/core/CHANGELOG.md` — strip the `### Patch Changes` / `### Minor Changes` headers and the trailing `Updated dependencies` block; keep the human prose.
+   1. The conversation context for this release cycle — usually the strongest source if the work happened in-session.
+   2. `git log --oneline "@byline/core@<PREV_VERSION>..HEAD"` plus per-commit diffs (`git show <sha>`) for anything that's not obvious from the subject line.
+   3. The top section of `packages/core/CHANGELOG.md` (the Step 2 line) — expand it with package context, not replace it.
+
+   The umbrella release notes can and should be longer than the changeset summary — full sections, multiple bullets per section, with the depth of prose seen in recent releases (open `gh release view v<PREV_VERSION> --repo Byline-CMS/bylinecms.dev` and match the tone). The Step 2 line is the headline; this is the cycle write-up.
 
    If you can't construct a confident summary, stop and ask the user for a paragraph rather than guessing.
 
-5. **Confirm before any visible action.** Show the user:
-   - The version (`v<version>`)
-   - The anchor commit SHA (short form)
-   - The full proposed release notes
-   - A list of the steps about to run (create local tag / push tag / create release — only the ones not already done)
+4. **Confirm before any visible action.** Show the version, anchor SHA, full proposed release notes, and the list of steps about to run. Wait for explicit approval.
 
-   Wait for explicit approval. The user typing the command isn't sufficient — show them the body first.
+5. **Execute.** Write the notes to `/tmp/release-notes-v<NEXT_VERSION>.md`. Then, only running the steps actually needed:
+   - `git tag v<NEXT_VERSION> <anchor-sha>`
+   - `git push origin v<NEXT_VERSION>`
+   - `gh release create v<NEXT_VERSION> --repo Byline-CMS/bylinecms.dev --title "v<NEXT_VERSION>" --notes-file /tmp/release-notes-v<NEXT_VERSION>.md`
 
-6. **Execute.** Write the notes to `/tmp/release-notes-v<version>.md`. Then in order, only running the steps actually needed:
-   - `git tag v<version> <anchor-sha>`
-   - `git push origin v<version>`
-   - `gh release create v<version> --repo Byline-CMS/bylinecms.dev --title "v<version>" --notes-file /tmp/release-notes-v<version>.md`
-
-7. **Report.** Print the release URL returned by `gh release create` (or by `gh release view` if it already existed and the user chose to leave it).
+6. **Report.** Print the release URL returned by `gh release create` (or by `gh release view` if it already existed and the user chose to leave it).
 
 ## Failure modes to handle gracefully
 
-- `gh release create` fails because the repo's default release branch protection forbids it → surface the error verbatim and stop.
-- Anchor commit is not on `main` → warn the user. The release should usually anchor to `main`; ask if they really want a release pointing at a feature branch.
-- The user passes a version override that doesn't match any per-package tag → stop and ask if they intend to release a version that hasn't been published yet.
+- `pnpm version-packages` produces no version change → no pending changesets were found; the changeset file likely wasn't written correctly. Surface and stop.
+- Lockstep mismatch after `version-packages` → one or more packages didn't bump. Likely a `fixed` config drift. Show the divergence; stop.
+- `pnpm release:npm` fails partway → some packages published, some didn't. Surface the changeset output verbatim and stop. Do not attempt to retry or re-run.
+- `git merge --ff-only develop` on `main` fails → `main` has diverged. Stop and ask the user how to reconcile (they may want a regular merge, a rebase of develop, or to manually align).
+- `gh release create` fails because of branch protection → surface the error verbatim and stop.
+- Anchor commit is not on `main` after the sync step → warn loudly. The release should anchor to a commit reachable from `main`.
 
 ## What this command does NOT do
 
-- It does NOT publish to npm. That's `pnpm release:npm`.
-- It does NOT push commits — only the umbrella tag. Run `git push` separately if needed (the precondition check assumes you've already pushed `main`).
+- It does NOT bypass `pnpm release:npm` — that command does the actual npm publish and tag creation; this orchestrator only runs it.
+- It does NOT create draft GitHub releases by default. If the user wants a draft, they say so at the Step 11 confirmation.
 - It does NOT edit per-package tags. They are immutable npm-bookkeeping artefacts.
-- It does NOT create draft releases by default. If the user wants a draft, they say so when confirming.
+- It does NOT skip hooks (`--no-verify`) or signing on the release commit.
