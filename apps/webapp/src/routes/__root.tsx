@@ -35,6 +35,13 @@ export const Route = createRootRoute({
         ...meta,
       ],
       links: [
+        {
+          rel: 'preload',
+          as: 'font',
+          type: 'font/woff2',
+          href: '/fonts/Inter/Inter-VariableFont_opsz_wght.woff2',
+          crossOrigin: 'anonymous',
+        },
         { rel: 'icon', type: 'image/png', href: '/favicon-96x96.png', sizes: '96x96' },
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
         { rel: 'shortcut icon', href: '/favicon.ico' },
