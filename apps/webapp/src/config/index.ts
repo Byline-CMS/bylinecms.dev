@@ -15,7 +15,7 @@ const serverSchema = z.object({
   port: z.coerce.number().int(),
   siteName: z.string(),
   siteDescription: z.string(),
-  publicServerUrl: urlSchema,
+  serverUrl: urlSchema,
   log: z.object({
     level: z.string().optional(),
     pretty: booleanSchema(),
@@ -35,7 +35,7 @@ const initServerConfig = (): ServerConfig =>
     // where build-time and runtime values disagree.
     siteName: import.meta.env.VITE_SITE_NAME,
     siteDescription: import.meta.env.VITE_SITE_DESCRIPTION,
-    publicServerUrl: import.meta.env.VITE_SERVER_URL,
+    serverUrl: import.meta.env.VITE_SERVER_URL,
   })
 
 let cachedServerConfig: ServerConfig
