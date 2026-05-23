@@ -1,5 +1,16 @@
 # @infonomic/ai
 
+## 2.4.1
+
+### Patch Changes
+
+- moved admin UI verticals into **`@byline/admin`** with per-vertical scoped exports, leaving **`@byline/ui`** as kit, form runtime, and shared widgets
+  **`@byline/ui`** `DiffModal` now takes `loadHistoricalVersion` as a prop and lives at `widgets/diff-viewer` (decoupled from admin services)
+- Updated dependencies
+  - @byline/core@2.4.1
+  - @byline/richtext-lexical@2.4.1
+  - @byline/ui@2.4.1
+
 ## 2.4.0
 
 ### Minor Changes

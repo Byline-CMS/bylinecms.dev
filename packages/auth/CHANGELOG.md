@@ -1,5 +1,12 @@
 # @byline/auth
 
+## 2.4.1
+
+### Patch Changes
+
+- moved admin UI verticals into **`@byline/admin`** with per-vertical scoped exports, leaving **`@byline/ui`** as kit, form runtime, and shared widgets
+  **`@byline/ui`** `DiffModal` now takes `loadHistoricalVersion` as a prop and lives at `widgets/diff-viewer` (decoupled from admin services)
+
 ## 2.4.0
 
 ### Minor Changes
