@@ -25,4 +25,4 @@ export const routes: Partial<RoutesConfig> = {
  * itself (Vite's `import.meta.env` on the client, Node's `process.env`
  * on the server) and falls back to this literal.
  */
-export const DEFAULT_SERVER_URL = 'http://localhost:5173/'
+export const DEFAULT_SERVER_URL = 'http://localhost:5173'
