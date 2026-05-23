@@ -9,9 +9,9 @@
 /**
  * Registers Byline's client-side config (collection admin UI configs,
  * field editors, i18n, routes) in the current module graph. Imported as
- * a side-effect from `src/routes/__root.tsx` — that module runs in both
- * the SSR render and client module graphs, so a single import there
- * covers both contexts.
+ * a side-effect from `src/routes/_byline/route.tsx` so registration
+ * happens whenever an admin-rendered route is in the tree, without
+ * dragging the Lexical editor module graph into public-route bundles.
  *
  * This is the minimal scaffold: no example collections registered. Add
  * collection schemas + admin configs to the `collections` and `admin`

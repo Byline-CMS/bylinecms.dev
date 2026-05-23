@@ -5,15 +5,16 @@ import { Project, type SourceFile } from 'ts-morph'
 import type { Context } from '../../context.js'
 import type { SubEdit, SubEditResult } from './shared.js'
 
-const REL = 'src/routes/__root.tsx'
-const IMPORT_SPECIFIER = '../../byline/admin.config'
-const SNIPPET = `// Initialize Byline admin config — must be imported here so it runs in both
-// the SSR rendering and client module graphs (see byline/admin.config.ts).
+const REL = 'src/routes/_byline/route.tsx'
+const IMPORT_SPECIFIER = '../../../byline/admin.config'
+const SNIPPET = `// Initialize Byline admin config — scoped to the _byline layout so the
+// Lexical editor module graph stays out of public-route bundles.
+// See byline/admin.config.ts for the comment on why this is side-effecty.
 import '${IMPORT_SPECIFIER}'
 `
 
-export const wireRootTsx: SubEdit = {
-  key: 'root-tsx',
+export const wireBylineLayoutTsx: SubEdit = {
+  key: 'byline-layout-tsx',
   title: `Inject side-effect import into ${REL}`,
   async preview(ctx) {
     return run(ctx, true)
@@ -26,7 +27,7 @@ export const wireRootTsx: SubEdit = {
 async function run(ctx: Context, dryRun: boolean): Promise<SubEditResult> {
   const path = ctx.resolve(REL)
   if (!existsSync(path)) {
-    return { status: 'blocked', message: `${REL} not found — host phase should have caught this` }
+    return { status: 'blocked', message: `${REL} not found — routes phase should have caught this` }
   }
 
   const text = readFileSync(path, 'utf8')
