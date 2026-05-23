@@ -2,12 +2,13 @@
  * SignInForm — admin sign-in card form.
  *
  * Override handles:
- *   .byline-sign-in-card     — outer Card (responsive width)
- *   .byline-sign-in-alert    — error alert spacing
- *   .byline-sign-in-form     — the form element
- *   .byline-sign-in-fields   — vertical stack of inputs
- *   .byline-sign-in-actions  — submit-button row
- *   .byline-sign-in-button   — the submit button (min-width)
+ *   .byline-sign-in-card      — outer Card (responsive width)
+ *   .byline-sign-in-alert     — error alert spacing
+ *   .byline-sign-in-form      — the form element
+ *   .byline-sign-in-fields    — vertical stack of inputs
+ *   .byline-sign-in-actions   — action row (optional Home link + submit button)
+ *   .byline-sign-in-home-link — left-side "Home" link (rendered when homeUrl is set)
+ *   .byline-sign-in-button    — the submit button (min-width)
  */
 
 .card,
@@ -43,11 +44,19 @@
 .actions,
 :global(.byline-sign-in-actions) {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   margin-top: var(--spacing-24);
+}
+
+.home-link,
+:global(.byline-sign-in-home-link) {
+  font-size: 0.9rem;
+  text-decoration: underline;
 }
 
 .button,
 :global(.byline-sign-in-button) {
   min-width: 5rem;
+  /* Always floats right whether or not a Home link is present on the left. */
+  margin-left: auto;
 }

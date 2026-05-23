@@ -19,7 +19,8 @@
  *
  * Stable override handles: `.byline-sign-in-card`, `.byline-sign-in-alert`,
  * `.byline-sign-in-form`, `.byline-sign-in-fields`,
- * `.byline-sign-in-actions`, `.byline-sign-in-button`.
+ * `.byline-sign-in-actions`, `.byline-sign-in-button`,
+ * `.byline-sign-in-home-link`.
  */
 
 import { type FormEvent, useState } from 'react'
@@ -33,9 +34,15 @@ import styles from './sign-in-form.module.css'
 interface SignInFormProps {
   /** Destination after successful sign-in. Defaults to `/admin`. */
   callbackUrl?: string
+  /**
+   * Optional plain "Home" link rendered on the left of the action row.
+   * Typically the host's configured `serverURL` so signed-out admins can
+   * navigate back to the public site without typing the URL.
+   */
+  homeUrl?: string
 }
 
-export function SignInForm({ callbackUrl }: SignInFormProps) {
+export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
   const { adminSignIn } = useBylineAdminServices()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -105,6 +112,11 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
             />
           </div>
           <div className={cx('byline-sign-in-actions', styles.actions)}>
+            {homeUrl && (
+              <a href={homeUrl} className={cx('byline-sign-in-home-link', styles['home-link'])}>
+                Home
+              </a>
+            )}
             <Button
               type="submit"
               disabled={pending}
