@@ -43,6 +43,17 @@ yarn-error.log*
 # .env
 .env
 
+# https://tanstack.com/start/latest/docs/framework/react/guide/environment-variables#environment-file-setup
+# apps/webapp follows the TanStack Start / Vite convention where `.env` and
+# `.env.production` hold public, build-time defaults that ARE committed,
+# while `.env.local` (still ignored above) holds secrets. Whitelist the
+# committed files here so the broader `.env` rule does not catch them.
+# Other workspaces (packages/db-postgres, packages/client, ...) keep the
+# default behaviour — their `.env` files remain ignored.
+!apps/webapp/.env
+!apps/webapp/.env.production
+
+
 # Ignore our local postgres data directory
 postgres/data
 postgres/backups
