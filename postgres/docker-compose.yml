@@ -1,9 +1,9 @@
-name: byline-postgres
+name: byline-dev-postgres
 
 services:
   db:
     image: postgres:latest
-    container_name: byline_postgres
+    container_name: byline_dev_postgres
     environment:
       POSTGRES_PASSWORD: test
     ports:
