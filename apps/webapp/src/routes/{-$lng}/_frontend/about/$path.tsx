@@ -20,9 +20,18 @@ import { Container, Section } from '@byline/ui/react'
 // good starting point for now until we settle on a content locale vs interface
 // locale fallback or detection strategy.
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import {
+  buildLocalizedPath,
+  getMeta,
+  /* metaImageFromUpload, */
+  truncateForMeta,
+} from '@/lib/meta'
 import { PageDetail } from '@/modules/pages/components/detail'
-import { getPageDetailFn } from '@/modules/pages/detail'
+import { getPageDetailFn, type PageDetailResult } from '@/modules/pages/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
+
+// See sibling `../$path.tsx` for notes on why this cast is needed.
+type RouteLoaderData = { result: NonNullable<PageDetailResult>; lng: Locale }
 
 export const Route = createFileRoute('/{-$lng}/_frontend/about/$path')({
   loader: async ({ params }) => {
@@ -34,13 +43,37 @@ export const Route = createFileRoute('/{-$lng}/_frontend/about/$path')({
     if (result == null) throw notFound()
     return { result, lng }
   },
+  // See sibling `../$path.tsx` for notes on how TanStack Router merges and
+  // de-duplicates `head` output across the matched route chain.
+  head: ({ loaderData }) => {
+    const data = loaderData as RouteLoaderData | undefined
+    if (data == null) return {}
+
+    const { result, lng } = data
+    const title = result.fields.title ?? result.path ?? result.id
+    const summary = result.fields.summary?.trim()
+    const description = summary != null && summary.length > 0 ? truncateForMeta(summary) : undefined
+
+    // Feature-image extraction — wired up but disabled until media is
+    // served from S3 + a public CDN. See `../$path.tsx` for full notes.
+    // const featureMedia = result.fields.featureImage?.document?.fields
+    // const image = metaImageFromUpload(featureMedia?.image, featureMedia?.altText ?? title)
+
+    return getMeta({
+      title,
+      description,
+      path: buildLocalizedPath(lng, 'about', result.path),
+      // image,
+      ogType: 'article',
+    })
+  },
   component: RouteComponent,
   errorComponent: RouteError,
   notFoundComponent: RouteNotFound,
 })
 
 function RouteComponent() {
-  const { result, lng } = Route.useLoaderData()
+  const { result, lng } = Route.useLoaderData() as RouteLoaderData
   const title = result.fields.title ?? result.path ?? result.id
 
   return (

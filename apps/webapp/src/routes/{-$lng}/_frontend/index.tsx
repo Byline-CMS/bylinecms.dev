@@ -14,11 +14,17 @@ import { createFileRoute } from '@tanstack/react-router'
 // good starting point for now until we settle on a content locale vs interface
 // locale fallback or detection strategy.
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { EditorAnimation } from '@/modules/home/editor-animation'
 import { FeatureGrid } from '@/modules/home/feature-grid'
 import { HeroTagline } from '@/modules/home/hero-tagline'
 
 export const Route = createFileRoute('/{-$lng}/_frontend/')({
+  // Owns the canonical / og:url for the home page (the root layout
+  // intentionally doesn't emit one). `params.lng` is the optional `{-$lng}`
+  // segment — `buildLocalizedPath` resolves it to `/` for the default locale
+  // and `/<lng>` otherwise.
+  head: ({ params }) => getMeta({ path: buildLocalizedPath(params.lng) }),
   component: Index,
 })
 

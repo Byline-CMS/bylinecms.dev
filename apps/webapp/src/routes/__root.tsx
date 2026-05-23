@@ -20,6 +20,7 @@ import {
 } from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 
 import { i18nConfig } from '@/i18n/i18n-config'
+import { getMeta } from '@/lib/meta'
 import { EarlyThemeDetector } from '@/ui/theme/early-theme-detector'
 import { ThemeProvider } from '@/ui/theme/provider'
 import { Theme } from '@/ui/theme/utils'
@@ -27,21 +28,25 @@ import { Theme } from '@/ui/theme/utils'
 import '@/ui/styles/global.css'
 
 export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
-      { title: 'Byline CMS' },
-      { name: 'color-scheme', content: 'dark light' },
-    ],
-    links: [
-      { rel: 'icon', type: 'image/png', href: '/favicon-96x96.png', sizes: '96x96' },
-      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-      { rel: 'shortcut icon', href: '/favicon.ico' },
-      { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
-      { rel: 'manifest', href: '/site.webmanifest' },
-    ],
-  }),
+  head: () => {
+    const { meta, links } = getMeta()
+    return {
+      meta: [
+        { charSet: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
+        { name: 'color-scheme', content: 'dark light' },
+        ...meta,
+      ],
+      links: [
+        { rel: 'icon', type: 'image/png', href: '/favicon-96x96.png', sizes: '96x96' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'shortcut icon', href: '/favicon.ico' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'manifest', href: '/site.webmanifest' },
+        ...links,
+      ],
+    }
+  },
   component: RootComponent,
   errorComponent: RootError,
   notFoundComponent: RouteNotFound,

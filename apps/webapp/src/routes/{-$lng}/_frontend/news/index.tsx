@@ -16,6 +16,7 @@ import { Container, Section } from '@byline/ui/react'
 // good starting point for now until we settle on a content locale vs interface
 // locale fallback or detection strategy.
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { getNewsCategoriesFn } from '@/modules/news/categories'
 import { NewsList } from '@/modules/news/components/list'
 import { getNewsListFn } from '@/modules/news/list'
@@ -40,6 +41,11 @@ export const Route = createFileRoute('/{-$lng}/_frontend/news/')({
     ])
     return { result, lng, categories }
   },
+  head: ({ params }) =>
+    getMeta({
+      title: 'News',
+      path: buildLocalizedPath(params.lng, 'news'),
+    }),
   component: RouteComponent,
 })
 
