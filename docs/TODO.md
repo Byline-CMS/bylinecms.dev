@@ -56,6 +56,10 @@ COLLECTIONS versioning Phase 2 — the smallest useful follow-up to the schema-v
 
 Phases 0–3 of host packaging shipped (per memory, 2026-04-30); next is the developer-facing CLI and the project template that uses it. Specific scope lives in `packages/host-tanstack-start` README and any planning notes nearby; this entry exists so the priority is visible alongside the others.
 
+### Admin UI components → `@byline/admin` with server/client scoped exports
+
+The five vertical directories under `packages/ui/src/admin/components/` (`admin-account`, `admin-permissions`, `admin-roles`, `admin-users`, `auth`) are admin-domain features, not UI primitives — each pairs with a matching backend module in `@byline/admin` (`modules/admin-users/`, etc.) that already owns the same vertical's commands, repository, service, schemas, and abilities. Move the UI directories into `@byline/admin` so each vertical lives in one folder, server + UI side by side. Retool `@byline/admin` to publish safe scoped exports for server-only vs client/UI code via subpath exports + package conditions — the rslib pattern we've used elsewhere keeps React peerDeps off the server entry points (`@byline/admin`, `@byline/admin/auth` for `JwtSessionProvider`) while letting `@byline/admin/admin-users/ui` etc. require React. `BylineAdminServicesProvider` / `BylineAdminServices` (today at `packages/ui/src/services/admin-services-context.tsx`) move too — they're admin-domain contracts, not generic UI plumbing. Leaves `@byline/ui` as the kit, the collection-form / field-renderer machinery, and the collection-editor UI under `admin/components/collections/`. Touches `@byline/host-tanstack-start` admin-shell imports and the CLI route/template imports; lockstep minor bump on landing.
+
 ### All things AI
 
 Native MCP Server and AI / content integration.
