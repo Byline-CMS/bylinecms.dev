@@ -61,7 +61,6 @@ export interface Answers {
   dbPort?: number
   dbName?: string
   dbUser?: string
-  superuserUrl?: string
   adminPath?: string
   uiDir?: string
   examples?: boolean

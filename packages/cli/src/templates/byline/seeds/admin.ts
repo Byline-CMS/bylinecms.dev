@@ -34,7 +34,7 @@ export async function seedAdmin() {
   if (!email || !password) {
     console.warn(
       'Skipping admin seed: BYLINE_SUPERADMIN_EMAIL and BYLINE_SUPERADMIN_PASSWORD ' +
-        'must both be set (see .env.example).'
+        'must both be set (see .env.local.example).'
     )
     return
   }

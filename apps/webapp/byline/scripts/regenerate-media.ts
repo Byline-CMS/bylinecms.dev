@@ -18,7 +18,7 @@
  * to `'avif'` in `byline/collections/media/schema.ts`) to bring existing
  * assets in line with the new pipeline:
  *
- *   pnpm tsx --env-file=.env byline/scripts/regenerate-media.ts
+ *   pnpm tsx --env-file=.env --env-file=.env.local byline/scripts/regenerate-media.ts
  *
  * The script orchestrates the same two-step flow the admin UI uses
  * for an existing document — upload (createDocument: false) followed by

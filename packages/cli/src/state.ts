@@ -15,6 +15,22 @@ export class StateStore {
     this.state = this.load() ?? this.fresh()
   }
 
+  /**
+   * Strip any persisted-secret fields from a loaded state file. Older CLI
+   * versions wrote `answers.superuserUrl` (which carries the superuser
+   * password) into `.byline-install.json` — a file users are likely to
+   * commit. If we find one, drop it and flag the state dirty so the next
+   * `flush()` rewrites the file without the secret.
+   */
+  private stripPersistedSecrets(raw: InstallState): boolean {
+    const answers = raw.answers as Record<string, unknown> | undefined
+    if (answers && 'superuserUrl' in answers) {
+      delete answers.superuserUrl
+      return true
+    }
+    return false
+  }
+
   private fresh(): InstallState {
     return {
       version: 1,
@@ -30,6 +46,7 @@ export class StateStore {
     try {
       const raw = JSON.parse(readFileSync(this.path, 'utf8')) as InstallState
       if (raw.version !== 1) return null
+      if (this.stripPersistedSecrets(raw)) this.dirty = true
       return raw
     } catch {
       return null

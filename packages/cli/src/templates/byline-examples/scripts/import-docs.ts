@@ -8,10 +8,10 @@
 
 // Examples...
 //
-// pnpm tsx --env-file=.env byline/scripts/import-docs.ts ../../docs/**/*.md --dry-run
-// pnpm tsx --env-file=.env byline/scripts/import-docs.ts ../../docs/**/*.md --verbose
-// pnpm tsx --env-file=.env byline/scripts/import-docs.ts '../../docs/*.md' --dry-run --verbose
-// pnpm tsx --env-file=.env byline/scripts/import-docs.ts ../../docs/**/*.md
+// pnpm tsx --env-file=.env --env-file=.env.local byline/scripts/import-docs.ts ../../docs/**/*.md --dry-run
+// pnpm tsx --env-file=.env --env-file=.env.local byline/scripts/import-docs.ts ../../docs/**/*.md --verbose
+// pnpm tsx --env-file=.env --env-file=.env.local byline/scripts/import-docs.ts '../../docs/*.md' --dry-run --verbose
+// pnpm tsx --env-file=.env --env-file=.env.local byline/scripts/import-docs.ts ../../docs/**/*.md
 //
 // Run tests...
 //
@@ -20,7 +20,7 @@
 /**
  * Import markdown files into the `docs` collection.
  *
- *   pnpm tsx --env-file=.env byline/scripts/import-docs.ts <path-or-glob...>
+ *   pnpm tsx --env-file=.env --env-file=.env.local byline/scripts/import-docs.ts <path-or-glob...>
  *
  * Per-file flow:
  *   1. Read the file, split frontmatter from body with gray-matter.

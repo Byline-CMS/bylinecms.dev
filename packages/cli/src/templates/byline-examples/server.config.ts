@@ -102,7 +102,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   const adminStore = createAdminStore(db.drizzle)
 
   // Built-in JWT session provider. Signing secret comes from the
-  // environment — see `.env.example`. Phase 5 uses HS256 with Byline's
+  // environment — see `.env.local.example`. Phase 5 uses HS256 with Byline's
   // default TTLs (15-minute access, 30-day refresh). Alternative providers
   // (Lucia, better-auth, WorkOS, Clerk, institutional SSO) can be dropped
   // in here by implementing the `SessionProvider` interface from
@@ -111,7 +111,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   if (!signingSecret || signingSecret.length < 32) {
     throw new Error(
       'BYLINE_JWT_SECRET must be set and carry at least 32 bytes of entropy. ' +
-        'Generate one with `openssl rand -base64 48` and add it to your .env.'
+        'Generate one with `openssl rand -base64 48` and add it to your .env.local.'
     )
   }
 
@@ -149,8 +149,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     }),
     // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace
     // the `localStorageProvider` block above with the call below and add
-    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env`
-    // (see `apps/webapp/.env.example`).
+    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env.local`
+    // (see `apps/webapp/.env.local.example`).
     //
     // On AWS with an IAM role / instance profile, omit `accessKeyId` and
     // `secretAccessKey` so the SDK resolves credentials via its default

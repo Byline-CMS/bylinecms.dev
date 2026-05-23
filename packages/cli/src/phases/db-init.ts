@@ -19,7 +19,7 @@ export const dbInitPhase: Phase = {
   async detect(ctx) {
     if (ctx.state.isComplete('db-init')) return 'done'
     const a = ctx.state.get().answers
-    if (!a.superuserUrl || !a.dbName || !a.dbUser) return 'blocked'
+    if (!a.dbName || !a.dbUser || !a.dbHost || !a.dbPort) return 'blocked'
     return 'pending'
   },
 
@@ -40,7 +40,7 @@ export const dbInitPhase: Phase = {
 
   async apply(_plan, ctx) {
     const a = ctx.state.get().answers
-    if (!a.superuserUrl || !a.dbName || !a.dbUser) {
+    if (!a.dbName || !a.dbUser || !a.dbHost || !a.dbPort) {
       ctx.logger.error('db-init prerequisites missing — run the db phase first')
       return { state: 'blocked' }
     }
@@ -49,11 +49,14 @@ export const dbInitPhase: Phase = {
       return { state: 'blocked' }
     }
 
+    const superuserUrl = await resolveSuperuserUrl(ctx, a.dbHost, a.dbPort)
+    if (!superuserUrl) return { state: 'blocked' }
+
     const password = await resolveAppPassword(ctx)
     if (!password) return { state: 'blocked' }
     ctx.secrets.dbPassword = password
 
-    const sup = parsePgUrl(a.superuserUrl)
+    const sup = parsePgUrl(superuserUrl)
 
     if (ctx.reset && !ctx.resetConfirmed) {
       const ok = await ctx.prompter.confirm({
@@ -86,6 +89,28 @@ export const dbInitPhase: Phase = {
 
     return { state: 'done' }
   },
+}
+
+async function resolveSuperuserUrl(
+  ctx: Context,
+  dbHost: string,
+  dbPort: number
+): Promise<string | null> {
+  // Preferred path: same process as the `db` phase, URL still in memory.
+  if (ctx.secrets.superuserUrl) return ctx.secrets.superuserUrl
+  // Fresh process (state file loaded from disk): re-prompt. The URL carries
+  // the superuser password, so it is intentionally not persisted.
+  const url = await ctx.prompter.text({
+    message: 'Postgres superuser connection URL (used for role/database creation)',
+    placeholder: `postgresql://postgres:postgres@${dbHost}:${dbPort}/postgres`,
+    defaultValue: `postgresql://postgres:postgres@${dbHost}:${dbPort}/postgres`,
+  })
+  if (!url) {
+    ctx.logger.error('superuser URL is required to provision the role and database')
+    return null
+  }
+  ctx.secrets.superuserUrl = url
+  return url
 }
 
 async function resolveAppPassword(ctx: Context): Promise<string | null> {

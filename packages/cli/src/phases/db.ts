@@ -78,13 +78,17 @@ export const dbPhase: Phase = {
       await client.end().catch(() => {})
     }
 
+    // Superuser URL carries the superuser password — keep it in-memory only
+    // (mirrors how `ctx.secrets.dbPassword` is handled) so it never lands in
+    // `.byline-install.json`. If a later phase needs it after a process
+    // restart, it will re-prompt.
+    ctx.secrets.superuserUrl = superuserUrl
     ctx.state.patchAnswers({
       dbStrategy: strategy,
       dbHost: sup.host,
       dbPort: sup.port,
       dbName,
       dbUser,
-      superuserUrl,
     })
     ctx.logger.info(`will provision database "${dbName}" owned by role "${dbUser}"`)
     return { state: 'done' }

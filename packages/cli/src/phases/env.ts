@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
+import { ensureGitignore } from '../lib/gitignore.js'
 import { buildPgUrl } from '../lib/pg-url.js'
 import { ENV_FILE_PATHS, ENV_SPECS, type EnvFile, type EnvKey } from '../manifest/env.js'
 import type { Context } from '../context.js'
@@ -51,6 +52,7 @@ export const envPhase: Phase = {
 
     if (missing.size === 0) {
       ctx.logger.info('all required env vars already set — leaving .env / .env.local unchanged')
+      ensureHostGitignore(ctx)
       return { state: 'done' }
     }
 
@@ -121,8 +123,37 @@ export const envPhase: Phase = {
       writeFileSync(path, renderEnvFile(values[file], file), 'utf8')
       ctx.logger.success(`wrote ${path}`)
     }
+    ensureHostGitignore(ctx)
     return { state: 'done' }
   },
+}
+
+/**
+ * Make sure the host app's `.gitignore` covers the two files Byline drops
+ * into the project root: `.env.local` (host secrets) and `.byline-install.json`
+ * (CLI state — no longer carries secrets after the superuserUrl fix, but
+ * still noise nobody wants in their commits). Re-running is a no-op when
+ * both entries are already covered.
+ */
+function ensureHostGitignore(ctx: Context): void {
+  const result = ensureGitignore(ctx.cwd, [
+    {
+      pattern: '.env.local',
+      // Common TanStack Start / Vite scaffolds already cover .env.local
+      // through a broader glob. Treat any of these as sufficient.
+      equivalents: ['.env*.local', '.env.*.local', '.env*', '*.local'],
+    },
+    {
+      pattern: '.byline-install.json',
+      equivalents: [],
+    },
+  ])
+  if (result.added.length === 0) return
+  if (result.created) {
+    ctx.logger.step(`created .gitignore with ${result.added.join(', ')}`)
+  } else {
+    ctx.logger.step(`appended to .gitignore: ${result.added.join(', ')}`)
+  }
 }
 
 async function resolveDbPassword(ctx: Context): Promise<string | null> {
