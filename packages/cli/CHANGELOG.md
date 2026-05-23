@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.4.3
+
+### Patch Changes
+
+- fixed **`@byline/cli`** seed phases not finding `BYLINE_JWT_SECRET` and other secrets in `.env.local` on fresh installs
+
 ## 2.4.2
 
 ### Patch Changes

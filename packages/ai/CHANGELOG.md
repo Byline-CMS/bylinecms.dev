@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 2.4.3
+
+### Patch Changes
+
+- fixed **`@byline/cli`** seed phases not finding `BYLINE_JWT_SECRET` and other secrets in `.env.local` on fresh installs
+- Updated dependencies
+  - @byline/core@2.4.3
+  - @byline/richtext-lexical@2.4.3
+  - @byline/ui@2.4.3
+
 ## 2.4.2
 
 ### Patch Changes
