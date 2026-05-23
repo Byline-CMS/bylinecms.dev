@@ -6,12 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { RichTextEditorComponent } from '@byline/core'
-import { cloneDeep } from 'lodash-es'
+import { lazy, Suspense } from 'react'
 
-import { defaultEditorConfig } from './field/config/default'
-import { defaultExtensionsList } from './field/config/default-extensions'
-import { RichTextField } from './richtext-field'
+import type { RichTextEditorComponent } from '@byline/core'
+
 import type { ExtensionsList } from './field/config/extensions-list'
 import type { EditorConfig } from './field/config/types'
 
@@ -24,12 +22,59 @@ export type LexicalEditorConfigureInput = Omit<EditorConfig, 'extensions'> & {
   extensions: ExtensionsList
 }
 
+type ConfigureFn = (config: LexicalEditorConfigureInput) => LexicalEditorConfigureInput
+
+/**
+ * Bundle of editor internals that are dynamically imported on first
+ * mount. Kept narrow so the chunk only carries what the configure step
+ * + render need — extension classes the user references directly stay
+ * out of this bundle and remain tree-shakeable.
+ */
+interface EditorBundle {
+  RichTextField: typeof import('./richtext-field').RichTextField
+  defaultEditorConfig: typeof import('./field/config/default').defaultEditorConfig
+  defaultExtensionsList: typeof import('./field/config/default-extensions').defaultExtensionsList
+  cloneDeep: <T>(value: T) => T
+}
+
+let editorBundlePromise: Promise<EditorBundle> | null = null
+
+function loadEditorBundle(): Promise<EditorBundle> {
+  // Memoize the import so multiple `lexicalEditor()` calls share one chunk
+  // load — React.lazy already caches per-wrapper, but consumers that call
+  // the factory more than once would otherwise create parallel promises.
+  if (!editorBundlePromise) {
+    editorBundlePromise = (async () => {
+      const [richtextMod, defaultMod, extensionsMod, lodashMod] = await Promise.all([
+        import('./richtext-field'),
+        import('./field/config/default'),
+        import('./field/config/default-extensions'),
+        import('lodash-es'),
+      ])
+      return {
+        RichTextField: richtextMod.RichTextField,
+        defaultEditorConfig: defaultMod.defaultEditorConfig,
+        defaultExtensionsList: extensionsMod.defaultExtensionsList,
+        cloneDeep: lodashMod.cloneDeep,
+      }
+    })()
+  }
+  return editorBundlePromise
+}
+
 /**
  * Returns a `RichTextEditorComponent` with editor settings baked in. Use
  * this at the registration site in your admin config when you want to
  * customise the editor across the whole installation; per-field
  * overrides via `RichTextField.editorConfig` continue to take precedence
  * at render time.
+ *
+ * The returned component is lazy: the editor module graph (RichTextField
+ * + every built-in extension + the Lexical core) is dynamically imported
+ * on first mount, so callers that merely *reference* `lexicalEditor` at
+ * registration time don't drag the editor onto every bundle that touches
+ * the registration. The `configure` callback runs once the chunk has
+ * loaded, with the same seed it received before.
  *
  * The `configure` callback receives a deep clone of `defaultEditorConfig`
  * with `extensions` populated from `defaultExtensionsList()`. Mutate the
@@ -57,21 +102,30 @@ export type LexicalEditorConfigureInput = Omit<EditorConfig, 'extensions'> & {
  * })
  * ```
  */
-export function lexicalEditor(
-  configure?: (config: LexicalEditorConfigureInput) => LexicalEditorConfigureInput
-): RichTextEditorComponent {
-  let baked: EditorConfig | undefined
-  if (configure) {
-    const seed: LexicalEditorConfigureInput = {
-      ...cloneDeep(defaultEditorConfig),
-      extensions: defaultExtensionsList(),
+export function lexicalEditor(configure?: ConfigureFn): RichTextEditorComponent {
+  const Lazy = lazy(async () => {
+    const { RichTextField, defaultEditorConfig, defaultExtensionsList, cloneDeep } =
+      await loadEditorBundle()
+
+    let baked: EditorConfig | undefined
+    if (configure) {
+      const seed: LexicalEditorConfigureInput = {
+        ...cloneDeep(defaultEditorConfig),
+        extensions: defaultExtensionsList(),
+      }
+      baked = configure(seed)
     }
-    baked = configure(seed)
-  }
+
+    const Configured: RichTextEditorComponent = (props) => (
+      <RichTextField {...props} editorConfig={baked} />
+    )
+    return { default: Configured as React.ComponentType<any> }
+  })
 
   const ConfiguredEditor: RichTextEditorComponent = (props) => (
-    <RichTextField {...props} editorConfig={baked} />
+    <Suspense fallback={null}>
+      <Lazy {...(props as object)} />
+    </Suspense>
   )
-
   return ConfiguredEditor
 }
