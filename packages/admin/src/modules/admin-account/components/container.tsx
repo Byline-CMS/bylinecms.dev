@@ -27,14 +27,13 @@
 import type React from 'react'
 import { useState } from 'react'
 
-import type { AccountResponse } from '@byline/admin/admin-account'
+import { Button, CloseIcon, Drawer, EditIcon, IconButton, LocalDateTime } from '@byline/ui/react'
 import cx from 'classnames'
 
-import { LocalDateTime } from '../../../fields/local-date-time.js'
-import { Button, CloseIcon, Drawer, EditIcon, IconButton } from '../../../uikit.js'
 import { ChangeAccountPassword } from './change-password.js'
 import styles from './container.module.css'
 import { UpdateAccount } from './update.js'
+import type { AccountResponse } from '../index.js'
 
 type ComponentKey = 'update' | 'change_password' | 'empty'
 

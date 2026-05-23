@@ -8,7 +8,8 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { AccountSelfContainer, Container, Section } from '@byline/ui/react'
+import { AccountSelfContainer } from '@byline/admin/admin-account/components/container'
+import { Container, Section } from '@byline/ui/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { type AccountResponse, getAccount } from '../server-fns/admin-account/index.js'

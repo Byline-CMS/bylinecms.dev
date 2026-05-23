@@ -25,11 +25,11 @@ import type React from 'react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import { CreateAdminRole } from '@byline/admin/admin-roles/components/create'
 import {
   Button,
   CloseIcon,
   Container,
-  CreateAdminRole,
   DraggableSortable,
   Drawer,
   GripperVerticalIcon,

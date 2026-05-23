@@ -46,14 +46,21 @@ const bylineSsrNoExternal = [/^@byline\//]
 //   - sharp + @byline/storage-local — image processing (libvips)
 //   - @byline/storage-s3 — bundles the AWS SDK; keep external for Node resolution
 //   - @byline/db-postgres — depends on `pg` native bindings
-//   - @byline/admin — re-exports server-only code that imports the above
 //   - pino — CJS entrypoints don't execute under Vite's module runner
+//
+// `@byline/admin` is intentionally NOT externalised: it now hosts
+// React admin UI subpaths (`/admin-users/components/*`, `/services`,
+// `/auth/components/sign-in-form`, etc.) whose compiled JS does
+// `import './foo_module.css'`. Node's ESM loader can't handle `.css`,
+// so admin must flow through Vite's SSR pipeline where the CSS plugin
+// resolves the side-effect imports. Server-only admin subpaths reach
+// db-postgres / storage adapters through composition at runtime, not
+// through `@byline/admin`'s own import graph, so this is safe.
 const ssrExternal = [
   'sharp',
   'pino',
   '@byline/storage-local',
   '@byline/storage-s3',
-  '@byline/admin',
   '@byline/db-postgres',
 ]
 
@@ -140,14 +147,13 @@ const config = defineConfig({
     devtools(),
     nitro({
       preset: 'node',
-      // @byline/ui ships compiled JS that does `import './foo_module.css'`.
-      // @byline/host-tanstack-start re-exports route factories from
-      // @byline/ui at runtime in the SSR graph. Nitro externalizes
-      // node_modules by default, which sends those imports to Node's
-      // ESM loader — which can't handle .css. Inlining both packages
-      // through Nitro's pipeline lets Vite's CSS plugin process the
-      // side-effect imports.
-      noExternals: ['@byline/ui', '@byline/host-tanstack-start'],
+      // @byline/ui, @byline/admin, and @byline/host-tanstack-start all
+      // ship compiled JS that does `import './foo_module.css'`. Nitro
+      // externalizes node_modules by default, which would send those
+      // imports to Node's ESM loader — which can't handle .css.
+      // Inlining these three packages through Nitro's pipeline lets
+      // Vite's CSS plugin process the side-effect imports.
+      noExternals: ['@byline/ui', '@byline/admin', '@byline/host-tanstack-start'],
       // When Nitro inlines `@byline/host-tanstack-start` it pulls in
       // `@byline/core`, which depends on pino. Pino's CJS entry can't be
       // bundled, so we externalize it (and other native deps) here at
@@ -176,7 +182,7 @@ const config = defineConfig({
           'react-dom',
           'pino',
           'sharp',
-          /^@byline\/(admin|db-postgres|storage-local|storage-s3)/,
+          /^@byline\/(db-postgres|storage-local|storage-s3)/,
         ],
       },
     }),

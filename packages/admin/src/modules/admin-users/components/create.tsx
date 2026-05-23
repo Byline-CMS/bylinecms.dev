@@ -26,14 +26,14 @@
 import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
-import type { AdminUserResponse } from '@byline/admin/admin-users'
 import { passwordSchema } from '@byline/core/validation'
+import { Alert, Button, Checkbox, Input, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
-import { Alert, Button, Checkbox, Input, LoaderEllipsis } from '../../../uikit.js'
 import styles from './create.module.css'
+import type { AdminUserResponse } from '../index.js'
 
 const createAdminUserFormSchema = z.object({
   email: z

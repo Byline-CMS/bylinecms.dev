@@ -13,8 +13,7 @@ import { useEffect, useState } from 'react'
 import cx from 'classnames'
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
 
-import { useBylineAdminServices } from '../../../services/admin-services-context.js'
-import { CloseIcon, IconButton, LoaderRing, Modal } from '../../../uikit.js'
+import { CloseIcon, IconButton, LoaderRing, Modal } from '../../uikit.js'
 import styles from './diff-modal.module.css'
 
 // Keys that are per-version metadata rather than content — strip before diffing
@@ -52,6 +51,18 @@ export interface DiffModalProps {
   currentDocument: Record<string, unknown>
   /** Content locale to compare — undefined / 'all' shows all locales. */
   locale?: string
+  /**
+   * Host-provided loader for a historical document version. The diff
+   * modal is framework-neutral; callers wire this to whatever transport
+   * they use (e.g. `BylineAdminServices.getCollectionDocumentVersion` in
+   * the admin shell).
+   */
+  loadHistoricalVersion: (
+    collection: string,
+    documentId: string,
+    versionId: string,
+    locale: string | undefined
+  ) => Promise<Record<string, unknown>>
 }
 
 export function DiffModal({
@@ -63,8 +74,8 @@ export function DiffModal({
   versionLabel,
   currentDocument,
   locale,
+  loadHistoricalVersion,
 }: DiffModalProps) {
-  const { getCollectionDocumentVersion } = useBylineAdminServices()
   const [historicalDoc, setHistoricalDoc] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,7 +88,7 @@ export function DiffModal({
     setError(null)
     setHistoricalDoc(null)
 
-    getCollectionDocumentVersion(collection, documentId, versionId, locale)
+    loadHistoricalVersion(collection, documentId, versionId, locale)
       .then((doc) => {
         if (cancelled) return
         setHistoricalDoc(doc)
@@ -93,7 +104,7 @@ export function DiffModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, collection, documentId, versionId, locale, getCollectionDocumentVersion])
+  }, [isOpen, collection, documentId, versionId, locale, loadHistoricalVersion])
 
   const currentStr = currentDocument ? JSON.stringify(stripMeta(currentDocument), null, 2) : ''
 

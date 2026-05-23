@@ -14,7 +14,7 @@ import {
 } from '@byline/core'
 import cx from 'classnames'
 
-import { Badge } from '../../../uikit.js'
+import { Badge } from '../../uikit.js'
 import styles from './status-badge.module.css'
 
 function statusIntent(status: string): 'success' | 'warning' | 'info' | 'noeffect' {

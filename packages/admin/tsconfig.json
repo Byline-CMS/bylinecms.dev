@@ -1,37 +1,32 @@
 {
   "compilerOptions": {
-    /* Base Options: */
-    "esModuleInterop": true,
-    "skipLibCheck": true,
+    "plugins": [{ "name": "typescript-plugin-css-modules" }],
     "target": "es2024",
-    "allowJs": true,
-    "resolveJsonModule": true,
-    "moduleDetection": "force",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "declaration": true,
+    "moduleResolution": "bundler",
+    "declarationMap": false,
+    "emitDecoratorMetadata": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-
-    /* Strictness */
+    "allowJs": true,
+    "skipLibCheck": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-
-    /* If transpiling with TypeScript: */
-    "module": "NodeNext",
-    "outDir": "dist",
-    "rootDir": "src",
+    "module": "esnext",
+    "rootDir": "./src",
+    "declarationDir": "./dist",
     "sourceMap": false,
-    "declaration": true,
-    "declarationMap": false,
-    "lib": ["es2024"],
-    "types": ["node"],
-
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "outDir": "./dist",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules"]
+  "include": ["src/**/*", "./src/declarations.d.ts"],
+  "exclude": ["dist", "node_modules", "src/**/*.test.tsx"]
 }

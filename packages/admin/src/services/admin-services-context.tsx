@@ -10,6 +10,23 @@ import { createContext, type ReactNode, useContext } from 'react'
 
 import type { BylineAdminServices } from './admin-services-types.js'
 
+export type {
+  AdminServiceCall,
+  BylineAdminServices,
+  ChangeAccountPasswordInput,
+  CreateAdminRoleInput,
+  CreateAdminUserInput,
+  SetAdminUserPasswordInput,
+  SetRoleAbilitiesInput,
+  SetUserRolesInput,
+  SignInInput,
+  SignInResult,
+  UpdateAccountInput,
+  UpdateAdminRoleInput,
+  UpdateAdminUserInput,
+  WhoHasAbilityInput,
+} from './admin-services-types.js'
+
 const AdminServicesContext = createContext<BylineAdminServices | null>(null)
 
 interface BylineAdminServicesProviderProps {
@@ -28,7 +45,7 @@ export const useBylineAdminServices = (): BylineAdminServices => {
   const ctx = useContext(AdminServicesContext)
   if (!ctx) {
     throw new Error(
-      '@byline/ui: BylineAdminServicesProvider missing. Wrap your admin tree with <BylineAdminServicesProvider services={…} />.'
+      '@byline/admin: BylineAdminServicesProvider missing. Wrap your admin tree with <BylineAdminServicesProvider services={…} />.'
     )
   }
   return ctx

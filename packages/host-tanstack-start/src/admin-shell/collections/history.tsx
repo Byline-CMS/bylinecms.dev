@@ -9,6 +9,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { useParams, useRouterState } from '@tanstack/react-router'
 
+import { useBylineAdminServices } from '@byline/admin/services'
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import {
@@ -114,6 +115,7 @@ export const HistoryView = ({
     from: '/_byline/admin/collections/$collection/$id/history',
   })
   const navigate = useNavigate()
+  const { getCollectionDocumentVersion } = useBylineAdminServices()
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
   const location = useRouterState({ select: (s) => s.location })
@@ -409,6 +411,7 @@ export const HistoryView = ({
             versionLabel={selectedVersion.label}
             currentDocument={currentDocument}
             locale={locale}
+            loadHistoricalVersion={getCollectionDocumentVersion}
           />
         </Suspense>
       )}

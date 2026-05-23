@@ -244,6 +244,15 @@ importers:
       '@byline/core':
         specifier: workspace:*
         version: link:../core
+      '@byline/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@tanstack/react-form-start':
+        specifier: ^1.32.0
+        version: 1.32.0(@tanstack/react-start@1.168.10(@rsbuild/core@2.0.7)(@rspack/core@2.0.4(@swc/helpers@0.5.21))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(tsx@4.22.3)(yaml@2.9.0)))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      classnames:
+        specifier: ^2.5.1
+        version: 2.5.1
       jose:
         specifier: ^6.2.3
         version: 6.2.3
@@ -257,30 +266,39 @@ importers:
       '@biomejs/biome':
         specifier: 2.4.15
         version: 2.4.15
+      '@rsbuild/plugin-react':
+        specifier: ^2.0.0
+        version: 2.0.0(@rsbuild/core@2.0.7)(@rspack/core@2.0.4(@swc/helpers@0.5.21))
+      '@rslib/core':
+        specifier: ^0.21.5
+        version: 0.21.5(typescript@6.0.3)
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
-      chokidar:
-        specifier: ^5.0.0
-        version: 5.0.0
-      chokidar-cli:
-        specifier: ^3.0.0
-        version: 3.0.0
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
+      '@types/react':
+        specifier: 19.2.15
+        version: 19.2.15
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.15)
+      react:
+        specifier: 19.2.5
+        version: 19.2.5
+      react-dom:
+        specifier: 19.2.5
+        version: 19.2.5(react@19.2.5)
       rimraf:
         specifier: ^6.1.3
         version: 6.1.3
-      tsc-alias:
-        specifier: ^1.8.17
-        version: 1.8.17
       tsx:
         specifier: ^4.22.3
         version: 4.22.3
       typescript:
         specifier: 6.0.3
         version: 6.0.3
+      typescript-plugin-css-modules:
+        specifier: ^5.2.0
+        version: 5.2.0(typescript@6.0.3)
       vitest:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.1)(happy-dom@20.9.0)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(tsx@4.22.3)(yaml@2.9.0))
@@ -945,12 +963,6 @@ importers:
       '@base-ui/react':
         specifier: ^1.5.0
         version: 1.5.0(@date-fns/tz@1.5.0)(@types/react@19.2.15)(date-fns@4.2.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@byline/admin':
-        specifier: workspace:*
-        version: link:../admin
-      '@byline/client':
-        specifier: workspace:*
-        version: link:../client
       '@byline/core':
         specifier: workspace:*
         version: link:../core

@@ -31,18 +31,18 @@
 
 import { useMemo, useState } from 'react'
 
+import { Alert, Button, Checkbox, LoaderEllipsis } from '@byline/ui/react'
+import cx from 'classnames'
+
+import { useBylineAdminServices } from '../../../services/admin-services-context.js'
+import styles from './permissions.module.css'
 import type {
   AbilityDescriptorResponse,
   AbilityGroupResponse,
   ListRegisteredAbilitiesResponse,
   SetRoleAbilitiesResponse,
-} from '@byline/admin/admin-permissions'
-import type { AdminRoleResponse } from '@byline/admin/admin-roles'
-import cx from 'classnames'
-
-import { useBylineAdminServices } from '../../../services/admin-services-context.js'
-import { Alert, Button, Checkbox, LoaderEllipsis } from '../../../uikit.js'
-import styles from './permissions.module.css'
+} from '../../admin-permissions/index.js'
+import type { AdminRoleResponse } from '../index.js'
 
 type Mode = 'view' | 'edit'
 

@@ -29,6 +29,8 @@ import type React from 'react'
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import { RolePermissions } from '@byline/admin/admin-roles/components/permissions'
+import { UpdateRole } from '@byline/admin/admin-roles/components/update'
 import {
   Button,
   CloseIcon,
@@ -36,8 +38,6 @@ import {
   IconButton,
   LocalDateTime,
   Modal,
-  RolePermissions,
-  UpdateRole,
   useToastManager,
 } from '@byline/ui/react'
 import cx from 'classnames'

@@ -28,17 +28,17 @@
 
 import { useState } from 'react'
 
+import { Button, Container, LoaderRing, Section } from '@byline/ui/react'
+import cx from 'classnames'
+
+import { useBylineAdminServices } from '../../../services/admin-services-context.js'
+import styles from './inspector.module.css'
 import type {
   AbilityDescriptorResponse,
   AbilityGroupResponse,
   ListRegisteredAbilitiesResponse,
   WhoHasAbilityResponse,
-} from '@byline/admin/admin-permissions'
-import cx from 'classnames'
-
-import { useBylineAdminServices } from '../../../services/admin-services-context.js'
-import { Button, Container, LoaderRing, Section } from '../../../uikit.js'
-import styles from './inspector.module.css'
+} from '../index.js'
 
 // --- helpers ---------------------------------------------------------------
 

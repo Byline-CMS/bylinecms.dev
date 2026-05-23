@@ -20,14 +20,14 @@
 import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
-import type { AdminRoleResponse } from '@byline/admin/admin-roles'
+import { Alert, Button, Input, LoaderEllipsis, TextArea } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
-import { Alert, Button, Input, LoaderEllipsis, TextArea } from '../../../uikit.js'
 import styles from './update.module.css'
 import type { UpdateAdminRoleInput } from '../../../services/admin-services-types.js'
+import type { AdminRoleResponse } from '../index.js'
 
 const updateRoleSchema = z.object({
   name: z.string().min(1, 'Name is required').max(128, 'Name must not exceed 128 characters'),

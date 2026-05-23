@@ -29,13 +29,13 @@ import type {
   AccountResponse,
   ChangeAccountPasswordRequest,
   UpdateAccountRequest,
-} from '@byline/admin/admin-account'
+} from '../modules/admin-account/index.js'
 import type {
   SetRoleAbilitiesResponse,
   WhoHasAbilityResponse,
-} from '@byline/admin/admin-permissions'
-import type { AdminRoleResponse, UserRolesResponse } from '@byline/admin/admin-roles'
-import type { AdminUserResponse } from '@byline/admin/admin-users'
+} from '../modules/admin-permissions/index.js'
+import type { AdminRoleResponse, UserRolesResponse } from '../modules/admin-roles/index.js'
+import type { AdminUserResponse } from '../modules/admin-users/index.js'
 
 /**
  * The TanStack Start `createServerFn(...).handler(...)` calling shape:

@@ -4,8 +4,8 @@
  *
  * Single unified entry point for `@byline/ui`. Everything React-side
  * exports through this barrel — uikit foundations, drag-and-drop
- * helpers, the admin module surface, field widgets, form runtime, and
- * the framework-neutral service contracts.
+ * helpers, presentational admin layout primitives, field widgets, form
+ * runtime, and the field-side service contracts.
  *
  * Why one barrel: previous releases split this into per-area subpath
  * exports (`./react/admin`, `./react/fields`, `./react/forms`,
@@ -16,23 +16,15 @@
  * specifier eliminates the trap structurally. Tree-shaking inside the
  * single ESM bundle handles unused exports for public-site consumers
  * (sideEffects is set to CSS only).
+ *
+ * Admin-domain components (admin users, roles, permissions, account
+ * self-service, sign-in form, admin services context) live in
+ * `@byline/admin` under per-vertical subpaths — they are no longer
+ * exported from here. This package is the kit + form runtime +
+ * collection-editor-shared widgets.
  */
 
-// Admin module components + admin services context.
-export * from './admin/components/admin-account/change-password.js'
-export * from './admin/components/admin-account/container.js'
-export * from './admin/components/admin-account/update.js'
-export * from './admin/components/admin-permissions/inspector.js'
-export * from './admin/components/admin-roles/create.js'
-export * from './admin/components/admin-roles/permissions.js'
-export * from './admin/components/admin-roles/update.js'
-export * from './admin/components/admin-users/create.js'
-export * from './admin/components/admin-users/roles.js'
-export * from './admin/components/admin-users/set-password.js'
-export * from './admin/components/admin-users/update.js'
-export * from './admin/components/auth/sign-in-form.js'
-export * from './admin/components/collections/diff-modal.js'
-export * from './admin/components/collections/status-badge.js'
+// Presentational admin layout primitives.
 export * from './admin/group.js'
 export * from './admin/row.js'
 export * from './admin/tabs.js'
@@ -69,28 +61,14 @@ export * from './forms/form-context.js'
 export * from './forms/form-renderer.js'
 export * from './forms/navigation-guard.js'
 export * from './forms/path-widget.js'
-export * from './services/admin-services-context.js'
 // Field-side service contract types + Context provider/hook.
 export * from './services/field-services-context.js'
 // Foundational surface — synced from @infonomic/uikit. See
 // scripts/sync-from-uikit.sh and src/.uikit-sync.json.
 export * from './uikit.js'
-export type {
-  AdminServiceCall,
-  BylineAdminServices,
-  ChangeAccountPasswordInput,
-  CreateAdminRoleInput,
-  CreateAdminUserInput,
-  SetAdminUserPasswordInput,
-  SetRoleAbilitiesInput,
-  SetUserRolesInput,
-  SignInInput,
-  SignInResult,
-  UpdateAccountInput,
-  UpdateAdminRoleInput,
-  UpdateAdminUserInput,
-  WhoHasAbilityInput,
-} from './services/admin-services-types.js'
+// Collection-editor-shared widgets.
+export * from './widgets/diff-viewer/diff-modal.js'
+export * from './widgets/status-badge/status-badge.js'
 export type {
   BylineFieldServices,
   CollectionListDoc,

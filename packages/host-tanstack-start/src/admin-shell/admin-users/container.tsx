@@ -12,6 +12,9 @@ import type React from 'react'
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import { UserRoles } from '@byline/admin/admin-users/components/roles'
+import { SetPassword } from '@byline/admin/admin-users/components/set-password'
+import { UpdateUser } from '@byline/admin/admin-users/components/update'
 import {
   Button,
   CloseIcon,
@@ -20,9 +23,6 @@ import {
   IconButton,
   LocalDateTime,
   Modal,
-  SetPassword,
-  UpdateUser,
-  UserRoles,
   useToastManager,
 } from '@byline/ui/react'
 import cx from 'classnames'

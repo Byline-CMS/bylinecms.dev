@@ -9,91 +9,108 @@
  */
 
 /**
- * Set-password drawer form.
+ * Self-service change-password drawer form.
  *
- * Admin-facing "set this user's password" flow — used when an admin is
- * resetting someone else's password. Server-side policy (min 12 chars,
- * max 256) is duplicated client-side via Zod for immediate field
- * validation. A matching-confirmation field catches typos without a
- * round-trip.
+ * Distinct from the admin-users `set-password.tsx`:
  *
- * The server fn returns the updated user so we can lift the bumped
- * `vid` back into the container; the drawer doesn't need to re-fetch.
+ *   - Requires the current password as defence against
+ *     session-hijack abuse. The server verifies it against the
+ *     stored hash before swapping in the new one — wrong current
+ *     password surfaces as `admin.account.invalidCurrentPassword`.
+ *   - Confirmation field catches typos before round-trip.
+ *
+ * Caveat: changing the password here does not revoke other active
+ * sessions today. Existing access tokens stay valid until expiry
+ * (~15 min); a "sign out everywhere on password change" follow-up
+ * will close that gap.
  */
 
 import { useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
-import type { AdminUserResponse } from '@byline/admin/admin-users'
 import { passwordSchema } from '@byline/core/validation'
+import { Alert, Button, InputPassword, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
-import { Alert, Button, InputPassword, LoaderEllipsis } from '../../../uikit.js'
-import styles from './set-password.module.css'
+import styles from './change-password.module.css'
+import type { AccountResponse } from '../index.js'
 
-const setPasswordFormSchema = z
+const changePasswordFormSchema = z
   .object({
-    password: passwordSchema,
-    confirm: z.string({ message: 'Please confirm the password' }),
+    currentPassword: z.string().min(1, { message: 'Please enter your current password' }),
+    newPassword: passwordSchema,
+    confirm: z.string({ message: 'Please confirm the new password' }),
   })
-  .refine((v) => v.password === v.confirm, {
-    message: 'Passwords do not match',
+  .refine((v) => v.newPassword === v.confirm, {
+    message: 'New passwords do not match',
     path: ['confirm'],
   })
 
-type SetPasswordValues = z.infer<typeof setPasswordFormSchema>
+type ChangePasswordValues = z.infer<typeof changePasswordFormSchema>
 
-interface SetPasswordProps {
-  user: AdminUserResponse
+interface ChangePasswordProps {
+  account: AccountResponse
   onClose?: () => void
-  onSuccess?: (user: AdminUserResponse) => void
+  onSuccess?: (account: AccountResponse) => void
 }
 
-export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
-  const { setAdminUserPassword } = useBylineAdminServices()
+export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePasswordProps) {
+  const { changeAccountPassword } = useBylineAdminServices()
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const form = useForm({
-    defaultValues: { password: '', confirm: '' } as SetPasswordValues,
+    defaultValues: { currentPassword: '', newPassword: '', confirm: '' } as ChangePasswordValues,
     validationLogic: revalidateLogic({
       mode: 'blur',
       modeAfterSubmission: 'change',
     }),
     validators: {
-      onDynamic: setPasswordFormSchema,
+      onDynamic: changePasswordFormSchema,
     },
     onSubmit: async ({ value }) => {
       setFormError(null)
       setSuccessMessage(null)
       try {
-        const updated = await setAdminUserPassword({
-          data: { id: user.id, vid: user.vid, password: value.password },
+        const updated = await changeAccountPassword({
+          data: {
+            vid: account.vid,
+            currentPassword: value.currentPassword,
+            newPassword: value.newPassword,
+          },
         })
         setSuccessMessage('Password updated.')
-        form.reset({ password: '', confirm: '' })
+        form.reset({ currentPassword: '', newPassword: '', confirm: '' })
         onSuccess?.(updated)
       } catch (err) {
         const code = getErrorCode(err)
+        if (code === 'admin.account.invalidCurrentPassword') {
+          form.setFieldMeta('currentPassword', (meta) => ({
+            ...meta,
+            errorMap: { ...meta.errorMap, onServer: 'Current password is incorrect.' },
+            errors: ['Current password is incorrect.'],
+          }))
+          return
+        }
         if (code === 'admin.users.versionConflict') {
           setFormError(
-            'This user has been modified elsewhere since you opened this form. Reload to refresh and try again.'
+            'Your account has been modified elsewhere since you opened this form. Reload to refresh and try again.'
           )
           return
         }
-        if (code === 'admin.users.notFound') {
-          setFormError('This user no longer exists.')
+        if (code === 'admin.account.notFound') {
+          setFormError('Your admin account could not be found. Please sign in again.')
           return
         }
-        setFormError('Could not set the password. Please try again.')
+        setFormError('Could not change the password. Please try again.')
       }
     },
   })
 
   return (
-    <div className={cx('byline-user-set-password-wrap', styles.wrap)}>
+    <div className={cx('byline-account-change-password-wrap', styles.wrap)}>
       <form
         noValidate
         onSubmit={(event) => {
@@ -101,22 +118,38 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
           event.stopPropagation()
           void form.handleSubmit()
         }}
-        className={cx('byline-user-set-password-form', styles.form)}
+        className={cx('byline-account-change-password-form', styles.form)}
       >
         {formError ? <Alert intent="danger">{formError}</Alert> : null}
         {successMessage ? <Alert intent="success">{successMessage}</Alert> : null}
 
         <p className="muted">
-          Sets a new password for{' '}
-          <span className={cx('byline-user-set-password-target', styles.target)}>{user.email}</span>
-          . The user will need to sign in again with the new password.
+          Other active sessions will continue to work until their tokens expire. Sign out elsewhere
+          if you suspect another device has been compromised.
         </p>
 
-        <form.Field name="password">
+        <form.Field name="currentPassword">
+          {(field) => (
+            <InputPassword
+              label="Current password"
+              id="currentPassword"
+              name={field.name}
+              value={field.state.value}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.currentTarget.value)}
+              error={field.state.meta.errors.length > 0}
+              errorText={firstError(field.state.meta.errors)}
+              autoComplete="current-password"
+              required
+            />
+          )}
+        </form.Field>
+
+        <form.Field name="newPassword">
           {(field) => (
             <InputPassword
               label="New password"
-              id="password"
+              id="newPassword"
               name={field.name}
               value={field.state.value}
               onBlur={field.handleBlur}
@@ -146,13 +179,13 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
           )}
         </form.Field>
 
-        <div className={cx('byline-user-set-password-actions', styles.actions)}>
+        <div className={cx('byline-account-change-password-actions', styles.actions)}>
           <Button
             type="button"
             intent="secondary"
             size="sm"
             onClick={onClose}
-            className={cx('byline-user-set-password-action', styles.action)}
+            className={cx('byline-account-change-password-action', styles.action)}
           >
             {successMessage ? 'Close' : 'Cancel'}
           </Button>
@@ -169,7 +202,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
                 intent="primary"
                 type="submit"
                 disabled={!canSubmit || isSubmitting}
-                className={cx('byline-user-set-password-action', styles.action)}
+                className={cx('byline-account-change-password-action', styles.action)}
               >
                 {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
               </Button>

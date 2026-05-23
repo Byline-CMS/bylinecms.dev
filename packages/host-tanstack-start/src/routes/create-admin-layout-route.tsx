@@ -21,7 +21,8 @@
 
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
-import { BylineAdminServicesProvider, BylineFieldServicesProvider } from '@byline/ui/react'
+import { BylineAdminServicesProvider } from '@byline/admin/services'
+import { BylineFieldServicesProvider } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { AdminAppBar } from '../admin-shell/chrome/admin-app-bar.js'
