@@ -11,10 +11,10 @@
  * or the default-unprefixed form.
  *
  * URL patterns:
- *   /admin/...          → default locale (en)
- *   /es/admin/...       → Spanish
- *   /fr/admin/...       → French
- *   /xyz/admin/...      → 404 (invalid locale)
+ *   /foo/...          → default locale (en)
+ *   /es/foo/...       → Spanish
+ *   /fr/foo/...       → French
+ *   /xyz/foo/...      → 404 (invalid locale)
  */
 
 import { createFileRoute, notFound, Outlet } from '@tanstack/react-router'
