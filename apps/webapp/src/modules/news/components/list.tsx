@@ -10,6 +10,7 @@ import { Link } from '@tanstack/react-router'
 
 import { Badge, Card, Select } from '@byline/ui/react'
 
+import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { RouterPager } from '@/ui/components/router-pager'
 import { truncate } from '@/utils/utils.general'
@@ -33,6 +34,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 
 export function NewsList({ result, categories, category, onCategoryChange }: NewsListProps) {
   const { docs, meta } = result
+  const locale = useLocale()
 
   const categoryItems = [
     { value: ALL_CATEGORIES, label: 'All Categories' },
@@ -89,7 +91,7 @@ export function NewsList({ result, categories, category, onCategoryChange }: New
               <Link
                 key={doc.id}
                 to="/{-$lng}/news/$path"
-                params={{ path: doc.path ?? doc.id }}
+                params={{ ...lngParam(locale), path: doc.path ?? doc.id }}
                 className="no-underline text-inherit"
               >
                 <Card className="flex overflow-hidden group h-full">

@@ -10,12 +10,6 @@ import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-ro
 
 import { Container, Section } from '@byline/ui/react'
 
-// NOTE: This will restrict our retrieved content to front-end interface locales
-// defined in i18nConfig, which is not exactly what we want. We want the available
-// locales to be determined by the content locales in the CMS, but this is a
-// good starting point for now until we settle on a content locale vs interface
-// locale fallback or detection strategy.
-import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { getNewsCategoriesFn } from '@/modules/news/categories'
 import { NewsList } from '@/modules/news/components/list'
@@ -31,10 +25,8 @@ export const Route = createFileRoute('/{-$lng}/_frontend/news/')({
     category: typeof search.category === 'string' ? search.category : undefined,
   }),
   loaderDeps: ({ search: { category } }) => ({ category }),
-  loader: async ({ params, deps: { category } }) => {
-    const lng = (i18nConfig.locales as readonly string[]).includes(params.lng ?? '')
-      ? (params.lng as Locale)
-      : i18nConfig.defaultLocale
+  loader: async ({ context, deps: { category } }) => {
+    const lng = context.locale
     const [result, categories] = await Promise.all([
       getNewsListFn({ data: { lng, category } }),
       getNewsCategoriesFn({ data: { lng } }),

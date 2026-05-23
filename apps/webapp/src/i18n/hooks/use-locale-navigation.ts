@@ -30,7 +30,7 @@ export function useLocale(): Locale {
  * For the default locale the param is `undefined` so it produces clean URLs
  * (e.g. `/about` instead of `/en/about`).
  */
-export function lngParam(locale: Locale): { lng: string | undefined } {
+export function lngParam(locale: Locale): { lng: Locale | undefined } {
   return { lng: locale === i18nConfig.defaultLocale ? undefined : locale }
 }
 

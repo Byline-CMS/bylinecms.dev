@@ -14,12 +14,6 @@ import {
 } from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { Container, Section } from '@byline/ui/react'
 
-// NOTE: This will restrict our retrieved content to front-end interface locales
-// defined in i18nConfig, which is not exactly what we want. We want the available
-// locales to be determined by the content locales in the CMS, but this is a
-// good starting point for now until we settle on a content locale vs interface
-// locale fallback or detection strategy.
-import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 import {
   buildLocalizedPath,
   getMeta,
@@ -29,17 +23,20 @@ import {
 import { NewsDetail } from '@/modules/news/components/detail'
 import { getNewsDetailFn, type NewsDetailResult } from '@/modules/news/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
+// NOTE: This will restrict our retrieved content to front-end interface locales
+// defined in i18nConfig, which is not exactly what we want. We want the available
+// locales to be determined by the content locales in the CMS, but this is a
+// good starting point for now until we settle on a content locale vs interface
+// locale fallback or detection strategy.
+import type { Locale } from '@/i18n/i18n-config'
 
 // See `../$path.tsx` for notes on why this cast is needed.
 type RouteLoaderData = { result: NonNullable<NewsDetailResult>; lng: Locale }
 
 export const Route = createFileRoute('/{-$lng}/_frontend/news/$path')({
-  loader: async ({ params }) => {
-    const lng = (i18nConfig.locales as readonly string[]).includes(params.lng ?? '')
-      ? (params.lng as Locale)
-      : i18nConfig.defaultLocale
-    const path = params.path // string
-    const result = await getNewsDetailFn({ data: { path, lng } })
+  loader: async ({ params, context }) => {
+    const lng = context.locale
+    const result = await getNewsDetailFn({ data: { path: params.path, lng } })
     if (result == null) throw notFound()
     return { result, lng }
   },
