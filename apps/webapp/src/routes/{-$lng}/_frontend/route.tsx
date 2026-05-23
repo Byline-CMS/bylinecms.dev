@@ -2,13 +2,15 @@
 
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
-import { getClientConfig, resolveRoutes } from '@byline/core'
+import { resolveRoutes } from '@byline/core'
 import {
   RouteError,
   RouteNotFound,
 } from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { getCurrentAdminUserSoft } from '@byline/host-tanstack-start/server-fns/auth'
 import { getPreviewStateFn } from '@byline/host-tanstack-start/server-fns/preview'
+
+import { routes as bylineRoutes } from '~/routes'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 import { GradientBackground } from '@/modules/home/gradient-background'
@@ -22,7 +24,7 @@ export const Route = createFileRoute('/{-$lng}/_frontend')({
       getCurrentAdminUserSoft(),
       getPreviewStateFn(),
     ])
-    const { admin: adminPath } = resolveRoutes(getClientConfig().routes)
+    const { admin: adminPath } = resolveRoutes(bylineRoutes)
     return { adminUser, adminPath, preview: previewState.preview }
   },
   server: {
