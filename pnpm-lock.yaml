@@ -68,6 +68,9 @@ importers:
       '@formatjs/intl-localematcher':
         specifier: ^0.8.8
         version: 0.8.8
+      '@infonomic/schemas':
+        specifier: ^2.4.0
+        version: 2.4.0
       '@tanstack/react-form':
         specifier: ^1.32.0
         version: 1.32.0(@tanstack/react-start@1.168.10(@rsbuild/core@2.0.7)(@rspack/core@2.0.4(@swc/helpers@0.5.21))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(stylus@0.62.0)(tsx@4.22.3)(yaml@2.9.0)))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
