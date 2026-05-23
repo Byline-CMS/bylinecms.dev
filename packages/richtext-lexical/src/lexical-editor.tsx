@@ -9,6 +9,7 @@
 import { lazy, Suspense } from 'react'
 
 import type { RichTextEditorComponent } from '@byline/core'
+import { Shimmer } from '@byline/ui/react'
 
 import type { ExtensionsList } from './field/config/extensions-list'
 import type { EditorConfig } from './field/config/types'
@@ -123,9 +124,26 @@ export function lexicalEditor(configure?: ConfigureFn): RichTextEditorComponent 
   })
 
   const ConfiguredEditor: RichTextEditorComponent = (props) => (
-    <Suspense fallback={null}>
+    <Suspense fallback={<EditorPlaceholder />}>
       <Lazy {...(props as object)} />
     </Suspense>
   )
   return ConfiguredEditor
+}
+
+/**
+ * Skeleton shown while the editor module graph is loading. Mirrors the
+ * `byline-field-richtext` / `byline-field-richtext-body` shell that
+ * `RichTextField` renders, and reuses the same `Shimmer` placeholder the
+ * inner `EditorField` Suspense uses — so the visible cold-load sequence
+ * is just "shimmer → editor" instead of "blank → shimmer → editor".
+ */
+function EditorPlaceholder() {
+  return (
+    <div className="byline-field-richtext">
+      <div className="byline-field-richtext-body">
+        <Shimmer height="35vh" />
+      </div>
+    </div>
+  )
 }
