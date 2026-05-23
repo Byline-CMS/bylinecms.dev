@@ -5,10 +5,10 @@ import { Project, type SourceFile } from 'ts-morph'
 import type { Context } from '../../context.js'
 import type { SubEdit, SubEditResult } from './shared.js'
 
-const REL = 'src/routes/_byline/route.tsx'
+const REL = 'src/routes/_byline/route.lazy.tsx'
 const IMPORT_SPECIFIER = '../../../byline/admin.config'
-const SNIPPET = `// Initialize Byline admin config — scoped to the _byline layout so the
-// Lexical editor module graph stays out of public-route bundles.
+const SNIPPET = `// Initialize Byline admin config — sits in the lazy companion so the
+// Lexical editor module graph only loads when a _byline/* URL matches.
 // See byline/admin.config.ts for the comment on why this is side-effecty.
 import '${IMPORT_SPECIFIER}'
 `

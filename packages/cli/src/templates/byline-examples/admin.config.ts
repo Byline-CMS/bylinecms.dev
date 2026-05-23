@@ -9,9 +9,9 @@
 /**
  * Registers Byline's client-side config (collection admin UI configs,
  * field editors, i18n, routes) in the current module graph. Imported as
- * a side-effect from `src/routes/_byline/route.tsx` so registration
- * happens whenever an admin-rendered route is in the tree, without
- * dragging the Lexical editor module graph into public-route bundles.
+ * a side-effect from `src/routes/_byline/route.lazy.tsx` so registration
+ * fires only when a `_byline/*` URL matches — keeping the Lexical
+ * editor module graph out of public-route bundles entirely.
  *
  * In TanStack Start with Vite 6 the server entry (`src/server.ts`) and
  * the SSR rendering context run in separate Vite environments, so
