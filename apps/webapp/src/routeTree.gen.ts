@@ -41,7 +41,7 @@ const Char123LngChar125RouteRoute = Char123LngChar125RouteRouteImport.update({
 const BylineRouteRoute = BylineRouteRouteImport.update({
   id: '/_byline',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/_byline/route.lazy').then((d) => d.Route))
 const BylineSignInRoute = BylineSignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',

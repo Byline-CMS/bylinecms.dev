@@ -7,46 +7,22 @@
  */
 
 /**
- * Pathless layout route for everything Byline-rendered (the admin shell
- * and the sign-in page). The `_byline` prefix doesn't contribute to URL
- * paths — `/_byline/admin/...` resolves to `/admin/...` and
+ * Pathless route definition for everything Byline-rendered (the admin
+ * shell and the sign-in page). The `_byline` prefix doesn't contribute
+ * to URL paths — `/_byline/admin/...` resolves to `/admin/...` and
  * `/_byline/sign-in` resolves to `/sign-in`.
  *
- * The single job of this layout is to import the Byline UI kit
- * stylesheets so they're scoped to (and only loaded on) Byline-rendered
- * pages. Front-end routes outside this layout don't get the byline
- * styles unless they import them explicitly.
+ * This file is intentionally bare. The router needs the route definition
+ * at startup to build the tree for URL matching, so anything declared
+ * here ends up in the eager module graph (and Vite will modulepreload
+ * its dependencies on every page).
  *
- * If you also want to use the Byline UI components on your public site,
- * import the same stylesheets from your front-end's pathless layout
- * (e.g. `_front-end/route.tsx` — see `_public/route.tsx` here for the
- * existing pattern).
+ * The component, providers, and Byline admin config side-effect import
+ * live in the sibling `route.lazy.tsx` — TanStack Router loads that file
+ * on demand when a `_byline/*` URL matches, so the editor + admin shell
+ * deps stay out of public-route bundles.
  */
 
-import { ToastProvider, ToastViewport } from '@byline/ui/react'
+import { createFileRoute } from '@tanstack/react-router'
 
-// Initialize Byline admin config — scoped to the _byline layout so the
-// Lexical editor module graph stays out of public-route bundles.
-// See byline/admin.config.ts for the comment on why this is side-effecty.
-import '../../../byline/admin.config'
-
-import { createFileRoute, Outlet } from '@tanstack/react-router'
-
-import { BreadcrumbsProvider } from '@byline/host-tanstack-start/admin-shell/chrome/breadcrumbs/breadcrumbs-provider'
-
-export const Route = createFileRoute('/_byline')({
-  component: BylineLayout,
-})
-
-function BylineLayout() {
-  return (
-    <div className="byline-ui flex flex-col flex-1 w-full max-w-full h-full">
-      <ToastProvider timeout={5000}>
-        <BreadcrumbsProvider>
-          <Outlet />
-        </BreadcrumbsProvider>
-        <ToastViewport position="bottom-right" />
-      </ToastProvider>
-    </div>
-  )
-}
+export const Route = createFileRoute('/_byline')({})
