@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 2.3.3
+
+### Patch Changes
+
+- added optional Home link to the admin SignInForm and cleared the preview-mode cookie on admin sign-out
+
 ## 2.3.2
 
 ### Patch Changes
