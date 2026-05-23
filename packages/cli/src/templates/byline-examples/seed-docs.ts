@@ -7,7 +7,7 @@
  */
 
 // Initialize Byline config by importing the server config
-import 'dotenv/config'
+import './load-env.js'
 import './server.config.js'
 
 import { seedDocs } from './seeds/docs.js'

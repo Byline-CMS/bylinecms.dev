@@ -46,7 +46,7 @@
  * primitive to `IStorageProvider` and route through that.
  */
 
-import 'dotenv/config'
+import '../load-env.js'
 import '../server.config.js'
 
 import fs from 'node:fs'

@@ -35,7 +35,7 @@
  *   --verbose     Print warnings for dropped/unsupported nodes.
  */
 
-import 'dotenv/config'
+import '../load-env.js'
 import '../server.config.js'
 
 import { readFileSync } from 'node:fs'

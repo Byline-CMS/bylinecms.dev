@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { execa } from 'execa'
 
 import type { Context } from '../context.js'
-import type { PackageManager, Phase, ShellCommand } from '../types.js'
+import type { Phase, ShellCommand } from '../types.js'
 
 const SEED_ENTRY = 'byline/seed-docs.ts'
 
@@ -30,7 +30,7 @@ export const seedDocsPhase: Phase = {
         notes: ['cannot run seed yet — earlier phase prerequisites missing'],
       }
     }
-    const cmd = seedCommand(ctx.pm)
+    const cmd = seedCommand(ctx)
     return {
       writes: [],
       commands: [cmd],
@@ -46,7 +46,7 @@ export const seedDocsPhase: Phase = {
     const blocked = preflightCheck(ctx)
     if (blocked) return { state: blocked }
 
-    const cmd = seedCommand(ctx.pm)
+    const cmd = seedCommand(ctx)
     ctx.logger.step(`${cmd.command} ${cmd.args.join(' ')}`)
     try {
       await execa(cmd.command, cmd.args, { cwd: ctx.cwd, stdio: 'inherit' })
@@ -79,16 +79,23 @@ function preflightCheck(ctx: Context): 'blocked' | null {
   return null
 }
 
-function seedCommand(pm: PackageManager): ShellCommand {
-  switch (pm) {
+function seedCommand(ctx: Context): ShellCommand {
+  // See `phases/seed-admin.ts` for why both env files are passed through
+  // — same belt-and-braces pattern (works for fresh templates AND older
+  // scaffolded projects that still do `import 'dotenv/config'`). Skip the
+  // flag for any file that doesn't exist; Node's `--env-file` errors on a
+  // missing path.
+  const envFlags: string[] = []
+  if (existsSync(ctx.resolve('.env'))) envFlags.push('--env-file=.env')
+  if (existsSync(ctx.resolve('.env.local'))) envFlags.push('--env-file=.env.local')
+  switch (ctx.pm) {
     case 'bun':
-      // Bun runs TypeScript natively — no tsx wrapper needed.
-      return { command: 'bun', args: [SEED_ENTRY] }
+      return { command: 'bun', args: [...envFlags, SEED_ENTRY] }
     case 'pnpm':
-      return { command: 'pnpm', args: ['exec', 'tsx', SEED_ENTRY] }
+      return { command: 'pnpm', args: ['exec', 'tsx', ...envFlags, SEED_ENTRY] }
     case 'yarn':
-      return { command: 'yarn', args: ['tsx', SEED_ENTRY] }
+      return { command: 'yarn', args: ['tsx', ...envFlags, SEED_ENTRY] }
     case 'npm':
-      return { command: 'npx', args: ['--yes', 'tsx', SEED_ENTRY] }
+      return { command: 'npx', args: ['--yes', 'tsx', ...envFlags, SEED_ENTRY] }
   }
 }
