@@ -1,5 +1,12 @@
 # @byline/cli
 
+## 2.4.0
+
+### Minor Changes
+
+- **`@byline/richtext-lexical`** lazy-loaded the editor module graph from `lexicalEditor()` so public-route consumers no longer ship the editor, and rendered a `Shimmer` skeleton in place of the editor while that chunk loads
+  **`@byline/cli`** scaffold split the `_byline` pathless layout into `route.tsx` + `route.lazy.tsx` to keep admin chrome off public pages
+
 ## 2.3.3
 
 ### Patch Changes
