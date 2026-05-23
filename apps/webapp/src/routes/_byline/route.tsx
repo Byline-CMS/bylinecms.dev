@@ -25,8 +25,10 @@
 
 import { ToastProvider, ToastViewport } from '@byline/ui/react'
 
-// Initialize Byline admin config — must be imported here so it runs in both
-// the SSR rendering and client module graphs (see byline/admin.config.ts).
+// Initialize Byline admin config — scoped to the _byline layout so the
+// Lexical editor module graph stays out of public-route bundles.
+// See byline/admin.config.ts for the comment on why this is side-effecty.
+import '../../../byline/admin.config'
 
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
