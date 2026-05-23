@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 2.4.2
+
+### Patch Changes
+
+- fixed **`@byline/cli`** persisting the Postgres superuser URL to `.byline-install.json` and pointed host-app env references at `.env.local`
+- Updated dependencies
+  - @byline/core@2.4.2
+  - @byline/richtext-lexical@2.4.2
+  - @byline/ui@2.4.2
+
 ## 2.4.1
 
 ### Patch Changes
