@@ -272,10 +272,15 @@ const LANG_ALIASES: Record<string, string> = {
   xml: 'markup',
 }
 
-function normalizeCodeLang(lang: string | null | undefined): string | null {
-  if (lang == null) return null
+// Default for unfenced / language-less code blocks. Prism crashes on
+// null/undefined languages, and the project's docs are predominantly
+// TypeScript, so fall back to that rather than 'plain'.
+const DEFAULT_CODE_LANG = 'typescript'
+
+function normalizeCodeLang(lang: string | null | undefined): string {
+  if (lang == null) return DEFAULT_CODE_LANG
   const trimmed = lang.trim().toLowerCase()
-  if (trimmed.length === 0) return null
+  if (trimmed.length === 0) return DEFAULT_CODE_LANG
   return LANG_ALIASES[trimmed] ?? trimmed
 }
 
