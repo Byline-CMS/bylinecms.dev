@@ -1,5 +1,14 @@
 # @byline/ui
 
+## 2.4.4
+
+### Patch Changes
+
+- fixed select, autocomplete, and datepicker popovers rendering behind modal overlays
+  removed `AutoLinkExtension` from `@byline/richtext-lexical` default extensions
+- Updated dependencies
+  - @byline/core@2.4.4
+
 ## 2.4.3
 
 ### Patch Changes
