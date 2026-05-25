@@ -824,6 +824,33 @@ export interface CollectionDefinition {
    */
   useAsPath?: string
 
+  /**
+   * Optional host-defined function that composes a renderable root-relative
+   * path for a document in this collection. Called server-side by the
+   * richtext write-time walker (when `embedRelationsOnSave` is true on a
+   * `richText` field) and the read-time populate visitor (when
+   * `populateRelationsOnRead` is true). Sits next to `useAsPath` — that
+   * names the field that becomes the slug; this says how the slug
+   * composes into a renderable path.
+   *
+   * Returns a path with a leading slash, or `null` when no path can be
+   * built for this document (e.g. the doc is in a state that should not
+   * be linked to). Origin / host / protocol AND locale prefix are runtime
+   * concerns of the renderer (`LangLink` etc.) and MUST NOT be included —
+   * paths returned here are locale-agnostic; the renderer composes the
+   * final URL by prepending the request-time locale.
+   *
+   * Receives the same minimal document shape as
+   * `CollectionAdminConfig.preview.url` (`PreviewDocument`-style envelope:
+   * top-level columns plus `fields`) so the two hooks can share an
+   * implementation today and `preview.url` can default to
+   * `buildDocumentPath` in a later pass.
+   */
+  buildDocumentPath?: (
+    doc: { id: string; path: string; status: string; fields: Record<string, any> },
+    ctx: { collectionPath: string }
+  ) => string | null
+
   /***
    * When `true`, the rich text editor's link plugin surfaces relation targets
    * from this collection as linkable options. Requires the collection to have

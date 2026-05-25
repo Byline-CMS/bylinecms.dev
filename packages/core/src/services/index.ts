@@ -41,9 +41,15 @@ export {
   resolveRelationProjection,
 } from './relation-projection.js'
 export {
+  type EmbedRichTextFieldsOptions,
+  embedRichTextFields,
+  resolveEmbedOnSave,
+} from './richtext-embed.js'
+export {
   collectRichTextLeaves,
   type PopulateRichTextFieldsOptions,
   populateRichTextFields,
+  type RichTextAdapterPresence,
   type RichTextLeaf,
   resolvePopulateOnRead,
   validateRichTextFieldFlags,

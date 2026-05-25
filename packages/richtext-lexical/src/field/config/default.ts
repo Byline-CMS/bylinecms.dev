@@ -21,7 +21,6 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   },
   inlineImageUploadCollection: 'media',
   placeholderText: 'Enter some rich text...',
-  embedRelationsOnSave: true,
 }
 
 /**

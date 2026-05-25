@@ -36,6 +36,26 @@ export const Pages = defineCollection({
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
+  /**
+   * Pages live at the site root (no `/pages/` prefix) and may be nested
+   * under an `area` segment. Same composition rule used by the admin
+   * preview button (`admin.tsx` delegates to this) and the richtext
+   * embed walker that refreshes `document.path` on internal links.
+   *
+   * Returns a locale-agnostic root-relative path; the renderer prepends
+   * the locale at request time. Returns `null` when no slug exists yet
+   * (brand-new draft) so the embed walker / preview both fall back to
+   * "no link available" rather than producing a broken URL.
+   */
+  buildDocumentPath: (doc, _ctx) => {
+    if (!doc.path) return null
+    const area = doc.fields?.area
+    if (typeof area === 'string' && area !== 'root') {
+      return `/${area}/${doc.path}`
+    }
+    return `/${doc.path}`
+  },
+  linksInEditor: true,
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {

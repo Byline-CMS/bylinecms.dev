@@ -9,24 +9,52 @@ import type { Locale } from '@/i18n/i18n-config'
 
 // import { getPublicWebsiteUrl } from '@/utils/utils.framework.ts'
 
-export interface LinkAttributes {
-  linkType?: 'custom' | 'internal'
+interface BaseLinkAttributes {
   newTab?: boolean
   nofollow?: boolean
-  rel?: string
+  rel?: string | null
+}
+
+export interface CustomLinkAttributes extends BaseLinkAttributes {
+  linkType?: 'custom'
   url?: string
-  doc?: {
-    value: string
-    relationTo: string
-    data: {
-      id: string
-      title: string
-      slug: string
-      area: string
-      collectionAlias: string
-    }
+}
+
+/**
+ * Internal link to a Byline document. Mirrors `DocumentRelation` —
+ * `targetDocumentId` / `targetCollectionId` / `targetCollectionPath`
+ * flattened onto the attributes, plus a `document` bag carrying the
+ * canonical `{ title, path }` envelope embedded by the picker at write
+ * time and refreshed by the server-side write-time embed walker.
+ *
+ * `document.path` has dual meaning during migration:
+ *   - leading `/` — composed by `CollectionDefinition.buildDocumentPath`
+ *     (or the generic `/${collectionPath}/${slug}` fallback) and treated
+ *     as authoritative by this serializer.
+ *   - no leading `/` — bare slug from `byline_document_paths`, either
+ *     legacy data or a picker-time write that hasn't been through the
+ *     walker yet. The serializer applies the generic compose fallback
+ *     using `targetCollectionPath`.
+ *
+ * `document._resolved === false` means the most recent walker pass
+ * could not find the target document (deleted between picker and
+ * save / read). The serializer strips the `<a>` wrapper and renders
+ * children as plain text — persisted state is preserved so an editor
+ * can re-link later.
+ */
+export interface InternalLinkAttributes extends BaseLinkAttributes {
+  linkType: 'internal'
+  targetDocumentId: string
+  targetCollectionId: string
+  targetCollectionPath: string
+  document?: {
+    title?: string
+    path?: string
+    _resolved?: false
   }
 }
+
+export type LinkAttributes = CustomLinkAttributes | InternalLinkAttributes
 
 export type LinkType = 'internal' | 'custom'
 
@@ -57,38 +85,46 @@ export function manageRel(input: string, action: 'add' | 'remove', value: string
   return result
 }
 
+/**
+ * Resolve the renderable href for a link node. Returns `''` when no
+ * usable href can be built — the serializer treats that as the signal
+ * to strip the `<a>` / `<LangLink>` wrapper and render children plain.
+ *
+ * Internal-link fallback chain (see docs/RICHTEXT.md):
+ *   1. `document._resolved === false` → strip wrapper.
+ *   2. `document.path` starts with `/` → use as-is (canonicalised by
+ *      the server-side embed walker via `buildDocumentPath`).
+ *   3. `document.path` is a bare slug + `targetCollectionPath` present
+ *      → generic compose `/${targetCollectionPath}/${path}`. Heal-on-
+ *      write fallback for legacy nodes and picker-time-but-not-yet-
+ *      walked sessions.
+ *   4. Neither — strip wrapper.
+ */
 function getHref(args: LinkAttributes): string {
   let href = ''
   const publicWebsiteUrl = '/' // getPublicWebsiteUrl()
-  const { linkType, url } = args
 
-  if ((linkType === 'custom' || linkType === undefined) && url != null) {
-    href = url
-  } else if (
-    linkType === 'internal' &&
-    args.doc?.relationTo != null &&
-    args.doc?.data?.slug != null
-  ) {
-    const collection = args.doc.relationTo
-    const { slug, area, collectionAlias } = args.doc.data
-    if (collectionAlias != null) {
-      // The alias might be for the root
-      if (collectionAlias.length === 0) {
-        href = `/${slug}`
-      } else {
-        href = `/${collectionAlias}/${slug}`
+  if (args.linkType === 'internal') {
+    // Step 1 — walker explicitly marked the target as missing.
+    if (args.document?._resolved === false) return ''
+
+    const path = args.document?.path
+    if (path != null && path.length > 0) {
+      if (path.startsWith('/')) {
+        // Step 2 — canonical path written by the embed walker.
+        href = path
+      } else if (args.targetCollectionPath) {
+        // Step 3 — bare slug, generic compose fallback.
+        href = `/${args.targetCollectionPath}/${path}`
       }
-    } else {
-      href = `/${collection}/${slug}`
+      // else: fall through to step 4 — empty href, wrapper stripped.
     }
-
-    if (area != null && area.length > 0 && area !== 'root') {
-      href = `/${area}${href}`
-    }
+  } else if (args.url != null) {
+    href = args.url
   }
 
   const hrefIsLocal = ['tel:', 'mailto:', '/'].some((prefix) => href.startsWith(prefix))
-  if (!hrefIsLocal) {
+  if (!hrefIsLocal && href.length > 0) {
     try {
       const objectURL = new URL(href)
       if (objectURL.origin === publicWebsiteUrl) {
@@ -145,6 +181,16 @@ export function LinkLexicalSerializer({
   children,
 }: LinkLexicalProps): React.JSX.Element {
   const href = getHref(attributes)
+
+  // No usable href — render children plain (no anchor) so the public site
+  // never carries a broken `<a href="">`. Covers `_resolved: false` and
+  // every other empty-href branch of `getHref`. The admin editor reads
+  // `__attributes` directly via Lexical APIs, so the link node stays
+  // visible in the editor for re-linking.
+  if (href.length === 0) {
+    return <>{children}</>
+  }
+
   const additionalProps = getAdditionalProps(attributes, href)
 
   if (href.startsWith('/')) {

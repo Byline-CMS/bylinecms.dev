@@ -119,29 +119,22 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   },
 
   /**
-   * Preview URL builder for live preview links. Returns a URL string (relative
-   * or absolute), or `null` to hide the preview affordance.
+   * Preview URL builder for live preview links. Delegates to the
+   * schema-side `Pages.buildDocumentPath` (the single source of truth
+   * for how a page composes into a public path — also driven by the
+   * richtext embed walker on internal-link nodes) and adds the request-
+   * locale prefix on top. Returns `null` to hide the preview affordance.
    *
-   * `doc.path` is the top-level slug (derived from `useAsPath`), not a field.
-   * Direct relations are auto-populated by the edit view (depth 1, picker
-   * projection) and appear under `doc.fields.<name>?.document`.
-   *
-   * @example
-   * preview: {
-   *   url: (doc, { locale }) => {
-   *     if (!doc.path) return null
-   *     const prefix = locale && locale !== 'en' ? `/${locale}` : ''
-   *     return `${prefix}/${doc.path}`
-   *   },
-   * }
+   * `doc.path` is the top-level slug (derived from `useAsPath`), not a
+   * field. Direct relations are auto-populated by the edit view (depth
+   * 1, picker projection) and appear under `doc.fields.<name>?.document`.
    */
   preview: {
     url: (doc, { locale }) => {
-      if (!doc.path) return null
+      const path = Pages.buildDocumentPath?.(doc, { collectionPath: Pages.path }) ?? null
+      if (path == null) return null
       const prefix = locale && locale !== i18n.interface.defaultLocale ? `/${locale}` : ''
-      const pathWithArea =
-        doc.fields?.area && doc.fields.area !== 'root' ? `${doc.fields.area}/${doc.path}` : doc.path
-      return `${prefix}/${pathWithArea}`
+      return `${prefix}${path}`
     },
   },
 

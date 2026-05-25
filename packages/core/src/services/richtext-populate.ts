@@ -166,19 +166,35 @@ function* walkDeclaration(
 }
 
 /**
+ * Which richtext server adapters the host has registered. Pass both
+ * flags so the validator can fail-fast on each missing-adapter case
+ * with a specific message.
+ */
+export interface RichTextAdapterPresence {
+  /** `ServerConfig.fields.richText.populate != null` */
+  populate: boolean
+  /** `ServerConfig.fields.richText.embed != null` */
+  embed: boolean
+}
+
+/**
  * Validate every richText field across every collection. Throws on:
  *   1. `embedRelationsOnSave === false && populateRelationsOnRead === false`
  *      — would be unrenderable.
  *   2. Effective `populateRelationsOnRead === true` and no server-side
  *      `RichTextPopulateFn` registered — populate would be a no-op and
  *      the field would render with stale (or empty) embedded data.
+ *   3. Effective `embedRelationsOnSave === true` and no server-side
+ *      `RichTextEmbedFn` registered — saves would silently skip the
+ *      walker so internal-link `document.path` envelopes would never
+ *      be canonicalised, breaking the renderer's fallback chain.
  *
  * Called once at `initBylineCore()` time. Fail-fast at boot is the right
  * posture; the alternative is a silent broken renderer at request time.
  */
 export function validateRichTextFieldFlags(
   collections: CollectionDefinition[],
-  hasServerAdapter: boolean
+  adapters: RichTextAdapterPresence
 ): void {
   const errors: string[] = []
   for (const def of collections) {
@@ -193,13 +209,21 @@ export function validateRichTextFieldFlags(
         )
         continue
       }
-      if (populate && !hasServerAdapter) {
+      if (populate && !adapters.populate) {
         errors.push(
           `[${def.path}] richText field '${declaredPath}' requires read-time populate ` +
             `(embedRelationsOnSave=${embed}, populateRelationsOnRead=${populate}) but no ` +
-            `richtext server adapter is registered. Wire one via ` +
+            `richtext populate adapter is registered. Wire one via ` +
             `ServerConfig.fields.richText.populate — see ` +
-            `\`@byline/richtext-lexical/server\` → \`lexicalEditorServer()\`.`
+            `\`@byline/richtext-lexical/server\` → \`lexicalEditorPopulateServer()\`.`
+        )
+      }
+      if (embed && !adapters.embed) {
+        errors.push(
+          `[${def.path}] richText field '${declaredPath}' requires write-time embed ` +
+            `(embedRelationsOnSave=${embed}) but no richtext embed adapter is registered. ` +
+            `Wire one via ServerConfig.fields.richText.embed — see ` +
+            `\`@byline/richtext-lexical/server\` → \`lexicalEditorEmbedServer()\`.`
         )
       }
     }

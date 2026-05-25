@@ -14,8 +14,8 @@
  * seeds (see `byline/server.config.ts`).
  *
  * **Constraint** — `editorConfig` baked into a schema can only override
- * **settings** (placeholder, toolbar UI flags, `embedRelationsOnSave`).
- * Extension references (TableExtension, AdmonitionExtension, etc.) are
+ * **settings** (placeholder, toolbar UI flags). Extension references
+ * (TableExtension, AdmonitionExtension, etc.) are
  * not JSON-safe and would break tsx-loaded seeds; per-field extension
  * removal goes through a client-side wrapper component registered via
  * `FieldAdminConfig.editor` — see `aiRichTextAdmin()` for the pattern.

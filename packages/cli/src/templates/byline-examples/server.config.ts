@@ -20,7 +20,10 @@ import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
 import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
-import { lexicalEditorServer } from '@byline/richtext-lexical/server'
+import {
+  lexicalEditorEmbedServer,
+  lexicalEditorPopulateServer,
+} from '@byline/richtext-lexical/server'
 import { localStorageProvider } from '@byline/storage-local'
 
 // Import collection definitions directly from schema files — NOT the full
@@ -200,7 +203,10 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       // server config singleton, which is only populated *after*
       // `initBylineCore()` returns. Passing a factory defers resolution
       // to populate-call time so registration order here doesn't matter.
-      richText: { populate: lexicalEditorServer({ getClient: getAdminBylineClient }) },
+      richText: {
+        embed: lexicalEditorEmbedServer({ getClient: getAdminBylineClient }),
+        populate: lexicalEditorPopulateServer({ getClient: getAdminBylineClient }),
+      },
     },
   })
 

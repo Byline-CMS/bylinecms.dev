@@ -481,7 +481,7 @@ The old `z.any()` catch-all is gone — the picker's contract is enforced at for
 
 A second application of the relationship primitive: links to other Byline documents *inside* a richtext field value, plus inline-image references to media documents. Two paired Lexical plugins consume the same `DocumentRelation` envelope this doc defines.
 
-The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, how the persisted Lexical JSON is shaped, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the server-side populate adapter contract — lives in **[RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate)**.
+The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts — lives in **[RICHTEXT.md → Relations — embed and populate](./RICHTEXT.md#relations--embed-and-populate)**.
 
 One eligibility flag stays here because it lives on `CollectionDefinition`, not on the editor adapter:
 
@@ -596,7 +596,7 @@ List views currently render `target_document_id` as a string for relation cells.
 | Admin API preview depth selector | `apps/webapp/src/routes/(byline)/admin/collections/$collection/$id/api.tsx` |
 | Admin `getDocument` server fn | `packages/host-tanstack-start/src/server-fns/collections/get.ts` |
 | `linksInEditor` flag | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.linksInEditor`) |
-| Richtext document links + populate strategy | [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate) |
+| Richtext document links + embed / populate strategy | [RICHTEXT.md → Relations — embed and populate](./RICHTEXT.md#relations--embed-and-populate) |
 | Reference relation field | `apps/webapp/byline/collections/news/schema.ts` (`featureImage` field) |
 | Reference list reading populated relations | `apps/webapp/src/modules/news/list.ts` |
 | Reference detail reading populated relations | `apps/webapp/src/modules/news/detail.ts` |

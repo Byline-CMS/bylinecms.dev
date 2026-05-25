@@ -907,3 +907,45 @@ export interface RichTextPopulateContext {
  * `populateRelationsOnRead` flag.
  */
 export type RichTextPopulateFn = (ctx: RichTextPopulateContext) => Promise<void>
+
+// ---------------------------------------------------------------------------
+// Richtext server adapter — embed (write-time walker)
+// ---------------------------------------------------------------------------
+
+/**
+ * Context passed to the richtext embed function for one rich-text field
+ * value at write time. Mirrors `RichTextPopulateContext` — same shape,
+ * same `readContext` threading rules — but fires from the document
+ * write path (`document-lifecycle.*`) instead of the read pipeline.
+ *
+ * The adapter mutates `value` in place — typically by walking the editor's
+ * node tree and refreshing embedded relation envelopes (e.g. calling
+ * `CollectionDefinition.buildDocumentPath` and overwriting
+ * `document.path` on internal-link nodes). The framework holds the parent
+ * reference and persists the mutated value.
+ */
+export interface RichTextEmbedContext {
+  /** The richText field's value (raw editor JSON, possibly stringified). */
+  value: unknown
+  /** Field path within the document — e.g. `'body'` or `'content.0.caption'`. */
+  fieldPath: string
+  /** Collection path the document belongs to. */
+  collectionPath: string
+  /**
+   * Shared request-scoped `ReadContext`. Threading is mandatory — adapter
+   * implementations must pass this back into any `client.collection(...)`
+   * read they perform via `_readContext`. The lifecycle write path spins
+   * one up per save so the embed walker's reads share visited-set / read
+   * budget machinery with the rest of the framework.
+   */
+  readContext: import('./db-types.js').ReadContext
+}
+
+/**
+ * Server-side embed function contract. Editor adapters export an
+ * implementation; installations register one via
+ * `ServerConfig.fields.richText.embed`. Called once per rich-text
+ * leaf the framework discovers in a document during save, gated by
+ * each field's `embedRelationsOnSave` flag.
+ */
+export type RichTextEmbedFn = (ctx: RichTextEmbedContext) => Promise<void>

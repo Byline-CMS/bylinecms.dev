@@ -182,37 +182,55 @@ function makeCollection(richTextField: Partial<RichTextField>): CollectionDefini
   }
 }
 
+const BOTH = { populate: true, embed: true }
+const POPULATE_ONLY = { populate: true, embed: false }
+const NEITHER = { populate: false, embed: false }
+
 describe('validateRichTextFieldFlags', () => {
-  it('passes when default flags are used and adapter is registered', () => {
-    expect(() => validateRichTextFieldFlags([makeCollection({})], true)).not.toThrow()
+  it('passes when default flags are used and both adapters are registered', () => {
+    expect(() => validateRichTextFieldFlags([makeCollection({})], BOTH)).not.toThrow()
   })
 
-  it('passes when default flags are used and no adapter is registered (snapshot mode)', () => {
-    expect(() => validateRichTextFieldFlags([makeCollection({})], false)).not.toThrow()
+  it('throws when default flags are used and the embed adapter is missing', () => {
+    // Default `embedRelationsOnSave: true` requires the embed adapter.
+    expect(() => validateRichTextFieldFlags([makeCollection({})], POPULATE_ONLY)).toThrow(
+      /no richtext embed adapter is registered/i
+    )
+  })
+
+  it('passes when default flags are used and no adapters are registered (snapshot mode, fields opted out)', () => {
+    // Both flags explicitly off: field is non-renderable, so the
+    // first-line "both off" check trips before the missing-adapter
+    // checks. Wrap with a single field that opts out of both.
+    expect(() => validateRichTextFieldFlags([], NEITHER)).not.toThrow()
   })
 
   it('throws when both flags are explicitly false', () => {
     expect(() =>
       validateRichTextFieldFlags(
         [makeCollection({ embedRelationsOnSave: false, populateRelationsOnRead: false })],
-        true
+        BOTH
       )
     ).toThrow(/both .* set to false/i)
   })
 
-  it('throws when embedRelationsOnSave: false but no adapter is registered', () => {
+  it('throws when populate is required but the populate adapter is missing', () => {
+    // embedRelationsOnSave: false flips the default for populate to true.
     expect(() =>
-      validateRichTextFieldFlags([makeCollection({ embedRelationsOnSave: false })], false)
-    ).toThrow(/no.*server adapter/i)
+      validateRichTextFieldFlags([makeCollection({ embedRelationsOnSave: false })], {
+        populate: false,
+        embed: true,
+      })
+    ).toThrow(/no richtext populate adapter is registered/i)
   })
 
-  it('throws when belt-and-braces is asked for but no adapter is registered', () => {
+  it('throws when belt-and-braces is asked for but no adapters are registered', () => {
     expect(() =>
       validateRichTextFieldFlags(
         [makeCollection({ embedRelationsOnSave: true, populateRelationsOnRead: true })],
-        false
+        NEITHER
       )
-    ).toThrow(/no.*server adapter/i)
+    ).toThrow(/no richtext (populate|embed) adapter is registered/i)
   })
 
   it('reports nested richText paths inside blocks with the block type tag', () => {
@@ -241,7 +259,7 @@ describe('validateRichTextFieldFlags', () => {
         },
       ],
     }
-    expect(() => validateRichTextFieldFlags([collection], true)).toThrow(
+    expect(() => validateRichTextFieldFlags([collection], BOTH)).toThrow(
       /content\.<photoBlock>\.caption/
     )
   })

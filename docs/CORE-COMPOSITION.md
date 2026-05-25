@@ -16,7 +16,8 @@ Companions:
 Adapter packages can register a server-side function alongside their client-side React component via mirrored slots on `ClientConfig.fields.*` and `ServerConfig.fields.*`. The richtext adapter is the first user of this pattern:
 
 - **Client side** — `ClientConfig.fields.richText.editor: RichTextEditorComponent`. Render-only React component, registered via `lexicalEditor()` from `@byline/richtext-lexical`.
-- **Server side** — `ServerConfig.fields.richText.populate: RichTextPopulateFn`. Pure function called once per rich-text leaf the read pipeline discovers in a document tree, registered via `lexicalEditorServer()` from `@byline/richtext-lexical/server`.
+- **Server side, write path** — `ServerConfig.fields.richText.embed: RichTextEmbedFn`. Pure function called once per rich-text leaf the document-lifecycle write path discovers in an outgoing document, registered via `lexicalEditorEmbedServer()` from `@byline/richtext-lexical/server`.
+- **Server side, read path** — `ServerConfig.fields.richText.populate: RichTextPopulateFn`. Mirror of the embed function; called once per rich-text leaf the read pipeline discovers in a returned document, registered via `lexicalEditorPopulateServer()` from `@byline/richtext-lexical/server`.
 
 Two consequences worth flagging for any future field-level adapter:
 

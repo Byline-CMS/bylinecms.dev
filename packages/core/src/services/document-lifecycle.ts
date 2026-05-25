@@ -35,9 +35,10 @@ import {
   isBlocksField,
   isGroupField,
   normalizeCollectionHook,
+  type RichTextEmbedFn,
 } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
-import { getCollectionDefinition } from '../config/config.js'
+import { getCollectionDefinition, getServerConfig } from '../config/config.js'
 import {
   ERR_CONFLICT,
   ERR_INVALID_TRANSITION,
@@ -55,6 +56,8 @@ import { type SlugifierFn, slugify } from '../utils/slugify.js'
 import { getUploadFields } from '../utils/storage-utils.js'
 import { getDefaultStatus, getWorkflow, validateStatusTransition } from '../workflow/workflow.js'
 import { assignCounterValues } from './assign-counter-values.js'
+import { createReadContext } from './populate.js'
+import { embedRichTextFields } from './richtext-embed.js'
 import type { BylineLogger } from '../lib/logger.js'
 import type { DocumentPatch } from '../patches/index.js'
 
@@ -222,6 +225,43 @@ async function invokeHook<Ctx>(hook: CollectionHookSlot<Ctx> | undefined, ctx: C
   for (const fn of fns) {
     await fn(ctx)
   }
+}
+
+/**
+ * Run the registered richtext embed adapter across every rich-text leaf
+ * in the outgoing document data. Mirror of the read-side
+ * `populateRichTextFields` — fires once per write, mutates `data` in
+ * place. Per-leaf errors are logged and swallowed by `embedRichTextFields`
+ * itself (branch C); document-level errors propagate.
+ *
+ * No-op when no embed adapter is registered. The bootstrap validator
+ * (step 7 of the link-refactor strategy) will eventually fail-fast for
+ * collections that declare `embedRelationsOnSave: true` without a
+ * registered adapter; until then a missing adapter is silent and writes
+ * proceed unmodified.
+ */
+async function applyRichTextEmbed(
+  ctx: DocumentLifecycleContext,
+  data: Record<string, any>
+): Promise<void> {
+  // Tolerate environments that drive the lifecycle without
+  // `initBylineCore()` (unit tests, isolated tooling) — they have no
+  // adapter to invoke, so this is a soft no-op.
+  let embed: RichTextEmbedFn | undefined
+  try {
+    embed = getServerConfig().fields?.richText?.embed
+  } catch {
+    return
+  }
+  if (embed == null) return
+  await embedRichTextFields({
+    fields: ctx.definition.fields,
+    collectionPath: ctx.collectionPath,
+    data,
+    embed,
+    readContext: createReadContext(),
+    logger: ctx.logger,
+  })
 }
 
 /**
@@ -433,6 +473,10 @@ export async function createDocument(
       // admin config opts out or isn't registered.
       const orderKey = await maybeAppendOrderKey(ctx, collectionPath)
 
+      // Refresh embedded relation envelopes inside rich-text fields
+      // (internal-link / inline-image nodes) before flatten-and-persist.
+      await applyRichTextEmbed(ctx, data)
+
       const result = await db.commands.documents
         .createDocumentVersion({
           collectionId,
@@ -539,6 +583,8 @@ export async function updateDocument(
         documentId: params.documentId,
         logger: ctx.logger,
       })
+
+      await applyRichTextEmbed(ctx, data)
 
       const result = await db.commands.documents
         .createDocumentVersion({
@@ -687,6 +733,8 @@ export async function updateDocumentWithPatches(
         documentId: params.documentId,
         logger: ctx.logger,
       })
+
+      await applyRichTextEmbed(ctx, nextData)
 
       const result = await db.commands.documents
         .createDocumentVersion({
@@ -999,6 +1047,12 @@ export async function restoreDocumentVersion(
         collectionPath,
         restore: restoreContext,
       })
+
+      // Embed walker is a no-op here for localized richtext leaves
+      // (multi-locale `{ locale: lexJson }` shape — see
+      // richtext-embed.ts header). Non-localized richtext leaves still
+      // get refreshed, so leave the call in for that branch.
+      await applyRichTextEmbed(ctx, sourceFields)
 
       // 6. Persist new version. locale: 'all' carries every locale row in
       //    the source tree forward in a single flatten pass — the
@@ -1353,6 +1407,10 @@ export async function duplicateDocument(
       // before the insert; the source row's order is intentionally not
       // copied — duplicates land at the end of the list.
       const orderKey = await maybeAppendOrderKey(ctx, collectionPath)
+
+      // Embed walker (no-op for multi-locale richtext leaves — see
+      // restoreDocumentVersion for the same caveat).
+      await applyRichTextEmbed(ctx, clonedFields)
       try {
         result = await db.commands.documents
           .createDocumentVersion({
@@ -1751,6 +1809,8 @@ export async function copyToLocale(
       //    rewritten by this call).
       const previousVersionId =
         (targetRecord.document_version_id as string | undefined) ?? undefined
+
+      await applyRichTextEmbed(ctx, merged.data)
 
       const writeResult = await db.commands.documents.createDocumentVersion({
         documentId: params.documentId,

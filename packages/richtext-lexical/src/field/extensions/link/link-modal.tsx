@@ -28,7 +28,6 @@ import {
   type SelectValue,
 } from '@byline/ui/react'
 
-import { useEditorConfig } from '../../config/editor-config-context'
 import { useModalFormState } from '../../shared/useModalFormState'
 import { validateUrl } from '../../utils/url'
 import type { DocumentRelation } from '../../nodes/document-relation'
@@ -109,7 +108,6 @@ export const LinkModal: React.FC<LinkModalProps> = ({
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [urlError, setUrlError] = useState<string | null>(null)
-  const { config: editorSettings } = useEditorConfig()
 
   const [state, setState] = useModalFormState<FormState>(
     isOpen,
@@ -183,11 +181,11 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     }
 
     const picked = state.picked as DocumentRelation
-    // Persist `picked.document` (the embedded `{ title, path }` envelope)
-    // only when picker-time embedding is enabled. Otherwise the link node
-    // carries the relation primary keys alone, and the registered server
-    // populate adapter is expected to refresh the renderer-facing fields
-    // on read.
+    // Always embed the picker's `{ title, path }` envelope on save —
+    // the in-editor display reads it back to render a label without a
+    // round-trip, and the server-side write-time walker
+    // (`embedRichTextFields` in `@byline/core` + `lexicalEditorEmbedServer`)
+    // refreshes / canonicalises it on persistence.
     const fields: LinkAttributes =
       state.linkType === 'custom'
         ? {
@@ -201,7 +199,7 @@ export const LinkModal: React.FC<LinkModalProps> = ({
             targetDocumentId: picked.targetDocumentId,
             targetCollectionId: picked.targetCollectionId,
             targetCollectionPath: picked.targetCollectionPath,
-            document: editorSettings.embedRelationsOnSave ? picked.document : undefined,
+            document: picked.document,
           }
 
     onSubmit({

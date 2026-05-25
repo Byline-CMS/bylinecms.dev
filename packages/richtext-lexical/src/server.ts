@@ -7,28 +7,43 @@
  */
 
 /**
- * Server-side entry point for the Lexical adapter — registered into
- * `ServerConfig.fields.richText.populate`. No React, no DOM, no Lexical
- * runtime — safe to import from server-only modules.
+ * Server-side entry points for the Lexical adapter — registered into
+ * `ServerConfig.fields.richText.{ populate, embed }`. No React, no DOM,
+ * no Lexical runtime — safe to import from server-only modules.
+ *
+ * Two factories, one shared visitor pipeline. The visitors themselves
+ * (link, inline-image) don't care whether they're firing on read or
+ * save; what differs is *when* the framework runs them.
  *
  * @example
  * ```ts
  * // apps/webapp/byline/server.config.ts
- * import { lexicalEditorServer } from '@byline/richtext-lexical/server'
+ * import {
+ *   lexicalEditorEmbedServer,
+ *   lexicalEditorPopulateServer,
+ * } from '@byline/richtext-lexical/server'
  * import { defineServerConfig } from '@byline/core'
  * import { getAdminBylineClient } from '@/lib/byline-client'
  *
  * defineServerConfig({
  *   // …
  *   fields: {
- *     richText: { populate: lexicalEditorServer({ getClient: getAdminBylineClient }) },
+ *     richText: {
+ *       embed: lexicalEditorEmbedServer({ getClient: getAdminBylineClient }),
+ *       populate: lexicalEditorPopulateServer({ getClient: getAdminBylineClient }),
+ *     },
  *   },
  * })
  * ```
  */
 
 import type { BylineClient } from '@byline/client'
-import type { RichTextPopulateContext, RichTextPopulateFn } from '@byline/core'
+import type {
+  RichTextEmbedContext,
+  RichTextEmbedFn,
+  RichTextPopulateContext,
+  RichTextPopulateFn,
+} from '@byline/core'
 
 import { inlineImageVisitor } from './field/extensions/inline-image/populate'
 import { linkVisitor } from './field/extensions/link/populate'
@@ -55,7 +70,7 @@ export interface LexicalServerOptions {
    * Returns the server-side `BylineClient` used to batch-fetch target
    * documents. Typically the host application's cached singleton (e.g.
    * `getAdminBylineClient` in the webapp). Resolved lazily on every
-   * populate call so registration order doesn't matter.
+   * call so registration order doesn't matter.
    */
   getClient: () => BylineClient
   /**
@@ -65,9 +80,9 @@ export interface LexicalServerOptions {
    * built-ins, or temporarily disable a built-in:
    *
    * ```ts
-   * lexicalEditorServer({
+   * lexicalEditorPopulateServer({
    *   getClient,
-   *   visitors: [inlineImageVisitor, linkVisitor, myCustomEmbedVisitor],
+   *   visitors: [inlineImageVisitor, linkVisitor, myCustomVisitor],
    * })
    * ```
    */
@@ -80,9 +95,34 @@ export interface LexicalServerOptions {
  * invokes this function once per rich-text leaf it discovers in a
  * document tree, gated by each leaf field's `populateRelationsOnRead`.
  */
-export function lexicalEditorServer(options: LexicalServerOptions): RichTextPopulateFn {
+export function lexicalEditorPopulateServer(options: LexicalServerOptions): RichTextPopulateFn {
   const visitors = options.visitors ?? [inlineImageVisitor, linkVisitor]
   return async (ctx: RichTextPopulateContext): Promise<void> => {
+    await runLexicalPopulate({
+      client: options.getClient(),
+      readContext: ctx.readContext,
+      visitors,
+      values: [ctx.value],
+    })
+  }
+}
+
+/**
+ * Build the registered `RichTextEmbedFn`. Mirror of
+ * `lexicalEditorPopulateServer` — same visitor pipeline, fires from the
+ * write path instead of the read path. The framework invokes this
+ * function once per rich-text leaf in the outgoing document data,
+ * gated by each leaf field's `embedRelationsOnSave` (default: `true`).
+ *
+ * The visitors mutate `ctx.value` in place (refreshing `document.path`,
+ * `document.title`, and `_resolved` on internal-link nodes; the inline-
+ * image bag on inline-image nodes). The lifecycle write path catches
+ * per-leaf errors and leaves the leaf untouched on hard failure (branch
+ * C of docs/RICHTEXT-LINK-REFACTOR-STRATEGY.md § 3.3).
+ */
+export function lexicalEditorEmbedServer(options: LexicalServerOptions): RichTextEmbedFn {
+  const visitors = options.visitors ?? [inlineImageVisitor, linkVisitor]
+  return async (ctx: RichTextEmbedContext): Promise<void> => {
     await runLexicalPopulate({
       client: options.getClient(),
       readContext: ctx.readContext,

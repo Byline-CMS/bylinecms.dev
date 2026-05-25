@@ -84,18 +84,12 @@ export const RichTextField = ({
   const baseEditorConfig: EditorConfig =
     resolved.extensions != null ? resolved : { ...resolved, extensions: defaultExtensionsList() }
 
-  // Adapter-agnostic field-level lever — when present, override the resolved
-  // editor settings so the inline-image / link modals see this field's policy.
-  const resolvedEditorConfig: EditorConfig =
-    field.embedRelationsOnSave === undefined
-      ? baseEditorConfig
-      : {
-          ...baseEditorConfig,
-          settings: {
-            ...baseEditorConfig.settings,
-            embedRelationsOnSave: field.embedRelationsOnSave,
-          },
-        }
+  // `field.embedRelationsOnSave` is a server-side flag — read by the
+  // document-lifecycle write path's richtext embed walker. The client
+  // editor no longer reads it (the modals always embed picker-time
+  // envelopes; the server walker refreshes them on save), so nothing
+  // here needs to propagate the field-level value into `EditorSettings`.
+  const resolvedEditorConfig: EditorConfig = baseEditorConfig
 
   // Assemble the label node here (a Byline-level concern) so that the editor
   // component itself stays free of any Byline-specific dependencies.

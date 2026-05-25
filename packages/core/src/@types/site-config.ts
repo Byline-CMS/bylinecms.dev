@@ -12,7 +12,7 @@ import type { SlugifierFn } from '../utils/slugify.js'
 import type { CollectionAdminConfig } from './admin-types.js'
 import type { CollectionDefinition } from './collection-types.js'
 import type { IDbAdapter } from './db-types.js'
-import type { RichTextEditorComponent, RichTextPopulateFn } from './field-types.js'
+import type { RichTextEditorComponent, RichTextEmbedFn, RichTextPopulateFn } from './field-types.js'
 import type { IStorageProvider } from './storage-types.js'
 
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
@@ -192,22 +192,38 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    *
    * @example
    * ```ts
-   * import { lexicalEditorServer } from '@byline/richtext-lexical/server'
+   * import {
+   *   lexicalEditorEmbedServer,
+   *   lexicalEditorPopulateServer,
+   * } from '@byline/richtext-lexical/server'
    *
    * defineServerConfig({
    *   fields: {
-   *     richText: { populate: lexicalEditorServer({ getClient: getAdminBylineClient }) },
+   *     richText: {
+   *       embed: lexicalEditorEmbedServer({ getClient: getAdminBylineClient }),
+   *       populate: lexicalEditorPopulateServer({ getClient: getAdminBylineClient }),
+   *     },
    *   },
    * })
    * ```
    */
   fields?: {
     /**
-     * Richtext server-side populate function. Invoked by the read pipeline
-     * for every rich-text field whose effective `populateRelationsOnRead`
-     * is `true`. Required when any collection has a `richText` field
-     * configured to populate on read; `initBylineCore()` enforces this.
+     * Richtext server-side adapter slots.
+     *
+     * `populate` — invoked by the read pipeline for every rich-text field
+     * whose effective `populateRelationsOnRead` is `true`. Required when
+     * any collection has a `richText` field configured to populate on
+     * read; `initBylineCore()` enforces this.
+     *
+     * `embed` — invoked by the document-lifecycle write path for every
+     * rich-text field whose effective `embedRelationsOnSave` is `true`
+     * (the default). Walks the editor tree at save time and refreshes
+     * embedded relation envelopes (e.g. composing `document.path` via
+     * `CollectionDefinition.buildDocumentPath` on internal-link nodes).
+     * Required when any collection has a `richText` field with
+     * `embedRelationsOnSave: true`; `initBylineCore()` enforces this.
      */
-    richText?: { populate: RichTextPopulateFn }
+    richText?: { populate?: RichTextPopulateFn; embed?: RichTextEmbedFn }
   }
 }

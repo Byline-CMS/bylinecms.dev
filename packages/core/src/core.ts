@@ -117,7 +117,10 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // before any DB work. Fail-fast surfaces unrenderable configurations
   // (both flags off) and missing-adapter cases at boot rather than at
   // request time.
-  validateRichTextFieldFlags(composed.collections, config.fields?.richText?.populate != null)
+  validateRichTextFieldFlags(composed.collections, {
+    populate: config.fields?.richText?.populate != null,
+    embed: config.fields?.richText?.embed != null,
+  })
 
   // Backward compat: populate globalThis singletons
   defineServerConfig(config)

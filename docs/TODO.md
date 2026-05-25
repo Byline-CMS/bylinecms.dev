@@ -22,7 +22,7 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ### Richtext populate integration test
 
-Deferred from the round that landed the populate primitive. The CI integration-test pipeline now runs the suite on every PR (see [TESTING.md](./TESTING.md)) so this can land at any time. Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Inline images and document links](./RICHTEXT.md#inline-images-and-document-links--embed-and-populate) for the populate primitive itself.
+Deferred from the round that landed the populate primitive. The CI integration-test pipeline now runs the suite on every PR (see [TESTING.md](./TESTING.md)) so this can land at any time. Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Relations — embed and populate](./RICHTEXT.md#relations--embed-and-populate) for the populate primitive itself.
 
 ---
 

@@ -24,7 +24,10 @@ import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
 import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
-import { lexicalEditorServer } from '@byline/richtext-lexical/server'
+import {
+  lexicalEditorEmbedServer,
+  lexicalEditorPopulateServer,
+} from '@byline/richtext-lexical/server'
 import { localStorageProvider } from '@byline/storage-local'
 
 import { i18n } from './i18n.js'
@@ -128,7 +131,10 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // }),
     sessionProvider,
     fields: {
-      richText: { populate: lexicalEditorServer({ getClient: getAdminBylineClient }) },
+      richText: {
+        embed: lexicalEditorEmbedServer({ getClient: getAdminBylineClient }),
+        populate: lexicalEditorPopulateServer({ getClient: getAdminBylineClient }),
+      },
     },
   })
 

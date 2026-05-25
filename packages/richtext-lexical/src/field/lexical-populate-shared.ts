@@ -100,9 +100,18 @@ export interface PendingHydration {
    * Apply the freshly-fetched target document to the node. Mutates `node`
    * in place; `target.fields` is the shaped collection record. Receives
    * the full target so the visitor can pick whatever projection it cares
-   * about.
+   * about. Invoked by the driver only when the target was found.
    */
   apply: (target: Record<string, any>) => void
+  /**
+   * Optional handler invoked by the driver when the target document could
+   * not be fetched — i.e. it was deleted between the picker's write and
+   * this walk. Lets the visitor mark the node with degraded state
+   * (e.g. `document._resolved = false` on internal-link nodes) so the
+   * renderer can react. Omit on visitors that prefer the older "silent
+   * skip" behaviour; the driver no-ops when absent.
+   */
+  applyMissing?: () => void
 }
 
 /**
@@ -182,7 +191,10 @@ export async function runLexicalPopulate(options: RunPopulateOptions): Promise<v
 
   for (const p of pending) {
     const target = fetched.get(p.collectionPath)?.get(p.documentId)
-    if (!target) continue
-    p.apply(target)
+    if (target) {
+      p.apply(target)
+    } else {
+      p.applyMissing?.()
+    }
   }
 }
