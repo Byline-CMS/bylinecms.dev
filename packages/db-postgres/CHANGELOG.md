@@ -1,5 +1,19 @@
 # @byline/db-postgres
 
+## 2.5.0
+
+### Minor Changes
+
+- added a write-time richtext embed walker and `CollectionDefinition.buildDocumentPath` hook for canonical internal-link path composition in **`@byline/core`** and **`@byline/richtext-lexical`**
+  rendered in-page anchors, tel:, and mailto: hrefs without the external-link affordance in the link serializer
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@2.5.0
+  - @byline/auth@2.5.0
+  - @byline/core@2.5.0
+
 ## 2.4.4
 
 ### Patch Changes
