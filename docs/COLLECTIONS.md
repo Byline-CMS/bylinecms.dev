@@ -600,7 +600,7 @@ const sections = await client
 
 Both `orderKey` and `order_key` are accepted (`DOCUMENT_SORT_COLUMNS` in `packages/core/src/query/parse-where.ts`). The admin list view defaults to `order_key asc` automatically when the collection is `orderable: true`; SDK callers ask explicitly so reads from outside the admin UI stay predictable.
 
-Two known gaps on the SDK path, both acceptable for v1:
+Two known gaps on the SDK path, both acceptable for the current implementation:
 
 - **No `NULLS LAST` qualifier.** `parseSort` emits a single `ORDER BY order_key <dir>`. On Postgres, `ASC` puts `NULL` last by default — backfilled-but-undragged rows sink, which matches admin-view intent. `DESC` would float `NULL`s to the top.
 - **Single sort key only.** `parseSort` reads only the first entry of the `sort` object, so a fallback tiebreaker (`{ orderKey: 'asc', createdAt: 'desc' }`) is silently dropped. Unkeyed rows therefore have no stable secondary order on the SDK path.
@@ -610,7 +610,7 @@ If either becomes load-bearing for an external consumer, the fix lives in `parse
 **Intentionally NOT in scope:**
 
 - **Bulk reorder API.** Single-row reorder covers the drag-drop UX. Bulk insert lands via `generateNKeysBetween` if a real need arrives.
-- **Cross-page drops.** Same-page only in v1.
+- **Cross-page drops.** Same-page only at present.
 - **Per-locale ordering.** `order_key` is one value per logical document. Defer to a sidecar table if anyone asks.
 - **Reorder-versioning.** Order changes are not recorded in document history.
 

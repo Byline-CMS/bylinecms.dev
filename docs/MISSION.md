@@ -70,8 +70,8 @@ top of other frameworks. Once our core model settled down, and following the
 adopted a 'guided' approach to using LLM-based generative AI to design and
 plan phases of work. It's been a remarkable journey. The marginal cost of
 developing Byline has dropped significantly as a result — enough that, with
-just a 2-person team, we'll likely get to a 'pretty good' v1 release on our
-own.
+just a 2-person team, we've been able to ship and iterate on the 2.x line
+on our own.
 
 Our hunch is that even within the rapidly evolving world of LLM-based AI, a
 content management system like Byline will remain a useful tool for our work
