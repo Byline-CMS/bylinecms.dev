@@ -36,6 +36,7 @@ export const Pages = defineCollection({
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
+  linksInEditor: true,
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {
