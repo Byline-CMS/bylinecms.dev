@@ -233,7 +233,7 @@
 
   .positioner,
   :global(.byline-autocomplete-positioner) {
-    z-index: 50;
+    z-index: var(--z-index-popover);
     outline: 0;
   }
 
@@ -241,7 +241,7 @@
 
   .popup,
   :global(.byline-autocomplete-popup) {
-    z-index: 50;
+    z-index: var(--z-index-popover);
     margin-top: 2px;
     border: 1px solid var(--surface-panel-border);
     box-shadow: var(--shadow-md);

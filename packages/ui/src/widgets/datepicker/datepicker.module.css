@@ -24,7 +24,7 @@
   .content,
   :global(.byline-datepicker-content) {
     width: 100%;
-    z-index: 50;
+    z-index: var(--z-index-popover);
     border-radius: 4px;
     padding-top: var(--spacing-16);
     padding-bottom: var(--spacing-8);

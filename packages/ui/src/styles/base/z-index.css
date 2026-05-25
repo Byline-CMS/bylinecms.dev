@@ -7,6 +7,7 @@
     --z-index-medium: 100;
     --z-index-high: 1000;
     --z-index-modal: 1050;
+    --z-index-popover: 1075;
     --z-index-toast: 1100;
   }
 }

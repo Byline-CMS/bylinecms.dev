@@ -12,12 +12,12 @@
 @layer byline-components {
   .positioner,
   :global(.byline-select-positioner) {
-    z-index: 50;
+    z-index: var(--z-index-popover);
   }
 
   .popup,
   :global(.byline-select-popup) {
-    z-index: 50;
+    z-index: var(--z-index-popover);
     margin-top: 2px;
     border: 1px solid var(--surface-panel-border);
     box-shadow: var(--shadow-md);
@@ -48,7 +48,7 @@
 
   .list,
   :global(.byline-select-list) {
-    z-index: 50;
+    z-index: var(--z-index-popover);
   }
 
   .scroll-arrow,
