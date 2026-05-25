@@ -85,6 +85,16 @@ export function manageRel(input: string, action: 'add' | 'remove', value: string
   return result
 }
 
+// Hrefs we treat as "stays in the page / app" — skip URL parsing,
+// skip the external-link icon, don't force `target="_blank"`. `#anchor`
+// is an intra-page jump; empty hrefs would be inert placeholders but
+// `LinkLexicalSerializer` short-circuits those before reaching here.
+function isLocalHref(href: string): boolean {
+  if (href.length === 0) return true
+  if (href.startsWith('#')) return true
+  return ['tel:', 'mailto:', '/'].some((prefix) => href.startsWith(prefix))
+}
+
 /**
  * Resolve the renderable href for a link node. Returns `''` when no
  * usable href can be built — the serializer treats that as the signal
@@ -123,8 +133,7 @@ function getHref(args: LinkAttributes): string {
     href = args.url
   }
 
-  const hrefIsLocal = ['tel:', 'mailto:', '/'].some((prefix) => href.startsWith(prefix))
-  if (!hrefIsLocal && href.length > 0) {
+  if (!isLocalHref(href)) {
     try {
       const objectURL = new URL(href)
       if (objectURL.origin === publicWebsiteUrl) {
@@ -162,7 +171,7 @@ function getAdditionalProps(
     additionalProps.target = '_blank'
   }
 
-  if (!href.startsWith('/')) {
+  if (!isLocalHref(href)) {
     additionalProps.target = '_blank'
   }
 
@@ -205,6 +214,21 @@ export function LinkLexicalSerializer({
       >
         {children}
       </LangLink>
+    )
+  }
+  // Local but not a router path (#anchor, tel:, mailto:): plain
+  // <a>, no external-link affordance.
+  if (isLocalHref(href)) {
+    return (
+      <a
+        href={href}
+        {...additionalProps}
+        className={cx(className, 'underline')}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        {children}
+      </a>
     )
   }
   return (
