@@ -25,7 +25,6 @@ import { FloatingTextFormatExtension } from '../extensions/floating-text-format/
 import { HorizontalRuleExtension } from '../extensions/horizontal-rule/horizontal-rule-extension'
 import { InlineImageExtension } from '../extensions/inline-image/inline-image-extension'
 import { LayoutExtension } from '../extensions/layout/layout-extension'
-import { AutoLinkExtension } from '../extensions/link/auto-link-extension'
 import { LinkExtension } from '../extensions/link/link-extension'
 import { TableExtension } from '../extensions/table/table-extension'
 import { VimeoExtension } from '../extensions/vimeo/vimeo-extension'
@@ -73,7 +72,6 @@ export function defaultExtensionsArray(): AnyLexicalExtensionArgument[] {
 
     // Link & link-related.
     LinkExtension,
-    AutoLinkExtension,
 
     // Embeds & inline images.
     InlineImageExtension,
