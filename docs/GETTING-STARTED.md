@@ -170,7 +170,7 @@ cp .env.local.example .env.local
 
 # generate JWT session key
 openssl rand -base64 48
-# past the above output into your .env file for
+# past the above output into your .env.local file for
 # BYLINE_JWT_SECRET=
 
 # Set the seed superadmin username email address and password
