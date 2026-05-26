@@ -140,12 +140,18 @@ interface RunPopulateOptions {
 /**
  * Walk every supplied rich-text value, collect the union of pending
  * hydrations across all visitors, batch-fetch by source collection, and
- * apply. Threading `readContext` keeps the visited-set / `afterReadFired`
- * / read-budget machinery in sync with relation populate and user-land
- * `afterRead` hooks.
+ * apply.
+ *
+ * `readContext` is accepted (factories thread it through from
+ * `RichTextPopulateContext` / `RichTextEmbedContext`) but currently unused —
+ * the batch fetch goes straight to `getDocumentsByDocumentIds` and doesn't
+ * recurse into populate or `afterRead`, so there's no visited-set or
+ * read-budget state to share. Retained on the options shape so a future
+ * visitor that performs nested populate can opt back in without another
+ * contract churn.
  */
 export async function runLexicalPopulate(options: RunPopulateOptions): Promise<void> {
-  const { client, readContext, visitors, values } = options
+  const { client, visitors, values } = options
 
   const pending: PendingHydration[] = []
   for (const value of values) {
@@ -172,18 +178,34 @@ export async function runLexicalPopulate(options: RunPopulateOptions): Promise<v
     bucket.add(p.documentId)
   }
 
+  // Fetch directly through the adapter rather than the client's `find()` —
+  // `parseWhere` has no handler for `id`, so `find({ where: { id: { $in } } })`
+  // silently dropped the filter and returned arbitrary docs ordered by
+  // `created_at desc`. This is the same primitive relation populate uses
+  // (`packages/core/src/services/populate.ts`) when it batches by document id.
   const fetched = new Map<string, Map<string, Record<string, any>>>()
   await Promise.all(
     Array.from(idsByCollection.entries()).map(async ([collectionPath, idSet]) => {
       const ids = Array.from(idSet)
-      const result = await client.collection(collectionPath).find({
-        where: { id: { $in: ids } },
-        pageSize: ids.length,
-        _readContext: readContext,
+      const collectionId = await client.resolveCollectionId(collectionPath)
+      const rawDocs = await client.db.queries.documents.getDocumentsByDocumentIds({
+        collection_id: collectionId,
+        document_ids: ids,
+        readMode: 'published',
       })
       const byId = new Map<string, Record<string, any>>()
-      for (const d of result.docs as Array<Record<string, any>>) {
-        if (typeof d.id === 'string') byId.set(d.id, d)
+      for (const raw of rawDocs as Array<Record<string, any>>) {
+        if (typeof raw.document_id !== 'string') continue
+        // Normalise the raw storage shape (`document_id` / `path` / `status` /
+        // `fields`) to the `{ id, path, status, fields }` shape the visitors
+        // expect — matches the shaped `ClientDocument` the previous `find()`
+        // path returned.
+        byId.set(raw.document_id, {
+          id: raw.document_id,
+          path: raw.path,
+          status: raw.status,
+          fields: raw.fields,
+        })
       }
       fetched.set(collectionPath, byId)
     })
