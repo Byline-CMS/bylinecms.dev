@@ -35,7 +35,13 @@ export interface DepSpec {
   optional?: DepOptionalFlag
 }
 
-export const BYLINE_VERSION = '^2.0.0'
+// Floor for installed `@byline/*` versions. Must match the minor that
+// introduced any new API the templates we drop into the host project
+// reference. e.g. `byline/server.config.ts` imports
+// `lexicalEditorEmbedServer` from `@byline/richtext-lexical/server`,
+// which landed in 2.5.0 — so we floor at ^2.5.0 to keep pnpm from
+// resolving an older lockfile pin under `^2.0.0`.
+export const BYLINE_VERSION = '^2.5.0'
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------

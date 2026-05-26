@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 import { execa } from 'execa'
+import { type Document, parseDocument } from 'yaml'
 
 import { DEP_SPECS, type DepSpec } from '../manifest/deps.js'
 import type { Context } from '../context.js'
@@ -13,14 +14,19 @@ interface DepStatus {
 }
 
 /**
- * Packages pnpm refuses to build post-install without an explicit opt-in
- * via `pnpm.onlyBuiltDependencies`. Each one is either a transitive native
- * binding pulled in by @byline/* (sharp via @byline/core/image, esbuild
- * via Vite, protobufjs via @opentelemetry/*) or an LLM SDK that ships a
- * postinstall (@google/genai via @byline/ai). Without them in the allow
- * list, pnpm pauses the install and asks the user to run
- * `pnpm approve-builds` — which derails the guided installer. We prepend
- * them to the host package.json before running `pnpm add`.
+ * Packages pnpm refuses to build post-install without an explicit opt-in.
+ * Each one is either a transitive native binding pulled in by @byline/*
+ * (sharp via @byline/core/image, esbuild via Vite, protobufjs via
+ * @opentelemetry/*) or an LLM SDK that ships a postinstall (@google/genai
+ * via @byline/ai). Without them in the allow list, pnpm pauses the
+ * install and asks the user to run `pnpm approve-builds`, which derails
+ * the guided installer.
+ *
+ * Important: pnpm v10+ no longer reads the `pnpm` field from
+ * `package.json` and instead expects an `allowBuilds:` map in
+ * `pnpm-workspace.yaml` (even for non-monorepo projects). We write there.
+ * Older pnpm v9 read `pnpm.onlyBuiltDependencies` in `package.json`; if we
+ * find that field we strip it so it doesn't mislead readers.
  */
 const PNPM_ALLOWED_BUILDS = ['@google/genai', 'esbuild', 'protobufjs', 'sharp'] as const
 
@@ -49,9 +55,14 @@ export const depsPhase: Phase = {
     const notes: string[] = []
     if (ctx.pm === 'pnpm') {
       const missingBuilds = computeMissingPnpmBuilds(ctx)
-      if (missingBuilds && missingBuilds.length > 0) {
+      if (missingBuilds.length > 0) {
         notes.push(
-          `pnpm.onlyBuiltDependencies: will add ${missingBuilds.join(', ')} to package.json (so pnpm doesn't pause the install)`
+          `pnpm-workspace.yaml: will add allowBuilds entries for ${missingBuilds.join(', ')} (so pnpm doesn't pause the install)`
+        )
+      }
+      if (hasStalePnpmFieldInPackageJson(ctx)) {
+        notes.push(
+          'package.json: will remove stale `pnpm.onlyBuiltDependencies` (pnpm v10+ reads pnpm-workspace.yaml instead)'
         )
       }
     }
@@ -75,7 +86,13 @@ export const depsPhase: Phase = {
     if (ctx.pm === 'pnpm') {
       const added = ensurePnpmAllowedBuilds(ctx)
       if (added.length > 0) {
-        ctx.logger.success(`package.json: added ${added.join(', ')} to pnpm.onlyBuiltDependencies`)
+        ctx.logger.success(`pnpm-workspace.yaml: added allowBuilds entries for ${added.join(', ')}`)
+      }
+      const stripped = stripStalePnpmFieldFromPackageJson(ctx)
+      if (stripped) {
+        ctx.logger.info(
+          'package.json: removed stale `pnpm.onlyBuiltDependencies` (pnpm v10+ ignores it)'
+        )
       }
     }
 
@@ -153,36 +170,84 @@ function readHostPackageJson(ctx: Context): { path: string; pkg: HostPackageJson
   }
 }
 
-function computeMissingPnpmBuilds(ctx: Context): string[] | null {
-  const read = readHostPackageJson(ctx)
-  if (!read) return null
-  const existing = new Set(read.pkg.pnpm?.onlyBuiltDependencies ?? [])
+/**
+ * Reads `pnpm-workspace.yaml` from the host project. Returns an empty
+ * document (not null) if the file doesn't exist — pnpm v10+ tolerates a
+ * single-package repo creating the file just for settings, so we'll write
+ * one if needed.
+ */
+function readPnpmWorkspaceYaml(ctx: Context): { path: string; doc: Document } {
+  const path = ctx.resolve('pnpm-workspace.yaml')
+  if (!existsSync(path)) return { path, doc: parseDocument('') }
+  const text = readFileSync(path, 'utf8')
+  return { path, doc: parseDocument(text) }
+}
+
+function readAllowBuildsKeys(doc: Document): Set<string> {
+  const node = doc.get('allowBuilds')
+  if (!node || typeof node !== 'object') return new Set()
+  // yaml's Document.get returns a YAMLMap node; toJSON gives us plain object
+  const map = (doc.get('allowBuilds') as { toJSON?: () => Record<string, unknown> })?.toJSON?.()
+  if (!map || typeof map !== 'object') return new Set()
+  return new Set(Object.keys(map))
+}
+
+function computeMissingPnpmBuilds(ctx: Context): readonly string[] {
+  const { doc } = readPnpmWorkspaceYaml(ctx)
+  const existing = readAllowBuildsKeys(doc)
   return PNPM_ALLOWED_BUILDS.filter((name) => !existing.has(name))
 }
 
 /**
  * Adds every entry in `PNPM_ALLOWED_BUILDS` that isn't already present to
- * `package.json` under `pnpm.onlyBuiltDependencies`. Returns the entries
- * that were newly added (empty if everything was already declared).
+ * `pnpm-workspace.yaml` under `allowBuilds:` (the pnpm v10+ location).
+ * Returns the entries that were newly added.
  *
- * We preserve any existing entries (e.g. `lightningcss` that some
- * TanStack Start scaffolds add) by unioning, not replacing.
+ * We preserve any existing entries (e.g. user-added allowBuilds) and any
+ * unrelated top-level keys / comments by going through the `yaml`
+ * document API rather than re-serialising from JSON.
  */
 function ensurePnpmAllowedBuilds(ctx: Context): string[] {
-  const read = readHostPackageJson(ctx)
-  if (!read) return []
-  const { path, pkg } = read
-  const current = pkg.pnpm?.onlyBuiltDependencies ?? []
-  const existing = new Set(current)
+  const { path, doc } = readPnpmWorkspaceYaml(ctx)
+  const existing = readAllowBuildsKeys(doc)
   const toAdd = PNPM_ALLOWED_BUILDS.filter((name) => !existing.has(name))
   if (toAdd.length === 0) return []
 
-  const next: HostPackageJson = {
-    ...pkg,
-    pnpm: { ...(pkg.pnpm ?? {}), onlyBuiltDependencies: [...current, ...toAdd] },
+  if (!doc.has('allowBuilds')) doc.set('allowBuilds', {})
+  for (const name of toAdd) {
+    doc.setIn(['allowBuilds', name], true)
+  }
+  writeFileSync(path, doc.toString(), 'utf8')
+  return [...toAdd]
+}
+
+function hasStalePnpmFieldInPackageJson(ctx: Context): boolean {
+  const read = readHostPackageJson(ctx)
+  if (!read) return false
+  return read.pkg.pnpm?.onlyBuiltDependencies !== undefined
+}
+
+/**
+ * Older versions of this CLI (and pnpm v9) used the `pnpm` field in
+ * `package.json`. pnpm v10+ ignores it and emits a warning. Strip it on
+ * upgrade so the file doesn't confuse readers.
+ */
+function stripStalePnpmFieldFromPackageJson(ctx: Context): boolean {
+  const read = readHostPackageJson(ctx)
+  if (!read) return false
+  const { path, pkg } = read
+  if (pkg.pnpm?.onlyBuiltDependencies === undefined) return false
+
+  const nextPnpm = { ...pkg.pnpm }
+  delete nextPnpm.onlyBuiltDependencies
+  const next: HostPackageJson = { ...pkg }
+  if (Object.keys(nextPnpm).length === 0) {
+    delete next.pnpm
+  } else {
+    next.pnpm = nextPnpm
   }
   writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`, 'utf8')
-  return toAdd
+  return true
 }
 
 function buildInstallCommands(pm: PackageManager, missing: DepStatus[]): ShellCommand[] {
