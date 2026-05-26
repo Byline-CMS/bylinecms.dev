@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 import { execa } from 'execa'
 
@@ -11,6 +11,18 @@ interface DepStatus {
   presentIn: 'dependencies' | 'devDependencies' | null
   presentVersion: string | null
 }
+
+/**
+ * Packages pnpm refuses to build post-install without an explicit opt-in
+ * via `pnpm.onlyBuiltDependencies`. Each one is either a transitive native
+ * binding pulled in by @byline/* (sharp via @byline/core/image, esbuild
+ * via Vite, protobufjs via @opentelemetry/*) or an LLM SDK that ships a
+ * postinstall (@google/genai via @byline/ai). Without them in the allow
+ * list, pnpm pauses the install and asks the user to run
+ * `pnpm approve-builds` — which derails the guided installer. We prepend
+ * them to the host package.json before running `pnpm add`.
+ */
+const PNPM_ALLOWED_BUILDS = ['@google/genai', 'esbuild', 'protobufjs', 'sharp'] as const
 
 export const depsPhase: Phase = {
   id: 'deps',
@@ -33,22 +45,40 @@ export const depsPhase: Phase = {
         notes: ['package.json not readable — run host phase first'],
       }
     }
-    if (missing.length === 0) {
-      return { writes: [], commands: [], notes: ['all required dependencies already declared'] }
+
+    const notes: string[] = []
+    if (ctx.pm === 'pnpm') {
+      const missingBuilds = computeMissingPnpmBuilds(ctx)
+      if (missingBuilds && missingBuilds.length > 0) {
+        notes.push(
+          `pnpm.onlyBuiltDependencies: will add ${missingBuilds.join(', ')} to package.json (so pnpm doesn't pause the install)`
+        )
+      }
     }
 
-    const notes: string[] = [
-      `${missing.length} package(s) to install via ${ctx.pm}`,
-      ...missing.map(
-        ({ spec }) => `  + ${spec.name}@${spec.version}  (${spec.group}) — ${spec.note}`
-      ),
-    ]
+    if (missing.length === 0) {
+      notes.push('all required dependencies already declared')
+      return { writes: [], commands: [], notes }
+    }
+
+    notes.push(`${missing.length} package(s) to install via ${ctx.pm}`)
+    for (const { spec } of missing) {
+      notes.push(`  + ${spec.name}@${spec.version}  (${spec.group}) — ${spec.note}`)
+    }
     return { writes: [], commands: buildInstallCommands(ctx.pm, missing), notes }
   },
 
   async apply(_plan, ctx) {
     const missing = computeMissing(ctx)
     if (missing === null) return { state: 'blocked' }
+
+    if (ctx.pm === 'pnpm') {
+      const added = ensurePnpmAllowedBuilds(ctx)
+      if (added.length > 0) {
+        ctx.logger.success(`package.json: added ${added.join(', ')} to pnpm.onlyBuiltDependencies`)
+      }
+    }
+
     if (missing.length === 0) {
       ctx.logger.info('all required dependencies already declared — nothing to install')
       return { state: 'done' }
@@ -104,6 +134,55 @@ function computeMissing(ctx: Context): DepStatus[] | null {
     })
   }
   return missing
+}
+
+interface HostPackageJson {
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+  pnpm?: { onlyBuiltDependencies?: string[] }
+  [key: string]: unknown
+}
+
+function readHostPackageJson(ctx: Context): { path: string; pkg: HostPackageJson } | null {
+  const path = ctx.resolve('package.json')
+  if (!existsSync(path)) return null
+  try {
+    return { path, pkg: JSON.parse(readFileSync(path, 'utf8')) as HostPackageJson }
+  } catch {
+    return null
+  }
+}
+
+function computeMissingPnpmBuilds(ctx: Context): string[] | null {
+  const read = readHostPackageJson(ctx)
+  if (!read) return null
+  const existing = new Set(read.pkg.pnpm?.onlyBuiltDependencies ?? [])
+  return PNPM_ALLOWED_BUILDS.filter((name) => !existing.has(name))
+}
+
+/**
+ * Adds every entry in `PNPM_ALLOWED_BUILDS` that isn't already present to
+ * `package.json` under `pnpm.onlyBuiltDependencies`. Returns the entries
+ * that were newly added (empty if everything was already declared).
+ *
+ * We preserve any existing entries (e.g. `lightningcss` that some
+ * TanStack Start scaffolds add) by unioning, not replacing.
+ */
+function ensurePnpmAllowedBuilds(ctx: Context): string[] {
+  const read = readHostPackageJson(ctx)
+  if (!read) return []
+  const { path, pkg } = read
+  const current = pkg.pnpm?.onlyBuiltDependencies ?? []
+  const existing = new Set(current)
+  const toAdd = PNPM_ALLOWED_BUILDS.filter((name) => !existing.has(name))
+  if (toAdd.length === 0) return []
+
+  const next: HostPackageJson = {
+    ...pkg,
+    pnpm: { ...(pkg.pnpm ?? {}), onlyBuiltDependencies: [...current, ...toAdd] },
+  }
+  writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`, 'utf8')
+  return toAdd
 }
 
 function buildInstallCommands(pm: PackageManager, missing: DepStatus[]): ShellCommand[] {

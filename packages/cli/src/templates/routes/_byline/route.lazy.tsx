@@ -26,6 +26,11 @@ import { ToastProvider, ToastViewport } from '@byline/ui/react'
 import '@byline/ui/reset.css'
 import '@byline/ui/styles.css'
 
+// Initialize Byline admin config — sits in the lazy companion so the
+// Lexical editor module graph only loads when a _byline/* URL matches.
+// See byline/admin.config.ts for the comment on why this is side-effecty.
+import '../../../byline/admin.config'
+
 export const Route = createLazyFileRoute('/_byline')({
   component: BylineLayout,
 })

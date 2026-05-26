@@ -1,4 +1,3 @@
-import { wireBylineLayoutTsx } from './byline-layout-tsx.js'
 import { wireServerTs } from './server-ts.js'
 import { wireServerUploads } from './server-uploads.js'
 import { wireStartTs } from './start-ts.js'
@@ -16,7 +15,6 @@ const SUB_EDITS: SubEdit[] = [
   wireServerTs,
   wireServerUploads,
   wireStartTs,
-  wireBylineLayoutTsx,
   wireTsconfig,
   wireViteConfig,
 ]

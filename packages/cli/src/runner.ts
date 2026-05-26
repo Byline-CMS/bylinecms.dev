@@ -80,12 +80,17 @@ function previewPlan(phase: Phase, plan: Plan, ctx: Context): void {
 }
 
 async function decideApply(phase: Phase, ctx: Context): Promise<boolean> {
-  if (ctx.apply && phase.defaultMode === 'confirm') return true
-  if (phase.defaultMode === 'auto' && ctx.apply !== false) return true
+  // `auto` phases don't gather user-visible writes (e.g. `prompts` just
+  // collects answers, `deps` runs npm/pnpm) — gating them behind an
+  // "Apply <phase> changes?" confirm produces the awkward "ask if you
+  // want to be asked" effect when the phase's own apply() then prompts.
+  // Always auto-apply auto phases; let them surface their own prompts.
+  if (phase.defaultMode === 'auto') return true
+  if (ctx.apply) return true
   if (ctx.yes) return true
   return ctx.prompter.confirm({
     message: `Apply ${phase.id} changes?`,
-    defaultValue: phase.defaultMode === 'auto',
+    defaultValue: true,
   })
 }
 
