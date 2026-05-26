@@ -248,7 +248,7 @@ cd src/database && ./db_init.sh && cd ../..
 pnpm drizzle:migrate
 
 # .env configuration
-cd ../../apps/webapp && cp .env.example .env
+cd ../../apps/webapp && cp .env.local.example .env.local
 
 # generate JWT session key
 openssl rand -base64 48
@@ -259,7 +259,7 @@ openssl rand -base64 48
 # BYLINE_SUPERADMIN_EMAIL=admin@byline.local
 # BYLINE_SUPERADMIN_PASSWORD=change-me
 
-pnpm tsx --env-file=.env byline/seed.ts
+pnpm tsx --env-file=.env.local byline/seed.ts
 ```
 
 Then from the project root:

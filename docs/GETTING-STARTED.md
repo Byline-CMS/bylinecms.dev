@@ -162,7 +162,7 @@ pnpm drizzle:migrate
 cd apps/webapp
 
 # .env configuration
-cp .env.example .env
+cp .env.local.example .env.local
 
 # generate JWT session key
 openssl rand -base64 48
@@ -173,7 +173,7 @@ openssl rand -base64 48
 # BYLINE_SUPERADMIN_EMAIL=admin@byline.local
 # BYLINE_SUPERADMIN_PASSWORD=change-me
 
-pnpm tsx --env-file=.env byline/seed.ts
+pnpm tsx --env-file=.env.local byline/seed.ts
 ```
 
 ## 3. Start dev mode
