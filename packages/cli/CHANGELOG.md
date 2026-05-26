@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.5.1
+
+### Patch Changes
+
+- 7ed8425: fix(richtext-lexical): batched the link / inline-image populate fetch through `getDocumentsByDocumentIds` instead of `client.collection(...).find({ where: { id: { $in } } })`. `parseWhere` has no `id` handler, so the previous shape silently dropped the filter and returned arbitrary docs ordered by `created_at desc` — link embeds against any collection with more than one published doc could resolve to the wrong target (or trip the "internal link target not found" branch). Now mirrors the same adapter primitive relation populate already uses.
+
 ## 2.5.0
 
 ### Minor Changes
