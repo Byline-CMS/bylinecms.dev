@@ -1,5 +1,16 @@
 # @byline/db-postgres
 
+## 2.5.2
+
+### Patch Changes
+
+- fixed `@byline/cli` install path: corrected phase ordering, moved the pnpm builds allow-list to `pnpm-workspace.yaml`, and floored `@byline/*` deps at `^2.5.0`
+  `@byline/core` promoted `id` to a reserved document-level key in where clauses
+- Updated dependencies
+  - @byline/admin@2.5.2
+  - @byline/auth@2.5.2
+  - @byline/core@2.5.2
+
 ## 2.5.1
 
 ### Patch Changes
