@@ -153,7 +153,11 @@ cd ../..
 # and committed.
 # pnpm drizzle:generate
 pnpm drizzle:migrate
+```
 
+### 2.3. Configure the webapp, and optionally seed documents
+
+```
 # Seed the database with a single super-admin user — and optionally,
 # categories and documents.
 # From /apps/webapp. Note that our seed scripts live in
