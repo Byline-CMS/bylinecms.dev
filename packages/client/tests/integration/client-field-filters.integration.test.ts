@@ -175,6 +175,69 @@ describe('field-level filters via find()', () => {
     expect(result.meta.total).toBe(3)
     expect(result.meta.totalPages).toBe(2)
   })
+
+  it('should filter by `id` with bare value (single document)', async () => {
+    // `id` is a reserved document-level key in parse-where — it compiles
+    // to a DocumentColumnFilter against the current-documents view's
+    // `document_id` column, no EAV EXISTS.
+    const all = await ctx.client.collection(ctx.definition.path).find(any)
+    const [first] = all.docs
+    if (!first) throw new Error('fixture missing: expected at least one seeded doc')
+
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', where: { id: first.id } })
+
+    expect(result.docs).toHaveLength(1)
+    expect(result.docs[0]?.id).toBe(first.id)
+    expect(result.meta.total).toBe(1)
+  })
+
+  it('should filter by `id` with $in (batch lookup)', async () => {
+    // Headline use case: batch fetch a subset of known document ids. The
+    // richtext-lexical populate walker uses this shape after the v2.5.1
+    // fix migrates it back from `getDocumentsByDocumentIds`.
+    const all = await ctx.client.collection(ctx.definition.path).find(any)
+    const [first, , third] = all.docs
+    if (!first || !third) {
+      throw new Error('fixture missing: expected at least three seeded docs')
+    }
+    const wanted: string[] = [first.id, third.id]
+
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', where: { id: { $in: wanted } } })
+
+    expect(result.docs).toHaveLength(2)
+    const returnedIds = result.docs.map((d) => d.id).sort()
+    expect(returnedIds).toEqual([...wanted].sort())
+  })
+
+  it('should return empty result for `id: { $in: [] }`', async () => {
+    // Empty `$in` short-circuits to `FALSE` in buildFilterCondition.
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', where: { id: { $in: [] } } })
+
+    expect(result.docs).toEqual([])
+    expect(result.meta.total).toBe(0)
+  })
+
+  it('should compose `id` with other filters via implicit AND', async () => {
+    const all = await ctx.client.collection(ctx.definition.path).find(any)
+    const featuredDoc = all.docs.find((d) => d.fields.featured === true)
+    if (!featuredDoc) {
+      throw new Error('fixture missing: expected at least one featured doc')
+    }
+
+    const result = await ctx.client.collection(ctx.definition.path).find({
+      status: 'any',
+      where: { id: featuredDoc.id, featured: true },
+    })
+
+    expect(result.docs).toHaveLength(1)
+    expect(result.docs[0]?.id).toBe(featuredDoc.id)
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -141,23 +141,35 @@ export interface CombinatorFilter {
 }
 
 /**
- * A predicate over a document-version column (`status`, `path`). Distinct
- * from `FieldFilter` — these columns live on `document_versions` itself,
- * not on the EAV stores, so they compile to a direct outer-scope column
- * comparison rather than an `EXISTS` subquery.
+ * A predicate over a document-version column (`status`, `path`, `id`).
+ * Distinct from `FieldFilter` — these columns live on `document_versions`
+ * itself (or the current-documents view), not on the EAV stores, so they
+ * compile to a direct outer-scope column comparison rather than an `EXISTS`
+ * subquery.
  *
- * Produced by `parse-where` when `status` / `path` appear *inside* a
- * combinator (`$or` / `$and` child). At the top level the same keys are
- * intercepted as reserved keys on `ParsedWhere.status` / `ParsedWhere.pathFilter`
- * because they map to direct adapter parameters there; inside a
- * combinator that mapping no longer makes sense (you can't OR-combine
- * with the outer scalar parameter), so they downshift to this filter.
+ * Produced by `parse-where` for two reasons:
+ *
+ *   - `status` / `path` appearing *inside* a combinator (`$or` / `$and`
+ *     child) or inside a relation sub-clause. At the top level the same
+ *     keys are intercepted as `ParsedWhere.status` / `ParsedWhere.pathFilter`
+ *     because they map to direct adapter parameters there; inside a
+ *     combinator that mapping no longer makes sense (you can't OR-combine
+ *     with the outer scalar parameter), so they downshift to this filter.
+ *
+ *   - `id` at *any* scope. Unlike `status` (single equality, used in many
+ *     non-filter call sites) and `path` (needs the `pathProjection` join
+ *     against `byline_document_paths`), `id` is a plain column on the
+ *     current-documents view comparable directly at every scope. Skipping
+ *     a top-level scalar form keeps the surface area small.
+ *
+ * `value` is widened beyond `string | null` so the `$in` / `$nin` operators
+ * (the headline use case for `id`) can carry array operands.
  */
 export interface DocumentColumnFilter {
   kind: 'docColumn'
-  column: 'status' | 'path'
+  column: 'status' | 'path' | 'id'
   operator: FieldFilterOperator
-  value: string | null
+  value: string | number | boolean | null | Array<string | number>
 }
 
 /**

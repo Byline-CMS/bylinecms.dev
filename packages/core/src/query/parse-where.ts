@@ -36,7 +36,7 @@ type WhereValue = PredicateValue
 // ---------------------------------------------------------------------------
 
 /** Where clause keys that map to document-level columns, not EAV stores. */
-const DOCUMENT_LEVEL_KEYS = new Set(['status', 'path', 'query'])
+const DOCUMENT_LEVEL_KEYS = new Set(['status', 'path', 'query', 'id'])
 
 // ---------------------------------------------------------------------------
 // Parse context
@@ -340,6 +340,27 @@ async function parseWhereInternal(
           operator: parsed.operator,
           value: String(parsed.value),
         }
+      }
+      continue
+    }
+
+    // `id` always downshifts to a `DocumentColumnFilter` — no top-level
+    // scalar form. Unlike `status` (single equality, used in many non-filter
+    // call sites) and `path` (needs the `pathProjection` join), `id` is a
+    // plain column on the current-documents view comparable directly at any
+    // scope. Unifying all three scopes through the same downshift keeps the
+    // surface area small. Note: the value is passed through verbatim — we
+    // don't `String(...)` it the way status/path do, because the headline
+    // use case is `$in` / `$nin` carrying an array of document ids.
+    if (key === 'id') {
+      const parsed = normaliseToOperator(rawValue)
+      if (parsed) {
+        result.filters.push({
+          kind: 'docColumn',
+          column: 'id',
+          operator: parsed.operator,
+          value: parsed.value,
+        } satisfies DocumentColumnFilter)
       }
       continue
     }

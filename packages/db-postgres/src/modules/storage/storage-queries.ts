@@ -65,12 +65,17 @@ interface MetaRow {
 /**
  * SQL references to the columns the predicate compiler may need from the
  * enclosing scope. `docVersionId` is consumed by every EXISTS subquery as
- * the correlation key; `status` and `path` are referenced by
- * `DocumentColumnFilter` (the inside-a-combinator form of the
- * top-level `status` / `path` reserved keys).
+ * the correlation key; `status` / `path` / `documentId` are referenced by
+ * `DocumentColumnFilter` (the inside-a-combinator form of the top-level
+ * reserved keys for `status` / `path`, plus the all-scope form for `id`).
+ *
+ * Note: `documentId` is the *logical* document id (`document_id` on the
+ * current-documents view), not `docVersionId` (the version row id) —
+ * matches what callers writing `where: { id }` expect.
  */
 interface OuterScope {
   docVersionId: SQL
+  documentId: SQL
   status: SQL
   path: SQL
 }
@@ -435,6 +440,7 @@ export class DocumentQueries implements IDocumentQueries {
     if (filters?.length) {
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
+        documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
         path: this.pathProjection(sql`${view.document_id}`, locale),
       }
@@ -529,6 +535,7 @@ export class DocumentQueries implements IDocumentQueries {
     if (filters?.length) {
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
+        documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
         path: this.pathProjection(sql`${view.document_id}`, locale),
       }
@@ -714,6 +721,7 @@ export class DocumentQueries implements IDocumentQueries {
     if (filters?.length) {
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
+        documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
         path: this.pathProjection(sql`${view.document_id}`, filterLocale),
       }
@@ -997,6 +1005,7 @@ export class DocumentQueries implements IDocumentQueries {
     if (filters?.length) {
       const outerScope: OuterScope = {
         docVersionId: sql`${currentDocumentsView.id}`,
+        documentId: sql`${currentDocumentsView.document_id}`,
         status: sql`${currentDocumentsView.status}`,
         path: this.pathProjection(
           sql`${currentDocumentsView.document_id}`,
@@ -1275,6 +1284,7 @@ export class DocumentQueries implements IDocumentQueries {
           locale,
           {
             docVersionId: sql`d.id`,
+            documentId: sql`d.document_id`,
             status: sql`d.status`,
             path: this.pathProjection(sql`d.document_id`, locale),
           },
@@ -1432,13 +1442,18 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Compile a `DocumentColumnFilter` against the outer scope's status or
-   * path column. Plain comparison — no EXISTS — because the column lives
-   * directly on the outer relation (`document_versions` row), not in the
-   * EAV stores.
+   * Compile a `DocumentColumnFilter` against the outer scope's `status`,
+   * `path`, or `id` column. Plain comparison — no EXISTS — because the
+   * column lives directly on the outer relation (current-documents view),
+   * not in the EAV stores.
    */
   private buildDocColumnFilter(filter: DocumentColumnFilter, outerScope: OuterScope): SQL {
-    const column = filter.column === 'status' ? outerScope.status : outerScope.path
+    const column =
+      filter.column === 'status'
+        ? outerScope.status
+        : filter.column === 'path'
+          ? outerScope.path
+          : outerScope.documentId
     return this.buildFilterCondition(column, filter.operator, filter.value)
   }
 
@@ -1499,6 +1514,7 @@ export class DocumentQueries implements IDocumentQueries {
     const tdAlias = sql.raw(`td${depth}`)
     const innerScope: OuterScope = {
       docVersionId: sql.raw(`td${depth}.id`),
+      documentId: sql.raw(`td${depth}.document_id`),
       status: sql.raw(`td${depth}.status`),
       // `td${depth}.path` no longer exists on the view; resolve via the
       // locale priority chain against byline_document_paths instead.

@@ -719,6 +719,71 @@ describe('parseWhere — combinators', () => {
 })
 
 // ---------------------------------------------------------------------------
+// parseWhere — `id` reserved key
+// ---------------------------------------------------------------------------
+//
+// `id` is the logical document id (`document_id` on the current-documents
+// view). It is reserved at every scope and always downshifts to a
+// `DocumentColumnFilter` — no top-level scalar form like `status` /
+// `pathFilter`, because `id` is a plain column comparable directly.
+
+describe('parseWhere — `id` reserved key', () => {
+  it('emits a docColumn filter for a bare top-level `id` value', async () => {
+    const result = await parseWhere({ id: 'doc-123' }, testCollection)
+    expect(result.filters).toEqual([
+      { kind: 'docColumn', column: 'id', operator: '$eq', value: 'doc-123' },
+    ])
+  })
+
+  it('emits a docColumn filter with array value for top-level `id: { $in }`', async () => {
+    // The headline use case — batch lookup by a list of document ids.
+    // Value passes through verbatim (no `String(...)` coercion) so the
+    // array survives to the adapter's `$in` SQL builder.
+    const ids = ['doc-1', 'doc-2', 'doc-3']
+    const result = await parseWhere({ id: { $in: ids } }, testCollection)
+    expect(result.filters).toEqual([
+      { kind: 'docColumn', column: 'id', operator: '$in', value: ids },
+    ])
+  })
+
+  it('emits a docColumn filter for `id` inside an $or combinator', async () => {
+    const result = await parseWhere({ $or: [{ id: 'doc-a' }, { id: 'doc-b' }] }, testCollection)
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toMatchObject({
+      kind: 'or',
+      children: [
+        { kind: 'docColumn', column: 'id', operator: '$eq', value: 'doc-a' },
+        { kind: 'docColumn', column: 'id', operator: '$eq', value: 'doc-b' },
+      ],
+    })
+  })
+
+  it('emits a docColumn filter for `id` inside a nested relation sub-where', async () => {
+    // Reserved-key precedence — same as `status` / `path`: inside a
+    // relation hop, `id` refers to the target version's document_id, not
+    // a field of the same name.
+    const result = await parseWhere({ category: { id: 'cat-news' } }, testCollection, ctx)
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toEqual({
+      kind: 'relation',
+      fieldName: 'category',
+      targetCollectionId: 'id-test-categories',
+      nested: [{ kind: 'docColumn', column: 'id', operator: '$eq', value: 'cat-news' }],
+    })
+  })
+
+  it('does NOT populate any top-level scalar slot for `id`', async () => {
+    // Sanity: unlike status / pathFilter, `id` has no top-level scalar
+    // form on `ParsedWhere`. Always lives in `filters[]` as a docColumn.
+    const result = await parseWhere({ id: 'doc-x' }, testCollection)
+    expect(result.status).toBeUndefined()
+    expect(result.pathFilter).toBeUndefined()
+    expect(result.query).toBeUndefined()
+    expect(result.filters).toHaveLength(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // mergePredicates
 // ---------------------------------------------------------------------------
 
