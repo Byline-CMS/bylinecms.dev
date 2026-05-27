@@ -1,0 +1,219 @@
+/**
+ * Docs list — card grid for the documentation index.
+ *
+ * Override handles:
+ *   .byline-docs-list         — outer grid wrapper
+ *   .byline-docs-list-card    — each card root
+ *   .byline-docs-list-title   — card title
+ *   .byline-docs-list-summary — card summary text
+ *   .byline-docs-list-cta     — footer "Read more" CTA
+ */
+
+.grid,
+:global(.byline-docs-list) {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .grid,
+  :global(.byline-docs-list) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid,
+  :global(.byline-docs-list) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.card,
+:global(.byline-docs-list-card) {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface-panel);
+  border-radius: var(--border-radius-lg, 10px);
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background 220ms ease;
+}
+
+.card::before,
+:global(.byline-docs-list-card)::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--theme-300, var(--theme-400)) 0%,
+    var(--theme-100, var(--theme-200)) 100%
+  );
+  opacity: 0;
+  transition: opacity 220ms ease;
+  pointer-events: none;
+}
+
+.card:hover,
+:global(.byline-docs-list-card):hover,
+.card:focus-visible,
+:global(.byline-docs-list-card):focus-visible {
+  transform: translateY(-2px);
+  border-color: oklch(from var(--theme-500) l c h / 0.35);
+  box-shadow: 0 8px 20px -12px oklch(from var(--theme-500) l c h / 0.25);
+  outline: none;
+}
+
+.card:hover::before,
+:global(.byline-docs-list-card):hover::before,
+.card:focus-visible::before,
+:global(.byline-docs-list-card):focus-visible::before {
+  opacity: 1;
+}
+
+.header,
+:global(.byline-docs-list-card) :global(.byline-card-header) {
+  padding: 1.25rem 1.25rem 0.5rem;
+  gap: 0.5rem;
+}
+
+.content,
+:global(.byline-docs-list-card) :global(.byline-card-content) {
+  padding: 0 1.25rem 1rem;
+}
+
+.lead,
+:global(.byline-docs-list-lead) {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.heading,
+:global(.byline-docs-list-heading) {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--headings);
+}
+
+.title,
+:global(.byline-docs-list-title) {
+  margin: 0;
+  font-size: 1.7rem;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--headings);
+  /* Clamp at two lines so cards remain visually balanced. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.summary,
+:global(.byline-docs-list-summary) {
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.55;
+  margin: 0;
+  /* Keep summary heights consistent across cards. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.summaryEmpty,
+:global(.byline-docs-list-summary-empty) {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.footer,
+:global(.byline-docs-list-card) :global(.byline-card-footer) {
+  padding: 0 1.25rem 1.1rem;
+  margin-top: auto;
+}
+
+.cta,
+:global(.byline-docs-list-cta) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--theme-600, var(--theme-500));
+}
+
+.ctaIcon,
+:global(.byline-docs-list-cta) :global(.chevron-right-icon) {
+  display: inline-flex;
+  transition: transform 220ms ease;
+}
+
+.card:hover .ctaIcon,
+.card:focus-visible .ctaIcon,
+:global(.byline-docs-list-card):hover :global(.byline-docs-list-cta) :global(.chevron-right-icon),
+:global(.byline-docs-list-card):focus-visible
+  :global(.byline-docs-list-cta)
+  :global(.chevron-right-icon) {
+  transform: translateX(3px);
+}
+
+:is([data-theme="dark"], :global(.dark)) {
+  .card,
+  :global(.byline-docs-list-card) {
+    background: oklch(from var(--canvas-800) calc(l * 1.05) c h);
+  }
+
+  .card:hover,
+  :global(.byline-docs-list-card):hover,
+  .card:focus-visible,
+  :global(.byline-docs-list-card):focus-visible {
+    background: oklch(from var(--canvas-700) calc(l * 0.95) c h);
+    border-color: oklch(from var(--theme-400) l c h / 0.55);
+    box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.55);
+  }
+
+  .cta,
+  :global(.byline-docs-list-cta) {
+    color: var(--theme-300, var(--theme-400));
+  }
+
+  .card::before,
+  :global(.byline-docs-list-card)::before {
+    background: linear-gradient(
+      90deg,
+      var(--theme-500, var(--theme-400)) 0%,
+      var(--theme-300, var(--theme-400)) 100%
+    );
+  }
+}
+
+@media (width >= 40rem) {
+  .title,
+  :global(.byline-docs-list-title) {
+    font-size: 1.55rem;
+    line-height: 1.25;
+  }
+
+  .summary,
+  :global(.byline-docs-list-summary) {
+    font-size: 0.95rem;
+  }
+}

@@ -21,7 +21,7 @@ export function Code({ code, className, language }: CodeProps): React.JSX.Elemen
   return (
     <Highlight theme={themes.oneDark} code={code} language={resolvedLanguage}>
       {({ tokens, getLineProps, getTokenProps }) => (
-        <div className="code scroller group overflow-y-auto rounded border border-theme-600 relative">
+        <div className="code scroller group overflow-y-auto rounded border border-theme-600 relative mb-4">
           <CopyButton
             variant="outlined"
             intent="primary"

@@ -49,7 +49,7 @@ export function PhotoBlock({
     <Comp
       id={id}
       className={cx(
-        'px-0 pt-4',
+        'px-0',
         {
           'lg:max-w-[920px] xl:max-w-[920px] 2xl:max-w-[920px] mx-auto': display === 'default',
         },

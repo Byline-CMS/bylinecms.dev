@@ -32,7 +32,7 @@ export function RichTextBlock({
     <Container
       id={id}
       className={cx(
-        'pt-4 bg-white dark:bg-canvas-900',
+        // ' bg-white dark:bg-canvas-900',
         { 'max-w-full sm:max-w-full lg:max-w-full xl:max-w-full': constrainedWidth === false },
         { 'px-0': constrainedLayout },
         className

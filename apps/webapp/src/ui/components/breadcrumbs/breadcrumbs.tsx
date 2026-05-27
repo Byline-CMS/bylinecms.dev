@@ -1,14 +1,17 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import { Link } from '@tanstack/react-router'
 
 import cx from 'classnames'
 
 import { truncate } from '@/utils/utils.general.ts'
-
-export interface Breadcrumb {
-  label: string
-  href: string
-  active?: boolean
-}
+import type { Breadcrumb } from './@types'
 
 export function Breadcrumbs({
   breadcrumbs,
@@ -24,14 +27,16 @@ export function Breadcrumbs({
   return (
     <nav aria-label="Breadcrumb" className={cx('flex', className)}>
       <ul className="m-0 inline-flex list-inside list-none flex-wrap items-center space-x-1 p-0 md:space-x-1">
-        <li className="m-0 inline-flex items-center p-0 mb-1">
+        <li className="m-0 inline-flex items-center">
           <Link
+            // lng={lng}
             to={homePath}
-            className="m-0 text inline-flex items-center font-medium text-gray-900 hover:text-gray-800 dark:text-gray-100 dark:hover:text-white"
+            href={homePath}
+            className="m-0 text-sm inline-flex items-center font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
           >
             <svg
               role="presentation"
-              className="mr-2 h-5 w-5"
+              className="mr-2 h-4 w-4"
               fill="currentColor"
               viewBox="0 0 20 20"
               xmlns="http://www.w3.org/2000/svg"
@@ -46,11 +51,11 @@ export function Breadcrumbs({
           breadcrumbs.map((breadcrumb, index) => {
             if (index < breadcrumbs.length - 1) {
               return (
-                <li key={breadcrumb.href} className="m-0 p-0 mb-1">
+                <li key={breadcrumb.href} className="m-0 p-0">
                   <div className="flex items-center m-0">
                     <svg
                       role="presentation"
-                      className="h-6 w-6 text-gray-400"
+                      className="h-5 w-5 text-gray-400"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                       xmlns="http://www.w3.org/2000/svg"
@@ -62,21 +67,23 @@ export function Breadcrumbs({
                       />
                     </svg>
                     <Link
+                      // lng={lng}
                       to={breadcrumb.href}
-                      className="text m-0 font-medium text-gray-900 hover:text-gray-800 dark:text-gray-200 dark:hover:text-white"
+                      href={breadcrumb.href}
+                      className="text-sm m-0 font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                     >
-                      {truncate(breadcrumb.label, 40, true)}
+                      {truncate(breadcrumb.label, 20, true)}
                     </Link>
                   </div>
                 </li>
               )
             }
             return (
-              <li key={breadcrumb.href} aria-current="page" className="m-0 p-0 mb-1">
+              <li key={breadcrumb.href} aria-current="page" className="m-0 p-0">
                 <div className="flex items-center m-0">
                   <svg
                     role="presentation"
-                    className="h-6 w-6 text-gray-900 dark:text-gray-200"
+                    className="h-5 w-5 text-gray-900 dark:text-gray-600"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                     xmlns="http://www.w3.org/2000/svg"
@@ -87,8 +94,8 @@ export function Breadcrumbs({
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span className="font-medium text-gray-800 dark:text-gray-200 leading-5">
-                    {truncate(breadcrumb.label, 50, true)}
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-400 leading-5">
+                    {truncate(breadcrumb.label, 20, true)}
                   </span>
                 </div>
               </li>

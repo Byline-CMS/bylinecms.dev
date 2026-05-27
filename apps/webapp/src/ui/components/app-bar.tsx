@@ -6,9 +6,16 @@ import { useRouterState } from '@tanstack/react-router'
 import { GithubIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { i18nConfig } from '@/i18n/i18n-config'
+import { DocsDrawerToggle } from '@/modules/docs/components/drawer-toggle'
 import { Branding } from '@/modules/home/branding'
 import { ThemeSwitch } from '@/ui/theme/theme-switch'
 import type { Locale } from '@/i18n/i18n-config'
+
+// Match `/docs` and `/docs/*` with or without a leading locale segment
+// (e.g. `/en/docs`, `/es/docs/getting-started`). Anchored so paths like
+// `/somethingdocs` don't trigger.
+const DOCS_PATH_RE = new RegExp(`^(?:/(?:${i18nConfig.locales.join('|')}))?/docs(?:/|$)`)
 
 interface AppBarProps {
   className?: string
@@ -96,8 +103,9 @@ export const AppBar = forwardRef<Ref, AppBarProps>(function AppBar(
           'transition-all duration-500 ease-out'
         )}
       >
-        <div className="lg:flex-initial mr-auto">
-          <Branding lng="en" hasScrolled={hasScrolled} pathName={location.pathname} />
+        <div className="lg:flex-initial mr-auto flex items-center gap-2 pl-3">
+          {DOCS_PATH_RE.test(location.pathname) ? <DocsDrawerToggle /> : null}
+          <Branding lng={lng} hasScrolled={hasScrolled} pathName={location.pathname} />
         </div>
         {/* <LanguageMenu lng={lng} color={appBarTextColor} /> */}
         <ThemeSwitch className="mr-2" />

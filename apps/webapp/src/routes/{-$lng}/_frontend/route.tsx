@@ -12,9 +12,12 @@ import { getPreviewStateFn } from '@byline/host-tanstack-start/server-fns/previe
 
 import { routes as bylineRoutes } from '~/routes'
 
+import { useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { publicCacheMiddleware } from '@/middleware/public-cache'
+import { DocsMenuProvider } from '@/modules/docs/components/docs-menu-provider'
 import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBar } from '@/ui/components/app-bar'
+import { BreadcrumbsProvider } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
 import { ContentAdminBar } from '@/ui/components/content-admin-bar'
 
 export const Route = createFileRoute('/{-$lng}/_frontend')({
@@ -37,14 +40,17 @@ export const Route = createFileRoute('/{-$lng}/_frontend')({
 
 function FrontEndLayout() {
   const { adminUser, adminPath, preview } = Route.useLoaderData()
+  const locale = useLocale()
   return (
-    <>
-      <GradientBackground />
-      <ContentAdminBar user={adminUser} admin={adminPath} preview={preview} />
-      <AppBar lng="en" />
-      <main id="main-content" className="flex flex-1 flex-col">
-        <Outlet />
-      </main>
-    </>
+    <BreadcrumbsProvider>
+      <DocsMenuProvider>
+        <GradientBackground />
+        <ContentAdminBar user={adminUser} admin={adminPath} preview={preview} />
+        <AppBar lng={locale} />
+        <main id="main-content" className="flex flex-1 flex-col">
+          <Outlet />
+        </main>
+      </DocsMenuProvider>
+    </BreadcrumbsProvider>
   )
 }

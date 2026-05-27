@@ -1,12 +1,10 @@
-@use '@scss/common.scss' as *;
-
 .code {
   padding: calc(var(--base) * 1.5);
-  font-size: calc(var(--base) * .65);
+  font-size: calc(var(--base) * 0.65);
   line-height: var(--base);
   background-color: var(--color-base-950);
   color: #ffffff;
-  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
   white-space: pre;
   word-spacing: normal;
   word-break: normal;
@@ -19,10 +17,7 @@
   hyphens: none;
   overflow: auto;
 
-  @include dark-custom-scrollbar;
-
   :global {
-
     .token.comment,
     .token.prolog,
     .token.doctype,
@@ -61,7 +56,6 @@
     .style .token.string {
       color: var(--color-base-500);
     }
-
 
     .token.selector,
     .token-property,
@@ -102,13 +96,13 @@
     .highlight-line {
       position: relative;
 
-      >* {
+      > * {
         position: relative;
         z-index: 2;
       }
 
       &:before {
-        content: ' ';
+        content: " ";
         z-index: 1;
         background-color: var(--color-base-900);
         position: absolute;
@@ -119,11 +113,13 @@
       }
     }
   }
+}
 
-  @include mid-break {
+@media (max-width: 768px) {
+  .code {
     padding: var(--base);
-    font-size: calc(var(--base) * .5);
-    line-height: calc(var(--base) * .625);
+    font-size: calc(var(--base) * 0.5);
+    line-height: calc(var(--base) * 0.625);
 
     :global {
       .highlight-line {

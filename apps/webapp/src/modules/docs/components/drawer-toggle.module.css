@@ -1,0 +1,12 @@
+/**
+ * DocsDrawerToggle — inline icon button rendered in the front-end app bar.
+ *
+ * Override handle: .byline-docs-drawer-toggle-button
+ */
+
+.button,
+:global(.byline-docs-drawer-toggle-button) {
+  outline: none;
+  min-width: 36px;
+  height: 36px;
+}
