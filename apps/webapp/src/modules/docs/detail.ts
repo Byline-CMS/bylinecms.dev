@@ -51,7 +51,7 @@ export const getDocDetailFn = createServerFn({ method: 'GET' })
     const preview = await isPreviewActive()
 
     return client.collection('docs').findByPath<DocDetailFields>(path, {
-      populate: { featureImage: '*' },
+      populate: { featureImage: '*', photo: '*' },
       locale: lng,
       status: preview ? 'any' : 'published',
     })
