@@ -2,6 +2,7 @@
 
 import type React from 'react'
 
+import type { ClientDocument } from '@byline/client'
 import { Container, FadeInLift } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -37,7 +38,7 @@ export function PhotoBlock({
   if (photo == null || (photo as { _resolved?: boolean })._resolved !== true) {
     return null
   }
-  const media = (photo as unknown as { document: MediaFields }).document
+  const media = (photo as unknown as { document: ClientDocument<MediaFields> }).document.fields
 
   const Comp = display === 'full_width' ? 'div' : Container
 
@@ -66,10 +67,8 @@ export function PhotoBlock({
           imgClassName="photo-block--photo"
         />
         {captionDoc != null && (
-          <Container
-            className={cx('bg-white dark:bg-canvas-900 py-2', { 'px-0': constrainedLayout })}
-          >
-            <div className="photo-block--caption">
+          <Container className={cx('py-2', { 'px-0': constrainedLayout })}>
+            <div className="photo-block--caption [&_p]:m-0 muted text-[1rem]">
               <LexicalRichText lng={lng} nodes={captionDoc?.root?.children} />
             </div>
           </Container>

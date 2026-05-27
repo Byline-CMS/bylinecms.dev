@@ -92,11 +92,7 @@ function RouteComponent() {
           />
         </Container>
       </Section>
-      <Section>
-        <Container>
-          <PageDetail result={result} lng={lng} />
-        </Container>
-      </Section>
+      <PageDetail result={result} lng={lng} />
     </>
   )
 }

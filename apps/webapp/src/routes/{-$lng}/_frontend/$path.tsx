@@ -99,11 +99,7 @@ function RouteComponent() {
           <Breadcrumbs breadcrumbs={[{ label: title, href: `/${result.path}` }]} />
         </Container>
       </Section>
-      <Section>
-        <Container>
-          <PageDetail result={result} lng={lng} />
-        </Container>
-      </Section>
+      <PageDetail result={result} lng={lng} />
     </>
   )
 }

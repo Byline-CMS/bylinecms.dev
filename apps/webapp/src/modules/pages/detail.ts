@@ -51,7 +51,7 @@ export const getPageDetailFn = createServerFn({ method: 'GET' })
     const preview = await isPreviewActive()
 
     return client.collection('pages').findByPath<PageDetailFields>(path, {
-      populate: { featureImage: '*' },
+      populate: { featureImage: '*', photo: '*' },
       locale: lng,
       status: preview ? 'any' : 'published',
     })
