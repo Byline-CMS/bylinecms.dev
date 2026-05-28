@@ -8,6 +8,8 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { useTranslation } from '@byline/i18n/react'
+
 import { AdminRolesListView } from '../admin-shell/admin-roles/list.js'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { type AdminRoleListResponse, listAdminRoles } from '../server-fns/admin-roles/index.js'
@@ -21,12 +23,13 @@ export function createAdminRolesListRoute(path: string) {
     },
     component: function AdminRolesListComponent() {
       const { data } = Route.useLoaderData() as { data: AdminRoleListResponse }
+      const { t } = useTranslation('byline-admin')
       return (
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: '/admin' },
-              { label: 'Admin Roles', href: '/admin/roles' },
+              { label: t('chrome.menu.dashboard'), href: '/admin' },
+              { label: t('chrome.menu.adminRoles'), href: '/admin/roles' },
             ]}
           />
           <AdminRolesListView data={data} />

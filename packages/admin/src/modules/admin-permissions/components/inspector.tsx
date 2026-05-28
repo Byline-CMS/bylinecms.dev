@@ -28,6 +28,7 @@
 
 import { useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, LoaderRing, Section } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -82,15 +83,16 @@ function displayUser(user: WhoHasAbilityResponse['users'][number]): string {
 // --- expandable matrix row ------------------------------------------------
 
 function MatrixPanel({ matrix }: { matrix: WhoHasAbilityResponse }) {
+  const { t } = useTranslation('byline-admin')
   return (
     <div className={cx('byline-inspector-matrix', styles.matrix)}>
       <div>
         <h4 className={cx('byline-inspector-matrix-title', styles['matrix-title'])}>
-          Roles ({matrix.roles.length})
+          {t('adminPermissions.matrix.rolesTitle', { count: matrix.roles.length })}
         </h4>
         {matrix.roles.length === 0 ? (
           <p className={cx('muted', 'byline-inspector-matrix-empty', styles['matrix-empty'])}>
-            No role grants this ability.
+            {t('adminPermissions.matrix.rolesEmpty')}
           </p>
         ) : (
           <ul className={cx('byline-inspector-matrix-list', styles['matrix-list'])}>
@@ -110,11 +112,11 @@ function MatrixPanel({ matrix }: { matrix: WhoHasAbilityResponse }) {
       </div>
       <div>
         <h4 className={cx('byline-inspector-matrix-title', styles['matrix-title'])}>
-          Admin users ({matrix.users.length})
+          {t('adminPermissions.matrix.usersTitle', { count: matrix.users.length })}
         </h4>
         {matrix.users.length === 0 ? (
           <p className={cx('muted', 'byline-inspector-matrix-empty', styles['matrix-empty'])}>
-            No admin user holds this ability.
+            {t('adminPermissions.matrix.usersEmpty')}
           </p>
         ) : (
           <ul className={cx('byline-inspector-matrix-list', styles['matrix-list'])}>
@@ -142,7 +144,9 @@ interface AbilityRowProps {
 }
 
 function AbilityRow({ ability, matrix, loading, onToggle, expanded }: AbilityRowProps) {
+  const { t } = useTranslation('byline-admin')
   const sv = sourceVariant(ability.source)
+  const sourceKey = ability.source ?? 'unknown'
   return (
     <div className={cx('byline-inspector-row', styles.row)}>
       <div className={cx('byline-inspector-row-head', styles['row-head'])}>
@@ -157,7 +161,7 @@ function AbilityRow({ ability, matrix, loading, onToggle, expanded }: AbilityRow
                 sv.local
               )}
             >
-              {ability.source ?? 'unknown'}
+              {t(`adminPermissions.source.${sourceKey}`)}
             </span>
           </div>
           <p className={cx('byline-inspector-row-label', styles['row-label'])}>{ability.label}</p>
@@ -170,14 +174,16 @@ function AbilityRow({ ability, matrix, loading, onToggle, expanded }: AbilityRow
           ) : null}
         </div>
         <Button size="xs" intent="secondary" onClick={onToggle}>
-          {expanded ? 'Hide' : 'Holders'}
+          {expanded
+            ? t('adminPermissions.row.hideButton')
+            : t('adminPermissions.row.holdersButton')}
         </Button>
       </div>
       {expanded ? (
         loading ? (
           <div className={cx('byline-inspector-loader', styles.loader)}>
             <LoaderRing size={20} color="#888" />
-            <span className="muted">Loading…</span>
+            <span className="muted">{t('common.loading')}</span>
           </div>
         ) : matrix ? (
           <MatrixPanel matrix={matrix} />
@@ -198,6 +204,7 @@ interface GroupSectionProps {
 }
 
 function GroupSection({ group, matrices, loading, expanded, onToggle }: GroupSectionProps) {
+  const { t } = useTranslation('byline-admin')
   return (
     <details open className={cx('byline-inspector-group', styles.group)}>
       <summary className={cx('byline-inspector-group-summary', styles['group-summary'])}>
@@ -205,7 +212,7 @@ function GroupSection({ group, matrices, loading, expanded, onToggle }: GroupSec
           {group.group}
         </span>
         <span className={cx('muted', 'byline-inspector-group-count', styles['group-count'])}>
-          {group.abilities.length} abilities
+          {t('adminPermissions.group.abilitiesCount', { count: group.abilities.length })}
         </span>
       </summary>
       <div className={cx('byline-inspector-group-body', styles['group-body'])}>
@@ -228,6 +235,7 @@ function GroupSection({ group, matrices, loading, expanded, onToggle }: GroupSec
 
 export function AbilitiesInspector({ data }: { data: ListRegisteredAbilitiesResponse }) {
   const { whoHasAbility } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState<Set<string>>(new Set())
   const [matrices, setMatrices] = useState<Record<string, WhoHasAbilityResponse>>({})
@@ -264,19 +272,19 @@ export function AbilitiesInspector({ data }: { data: ListRegisteredAbilitiesResp
     <Section>
       <Container>
         <div className={cx('byline-inspector-head', styles.head)}>
-          <h1 className={cx('byline-inspector-title', styles.title)}>Abilities Inspector</h1>
+          <h1 className={cx('byline-inspector-title', styles.title)}>
+            {t('adminPermissions.title')}
+          </h1>
           <span className={cx('byline-inspector-count-pill', styles['count-pill'])}>
-            {data.total} registered
+            {t('adminPermissions.countPill', { count: data.total })}
           </span>
         </div>
         <p className={cx('muted', 'byline-inspector-lead', styles.lead)}>
-          Read-only view of every ability registered through <code>bylineCore.abilities</code>.
-          Collections auto-register CRUD + workflow abilities; admin subsystems contribute their own
-          keys at composition root via <code>registerAdminAbilities</code>.
+          {t('adminPermissions.lead')}
         </p>
         {data.groups.length === 0 ? (
           <p className={cx('muted', 'byline-inspector-empty', styles.empty)}>
-            No abilities are registered.
+            {t('adminPermissions.empty')}
           </p>
         ) : (
           <div className={cx('byline-inspector-groups', styles.groups)}>

@@ -8,6 +8,7 @@
 
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Container, Section } from '@byline/ui/react'
 
 import { RoleContainer } from '../admin-shell/admin-roles/container.js'
@@ -56,13 +57,14 @@ export function createAdminRoleEditRoute(path: string) {
     },
     component: function AdminRoleEditComponent() {
       const { role, registered, initialAbilities } = Route.useLoaderData() as LoaderData
+      const { t } = useTranslation('byline-admin')
       return (
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: '/admin' },
-              { label: 'Admin Roles', href: '/admin/roles' },
-              { label: 'Role', href: `/admin/roles/${role.id}` },
+              { label: t('chrome.menu.dashboard'), href: '/admin' },
+              { label: t('chrome.menu.adminRoles'), href: '/admin/roles' },
+              { label: t('adminRoles.breadcrumbDetail'), href: `/admin/roles/${role.id}` },
             ]}
           />
           <Section className="py-5 pb-2">

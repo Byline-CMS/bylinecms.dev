@@ -9,6 +9,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { AbilitiesInspector } from '@byline/admin/admin-permissions/components/inspector'
+import { useTranslation } from '@byline/i18n/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import {
@@ -25,12 +26,13 @@ export function createAdminPermissionsRoute(path: string) {
     },
     component: function AdminPermissionsComponent() {
       const { data } = Route.useLoaderData() as { data: ListRegisteredAbilitiesResponse }
+      const { t } = useTranslation('byline-admin')
       return (
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: '/admin' },
-              { label: 'Permissions', href: '/admin/permissions' },
+              { label: t('chrome.menu.dashboard'), href: '/admin' },
+              { label: t('chrome.menu.permissions'), href: '/admin/permissions' },
             ]}
           />
           <AbilitiesInspector data={data} />

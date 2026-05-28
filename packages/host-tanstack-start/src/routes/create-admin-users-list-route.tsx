@@ -8,6 +8,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { useTranslation } from '@byline/i18n/react'
 import { z } from 'zod'
 
 import { AdminUsersListView } from '../admin-shell/admin-users/list.js'
@@ -66,12 +67,13 @@ export function createAdminUsersListRoute(path: string) {
     },
     component: function AdminUsersListComponent() {
       const { data } = Route.useLoaderData() as { data: AdminUserListResponse }
+      const { t } = useTranslation('byline-admin')
       return (
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: '/admin' },
-              { label: 'Admin Users', href: '/admin/users' },
+              { label: t('chrome.menu.dashboard'), href: '/admin' },
+              { label: t('chrome.menu.adminUsers'), href: '/admin/users' },
             ]}
           />
           <AdminUsersListView data={data} />
