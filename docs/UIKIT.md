@@ -12,13 +12,9 @@ Companions:
 
 ## Overview
 
-`@byline/ui` is Byline's single, brand-coherent UI surface. It bundles two things into one package:
+`@byline/ui` is Byline's **framework-agnostic React primitives package** — `Button`, `Card`, `Modal`, `Input`, `Drawer`, `Table`, `Search`, `Datepicker`, every icon, every loader, plus the cascade-layered stylesheet system and a generic `DraggableSortable` over `@dnd-kit/sortable`. The entire surface is **synced verbatim** from [`@infonomic/uikit`](https://github.com/infonomic/uikit), the upstream open-source project the Byline maintainers also author. Byline does not fork these components; the upstream repository remains the single source of truth.
 
-1. **The foundational kit** — primitive components (`Button`, `Card`, `Modal`, `Input`, etc.), icons, loaders, hooks, widgets, and the cascade-layered stylesheet system. This surface is **synced verbatim** from [`@infonomic/uikit`](https://github.com/infonomic/uikit), the upstream open-source project the Byline maintainers also author. Byline does not fork these components; the upstream repository remains the single source of truth.
-
-2. **Byline-specific surface** — admin shell components, field widgets, form renderer, navigation guards, and service contracts that only make sense inside Byline. These live in their own subpath exports (`./react/admin`, `./react/fields`, `./react/forms`, `./react/services`) and are not part of the upstream kit.
-
-The first time you set up Byline, both surfaces ship as a single dependency: `@byline/ui`. The second-time author of a small custom widget never has to know there are two upstreams.
+> **What changed in v2.6.0.** Earlier versions of `@byline/ui` also carried Byline-specific surfaces — the document-editor form runtime, field widgets, admin layout primitives, and editor-shared widgets (status badge, diff modal). Those moved to `@byline/admin` in v2.6.0 because they embed CMS concepts (`CollectionDefinition`, `CollectionAdminConfig`, `DocumentPatch`, workflow status) and had no non-admin consumers. The reshape leaves `@byline/ui` as a true primitives package; the admin-aware surface is now `@byline/admin/react`. See the v2.6.0 release notes for the full symbol-move list.
 
 ## Why a single package
 
@@ -126,17 +122,14 @@ Byline ships the kit through a small set of subpath exports:
 
 | Specifier | Surface | Source |
 |---|---|---|
-| `@byline/ui` | Foundational kit (uikit barrel) + dnd helpers | synced |
-| `@byline/ui/react` | Alias for `@byline/ui` | synced |
-| `@byline/ui/react/admin` | Admin shell components and admin services | Byline-owned |
-| `@byline/ui/react/fields` | Field widgets and column formatters | Byline-owned |
-| `@byline/ui/react/forms` | Form renderer, form context, navigation guards | Byline-owned |
-| `@byline/ui/react/services` | Field-services context and types | Byline-owned |
+| `@byline/ui/react` | Every primitive React component + generic `DraggableSortable` | synced |
 | `@byline/ui/reset.css` | Browser reset stylesheet | synced |
 | `@byline/ui/styles.css` | Core token system + cascade layers | synced |
 | `@byline/ui/typography.css` | Optional typography (prose, fonts) | synced |
 
-The `/react/` segment is intentional: it leaves room for a future `/vue/` or `/svelte/` namespace if a non-React adapter ever ships, without breaking existing imports.
+The `/react/` segment is intentional: it leaves room for a future `/vue/` or `/svelte/` namespace if a non-React adapter ever ships, without breaking existing imports. A single barrel (rather than per-area subpaths) dodges the Vite `optimizeDeps` Context-identity trap — see the comment at the top of `packages/ui/src/react.ts`.
+
+Byline-owned admin surfaces — `FormRenderer`, `FieldRenderer`, every per-type field widget, `AdminGroup` / `AdminRow` / `AdminTabs`, `StatusBadge`, `DiffModal`, `BylineFieldServicesProvider`, `LocalDateTime`, `DateTimeFormatter`, `useFormContext`, `useFieldValue` — live in **`@byline/admin/react`**. See [`docs/COLLECTIONS.md`](./COLLECTIONS.md) and [`docs/FIELDS.md`](./FIELDS.md) for the import patterns.
 
 ## Consumer setup
 
@@ -151,13 +144,17 @@ In a consumer app's root CSS:
 @import "./app.css";                   /* application styles */
 ```
 
-In components:
+In components — primitives from `@byline/ui/react`, admin-aware components from `@byline/admin/react`:
 
 ```tsx
-import { Button, Card, Container } from '@byline/ui'
-import { LocalDateTime, DateTimeFormatter } from '@byline/ui/react/fields'
-import { FormRenderer } from '@byline/ui/react/forms'
-import { SignInForm, BylineAdminServicesProvider } from '@byline/ui/react/admin'
+// Generic primitives — Button, Modal, Search, etc.
+import { Button, Card, Container, Search } from '@byline/ui/react'
+
+// Admin-aware surfaces — field widgets, form runtime, editor-shared widgets.
+import { FormRenderer, LocalDateTime, DateTimeFormatter } from '@byline/admin/react'
+
+// Admin services Context — providers + hooks for the document editor.
+import { BylineFieldServicesProvider, useBylineFieldServices } from '@byline/admin/react'
 ```
 
 Tailwind integration mirrors the upstream pattern — see the [upstream README](https://github.com/infonomic/uikit/blob/main/packages/uikit/README.md#tailwind-css-integration) for the full `@theme` block and the optional ShadCN compatibility layer (both apply unchanged to `@byline/ui`).

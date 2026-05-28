@@ -531,6 +531,11 @@ UI ability cues — hiding Create / Publish / Delete buttons, disabling menu ite
 
 ### Data model
 
+> Tables below are shown unprefixed for readability. Live names carry the
+> `byline_` prefix (`byline_admin_users`, `byline_admin_roles`, …) per
+> the Postgres adapter's namespacing convention — see
+> `packages/db-postgres/src/database/schema/auth.ts`.
+
 ```
 admin_users
   id                       uuid     pk
@@ -547,6 +552,9 @@ admin_users
   is_super_admin           boolean
   is_enabled               boolean
   is_email_verified        boolean
+  preferred_locale         varchar(16)       -- nullable; admin interface
+                                             -- language for this editor.
+                                             -- See docs/I18N.md
   created_at, updated_at   timestamptz
 
 admin_roles

@@ -86,7 +86,7 @@ Columns control which fields appear in the default table-based `ListView`. Each 
 
 ```ts
 import type { ColumnDefinition } from '@byline/core'
-import { DateTimeFormatter } from '@byline/ui/react'
+import { DateTimeFormatter } from '@byline/admin/react'
 
 const columns: ColumnDefinition[] = [
   { fieldName: 'title', label: 'Title', sortable: true, align: 'left' },

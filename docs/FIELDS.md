@@ -123,7 +123,7 @@ Replace the default help-text line via `components.HelpText`. Reactive to form s
 
 ```tsx
 import type { FieldHelpTextSlotProps } from '@byline/core'
-import { useFieldValue } from '@byline/ui/react'
+import { useFieldValue } from '@byline/admin/react'
 
 function CharacterCount({ path, helpText }: FieldHelpTextSlotProps) {
   const value = useFieldValue<string>(path) ?? ''
@@ -207,7 +207,7 @@ A factory that returns a `FieldAdminConfig`. React is welcome here.
 
 ```tsx
 import type { FieldAdminConfig, FieldHelpTextSlotProps } from '@byline/core'
-import { useFieldValue } from '@byline/ui/react'
+import { useFieldValue } from '@byline/admin/react'
 
 function CharacterCount({ path, helpText }: FieldHelpTextSlotProps) {
   const value = useFieldValue<string>(path) ?? ''
@@ -269,7 +269,7 @@ A schema-side helper is a factory that returns a typed field definition. The res
 
 **What's forbidden.**
 - React component references on schema fields.
-- Imports from `@byline/ui/react`, `@byline/richtext-lexical` (the root barrel), `@byline/ai/plugins/*`, or any package whose evaluation pulls CSS modules or a Lexical runtime.
+- Imports from `@byline/admin/react`, `@byline/ui/react`, `@byline/richtext-lexical` (the root barrel), `@byline/ai/plugins/*`, or any package whose evaluation pulls CSS modules or a Lexical runtime.
 
 **Data-only subpaths.** Some packages publish a separate entry point for the schema-relevant data — `@byline/richtext-lexical/server` re-exports `defaultEditorConfig` precisely so schema-side helpers can use it without dragging the React entry along. Import from those subpaths when they exist.
 

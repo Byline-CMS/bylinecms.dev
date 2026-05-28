@@ -18,12 +18,13 @@ Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v2.x
 | `packages/core` | `@byline/core` | Types, config, patch logic, workflow, Zod schema builder |
 | `packages/client` | `@byline/client` | In-process SDK over the storage primitives + `document-lifecycle` (find / create / update / delete / populate / status-aware reads) |
 | `packages/auth` | `@byline/auth` | Actor primitives, `RequestContext`, `AbilityRegistry`, `SessionProvider` interface, error factories. Leaf package |
-| `packages/admin` | `@byline/admin` | Admin subsystem — users, roles, permissions, account modules, plus the built-in JWT session provider |
-| `packages/host-tanstack-start` | `@byline/host-tanstack-start` | TanStack Start host adapter — server fns, auth context, integration glue (`byline-client`, `byline-core`, `byline-admin-services`), admin shell, and route factories |
+| `packages/admin` | `@byline/admin` | Admin subsystem — admin user / role / permission / account modules, the built-in JWT session provider, **and** the document-editor React surface: `forms/` (FormRenderer, form-context, document-actions, path-widget, navigation-guard), `fields/` (FieldRenderer + every per-type widget + field-side services Context), `presentation/` (AdminGroup, AdminRow, AdminTabs), `widgets/` (StatusBadge, DiffModal). Single React barrel at `@byline/admin/react`. |
+| `packages/host-tanstack-start` | `@byline/host-tanstack-start` | TanStack Start host adapter — server fns, auth context, integration glue (`byline-client`, `byline-core`, `byline-admin-services`, `byline-field-services`), admin shell, route factories, and the i18n host integration (`src/i18n/*` cookie + locale-cascade + server translator) |
 | `packages/db-postgres` | `@byline/db-postgres` | Postgres adapter (Drizzle ORM); subpath `@byline/db-postgres/admin` carries the admin-store repositories |
 | `packages/storage-local` | `@byline/storage-local` | Local filesystem storage provider |
 | `packages/storage-s3` | `@byline/storage-s3` | S3-compatible storage provider |
-| `packages/ui` | `@byline/ui` | Shared UI components (Rslib build) |
+| `packages/ui` | `@byline/ui` | Framework-agnostic React primitives — Button, Input, Modal, Drawer, Table, Alert, icons, datepicker, generic `DraggableSortable`. No CMS concepts; importable independent of admin. Single barrel at `@byline/ui/react`. |
+| `packages/i18n` | `@byline/i18n` | Admin-interface translation system — `TranslationBundle` types, `mergeTranslations`, ICU formatter, locale resolution. React surface (`I18nProvider`, `useTranslation`, `LanguageMenu`) at `@byline/i18n/react`. Built-in `byline-admin` bundle (EN/FR) + `adminTranslations({ locales })` factory at `@byline/i18n/admin`. |
 | `packages/richtext-lexical` | `@byline/richtext-lexical` | Lexical-based richtext editor adapter |
 | `packages/cli` | `@byline/cli` | Guided installer that adds Byline to an existing TanStack Start app (`byline init`, `doctor`, …) |
 
@@ -158,10 +159,23 @@ A higher-level, DSL-like API for querying documents from outside the admin UI. S
 
 The single source of truth for collection-field-type → EAV store table + value column lives in `packages/core/src/storage/field-store-map.ts`. Both `@byline/client` (where-clause parsing) and `@byline/db-postgres` (UNION ALL + filter SQL generation) consume it. A contract test (`field-store-map.test.node.ts`) enumerates every declared field type to prevent drift.
 
+### Admin interface i18n (`@byline/i18n`)
+
+Shipped in v2.6.0 — the admin shell renders end-to-end in English and French, with hooks for plugins / custom fields / extensions to register their own translations.
+
+- **Package layout**: `@byline/i18n` root is React-free (types, `mergeTranslations`, ICU formatter, locale resolver — safe in server contexts). `@byline/i18n/react` is the single React barrel (`I18nProvider`, `useTranslation`, `LanguageMenu`). `@byline/i18n/admin` ships the `byline-admin` namespace bundle + the `adminTranslations({ locales })` factory.
+- **Host integration**: `packages/host-tanstack-start/src/i18n/*` wires the per-request locale (`resolve-locale.ts`), cookie helpers (`locale-cookie.ts`), and server-side translator (`server-translator.ts`). Server fns under `packages/host-tanstack-start/src/server-fns/i18n/*` handle locale persistence (`set-locale.ts`) and client-graph-safe reads (`get-active-locale.ts`).
+- **Per-user persistence**: `byline_admin_users.preferred_locale` column (varchar 16, nullable) wired through `packages/admin/src/modules/admin-account/{commands,service,schemas}.ts` for self-service writes. The locale cascade is `preferred_locale → byline_admin_lng cookie → Accept-Language → defaultLocale`.
+- **Extension surface**: third-party plugins, custom fields, and host-side components register their own namespaces via the same `mergeTranslations(adminTranslations({...}), pluginFactory({...}))` pattern. The worked example is `apps/webapp/byline/collections/media/i18n/` (custom `MediaListView` with `webapp-media-admin` namespace). See [`docs/I18N.md`](docs/I18N.md) for the full design.
+- **Validation messages**: schemas in `@byline/core/validation` emit stable codes (e.g. `password.tooShort`); the `translateValidationError(t, message)` helper in `@byline/admin/react` maps codes onto the active locale at render time. Keeps `@byline/core` i18n-agnostic.
+- **Boot validator**: `packages/core/src/services/i18n-validator.ts` runs at `initBylineCore()` — fails fast on missing bundles, warns on key drift between locales.
+
 ### Collections → Forms → Patches → Storage
 
-- Form state + patch accumulation: `packages/ui/src/forms/form-context.tsx`
-- Form layout/validation: `packages/ui/src/forms/form-renderer.tsx`
-- Path widget (system metadata): `packages/ui/src/forms/path-widget.tsx`
-- Field widgets emit patches: `packages/ui/src/fields/field-renderer.tsx` + per-type widgets in sibling subdirectories
+- Form state + patch accumulation: `packages/admin/src/forms/form-context.tsx`
+- Form layout/validation: `packages/admin/src/forms/form-renderer.tsx`
+- Path widget (system metadata): `packages/admin/src/forms/path-widget.tsx`
+- Field widgets emit patches: `packages/admin/src/fields/field-renderer.tsx` + per-type widgets in sibling subdirectories
+- Presentational form layout (tabs/rows/groups): `packages/admin/src/presentation/{group,row,tabs}.tsx`
+- Editor-shared widgets (status badge, diff modal): `packages/admin/src/widgets/`
 - DB schema: `packages/db-postgres/src/database/schema/index.ts`; migrations in `packages/db-postgres/src/database/migrations`

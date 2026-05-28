@@ -83,7 +83,7 @@ export const Pages: CollectionDefinition = {
 ```tsx
 // collections/pages/admin.tsx  (client-safe, presentation only)
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
-import { DateTimeFormatter } from '@byline/ui/react'
+import { DateTimeFormatter } from '@byline/admin/react'
 
 import { Pages } from './schema.js'
 
