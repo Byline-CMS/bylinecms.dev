@@ -25,10 +25,11 @@
  * will close that gap.
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import { passwordSchema } from '@byline/core/validation'
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, InputPassword, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
@@ -37,18 +38,11 @@ import { useBylineAdminServices } from '../../../services/admin-services-context
 import styles from './change-password.module.css'
 import type { AccountResponse } from '../index.js'
 
-const changePasswordFormSchema = z
-  .object({
-    currentPassword: z.string().min(1, { message: 'Please enter your current password' }),
-    newPassword: passwordSchema,
-    confirm: z.string({ message: 'Please confirm the new password' }),
-  })
-  .refine((v) => v.newPassword === v.confirm, {
-    message: 'New passwords do not match',
-    path: ['confirm'],
-  })
-
-type ChangePasswordValues = z.infer<typeof changePasswordFormSchema>
+type ChangePasswordValues = {
+  currentPassword: string
+  newPassword: string
+  confirm: string
+}
 
 interface ChangePasswordProps {
   account: AccountResponse
@@ -58,8 +52,32 @@ interface ChangePasswordProps {
 
 export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePasswordProps) {
   const { changeAccountPassword } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Schema rebuilt per-render so error messages reflect the active
+  // locale. `passwordSchema` from `@byline/core/validation` keeps its
+  // own (English) policy messages — translating those is a separate,
+  // shared task across every place admin passwords are entered.
+  const changePasswordFormSchema = useMemo(
+    () =>
+      z
+        .object({
+          currentPassword: z
+            .string()
+            .min(1, { message: t('account.changePassword.errors.currentRequired') }),
+          newPassword: passwordSchema,
+          confirm: z.string({
+            message: t('account.changePassword.errors.confirmRequired'),
+          }),
+        })
+        .refine((v) => v.newPassword === v.confirm, {
+          message: t('account.changePassword.errors.mismatch'),
+          path: ['confirm'],
+        }),
+    [t]
+  )
 
   const form = useForm({
     defaultValues: { currentPassword: '', newPassword: '', confirm: '' } as ChangePasswordValues,
@@ -81,30 +99,29 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
             newPassword: value.newPassword,
           },
         })
-        setSuccessMessage('Password updated.')
+        setSuccessMessage(t('account.changePassword.feedback.updated'))
         form.reset({ currentPassword: '', newPassword: '', confirm: '' })
         onSuccess?.(updated)
       } catch (err) {
         const code = getErrorCode(err)
         if (code === 'admin.account.invalidCurrentPassword') {
+          const message = t('account.changePassword.errors.currentIncorrect')
           form.setFieldMeta('currentPassword', (meta) => ({
             ...meta,
-            errorMap: { ...meta.errorMap, onServer: 'Current password is incorrect.' },
-            errors: ['Current password is incorrect.'],
+            errorMap: { ...meta.errorMap, onServer: message },
+            errors: [message],
           }))
           return
         }
         if (code === 'admin.users.versionConflict') {
-          setFormError(
-            'Your account has been modified elsewhere since you opened this form. Reload to refresh and try again.'
-          )
+          setFormError(t('common.errors.versionConflict'))
           return
         }
         if (code === 'admin.account.notFound') {
-          setFormError('Your admin account could not be found. Please sign in again.')
+          setFormError(t('common.errors.accountNotFound'))
           return
         }
-        setFormError('Could not change the password. Please try again.')
+        setFormError(t('account.changePassword.errors.couldNotChange'))
       }
     },
   })
@@ -123,15 +140,12 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
         {formError ? <Alert intent="danger">{formError}</Alert> : null}
         {successMessage ? <Alert intent="success">{successMessage}</Alert> : null}
 
-        <p className="muted">
-          Other active sessions will continue to work until their tokens expire. Sign out elsewhere
-          if you suspect another device has been compromised.
-        </p>
+        <p className="muted">{t('account.changePassword.intro')}</p>
 
         <form.Field name="currentPassword">
           {(field) => (
             <InputPassword
-              label="Current password"
+              label={t('account.changePassword.fields.current')}
               id="currentPassword"
               name={field.name}
               value={field.state.value}
@@ -148,7 +162,7 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
         <form.Field name="newPassword">
           {(field) => (
             <InputPassword
-              label="New password"
+              label={t('account.changePassword.fields.new')}
               id="newPassword"
               name={field.name}
               value={field.state.value}
@@ -165,7 +179,7 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
         <form.Field name="confirm">
           {(field) => (
             <InputPassword
-              label="Confirm new password"
+              label={t('account.changePassword.fields.confirm')}
               id="confirm"
               name={field.name}
               value={field.state.value}
@@ -187,7 +201,7 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
             onClick={onClose}
             className={cx('byline-account-change-password-action', styles.action)}
           >
-            {successMessage ? 'Close' : 'Cancel'}
+            {successMessage ? t('common.actions.close') : t('common.actions.cancel')}
           </Button>
           <form.Subscribe
             selector={(state) => ({
@@ -204,7 +218,7 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
                 disabled={!canSubmit || isSubmitting}
                 className={cx('byline-account-change-password-action', styles.action)}
               >
-                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : t('common.actions.save')}
               </Button>
             )}
           </form.Subscribe>

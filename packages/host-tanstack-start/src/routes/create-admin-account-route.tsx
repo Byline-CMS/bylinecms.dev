@@ -9,6 +9,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { AccountSelfContainer } from '@byline/admin/admin-account/components/container'
+import { useTranslation } from '@byline/i18n/react'
 import { Container, Section } from '@byline/ui/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
@@ -37,18 +38,19 @@ export function createAdminAccountRoute(path: string) {
     },
     component: function AdminAccountComponent() {
       const { account } = Route.useLoaderData() as { account: AccountResponse }
+      const { t } = useTranslation('byline-admin')
       return (
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: '/admin' },
-              { label: 'Account', href: '/admin/account' },
+              { label: t('chrome.menu.dashboard'), href: '/admin' },
+              { label: t('chrome.account'), href: '/admin/account' },
             ]}
           />
           <Section className="pb-2">
             <Container className="mb-2">
               <h1 className="mb-2">{displayNameFor(account)}</h1>
-              <p className="muted">Manage your account.</p>
+              <p className="muted">{t('account.intro')}</p>
             </Container>
           </Section>
           <Section>

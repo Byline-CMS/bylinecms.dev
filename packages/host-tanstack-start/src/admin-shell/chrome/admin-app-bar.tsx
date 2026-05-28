@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 
-import { LanguageMenu } from '@byline/i18n/react'
+import { LanguageMenu, useTranslation } from '@byline/i18n/react'
 import { Button } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -33,6 +33,7 @@ function displayNameFor(user: CurrentAdminUser): string {
 
 export function AdminAppBar({ user }: AdminAppBarProps) {
   const { breadCrumbSettings } = useBreadcrumbs()
+  const { t } = useTranslation('byline-admin')
   const [signingOut, setSigningOut] = useState(false)
 
   async function handleSignOut() {
@@ -62,13 +63,13 @@ export function AdminAppBar({ user }: AdminAppBarProps) {
       <div className={cx('byline-admin-app-bar-right', styles.right)}>
         <LanguageMenu />
         <span className={cx('byline-admin-app-bar-user', styles.user)}>
-          Signed in as{' '}
+          {t('chrome.appBar.signedInAs')}{' '}
           <span className={cx('byline-admin-app-bar-user-name', styles.userName)}>
             {displayNameFor(user)}
           </span>
         </span>
         <Button size="xs" intent="secondary" onClick={handleSignOut} disabled={signingOut}>
-          {signingOut ? 'Signing out…' : 'Sign out'}
+          {signingOut ? t('common.actions.signingOut') : t('common.actions.signOut')}
         </Button>
       </div>
     </header>

@@ -27,6 +27,7 @@
 import type React from 'react'
 import { useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Button, CloseIcon, Drawer, EditIcon, IconButton, LocalDateTime } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -44,21 +45,22 @@ interface PanelProps {
   onSuccess?: (account: AccountResponse) => void
 }
 
-const panels: Record<ComponentKey, { title: string; component: React.ComponentType<PanelProps> }> =
-  {
-    update: { title: 'Profile', component: UpdateAccount },
-    change_password: { title: 'Change Password', component: ChangeAccountPassword },
-    preferences: { title: 'Preferences', component: Preferences },
-    empty: { title: '', component: () => null },
-  }
+const panelComponents: Record<ComponentKey, React.ComponentType<PanelProps>> = {
+  update: UpdateAccount,
+  change_password: ChangeAccountPassword,
+  preferences: Preferences,
+  empty: () => null,
+}
 
 function ContainerSection({
   title,
   onEdit,
+  editAriaLabel,
   children,
 }: {
   title: string
   onEdit?: () => void
+  editAriaLabel?: string
   children: React.ReactNode
 }) {
   return (
@@ -66,7 +68,7 @@ function ContainerSection({
       <div className={cx('byline-account-section-head', styles['section-head'])}>
         <h2>{title}</h2>
         {onEdit ? (
-          <IconButton variant="text" onClick={onEdit} aria-label={`Edit ${title}`}>
+          <IconButton variant="text" onClick={onEdit} aria-label={editAriaLabel ?? title}>
             <EditIcon width="20px" height="20px" />
           </IconButton>
         ) : null}
@@ -81,6 +83,7 @@ interface AccountSelfContainerProps {
 }
 
 export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
+  const { t } = useTranslation('byline-admin')
   const [currentAccount, setCurrentAccount] = useState<AccountResponse>(account)
   const [current, setCurrent] = useState<ComponentKey>('empty')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -97,101 +100,120 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
     setCurrentAccount(updated)
   }
 
-  const Panel = panels[current].component
+  const Panel = panelComponents[current]
+  const panelTitles: Record<ComponentKey, string> = {
+    update: t('account.sections.profile'),
+    change_password: t('account.sections.password'),
+    preferences: t('account.sections.preferences'),
+    empty: '',
+  }
+  const editAriaFor = (section: string) => t('account.editAriaLabel', { section })
 
   return (
     <>
       <div className={cx('byline-account-grid', styles.grid)}>
         <div className={cx('byline-account-column', styles.column)}>
-          <ContainerSection title="Profile" onEdit={openDrawer('update')}>
+          <ContainerSection
+            title={t('account.sections.profile')}
+            onEdit={openDrawer('update')}
+            editAriaLabel={editAriaFor(t('account.sections.profile'))}
+          >
             <p className={cx('byline-account-line', styles.line)}>
-              <span className="muted">Email:</span> {currentAccount.email}
+              <span className="muted">{t('account.profile.emailColon')}</span>{' '}
+              {currentAccount.email}
             </p>
             <p className={cx('byline-account-line', styles.line)}>
-              <span className="muted">Given name:</span>{' '}
+              <span className="muted">{t('account.profile.givenName')}</span>{' '}
               {currentAccount.given_name ?? (
                 <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
-                  Not set
+                  {t('common.notSet')}
                 </span>
               )}
             </p>
             <p className={cx('byline-account-line', styles.line)}>
-              <span className="muted">Family name:</span>{' '}
+              <span className="muted">{t('account.profile.familyName')}</span>{' '}
               {currentAccount.family_name ?? (
                 <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
-                  Not set
+                  {t('common.notSet')}
                 </span>
               )}
             </p>
             <p className={cx('byline-account-cta-line', styles['cta-line'])}>
-              <span className="muted">Username:</span>{' '}
+              <span className="muted">{t('account.profile.username')}</span>{' '}
               {currentAccount.username ?? (
                 <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
-                  Not set
+                  {t('common.notSet')}
                 </span>
               )}
             </p>
             <Button size="sm" onClick={openDrawer('update')}>
-              Edit Profile
+              {t('account.profile.editButton')}
             </Button>
             <div className={cx('muted', 'byline-account-meta', styles.meta)}>
               <p>
-                <span className="font-bold">Created:&nbsp;</span>
+                <span className="font-bold">{t('account.profile.created')}&nbsp;</span>
                 <LocalDateTime value={currentAccount.created_at} />
               </p>
               <p>
-                <span className="font-bold">Updated:&nbsp;</span>
+                <span className="font-bold">{t('account.profile.updated')}&nbsp;</span>
                 <LocalDateTime value={currentAccount.updated_at} />
               </p>
               <p className={cx('byline-account-line', styles.line)}>
-                <span className="font-bold">Last login:&nbsp;</span>
-                <LocalDateTime value={currentAccount.last_login} fallback="Never" />
+                <span className="font-bold">{t('account.profile.lastLogin')}&nbsp;</span>
+                <LocalDateTime value={currentAccount.last_login} fallback={t('common.never')} />
               </p>
             </div>
           </ContainerSection>
 
-          <ContainerSection title="Preferences" onEdit={openDrawer('preferences')}>
+          <ContainerSection
+            title={t('account.sections.preferences')}
+            onEdit={openDrawer('preferences')}
+            editAriaLabel={editAriaFor(t('account.sections.preferences'))}
+          >
             <p className={cx('byline-account-line', styles.line)}>
-              <span className="muted">Interface language:</span>{' '}
+              <span className="muted">{t('account.preferences.interfaceLanguage')}</span>{' '}
               {currentAccount.preferred_locale ?? (
                 <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
-                  Use browser default
+                  {t('language.useBrowserDefault')}
                 </span>
               )}
             </p>
             <p className={cx('byline-account-cta-line', styles['cta-line'])}>
               <Button size="sm" onClick={openDrawer('preferences')}>
-                Change Language
+                {t('account.preferences.editButton')}
               </Button>
             </p>
             <p className={cx('muted', 'byline-account-status-help', styles['status-help'])}>
-              The same setting is available in the language menu in the top bar.
+              {t('account.preferences.help')}
             </p>
           </ContainerSection>
         </div>
 
         <div className={cx('byline-account-column', styles.column)}>
-          <ContainerSection title="Password" onEdit={openDrawer('change_password')}>
+          <ContainerSection
+            title={t('account.sections.password')}
+            onEdit={openDrawer('change_password')}
+            editAriaLabel={editAriaFor(t('account.sections.password'))}
+          >
             <p className={cx('byline-account-cta-line', styles['cta-line'])}>
-              Change the password used to sign in to the admin. You'll need to enter your current
-              password to confirm the change.
+              {t('account.password.intro')}
             </p>
             <Button size="sm" onClick={openDrawer('change_password')}>
-              Change Password
+              {t('account.password.editButton')}
             </Button>
           </ContainerSection>
 
-          <ContainerSection title="Account Status">
+          <ContainerSection title={t('account.sections.status')}>
             <p className={cx('byline-account-line', styles.line)}>
-              <span className="muted">Super admin:</span>{' '}
-              {currentAccount.is_super_admin ? 'Yes' : 'No'}
+              <span className="muted">{t('account.status.superAdmin')}</span>{' '}
+              {currentAccount.is_super_admin ? t('common.boolean.yes') : t('common.boolean.no')}
             </p>
             <p className={cx('byline-account-line', styles.line)}>
-              <span className="muted">Email verified:</span>{' '}
-              {currentAccount.is_email_verified ? 'Yes' : 'No'}
+              <span className="muted">{t('account.status.emailVerified')}</span>{' '}
+              {currentAccount.is_email_verified ? t('common.boolean.yes') : t('common.boolean.no')}
             </p>
             <p className={cx('byline-account-line', styles.line)}>
-              <span className="muted">Status:</span>{' '}
+              <span className="muted">{t('account.status.status')}</span>{' '}
               <span
                 className={
                   currentAccount.is_enabled
@@ -199,12 +221,13 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
                     : cx('byline-account-status-off', styles['status-off'])
                 }
               >
-                {currentAccount.is_enabled ? 'Enabled' : 'Disabled'}
+                {currentAccount.is_enabled
+                  ? t('account.status.enabled')
+                  : t('account.status.disabled')}
               </span>
             </p>
             <p className={cx('muted', 'byline-account-status-help', styles['status-help'])}>
-              These flags are managed by an admin with the appropriate permissions and are not
-              self-editable.
+              {t('account.status.help')}
             </p>
           </ContainerSection>
         </div>
@@ -231,12 +254,12 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
             >
               no action
             </button>
-            <IconButton aria-label="Close" size="sm" onClick={closeDrawer}>
+            <IconButton aria-label={t('common.actions.close')} size="sm" onClick={closeDrawer}>
               <CloseIcon width="14px" height="14px" svgClassName="white-icon stroke-white" />
             </IconButton>
           </Drawer.TopActions>
           <Drawer.Header>
-            <h2>{panels[current].title}</h2>
+            <h2>{panelTitles[current]}</h2>
           </Drawer.Header>
           <Drawer.Content>
             <div className={cx('byline-account-drawer-scroll', styles['drawer-scroll'])}>

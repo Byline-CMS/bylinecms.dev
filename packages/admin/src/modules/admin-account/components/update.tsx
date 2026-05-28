@@ -22,9 +22,10 @@
  * `admin.users.versionConflict` and we prompt for reload.
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Input, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
@@ -33,17 +34,18 @@ import { useBylineAdminServices } from '../../../services/admin-services-context
 import styles from './update.module.css'
 import type { AccountResponse } from '../index.js'
 
-const updateAccountSchema = z.object({
-  given_name: z.string().max(100, 'Given name must not exceed 100 characters'),
-  family_name: z.string().max(100, 'Family name must not exceed 100 characters'),
-  username: z.string().max(100, 'Username must not exceed 100 characters'),
-  email: z
-    .email({ message: 'Enter a valid email address' })
-    .min(3)
-    .max(254, 'Email must not exceed 254 characters'),
-})
+// Field-length ceilings sourced from the `adminUsers` schema in @byline/admin
+// (100/100/100/254). Kept as constants so error messages can ICU-format them.
+const MAX_NAME = 100
+const MAX_USERNAME = 100
+const MAX_EMAIL = 254
 
-type UpdateAccountValues = z.infer<typeof updateAccountSchema>
+type UpdateAccountValues = {
+  given_name: string
+  family_name: string
+  username: string
+  email: string
+}
 
 function defaultsFrom(account: AccountResponse): UpdateAccountValues {
   return {
@@ -80,8 +82,33 @@ interface UpdateAccountProps {
 
 export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProps) {
   const { updateAccount } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Schema is rebuilt per-render so error messages reflect the active
+  // locale. Cheap — small schema, no ahead-of-time compilation cost
+  // that matters at this scale. `useMemo` keeps Tanstack Form's
+  // validator-identity stable across re-renders.
+  const updateAccountSchema = useMemo(
+    () =>
+      z.object({
+        given_name: z
+          .string()
+          .max(MAX_NAME, t('account.update.errors.givenNameTooLong', { max: MAX_NAME })),
+        family_name: z
+          .string()
+          .max(MAX_NAME, t('account.update.errors.familyNameTooLong', { max: MAX_NAME })),
+        username: z
+          .string()
+          .max(MAX_USERNAME, t('account.update.errors.usernameTooLong', { max: MAX_USERNAME })),
+        email: z
+          .email({ message: t('account.update.errors.invalidEmail') })
+          .min(3)
+          .max(MAX_EMAIL, t('account.update.errors.emailTooLong', { max: MAX_EMAIL })),
+      }),
+    [t]
+  )
 
   const form = useForm({
     defaultValues: defaultsFrom(account),
@@ -97,34 +124,33 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
       setSuccessMessage(null)
       const patch = buildPatch(value, account)
       if (Object.keys(patch).length === 0) {
-        setSuccessMessage('No changes to save.')
+        setSuccessMessage(t('common.feedback.noChanges'))
         return
       }
       try {
         const updated = await updateAccount({ data: { vid: account.vid, patch } })
-        setSuccessMessage('Saved.')
+        setSuccessMessage(t('common.feedback.saved'))
         onSuccess?.(updated)
       } catch (err) {
         const code = getErrorCode(err)
         if (code === 'admin.users.emailInUse') {
+          const message = t('account.update.errors.emailInUse')
           form.setFieldMeta('email', (meta) => ({
             ...meta,
-            errorMap: { ...meta.errorMap, onServer: 'This email is already in use.' },
-            errors: ['This email is already in use.'],
+            errorMap: { ...meta.errorMap, onServer: message },
+            errors: [message],
           }))
           return
         }
         if (code === 'admin.users.versionConflict') {
-          setFormError(
-            'Your account has been modified elsewhere since you opened this form. Reload to refresh and try again.'
-          )
+          setFormError(t('common.errors.versionConflict'))
           return
         }
         if (code === 'admin.account.notFound') {
-          setFormError('Your admin account could not be found. Please sign in again.')
+          setFormError(t('common.errors.accountNotFound'))
           return
         }
-        setFormError('Could not save changes. Please try again.')
+        setFormError(t('common.errors.couldNotSave'))
       }
     },
   })
@@ -146,7 +172,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
         <form.Field name="given_name">
           {(field) => (
             <Input
-              label="Given name"
+              label={t('account.update.fields.givenName')}
               id="given_name"
               name={field.name}
               value={field.state.value}
@@ -162,7 +188,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
         <form.Field name="family_name">
           {(field) => (
             <Input
-              label="Family name"
+              label={t('account.update.fields.familyName')}
               id="family_name"
               name={field.name}
               value={field.state.value}
@@ -178,7 +204,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
         <form.Field name="username">
           {(field) => (
             <Input
-              label="Username"
+              label={t('account.update.fields.username')}
               id="username"
               name={field.name}
               value={field.state.value}
@@ -186,7 +212,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
               onChange={(e) => field.handleChange(e.currentTarget.value)}
               error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
-              helpText="Optional. Leave blank to clear."
+              helpText={t('account.update.fields.usernameHelp')}
               autoComplete="username"
             />
           )}
@@ -195,7 +221,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
         <form.Field name="email">
           {(field) => (
             <Input
-              label="Email"
+              label={t('common.fields.email')}
               id="email"
               name={field.name}
               type="email"
@@ -218,7 +244,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
             onClick={onClose}
             className={cx('byline-account-update-action', styles.action)}
           >
-            {successMessage ? 'Close' : 'Cancel'}
+            {successMessage ? t('common.actions.close') : t('common.actions.cancel')}
           </Button>
           <form.Subscribe
             selector={(state) => ({
@@ -235,7 +261,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
                 disabled={!canSubmit || isSubmitting}
                 className={cx('byline-account-update-action', styles.action)}
               >
-                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : t('common.actions.save')}
               </Button>
             )}
           </form.Subscribe>

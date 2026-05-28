@@ -2,6 +2,7 @@
 
 import type React from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import cx from 'classnames'
 
 import styles from './hamburger.module.css'
@@ -21,6 +22,7 @@ export function Hamburger({
   ...other
 }: HamburgerProps): React.JSX.Element {
   const { toggleDrawer } = useAdminMenu()
+  const { t } = useTranslation('byline-admin')
 
   // Hard code the drawer hamburger to always closed
   // to prevent the 'X' pattern from being the default
@@ -43,7 +45,7 @@ export function Hamburger({
         className
       )}
       tabIndex={0}
-      aria-label="Open admin menu"
+      aria-label={t('chrome.menu.openAriaLabel')}
       aria-controls="admin-menu"
       aria-haspopup="true"
       {...other}

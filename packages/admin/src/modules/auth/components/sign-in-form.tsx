@@ -25,6 +25,7 @@
 
 import { type FormEvent, useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Card, Input, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -44,6 +45,7 @@ interface SignInFormProps {
 
 export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
   const { adminSignIn } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
@@ -53,7 +55,7 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
     event.preventDefault()
     if (pending) return
     if (email.trim().length === 0 || password.length === 0) {
-      setError('Enter your email and password.')
+      setError(t('auth.signIn.errors.empty'))
       return
     }
 
@@ -67,7 +69,7 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
       window.location.assign(target)
     } catch (err) {
       console.warn('sign-in failed', err)
-      setError('Invalid credentials.')
+      setError(t('auth.signIn.errors.invalidCredentials'))
       setPending(false)
     }
   }
@@ -76,9 +78,9 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
     <Card className={cx('byline-sign-in-card', styles.card)}>
       <Card.Header>
         <Card.Title>
-          <h2>Sign in</h2>
+          <h2>{t('auth.signIn.title')}</h2>
         </Card.Title>
-        <Card.Description>Sign in to the Byline admin.</Card.Description>
+        <Card.Description>{t('auth.signIn.description')}</Card.Description>
         {error && (
           <Alert intent="danger" className={cx('byline-sign-in-alert', styles.alert)}>
             {error}
@@ -89,7 +91,7 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
         <form onSubmit={handleSubmit} noValidate className={cx('byline-sign-in-form', styles.form)}>
           <div className={cx('byline-sign-in-fields', styles.fields)}>
             <Input
-              label="Email"
+              label={t('common.fields.email')}
               id="email"
               name="email"
               type="email"
@@ -100,7 +102,7 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
               disabled={pending}
             />
             <Input
-              label="Password"
+              label={t('common.fields.password')}
               id="password"
               name="password"
               type="password"
@@ -114,7 +116,7 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
           <div className={cx('byline-sign-in-actions', styles.actions)}>
             {homeUrl && (
               <a href={homeUrl} className={cx('byline-sign-in-home-link', styles['home-link'])}>
-                Home
+                {t('common.actions.home')}
               </a>
             )}
             <Button
@@ -122,7 +124,11 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
               disabled={pending}
               className={cx('byline-sign-in-button', styles.button)}
             >
-              {pending ? <LoaderEllipsis size={30} color="#aaaaaa" /> : <span>Sign In</span>}
+              {pending ? (
+                <LoaderEllipsis size={30} color="#aaaaaa" />
+              ) : (
+                <span>{t('common.actions.signIn')}</span>
+              )}
             </Button>
           </div>
         </form>

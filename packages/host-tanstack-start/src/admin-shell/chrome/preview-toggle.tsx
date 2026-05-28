@@ -23,6 +23,7 @@
 
 import { useEffect, useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { EyeClosedIcon, EyeOpenIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -37,6 +38,7 @@ interface PreviewToggleProps {
 }
 
 export function PreviewToggle({ compact }: PreviewToggleProps) {
+  const { t } = useTranslation('byline-admin')
   const [preview, setPreview] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -81,7 +83,7 @@ export function PreviewToggle({ compact }: PreviewToggleProps) {
   // Hide entirely until first read resolves so the label doesn't flicker.
   if (preview == null) return null
 
-  const label = preview ? 'Preview ON' : 'Preview OFF'
+  const label = preview ? t('chrome.preview.on') : t('chrome.preview.off')
   const icon = preview ? (
     <EyeOpenIcon width="20px" height="20px" />
   ) : (
@@ -94,10 +96,10 @@ export function PreviewToggle({ compact }: PreviewToggleProps) {
         type="button"
         onClick={handleToggle}
         disabled={busy}
-        aria-label={preview ? 'Disable preview mode' : 'Enable preview mode'}
-        title={
-          preview ? 'Drafts are visible on the public site' : 'Public site shows published only'
+        aria-label={
+          preview ? t('chrome.preview.disableAriaLabel') : t('chrome.preview.enableAriaLabel')
         }
+        title={preview ? t('chrome.preview.onTitle') : t('chrome.preview.offTitle')}
       >
         <span className="icon">{icon}</span>
         <span className="label">{label}</span>

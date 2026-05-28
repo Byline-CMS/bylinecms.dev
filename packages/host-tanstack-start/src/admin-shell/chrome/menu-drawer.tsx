@@ -12,6 +12,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { ADMIN_PERMISSIONS_ABILITIES } from '@byline/admin/admin-permissions'
 import { ADMIN_ROLES_ABILITIES } from '@byline/admin/admin-roles'
 import { ADMIN_USERS_ABILITIES } from '@byline/admin/admin-users'
+import { useTranslation } from '@byline/i18n/react'
 import { HomeIcon, RolesIcon, SettingsSlidersIcon, UserIcon, UsersIcon } from '@byline/ui/react'
 import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
@@ -51,6 +52,7 @@ function MenuItem({ to, label, icon, pathname, compact }: MenuItemProps) {
 export function AdminMenuDrawer(): React.JSX.Element | null {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { mobile, drawerOpen, closeDrawer } = useAdminMenu()
+  const { t } = useTranslation('byline-admin')
 
   // Cosmetic ability cues — hide the admin-management section entirely
   // when the user holds none of its read abilities. Server-side
@@ -96,7 +98,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
         <ul>
           <MenuItem
             to="/admin"
-            label="Dashboard"
+            label={t('chrome.menu.dashboard')}
             icon={<HomeIcon width="20px" height="20px" />}
             pathname={pathname}
             compact={compact}
@@ -107,7 +109,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
               {canReadUsers && (
                 <MenuItem
                   to="/admin/users"
-                  label="Admin Users"
+                  label={t('chrome.menu.adminUsers')}
                   icon={<UsersIcon width="20px" height="20px" />}
                   pathname={pathname}
                   compact={compact}
@@ -116,7 +118,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
               {canReadRoles && (
                 <MenuItem
                   to="/admin/roles"
-                  label="Admin Roles"
+                  label={t('chrome.menu.adminRoles')}
                   icon={<RolesIcon width="20px" height="20px" />}
                   pathname={pathname}
                   compact={compact}
@@ -125,7 +127,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
               {canReadPermissions && (
                 <MenuItem
                   to="/admin/permissions"
-                  label="Permissions"
+                  label={t('chrome.menu.permissions')}
                   icon={<SettingsSlidersIcon width="20px" height="20px" />}
                   pathname={pathname}
                   compact={compact}
@@ -137,7 +139,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
           <PreviewToggle compact={compact} />
           <MenuItem
             to="/admin/account"
-            label="Account"
+            label={t('chrome.account')}
             icon={<UserIcon />}
             pathname={pathname}
             compact={compact}

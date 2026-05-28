@@ -10,6 +10,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Dropdown, EllipsisIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -228,12 +229,13 @@ function ChevronIcon({ isLeaf = false }: { isLeaf?: boolean }): React.JSX.Elemen
 }
 
 function OverflowDropdown({ items }: { items: Breadcrumb[] }): React.JSX.Element {
+  const { t } = useTranslation('byline-admin')
   return (
     <li className={cx('byline-breadcrumbs-item', styles.item)}>
       <ChevronIcon />
       <Dropdown.Root>
         <Dropdown.Trigger
-          aria-label="Show hidden breadcrumbs"
+          aria-label={t('chrome.breadcrumbs.showHiddenAriaLabel')}
           className={cx('byline-breadcrumbs-overflow-trigger', styles.overflowTrigger)}
         >
           <EllipsisIcon className={cx('byline-breadcrumbs-overflow-icon', styles.overflowIcon)} />

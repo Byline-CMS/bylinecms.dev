@@ -145,6 +145,7 @@
   "dependencies": {
     "@byline/auth": "workspace:*",
     "@byline/core": "workspace:*",
+    "@byline/i18n": "workspace:*",
     "@byline/ui": "workspace:*",
     "@tanstack/react-form-start": "^1.32.0",
     "classnames": "^2.5.1",
