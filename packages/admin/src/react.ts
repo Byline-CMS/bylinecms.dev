@@ -61,6 +61,10 @@ export * from './forms/form-context.js'
 export * from './forms/form-renderer.js'
 export * from './forms/navigation-guard.js'
 export * from './forms/path-widget.js'
+// Validation error code → translation helper. Sibling to schemas in
+// `@byline/core/validation`, which emit codes; this helper maps the
+// codes onto the active locale for form-input errorText slots.
+export * from './lib/translate-validation-error.js'
 // Presentational admin layout primitives.
 export * from './presentation/group.js'
 export * from './presentation/row.js'

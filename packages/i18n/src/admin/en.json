@@ -416,5 +416,8 @@
   "diffModal.loadFailed": "Failed to load version",
   "diffModal.currentVersion": "Current version",
   "statusBadge.publishedVersionLive": "A published version is live",
-  "presentation.formTabsAriaLabel": "Form tabs"
+  "presentation.formTabsAriaLabel": "Form tabs",
+  "validation.password.tooShort": "Password must be at least 8 characters long.",
+  "validation.password.tooLong": "Password must not exceed 128 characters.",
+  "validation.password.complexity": "Password must contain at least one uppercase letter, one lowercase letter, one number, and one character from the following: #?!@$%^&*-"
 }

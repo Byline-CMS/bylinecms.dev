@@ -416,5 +416,8 @@
   "diffModal.loadFailed": "Échec du chargement de la version",
   "diffModal.currentVersion": "Version actuelle",
   "statusBadge.publishedVersionLive": "Une version publiée est en ligne",
-  "presentation.formTabsAriaLabel": "Onglets du formulaire"
+  "presentation.formTabsAriaLabel": "Onglets du formulaire",
+  "validation.password.tooShort": "Le mot de passe doit comporter au moins 8 caractères.",
+  "validation.password.tooLong": "Le mot de passe ne doit pas dépasser 128 caractères.",
+  "validation.password.complexity": "Le mot de passe doit contenir au moins une lettre majuscule, une lettre minuscule, un chiffre et un caractère parmi : #?!@$%^&*-"
 }

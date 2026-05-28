@@ -32,6 +32,7 @@ import { Alert, Button, Checkbox, Input, LoaderEllipsis } from '@byline/ui/react
 import cx from 'classnames'
 import { z } from 'zod'
 
+import { translateValidationError } from '../../../lib/translate-validation-error.js'
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
 import styles from './create.module.css'
 import type { AdminUserResponse } from '../index.js'
@@ -244,7 +245,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.currentTarget.value)}
               error={field.state.meta.errors.length > 0}
-              errorText={firstError(field.state.meta.errors)}
+              errorText={translateValidationError(t, firstError(field.state.meta.errors))}
               helpText={t('adminUsers.create.fields.passwordHelp')}
               autoComplete="new-password"
               required

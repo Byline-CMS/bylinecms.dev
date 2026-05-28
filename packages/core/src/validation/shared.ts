@@ -21,6 +21,27 @@
 import { z } from 'zod'
 
 /**
+ * Stable error codes emitted by `passwordSchema`. The schema yields
+ * these as the Zod issue message rather than free-form English so
+ * client callers can translate them at render time. Server-side
+ * consumers that don't translate (the defensive request-shape
+ * validation in admin command handlers) will see the code itself —
+ * acceptable because the form-level validation catches the same
+ * case first, so the server message is only surfaced when a
+ * malformed payload reaches the API outside the normal flow.
+ *
+ * Adding a new code: extend the union and add a matching key in the
+ * admin-side translator map (`@byline/admin/lib/translate-validation-error`).
+ * The same map shape is the recommended pattern for future schemas in
+ * this file — emit codes here, translate in `@byline/admin`.
+ */
+export const PASSWORD_ERROR_CODES = {
+  TOO_SHORT: 'password.tooShort',
+  TOO_LONG: 'password.tooLong',
+  COMPLEXITY: 'password.complexity',
+} as const
+
+/**
  * Standard password policy — 8 to 128 characters, must contain at least
  * one uppercase, one lowercase, one digit, and one character from the
  * set `#?!@$%^&*-`. The 128-char cap leaves room for passphrase-style
@@ -31,11 +52,11 @@ import { z } from 'zod'
  */
 export const passwordSchema = z
   .string()
-  .min(8, 'Password must be at least 8 characters long.')
-  .max(128, 'Password must not exceed 128 characters.')
+  .min(8, PASSWORD_ERROR_CODES.TOO_SHORT)
+  .max(128, PASSWORD_ERROR_CODES.TOO_LONG)
   .regex(
     /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/,
-    'Password must contain at least one uppercase letter, one lowercase letter, one number, and one character from the following: #?!@$%^&*-'
+    PASSWORD_ERROR_CODES.COMPLEXITY
   )
 
 /**

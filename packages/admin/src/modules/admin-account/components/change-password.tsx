@@ -34,6 +34,7 @@ import { Alert, Button, InputPassword, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
 
+import { translateValidationError } from '../../../lib/translate-validation-error.js'
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
 import styles from './change-password.module.css'
 import type { AccountResponse } from '../index.js'
@@ -57,9 +58,9 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Schema rebuilt per-render so error messages reflect the active
-  // locale. `passwordSchema` from `@byline/core/validation` keeps its
-  // own (English) policy messages — translating those is a separate,
-  // shared task across every place admin passwords are entered.
+  // locale. `passwordSchema` from `@byline/core/validation` emits stable
+  // error codes — `translateValidationError(t, …)` below maps them onto
+  // the active locale at render time.
   const changePasswordFormSchema = useMemo(
     () =>
       z
@@ -169,7 +170,7 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.currentTarget.value)}
               error={field.state.meta.errors.length > 0}
-              errorText={firstError(field.state.meta.errors)}
+              errorText={translateValidationError(t, firstError(field.state.meta.errors))}
               autoComplete="new-password"
               required
             />
