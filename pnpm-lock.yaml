@@ -686,6 +686,9 @@ importers:
       '@byline/core':
         specifier: workspace:*
         version: link:../core
+      '@byline/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@byline/ui':
         specifier: workspace:*
         version: link:../ui

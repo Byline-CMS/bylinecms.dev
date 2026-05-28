@@ -11,6 +11,7 @@ import { adminUserResponseSchema } from '../admin-users/schemas.js'
 import {
   changeAccountPasswordRequestSchema,
   getAccountRequestSchema,
+  setPreferredLocaleRequestSchema,
   updateAccountRequestSchema,
 } from './schemas.js'
 import { AdminAccountService } from './service.js'
@@ -19,6 +20,7 @@ import type {
   AccountResponse,
   ChangeAccountPasswordRequest,
   GetAccountRequest,
+  SetPreferredLocaleRequest,
   UpdateAccountRequest,
 } from './schemas.js'
 
@@ -73,4 +75,15 @@ export const changeAccountPasswordCommand: Command<
   auth: { authenticated: true },
   schemas: { input: changeAccountPasswordRequestSchema, output: adminUserResponseSchema },
   handler: ({ input, deps, actor }) => serviceOf(deps).changePassword(actor.id, input),
+})
+
+export const setPreferredLocaleCommand: Command<
+  SetPreferredLocaleRequest,
+  AccountResponse,
+  AdminAccountCommandDeps
+> = createCommand({
+  method: 'setPreferredLocale',
+  auth: { authenticated: true },
+  schemas: { input: setPreferredLocaleRequestSchema, output: adminUserResponseSchema },
+  handler: ({ input, deps, actor }) => serviceOf(deps).setPreferredLocale(actor.id, input.locale),
 })

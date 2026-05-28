@@ -22,6 +22,9 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
 import { BylineAdminServicesProvider } from '@byline/admin/services'
+import { getClientConfig } from '@byline/core'
+import type { LocaleCode, LocaleDefinition } from '@byline/i18n'
+import { I18nProvider } from '@byline/i18n/react'
 import { BylineFieldServicesProvider } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -37,6 +40,7 @@ import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
+import { getActiveLocaleFn, setInterfaceLocaleFn } from '../server-fns/i18n/index.js'
 
 interface AdminLayoutOpts {
   /** Path users are redirected to when unauthenticated. Defaults to `/sign-in`. */
@@ -51,7 +55,14 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
     beforeLoad: async ({ location }: { location: { href: string } }) => {
       try {
         const user = await getCurrentAdminUser()
-        return { user }
+        // Resolve the active interface locale once on the server so SSR
+        // and the hydrated client render the same translations and
+        // there's no locale flicker. Going through the server fn (rather
+        // than calling `resolveRequestLocale` directly) keeps
+        // `@tanstack/react-start/server` out of the client bundle — the
+        // same pattern `getCurrentAdminUser` uses for `getAdminRequestContext`.
+        const activeLocale = await getActiveLocaleFn()
+        return { user, activeLocale }
       } catch {
         // `getCurrentAdminUser` (via `getAdminRequestContext`) throws
         // `ERR_UNAUTHENTICATED` or a related auth error when no valid
@@ -64,27 +75,48 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
       }
     },
     component: function AdminLayoutComponent() {
-      const { user } = Route.useRouteContext() as {
+      const { user, activeLocale } = Route.useRouteContext() as {
         user: Awaited<ReturnType<typeof getCurrentAdminUser>>
+        activeLocale: LocaleCode
+      }
+      const { i18n } = getClientConfig()
+      const localeDefinitions = buildLocaleDefinitions(
+        i18n.interface.locales,
+        i18n.interface.localeDefinitions
+      )
+      // Cookie + DB write happen in setInterfaceLocaleFn; full reload
+      // re-runs beforeLoad so the provider re-renders with the new
+      // bundle/locale (no in-place bundle swap needed for PR 1's scope).
+      const handleSetLocale = async (next: LocaleCode) => {
+        await setInterfaceLocaleFn({ data: { locale: next } })
+        window.location.reload()
       }
       return (
-        <BylineAdminServicesProvider services={bylineAdminServices}>
-          <BylineFieldServicesProvider services={bylineFieldServices}>
-            <BylineAiAdminProvider>
-              <AdminMenuProvider>
-                <RouteProgressBar />
-                <AdminAppBar user={user} />
-                <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
-                  <DrawerToggle />
-                  <AdminMenuDrawer />
-                  <Content>
-                    <Outlet />
-                  </Content>
-                </main>
-              </AdminMenuProvider>
-            </BylineAiAdminProvider>
-          </BylineFieldServicesProvider>
-        </BylineAdminServicesProvider>
+        <I18nProvider
+          bundle={i18n.translations ?? {}}
+          activeLocale={activeLocale}
+          defaultLocale={i18n.interface.defaultLocale}
+          localeDefinitions={localeDefinitions}
+          setLocale={handleSetLocale}
+        >
+          <BylineAdminServicesProvider services={bylineAdminServices}>
+            <BylineFieldServicesProvider services={bylineFieldServices}>
+              <BylineAiAdminProvider>
+                <AdminMenuProvider>
+                  <RouteProgressBar />
+                  <AdminAppBar user={user} />
+                  <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
+                    <DrawerToggle />
+                    <AdminMenuDrawer />
+                    <Content>
+                      <Outlet />
+                    </Content>
+                  </main>
+                </AdminMenuProvider>
+              </BylineAiAdminProvider>
+            </BylineFieldServicesProvider>
+          </BylineAdminServicesProvider>
+        </I18nProvider>
       )
     },
     errorComponent: RouteError,
@@ -92,4 +124,40 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
   })
 
   return Route
+}
+
+/**
+ * Build a `LocaleDefinition[]` for the language switcher. Per-code
+ * resolution order:
+ *
+ *   1. An entry from the host's `i18n.interface.localeDefinitions`
+ *      (matched by code). Wins outright — this is the path that lets a
+ *      host author write `Français` instead of the lowercase
+ *      `français` that CLDR's `Intl.DisplayNames` returns for romance
+ *      languages.
+ *   2. `Intl.DisplayNames(code).of(code)` — produces a display name in
+ *      each locale's own language using CLDR's data.
+ *   3. The raw code, as a last-resort fallback for exotic tags or
+ *      runtimes that lack `Intl.DisplayNames`.
+ */
+function buildLocaleDefinitions(
+  codes: readonly string[],
+  configured: ReadonlyArray<{ code: string; nativeName: string }> | undefined
+): LocaleDefinition[] {
+  const explicit = new Map((configured ?? []).map((d) => [d.code, d.nativeName]))
+  return codes.map((code) => {
+    const explicitName = explicit.get(code)
+    if (explicitName != null) {
+      return { code, nativeName: explicitName }
+    }
+    let nativeName = code
+    try {
+      const dn = new Intl.DisplayNames([code], { type: 'language' })
+      nativeName = dn.of(code) ?? code
+    } catch {
+      // Intl.DisplayNames is available in Node 18+ and every modern
+      // browser. Defensive catch covers exotic codes or sandbox quirks.
+    }
+    return { code, nativeName }
+  })
 }

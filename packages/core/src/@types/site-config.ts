@@ -39,6 +39,18 @@ export interface BaseConfig {
     interface: {
       defaultLocale: string
       locales: string[]
+      /**
+       * Optional display names for the admin language switcher. Each
+       * entry pairs a permitted locale code with the label users see
+       * in the menu — `Français` rather than the lowercase `français`
+       * that CLDR's `Intl.DisplayNames` returns for romance languages.
+       *
+       * Hosts that omit this fall back to `Intl.DisplayNames` per
+       * code; hosts that provide it for some codes still fall back
+       * for the rest. Entries for codes outside `locales` are silently
+       * ignored.
+       */
+      localeDefinitions?: ReadonlyArray<{ code: string; nativeName: string }>
     }
     content: {
       defaultLocale: string

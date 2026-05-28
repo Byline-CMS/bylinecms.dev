@@ -7,50 +7,59 @@
  */
 
 /**
- * `@byline/i18n/admin` — the built-in `byline-admin` namespace bundle.
- * English is shipped in-package; other locales arrive as standalone
- * community packages (`@byline/i18n-fr`, `@byline/i18n-de`, …) whose
- * default export is a `NamespaceTranslations` for the `byline-admin`
- * namespace at one locale.
+ * `@byline/i18n/admin` — the built-in `byline-admin` namespace bundle
+ * and the `adminTranslations()` registry factory.
  *
- * Source-of-truth for the English bundle is `./en.json` — Rslib inlines
- * the JSON at build time so consumers receive a plain JS module
- * exporting the parsed object. No `.json` URL crosses any runtime
- * loader, sidestepping the TanStack Start / Nitro asset-extension
- * issue that forced the host's translations to be TS modules.
+ * Locale source files (`en.json`, `fr.json`, …) live alongside this
+ * module. Each is authored as plain JSON — translator-friendly, native
+ * to every translation tool, clean diffs — and Rslib inlines each into
+ * the ESM build at compile time. Consumers receive a plain JS module
+ * exporting the parsed objects; no `.json` URL crosses any runtime
+ * loader.
+ *
+ * Adding a locale: drop a new JSON file in this directory and add it to
+ * the `BUNDLES` map below. No new package, no new build, no new
+ * publishing step. Translators iterate on a single file.
+ *
+ * Plugins / extensions / custom fields follow the same shape inside
+ * their own packages — `@byline/ai/i18n/en.json`, etc. — and expose
+ * their own factory taking the same `{ locales }` shape.
  */
 
 import { mergeTranslations } from '../merge.js'
-// `resolveJsonModule: true` in tsconfig + Rslib's default bundling inlines
-// this JSON at build time as a regular ESM module exporting the parsed
-// object. Deliberately no `with { type: 'json' }` import attribute — Rslib
-// transforms the import path from `./en.json` to `./en.js` but does not
-// strip the attribute, and Node then rejects the JS module as
-// ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE at runtime.
 import enJson from './en.json'
-import type { NamespaceTranslations, TranslationBundle } from '../types.js'
+import frJson from './fr.json'
+import type { LocaleCode, NamespaceTranslations, TranslationBundle } from '../types.js'
 
 const en: NamespaceTranslations = enJson
-
-/** Re-exported as a typed const for plugin authors who want the literal-key autocomplete. */
-export { en }
-export type AdminNamespaceTranslations = typeof enJson
+const fr: NamespaceTranslations = frJson
 
 /**
- * Options to `adminTranslations`. Pass `en: true` to include the
- * bundled English admin strings. Pass any community-provided locale
- * bundles under their locale code: `{ en: true, fr: frBundle }`.
- *
- * The shape is deliberately a record-of-bundles rather than an array
- * — locale codes appear once at the call site, and downstream tooling
- * (CI drift detection, type-level locale enumeration) reads the same
- * keys.
+ * Map of every bundled locale → its `byline-admin` namespace
+ * translations. Static `import` statements above mean a consumer's
+ * bundler sees a fixed-size set at build time. Today's locales bundle
+ * eagerly; lazy loading is the [Phase 3](../../docs/I18N.md#phase-3--lazy-locale-loading)
+ * migration once locale count grows past ~5.
  */
+const BUNDLES: Readonly<Record<LocaleCode, NamespaceTranslations>> = {
+  en,
+  fr,
+}
+
+/** Locale codes for which a bundled translation ships in-package. */
+export const bundledLocales: readonly LocaleCode[] = Object.freeze(Object.keys(BUNDLES))
+
+/** Re-exported as typed consts for plugin authors who want the literal-key autocomplete. */
+export { en, fr }
+export type AdminNamespaceTranslations = typeof enJson
+
 export interface AdminTranslationsOptions {
-  /** Include the bundled English admin strings. Defaults to `true`. */
-  en?: boolean | NamespaceTranslations
-  /** Additional community-provided locale bundles, keyed by locale code. */
-  [locale: string]: boolean | NamespaceTranslations | undefined
+  /**
+   * Locale codes to include in the returned bundle. Each must appear in
+   * `bundledLocales` — unknown codes throw at config time. Defaults to
+   * `['en']` when omitted, which is always available.
+   */
+  locales?: readonly LocaleCode[]
 }
 
 /**
@@ -61,36 +70,30 @@ export interface AdminTranslationsOptions {
  * @example
  * ```ts
  * import { adminTranslations } from '@byline/i18n/admin'
- * import { fr } from '@byline/i18n-fr'
  *
  * defineClientConfig({
  *   i18n: {
- *     locales: ['en', 'fr'],
- *     translations: adminTranslations({ en: true, fr }),
+ *     interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
+ *     translations: adminTranslations({ locales: ['en', 'fr'] }),
  *   },
  * })
  * ```
+ *
+ * @throws when a requested code is not in `bundledLocales`.
  */
 export function adminTranslations(options: AdminTranslationsOptions = {}): TranslationBundle {
-  const { en: enOption = true, ...rest } = options
+  const locales = options.locales ?? ['en']
   const partials: TranslationBundle[] = []
-  if (enOption === true) {
-    partials.push({ en: { 'byline-admin': en } })
-  } else if (enOption && typeof enOption === 'object') {
-    partials.push({ en: { 'byline-admin': enOption } })
-  }
-  for (const locale of Object.keys(rest)) {
-    const value = rest[locale]
-    if (value == null || value === false) continue
-    if (value === true) {
-      // `someLocale: true` only makes sense for the in-package English
-      // bundle; any other locale needs an actual bundle passed in.
+  for (const locale of locales) {
+    const bundle = BUNDLES[locale]
+    if (bundle == null) {
       throw new Error(
-        `[@byline/i18n/admin] adminTranslations({ ${locale}: true }) is only valid for 'en'. ` +
-          `Pass a NamespaceTranslations object for other locales (e.g. via @byline/i18n-${locale}).`
+        `[adminTranslations] no bundled translation for locale '${locale}'. ` +
+          `Available: [${bundledLocales.join(', ')}]. ` +
+          `To add a locale, drop a new JSON file in @byline/i18n/src/admin/.`
       )
     }
-    partials.push({ [locale]: { 'byline-admin': value } })
+    partials.push({ [locale]: { 'byline-admin': bundle } })
   }
   return mergeTranslations(...partials)
 }

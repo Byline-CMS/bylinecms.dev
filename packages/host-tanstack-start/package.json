@@ -80,6 +80,14 @@
       "types": "./dist/server-fns/collections/index.d.ts",
       "import": "./dist/server-fns/collections/index.js"
     },
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "import": "./dist/i18n/index.js"
+    },
+    "./server-fns/i18n": {
+      "types": "./dist/server-fns/i18n/index.d.ts",
+      "import": "./dist/server-fns/i18n/index.js"
+    },
     "./server-fns/preview": {
       "types": "./dist/server-fns/preview/index.d.ts",
       "import": "./dist/server-fns/preview/index.js"
@@ -115,6 +123,7 @@
     "@byline/auth": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
+    "@byline/i18n": "workspace:*",
     "@byline/ui": "workspace:*",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",

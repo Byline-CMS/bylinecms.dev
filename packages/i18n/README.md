@@ -12,7 +12,7 @@ For the full design — registration model, plugin extensibility surface, per-us
 pnpm add @byline/i18n
 ```
 
-The package ships English admin strings out of the box. Other locales arrive as standalone community packages (`@byline/i18n-fr`, `@byline/i18n-de`, …) and merge in at registration time.
+The package bundles every official Byline admin translation as a JSON file under `src/admin/`. Today that's English (`en.json`) and French (`fr.json`); adding a new locale is a single-file PR. The `adminTranslations({ locales })` factory reads only the requested codes and assembles a bundle.
 
 ## Three entry points
 
@@ -40,7 +40,7 @@ defineClientConfig({
       locales: ['en'],
     },
     // … content locales as before
-    translations: adminTranslations({ en: true }),
+    translations: adminTranslations({ locales: ['en'] }),
   },
   // … the rest of your client config
 })
@@ -50,17 +50,29 @@ defineClientConfig({
 
 ```ts
 import { adminTranslations } from '@byline/i18n/admin'
-import { fr } from '@byline/i18n-fr'
 
 i18n: {
   interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
-  translations: adminTranslations({ en: true, fr }),
+  translations: adminTranslations({ locales: ['en', 'fr'] }),
 }
 ```
 
+The set of bundled locales is exported as `bundledLocales` for hosts that want to derive their locale list from what's available:
+
+```ts
+import { adminTranslations, bundledLocales } from '@byline/i18n/admin'
+
+i18n: {
+  interface: { defaultLocale: 'en', locales: [...bundledLocales] },
+  translations: adminTranslations({ locales: bundledLocales }),
+}
+```
+
+`adminTranslations({ locales: ['xx'] })` throws at config time when a requested code is not in `bundledLocales`. To contribute a new locale, drop a JSON file alongside `src/admin/en.json` and add it to the bundle map.
+
 ## Plugin contributions
 
-A plugin (richtext extension, custom field, AI tool, …) exports a `TranslationBundle` from a dedicated entry point. The host merges it during `defineClientConfig`:
+A plugin (richtext extension, custom field, AI tool, …) ships its own JSON files inside its own package and exposes a factory matching `adminTranslations`'s shape — takes `{ locales }`, returns a `TranslationBundle` for the plugin's own namespace. The host merges them in `defineClientConfig`:
 
 ```ts
 import { mergeTranslations } from '@byline/i18n'
@@ -70,11 +82,13 @@ import { aiTranslations } from '@byline/ai/i18n'
 i18n: {
   interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
   translations: mergeTranslations(
-    adminTranslations({ en: true, fr: frAdmin }),
-    aiTranslations,
+    adminTranslations({ locales: ['en', 'fr'] }),
+    aiTranslations({ locales: ['en', 'fr'] }),
   ),
 }
 ```
+
+A plugin that ships a locale the host hasn't enabled is harmless — the plugin's factory simply returns nothing for that code, the merge produces an empty entry for it, and the boot validator gates against `i18n.interface.locales` anyway.
 
 `mergeTranslations` is associative + deterministic; later sources override earlier ones at the `(locale, namespace, key)` grain, and a `MergeOptions.onCollision` callback is available for surfacing conflicts during development.
 
@@ -133,7 +147,7 @@ const activeLocale = resolveInterfaceLocale({
   locales: ['en', 'fr'],
   defaultLocale: 'en',
   preferred: actor?.admin_user?.preferred_locale,
-  cookie: getCookie('lng_admin'),
+  cookie: getCookie('byline_admin_lng'),
   acceptLanguage: getRequestHeader('accept-language'),
 })
 ```

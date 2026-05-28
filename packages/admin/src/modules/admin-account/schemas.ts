@@ -76,6 +76,19 @@ export const changeAccountPasswordRequestSchema = z.object({
 })
 export type ChangeAccountPasswordRequest = z.infer<typeof changeAccountPasswordRequestSchema>
 
+// Vid-less — admin interface locale is a personal preference, not content
+// state, so the menu can persist without a fresh-vid round trip. `null`
+// clears the column and lets detection take over.
+export const setPreferredLocaleRequestSchema = z.object({
+  locale: z
+    .string()
+    .min(2)
+    .max(16)
+    .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/, 'must be a BCP 47 locale tag')
+    .nullable(),
+})
+export type SetPreferredLocaleRequest = z.infer<typeof setPreferredLocaleRequestSchema>
+
 // ---------------------------------------------------------------------------
 // Responses (re-exports — same shape as the admin-users module)
 // ---------------------------------------------------------------------------

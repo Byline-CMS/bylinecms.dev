@@ -92,6 +92,7 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
         is_super_admin: input.is_super_admin ?? false,
         is_enabled: input.is_enabled ?? false,
         is_email_verified: input.is_email_verified ?? false,
+        preferred_locale: input.preferred_locale ?? null,
         created_at: t,
         updated_at: t,
       }
@@ -163,6 +164,9 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
           ? { is_email_verified: patch.is_email_verified }
           : null),
         ...(patch.remember_me !== undefined ? { remember_me: patch.remember_me } : null),
+        ...(patch.preferred_locale !== undefined
+          ? { preferred_locale: patch.preferred_locale }
+          : null),
         vid: existing.vid + 1,
         updated_at: now(),
       }
@@ -189,6 +193,17 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       rows.set(id, {
         ...existing,
         is_enabled: enabled,
+        vid: existing.vid + 1,
+        updated_at: now(),
+      })
+    },
+
+    async setPreferredLocale(id, locale) {
+      const existing = rows.get(id)
+      if (!existing) return
+      rows.set(id, {
+        ...existing,
+        preferred_locale: locale,
         vid: existing.vid + 1,
         updated_at: now(),
       })

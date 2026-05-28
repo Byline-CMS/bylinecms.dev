@@ -33,6 +33,7 @@ export function toAdminUser(row: AdminUserRow): AdminUserResponse {
     is_super_admin: row.is_super_admin,
     is_enabled: row.is_enabled,
     is_email_verified: row.is_email_verified,
+    preferred_locale: row.preferred_locale,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

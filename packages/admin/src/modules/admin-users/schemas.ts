@@ -46,6 +46,15 @@ const emailSchema = z
 
 const nameSchema = z.string().min(1).max(100)
 
+// BCP 47 locale codes — `en`, `pt-BR`, `zh-Hans-CN`, etc. The 16-char
+// ceiling matches the DB column width and is wider than any real-world
+// locale tag.
+const preferredLocaleSchema = z
+  .string()
+  .min(2)
+  .max(16)
+  .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/, 'must be a BCP 47 locale tag')
+
 const orderSchema = z.enum([
   'given_name',
   'family_name',
@@ -82,6 +91,7 @@ export const createAdminUserRequestSchema = z.object({
   is_super_admin: z.boolean().optional(),
   is_enabled: z.boolean().optional(),
   is_email_verified: z.boolean().optional(),
+  preferred_locale: preferredLocaleSchema.nullish(),
 })
 export type CreateAdminUserRequest = z.infer<typeof createAdminUserRequestSchema>
 
@@ -97,6 +107,7 @@ export const updateAdminUserRequestSchema = z.object({
       is_super_admin: z.boolean().optional(),
       is_enabled: z.boolean().optional(),
       is_email_verified: z.boolean().optional(),
+      preferred_locale: preferredLocaleSchema.nullish(),
     })
     .refine((p) => Object.keys(p).length > 0, { message: 'patch cannot be empty' }),
 })
@@ -144,6 +155,7 @@ export const adminUserResponseSchema = z.object({
   is_super_admin: z.boolean(),
   is_enabled: z.boolean(),
   is_email_verified: z.boolean(),
+  preferred_locale: z.string().nullable(),
   created_at: z.date(),
   updated_at: z.date(),
 })

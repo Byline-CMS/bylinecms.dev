@@ -1,0 +1,1 @@
+ALTER TABLE "byline_admin_users" ADD COLUMN "preferred_locale" varchar(16);

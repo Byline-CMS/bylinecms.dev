@@ -50,6 +50,13 @@ export interface AdminUserRow {
   is_super_admin: boolean
   is_enabled: boolean
   is_email_verified: boolean
+  /**
+   * Admin interface locale preference. `null` means "use the detection
+   * cascade" (cookie → Accept-Language → defaultLocale). Stored as a
+   * BCP 47 code; validated at the command layer against the host's
+   * `i18n.interface.locales`.
+   */
+  preferred_locale: string | null
   created_at: Date
   updated_at: Date
 }
@@ -73,6 +80,8 @@ export interface CreateAdminUserInput {
   is_super_admin?: boolean
   is_enabled?: boolean
   is_email_verified?: boolean
+  /** Initial locale preference. `null` defers to the detection cascade. */
+  preferred_locale?: string | null
 }
 
 export interface UpdateAdminUserInput {
@@ -84,6 +93,8 @@ export interface UpdateAdminUserInput {
   is_enabled?: boolean
   is_email_verified?: boolean
   remember_me?: boolean
+  /** Pass `null` to clear and fall back to the detection cascade. */
+  preferred_locale?: string | null
 }
 
 export type AdminUserListOrder =
@@ -151,6 +162,12 @@ export interface AdminUsersRepository {
   setPasswordHash(id: string, expectedVid: number, passwordHash: string): Promise<AdminUserRow>
   /** Toggle enabled state. Vid-less — admin intent is independent of other edits. */
   setEnabled(id: string, enabled: boolean): Promise<void>
+  /**
+   * Set the admin interface locale preference. Vid-less — user preference
+   * is independent of content state. Pass `null` to clear and fall back
+   * to the detection cascade (cookie → Accept-Language → defaultLocale).
+   */
+  setPreferredLocale(id: string, locale: string | null): Promise<void>
   recordLoginSuccess(id: string, ip: string | null): Promise<void>
   recordLoginFailure(id: string): Promise<void>
   /**

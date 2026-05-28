@@ -14,7 +14,7 @@
  * Cascade (first non-null wins):
  *   1. `preferred` — the authenticated admin user's stored preference
  *      (`admin_users.preferred_locale`). Always wins when set.
- *   2. `cookie`    — the `lng_admin` cookie from the last language switch.
+ *   2. `cookie`    — the `byline_admin_lng` cookie from the last language switch.
  *   3. `acceptLanguage` — standards-compliant negotiation against the
  *      permitted locale set via `@formatjs/intl-localematcher`.
  *   4. `defaultLocale` — last-resort fallback.
@@ -36,7 +36,7 @@ export interface ResolveInterfaceLocaleOptions {
   defaultLocale: LocaleCode
   /** `admin_users.preferred_locale` for the authenticated request, if any. */
   preferred?: LocaleCode | null
-  /** Value of the `lng_admin` cookie. */
+  /** Value of the `byline_admin_lng` cookie. */
   cookie?: string | null
   /** Raw `Accept-Language` request header. */
   acceptLanguage?: string | null

@@ -186,6 +186,20 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
               self-editable.
             </p>
           </ContainerSection>
+
+          <ContainerSection title="Preferences">
+            <p className={cx('byline-account-line', styles.line)}>
+              <span className="muted">Interface language:</span>{' '}
+              {currentAccount.preferred_locale ?? (
+                <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
+                  Use browser default
+                </span>
+              )}
+            </p>
+            <p className={cx('muted', 'byline-account-status-help', styles['status-help'])}>
+              Change your interface language from the menu in the top bar.
+            </p>
+          </ContainerSection>
         </div>
       </div>
 

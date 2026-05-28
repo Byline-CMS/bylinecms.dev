@@ -74,6 +74,13 @@ export const adminUsers = pgTable(
      */
     is_enabled: boolean('is_enabled').notNull().default(false),
     is_email_verified: boolean('is_email_verified').notNull().default(false),
+    /**
+     * Per-user admin interface locale preference. Nullable — `null` means
+     * "use the detection cascade" (cookie → Accept-Language → defaultLocale).
+     * Stored as a BCP 47 code (`en`, `pt-BR`, `zh-Hans-CN`); validated at
+     * write time against the host's `i18n.interface.locales` set.
+     */
+    preferred_locale: varchar('preferred_locale', { length: 16 }),
     ...timestamps,
   },
   (table) => [index('idx_byline_admin_users_email').on(table.email)]

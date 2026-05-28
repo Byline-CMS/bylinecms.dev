@@ -50,6 +50,7 @@ const PUBLIC_COLUMNS = {
   is_super_admin: adminUsers.is_super_admin,
   is_enabled: adminUsers.is_enabled,
   is_email_verified: adminUsers.is_email_verified,
+  preferred_locale: adminUsers.preferred_locale,
   created_at: adminUsers.created_at,
   updated_at: adminUsers.updated_at,
 } as const
@@ -80,6 +81,7 @@ export function createAdminUsersRepository(
           is_super_admin: input.is_super_admin ?? false,
           is_enabled: input.is_enabled ?? false,
           is_email_verified: input.is_email_verified ?? false,
+          preferred_locale: input.preferred_locale ?? null,
         })
         .returning(PUBLIC_COLUMNS)
       if (!row) throw new Error('createAdminUser: insert returned no row')
@@ -175,6 +177,7 @@ export function createAdminUsersRepository(
       if (patch.is_email_verified !== undefined)
         updateSet.is_email_verified = patch.is_email_verified
       if (patch.remember_me !== undefined) updateSet.remember_me = patch.remember_me
+      if (patch.preferred_locale !== undefined) updateSet.preferred_locale = patch.preferred_locale
 
       const [row] = await db
         .update(adminUsers)
@@ -203,6 +206,13 @@ export function createAdminUsersRepository(
       await db
         .update(adminUsers)
         .set({ is_enabled: enabled, updated_at: new Date(), vid: sql`${adminUsers.vid} + 1` })
+        .where(eq(adminUsers.id, id))
+    },
+
+    async setPreferredLocale(id, locale) {
+      await db
+        .update(adminUsers)
+        .set({ preferred_locale: locale, updated_at: new Date(), vid: sql`${adminUsers.vid} + 1` })
         .where(eq(adminUsers.id, id))
     },
 

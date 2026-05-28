@@ -127,8 +127,15 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // interface locale set. Throws on structural errors (missing bundle for
   // a declared locale, defaultLocale outside the permitted set, …); soft
   // warnings (key-set drift between locales) are logged so contributors
-  // see translation gaps without it blocking boot.
-  const i18nValidation = validateTranslations(config.i18n.interface)
+  // see translation gaps without it blocking boot. The bundle lives at
+  // `i18n.translations` (one axis, not nested under `interface`) — the
+  // validator takes the assembled shape so locale config and bundle
+  // travel together.
+  const i18nValidation = validateTranslations({
+    defaultLocale: config.i18n.interface.defaultLocale,
+    locales: config.i18n.interface.locales,
+    translations: config.i18n.translations,
+  })
   for (const warning of i18nValidation.warnings) {
     composed.logger.warn(
       {

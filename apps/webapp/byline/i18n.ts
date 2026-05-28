@@ -15,17 +15,22 @@
  * `content` locales govern the languages a document can be published in.
  */
 
+import { adminTranslations } from '@byline/i18n/admin'
+
 export interface LocaleDefinition {
   code: string
   label: string
 }
 
 /** Locales available in the CMS admin interface. */
-// Only English ships in `@byline/i18n/admin` today. Add another locale's
-// definition here once the corresponding community bundle exists (see
-// `docs/I18N.md` Phase 2) — and wire it into the `adminTranslations({...})`
-// call in `i18n` below.
-export const interfaceLocales: LocaleDefinition[] = [{ code: 'en', label: 'English' }]
+// Every code listed here must have a matching bundle in @byline/i18n/admin
+// (or a third-party plugin merged in via `mergeTranslations(...)`).
+// `adminTranslations({ locales })` below throws at boot if the requested
+// code is not bundled.
+export const interfaceLocales: LocaleDefinition[] = [
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+]
 
 /** Locales a document can be published in. */
 export const contentLocales = [
@@ -35,23 +40,25 @@ export const contentLocales = [
   { code: 'de', label: 'Deutsch' },
 ] as const
 
-import { adminTranslations } from '@byline/i18n/admin'
-
 /** Derived config object — passed directly to defineServerConfig / defineClientConfig. */
 export const i18n = {
   interface: {
     defaultLocale: 'en',
     locales: interfaceLocales.map((l) => l.code),
-    // Admin UI translations. `adminTranslations({ en: true })` returns
-    // the bundled `byline-admin` namespace for English. To add a
-    // community-translated locale: import its bundle and pass it under
-    // its locale code, e.g. `adminTranslations({ en: true, fr })`.
-    // Compose with plugin / extension bundles via `mergeTranslations(...)`
-    // from `@byline/i18n` if needed.
-    translations: adminTranslations({ en: true }),
+    // Display names for the admin language switcher. The dropdown
+    // shows these labels verbatim — keeping host-side authoring of
+    // `Français` (vs CLDR's lowercase `français`) is the whole reason
+    // this slot exists. Hosts that don't supply this fall back to
+    // `Intl.DisplayNames` per code.
+    localeDefinitions: interfaceLocales.map((l) => ({ code: l.code, nativeName: l.label })),
   },
   content: {
     defaultLocale: 'en',
     locales: contentLocales.map((l) => l.code),
   },
+  // Admin UI translations. The factory reads bundled JSON files in
+  // @byline/i18n/admin and returns a `byline-admin` namespace bundle
+  // for each requested locale. Compose with plugin / extension bundles
+  // via `mergeTranslations(...)` from `@byline/i18n` if needed.
+  translations: adminTranslations({ locales: interfaceLocales.map((l) => l.code) }),
 }

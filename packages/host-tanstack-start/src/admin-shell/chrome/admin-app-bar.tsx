@@ -10,6 +10,7 @@
 
 import { useState } from 'react'
 
+import { LanguageMenu } from '@byline/i18n/react'
 import { Button } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -59,6 +60,7 @@ export function AdminAppBar({ user }: AdminAppBarProps) {
         />
       </div>
       <div className={cx('byline-admin-app-bar-right', styles.right)}>
+        <LanguageMenu />
         <span className={cx('byline-admin-app-bar-user', styles.user)}>
           Signed in as{' '}
           <span className={cx('byline-admin-app-bar-user-name', styles.userName)}>

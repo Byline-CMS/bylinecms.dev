@@ -8,10 +8,15 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { adminTranslations, en } from './index.js'
+import { adminTranslations, bundledLocales, en, fr } from './index.js'
 
-describe('en bundle', () => {
-  it('is a non-empty flat key → string record', () => {
+describe('bundled locale data', () => {
+  it('exposes a non-empty bundledLocales list', () => {
+    expect(bundledLocales.length).toBeGreaterThan(0)
+    expect(bundledLocales).toContain('en')
+  })
+
+  it('exports the en bundle as a flat key → string record', () => {
     const keys = Object.keys(en)
     expect(keys.length).toBeGreaterThan(0)
     for (const key of keys) {
@@ -19,36 +24,45 @@ describe('en bundle', () => {
     }
   })
 
+  it('exports the fr bundle with the same key set as en (no drift)', () => {
+    expect(new Set(Object.keys(fr))).toEqual(new Set(Object.keys(en)))
+  })
+
   it('carries at least the headline action keys', () => {
     expect(en['common.actions.save']).toBe('Save')
-    expect(en['common.actions.cancel']).toBe('Cancel')
+    expect(fr['common.actions.save']).toBe('Enregistrer')
   })
 })
 
 describe('adminTranslations()', () => {
-  it('returns the English byline-admin namespace by default', () => {
+  it('defaults to the English byline-admin namespace when called with no args', () => {
     const bundle = adminTranslations()
     expect(bundle.en?.['byline-admin']?.['common.actions.save']).toBe('Save')
+    expect(bundle.fr).toBeUndefined()
   })
 
-  it('omits English when called with { en: false }', () => {
-    const bundle = adminTranslations({ en: false })
-    expect(bundle.en).toBeUndefined()
-  })
-
-  it('accepts a community bundle under another locale code', () => {
-    const fr = { 'common.actions.save': 'Enregistrer' }
-    const bundle = adminTranslations({ en: true, fr })
+  it('returns only the requested locales', () => {
+    const bundle = adminTranslations({ locales: ['en', 'fr'] })
     expect(bundle.en?.['byline-admin']?.['common.actions.save']).toBe('Save')
     expect(bundle.fr?.['byline-admin']?.['common.actions.save']).toBe('Enregistrer')
   })
 
-  it('lets a custom English NamespaceTranslations override the bundled defaults', () => {
-    const bundle = adminTranslations({ en: { 'common.actions.save': 'Stash it' } })
-    expect(bundle.en?.['byline-admin']?.['common.actions.save']).toBe('Stash it')
+  it('returns an empty bundle when an empty locales list is passed', () => {
+    const bundle = adminTranslations({ locales: [] })
+    expect(bundle).toEqual({})
   })
 
-  it('throws when a non-en locale is passed as `true` (only bundled-English supports the shorthand)', () => {
-    expect(() => adminTranslations({ en: true, fr: true as never })).toThrow(/only valid for 'en'/i)
+  it('throws on an unknown locale code with the available set in the message', () => {
+    expect(() => adminTranslations({ locales: ['xx'] })).toThrow(/no bundled translation/i)
+    expect(() => adminTranslations({ locales: ['xx'] })).toThrow(/Available:.*en/i)
+  })
+
+  it('preserves locale order in the returned bundle keys', () => {
+    const bundle = adminTranslations({ locales: ['fr', 'en'] })
+    expect(Object.keys(bundle)).toEqual(['fr', 'en'])
+  })
+
+  it('every code in bundledLocales is accepted', () => {
+    expect(() => adminTranslations({ locales: bundledLocales })).not.toThrow()
   })
 })

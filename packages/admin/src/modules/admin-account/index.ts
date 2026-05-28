@@ -33,6 +33,7 @@
 export {
   changeAccountPasswordCommand,
   getAccountCommand,
+  setPreferredLocaleCommand,
   updateAccountCommand,
 } from './commands.js'
 export {
@@ -47,6 +48,7 @@ export {
   changeAccountPasswordRequestSchema,
   getAccountRequestSchema,
   okResponseSchema,
+  setPreferredLocaleRequestSchema,
   updateAccountRequestSchema,
 } from './schemas.js'
 export { AdminAccountService } from './service.js'
@@ -56,5 +58,6 @@ export type {
   ChangeAccountPasswordRequest,
   GetAccountRequest,
   OkResponse,
+  SetPreferredLocaleRequest,
   UpdateAccountRequest,
 } from './schemas.js'

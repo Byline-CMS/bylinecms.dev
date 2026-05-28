@@ -71,6 +71,18 @@ export class AdminAccountService {
     return toAdminUser(row)
   }
 
+  async setPreferredLocale(actorId: string, locale: string | null): Promise<AccountResponse> {
+    const current = await this.#repo.getById(actorId)
+    if (!current) throw ERR_ADMIN_ACCOUNT_NOT_FOUND()
+    await this.#repo.setPreferredLocale(actorId, locale)
+    // Re-read for the post-write vid + updated_at — the vid-less repo
+    // method bumps `vid`, so the response carries the fresh shape callers
+    // need for any subsequent vid-gated edit.
+    const updated = await this.#repo.getById(actorId)
+    if (!updated) throw ERR_ADMIN_ACCOUNT_NOT_FOUND()
+    return toAdminUser(updated)
+  }
+
   async changePassword(
     actorId: string,
     request: ChangeAccountPasswordRequest
