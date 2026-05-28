@@ -9,6 +9,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { getClientConfig } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { AdminDashboard } from '../admin-shell/chrome/dashboard.js'
@@ -39,9 +40,12 @@ export function createAdminDashboardRoute(path: string) {
       const { statsMap } = Route.useLoaderData() as {
         statsMap: Record<string, CollectionStatusCount[]>
       }
+      const { t } = useTranslation('byline-admin')
       return (
         <>
-          <BreadcrumbsClient breadcrumbs={[{ label: 'Dashboard', href: '/admin' }]} />
+          <BreadcrumbsClient
+            breadcrumbs={[{ label: t('chrome.menu.dashboard'), href: '/admin' }]}
+          />
           <AdminDashboard statsMap={statsMap} />
         </>
       )

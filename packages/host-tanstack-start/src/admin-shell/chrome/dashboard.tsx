@@ -8,6 +8,7 @@
 
 import type { WorkflowStatus } from '@byline/core'
 import { getClientConfig, getWorkflowStatuses } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Card, Container, Section } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -62,6 +63,7 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ statsMap }: AdminDashboardProps) {
   const config = getClientConfig()
+  const { t } = useTranslation('byline-admin')
 
   return (
     <Section>
@@ -86,10 +88,12 @@ export function AdminDashboard({ statsMap }: AdminDashboardProps) {
                           {collection.labels.plural}
                         </span>
                         <span className={cx('muted byline-dashboard-title-meta', styles.titleMeta)}>
-                          {total} total
+                          {t('dashboard.totalCount', { count: total })}
                         </span>
                       </Card.Title>
-                      <Card.Description className="muted">{`${collection.labels.plural} collection`}</Card.Description>
+                      <Card.Description className="muted">
+                        {t('dashboard.collectionDescription', { label: collection.labels.plural })}
+                      </Card.Description>
                     </div>
                   </Card.Header>
                 </Link>
@@ -114,7 +118,9 @@ export function AdminDashboard({ statsMap }: AdminDashboardProps) {
                       params={{ collection: collection.path }}
                       className={cx('byline-dashboard-empty-link', styles.emptyLink)}
                     >
-                      <p>{collection.labels.plural} collection</p>
+                      <p>
+                        {t('dashboard.collectionDescription', { label: collection.labels.plural })}
+                      </p>
                     </Link>
                   )}
                 </Card.Content>

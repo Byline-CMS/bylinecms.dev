@@ -8,10 +8,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 
 import { CreateAdminUser } from '@byline/admin/admin-users/components/create'
+import { useTranslation } from '@byline/i18n/react'
 import {
   CloseIcon,
   Container,
@@ -40,10 +41,18 @@ import type {
   AdminUserResponse,
 } from '../../server-fns/admin-users/index.js'
 
-const tableColumnDefs: Omit<TableHeadingCellSortableProps, 'lng'>[] = [
+// Structural column-def template: position / sort-key / alignment / class
+// are fixed at module scope; the `label` field is filled in per-render
+// inside the component so it can flow through `t(...)`. Same pattern the
+// account container's `panels` map uses.
+type ColumnTemplate = Omit<TableHeadingCellSortableProps, 'lng' | 'label'> & {
+  labelKey: string
+}
+
+const columnTemplates: ColumnTemplate[] = [
   {
     fieldName: 'given_name',
-    label: 'Given Name',
+    labelKey: 'adminUsers.list.columns.givenName',
     path: '/admin/users',
     sortable: true,
     scope: 'col',
@@ -52,7 +61,7 @@ const tableColumnDefs: Omit<TableHeadingCellSortableProps, 'lng'>[] = [
   },
   {
     fieldName: 'family_name',
-    label: 'Family Name',
+    labelKey: 'adminUsers.list.columns.familyName',
     path: '/admin/users',
     sortable: true,
     scope: 'col',
@@ -61,7 +70,7 @@ const tableColumnDefs: Omit<TableHeadingCellSortableProps, 'lng'>[] = [
   },
   {
     fieldName: 'email',
-    label: 'Email',
+    labelKey: 'adminUsers.list.columns.email',
     path: '/admin/users',
     sortable: true,
     scope: 'col',
@@ -70,7 +79,7 @@ const tableColumnDefs: Omit<TableHeadingCellSortableProps, 'lng'>[] = [
   },
   {
     fieldName: 'updated_at',
-    label: 'Updated',
+    labelKey: 'adminUsers.list.columns.updated',
     path: '/admin/users',
     sortable: true,
     scope: 'col',
@@ -79,7 +88,7 @@ const tableColumnDefs: Omit<TableHeadingCellSortableProps, 'lng'>[] = [
   },
   {
     fieldName: 'created_at',
-    label: 'Created',
+    labelKey: 'adminUsers.list.columns.created',
     path: '/admin/users',
     sortable: true,
     scope: 'col',
@@ -123,7 +132,13 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
   const router = useRouter()
   const toastManager = useToastManager()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const { t } = useTranslation('byline-admin')
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
+
+  const tableColumnDefs = useMemo(
+    () => columnTemplates.map(({ labelKey, ...rest }) => ({ ...rest, label: t(labelKey) })),
+    [t]
+  )
 
   const openCreateDrawer = () => setIsCreateDrawerOpen(true)
   const closeCreateDrawer = () => setIsCreateDrawerOpen(false)
@@ -134,7 +149,7 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
     // current page of the table.
     void router.invalidate()
     toastManager.add({
-      title: 'Admin user created',
+      title: t('adminUsers.list.createdToastTitle'),
       description: created.email,
       data: { intent: 'success' },
     })
@@ -173,9 +188,11 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
     <Section>
       <Container>
         <div className={cx('byline-admin-users-list-head', styles.head)}>
-          <h1 className={cx('byline-admin-users-list-title', styles.title)}>Admin Users</h1>
+          <h1 className={cx('byline-admin-users-list-title', styles.title)}>
+            {t('adminUsers.list.title')}
+          </h1>
           <Stats total={data.meta.total} />
-          <IconButton aria-label="Create New Admin User" onClick={openCreateDrawer}>
+          <IconButton aria-label={t('adminUsers.list.createAriaLabel')} onClick={openCreateDrawer}>
             <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
           </IconButton>
         </div>
@@ -184,7 +201,7 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
             onSearch={handleOnSearch}
             onClear={handleOnClear}
             inputSize="sm"
-            placeholder="Search by name or email"
+            placeholder={t('adminUsers.list.searchPlaceholder')}
             className={cx('byline-admin-users-list-search', styles.search)}
           />
           <RouterPager
@@ -193,7 +210,7 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
             showFirstButton
             showLastButton
             componentName="pagerTop"
-            aria-label="Top Pager"
+            aria-label={t('adminUsers.list.pagerTopAriaLabel')}
           />
         </div>
         <Table.Container className={cx('byline-admin-users-list-table-wrap', styles.tableWrap)}>
@@ -220,7 +237,7 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
                         <span
                           className={cx('muted byline-admin-users-list-not-set', styles.notSet)}
                         >
-                          Not set
+                          {t('common.notSet')}
                         </span>
                       )}
                     </Link>
@@ -228,7 +245,7 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
                   <Table.Cell>
                     {user.family_name ?? (
                       <span className={cx('muted byline-admin-users-list-not-set', styles.notSet)}>
-                        Not set
+                        {t('common.notSet')}
                       </span>
                     )}
                   </Table.Cell>
@@ -277,7 +294,7 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
             showFirstButton
             showLastButton
             componentName="pagerBottom"
-            aria-label="Bottom Pager"
+            aria-label={t('adminUsers.list.pagerBottomAriaLabel')}
           />
         </div>
       </Container>
@@ -296,12 +313,16 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
             <button type="button" tabIndex={0} className="sr-only">
               no action
             </button>
-            <IconButton aria-label="Close" size="sm" onClick={closeCreateDrawer}>
+            <IconButton
+              aria-label={t('common.actions.close')}
+              size="sm"
+              onClick={closeCreateDrawer}
+            >
               <CloseIcon width="14px" height="14px" svgClassName="white-icon stroke-white" />
             </IconButton>
           </Drawer.TopActions>
           <Drawer.Header>
-            <h2>New Admin User</h2>
+            <h2>{t('adminUsers.list.newDrawerTitle')}</h2>
           </Drawer.Header>
           <Drawer.Content>
             <div className={cx('byline-admin-users-list-drawer-scroll', styles.drawerScroll)}>

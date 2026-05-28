@@ -23,6 +23,7 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -46,6 +47,7 @@ function displayNameFor(user: AdminUserResponse): string {
 export function DeleteUser({ user, onClose }: DeleteUserProps) {
   const navigate = useNavigate()
   const router = useRouter()
+  const { t } = useTranslation('byline-admin')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -64,15 +66,13 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
     } catch (err) {
       const code = getErrorCode(err)
       if (code === 'admin.users.selfDeleteForbidden') {
-        setError('You cannot delete your own admin account.')
+        setError(t('adminUsers.delete.errors.selfDelete'))
       } else if (code === 'admin.users.versionConflict') {
-        setError(
-          'This user has been modified elsewhere since you opened this dialog. Close and reload before trying again.'
-        )
+        setError(t('adminUsers.delete.errors.versionConflict'))
       } else if (code === 'admin.users.notFound') {
-        setError('This user has already been deleted.')
+        setError(t('adminUsers.delete.errors.notFound'))
       } else {
-        setError('Could not delete this admin user. Please try again.')
+        setError(t('adminUsers.delete.errors.fallback'))
       }
       setPending(false)
     }
@@ -87,14 +87,13 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
           </Alert>
         ) : null}
         <p className={cx('byline-admin-user-delete-row', styles.row)}>
-          <span className="muted">User:</span> {displayNameFor(user)}
+          <span className="muted">{t('adminUsers.delete.userLabel')}</span> {displayNameFor(user)}
         </p>
         <p className={cx('byline-admin-user-delete-row', styles.row)}>
-          <span className="muted">Email:</span> {user.email}
+          <span className="muted">{t('adminUsers.delete.emailLabel')}</span> {user.email}
         </p>
         <p className={cx('byline-admin-user-delete-warning', styles.warning)}>
-          This will permanently delete the admin user. The action cannot be undone. Any active
-          sessions will be invalidated at the next refresh.
+          {t('adminUsers.delete.warning')}
         </p>
       </div>
       <div className={cx('byline-admin-user-delete-actions', styles.actions)}>
@@ -106,7 +105,7 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
           disabled={pending}
           className={cx('byline-admin-user-delete-button', styles.button)}
         >
-          Cancel
+          {t('common.actions.cancel')}
         </Button>
         <Button
           size="sm"
@@ -115,7 +114,7 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
           disabled={pending}
           className={cx('byline-admin-user-delete-button', styles.button)}
         >
-          {pending === true ? <LoaderEllipsis size={42} /> : 'Delete User'}
+          {pending === true ? <LoaderEllipsis size={42} /> : t('adminUsers.delete.confirmButton')}
         </Button>
       </div>
     </Modal.Content>
