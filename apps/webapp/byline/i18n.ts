@@ -15,7 +15,10 @@
  * `content` locales govern the languages a document can be published in.
  */
 
+import { mergeTranslations } from '@byline/i18n'
 import { adminTranslations } from '@byline/i18n/admin'
+
+import { mediaAdminTranslations } from './collections/media/i18n/index.js'
 
 export interface LocaleDefinition {
   code: string
@@ -56,9 +59,18 @@ export const i18n = {
     defaultLocale: 'en',
     locales: contentLocales.map((l) => l.code),
   },
-  // Admin UI translations. The factory reads bundled JSON files in
-  // @byline/i18n/admin and returns a `byline-admin` namespace bundle
-  // for each requested locale. Compose with plugin / extension bundles
-  // via `mergeTranslations(...)` from `@byline/i18n` if needed.
-  translations: adminTranslations({ locales: interfaceLocales.map((l) => l.code) }),
+  // Admin UI translations. `adminTranslations({...})` ships the
+  // `byline-admin` namespace bundled into `@byline/i18n/admin`.
+  // `mediaAdminTranslations({...})` is a worked example of extending
+  // the registry with a custom namespace (`webapp-media-admin`) — see
+  // `collections/media/i18n/index.ts`. Third-party plugins / richtext
+  // extensions / custom fields follow the same shape: a `{ locales }`
+  // factory returning a TranslationBundle keyed by their own
+  // namespace, merged in here. `mergeTranslations(...)` is associative
+  // and last-writer-wins, so additional bundles can be appended in
+  // any order.
+  translations: mergeTranslations(
+    adminTranslations({ locales: interfaceLocales.map((l) => l.code) }),
+    mediaAdminTranslations({ locales: interfaceLocales.map((l) => l.code) })
+  ),
 }

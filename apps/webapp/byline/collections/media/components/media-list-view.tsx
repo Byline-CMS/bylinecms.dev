@@ -25,6 +25,7 @@ import { LocalDateTime } from '@byline/admin/react'
 import type { ListViewComponentProps, StoredFileValue, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { RouterPager } from '@byline/host-tanstack-start/admin-shell/chrome/router-pager'
+import { useTranslation } from '@byline/i18n/react'
 import {
   Container,
   IconButton,
@@ -35,6 +36,7 @@ import {
   Select,
 } from '@byline/ui/react'
 
+import { MEDIA_ADMIN_NAMESPACE } from '../i18n/index.js'
 import styles from './media-list-view.module.css'
 import { FormatBadge } from './media-thumbnail'
 
@@ -58,22 +60,34 @@ function formatNumber(number: number, decimalPlaces: number) {
 /**
  * Composite order values that encode both `order` field and `desc` direction.
  * Format: `"<field>_<asc|desc>"` — split at the last underscore when applied.
+ *
+ * Labels are resolved at render time via `useTranslation('webapp-media-admin')`
+ * — the `value` strings stay code-stable so they can serve as URL params.
  */
-const ORDER_OPTIONS = [
-  { value: 'updated_at_desc', label: 'Recently Updated' },
-  { value: 'updated_at_asc', label: 'Oldest Updated' },
-  { value: 'title_asc', label: 'Title A–Z' },
-  { value: 'title_desc', label: 'Title Z–A' },
-  { value: 'created_at_desc', label: 'Newest Created' },
-  { value: 'created_at_asc', label: 'Oldest Created' },
+const ORDER_VALUES = [
+  'updated_at_desc',
+  'updated_at_asc',
+  'title_asc',
+  'title_desc',
+  'created_at_desc',
+  'created_at_asc',
 ] as const
 
-type OrderValue = (typeof ORDER_OPTIONS)[number]['value']
+type OrderValue = (typeof ORDER_VALUES)[number]
+
+const ORDER_LABEL_KEYS: Record<OrderValue, string> = {
+  updated_at_desc: 'order.recentlyUpdated',
+  updated_at_asc: 'order.oldestUpdated',
+  title_asc: 'order.titleAsc',
+  title_desc: 'order.titleDesc',
+  created_at_desc: 'order.newestCreated',
+  created_at_asc: 'order.oldestCreated',
+}
 
 function parseOrderValue(order?: string, desc?: boolean): OrderValue {
   if (!order) return 'updated_at_desc'
   const candidate = `${order}_${desc ? 'desc' : 'asc'}` as OrderValue
-  return ORDER_OPTIONS.some((o) => o.value === candidate) ? candidate : 'updated_at_desc'
+  return (ORDER_VALUES as readonly string[]).includes(candidate) ? candidate : 'updated_at_desc'
 }
 
 function splitOrderValue(value: OrderValue): { order: string; desc: boolean } {
@@ -107,10 +121,11 @@ function StatusBadge({
 }
 
 function EmptyState() {
+  const { t } = useTranslation(MEDIA_ADMIN_NAMESPACE)
   return (
     <div className={styles['empty-state']}>
       <LoaderRing className={styles['empty-loader']} size={1} color="transparent" />
-      <p className={styles['empty-text']}>No media items found.</p>
+      <p className={styles['empty-text']}>{t('empty')}</p>
     </div>
   )
 }
@@ -124,9 +139,18 @@ export function MediaListView({
   workflowStatuses = [],
 }: ListViewComponentProps<AnyCollectionSchemaTypes['ListType']>) {
   const navigate = useNavigate()
+  const { t } = useTranslation(MEDIA_ADMIN_NAMESPACE)
   const location = useRouterState({ select: (s) => s.location })
   const collectionPath = data.included.collection.path
   const search = location.search as Record<string, any>
+
+  // Sort-option labels resolved per-render so the Select reflects the
+  // active interface locale. `value` strings are URL params and stay
+  // code-stable — see ORDER_VALUES.
+  const orderItems = ORDER_VALUES.map((value) => ({
+    value,
+    label: t(ORDER_LABEL_KEYS[value]),
+  }))
 
   // ---- search ----
 
@@ -182,7 +206,7 @@ export function MediaListView({
           <h1 className={styles.heading}>{data.included.collection.labels.plural as string}</h1>
           <Stats total={data.meta.total} />
           <IconButton
-            aria-label="Upload New Media"
+            aria-label={t('header.uploadAriaLabel')}
             render={
               <Link
                 className={styles['create-link']}
@@ -201,14 +225,14 @@ export function MediaListView({
             onSearch={handleOnSearch}
             onClear={handleOnClear}
             inputSize="sm"
-            placeholder="Search media…"
+            placeholder={t('toolbar.searchPlaceholder')}
             className={styles.search}
           />
 
           {/* Order-by */}
           <div className={styles['order-group']}>
             <label htmlFor="media_order" className={styles['order-label']}>
-              Order by
+              {t('toolbar.orderByLabel')}
             </label>
             <Select
               id="media_order"
@@ -216,7 +240,7 @@ export function MediaListView({
               size="sm"
               value={currentOrder}
               onValueChange={handleOrderChange}
-              items={[...ORDER_OPTIONS]}
+              items={orderItems}
             />
           </div>
 
@@ -227,7 +251,7 @@ export function MediaListView({
             showFirstButton
             showLastButton
             componentName="pagerTop"
-            aria-label="Top Pager"
+            aria-label={t('toolbar.pagerTopAriaLabel')}
           />
         </div>
 
@@ -261,7 +285,7 @@ export function MediaListView({
                         loading="lazy"
                       />
                     ) : (
-                      <span className={styles['thumb-placeholder']}>No image</span>
+                      <span className={styles['thumb-placeholder']}>{t('card.noImage')}</span>
                     )}
                   </div>
 
@@ -299,7 +323,7 @@ export function MediaListView({
             showFirstButton
             showLastButton
             componentName="pagerBottom"
-            aria-label="Bottom Pager"
+            aria-label={t('toolbar.pagerBottomAriaLabel')}
           />
         </div>
       </Container>

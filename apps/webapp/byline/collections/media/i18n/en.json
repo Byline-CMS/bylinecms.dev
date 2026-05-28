@@ -1,0 +1,15 @@
+{
+  "header.uploadAriaLabel": "Upload New Media",
+  "toolbar.searchPlaceholder": "Search media…",
+  "toolbar.orderByLabel": "Order by",
+  "toolbar.pagerTopAriaLabel": "Top Pager",
+  "toolbar.pagerBottomAriaLabel": "Bottom Pager",
+  "order.recentlyUpdated": "Recently Updated",
+  "order.oldestUpdated": "Oldest Updated",
+  "order.titleAsc": "Title A–Z",
+  "order.titleDesc": "Title Z–A",
+  "order.newestCreated": "Newest Created",
+  "order.oldestCreated": "Oldest Created",
+  "empty": "No media items found.",
+  "card.noImage": "No image"
+}

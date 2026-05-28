@@ -1,0 +1,15 @@
+{
+  "header.uploadAriaLabel": "Téléverser un média",
+  "toolbar.searchPlaceholder": "Rechercher des médias…",
+  "toolbar.orderByLabel": "Trier par",
+  "toolbar.pagerTopAriaLabel": "Pagination supérieure",
+  "toolbar.pagerBottomAriaLabel": "Pagination inférieure",
+  "order.recentlyUpdated": "Récemment mis à jour",
+  "order.oldestUpdated": "Anciennement mis à jour",
+  "order.titleAsc": "Titre A–Z",
+  "order.titleDesc": "Titre Z–A",
+  "order.newestCreated": "Plus récents",
+  "order.oldestCreated": "Plus anciens",
+  "empty": "Aucun média trouvé.",
+  "card.noImage": "Aucune image"
+}
