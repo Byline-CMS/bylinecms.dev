@@ -17,9 +17,10 @@
  * (see the repository contract).
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Input, LoaderEllipsis, TextArea } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
@@ -28,19 +29,15 @@ import { useBylineAdminServices } from '../../../services/admin-services-context
 import styles from './create.module.css'
 import type { AdminRoleResponse } from '../index.js'
 
-const createAdminRoleFormSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(128, 'Name must not exceed 128 characters'),
-  machine_name: z
-    .string()
-    .min(1, 'Machine name is required')
-    .max(128, 'Machine name must not exceed 128 characters')
-    .regex(/^[a-z0-9][a-z0-9_-]*$/, {
-      message: 'Lowercase letters, numbers, hyphens, and underscores only',
-    }),
-  description: z.string().max(2000, 'Description must not exceed 2000 characters'),
-})
+const MAX_NAME = 128
+const MAX_MACHINE_NAME = 128
+const MAX_DESCRIPTION = 2000
 
-type CreateAdminRoleValues = z.infer<typeof createAdminRoleFormSchema>
+type CreateAdminRoleValues = {
+  name: string
+  machine_name: string
+  description: string
+}
 
 const initialValues: CreateAdminRoleValues = {
   name: '',
@@ -59,7 +56,37 @@ interface CreateAdminRoleProps {
 
 export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
   const { createAdminRole } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Schema rebuilt per-render so error messages reflect the active
+  // locale; wrapped in useMemo([t]) to keep validator identity stable.
+  const createAdminRoleFormSchema = useMemo(
+    () =>
+      z.object({
+        name: z
+          .string()
+          .min(1, t('adminRoles.create.errors.nameRequired'))
+          .max(MAX_NAME, t('adminRoles.create.errors.nameTooLong', { max: MAX_NAME })),
+        machine_name: z
+          .string()
+          .min(1, t('adminRoles.create.errors.machineNameRequired'))
+          .max(
+            MAX_MACHINE_NAME,
+            t('adminRoles.create.errors.machineNameTooLong', { max: MAX_MACHINE_NAME })
+          )
+          .regex(/^[a-z0-9][a-z0-9_-]*$/, {
+            message: t('adminRoles.create.errors.machineNameInvalid'),
+          }),
+        description: z
+          .string()
+          .max(
+            MAX_DESCRIPTION,
+            t('adminRoles.create.errors.descriptionTooLong', { max: MAX_DESCRIPTION })
+          ),
+      }),
+    [t]
+  )
 
   const form = useForm({
     defaultValues: initialValues,
@@ -85,14 +112,15 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
       } catch (err) {
         const code = getErrorCode(err)
         if (code === 'admin.roles.machineNameInUse') {
+          const message = t('adminRoles.create.errors.machineNameInUse')
           form.setFieldMeta('machine_name', (meta) => ({
             ...meta,
-            errorMap: { ...meta.errorMap, onServer: 'This machine name is already in use.' },
-            errors: ['This machine name is already in use.'],
+            errorMap: { ...meta.errorMap, onServer: message },
+            errors: [message],
           }))
           return
         }
-        setFormError('Could not create this admin role. Please try again.')
+        setFormError(t('adminRoles.create.errors.fallback'))
       }
     },
   })
@@ -113,7 +141,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
         <form.Field name="name">
           {(field) => (
             <Input
-              label="Name"
+              label={t('adminRoles.fields.name')}
               id="new-role-name"
               name={field.name}
               value={field.state.value}
@@ -121,7 +149,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
               onChange={(e) => field.handleChange(e.currentTarget.value)}
               error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
-              helpText="Human-readable label, e.g. 'Editor'."
+              helpText={t('adminRoles.create.fields.nameHelp')}
               required
             />
           )}
@@ -130,7 +158,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
         <form.Field name="machine_name">
           {(field) => (
             <Input
-              label="Machine name"
+              label={t('adminRoles.fields.machineName')}
               id="new-role-machine-name"
               name={field.name}
               value={field.state.value}
@@ -138,7 +166,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
               onChange={(e) => field.handleChange(e.currentTarget.value)}
               error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
-              helpText="Stable code-side handle, e.g. 'editor'. Cannot be changed later."
+              helpText={t('adminRoles.create.fields.machineNameHelp')}
               required
             />
           )}
@@ -147,7 +175,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
         <form.Field name="description">
           {(field) => (
             <TextArea
-              label="Description"
+              label={t('adminRoles.fields.description')}
               id="new-role-description"
               name={field.name}
               value={field.state.value}
@@ -168,7 +196,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
             onClick={onClose}
             className={cx('byline-role-create-action', styles.action)}
           >
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <form.Subscribe
             selector={(state) => ({
@@ -184,7 +212,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
                 disabled={!canSubmit || isSubmitting}
                 className={cx('byline-role-create-action', styles.action)}
               >
-                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : t('common.actions.save')}
               </Button>
             )}
           </form.Subscribe>

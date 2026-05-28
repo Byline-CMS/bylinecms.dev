@@ -31,6 +31,7 @@
 
 import { useMemo, useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Checkbox, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -78,6 +79,7 @@ function GroupSection({
   onSelectAll,
   onClearAll,
 }: GroupSectionProps) {
+  const { t } = useTranslation('byline-admin')
   const groupKeys = useMemo(() => group.abilities.map((a) => a.key), [group.abilities])
   const selectedInGroup = groupKeys.filter((key) => selected.has(key)).length
   const isEdit = mode === 'edit'
@@ -92,7 +94,11 @@ function GroupSection({
           <span
             className={cx('muted', 'byline-role-permissions-group-count', styles['group-count'])}
           >
-            {selectedInGroup} of {group.abilities.length} {isEdit ? 'selected' : 'granted'}
+            {t('adminRoles.permissions.groupCount', {
+              selected: selectedInGroup,
+              total: group.abilities.length,
+              mode,
+            })}
           </span>
         </div>
         {isEdit ? (
@@ -104,7 +110,7 @@ function GroupSection({
               disabled={saving || selectedInGroup === group.abilities.length}
               onClick={() => onSelectAll(groupKeys)}
             >
-              Select all
+              {t('adminRoles.permissions.selectAll')}
             </Button>
             <Button
               size="xs"
@@ -113,7 +119,7 @@ function GroupSection({
               disabled={saving || selectedInGroup === 0}
               onClick={() => onClearAll(groupKeys)}
             >
-              Clear
+              {t('adminRoles.permissions.clear')}
             </Button>
           </div>
         ) : null}
@@ -175,6 +181,7 @@ export function RolePermissions({
   onSaved,
 }: RolePermissionsProps) {
   const { setRoleAbilities } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [mode, setMode] = useState<Mode>('view')
   const [initialSet, setInitialSet] = useState<ReadonlySet<string>>(() => new Set(initialAbilities))
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initialAbilities))
@@ -246,13 +253,11 @@ export function RolePermissions({
     } catch (err) {
       const code = getErrorCode(err)
       if (code === 'admin.permissions.roleNotFound') {
-        setError('This role no longer exists.')
+        setError(t('adminRoles.permissions.errors.roleNotFound'))
       } else if (code === 'admin.permissions.abilityUnregistered') {
-        setError(
-          'One or more selected abilities are no longer registered. Reload the page and try again.'
-        )
+        setError(t('adminRoles.permissions.errors.abilityUnregistered'))
       } else {
-        setError('Could not save permissions. Please try again.')
+        setError(t('adminRoles.permissions.errors.fallback'))
       }
     } finally {
       setSaving(false)
@@ -272,14 +277,12 @@ export function RolePermissions({
           onEdit={handleEnterEdit}
         />
         <p className={cx('muted', 'byline-role-permissions-counter', styles.counter)}>
-          <span className={cx('byline-role-permissions-counter-num', styles['counter-num'])}>
-            {totalSelected}
-          </span>{' '}
-          of{' '}
-          <span className={cx('byline-role-permissions-counter-num', styles['counter-num'])}>
-            {registered.total}
-          </span>{' '}
-          {isEdit ? 'selected' : 'granted'} for {role.name}
+          {t('adminRoles.permissions.counter', {
+            selected: totalSelected,
+            total: registered.total,
+            mode,
+            role: role.name,
+          })}
         </p>
         {isEdit && isDirty ? (
           <div className={cx('byline-role-permissions-actions', styles.actions)}>
@@ -291,7 +294,7 @@ export function RolePermissions({
               disabled={saving}
               className={cx('byline-role-permissions-action', styles.action)}
             >
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button
               type="button"
@@ -301,7 +304,7 @@ export function RolePermissions({
               disabled={saving}
               className={cx('byline-role-permissions-action', styles.action)}
             >
-              {saving ? <LoaderEllipsis size={30} /> : 'Save'}
+              {saving ? <LoaderEllipsis size={30} /> : t('common.actions.save')}
             </Button>
           </div>
         ) : null}
@@ -336,6 +339,7 @@ interface ModeToggleProps {
 }
 
 function ModeToggle({ mode, dirty, saving, onView, onEdit }: ModeToggleProps) {
+  const { t } = useTranslation('byline-admin')
   // Segmented two-state toggle. View is disabled while dirty so the
   // user has to commit to Save or Cancel — avoids accidentally
   // discarding a draft selection.
@@ -346,7 +350,7 @@ function ModeToggle({ mode, dirty, saving, onView, onEdit }: ModeToggleProps) {
   return (
     <div
       role="group"
-      aria-label="Permissions mode"
+      aria-label={t('adminRoles.permissions.modeAriaLabel')}
       className={cx('byline-role-permissions-mode-toggle', styles['mode-toggle'])}
     >
       <button
@@ -364,7 +368,7 @@ function ModeToggle({ mode, dirty, saving, onView, onEdit }: ModeToggleProps) {
             ]
         )}
       >
-        View
+        {t('adminRoles.permissions.viewMode')}
       </button>
       <button
         type="button"
@@ -383,7 +387,7 @@ function ModeToggle({ mode, dirty, saving, onView, onEdit }: ModeToggleProps) {
             ]
         )}
       >
-        Edit
+        {t('adminRoles.permissions.editMode')}
       </button>
     </div>
   )

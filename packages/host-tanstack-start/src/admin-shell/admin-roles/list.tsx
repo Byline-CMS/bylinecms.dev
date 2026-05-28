@@ -26,6 +26,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import { CreateAdminRole } from '@byline/admin/admin-roles/components/create'
+import { useTranslation } from '@byline/i18n/react'
 import {
   Button,
   CloseIcon,
@@ -66,6 +67,7 @@ interface DraggableRowProps {
 }
 
 const DraggableRow: React.FC<DraggableRowProps> = ({ item, disabled }) => {
+  const { t } = useTranslation('byline-admin')
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     id: item.id,
     disabled,
@@ -102,7 +104,9 @@ const DraggableRow: React.FC<DraggableRowProps> = ({ item, disabled }) => {
       <Table.Cell>{item.machine_name}</Table.Cell>
       <Table.Cell>
         {item.description ?? (
-          <span className={cx('muted byline-roles-list-not-set', styles.notSet)}>Not set</span>
+          <span className={cx('muted byline-roles-list-not-set', styles.notSet)}>
+            {t('common.notSet')}
+          </span>
         )}
       </Table.Cell>
       <Table.Cell className={cx('byline-roles-list-cell-right', styles.cellRight)}>
@@ -129,6 +133,7 @@ function padRows(value: number) {
 export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
   const router = useRouter()
   const toastManager = useToastManager()
+  const { t } = useTranslation('byline-admin')
   const [items, setItems] = useState<AdminRoleResponse[]>(data.roles)
   const [orderChanged, setOrderChanged] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -153,7 +158,7 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
     setIsCreateDrawerOpen(false)
     void router.invalidate()
     toastManager.add({
-      title: 'Admin role created',
+      title: t('adminRoles.list.createdToastTitle'),
       description: created.name,
       data: { intent: 'success' },
     })
@@ -182,7 +187,7 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
       setOrderChanged(false)
       void router.invalidate()
       toastManager.add({
-        title: 'Order saved',
+        title: t('adminRoles.list.orderSavedToast'),
         data: { intent: 'success' },
       })
     } catch (_err) {
@@ -190,8 +195,8 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
       setItems(previousItems)
       setOrderChanged(false)
       toastManager.add({
-        title: 'Could not save the new order',
-        description: 'Please try again.',
+        title: t('adminRoles.list.orderFailedToast'),
+        description: t('adminRoles.list.orderFailedDescription'),
         data: { intent: 'danger' },
       })
     } finally {
@@ -203,15 +208,19 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
     <Section>
       <Container>
         <div className={cx('byline-roles-list-head', styles.head)}>
-          <h1 className={cx('byline-roles-list-title', styles.title)}>Admin Roles</h1>
+          <h1 className={cx('byline-roles-list-title', styles.title)}>
+            {t('adminRoles.list.title')}
+          </h1>
           <Stats total={data.roles.length} />
-          <IconButton aria-label="Create New Admin Role" onClick={openCreateDrawer}>
+          <IconButton aria-label={t('adminRoles.list.createAriaLabel')} onClick={openCreateDrawer}>
             <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />
           </IconButton>
         </div>
 
         {items.length === 0 ? (
-          <div className={cx('byline-roles-list-empty', styles.empty)}>No admin roles found</div>
+          <div className={cx('byline-roles-list-empty', styles.empty)}>
+            {t('adminRoles.list.empty')}
+          </div>
         ) : (
           <DraggableSortable ids={items.map((item) => item.id)} onDragEnd={handleOnDragEnd}>
             <Table.Container className={cx('byline-roles-list-table-wrap', styles.tableWrap)}>
@@ -222,22 +231,22 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
                       className={cx('byline-roles-list-col-drag', styles.colDrag)}
                     />
                     <Table.HeadingCell className={cx('byline-roles-list-col-name', styles.colName)}>
-                      Name
+                      {t('adminRoles.list.columns.name')}
                     </Table.HeadingCell>
                     <Table.HeadingCell
                       className={cx('byline-roles-list-col-machine', styles.colMachine)}
                     >
-                      Machine Name
+                      {t('adminRoles.list.columns.machineName')}
                     </Table.HeadingCell>
                     <Table.HeadingCell
                       className={cx('byline-roles-list-col-description', styles.colDescription)}
                     >
-                      Description
+                      {t('adminRoles.list.columns.description')}
                     </Table.HeadingCell>
                     <Table.HeadingCell
                       className={cx('byline-roles-list-col-created', styles.colCreated)}
                     >
-                      Created
+                      {t('adminRoles.list.columns.created')}
                     </Table.HeadingCell>
                   </Table.Row>
                 </Table.Header>
@@ -264,7 +273,7 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
                   {isSaving ? (
                     <LoaderEllipsis size={30} color="#aaaaaa" />
                   ) : (
-                    <span>Save Order</span>
+                    <span>{t('adminRoles.list.saveOrder')}</span>
                   )}
                 </Button>
               </div>
@@ -287,12 +296,16 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
             <button type="button" tabIndex={0} className="sr-only">
               no action
             </button>
-            <IconButton aria-label="Close" size="sm" onClick={closeCreateDrawer}>
+            <IconButton
+              aria-label={t('common.actions.close')}
+              size="sm"
+              onClick={closeCreateDrawer}
+            >
               <CloseIcon width="14px" height="14px" svgClassName="white-icon stroke-white" />
             </IconButton>
           </Drawer.TopActions>
           <Drawer.Header>
-            <h2>New Admin Role</h2>
+            <h2>{t('adminRoles.list.newDrawerTitle')}</h2>
           </Drawer.Header>
           <Drawer.Content>
             <div className={cx('byline-roles-list-drawer-scroll', styles.drawerScroll)}>

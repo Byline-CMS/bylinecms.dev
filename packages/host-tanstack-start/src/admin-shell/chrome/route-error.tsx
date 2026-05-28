@@ -16,48 +16,56 @@ import type { ErrorComponentProps, NotFoundRouteProps } from '@tanstack/react-ro
 import { useRouter } from '@tanstack/react-router'
 
 import { BylineError, ErrorCodes } from '@byline/core'
+import type { UseTranslationReturn } from '@byline/i18n/react'
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Container, Section } from '@byline/ui/react'
 import cx from 'classnames'
 
 import styles from './route-error.module.css'
 
-const ERROR_TITLES: Record<string, string> = {
-  [ErrorCodes.NOT_FOUND]: 'Not Found',
-  [ErrorCodes.VALIDATION]: 'Validation Error',
-  [ErrorCodes.CONFLICT]: 'Conflict',
-  [ErrorCodes.INVALID_TRANSITION]: 'Invalid Transition',
-  [ErrorCodes.PATCH_FAILED]: 'Update Failed',
-  [ErrorCodes.DATABASE]: 'Database Error',
-  [ErrorCodes.STORAGE]: 'Storage Error',
-  [ErrorCodes.UNHANDLED]: 'Unexpected Error',
+// Static map from ErrorCode → translation key. Resolved to a localised
+// string at render time via the `t` function below — module-scope
+// strings would otherwise freeze the English copy in.
+const ERROR_TITLE_KEYS: Record<string, string> = {
+  [ErrorCodes.NOT_FOUND]: 'routeError.titles.notFound',
+  [ErrorCodes.VALIDATION]: 'routeError.titles.validation',
+  [ErrorCodes.CONFLICT]: 'routeError.titles.conflict',
+  [ErrorCodes.INVALID_TRANSITION]: 'routeError.titles.invalidTransition',
+  [ErrorCodes.PATCH_FAILED]: 'routeError.titles.patchFailed',
+  [ErrorCodes.DATABASE]: 'routeError.titles.database',
+  [ErrorCodes.STORAGE]: 'routeError.titles.storage',
+  [ErrorCodes.UNHANDLED]: 'routeError.titles.unhandled',
 }
 
-function getErrorTitle(error: unknown): string {
+type Translate = UseTranslationReturn['t']
+
+function getErrorTitle(error: unknown, t: Translate): string {
   if (error instanceof BylineError) {
-    return ERROR_TITLES[error.code] ?? 'Unexpected Error'
+    return t(ERROR_TITLE_KEYS[error.code] ?? 'routeError.titles.unhandled')
   }
-  return 'Unexpected Error'
+  return t('routeError.titles.unhandled')
 }
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(error: unknown, t: Translate): string {
   if (error instanceof BylineError) {
     return error.message
   }
   if (error instanceof Error) {
     return error.message
   }
-  return 'An unexpected error occurred. Please try again.'
+  return t('routeError.defaultMessage')
 }
 
 export function RouteError({ error, reset }: ErrorComponentProps) {
   const router = useRouter()
+  const { t } = useTranslation('byline-admin')
 
   return (
     <Section className={cx('byline-route-error', styles.section)}>
       <Container className={cx('byline-route-error-container', styles.container)}>
-        <Alert intent="danger" icon close={false} title={getErrorTitle(error)}>
+        <Alert intent="danger" icon close={false} title={getErrorTitle(error, t)}>
           <p className={cx('byline-route-error-message', styles.message)}>
-            {getErrorMessage(error)}
+            {getErrorMessage(error, t)}
           </p>
           <div className={cx('byline-route-error-actions', styles.actions)}>
             <Button
@@ -69,10 +77,10 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
                 router.invalidate()
               }}
             >
-              Try again
+              {t('common.actions.tryAgain')}
             </Button>
             <a href="/" className={cx('byline-route-error-link', styles.link)}>
-              Go to homepage
+              {t('common.actions.goToHomepage')}
             </a>
           </div>
         </Alert>
@@ -82,16 +90,17 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
 }
 
 export function RouteNotFound(_props: NotFoundRouteProps) {
+  const { t } = useTranslation('byline-admin')
   return (
     <Section className={cx('byline-route-error', styles.section)}>
       <Container className={cx('byline-route-error-container', styles.container)}>
-        <Alert intent="warning" icon close={false} title="Page Not Found">
+        <Alert intent="warning" icon close={false} title={t('routeError.notFound.title')}>
           <p className={cx('byline-route-error-message', styles.message)}>
-            The page you are looking for does not exist or has been moved.
+            {t('routeError.notFound.message')}
           </p>
           <div className={cx('byline-route-error-actions', styles.actions)}>
             <a href="/" className={cx('byline-route-error-link', styles.link)}>
-              Go to homepage
+              {t('common.actions.goToHomepage')}
             </a>
           </div>
         </Alert>
@@ -101,17 +110,21 @@ export function RouteNotFound(_props: NotFoundRouteProps) {
 }
 
 /**
- * Minimal fallback for when providers may be broken. Used at the root
- * route, where wrapping in Container/Section may itself be unsafe.
+ * Minimal fallback for when providers may be broken — used at the root
+ * route where the i18n provider itself may not be mounted. Stays in
+ * English on purpose.
  */
 export function RootError({ error, reset }: ErrorComponentProps) {
+  function rootMessage(err: unknown): string {
+    if (err instanceof Error) return err.message
+    return 'An unexpected error occurred. Please try again.'
+  }
+
   return (
     <div className={cx('byline-root-error', styles.rootRoot)}>
       <div className={cx('byline-root-error-inner', styles.rootInner)}>
         <h1 className={cx('byline-root-error-title', styles.rootTitle)}>Something went wrong</h1>
-        <p className={cx('byline-root-error-detail', styles.rootDetail)}>
-          {getErrorMessage(error)}
-        </p>
+        <p className={cx('byline-root-error-detail', styles.rootDetail)}>{rootMessage(error)}</p>
         <button
           type="button"
           onClick={reset}

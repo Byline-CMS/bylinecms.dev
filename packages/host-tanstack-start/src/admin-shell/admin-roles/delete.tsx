@@ -20,6 +20,7 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -36,6 +37,7 @@ interface DeleteRoleProps {
 export function DeleteRole({ role, onClose }: DeleteRoleProps) {
   const navigate = useNavigate()
   const router = useRouter()
+  const { t } = useTranslation('byline-admin')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -54,13 +56,11 @@ export function DeleteRole({ role, onClose }: DeleteRoleProps) {
     } catch (err) {
       const code = getErrorCode(err)
       if (code === 'admin.roles.versionConflict') {
-        setError(
-          'This role has been modified elsewhere since you opened this dialog. Close and reload before trying again.'
-        )
+        setError(t('adminRoles.delete.errors.versionConflict'))
       } else if (code === 'admin.roles.notFound') {
-        setError('This role has already been deleted.')
+        setError(t('adminRoles.delete.errors.notFound'))
       } else {
-        setError('Could not delete this role. Please try again.')
+        setError(t('adminRoles.delete.errors.fallback'))
       }
       setPending(false)
     }
@@ -75,14 +75,13 @@ export function DeleteRole({ role, onClose }: DeleteRoleProps) {
           </Alert>
         ) : null}
         <p className={cx('byline-role-delete-row', styles.row)}>
-          <span className="muted">Role:</span> {role.name}
+          <span className="muted">{t('adminRoles.delete.roleLabel')}</span> {role.name}
         </p>
         <p className={cx('byline-role-delete-row', styles.row)}>
-          <span className="muted">Machine name:</span> {role.machine_name}
+          <span className="muted">{t('adminRoles.delete.machineLabel')}</span> {role.machine_name}
         </p>
         <p className={cx('byline-role-delete-warning', styles.warning)}>
-          This will permanently delete the role. Any users assigned to it lose the role; any
-          per-role ability grants are removed. The action cannot be undone.
+          {t('adminRoles.delete.warning')}
         </p>
       </div>
       <div className={cx('byline-role-delete-actions', styles.actions)}>
@@ -94,7 +93,7 @@ export function DeleteRole({ role, onClose }: DeleteRoleProps) {
           disabled={pending}
           className={cx('byline-role-delete-button', styles.button)}
         >
-          Cancel
+          {t('common.actions.cancel')}
         </Button>
         <Button
           size="sm"
@@ -103,7 +102,7 @@ export function DeleteRole({ role, onClose }: DeleteRoleProps) {
           disabled={pending}
           className={cx('byline-role-delete-button', styles.button)}
         >
-          {pending === true ? <LoaderEllipsis size={42} /> : 'Delete Role'}
+          {pending === true ? <LoaderEllipsis size={42} /> : t('adminRoles.delete.confirmButton')}
         </Button>
       </div>
     </Modal.Content>

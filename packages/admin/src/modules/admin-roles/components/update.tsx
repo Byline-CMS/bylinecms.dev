@@ -17,9 +17,10 @@
  * time and immutable thereafter.
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Input, LoaderEllipsis, TextArea } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
@@ -29,12 +30,13 @@ import styles from './update.module.css'
 import type { UpdateAdminRoleInput } from '../../../services/admin-services-types.js'
 import type { AdminRoleResponse } from '../index.js'
 
-const updateRoleSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(128, 'Name must not exceed 128 characters'),
-  description: z.string().max(2000, 'Description must not exceed 2000 characters'),
-})
+const MAX_NAME = 128
+const MAX_DESCRIPTION = 2000
 
-type UpdateRoleValues = z.infer<typeof updateRoleSchema>
+type UpdateRoleValues = {
+  name: string
+  description: string
+}
 
 function defaultsFrom(role: AdminRoleResponse): UpdateRoleValues {
   return {
@@ -66,8 +68,26 @@ interface UpdateRoleProps {
 
 export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
   const { updateAdminRole } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const updateRoleSchema = useMemo(
+    () =>
+      z.object({
+        name: z
+          .string()
+          .min(1, t('adminRoles.create.errors.nameRequired'))
+          .max(MAX_NAME, t('adminRoles.create.errors.nameTooLong', { max: MAX_NAME })),
+        description: z
+          .string()
+          .max(
+            MAX_DESCRIPTION,
+            t('adminRoles.create.errors.descriptionTooLong', { max: MAX_DESCRIPTION })
+          ),
+      }),
+    [t]
+  )
 
   const form = useForm({
     defaultValues: defaultsFrom(role),
@@ -83,7 +103,7 @@ export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
       setSuccessMessage(null)
       const patch = buildPatch(value, role)
       if (Object.keys(patch).length === 0) {
-        setSuccessMessage('No changes to save.')
+        setSuccessMessage(t('common.feedback.noChanges'))
         return
       }
 
@@ -91,21 +111,19 @@ export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
         const updated = await updateAdminRole({
           data: { id: role.id, vid: role.vid, patch },
         })
-        setSuccessMessage('Saved.')
+        setSuccessMessage(t('common.feedback.saved'))
         onSuccess?.(updated)
       } catch (err) {
         const code = getErrorCode(err)
         if (code === 'admin.roles.versionConflict') {
-          setFormError(
-            'This role has been modified elsewhere since you opened this form. Reload to get the latest values and try again.'
-          )
+          setFormError(t('adminRoles.update.errors.versionConflict'))
           return
         }
         if (code === 'admin.roles.notFound') {
-          setFormError('This role no longer exists.')
+          setFormError(t('adminRoles.update.errors.notFound'))
           return
         }
-        setFormError('Could not save changes. Please try again.')
+        setFormError(t('common.errors.couldNotSave'))
       }
     },
   })
@@ -127,7 +145,7 @@ export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
         <form.Field name="name">
           {(field) => (
             <Input
-              label="Name"
+              label={t('adminRoles.fields.name')}
               id="role-name"
               name={field.name}
               value={field.state.value}
@@ -141,19 +159,19 @@ export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
         </form.Field>
 
         <Input
-          label="Machine name"
+          label={t('adminRoles.fields.machineName')}
           id="role-machine-name"
           name="machine_name"
           value={role.machine_name}
           readOnly
           disabled
-          helpText="The stable code-side handle. Cannot be changed after creation."
+          helpText={t('adminRoles.update.fields.machineNameHelp')}
         />
 
         <form.Field name="description">
           {(field) => (
             <TextArea
-              label="Description"
+              label={t('adminRoles.fields.description')}
               id="role-description"
               name={field.name}
               value={field.state.value}
@@ -174,7 +192,7 @@ export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
             onClick={onClose}
             className={cx('byline-role-update-action', styles.action)}
           >
-            {successMessage ? 'Close' : 'Cancel'}
+            {successMessage ? t('common.actions.close') : t('common.actions.cancel')}
           </Button>
           <form.Subscribe
             selector={(state) => ({
@@ -190,7 +208,7 @@ export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
                 disabled={!canSubmit || isSubmitting}
                 className={cx('byline-role-update-action', styles.action)}
               >
-                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : t('common.actions.save')}
               </Button>
             )}
           </form.Subscribe>
