@@ -11,6 +11,7 @@ import {
   isPendingStoredFileValue,
   type StoredFileValue,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import {
   CloseIcon,
   DocumentIcon,
@@ -73,6 +74,7 @@ export const FileField = ({
   path,
 }: FileFieldProps) => {
   const fieldPath = path ?? field.name
+  const { t } = useTranslation('byline-admin')
   const fieldError = useFieldError(fieldPath)
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<StoredFileValue | null | undefined>(fieldPath)
@@ -139,7 +141,9 @@ export const FileField = ({
             }}
           />
         ) : (
-          <div className={cx('byline-field-file-empty', styles.empty)}>No file selected</div>
+          <div className={cx('byline-field-file-empty', styles.empty)}>
+            {t('fields.file.empty')}
+          </div>
         )
       ) : (
         <div className={cx('byline-field-file-tile', styles.tile)}>
@@ -166,7 +170,7 @@ export const FileField = ({
                   }
                   size="xs"
                   disabled={isUploading}
-                  aria-label="Download file"
+                  aria-label={t('fields.file.downloadAriaLabel')}
                 >
                   <DownloadIcon width="15px" height="15px" />
                 </IconButton>
@@ -177,7 +181,7 @@ export const FileField = ({
                 onClick={handleRemove}
                 size="xs"
                 disabled={isUploading}
-                aria-label="Remove file"
+                aria-label={t('fields.file.removeAriaLabel')}
               >
                 <CloseIcon width="15px" height="15px" />
               </IconButton>
@@ -195,7 +199,9 @@ export const FileField = ({
               href={incomingValue.storageUrl}
               target="_blank"
               rel="noreferrer"
-              aria-label={`Open ${incomingValue.originalFilename ?? incomingValue.filename} in a new tab`}
+              aria-label={t('fields.file.openInNewTabAriaLabel', {
+                filename: incomingValue.originalFilename ?? incomingValue.filename,
+              })}
               className={cx('byline-field-file-icon-wrap', styles['icon-wrap'])}
             >
               <FileGlyph
@@ -213,7 +219,7 @@ export const FileField = ({
               />
               {isPending && (
                 <div className={cx('byline-field-file-pending', styles.pending)}>
-                  Pending upload
+                  {t('fields.fileMeta.pendingUpload')}
                 </div>
               )}
             </div>
@@ -221,44 +227,48 @@ export const FileField = ({
           <div className={cx('byline-field-file-meta', styles.meta)}>
             <div>
               <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>
-                Filename:
+                {t('fields.fileMeta.filename')}
               </span>{' '}
               {incomingValue?.filename}
             </div>
             <div>
               <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>
-                Original:
+                {t('fields.fileMeta.original')}
               </span>{' '}
               {incomingValue?.originalFilename}
             </div>
             <div>
-              <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>Type:</span>{' '}
+              <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>
+                {t('fields.fileMeta.type')}
+              </span>{' '}
               {incomingValue?.mimeType}
             </div>
             <div>
-              <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>Size:</span>{' '}
+              <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>
+                {t('fields.fileMeta.size')}
+              </span>{' '}
               {incomingValue?.fileSize}
             </div>
             {isPending ? (
               <div>
                 <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>
-                  Status:
+                  {t('fields.fileMeta.status')}
                 </span>{' '}
                 <span className={cx('byline-field-file-meta-pending', styles['meta-pending'])}>
-                  Will upload on save
+                  {t('fields.fileMeta.willUploadOnSave')}
                 </span>
               </div>
             ) : (
               <>
                 <div>
                   <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>
-                    Storage:
+                    {t('fields.fileMeta.storage')}
                   </span>{' '}
                   {incomingValue?.storageProvider}
                 </div>
                 <div>
                   <span className={cx('byline-field-file-meta-key', styles['meta-key'])}>
-                    Path:
+                    {t('fields.fileMeta.path')}
                   </span>{' '}
                   {incomingValue?.storagePath}
                 </div>

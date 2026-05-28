@@ -13,6 +13,7 @@ import type {
   Field,
   GroupField as GroupFieldType,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import {
   Card,
   CloseIcon,
@@ -45,6 +46,7 @@ export const BlocksField = ({
   path: string
 }) => {
   const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
+  const { t } = useTranslation('byline-admin')
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
   const [showAddBlockModal, setShowAddBlockModal] = useState(false)
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null)
@@ -251,7 +253,7 @@ export const BlocksField = ({
               setShowAddBlockModal(true)
             }}
             disabled={!selectedBlockName}
-            aria-label="Add block"
+            aria-label={t('fields.blocks.addBlockAriaLabel')}
           >
             <PlusIcon />
           </IconButton>
@@ -267,9 +269,11 @@ export const BlocksField = ({
       >
         <Modal.Container style={{ maxWidth: '600px' }}>
           <Modal.Header className={cx('byline-field-blocks-modal-head', styles['modal-head'])}>
-            <h3 className={cx('byline-field-blocks-modal-title', styles['modal-title'])}>Blocks</h3>
+            <h3 className={cx('byline-field-blocks-modal-title', styles['modal-title'])}>
+              {t('fields.blocks.modalTitle')}
+            </h3>
             <IconButton
-              arial-label="Close"
+              arial-label={t('common.actions.close')}
               size="xs"
               onClick={() => {
                 setShowAddBlockModal(false)

@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react'
 
 import type { ArrayField as ArrayFieldType, Field } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { DraggableSortable, IconButton, moveItem, PlusIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -35,6 +36,7 @@ export const ArrayField = ({
   disableSorting?: boolean
 }) => {
   const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
+  const { t } = useTranslation('byline-admin')
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
 
   useEffect(() => {
@@ -253,7 +255,7 @@ export const ArrayField = ({
               onClick={() => {
                 void handleAddItem()
               }}
-              aria-label="Add item"
+              aria-label={t('fields.array.addItemAriaLabel')}
             >
               <PlusIcon />
             </IconButton>

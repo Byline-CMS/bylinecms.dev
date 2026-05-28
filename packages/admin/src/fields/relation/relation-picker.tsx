@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Button, LoaderRing, Modal, Search } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -78,6 +79,7 @@ export const RelationPicker = ({
 }: RelationPickerProps) => {
   const [query, setQuery] = useState<string>('')
   const [page, setPage] = useState<number>(1)
+  const { t } = useTranslation('byline-admin')
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -127,7 +129,7 @@ export const RelationPicker = ({
       })
       .catch((err: any) => {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load documents')
+        setError(err instanceof Error ? err.message : t('fields.relation.picker.loadFailed'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -145,6 +147,7 @@ export const RelationPicker = ({
     targetDefinition,
     pickerColumns,
     getCollectionDocuments,
+    t,
   ])
 
   const resolvedDisplayField =
@@ -163,9 +166,9 @@ export const RelationPicker = ({
     })
   }, [selectedDocumentId, collectionId, documents, onSelect])
 
-  const title = targetDefinition
-    ? `Select ${targetDefinition.labels.singular}`
-    : `Select ${targetCollectionPath}`
+  const title = t('fields.relation.selectPickerTitle', {
+    label: targetDefinition?.labels.singular ?? targetCollectionPath,
+  })
 
   return (
     <Modal isOpen={isOpen} onDismiss={onDismiss}>
@@ -185,7 +188,7 @@ export const RelationPicker = ({
                 setQuery('')
               }}
               inputSize="sm"
-              placeholder="Search"
+              placeholder={t('fields.relation.picker.searchPlaceholder')}
             />
 
             <div className={cx('byline-field-relation-picker-list', styles.list)}>
@@ -201,7 +204,7 @@ export const RelationPicker = ({
               )}
               {!loading && !error && documents.length === 0 && (
                 <div className={cx('byline-field-relation-picker-empty', styles.empty)}>
-                  No documents found
+                  {t('fields.relation.picker.empty')}
                 </div>
               )}
               {documents.length > 0 && (
@@ -279,11 +282,9 @@ export const RelationPicker = ({
                   disabled={page <= 1 || loading}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Previous
+                  {t('common.pager.previous')}
                 </Button>
-                <span>
-                  Page {page} of {totalPages}
-                </span>
+                <span>{t('common.pager.pageOf', { page, total: totalPages })}</span>
                 <Button
                   size="xs"
                   variant="outlined"
@@ -292,7 +293,7 @@ export const RelationPicker = ({
                   disabled={page >= totalPages || loading}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  Next
+                  {t('common.pager.next')}
                 </Button>
               </div>
             )}
@@ -306,7 +307,7 @@ export const RelationPicker = ({
             onClick={onDismiss}
             className={cx('byline-field-relation-picker-action', styles.action)}
           >
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button
             size="sm"
@@ -316,7 +317,7 @@ export const RelationPicker = ({
             disabled={!selectedDocumentId}
             onClick={handleSelect}
           >
-            Select
+            {t('common.actions.select')}
           </Button>
         </Modal.Actions>
       </Modal.Container>

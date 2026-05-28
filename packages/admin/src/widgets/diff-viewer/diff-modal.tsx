@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { CloseIcon, IconButton, LoaderRing, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
@@ -76,6 +77,7 @@ export function DiffModal({
   locale,
   loadHistoricalVersion,
 }: DiffModalProps) {
+  const { t } = useTranslation('byline-admin')
   const [historicalDoc, setHistoricalDoc] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -95,7 +97,7 @@ export function DiffModal({
       })
       .catch((err) => {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load version')
+        setError(err instanceof Error ? err.message : t('diffModal.loadFailed'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -104,7 +106,7 @@ export function DiffModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, collection, documentId, versionId, locale, loadHistoricalVersion])
+  }, [isOpen, collection, documentId, versionId, locale, loadHistoricalVersion, t])
 
   const currentStr = currentDocument ? JSON.stringify(stripMeta(currentDocument), null, 2) : ''
 
@@ -125,16 +127,16 @@ export function DiffModal({
       >
         <Modal.Header className={cx('byline-diff-modal-header', styles.header)}>
           <div className={cx('byline-diff-modal-title-stack', styles['title-stack'])}>
-            <h3 className={cx('byline-diff-modal-title', styles.title)}>Version Comparison</h3>
+            <h3 className={cx('byline-diff-modal-title', styles.title)}>{t('diffModal.title')}</h3>
             <p className={cx('byline-diff-modal-subtitle', styles.subtitle)}>
-              Comparing{' '}
+              {t('diffModal.subtitleBefore')}{' '}
               <span className={cx('byline-diff-modal-version', styles.version)}>
                 {versionLabel}
               </span>{' '}
-              (left) against current version (right)
+              {t('diffModal.subtitleAfter')}
             </p>
           </div>
-          <IconButton onClick={onDismiss} size="xs" aria-label="Close comparison">
+          <IconButton onClick={onDismiss} size="xs" aria-label={t('diffModal.closeAriaLabel')}>
             <CloseIcon width="15px" height="15px" />
           </IconButton>
         </Modal.Header>
@@ -146,7 +148,7 @@ export function DiffModal({
           {loading && (
             <div className={cx('byline-diff-modal-state', styles.state)}>
               <LoaderRing size={28} color="#666666" />
-              <span>Loading version…</span>
+              <span>{t('diffModal.loading')}</span>
             </div>
           )}
 
@@ -172,7 +174,7 @@ export function DiffModal({
                 compareMethod={DiffMethod.LINES}
                 useDarkTheme={true}
                 leftTitle={versionLabel}
-                rightTitle="Current version"
+                rightTitle={t('diffModal.currentVersion')}
                 hideLineNumbers={false}
               />
             </div>

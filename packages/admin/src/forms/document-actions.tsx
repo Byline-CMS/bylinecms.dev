@@ -10,6 +10,7 @@
 
 import { useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import {
   Button,
   Checkbox,
@@ -82,6 +83,7 @@ export function DocumentActions({
    */
   contentLocales?: ReadonlyArray<DocumentActionsLocaleOption>
 }) {
+  const { t } = useTranslation('byline-admin')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
   const [duplicateBusy, setDuplicateBusy] = useState(false)
@@ -181,7 +183,7 @@ export function DocumentActions({
               <DropdownComponent.Item onClick={handleOpenCopyToLocale}>
                 <div className={cx('byline-form-actions-item', styles.item)}>
                   <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                    <button type="button">Copy to Locale</button>
+                    <button type="button">{t('documentActions.copyToLocaleMenuItem')}</button>
                   </span>
                 </div>
               </DropdownComponent.Item>
@@ -194,7 +196,7 @@ export function DocumentActions({
               >
                 <div className={cx('byline-form-actions-item', styles.item)}>
                   <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                    <button type="button">Duplicate</button>
+                    <button type="button">{t('common.actions.duplicate')}</button>
                   </span>
                 </div>
               </DropdownComponent.Item>
@@ -211,7 +213,7 @@ export function DocumentActions({
                 </span>
                 <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
                   <button type="button" className={cx('byline-form-actions-delete', styles.delete)}>
-                    Delete
+                    {t('common.actions.delete')}
                   </button>
                 </span>
               </div>
@@ -230,10 +232,10 @@ export function DocumentActions({
         <Modal.Container style={{ maxWidth: '500px' }}>
           <Modal.Header className={cx('byline-form-actions-modal-head', styles['modal-head'])}>
             <h3 className={cx('byline-form-actions-modal-title', styles['modal-title'])}>
-              Delete Document
+              {t('documentActions.delete.title')}
             </h3>
             <IconButton
-              arial-label="Close"
+              arial-label={t('common.actions.close')}
               size="xs"
               onClick={() => {
                 setShowDeleteConfirm(false)
@@ -243,9 +245,7 @@ export function DocumentActions({
             </IconButton>
           </Modal.Header>
           <Modal.Content>
-            <p>
-              Warning: This action cannot be undone. Are you sure you want to delete this document?
-            </p>
+            <p>{t('documentActions.delete.warning')}</p>
           </Modal.Content>
           <Modal.Actions>
             <button
@@ -264,10 +264,10 @@ export function DocumentActions({
                 setShowDeleteConfirm(false)
               }}
             >
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button size="sm" style={{ minWidth: '80px' }} intent="danger" onClick={handleOnDelete}>
-              Delete
+              {t('common.actions.delete')}
             </Button>
           </Modal.Actions>
         </Modal.Container>
@@ -283,10 +283,10 @@ export function DocumentActions({
         <Modal.Container style={{ maxWidth: '560px' }}>
           <Modal.Header className={cx('byline-form-actions-modal-head', styles['modal-head'])}>
             <h3 className={cx('byline-form-actions-modal-title', styles['modal-title'])}>
-              Duplicate Document
+              {t('documentActions.duplicate.title')}
             </h3>
             <IconButton
-              arial-label="Close"
+              arial-label={t('common.actions.close')}
               size="xs"
               onClick={() => {
                 if (!duplicateBusy) setShowDuplicateConfirm(false)
@@ -296,24 +296,18 @@ export function DocumentActions({
             </IconButton>
           </Modal.Header>
           <Modal.Content className="prose">
-            <p className="m-0">
-              A new document will be created with all translations (if any) cloned from this one.
-              After the duplicate is created you should:
-            </p>
+            <p className="m-0">{t('documentActions.duplicate.intro')}</p>
             <ul className={cx('byline-form-actions-list', styles.list)}>
               <li>
-                Update the title of the docuiment (including any translated versions). The title is
-                currently suffixed with <code>{DUPLICATE_TITLE_SUFFIX.trim()}</code>.
+                {t('documentActions.duplicate.bulletTitle')}{' '}
+                <code>{DUPLICATE_TITLE_SUFFIX.trim()}</code>.
               </li>
-              <li>
-                Review the system path in the path widget — the auto-generated path will reflect the
-                suffixed title and is unlikely to be what you want long-term.
-              </li>
+              <li>{t('documentActions.duplicate.bulletPath')}</li>
             </ul>
             {sourceTitle != null && sourceTitle.length > 0 && (
               <div className={cx('byline-form-actions-preview', styles.preview)}>
                 <div className={cx('byline-form-actions-preview-label', styles['preview-label'])}>
-                  Preview (current locale):
+                  {t('documentActions.duplicate.previewLabel')}
                 </div>
                 <div className={cx('byline-form-actions-preview-row', styles['preview-row'])}>
                   <span
@@ -353,7 +347,7 @@ export function DocumentActions({
               }}
               disabled={duplicateBusy}
             >
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button
               size="sm"
@@ -362,7 +356,9 @@ export function DocumentActions({
               onClick={handleOnDuplicate}
               disabled={duplicateBusy}
             >
-              {duplicateBusy ? 'Duplicating...' : 'Duplicate'}
+              {duplicateBusy
+                ? t('documentActions.duplicate.busyButton')
+                : t('common.actions.duplicate')}
             </Button>
           </Modal.Actions>
         </Modal.Container>
@@ -378,10 +374,10 @@ export function DocumentActions({
         <Modal.Container style={{ maxWidth: '560px' }}>
           <Modal.Header className={cx('byline-form-actions-modal-head', styles['modal-head'])}>
             <h3 className={cx('byline-form-actions-modal-title', styles['modal-title'])}>
-              Copy to Locale
+              {t('documentActions.copyToLocale.title')}
             </h3>
             <IconButton
-              arial-label="Close"
+              arial-label={t('common.actions.close')}
               size="xs"
               onClick={() => {
                 if (!copyToLocaleBusy) setShowCopyToLocaleConfirm(false)
@@ -391,10 +387,7 @@ export function DocumentActions({
             </IconButton>
           </Modal.Header>
           <Modal.Content>
-            <p>
-              Copy this document's content from one locale to another. Non-localized fields are
-              shared across locales and will not change.
-            </p>
+            <p>{t('documentActions.copyToLocale.intro')}</p>
             <div
               className={cx('byline-form-actions-copy-row', styles['copy-row'])}
               style={{ marginTop: 'var(--spacing-12)' }}
@@ -403,7 +396,7 @@ export function DocumentActions({
                 className={cx('byline-form-actions-copy-label', styles['copy-label'])}
                 style={{ fontWeight: 500 }}
               >
-                From:&nbsp;
+                {t('documentActions.copyToLocale.fromLabel')}&nbsp;
               </span>
               <span className={cx('byline-form-actions-copy-source', styles['copy-source'])}>
                 {sourceLocaleLabel}
@@ -417,11 +410,11 @@ export function DocumentActions({
                 className={cx('byline-form-actions-copy-label', styles['copy-label'])}
                 style={{ fontWeight: 500, marginRight: 'var(--spacing-8)' }}
               >
-                To:
+                {t('documentActions.copyToLocale.toLabel')}
               </span>
               <Select<string>
                 size="sm"
-                ariaLabel="Target locale"
+                ariaLabel={t('documentActions.copyToLocale.targetAriaLabel')}
                 value={copyTargetLocale}
                 items={availableTargetLocales.map((loc) => ({
                   value: loc.code,
@@ -440,10 +433,10 @@ export function DocumentActions({
               <Checkbox
                 id="copy-to-locale-overwrite"
                 name="overwrite"
-                label="Overwrite existing field data in target locale"
+                label={t('documentActions.copyToLocale.overwriteLabel')}
                 checked={copyOverwrite}
                 disabled={copyToLocaleBusy}
-                helpText="Unchecked: only fill in target fields that are currently empty. Checked: replace every translated field with the source's value."
+                helpText={t('documentActions.copyToLocale.overwriteHelp')}
                 onCheckedChange={(value) => {
                   setCopyOverwrite(value === true)
                 }}
@@ -468,7 +461,7 @@ export function DocumentActions({
               }}
               disabled={copyToLocaleBusy}
             >
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button
               size="sm"
@@ -477,7 +470,9 @@ export function DocumentActions({
               onClick={handleOnCopyToLocale}
               disabled={copyToLocaleBusy || !copyTargetLocale}
             >
-              {copyToLocaleBusy ? 'Copying...' : 'Copy'}
+              {copyToLocaleBusy
+                ? t('documentActions.copyToLocale.busyButton')
+                : t('documentActions.copyToLocale.confirmButton')}
             </Button>
           </Modal.Actions>
         </Modal.Container>

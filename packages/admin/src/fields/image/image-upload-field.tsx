@@ -26,6 +26,7 @@ import {
   type PendingStoredFileValue,
   type StoredFileValue,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import cx from 'classnames'
 
 import { useFormContext } from '../../forms/form-context'
@@ -65,6 +66,7 @@ export const ImageUploadField = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const { addPendingUpload } = useFormContext()
+  const { t } = useTranslation('byline-admin')
 
   // -------------------------------------------------------------------------
   // Core file selection logic (deferred upload)
@@ -78,7 +80,7 @@ export const ImageUploadField = ({
       // Basic client-side validation
       if (!file.type.startsWith('image/')) {
         setStatus('error')
-        setErrorMessage('Please select an image file.')
+        setErrorMessage(t('fields.image.upload.errors.notAnImage'))
         return
       }
 
@@ -111,12 +113,12 @@ export const ImageUploadField = ({
       img.onerror = () => {
         URL.revokeObjectURL(previewUrl)
         setStatus('error')
-        setErrorMessage('Could not read image. Please try a different file.')
+        setErrorMessage(t('fields.image.upload.errors.cannotRead'))
       }
 
       img.src = previewUrl
     },
-    [collectionPath, fieldPath, addPendingUpload, onUploaded]
+    [collectionPath, fieldPath, addPendingUpload, onUploaded, t]
   )
 
   // -------------------------------------------------------------------------
@@ -185,7 +187,7 @@ export const ImageUploadField = ({
       <div
         role="button"
         tabIndex={0}
-        aria-label="Upload image — drag and drop or click to browse"
+        aria-label={t('fields.image.upload.zoneAriaLabel')}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -228,7 +230,9 @@ export const ImageUploadField = ({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
               />
             </svg>
-            <span className={cx('byline-field-image-upload-label', styles.label)}>Processing…</span>
+            <span className={cx('byline-field-image-upload-label', styles.label)}>
+              {t('fields.image.upload.processing')}
+            </span>
           </>
         ) : (
           <>
@@ -249,11 +253,13 @@ export const ImageUploadField = ({
               />
             </svg>
             <span className={cx('byline-field-image-upload-label', styles.label)}>
-              Drop image here or{' '}
-              <span className={cx('byline-field-image-upload-action', styles.action)}>browse</span>
+              {t('fields.image.upload.label')}{' '}
+              <span className={cx('byline-field-image-upload-action', styles.action)}>
+                {t('fields.image.upload.browse')}
+              </span>
             </span>
             <span className={cx('byline-field-image-upload-hint', styles.hint)}>
-              JPEG, PNG, WebP, GIF, SVG, AVIF
+              {t('fields.image.upload.hint')}
             </span>
           </>
         )}

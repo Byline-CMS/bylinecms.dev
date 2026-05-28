@@ -8,6 +8,7 @@
 
 import { type ReactNode, useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { ChevronDownIcon, GripperVerticalIcon, useSortable } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -27,6 +28,7 @@ export const SortableItem = ({
   onAddBelow?: () => void
   onRemove?: () => void
 }) => {
+  const { t } = useTranslation('byline-admin')
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     transition: {
@@ -75,7 +77,11 @@ export const SortableItem = ({
           type="button"
           className={cx('byline-sortable-toggle', styles.toggle)}
           onClick={() => setCollapsed((prev) => !prev)}
-          aria-label={collapsed ? 'Expand item' : 'Collapse item'}
+          aria-label={
+            collapsed
+              ? t('fields.sortable.expandAriaLabel')
+              : t('fields.sortable.collapseAriaLabel')
+          }
         >
           <ChevronDownIcon
             className={cx(

@@ -11,6 +11,7 @@
 import { useCallback, useMemo } from 'react'
 
 import { slugify } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Input, Label } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -72,6 +73,7 @@ export const PathWidget = ({
   mode,
 }: PathWidgetProps) => {
   const { setSystemPath } = useFormContext()
+  const { t } = useTranslation('byline-admin')
   const systemPath = useSystemPath()
   const sourceValue = useFieldValue<unknown>(useAsPath ?? '')
 
@@ -117,19 +119,21 @@ export const PathWidget = ({
   }, [inputValue, defaultLocale, collectionPath])
 
   const validationHint =
-    inputValue.length > 0 && formatted !== inputValue ? `Suggested: "${formatted}"` : undefined
+    inputValue.length > 0 && formatted !== inputValue
+      ? t('pathWidget.suggestedHint', { formatted })
+      : undefined
 
   // When read-only, replace the live validation hint with a fixed
   // explanatory line so editors understand why the field is locked.
   const readOnlyHint = isReadOnly
-    ? `Path is set in the default locale ("${defaultLocale}") and applies across translations.`
+    ? t('pathWidget.readOnlyHint', { locale: defaultLocale })
     : undefined
 
   const hint = readOnlyHint ?? validationHint
 
   const placeholder =
     !isReadOnly && mode === 'create' && livePreview.length > 0
-      ? `Will be saved as "${livePreview}"`
+      ? t('pathWidget.willBeSavedAs', { preview: livePreview })
       : undefined
 
   // Screen-reader description. The input's base purpose ("System-managed
@@ -138,9 +142,7 @@ export const PathWidget = ({
   // currently applies. The visible helpText/placeholder cover sighted
   // users; this element makes the same information addressable via
   // aria-describedby for AT.
-  const srDescription = ['System-managed URL path for this document.', placeholder, hint]
-    .filter(Boolean)
-    .join(' ')
+  const srDescription = [t('pathWidget.srDescription'), placeholder, hint].filter(Boolean).join(' ')
 
   const showRegenerate =
     !isReadOnly && useAsPath && livePreview.length > 0 && livePreview !== systemPath
@@ -148,15 +150,15 @@ export const PathWidget = ({
   return (
     <div className="byline-form-path">
       <div className={cx('byline-form-path-header', styles.header)}>
-        <Label id="system-path-label" htmlFor="system-path" label="Path" />
+        <Label id="system-path-label" htmlFor="system-path" label={t('pathWidget.label')} />
         {showRegenerate && (
           <button
             type="button"
             onClick={handleRegenerate}
             className={cx('byline-form-path-regenerate', styles.regenerate)}
-            aria-label={`Regenerate path from ${useAsPath} field`}
+            aria-label={t('pathWidget.regenerateAriaLabel', { field: useAsPath })}
           >
-            Regenerate from {useAsPath}
+            {t('pathWidget.regenerateButton', { field: useAsPath })}
           </button>
         )}
       </div>

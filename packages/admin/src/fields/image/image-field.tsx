@@ -13,6 +13,7 @@ import {
   isPendingStoredFileValue,
   type StoredFileValue,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import {
   CloseIcon,
   ErrorText,
@@ -61,6 +62,7 @@ export const ImageField = ({
   const fieldValue = useFieldValue<StoredFileValue | null | undefined>(fieldPath)
   const isUploading = useIsFieldUploading(fieldPath)
   const { removePendingUpload } = useFormContext()
+  const { t } = useTranslation('byline-admin')
 
   // Re-use the standard field change handler so patches are emitted correctly.
   const handleChange = useFieldChangeHandler(field, fieldPath)
@@ -130,7 +132,9 @@ export const ImageField = ({
             }}
           />
         ) : (
-          <div className={cx('byline-field-image-empty', styles.empty)}>No image selected</div>
+          <div className={cx('byline-field-image-empty', styles.empty)}>
+            {t('fields.image.empty')}
+          </div>
         )
       ) : (
         <div className={cx('byline-field-image-tile', styles.tile)}>
@@ -152,7 +156,7 @@ export const ImageField = ({
                 onClick={handleRemove}
                 size="xs"
                 disabled={isUploading}
-                aria-label="Remove image"
+                aria-label={t('fields.image.removeAriaLabel')}
               >
                 <CloseIcon width="15px" height="15px" />
               </IconButton>
@@ -165,7 +169,7 @@ export const ImageField = ({
                 <button
                   type="button"
                   onClick={() => setLightboxOpen(true)}
-                  aria-label="Open full-size preview"
+                  aria-label={t('fields.image.openLightboxAriaLabel')}
                   className={cx('byline-field-image-preview-button', styles['preview-button'])}
                 >
                   <img
@@ -198,7 +202,7 @@ export const ImageField = ({
               {/* Pending upload badge */}
               {isPending && (
                 <div className={cx('byline-field-image-pending', styles.pending)}>
-                  Pending upload
+                  {t('fields.fileMeta.pendingUpload')}
                 </div>
               )}
             </div>
@@ -207,45 +211,49 @@ export const ImageField = ({
           <div className={cx('byline-field-image-meta', styles.meta)}>
             <div>
               <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
-                Filename:
+                {t('fields.fileMeta.filename')}
               </span>{' '}
               {incomingValue?.filename}
             </div>
             <div>
               <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
-                Original:
+                {t('fields.fileMeta.original')}
               </span>{' '}
               {incomingValue?.originalFilename}
             </div>
             <div>
-              <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>Type:</span>{' '}
+              <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                {t('fields.fileMeta.type')}
+              </span>{' '}
               {incomingValue?.mimeType}
             </div>
             <div>
-              <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>Size:</span>{' '}
+              <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
+                {t('fields.fileMeta.size')}
+              </span>{' '}
               {incomingValue?.fileSize}
             </div>
             {isPending ? (
               <div>
                 <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
-                  Status:
+                  {t('fields.fileMeta.status')}
                 </span>{' '}
                 <span className={cx('byline-field-image-meta-pending', styles['meta-pending'])}>
-                  Will upload on save
+                  {t('fields.fileMeta.willUploadOnSave')}
                 </span>
               </div>
             ) : (
               <>
                 <div>
                   <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
-                    Storage:
+                    {t('fields.fileMeta.storage')}
                   </span>{' '}
                   {incomingValue?.storageProvider}
                 </div>
                 {incomingValue?.imageWidth != null && (
                   <div>
                     <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
-                      Dimensions:
+                      {t('fields.imageMeta.dimensions')}
                     </span>{' '}
                     {incomingValue.imageWidth}
                     {incomingValue.imageHeight != null ? `×${incomingValue.imageHeight}` : ''}
@@ -254,16 +262,18 @@ export const ImageField = ({
                 {incomingValue?.imageFormat != null && (
                   <div>
                     <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
-                      Format:
+                      {t('fields.imageMeta.format')}
                     </span>{' '}
                     {incomingValue.imageFormat}
                   </div>
                 )}
                 <div>
                   <span className={cx('byline-field-image-meta-key', styles['meta-key'])}>
-                    Thumbnail:
+                    {t('fields.imageMeta.thumbnail')}
                   </span>{' '}
-                  {thumbVariant ? 'Generated' : 'Pending'}
+                  {thumbVariant
+                    ? t('fields.imageMeta.thumbnailGenerated')
+                    : t('fields.imageMeta.thumbnailPending')}
                 </div>
               </>
             )}

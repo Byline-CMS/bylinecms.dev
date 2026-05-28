@@ -8,6 +8,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { useTranslation } from '@byline/i18n/react'
 import {
   DeleteIcon,
   Dropdown as DropdownMenu,
@@ -28,6 +29,7 @@ export function DraggableContextMenu({
   onAddBelow,
   onRemove,
 }: DraggableContextMenuProps): React.JSX.Element {
+  const { t } = useTranslation('byline-admin')
   const itemClass = cx('byline-draggable-menu-item', styles.item)
   const rowClass = cx('byline-draggable-menu-row', styles.row)
   const iconSlotClass = cx('byline-draggable-menu-icon-slot', styles['icon-slot'])
@@ -50,7 +52,7 @@ export function DraggableContextMenu({
               <span className={iconSlotClass}>
                 <PlusIcon width="18px" height="18px" />
               </span>
-              <span className={labelClass}>Add Below</span>
+              <span className={labelClass}>{t('fields.draggableMenu.addBelow')}</span>
             </div>
           </DropdownMenu.Item>
           <DropdownMenu.Separator
@@ -73,7 +75,7 @@ export function DraggableContextMenu({
                     styles['label-danger']
                   )}
                 >
-                  Remove
+                  {t('fields.draggableMenu.remove')}
                 </span>
               </div>
             </div>

@@ -26,6 +26,7 @@ import {
   type PendingStoredFileValue,
   type StoredFileValue,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import cx from 'classnames'
 
 import { useFormContext } from '../../forms/form-context'
@@ -53,6 +54,7 @@ export const FileUploadField = ({
   accept,
 }: FileUploadFieldProps) => {
   const inputRef = useRef<HTMLInputElement>(null)
+  const { t } = useTranslation('byline-admin')
   const [status, setStatus] = useState<SelectionStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -133,7 +135,7 @@ export const FileUploadField = ({
       <div
         role="button"
         tabIndex={0}
-        aria-label="Upload file — drag and drop or click to browse"
+        aria-label={t('fields.file.upload.zoneAriaLabel')}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -168,8 +170,10 @@ export const FileUploadField = ({
           />
         </svg>
         <span className={cx('byline-field-file-upload-label', styles.label)}>
-          Drop file here or{' '}
-          <span className={cx('byline-field-file-upload-action', styles.action)}>browse</span>
+          {t('fields.file.upload.label')}{' '}
+          <span className={cx('byline-field-file-upload-action', styles.action)}>
+            {t('fields.file.upload.browse')}
+          </span>
         </span>
       </div>
 

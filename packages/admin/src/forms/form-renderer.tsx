@@ -18,6 +18,7 @@ import type {
   TabSetDefinition,
   WorkflowStatus,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -131,6 +132,7 @@ const FormStatusDisplay = ({
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
 }) => {
+  const { t } = useTranslation('byline-admin')
   const statusCode = initialData?.status
   const statusLabel = workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
   // Single-status workflows (e.g. lookups) have no editorial lifecycle —
@@ -142,7 +144,9 @@ const FormStatusDisplay = ({
       <div className={cx('byline-form-status-meta', styles['status-meta'])}>
         {showStatusCell && (
           <div className={cx('byline-form-status-cell', styles['status-cell'])}>
-            <span className={cx('byline-form-status-muted', styles['status-muted'])}>Status:</span>
+            <span className={cx('byline-form-status-muted', styles['status-muted'])}>
+              {t('forms.status.label')}
+            </span>
             <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
               {statusLabel}
             </span>
@@ -152,7 +156,7 @@ const FormStatusDisplay = ({
         {initialData?.updatedAt != null && (
           <div className={cx('byline-form-status-cell', styles['status-cell'])}>
             <span className={cx('byline-form-status-muted', styles['status-muted'])}>
-              Last modified:
+              {t('forms.status.lastModified')}
             </span>
             <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
               <LocalDateTime value={initialData.updatedAt} />
@@ -162,7 +166,9 @@ const FormStatusDisplay = ({
 
         {initialData?.createdAt != null && (
           <div className={cx('byline-form-status-cell', styles['status-cell'])}>
-            <span className={cx('byline-form-status-muted', styles['status-muted'])}>Created:</span>
+            <span className={cx('byline-form-status-muted', styles['status-muted'])}>
+              {t('forms.status.created')}
+            </span>
             <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
               <LocalDateTime value={initialData.createdAt} />
             </span>
@@ -173,10 +179,10 @@ const FormStatusDisplay = ({
       {publishedVersion != null && (
         <div className={cx('byline-form-status-published', styles['status-published'])}>
           <span className={cx('byline-form-status-muted', styles['status-muted'])}>
-            A published version is currently live.{' '}
+            {t('forms.status.publishedLive')}{' '}
             {publishedVersion.updatedAt ? (
               <span>
-                Published on <LocalDateTime value={publishedVersion.updatedAt} />
+                {t('forms.status.publishedOn', { date: new Date(publishedVersion.updatedAt) })}
               </span>
             ) : (
               ''
@@ -190,7 +196,7 @@ const FormStatusDisplay = ({
                 onClick={onUnpublish}
                 className={cx('byline-form-status-unpublish', styles['status-unpublish'])}
               >
-                Unpublish
+                {t('common.actions.unpublish')}
               </button>
             </>
           )}
@@ -325,6 +331,7 @@ const FormContent = ({
     clearPendingUploads,
     setFieldUploading,
   } = useFormContext()
+  const { t } = useTranslation('byline-admin')
 
   const [errors, setErrors] = useState(initialErrors)
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
@@ -457,10 +464,12 @@ const FormContent = ({
   const heading =
     liveTitle ||
     (headingLabel
-      ? `${mode === 'create' ? 'Create' : 'Edit'} ${headingLabel}`
+      ? mode === 'create'
+        ? t('forms.heading.createLabel', { label: headingLabel })
+        : t('forms.heading.editLabel', { label: headingLabel })
       : mode === 'create'
-        ? 'Create'
-        : 'Edit')
+        ? t('forms.heading.create')
+        : t('forms.heading.edit'))
 
   // Navigation guard — block router navigation and browser unload when dirty.
   // The guard hook is injected by the consuming framework (prop > context > no-op fallback).
@@ -526,7 +535,7 @@ const FormContent = ({
           if (!uploadResult.allSucceeded) {
             // Set field-level errors for failed uploads
             for (const [fieldPath, errorMessage] of uploadResult.errors.entries()) {
-              setFieldError(fieldPath, `Upload failed: ${errorMessage}`)
+              setFieldError(fieldPath, t('forms.uploadFailedFieldError', { message: errorMessage }))
             }
             console.error('One or more uploads failed:', uploadResult.errors)
             setIsUploading(false)
@@ -666,7 +675,7 @@ const FormContent = ({
             type="button"
             onClick={handleCancel}
           >
-            {hasChanges === false ? 'Close' : 'Cancel'}
+            {hasChanges === false ? t('common.actions.close') : t('common.actions.cancel')}
           </Button>
           <Button
             className={cx('byline-form-actions-button', styles['actions-button'])}
@@ -674,7 +683,7 @@ const FormContent = ({
             type="submit"
             disabled={hasChanges === false || isUploading}
           >
-            {isUploading ? 'Uploading…' : 'Save'}
+            {isUploading ? t('forms.actions.uploading') : t('common.actions.save')}
           </Button>
           {primaryStatus && onStatusChange && (
             <div className={cx('byline-form-actions-status-wrap', styles['actions-status-wrap'])}>
@@ -689,7 +698,7 @@ const FormContent = ({
                 )}
                 options={secondaryStatuses.map((s) => ({
                   label: isTerminal
-                    ? `Revert to ${s.label ?? s.name}`
+                    ? t('forms.actions.revertTo', { label: s.label ?? s.name })
                     : (s.verb ?? s.label ?? s.name),
                   value: s.name,
                 }))}
@@ -752,17 +761,9 @@ const FormContent = ({
           intent="warning"
           icon={true}
           close={false}
-          title="This document was loaded with a best-effort reconstruction"
+          title={t('forms.restoreWarnings.title')}
         >
-          <p>
-            The collection schema has changed since this document was last saved, and{' '}
-            {restoreWarnings.length === 1
-              ? '1 field could not be restored against the current shape.'
-              : `${restoreWarnings.length} fields could not be restored against the current shape.`}{' '}
-            The form below shows only the fields that match the new schema. Saving will overwrite
-            the document with the new shape — any data that did not match will be lost. To preserve
-            it, copy what you need before saving, or delete this document and recreate it. Errors:
-          </p>
+          <p>{t('forms.restoreWarnings.body', { count: restoreWarnings.length })}</p>
           <ul>
             {restoreWarnings.map((w) => (
               <li key={w}>{w}</li>
@@ -795,20 +796,20 @@ const FormContent = ({
               className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}
             >
               <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
-                Leave without saving?
+                {t('forms.navigationGuard.title')}
               </h3>
             </Modal.Header>
             <Modal.Content>
               <p className={cx('byline-form-guard-modal-text', styles['guard-modal-text'])}>
-                Your changes have not been saved. If you leave now, you will lose your changes.
+                {t('forms.navigationGuard.message')}
               </p>
             </Modal.Content>
             <Modal.Actions>
               <Button size="sm" intent="noeffect" type="button" onClick={guard.stay}>
-                Stay on this page
+                {t('forms.navigationGuard.stayButton')}
               </Button>
               <Button size="sm" intent="danger" type="button" onClick={guard.proceed}>
-                Leave anyway
+                {t('forms.navigationGuard.leaveButton')}
               </Button>
             </Modal.Actions>
           </Modal.Container>

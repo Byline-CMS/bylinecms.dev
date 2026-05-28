@@ -8,6 +8,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { useTranslation } from '@byline/i18n/react'
 import { Badge } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -45,10 +46,11 @@ export const AdminTabs = ({
   errorCounts,
   className,
 }: AdminTabsProps) => {
+  const { t } = useTranslation('byline-admin')
   return (
     <div
       role="tablist"
-      aria-label="Form tabs"
+      aria-label={t('presentation.formTabsAriaLabel')}
       className={cx('byline-admin-tabs', styles.tabs, className)}
     >
       {tabs.map((tab) => {

@@ -12,6 +12,7 @@ import {
   WORKFLOW_STATUS_DRAFT,
   WORKFLOW_STATUS_PUBLISHED,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Badge } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -51,13 +52,14 @@ export const StatusBadge = ({
   workflowStatuses: WorkflowStatus[]
   hasPublishedVersion?: boolean
 }) => {
+  const { t } = useTranslation('byline-admin')
   const label = workflowStatuses.find((s) => s.name === status)?.label ?? String(status ?? '')
 
   return (
     <span className={cx('byline-status-badge-wrap', styles.wrap)}>
       {hasPublishedVersion === true && status !== 'published' && (
         <span
-          title="A published version is live"
+          title={t('statusBadge.publishedVersionLive')}
           className={cx('byline-status-badge-dot', styles.dot)}
         />
       )}

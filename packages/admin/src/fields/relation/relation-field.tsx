@@ -15,6 +15,7 @@ import type {
   RelatedDocumentValue,
 } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Button, CloseIcon, EditIcon, ErrorText, IconButton, Label } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -76,6 +77,7 @@ export const RelationField = ({
     field.targetCollection
   )
 
+  const { t } = useTranslation('byline-admin')
   const [pickerOpen, setPickerOpen] = useState(false)
   // Cached target document from the most recent picker selection. Lets the
   // tile render real display data (name, thumbnail) immediately after a
@@ -117,7 +119,6 @@ export const RelationField = ({
       : null
 
   const isUnknown = targetDef == null
-  const monoClass = cx('byline-field-relation-mono', styles.mono)
 
   return (
     <div className={`byline-field-relation ${field.name}`}>
@@ -136,11 +137,13 @@ export const RelationField = ({
       {isUnknown ? (
         <div className={cx('byline-field-relation-error-tile', styles['error-tile'])}>
           <span>
-            Relation field <code className={monoClass}>{field.name}</code> targets unknown
-            collection <code className={monoClass}>{field.targetCollection}</code>.
+            {t('fields.relation.unknownError', {
+              name: field.name,
+              target: field.targetCollection,
+            })}
           </span>
           <span className={cx('byline-field-relation-error-text', styles['error-text'])}>
-            Register the collection in your Byline config or correct the target path.
+            {t('fields.relation.unknownHint')}
           </span>
         </div>
       ) : incomingValue ? (
@@ -158,7 +161,9 @@ export const RelationField = ({
               type="button"
               intent="noeffect"
               size="xs"
-              aria-label={`Change ${targetDef.labels.singular}`}
+              aria-label={t('fields.relation.changeAriaLabel', {
+                label: targetDef.labels.singular,
+              })}
               onClick={() => setPickerOpen(true)}
             >
               <EditIcon width="15px" height="15px" />
@@ -167,7 +172,9 @@ export const RelationField = ({
               type="button"
               intent="noeffect"
               size="xs"
-              aria-label={`Remove ${targetDef.labels.singular}`}
+              aria-label={t('fields.relation.removeAriaLabel', {
+                label: targetDef.labels.singular,
+              })}
               onClick={handleRemove}
             >
               <CloseIcon width="15px" height="15px" />
@@ -183,7 +190,7 @@ export const RelationField = ({
           type="button"
           onClick={() => setPickerOpen(true)}
         >
-          Select {targetDef.labels.singular}…
+          {t('fields.relation.selectButton', { label: targetDef.labels.singular })}
         </Button>
       )}
 
