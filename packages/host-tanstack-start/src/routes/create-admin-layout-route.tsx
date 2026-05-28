@@ -23,7 +23,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
 import { BylineAdminServicesProvider } from '@byline/admin/services'
 import { getClientConfig } from '@byline/core'
-import type { LocaleCode, LocaleDefinition } from '@byline/i18n'
+import type { LocaleCode } from '@byline/i18n'
 import { I18nProvider } from '@byline/i18n/react'
 import { BylineFieldServicesProvider } from '@byline/ui/react'
 import cx from 'classnames'
@@ -36,6 +36,7 @@ import { AdminMenuDrawer } from '../admin-shell/chrome/menu-drawer.js'
 import { AdminMenuProvider } from '../admin-shell/chrome/menu-provider.js'
 import { RouteError, RouteNotFound } from '../admin-shell/chrome/route-error.js'
 import { RouteProgressBar } from '../admin-shell/chrome/route-progress-bar.js'
+import { buildLocaleDefinitions } from '../i18n/locale-definitions.js'
 import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
@@ -124,40 +125,4 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
   })
 
   return Route
-}
-
-/**
- * Build a `LocaleDefinition[]` for the language switcher. Per-code
- * resolution order:
- *
- *   1. An entry from the host's `i18n.interface.localeDefinitions`
- *      (matched by code). Wins outright — this is the path that lets a
- *      host author write `Français` instead of the lowercase
- *      `français` that CLDR's `Intl.DisplayNames` returns for romance
- *      languages.
- *   2. `Intl.DisplayNames(code).of(code)` — produces a display name in
- *      each locale's own language using CLDR's data.
- *   3. The raw code, as a last-resort fallback for exotic tags or
- *      runtimes that lack `Intl.DisplayNames`.
- */
-function buildLocaleDefinitions(
-  codes: readonly string[],
-  configured: ReadonlyArray<{ code: string; nativeName: string }> | undefined
-): LocaleDefinition[] {
-  const explicit = new Map((configured ?? []).map((d) => [d.code, d.nativeName]))
-  return codes.map((code) => {
-    const explicitName = explicit.get(code)
-    if (explicitName != null) {
-      return { code, nativeName: explicitName }
-    }
-    let nativeName = code
-    try {
-      const dn = new Intl.DisplayNames([code], { type: 'language' })
-      nativeName = dn.of(code) ?? code
-    } catch {
-      // Intl.DisplayNames is available in Node 18+ and every modern
-      // browser. Defensive catch covers exotic codes or sandbox quirks.
-    }
-    return { code, nativeName }
-  })
 }

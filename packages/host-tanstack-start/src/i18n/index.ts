@@ -20,6 +20,7 @@ export {
   readAdminLocaleCookie,
   setAdminLocaleCookie,
 } from './locale-cookie.js'
+export { buildLocaleDefinitions } from './locale-definitions.js'
 export { resolveRequestLocale } from './resolve-locale.js'
 export { resolveServerTranslator } from './server-translator.js'
 export type { ServerTranslator } from './server-translator.js'

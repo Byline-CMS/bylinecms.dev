@@ -46,9 +46,9 @@ export function createAdminAccountRoute(path: string) {
             ]}
           />
           <Section className="pb-2">
-            <Container>
+            <Container className="mb-2">
               <h1 className="mb-2">{displayNameFor(account)}</h1>
-              <p className="muted">Manage your own profile and password.</p>
+              <p className="muted">Manage your account.</p>
             </Container>
           </Section>
           <Section>

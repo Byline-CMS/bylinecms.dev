@@ -35,6 +35,7 @@ import {
 } from '../server-fns/admin-users/index.js'
 import { adminSignIn } from '../server-fns/auth/index.js'
 import { getCollectionDocumentVersion as serverGetCollectionDocumentVersion } from '../server-fns/collections/get.js'
+import { setInterfaceLocaleFn } from '../server-fns/i18n/index.js'
 
 /**
  * Diff helper adapter — the contract uses positional args; the underlying
@@ -66,6 +67,7 @@ export const bylineAdminServices: BylineAdminServices = {
   // Account self-service
   updateAccount,
   changeAccountPassword,
+  setInterfaceLocale: setInterfaceLocaleFn,
 
   // Admin user writes
   createAdminUser,

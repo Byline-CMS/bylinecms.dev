@@ -8,4 +8,4 @@
 
 export { getActiveLocaleFn } from './get-active-locale.js'
 export { setInterfaceLocaleFn } from './set-locale.js'
-export type { SetInterfaceLocaleInput } from './set-locale.js'
+export type { SetInterfaceLocaleInput, SetInterfaceLocaleResult } from './set-locale.js'

@@ -32,10 +32,11 @@ import cx from 'classnames'
 
 import { ChangeAccountPassword } from './change-password.js'
 import styles from './container.module.css'
+import { Preferences } from './preferences.js'
 import { UpdateAccount } from './update.js'
 import type { AccountResponse } from '../index.js'
 
-type ComponentKey = 'update' | 'change_password' | 'empty'
+type ComponentKey = 'update' | 'change_password' | 'preferences' | 'empty'
 
 interface PanelProps {
   account: AccountResponse
@@ -47,6 +48,7 @@ const panels: Record<ComponentKey, { title: string; component: React.ComponentTy
   {
     update: { title: 'Profile', component: UpdateAccount },
     change_password: { title: 'Change Password', component: ChangeAccountPassword },
+    preferences: { title: 'Preferences', component: Preferences },
     empty: { title: '', component: () => null },
   }
 
@@ -147,6 +149,25 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
               </p>
             </div>
           </ContainerSection>
+
+          <ContainerSection title="Preferences" onEdit={openDrawer('preferences')}>
+            <p className={cx('byline-account-line', styles.line)}>
+              <span className="muted">Interface language:</span>{' '}
+              {currentAccount.preferred_locale ?? (
+                <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
+                  Use browser default
+                </span>
+              )}
+            </p>
+            <p className={cx('byline-account-cta-line', styles['cta-line'])}>
+              <Button size="sm" onClick={openDrawer('preferences')}>
+                Change Language
+              </Button>
+            </p>
+            <p className={cx('muted', 'byline-account-status-help', styles['status-help'])}>
+              The same setting is available in the language menu in the top bar.
+            </p>
+          </ContainerSection>
         </div>
 
         <div className={cx('byline-account-column', styles.column)}>
@@ -184,20 +205,6 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
             <p className={cx('muted', 'byline-account-status-help', styles['status-help'])}>
               These flags are managed by an admin with the appropriate permissions and are not
               self-editable.
-            </p>
-          </ContainerSection>
-
-          <ContainerSection title="Preferences">
-            <p className={cx('byline-account-line', styles.line)}>
-              <span className="muted">Interface language:</span>{' '}
-              {currentAccount.preferred_locale ?? (
-                <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
-                  Use browser default
-                </span>
-              )}
-            </p>
-            <p className={cx('muted', 'byline-account-status-help', styles['status-help'])}>
-              Change your interface language from the menu in the top bar.
             </p>
           </ContainerSection>
         </div>

@@ -23,6 +23,8 @@ import { getRequestHeader } from '@tanstack/react-start/server'
 import { getServerConfig } from '@byline/core'
 
 import { setSessionCookies } from '../../auth/auth-cookies.js'
+import { readAdminLocaleCookie } from '../../i18n/locale-cookie.js'
+import { bylineCore } from '../../integrations/byline-core.js'
 
 export interface SignInInput {
   email: string
@@ -67,5 +69,48 @@ export const adminSignIn = createServerFn({ method: 'POST' })
 
     setSessionCookies(result)
 
+    // Reconcile the byline_admin_lng cookie against the freshly-signed-in
+    // user's stored preferred_locale. If the cookie carries a permitted
+    // locale and it differs from what the user has stored (including the
+    // "null preferred_locale" case for brand-new users), update the
+    // column so the pre-auth locale choice becomes sticky across devices
+    // from day one. Pure best-effort — any error short-circuits and the
+    // sign-in still succeeds.
+    try {
+      await reconcileLocaleAfterSignIn(result.actor.id)
+    } catch {
+      // Swallow — locale sync is not load-bearing for the sign-in flow.
+    }
+
     return { userId: result.actor.id }
   })
+
+/**
+ * Apply the `byline_admin_lng` cookie to `admin_users.preferred_locale`
+ * when the two diverge after sign-in. No-op when:
+ *
+ *   - The cookie is unset (the cascade falls through to the existing
+ *     column / Accept-Language / default anyway).
+ *   - The cookie carries a locale outside `i18n.interface.locales`
+ *     (stale value pointing at a removed locale — let the resolver
+ *     fall through cleanly).
+ *   - No admin store is configured (headless tooling paths).
+ *   - The stored value already matches the cookie.
+ */
+async function reconcileLocaleAfterSignIn(adminUserId: string): Promise<void> {
+  const cookieLocale = readAdminLocaleCookie()
+  if (cookieLocale == null) return
+
+  const core = bylineCore()
+  const locales = core.config.i18n.interface.locales
+  if (!locales.includes(cookieLocale)) return
+
+  const adminStore = core.adminStore
+  if (adminStore == null) return
+
+  const row = await adminStore.adminUsers.getById(adminUserId)
+  if (!row) return
+  if (row.preferred_locale === cookieLocale) return
+
+  await adminStore.adminUsers.setPreferredLocale(adminUserId, cookieLocale)
+}

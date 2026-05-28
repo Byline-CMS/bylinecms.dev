@@ -1,0 +1,60 @@
+/**
+ * Preferences — self-service account-preferences form (drawer body).
+ *
+ * Override handles:
+ *   .byline-account-preferences-wrap    — outer container
+ *   .byline-account-preferences-form    — vertical-stack form element
+ *   .byline-account-preferences-row     — label + control row (per field)
+ *   .byline-account-preferences-label   — text label above the control
+ *   .byline-account-preferences-help    — muted help-text line
+ *   .byline-account-preferences-actions — Cancel/Save row
+ *   .byline-account-preferences-action  — buttons in the actions row
+ */
+
+.wrap,
+:global(.byline-account-preferences-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.form,
+:global(.byline-account-preferences-form) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  padding-top: var(--spacing-8);
+}
+
+.row,
+:global(.byline-account-preferences-row) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.label,
+:global(.byline-account-preferences-label) {
+  font-weight: 500;
+}
+
+.help,
+:global(.byline-account-preferences-help) {
+  font-size: 0.875rem;
+}
+
+.actions,
+:global(.byline-account-preferences-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-16);
+}
+
+.action,
+:global(.byline-account-preferences-action) {
+  min-width: 4rem;
+}

@@ -67,6 +67,23 @@ export type UpdateAccountInput = UpdateAccountRequest
 /** Same shape as `ChangeAccountPasswordRequest` from `@byline/admin/admin-account`. */
 export type ChangeAccountPasswordInput = ChangeAccountPasswordRequest
 
+export interface SetInterfaceLocaleInput {
+  /** BCP 47 tag, or `null` to clear the preference and re-engage detection. */
+  locale: string | null
+}
+
+/**
+ * Return shape for the locale-switcher service. `account` is populated
+ * when the request resolved an authenticated admin actor (the form on
+ * the account page); `null` on pre-auth surfaces (the sign-in page
+ * locale dropdown) where the cookie write is the only effect.
+ */
+export interface SetInterfaceLocaleResult {
+  ok: true
+  locale: string | null
+  account: AccountResponse | null
+}
+
 // --- Admin users ----------------------------------------------------------
 
 export interface CreateAdminUserInput {
@@ -142,6 +159,7 @@ export interface BylineAdminServices {
   // Account self-service
   updateAccount: AdminServiceCall<UpdateAccountInput, AccountResponse>
   changeAccountPassword: AdminServiceCall<ChangeAccountPasswordInput, AccountResponse>
+  setInterfaceLocale: AdminServiceCall<SetInterfaceLocaleInput, SetInterfaceLocaleResult>
 
   // Admin user writes (page-container reads stay in the host for now)
   createAdminUser: AdminServiceCall<CreateAdminUserInput, AdminUserResponse>

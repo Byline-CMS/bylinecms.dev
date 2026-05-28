@@ -20,7 +20,7 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "vite dev --port 5173",
     "build": "vite build",
     "preview": "vite preview --port 5173",
     "start": "NODE_ENV=production PORT=5173 node --env-file=.env.local .output/server/index.mjs",

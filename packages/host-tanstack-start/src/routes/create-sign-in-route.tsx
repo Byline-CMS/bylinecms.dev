@@ -17,7 +17,10 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import type { LocaleCode } from '@byline/i18n'
+
 import { SignInPage } from '../admin-shell/chrome/sign-in-page.js'
+import { getActiveLocaleFn } from '../server-fns/i18n/index.js'
 
 interface SignInSearch {
   callbackUrl?: string
@@ -30,9 +33,19 @@ export function createSignInRoute(path: string) {
       const callbackUrl = typeof search.callbackUrl === 'string' ? search.callbackUrl : undefined
       return { callbackUrl }
     },
+    beforeLoad: async () => {
+      // Resolve the active locale on the server before render so the
+      // sign-in page hydrates in the user's chosen language. The
+      // resolver works pre-auth — `readPreferredLocaleFromActor()`
+      // returns null when there's no admin session and the cascade
+      // falls through to cookie → Accept-Language → defaultLocale.
+      const activeLocale = await getActiveLocaleFn()
+      return { activeLocale }
+    },
     component: function SignInRouteComponent() {
       const { callbackUrl } = Route.useSearch() as SignInSearch
-      return <SignInPage callbackUrl={callbackUrl} />
+      const { activeLocale } = Route.useRouteContext() as { activeLocale: LocaleCode }
+      return <SignInPage callbackUrl={callbackUrl} activeLocale={activeLocale} />
     },
   })
   return Route

@@ -27,6 +27,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import type { AccountResponse } from '@byline/admin/admin-account'
 import { setPreferredLocaleCommand } from '@byline/admin/admin-account'
 import { AuthError, AuthErrorCodes } from '@byline/auth'
 
@@ -39,9 +40,22 @@ export interface SetInterfaceLocaleInput {
   locale: string | null
 }
 
+export interface SetInterfaceLocaleResult {
+  ok: true
+  /** Echo of the persisted value. `null` means the column was cleared. */
+  locale: string | null
+  /**
+   * Freshened admin user row when the request resolved an authenticated
+   * actor. `null` on the pre-auth path (sign-in page, no admin store
+   * configured). Form-shaped callers lift this into local state; the
+   * top-bar `<LanguageMenu>` ignores it.
+   */
+  account: AccountResponse | null
+}
+
 export const setInterfaceLocaleFn = createServerFn({ method: 'POST' })
   .inputValidator((input: SetInterfaceLocaleInput) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SetInterfaceLocaleResult> => {
     const core = bylineCore()
     const locales = core.config.i18n.interface.locales
 
@@ -68,19 +82,22 @@ export const setInterfaceLocaleFn = createServerFn({ method: 'POST' })
     if (adminStore == null) {
       // No admin store configured — cookie-only. Headless tooling
       // paths typically don't have one wired.
-      return { ok: true as const, locale: data.locale }
+      return { ok: true as const, locale: data.locale, account: null }
     }
 
     try {
       const context = await getAdminRequestContext()
-      await setPreferredLocaleCommand(context, { locale: data.locale }, { store: adminStore })
+      const account = await setPreferredLocaleCommand(
+        context,
+        { locale: data.locale },
+        { store: adminStore }
+      )
+      return { ok: true as const, locale: data.locale, account }
     } catch (err) {
       if (err instanceof AuthError && err.code === AuthErrorCodes.UNAUTHENTICATED) {
         // Expected on the pre-auth path. Cookie already written.
-        return { ok: true as const, locale: data.locale }
+        return { ok: true as const, locale: data.locale, account: null }
       }
       throw err
     }
-
-    return { ok: true as const, locale: data.locale }
   })
