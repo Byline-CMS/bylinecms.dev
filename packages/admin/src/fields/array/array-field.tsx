@@ -9,10 +9,9 @@
 import { useEffect, useState } from 'react'
 
 import type { ArrayField as ArrayFieldType, Field } from '@byline/core'
-import { IconButton, PlusIcon } from '@byline/ui/react'
+import { DraggableSortable, IconButton, moveItem, PlusIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
-import { DraggableSortable, moveItem } from '../../dnd/draggable-sortable'
 import { defaultScalarForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { SortableItem } from '../../fields/sortable-item'

@@ -9,9 +9,11 @@
 /**
  * Single React barrel for `@byline/admin`. Hosts every client-side
  * surface the admin shell needs to render the document editor —
- * presentational layout primitives, drag-and-drop helpers, field
- * widgets, the form runtime, the editor-shared widgets (status badge,
- * diff modal), and the field-side services Context.
+ * presentational layout primitives, field widgets, the form runtime,
+ * the editor-shared widgets (status badge, diff modal), and the
+ * field-side services Context. Generic drag-and-drop helpers
+ * (`DraggableSortable`, `useSortable`, `moveItem`) live in
+ * `@byline/ui/react` since they embed no CMS concepts.
  *
  * Why one barrel: per-area subpath exports break React Context
  * identity under bundlers that pre-bundle subpaths individually
@@ -27,9 +29,6 @@
  * React.
  */
 
-// Drag-and-drop helpers used by sortable-item, blocks-field, array-field,
-// and admin-shell list views (admin-roles list, collections list).
-export * from './dnd/draggable-sortable/index.js'
 // Field widgets.
 export * from './fields/array/array-field.js'
 export * from './fields/blocks/blocks-field.js'

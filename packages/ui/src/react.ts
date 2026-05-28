@@ -24,6 +24,9 @@
  * to a single specifier eliminates the trap structurally.
  */
 
+// Generic vertical-list sortable helpers over @dnd-kit/sortable. No
+// CMS concepts in the API — callers pass ids + an onDragEnd callback.
+export * from './dnd/draggable-sortable/index.js'
 // Foundational surface — synced from @infonomic/uikit. See
 // scripts/sync-from-uikit.sh and src/.uikit-sync.json.
 export * from './uikit.js'

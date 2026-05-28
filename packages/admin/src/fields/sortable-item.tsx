@@ -8,10 +8,9 @@
 
 import { type ReactNode, useState } from 'react'
 
-import { ChevronDownIcon, GripperVerticalIcon } from '@byline/ui/react'
+import { ChevronDownIcon, GripperVerticalIcon, useSortable } from '@byline/ui/react'
 import cx from 'classnames'
 
-import { useSortable } from '../dnd/draggable-sortable'
 import { DraggableContextMenu } from './draggable-context-menu'
 import styles from './sortable-item.module.css'
 
