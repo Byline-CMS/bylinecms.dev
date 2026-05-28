@@ -25,6 +25,7 @@
 
 import { useState } from 'react'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Checkbox, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -49,6 +50,7 @@ function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 
 export function UserRoles({ user, allRoles, initialRoleIds, onClose, onSaved }: UserRolesProps) {
   const { setUserRoles } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [initialSet, setInitialSet] = useState<ReadonlySet<string>>(() => new Set(initialRoleIds))
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initialRoleIds))
   const [saving, setSaving] = useState(false)
@@ -79,16 +81,16 @@ export function UserRoles({ user, allRoles, initialRoleIds, onClose, onSaved }: 
       const storedSet = new Set(response.roles.map((r) => r.id))
       setInitialSet(storedSet)
       setSelected(new Set(storedSet))
-      setSuccessMessage('Saved.')
+      setSuccessMessage(t('common.feedback.saved'))
       onSaved?.(response)
     } catch (err) {
       const code = getErrorCode(err)
       if (code === 'admin.roles.userNotFound') {
-        setError('This user no longer exists.')
+        setError(t('adminUsers.roles.errors.userNotFound'))
       } else if (code === 'admin.roles.notFound') {
-        setError('One or more selected roles no longer exist. Reload the page and try again.')
+        setError(t('adminUsers.roles.errors.roleNotFound'))
       } else {
-        setError('Could not save roles. Please try again.')
+        setError(t('adminUsers.roles.errors.fallback'))
       }
     } finally {
       setSaving(false)
@@ -102,8 +104,7 @@ export function UserRoles({ user, allRoles, initialRoleIds, onClose, onSaved }: 
 
       {allRoles.length === 0 ? (
         <p className={cx('muted', 'byline-user-roles-empty', styles.empty)}>
-          No roles have been created yet. Create roles in{' '}
-          <span className="muted">/admin/roles</span> first.
+          {t('adminUsers.roles.emptyCatalog')}
         </p>
       ) : (
         <div className={cx('byline-user-roles-list', styles.list)}>
@@ -148,7 +149,7 @@ export function UserRoles({ user, allRoles, initialRoleIds, onClose, onSaved }: 
           disabled={saving}
           className={cx('byline-user-roles-action', styles.action)}
         >
-          {successMessage ? 'Close' : 'Cancel'}
+          {successMessage ? t('common.actions.close') : t('common.actions.cancel')}
         </Button>
         <Button
           type="button"
@@ -158,7 +159,7 @@ export function UserRoles({ user, allRoles, initialRoleIds, onClose, onSaved }: 
           disabled={saving || !isDirty}
           className={cx('byline-user-roles-action', styles.action)}
         >
-          {saving ? <LoaderEllipsis size={30} /> : 'Save'}
+          {saving ? <LoaderEllipsis size={30} /> : t('common.actions.save')}
         </Button>
       </div>
     </div>

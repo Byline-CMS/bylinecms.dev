@@ -21,10 +21,11 @@
  * `vid` back into the container; the drawer doesn't need to re-fetch.
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import { passwordSchema } from '@byline/core/validation'
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, InputPassword, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
@@ -33,17 +34,10 @@ import { useBylineAdminServices } from '../../../services/admin-services-context
 import styles from './set-password.module.css'
 import type { AdminUserResponse } from '../index.js'
 
-const setPasswordFormSchema = z
-  .object({
-    password: passwordSchema,
-    confirm: z.string({ message: 'Please confirm the password' }),
-  })
-  .refine((v) => v.password === v.confirm, {
-    message: 'Passwords do not match',
-    path: ['confirm'],
-  })
-
-type SetPasswordValues = z.infer<typeof setPasswordFormSchema>
+type SetPasswordValues = {
+  password: string
+  confirm: string
+}
 
 interface SetPasswordProps {
   user: AdminUserResponse
@@ -53,8 +47,25 @@ interface SetPasswordProps {
 
 export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
   const { setAdminUserPassword } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const setPasswordFormSchema = useMemo(
+    () =>
+      z
+        .object({
+          password: passwordSchema,
+          confirm: z.string({
+            message: t('account.changePassword.errors.confirmRequired'),
+          }),
+        })
+        .refine((v) => v.password === v.confirm, {
+          message: t('account.changePassword.errors.mismatch'),
+          path: ['confirm'],
+        }),
+    [t]
+  )
 
   const form = useForm({
     defaultValues: { password: '', confirm: '' } as SetPasswordValues,
@@ -72,22 +83,20 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
         const updated = await setAdminUserPassword({
           data: { id: user.id, vid: user.vid, password: value.password },
         })
-        setSuccessMessage('Password updated.')
+        setSuccessMessage(t('account.changePassword.feedback.updated'))
         form.reset({ password: '', confirm: '' })
         onSuccess?.(updated)
       } catch (err) {
         const code = getErrorCode(err)
         if (code === 'admin.users.versionConflict') {
-          setFormError(
-            'This user has been modified elsewhere since you opened this form. Reload to refresh and try again.'
-          )
+          setFormError(t('adminUsers.update.errors.versionConflict'))
           return
         }
         if (code === 'admin.users.notFound') {
-          setFormError('This user no longer exists.')
+          setFormError(t('adminUsers.update.errors.notFound'))
           return
         }
-        setFormError('Could not set the password. Please try again.')
+        setFormError(t('adminUsers.setPassword.errors.fallback'))
       }
     },
   })
@@ -106,16 +115,12 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
         {formError ? <Alert intent="danger">{formError}</Alert> : null}
         {successMessage ? <Alert intent="success">{successMessage}</Alert> : null}
 
-        <p className="muted">
-          Sets a new password for{' '}
-          <span className={cx('byline-user-set-password-target', styles.target)}>{user.email}</span>
-          . The user will need to sign in again with the new password.
-        </p>
+        <p className="muted">{t('adminUsers.setPassword.intro', { email: user.email })}</p>
 
         <form.Field name="password">
           {(field) => (
             <InputPassword
-              label="New password"
+              label={t('account.changePassword.fields.new')}
               id="password"
               name={field.name}
               value={field.state.value}
@@ -132,7 +137,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
         <form.Field name="confirm">
           {(field) => (
             <InputPassword
-              label="Confirm new password"
+              label={t('account.changePassword.fields.confirm')}
               id="confirm"
               name={field.name}
               value={field.state.value}
@@ -154,7 +159,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
             onClick={onClose}
             className={cx('byline-user-set-password-action', styles.action)}
           >
-            {successMessage ? 'Close' : 'Cancel'}
+            {successMessage ? t('common.actions.close') : t('common.actions.cancel')}
           </Button>
           <form.Subscribe
             selector={(state) => ({
@@ -171,7 +176,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
                 disabled={!canSubmit || isSubmitting}
                 className={cx('byline-user-set-password-action', styles.action)}
               >
-                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : t('common.actions.save')}
               </Button>
             )}
           </form.Subscribe>

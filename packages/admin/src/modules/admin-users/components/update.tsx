@@ -20,9 +20,10 @@
  * a reload prompt.
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Checkbox, Input, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
@@ -31,20 +32,19 @@ import { useBylineAdminServices } from '../../../services/admin-services-context
 import styles from './update.module.css'
 import type { AdminUserResponse } from '../index.js'
 
-const updateUserSchema = z.object({
-  given_name: z.string().max(100, 'Given name must not exceed 100 characters'),
-  family_name: z.string().max(100, 'Family name must not exceed 100 characters'),
-  username: z.string().max(100, 'Username must not exceed 100 characters'),
-  email: z
-    .email({ message: 'Enter a valid email address' })
-    .min(3)
-    .max(254, 'Email must not exceed 254 characters'),
-  is_super_admin: z.boolean(),
-  is_enabled: z.boolean(),
-  is_email_verified: z.boolean(),
-})
+const MAX_NAME = 100
+const MAX_USERNAME = 100
+const MAX_EMAIL = 254
 
-type UpdateUserValues = z.infer<typeof updateUserSchema>
+type UpdateUserValues = {
+  given_name: string
+  family_name: string
+  username: string
+  email: string
+  is_super_admin: boolean
+  is_enabled: boolean
+  is_email_verified: boolean
+}
 
 function defaultsFrom(user: AdminUserResponse): UpdateUserValues {
   return {
@@ -95,8 +95,32 @@ interface UpdateUserProps {
 
 export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
   const { updateAdminUser } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const updateUserSchema = useMemo(
+    () =>
+      z.object({
+        given_name: z
+          .string()
+          .max(MAX_NAME, t('account.update.errors.givenNameTooLong', { max: MAX_NAME })),
+        family_name: z
+          .string()
+          .max(MAX_NAME, t('account.update.errors.familyNameTooLong', { max: MAX_NAME })),
+        username: z
+          .string()
+          .max(MAX_USERNAME, t('account.update.errors.usernameTooLong', { max: MAX_USERNAME })),
+        email: z
+          .email({ message: t('account.update.errors.invalidEmail') })
+          .min(3)
+          .max(MAX_EMAIL, t('account.update.errors.emailTooLong', { max: MAX_EMAIL })),
+        is_super_admin: z.boolean(),
+        is_enabled: z.boolean(),
+        is_email_verified: z.boolean(),
+      }),
+    [t]
+  )
 
   const form = useForm({
     defaultValues: defaultsFrom(user),
@@ -112,7 +136,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
       setSuccessMessage(null)
       const patch = buildPatch(value, user)
       if (Object.keys(patch).length === 0) {
-        setSuccessMessage('No changes to save.')
+        setSuccessMessage(t('common.feedback.noChanges'))
         return
       }
 
@@ -120,30 +144,28 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
         const updated = await updateAdminUser({
           data: { id: user.id, vid: user.vid, patch },
         })
-        setSuccessMessage('Saved.')
+        setSuccessMessage(t('common.feedback.saved'))
         onSuccess?.(updated)
       } catch (err) {
         const code = getErrorCode(err)
         if (code === 'admin.users.emailInUse') {
-          // Surface on the email field directly.
+          const message = t('account.update.errors.emailInUse')
           form.setFieldMeta('email', (meta) => ({
             ...meta,
-            errorMap: { ...meta.errorMap, onServer: 'This email is already in use.' },
-            errors: ['This email is already in use.'],
+            errorMap: { ...meta.errorMap, onServer: message },
+            errors: [message],
           }))
           return
         }
         if (code === 'admin.users.versionConflict') {
-          setFormError(
-            'This user has been modified elsewhere since you opened this form. Reload to get the latest values and try again.'
-          )
+          setFormError(t('adminUsers.update.errors.versionConflict'))
           return
         }
         if (code === 'admin.users.notFound') {
-          setFormError('This user no longer exists.')
+          setFormError(t('adminUsers.update.errors.notFound'))
           return
         }
-        setFormError('Could not save changes. Please try again.')
+        setFormError(t('common.errors.couldNotSave'))
       }
     },
   })
@@ -165,7 +187,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
         <form.Field name="given_name">
           {(field) => (
             <Input
-              label="Given name"
+              label={t('account.update.fields.givenName')}
               id="given_name"
               name={field.name}
               value={field.state.value}
@@ -181,7 +203,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
         <form.Field name="family_name">
           {(field) => (
             <Input
-              label="Family name"
+              label={t('account.update.fields.familyName')}
               id="family_name"
               name={field.name}
               value={field.state.value}
@@ -197,7 +219,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
         <form.Field name="username">
           {(field) => (
             <Input
-              label="Username"
+              label={t('account.update.fields.username')}
               id="username"
               name={field.name}
               value={field.state.value}
@@ -205,7 +227,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
               onChange={(e) => field.handleChange(e.currentTarget.value)}
               error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
-              helpText="Optional. Leave blank to clear."
+              helpText={t('account.update.fields.usernameHelp')}
               autoComplete="username"
             />
           )}
@@ -214,7 +236,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
         <form.Field name="email">
           {(field) => (
             <Input
-              label="Email"
+              label={t('common.fields.email')}
               id="email"
               name={field.name}
               type="email"
@@ -235,10 +257,10 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
               <Checkbox
                 id="is_enabled"
                 name={field.name}
-                label="Enabled"
+                label={t('adminUsers.create.flags.enabledLabel')}
                 checked={field.state.value}
                 onCheckedChange={(checked) => field.handleChange(checked === true)}
-                helpText="Disabled accounts cannot sign in."
+                helpText={t('adminUsers.create.flags.enabledHelp')}
               />
             )}
           </form.Field>
@@ -248,7 +270,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
               <Checkbox
                 id="is_email_verified"
                 name={field.name}
-                label="Email verified"
+                label={t('adminUsers.create.flags.emailVerifiedLabel')}
                 checked={field.state.value}
                 onCheckedChange={(checked) => field.handleChange(checked === true)}
               />
@@ -260,10 +282,10 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
               <Checkbox
                 id="is_super_admin"
                 name={field.name}
-                label="Super admin"
+                label={t('adminUsers.create.flags.superAdminLabel')}
                 checked={field.state.value}
                 onCheckedChange={(checked) => field.handleChange(checked === true)}
-                helpText="Super admins bypass every ability check — grant with care."
+                helpText={t('adminUsers.create.flags.superAdminHelp')}
               />
             )}
           </form.Field>
@@ -277,7 +299,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
             onClick={onClose}
             className={cx('byline-user-update-action', styles.action)}
           >
-            {successMessage ? 'Close' : 'Cancel'}
+            {successMessage ? t('common.actions.close') : t('common.actions.cancel')}
           </Button>
           <form.Subscribe
             selector={(state) => ({
@@ -294,7 +316,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
                 disabled={!canSubmit || isSubmitting}
                 className={cx('byline-user-update-action', styles.action)}
               >
-                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : t('common.actions.save')}
               </Button>
             )}
           </form.Subscribe>

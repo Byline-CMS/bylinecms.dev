@@ -156,5 +156,13 @@
   "adminUsers.create.flags.emailVerifiedHelp": "Skip the verification flow for this account.",
   "adminUsers.create.flags.superAdminLabel": "Super admin",
   "adminUsers.create.flags.superAdminHelp": "Super admins bypass every ability check — grant with care.",
-  "adminUsers.create.errors.fallback": "Could not create this admin user. Please try again."
+  "adminUsers.create.errors.fallback": "Could not create this admin user. Please try again.",
+  "adminUsers.update.errors.versionConflict": "This user has been modified elsewhere since you opened this form. Reload to get the latest values and try again.",
+  "adminUsers.update.errors.notFound": "This user no longer exists.",
+  "adminUsers.setPassword.intro": "Sets a new password for {email}. The user will need to sign in again with the new password.",
+  "adminUsers.setPassword.errors.fallback": "Could not set the password. Please try again.",
+  "adminUsers.roles.emptyCatalog": "No roles have been created yet. Create roles in /admin/roles first.",
+  "adminUsers.roles.errors.userNotFound": "This user no longer exists.",
+  "adminUsers.roles.errors.roleNotFound": "One or more selected roles no longer exist. Reload the page and try again.",
+  "adminUsers.roles.errors.fallback": "Could not save roles. Please try again."
 }

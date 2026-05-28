@@ -156,5 +156,13 @@
   "adminUsers.create.flags.emailVerifiedHelp": "Ignorer le processus de vérification pour ce compte.",
   "adminUsers.create.flags.superAdminLabel": "Super-admin",
   "adminUsers.create.flags.superAdminHelp": "Les super-admins ignorent toutes les vérifications d'autorisations — à accorder avec prudence.",
-  "adminUsers.create.errors.fallback": "Impossible de créer cet utilisateur admin. Veuillez réessayer."
+  "adminUsers.create.errors.fallback": "Impossible de créer cet utilisateur admin. Veuillez réessayer.",
+  "adminUsers.update.errors.versionConflict": "Cet utilisateur a été modifié ailleurs depuis l'ouverture de ce formulaire. Rechargez pour obtenir les valeurs actuelles, puis réessayez.",
+  "adminUsers.update.errors.notFound": "Cet utilisateur n'existe plus.",
+  "adminUsers.setPassword.intro": "Définit un nouveau mot de passe pour {email}. L'utilisateur devra se reconnecter avec le nouveau mot de passe.",
+  "adminUsers.setPassword.errors.fallback": "Impossible de définir le mot de passe. Veuillez réessayer.",
+  "adminUsers.roles.emptyCatalog": "Aucun rôle n'a encore été créé. Créez d'abord des rôles dans /admin/roles.",
+  "adminUsers.roles.errors.userNotFound": "Cet utilisateur n'existe plus.",
+  "adminUsers.roles.errors.roleNotFound": "Un ou plusieurs rôles sélectionnés n'existent plus. Rechargez la page et réessayez.",
+  "adminUsers.roles.errors.fallback": "Impossible d'enregistrer les rôles. Veuillez réessayer."
 }
