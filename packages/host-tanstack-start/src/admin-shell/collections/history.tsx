@@ -9,6 +9,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { useParams, useRouterState } from '@tanstack/react-router'
 
+import { renderFormatted, StatusBadge } from '@byline/admin/react'
 import { useBylineAdminServices } from '@byline/admin/services'
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
@@ -19,10 +20,8 @@ import {
   Container,
   IconButton,
   Modal,
-  renderFormatted,
   Section,
   Select,
-  StatusBadge,
   Table,
 } from '@byline/ui/react'
 import cx from 'classnames'
@@ -49,7 +48,7 @@ function getColumnValue(document: any, fieldName: string): any {
 
 // Lazy-load DiffModal because react-diff-viewer-continued uses a web worker
 // bundle that cannot be resolved by Node during SSR.
-const DiffModal = lazy(() => import('@byline/ui/react').then((m) => ({ default: m.DiffModal })))
+const DiffModal = lazy(() => import('@byline/admin/react').then((m) => ({ default: m.DiffModal })))
 
 /**
  * Safely extract a displayable string from a field value that may be a plain

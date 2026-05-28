@@ -21,11 +21,11 @@
 
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
+import { BylineFieldServicesProvider } from '@byline/admin/react'
 import { BylineAdminServicesProvider } from '@byline/admin/services'
 import { getClientConfig } from '@byline/core'
 import type { LocaleCode } from '@byline/i18n'
 import { I18nProvider } from '@byline/i18n/react'
-import { BylineFieldServicesProvider } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { AdminAppBar } from '../admin-shell/chrome/admin-app-bar.js'

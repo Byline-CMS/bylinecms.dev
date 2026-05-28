@@ -16,7 +16,7 @@
 import { useCallback } from 'react'
 import { useBlocker } from '@tanstack/react-router'
 
-import type { NavigationGuardResult, UseNavigationGuard } from '@byline/ui/react'
+import type { NavigationGuardResult, UseNavigationGuard } from '@byline/admin/react'
 
 /**
  * Navigation guard backed by TanStack Router's `useBlocker`.

@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "es2024",
     "lib": ["dom", "dom.iterable", "esnext"],
+    "types": ["node"],
     "declaration": true,
     "moduleResolution": "bundler",
     "declarationMap": false,

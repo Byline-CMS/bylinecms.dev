@@ -62,6 +62,7 @@
     }
   },
   "dependencies": {
+    "@byline/admin": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
     "@byline/ui": "workspace:*",

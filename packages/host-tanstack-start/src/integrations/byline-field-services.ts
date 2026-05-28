@@ -9,14 +9,18 @@
 /**
  * Host-side adapters that bind the webapp's TanStack Start server functions
  * to the framework-neutral `BylineFieldServices` contract consumed by
- * `@byline/ui` field/form components.
+ * `@byline/admin` field/form components.
  *
  * Wired into the admin route once via `<BylineFieldServicesProvider>`. A
  * future Next.js host would ship its own adapter file and Provider; the
- * @byline/ui surface is unchanged.
+ * @byline/admin surface is unchanged.
  */
 
-import type { BylineFieldServices, GetCollectionDocumentsFn, UploadFieldFn } from '@byline/ui/react'
+import type {
+  BylineFieldServices,
+  GetCollectionDocumentsFn,
+  UploadFieldFn,
+} from '@byline/admin/react'
 
 import { getCollectionDocuments as serverGetCollectionDocuments } from '../server-fns/collections/list.js'
 import { uploadField as serverUploadField } from '../server-fns/collections/upload.js'

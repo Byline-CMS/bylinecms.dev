@@ -8,9 +8,9 @@
 
 import { useCallback } from 'react'
 
+import { useFormContext } from '@byline/admin/react'
 import { AiPluginText } from '@byline/ai/plugins/text'
 import type { FieldAdornmentSlotProps } from '@byline/core'
-import { useFormContext } from '@byline/ui/react'
 
 import { useAiPanelOpen } from './ai-panel-store.js'
 

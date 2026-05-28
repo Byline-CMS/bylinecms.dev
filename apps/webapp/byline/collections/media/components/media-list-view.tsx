@@ -21,6 +21,7 @@
 
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 
+import { LocalDateTime } from '@byline/admin/react'
 import type { ListViewComponentProps, StoredFileValue, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { RouterPager } from '@byline/host-tanstack-start/admin-shell/chrome/router-pager'
@@ -28,7 +29,6 @@ import {
   Container,
   IconButton,
   LoaderRing,
-  LocalDateTime,
   PlusIcon,
   Search,
   Section,

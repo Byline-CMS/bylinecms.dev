@@ -31,16 +31,9 @@ import { useRouter } from '@tanstack/react-router'
 
 import { RolePermissions } from '@byline/admin/admin-roles/components/permissions'
 import { UpdateRole } from '@byline/admin/admin-roles/components/update'
+import { LocalDateTime } from '@byline/admin/react'
 import { useTranslation } from '@byline/i18n/react'
-import {
-  Button,
-  CloseIcon,
-  Drawer,
-  IconButton,
-  LocalDateTime,
-  Modal,
-  useToastManager,
-} from '@byline/ui/react'
+import { Button, CloseIcon, Drawer, IconButton, Modal, useToastManager } from '@byline/ui/react'
 import cx from 'classnames'
 
 import styles from './container.module.css'

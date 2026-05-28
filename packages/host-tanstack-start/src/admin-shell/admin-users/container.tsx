@@ -15,6 +15,7 @@ import { useRouter } from '@tanstack/react-router'
 import { UserRoles } from '@byline/admin/admin-users/components/roles'
 import { SetPassword } from '@byline/admin/admin-users/components/set-password'
 import { UpdateUser } from '@byline/admin/admin-users/components/update'
+import { LocalDateTime } from '@byline/admin/react'
 import { useTranslation } from '@byline/i18n/react'
 import {
   Button,
@@ -22,7 +23,6 @@ import {
   Drawer,
   EditIcon,
   IconButton,
-  LocalDateTime,
   Modal,
   useToastManager,
 } from '@byline/ui/react'

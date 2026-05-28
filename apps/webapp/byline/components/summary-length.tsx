@@ -6,8 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { useFieldValue } from '@byline/admin/react'
 import type { FieldHelpTextSlotProps, SlotComponent } from '@byline/core'
-import { useFieldValue } from '@byline/ui/react'
 
 import { LengthIndicator } from './length-indicator'
 import styles from './summary-length.module.css'

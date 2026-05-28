@@ -7,7 +7,7 @@
  */
 
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
-import { DateTimeFormatter } from '@byline/ui/react'
+import { DateTimeFormatter } from '@byline/admin/react'
 
 import { NewsCategories } from './schema.js'
 

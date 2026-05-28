@@ -11,6 +11,7 @@
 import type * as React from 'react'
 import { useMemo, useState } from 'react'
 
+import { RelationPicker } from '@byline/admin/react'
 import type { CollectionDefinition, StoredFileValue } from '@byline/core'
 import { getCollectionDefinition } from '@byline/core'
 import {
@@ -24,7 +25,6 @@ import {
   Modal,
   RadioGroup,
   RadioGroupItem,
-  RelationPicker,
 } from '@byline/ui/react'
 
 import { useModalFormState } from '../../shared/useModalFormState'

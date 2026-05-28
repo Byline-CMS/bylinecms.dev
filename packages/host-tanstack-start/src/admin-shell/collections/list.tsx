@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 
+import { renderFormatted, StatusBadge } from '@byline/admin/react'
 import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import type { UseTranslationReturn } from '@byline/i18n/react'
@@ -19,11 +20,9 @@ import {
   IconButton,
   LoaderRing,
   PlusIcon,
-  renderFormatted,
   Search,
   Section,
   Select,
-  StatusBadge,
   Table,
   useToastManager,
 } from '@byline/ui/react'

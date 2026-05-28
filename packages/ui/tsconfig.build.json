@@ -3,12 +3,5 @@
   "compilerOptions": {
     "rootDir": "./src"
   },
-  "include": [
-    "./src/react.ts",
-    "./src/admin.ts",
-    "./src/fields.ts",
-    "./src/forms.ts",
-    "./src/services.ts",
-    "./src/declarations.d.ts"
-  ]
+  "include": ["./src/react.ts", "./src/uikit.ts", "./src/declarations.d.ts"]
 }

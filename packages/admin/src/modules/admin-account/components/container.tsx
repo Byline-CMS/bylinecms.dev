@@ -27,8 +27,9 @@
 import type React from 'react'
 import { useState } from 'react'
 
+import { LocalDateTime } from '@byline/admin/react'
 import { useTranslation } from '@byline/i18n/react'
-import { Button, CloseIcon, Drawer, EditIcon, IconButton, LocalDateTime } from '@byline/ui/react'
+import { Button, CloseIcon, Drawer, EditIcon, IconButton } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { ChangeAccountPassword } from './change-password.js'
