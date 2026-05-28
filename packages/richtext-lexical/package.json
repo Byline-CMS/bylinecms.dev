@@ -34,7 +34,8 @@
     "typecheck": "tsc --noEmit",
     "clean": "node scripts/clean.js node_modules dist build types .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "skip:test": "vitest"
+    "test": "vitest run --mode=node",
+    "test:watch": "vitest --mode=node"
   },
   "sideEffects": [
     "**/*.css"
