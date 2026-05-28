@@ -12,6 +12,7 @@ import { useParams, useRouterState } from '@tanstack/react-router'
 import { useBylineAdminServices } from '@byline/admin/services'
 import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { useTranslation } from '@byline/i18n/react'
 import {
   Button,
   CloseIcon,
@@ -116,6 +117,7 @@ export const HistoryView = ({
   })
   const navigate = useNavigate()
   const { getCollectionDocumentVersion } = useBylineAdminServices()
+  const { t } = useTranslation('byline-admin')
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
   const location = useRouterState({ select: (s) => s.location })
@@ -152,7 +154,8 @@ export const HistoryView = ({
         <Container>
           <div className={cx('byline-coll-history-head', styles.head)}>
             <h2 className={cx('byline-coll-history-title', styles.title)}>
-              {labels.singular} History <Stats total={data?.meta.total} />
+              {t('collections.history.title', { label: labels.singular })}{' '}
+              <Stats total={data?.meta.total} />
             </h2>
             <ViewMenu
               collection={collection}
@@ -174,7 +177,7 @@ export const HistoryView = ({
               showFirstButton
               showLastButton
               componentName="pagerTop"
-              aria-label="Top Pager"
+              aria-label={t('collections.list.pagerTopAriaLabel')}
             />
           </div>
           <Table.Container className={cx('byline-coll-history-table-wrap', styles.tableWrap)}>
@@ -229,8 +232,8 @@ export const HistoryView = ({
                             size="xs"
                             variant="outlined"
                             intent="noeffect"
-                            aria-label="Compare this version with the current version"
-                            title="Compare with current"
+                            aria-label={t('collections.history.compareAriaLabel')}
+                            title={t('collections.history.compareTitle')}
                             className={cx(
                               'byline-coll-history-version-button',
                               styles.versionButton
@@ -349,9 +352,9 @@ export const HistoryView = ({
                                     'byline-coll-history-restore-button',
                                     styles.restoreButton
                                   )}
-                                  title="Restore this version as the current draft"
+                                  title={t('collections.history.restoreButtonTitle')}
                                 >
-                                  Restore
+                                  {t('collections.history.restoreButton')}
                                 </Button>
                               ) : null}
                             </Table.Cell>,
@@ -394,7 +397,7 @@ export const HistoryView = ({
               showFirstButton
               showLastButton
               componentName="pagerBottom"
-              aria-label="Bottom Pager"
+              aria-label={t('collections.list.pagerBottomAriaLabel')}
             />
           </div>
         </Container>
@@ -425,8 +428,12 @@ export const HistoryView = ({
           <Modal.Header
             className={cx('byline-coll-history-restore-modal-head', styles.restoreModalHead)}
           >
-            <h3 className="m-0">Restore version</h3>
-            <IconButton aria-label="Close" size="xs" onClick={() => setRestoreTarget(null)}>
+            <h3 className="m-0">{t('collections.history.restoreModalTitle')}</h3>
+            <IconButton
+              aria-label={t('common.actions.close')}
+              size="xs"
+              onClick={() => setRestoreTarget(null)}
+            >
               <CloseIcon width="14px" height="14px" svgClassName="white-icon" />
             </IconButton>
           </Modal.Header>

@@ -9,6 +9,7 @@
 import { useEffect } from 'react'
 
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Button, HistoryIcon, IconButton, Label, Select } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -78,6 +79,7 @@ export const ViewMenu = ({
   doc?: PreviewDocument
 }) => {
   const navigate = useNavigate()
+  const { t } = useTranslation('byline-admin')
 
   // Edit view must never use 'all' locale — strip it from the URL and fall
   // back to the default locale if it somehow arrives via navigation.
@@ -142,7 +144,7 @@ export const ViewMenu = ({
         className={cx('muted byline-view-menu-label', styles.label)}
         id="contentLocaleLabel"
         htmlFor="contentLocale"
-        label="Content Locale:"
+        label={t('collections.viewMenu.contentLocaleLabel')}
       />
       <Select<string>
         name="contentLocale"
@@ -152,7 +154,9 @@ export const ViewMenu = ({
         variant="outlined"
         value={locale ?? defaultContentLocale}
         items={[
-          ...(activeView !== 'edit' ? [{ value: 'all', label: 'All' }] : []),
+          ...(activeView !== 'edit'
+            ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
+            : []),
           ...contentLocales.map((loc) => ({ value: loc.code, label: loc.label })),
         ]}
         onValueChange={handleLocaleChange}
@@ -163,7 +167,7 @@ export const ViewMenu = ({
             className={cx('muted byline-view-menu-label', styles.label)}
             id="populateDepthLabel"
             htmlFor="populateDepth"
-            label="Depth:"
+            label={t('collections.viewMenu.depthLabel')}
           />
           <Select<string>
             name="populateDepth"
@@ -217,7 +221,7 @@ export const ViewMenu = ({
           })
         }
       >
-        Edit
+        {t('common.actions.edit')}
       </Button>
       <Button
         size="xs"
@@ -231,7 +235,7 @@ export const ViewMenu = ({
           })
         }
       >
-        API
+        {t('collections.viewMenu.apiButton')}
       </Button>
     </div>
   )

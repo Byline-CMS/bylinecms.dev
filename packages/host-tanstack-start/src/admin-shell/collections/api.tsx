@@ -8,6 +8,7 @@
 
 import type { CollectionDefinition } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { useTranslation } from '@byline/i18n/react'
 import { Container, Section } from '@byline/ui/react'
 import cx from 'classnames'
 import { allExpanded, darkStyles, JsonView } from 'react-json-view-lite'
@@ -41,12 +42,15 @@ export const ApiView = ({
   defaultContentLocale: string
 }) => {
   const { labels, path } = collectionDefinition
+  const { t } = useTranslation('byline-admin')
 
   return (
     <Section className={cx('byline-api-section', styles.section)}>
       <Container className={cx('byline-api-container', styles.container)}>
         <div className={cx('byline-api-head', styles.head)}>
-          <h2 className={cx('byline-api-title', styles.title)}>{labels.singular} API</h2>
+          <h2 className={cx('byline-api-title', styles.title)}>
+            {t('collections.api.title', { label: labels.singular })}
+          </h2>
           <ViewMenu
             collection={path}
             documentId={String(initialData.id)}

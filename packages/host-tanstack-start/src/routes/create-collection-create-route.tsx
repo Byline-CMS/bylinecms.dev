@@ -14,6 +14,7 @@ import {
   getCollectionAdminConfig,
   getCollectionDefinition,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { CreateView } from '../admin-shell/collections/create.js'
@@ -43,13 +44,17 @@ export function createCollectionCreateRoute(path: string) {
       const { initialData } = Route.useLoaderData() as { initialData: any }
       const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
+      const { t } = useTranslation('byline-admin')
       return (
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: '/admin' },
+              { label: t('chrome.menu.dashboard'), href: '/admin' },
               { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
-              { label: 'Create', href: `/admin/collections/${collection}/create` },
+              {
+                label: t('collections.breadcrumbs.create'),
+                href: `/admin/collections/${collection}/create`,
+              },
             ]}
           />
           <CreateView

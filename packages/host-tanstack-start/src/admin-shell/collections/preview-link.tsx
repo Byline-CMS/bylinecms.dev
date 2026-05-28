@@ -46,6 +46,7 @@
 import { useState } from 'react'
 
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { ExternalLinkIcon, IconButton, useToastManager } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -75,6 +76,7 @@ export const PreviewLink = ({
   className,
 }: PreviewLinkProps) => {
   const toastManager = useToastManager()
+  const { t } = useTranslation('byline-admin')
   const [busy, setBusy] = useState(false)
 
   const url = resolvePreviewUrl(doc, collectionPath, adminConfig, locale)
@@ -91,8 +93,10 @@ export const PreviewLink = ({
       window.location.assign(url)
     } catch (err) {
       toastManager.add({
-        title: 'Preview',
-        description: `Could not enable preview mode: ${(err as Error).message}`,
+        title: t('collections.preview.toastTitle'),
+        description: t('collections.preview.failedDescription', {
+          message: (err as Error).message,
+        }),
         data: {
           intent: 'danger',
           iconType: 'danger',
@@ -112,8 +116,8 @@ export const PreviewLink = ({
       variant="text"
       disabled={busy}
       onClick={handleClick}
-      aria-label="Open preview"
-      title="Preview"
+      aria-label={t('collections.preview.openAriaLabel')}
+      title={t('collections.preview.title')}
     >
       <ExternalLinkIcon width="20px" height="20px" className="byline-preview-link-icon" />
     </IconButton>

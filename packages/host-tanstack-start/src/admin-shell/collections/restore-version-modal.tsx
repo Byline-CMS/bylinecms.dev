@@ -20,6 +20,7 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -46,6 +47,7 @@ export function RestoreVersionModal({
 }: RestoreVersionModalProps) {
   const navigate = useNavigate()
   const router = useRouter()
+  const { t } = useTranslation('byline-admin')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -66,13 +68,13 @@ export function RestoreVersionModal({
     } catch (err) {
       const code = getErrorCode(err)
       if (code === 'ERR_INVALID_TRANSITION') {
-        setError('This version is already the current version of the document.')
+        setError(t('collections.restore.errors.alreadyCurrent'))
       } else if (code === 'ERR_NOT_FOUND') {
-        setError('The selected version could not be found. The history may be out of date.')
+        setError(t('collections.restore.errors.notFound'))
       } else if (code === 'ERR_FORBIDDEN' || code === 'ERR_UNAUTHENTICATED') {
-        setError('You do not have permission to restore versions for this collection.')
+        setError(t('collections.restore.errors.forbidden'))
       } else {
-        setError('Could not restore this version. Please try again.')
+        setError(t('collections.restore.errors.fallback'))
       }
       setPending(false)
     }
@@ -87,16 +89,13 @@ export function RestoreVersionModal({
           </Alert>
         ) : null}
         <p className={cx('byline-coll-restore-row', styles.row)}>
-          <span className="muted">Version:</span> {versionNumber}
+          <span className="muted">{t('collections.restore.versionLabel')}</span> {versionNumber}
         </p>
         <p className={cx('byline-coll-restore-row', styles.row)}>
-          <span className="muted">Created:</span> {versionLabel}
+          <span className="muted">{t('collections.restore.createdLabel')}</span> {versionLabel}
         </p>
         <p className={cx('byline-coll-restore-warning', styles.warning)}>
-          This will create a new draft version of this document with the content from version{' '}
-          {versionNumber}, and that draft will become the current version. The existing versions
-          (including any published version) are preserved in history. The restored draft will need
-          to be published through the normal workflow.
+          {t('collections.restore.warning', { version: versionNumber })}
         </p>
       </div>
       <div className={cx('byline-coll-restore-actions', styles.actions)}>
@@ -117,7 +116,7 @@ export function RestoreVersionModal({
           disabled={pending}
           className={cx('byline-coll-restore-button', styles.button)}
         >
-          Cancel
+          {t('common.actions.cancel')}
         </Button>
         <Button
           size="sm"
@@ -127,7 +126,7 @@ export function RestoreVersionModal({
           disabled={pending}
           className={cx('byline-coll-restore-button', styles.button)}
         >
-          {pending === true ? <LoaderEllipsis size={42} /> : 'Restore as Draft'}
+          {pending === true ? <LoaderEllipsis size={42} /> : t('collections.restore.confirmButton')}
         </Button>
       </div>
     </Modal.Content>

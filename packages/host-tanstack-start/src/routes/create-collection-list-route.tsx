@@ -15,6 +15,7 @@ import {
   getCollectionDefinition,
   getWorkflowStatuses,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { useToastManager } from '@byline/ui/react'
 import { z } from 'zod'
 
@@ -97,6 +98,7 @@ export function createCollectionListRoute(path: string) {
     },
     component: function CollectionListComponent() {
       const toastManager = useToastManager()
+      const { t } = useTranslation('byline-admin')
       const data = Route.useLoaderData()
       const { collection } = Route.useParams() as { collection: string }
       const search = Route.useSearch() as z.infer<typeof searchSchema>
@@ -124,8 +126,10 @@ export function createCollectionListRoute(path: string) {
         createdToastFiredRef.current = true
 
         toastManager.add({
-          title: `${collectionDef.labels.singular} Created`,
-          description: `Successfully created ${collectionDef.labels.singular.toLowerCase()}`,
+          title: t('collections.list.createdToastTitle', { label: collectionDef.labels.singular }),
+          description: t('collections.list.createdToastDescription', {
+            label: collectionDef.labels.singular.toLowerCase(),
+          }),
           data: {
             intent: 'success',
             iconType: 'success',
@@ -138,13 +142,7 @@ export function createCollectionListRoute(path: string) {
           search: (prev: Record<string, unknown>) => ({ ...prev, action: undefined }),
           replace: true,
         })
-      }, [
-        search.action,
-        navigate,
-        toastManager.add,
-        collectionDef.labels.singular.toLowerCase,
-        collectionDef.labels.singular,
-      ])
+      }, [search.action, navigate, toastManager.add, collectionDef.labels.singular, t])
 
       const CustomListView = adminConfig?.listView
 
@@ -152,7 +150,7 @@ export function createCollectionListRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: `/admin` },
+              { label: t('chrome.menu.dashboard'), href: `/admin` },
               {
                 label: data.included.collection.labels.plural,
                 href: `/admin/collections/${collection}`,

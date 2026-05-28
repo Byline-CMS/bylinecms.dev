@@ -11,6 +11,7 @@ import { useState } from 'react'
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getDefaultStatus, getWorkflowStatuses } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { useTranslation } from '@byline/i18n/react'
 import { Container, FormRenderer, Section, useToastManager } from '@byline/ui/react'
 
 import {
@@ -47,12 +48,15 @@ export const EditView = ({
   defaultContentLocale: string
 }) => {
   const toastManager = useToastManager()
+  const { t } = useTranslation('byline-admin')
   const [_editState, setEditState] = useState<EditState>({
     status: 'idle',
     message: '',
   })
   const navigate = useNavigate()
   const { labels, path, fields } = collectionDefinition
+  const singular = labels.singular
+  const singularLower = singular.toLowerCase()
 
   // Compute the next forward workflow status for the status button.
   const workflowStatuses = getWorkflowStatuses(collectionDefinition)
@@ -77,9 +81,10 @@ export const EditView = ({
       await updateDocumentStatus({
         data: { collection: path, id: String(initialData.id), status },
       })
+      const description = t('collections.edit.statusChangedDescription', { status })
       toastManager.add({
-        title: `${labels.singular} Status Update`,
-        description: `Status changed to "${status}"`,
+        title: t('collections.edit.statusUpdateTitle', { label: singular }),
+        description,
         data: {
           intent: 'success',
           iconType: 'success',
@@ -87,10 +92,7 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({
-        status: 'success',
-        message: `Status changed to "${status}"`,
-      })
+      setEditState({ status: 'success', message: description })
       // Refresh the page to reflect the new status.
       navigate({
         to: '/admin/collections/$collection/$id' as never,
@@ -99,9 +101,12 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Status change error:', err)
+      const description = t('collections.edit.statusChangeFailedDescription', {
+        message: (err as Error).message,
+      })
       toastManager.add({
-        title: `${labels.singular} Status Update`,
-        description: `Failed to change status: ${(err as Error).message}`,
+        title: t('collections.edit.statusUpdateTitle', { label: singular }),
+        description,
         data: {
           intent: 'danger',
           iconType: 'danger',
@@ -109,10 +114,7 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({
-        status: 'failed',
-        message: `Failed to change status: ${(err as Error).message}`,
-      })
+      setEditState({ status: 'failed', message: description })
     }
   }
 
@@ -131,9 +133,10 @@ export const EditView = ({
   const handleUnpublish = async () => {
     try {
       await unpublishDocument({ data: { collection: path, id: String(initialData.id) } })
+      const description = t('collections.edit.unpublishedDescription')
       toastManager.add({
-        title: `${labels.singular} Unpublish`,
-        description: 'Published version has been taken offline.',
+        title: t('collections.edit.unpublishTitle', { label: singular }),
+        description,
         data: {
           intent: 'success',
           iconType: 'success',
@@ -141,10 +144,7 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({
-        status: 'success',
-        message: 'Published version has been taken offline.',
-      })
+      setEditState({ status: 'success', message: description })
       navigate({
         to: '/admin/collections/$collection/$id' as never,
         params: { collection: path, id: String(initialData.id) },
@@ -152,9 +152,12 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Unpublish error:', err)
+      const description = t('collections.edit.unpublishFailedDescription', {
+        message: (err as Error).message,
+      })
       toastManager.add({
-        title: `${labels.singular} Unpublish`,
-        description: `Failed to unpublish: ${(err as Error).message}`,
+        title: t('collections.edit.unpublishTitle', { label: singular }),
+        description,
         data: {
           intent: 'danger',
           iconType: 'danger',
@@ -162,10 +165,7 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({
-        status: 'failed',
-        message: `Failed to unpublish: ${(err as Error).message}`,
-      })
+      setEditState({ status: 'failed', message: description })
     }
   }
 
@@ -174,11 +174,12 @@ export const EditView = ({
       const result = await duplicateCollectionDocument({
         data: { collection: path, id: String(initialData.id) },
       })
+      const description = result.pathRetried
+        ? t('collections.edit.duplicatedAutoPathDescription', { path: result.newPath })
+        : t('collections.edit.duplicatedPathDescription', { path: result.newPath })
       toastManager.add({
-        title: `${labels.singular} Duplicated`,
-        description: result.pathRetried
-          ? `Created with auto-generated path "${result.newPath}" (the preferred slug was already in use).`
-          : `Created with path "${result.newPath}". Update the title and path in the new document.`,
+        title: t('collections.edit.duplicatedTitle', { label: singular }),
+        description,
         data: {
           intent: 'success',
           iconType: 'success',
@@ -188,7 +189,7 @@ export const EditView = ({
       })
       setEditState({
         status: 'success',
-        message: `${labels.singular} duplicated.`,
+        message: t('collections.edit.duplicatedSuccessMessage', { label: singular }),
       })
       // Navigate to the new document's edit view.
       navigate({
@@ -197,9 +198,12 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Duplicate error:', err)
+      const description = t('collections.edit.duplicateFailedDescription', {
+        message: (err as Error).message,
+      })
       toastManager.add({
-        title: `${labels.singular} Duplicate`,
-        description: `Failed to duplicate: ${(err as Error).message}`,
+        title: t('collections.edit.duplicateTitle', { label: singular }),
+        description,
         data: {
           intent: 'danger',
           iconType: 'danger',
@@ -207,10 +211,7 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({
-        status: 'failed',
-        message: `Failed to duplicate: ${(err as Error).message}`,
-      })
+      setEditState({ status: 'failed', message: description })
     }
   }
 
@@ -235,12 +236,20 @@ export const EditView = ({
         contentLocales.find((l) => l.code === result.sourceLocale)?.label ?? result.sourceLocale
       const targetLabel =
         contentLocales.find((l) => l.code === result.targetLocale)?.label ?? result.targetLocale
+      const description =
+        result.fieldsUpdated > 0
+          ? t('collections.edit.copiedFieldsDescription', {
+              count: result.fieldsUpdated,
+              source: sourceLabel,
+              target: targetLabel,
+            })
+          : t('collections.edit.copiedNoFieldsDescription', {
+              source: sourceLabel,
+              target: targetLabel,
+            })
       toastManager.add({
-        title: `${labels.singular} Copy to Locale`,
-        description:
-          result.fieldsUpdated > 0
-            ? `Copied ${result.fieldsUpdated} field${result.fieldsUpdated === 1 ? '' : 's'} from ${sourceLabel} to ${targetLabel}.`
-            : `No fields needed copying from ${sourceLabel} to ${targetLabel} under the current rule.`,
+        title: t('collections.edit.copyToLocaleTitle', { label: singular }),
+        description,
         data: {
           intent: 'success',
           iconType: 'success',
@@ -250,7 +259,10 @@ export const EditView = ({
       })
       setEditState({
         status: 'success',
-        message: `Copied ${sourceLabel} → ${targetLabel}.`,
+        message: t('collections.edit.copiedSuccessMessage', {
+          source: sourceLabel,
+          target: targetLabel,
+        }),
       })
       // Switch the form to the target locale so the editor sees the
       // copied content immediately.
@@ -261,9 +273,12 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Copy to locale error:', err)
+      const description = t('collections.edit.copyFailedDescription', {
+        message: (err as Error).message,
+      })
       toastManager.add({
-        title: `${labels.singular} Copy to Locale`,
-        description: `Failed to copy: ${(err as Error).message}`,
+        title: t('collections.edit.copyToLocaleTitle', { label: singular }),
+        description,
         data: {
           intent: 'danger',
           iconType: 'danger',
@@ -271,19 +286,17 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({
-        status: 'failed',
-        message: `Failed to copy: ${(err as Error).message}`,
-      })
+      setEditState({ status: 'failed', message: description })
     }
   }
 
   const handleDelete = async () => {
     try {
       await deleteDocument({ data: { collection: path, id: String(initialData.id) } })
+      const description = t('collections.edit.deletedDescription', { label: singular })
       toastManager.add({
-        title: `${labels.singular} Deletion`,
-        description: `${labels.singular} has been deleted.`,
+        title: t('collections.edit.deleteTitle', { label: singular }),
+        description,
         data: {
           intent: 'success',
           iconType: 'success',
@@ -291,10 +304,7 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({
-        status: 'success',
-        message: `${labels.singular} has been deleted.`,
-      })
+      setEditState({ status: 'success', message: description })
       // Navigate back to the collection list after deletion.
       navigate({
         to: '/admin/collections/$collection' as never,
@@ -302,9 +312,12 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Delete error:', err)
+      const description = t('collections.edit.deleteFailedDescription', {
+        message: (err as Error).message,
+      })
       toastManager.add({
-        title: `${labels.singular} Deletion`,
-        description: `Failed to delete: ${(err as Error).message}`,
+        title: t('collections.edit.deleteTitle', { label: singular }),
+        description,
         data: {
           intent: 'danger',
           iconType: 'danger',
@@ -312,10 +325,7 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({
-        status: 'failed',
-        message: `Failed to delete: ${(err as Error).message}`,
-      })
+      setEditState({ status: 'failed', message: description })
     }
   }
 
@@ -342,9 +352,10 @@ export const EditView = ({
         },
       })
 
+      const description = t('collections.edit.updatedDescription', { label: singularLower })
       toastManager.add({
-        title: `${labels.singular} Update`,
-        description: `Successfully updated ${labels.singular.toLowerCase()}`,
+        title: t('collections.edit.updateTitle', { label: singular }),
+        description,
         data: {
           intent: 'success',
           iconType: 'success',
@@ -353,10 +364,7 @@ export const EditView = ({
         },
       })
 
-      setEditState({
-        status: 'success',
-        message: `Successfully updated ${labels.singular.toLowerCase()}`,
-      })
+      setEditState({ status: 'success', message: description })
 
       // Re-navigate to the same route so the loader re-fetches the document.
       // The new version will have a fresh version ID, draft status, and
@@ -368,9 +376,10 @@ export const EditView = ({
       })
     } catch (err) {
       console.error('Network error:', err)
+      const description = t('collections.edit.updateFailedDescription', { label: singularLower })
       toastManager.add({
-        title: `${labels.singular} Update`,
-        description: `An error occurred while updating ${labels.singular.toLowerCase()}`,
+        title: t('collections.edit.updateTitle', { label: singular }),
+        description,
         data: {
           intent: 'danger',
           iconType: 'danger',
@@ -379,10 +388,7 @@ export const EditView = ({
         },
       })
 
-      setEditState({
-        status: 'failed',
-        message: `An error occurred while updating ${labels.singular.toLowerCase()}`,
-      })
+      setEditState({ status: 'failed', message: description })
     }
   }
 

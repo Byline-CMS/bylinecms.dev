@@ -14,6 +14,7 @@ import {
   getCollectionDefinition,
   getWorkflowStatuses,
 } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
@@ -95,19 +96,20 @@ export function createCollectionHistoryRoute(path: string, opts: CollectionHisto
       const { collection } = Route.useParams() as { collection: string; id: string }
       const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
+      const { t } = useTranslation('byline-admin')
 
       return (
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: `/admin` },
+              { label: t('chrome.menu.dashboard'), href: `/admin` },
               { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
               {
-                label: 'Edit',
+                label: t('common.actions.edit'),
                 href: `/admin/collections/${collection}/${Route.useParams().id}`,
               },
               {
-                label: 'History',
+                label: t('collections.breadcrumbs.history'),
                 href: `/admin/collections/${collection}/${Route.useParams().id}/history`,
               },
             ]}

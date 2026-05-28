@@ -9,6 +9,7 @@
 import { useState } from 'react'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Container, FormRenderer, Section, useToastManager } from '@byline/ui/react'
 
 import { createCollectionDocument } from '../../server-fns/collections/index.js'
@@ -31,6 +32,7 @@ export const CreateView = ({
   initialData?: Record<string, any>
 }) => {
   const toastManager = useToastManager()
+  const { t } = useTranslation('byline-admin')
   const [_createState, setCreateState] = useState<CreateState>({
     status: 'idle',
     message: '',
@@ -62,9 +64,12 @@ export const CreateView = ({
     } catch (err) {
       console.error(err)
 
+      const description = t('collections.create.errorToastDescription', {
+        label: labels.singular.toLowerCase(),
+      })
       toastManager.add({
-        title: `${labels.singular} Creation`,
-        description: `An error occurred while creating ${labels.singular.toLowerCase()}`,
+        title: t('collections.create.errorToastTitle', { label: labels.singular }),
+        description,
         data: {
           intent: 'danger',
           iconType: 'danger',
@@ -75,7 +80,7 @@ export const CreateView = ({
 
       setCreateState({
         status: 'failed',
-        message: `An error occurred while creating ${labels.singular.toLowerCase()}`,
+        message: description,
       })
     }
   }

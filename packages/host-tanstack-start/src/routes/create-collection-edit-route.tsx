@@ -10,6 +10,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
@@ -72,15 +73,16 @@ export function createCollectionEditRoute(path: string, opts: CollectionEditOpts
       const { locale } = Route.useSearch() as z.infer<typeof searchSchema>
       const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
+      const { t } = useTranslation('byline-admin')
 
       return (
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: 'Dashboard', href: `/admin` },
+              { label: t('chrome.menu.dashboard'), href: `/admin` },
               { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
               {
-                label: 'Edit',
+                label: t('common.actions.edit'),
                 href: `/admin/collections/${collection}/${id}`,
               },
             ]}

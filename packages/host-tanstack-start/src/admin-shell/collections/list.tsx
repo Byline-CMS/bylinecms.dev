@@ -11,6 +11,8 @@ import { useRouter, useRouterState } from '@tanstack/react-router'
 
 import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import type { UseTranslationReturn } from '@byline/i18n/react'
+import { useTranslation } from '@byline/i18n/react'
 import {
   Container,
   GripperVerticalIcon,
@@ -108,10 +110,12 @@ function padRows(value: number) {
 function SortableTableRow({
   id,
   disabled,
+  t,
   children,
 }: {
   id: string
   disabled: boolean
+  t: UseTranslationReturn['t']
   children: React.ReactNode
 }) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
@@ -132,7 +136,9 @@ function SortableTableRow({
           type="button"
           className={cx('byline-coll-list-drag-handle', styles.dragHandle)}
           aria-label={
-            disabled ? 'Drag disabled while filters or search are active' : 'Drag to reorder'
+            disabled
+              ? t('collections.list.dragDisabledAriaLabel')
+              : t('collections.list.dragHandleAriaLabel')
           }
           disabled={disabled}
           {...attributes}
@@ -166,6 +172,7 @@ export const ListView = ({
   const navigate = useNavigate()
   const router = useRouter()
   const toastManager = useToastManager()
+  const { t } = useTranslation('byline-admin')
   const location = useRouterState({ select: (s) => s.location })
 
   // Local mirror of the loader docs so drag-and-drop can paint the new
@@ -229,8 +236,8 @@ export const ListView = ({
     } catch (_err) {
       setLocalDocs(previousDocs)
       toastManager.add({
-        title: 'Could not save the new order',
-        description: 'Please try again.',
+        title: t('collections.list.reorderFailedToast'),
+        description: t('collections.list.reorderFailedDescription'),
         data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
       })
     } finally {
@@ -244,10 +251,10 @@ export const ListView = ({
   // exceeded" inside SelectRoot after navigations that cause a re-render).
   const statusItems = useMemo(
     () => [
-      { value: '_all', label: 'All' },
+      { value: '_all', label: t('collections.list.statusFilterAll') },
       ...(workflowStatuses?.map((ws) => ({ value: ws.name, label: ws.label ?? ws.name })) ?? []),
     ],
-    [workflowStatuses]
+    [workflowStatuses, t]
   )
 
   const handleOnSearch = (query: string): void => {
@@ -311,7 +318,7 @@ export const ListView = ({
           </h1>
           <Stats total={data?.meta.total} />
           <IconButton
-            aria-label="Create New"
+            aria-label={t('collections.list.createAriaLabel')}
             render={
               <Link
                 to={'/admin/collections/$collection/create' as never}
@@ -327,7 +334,7 @@ export const ListView = ({
             onSearch={handleOnSearch}
             onClear={handleOnClear}
             inputSize="sm"
-            placeholder="Search"
+            placeholder={t('collections.list.searchPlaceholder')}
             className={cx('byline-coll-list-search', styles.search)}
           />
 
@@ -348,7 +355,7 @@ export const ListView = ({
             showFirstButton
             showLastButton
             componentName="pagerTop"
-            aria-label="Top Pager"
+            aria-label={t('collections.list.pagerTopAriaLabel')}
           />
         </div>
         <Table.Container className={cx('byline-coll-list-table-wrap', styles.tableWrap)}>
@@ -388,8 +395,8 @@ export const ListView = ({
                               search: params,
                             })
                           }}
-                          aria-label="Sort by manual order"
-                          title="Sort by manual order"
+                          aria-label={t('collections.list.sortManualOrderAriaLabel')}
+                          title={t('collections.list.sortManualOrderAriaLabel')}
                         >
                           <SortAscendingIcon />
                         </button>
@@ -412,7 +419,12 @@ export const ListView = ({
 
                   <Table.Body>
                     {localDocs.map((document) => (
-                      <SortableTableRow key={document.id} id={document.id} disabled={!dragEnabled}>
+                      <SortableTableRow
+                        key={document.id}
+                        id={document.id}
+                        disabled={!dragEnabled}
+                        t={t}
+                      >
                         {columns.map((column) => (
                           <Table.Cell
                             key={String(column.fieldName)}
@@ -567,7 +579,7 @@ export const ListView = ({
             showFirstButton
             showLastButton
             componentName="pagerBottom"
-            aria-label="Bottom Pager"
+            aria-label={t('collections.list.pagerBottomAriaLabel')}
           />
         </div>
       </Container>
