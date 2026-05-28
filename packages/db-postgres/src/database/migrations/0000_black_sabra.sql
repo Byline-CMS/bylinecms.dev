@@ -58,6 +58,7 @@ CREATE TABLE "byline_admin_users" (
 	"is_super_admin" boolean DEFAULT false NOT NULL,
 	"is_enabled" boolean DEFAULT false NOT NULL,
 	"is_email_verified" boolean DEFAULT false NOT NULL,
+	"preferred_locale" varchar(16),
 	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "byline_admin_users_username_unique" UNIQUE("username"),
