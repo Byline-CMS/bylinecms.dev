@@ -1,0 +1,100 @@
+{
+  "name": "@byline/i18n",
+  "private": false,
+  "type": "module",
+  "license": "MPL-2.0",
+  "version": "2.5.2",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "description": "Byline CMS admin interface i18n — translation registry, ICU formatter, React provider, language switcher",
+  "keywords": [
+    "cms",
+    "headless cms",
+    "content management",
+    "i18n",
+    "internationalization",
+    "translations"
+  ],
+  "homepage": "https://github.com/Byline-CMS/bylinecms.dev",
+  "bugs": {
+    "url": "https://github.com/Byline-CMS/bylinecms.dev/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
+    "directory": "packages/i18n"
+  },
+  "scripts": {
+    "dev": "run-p dev:*",
+    "dev:code": "rslib build --watch",
+    "build": "run-s build:*",
+    "build:clean": "node scripts/clean.js dist build",
+    "build:code": "rslib build",
+    "typecheck": "tsc --noEmit",
+    "clean": "node scripts/clean.js node_modules dist build types .turbo",
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "test": "vitest run --mode=node",
+    "test:watch": "vitest --mode=node"
+  },
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "main": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js",
+      "main": "./dist/react/index.js",
+      "default": "./dist/react/index.js"
+    },
+    "./admin": {
+      "types": "./dist/admin/index.d.ts",
+      "import": "./dist/admin/index.js",
+      "main": "./dist/admin/index.js",
+      "default": "./dist/admin/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@byline/ui": "workspace:*",
+    "@formatjs/intl-localematcher": "^0.8.8",
+    "classnames": "^2.5.1",
+    "intl-messageformat": "^11.2.7",
+    "negotiator": "^1.0.0",
+    "npm-run-all": "^4.1.5"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.15",
+    "@rsbuild/plugin-react": "^2.0.0",
+    "@rslib/core": "^0.21.5",
+    "@types/negotiator": "^0.6.4",
+    "@types/node": "^25.9.1",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "rimraf": "^6.1.3",
+    "typescript": "6.0.3",
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "files": [
+      "dist/",
+      "src/"
+    ]
+  }
+}
