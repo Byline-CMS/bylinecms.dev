@@ -2,7 +2,7 @@
   "name": "@byline/ai",
   "private": false,
   "license": "MPL-2.0",
-  "version": "2.5.2",
+  "version": "2.6.0",
   "engines": {
     "node": ">=20.9.0"
   },

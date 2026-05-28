@@ -1,5 +1,19 @@
 # @byline/db-postgres
 
+## 2.6.0
+
+### Minor Changes
+
+- shipped admin interface i18n — every shell surface renders in english/french with per-user locale preference
+  moved document-editor forms/fields/widgets from **`@byline/ui`** into **`@byline/admin`**
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@2.6.0
+  - @byline/auth@2.6.0
+  - @byline/core@2.6.0
+
 ## 2.5.2
 
 ### Patch Changes

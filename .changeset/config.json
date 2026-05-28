@@ -12,6 +12,7 @@
       "@byline/core",
       "@byline/db-postgres",
       "@byline/host-tanstack-start",
+      "@byline/i18n",
       "@byline/richtext-lexical",
       "@byline/storage-local",
       "@byline/storage-s3",
