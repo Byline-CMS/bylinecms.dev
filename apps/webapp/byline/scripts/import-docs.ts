@@ -47,7 +47,7 @@ import { resolve } from 'node:path'
 
 import { createSuperAdminContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
-import { getServerConfig, slugify } from '@byline/core'
+import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
 import type { Root } from 'mdast'
 import remarkGfm from 'remark-gfm'
 import remarkParse from 'remark-parse'
@@ -61,6 +61,7 @@ import { stripLeadingH1IfMatches } from './lib/strip-leading-h1.js'
 const DOCS_COLLECTION = 'docs'
 const MEDIA_COLLECTION = 'media'
 const DOCS_URL_PREFIX = '/docs'
+const DEFAULT_IMPORT_STATUS = 'published'
 
 interface Flags {
   dryRun: boolean
@@ -177,6 +178,27 @@ function derivePath(frontmatter: DocFrontmatter, locale: string): string {
   return slugify(frontmatter.title, { locale, collectionPath: DOCS_COLLECTION })
 }
 
+/**
+ * Walk a document's status forward to `targetStatus`. The workflow only
+ * permits ±1 step transitions, so jumping draft → published has to step
+ * through any intermediate statuses (e.g. needs_review). No-op when the
+ * workflow doesn't include the target or when already at/past it.
+ */
+async function walkToStatus(
+  handle: CollectionHandle,
+  documentId: string,
+  workflowStatuses: readonly { name: string }[],
+  currentStatus: string,
+  targetStatus: string
+): Promise<void> {
+  const currentIdx = workflowStatuses.findIndex((s) => s.name === currentStatus)
+  const targetIdx = workflowStatuses.findIndex((s) => s.name === targetStatus)
+  if (currentIdx === -1 || targetIdx === -1 || targetIdx <= currentIdx) return
+  for (let i = currentIdx + 1; i <= targetIdx; i++) {
+    await handle.changeStatus(documentId, workflowStatuses[i].name)
+  }
+}
+
 interface ProcessResult {
   filePath: string
   action: 'created' | 'updated' | 'skipped'
@@ -248,6 +270,15 @@ async function processFile(
     return { filePath, action: 'skipped', path: docPath }
   }
 
+  // Re-imports default to the published status (overridable per-file via
+  // frontmatter `status:`). `update` always resets to the workflow's
+  // default status on a new version, so we walk transitions forward
+  // afterwards; `create` accepts an initial status directly.
+  const desiredStatus = parsed.frontmatter.status ?? DEFAULT_IMPORT_STATUS
+  const definition = getCollectionDefinition(DOCS_COLLECTION)
+  const workflowStatuses = definition?.workflow?.statuses ?? []
+  const defaultStatus = workflowStatuses[0]?.name ?? 'draft'
+
   const existing = await handle.findByPath(docPath, {
     locale,
     status: 'any',
@@ -255,18 +286,18 @@ async function processFile(
   })
 
   if (existing) {
-    // Editorial state wins on re-import: don't overwrite status, and
-    // don't clobber publishedOn if Byline already has one.
+    // Don't clobber publishedOn if Byline already has one.
     if (existing.fields?.publishedOn) {
       delete payload.publishedOn
     }
     const result = await handle.update(existing.id, payload, { locale })
+    await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus)
     return { filePath, action: 'updated', documentId: result.documentId, path: docPath }
   }
 
   const result = await handle.create(payload, {
     locale,
-    status: parsed.frontmatter.status,
+    status: desiredStatus,
     path: docPath,
   })
   return { filePath, action: 'created', documentId: result.documentId, path: docPath }
