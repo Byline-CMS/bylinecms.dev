@@ -258,8 +258,11 @@ export interface CollectionAdminConfig<T = any> {
   /**
    * Preview URL configuration for the admin's live-preview affordance
    * (`<PreviewLink>` icon on the document edit page header). When omitted,
-   * the preview link defaults to `/${collectionPath}/${doc.path}` — fine
-   * for collections whose public URL mirrors the collection path.
+   * the preview link falls back through `CollectionDefinition.buildDocumentPath`
+   * (the same schema-side hook the richtext embed walker reads, so the
+   * public path and the Preview button agree by construction) and finally
+   * to the conventional `/${collectionPath}/${doc.path}` — fine for
+   * collections whose public URL mirrors the collection path.
    *
    * `url(doc, ctx)` — pure function returning the preview URL. Receives
    * the loaded document and a small request-scoped context object

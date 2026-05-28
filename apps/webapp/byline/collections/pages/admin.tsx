@@ -119,11 +119,13 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   },
 
   /**
-   * Preview URL builder for live preview links. Delegates to the
-   * schema-side `Pages.buildDocumentPath` (the single source of truth
-   * for how a page composes into a public path — also driven by the
-   * richtext embed walker on internal-link nodes) and adds the request-
-   * locale prefix on top. Returns `null` to hide the preview affordance.
+   * Preview URL builder for live preview links. Adds the request-locale
+   * prefix on top of `Pages.buildDocumentPath` (the schema-side hook the
+   * richtext embed walker also reads — same path composition on both
+   * sides). When `preview.url` is omitted, the framework falls back to
+   * `buildDocumentPath` automatically; we keep the explicit `url(...)`
+   * here only because the prefix is request-scoped (the schema hook is
+   * locale-agnostic by contract).
    *
    * `doc.path` is the top-level slug (derived from `useAsPath`), not a
    * field. Direct relations are auto-populated by the edit view (depth

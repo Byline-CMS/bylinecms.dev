@@ -18,11 +18,15 @@
  *      `window.location.assign(url)`.
  *
  * The preview URL comes from `CollectionAdminConfig.preview.url(doc, ctx)`
- * when configured; otherwise it falls back to the conventional
- * `/${collectionPath}/${doc.path}`. When the configured `url(...)` returns
- * `null` (missing slug, missing required relation, etc.), the icon is
- * not rendered at all — there is no public URL meaningful for this
- * document yet, so offering a preview link would just lead to a 404.
+ * when configured; otherwise it falls back through the schema's
+ * `CollectionDefinition.buildDocumentPath` (the single source of truth
+ * the richtext embed walker also reads) and finally to the conventional
+ * `/${collectionPath}/${doc.path}`. When the configured `url(...)`
+ * returns `null` (missing slug, missing required relation, etc.), the
+ * icon is not rendered at all — there is no public URL meaningful for
+ * this document yet, so offering a preview link would just lead to a
+ * 404. Hosts that need a locale prefix, query string, or other request-
+ * scoped composition still write their own `preview.url`.
  *
  * The component does not load the document itself. Callers pass the
  * already-loaded `doc` from their route loader. The edit-view loader
@@ -46,6 +50,9 @@ import { ExternalLinkIcon, IconButton, useToastManager } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { enablePreviewModeFn } from '../../server-fns/preview/index.js'
+import { resolvePreviewUrl } from './resolve-preview-url.js'
+
+export { resolvePreviewUrl } from './resolve-preview-url.js'
 
 export interface PreviewLinkProps {
   /** Collection path (e.g. `'news'`, `'pages'`). */
@@ -58,30 +65,6 @@ export interface PreviewLinkProps {
   locale?: string
   /** Optional className for the IconButton. */
   className?: string
-}
-
-/**
- * Resolve the preview URL for a doc against an admin config. Exported so
- * other surfaces (list-row preview links in the future) can share the
- * same fallback logic.
- *
- * Returns:
- *   - `string`  → URL to open
- *   - `null`    → no preview URL meaningful for this doc; hide affordance
- */
-export function resolvePreviewUrl(
-  doc: PreviewDocument,
-  collectionPath: string,
-  adminConfig: CollectionAdminConfig | undefined,
-  locale: string | undefined
-): string | null {
-  if (adminConfig?.preview) {
-    return adminConfig.preview.url(doc, { locale })
-  }
-  // Default convention: collection lives at `/${collectionPath}/${path}`.
-  // Returns null when the doc has no path yet (unsaved, awaiting slug).
-  if (!doc.path) return null
-  return `/${collectionPath}/${doc.path}`
 }
 
 export const PreviewLink = ({

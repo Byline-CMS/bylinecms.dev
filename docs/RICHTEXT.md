@@ -732,9 +732,9 @@ Carried over from the link-refactor work (steps 1–9 of the now-archived `RICHT
 
 `restoreDocumentVersion` and `duplicateDocument` write with `locale: 'all'`, producing a multi-locale `{ <locale>: lexicalJson }` shape per localized richtext leaf. The embed walker silently no-ops for those leaves today — `getLexicalRoot` can't parse the map as a single tree. Non-localized leaves still refresh. The renderer's fallback chain copes either way (a restored document keeps the picker-time embed envelope its source had). A per-locale walk is the obvious next step but adds complexity; not blocking, not yet pulled in. See the **Multi-locale write caveat** note in [Server-side embed and populate](#server-side-embed-and-populate) for the current behaviour and the source comments in `packages/core/src/services/richtext-embed.ts`.
 
-### `CollectionAdminConfig.preview.url` defaults to `buildDocumentPath`
+### `CollectionAdminConfig.preview.url` defaults to `buildDocumentPath` (shipped)
 
-`CollectionAdminConfig.preview.url` is currently a manual delegation: hosts that want the admin Preview button to match the public site write `(doc) => Pages.buildDocumentPath?.(doc, ...)` themselves (see `apps/webapp/byline/collections/pages/admin.tsx`). The framework should default `preview.url` to call `buildDocumentPath` when omitted, so the schema-side hook is enough — host wires it once on the collection definition and the Preview button picks it up for free. Open question whether `preview.url` itself still earns its keep in admin config after that change. Tracked from the strategy doc's § 5 open questions.
+When `preview.url` is omitted, `resolvePreviewUrl` (`packages/host-tanstack-start/src/admin-shell/collections/preview-link.tsx`) now consults `CollectionDefinition.buildDocumentPath` before falling back to the generic `/${collectionPath}/${doc.path}` compose. The schema-side hook is the single source of truth for both the richtext embed walker and the admin Preview button. Hosts that need request-scoped composition (locale prefix, query string, conditional return-null) still write their own `preview.url` — Pages does this in `apps/webapp/byline/collections/pages/admin.tsx` because the prefix is locale-aware while `buildDocumentPath` is locale-agnostic by contract.
 
 ### Fixture-driven unit tests for the link visitor and embed walker
 
