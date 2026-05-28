@@ -21,6 +21,7 @@ import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logge
 import { Registry } from './lib/registry.js'
 import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
 import { discoverCounterGroups } from './services/discover-counter-groups.js'
+import { validateTranslations } from './services/i18n-validator.js'
 import { validateRichTextFieldFlags } from './services/richtext-populate.js'
 import type {
   CollectionDefinition,
@@ -121,6 +122,23 @@ export const initBylineCore = async <TAdminStore = unknown>(
     populate: config.fields?.richText?.populate != null,
     embed: config.fields?.richText?.embed != null,
   })
+
+  // Validate the admin i18n translation registry against the configured
+  // interface locale set. Throws on structural errors (missing bundle for
+  // a declared locale, defaultLocale outside the permitted set, …); soft
+  // warnings (key-set drift between locales) are logged so contributors
+  // see translation gaps without it blocking boot.
+  const i18nValidation = validateTranslations(config.i18n.interface)
+  for (const warning of i18nValidation.warnings) {
+    composed.logger.warn(
+      {
+        locale: warning.locale,
+        namespace: warning.namespace,
+        missingKeys: warning.missingKeys,
+      },
+      `[i18n] '${warning.locale}.${warning.namespace}' is missing ${warning.missingKeys.length} key(s) relative to the other locales`
+    )
+  }
 
   // Backward compat: populate globalThis singletons
   defineServerConfig(config)

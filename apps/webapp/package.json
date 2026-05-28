@@ -39,6 +39,7 @@
     "@byline/core": "workspace:*",
     "@byline/db-postgres": "workspace:*",
     "@byline/host-tanstack-start": "workspace:*",
+    "@byline/i18n": "workspace:*",
     "@byline/richtext-lexical": "workspace:*",
     "@byline/storage-local": "workspace:*",
     "@byline/ui": "workspace:*",

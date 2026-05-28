@@ -56,6 +56,9 @@ importers:
       '@byline/host-tanstack-start':
         specifier: workspace:*
         version: link:../../packages/host-tanstack-start
+      '@byline/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@byline/richtext-lexical':
         specifier: workspace:*
         version: link:../../packages/richtext-lexical

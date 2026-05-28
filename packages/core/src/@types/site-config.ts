@@ -44,6 +44,22 @@ export interface BaseConfig {
       defaultLocale: string
       locales: string[]
     }
+    /**
+     * Admin interface translation registry — a `TranslationBundle`
+     * produced by `@byline/i18n`'s `mergeTranslations(...)`. Locale →
+     * namespace → key → ICU MessageFormat-encoded string.
+     *
+     * Optional at the type level so `BaseConfig` stays loose for tests
+     * and seed scripts; required at runtime via `validateTranslations`
+     * whenever `interface.locales` is non-empty. See `docs/I18N.md` for
+     * the design.
+     *
+     * The shape is declared inline (rather than imported from
+     * `@byline/i18n`) so `@byline/core` stays a leaf-ish package. The
+     * `TranslationBundle` type from `@byline/i18n` is structurally
+     * assignable to this slot.
+     */
+    translations?: TranslationBundleShape
   }
   collections: CollectionDefinition[]
   /**
@@ -54,6 +70,18 @@ export interface BaseConfig {
    */
   routes?: Partial<RoutesConfig>
 }
+
+/**
+ * Inline structural shape for the admin translation registry. Kept here
+ * (rather than imported from `@byline/i18n`) so `@byline/core` doesn't
+ * take a runtime dep on the i18n package. `@byline/i18n`'s
+ * `TranslationBundle` is structurally identical and assignable.
+ */
+export type TranslationBundleShape = Readonly<{
+  [locale: string]: Readonly<{
+    [namespace: string]: Readonly<{ [key: string]: string }>
+  }>
+}>
 
 /**
  * Client-side configuration. Extends BaseConfig with admin UI presentation

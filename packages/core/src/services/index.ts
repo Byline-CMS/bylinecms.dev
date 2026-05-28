@@ -23,6 +23,12 @@ export * from './document-lifecycle.js'
 export * from './document-read.js'
 export * from './field-upload.js'
 export {
+  type InterfaceI18nConfig,
+  type TranslationDriftWarning,
+  type ValidateTranslationsResult,
+  validateTranslations,
+} from './i18n-validator.js'
+export {
   type CycleRelationValue,
   createReadContext,
   type PopulatedRelationValue,
