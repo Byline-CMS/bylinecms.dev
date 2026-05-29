@@ -9,18 +9,28 @@
  * persists the new preference via the setLanguageFn server function.
  */
 
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 import { setLanguageFn } from '@/i18n/set-language-fn'
 
 /**
- * Returns the resolved locale from the current route's optional {-$lng} param.
- * If the param is absent the default locale is returned.
+ * Returns the resolved locale for the current URL.
+ *
+ * Derived from the first path segment rather than `params.lng` so it
+ * works uniformly across both routing trees: the optional-{-$lng}
+ * file-based tree (where `lng` is a route param) AND the literal-locale
+ * shim routes mounted via `routes.virtual.ts` (where the locale is part
+ * of the URL but not a declared param). Falls back to the default
+ * locale when the first segment is absent or unrecognised.
  */
 export function useLocale(): Locale {
-  const params = useParams({ strict: false }) as { lng?: string }
-  return (params.lng as Locale) ?? i18nConfig.defaultLocale
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const firstSegment = pathname.split('/')[1] ?? ''
+  if (i18nConfig.locales.includes(firstSegment as Locale)) {
+    return firstSegment as Locale
+  }
+  return i18nConfig.defaultLocale
 }
 
 /**

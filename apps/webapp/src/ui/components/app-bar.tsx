@@ -9,6 +9,7 @@ import cx from 'classnames'
 import { i18nConfig } from '@/i18n/i18n-config'
 import { DocsDrawerToggle } from '@/modules/docs/components/drawer-toggle'
 import { Branding } from '@/modules/home/branding'
+import { MainMenu } from '@/ui/components/main-menu'
 import { ThemeSwitch } from '@/ui/theme/theme-switch'
 import type { Locale } from '@/i18n/i18n-config'
 
@@ -107,16 +108,20 @@ export const AppBar = forwardRef<Ref, AppBarProps>(function AppBar(
           {DOCS_PATH_RE.test(location.pathname) ? <DocsDrawerToggle /> : null}
           <Branding lng={lng} hasScrolled={hasScrolled} pathName={location.pathname} />
         </div>
-        {/* <LanguageMenu lng={lng} color={appBarTextColor} /> */}
-        <ThemeSwitch className="mr-2" />
-        <a
-          className="block"
-          href="https://github.com/Byline-CMS/bylinecms.dev"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <GithubIcon width="28px" height="28px" />
-        </a>
+        <MainMenu />
+        <div className="flex items-center gap-4 ml-auto">
+          {/* <LanguageMenu lng={lng} color={appBarTextColor} /> */}
+          <ThemeSwitch />
+          <a
+            className="block"
+            href="https://github.com/Byline-CMS/bylinecms.dev"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="View Byline CMS on GitHub"
+          >
+            <GithubIcon width="28px" height="28px" />
+          </a>
+        </div>
       </div>
     </header>
   )
