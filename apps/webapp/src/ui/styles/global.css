@@ -21,14 +21,14 @@
 @import "@byline/ui/typography.css";
 
 /**
- * Tailwind - should come after the above.
- */
-@import "./tailwind.css";
-
-/**
  * Custom uikit overrides
  */
 @import "./overrides.css";
+
+/**
+ * Tailwind - should come after the above.
+ */
+@import "./tailwind.css";
 
 /**
  * Application styles

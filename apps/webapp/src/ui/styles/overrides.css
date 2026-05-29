@@ -15,7 +15,7 @@ table {
   }
 }
 
-@layer overrides {
+@layer byline-typography {
   :root {
     --prose-headings: var(--primary-600);
   }
