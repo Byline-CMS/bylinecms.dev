@@ -1,0 +1,40 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ *
+ * Reusable public frontend layout. Both the canonical
+ * `{-$lng}/_frontend/route.tsx` and any literal-locale shim layouts
+ * render this so chrome / providers / data threading stay in one place.
+ */
+
+import { Outlet } from '@tanstack/react-router'
+
+import { DocsMenuProvider } from '@/modules/docs/components/docs-menu-provider'
+import { GradientBackground } from '@/modules/home/gradient-background'
+import { AppBar } from '@/ui/components/app-bar'
+import { BreadcrumbsProvider } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
+import { ContentAdminBar } from '@/ui/components/content-admin-bar'
+import type { Locale } from '@/i18n/i18n-config'
+import type { FrontendLayoutData } from '@/ui/layouts/frontend-layout-loader'
+
+export interface FrontendLayoutProps extends FrontendLayoutData {
+  locale: Locale
+}
+
+export function FrontendLayout({ adminUser, adminPath, preview, locale }: FrontendLayoutProps) {
+  return (
+    <BreadcrumbsProvider>
+      <DocsMenuProvider>
+        <GradientBackground />
+        <ContentAdminBar user={adminUser} admin={adminPath} preview={preview} />
+        <AppBar lng={locale} />
+        <main id="main-content" className="flex flex-1 flex-col">
+          <Outlet />
+        </main>
+      </DocsMenuProvider>
+    </BreadcrumbsProvider>
+  )
+}

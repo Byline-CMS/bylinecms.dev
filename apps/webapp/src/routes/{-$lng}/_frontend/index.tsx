@@ -9,9 +9,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
-import { EditorAnimation } from '@/modules/home/editor-animation'
-import { FeatureGrid } from '@/modules/home/feature-grid'
-import { HeroTagline } from '@/modules/home/hero-tagline'
+import { HomeView } from '@/modules/home/home-view'
 
 export const Route = createFileRoute('/{-$lng}/_frontend/')({
   // Owns the canonical / og:url for the home page (the root layout
@@ -19,15 +17,5 @@ export const Route = createFileRoute('/{-$lng}/_frontend/')({
   // segment — `buildLocalizedPath` resolves it to `/` for the default locale
   // and `/<lng>` otherwise.
   head: ({ params }) => getMeta({ path: buildLocalizedPath(params.lng) }),
-  component: Index,
+  component: HomeView,
 })
-
-function Index() {
-  return (
-    <>
-      <HeroTagline />
-      <EditorAnimation />
-      <FeatureGrid />
-    </>
-  )
-}
