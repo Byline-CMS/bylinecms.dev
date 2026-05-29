@@ -10,6 +10,7 @@
  * render this so chrome / providers / data threading stay in one place.
  */
 
+import type { ReactNode } from 'react'
 import { Outlet } from '@tanstack/react-router'
 
 import { DocsMenuProvider } from '@/modules/docs/components/docs-menu-provider'
@@ -22,9 +23,22 @@ import type { FrontendLayoutData } from '@/ui/layouts/frontend-layout-loader'
 
 export interface FrontendLayoutProps extends FrontendLayoutData {
   locale: Locale
+  /**
+   * Optional body. The canonical layout (a file-based route) leaves this
+   * undefined and lets the matched child route flow through `<Outlet />`.
+   * Shim routes that render a single view inline (no child route) pass
+   * the view directly as `children` — `<HomeView />`, for example.
+   */
+  children?: ReactNode
 }
 
-export function FrontendLayout({ adminUser, adminPath, preview, locale }: FrontendLayoutProps) {
+export function FrontendLayout({
+  adminUser,
+  adminPath,
+  preview,
+  locale,
+  children,
+}: FrontendLayoutProps) {
   return (
     <BreadcrumbsProvider>
       <DocsMenuProvider>
@@ -32,7 +46,7 @@ export function FrontendLayout({ adminUser, adminPath, preview, locale }: Fronte
         <ContentAdminBar user={adminUser} admin={adminPath} preview={preview} />
         <AppBar lng={locale} />
         <main id="main-content" className="flex flex-1 flex-col">
-          <Outlet />
+          {children ?? <Outlet />}
         </main>
       </DocsMenuProvider>
     </BreadcrumbsProvider>

@@ -187,7 +187,15 @@ const config = defineConfig({
       },
     }),
     tailwindcss(),
-    tanstackStart(),
+    // The literal-locale shim tree (`/es`, `/fr`, …) is layered in via
+    // `tsr.virtualRouteConfig` to disambiguate bare-locale URLs from the
+    // optional-{-$lng}/$path catch-all in the file tree. See
+    // `src/routes.virtual.ts` and `src/route-shims/locale-home-shim.tsx`.
+    tanstackStart({
+      router: {
+        virtualRouteConfig: './src/routes.virtual.ts',
+      },
+    }),
     viteReact(),
   ],
   clearScreen: false,
