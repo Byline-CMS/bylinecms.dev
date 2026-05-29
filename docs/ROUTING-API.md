@@ -7,6 +7,7 @@ summary: "The current internal-transport phase — TanStack Start server functio
 # Routing & API
 
 Companions:
+- [TRANSPORTS.md](./TRANSPORTS.md) — the concrete shape of the stable HTTP boundary this doc defers: a framework-agnostic operation contract bound to Nitro / Fastify / Hono, plus MCP as a peer transport.
 - [FILE-MEDIA-UPLOADS.md](./FILE-MEDIA-UPLOADS.md) — uploads ride on the same internal transport described here.
 - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — what the document write/read services persist.
 - [CLIENT-SDK.md](./CLIENT-SDK.md) — the in-process client that admin server fns and (future) public HTTP routes both delegate to.
