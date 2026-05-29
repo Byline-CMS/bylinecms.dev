@@ -33,7 +33,7 @@ export const useTranslations = <T extends keyof Translations>(
 
   // NOTE that source translations in this case are all translations
   // for a given language - hence const message = translations[namespace][key] ?? key
-  // and unlike the server version of t - in @/i18n/server/use-translations
+  // and unlike the createTranslator helper in @/i18n/translations
   return {
     t: (key: keyof Translations[T], values?: Record<string, any>) => {
       const message = translations[namespace][key] ?? key

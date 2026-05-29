@@ -1,5 +1,3 @@
-'use client'
-
 import { CheckIcon, Dropdown as DropdownMenu, GlobeIcon } from '@byline/ui/react'
 import cx from 'classnames'
 

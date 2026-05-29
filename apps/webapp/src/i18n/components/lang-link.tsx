@@ -14,7 +14,7 @@
 import type React from 'react'
 import { Link } from '@tanstack/react-router'
 
-import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
+import { lngParam, toLocaleRoute, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 
 export interface LangLinkProps
@@ -38,15 +38,6 @@ export interface LangLinkProps
   replace?: boolean
   ref?: React.Ref<HTMLAnchorElement>
   children?: React.ReactNode
-}
-
-/**
- * Prepend the optional locale segment to a clean path so it matches the
- * generated TanStack route IDs (e.g. `'/about'` → `'/{-$lng}/about'`).
- */
-function toLocaleRoute(path: string): string {
-  if (path.startsWith('/{-$lng}')) return path
-  return path === '/' ? '/{-$lng}' : `/{-$lng}${path}`
 }
 
 export function LangLink({
