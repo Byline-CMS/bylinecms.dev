@@ -3,10 +3,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { resolveRoutes } from '@byline/core'
-import {
-  RouteError,
-  RouteNotFound,
-} from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { getCurrentAdminUserSoft } from '@byline/host-tanstack-start/server-fns/auth'
 import { getPreviewStateFn } from '@byline/host-tanstack-start/server-fns/preview'
 
@@ -19,6 +15,7 @@ import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBar } from '@/ui/components/app-bar'
 import { BreadcrumbsProvider } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
 import { ContentAdminBar } from '@/ui/components/content-admin-bar'
+import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
 export const Route = createFileRoute('/{-$lng}/_frontend')({
   loader: async () => {

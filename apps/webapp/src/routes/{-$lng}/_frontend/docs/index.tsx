@@ -8,15 +8,12 @@
 
 import { createFileRoute, useLoaderData } from '@tanstack/react-router'
 
-import {
-  RouteError,
-  RouteNotFound,
-} from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { Container, Section } from '@byline/ui/react'
 
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { DocsList } from '@/modules/docs/components/list'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
+import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
 export const Route = createFileRoute('/{-$lng}/_frontend/docs/')({
   head: ({ params }) =>

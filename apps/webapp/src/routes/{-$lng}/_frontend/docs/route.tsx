@@ -8,10 +8,6 @@
 
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
-import {
-  RouteError,
-  RouteNotFound,
-} from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { Section } from '@byline/ui/react'
 
 import { DocsContent } from '@/modules/docs/components/content'
@@ -19,6 +15,7 @@ import { DocsMenuDrawer } from '@/modules/docs/components/menu-drawer'
 import { getDocsListFn } from '@/modules/docs/list'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { useBreadcrumbs } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
+import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
 export const Route = createFileRoute('/{-$lng}/_frontend/docs')({
   loader: async ({ context }) => {

@@ -8,10 +8,6 @@
 
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
-import {
-  RouteError,
-  RouteNotFound,
-} from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { Container, Section } from '@byline/ui/react'
 
 import {
@@ -23,6 +19,7 @@ import {
 import { DocDetail } from '@/modules/docs/components/detail'
 import { type DocDetailResult, getDocDetailFn } from '@/modules/docs/detail'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
+import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import type { Locale } from '@/i18n/i18n-config'
 
 // See `_frontend/$path.tsx` for notes on why this cast is needed.

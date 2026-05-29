@@ -8,10 +8,6 @@
 
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
-import {
-  RouteError,
-  RouteNotFound,
-} from '@byline/host-tanstack-start/admin-shell/chrome/route-error'
 import { Container, Section } from '@byline/ui/react'
 
 import {
@@ -23,6 +19,7 @@ import {
 import { NewsDetail } from '@/modules/news/components/detail'
 import { getNewsDetailFn, type NewsDetailResult } from '@/modules/news/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
+import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 // NOTE: This will restrict our retrieved content to front-end interface locales
 // defined in i18nConfig, which is not exactly what we want. We want the available
 // locales to be determined by the content locales in the CMS, but this is a
