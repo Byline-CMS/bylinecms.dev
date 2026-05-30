@@ -1,5 +1,14 @@
 # @byline/i18n
 
+## 2.6.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** inline-image modal layout and auto-filled alt-text from picked media
+  improved **`@byline/ui`** shimmer skeleton contrast/sizing and added a `lineHeight` control
+- Updated dependencies
+  - @byline/ui@2.6.1
+
 ## 2.6.0
 
 ### Minor Changes
