@@ -35,6 +35,9 @@
   :global(.byline-shimmer-container) {
     display: flex;
     flex-direction: column;
+    /* When a container `height` is set, crop overflowing lines cleanly
+       rather than letting them spill past the skeleton's bounds. */
+    overflow: hidden;
   }
 
   .rectangular,
