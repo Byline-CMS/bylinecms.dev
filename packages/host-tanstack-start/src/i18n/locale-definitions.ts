@@ -12,18 +12,22 @@ import type { LocaleDefinition } from '@byline/i18n'
  * Build a `LocaleDefinition[]` for the language switcher. Per-code
  * resolution order:
  *
- *   1. An entry from the host's `i18n.interface.localeDefinitions`
- *      (matched by code). Wins outright — this is the path that lets a
- *      host author write `Français` instead of the lowercase
- *      `français` that CLDR's `Intl.DisplayNames` returns for romance
- *      languages.
+ *   1. An entry from the host's configured `localeDefinitions` —
+ *      `i18n.interface.localeDefinitions` for the admin switcher, or
+ *      `i18n.content.localeDefinitions` when a host frontend resolves
+ *      content-locale labels (matched by code). Wins outright — this is
+ *      the path that lets a host author write `Français` instead of the
+ *      lowercase `français` that CLDR's `Intl.DisplayNames` returns for
+ *      romance languages.
  *   2. `Intl.DisplayNames(code).of(code)` — produces a display name in
  *      each locale's own language using CLDR's data.
  *   3. The raw code, as a last-resort fallback for exotic tags or
  *      runtimes that lack `Intl.DisplayNames`.
  *
- * Used by both the admin layout (post-auth) and the sign-in page
- * (pre-auth) — anywhere `<LanguageMenu>` mounts.
+ * Dimension-agnostic: pass whichever `(codes, localeDefinitions)` pair
+ * you need. Used by the admin layout (post-auth) and the sign-in page
+ * (pre-auth) for the interface switcher — anywhere `<LanguageMenu>`
+ * mounts — and reusable by host frontends for the content dimension.
  */
 export function buildLocaleDefinitions(
   codes: readonly string[],

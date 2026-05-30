@@ -55,6 +55,26 @@ export interface BaseConfig {
     content: {
       defaultLocale: string
       locales: string[]
+      /**
+       * Optional display names for the content locales a document can be
+       * published in. Mirrors `interface.localeDefinitions`, but for the
+       * *content* dimension rather than the admin chrome.
+       *
+       * Byline itself does not render these — the content-locale set has
+       * no admin switcher. They exist so a host frontend can advertise
+       * content languages (hreflang clusters, "read this in…" affordances,
+       * sitemap alternates) with author-controlled labels — `Français`
+       * rather than the lowercase `français` that CLDR's
+       * `Intl.DisplayNames` returns for romance languages — read straight
+       * off `getServerConfig().i18n.content.localeDefinitions` instead of
+       * maintaining a parallel label map.
+       *
+       * Hosts that omit this can resolve labels per-code via
+       * `Intl.DisplayNames`; hosts that provide it for some codes still
+       * fall back for the rest. Entries for codes outside `locales` are
+       * silently ignored.
+       */
+      localeDefinitions?: ReadonlyArray<{ code: string; nativeName: string }>
     }
     /**
      * Admin interface translation registry — a `TranslationBundle`

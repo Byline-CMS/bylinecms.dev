@@ -39,9 +39,18 @@ export const i18n = {
   interface: {
     defaultLocale: 'en',
     locales: interfaceLocales.map((l) => l.code),
+    // Optional display names for the admin language switcher. Lets you
+    // author `Español` rather than the lowercase `español` that
+    // Intl.DisplayNames returns; omit to fall back to Intl per code.
+    localeDefinitions: interfaceLocales.map((l) => ({ code: l.code, nativeName: l.label })),
   },
   content: {
     defaultLocale: 'en',
     locales: contentLocales.map((l) => l.code),
+    // Optional display names for content locales. Byline doesn't render
+    // these (content has no admin switcher) — a public frontend can read
+    // them from getServerConfig().i18n.content.localeDefinitions to label
+    // hreflang / "read this in…" affordances without a parallel map.
+    localeDefinitions: contentLocales.map((l) => ({ code: l.code, nativeName: l.label })),
   },
 }

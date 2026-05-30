@@ -58,6 +58,14 @@ export const i18n = {
   content: {
     defaultLocale: 'en',
     locales: contentLocales.map((l) => l.code),
+    // Display names for the content locales a document can be published
+    // in. Byline doesn't render these (content has no admin switcher) —
+    // they travel through `getServerConfig().i18n.content.localeDefinitions`
+    // so a public frontend can label its content-language affordances
+    // (hreflang, "read this in…", sitemap alternates) with author-authored
+    // names instead of a parallel map. Same `Français` vs `français`
+    // rationale as the interface slot above.
+    localeDefinitions: contentLocales.map((l) => ({ code: l.code, nativeName: l.label })),
   },
   // Admin UI translations. `adminTranslations({...})` ships the
   // `byline-admin` namespace bundled into `@byline/i18n/admin`.
