@@ -46,6 +46,16 @@ interface RelationPickerProps {
   targetDefinition?: CollectionDefinition | null
   /** Explicit display field to render as row label. */
   displayField?: string
+  /**
+   * Extra field names to load into each row's `record.fields` beyond the
+   * display columns. Not rendered — available to the `onSelect` consumer
+   * (e.g. the inline-image modal seeding alt-text from the picked media).
+   *
+   * Pass a stable (module-level) array — this feeds the fetch effect's
+   * dependency list, so a fresh array each render would refetch on every
+   * render.
+   */
+  extraSelectFields?: string[]
   /** Modal open/close state. */
   isOpen: boolean
   /**
@@ -73,6 +83,7 @@ export const RelationPicker = ({
   targetCollectionPath,
   targetDefinition,
   displayField,
+  extraSelectFields,
   isOpen,
   onSelect,
   onDismiss,
@@ -108,7 +119,12 @@ export const RelationPicker = ({
     if (!isOpen) return
     let cancelled = false
 
-    const selectFields = resolveSelectFields(targetDefinition, displayField, pickerColumns)
+    const selectFields = resolveSelectFields(
+      targetDefinition,
+      displayField,
+      pickerColumns,
+      extraSelectFields
+    )
 
     setLoading(true)
     setError(null)
@@ -144,6 +160,7 @@ export const RelationPicker = ({
     query,
     page,
     displayField,
+    extraSelectFields,
     targetDefinition,
     pickerColumns,
     getCollectionDocuments,

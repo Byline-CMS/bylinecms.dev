@@ -1,29 +1,59 @@
-.inline-image-plugin--modal-image {
-  margin-bottom: 2rem;
-}
+/**
+ * Inline image modal — image picker row.
+ *
+ * Only the picker row (thumbnail + change button + title) needs bespoke
+ * layout; the rest of the modal is composed from shared @byline/ui
+ * components. Colours use the design tokens so the row is theme-aware.
+ */
 
-.inline-image-plugin--modal-actions {
+.inline-image-modal-picker {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.inline-image-plugin--modal-media-display {
-  margin-bottom: 2em;
+.inline-image-modal-thumb,
+.inline-image-modal-thumb-placeholder {
+  flex-shrink: 0;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--border-color);
 }
 
-.inline-image-plugin--modal-alt-text {
-  margin-bottom: 1em;
+.inline-image-modal-thumb {
+  object-fit: cover;
 }
 
-.inline-image-plugin--modal-position {
-  margin-bottom: 2em;
-}
-
-.inline-image-plugin--modal-show-caption {
-  margin-bottom: 1em;
-}
-
-.inline-image-plugin--modal-actions {
+.inline-image-modal-thumb-placeholder {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-subtle);
+  color: var(--text-subtle);
+  font-size: 0.75rem;
+}
+
+.inline-image-modal-picker-details {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.inline-image-modal-change-btn {
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+.inline-image-modal-title {
+  align-self: stretch;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.875rem;
+  color: var(--text-subtle);
 }

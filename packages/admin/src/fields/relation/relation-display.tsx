@@ -110,7 +110,8 @@ export function resolveRowLabel(
 export function resolveSelectFields(
   def: CollectionDefinition | null | undefined,
   displayField: string | undefined,
-  pickerColumns: ColumnDefinition[] | undefined
+  pickerColumns: ColumnDefinition[] | undefined,
+  extraFields?: string[]
 ): string[] | undefined {
   if (!def) return undefined
   const out = new Set<string>()
@@ -121,6 +122,13 @@ export function resolveSelectFields(
   if (pickerColumns) {
     for (const col of pickerColumns) {
       const name = String(col.fieldName)
+      if (def.fields.some((f) => f.name === name)) out.add(name)
+    }
+  }
+  // Extra non-display fields a consumer needs on `record.fields` (e.g. the
+  // inline-image modal seeding alt-text). Loaded but not rendered as columns.
+  if (extraFields) {
+    for (const name of extraFields) {
       if (def.fields.some((f) => f.name === name)) out.add(name)
     }
   }

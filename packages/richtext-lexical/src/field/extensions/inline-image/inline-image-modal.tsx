@@ -34,6 +34,8 @@ import type { DocumentRelation } from '../../nodes/document-relation'
 import type { Position } from './node-types'
 import type { InlineImageData, InlineImageModalProps } from './types'
 
+import './inline-image-modal.css'
+
 interface FormState {
   documentRelation: DocumentRelation | null
   altText: string
@@ -59,6 +61,30 @@ function fromInlineImageData(data: InlineImageData | undefined): FormState {
     showCaption: data.showCaption ?? false,
   }
 }
+
+/**
+ * Human-readable label fields a media/document collection might use, in
+ * priority order. Used only to *seed* the alt-text field when the picked
+ * record has no explicit `altText`. Intentionally excludes filenames — a
+ * label like `IMG_2024.jpg` makes poor alt text. The user can always edit.
+ */
+const LABEL_FIELD_KEYS = ['title', 'name', 'subject', 'label'] as const
+
+function deriveLabel(fields: Record<string, any>): string | undefined {
+  for (const key of LABEL_FIELD_KEYS) {
+    const value = fields[key]
+    if (typeof value === 'string' && value.trim().length > 0) return value
+  }
+  return undefined
+}
+
+/**
+ * Extra fields the relation picker must load (beyond its display columns)
+ * so `handlePickerSelect` can seed the alt-text field: the media's own
+ * `altText`, then the human-readable label fallbacks. Module-level so the
+ * reference is stable across renders (it feeds the picker's fetch effect).
+ */
+const PICKER_EXTRA_FIELDS: string[] = ['altText', ...LABEL_FIELD_KEYS]
 
 export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   isOpen,
@@ -110,7 +136,13 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
     const fields = selection.record?.fields ?? {}
     const image = fields.image as StoredFileValue | undefined
     const title = typeof fields.title === 'string' ? fields.title : undefined
-    const altTextFromMedia = typeof fields.altText === 'string' ? fields.altText : undefined
+    // Treat a present-but-blank `altText` as absent so the title fallback
+    // below still applies.
+    const altTextFromMedia =
+      typeof fields.altText === 'string' && fields.altText.trim().length > 0
+        ? fields.altText
+        : undefined
+    const derivedLabel = deriveLabel(fields)
     const sizes = image ? deriveImageSizes(image) : []
 
     setState((s) => {
@@ -128,10 +160,11 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
           targetCollectionPath: collection,
           document: Object.keys(document).length > 0 ? document : undefined,
         },
-        // Pre-fill alt-text from the media's `altText` field on first pick if
-        // the form's alt-text is still empty. Editorial wins over the source
-        // record once the user starts typing.
-        altText: s.altText.length > 0 ? s.altText : (altTextFromMedia ?? ''),
+        // Pre-fill alt-text on first pick when the form's alt-text is still
+        // empty: prefer the media's own `altText`, then fall back to a
+        // human-readable label (title / name / subject / label). Editorial
+        // wins over the source record once the user starts typing.
+        altText: s.altText.length > 0 ? s.altText : (altTextFromMedia ?? derivedLabel ?? ''),
       }
     })
     setImageError(null)
@@ -182,33 +215,31 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <span className="text-sm font-medium">Image</span>
-                <div className="flex items-center gap-3">
+                <div className="inline-image-modal-picker">
                   {pickedThumbUrl ? (
                     <img
                       src={pickedThumbUrl}
                       alt={pickedTitle ?? ''}
-                      className="w-18 h-18 object-cover rounded border border-gray-700"
+                      className="inline-image-modal-thumb"
                     />
                   ) : (
-                    <div className="w-18 h-18 flex items-center justify-center bg-gray-800 rounded border border-gray-700 text-xs text-gray-500">
-                      —
-                    </div>
+                    <div className="inline-image-modal-thumb-placeholder">—</div>
                   )}
-                  <Button
-                    size="sm"
-                    className="min-w-[70px]"
-                    variant="outlined"
-                    intent="noeffect"
-                    type="button"
-                    onClick={() => setPickerOpen(true)}
-                  >
-                    {state.documentRelation
-                      ? 'Change image…'
-                      : `Pick ${targetDef?.labels.singular ?? 'image'}…`}
-                  </Button>
-                  {pickedTitle && (
-                    <span className="text-sm text-gray-200 truncate">{pickedTitle}</span>
-                  )}
+                  <div className="inline-image-modal-picker-details">
+                    {pickedTitle && <span className="inline-image-modal-title">{pickedTitle}</span>}
+                    <Button
+                      size="sm"
+                      className="inline-image-modal-change-btn"
+                      variant="outlined"
+                      intent="noeffect"
+                      type="button"
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      {state.documentRelation
+                        ? 'Change image…'
+                        : `Pick ${targetDef?.labels.singular ?? 'image'}…`}
+                    </Button>
+                  </div>
                 </div>
                 {imageError && <ErrorText id="image-error" text={imageError} />}
               </div>
@@ -293,6 +324,7 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
       <RelationPicker
         targetCollectionPath={collection}
         targetDefinition={targetDef}
+        extraSelectFields={PICKER_EXTRA_FIELDS}
         isOpen={pickerOpen}
         onSelect={handlePickerSelect}
         onDismiss={() => setPickerOpen(false)}
