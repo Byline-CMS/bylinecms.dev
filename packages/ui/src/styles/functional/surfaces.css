@@ -39,12 +39,16 @@
     --surface-subtle-hover: var(--canvas-100);
     --surface-subtle-active: var(--canvas-200);
 
+    /* Shimmer / skeleton placeholder bar — sits a step darker than the
+       panel so loading lines read clearly on a light surface. */
+    --surface-shimmer: var(--canvas-100);
+
     /* Panel scrollers */
     --surface-panel-scrollbar: var(--gray-50);
     --surface-panel-scrollbar-thumb: var(--primary-100);
   }
 
-  /* 🌙 Dark via `.dark` class or [data-theme="dark"] attribute. 
+  /* 🌙 Dark via `.dark` class or [data-theme="dark"] attribute.
    * We rely on the consuming application to detect a user's 
    * preferred color scheme - either by header or cookie, and to set 
    * a root html class accordingly (for now), which unfortunately means
@@ -82,6 +86,11 @@
     --surface-subtle: var(--canvas-800);
     --surface-subtle-hover: var(--canvas-700);
     --surface-subtle-active: var(--canvas-600);
+
+    /* Shimmer / skeleton placeholder bar — lifted just above the panel so
+       loading lines are visible without glaring on a dark surface. Sits
+       between canvas-800 (panel) and canvas-700 (hover). */
+    --surface-shimmer: oklch(from var(--canvas-base) calc(l * 0.45) c h);
 
     /* Panel scrollers */
     --surface-panel-scrollbar: var(--canvas-700);
@@ -124,6 +133,9 @@
     --surface-subtle: var(--canvas-50);
     --surface-subtle-hover: var(--canvas-100);
     --surface-subtle-active: var(--canvas-200);
+
+    /* Shimmer / skeleton placeholder bar */
+    --surface-shimmer: var(--canvas-100);
 
     /* Panel scrollers */
     --surface-panel-scrollbar: var(--gray-50);
