@@ -1,5 +1,22 @@
 # @byline/host-tanstack-start
 
+## 2.7.0
+
+### Minor Changes
+
+- added optional `i18n.content.localeDefinitions` for configuring per-content locale metadata
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@2.7.0
+  - @byline/ai@2.7.0
+  - @byline/auth@2.7.0
+  - @byline/client@2.7.0
+  - @byline/core@2.7.0
+  - @byline/i18n@2.7.0
+  - @byline/ui@2.7.0
+
 ## 2.6.1
 
 ### Patch Changes

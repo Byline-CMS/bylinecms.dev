@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 2.7.0
+
+### Minor Changes
+
+- added optional `i18n.content.localeDefinitions` for configuring per-content locale metadata
+
 ## 2.6.1
 
 ### Patch Changes

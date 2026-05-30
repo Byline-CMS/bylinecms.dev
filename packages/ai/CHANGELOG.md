@@ -1,5 +1,18 @@
 # @infonomic/ai
 
+## 2.7.0
+
+### Minor Changes
+
+- added optional `i18n.content.localeDefinitions` for configuring per-content locale metadata
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@2.7.0
+  - @byline/richtext-lexical@2.7.0
+  - @byline/ui@2.7.0
+
 ## 2.6.1
 
 ### Patch Changes
