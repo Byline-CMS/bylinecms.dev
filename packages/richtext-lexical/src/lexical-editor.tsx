@@ -142,7 +142,7 @@ function EditorPlaceholder() {
   return (
     <div className="byline-field-richtext">
       <div className="byline-field-richtext-body">
-        <Shimmer variant="text" lines={20} height="1.15rem" />
+        <Shimmer variant="text" lines={20} lineHeight="1.15rem" />
       </div>
     </div>
   )

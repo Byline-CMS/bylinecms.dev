@@ -44,7 +44,7 @@ const EditorComponent = lazy(() =>
 
 export function EditorField(props: EditorFieldProps): React.JSX.Element {
   return (
-    <Suspense fallback={<Shimmer variant="text" lines={20} height="1.15rem" />}>
+    <Suspense fallback={<Shimmer variant="text" lines={20} lineHeight="1.15rem" />}>
       <EditorComponent {...props} />
     </Suspense>
   )
