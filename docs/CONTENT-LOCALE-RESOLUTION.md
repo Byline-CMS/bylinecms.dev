@@ -6,10 +6,12 @@ summary: "Why content-locale availability is a version-grain fact, how a request
 
 # Content Locale Resolution & Fallback
 
-> **Status:** Design / decision record. Captured from a working session; not yet
-> implemented. Establishes the model and the phased plan; supersedes the
-> ad-hoc reliance on the userland `availableLanguages` field for *resolution*
-> (that field remains the *advertising* signal — see below).
+> **Status:** Implemented (Phases 1–3 + backfill) on branch
+> `feat/content-locale-resolution`; Phase 4 deferred. Began as a design /
+> decision record from a working session — the model below is the present-state
+> reference; see [Implementation status](#implementation-status) for what shipped.
+> Supersedes the ad-hoc reliance on the userland `availableLanguages` field for
+> *resolution* (that field remains the *advertising* signal — see below).
 
 Companions:
 - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — path resolution already walks a `[requested, default]` locale chain (`buildLocaleChain`); this doc extends the *same* chain to content and explains why availability must **not** be bound to the path table.
@@ -300,41 +302,60 @@ vice-versa) catches editorial drift without coupling the two.
 
 ---
 
-## Implementation plan
+## Implementation status
 
-Phased so each step is independently shippable and the first step fixes the
-visible bug on its own.
+Phased so each step was independently shippable; Phase 1 fixes the visible bug on
+its own. **Phases 2 and 3 were merged** during implementation — decision: build
+on the durable ledger immediately rather than ship an interim `store_*` `EXISTS`
+that Phase 3 would have replaced. All on branch `feat/content-locale-resolution`.
 
-**Phase 1 — close the value/path asymmetry (fixes the empty-body symptom).**
-Give content restoration the same `[requested, default]` chain paths already
-walk. Resolve a single effective locale per document at read time (initially via
-query-time derivation — "does the version have all required localized fields in
-`requested`? else default"), and restore all fields in it. No schema change.
-Detail reads stop returning empty localized fields.
-- Touch: `storage-queries.ts` (`getAllFieldValuesForMultipleVersions` locale
-  condition), `storage-restore.ts` (effective-locale restore), the shared
-  `buildLocaleChain`.
+**Phase 1 — close the value/path asymmetry — DONE (`fac1d685`).** Content
+restoration now walks the same `[requested, default]` chain paths already use,
+resolving a single effective locale per document and restoring every field in it
+(never mixing locales). In the adapter (`storage-queries.ts`):
+- `getAllFieldValuesForMultipleVersions` widened to fetch the whole chain, not
+  just `requested` + `'all'`, so the default rows are present to fall back to.
+- new `resolveEffectiveLocale` called once per version inside
+  `reconstructFromUnifiedRows` — the single per-version chokepoint shared by
+  detail and list reads. The restore loop (`storage-restore.ts`) was unchanged;
+  it just receives the resolved locale via the existing `resolveLocale` param.
+- The completeness rule shipped as **path-coverage**: a locale is available iff
+  it covers every localized field path the default locale has, computed from the
+  rows already in hand — no schema walk. (The doc's earlier "non-optional
+  fields" framing is a possible future refinement; path-coverage is the shipped
+  rule and is faithful given that document structure is shared across locales.)
 
-**Phase 2 — `localeFallback` on the client read surface.** Add the option to
-`FindOptions` / `FindByPathOptions` etc. in `@byline/client`; wire `'always'`
-(default) vs `'strict'`. Strict uses an `EXISTS` against `store_*` until Phase 3
-lands the table. Detail reads become non-404-on-missing-translation.
-- Touch: `packages/client/src/types.ts`, `collection-handle.ts`, the adapter
-  `findDocuments` filter path.
+**Phases 2 + 3 — `localeFallback` + version-locale ledger — DONE (`e3b55c01`).**
+- `byline_document_version_locales (document_version_id, locale)` table +
+  migration `0001`. Populated **status-blind at write time**
+  (`storage-commands.ts` step 6) from the *persisted* rows — so it accounts for
+  the per-locale carry-forward, not just the freshly-flattened locale — with an
+  `'all'` sentinel row for locale-agnostic documents.
+- `LocaleFallback = 'always' | 'strict'` in `@byline/core`; an indexed `EXISTS`
+  gate (`localeAvailabilityExists`) wired into `findDocuments` (list — at the SQL
+  layer, so pagination / `total` stay correct), `getDocumentById`, and
+  `getDocumentByPath` (detail — resolves to `null` when unavailable).
+- `localeFallback?` on `FindOptions` / `FindOneOptions` / `FindByIdOptions` /
+  `FindByPathOptions`, threaded through `find` / `findOne` / `findById` /
+  `findByPath`. Populate stays `'always'` (a populated tree never has holes).
 
-**Phase 3 — materialise the version-locale projection.** Add
-`byline_document_version_locales` (migration + schema), populate it at flatten
-time from the completeness rule, and switch `strict` filtering + effective-locale
-resolution to read the table. Pure perf/cleanliness; behaviour identical to
-Phase 1–2.
-- Touch: `storage-commands.ts` / flatten path (compute + insert the set),
-  `packages/db-postgres/src/database/schema/index.ts`, a migration, the read
-  paths to prefer the table.
+**Backfill — DONE (`4d5d6e83`).** Versions written before migration `0001` carry
+no ledger rows, so `strict` would hide them until populated (`'always'` is
+unaffected — it never reads the ledger). `PgAdapter.backfillVersionLocales()`
+(on the concrete `DocumentCommands`, deliberately **off** the core `IDbAdapter`
+contract so no service mock changed) recomputes the ledger set-wise over all
+versions with the same path-coverage rule, using the configured default content
+locale — which a static SQL migration can't know, hence a runtime routine.
+Idempotent. Runner: `apps/webapp/byline/scripts/backfill-version-locales.ts`
+(`pnpm tsx --env-file=.env byline/scripts/backfill-version-locales.ts`).
 
-**Phase 4 — named fallback chains.** Add the `fallback` slot to
-`i18n.content.localeDefinitions`, thread it into `buildLocaleChain`. Optional;
-backward-compatible.
-- Touch: `packages/core` content-locale config types + resolver, `buildLocaleChain`.
+**Phase 4 — named fallback chains — DEFERRED (nice-to-have, not load-bearing).**
+The `[requested, default]` chain already delivers the core guarantee; named
+intermediate hops (`de → fr → default`, or regional variants
+`de-AT → de → default`) are an additive enrichment — a `fallback?` slot on
+`i18n.content.localeDefinitions` consumed by `buildLocaleChain`. Zero migration,
+no behaviour change for installs that don't set it, so it can land whenever a
+regional-variant or editorial-fallback need actually appears.
 
 **Phase 5 (optional) — advertising/availability cross-check.** Save- or
 boot-time warning when `availableLanguages` and the version-locale set disagree.
