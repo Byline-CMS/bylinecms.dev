@@ -20,6 +20,24 @@ import type { QueryPredicate } from './query-predicate.js'
 export type ReadMode = 'any' | 'published'
 
 /**
+ * Content-locale fallback policy for reads.
+ *
+ *   - `'always'` — always return content. A document requested in a locale it
+ *                  is not available in falls back through the locale chain to
+ *                  the default content locale (a detail read still returns the
+ *                  document; a list read still includes it). The default.
+ *   - `'strict'` — only surface documents available in the requested locale.
+ *                  A detail read returns `null` (→ 404) when the requested
+ *                  locale is unavailable; a list read excludes such documents.
+ *                  Backed by the `byline_document_version_locales` ledger.
+ *
+ * Availability follows path-coverage against the default content locale; a
+ * document with no localized content is available in every locale. See
+ * `docs/CONTENT-LOCALE-RESOLUTION.md`.
+ */
+export type LocaleFallback = 'always' | 'strict'
+
+/**
  * Request-scoped context shared across every read and populate walk in one
  * logical request. Threaded through populate, `afterRead` hooks, and any
  * nested reads the hook itself performs — the visited set and read budget
@@ -399,6 +417,9 @@ export interface IDocumentQueries {
      * never silently leaks into a live site.
      */
     lenient?: boolean
+    /** See `LocaleFallback`. `'strict'` returns `null` when the document is
+     *  not available in the requested locale. Defaults to `'always'`. */
+    localeFallback?: LocaleFallback
   }): Promise<any | null>
 
   /**
@@ -434,6 +455,9 @@ export interface IDocumentQueries {
     filters?: DocumentFilter[]
     /** See `getDocumentById.requestContext`. */
     requestContext?: RequestContext
+    /** See `LocaleFallback`. `'strict'` returns `null` when the document is
+     *  not available in the requested locale. Defaults to `'always'`. */
+    localeFallback?: LocaleFallback
   }): Promise<any | null>
 
   getDocumentByVersion(params: { document_version_id: string; locale?: string }): Promise<any>
@@ -571,6 +595,10 @@ export interface IDocumentQueries {
     readMode?: ReadMode
     /** See `getDocumentById.requestContext`. */
     requestContext?: RequestContext
+    /** See `LocaleFallback`. `'strict'` excludes documents not available in
+     *  the requested locale (filtered at the SQL layer so pagination stays
+     *  correct). Defaults to `'always'`. */
+    localeFallback?: LocaleFallback
   }): Promise<{
     documents: any[]
     total: number

@@ -18,6 +18,7 @@ import {
   jsonb,
   pgTable,
   pgView,
+  primaryKey,
   real,
   text,
   time,
@@ -182,6 +183,26 @@ export const documentPaths = pgTable(
     // Reverse lookup by document.
     index('idx_document_paths_document_id').on(table.document_id),
   ]
+)
+
+// Document version → available content locales. One row per (version, locale)
+// for every locale the version's content is *complete* in — path-coverage
+// against the default content locale: a locale is recorded only when it covers
+// every localized field path the default locale has. A version with no
+// localized content at all gets a single `'all'` sentinel row (it renders
+// identically in any locale). Computed status-blind at write time and frozen
+// on the immutable version, so restore / point-in-time reads stay consistent.
+// Drives `localeFallback: 'strict'` reads via an indexed EXISTS gate without
+// scanning the store_* tables. See docs/CONTENT-LOCALE-RESOLUTION.md.
+export const documentVersionLocales = pgTable(
+  'byline_document_version_locales',
+  {
+    document_version_id: uuid('document_version_id')
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: 'cascade' }),
+    locale: varchar('locale', { length: 10 }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.document_version_id, table.locale] })]
 )
 
 // Document Relationships (Parent/Child) - Many-to-Many

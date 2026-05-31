@@ -301,6 +301,45 @@ export class DocumentCommands implements IDocumentCommands {
         `)
       }
 
+      // 6. Record the version's available content locales for
+      // `localeFallback: 'strict'` reads. A locale is "available" when it
+      // covers every localized field path the default content locale has
+      // (path-coverage). Derived from the *persisted* localized rows, so it
+      // accounts for the per-locale carry-forward in step 5 — not just the
+      // freshly-flattened locale. A version with no localized content at all
+      // records a single `'all'` sentinel (it renders identically in any
+      // locale). Status-blind by design — see docs/CONTENT-LOCALE-RESOLUTION.md.
+      const versionId = documentVersion.id
+      await tx.execute(sql`
+        WITH loc AS (
+          SELECT field_path, locale FROM byline_store_text     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+          UNION SELECT field_path, locale FROM byline_store_numeric  WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+          UNION SELECT field_path, locale FROM byline_store_boolean  WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+          UNION SELECT field_path, locale FROM byline_store_datetime WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+          UNION SELECT field_path, locale FROM byline_store_file     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+          UNION SELECT field_path, locale FROM byline_store_relation WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+          UNION SELECT field_path, locale FROM byline_store_json     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+        ),
+        canonical AS (
+          SELECT field_path FROM loc WHERE locale = ${this.defaultContentLocale}
+        ),
+        covering AS (
+          SELECT l.locale
+          FROM loc l
+          GROUP BY l.locale
+          HAVING NOT EXISTS (
+            SELECT 1 FROM canonical c
+            WHERE NOT EXISTS (
+              SELECT 1 FROM loc l2 WHERE l2.locale = l.locale AND l2.field_path = c.field_path
+            )
+          )
+        )
+        INSERT INTO byline_document_version_locales (document_version_id, locale)
+        SELECT ${versionId}::uuid, locale FROM covering
+        UNION ALL
+        SELECT ${versionId}::uuid, 'all' WHERE NOT EXISTS (SELECT 1 FROM loc)
+      `)
+
       return {
         document: documentVersion,
         fieldCount: flattenedFields.length,

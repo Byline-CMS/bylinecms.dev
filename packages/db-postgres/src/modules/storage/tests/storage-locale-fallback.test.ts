@@ -182,4 +182,93 @@ describe('content-locale resolution & fallback', () => {
     expect(byId.get(translated)?.fields.title).toBe('Listed DE')
     expect(byId.get(enOnly)?.fields.title, 'untranslated row falls back to en').toBe('EN Only')
   })
+
+  // --- localeFallback: 'strict' (version-locale ledger gate) ---------------
+
+  it('strict: returns the document for a detail read when the locale is available', async () => {
+    const id = await createDoc({
+      title: { en: 'Hello', de: 'Hallo' },
+      body: { en: 'World', de: 'Welt' },
+      sku: 'S1',
+    })
+
+    const doc = await queryBuilders.documents.getDocumentById({
+      collection_id: testCollection.id,
+      document_id: id,
+      locale: 'de',
+      localeFallback: 'strict',
+    })
+    expect(doc?.fields).toMatchObject({ title: 'Hallo', body: 'Welt' })
+  })
+
+  it('strict: returns null for a detail read when the locale is unavailable', async () => {
+    // Partial `de` (body missing) → not available in `de`.
+    const id = await createDoc({
+      title: { en: 'Hello', de: 'Hallo' },
+      body: { en: 'World' },
+      sku: 'S2',
+    })
+
+    const strict = await queryBuilders.documents.getDocumentById({
+      collection_id: testCollection.id,
+      document_id: id,
+      locale: 'de',
+      localeFallback: 'strict',
+    })
+    expect(strict, 'strict resolves to null → caller 404s').toBeNull()
+
+    // 'always' (default) still returns it, rendered in the default locale.
+    const always = await queryBuilders.documents.getDocumentById({
+      collection_id: testCollection.id,
+      document_id: id,
+      locale: 'de',
+    })
+    expect(always?.fields.title).toBe('Hello')
+  })
+
+  it('strict: includes a locale-agnostic document (no localized content)', async () => {
+    const id = await createDoc({ sku: 'S3' })
+
+    const doc = await queryBuilders.documents.getDocumentById({
+      collection_id: testCollection.id,
+      document_id: id,
+      locale: 'de',
+      localeFallback: 'strict',
+    })
+    expect(doc?.fields.sku, 'the "all" sentinel row makes it available everywhere').toBe('S3')
+  })
+
+  it('strict: excludes untranslated documents from a list query', async () => {
+    const translated = await createDoc({
+      title: { en: 'T-en', de: 'T-de' },
+      body: { en: 'b', de: 'b-de' },
+      sku: 'S4',
+    })
+    const untranslated = await createDoc({
+      title: { en: 'U-en' },
+      body: { en: 'b' },
+      sku: 'S5',
+    })
+
+    const strict = await queryBuilders.documents.findDocuments({
+      collection_id: testCollection.id,
+      locale: 'de',
+      localeFallback: 'strict',
+      pageSize: 200,
+    })
+    const strictIds = new Set(strict.documents.map((d) => d.document_id))
+    expect(strictIds.has(translated), 'translated doc kept').toBe(true)
+    expect(strictIds.has(untranslated), 'untranslated doc excluded').toBe(false)
+
+    // 'always' (default) includes the untranslated doc, and its total is
+    // strictly larger — proving the gate filters at the SQL layer (pagination-safe).
+    const always = await queryBuilders.documents.findDocuments({
+      collection_id: testCollection.id,
+      locale: 'de',
+      pageSize: 200,
+    })
+    const alwaysIds = new Set(always.documents.map((d) => d.document_id))
+    expect(alwaysIds.has(untranslated)).toBe(true)
+    expect(strict.total).toBeLessThan(always.total)
+  })
 })

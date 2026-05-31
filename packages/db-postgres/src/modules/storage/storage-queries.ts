@@ -16,6 +16,7 @@ import type {
   FlattenedStore,
   ICollectionQueries,
   IDocumentQueries,
+  LocaleFallback,
   ReadMode,
   RelationFilter,
   UnionRowValue,
@@ -190,6 +191,27 @@ export class DocumentQueries implements IDocumentQueries {
     return requested === this.defaultContentLocale
       ? [requested]
       : [requested, this.defaultContentLocale]
+  }
+
+  /**
+   * Build the `localeFallback: 'strict'` availability gate — an EXISTS against
+   * the version-locale ledger (`byline_document_version_locales`) that keeps
+   * only documents available in the requested locale. The `'all'` sentinel row
+   * covers locale-agnostic documents (no localized content). Returns `null`
+   * when the gate does not apply — `'always'`/unset policy, or the admin
+   * sentinel `'all'` read — so callers can conditionally push it into a WHERE.
+   */
+  private localeAvailabilityExists(
+    versionId: SQL,
+    locale: string,
+    localeFallback: LocaleFallback | undefined
+  ): SQL | null {
+    if (localeFallback !== 'strict' || locale === 'all') return null
+    return sql`EXISTS (
+      SELECT 1 FROM byline_document_version_locales dvl
+      WHERE dvl.document_version_id = ${versionId}
+        AND (dvl.locale = ${locale} OR dvl.locale = 'all')
+    )`
   }
 
   /**
@@ -483,6 +505,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode,
     filters,
     lenient = false,
+    localeFallback,
   }: {
     collection_id: string
     document_id: string
@@ -491,6 +514,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode?: ReadMode
     filters?: DocumentFilter[]
     lenient?: boolean
+    localeFallback?: LocaleFallback
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
@@ -508,6 +532,12 @@ export class DocumentQueries implements IDocumentQueries {
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
       }
+    }
+    // `localeFallback: 'strict'` — resolve to null when the document is not
+    // available in the requested locale (no version-locale ledger row).
+    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, localeFallback)
+    if (strictGate) {
+      baseConditions.push(strictGate)
     }
     const [document] = await this.db
       .select(this.viewProjection(view, locale))
@@ -574,6 +604,7 @@ export class DocumentQueries implements IDocumentQueries {
     reconstruct = true,
     readMode,
     filters,
+    localeFallback,
   }: {
     collection_id: string
     path: string
@@ -581,6 +612,7 @@ export class DocumentQueries implements IDocumentQueries {
     reconstruct: boolean
     readMode?: ReadMode
     filters?: DocumentFilter[]
+    localeFallback?: LocaleFallback
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
@@ -603,6 +635,12 @@ export class DocumentQueries implements IDocumentQueries {
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
       }
+    }
+    // `localeFallback: 'strict'` — resolve to null when the document is not
+    // available in the requested locale (no version-locale ledger row).
+    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, localeFallback)
+    if (strictGate) {
+      baseConditions.push(strictGate)
     }
     const [document] = await this.db
       .select(this.viewProjection(view, locale))
@@ -1294,6 +1332,7 @@ export class DocumentQueries implements IDocumentQueries {
     pageSize = 20,
     fields: requestedFields,
     readMode,
+    localeFallback,
   }: {
     collection_id: string
     filters?: DocumentFilter[]
@@ -1308,6 +1347,7 @@ export class DocumentQueries implements IDocumentQueries {
     pageSize?: number
     fields?: string[]
     readMode?: ReadMode
+    localeFallback?: LocaleFallback
   }): Promise<{ documents: any[]; total: number }> {
     const offset = (page - 1) * pageSize
     const sourceTable =
@@ -1320,6 +1360,13 @@ export class DocumentQueries implements IDocumentQueries {
 
     if (status) {
       conditions.push(sql`d.status = ${status}`)
+    }
+
+    // `localeFallback: 'strict'` — exclude documents not available in the
+    // requested locale (filtered at the SQL layer so pagination stays correct).
+    const strictGate = this.localeAvailabilityExists(sql`d.id`, locale, localeFallback)
+    if (strictGate) {
+      conditions.push(strictGate)
     }
 
     if (pathFilter) {

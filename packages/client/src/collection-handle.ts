@@ -119,6 +119,7 @@ export class CollectionHandle {
       pageSize,
       fields: select as string[] | undefined,
       readMode,
+      localeFallback: options.localeFallback,
     })
 
     await this.populateIfRequested(
@@ -172,6 +173,7 @@ export class CollectionHandle {
       populate: options.populate,
       depth: options.depth,
       status: options.status,
+      localeFallback: options.localeFallback,
       _readContext: options._readContext,
       _bypassBeforeRead: options._bypassBeforeRead,
     })
@@ -205,6 +207,7 @@ export class CollectionHandle {
       readMode,
       filters,
       lenient: options.lenient,
+      localeFallback: options.localeFallback,
     })
 
     if (raw == null) return null
@@ -266,6 +269,7 @@ export class CollectionHandle {
       reconstruct: true,
       readMode,
       filters,
+      localeFallback: options.localeFallback,
     })
 
     if (raw == null) return null

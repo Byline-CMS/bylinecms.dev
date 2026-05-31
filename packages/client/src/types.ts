@@ -12,6 +12,7 @@ import type {
   CollectionDefinition,
   IDbAdapter,
   IStorageProvider,
+  LocaleFallback,
   PopulateSpec,
   PredicateValue,
   QueryPredicate,
@@ -176,6 +177,27 @@ interface StatusControls {
 }
 
 /**
+ * Content-locale fallback policy shared by every read method.
+ *
+ *   - `'always'` (default) — always return content. A document requested in a
+ *     locale it has not been translated into falls back through the locale
+ *     chain to the default content locale: a detail read still returns the
+ *     document (rendered in the default locale); a list read still includes it.
+ *   - `'strict'` — only surface documents available in the requested locale. A
+ *     detail read returns `null` (so callers can 404); a list read excludes
+ *     untranslated documents (filtered at the SQL layer, so the page count and
+ *     `total` stay correct). A document with no localized content is available
+ *     in every locale.
+ *
+ * Availability is the version-grain ledger described in
+ * `docs/CONTENT-LOCALE-RESOLUTION.md`. Relationship population always behaves
+ * as `'always'` so a populated tree never has holes.
+ */
+interface LocaleFallbackControls {
+  localeFallback?: LocaleFallback
+}
+
+/**
  * Read-side access-control escape hatch shared by every read method.
  *
  *   - `_bypassBeforeRead?: true` — skip the `CollectionHooks.beforeRead`
@@ -194,6 +216,7 @@ interface BeforeReadControls {
 export interface FindOptions<F = Record<string, any>>
   extends PopulateControls,
     StatusControls,
+    LocaleFallbackControls,
     BeforeReadControls {
   /** Filter documents. Keys are field names or reserved names (status, path). */
   where?: WhereClause
@@ -212,6 +235,7 @@ export interface FindOptions<F = Record<string, any>>
 export interface FindOneOptions<F = Record<string, any>>
   extends PopulateControls,
     StatusControls,
+    LocaleFallbackControls,
     BeforeReadControls {
   where?: WhereClause
   select?: (keyof F & string)[] | string[]
@@ -221,6 +245,7 @@ export interface FindOneOptions<F = Record<string, any>>
 export interface FindByIdOptions<F = Record<string, any>>
   extends PopulateControls,
     StatusControls,
+    LocaleFallbackControls,
     BeforeReadControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
@@ -238,6 +263,7 @@ export interface FindByIdOptions<F = Record<string, any>>
 export interface FindByPathOptions<F = Record<string, any>>
   extends PopulateControls,
     StatusControls,
+    LocaleFallbackControls,
     BeforeReadControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
