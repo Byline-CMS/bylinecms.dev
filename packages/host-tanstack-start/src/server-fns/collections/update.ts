@@ -29,10 +29,19 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       versionId?: string
       locale?: string
       path?: string
+      availableLocales?: string[]
     }) => input
   )
   .handler(async ({ data: input }) => {
-    const { collection: path, id, patches, versionId, locale, path: explicitPath } = input
+    const {
+      collection: path,
+      id,
+      patches,
+      versionId,
+      locale,
+      path: explicitPath,
+      availableLocales,
+    } = input
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -61,6 +70,7 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       documentVersionId: versionId,
       locale: locale ?? serverConfig.i18n.content.defaultLocale,
       path: explicitPath,
+      availableLocales,
     })
 
     return { status: 'ok' as const }

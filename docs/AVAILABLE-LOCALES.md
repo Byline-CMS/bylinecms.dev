@@ -186,16 +186,29 @@ is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-language
    `onSubmit` payload read + host forward + server pass-through are Slice 6, so
    the widget is inert end-to-end until then (and only renders once the host
    passes `advertiseLocales`).
-6. **Host wiring** (`@byline/host-tanstack-start`) — `server-fns/collections/get.ts`:
-   **preserve `_availableVersionLocales` through the Zod parse** (prerequisite for the
-   widget's ledger column; mirrors how `_restoreWarnings` is preserved ~line 151)
-   + surface `availableLocales`; `create.ts`/`update.ts` pass the param.
+6. ✅ **Host wiring** (`@byline/host-tanstack-start`) — closes the loop.
+   `server-fns/collections/get.ts` now **preserves both `availableLocales`
+   (editorial → initialises the form-context slot / checked state) and
+   `_availableVersionLocales` (ledger → drives the widget's per-row intent)
+   through the Zod parse** (mirrors the `_restoreWarnings` preservation).
+   `create.ts` / `update.ts` accept an `availableLocales` param and pass it to
+   the lifecycle. The admin `edit.tsx` / `create.tsx` pass
+   `advertiseLocales={definition.advertiseLocales}` into `FormRenderer` and
+   forward `systemAvailableLocales` from the `onSubmit` payload as
+   `availableLocales`. `FormRenderer` emits `systemAvailableLocales` (from the
+   Slice-4 slot) **only when `advertiseLocales` is set** — non-advertising
+   collections never touch `byline_document_available_locales`. Verified by the
+   25/25 workspace typecheck; the create/update→read round-trip is the same
+   lifecycle path the Slice-3 `client-write.integration.test.ts` proves end-to-end.
 7. **Migration** — map existing `availableLanguages` field values into the new
    store; drop the field from the `news`/`pages`/`docs` schemas.
 
-**To resume in a fresh session:** read this doc, then start at **Slice 6**
-(Host wiring — first unchecked slice) on branch
-`feat/content-locale-resolution`. The `path`
+**To resume in a fresh session:** read this doc, then start at **Slice 7**
+(Migration — the only remaining slice) on branch
+`feat/content-locale-resolution`. Slices 1–6 are shipped: the feature works
+end-to-end (opt into a collection with `advertiseLocales: true`, edit, toggle
+green locales, save). Slice 7 is the data migration from the old userland
+`availableLanguages` field. The `path`
 system attribute is the working reference at every layer
 (`docs/DOCUMENT-PATHS.md`); grep `useAsPath` / `systemPath` / `byline_document_paths`
 to find each analog.

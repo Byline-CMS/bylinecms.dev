@@ -332,6 +332,7 @@ const FormContent = ({
     resetHasChanges,
     getPatches,
     getSystemPath,
+    getSystemAvailableLocales,
     subscribeErrors,
     subscribeMeta,
     setFieldValue,
@@ -569,9 +570,13 @@ const FormContent = ({
       const data = getFieldValues()
       const patches = getPatches()
       const systemPath = getSystemPath()
+      // Only emit the advertised-locale set for collections that opted into the
+      // widget — otherwise leave it undefined so the write path never touches
+      // `byline_document_available_locales` for non-advertising collections.
+      const systemAvailableLocales = advertiseLocales ? getSystemAvailableLocales() : undefined
 
       if (onSubmit && typeof onSubmit === 'function') {
-        onSubmit({ data, patches, systemPath })
+        onSubmit({ data, patches, systemPath, systemAvailableLocales })
         resetHasChanges()
       }
     })()

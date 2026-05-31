@@ -21,10 +21,22 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 
 export const createCollectionDocument = createServerFn({ method: 'POST' })
   .inputValidator(
-    (input: { collection: string; data: any; locale?: string; path?: string }) => input
+    (input: {
+      collection: string
+      data: any
+      locale?: string
+      path?: string
+      availableLocales?: string[]
+    }) => input
   )
   .handler(async ({ data: input }) => {
-    const { collection: path, data: documentData, locale, path: explicitPath } = input
+    const {
+      collection: path,
+      data: documentData,
+      locale,
+      path: explicitPath,
+      availableLocales,
+    } = input
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -52,6 +64,7 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       status: documentData.status,
       locale: locale ?? serverConfig.i18n.content.defaultLocale,
       path: explicitPath,
+      availableLocales,
     })
 
     return { status: 'ok' as const }

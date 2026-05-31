@@ -334,12 +334,14 @@ export const EditView = ({
     data: _data,
     patches,
     systemPath,
+    systemAvailableLocales,
   }: {
     // biome-ignore lint/suspicious/noExplicitAny: data is collection-specific
     data: any
     // biome-ignore lint/suspicious/noExplicitAny: patches list shape
     patches: any[]
     systemPath?: string | null
+    systemAvailableLocales?: string[]
   }) => {
     try {
       await updateCollectionDocumentWithPatches({
@@ -350,6 +352,7 @@ export const EditView = ({
           versionId: initialData.versionId as string | undefined,
           locale,
           ...(systemPath ? { path: systemPath } : {}),
+          ...(systemAvailableLocales ? { availableLocales: systemAvailableLocales } : {}),
         },
       })
 
@@ -404,6 +407,7 @@ export const EditView = ({
           adminConfig={adminConfig}
           useAsTitle={collectionDefinition.useAsTitle}
           useAsPath={collectionDefinition.useAsPath}
+          advertiseLocales={collectionDefinition.advertiseLocales}
           headingLabel={labels.singular}
           initialLocale={locale}
           onLocaleChange={handleLocaleChange}

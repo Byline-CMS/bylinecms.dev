@@ -152,11 +152,28 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       | string[]
       | undefined
 
+    // Same preservation for the available-locales metadata — both are stripped
+    // by the Zod parse but the sidebar widget needs them at edit time:
+    //   `availableLocales`          — the stored editorial set → initialises the
+    //                                 form-context slot / the checked state.
+    //   `_availableVersionLocales`  — the ledger fact → drives each row's intent.
+    // See docs/AVAILABLE-LOCALES.md.
+    const availableLocales = (serialised as Record<string, any>).availableLocales as
+      | string[]
+      | undefined
+    const availableVersionLocales = (serialised as Record<string, any>)._availableVersionLocales as
+      | string[]
+      | undefined
+
     return {
       ...(parsed as Record<string, any>),
       _publishedVersion: publishedVersion,
       ...(restoreWarnings && restoreWarnings.length > 0
         ? { _restoreWarnings: restoreWarnings }
+        : {}),
+      ...(Array.isArray(availableLocales) ? { availableLocales } : {}),
+      ...(Array.isArray(availableVersionLocales)
+        ? { _availableVersionLocales: availableVersionLocales }
         : {}),
     }
   })

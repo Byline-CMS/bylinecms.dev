@@ -44,10 +44,12 @@ export const CreateView = ({
   const handleSubmit = async ({
     data,
     systemPath,
+    systemAvailableLocales,
   }: {
     // biome-ignore lint/suspicious/noExplicitAny: data is collection-specific
     data: any
     systemPath?: string | null
+    systemAvailableLocales?: string[]
   }) => {
     try {
       await createCollectionDocument({
@@ -55,6 +57,7 @@ export const CreateView = ({
           collection: path,
           data,
           ...(systemPath ? { path: systemPath } : {}),
+          ...(systemAvailableLocales ? { availableLocales: systemAvailableLocales } : {}),
         },
       })
       navigate({
@@ -97,6 +100,7 @@ export const CreateView = ({
           adminConfig={adminConfig}
           useAsTitle={collectionDefinition.useAsTitle}
           useAsPath={collectionDefinition.useAsPath}
+          advertiseLocales={collectionDefinition.advertiseLocales}
           headingLabel={labels.singular}
           useNavigationGuard={useTanStackNavigationGuard}
           onCancel={() =>
