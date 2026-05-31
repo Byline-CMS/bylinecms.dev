@@ -39,6 +39,14 @@ export function shapeDocument<F = Record<string, any>>(
   if (Array.isArray(raw.restoreWarnings) && raw.restoreWarnings.length > 0) {
     shaped._restoreWarnings = raw.restoreWarnings as string[]
   }
+  // Version-locale availability metadata (Phase 6). Present on
+  // find / findById / findByPath; absent on version/history reads.
+  if (Array.isArray(raw.availableLocales)) {
+    shaped._availableLocales = raw.availableLocales as string[]
+  }
+  if (typeof raw.localeAgnostic === 'boolean') {
+    shaped._localeAgnostic = raw.localeAgnostic as boolean
+  }
   return shaped
 }
 

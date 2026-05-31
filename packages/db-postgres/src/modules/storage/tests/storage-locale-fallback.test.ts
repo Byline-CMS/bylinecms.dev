@@ -350,4 +350,48 @@ describe('content-locale resolution & fallback', () => {
     const second = await commandBuilders.documents.backfillVersionLocales()
     expect(second.rowsInserted).toBe(0)
   })
+
+  // --- availability metadata (Phase 6: _availableLocales) ------------------
+
+  it('exposes availableLocales + localeAgnostic on a detail read', async () => {
+    const id = await createDoc({
+      title: { en: 'Hello', de: 'Hallo' },
+      body: { en: 'World', de: 'Welt' },
+      sku: 'M1',
+    })
+
+    const doc = await readById(id, 'en')
+    expect(doc?.availableLocales, 'sorted concrete locales').toEqual(['de', 'en'])
+    expect(doc?.localeAgnostic).toBe(false)
+  })
+
+  it('flags a locale-agnostic document (no localized content)', async () => {
+    const id = await createDoc({ sku: 'M2' })
+
+    const doc = await readById(id, 'en')
+    expect(doc?.availableLocales).toEqual([])
+    expect(doc?.localeAgnostic, 'the "all" sentinel surfaces as localeAgnostic').toBe(true)
+  })
+
+  it('exposes availableLocales per row on a list read', async () => {
+    const both = await createDoc({
+      title: { en: 'B-en', de: 'B-de' },
+      body: { en: 'x', de: 'y' },
+      sku: 'M3',
+    })
+    const enOnly = await createDoc({
+      title: { en: 'C-en' },
+      body: { en: 'x' },
+      sku: 'M4',
+    })
+
+    const { documents } = await queryBuilders.documents.findDocuments({
+      collection_id: testCollection.id,
+      locale: 'en',
+      pageSize: 200,
+    })
+    const byId = new Map(documents.map((d) => [d.document_id, d]))
+    expect(byId.get(both)?.availableLocales).toEqual(['de', 'en'])
+    expect(byId.get(enOnly)?.availableLocales).toEqual(['en'])
+  })
 })

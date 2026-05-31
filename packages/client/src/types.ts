@@ -418,6 +418,22 @@ export interface ClientDocument<F = Record<string, any>> {
    * normal reads.
    */
   _restoreWarnings?: string[]
+  /**
+   * Content locales this document's resolved version is available in —
+   * path-coverage against the default content locale, from the
+   * `byline_document_version_locales` ledger. Present on `find` / `findById`
+   * / `findByPath` (absent on version/history reads). The published-available
+   * set on a normal (published) read. Drives hreflang, the sitemap, and a
+   * per-document "Also available in…" menu, so the userland `availableLanguages`
+   * advertising field becomes optional. See `docs/CONTENT-LOCALE-RESOLUTION.md`.
+   */
+  _availableLocales?: string[]
+  /**
+   * `true` when the document has no localized content — it renders identically
+   * in every locale and `_availableLocales` is empty. A per-document language
+   * affordance should render nothing in this case.
+   */
+  _localeAgnostic?: boolean
 }
 
 export interface FindResult<F = Record<string, any>> {

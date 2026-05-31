@@ -6,12 +6,12 @@ summary: "Why content-locale availability is a version-grain fact, how a request
 
 # Content Locale Resolution & Fallback
 
-> **Status:** Implemented (Phases 1–3 + backfill) on branch
-> `feat/content-locale-resolution`; Phase 4 deferred, Phases 5–6 planned (Phase 6
-> — availability metadata on read results — retires the userland
-> `availableLanguages` field for most sites). Began as a design / decision record
-> from a working session — the model below is the present-state reference; see
-> [Implementation status](#implementation-status) for what shipped.
+> **Status:** Implemented (Phases 1–3 + backfill + Phase 6) on branch
+> `feat/content-locale-resolution`; Phase 4 deferred, Phase 5 planned. Phase 6
+> — availability metadata on read results (`_availableLocales`) — retires the
+> userland `availableLanguages` field for most sites. Began as a design /
+> decision record from a working session — the model below is the present-state
+> reference; see [Implementation status](#implementation-status) for what shipped.
 > Supersedes the ad-hoc reliance on the userland `availableLanguages` field for
 > *resolution* (that field remains the *advertising* signal — see below).
 
@@ -379,15 +379,20 @@ regional-variant or editorial-fallback need actually appears.
 **Phase 5 (optional) — advertising/availability cross-check.** Save- or
 boot-time warning when `availableLanguages` and the version-locale set disagree.
 
-**Phase 6 — availability metadata on read results — PLANNED.** Surface the
-resolved version's locale set on `@byline/client` read results, e.g.
-`doc._availableLocales: string[]` plus a `localeAgnostic: boolean` flag for the
-`'all'`-sentinel case (no localized content → "available everywhere", which a
-per-document affordance should treat as "render no menu"). Cheap — an indexed
-lookup keyed by the version id already resolved (batched for lists). Because the
-SDK defaults to `status: 'published'` and the ledger resolves against the
-current-*published* version, `_availableLocales` on a normal read is the
-**published-available** set — exactly what a public consumer should advertise.
+**Phase 6 — availability metadata on read results — DONE.** Read results now
+carry `doc._availableLocales: string[]` (the resolved version's locale set from
+the ledger, sorted) plus `doc._localeAgnostic: boolean` for the `'all'`-sentinel
+case (no localized content → "available everywhere", which a per-document
+affordance should treat as "render no menu" and `_availableLocales` is empty).
+Implemented as a batched indexed query (`getAvailableLocalesByVersion`) attached
+in `getDocumentById`, `getDocumentByPath`, and `findDocuments` (one query per
+read/page, keyed by the already-resolved version id); the adapter emits raw
+`availableLocales` / `localeAgnostic`, which `@byline/client`'s `shapeDocument`
+maps to `_availableLocales` / `_localeAgnostic` on `ClientDocument`. Absent on
+version/history reads and on populated relation targets. Because the SDK defaults
+to `status: 'published'` and the ledger resolves against the current-*published*
+version, `_availableLocales` on a normal read is the **published-available**
+set — exactly what a public consumer should advertise.
 
 This is the payoff that makes the ledger consumable by the host, and it unifies
 three consumers on **one source** (so they cannot drift):

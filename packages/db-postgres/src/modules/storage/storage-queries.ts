@@ -35,6 +35,7 @@ import {
   currentPublishedDocumentsView,
   documentPaths,
   documents,
+  documentVersionLocales,
   documentVersions,
   metaStore,
 } from '../../database/schema/index.js'
@@ -213,6 +214,41 @@ export class DocumentQueries implements IDocumentQueries {
       WHERE dvl.document_version_id = ${versionId}
         AND (dvl.locale = ${locale} OR dvl.locale = 'all')
     )`
+  }
+
+  /**
+   * Batch-fetch the version-locale availability sets from the
+   * `byline_document_version_locales` ledger. For each version returns the
+   * concrete locales its content is complete in (`availableLocales`, sorted),
+   * or `localeAgnostic: true` when the version carries only the `'all'`
+   * sentinel (no localized content → renders identically in every locale).
+   * Drives the `_availableLocales` read metadata. One indexed query per call.
+   */
+  private async getAvailableLocalesByVersion(
+    versionIds: string[]
+  ): Promise<Map<string, { availableLocales: string[]; localeAgnostic: boolean }>> {
+    const result = new Map<string, { availableLocales: string[]; localeAgnostic: boolean }>()
+    if (versionIds.length === 0) return result
+
+    const rows = await this.db
+      .select({
+        vid: documentVersionLocales.document_version_id,
+        locale: documentVersionLocales.locale,
+      })
+      .from(documentVersionLocales)
+      .where(inArray(documentVersionLocales.document_version_id, versionIds))
+
+    for (const row of rows) {
+      let entry = result.get(row.vid)
+      if (entry == null) {
+        entry = { availableLocales: [], localeAgnostic: false }
+        result.set(row.vid, entry)
+      }
+      if (row.locale === 'all') entry.localeAgnostic = true
+      else entry.availableLocales.push(row.locale)
+    }
+    for (const entry of result.values()) entry.availableLocales.sort()
+    return result
   }
 
   /**
@@ -581,6 +617,8 @@ export class DocumentQueries implements IDocumentQueries {
         onMissingLocale
       )
 
+      const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
+
       return {
         document_version_id: document.id,
         document_id: document.document_id,
@@ -589,6 +627,8 @@ export class DocumentQueries implements IDocumentQueries {
         created_at: document.created_at,
         updated_at: document.updated_at,
         fields,
+        availableLocales: availability?.availableLocales ?? [],
+        localeAgnostic: availability?.localeAgnostic ?? false,
         ...(lenient && warnings.length > 0 ? { restoreWarnings: warnings } : {}),
       }
     }
@@ -685,6 +725,8 @@ export class DocumentQueries implements IDocumentQueries {
         onMissingLocale
       )
 
+      const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
+
       return {
         document_version_id: document.id,
         document_id: document.document_id,
@@ -693,6 +735,8 @@ export class DocumentQueries implements IDocumentQueries {
         created_at: document.created_at,
         updated_at: document.updated_at,
         fields,
+        availableLocales: availability?.availableLocales ?? [],
+        localeAgnostic: availability?.localeAgnostic ?? false,
       }
     }
     // Non-reconstructed: return raw flattened values
@@ -1519,6 +1563,18 @@ export class DocumentQueries implements IDocumentQueries {
       fields: requestedFields,
       onMissingLocale,
     })
+
+    // Attach the version-locale availability metadata per row (one batched
+    // indexed query for the whole page) so list consumers can render
+    // language affordances / hreflang without a follow-up fetch.
+    const availability = await this.getAvailableLocalesByVersion(
+      documents.map((d) => d.document_version_id)
+    )
+    for (const doc of documents) {
+      const a = availability.get(doc.document_version_id)
+      doc.availableLocales = a?.availableLocales ?? []
+      doc.localeAgnostic = a?.localeAgnostic ?? false
+    }
 
     return { documents, total }
   }
