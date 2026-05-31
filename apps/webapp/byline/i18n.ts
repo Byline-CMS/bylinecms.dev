@@ -7,9 +7,13 @@
  */
 
 /**
- * Shared i18n locale configuration — no upstream dependencies, safe to import
- * from both config entry-points and collection schema files without circular
- * references.
+ * Shared i18n configuration — assembles the `defineServerConfig` /
+ * `defineClientConfig` payload from the host's locale sets.
+ *
+ * The locale arrays themselves live in `./locales.ts`, a dependency-free
+ * leaf module, so the public frontend can import them without pulling in
+ * the admin translation graph this file depends on. Re-exported here for
+ * back-compat with existing `~/i18n` / `../i18n.js` importers.
  *
  * `interface` locales govern the CMS admin UI language.
  * `content` locales govern the languages a document can be published in.
@@ -19,29 +23,9 @@ import { mergeTranslations } from '@byline/i18n'
 import { adminTranslations } from '@byline/i18n/admin'
 
 import { mediaAdminTranslations } from './collections/media/i18n/index.js'
+import { contentLocales, interfaceLocales, type LocaleDefinition } from './locales.js'
 
-export interface LocaleDefinition {
-  code: string
-  label: string
-}
-
-/** Locales available in the CMS admin interface. */
-// Every code listed here must have a matching bundle in @byline/i18n/admin
-// (or a third-party plugin merged in via `mergeTranslations(...)`).
-// `adminTranslations({ locales })` below throws at boot if the requested
-// code is not bundled.
-export const interfaceLocales: LocaleDefinition[] = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-]
-
-/** Locales a document can be published in. */
-export const contentLocales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'de', label: 'Deutsch' },
-] as const
+export { contentLocales, interfaceLocales, type LocaleDefinition }
 
 /** Derived config object — passed directly to defineServerConfig / defineClientConfig. */
 export const i18n = {

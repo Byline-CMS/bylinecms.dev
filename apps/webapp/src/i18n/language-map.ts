@@ -1,21 +1,18 @@
 export type LanguageMap = Record<string, { nativeName: string }>
 
-// Determines which languages the UI can switch between, and
-// therefore the languages available to language-menu.tsx
+// The host **frontend** interface locales — the languages the public
+// chrome can switch between, and therefore what language-menu.tsx lists.
+// Host-owned and NOT derivable from Byline: Byline's *admin* interface set
+// (`byline/i18n.ts` → interfaceLocales, `en`/`fr`) is a deliberately
+// different set. Keep in sync with `i18nConfig.locales` (`src/i18n/i18n-config.ts`).
+//
+// The *content* locale labels (which languages a document can be published
+// in) are NOT defined here — they are owned by Byline (`byline/locales.ts`
+// → contentLocales) and consumed directly by available-languages.tsx, so
+// there is no parallel map to drift.
 export const interfaceLanguageMap: LanguageMap = {
   en: { nativeName: 'English' },
   es: { nativeName: 'Español' },
-}
-
-// Determines which languages are available as translated content.
-// NOTE: there must be a matching set of languages in
-// @/i18n/settings.ts so that corresponding locale routes
-// will work.
-export const availableLanguageMap: LanguageMap = {
-  en: { nativeName: 'English' },
-  fr: { nativeName: 'Français' },
-  es: { nativeName: 'Español' },
-  de: { nativeName: 'Deutsch' },
 }
 
 export type AvailableLanguagesType = Record<string, boolean>

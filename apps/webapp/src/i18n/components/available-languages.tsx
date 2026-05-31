@@ -3,10 +3,20 @@ import type React from 'react'
 import { CheckIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { contentLocales } from '~/locales'
+
 import { useLocale, useLocaleNavigation } from '@/i18n/hooks/use-locale-navigation'
-import { availableLanguageMap as languageMap } from '@/i18n/language-map'
-import type { AvailableLanguagesType } from '@/i18n/language-map'
+import type { AvailableLanguagesType, LanguageMap } from '@/i18n/language-map'
 import type { Locale } from '../i18n-config'
+
+// Content-locale labels, derived from Byline's single source of truth
+// (`byline/locales.ts` → contentLocales) rather than a parallel map. The
+// host authors the labels there (`Français`, not CLDR's `français`); the
+// server-side consumers (sitemap / getMeta) read the same set via
+// `getServerConfig().i18n.content.localeDefinitions`.
+const languageMap: LanguageMap = Object.fromEntries(
+  contentLocales.map((l) => [l.code, { nativeName: l.label }])
+)
 
 function hasMoreThanOneLanguage(availableLanguages: AvailableLanguagesType): boolean {
   const keys = Object.keys(availableLanguages)

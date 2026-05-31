@@ -17,7 +17,7 @@
 
 import type { GroupField } from '@byline/core'
 
-import { contentLocales, type LocaleDefinition } from '../i18n.js'
+import { contentLocales, type LocaleDefinition } from '../locales.js'
 
 type Options = Partial<Omit<GroupField, 'type' | 'fields'>> & {
   locales?: readonly LocaleDefinition[]
