@@ -29,6 +29,15 @@ export interface PgAdapter extends IDbAdapter {
   drizzle: NodePgDatabase<typeof schema>
   /** The pg connection pool — exposed for housekeeping and teardown. */
   pool: pg.Pool
+  /**
+   * One-time maintenance: populate the version-locale availability ledger
+   * (`byline_document_version_locales`) for versions written before it
+   * existed, so `localeFallback: 'strict'` reads can see pre-existing
+   * documents. Idempotent; uses the configured default content locale. Kept
+   * off the core `IDbAdapter` contract (no service depends on it) — see
+   * docs/CONTENT-LOCALE-RESOLUTION.md.
+   */
+  backfillVersionLocales(): Promise<{ rowsInserted: number }>
 }
 
 export const pgAdapter = ({
@@ -88,5 +97,6 @@ export const pgAdapter = ({
     queries: queryBuilders,
     drizzle: db,
     pool,
+    backfillVersionLocales: () => commandBuilders.documents.backfillVersionLocales(),
   }
 }

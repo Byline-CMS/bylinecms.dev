@@ -29,12 +29,14 @@
  */
 
 import type { CollectionDefinition } from '@byline/core'
+import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 
 let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
 let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
+let db: ReturnType<typeof setupTestDB>['db']
 
 const timestamp = Date.now()
 
@@ -80,6 +82,7 @@ describe('content-locale resolution & fallback', () => {
     const testDB = setupTestDB([LocaleCollectionConfig])
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
+    db = testDB.db
 
     const result = await commandBuilders.collections.create(
       LocaleCollectionConfig.path,
@@ -270,5 +273,55 @@ describe('content-locale resolution & fallback', () => {
     const alwaysIds = new Set(always.documents.map((d) => d.document_id))
     expect(alwaysIds.has(untranslated)).toBe(true)
     expect(strict.total).toBeLessThan(always.total)
+  })
+
+  // --- backfill (pre-existing versions) ------------------------------------
+
+  it('backfillVersionLocales rebuilds the ledger for versions missing rows', async () => {
+    const created = await commandBuilders.documents.createDocumentVersion({
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: LocaleCollectionConfig,
+      action: 'create',
+      documentData: {
+        title: { en: 'Hello', de: 'Hallo' },
+        body: { en: 'World', de: 'Welt' },
+        sku: 'B1',
+      },
+      path: `loc-backfill-${timestamp}`,
+      locale: 'all',
+      status: 'published',
+    })
+    const versionId = created.document.id
+    const documentId = created.document.document_id
+
+    // Simulate a version written before the ledger existed: drop its rows.
+    await db.execute(
+      sql`DELETE FROM byline_document_version_locales WHERE document_version_id = ${versionId}::uuid`
+    )
+
+    const before = await queryBuilders.documents.getDocumentById({
+      collection_id: testCollection.id,
+      document_id: documentId,
+      locale: 'de',
+      localeFallback: 'strict',
+    })
+    expect(before, 'ledger removed → strict can no longer see it').toBeNull()
+
+    // Backfill rebuilds it from the persisted content.
+    const result = await commandBuilders.documents.backfillVersionLocales()
+    expect(result.rowsInserted).toBeGreaterThan(0)
+
+    const after = await queryBuilders.documents.getDocumentById({
+      collection_id: testCollection.id,
+      document_id: documentId,
+      locale: 'de',
+      localeFallback: 'strict',
+    })
+    expect(after?.fields.title, 'strict can see it again, rendered in de').toBe('Hallo')
+
+    // Idempotent: a second run inserts nothing (everything already covered).
+    const second = await commandBuilders.documents.backfillVersionLocales()
+    expect(second.rowsInserted).toBe(0)
   })
 })

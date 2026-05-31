@@ -348,6 +348,64 @@ export class DocumentCommands implements IDocumentCommands {
   }
 
   /**
+   * backfillVersionLocales
+   *
+   * One-time maintenance: populate `byline_document_version_locales` for
+   * versions written *before* the ledger existed (i.e. before the migration
+   * that added it). Going forward `createDocumentVersion` step 6 keeps the
+   * ledger current; this fills the historical gap so `localeFallback:
+   * 'strict'` reads can see pre-existing documents.
+   *
+   * Same path-coverage rule as the write path, applied set-wise across every
+   * version in one statement, using the adapter's configured default content
+   * locale (which a static SQL migration cannot know). Idempotent — safe to
+   * re-run (PK + `ON CONFLICT DO NOTHING`); versions are immutable, so a
+   * version's computed locale set never changes. Returns the number of
+   * `(version, locale)` rows inserted.
+   *
+   * See docs/CONTENT-LOCALE-RESOLUTION.md.
+   */
+  async backfillVersionLocales(): Promise<{ rowsInserted: number }> {
+    const result = await this.db.execute(sql`
+      WITH loc AS (
+        SELECT document_version_id, field_path, locale FROM byline_store_text     WHERE locale <> 'all'
+        UNION SELECT document_version_id, field_path, locale FROM byline_store_numeric  WHERE locale <> 'all'
+        UNION SELECT document_version_id, field_path, locale FROM byline_store_boolean  WHERE locale <> 'all'
+        UNION SELECT document_version_id, field_path, locale FROM byline_store_datetime WHERE locale <> 'all'
+        UNION SELECT document_version_id, field_path, locale FROM byline_store_file     WHERE locale <> 'all'
+        UNION SELECT document_version_id, field_path, locale FROM byline_store_relation WHERE locale <> 'all'
+        UNION SELECT document_version_id, field_path, locale FROM byline_store_json     WHERE locale <> 'all'
+      ),
+      canonical AS (
+        SELECT document_version_id, field_path FROM loc WHERE locale = ${this.defaultContentLocale}
+      ),
+      covering AS (
+        SELECT l.document_version_id, l.locale
+        FROM loc l
+        GROUP BY l.document_version_id, l.locale
+        HAVING NOT EXISTS (
+          SELECT 1 FROM canonical c
+          WHERE c.document_version_id = l.document_version_id
+            AND NOT EXISTS (
+              SELECT 1 FROM loc l2
+              WHERE l2.document_version_id = l.document_version_id
+                AND l2.locale = l.locale
+                AND l2.field_path = c.field_path
+            )
+        )
+      )
+      INSERT INTO byline_document_version_locales (document_version_id, locale)
+      SELECT document_version_id, locale FROM covering
+      UNION ALL
+      SELECT v.id, 'all' FROM byline_document_versions v
+      WHERE NOT EXISTS (SELECT 1 FROM loc WHERE loc.document_version_id = v.id)
+      ON CONFLICT DO NOTHING
+    `)
+
+    return { rowsInserted: result.rowCount ?? 0 }
+  }
+
+  /**
    * setDocumentStatus
    *
    * Mutate the status field on an existing document version row.
