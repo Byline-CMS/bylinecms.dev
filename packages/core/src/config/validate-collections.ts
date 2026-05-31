@@ -15,7 +15,16 @@ import type { CollectionDefinition, Field, FieldType } from '../@types/index.js'
  * store tables from installations whose schemas declared these names as
  * user fields before they were promoted to system attributes.
  */
-export const RESERVED_FIELD_NAMES: ReadonlySet<string> = new Set(['path'])
+export const RESERVED_FIELD_NAMES: ReadonlySet<string> = new Set(['path', 'availableLocales'])
+
+/**
+ * Per-reserved-name hint pointing the user at the collection-level directive
+ * that replaces declaring the name as a field.
+ */
+const RESERVED_FIELD_HINTS: Readonly<Record<string, string>> = {
+  path: "Use `useAsPath: '<sourceField>'` on the collection definition instead.",
+  availableLocales: 'Use `advertiseLocales: true` on the collection definition instead.',
+}
 
 const USE_AS_PATH_SOURCE_TYPES = new Set<FieldType>([
   'text',
@@ -25,6 +34,21 @@ const USE_AS_PATH_SOURCE_TYPES = new Set<FieldType>([
   'datetime',
   'time',
 ])
+
+/**
+ * True when any field in the tree (at any nesting depth) is `localized`.
+ * Used to gate `advertiseLocales` — advertising content locales is only
+ * meaningful when the collection has locale-varying content.
+ */
+function hasLocalizedField(fields: readonly Field[]): boolean {
+  let found = false
+  walkFields(fields, (field) => {
+    if ('localized' in field && field.localized === true) {
+      found = true
+    }
+  })
+  return found
+}
 
 function walkFields(fields: readonly Field[], visit: (field: Field) => void): void {
   for (const field of fields) {
@@ -49,6 +73,11 @@ function walkFields(fields: readonly Field[], visit: (field: Field) => void): vo
  *  - When `useAsPath` is set, the referenced field must exist at the
  *    top level of the collection and be of a type the slugifier can
  *    sensibly consume (text-like or date-like).
+ *  - No field may be named `availableLocales`; collections opt into the
+ *    editorial available-locales control via `advertiseLocales: true`.
+ *  - When `advertiseLocales` is `true`, the collection must have at least
+ *    one `localized` field — advertising content locales is meaningless
+ *    otherwise.
  *
  * Throws a plain `Error` (not a `BylineError`) because configuration
  * validation runs at startup, before the logger and error registry are
@@ -58,8 +87,9 @@ export function validateCollections(collections: readonly CollectionDefinition[]
   for (const collection of collections) {
     walkFields(collection.fields, (field) => {
       if ('name' in field && RESERVED_FIELD_NAMES.has(field.name)) {
+        const hint = RESERVED_FIELD_HINTS[field.name] ?? ''
         throw new Error(
-          `Collection "${collection.path}" declares a field named "${field.name}", which is a reserved system attribute. Use \`useAsPath: '<sourceField>'\` on the collection definition instead.`
+          `Collection "${collection.path}" declares a field named "${field.name}", which is a reserved system attribute.${hint ? ` ${hint}` : ''}`
         )
       }
     })
@@ -78,6 +108,12 @@ export function validateCollections(collections: readonly CollectionDefinition[]
           `Collection "${collection.path}" sets \`useAsPath: '${collection.useAsPath}'\` but field "${collection.useAsPath}" has type "${source.type}". Supported source types: ${[...USE_AS_PATH_SOURCE_TYPES].join(', ')}.`
         )
       }
+    }
+
+    if (collection.advertiseLocales === true && !hasLocalizedField(collection.fields)) {
+      throw new Error(
+        `Collection "${collection.path}" sets \`advertiseLocales: true\` but has no localized fields. The available-locales control advertises content locales, which is only meaningful when at least one field is \`localized\`.`
+      )
     }
   }
 }

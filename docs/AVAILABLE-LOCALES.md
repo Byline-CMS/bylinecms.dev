@@ -114,13 +114,17 @@ control becomes the core attribute (opt-in via the directive). Existing
 Each slice is independently committable (green) and mirrors the `path` system
 attribute. Slices 1–3 are mechanical mirrors of `path` and go fast; 4–5 (the
 widget + form-context state) are the real work. Done so far: the userland field
-is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-languages-field.ts`).
+is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-languages-field.ts`);
+**Slice 1 shipped** (see below).
 
-1. **Core reserve + directive** (`@byline/core`) — add `'availableLocales'` to
-   `RESERVED_FIELD_NAMES` (`config/validate-collections.ts`); add an opt-in
-   directive to `CollectionDefinition` (`advertiseLocales?: boolean`, or auto-on
-   when the collection has `localized` fields) + validation, mirroring the
-   `useAsPath` block.
+1. ✅ **Core reserve + directive** (`@byline/core`) — `'availableLocales'` added
+   to `RESERVED_FIELD_NAMES` (`config/validate-collections.ts`); explicit opt-in
+   directive `advertiseLocales?: boolean` on `CollectionDefinition`
+   (`@types/collection-types.ts`), validated to require ≥1 `localized` field
+   (advertising locales is meaningless otherwise) and folded into the collection
+   fingerprint. Reserved-name error now branches per name (path → `useAsPath`,
+   availableLocales → `advertiseLocales`). **Decision #1 settled: explicit
+   directive, not auto-on.** Tests in `validate-collections.test.node.ts`.
 2. **Storage primitive** (`@byline/db-postgres`) — `byline_document_available_locales
    (document_id, locale)` table (document-grain, mirrors `byline_document_paths`)
    + migration; `storage-commands` upsert/replace the rows (top-level lifecycle
@@ -145,16 +149,27 @@ is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-language
 7. **Migration** — map existing `availableLanguages` field values into the new
    store; drop the field from the `news`/`pages`/`docs` schemas.
 
-**To resume in a fresh session:** read this doc, then start at Slice 1 (or the
-first unchecked slice) on branch `feat/content-locale-resolution`. The `path`
+**To resume in a fresh session:** read this doc, then start at **Slice 2**
+(Storage primitive — first unchecked slice) on branch
+`feat/content-locale-resolution`. The `path`
 system attribute is the working reference at every layer
 (`docs/DOCUMENT-PATHS.md`); grep `useAsPath` / `systemPath` / `byline_document_paths`
 to find each analog.
 
 ## Open decisions
 
-1. **Directive** — explicit (`advertiseLocales: true`) vs auto-on for any
-   collection with `localized` fields.
+1. ~~**Directive** — explicit (`advertiseLocales: true`) vs auto-on for any
+   collection with `localized` fields.~~ **Settled (Slice 1): explicit
+   `advertiseLocales: true`**, validated to require ≥1 `localized` field.
+   Beyond symmetry with `useAsPath`, explicit was chosen because its *absence*
+   carries meaning — a collection without it is implicitly "default-locale
+   only." Auto-on can't express that; it would silently assume content locales
+   are **system-wide** and bake that into the capability rule. Staying explicit
+   keeps the larger, still-open question — *are content locales collection-scoped
+   or system-wide?* — deferred rather than answered by accident. The cheap,
+   reversible choice avoids foreclosing the expensive, hard-to-reverse one; if
+   content locales later become collection-defined, `advertiseLocales` (already
+   per-collection) slots in unchanged.
 2. **Default policy** — opt-in (nothing advertised until toggled) vs opt-out
    (available locales default to advertised). The false-positive concern argues
    opt-in.

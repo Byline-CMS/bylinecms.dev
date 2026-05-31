@@ -825,6 +825,26 @@ export interface CollectionDefinition {
   useAsPath?: string
 
   /**
+   * Opts this collection into the `availableLocales` editorial advertising
+   * control — the deliberate "advertise these content locales" set an editor
+   * curates per document, stored document-grain in
+   * `byline_document_available_locales` (mirrors `byline_document_paths`) and
+   * surfaced on reads as `availableLocales`. It is the editorial counterpart
+   * to the derived, ledger-backed `_availableLocales` (path-coverage fact);
+   * the public advertised set is their intersection
+   * (`availableLocales ∩ _availableLocales`).
+   *
+   * Like `useAsPath`, the value is system metadata edited via a non-field
+   * sidebar widget — `availableLocales` is a reserved name and cannot be
+   * declared as a field. Advertising locales is only meaningful when the
+   * collection has at least one `localized` field, so the validator rejects
+   * `advertiseLocales: true` on a collection with none.
+   *
+   * See `docs/AVAILABLE-LOCALES.md`.
+   */
+  advertiseLocales?: boolean
+
+  /**
    * Optional host-defined function that composes a renderable root-relative
    * path for a document in this collection. Called server-side by the
    * richtext write-time walker (when `embedRelationsOnSave` is true on a

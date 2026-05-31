@@ -160,6 +160,7 @@ function canonicalCollection(def: CollectionDefinition): Record<string, unknown>
   if (def.workflow) out.workflow = canonicalWorkflow(def.workflow)
   if (def.useAsPath !== undefined) out.useAsPath = def.useAsPath
   if (def.useAsTitle !== undefined) out.useAsTitle = def.useAsTitle
+  if (def.advertiseLocales !== undefined) out.advertiseLocales = def.advertiseLocales
   return out
 }
 

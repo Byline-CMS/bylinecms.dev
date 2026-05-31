@@ -162,4 +162,80 @@ describe('validateCollections', () => {
     }
     expect(() => validateCollections([collection])).toThrow(/no top-level field with that name/)
   })
+
+  it('rejects a top-level field named "availableLocales"', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'availableLocales', label: 'Available Locales', type: 'text' },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/reserved system attribute/)
+  })
+
+  it('points the user at advertiseLocales when "availableLocales" is declared as a field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'availableLocales', label: 'Available Locales', type: 'text' },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/advertiseLocales: true/)
+  })
+
+  it('rejects a nested "availableLocales" field inside a group', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        {
+          name: 'meta',
+          label: 'Meta',
+          type: 'group',
+          fields: [{ name: 'availableLocales', label: 'Available Locales', type: 'text' }],
+        },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/reserved system attribute/)
+  })
+
+  it('accepts advertiseLocales: true when the collection has a localized field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [{ name: 'title', label: 'Title', type: 'text', localized: true }],
+      advertiseLocales: true,
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('accepts advertiseLocales: true with a nested localized field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'meta',
+          label: 'Meta',
+          type: 'group',
+          fields: [{ name: 'summary', label: 'Summary', type: 'textArea', localized: true }],
+        },
+      ],
+      advertiseLocales: true,
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('rejects advertiseLocales: true when the collection has no localized fields', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [{ name: 'title', label: 'Title', type: 'text' }],
+      advertiseLocales: true,
+    }
+    expect(() => validateCollections([collection])).toThrow(/no localized fields/)
+  })
+
+  it('accepts advertiseLocales omitted regardless of localized fields', () => {
+    expect(() => validateCollections([baseCollection])).not.toThrow()
+  })
 })
