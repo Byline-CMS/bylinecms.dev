@@ -63,7 +63,7 @@ cd postgres && ./postgres.sh down          # Stop and remove container
 cd packages/db-postgres/src/database && ./db_init.sh   # Initialize DB
 pnpm drizzle:generate                      # Generate Drizzle migrations
 pnpm drizzle:migrate                       # Apply migrations
-cd apps/webapp && pnpm tsx --env-file=.env byline/seed.ts  # Seed categories + docs
+cd apps/webapp && pnpm tsx byline/seed.ts  # Seed categories + docs (byline/load-env.ts loads .env.local + .env)
 ```
 
 Env files: `apps/webapp/.env` and `packages/db-postgres/.env` (copy from `.env.example`).

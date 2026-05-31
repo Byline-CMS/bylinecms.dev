@@ -18,7 +18,7 @@ Byline CMS is a **pnpm + Turborepo** monorepo (stable v2.x.x, lockstep `@byline/
 - Start Postgres (docker-compose wrapper): `cd postgres && ./postgres.sh up -d`
 - Initialize DB: `cd packages/db-postgres/src/database && ./db_init.sh`
 - Drizzle migrations (from repo root): `pnpm drizzle:generate` then `pnpm drizzle:migrate`
-- Seed categories + sample docs: `cd apps/webapp && pnpm tsx --env-file=.env byline/seed.ts`
+- Seed categories + sample docs: `cd apps/webapp && pnpm tsx byline/seed.ts`
 - Env files live in `apps/webapp/.env` and `packages/db-postgres/.env` (see `.env.example`)
 
 ---

@@ -16,7 +16,7 @@
  * Idempotent — safe to re-run. Uses the installation's configured default
  * content locale (resolved from byline/i18n.ts via the server config).
  *
- *   cd apps/webapp && pnpm tsx --env-file=.env byline/scripts/backfill-version-locales.ts
+ *   cd apps/webapp && pnpm tsx byline/scripts/backfill-version-locales.ts
  *
  * See docs/CONTENT-LOCALE-RESOLUTION.md.
  */

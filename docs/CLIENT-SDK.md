@@ -308,7 +308,7 @@ for (const doc of allDocs) {
 }
 ```
 
-Run it with `pnpm tsx --env-file=.env byline/scripts/regenerate-media.ts`. The same pattern fits seeds, migrations, content imports, and one-shot maintenance jobs.
+Run it with `pnpm tsx byline/scripts/regenerate-media.ts` (the script imports `byline/load-env.ts`, which loads `.env.local` + `.env` — no `--env-file` flag needed). The same pattern fits seeds, migrations, content imports, and one-shot maintenance jobs.
 
 → [Construction](#construction) · [Write surface](#write-surface) · [Auth and the trust boundary](#auth-requestcontext-and-the-trust-boundary)
 

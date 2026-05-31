@@ -349,7 +349,7 @@ contract so no service mock changed) recomputes the ledger set-wise over all
 versions with the same path-coverage rule, using the configured default content
 locale — which a static SQL migration can't know, hence a runtime routine.
 Idempotent. Runner: `apps/webapp/byline/scripts/backfill-version-locales.ts`
-(`pnpm tsx --env-file=.env byline/scripts/backfill-version-locales.ts`).
+(`cd apps/webapp && pnpm tsx byline/scripts/backfill-version-locales.ts`).
 
 **Phase 4 — named fallback chains — DEFERRED (nice-to-have, not load-bearing).**
 The `[requested, default]` chain already delivers the core guarantee; named
