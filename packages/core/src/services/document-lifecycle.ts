@@ -430,6 +430,14 @@ export async function createDocument(
      * lifecycle derives the value from `definition.useAsPath`.
      */
     path?: string
+    /**
+     * The editorial advertised-locale set (from the admin available-locales
+     * sidebar widget). Document-grain and sticky like `path`: passed straight
+     * to the storage primitive, which replaces the document's rows wholesale.
+     * `undefined` writes nothing (a new document starts with an empty set —
+     * the safe opt-in default); `[]` clears it. See docs/AVAILABLE-LOCALES.md.
+     */
+    availableLocales?: string[]
   }
 ): Promise<CreateDocumentResult> {
   return withLogContext(
@@ -485,6 +493,7 @@ export async function createDocument(
           action: 'create',
           documentData: data,
           path: resolvedPath,
+          availableLocales: params.availableLocales,
           status: params.status ?? data.status ?? getDefaultStatus(definition),
           locale: params.locale ?? defaultLocale,
           orderKey,
@@ -532,6 +541,13 @@ export async function updateDocument(
      * action driven by the admin path widget.
      */
     path?: string
+    /**
+     * The editorial advertised-locale set. `undefined` leaves the existing
+     * set untouched (sticky — document-grain, like `path`); an explicit array
+     * (empty included) replaces it wholesale. Driven by the admin
+     * available-locales sidebar widget. See docs/AVAILABLE-LOCALES.md.
+     */
+    availableLocales?: string[]
   }
 ): Promise<UpdateDocumentResult> {
   return withLogContext(
@@ -595,6 +611,7 @@ export async function updateDocument(
           action: 'update',
           documentData: data,
           path: pathForCommand,
+          availableLocales: params.availableLocales,
           status: defaultStatus,
           locale: requestLocale,
           previousVersionId: originalData.document_version_id as string | undefined,
@@ -646,6 +663,13 @@ export async function updateDocumentWithPatches(
      * the previous version.
      */
     path?: string
+    /**
+     * The editorial advertised-locale set (typically supplied alongside
+     * patches when the admin available-locales widget has been edited).
+     * `undefined` leaves the existing set untouched (sticky); an explicit
+     * array replaces it wholesale. See docs/AVAILABLE-LOCALES.md.
+     */
+    availableLocales?: string[]
   }
 ): Promise<UpdateDocumentWithPatchesResult> {
   return withLogContext(
@@ -745,6 +769,7 @@ export async function updateDocumentWithPatches(
           action: 'update',
           documentData: nextData,
           path: pathForCommand,
+          availableLocales: params.availableLocales,
           status: defaultStatus,
           locale: requestLocale,
           previousVersionId: originalData.document_version_id as string | undefined,

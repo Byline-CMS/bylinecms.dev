@@ -319,6 +319,13 @@ export interface CreateOptions {
    * derives a path from `definition.useAsPath` (or falls back to a UUID).
    */
   path?: string
+  /**
+   * The editorial advertised-locale set, stored document-grain in
+   * `byline_document_available_locales`. When omitted, a new document starts
+   * with an empty set; an explicit array (empty included) is stored verbatim.
+   * Surfaced on reads as `availableLocales`. See `docs/AVAILABLE-LOCALES.md`.
+   */
+  availableLocales?: string[]
 }
 
 export interface UpdateOptions {
@@ -329,6 +336,13 @@ export interface UpdateOptions {
    * carries forward unchanged (sticky).
    */
   path?: string
+  /**
+   * The editorial advertised-locale set. When omitted, the existing set
+   * carries forward unchanged (sticky — document-grain, like `path`); an
+   * explicit array (empty included) replaces it wholesale. Surfaced on reads
+   * as `availableLocales`. See `docs/AVAILABLE-LOCALES.md`.
+   */
+  availableLocales?: string[]
 }
 
 // ---------------------------------------------------------------------------

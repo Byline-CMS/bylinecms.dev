@@ -830,9 +830,9 @@ export interface CollectionDefinition {
    * curates per document, stored document-grain in
    * `byline_document_available_locales` (mirrors `byline_document_paths`) and
    * surfaced on reads as `availableLocales`. It is the editorial counterpart
-   * to the derived, ledger-backed `_availableLocales` (path-coverage fact);
-   * the public advertised set is their intersection
-   * (`availableLocales ∩ _availableLocales`).
+   * to the derived, ledger-backed `_availableVersionLocales` (path-coverage
+   * fact); the public advertised set is their intersection
+   * (`availableLocales ∩ _availableVersionLocales`).
    *
    * Like `useAsPath`, the value is system metadata edited via a non-field
    * sidebar widget — `availableLocales` is a reserved name and cannot be

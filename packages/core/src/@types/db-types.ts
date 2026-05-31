@@ -327,6 +327,15 @@ export interface IDocumentCommands {
      * surface as `ERR_PATH_CONFLICT` from the lifecycle layer.
      */
     path?: string
+    /**
+     * Optional. When provided, the adapter replaces the document's rows in
+     * `byline_document_available_locales` (document-grain) wholesale — the
+     * editorial advertised-locale set. `undefined` leaves the existing set
+     * untouched (sticky across versions, like `path`); `[]` clears it. The
+     * locale values are the advertised content locales themselves, not the
+     * write locale. See `docs/AVAILABLE-LOCALES.md`.
+     */
+    availableLocales?: string[]
     locale?: string
     status?: string
     createdBy?: string

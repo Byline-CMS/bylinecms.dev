@@ -110,6 +110,75 @@ describe('client.collection().update()', () => {
 })
 
 // ---------------------------------------------------------------------------
+// availableLocales (editorial advertised set — Slice 3 lifecycle threading)
+// ---------------------------------------------------------------------------
+
+describe('client write path — availableLocales', () => {
+  it('persists the advertised set on create and surfaces it on read', async () => {
+    const handle = ctx.client.collection(ctx.definition.path)
+
+    const { documentId } = await handle.create(
+      { title: 'Advertised', path: 'advertised-create', summary: 's' },
+      { path: 'advertised-create', availableLocales: ['fr', 'en'] }
+    )
+
+    const doc = await handle.findById(documentId, any)
+    expect(doc?.availableLocales, 'sorted advertised set').toEqual(['en', 'fr'])
+  })
+
+  it('leaves the set untouched on an update that omits the param (sticky)', async () => {
+    const handle = ctx.client.collection(ctx.definition.path)
+
+    const { documentId } = await handle.create(
+      { title: 'Sticky', path: 'advertised-sticky', summary: 's' },
+      { path: 'advertised-sticky', availableLocales: ['en', 'de'] }
+    )
+
+    // Update with no availableLocales — advertising must carry forward.
+    await handle.update(documentId, { title: 'Sticky v2', path: 'advertised-sticky', summary: 's' })
+
+    const doc = await handle.findById(documentId, any)
+    expect(doc?.availableLocales, 'carried forward across the version').toEqual(['de', 'en'])
+  })
+
+  it('replaces the set wholesale when an explicit array is supplied', async () => {
+    const handle = ctx.client.collection(ctx.definition.path)
+
+    const { documentId } = await handle.create(
+      { title: 'Replace', path: 'advertised-replace', summary: 's' },
+      { path: 'advertised-replace', availableLocales: ['en', 'fr'] }
+    )
+
+    await handle.update(
+      documentId,
+      { title: 'Replace v2', path: 'advertised-replace', summary: 's' },
+      { availableLocales: ['de'] }
+    )
+
+    const doc = await handle.findById(documentId, any)
+    expect(doc?.availableLocales, 'en/fr replaced by de').toEqual(['de'])
+  })
+
+  it('clears the set when given an empty array', async () => {
+    const handle = ctx.client.collection(ctx.definition.path)
+
+    const { documentId } = await handle.create(
+      { title: 'Clear', path: 'advertised-clear', summary: 's' },
+      { path: 'advertised-clear', availableLocales: ['en', 'fr'] }
+    )
+
+    await handle.update(
+      documentId,
+      { title: 'Clear v2', path: 'advertised-clear', summary: 's' },
+      { availableLocales: [] }
+    )
+
+    const doc = await handle.findById(documentId, any)
+    expect(doc?.availableLocales, 'cleared').toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
 // changeStatus()
 // ---------------------------------------------------------------------------
 

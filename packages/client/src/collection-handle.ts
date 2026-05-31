@@ -331,6 +331,7 @@ export class CollectionHandle {
       locale: options.locale,
       status: options.status,
       path: options.path,
+      availableLocales: options.availableLocales,
     })
   }
 
@@ -350,6 +351,7 @@ export class CollectionHandle {
       data,
       locale: options.locale,
       path: options.path,
+      availableLocales: options.availableLocales,
     })
   }
 

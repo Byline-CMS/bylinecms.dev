@@ -1,7 +1,7 @@
 ---
 title: "Available Locales"
 path: "available-locales"
-summary: "Promotes the editorial 'advertise these locales' control from a userland custom field to a core system attribute + ledger-aware sidebar widget — the second instance of the path-widget pattern. Stored document-grain like path; reconciled at read time against the structural _availableLocales ledger."
+summary: "Promotes the editorial 'advertise these locales' control from a userland custom field to a core system attribute + ledger-aware sidebar widget — the second instance of the path-widget pattern. Stored document-grain like path; reconciled at read time against the structural _availableVersionLocales ledger."
 ---
 
 # Available Locales
@@ -18,7 +18,7 @@ Companions:
   and stores at the same **document grain**.
 - [CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md) — defines the
   *availability* side: `byline_document_version_locales` (the ledger) and the
-  `_availableLocales` read metadata this control reconciles against.
+  `_availableVersionLocales` read metadata this control reconciles against.
 
 ## Overview
 
@@ -29,7 +29,7 @@ the automatic structural fact:
 
 | | what | source | grain | mutability |
 |---|---|---|---|---|
-| **`_availableLocales`** | "this version is **complete** in these locales" (path-coverage) | the ledger (`byline_document_version_locales`) | version | derived, read-only |
+| **`_availableVersionLocales`** | "this version is **complete** in these locales" (path-coverage) | the ledger (`byline_document_version_locales`) | version | derived, read-only |
 | **`availableLocales`** | "I want these locales **advertised**" | this system attribute | document | stored, editor-set |
 
 They must stay separate — a version can be *structurally* complete in `de`
@@ -40,7 +40,7 @@ advertise a `de` translation that no longer exists. So the public advertised set
 is the **intersection**:
 
 ```
-advertised = availableLocales (editorial)  ∩  _availableLocales (ledger)
+advertised = availableLocales (editorial)  ∩  _availableVersionLocales (ledger)
 ```
 
 This handles both failure modes: *complete-but-not-blessed* (field-off ⇒ out)
@@ -74,7 +74,7 @@ ledger supplies the per-version reality at read time via the intersection above.
 
 Per content locale, the widget shows the ledger fact beside the editor's toggle:
 
-| ledger (`_availableLocales`) | toggle | state |
+| ledger (`_availableVersionLocales`) | toggle | state |
 |---|---|---|
 | ✓ complete | on | **advertised** |
 | ✓ complete | off | *ready, held back* (your safe state) |
@@ -87,16 +87,16 @@ rather than a passive boot/save warning. Open knobs: opt-in (advertise nothing
 until toggled — safest) vs opt-out default; and disable-vs-warn on the ⚠ row
 (lean: allow-with-warning, since content states are fluid).
 
-For the widget to render the ledger column it needs `_availableLocales` at edit
+For the widget to render the ledger column it needs `_availableVersionLocales` at edit
 time — the admin edit response currently **strips** it (Zod parse drops unknown
 keys; `get.ts` already re-attaches `_restoreWarnings` explicitly, line ~151). So
-`_availableLocales` must be preserved across that parse — the one prerequisite.
+`_availableVersionLocales` must be preserved across that parse — the one prerequisite.
 
 ## Read surfacing
 
 - `availableLocales` — the stored editorial set (top-level, like `path`).
-- `_availableLocales` — the ledger fact (derived, already shipped in Phase 6).
-- The host computes `advertised = availableLocales ∩ _availableLocales` for
+- `_availableVersionLocales` — the ledger fact (derived, already shipped in Phase 6).
+- The host computes `advertised = availableLocales ∩ _availableVersionLocales` for
   `resolveAlternates` / sitemap / menu. **Open decision:** whether core should
   expose the pre-reconciled set directly (a derived `_advertisedLocales`) so the
   host consumes one field, vs. leaving the intersection to the host.
@@ -125,16 +125,31 @@ is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-language
    fingerprint. Reserved-name error now branches per name (path → `useAsPath`,
    availableLocales → `advertiseLocales`). **Decision #1 settled: explicit
    directive, not auto-on.** Tests in `validate-collections.test.node.ts`.
-2. **Storage primitive** (`@byline/db-postgres`) — `byline_document_available_locales
-   (document_id, locale)` table (document-grain, mirrors `byline_document_paths`)
-   + migration; `storage-commands` upsert/replace the rows (top-level lifecycle
-   param, like the path upsert); `storage-queries` project `availableLocales`
-   onto `getDocumentById`/`getDocumentByPath`/`findDocuments` (like the path
-   projection); optionally emit core-computed `_advertisedLocales = availableLocales
-   ∩ _availableLocales`. + tests.
-3. **Lifecycle threading** (`@byline/core`) — thread `availableLocales` as a
-   top-level param through `document-lifecycle` create/update → `createDocumentVersion`,
-   mirroring `path`.
+2. ✅ **Storage primitive** (`@byline/db-postgres`) — `byline_document_available_locales
+   (document_id, locale, collection_id)` table (document-grain, mirrors
+   `byline_document_paths`; PK on `(document_id, locale)`) + migration;
+   `storage-commands.createDocumentVersion` takes an `availableLocales?: string[]`
+   param and **replaces the set wholesale** (delete-then-insert; `undefined` =
+   leave untouched/sticky, `[]` = clear); `storage-queries` projects
+   `availableLocales` onto `getDocumentById`/`getDocumentByPath`/`findDocuments`
+   via a batched `getAdvertisedLocalesByDocument` helper. **The ledger fact was
+   renamed `_availableLocales` → `_availableVersionLocales`** (Decision #4
+   settled) to disambiguate from the editorial `availableLocales`; storage raw
+   keys now match the client surface (passthrough in `client/response.ts`, no
+   boundary rename). `_advertisedLocales` (intersection) deferred — left to the
+   host (Decision #3). Tests in `storage-document-available-locales.test.ts`.
+3. ✅ **Lifecycle threading** (`@byline/core`) — `availableLocales?: string[]`
+   threaded as a top-level param through `createDocument` / `updateDocument` /
+   `updateDocumentWithPatches` → `createDocumentVersion` (and declared on the
+   `IDocumentCommands.createDocumentVersion` interface in `@types/db-types.ts`).
+   Also surfaced on `@byline/client` `CreateOptions` / `UpdateOptions` so the SDK
+   write path threads it too. Simpler than `path` — no slugify/derive, no
+   per-locale gate (the set is document-grain, locale-independent): the param is
+   passed straight through, and the storage layer's `undefined` = sticky gives
+   the carry-forward for free. `restoreVersion` / `duplicate` / `copyToLocale`
+   deliberately left un-threaded (sticky / safe-empty default). Unit pass-through
+   tests in `write-path.test.node.ts`; end-to-end (create/sticky/replace/clear)
+   in `client-write.integration.test.ts`.
 4. **Admin form-context state** (`@byline/admin`) — mirror the `systemPath`
    machine in `forms/form-context.tsx`: `systemAvailableLocalesRef`, get/set,
    `__systemAvailableLocales__` dirty-tracking, listeners.
@@ -143,14 +158,14 @@ is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-language
    checkbox-per-locale UI but **ledger-aware** (the reconciliation grid above),
    rendered in the sidebar **below the path widget**.
 6. **Host wiring** (`@byline/host-tanstack-start`) — `server-fns/collections/get.ts`:
-   **preserve `_availableLocales` through the Zod parse** (prerequisite for the
+   **preserve `_availableVersionLocales` through the Zod parse** (prerequisite for the
    widget's ledger column; mirrors how `_restoreWarnings` is preserved ~line 151)
    + surface `availableLocales`; `create.ts`/`update.ts` pass the param.
 7. **Migration** — map existing `availableLanguages` field values into the new
    store; drop the field from the `news`/`pages`/`docs` schemas.
 
-**To resume in a fresh session:** read this doc, then start at **Slice 2**
-(Storage primitive — first unchecked slice) on branch
+**To resume in a fresh session:** read this doc, then start at **Slice 4**
+(Admin form-context state — first unchecked slice) on branch
 `feat/content-locale-resolution`. The `path`
 system attribute is the working reference at every layer
 (`docs/DOCUMENT-PATHS.md`); grep `useAsPath` / `systemPath` / `byline_document_paths`
@@ -175,7 +190,10 @@ to find each analog.
    opt-in.
 3. **Read surfacing** — expose a core-computed `_advertisedLocales` (intersection)
    or leave the intersection to the host.
-4. **Naming proximity** — `availableLocales` (stored) vs `_availableLocales`
-   (derived) differ only by the underscore. Consistent with the `path` /
-   `_restoreWarnings` convention (stored vs computed), but worth a lint/docs note
-   so they aren't confused in host code.
+4. ~~**Naming proximity** — `availableLocales` (stored) vs `_availableLocales`
+   (derived) differ only by the underscore.~~ **Settled (Slice 2): the ledger
+   fact was renamed `_availableLocales` → `_availableVersionLocales`.** The
+   editorial set keeps `availableLocales` (stored, no underscore, like `path`);
+   the ledger fact now names its grain (version) rather than relying on a lone
+   underscore, so the two can't be confused in host code. `_localeAgnostic`
+   was left unchanged (no collision).

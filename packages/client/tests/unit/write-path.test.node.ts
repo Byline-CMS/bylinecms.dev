@@ -197,6 +197,36 @@ describe('CollectionHandle.create', () => {
       expect.objectContaining({ path: 'hello-world' })
     )
   })
+
+  it('passes availableLocales through to createDocumentVersion', async () => {
+    const { db, createDocumentVersion } = makeAdapter()
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
+
+    await client.collection('posts').create({ title: 'Hello' }, { availableLocales: ['en', 'fr'] })
+
+    expect(createDocumentVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ availableLocales: ['en', 'fr'] })
+    )
+  })
+
+  it('leaves availableLocales undefined when not supplied (storage default)', async () => {
+    const { db, createDocumentVersion } = makeAdapter()
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
+
+    await client.collection('posts').create({ title: 'Hello' })
+
+    expect(createDocumentVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ availableLocales: undefined })
+    )
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -226,6 +256,21 @@ describe('CollectionHandle.update', () => {
         previousVersionId: 'ver:old',
         documentData: expect.objectContaining({ title: 'Updated' }),
       })
+    )
+  })
+
+  it('passes availableLocales through to createDocumentVersion (empty array clears)', async () => {
+    const { db, createDocumentVersion } = makeAdapter({ currentVersionId: 'ver:old' })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
+
+    await client.collection('posts').update('doc:1', { title: 'X' }, { availableLocales: [] })
+
+    expect(createDocumentVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ documentId: 'doc:1', action: 'update', availableLocales: [] })
     )
   })
 
