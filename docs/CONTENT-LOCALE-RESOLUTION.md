@@ -1,0 +1,362 @@
+---
+title: "Content Locale Resolution & Fallback"
+path: "content-locale-resolution"
+summary: "Why content-locale availability is a version-grain fact, how a requested locale resolves through a fallback chain ending at the default, and the per-version locale projection that makes list/detail reads return 'something' instead of an empty document."
+---
+
+# Content Locale Resolution & Fallback
+
+> **Status:** Design / decision record. Captured from a working session; not yet
+> implemented. Establishes the model and the phased plan; supersedes the
+> ad-hoc reliance on the userland `availableLanguages` field for *resolution*
+> (that field remains the *advertising* signal — see below).
+
+Companions:
+- [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — path resolution already walks a `[requested, default]` locale chain (`buildLocaleChain`); this doc extends the *same* chain to content and explains why availability must **not** be bound to the path table.
+- [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — localized field values are stored per-locale in the `store_*` tables; availability is a function of which localized rows a *version* holds.
+- [I18N.md](./I18N.md) — the admin-interface translation system, and the `i18n.content.localeDefinitions` content-locale primitive this design grows a `fallback` slot onto.
+- [CLIENT-SDK.md](./CLIENT-SDK.md) — `find` / `findByPath` / `findOne` are the read surfaces that gain `localeFallback` and the resolution behaviour described here.
+
+---
+
+## Overview
+
+Byline separates **interface locales** (the chrome / admin UI language) from
+**content locales** (the languages a *document* can be authored in). This doc is
+only about content locales: specifically, **what a read returns when a document
+is requested in a locale it has not (yet) been translated into.**
+
+Today the answer is unsatisfying. A `findByPath('/de/news/foo')` for an
+untranslated document:
+
+- **resolves the document** (the path layer falls back `de → default`), but
+- **returns empty localized fields** (the value layer has *no* fallback), so the
+  UI renders the slug as a placeholder title over an empty body.
+
+The document half-exists in the requested locale. This doc closes that gap with
+three decisions:
+
+1. **Resolution is per-document, never per-field.** A read picks *one* effective
+   locale for the whole document and renders every field in it. No mixed-locale
+   ("German title, English body") output, ever.
+2. **A requested locale resolves through a fallback chain that always terminates
+   at the default content locale** — which must be published first. The result:
+   a read always returns *something* (option **a**), and only 404s when the
+   document does not exist *at all*, never merely because a translation is
+   missing.
+3. **"Available in locale L" is a version-grain fact** — a property of a
+   document *version's* content, materialised onto the immutable version at
+   write time. This is the core primitive that was missing, and keying it at the
+   version grain (not the document grain) is what makes it consistent under
+   restore / point-in-time reads.
+
+---
+
+## The problem, precisely
+
+### Locale lives at the field-value grain, not the document grain
+
+There is no native "document exists in locale X" concept. A logical document is
+one row in `byline_documents`; its current state is one version row in
+`byline_document_versions` carrying **one** status. Locale exists only one level
+down, as a column on the `store_*` value rows:
+
+- non-localized fields → stored once under `locale = 'all'`;
+- `localized: true` fields → one row **per locale that has a value**.
+
+So a single published version can hold `en` + `de` for `title`, only `en` for
+`body`, and `'all'` for `slug`. "Which locales does this document exist in?" is
+therefore **not a stored fact** — it is an emergent property of which `store_*`
+rows happen to exist. That is exactly why installations reach for a userland
+`availableLanguages` checkbox: it is the only place a per-document-per-locale
+signal lives.
+
+### Paths fall back; field values do not — the visible bug
+
+Byline *already* has a locale fallback chain, but only for **paths**:
+
+- **Paths** (`byline_document_paths`, via `buildLocaleChain` in
+  `packages/db-postgres/src/modules/storage/storage-queries.ts`): the chain is
+  `[requested, default]`. A `de` request with no `de` path row falls through to
+  the default slug, so the URL resolves.
+- **Field values** (same file, `getAllFieldValuesForMultipleVersions`, and
+  `storage-restore.ts`): the SQL filter is `locale = requested OR locale =
+  'all'`, and the restore loop accepts a localized row **only on exact match**
+  (`data.locale === resolveLocale`). There is **no** `→ default` fallback. A
+  missing `de` translation yields an *undefined* localized field.
+
+The path layer got the chain; the value layer never did. Closing that asymmetry
+— giving content the same chain paths already walk — is the heart of the fix.
+
+### Why `availableLanguages` is the wrong layer for resolution
+
+`availableLanguagesField()`
+(`apps/webapp/byline/fields/available-languages-field.ts`) is a good
+**advertising** signal and a poor **resolution** signal:
+
+- **Advertising** = "which locale URLs do we *promote* in hreflang / sitemap /
+  the read-this-in affordance." A genuine editorial decision (a doc may be
+  *renderable* in `de` via fallback yet not *promoted* as a German page).
+  `availableLanguages` is correct here — **keep it.**
+- **Resolution** = "given a `de` request, what do I render, and does this row
+  belong in a `de` list?" This must come from a structural core fact, not a
+  hand-maintained checkbox, because the checkbox (i) can drift from the actual
+  translated content, (ii) is userland — `@byline/client` cannot depend on a
+  field a given install may not define — and (iii) is not the publish-aware,
+  per-locale fact resolution needs.
+
+The two concerns map cleanly onto the LANGUAGE-STRATEGY *"routable vs
+advertised"* distinction: resolution decides what is *renderable*; advertising
+decides what is *promoted*. They stay separate.
+
+---
+
+## The core primitive: version-grain locale availability
+
+### Why not the document grain (the rejected Option B)
+
+The tempting move is to record availability on `byline_document_paths` (write a
+per-locale path row when a translation is saved; presence = available). It
+fails on **synchronization**: that table is keyed at the **document** grain and
+is a *separate write* from version content, while availability is a fact *about
+the current version's content*. When the current-version pointer moves —
+**restore to a point-in-time version that lacks the `de` translation** — the
+document-level ledger would still claim `de` is available. Bad state by
+construction. It also overloads one row with two different facts of different
+lifetimes: "this document has a *slug* in `de`" (editorial, stable) vs. "this
+document's content *is translated* into `de`" (a function of the current
+version).
+
+### The fix: key availability at the version grain
+
+Availability is intrinsically a property of a version's content, so materialise
+it **onto the immutable version**, at the same grain as content, computed once
+at write time:
+
+```
+byline_document_version_locales
+  ( document_version_id  uuid   -- FK → byline_document_versions.id
+  , locale                varchar
+  , PRIMARY KEY (document_version_id, locale) )
+```
+
+(Equivalently a JSON `available_locales` column on the version row; a dedicated
+table is preferred because list-filtering becomes an indexed `EXISTS` / join.)
+
+This inherits immutable versioning's guarantees instead of fighting them:
+
+- **create / update** → a new version is written; its locale set is computed
+  from the flattened content and stored.
+- **restore** → `restoreDocumentVersion` writes a **new version** copying the
+  source's full `locale: 'all'` tree (confirmed in
+  `packages/core/src/services/document-lifecycle.ts`). The new version
+  recomputes its *own* correct locale set from the content it just copied — so
+  the synchronization problem **cannot occur**: there is no stale
+  document-level row to contradict the restored content.
+- **status change** → mutates the version in place, content unchanged, set
+  unchanged.
+- **copy-to-locale** → new version adding a locale → recomputed set includes it.
+- **delete** → soft flag on the version, set unchanged.
+
+Because the fact rides the same immutability as every other piece of version
+content, **following the current-version pointer is always consistent**, and no
+invalidation logic is needed.
+
+Reads compose with status for free: published-availability = "the current
+*published* version's locale set," obtained by resolving over
+`current_published_documents` rather than `current_documents`. Availability
+(content presence) and status (lifecycle) stay orthogonal — which is correct.
+
+> **Zero-schema fallback.** Pure query-time derivation (an `EXISTS` against the
+> `store_*` tables, no new table) is also correct — it reads the truth directly
+> and likewise cannot desync. The materialised table is an optimisation for
+> cheap list filtering and to avoid re-encoding the completeness rule in SQL at
+> every call site. Phase the table in; ship correctness first.
+
+### Availability is computed status-blind
+
+Write-time availability is computed **purely from content presence** (the
+completeness rule below) and is **status-independent**. A version with complete
+`de` content records `de` in its locale set *whether the version is draft or
+published* — the locale table is populated for **every** version regardless of
+status, and the status-change path never writes to it.
+
+This is required, not merely convenient: status changes *mutate the version row
+in place* and touch no content. If availability were status-aware, every
+`draft → published` transition would have to rewrite the locale set —
+reintroducing the exact desync we eliminated by moving to the version grain.
+Keeping it status-blind preserves the "compute once at write, freeze on the
+immutable version" guarantee.
+
+Status composes at read time instead, for free, because the rows are keyed by
+`document_version_id`:
+
+- A **published** read resolves the current *published* version (via
+  `current_published_documents`) and checks *that version's* locale set. A draft
+  `de` translation lives in a draft version that the published view does not
+  surface, so it stays invisible until published — and the read falls back to
+  default.
+- An **admin / `any`** read resolves over `current_documents` and checks the
+  same table.
+
+The payoff is the publish transition itself: when the editor publishes the draft
+version, the published view now surfaces it, and its *already-frozen* locale set
+lights `de` up for published reads **with zero writes to the locale table**. The
+status flip alone flips availability-for-published-reads — which only works
+because availability was recorded status-blind at write time.
+
+### What "available" means — the completeness rule
+
+> **Locale `L` is available on a version iff every non-optional `localized: true`
+> field has a value in `L`.** Optional localized fields do not gate availability.
+
+Two edges, decided:
+
+- **A document with no localized fields at all** (everything `'all'`) is
+  trivially locale-agnostic — it renders identically everywhere. Treat it as
+  available in *any* requested locale; the chain resolves to `requested`
+  immediately and the content is the same regardless.
+- **A partial translation** (title `de`, body not) → under the rule `de` is
+  **not** available → resolution falls through to the next chain entry → a clean
+  default-locale page. This is precisely decision #1 (no mixed fields) falling
+  out of the model rather than being special-cased.
+
+---
+
+## Resolution: one shared fallback chain
+
+### The chain
+
+Resolution walks an **ordered locale chain** and selects the first entry that is
+*available* on the document (per the rule above). The chain:
+
+- defaults to `[requested, default]` (zero-config; matches today's path chain);
+- always **terminates at the default content locale**, which therefore **must be
+  published first** — that terminal guarantees a read always returns something;
+- may be enriched with **named fallbacks** (e.g. `de → fr → default`).
+
+### Named fallbacks live on the content-locale primitive
+
+The home for named fallbacks is the already-shipped (2.7.0)
+`i18n.content.localeDefinitions`. Grow each entry from `{ code, nativeName }` to:
+
+```ts
+{ code: 'de', nativeName: 'Deutsch', fallback?: string | string[] }
+```
+
+so `de`'s resolved chain becomes `[de, ...fallback, default]`, deduplicated,
+default appended if absent. This is a backward-compatible enrichment of an
+existing core primitive — no new surface area, no userland involvement. **Put
+the slot in; leave it unused initially.** The engine consumes a chain regardless
+of how many hops it contains.
+
+### Path and content must consume the *same* chain
+
+`buildLocaleChain` becomes the single shared chain builder, optionally enriched
+by `fallback`, used by **both** `pathProjection` / `resolveDocumentIdByPath`
+(path layer) **and** the new content resolver. If they diverge, a URL and its
+content can disagree on the effective locale. One builder, one chain, one
+effective locale per read.
+
+### Detail read (`findByPath` / `findById`)
+
+1. Resolve the document via the path chain (unchanged).
+2. Compute the effective locale = first entry in the chain that is available on
+   the resolved version's locale set.
+3. Restore **all** fields in that one effective locale (localized fields from the
+   effective locale; `'all'` fields as-is). The restore loop changes from
+   exact-match on a single `resolveLocale` to "resolve the version's effective
+   locale once, then restore against it."
+4. **Never 404 on a missing translation.** The only 404 is "document does not
+   exist," or — the single legitimate locale 404 — the default locale itself is
+   not published, so the chain has no published terminal.
+
+### List read (`find` / `findMany`)
+
+Add an explicit option — `localeFallback: 'always' | 'strict'`:
+
+- **`'always'`** (default; the "always show something" policy) — include every
+  matching published document; render each in *its own* effective locale via the
+  chain. A `de` list shows German where available, default-locale content
+  elsewhere.
+- **`'strict'`** — include only documents available in the requested locale. With
+  the version-locale table this is a cheap indexed `EXISTS` on
+  `(document_version_id, locale)`; without it, an `EXISTS` against the `store_*`
+  tables. This is the "don't list untranslated docs" policy for installs that
+  want it.
+
+---
+
+## Relationship to `availableLanguages`
+
+| Concern | Source of truth | Layer |
+| --- | --- | --- |
+| **Resolution** — what is *renderable*; what to render; list inclusion | version-grain locale set (this doc) | core (`@byline/core` / adapter) |
+| **Advertising** — what is *promoted* in hreflang / sitemap / affordances | `availableLanguages` group field | userland (host) |
+
+They are independent and can be **cross-checked**: a boot- or save-time warning
+when `availableLanguages` claims a locale the content does not actually cover (or
+vice-versa) catches editorial drift without coupling the two.
+
+---
+
+## Implementation plan
+
+Phased so each step is independently shippable and the first step fixes the
+visible bug on its own.
+
+**Phase 1 — close the value/path asymmetry (fixes the empty-body symptom).**
+Give content restoration the same `[requested, default]` chain paths already
+walk. Resolve a single effective locale per document at read time (initially via
+query-time derivation — "does the version have all required localized fields in
+`requested`? else default"), and restore all fields in it. No schema change.
+Detail reads stop returning empty localized fields.
+- Touch: `storage-queries.ts` (`getAllFieldValuesForMultipleVersions` locale
+  condition), `storage-restore.ts` (effective-locale restore), the shared
+  `buildLocaleChain`.
+
+**Phase 2 — `localeFallback` on the client read surface.** Add the option to
+`FindOptions` / `FindByPathOptions` etc. in `@byline/client`; wire `'always'`
+(default) vs `'strict'`. Strict uses an `EXISTS` against `store_*` until Phase 3
+lands the table. Detail reads become non-404-on-missing-translation.
+- Touch: `packages/client/src/types.ts`, `collection-handle.ts`, the adapter
+  `findDocuments` filter path.
+
+**Phase 3 — materialise the version-locale projection.** Add
+`byline_document_version_locales` (migration + schema), populate it at flatten
+time from the completeness rule, and switch `strict` filtering + effective-locale
+resolution to read the table. Pure perf/cleanliness; behaviour identical to
+Phase 1–2.
+- Touch: `storage-commands.ts` / flatten path (compute + insert the set),
+  `packages/db-postgres/src/database/schema/index.ts`, a migration, the read
+  paths to prefer the table.
+
+**Phase 4 — named fallback chains.** Add the `fallback` slot to
+`i18n.content.localeDefinitions`, thread it into `buildLocaleChain`. Optional;
+backward-compatible.
+- Touch: `packages/core` content-locale config types + resolver, `buildLocaleChain`.
+
+**Phase 5 (optional) — advertising/availability cross-check.** Save- or
+boot-time warning when `availableLanguages` and the version-locale set disagree.
+
+---
+
+## Open edges (decide during implementation)
+
+- **`strict` list + populate.** When a relation target is unavailable in the
+  requested locale under `strict`, does the relation envelope report
+  "unresolved-in-locale" or fall back to default content? Lean: relations follow
+  `'always'` (render default) regardless of the list policy, so a populated tree
+  never has holes — but make it explicit.
+- **`findOne` with `strict`.** Returns null when the single match isn't available
+  in-locale, or falls back? Lean: honour the same `localeFallback` the caller
+  passed; `'always'` is the default and falls back.
+- **`useAsTitle` over a fallback.** When the effective locale is the default,
+  the title comes from default content — correct and consistent (no special
+  case), but worth a test asserting the admin list/preview show the default-locale
+  title rather than the slug placeholder.
+- **Required-field set changes across schema versions.** The completeness rule is
+  evaluated against the version's *own* collection schema version; a field that
+  was optional when the version was written stays optional for that version's
+  availability. Materialised set (Phase 3) freezes this correctly; query-time
+  derivation must read the version's schema, not the current one.
