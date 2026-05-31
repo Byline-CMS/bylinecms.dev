@@ -10,9 +10,12 @@ import { Badge } from '@byline/ui/react'
 
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
+import type { Locale } from '@/i18n/i18n-config'
 import type { NewsDetailResult } from '@/modules/news/detail'
 
 interface NewsDetailProps {
+  /** Locale for body-link building (passed from the route's resolved locale). */
+  lng: Locale
   result: NonNullable<NewsDetailResult>
 }
 
@@ -22,7 +25,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
-export function NewsDetail({ result }: NewsDetailProps) {
+export function NewsDetail({ result, lng }: NewsDetailProps) {
   const { fields } = result
   const title = fields.title ?? result.path ?? result.id
   const categoryLabel = fields.category?.document?.fields.name
@@ -62,7 +65,7 @@ export function NewsDetail({ result }: NewsDetailProps) {
       ) : null}
       <LexicalRichText
         nodes={content?.root?.children}
-        lng="en"
+        lng={lng}
         wrapInDiv={false}
         className="editor-text"
       />

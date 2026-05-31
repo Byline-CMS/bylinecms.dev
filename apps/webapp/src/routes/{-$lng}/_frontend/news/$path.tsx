@@ -91,7 +91,7 @@ function RouteComponent() {
       </Section>
       <Section>
         <Container>
-          <NewsDetail result={result} />
+          <NewsDetail result={result} lng={lng} />
         </Container>
       </Section>
     </>
