@@ -109,6 +109,48 @@ control becomes the core attribute (opt-in via the directive). Existing
 `availableLanguages` field values would be migrated into the new
 `(document_id, locale)` store as the initial advertised set.
 
+## Implementation plan (sliced)
+
+Each slice is independently committable (green) and mirrors the `path` system
+attribute. Slices 1–3 are mechanical mirrors of `path` and go fast; 4–5 (the
+widget + form-context state) are the real work. Done so far: the userland field
+is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-languages-field.ts`).
+
+1. **Core reserve + directive** (`@byline/core`) — add `'availableLocales'` to
+   `RESERVED_FIELD_NAMES` (`config/validate-collections.ts`); add an opt-in
+   directive to `CollectionDefinition` (`advertiseLocales?: boolean`, or auto-on
+   when the collection has `localized` fields) + validation, mirroring the
+   `useAsPath` block.
+2. **Storage primitive** (`@byline/db-postgres`) — `byline_document_available_locales
+   (document_id, locale)` table (document-grain, mirrors `byline_document_paths`)
+   + migration; `storage-commands` upsert/replace the rows (top-level lifecycle
+   param, like the path upsert); `storage-queries` project `availableLocales`
+   onto `getDocumentById`/`getDocumentByPath`/`findDocuments` (like the path
+   projection); optionally emit core-computed `_advertisedLocales = availableLocales
+   ∩ _availableLocales`. + tests.
+3. **Lifecycle threading** (`@byline/core`) — thread `availableLocales` as a
+   top-level param through `document-lifecycle` create/update → `createDocumentVersion`,
+   mirroring `path`.
+4. **Admin form-context state** (`@byline/admin`) — mirror the `systemPath`
+   machine in `forms/form-context.tsx`: `systemAvailableLocalesRef`, get/set,
+   `__systemAvailableLocales__` dirty-tracking, listeners.
+5. **The widget** (`@byline/admin`) — `forms/available-locales-widget.tsx`
+   (+ `.module.css` + test), based on the existing custom field's
+   checkbox-per-locale UI but **ledger-aware** (the reconciliation grid above),
+   rendered in the sidebar **below the path widget**.
+6. **Host wiring** (`@byline/host-tanstack-start`) — `server-fns/collections/get.ts`:
+   **preserve `_availableLocales` through the Zod parse** (prerequisite for the
+   widget's ledger column; mirrors how `_restoreWarnings` is preserved ~line 151)
+   + surface `availableLocales`; `create.ts`/`update.ts` pass the param.
+7. **Migration** — map existing `availableLanguages` field values into the new
+   store; drop the field from the `news`/`pages`/`docs` schemas.
+
+**To resume in a fresh session:** read this doc, then start at Slice 1 (or the
+first unchecked slice) on branch `feat/content-locale-resolution`. The `path`
+system attribute is the working reference at every layer
+(`docs/DOCUMENT-PATHS.md`); grep `useAsPath` / `systemPath` / `byline_document_paths`
+to find each analog.
+
 ## Open decisions
 
 1. **Directive** — explicit (`advertiseLocales: true`) vs auto-on for any
