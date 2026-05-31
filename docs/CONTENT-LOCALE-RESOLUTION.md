@@ -19,7 +19,7 @@ Companions:
 - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — path resolution already walks a `[requested, default]` locale chain (`buildLocaleChain`); this doc extends the *same* chain to content and explains why availability must **not** be bound to the path table.
 - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — localized field values are stored per-locale in the `store_*` tables; availability is a function of which localized rows a *version* holds.
 - [I18N.md](./I18N.md) — the admin-interface translation system, and the `i18n.content.localeDefinitions` content-locale primitive this design grows a `fallback` slot onto.
-- [CLIENT-SDK.md](./CLIENT-SDK.md) — `find` / `findByPath` / `findOne` are the read surfaces that gain `localeFallback` and the resolution behaviour described here.
+- [CLIENT-SDK.md](./CLIENT-SDK.md) — `find` / `findByPath` / `findOne` are the read surfaces that gain `onMissingLocale` and the resolution behaviour described here.
 
 ---
 
@@ -262,32 +262,47 @@ by `fallback`, used by **both** `pathProjection` / `resolveDocumentIdByPath`
 content can disagree on the effective locale. One builder, one chain, one
 effective locale per read.
 
+The behaviour is selected by `onMissingLocale: 'empty' | 'fallback' | 'omit'`. The
+**adapter** treats an omitted value as `'empty'` (exact-match — the safe default
+for internal/direct reads); **`@byline/client`** defaults it to `'fallback'` so
+application reads "just show something". The admin editor explicitly passes
+`'empty'` (below).
+
 ### Detail read (`findByPath` / `findById`)
 
-1. Resolve the document via the path chain (unchanged).
-2. Compute the effective locale = first entry in the chain that is available on
-   the resolved version's locale set.
-3. Restore **all** fields in that one effective locale (localized fields from the
-   effective locale; `'all'` fields as-is). The restore loop changes from
-   exact-match on a single `resolveLocale` to "resolve the version's effective
-   locale once, then restore against it."
-4. **Never 404 on a missing translation.** The only 404 is "document does not
-   exist," or — the single legitimate locale 404 — the default locale itself is
-   not published, so the chain has no published terminal.
+- **`'empty'`** (raw per-locale) — restore the *requested* locale exactly:
+  localized fields show only their requested-locale value (empty where
+  untranslated), `'all'` fields as-is. No fallback, no document gating. This is
+  the **admin edit view** — empty fields are the signal to use "Copy to Locale".
+- **`'fallback'`** — resolve the effective locale = first entry in the chain that
+  is available on the resolved version's locale set, and restore **all** fields
+  in that one locale (never mixing). Never 404s on a missing translation; the
+  only locale 404 is when the default locale itself isn't published.
+- **`'omit'`** — return `null` (→ caller 404) when the requested locale isn't
+  available; otherwise restore the requested locale exactly.
 
 ### List read (`find` / `findMany`)
 
-Add an explicit option — `localeFallback: 'always' | 'strict'`:
+- **`'empty'`** — render each row in the requested locale exactly (untranslated
+  rows show empty localized columns). The admin list uses this so the list
+  reflects actual per-locale translation state.
+- **`'fallback'`** — include every matching document; render each in *its own*
+  effective locale via the chain (German where available, default-locale content
+  elsewhere).
+- **`'omit'`** — include only documents available in the requested locale, via
+  a cheap indexed `EXISTS` on the version-locale table (so pagination / `total`
+  stay correct). The "don't list untranslated docs" policy.
 
-- **`'always'`** (default; the "always show something" policy) — include every
-  matching published document; render each in *its own* effective locale via the
-  chain. A `de` list shows German where available, default-locale content
-  elsewhere.
-- **`'strict'`** — include only documents available in the requested locale. With
-  the version-locale table this is a cheap indexed `EXISTS` on
-  `(document_version_id, locale)`; without it, an `EXISTS` against the `store_*`
-  tables. This is the "don't list untranslated docs" policy for installs that
-  want it.
+### Why the default differs by caller (regression note)
+
+Phase 1 originally applied effective-locale fallback to *every* concrete-locale
+read. That leaked into the **admin editor**, which must show raw per-locale data:
+switching to an untranslated locale wrongly pre-filled every field with the
+default-locale text instead of leaving them empty. The fix made fallback explicit
+— `@byline/client` opts into `'fallback'` for application reads, while the admin
+host server fns (`server-fns/collections/get.ts`, `list.ts`) pass `'empty'`.
+**Populate always forces `'fallback'`** (in `getDocumentsByDocumentIds`) regardless
+of the outer policy, so a populated relation tree never has holes.
 
 ---
 
@@ -327,22 +342,24 @@ resolving a single effective locale per document and restoring every field in it
   fields" framing is a possible future refinement; path-coverage is the shipped
   rule and is faithful given that document structure is shared across locales.)
 
-**Phases 2 + 3 — `localeFallback` + version-locale ledger — DONE (`e3b55c01`).**
+**Phases 2 + 3 — `onMissingLocale` + version-locale ledger — DONE (`e3b55c01`).**
 - `byline_document_version_locales (document_version_id, locale)` table +
   migration `0001`. Populated **status-blind at write time**
   (`storage-commands.ts` step 6) from the *persisted* rows — so it accounts for
   the per-locale carry-forward, not just the freshly-flattened locale — with an
   `'all'` sentinel row for locale-agnostic documents.
-- `LocaleFallback = 'always' | 'strict'` in `@byline/core`; an indexed `EXISTS`
+- `MissingLocalePolicy = 'empty' | 'fallback' | 'omit'` in `@byline/core`
+  (the `onMissingLocale` read option; client defaults to `'fallback'`, admin
+  passes `'empty'`); an indexed `EXISTS`
   gate (`localeAvailabilityExists`) wired into `findDocuments` (list — at the SQL
   layer, so pagination / `total` stay correct), `getDocumentById`, and
   `getDocumentByPath` (detail — resolves to `null` when unavailable).
-- `localeFallback?` on `FindOptions` / `FindOneOptions` / `FindByIdOptions` /
+- `onMissingLocale?` on `FindOptions` / `FindOneOptions` / `FindByIdOptions` /
   `FindByPathOptions`, threaded through `find` / `findOne` / `findById` /
-  `findByPath`. Populate stays `'always'` (a populated tree never has holes).
+  `findByPath`. Populate stays `'fallback'` (a populated tree never has holes).
 
 **Backfill — DONE (`4d5d6e83`).** Versions written before migration `0001` carry
-no ledger rows, so `strict` would hide them until populated (`'always'` is
+no ledger rows, so `strict` would hide them until populated (`'fallback'` is
 unaffected — it never reads the ledger). `PgAdapter.backfillVersionLocales()`
 (on the concrete `DocumentCommands`, deliberately **off** the core `IDbAdapter`
 contract so no service mock changed) recomputes the ledger set-wise over all
@@ -402,11 +419,11 @@ actual content.
 - **`strict` list + populate.** When a relation target is unavailable in the
   requested locale under `strict`, does the relation envelope report
   "unresolved-in-locale" or fall back to default content? Lean: relations follow
-  `'always'` (render default) regardless of the list policy, so a populated tree
+  `'fallback'` (render default) regardless of the list policy, so a populated tree
   never has holes — but make it explicit.
 - **`findOne` with `strict`.** Returns null when the single match isn't available
-  in-locale, or falls back? Lean: honour the same `localeFallback` the caller
-  passed; `'always'` is the default and falls back.
+  in-locale, or falls back? Lean: honour the same `onMissingLocale` the caller
+  passed; `'fallback'` is the default and falls back.
 - **`useAsTitle` over a fallback.** When the effective locale is the default,
   the title comes from default content — correct and consistent (no special
   case), but worth a test asserting the admin list/preview show the default-locale

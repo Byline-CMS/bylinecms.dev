@@ -16,7 +16,7 @@ import type {
   FlattenedStore,
   ICollectionQueries,
   IDocumentQueries,
-  LocaleFallback,
+  MissingLocalePolicy,
   ReadMode,
   RelationFilter,
   UnionRowValue,
@@ -194,19 +194,20 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Build the `localeFallback: 'strict'` availability gate — an EXISTS against
+   * Build the `onMissingLocale: 'omit'` availability gate — an EXISTS against
    * the version-locale ledger (`byline_document_version_locales`) that keeps
    * only documents available in the requested locale. The `'all'` sentinel row
    * covers locale-agnostic documents (no localized content). Returns `null`
-   * when the gate does not apply — `'always'`/unset policy, or the admin
-   * sentinel `'all'` read — so callers can conditionally push it into a WHERE.
+   * when the gate does not apply — a non-`'omit'` policy (`'empty'` /
+   * `'fallback'` / unset), or the admin sentinel `'all'` read — so callers can
+   * conditionally push it into a WHERE.
    */
   private localeAvailabilityExists(
     versionId: SQL,
     locale: string,
-    localeFallback: LocaleFallback | undefined
+    onMissingLocale: MissingLocalePolicy | undefined
   ): SQL | null {
-    if (localeFallback !== 'strict' || locale === 'all') return null
+    if (onMissingLocale !== 'omit' || locale === 'all') return null
     return sql`EXISTS (
       SELECT 1 FROM byline_document_version_locales dvl
       WHERE dvl.document_version_id = ${versionId}
@@ -400,7 +401,8 @@ export class DocumentQueries implements IDocumentQueries {
     definition: CollectionDefinition,
     locale: string,
     metaRows?: MetaRow[],
-    lenient = false
+    lenient = false,
+    onMissingLocale?: MissingLocalePolicy
   ): { fields: any; warnings: string[] } {
     const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
       extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
@@ -418,13 +420,18 @@ export class DocumentQueries implements IDocumentQueries {
       }
     }
 
-    // For a concrete locale, restore the whole document in a single effective
-    // locale chosen from the fallback chain — never mix locales across fields.
-    // `'all'` (admin multi-locale read) keeps the per-locale map shape.
+    // Concrete locale: with `onMissingLocale: 'fallback'`, restore the whole
+    // document in a single effective locale chosen from the fallback chain
+    // (never mixing locales across fields). Otherwise restore the requested
+    // locale exactly — empty where untranslated, the raw per-locale view the
+    // admin editor needs (`'empty'`/`'omit'`/unset). `'all'` keeps the
+    // per-locale map shape (admin multi-locale read).
     const resolveLocale =
-      locale !== 'all'
-        ? this.resolveEffectiveLocale(flattenedData, this.buildLocaleChain(locale))
-        : undefined
+      locale === 'all'
+        ? undefined
+        : onMissingLocale === 'fallback'
+          ? this.resolveEffectiveLocale(flattenedData, this.buildLocaleChain(locale))
+          : locale
     const { data, warnings } = restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
 
     if (!lenient && warnings.length > 0) {
@@ -505,7 +512,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode,
     filters,
     lenient = false,
-    localeFallback,
+    onMissingLocale,
   }: {
     collection_id: string
     document_id: string
@@ -514,7 +521,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode?: ReadMode
     filters?: DocumentFilter[]
     lenient?: boolean
-    localeFallback?: LocaleFallback
+    onMissingLocale?: MissingLocalePolicy
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
@@ -533,9 +540,9 @@ export class DocumentQueries implements IDocumentQueries {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
       }
     }
-    // `localeFallback: 'strict'` — resolve to null when the document is not
+    // `onMissingLocale: 'omit'` — resolve to null when the document is not
     // available in the requested locale (no version-locale ledger row).
-    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, localeFallback)
+    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, onMissingLocale)
     if (strictGate) {
       baseConditions.push(strictGate)
     }
@@ -570,7 +577,8 @@ export class DocumentQueries implements IDocumentQueries {
         definition,
         locale,
         metaRows as MetaRow[],
-        lenient
+        lenient,
+        onMissingLocale
       )
 
       return {
@@ -604,7 +612,7 @@ export class DocumentQueries implements IDocumentQueries {
     reconstruct = true,
     readMode,
     filters,
-    localeFallback,
+    onMissingLocale,
   }: {
     collection_id: string
     path: string
@@ -612,7 +620,7 @@ export class DocumentQueries implements IDocumentQueries {
     reconstruct: boolean
     readMode?: ReadMode
     filters?: DocumentFilter[]
-    localeFallback?: LocaleFallback
+    onMissingLocale?: MissingLocalePolicy
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
@@ -636,9 +644,9 @@ export class DocumentQueries implements IDocumentQueries {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
       }
     }
-    // `localeFallback: 'strict'` — resolve to null when the document is not
+    // `onMissingLocale: 'omit'` — resolve to null when the document is not
     // available in the requested locale (no version-locale ledger row).
-    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, localeFallback)
+    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, onMissingLocale)
     if (strictGate) {
       baseConditions.push(strictGate)
     }
@@ -672,7 +680,9 @@ export class DocumentQueries implements IDocumentQueries {
         unifiedFieldValues,
         definition,
         locale,
-        metaRows as MetaRow[]
+        metaRows as MetaRow[],
+        false,
+        onMissingLocale
       )
 
       return {
@@ -833,7 +843,15 @@ export class DocumentQueries implements IDocumentQueries {
       .from(view)
       .where(and(...baseConditions))
 
-    return this.reconstructDocuments({ documents: docs as Document[], locale, fields })
+    // Populated relation targets always fall back through the locale chain so
+    // a populated tree never has holes — independent of the outer read's
+    // `onMissingLocale`. (A no-op when `locale === 'all'`, which keeps the map.)
+    return this.reconstructDocuments({
+      documents: docs as Document[],
+      locale,
+      fields,
+      onMissingLocale: 'fallback',
+    })
   }
 
   /**
@@ -1140,10 +1158,12 @@ export class DocumentQueries implements IDocumentQueries {
     documents,
     locale = 'all',
     fields: requestedFields,
+    onMissingLocale,
   }: {
     documents: Document[]
     locale?: string
     fields?: string[]
+    onMissingLocale?: MissingLocalePolicy
   }): Promise<any[]> {
     if (documents.length === 0) return []
     const versionIds = documents.map((v) => v.id)
@@ -1209,7 +1229,9 @@ export class DocumentQueries implements IDocumentQueries {
         versionFieldValues,
         definition,
         locale,
-        docMetaRows
+        docMetaRows,
+        false,
+        onMissingLocale
       )
 
       // When specific fields were requested, trim the reconstructed object
@@ -1332,7 +1354,7 @@ export class DocumentQueries implements IDocumentQueries {
     pageSize = 20,
     fields: requestedFields,
     readMode,
-    localeFallback,
+    onMissingLocale,
   }: {
     collection_id: string
     filters?: DocumentFilter[]
@@ -1347,7 +1369,7 @@ export class DocumentQueries implements IDocumentQueries {
     pageSize?: number
     fields?: string[]
     readMode?: ReadMode
-    localeFallback?: LocaleFallback
+    onMissingLocale?: MissingLocalePolicy
   }): Promise<{ documents: any[]; total: number }> {
     const offset = (page - 1) * pageSize
     const sourceTable =
@@ -1362,9 +1384,9 @@ export class DocumentQueries implements IDocumentQueries {
       conditions.push(sql`d.status = ${status}`)
     }
 
-    // `localeFallback: 'strict'` — exclude documents not available in the
+    // `onMissingLocale: 'omit'` — exclude documents not available in the
     // requested locale (filtered at the SQL layer so pagination stays correct).
-    const strictGate = this.localeAvailabilityExists(sql`d.id`, locale, localeFallback)
+    const strictGate = this.localeAvailabilityExists(sql`d.id`, locale, onMissingLocale)
     if (strictGate) {
       conditions.push(strictGate)
     }
@@ -1495,6 +1517,7 @@ export class DocumentQueries implements IDocumentQueries {
       documents: currentDocuments,
       locale,
       fields: requestedFields,
+      onMissingLocale,
     })
 
     return { documents, total }

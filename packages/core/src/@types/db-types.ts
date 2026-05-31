@@ -20,22 +20,31 @@ import type { QueryPredicate } from './query-predicate.js'
 export type ReadMode = 'any' | 'published'
 
 /**
- * Content-locale fallback policy for reads.
+ * What a read does when the requested content locale is missing (the value of
+ * the `onMissingLocale` read option).
  *
- *   - `'always'` — always return content. A document requested in a locale it
- *                  is not available in falls back through the locale chain to
- *                  the default content locale (a detail read still returns the
- *                  document; a list read still includes it). The default.
- *   - `'strict'` — only surface documents available in the requested locale.
- *                  A detail read returns `null` (→ 404) when the requested
- *                  locale is unavailable; a list read excludes such documents.
- *                  Backed by the `byline_document_version_locales` ledger.
+ *   - `'empty'`    — no field-level fallback. Restore the requested locale
+ *                    exactly, leaving untranslated localized fields empty. The
+ *                    raw per-locale view the admin editor needs (empty =
+ *                    "not translated yet"). The document is always returned.
+ *   - `'fallback'` — fall back through the locale chain to the default content
+ *                    locale, restoring the whole document in one effective
+ *                    locale (never mixing). A detail read still returns the
+ *                    document; a list read still includes it. The
+ *                    `@byline/client` default — public consumers "just work".
+ *   - `'omit'`     — only surface documents available in the requested locale.
+ *                    A detail read returns `null` (→ 404) when the requested
+ *                    locale is unavailable; a list read excludes such documents.
+ *                    Available documents restore the requested locale exactly.
+ *                    Backed by the `byline_document_version_locales` ledger.
  *
- * Availability follows path-coverage against the default content locale; a
- * document with no localized content is available in every locale. See
- * `docs/CONTENT-LOCALE-RESOLUTION.md`.
+ * At the adapter layer an omitted value behaves as `'empty'` (exact-match, the
+ * safe default for internal/direct reads); `@byline/client` defaults it to
+ * `'fallback'` for application reads. Availability follows path-coverage against
+ * the default content locale; a document with no localized content is available
+ * in every locale. See `docs/CONTENT-LOCALE-RESOLUTION.md`.
  */
-export type LocaleFallback = 'always' | 'strict'
+export type MissingLocalePolicy = 'empty' | 'fallback' | 'omit'
 
 /**
  * Request-scoped context shared across every read and populate walk in one
@@ -417,9 +426,9 @@ export interface IDocumentQueries {
      * never silently leaks into a live site.
      */
     lenient?: boolean
-    /** See `LocaleFallback`. `'strict'` returns `null` when the document is
-     *  not available in the requested locale. Defaults to `'always'`. */
-    localeFallback?: LocaleFallback
+    /** See `MissingLocalePolicy`. `'omit'` returns `null` when the document
+     *  is not available in the requested locale. Omitted ⇒ `'empty'`. */
+    onMissingLocale?: MissingLocalePolicy
   }): Promise<any | null>
 
   /**
@@ -455,9 +464,9 @@ export interface IDocumentQueries {
     filters?: DocumentFilter[]
     /** See `getDocumentById.requestContext`. */
     requestContext?: RequestContext
-    /** See `LocaleFallback`. `'strict'` returns `null` when the document is
-     *  not available in the requested locale. Defaults to `'always'`. */
-    localeFallback?: LocaleFallback
+    /** See `MissingLocalePolicy`. `'omit'` returns `null` when the document
+     *  is not available in the requested locale. Omitted ⇒ `'empty'`. */
+    onMissingLocale?: MissingLocalePolicy
   }): Promise<any | null>
 
   getDocumentByVersion(params: { document_version_id: string; locale?: string }): Promise<any>
@@ -595,10 +604,10 @@ export interface IDocumentQueries {
     readMode?: ReadMode
     /** See `getDocumentById.requestContext`. */
     requestContext?: RequestContext
-    /** See `LocaleFallback`. `'strict'` excludes documents not available in
-     *  the requested locale (filtered at the SQL layer so pagination stays
-     *  correct). Defaults to `'always'`. */
-    localeFallback?: LocaleFallback
+    /** See `MissingLocalePolicy`. `'omit'` excludes documents not available
+     *  in the requested locale (filtered at the SQL layer so pagination stays
+     *  correct). Omitted ⇒ `'empty'`. */
+    onMissingLocale?: MissingLocalePolicy
   }): Promise<{
     documents: any[]
     total: number

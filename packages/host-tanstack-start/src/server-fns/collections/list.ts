@@ -82,6 +82,11 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       pageSize,
       select: params.fields,
       status: 'any',
+      // Admin list: show the raw per-locale state (untranslated docs render
+      // empty in the active locale's columns) rather than falling back to the
+      // default locale. Consistent with the edit view; overrides the client's
+      // `'fallback'` default.
+      onMissingLocale: 'empty',
     })
 
     // Decorate each doc with `hasPublishedVersion` so the list UI can show a

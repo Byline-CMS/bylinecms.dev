@@ -88,6 +88,10 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       populate,
       depth: resolvedDepth,
       status: 'any',
+      // Admin edit path: show the RAW per-locale values — untranslated localized
+      // fields stay empty (the signal to use "Copy to Locale"), never falling
+      // back to the default locale. Overrides the client's `'fallback'` default.
+      onMissingLocale: 'empty',
       // Admin edit path: tolerate schema-mismatch warnings rather than
       // hard-failing the load. Warnings (if any) come back on the document
       // as `_restoreWarnings` and the edit form surfaces them via an Alert.
