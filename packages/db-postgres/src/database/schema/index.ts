@@ -185,6 +185,36 @@ export const documentPaths = pgTable(
   ]
 )
 
+// Document → advertised content locales. One row per (logical document,
+// advertised locale) — the editorial "advertise these locales" set an editor
+// curates per document. The deliberate counterpart to the derived,
+// version-grained `byline_document_version_locales` ledger: this is intent
+// ("I want these advertised"), the ledger is fact ("this version is complete
+// in these"). Document-grain and sticky across versions — editorial intent
+// carries forward across edits and survives restore. Surfaced on reads as
+// `availableLocales`; the public advertised set is the intersection with the
+// ledger's `_availableVersionLocales`. Replaced wholesale on write (the lifecycle
+// deletes then re-inserts the set), never appended. See docs/AVAILABLE-LOCALES.md.
+export const documentAvailableLocales = pgTable(
+  'byline_document_available_locales',
+  {
+    document_id: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    locale: varchar('locale', { length: 10 }).notNull(),
+    collection_id: uuid('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    ...timestamps,
+  },
+  (table) => [
+    // One row per (logical document, advertised locale).
+    primaryKey({ columns: [table.document_id, table.locale] }),
+    // Reverse lookup by document for the read projection.
+    index('idx_document_available_locales_document_id').on(table.document_id),
+  ]
+)
+
 // Document version → available content locales. One row per (version, locale)
 // for every locale the version's content is *complete* in — path-coverage
 // against the default content locale: a locale is recorded only when it covers

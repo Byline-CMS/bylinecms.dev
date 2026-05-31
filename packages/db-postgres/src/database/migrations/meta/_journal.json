@@ -15,6 +15,13 @@
       "when": 1780201722536,
       "tag": "0001_brave_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780234507826,
+      "tag": "0002_fixed_mach_iv",
+      "breakpoints": true
     }
   ]
 }

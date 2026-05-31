@@ -15,6 +15,7 @@ import {
   booleanStore,
   collections,
   datetimeStore,
+  documentAvailableLocales,
   documentPaths,
   documents,
   documentVersions,
@@ -108,6 +109,15 @@ export class DocumentCommands implements IDocumentCommands {
      * existing path row is left untouched.
      */
     path?: string
+    /**
+     * Optional. When provided, replaces the document's advertised-locale set
+     * in byline_document_available_locales wholesale (delete-then-insert).
+     * `undefined` leaves the existing set untouched (sticky across versions,
+     * like `path`); an empty array clears it (advertise nothing). The locale
+     * values are the advertised content locales themselves, not the default
+     * locale. See docs/AVAILABLE-LOCALES.md.
+     */
+    availableLocales?: string[]
     locale?: string
     status?: string
     createdBy?: string
@@ -168,6 +178,28 @@ export class DocumentCommands implements IDocumentCommands {
               updated_at: new Date(),
             },
           })
+      }
+
+      // 2b. Replace the document_available_locales rows when an editorial set
+      // is supplied. Document-grain and sticky across versions: `undefined`
+      // leaves the existing set untouched (the lifecycle omits the param on
+      // saves that don't touch advertising), while an explicit array — empty
+      // included — replaces it wholesale. Deduplicated so a caller-supplied
+      // duplicate doesn't collide on the (document_id, locale) primary key.
+      if (params.availableLocales !== undefined) {
+        await tx
+          .delete(documentAvailableLocales)
+          .where(eq(documentAvailableLocales.document_id, documentId))
+        const locales = [...new Set(params.availableLocales)]
+        if (locales.length > 0) {
+          await tx.insert(documentAvailableLocales).values(
+            locales.map((locale) => ({
+              document_id: documentId,
+              locale,
+              collection_id: params.collectionId,
+            }))
+          )
+        }
       }
 
       // 3. Flatten the document data to field values

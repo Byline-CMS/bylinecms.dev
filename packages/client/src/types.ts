@@ -419,19 +419,30 @@ export interface ClientDocument<F = Record<string, any>> {
    */
   _restoreWarnings?: string[]
   /**
-   * Content locales this document's resolved version is available in —
-   * path-coverage against the default content locale, from the
-   * `byline_document_version_locales` ledger. Present on `find` / `findById`
-   * / `findByPath` (absent on version/history reads). The published-available
-   * set on a normal (published) read. Drives hreflang, the sitemap, and a
-   * per-document "Also available in…" menu, so the userland `availableLanguages`
-   * advertising field becomes optional. See `docs/CONTENT-LOCALE-RESOLUTION.md`.
+   * The editorial *advertised* locale set — the content locales the editor
+   * has deliberately elected to promote for this document. Document-grain and
+   * stored (in `byline_document_available_locales`), sticky across versions —
+   * not derived. The deliberate counterpart to the structural
+   * `_availableVersionLocales` fact below; the public advertised set is their
+   * intersection (`availableLocales ∩ _availableVersionLocales`), which the
+   * host composes for hreflang / sitemap / "Also available in…" menus.
+   * Present on `find` / `findById` / `findByPath`. See `docs/AVAILABLE-LOCALES.md`.
    */
-  _availableLocales?: string[]
+  availableLocales?: string[]
+  /**
+   * Content locales this document's resolved version is *structurally*
+   * available in — path-coverage against the default content locale, from the
+   * version-grain `byline_document_version_locales` ledger. Computed, read-only.
+   * Present on `find` / `findById` / `findByPath` (absent on version/history
+   * reads); the published-available set on a normal (published) read. The
+   * structural fact reconciled against the editorial `availableLocales` above.
+   * See `docs/CONTENT-LOCALE-RESOLUTION.md`.
+   */
+  _availableVersionLocales?: string[]
   /**
    * `true` when the document has no localized content — it renders identically
-   * in every locale and `_availableLocales` is empty. A per-document language
-   * affordance should render nothing in this case.
+   * in every locale and `_availableVersionLocales` is empty. A per-document
+   * language affordance should render nothing in this case.
    */
   _localeAgnostic?: boolean
 }

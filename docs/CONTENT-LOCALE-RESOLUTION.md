@@ -8,7 +8,7 @@ summary: "Why content-locale availability is a version-grain fact, how a request
 
 > **Status:** Implemented (Phases 1–3 + backfill + Phase 6) on branch
 > `feat/content-locale-resolution`; Phase 4 deferred, Phase 5 planned. Phase 6
-> — availability metadata on read results (`_availableLocales`) — retires the
+> — availability metadata on read results (`_availableVersionLocales`) — retires the
 > userland `availableLanguages` field for most sites. Began as a design /
 > decision record from a working session — the model below is the present-state
 > reference; see [Implementation status](#implementation-status) for what shipped.
@@ -380,18 +380,26 @@ regional-variant or editorial-fallback need actually appears.
 boot-time warning when `availableLanguages` and the version-locale set disagree.
 
 **Phase 6 — availability metadata on read results — DONE.** Read results now
-carry `doc._availableLocales: string[]` (the resolved version's locale set from
+carry `doc._availableVersionLocales: string[]` (the resolved version's locale set from
 the ledger, sorted) plus `doc._localeAgnostic: boolean` for the `'all'`-sentinel
 case (no localized content → "available everywhere", which a per-document
-affordance should treat as "render no menu" and `_availableLocales` is empty).
+affordance should treat as "render no menu" and `_availableVersionLocales` is empty).
 Implemented as a batched indexed query (`getAvailableLocalesByVersion`) attached
 in `getDocumentById`, `getDocumentByPath`, and `findDocuments` (one query per
-read/page, keyed by the already-resolved version id); the adapter emits raw
-`availableLocales` / `localeAgnostic`, which `@byline/client`'s `shapeDocument`
-maps to `_availableLocales` / `_localeAgnostic` on `ClientDocument`. Absent on
-version/history reads and on populated relation targets. Because the SDK defaults
+read/page, keyed by the already-resolved version id); the adapter emits
+`_availableVersionLocales` / `_localeAgnostic` directly and `@byline/client`'s
+`shapeDocument` passes them through to `ClientDocument` unchanged. Absent on
+version/history reads and on populated relation targets.
+
+> **Naming note (Slice 2 of AVAILABLE-LOCALES):** this ledger fact was
+> originally surfaced as `_availableLocales`. It was renamed to
+> `_availableVersionLocales` to disambiguate from the **editorial**
+> `availableLocales` advertising set (document-grain, stored) that
+> [AVAILABLE-LOCALES.md](./AVAILABLE-LOCALES.md) introduces. The ledger fact is
+> version-grain and computed; the editorial set is what an editor elects to
+> advertise. Storage raw keys now match the client surface (no boundary rename). Because the SDK defaults
 to `status: 'published'` and the ledger resolves against the current-*published*
-version, `_availableLocales` on a normal read is the **published-available**
+version, `_availableVersionLocales` on a normal read is the **published-available**
 set — exactly what a public consumer should advertise.
 
 This is the payoff that makes the ledger consumable by the host, and it unifies
@@ -401,7 +409,7 @@ three consumers on **one source** (so they cannot drift):
   input to the host's `resolveAlternates(...)`.
 - **dynamic `sitemap.xml`** — same alternates set per document.
 - **a per-document "Also available in…" content-language menu** —
-  `_availableLocales` (set) + `i18n.content.localeDefinitions` (labels) +
+  `_availableVersionLocales` (set) + `i18n.content.localeDefinitions` (labels) +
   `buildLocalizedPath` (URLs) fully derive the menu; no userland field. Distinct
   from the global *interface*-language switcher (which lists interface locales
   unconditionally); this one is per-page, content-locale, gated on availability,
@@ -413,7 +421,7 @@ signal for what's translated" to an **optional editorial *advertising* override*
 — kept only when a site needs to promote ≠ availability (suppress-when-ready,
 stable-intent vs. auto-derived, or a different "ready" definition than
 path-coverage). Sites where *advertise == fully-translated* can drop the field
-entirely and derive everything from `_availableLocales`. Pairs naturally with
+entirely and derive everything from `_availableVersionLocales`. Pairs naturally with
 Phase 5: the cross-check is what flags an editorial override that contradicts the
 actual content.
 

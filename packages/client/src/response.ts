@@ -39,13 +39,20 @@ export function shapeDocument<F = Record<string, any>>(
   if (Array.isArray(raw.restoreWarnings) && raw.restoreWarnings.length > 0) {
     shaped._restoreWarnings = raw.restoreWarnings as string[]
   }
-  // Version-locale availability metadata (Phase 6). Present on
+  // Locale advertising + availability metadata. Present on
   // find / findById / findByPath; absent on version/history reads.
+  // Storage raw keys already match the surface names (passthrough) —
+  // `availableLocales` is the editorial advertised set (document-grain,
+  // stored), `_availableVersionLocales` is the structural ledger fact
+  // (version-grain, computed). See docs/AVAILABLE-LOCALES.md.
   if (Array.isArray(raw.availableLocales)) {
-    shaped._availableLocales = raw.availableLocales as string[]
+    shaped.availableLocales = raw.availableLocales as string[]
   }
-  if (typeof raw.localeAgnostic === 'boolean') {
-    shaped._localeAgnostic = raw.localeAgnostic as boolean
+  if (Array.isArray(raw._availableVersionLocales)) {
+    shaped._availableVersionLocales = raw._availableVersionLocales as string[]
+  }
+  if (typeof raw._localeAgnostic === 'boolean') {
+    shaped._localeAgnostic = raw._localeAgnostic as boolean
   }
   return shaped
 }

@@ -66,6 +66,15 @@ async function createDoc(documentData: Record<string, unknown>): Promise<string>
   return result.document.document_id
 }
 
+// The reconstructed read shape — `getDocumentById` returns a union of the
+// reconstructed and raw-flattened branches; `readById` never passes
+// `reconstruct: false`, so narrow to the reconstructed branch (the only one
+// carrying the locale metadata) here rather than at every assertion site.
+type ReconstructedRead = Extract<
+  NonNullable<Awaited<ReturnType<typeof queryBuilders.documents.getDocumentById>>>,
+  { _localeAgnostic: boolean }
+>
+
 function readById(
   documentId: string,
   locale: string,
@@ -76,7 +85,7 @@ function readById(
     document_id: documentId,
     locale,
     onMissingLocale,
-  })
+  }) as Promise<ReconstructedRead | null>
 }
 
 describe('content-locale resolution & fallback', () => {
@@ -351,9 +360,9 @@ describe('content-locale resolution & fallback', () => {
     expect(second.rowsInserted).toBe(0)
   })
 
-  // --- availability metadata (Phase 6: _availableLocales) ------------------
+  // --- availability metadata (Phase 6: _availableVersionLocales) -----------
 
-  it('exposes availableLocales + localeAgnostic on a detail read', async () => {
+  it('exposes _availableVersionLocales + _localeAgnostic on a detail read', async () => {
     const id = await createDoc({
       title: { en: 'Hello', de: 'Hallo' },
       body: { en: 'World', de: 'Welt' },
@@ -361,19 +370,19 @@ describe('content-locale resolution & fallback', () => {
     })
 
     const doc = await readById(id, 'en')
-    expect(doc?.availableLocales, 'sorted concrete locales').toEqual(['de', 'en'])
-    expect(doc?.localeAgnostic).toBe(false)
+    expect(doc?._availableVersionLocales, 'sorted concrete locales').toEqual(['de', 'en'])
+    expect(doc?._localeAgnostic).toBe(false)
   })
 
   it('flags a locale-agnostic document (no localized content)', async () => {
     const id = await createDoc({ sku: 'M2' })
 
     const doc = await readById(id, 'en')
-    expect(doc?.availableLocales).toEqual([])
-    expect(doc?.localeAgnostic, 'the "all" sentinel surfaces as localeAgnostic').toBe(true)
+    expect(doc?._availableVersionLocales).toEqual([])
+    expect(doc?._localeAgnostic, 'the "all" sentinel surfaces as _localeAgnostic').toBe(true)
   })
 
-  it('exposes availableLocales per row on a list read', async () => {
+  it('exposes _availableVersionLocales per row on a list read', async () => {
     const both = await createDoc({
       title: { en: 'B-en', de: 'B-de' },
       body: { en: 'x', de: 'y' },
@@ -391,7 +400,7 @@ describe('content-locale resolution & fallback', () => {
       pageSize: 200,
     })
     const byId = new Map(documents.map((d) => [d.document_id, d]))
-    expect(byId.get(both)?.availableLocales).toEqual(['de', 'en'])
-    expect(byId.get(enOnly)?.availableLocales).toEqual(['en'])
+    expect(byId.get(both)?._availableVersionLocales).toEqual(['de', 'en'])
+    expect(byId.get(enOnly)?._availableVersionLocales).toEqual(['en'])
   })
 })

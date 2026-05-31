@@ -33,6 +33,7 @@ import {
   collections,
   currentDocumentsView,
   currentPublishedDocumentsView,
+  documentAvailableLocales,
   documentPaths,
   documents,
   documentVersionLocales,
@@ -222,7 +223,7 @@ export class DocumentQueries implements IDocumentQueries {
    * concrete locales its content is complete in (`availableLocales`, sorted),
    * or `localeAgnostic: true` when the version carries only the `'all'`
    * sentinel (no localized content → renders identically in every locale).
-   * Drives the `_availableLocales` read metadata. One indexed query per call.
+   * Drives the `_availableVersionLocales` read metadata. One indexed query per call.
    */
   private async getAvailableLocalesByVersion(
     versionIds: string[]
@@ -248,6 +249,41 @@ export class DocumentQueries implements IDocumentQueries {
       else entry.availableLocales.push(row.locale)
     }
     for (const entry of result.values()) entry.availableLocales.sort()
+    return result
+  }
+
+  /**
+   * Batch-fetch the editorial advertised-locale sets from
+   * `byline_document_available_locales` (document-grain). For each logical
+   * document returns the sorted set of locales the editor has elected to
+   * advertise. Surfaced on reads as `availableLocales` — the deliberate
+   * counterpart to the version-grain `_availableVersionLocales` ledger fact;
+   * the public advertised set is their intersection. One indexed query per
+   * call. See docs/AVAILABLE-LOCALES.md.
+   */
+  private async getAdvertisedLocalesByDocument(
+    documentIds: string[]
+  ): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>()
+    if (documentIds.length === 0) return result
+
+    const rows = await this.db
+      .select({
+        did: documentAvailableLocales.document_id,
+        locale: documentAvailableLocales.locale,
+      })
+      .from(documentAvailableLocales)
+      .where(inArray(documentAvailableLocales.document_id, documentIds))
+
+    for (const row of rows) {
+      let arr = result.get(row.did)
+      if (arr == null) {
+        arr = []
+        result.set(row.did, arr)
+      }
+      arr.push(row.locale)
+    }
+    for (const arr of result.values()) arr.sort()
     return result
   }
 
@@ -618,6 +654,9 @@ export class DocumentQueries implements IDocumentQueries {
       )
 
       const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
+      const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
+        document.document_id
+      )
 
       return {
         document_version_id: document.id,
@@ -627,8 +666,9 @@ export class DocumentQueries implements IDocumentQueries {
         created_at: document.created_at,
         updated_at: document.updated_at,
         fields,
-        availableLocales: availability?.availableLocales ?? [],
-        localeAgnostic: availability?.localeAgnostic ?? false,
+        availableLocales: advertised ?? [],
+        _availableVersionLocales: availability?.availableLocales ?? [],
+        _localeAgnostic: availability?.localeAgnostic ?? false,
         ...(lenient && warnings.length > 0 ? { restoreWarnings: warnings } : {}),
       }
     }
@@ -726,6 +766,9 @@ export class DocumentQueries implements IDocumentQueries {
       )
 
       const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
+      const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
+        document.document_id
+      )
 
       return {
         document_version_id: document.id,
@@ -735,8 +778,9 @@ export class DocumentQueries implements IDocumentQueries {
         created_at: document.created_at,
         updated_at: document.updated_at,
         fields,
-        availableLocales: availability?.availableLocales ?? [],
-        localeAgnostic: availability?.localeAgnostic ?? false,
+        availableLocales: advertised ?? [],
+        _availableVersionLocales: availability?.availableLocales ?? [],
+        _localeAgnostic: availability?.localeAgnostic ?? false,
       }
     }
     // Non-reconstructed: return raw flattened values
@@ -1570,10 +1614,14 @@ export class DocumentQueries implements IDocumentQueries {
     const availability = await this.getAvailableLocalesByVersion(
       documents.map((d) => d.document_version_id)
     )
+    const advertised = await this.getAdvertisedLocalesByDocument(
+      documents.map((d) => d.document_id)
+    )
     for (const doc of documents) {
       const a = availability.get(doc.document_version_id)
-      doc.availableLocales = a?.availableLocales ?? []
-      doc.localeAgnostic = a?.localeAgnostic ?? false
+      doc.availableLocales = advertised.get(doc.document_id) ?? []
+      doc._availableVersionLocales = a?.availableLocales ?? []
+      doc._localeAgnostic = a?.localeAgnostic ?? false
     }
 
     return { documents, total }
