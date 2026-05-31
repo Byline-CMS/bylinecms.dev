@@ -80,6 +80,14 @@ interface OuterScope {
   path: SQL
 }
 
+/** True when `a` contains every member of `b`. */
+function isSuperset<T>(a: Set<T>, b: Set<T>): boolean {
+  for (const item of b) {
+    if (!a.has(item)) return false
+  }
+  return true
+}
+
 /**
  * CollectionQueries
  */
@@ -306,6 +314,53 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * Resolve the single effective content locale a version should be restored
+   * in, walking the fallback chain (`[requested, default]`) and returning the
+   * first locale the version is *available* in.
+   *
+   * Phase-1 availability rule — **path-coverage against the default locale**:
+   * the default (terminal) locale defines the canonical set of localized field
+   * paths; a candidate locale `L` is available iff it covers every one of them.
+   * This needs only the rows already in hand (no schema walk) and is correct
+   * because Byline shares document structure across locales (meta rows are
+   * `'all'`) — only leaf values vary per locale.
+   *
+   * Edge cases: an empty canonical set (the version has no localized content)
+   * means any requested locale is trivially available, so the requested locale
+   * is returned and the (non-localized, `'all'`) values render identically. The
+   * chain always terminates at the default locale, guaranteeing a return value.
+   */
+  private resolveEffectiveLocale(flattenedData: FlattenedFieldValue[], chain: string[]): string {
+    // biome-ignore lint/style/noNonNullAssertion: chain is non-empty by construction
+    const defaultLocale = chain[chain.length - 1]!
+
+    // Localized field paths present, grouped by locale. Skip `'all'` rows
+    // (non-localized values + meta) — they don't participate in coverage.
+    const pathsByLocale = new Map<string, Set<string>>()
+    for (const row of flattenedData) {
+      if (row.locale === 'all' || row.field_type === 'meta') continue
+      let set = pathsByLocale.get(row.locale)
+      if (set == null) {
+        set = new Set<string>()
+        pathsByLocale.set(row.locale, set)
+      }
+      set.add(row.field_path.join('.'))
+    }
+
+    const canonical = pathsByLocale.get(defaultLocale) ?? new Set<string>()
+
+    for (const candidate of chain) {
+      if (candidate === defaultLocale) break // terminal — return default below
+      // No canonical localized content → any locale is trivially available.
+      if (canonical.size === 0) return candidate
+      const covered = pathsByLocale.get(candidate)
+      if (covered != null && isSuperset(covered, canonical)) return candidate
+    }
+
+    return defaultLocale
+  }
+
+  /**
    * Reconstruct document fields from unified row values using schema-aware
    * restoration. Meta rows (from store_meta) are converted to
    * FlattenedFieldValue entries so that restoreFieldSetData can inject
@@ -341,7 +396,13 @@ export class DocumentQueries implements IDocumentQueries {
       }
     }
 
-    const resolveLocale = locale !== 'all' ? locale : undefined
+    // For a concrete locale, restore the whole document in a single effective
+    // locale chosen from the fallback chain — never mix locales across fields.
+    // `'all'` (admin multi-locale read) keeps the per-locale map shape.
+    const resolveLocale =
+      locale !== 'all'
+        ? this.resolveEffectiveLocale(flattenedData, this.buildLocaleChain(locale))
+        : undefined
     const { data, warnings } = restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
 
     if (!lenient && warnings.length > 0) {
@@ -1162,8 +1223,20 @@ export class DocumentQueries implements IDocumentQueries {
   ): Promise<UnionRowValue[]> {
     if (documentVersionIds.length === 0) return []
 
-    const localeCondition =
-      locale === 'all' ? sql`` : sql`AND (locale = ${locale} OR locale = 'all')`
+    // For a concrete locale, fetch the whole fallback chain (`[requested,
+    // default]`) plus non-localized `'all'` rows. Per-version effective-locale
+    // resolution (see `resolveEffectiveLocale`) then picks one locale to
+    // restore from, so the default rows are the fallback source when a
+    // translation is missing. `'all'` skips the filter (admin multi-locale read).
+    let localeCondition = sql``
+    if (locale !== 'all') {
+      const chain = this.buildLocaleChain(locale)
+      const chainSql = sql.join(
+        chain.map((l) => sql`${l}`),
+        sql`, `
+      )
+      localeCondition = sql`AND (locale = ANY(ARRAY[${chainSql}]::text[]) OR locale = 'all')`
+    }
 
     const documentCondition = sql`document_version_id = ANY(ARRAY[${sql.join(
       documentVersionIds.map((id) => sql`${id}::uuid`),
