@@ -13,7 +13,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
 import { i18nConfig } from '@/i18n/i18n-config'
 import { getMeta } from '@/lib/meta'
-import { RootError } from '@/ui/components/route-error'
+import { RootError, RootNotFound } from '@/ui/components/route-error'
 import { EarlyThemeDetector } from '@/ui/theme/early-theme-detector'
 import { ThemeProvider } from '@/ui/theme/provider'
 import { Theme } from '@/ui/theme/utils'
@@ -49,6 +49,7 @@ export const Route = createRootRoute({
   },
   component: RootComponent,
   errorComponent: RootError,
+  notFoundComponent: RootNotFound,
 })
 
 function RootComponent() {

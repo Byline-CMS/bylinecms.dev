@@ -11,11 +11,21 @@
 
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 
-import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import {
+  i18nConfig,
+  isInterfaceLocale,
+  isRoutableLocale,
+  type Locale,
+  type RoutableLocale,
+  toInterfaceLocale,
+} from '@/i18n/i18n-config'
 import { setLanguageFn } from '@/i18n/set-language-fn'
 
 /**
- * Returns the resolved locale for the current URL.
+ * Returns the **path** locale for the current URL — the locale actually in
+ * the URL, which may be a content-only locale (e.g. `fr`). This is what
+ * drives content rendering, meta, and the per-page content-language
+ * affordance's active state.
  *
  * Derived from the first path segment rather than `params.lng` so it
  * works uniformly across both routing trees: the optional-{-$lng}
@@ -23,14 +33,29 @@ import { setLanguageFn } from '@/i18n/set-language-fn'
  * shim routes mounted via `routes.virtual.ts` (where the locale is part
  * of the URL but not a declared param). Falls back to the default
  * locale when the first segment is absent or unrecognised.
+ *
+ * For **chrome** (nav links, the language switcher) use
+ * `useInterfaceLocale()` instead — generic navigation must revert off a
+ * content-only prefix to the visitor's interface locale, not keep `/fr`
+ * sticky across the session.
  */
-export function useLocale(): Locale {
+export function useLocale(): RoutableLocale {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const firstSegment = pathname.split('/')[1] ?? ''
-  if (i18nConfig.locales.includes(firstSegment as Locale)) {
-    return firstSegment as Locale
+  if (isRoutableLocale(firstSegment)) {
+    return firstSegment
   }
   return i18nConfig.defaultLocale
+}
+
+/**
+ * Returns the **interface** locale for the current URL: the path locale if
+ * it's an interface locale, otherwise the default. Drives chrome bundles
+ * and the default target for generic navigation, so a content-only prefix
+ * (`/fr`) reverts to the visitor's interface locale rather than sticking.
+ */
+export function useInterfaceLocale(): Locale {
+  return toInterfaceLocale(useLocale())
 }
 
 /**
@@ -40,7 +65,7 @@ export function useLocale(): Locale {
  * For the default locale the param is `undefined` so it produces clean URLs
  * (e.g. `/about` instead of `/en/about`).
  */
-export function lngParam(locale: Locale): { lng: Locale | undefined } {
+export function lngParam(locale: RoutableLocale): { lng: RoutableLocale | undefined } {
   return { lng: locale === i18nConfig.defaultLocale ? undefined : locale }
 }
 
@@ -57,8 +82,9 @@ export function toLocaleRoute(path: string): string {
 interface NavigateOptions {
   /** The path to navigate to (e.g. '/admin/collections/$collection') */
   to: string
-  /** Target locale — defaults to whatever is in the current URL */
-  locale?: Locale
+  /** Target locale — defaults to whatever is in the current URL. May be a
+   * content-only locale (e.g. the "read this in…" affordance). */
+  locale?: RoutableLocale
   /** Additional route params (besides lng) */
   params?: Record<string, string | undefined>
   /** Replace the current history entry instead of pushing */
@@ -80,8 +106,12 @@ export function useLocaleNavigation() {
   }: NavigateOptions) => {
     const targetLocale = locale ?? currentLocale
 
-    // If the locale is changing, persist it to the cookie
-    if (targetLocale !== currentLocale) {
+    // Persist the choice only when switching the *interface* locale — the
+    // `lng` cookie holds interface locales only. A content-locale target
+    // (e.g. navigating to `/fr/...` via the per-page affordance) must NOT
+    // write the cookie, so the prefix stays opt-in per document and does
+    // not stick across the session.
+    if (isInterfaceLocale(targetLocale) && targetLocale !== currentLocale) {
       await setLanguageFn({ data: { lng: targetLocale } })
     }
 

@@ -10,6 +10,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
+import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import {
   buildLocalizedPath,
   getMeta,
@@ -20,10 +21,9 @@ import { DocDetail } from '@/modules/docs/components/detail'
 import { type DocDetailResult, getDocDetailFn } from '@/modules/docs/detail'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
-import type { Locale } from '@/i18n/i18n-config'
 
 // See `_frontend/$path.tsx` for notes on why this cast is needed.
-type RouteLoaderData = { result: NonNullable<DocDetailResult>; lng: Locale }
+type RouteLoaderData = { result: NonNullable<DocDetailResult>; lng: RoutableLocale }
 
 export const Route = createFileRoute('/{-$lng}/_frontend/docs/$path')({
   loader: async ({ params, context }) => {
@@ -76,7 +76,7 @@ function RouteComponent() {
       />
       <Section>
         <Container>
-          <DocDetail result={result} lng={lng} />
+          <DocDetail result={result} lng={toInterfaceLocale(lng)} />
         </Container>
       </Section>
     </>

@@ -10,6 +10,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { Section } from '@byline/ui/react'
 
+import { toInterfaceLocale } from '@/i18n/i18n-config'
 import { DocsContent } from '@/modules/docs/components/content'
 import { DocsMenuDrawer } from '@/modules/docs/components/menu-drawer'
 import { getDocsListFn } from '@/modules/docs/list'
@@ -37,7 +38,7 @@ function DocsLayout() {
         <DocsBreadcrumbs />
       </Section>
       <div className="flex flex-1 w-full">
-        <DocsMenuDrawer docs={docs} lng={lng} />
+        <DocsMenuDrawer docs={docs} lng={toInterfaceLocale(lng)} />
         <DocsContent>
           <Outlet />
         </DocsContent>

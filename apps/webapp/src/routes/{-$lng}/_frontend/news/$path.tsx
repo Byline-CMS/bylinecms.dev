@@ -10,6 +10,11 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
+// `lng` here is the URL's *content* locale (a routable locale — interface ∪
+// content), used to fetch the document in that locale and build the page's
+// canonical. Chrome + body-link building use `toInterfaceLocale(lng)` so
+// generic navigation reverts to the interface locale instead of going sticky.
+import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import {
   buildLocalizedPath,
   getMeta,
@@ -20,15 +25,9 @@ import { NewsDetail } from '@/modules/news/components/detail'
 import { getNewsDetailFn, type NewsDetailResult } from '@/modules/news/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
-// NOTE: This will restrict our retrieved content to front-end interface locales
-// defined in i18nConfig, which is not exactly what we want. We want the available
-// locales to be determined by the content locales in the CMS, but this is a
-// good starting point for now until we settle on a content locale vs interface
-// locale fallback or detection strategy.
-import type { Locale } from '@/i18n/i18n-config'
 
 // See `../$path.tsx` for notes on why this cast is needed.
-type RouteLoaderData = { result: NonNullable<NewsDetailResult>; lng: Locale }
+type RouteLoaderData = { result: NonNullable<NewsDetailResult>; lng: RoutableLocale }
 
 export const Route = createFileRoute('/{-$lng}/_frontend/news/$path')({
   loader: async ({ params, context }) => {
@@ -91,7 +90,7 @@ function RouteComponent() {
       </Section>
       <Section>
         <Container>
-          <NewsDetail result={result} lng={lng} />
+          <NewsDetail result={result} lng={toInterfaceLocale(lng)} />
         </Container>
       </Section>
     </>

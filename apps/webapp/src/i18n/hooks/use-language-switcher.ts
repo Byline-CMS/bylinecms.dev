@@ -8,24 +8,33 @@
 
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 
-import { useLocale } from '@/i18n/hooks/use-locale-navigation'
-import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import { useInterfaceLocale, useLocale } from '@/i18n/hooks/use-locale-navigation'
+import { i18nConfig, type Locale, routableLocales } from '@/i18n/i18n-config'
 import { setLanguageFn } from '@/i18n/set-language-fn'
 
 export function useLanguageSwitcher() {
   const navigate = useNavigate()
-  const currentLocale = useLocale()
+  // The switcher lists *interface* locales only. `pathLocale` is the URL's
+  // actual locale (possibly content-only) — used to decide whether a switch
+  // changes anything; `interfaceLocale` is the menu's active highlight.
+  const pathLocale = useLocale()
+  const interfaceLocale = useInterfaceLocale()
   const location = useRouterState({ select: (s) => s.location })
 
   const switchLanguage = async (lng: Locale) => {
-    if (lng === currentLocale) return
+    // No-op only when the URL is already exactly this locale. (On a
+    // content-only prefix like `/fr`, picking the chrome's fallback locale
+    // still navigates — it strips `/fr` back to the interface URL.)
+    if (lng === pathLocale) return
 
-    // 1. Persist the new locale to cookie
+    // 1. Persist the new interface locale to the cookie
     await setLanguageFn({ data: { lng } })
 
-    // 2. Strip existing locale prefix from the current pathname
+    // 2. Strip any existing routable locale prefix from the current pathname
+    //    (interface *or* content — switching off `/fr` must not yield
+    //    `/es/fr/...`).
     let path = location.pathname
-    for (const loc of i18nConfig.locales) {
+    for (const loc of routableLocales) {
       if (path.startsWith(`/${loc}/`)) {
         path = path.slice(loc.length + 1)
         break
@@ -48,6 +57,6 @@ export function useLanguageSwitcher() {
 
   return {
     switchLanguage,
-    currentLocale,
+    currentLocale: interfaceLocale,
   }
 }

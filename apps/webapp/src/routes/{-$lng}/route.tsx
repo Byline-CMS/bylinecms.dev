@@ -10,17 +10,19 @@
  * the URL has already been resolved to either a valid prefixed locale
  * or the default-unprefixed form.
  *
- * URL patterns:
+ * URL patterns (any *routable* locale — interface ∪ content):
  *   /foo/...          → default locale (en)
- *   /es/foo/...       → Spanish
- *   /fr/foo/...       → French
- *   /xyz/foo/...      → 404 (invalid locale)
+ *   /es/foo/...       → Spanish (interface locale)
+ *   /fr/foo/...       → French (content-only locale — content renders in
+ *                       `fr`, chrome falls back to the default interface
+ *                       locale; see `toInterfaceLocale`)
+ *   /xyz/foo/...      → 404 (not a routable locale)
  */
 
 import { createFileRoute, notFound, Outlet } from '@tanstack/react-router'
 
 import { TranslationsProvider } from '@/i18n/client/translations-provider'
-import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import { i18nConfig, isRoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import { getTranslations } from '@/i18n/translations'
 import { localeRedirectMiddleware } from '@/middleware/locale-redirect'
 import { RouteProgressBar } from '@/ui/components/route-progress-bar'
@@ -33,21 +35,26 @@ export const Route = createFileRoute('/{-$lng}')({
   params: {
     parse: ({ lng }) => {
       if (lng == null) return { lng: undefined }
-      if (!i18nConfig.locales.includes(lng as Locale)) {
+      if (!isRoutableLocale(lng)) {
         throw notFound()
       }
-      return { lng: lng as Locale }
+      return { lng }
     },
     stringify: ({ lng }) => ({ lng: lng ?? '' }),
   },
   server: {
     middleware: [localeRedirectMiddleware],
   },
+  // `context.locale` is the URL's locale (may be a content-only locale).
+  // It drives content fetching + meta downstream; chrome uses the
+  // interface fallback in the loader below.
   beforeLoad: ({ params }) => ({
     locale: params.lng ?? i18nConfig.defaultLocale,
   }),
   loader: async ({ context }) => {
-    const translations = await getTranslations(context.locale)
+    // Chrome bundle keys off the interface locale — a content-only locale
+    // (e.g. `fr`) has no frontend UI translations and falls back to the default.
+    const translations = await getTranslations(toInterfaceLocale(context.locale))
     return { translations }
   },
   component: LocaleLayout,

@@ -10,6 +10,12 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
+// NOTE: This will restrict our retrieved content to front-end interface locales
+// defined in i18nConfig, which is not exactly what we want. We want the available
+// locales to be determined by the content locales in the CMS, but this is a
+// good starting point for now until we settle on a content locale vs interface
+// locale fallback or detection strategy.
+import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import {
   buildLocalizedPath,
   getMeta,
@@ -20,12 +26,6 @@ import { PageDetail } from '@/modules/pages/components/detail'
 import { getPageDetailFn, type PageDetailResult } from '@/modules/pages/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
-// NOTE: This will restrict our retrieved content to front-end interface locales
-// defined in i18nConfig, which is not exactly what we want. We want the available
-// locales to be determined by the content locales in the CMS, but this is a
-// good starting point for now until we settle on a content locale vs interface
-// locale fallback or detection strategy.
-import type { Locale } from '@/i18n/i18n-config'
 
 // Shape of this route's loader return. Used to narrow `loaderData` inside
 // `head()` — TanStack Start's server-fn types currently strip the
@@ -33,7 +33,7 @@ import type { Locale } from '@/i18n/i18n-config'
 // so we cast back to the actual shape we know the loader produces. The same
 // pattern is used implicitly by `RouteComponent` below via
 // `Route.useLoaderData()`.
-type RouteLoaderData = { result: NonNullable<PageDetailResult>; lng: Locale }
+type RouteLoaderData = { result: NonNullable<PageDetailResult>; lng: RoutableLocale }
 
 export const Route = createFileRoute('/{-$lng}/_frontend/$path')({
   loader: async ({ params, context }) => {
@@ -96,7 +96,7 @@ function RouteComponent() {
           <Breadcrumbs breadcrumbs={[{ label: title, href: `/${result.path}` }]} />
         </Container>
       </Section>
-      <PageDetail result={result} lng={lng} />
+      <PageDetail result={result} lng={toInterfaceLocale(lng)} />
     </>
   )
 }

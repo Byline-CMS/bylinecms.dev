@@ -2,7 +2,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { useLocale } from '@/i18n/hooks/use-locale-navigation'
+import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import { FrontendLayout } from '@/ui/layouts/frontend-layout'
@@ -20,6 +20,9 @@ export const Route = createFileRoute('/{-$lng}/_frontend')({
 
 function FrontEndLayout() {
   const data = Route.useLoaderData()
-  const locale = useLocale()
+  // Chrome renders in the interface locale — on a content-only URL (`/fr`)
+  // the nav, footer, and menu links revert to the visitor's interface
+  // locale rather than carrying the `/fr` prefix.
+  const locale = useInterfaceLocale()
   return <FrontendLayout {...data} locale={locale} />
 }

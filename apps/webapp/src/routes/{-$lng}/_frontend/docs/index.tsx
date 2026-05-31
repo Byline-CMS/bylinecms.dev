@@ -10,6 +10,7 @@ import { createFileRoute, useLoaderData } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
+import { toInterfaceLocale } from '@/i18n/i18n-config'
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { DocsList } from '@/modules/docs/components/list'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
@@ -37,7 +38,7 @@ function RouteComponent() {
       <Section className="pb-12">
         <Container>
           {docs.length > 0 ? (
-            <DocsList docs={docs} lng={lng} />
+            <DocsList docs={docs} lng={toInterfaceLocale(lng)} />
           ) : (
             <div className="prose mb-8">
               <h1 className="mb-2">Documentation</h1>

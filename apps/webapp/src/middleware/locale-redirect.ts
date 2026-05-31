@@ -29,16 +29,19 @@ import { createMiddleware } from '@tanstack/react-start'
 import { getCookie, getRequestHeader, getRequestUrl } from '@tanstack/react-start/server'
 
 import { detectLocale } from '@/i18n/detect-locale'
-import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
 
 export const localeRedirectMiddleware = createMiddleware().server(async ({ next }) => {
   const url = getRequestUrl()
   const pathname = url.pathname
 
-  // If the URL already carries a valid locale segment, either canonicalise
-  // (strip the default-locale prefix for a clean URL) or pass through.
+  // If the URL already carries a routable locale segment, either
+  // canonicalise (strip the default-locale prefix for a clean URL) or pass
+  // through. A content-only locale segment (e.g. `/fr`) passes through here
+  // *without* interface negotiation — the matcher resolves it and the page
+  // renders content in that locale with fallback chrome.
   const firstSegment = pathname.split('/')[1]
-  if (firstSegment != null && i18nConfig.locales.includes(firstSegment as Locale)) {
+  if (isRoutableLocale(firstSegment)) {
     if (firstSegment === i18nConfig.defaultLocale) {
       const rest = pathname.slice(`/${firstSegment}`.length) || '/'
       throw redirect({

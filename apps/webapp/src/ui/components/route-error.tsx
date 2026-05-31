@@ -93,3 +93,29 @@ export function RootError({ error, reset }: ErrorComponentProps) {
     </div>
   )
 }
+
+/**
+ * Provider-free not-found fallback used at the root. Catches URLs that
+ * don't match anything in the route tree (e.g. an unrecognized locale
+ * prefix `/foo/bar`), where the locale layout hasn't mounted so any
+ * hook that depends on the host router context is unsafe. Plain
+ * elements only.
+ */
+export function RootNotFound(_props: NotFoundRouteProps) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-6">
+      <div className="max-w-md text-center">
+        <h1 className="text-2xl font-medium mb-2">Oops! Not found</h1>
+        <p className="mb-4 opacity-80">
+          The page or resource you&apos;re looking for could not be found.
+        </p>
+        <a
+          href="/"
+          className="inline-block px-4 py-2 rounded-md border border-current text-sm no-underline"
+        >
+          Home
+        </a>
+      </div>
+    </div>
+  )
+}

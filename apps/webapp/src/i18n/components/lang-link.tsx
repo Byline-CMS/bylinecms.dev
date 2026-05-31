@@ -14,15 +14,17 @@
 import type React from 'react'
 import { Link } from '@tanstack/react-router'
 
-import { lngParam, toLocaleRoute, useLocale } from '@/i18n/hooks/use-locale-navigation'
-import { i18nConfig, type Locale } from '@/i18n/i18n-config'
+import { lngParam, toLocaleRoute, useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
+import { i18nConfig, type RoutableLocale } from '@/i18n/i18n-config'
 
 export interface LangLinkProps
   extends Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'children'> {
   /** Route path — use clean paths like '/about', not '/{-$lng}/about'. The locale prefix is added automatically. */
   to: string
-  /** Target locale — defaults to the current route locale */
-  lng?: Locale
+  /** Target locale — defaults to the current **interface** locale, so
+   * generic navigation reverts off a content-only prefix. Pass a content
+   * locale explicitly for the per-page "read this in…" affordance. */
+  lng?: RoutableLocale
   /** Additional route params besides lng */
   params?: Record<string, string | undefined>
   /** Search / query string parameters */
@@ -52,8 +54,8 @@ export function LangLink({
   ref,
   ...rest
 }: LangLinkProps) {
-  const currentLocale = useLocale()
-  const targetLocale = lng ?? currentLocale
+  const currentInterfaceLocale = useInterfaceLocale()
+  const targetLocale = lng ?? currentInterfaceLocale
   const localeParam = lngParam(targetLocale)
 
   if (forceReload === true) {
