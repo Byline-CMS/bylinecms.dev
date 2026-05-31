@@ -1,0 +1,45 @@
+/**
+ * AvailableLocalesWidget — system-managed `availableLocales` form widget.
+ *
+ * The editorial "advertise these locales" checkbox list, rendered in the
+ * sidebar below the path widget. Per-row reconciliation against the ledger is
+ * conveyed by Checkbox `intent` (green/amber/gray) — no per-row text.
+ *
+ * Override handles:
+ *   .byline-form-available-locales         — wrapper div
+ *   .byline-form-available-locales-list    — checkbox group
+ *   .byline-form-available-locales-sr-only — visually-hidden screen-reader hint
+ */
+
+.container,
+:global(.byline-form-available-locales) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.label,
+:global(.byline-form-available-locales-label) {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.list,
+:global(.byline-form-available-locales-list) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.sr-only,
+:global(.byline-form-available-locales-sr-only) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

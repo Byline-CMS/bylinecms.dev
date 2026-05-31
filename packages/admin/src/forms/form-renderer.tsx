@@ -28,6 +28,7 @@ import { LocalDateTime } from '../fields/local-date-time'
 import { AdminGroup } from '../presentation/group'
 import { AdminRow } from '../presentation/row'
 import { AdminTabs } from '../presentation/tabs'
+import { AvailableLocalesWidget } from './available-locales-widget'
 import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import styles from './form-renderer.module.css'
@@ -91,6 +92,13 @@ export interface FormRendererProps {
    * present the path widget renders in the sidebar.
    */
   useAsPath?: string
+  /**
+   * Opts the available-locales widget into the sidebar (below the path
+   * widget). Sourced from `CollectionDefinition.advertiseLocales` by the
+   * caller. When true, one checkbox per content locale renders, reconciled
+   * against the document's `_availableVersionLocales` ledger fact.
+   */
+  advertiseLocales?: boolean
   headingLabel?: string
   headerSlot?: ReactNode
   /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
@@ -299,6 +307,7 @@ const FormContent = ({
   adminConfig,
   useAsTitle,
   useAsPath,
+  advertiseLocales,
   headingLabel,
   headerSlot,
   collectionPath,
@@ -786,6 +795,14 @@ const FormContent = ({
               mode={mode}
             />
           )}
+          {advertiseLocales && (
+            <AvailableLocalesWidget
+              contentLocales={contentLocales ?? []}
+              availableVersionLocales={
+                (initialData?._availableVersionLocales as string[] | undefined) ?? []
+              }
+            />
+          )}
           {(layout.sidebar ?? []).map((name) => renderItem(name))}
         </div>
       </div>
@@ -837,6 +854,7 @@ export const FormRenderer = ({
   adminConfig,
   useAsTitle,
   useAsPath,
+  advertiseLocales,
   headingLabel,
   headerSlot,
   collectionPath,
@@ -873,6 +891,7 @@ export const FormRenderer = ({
         adminConfig={adminConfig}
         useAsTitle={useAsTitle}
         useAsPath={useAsPath}
+        advertiseLocales={advertiseLocales}
         headingLabel={headingLabel}
         headerSlot={headerSlot}
         collectionPath={collectionPath}

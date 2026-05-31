@@ -38,7 +38,20 @@ type FieldListener = (value: any) => void
 type ErrorsListener = (errors: FormError[]) => void
 type MetaListener = () => void
 type SystemPathListener = (value: string | null) => void
+type SystemAvailableLocalesListener = (value: string[]) => void
 type FieldUploadingListener = (uploading: boolean) => void
+
+/**
+ * Order-insensitive set equality for the advertised-locale slot. The slot
+ * holds an array, so a fresh array reference is never `===` its initial — dirty
+ * tracking must compare membership, not identity.
+ */
+const sameLocaleSet = (a: string[], b: string[]): boolean => {
+  if (a.length !== b.length) return false
+  const sa = [...a].sort()
+  const sb = [...b].sort()
+  return sa.every((v, i) => v === sb[i])
+}
 
 interface FormContextType {
   setFieldValue: (name: string, value: any) => void
@@ -80,6 +93,13 @@ interface FormContextType {
   getSystemPath: () => string | null
   setSystemPath: (value: string | null) => void
   subscribeSystemPath: (listener: SystemPathListener) => () => void
+  // System-managed `availableLocales` slot (the editorial advertised-locale
+  // set, persisted in `byline_document_available_locales`), edited by the
+  // available-locales widget. Holds the full set; the value is sent verbatim
+  // to the server. Document-grain and sticky, like the path slot above.
+  getSystemAvailableLocales: () => string[]
+  setSystemAvailableLocales: (value: string[]) => void
+  subscribeSystemAvailableLocales: (listener: SystemAvailableLocalesListener) => () => void
 }
 
 const FormContext = createContext<FormContextType | null>(null)
@@ -124,6 +144,16 @@ export const FormProvider = ({
   )
   const initialSystemPath = useRef<string | null>(systemPathRef.current)
   const systemPathListeners = useRef<Set<SystemPathListener>>(new Set())
+
+  // System available-locales slot — initialised from the loaded version's
+  // top-level `availableLocales` (edit mode) or `[]` (create mode / not yet
+  // surfaced). Edits via `setSystemAvailableLocales` mark the form dirty so
+  // the Save button enables. Stored as a defensive copy.
+  const systemAvailableLocalesRef = useRef<string[]>(
+    Array.isArray(initialData?.availableLocales) ? [...initialData.availableLocales] : []
+  )
+  const initialSystemAvailableLocales = useRef<string[]>([...systemAvailableLocalesRef.current])
+  const systemAvailableLocalesListeners = useRef<Set<SystemAvailableLocalesListener>>(new Set())
 
   const subscribeField = useCallback((name: string, listener: FieldListener) => {
     if (!fieldListeners.current.has(name)) {
@@ -267,6 +297,7 @@ export const FormProvider = ({
     dirtyFields.current.clear()
     patchesRef.current = []
     initialSystemPath.current = systemPathRef.current
+    initialSystemAvailableLocales.current = [...systemAvailableLocalesRef.current]
     notifyMetaListeners()
   }, [notifyMetaListeners])
 
@@ -302,6 +333,39 @@ export const FormProvider = ({
       systemPathListeners.current.delete(listener)
     }
   }, [])
+
+  // -------------------------------------------------------------------------
+  // System available-locales slot
+  // -------------------------------------------------------------------------
+
+  const getSystemAvailableLocales = useCallback(() => systemAvailableLocalesRef.current, [])
+
+  const setSystemAvailableLocales = useCallback(
+    (value: string[]) => {
+      const next = [...value]
+      systemAvailableLocalesRef.current = next
+      if (!sameLocaleSet(next, initialSystemAvailableLocales.current)) {
+        dirtyFields.current.add('__systemAvailableLocales__')
+      } else {
+        dirtyFields.current.delete('__systemAvailableLocales__')
+      }
+      systemAvailableLocalesListeners.current.forEach((listener) => {
+        listener(next)
+      })
+      notifyMetaListeners()
+    },
+    [notifyMetaListeners]
+  )
+
+  const subscribeSystemAvailableLocales = useCallback(
+    (listener: SystemAvailableLocalesListener) => {
+      systemAvailableLocalesListeners.current.add(listener)
+      return () => {
+        systemAvailableLocalesListeners.current.delete(listener)
+      }
+    },
+    []
+  )
 
   // ---------------------------------------------------------------------------
   // Pending uploads (deferred until save)
@@ -591,6 +655,9 @@ export const FormProvider = ({
         getSystemPath,
         setSystemPath,
         subscribeSystemPath,
+        getSystemAvailableLocales,
+        setSystemAvailableLocales,
+        subscribeSystemAvailableLocales,
       }}
     >
       {children}
@@ -609,6 +676,22 @@ export const useSystemPath = (): string | null => {
   useEffect(() => {
     return subscribeSystemPath((next) => setValue(next))
   }, [subscribeSystemPath])
+
+  return value
+}
+
+/**
+ * Subscribe to the system `availableLocales` slot edited by the
+ * available-locales widget. Returns the current advertised set (or `[]` when
+ * nothing is advertised / not yet surfaced).
+ */
+export const useSystemAvailableLocales = (): string[] => {
+  const { getSystemAvailableLocales, subscribeSystemAvailableLocales } = useFormContext()
+  const [value, setValue] = useState<string[]>(() => getSystemAvailableLocales())
+
+  useEffect(() => {
+    return subscribeSystemAvailableLocales((next) => setValue(next))
+  }, [subscribeSystemAvailableLocales])
 
   return value
 }

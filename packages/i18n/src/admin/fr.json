@@ -361,6 +361,8 @@
   "pathWidget.srDescription": "Chemin URL géré par le système pour ce document.",
   "pathWidget.regenerateButton": "Régénérer depuis {field}",
   "pathWidget.regenerateAriaLabel": "Régénérer le chemin depuis le champ {field}",
+  "availableLocalesWidget.label": "Locales annoncées",
+  "availableLocalesWidget.srDescription": "Locales de contenu annoncées pour ce document. Une locale verte a un contenu complet et peut être activée ou désactivée ; une locale ambre est annoncée mais n'est plus complète.",
   "fields.blocks.addBlockAriaLabel": "Ajouter un bloc",
   "fields.blocks.modalTitle": "Blocs",
   "fields.array.addItemAriaLabel": "Ajouter un élément",

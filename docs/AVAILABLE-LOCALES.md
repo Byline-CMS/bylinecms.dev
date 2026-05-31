@@ -83,9 +83,11 @@ Per content locale, the widget shows the ledger fact beside the editor's toggle:
 
 That ⚠ row **is** the deferred Phase-5 cross-check (`availableLanguages` ↔ ledger
 disagreement) — realized as **inline editorial UX** at the moment of decision
-rather than a passive boot/save warning. Open knobs: opt-in (advertise nothing
-until toggled — safest) vs opt-out default; and disable-vs-warn on the ⚠ row
-(lean: allow-with-warning, since content states are fluid).
+rather than a passive boot/save warning. **Both knobs settled in Slice 5:**
+**opt-in** (advertise nothing until the editor toggles — safest), and
+**allow-with-warning** on the ⚠ row (amber `warning` intent, kept enabled so the
+editor can uncheck to resolve). Realized purely through Checkbox `intent`
+colour — no per-row text.
 
 For the widget to render the ledger column it needs `_availableVersionLocales` at edit
 time — the admin edit response currently **strips** it (Zod parse drops unknown
@@ -150,13 +152,40 @@ is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-language
    deliberately left un-threaded (sticky / safe-empty default). Unit pass-through
    tests in `write-path.test.node.ts`; end-to-end (create/sticky/replace/clear)
    in `client-write.integration.test.ts`.
-4. **Admin form-context state** (`@byline/admin`) — mirror the `systemPath`
-   machine in `forms/form-context.tsx`: `systemAvailableLocalesRef`, get/set,
-   `__systemAvailableLocales__` dirty-tracking, listeners.
-5. **The widget** (`@byline/admin`) — `forms/available-locales-widget.tsx`
-   (+ `.module.css` + test), based on the existing custom field's
-   checkbox-per-locale UI but **ledger-aware** (the reconciliation grid above),
-   rendered in the sidebar **below the path widget**.
+4. ✅ **Admin form-context state** (`@byline/admin`) — mirrored the `systemPath`
+   machine in `forms/form-context.tsx`: `systemAvailableLocalesRef` +
+   `initialSystemAvailableLocales` baseline, `get/set/subscribeSystemAvailableLocales`,
+   `__systemAvailableLocales__` dirty-tracking, listeners, `resetHasChanges`
+   re-baselining, and the `useSystemAvailableLocales()` hook (auto-exported via
+   the `@byline/admin/react` barrel's `export *`). One necessary divergence from
+   `path`: the slot holds `string[]`, so dirty-tracking uses order-insensitive
+   set equality (`sameLocaleSet`) instead of `!==`, and set/get store/return
+   defensive copies. The form-renderer→onSubmit payload read and server
+   pass-through are deferred to Slices 5/6 (the slot is inert until the widget
+   writes it and the save path reads it) — matching how `systemPath` is wired.
+   Verified via typecheck; behavioural coverage arrives with the widget (Slice 5),
+   mirroring `systemPath` (which likewise has no isolated form-context test).
+5. ✅ **The widget** (`@byline/admin`) — `forms/available-locales-widget.tsx`
+   (+ `.module.css`), one checkbox per content locale rendered in the sidebar
+   **below the path widget**, gated on a new `advertiseLocales?: boolean`
+   `FormRenderer` prop (the host passes `definition.advertiseLocales` in Slice 6).
+   **The reconciliation is expressed purely as Checkbox `intent` — no per-row
+   text** (Tony's design): `success` (green) when the locale is in
+   `_availableVersionLocales` (toggleable), `noeffect` + disabled when not
+   (nothing to advertise), `warning` (amber, **enabled**) for the ⚠ case
+   (advertised but no longer complete — editor can uncheck to resolve). Checked
+   state reflects the stored set via `useSystemAvailableLocales`; **opt-in** —
+   nothing advertised until the editor checks a green locale (Decision #2). The
+   intent/disabled decision is a pure, React-free helper
+   (`available-locales-reconcile.ts` → `reconcileLocaleState`) unit-tested in
+   `available-locales-reconcile.test.node.ts` (the admin suite only runs
+   `*.test.node.ts` under node, so the logic was extracted out of the `.tsx`).
+   New i18n keys `availableLocalesWidget.{label,srDescription}` (EN/FR) — heading
+   + a11y only; the per-row reconciliation stays string-free. **The save loop is
+   not yet closed**: the widget writes the form-context slot (Slice 4) but the
+   `onSubmit` payload read + host forward + server pass-through are Slice 6, so
+   the widget is inert end-to-end until then (and only renders once the host
+   passes `advertiseLocales`).
 6. **Host wiring** (`@byline/host-tanstack-start`) — `server-fns/collections/get.ts`:
    **preserve `_availableVersionLocales` through the Zod parse** (prerequisite for the
    widget's ledger column; mirrors how `_restoreWarnings` is preserved ~line 151)
@@ -164,8 +193,8 @@ is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-language
 7. **Migration** — map existing `availableLanguages` field values into the new
    store; drop the field from the `news`/`pages`/`docs` schemas.
 
-**To resume in a fresh session:** read this doc, then start at **Slice 4**
-(Admin form-context state — first unchecked slice) on branch
+**To resume in a fresh session:** read this doc, then start at **Slice 6**
+(Host wiring — first unchecked slice) on branch
 `feat/content-locale-resolution`. The `path`
 system attribute is the working reference at every layer
 (`docs/DOCUMENT-PATHS.md`); grep `useAsPath` / `systemPath` / `byline_document_paths`
@@ -185,9 +214,11 @@ to find each analog.
    reversible choice avoids foreclosing the expensive, hard-to-reverse one; if
    content locales later become collection-defined, `advertiseLocales` (already
    per-collection) slots in unchanged.
-2. **Default policy** — opt-in (nothing advertised until toggled) vs opt-out
-   (available locales default to advertised). The false-positive concern argues
-   opt-in.
+2. ~~**Default policy** — opt-in (nothing advertised until toggled) vs opt-out
+   (available locales default to advertised).~~ **Settled (Slice 5): opt-in.**
+   The checkbox reflects the stored set; a green (ledger-complete) locale is an
+   invitation, not an auto-advertise. Avoids pushing un-reviewed translations
+   live and sidesteps the "never decided vs explicitly off" state opt-out needs.
 3. **Read surfacing** — expose a core-computed `_advertisedLocales` (intersection)
    or leave the intersection to the host.
 4. ~~**Naming proximity** — `availableLocales` (stored) vs `_availableLocales`
