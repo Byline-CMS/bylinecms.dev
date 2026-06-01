@@ -89,9 +89,6 @@ Before running any phase, `setup` performs a quick pre-flight: it bails if the c
 
 ## Getting started - Development environment and example application (this repo)
 
-Byline is shipping under the 1.x line — best treated as a release candidate.
-It builds and runs if you'd like to poke around or follow along.
-
 ### 1. Clone and install dependencies
 
 ```sh

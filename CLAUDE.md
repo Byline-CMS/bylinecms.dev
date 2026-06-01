@@ -6,7 +6,7 @@ Note: See docs/CORE-DOCUMENT-STORAGE.md for the present-state reference of the s
 
 ## Project Overview
 
-Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v2.x.x release (lockstep across the publishable `@byline/*` packages). Licensed MPL-2.0.
+Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v3.x.x release (lockstep across the publishable `@byline/*` packages). Licensed MPL-2.0.
 
 ## Monorepo Structure
 

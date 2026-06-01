@@ -4,12 +4,12 @@ A developer-friendly, open-source headless CMS — built with versioning,
 editorial workflow, and content translation as first-class concerns rather
 than features bolted on later.
 
-> Status: Byline is currently at a stable v2.x.x release. The jump from v1
-> to v2 was driven by lockstep versioning across the publishable `@byline/*`
-> packages rather than a breaking redesign — the architecture is settled
-> and there are unlikely to be any major architectural changes, though
+> Status: Byline is currently at a stable v3.x.x release. The major-version
+> bumps have been driven by lockstep versioning across the publishable
+> `@byline/*` packages rather than breaking redesigns — the architecture is
+> settled and there are unlikely to be any major architectural changes, though
 > there is still work to do.
-> If you're interested in Byline, v2 is a solid base for evaluation and
+> If you're interested in Byline, v3 is a solid base for evaluation and
 > for building on.
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
@@ -283,7 +283,7 @@ We’re pretty much nobody — at least not within the usual spheres of influenc
 
 <details>
 <summary>2. Will this work?</summary>
-We hope so. The 1.x line is best treated as a release candidate — the core is stable enough to build on, but we're still filling in the edges and discovering where production workloads will press hardest.
+We hope so. Core is stable but there certainly still work to do.
 </details>
 
 <details>
@@ -303,7 +303,7 @@ We’re not certain yet, and likely not at this early stage. Our priority is to 
 
 <details>
 <summary>6. What's here now?</summary>
-The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 1.x line but treating it as a release candidate: APIs are stable and the core architecture is settled, with several v1-level capabilities (collection-versioning history, `hasMany` relations, list-view materialisation under load) deferred to fill in across 1.x.
+The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 3.x line but treating it as a release candidate: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, `hasMany` relations, list-view materialisation under load) deferred to fill in across the 3.x line.
 </details>
 
 <details>
