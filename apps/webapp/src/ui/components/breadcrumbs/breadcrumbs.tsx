@@ -32,7 +32,7 @@ export function Breadcrumbs({
             // lng={lng}
             to={homePath}
             href={homePath}
-            className="m-0 text-sm inline-flex items-center font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+            className="m-0 inline-flex items-center font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
           >
             <svg
               role="presentation"
@@ -70,7 +70,7 @@ export function Breadcrumbs({
                       // lng={lng}
                       to={breadcrumb.href}
                       href={breadcrumb.href}
-                      className="text-sm m-0 font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                      className="m-0 font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                     >
                       {truncate(breadcrumb.label, 20, true)}
                     </Link>
@@ -94,7 +94,7 @@ export function Breadcrumbs({
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-400 leading-5">
+                  <span className="font-medium text-gray-800 dark:text-gray-400 leading-5">
                     {truncate(breadcrumb.label, 20, true)}
                   </span>
                 </div>
