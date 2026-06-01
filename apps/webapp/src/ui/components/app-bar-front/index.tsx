@@ -109,7 +109,7 @@ export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps)
       />
       <div
         className={cx(
-          'app-bar flex h-[50px] w-full items-center gap-4 pl-0 pr-[12px]',
+          'app-bar flex h-[50px] w-full items-center gap-2 pl-0 pr-[12px]',
           'sm:gap-2 sm:pl-0 sm:pr-[18px]',
           'transition-all duration-500 ease-out'
         )}
@@ -119,7 +119,7 @@ export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps)
           <Branding lng={lng} hasScrolled={hasScrolled} pathName={pathName} />
         </div>
         <MainMenu lng={lng} color={appBarTextColor} />
-        <div className="flex items-center gap-4 lg:gap-6 ml-auto">
+        <div className="flex items-center gap-2 lg:gap-4 ml-auto">
           <LanguageMenu lng={lng} color={appBarTextColor} />
           <ThemeSwitch />
           <a

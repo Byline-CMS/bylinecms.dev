@@ -15,7 +15,9 @@
     "heroTagline": "Un système de gestion de contenu (CMS) moderne, headless, rapide et axé sur l'IA pour les applications orientées contenu.",
     "heroAdminDashboard": "Tableau de bord d'administration",
     "editorHeading": "Premiers pas avec Byline CMS",
-    "editorDemo": "Bienvenue dans Byline CMS ! Ceci est une démonstration de notre éditeur WYSIWYG propulsé par l'IA. Grâce à des suggestions intelligentes et à une création de contenu fluide, créer du contenu remarquable n'a jamais été aussi simple. L'avenir de la gestion de contenu est arrivé."
+    "editorDemo": "Bienvenue dans Byline CMS ! Ceci est une démonstration de notre éditeur WYSIWYG propulsé par l'IA. Grâce à des suggestions intelligentes et à une création de contenu fluide, créer du contenu remarquable n'a jamais été aussi simple. L'avenir de la gestion de contenu est arrivé.",
+    "featuresTitle": "Conçu pour les plateformes de contenu modernes",
+    "featuresIntro": "Tout ce dont vous avez besoin pour créer des applications axées sur le contenu, avec rapidité et flexibilité."
   },
   "common": {
     "home": "Accueil",

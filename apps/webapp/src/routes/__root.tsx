@@ -8,10 +8,16 @@
 
 /// <reference types="vite/client" />
 import type { ReactNode } from 'react'
-import { createRootRoute, HeadContent, Outlet, Scripts, useParams } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  HeadContent,
+  Outlet,
+  Scripts,
+  useRouterState,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
-import { i18nConfig } from '@/i18n/i18n-config'
+import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
 import { getMeta } from '@/lib/meta'
 import { RootError, RootNotFound } from '@/ui/components/route-error'
 import { EarlyThemeDetector } from '@/ui/theme/early-theme-detector'
@@ -64,12 +70,13 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  // Read the optional {-$lng} param to set the <html lang> attribute dynamically
-  const params = useParams({ strict: false }) as { lng?: string }
-  const lang =
-    params.lng != null && i18nConfig.locales.includes(params.lng as any)
-      ? params.lng
-      : i18nConfig.defaultLocale
+  // Derive <html lang> from the URL's leading locale segment so any
+  // locale-prefixed URL — interface or content, including the literal
+  // /<lng> home shims (which carry no {-$lng} param) — advertises the
+  // correct language. Falls back to the default locale otherwise.
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const firstSegment = pathname.split('/')[1] ?? ''
+  const lang = isRoutableLocale(firstSegment) ? firstSegment : i18nConfig.defaultLocale
 
   return (
     <html className="dark byline-ui" lang={lang} suppressHydrationWarning>

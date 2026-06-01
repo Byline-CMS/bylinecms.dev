@@ -1,15 +1,16 @@
 import { Container, Section } from '@byline/ui/react'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
+
 export function FeatureGrid() {
+  const { t } = useTranslations('frontend')
   return (
     <Section className="pt-12 pb-12 sm:pb-22">
       <Container>
         <div className="text-center space-y-4 mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-balance">
-            Built for Modern Content Platforms
-          </h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-balance">{t('featuresTitle')}</h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-balance">
-            Everything you need to build content-driven applications with speed and flexibility.
+            {t('featuresIntro')}
           </p>
         </div>
 

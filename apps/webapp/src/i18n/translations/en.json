@@ -15,7 +15,9 @@
     "heroTagline": "A modern, headless, fast, and AI-first content management system (CMS) for content-driven applications.",
     "heroAdminDashboard": "Admin Dashboard",
     "editorHeading": "Getting Started with Byline CMS",
-    "editorDemo": "Welcome to Byline CMS! This is a demonstration of our AI-powered WYSIWYG editor. With intelligent suggestions and seamless content creation, building amazing content has never been easier. The future of content management is here."
+    "editorDemo": "Welcome to Byline CMS! This is a demonstration of our AI-powered WYSIWYG editor. With intelligent suggestions and seamless content creation, building amazing content has never been easier. The future of content management is here.",
+    "featuresTitle": "Built for Modern Content Platforms",
+    "featuresIntro": "Everything you need to build content-driven applications with speed and flexibility."
   },
   "common": {
     "home": "Home",
