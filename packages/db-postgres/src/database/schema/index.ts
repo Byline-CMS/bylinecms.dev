@@ -93,6 +93,16 @@ export const documents = pgTable(
     // comparison — the fractional-index algorithm requires this. See
     // `varcharByteSorted` above and docs/COLLECTIONS.md (Orderable collections).
     order_key: varcharByteSorted('order_key', { length: 128 }),
+    // The content locale this document was first authored in — its per-document
+    // data anchor. Set once at creation (= the global default content locale at
+    // that moment) and immutable in normal operation; changed only by the
+    // deliberate re-anchor operation. Re-bases the fallback floor, the path
+    // locale, and the completeness ledger off the mutable global config onto
+    // the document's own truth, so switching `i18n.content.defaultLocale` no
+    // longer silently re-interprets existing data. Added nullable; backfilled
+    // by `backfillSourceLocales()` then set NOT NULL in a follow-up migration.
+    // See docs/DEFAULT-LOCALE-SWITCHING.md.
+    source_locale: varchar('source_locale', { length: 10 }),
     ...timestamps,
   },
   (table) => [

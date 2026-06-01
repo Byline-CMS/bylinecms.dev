@@ -6,8 +6,13 @@ summary: "Makes a system's default content locale safely switchable by recording
 
 # Switchable Default Content Locale
 
-> **Status:** Design / decision record. Not yet implemented. Companion to the
-> content-locale work; sketched 2026-06-01.
+> **Status:** In progress. Slices 1–2 (schema + backfill primitive; storage
+> write path) shipped 2026-06-01 on `feat/content-locale-resolution`. Companion
+> to the content-locale work; sketched 2026-06-01.
+>
+> **Settled decisions:** grain = **document-grain** (`byline_documents`);
+> branch = **continue on `feat/content-locale-resolution`** (not a separate
+> branch).
 
 Companions:
 - [CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md) — the locale
@@ -158,26 +163,50 @@ Net cost ≈ one PK join + one carried `varchar` per row.
 
 ## Sliced plan (each independently green)
 
-1. **Schema + backfill primitive** (`@byline/db-postgres`) — add `source_locale`
-   to `byline_documents` + migration (nullable initially); add an adapter
-   `backfillSourceLocales(defaultLocale)` (mirrors `backfillVersionLocales` — a
-   static migration can't know the configured default) that sets existing rows
-   = current global default; follow-up migration to `NOT NULL`. Tests.
-2. **Write path** (`@byline/db-postgres` + `@byline/core`) — `createDocumentVersion`
-   records `source_locale` at creation; path upsert + both ledger `canonical`
-   queries key off it; `resolvePathForUpdate` gate + `derivePath` use source;
-   `createDocument` validation relaxes from "must equal global default" to
-   "establishes / must equal the doc's source locale." Tests.
-3. **Read path** (`@byline/db-postgres`) — the heavy one: expose `source_locale`
-   on the current-documents views; make `buildLocaleChain` / `pathProjection` /
-   the ~430–455 effective-locale logic / reconstruction-fallback per-document.
-   Tests: an `en`-anchored doc reads correctly in `en` *and* falls back to `en`
-   under a non-`en` global default.
-4. **Backfill + demote the global default** (`@byline/core` docs/config) — run
-   the backfill; document that `i18n.content.defaultLocale` now means "default
-   authoring locale + request fallback," not the data anchor. **At this point
-   switching the global config default is safe** — existing docs ride their own
-   `source_locale`. Tests proving a config flip leaves existing docs intact.
+1. **Schema + backfill primitive** (`@byline/db-postgres`) — ✅ **done** (migration
+   `0003_ambitious_imperial_guard.sql`). Added `source_locale` to
+   `byline_documents` (nullable, `varchar(10)`); added adapter
+   `backfillSourceLocales()` (mirrors `backfillVersionLocales` — param-less, uses
+   the adapter's configured `defaultContentLocale`, since a static migration
+   can't know it) that stamps every `source_locale IS NULL` row with that
+   default; idempotent. Integration test in `storage-locale-fallback.test.ts`.
+   **The `NOT NULL` follow-up migration moved to Slice 4** — it can only apply
+   after `backfillSourceLocales()` has stamped pre-existing NULL rows (a static
+   migration can't run the backfill), which is Slice 4's maintenance step.
+2. **Storage write path** (`@byline/db-postgres`) — ✅ **done.**
+   `createDocumentVersion` stamps `source_locale` on new documents (= configured
+   default) and reads the existing doc's anchor on a new version; the path upsert
+   and the write-time ledger `canonical` key off that per-document
+   `source_locale`; `backfillVersionLocales`' `canonical` joins
+   `byline_document_versions` → `byline_documents` so it recomputes per-document
+   (COALESCE-falling-back to the configured default for not-yet-stamped rows).
+   Fully self-contained in the storage layer with **zero behaviour change at the
+   current default** (anchor ≡ default until a flip). Tests in
+   `storage-locale-fallback.test.ts` (re-anchor simulation proves the ledger and
+   path key off `source_locale`, not the global default).
+
+   **Scope moved out of this slice** (chicken-and-egg with the read payload):
+   the lifecycle rebase — `resolvePathForUpdate` gate, `derivePath`, and the
+   `createDocument` validation relax — needs the doc's `source_locale` *on the
+   read payload*, which Slice 3 delivers. And it isn't needed for correctness
+   until a flip (Slice 4): pre-flip, `requestLocale === defaultLocale ===
+   source_locale`, so the lifecycle's current comparisons stay correct. Moved to
+   Slice 3 (and it must land there, *before* Slice 4 sanctions a flip).
+3. **Read path + lifecycle rebase** (`@byline/db-postgres` + `@byline/core`) — the
+   heavy one: expose `source_locale` on the current-documents views; make
+   `buildLocaleChain` / `pathProjection` / the ~430–455 effective-locale logic /
+   reconstruction-fallback per-document; **and** rebase the lifecycle
+   (`resolvePathForUpdate` gate, `derivePath`, `createDocument` validation relax)
+   onto the now-read-exposed `source_locale`. Tests: an `en`-anchored doc reads
+   correctly in `en` *and* falls back to `en` under a non-`en` global default.
+4. **Backfill + NOT NULL + demote the global default** (`@byline/core`
+   docs/config + migration) — run `backfillSourceLocales()`; **then** the
+   `NOT NULL` follow-up migration (only safe once the backfill has stamped
+   pre-existing NULL rows — a static migration can't run the backfill itself);
+   document that `i18n.content.defaultLocale` now means "default authoring locale
+   + request fallback," not the data anchor. **At this point switching the global
+   config default is safe** — existing docs ride their own `source_locale`. Tests
+   proving a config flip leaves existing docs intact.
 5. **Re-anchor operation** (`@byline/core` + admin) — see below.
 6. **Source-locale indicator** (`@byline/admin`) — see below.
 
@@ -228,7 +257,8 @@ through the admin for the chip text.
 
 ## Open decisions
 
-1. **Grain** — document-grain (lean) vs version-grain `source_locale`.
+1. ~~**Grain** — document-grain (lean) vs version-grain `source_locale`.~~
+   **Settled: document-grain** (`byline_documents.source_locale`).
 2. **Re-anchor policy** — refuse on incomplete (lean, safe) vs allow-with-warning.
 3. **Scope** — does the work stop at "config switch is safe + bulk re-anchor"
    (Slices 1–4 + 5-bulk), or include the per-doc UI action (5-interactive) and
@@ -238,18 +268,22 @@ through the admin for the chip text.
 5. **Re-anchor permission** — new `manageLocale` ability vs admin-only.
 
 **To resume in a fresh session:** read this doc plus
-[CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). The work is not
-started. Before writing code:
+[CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). Slices 1–2 are
+shipped (storage write path is per-document `source_locale`-anchored); **next is
+Slice 3 (read path + lifecycle rebase).** Grain (document) and branch
+(`feat/content-locale-resolution`) are settled.
 
-1. **Settle the grain decision first** (open decision #1) — it gates Slice 1:
-   document-grain puts `source_locale` on `byline_documents`, version-grain on
-   `byline_document_versions`. Lean is document-grain. The other open decisions
-   can be settled as their slices arrive.
-2. **Pick a branch.** The content-locale work this builds on (availableLocales +
-   the route-error fix) lives on `feat/content-locale-resolution` and may not be
-   merged yet — decide whether to branch off it or off `main` once it lands, so
-   this unrelated feature doesn't pile onto that branch.
+Slice 3 work — the read side in `@byline/db-postgres`: project `source_locale`
+onto the current-documents views (`currentDocumentsView` /
+`currentPublishedDocumentsView`) via a PK join to `byline_documents`, then make
+per-document the bits in `storage-queries.ts` that currently read the global
+default — `buildLocaleChain` (~192), `pathProjection` (constant fallback array →
+`ARRAY[<requested>, d.source_locale]`), the ~430–455 effective-locale logic, and
+the reconstruction fallback. **Then** the `@byline/core` lifecycle rebase
+(deferred out of Slice 2): `resolvePathForUpdate` gate + `derivePath` +
+`createDocument` validation now key off the read-exposed `source_locale` instead
+of `defaultLocale`. This must be done before Slice 4 sanctions a config flip.
 
-Then begin at Slice 1. The recurring grep anchor is `defaultContentLocale` —
-every consumer is catalogued in "The split" above; line numbers there are
-approximate (they drift), so grep rather than trust them.
+The recurring grep anchor is `defaultContentLocale` — every consumer is
+catalogued in "The split" above; line numbers there are approximate (they
+drift), so grep rather than trust them.

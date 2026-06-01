@@ -38,6 +38,15 @@ export interface PgAdapter extends IDbAdapter {
    * docs/CONTENT-LOCALE-RESOLUTION.md.
    */
   backfillVersionLocales(): Promise<{ rowsInserted: number }>
+  /**
+   * One-time maintenance: stamp `byline_documents.source_locale` for documents
+   * created before the column existed, setting NULL rows to the configured
+   * default content locale (the anchor they were implicitly authored against).
+   * Idempotent; run before the migration that sets the column NOT NULL. Kept
+   * off the core `IDbAdapter` contract (no service depends on it) — see
+   * docs/DEFAULT-LOCALE-SWITCHING.md.
+   */
+  backfillSourceLocales(): Promise<{ rowsUpdated: number }>
 }
 
 export const pgAdapter = ({
@@ -98,5 +107,6 @@ export const pgAdapter = ({
     drizzle: db,
     pool,
     backfillVersionLocales: () => commandBuilders.documents.backfillVersionLocales(),
+    backfillSourceLocales: () => commandBuilders.documents.backfillSourceLocales(),
   }
 }

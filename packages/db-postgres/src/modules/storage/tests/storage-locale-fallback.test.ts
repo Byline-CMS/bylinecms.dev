@@ -360,6 +360,160 @@ describe('content-locale resolution & fallback', () => {
     expect(second.rowsInserted).toBe(0)
   })
 
+  it('backfillSourceLocales stamps NULL source_locale rows with the default locale', async () => {
+    const id = await createDoc({
+      title: { en: 'Hello', de: 'Hallo' },
+      body: { en: 'World', de: 'Welt' },
+      sku: 'S1',
+    })
+
+    // The write path now stamps source_locale on create (Slice 2), so simulate
+    // a row written before the column existed by nulling it — exactly the
+    // pre-existing-data shape backfill exists to repair.
+    await db.execute(sql`UPDATE byline_documents SET source_locale = NULL WHERE id = ${id}::uuid`)
+    const before = await db.execute(
+      sql`SELECT source_locale FROM byline_documents WHERE id = ${id}::uuid`
+    )
+    expect((before.rows[0] as { source_locale: string | null }).source_locale).toBeNull()
+
+    const result = await commandBuilders.documents.backfillSourceLocales()
+    expect(result.rowsUpdated).toBeGreaterThan(0)
+
+    const after = await db.execute(
+      sql`SELECT source_locale FROM byline_documents WHERE id = ${id}::uuid`
+    )
+    expect(
+      (after.rows[0] as { source_locale: string | null }).source_locale,
+      'stamped with the adapter default content locale (en)'
+    ).toBe('en')
+
+    // Idempotent: a second run touches nothing (no NULL rows remain).
+    const second = await commandBuilders.documents.backfillSourceLocales()
+    expect(second.rowsUpdated).toBe(0)
+  })
+
+  // --- source_locale write path (Slice 2) ----------------------------------
+
+  it('records source_locale on create and writes the path row under it', async () => {
+    const created = await commandBuilders.documents.createDocumentVersion({
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: LocaleCollectionConfig,
+      action: 'create',
+      documentData: { title: { en: 'Hello' }, sku: 'SL1' },
+      path: `loc-source-${timestamp}`,
+      locale: 'all',
+      status: 'published',
+    })
+    const documentId = created.document.document_id
+
+    // A new document is anchored to the configured default (en).
+    const doc = await db.execute(
+      sql`SELECT source_locale FROM byline_documents WHERE id = ${documentId}::uuid`
+    )
+    expect((doc.rows[0] as { source_locale: string }).source_locale).toBe('en')
+
+    // Its path row lives under that source locale, not a hardcoded default.
+    const paths = await db.execute(
+      sql`SELECT locale FROM byline_document_paths WHERE document_id = ${documentId}::uuid`
+    )
+    expect(paths.rows.map((r) => (r as { locale: string }).locale)).toEqual(['en'])
+  })
+
+  it('keys the completeness ledger off the document source_locale, not the global default', async () => {
+    // en has only {title}; de has {title, body}. Anchored to en, the canonical
+    // checklist is {title} and both locales cover it. Re-anchored to de, the
+    // checklist becomes {title, body} and only de covers it.
+    const content = {
+      title: { en: 'Hello', de: 'Hallo' },
+      body: { de: 'Welt' },
+      sku: 'SL2',
+    }
+    const v1 = await commandBuilders.documents.createDocumentVersion({
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: LocaleCollectionConfig,
+      action: 'create',
+      documentData: content,
+      path: `loc-anchor-${timestamp}`,
+      locale: 'all',
+      status: 'published',
+    })
+    const documentId = v1.document.document_id
+    const v1Id = v1.document.id
+
+    // Anchored to en: canonical {title} → both en and de are complete.
+    const ledgerV1 = await db.execute(
+      sql`SELECT locale FROM byline_document_version_locales WHERE document_version_id = ${v1Id}::uuid ORDER BY locale`
+    )
+    expect(ledgerV1.rows.map((r) => (r as { locale: string }).locale)).toEqual(['de', 'en'])
+
+    // Simulate a re-anchor: flip the document's source_locale to de.
+    await db.execute(
+      sql`UPDATE byline_documents SET source_locale = 'de' WHERE id = ${documentId}::uuid`
+    )
+
+    // A new version now computes canonical against de {title, body}; en no
+    // longer covers it (missing body), so only de is complete.
+    const v2 = await commandBuilders.documents.createDocumentVersion({
+      documentId,
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: LocaleCollectionConfig,
+      action: 'update',
+      documentData: content,
+      locale: 'all',
+      status: 'published',
+      previousVersionId: v1Id,
+    })
+    const v2Id = v2.document.id
+
+    const ledgerV2 = await db.execute(
+      sql`SELECT locale FROM byline_document_version_locales WHERE document_version_id = ${v2Id}::uuid ORDER BY locale`
+    )
+    expect(
+      ledgerV2.rows.map((r) => (r as { locale: string }).locale),
+      'canonical re-based onto de: only de is complete'
+    ).toEqual(['de'])
+  })
+
+  it('backfillVersionLocales recomputes the ledger against each document source_locale', async () => {
+    const content = {
+      title: { en: 'Hi', de: 'Hallo' },
+      body: { de: 'Welt' },
+      sku: 'SL3',
+    }
+    const created = await commandBuilders.documents.createDocumentVersion({
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: LocaleCollectionConfig,
+      action: 'create',
+      documentData: content,
+      path: `loc-backfill-anchor-${timestamp}`,
+      locale: 'all',
+      status: 'published',
+    })
+    const documentId = created.document.document_id
+    const versionId = created.document.id
+
+    // Re-anchor to de and wipe the (en-computed) ledger to simulate a version
+    // whose ledger predates the re-anchor.
+    await db.execute(
+      sql`UPDATE byline_documents SET source_locale = 'de' WHERE id = ${documentId}::uuid`
+    )
+    await db.execute(
+      sql`DELETE FROM byline_document_version_locales WHERE document_version_id = ${versionId}::uuid`
+    )
+
+    await commandBuilders.documents.backfillVersionLocales()
+
+    // Rebuilt against de {title, body}: only de is complete (en lacks body).
+    const ledger = await db.execute(
+      sql`SELECT locale FROM byline_document_version_locales WHERE document_version_id = ${versionId}::uuid ORDER BY locale`
+    )
+    expect(ledger.rows.map((r) => (r as { locale: string }).locale)).toEqual(['de'])
+  })
+
   // --- availability metadata (Phase 6: _availableVersionLocales) -----------
 
   it('exposes _availableVersionLocales + _localeAgnostic on a detail read', async () => {

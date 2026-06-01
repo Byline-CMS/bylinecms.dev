@@ -104,9 +104,9 @@ export class DocumentCommands implements IDocumentCommands {
     documentData: any
     /**
      * Optional. When provided, upserts a row into byline_document_paths
-     * keyed by (document_id, this.defaultContentLocale). Omitted by the
-     * lifecycle for non-default-locale (translation) saves so the
-     * existing path row is left untouched.
+     * keyed by (document_id, <document source_locale>). Omitted by the
+     * lifecycle for non-source-locale (translation) saves so the existing
+     * path row is left untouched.
      */
     path?: string
     /**
@@ -127,18 +127,37 @@ export class DocumentCommands implements IDocumentCommands {
     return await this.db.transaction(async (tx) => {
       let documentId = params.documentId
 
-      // 1. Create the main document if needed
+      // 1. Create the main document if needed, and resolve the document's
+      // `source_locale` — its per-document data anchor. A brand-new document
+      // is anchored to the configured default content locale (the locale it is
+      // authored in; `createDocument` enforces create-in-default). An existing
+      // document carries its own anchor on `byline_documents`; read it so the
+      // path row and the completeness ledger below key off *this document's*
+      // source locale rather than the mutable global default. NULL (a row not
+      // yet touched by `backfillSourceLocales`) falls back to the configured
+      // default — the value it was implicitly authored against.
+      // See docs/DEFAULT-LOCALE-SWITCHING.md.
+      let sourceLocale: string
       if (documentId == null) {
         documentId = uuidv7()
+        sourceLocale = this.defaultContentLocale
         const _document = await tx
           .insert(documents)
           .values({
             id: documentId,
             collection_id: params.collectionId,
             order_key: params.orderKey ?? null,
+            source_locale: sourceLocale,
           })
           .returning()
           .then(getFirstOrThrow('Failed to create document'))
+      } else {
+        const existing = await tx
+          .select({ source_locale: documents.source_locale })
+          .from(documents)
+          .where(eq(documents.id, documentId))
+          .then(getFirstOrThrow('Failed to load document for new version'))
+        sourceLocale = existing.source_locale ?? this.defaultContentLocale
       }
 
       // 2. Create the document version
@@ -155,18 +174,20 @@ export class DocumentCommands implements IDocumentCommands {
         .returning()
         .then(getFirstOrThrow('Failed to create document version'))
 
-      // 2a. Upsert the document_paths row when a path is supplied. Path
-      // is only ever written under the installation's default content
-      // locale in phase 1; the lifecycle layer skips this param for
-      // non-default-locale (translation) saves. Unique-constraint
-      // violations on (collection_id, locale, path) bubble up as a
-      // Postgres error which the lifecycle wraps as ERR_PATH_CONFLICT.
+      // 2a. Upsert the document_paths row when a path is supplied. The path
+      // row lives under the document's `source_locale` (its data anchor),
+      // not the mutable global default — so a re-anchored document, or any
+      // document read after the global default is switched, still resolves by
+      // path. The lifecycle layer skips this param for non-source-locale
+      // (translation) saves. Unique-constraint violations on
+      // (collection_id, locale, path) bubble up as a Postgres error which the
+      // lifecycle wraps as ERR_PATH_CONFLICT.
       if (params.path !== undefined) {
         await tx
           .insert(documentPaths)
           .values({
             document_id: documentId,
-            locale: this.defaultContentLocale,
+            locale: sourceLocale,
             collection_id: params.collectionId,
             path: params.path,
           })
@@ -353,7 +374,7 @@ export class DocumentCommands implements IDocumentCommands {
           UNION SELECT field_path, locale FROM byline_store_json     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
         ),
         canonical AS (
-          SELECT field_path FROM loc WHERE locale = ${this.defaultContentLocale}
+          SELECT field_path FROM loc WHERE locale = ${sourceLocale}
         ),
         covering AS (
           SELECT l.locale
@@ -389,10 +410,13 @@ export class DocumentCommands implements IDocumentCommands {
    * 'strict'` reads can see pre-existing documents.
    *
    * Same path-coverage rule as the write path, applied set-wise across every
-   * version in one statement, using the adapter's configured default content
-   * locale (which a static SQL migration cannot know). Idempotent — safe to
-   * re-run (PK + `ON CONFLICT DO NOTHING`); versions are immutable, so a
-   * version's computed locale set never changes. Returns the number of
+   * version in one statement. The `canonical` anchor is each document's own
+   * `source_locale` (joined via `byline_document_versions` → `byline_documents`),
+   * falling back to the adapter's configured default content locale for rows
+   * not yet stamped by `backfillSourceLocales` — mirroring the per-document
+   * anchor the write path uses, rather than a single global locale. Idempotent
+   * — safe to re-run (PK + `ON CONFLICT DO NOTHING`); versions are immutable, so
+   * a version's computed locale set never changes. Returns the number of
    * `(version, locale)` rows inserted.
    *
    * See docs/CONTENT-LOCALE-RESOLUTION.md.
@@ -409,7 +433,11 @@ export class DocumentCommands implements IDocumentCommands {
         UNION SELECT document_version_id, field_path, locale FROM byline_store_json     WHERE locale <> 'all'
       ),
       canonical AS (
-        SELECT document_version_id, field_path FROM loc WHERE locale = ${this.defaultContentLocale}
+        SELECT l.document_version_id, l.field_path
+        FROM loc l
+        JOIN byline_document_versions v ON v.id = l.document_version_id
+        JOIN byline_documents d ON d.id = v.document_id
+        WHERE l.locale = COALESCE(d.source_locale, ${this.defaultContentLocale})
       ),
       covering AS (
         SELECT l.document_version_id, l.locale
@@ -435,6 +463,30 @@ export class DocumentCommands implements IDocumentCommands {
     `)
 
     return { rowsInserted: result.rowCount ?? 0 }
+  }
+
+  /**
+   * backfillSourceLocales
+   *
+   * One-time maintenance: stamp `byline_documents.source_locale` for documents
+   * created *before* the column existed. Sets every row whose `source_locale`
+   * is still NULL to the adapter's configured default content locale — the
+   * anchor those documents were implicitly authored against (a static SQL
+   * migration cannot know the configured default, mirroring
+   * `backfillVersionLocales`). Idempotent: only touches NULL rows, so re-runs
+   * and rows already stamped by the write path are left alone. Must run before
+   * the follow-up migration that sets the column NOT NULL.
+   *
+   * Returns the number of document rows stamped.
+   *
+   * See docs/DEFAULT-LOCALE-SWITCHING.md.
+   */
+  async backfillSourceLocales(): Promise<{ rowsUpdated: number }> {
+    const result = await this.db
+      .update(documents)
+      .set({ source_locale: this.defaultContentLocale })
+      .where(sql`${documents.source_locale} IS NULL`)
+    return { rowsUpdated: (result as any).rowCount ?? 0 }
   }
 
   /**
