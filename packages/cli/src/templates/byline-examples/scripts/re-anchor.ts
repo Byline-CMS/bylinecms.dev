@@ -20,7 +20,7 @@
  *   cd apps/webapp && pnpm tsx byline/scripts/re-anchor.ts --to fr --collection pages
  *   cd apps/webapp && pnpm tsx byline/scripts/re-anchor.ts --to fr --dry-run
  *
- * See docs/DEFAULT-LOCALE-SWITCHING.md.
+ * See docs/I18N.md.
  */
 
 import '../load-env.js'

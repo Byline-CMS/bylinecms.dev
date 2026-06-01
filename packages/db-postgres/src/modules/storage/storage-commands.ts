@@ -144,7 +144,7 @@ export class DocumentCommands implements IDocumentCommands {
      * `undefined` leaves the existing set untouched (sticky across versions,
      * like `path`); an empty array clears it (advertise nothing). The locale
      * values are the advertised content locales themselves, not the default
-     * locale. See docs/AVAILABLE-LOCALES.md.
+     * locale. See docs/I18N.md.
      */
     availableLocales?: string[]
     locale?: string
@@ -165,7 +165,7 @@ export class DocumentCommands implements IDocumentCommands {
       // source locale rather than the mutable global default. NULL (a row not
       // yet touched by `backfillSourceLocales`) falls back to the configured
       // default — the value it was implicitly authored against.
-      // See docs/DEFAULT-LOCALE-SWITCHING.md.
+      // See docs/I18N.md.
       let sourceLocale: string
       if (documentId == null) {
         documentId = uuidv7()
@@ -390,7 +390,7 @@ export class DocumentCommands implements IDocumentCommands {
       // accounts for the per-locale carry-forward in step 5 — not just the
       // freshly-flattened locale. A version with no localized content at all
       // records a single `'all'` sentinel (it renders identically in any
-      // locale). Status-blind by design — see docs/CONTENT-LOCALE-RESOLUTION.md.
+      // locale). Status-blind by design — see docs/I18N.md.
       await this.writeVersionLocaleLedger(tx, documentVersion.id, sourceLocale)
 
       return {
@@ -410,7 +410,7 @@ export class DocumentCommands implements IDocumentCommands {
    * so callers must have written them first. Shared by the create write path
    * (step 6) and `reAnchorDocument` (which recomputes against the new source).
    * Assumes the version has no ledger rows yet (a freshly-inserted version).
-   * See docs/CONTENT-LOCALE-RESOLUTION.md and docs/DEFAULT-LOCALE-SWITCHING.md.
+   * See docs/I18N.md.
    */
   private async writeVersionLocaleLedger(
     tx: TxConnection,
@@ -530,7 +530,7 @@ export class DocumentCommands implements IDocumentCommands {
    * identities preserved), and computes that version's ledger against the new
    * source. `dryRun` performs only the eligibility check and reports the
    * outcome that *would* result, writing nothing. See
-   * docs/DEFAULT-LOCALE-SWITCHING.md.
+   * docs/I18N.md.
    */
   async reAnchorDocument(params: {
     documentId: string
@@ -627,7 +627,7 @@ export class DocumentCommands implements IDocumentCommands {
    * "client switched the default content locale, move every fully-translated
    * document onto it" operation; the `skipped-incomplete` results double as the
    * outstanding-translation backlog. `dryRun` reports what would happen without
-   * writing. See docs/DEFAULT-LOCALE-SWITCHING.md.
+   * writing. See docs/I18N.md.
    */
   async reAnchorDocuments(params: {
     targetLocale: string
@@ -694,7 +694,7 @@ export class DocumentCommands implements IDocumentCommands {
    * a version's computed locale set never changes. Returns the number of
    * `(version, locale)` rows inserted.
    *
-   * See docs/CONTENT-LOCALE-RESOLUTION.md.
+   * See docs/I18N.md.
    */
   async backfillVersionLocales(): Promise<{ rowsInserted: number }> {
     const result = await this.db.execute(sql`
@@ -754,7 +754,7 @@ export class DocumentCommands implements IDocumentCommands {
    *
    * Returns the number of document rows stamped.
    *
-   * See docs/DEFAULT-LOCALE-SWITCHING.md.
+   * See docs/I18N.md.
    */
   async backfillSourceLocales(): Promise<{ rowsUpdated: number }> {
     const result = await this.db

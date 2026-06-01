@@ -345,7 +345,7 @@ function resolvePathForUpdate(args: {
     // skip the write (existing path row stays as-is — sticky). The path row
     // lives under the document's source_locale (its anchor), not the mutable
     // global default — so this stays correct after the global default is
-    // switched. See docs/DEFAULT-LOCALE-SWITCHING.md.
+    // switched. See docs/I18N.md.
     return explicitPath ?? undefined
   }
   // Non-source-locale (translation) write: reject any path change with a warn
@@ -438,7 +438,7 @@ export async function createDocument(
      * sidebar widget). Document-grain and sticky like `path`: passed straight
      * to the storage primitive, which replaces the document's rows wholesale.
      * `undefined` writes nothing (a new document starts with an empty set —
-     * the safe opt-in default); `[]` clears it. See docs/AVAILABLE-LOCALES.md.
+     * the safe opt-in default); `[]` clears it. See docs/I18N.md.
      */
     availableLocales?: string[]
   }
@@ -548,7 +548,7 @@ export async function updateDocument(
      * The editorial advertised-locale set. `undefined` leaves the existing
      * set untouched (sticky — document-grain, like `path`); an explicit array
      * (empty included) replaces it wholesale. Driven by the admin
-     * available-locales sidebar widget. See docs/AVAILABLE-LOCALES.md.
+     * available-locales sidebar widget. See docs/I18N.md.
      */
     availableLocales?: string[]
   }
@@ -674,7 +674,7 @@ export async function updateDocumentWithPatches(
      * The editorial advertised-locale set (typically supplied alongside
      * patches when the admin available-locales widget has been edited).
      * `undefined` leaves the existing set untouched (sticky); an explicit
-     * array replaces it wholesale. See docs/AVAILABLE-LOCALES.md.
+     * array replaces it wholesale. See docs/I18N.md.
      */
     availableLocales?: string[]
   }

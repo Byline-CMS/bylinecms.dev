@@ -42,7 +42,7 @@ export type ReadMode = 'any' | 'published'
  * safe default for internal/direct reads); `@byline/client` defaults it to
  * `'fallback'` for application reads. Availability follows path-coverage against
  * the default content locale; a document with no localized content is available
- * in every locale. See `docs/CONTENT-LOCALE-RESOLUTION.md`.
+ * in every locale. See `docs/I18N.md`.
  */
 export type MissingLocalePolicy = 'empty' | 'fallback' | 'omit'
 
@@ -240,7 +240,7 @@ export interface IDbAdapter {
    * boot by `initBylineCore` so in-place upgrades self-heal without a manual
    * step or a migrate-ordering constraint — a no-op (zero rows) once every
    * document is stamped. Optional so adapters that don't model `source_locale`
-   * need not implement it. See docs/DEFAULT-LOCALE-SWITCHING.md.
+   * need not implement it. See docs/I18N.md.
    */
   backfillSourceLocales?: () => Promise<{ rowsUpdated: number }>
 }
@@ -343,7 +343,7 @@ export interface IDocumentCommands {
      * editorial advertised-locale set. `undefined` leaves the existing set
      * untouched (sticky across versions, like `path`); `[]` clears it. The
      * locale values are the advertised content locales themselves, not the
-     * write locale. See `docs/AVAILABLE-LOCALES.md`.
+     * write locale. See `docs/I18N.md`.
      */
     availableLocales?: string[]
     locale?: string

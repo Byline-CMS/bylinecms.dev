@@ -63,7 +63,7 @@ export interface BaseConfig {
        * its path locale, and the completeness ledger — so changing this value
        * is safe for existing data: they keep reading against the locale they
        * were authored in. New documents created after the change anchor to the
-       * new value. See docs/DEFAULT-LOCALE-SWITCHING.md.
+       * new value. See docs/I18N.md.
        *
        * (Switching this on a live system still needs the one-time
        * `backfillSourceLocales()` maintenance step to have stamped any rows

@@ -48,7 +48,7 @@ export function shapeDocument<F = Record<string, any>>(
   // Storage raw keys already match the surface names (passthrough) —
   // `availableLocales` is the editorial advertised set (document-grain,
   // stored), `_availableVersionLocales` is the structural ledger fact
-  // (version-grain, computed). See docs/AVAILABLE-LOCALES.md.
+  // (version-grain, computed). See docs/I18N.md.
   if (Array.isArray(raw.availableLocales)) {
     shaped.availableLocales = raw.availableLocales as string[]
   }

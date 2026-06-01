@@ -45,7 +45,7 @@ export interface PgAdapter extends IDbAdapter {
    * existed, so `localeFallback: 'strict'` reads can see pre-existing
    * documents. Idempotent; uses the configured default content locale. Kept
    * off the core `IDbAdapter` contract (no service depends on it) — see
-   * docs/CONTENT-LOCALE-RESOLUTION.md.
+   * docs/I18N.md.
    */
   backfillVersionLocales(): Promise<{ rowsInserted: number }>
   /**
@@ -54,7 +54,7 @@ export interface PgAdapter extends IDbAdapter {
    * default content locale (the anchor they were implicitly authored against).
    * Idempotent; run automatically at boot by `initBylineCore` (also exposed on
    * the core `IDbAdapter` contract as an optional method) — see
-   * docs/DEFAULT-LOCALE-SWITCHING.md.
+   * docs/I18N.md.
    */
   backfillSourceLocales(): Promise<{ rowsUpdated: number }>
   /**
@@ -63,7 +63,7 @@ export interface PgAdapter extends IDbAdapter {
    * unless the document is complete in the target. Writes a new immutable
    * version. `dryRun` reports the would-be outcome without writing. Off the
    * core `IDbAdapter` contract (maintenance/admin operation) — see
-   * docs/DEFAULT-LOCALE-SWITCHING.md.
+   * docs/I18N.md.
    */
   reAnchorDocument(params: {
     documentId: string
@@ -101,7 +101,7 @@ export const pgAdapter = ({
    * for documents whose `source_locale` is not yet backfilled. Per-document
    * reads and writes otherwise re-base onto each document's own `source_locale`
    * (carried on the current-documents views), so changing this value does not
-   * re-interpret existing data. See docs/DEFAULT-LOCALE-SWITCHING.md.
+   * re-interpret existing data. See docs/I18N.md.
    */
   defaultContentLocale: string
   /**

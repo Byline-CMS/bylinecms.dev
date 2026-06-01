@@ -195,7 +195,7 @@ interface StatusControls {
  *     in every locale.
  *
  * Availability is the version-grain ledger described in
- * `docs/CONTENT-LOCALE-RESOLUTION.md`. Relationship population always behaves
+ * `docs/I18N.md`. Relationship population always behaves
  * as `'fallback'` so a populated tree never has holes.
  */
 interface MissingLocaleControls {
@@ -323,7 +323,7 @@ export interface CreateOptions {
    * The editorial advertised-locale set, stored document-grain in
    * `byline_document_available_locales`. When omitted, a new document starts
    * with an empty set; an explicit array (empty included) is stored verbatim.
-   * Surfaced on reads as `availableLocales`. See `docs/AVAILABLE-LOCALES.md`.
+   * Surfaced on reads as `availableLocales`. See `docs/I18N.md`.
    */
   availableLocales?: string[]
 }
@@ -340,7 +340,7 @@ export interface UpdateOptions {
    * The editorial advertised-locale set. When omitted, the existing set
    * carries forward unchanged (sticky — document-grain, like `path`); an
    * explicit array (empty included) replaces it wholesale. Surfaced on reads
-   * as `availableLocales`. See `docs/AVAILABLE-LOCALES.md`.
+   * as `availableLocales`. See `docs/I18N.md`.
    */
   availableLocales?: string[]
 }
@@ -423,7 +423,7 @@ export interface ClientDocument<F = Record<string, any>> {
    * yardstick). Stable, document-grain. Surfaced so consumers / the admin can
    * indicate a document whose primary language differs from the system default.
    * Present on `find` / `findById` / `findByPath`. See
-   * `docs/DEFAULT-LOCALE-SWITCHING.md`.
+   * `docs/I18N.md`.
    */
   sourceLocale?: string
   /** When this version was created. */
@@ -449,7 +449,7 @@ export interface ClientDocument<F = Record<string, any>> {
    * `_availableVersionLocales` fact below; the public advertised set is their
    * intersection (`availableLocales ∩ _availableVersionLocales`), which the
    * host composes for hreflang / sitemap / "Also available in…" menus.
-   * Present on `find` / `findById` / `findByPath`. See `docs/AVAILABLE-LOCALES.md`.
+   * Present on `find` / `findById` / `findByPath`. See `docs/I18N.md`.
    */
   availableLocales?: string[]
   /**
@@ -459,7 +459,7 @@ export interface ClientDocument<F = Record<string, any>> {
    * Present on `find` / `findById` / `findByPath` (absent on version/history
    * reads); the published-available set on a normal (published) read. The
    * structural fact reconciled against the editorial `availableLocales` above.
-   * See `docs/CONTENT-LOCALE-RESOLUTION.md`.
+   * See `docs/I18N.md`.
    */
   _availableVersionLocales?: string[]
   /**

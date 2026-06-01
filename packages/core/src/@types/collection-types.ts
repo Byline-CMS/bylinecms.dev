@@ -840,7 +840,7 @@ export interface CollectionDefinition {
    * collection has at least one `localized` field, so the validator rejects
    * `advertiseLocales: true` on a collection with none.
    *
-   * See `docs/AVAILABLE-LOCALES.md`.
+   * See `docs/I18N.md`.
    */
   advertiseLocales?: boolean
 

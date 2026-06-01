@@ -675,7 +675,7 @@ const FormContent = ({
         {/* Source-locale anchor indicator removed pending heading-layout work.
             To re-enable: render `<SourceLocaleBadge locale={sourceLocale} />`
             here from `initialData.sourceLocale` (mismatch-only is the intended
-            end state). See docs/DEFAULT-LOCALE-SWITCHING.md (Slice 6). */}
+            end state). See docs/I18N.md. */}
         {headerSlot}
       </div>
       <div className={cx('byline-form-status-bar', styles['status-bar'])}>

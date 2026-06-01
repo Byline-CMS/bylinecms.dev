@@ -180,7 +180,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // and is a no-op (zero rows) once every document is stamped. Self-heals
   // in-place upgrades without a manual maintenance step. The write path stamps
   // new documents directly, so steady-state boots touch nothing. See
-  // docs/DEFAULT-LOCALE-SWITCHING.md.
+  // docs/I18N.md.
   if (typeof composed.db.backfillSourceLocales === 'function') {
     const { rowsUpdated } = await composed.db.backfillSourceLocales()
     if (rowsUpdated > 0) {

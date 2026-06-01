@@ -51,7 +51,7 @@ export interface ResolvedAlternates {
  * The public advertised locale set for a read result: the editorial
  * `availableLocales` intersected with the completeness ledger
  * `_availableVersionLocales`. Returns `[]` when nothing is advertised or the
- * document isn't complete in any advertised locale. See docs/AVAILABLE-LOCALES.md.
+ * document isn't complete in any advertised locale. See docs/I18N.md.
  */
 export function advertisedLocalesFor(doc: {
   availableLocales?: string[] | null

@@ -14,7 +14,7 @@ import { reconcileLocaleState } from './available-locales-reconcile.js'
  * The widget's reconciliation is expressed purely as Checkbox intent +
  * disabled state — no per-row text. `reconcileLocaleState` is the pure heart
  * of that mapping; the four cells below are the full truth table from
- * docs/AVAILABLE-LOCALES.md.
+ * docs/I18N.md.
  */
 describe('reconcileLocaleState', () => {
   it('ledger-complete + advertised → green, enabled (advertised & complete)', () => {

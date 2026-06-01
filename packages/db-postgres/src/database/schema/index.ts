@@ -204,7 +204,7 @@ export const documentPaths = pgTable(
 // carries forward across edits and survives restore. Surfaced on reads as
 // `availableLocales`; the public advertised set is the intersection with the
 // ledger's `_availableVersionLocales`. Replaced wholesale on write (the lifecycle
-// deletes then re-inserts the set), never appended. See docs/AVAILABLE-LOCALES.md.
+// deletes then re-inserts the set), never appended. See docs/I18N.md.
 export const documentAvailableLocales = pgTable(
   'byline_document_available_locales',
   {
@@ -233,7 +233,7 @@ export const documentAvailableLocales = pgTable(
 // identically in any locale). Computed status-blind at write time and frozen
 // on the immutable version, so restore / point-in-time reads stay consistent.
 // Drives `localeFallback: 'strict'` reads via an indexed EXISTS gate without
-// scanning the store_* tables. See docs/CONTENT-LOCALE-RESOLUTION.md.
+// scanning the store_* tables. See docs/I18N.md.
 export const documentVersionLocales = pgTable(
   'byline_document_version_locales',
   {
@@ -323,7 +323,7 @@ export const currentDocumentsView = pgView('byline_current_documents').as((qb) =
       // read paths (`buildLocaleChain` / `pathProjection` / field-fallback)
       // re-base onto the per-document source rather than the mutable global
       // default — a primary-key join, already present for `order_key`.
-      // See docs/DEFAULT-LOCALE-SWITCHING.md.
+      // See docs/I18N.md.
       source_locale: documents.source_locale,
     })
     .from(sq)
