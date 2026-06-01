@@ -76,9 +76,9 @@ export function WYSIWYGAnimation() {
       {/* Editor Content */}
       <div className="p-6 min-h-[300px] bg-white dark:bg-canvas-800">
         <div className="prose dark:prose-invert max-w-none">
-          <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
+          <div className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
             Getting Started with Byline CMS
-          </h1>
+          </div>
           <div className="text-gray-700 dark:text-gray-300 leading-relaxed">
             {currentText}
             <span className="animate-pulse">|</span>
