@@ -68,6 +68,10 @@ Native MCP Server and AI / content integration.
 
 Isolated admin UI string translations
 
+### Admin client-config registration — single-point resolution
+
+The Byline client config (`defineClientConfig`, run as a side-effect of importing `apps/webapp/byline/admin.config.ts`) is currently registered from **two** points on the `_byline` route, because neither alone is sufficient: `route.tsx` `beforeLoad` (a dynamic import — registers before any `_byline/*` child *loader* reads `getClientConfig()`, closing a dev race where the loader outran the lazy module) **and** `route.lazy.tsx`'s side-effect import (registers for component render / initial hydration, where `beforeLoad` is not re-run). It works but is awkward — two entry points, both keeping the heavy admin/editor graph out of public bundles. The dual registration exists only because `admin.config` imports `lexicalEditor` from the `@byline/richtext-lexical` **`.` barrel**, which statically re-exports the heavy `RichTextField` / `EditorField` / `Nodes` / extensions, so `admin.config` can't be imported eagerly without bloating public-route bundles. **Resolution:** add a light config-only subpath to `@byline/richtext-lexical` (e.g. `./config` exporting just `lexicalEditor` + the extension symbols, no `RichTextField`/`Nodes`/editor runtime), switch `byline/admin.config` to import from it, then register `admin.config` from a **single eager point** that runs before the router processes matches (e.g. a top-level import in the route tree) — no race, no hydration gap, no public-bundle cost — and retire both the `route.lazy.tsx` deferral and the `beforeLoad` workaround. Touches `@byline/richtext-lexical` packaging + the `_byline` route files (`route.tsx`, `route.lazy.tsx`) and the registration comments in `client.tsx` / `server.ts` / `CLAUDE.md`.
+
 ---
 
 ## Deferred

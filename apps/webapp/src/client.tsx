@@ -6,10 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-// NOTE: Byline admin config is initialized via a side-effect import in
-// `src/routes/__root.tsx`. That module runs in both the SSR render and
-// client module graphs, so importing it here would only duplicate the
-// registration in the client bundle.
+// NOTE: the Byline admin config is registered by the `_byline` route — its
+// `beforeLoad` (before child loaders) and its `route.lazy.tsx` side-effect
+// import (for component render / hydration), both importing
+// `byline/admin.config`. That keeps the admin/editor graph code-split out of
+// public-route bundles. Importing it here would pull that graph into the eager
+// client bundle for every page.
 
 import { StrictMode } from 'react'
 import { StartClient } from '@tanstack/react-start/client'
