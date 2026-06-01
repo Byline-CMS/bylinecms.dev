@@ -47,6 +47,14 @@ export interface MetaOptions {
   twitterImage?: MetaImage
   /** `og:type` — defaults to `'website'`. Use `'article'` for content pages. */
   ogType?: string
+  /**
+   * hreflang alternates — one per *advertised* content language. Build via
+   * `resolveAlternates` (`@/lib/alternates`) so meta + sitemap stay in sync.
+   * When non-empty, an `x-default` alternate is also emitted (see `xDefaultPath`).
+   */
+  alternates?: Array<{ hreflang: string; path: string }>
+  /** Path for the `x-default` hreflang. Emitted only alongside `alternates`. */
+  xDefaultPath?: string
 }
 
 export interface MetaHead {
@@ -86,6 +94,32 @@ export function getMeta(options: MetaOptions = {}): MetaHead {
   const og = { ...defaultOgImage, ...options.image }
   const tw = { ...defaultTwitterImage, ...(options.twitterImage ?? options.image) }
 
+  // hreflang cluster — emitted only when the document advertises ≥1 language
+  // (a lone x-default is meaningless). Each entry is absolutised against the
+  // public server URL; Google prefers absolute hreflang hrefs. The current
+  // page's own locale is included when it's flagged, giving the
+  // self-referential alternate Google expects.
+  const alternates = options.alternates ?? []
+  const alternateLinks =
+    alternates.length > 0
+      ? [
+          ...alternates.map((a) => ({
+            rel: 'alternate',
+            hreflang: a.hreflang,
+            href: new URL(a.path, serverUrl).toString(),
+          })),
+          ...(options.xDefaultPath != null
+            ? [
+                {
+                  rel: 'alternate',
+                  hreflang: 'x-default',
+                  href: new URL(options.xDefaultPath, serverUrl).toString(),
+                },
+              ]
+            : []),
+        ]
+      : []
+
   return {
     meta: [
       { title },
@@ -110,7 +144,7 @@ export function getMeta(options: MetaOptions = {}): MetaHead {
       { name: 'twitter:image:alt', content: tw.alt },
       { name: 'twitter:image:type', content: tw.type },
     ],
-    links: url != null ? [{ rel: 'canonical', href: url }] : [],
+    links: [...(url != null ? [{ rel: 'canonical', href: url }] : []), ...alternateLinks],
   }
 }
 
