@@ -99,10 +99,17 @@ export const documents = pgTable(
     // deliberate re-anchor operation. Re-bases the fallback floor, the path
     // locale, and the completeness ledger off the mutable global config onto
     // the document's own truth, so switching `i18n.content.defaultLocale` no
-    // longer silently re-interprets existing data. Added nullable; backfilled
-    // by `backfillSourceLocales()` then set NOT NULL in a follow-up migration.
-    // See docs/DEFAULT-LOCALE-SWITCHING.md.
-    source_locale: varchar('source_locale', { length: 10 }),
+    // longer silently re-interprets existing data. Backfilled by
+    // `backfillSourceLocales()` (boot-auto via initBylineCore).
+    //
+    // DEFERRED NOT NULL: this ships nullable on purpose (read/write paths
+    // COALESCE NULL -> the configured default). The constraint is applied
+    // out-of-band by `sql/set-source-locale-not-null.sql` once installs have
+    // bedded in. **When that constraint becomes the norm, make this `.notNull()`**
+    // so future squashes/migrations carry it — until then a `drizzle:generate`
+    // against a DB that ran that script will spuriously want to drop the
+    // constraint. See docs/DEFAULT-LOCALE-SWITCHING.md ("Deferred follow-up").
+    source_locale: varchar('source_locale', { length: 10 }).notNull(),
     ...timestamps,
   },
   (table) => [

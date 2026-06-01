@@ -260,15 +260,20 @@ booted at least once on ≥ the release that ships Slice 4 (boot stamps legacy
 NULL rows) and the write path stamps every new document — a later release can add
 the hard DB constraint. Intent (Tony, 2026-06-01): come back and do this.
 
+The runnable step ships now: **`packages/db-postgres/sql/set-source-locale-not-null.sql`**
+(sibling to the upgrade script) — a guarded, idempotent `ALTER ... SET NOT NULL`
+that refuses with a clear message if any row is still unstamped. Applied to
+`byline_dev` 2026-06-01. Run it once installs have bedded in.
+
 When picking it up:
 - Precondition: confirm `SELECT count(*) FROM byline_documents WHERE source_locale
-  IS NULL` is 0 on representative installs (it will be, post-boot-backfill).
-- The migration is a bare `ALTER TABLE byline_documents ALTER COLUMN source_locale
-  SET NOT NULL` — safe because the boot backfill (kept in place) guarantees no
-  NULLs survive a startup, and the write path never inserts NULL. A static
-  migration still can't *run* the backfill (no access to the configured default),
-  so it relies on boot having already stamped — which the release ordering
-  guarantees (the app must boot on the Slice-4 release before this later one).
+  IS NULL` is 0 (it will be, post-boot-backfill); the script's guard enforces this.
+- **Also make the schema match.** The script is out-of-band, so the Drizzle
+  schema (`schema/index.ts`) still declares `source_locale` nullable — a
+  `drizzle:generate` against a script-hardened DB will spuriously want to drop the
+  constraint. When NOT NULL becomes the norm, change the column to `.notNull()`
+  and regenerate so future squashes/migrations carry it (the column comment flags
+  this).
 - After it lands, the `COALESCE(source_locale, <default>)` guards in
   `pathProjection` / `buildLocaleChain` / the lifecycle become dead-code
   belt-and-suspenders; safe to keep, optional to simplify.
