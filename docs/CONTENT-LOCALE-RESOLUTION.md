@@ -20,6 +20,7 @@ Companions:
 - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — localized field values are stored per-locale in the `store_*` tables; availability is a function of which localized rows a *version* holds.
 - [I18N.md](./I18N.md) — the admin-interface translation system, and the `i18n.content.localeDefinitions` content-locale primitive this design grows a `fallback` slot onto.
 - [CLIENT-SDK.md](./CLIENT-SDK.md) — `find` / `findByPath` / `findOne` are the read surfaces that gain `onMissingLocale` and the resolution behaviour described here.
+- [DEFAULT-LOCALE-SWITCHING.md](./DEFAULT-LOCALE-SWITCHING.md) — *design, not started.* The fallback chain here ends at the global default; that doc re-bases the anchor onto a per-document `source_locale` so the system default becomes safely switchable.
 
 ---
 
