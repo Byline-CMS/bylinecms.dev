@@ -53,6 +53,22 @@ export interface BaseConfig {
       localeDefinitions?: ReadonlyArray<{ code: string; nativeName: string }>
     }
     content: {
+      /**
+       * The default **content** locale: the locale new documents are authored
+       * in, and the locale served for a request that doesn't specify one.
+       *
+       * As of the source_locale work this is **no longer the per-document data
+       * anchor.** Each document records its own `source_locale` at creation
+       * (= this value at that moment) and rides it for the read fallback floor,
+       * its path locale, and the completeness ledger — so changing this value
+       * is safe for existing data: they keep reading against the locale they
+       * were authored in. New documents created after the change anchor to the
+       * new value. See docs/DEFAULT-LOCALE-SWITCHING.md.
+       *
+       * (Switching this on a live system still needs the one-time
+       * `backfillSourceLocales()` maintenance step to have stamped any rows
+       * that predate the `source_locale` column.)
+       */
       defaultLocale: string
       locales: string[]
       /**

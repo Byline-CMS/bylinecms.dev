@@ -233,6 +233,16 @@ export interface IDbAdapter {
     collections: ICollectionQueries
     documents: IDocumentQueries
   }
+  /**
+   * Optional maintenance: stamp `source_locale` (the per-document content
+   * anchor) on documents created before the column existed, setting NULL rows
+   * to the adapter's configured default content locale. Called idempotently at
+   * boot by `initBylineCore` so in-place upgrades self-heal without a manual
+   * step or a migrate-ordering constraint — a no-op (zero rows) once every
+   * document is stamped. Optional so adapters that don't model `source_locale`
+   * need not implement it. See docs/DEFAULT-LOCALE-SWITCHING.md.
+   */
+  backfillSourceLocales?: () => Promise<{ rowsUpdated: number }>
 }
 
 /**

@@ -6,10 +6,11 @@ summary: "Makes a system's default content locale safely switchable by recording
 
 # Switchable Default Content Locale
 
-> **Status:** In progress. Slices 1–3 (schema + backfill primitive; storage
-> write path; read path + lifecycle rebase) shipped 2026-06-01 on
-> `feat/content-locale-resolution`. Companion to the content-locale work;
-> sketched 2026-06-01.
+> **Status:** In progress. Slices 1–4 shipped 2026-06-01 on
+> `feat/content-locale-resolution` — **switching `i18n.content.defaultLocale` is
+> now safe for existing data.** Remaining: Slice 5 (re-anchor operation) and
+> Slice 6 (source-locale indicator), both optional. Companion to the
+> content-locale work; sketched 2026-06-01.
 >
 > **Settled decisions:** grain = **document-grain** (`byline_documents`);
 > branch = **continue on `feat/content-locale-resolution`** (not a separate
@@ -171,9 +172,9 @@ Net cost ≈ one PK join + one carried `varchar` per row.
    the adapter's configured `defaultContentLocale`, since a static migration
    can't know it) that stamps every `source_locale IS NULL` row with that
    default; idempotent. Integration test in `storage-locale-fallback.test.ts`.
-   **The `NOT NULL` follow-up migration moved to Slice 4** — it can only apply
-   after `backfillSourceLocales()` has stamped pre-existing NULL rows (a static
-   migration can't run the backfill), which is Slice 4's maintenance step.
+   **No `NOT NULL` migration** — the column stays nullable; Slice 4 runs this
+   backfill at boot and the read/write paths COALESCE NULL → default, which
+   avoids a migrate-ordering footgun on in-place upgrades (decision 2026-06-01).
 2. **Storage write path** (`@byline/db-postgres`) — ✅ **done.**
    `createDocumentVersion` stamps `source_locale` on new documents (= configured
    default) and reads the existing doc's anchor on a new version; the path upsert
@@ -224,14 +225,24 @@ Net cost ≈ one PK join + one carried `varchar` per row.
      behaviour (post-flip the adapter's default has moved with the system).
    - Tests: field fallback + path projection resolve against a re-anchored doc's
      `source_locale`, not the global default; the lifecycle source-locale gate.
-4. **Backfill + NOT NULL + demote the global default** (`@byline/core`
-   docs/config + migration) — run `backfillSourceLocales()`; **then** the
-   `NOT NULL` follow-up migration (only safe once the backfill has stamped
-   pre-existing NULL rows — a static migration can't run the backfill itself);
-   document that `i18n.content.defaultLocale` now means "default authoring locale
-   + request fallback," not the data anchor. **At this point switching the global
-   config default is safe** — existing docs ride their own `source_locale`. Tests
-   proving a config flip leaves existing docs intact.
+4. **Backfill + demote the global default** (`@byline/core`) — ✅ **done.**
+   - **Boot-time backfill instead of a NOT NULL migration** (decision
+     2026-06-01): `initBylineCore()` calls `backfillSourceLocales()`
+     idempotently at boot (via a new *optional* `IDbAdapter.backfillSourceLocales`
+     method), stamping any pre-existing NULL rows with the configured default. The
+     column **stays nullable** and the read/write paths COALESCE NULL → default,
+     so in-place upgrades self-heal with no manual step and a vanilla
+     `drizzle:migrate` never fails on a constraint. A no-op (zero rows) at
+     steady state. *(The hard `NOT NULL` DB constraint was dropped from scope —
+     the boot backfill + write-path stamping make every live row anchored; a
+     later release could add the constraint once installs have stamped, but it
+     isn't needed for correctness.)*
+   - Demoted the global default in config docs: `ServerConfig.i18n.content.defaultLocale`
+     and the adapter's `defaultContentLocale` JSDoc now state it is the authoring
+     locale + request/row-less fallback, **not** the per-document data anchor.
+   - **Switching `i18n.content.defaultLocale` is now safe** — proved by a test
+     that reads `en`-anchored documents through a query layer built with a `fr`
+     default and gets the `en` content (and path) back intact.
 5. **Re-anchor operation** (`@byline/core` + admin) — see below.
 6. **Source-locale indicator** (`@byline/admin`) — see below.
 
@@ -293,26 +304,23 @@ through the admin for the chip text.
 5. **Re-anchor permission** — new `manageLocale` ability vs admin-only.
 
 **To resume in a fresh session:** read this doc plus
-[CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). Slices 1–3 are
-shipped — the write path anchors per-document `source_locale`, and the read path
-+ update-path gate re-base onto it, so a re-anchored or post-flip document reads
-and resolves its path correctly. **Next is Slice 4 (backfill + NOT NULL + demote
-the global default).** Grain (document) and branch
-(`feat/content-locale-resolution`) are settled.
+[CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). Slices 1–4 are
+shipped — **switching `i18n.content.defaultLocale` is now safe for existing
+data** (write path anchors per-doc `source_locale`; reads + update-path gate
+re-base onto it; boot stamps any legacy NULL rows). Grain (document) and branch
+(`feat/content-locale-resolution`) are settled. **Remaining work is optional:**
 
-Slice 4 work — (a) run `backfillSourceLocales()` as a maintenance step (CLI/admin
-task, like `backfillVersionLocales`); (b) **then** add the `NOT NULL` follow-up
-migration on `byline_documents.source_locale` (only safe once the backfill has
-stamped pre-existing NULL rows); (c) update `createDocumentVersion` to set the
-column NOT NULL-safely on every new doc (already does); (d) document in
-`@byline/core` config that `i18n.content.defaultLocale` now means "default
-authoring locale + request fallback," not the data anchor. Add a test proving a
-config-default flip leaves existing docs intact (they ride their own
-`source_locale`). After Slice 4 the config flip is safe.
-
-Then Slice 5 (re-anchor operation — needs the `sourceLocale` param threaded into
-`createDocumentVersion`, plus the `createDocument` validation relax) and Slice 6
-(source-locale indicator — `source_locale` is already on the read payload).
+- **Slice 5 (re-anchor operation)** — the bulk command + optional per-doc
+  "Set primary language" action. Needs: thread a `sourceLocale` param into
+  `createDocumentVersion` (re-anchor writes a new version under the new source),
+  a path-row migrate/regenerate under the new source, eligibility gated on the
+  `_availableVersionLocales` ledger (refuse on incomplete targets), and the
+  `createDocument` validation relax ("establishes / must equal the doc's source
+  locale"). Open decisions: refuse-vs-warn on incomplete; re-anchor permission
+  (`collections.<path>.manageLocale` vs admin-only).
+- **Slice 6 (source-locale indicator)** — purely presentational; `source_locale`
+  is already on every read payload. Show a quiet chip only when a doc's
+  `source_locale` ≠ the current global default.
 
 The recurring grep anchor is `defaultContentLocale` — every consumer is
 catalogued in "The split" above; line numbers there are approximate (they

@@ -30,6 +30,7 @@ import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
+import { createQueryBuilders } from '../storage-queries.js'
 
 let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
 let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
@@ -559,6 +560,52 @@ describe('content-locale resolution & fallback', () => {
     // and path would come back empty.
     const detail = await readById(id, 'fr', 'fallback')
     expect(detail?.path).toBe(slug)
+  })
+
+  // --- config-default flip safety (Slice 4) --------------------------------
+
+  it('a global default flip leaves existing documents intact (they ride source_locale)', async () => {
+    // Authored under the en default → source_locale 'en', en content, en path.
+    const id = await createDoc({ title: { en: 'Hello' }, body: { en: 'World' }, sku: 'FS1' })
+    const pathRow = await db.execute(
+      sql`SELECT path FROM byline_document_paths WHERE document_id = ${id}::uuid`
+    )
+    const slug = (pathRow.rows[0] as { path: string }).path
+
+    // Simulate the global default switched to fr: a fresh query layer built
+    // with defaultContentLocale = 'fr' over the very same rows.
+    const frQueries = createQueryBuilders(db, [LocaleCollectionConfig], 'fr')
+
+    // Detail read in fr (the NEW default) with fallback: the doc has no fr
+    // content, but rides its own source_locale 'en' floor → returns the en
+    // content. A naive [fr]-only chain (pre-source_locale) would render empty.
+    const detail = (await frQueries.documents.getDocumentById({
+      collection_id: testCollection.id,
+      document_id: id,
+      locale: 'fr',
+      onMissingLocale: 'fallback',
+    })) as ReconstructedRead | null
+    expect(detail?.fields).toMatchObject({ title: 'Hello', body: 'World', sku: 'FS1' })
+    expect(detail?.source_locale).toBe('en')
+
+    // The path still resolves when looked up under the document's own source
+    // locale (its URL didn't move when the global default flipped).
+    const byPath = await frQueries.documents.getDocumentByPath({
+      collection_id: testCollection.id,
+      path: slug,
+      locale: 'en',
+      reconstruct: true,
+    })
+    expect(byPath?.document_id).toBe(id)
+
+    // List read under the fr default still surfaces the en content per-row.
+    const { documents } = await frQueries.documents.findDocuments({
+      collection_id: testCollection.id,
+      locale: 'fr',
+      onMissingLocale: 'fallback',
+      pageSize: 200,
+    })
+    expect(documents.find((d) => d.document_id === id)?.fields.title).toBe('Hello')
   })
 
   // --- availability metadata (Phase 6: _availableVersionLocales) -----------

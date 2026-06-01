@@ -61,10 +61,13 @@ export const pgAdapter = ({
   collections: CollectionDefinition[]
   /**
    * The installation's default content locale, sourced from
-   * `ServerConfig.i18n.content.defaultLocale`. Used by the storage layer
-   * for path resolution: read functions build a `[requested, default]`
-   * fallback chain when looking up `byline_document_paths`, and write
-   * functions tag default-locale path rows with this value.
+   * `ServerConfig.i18n.content.defaultLocale`. Used by the storage layer as
+   * the **fallback** anchor only: new documents are stamped with it as their
+   * `source_locale`, and it is the floor for row-less lookups (findByPath) and
+   * for documents whose `source_locale` is not yet backfilled. Per-document
+   * reads and writes otherwise re-base onto each document's own `source_locale`
+   * (carried on the current-documents views), so changing this value does not
+   * re-interpret existing data. See docs/DEFAULT-LOCALE-SWITCHING.md.
    */
   defaultContentLocale: string
   /**

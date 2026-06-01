@@ -172,6 +172,25 @@ export const initBylineCore = async <TAdminStore = unknown>(
     logger: composed.logger,
   })
 
+  // Idempotently stamp `source_locale` on any documents created before that
+  // column existed (it ships nullable and is backfilled here rather than via a
+  // NOT NULL migration, so a vanilla `drizzle:migrate` on a populated database
+  // never fails on the constraint). Uses the adapter's configured default
+  // content locale — the anchor those rows were implicitly authored against —
+  // and is a no-op (zero rows) once every document is stamped. Self-heals
+  // in-place upgrades without a manual maintenance step. The write path stamps
+  // new documents directly, so steady-state boots touch nothing. See
+  // docs/DEFAULT-LOCALE-SWITCHING.md.
+  if (typeof composed.db.backfillSourceLocales === 'function') {
+    const { rowsUpdated } = await composed.db.backfillSourceLocales()
+    if (rowsUpdated > 0) {
+      composed.logger.info(
+        { rowsUpdated },
+        `[i18n] stamped source_locale on ${rowsUpdated} pre-existing document(s)`
+      )
+    }
+  }
+
   const getCollectionRecord = (path: string): CollectionRecord => {
     const record = collectionRecords.get(path)
     if (!record) {
