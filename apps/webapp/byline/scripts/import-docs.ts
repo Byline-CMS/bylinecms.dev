@@ -143,14 +143,12 @@ interface BuildPayloadArgs {
   frontmatter: DocFrontmatter
   lexicalState: unknown
   featureImage: ResolvedFeatureImage | null
-  locale: string
 }
 
 function buildDocPayload({
   frontmatter,
   lexicalState,
   featureImage,
-  locale,
 }: BuildPayloadArgs): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     title: frontmatter.title,
@@ -161,11 +159,6 @@ function buildDocPayload({
         constrainedWidth: frontmatter.constrainedWidth ?? true,
       },
     ],
-    // The `availableLanguages` field's built-in validator requires at
-    // least one checked locale; without it, opening the imported doc
-    // in the admin surfaces a validation error before any save. Seed
-    // the authoring locale so editors land on a valid form.
-    availableLanguages: { [locale]: true },
   }
   if (frontmatter.summary !== undefined) payload.summary = frontmatter.summary
   if (frontmatter.publishedOn !== undefined) payload.publishedOn = frontmatter.publishedOn
@@ -262,7 +255,6 @@ async function processFile(
     frontmatter: parsed.frontmatter,
     lexicalState: state,
     featureImage,
-    locale,
   })
 
   if (flags.dryRun) {
@@ -290,7 +282,14 @@ async function processFile(
     if (existing.fields?.publishedOn) {
       delete payload.publishedOn
     }
-    const result = await handle.update(existing.id, payload, { locale })
+    const result = await handle.update(existing.id, payload, {
+      locale,
+      // Advertise the imported locale (editorial available-locales set), merged
+      // with whatever is already advertised so a later-locale re-import doesn't
+      // clobber an earlier one. The public set is still gated by the version
+      // completeness ledger (intersection). See docs/AVAILABLE-LOCALES.md.
+      availableLocales: [...new Set([...(existing.availableLocales ?? []), locale])],
+    })
     await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus)
     return { filePath, action: 'updated', documentId: result.documentId, path: docPath }
   }
@@ -299,6 +298,9 @@ async function processFile(
     locale,
     status: desiredStatus,
     path: docPath,
+    // Advertise the authoring locale; the public advertised set is the
+    // intersection of this editorial set with the completeness ledger.
+    availableLocales: [locale],
   })
   return { filePath, action: 'created', documentId: result.documentId, path: docPath }
 }

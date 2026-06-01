@@ -214,6 +214,6 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
    */
   layout: {
     main: ['main'],
-    sidebar: ['featured', 'availableLanguages', 'publishedOn'],
+    sidebar: ['featured', 'publishedOn'],
   },
 })

@@ -200,6 +200,6 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    */
   layout: {
     main: ['tabs'],
-    sidebar: ['publishedOn', 'availableLanguages'],
+    sidebar: ['publishedOn'],
   },
 })

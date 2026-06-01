@@ -9,7 +9,6 @@
 import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
-import { availableLanguagesField } from '~/fields/available-languages-field.js'
 import { publishedOnField } from '~/fields/published-on-field.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -34,6 +33,7 @@ export const News = defineCollection({
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
+  advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true, // See type definition for details.
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
@@ -82,7 +82,6 @@ export const News = defineCollection({
       embedRelationsOnSave: true, // See type definition for details.
     },
     publishedOnField,
-    availableLanguagesField(),
   ],
 })
 

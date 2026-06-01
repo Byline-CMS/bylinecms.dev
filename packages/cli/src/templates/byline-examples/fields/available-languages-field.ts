@@ -13,6 +13,13 @@
  * the only imports are `@byline/core` types and the i18n locale list.
  *
  * See `docs/FIELDS.md` for the schema-vs-admin model.
+ *
+ * @deprecated **No longer needed** as of the content-locale-resolution work.
+ * The editorial "advertise these locales" control is now a core *system
+ * attribute* + ledger-aware sidebar widget (`availableLocales`) — see
+ * `docs/AVAILABLE-LOCALES.md`. This userland custom field is **left in place as
+ * a reference example** of the schema-side field-builder pattern; it is not used
+ * by the system widget and can be removed from collection schemas.
  */
 
 import type { GroupField } from '@byline/core'

@@ -11,7 +11,6 @@ import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { PhotoBlock } from '~/blocks/photo-block'
 import { RichTextBlock } from '~/blocks/richtext-block'
-import { availableLanguagesField } from '~/fields/available-languages-field.js'
 import { publishedOnField } from '~/fields/published-on-field'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -36,6 +35,7 @@ export const Pages = defineCollection({
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
+  advertiseLocales: true, // Renders the available-locales sidebar widget.
   /**
    * Pages live at the site root (no `/pages/` prefix) and may be nested
    * under an `area` segment. Same composition rule used by the admin
@@ -100,7 +100,6 @@ export const Pages = defineCollection({
       blocks: [RichTextBlock, PhotoBlock],
     },
     publishedOnField,
-    availableLanguagesField(),
   ],
 })
 
