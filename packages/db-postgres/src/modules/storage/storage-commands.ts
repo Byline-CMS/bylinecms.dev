@@ -7,7 +7,7 @@
  */
 
 import type { CollectionDefinition, ICollectionCommands, IDocumentCommands } from '@byline/core'
-import { and, eq, ne, sql } from 'drizzle-orm'
+import { and, desc, eq, ne, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -18,6 +18,7 @@ import {
   documentAvailableLocales,
   documentPaths,
   documents,
+  documentVersionLocales,
   documentVersions,
   fileStore,
   jsonStore,
@@ -32,6 +33,34 @@ import { getFirstOrThrow } from './storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
+/** The transaction handle passed to `this.db.transaction(async (tx) => …)`. */
+type TxConnection = Parameters<Parameters<DatabaseConnection['transaction']>[0]>[0]
+
+/** Outcome of re-anchoring a single document's content source locale. */
+export type ReAnchorStatus = 'reanchored' | 'skipped-incomplete' | 'already-anchored' | 'not-found'
+
+export interface ReAnchorResult {
+  documentId: string
+  status: ReAnchorStatus
+  /** The document's source locale before the operation (when known). */
+  fromLocale?: string
+  /** The target source locale. */
+  toLocale: string
+  /** The new version id written on a successful re-anchor. */
+  newVersionId?: string
+}
+
+export interface ReAnchorReport {
+  targetLocale: string
+  dryRun: boolean
+  total: number
+  reanchored: number
+  skippedIncomplete: number
+  alreadyAnchored: number
+  notFound: number
+  /** Per-document outcomes, for logging / inspection. */
+  results: ReAnchorResult[]
+}
 
 /**
  * CollectionCommands
@@ -362,42 +391,288 @@ export class DocumentCommands implements IDocumentCommands {
       // freshly-flattened locale. A version with no localized content at all
       // records a single `'all'` sentinel (it renders identically in any
       // locale). Status-blind by design — see docs/CONTENT-LOCALE-RESOLUTION.md.
-      const versionId = documentVersion.id
-      await tx.execute(sql`
-        WITH loc AS (
-          SELECT field_path, locale FROM byline_store_text     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
-          UNION SELECT field_path, locale FROM byline_store_numeric  WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
-          UNION SELECT field_path, locale FROM byline_store_boolean  WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
-          UNION SELECT field_path, locale FROM byline_store_datetime WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
-          UNION SELECT field_path, locale FROM byline_store_file     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
-          UNION SELECT field_path, locale FROM byline_store_relation WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
-          UNION SELECT field_path, locale FROM byline_store_json     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
-        ),
-        canonical AS (
-          SELECT field_path FROM loc WHERE locale = ${sourceLocale}
-        ),
-        covering AS (
-          SELECT l.locale
-          FROM loc l
-          GROUP BY l.locale
-          HAVING NOT EXISTS (
-            SELECT 1 FROM canonical c
-            WHERE NOT EXISTS (
-              SELECT 1 FROM loc l2 WHERE l2.locale = l.locale AND l2.field_path = c.field_path
-            )
-          )
-        )
-        INSERT INTO byline_document_version_locales (document_version_id, locale)
-        SELECT ${versionId}::uuid, locale FROM covering
-        UNION ALL
-        SELECT ${versionId}::uuid, 'all' WHERE NOT EXISTS (SELECT 1 FROM loc)
-      `)
+      await this.writeVersionLocaleLedger(tx, documentVersion.id, sourceLocale)
 
       return {
         document: documentVersion,
         fieldCount: flattenedFields.length,
       }
     })
+  }
+
+  /**
+   * writeVersionLocaleLedger
+   *
+   * Compute and insert a version's `byline_document_version_locales` rows: a
+   * locale is recorded when it covers every localized field path the version's
+   * `sourceLocale` has (path-coverage), and a version with no localized content
+   * records a single `'all'` sentinel. Reads the version's persisted store rows,
+   * so callers must have written them first. Shared by the create write path
+   * (step 6) and `reAnchorDocument` (which recomputes against the new source).
+   * Assumes the version has no ledger rows yet (a freshly-inserted version).
+   * See docs/CONTENT-LOCALE-RESOLUTION.md and docs/DEFAULT-LOCALE-SWITCHING.md.
+   */
+  private async writeVersionLocaleLedger(
+    tx: TxConnection,
+    versionId: string,
+    sourceLocale: string
+  ): Promise<void> {
+    await tx.execute(sql`
+      WITH loc AS (
+        SELECT field_path, locale FROM byline_store_text     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+        UNION SELECT field_path, locale FROM byline_store_numeric  WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+        UNION SELECT field_path, locale FROM byline_store_boolean  WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+        UNION SELECT field_path, locale FROM byline_store_datetime WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+        UNION SELECT field_path, locale FROM byline_store_file     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+        UNION SELECT field_path, locale FROM byline_store_relation WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+        UNION SELECT field_path, locale FROM byline_store_json     WHERE document_version_id = ${versionId}::uuid AND locale <> 'all'
+      ),
+      canonical AS (
+        SELECT field_path FROM loc WHERE locale = ${sourceLocale}
+      ),
+      covering AS (
+        SELECT l.locale
+        FROM loc l
+        GROUP BY l.locale
+        HAVING NOT EXISTS (
+          SELECT 1 FROM canonical c
+          WHERE NOT EXISTS (
+            SELECT 1 FROM loc l2 WHERE l2.locale = l.locale AND l2.field_path = c.field_path
+          )
+        )
+      )
+      INSERT INTO byline_document_version_locales (document_version_id, locale)
+      SELECT ${versionId}::uuid, locale FROM covering
+      UNION ALL
+      SELECT ${versionId}::uuid, 'all' WHERE NOT EXISTS (SELECT 1 FROM loc)
+    `)
+  }
+
+  /**
+   * copyAllVersionStoreRows
+   *
+   * Copy every store row — all eight tables, all locales, including the `meta`
+   * identity rows (so block / array-item `_id`s are preserved) — from one
+   * document version to another, verbatim. New `id`s are minted; the target
+   * `document_version_id` is rebound; timestamps are refreshed. The target
+   * version is assumed fresh (no rows), so no conflict handling is needed.
+   * Used by `reAnchorDocument` to snapshot the current version into the new
+   * re-anchored one without re-flattening (lossless, identity-preserving).
+   */
+  private async copyAllVersionStoreRows(
+    tx: TxConnection,
+    fromVersionId: string,
+    toVersionId: string
+  ): Promise<void> {
+    const from = sql`${fromVersionId}::uuid`
+    const to = sql`${toVersionId}::uuid`
+
+    await tx.execute(sql`
+      INSERT INTO byline_store_text
+        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, word_count, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, value, word_count, NOW(), NOW()
+      FROM byline_store_text WHERE document_version_id = ${from}
+    `)
+    await tx.execute(sql`
+      INSERT INTO byline_store_numeric
+        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, number_type, value_integer, value_decimal, value_float, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, number_type, value_integer, value_decimal, value_float, NOW(), NOW()
+      FROM byline_store_numeric WHERE document_version_id = ${from}
+    `)
+    await tx.execute(sql`
+      INSERT INTO byline_store_boolean
+        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, value, NOW(), NOW()
+      FROM byline_store_boolean WHERE document_version_id = ${from}
+    `)
+    await tx.execute(sql`
+      INSERT INTO byline_store_datetime
+        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, date_type, value_date, value_time, value_timestamp_tz, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, date_type, value_date, value_time, value_timestamp_tz, NOW(), NOW()
+      FROM byline_store_datetime WHERE document_version_id = ${from}
+    `)
+    await tx.execute(sql`
+      INSERT INTO byline_store_json
+        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, json_schema, object_keys, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, value, json_schema, object_keys, NOW(), NOW()
+      FROM byline_store_json WHERE document_version_id = ${from}
+    `)
+    await tx.execute(sql`
+      INSERT INTO byline_store_relation
+        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, target_document_id, target_collection_id, relationship_type, cascade_delete, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, target_document_id, target_collection_id, relationship_type, cascade_delete, NOW(), NOW()
+      FROM byline_store_relation WHERE document_version_id = ${from}
+    `)
+    await tx.execute(sql`
+      INSERT INTO byline_store_file
+        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, NOW(), NOW()
+      FROM byline_store_file WHERE document_version_id = ${from}
+    `)
+    await tx.execute(sql`
+      INSERT INTO byline_store_meta
+        (id, document_version_id, collection_id, type, path, item_id, meta, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, type, path, item_id, meta, NOW(), NOW()
+      FROM byline_store_meta WHERE document_version_id = ${from}
+    `)
+  }
+
+  /**
+   * reAnchorDocument
+   *
+   * Change a single document's content source locale to `targetLocale` — its
+   * fallback floor, path locale, and completeness yardstick. Refuses unless the
+   * document is **complete** in the target (the current version's ledger covers
+   * it, or the document is locale-agnostic) — never manufactures a primary
+   * language with holes. In one transaction: flips `source_locale`, moves the
+   * path row onto the new locale (keeping the slug), writes a **new version**
+   * that is a verbatim copy of the current one (immutable version event,
+   * identities preserved), and computes that version's ledger against the new
+   * source. `dryRun` performs only the eligibility check and reports the
+   * outcome that *would* result, writing nothing. See
+   * docs/DEFAULT-LOCALE-SWITCHING.md.
+   */
+  async reAnchorDocument(params: {
+    documentId: string
+    targetLocale: string
+    dryRun?: boolean
+  }): Promise<ReAnchorResult> {
+    const { documentId, targetLocale, dryRun = false } = params
+    return this.db.transaction(async (tx) => {
+      // 1. Current (latest, non-deleted) version + the document's anchor.
+      const current = await tx
+        .select({
+          versionId: documentVersions.id,
+          collectionId: documentVersions.collection_id,
+          collectionVersion: documentVersions.collection_version,
+          status: documentVersions.status,
+          sourceLocale: documents.source_locale,
+        })
+        .from(documentVersions)
+        .innerJoin(documents, eq(documents.id, documentVersions.document_id))
+        .where(
+          and(eq(documentVersions.document_id, documentId), eq(documentVersions.is_deleted, false))
+        )
+        .orderBy(desc(documentVersions.id))
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (current == null) {
+        return { documentId, status: 'not-found', toLocale: targetLocale }
+      }
+
+      const fromLocale = current.sourceLocale ?? this.defaultContentLocale
+      if (fromLocale === targetLocale) {
+        return { documentId, status: 'already-anchored', fromLocale, toLocale: targetLocale }
+      }
+
+      // 2. Eligibility: the current version must be complete in the target —
+      //    its ledger contains the target locale, or it is locale-agnostic
+      //    (the `'all'` sentinel → renders identically in any locale).
+      const ledgerRows = await tx
+        .select({ locale: documentVersionLocales.locale })
+        .from(documentVersionLocales)
+        .where(eq(documentVersionLocales.document_version_id, current.versionId))
+      const ledger = new Set(ledgerRows.map((r) => r.locale))
+      const complete = ledger.has(targetLocale) || ledger.has('all')
+      if (!complete) {
+        return { documentId, status: 'skipped-incomplete', fromLocale, toLocale: targetLocale }
+      }
+
+      if (dryRun) {
+        return { documentId, status: 'reanchored', fromLocale, toLocale: targetLocale }
+      }
+
+      // 3. Flip the document's content anchor.
+      await tx
+        .update(documents)
+        .set({ source_locale: targetLocale })
+        .where(eq(documents.id, documentId))
+
+      // 4. Move the path row onto the new source locale (re-tag the slug, do
+      //    not regenerate it — the document's URL is unchanged).
+      await tx
+        .update(documentPaths)
+        .set({ locale: targetLocale, updated_at: new Date() })
+        .where(and(eq(documentPaths.document_id, documentId), eq(documentPaths.locale, fromLocale)))
+
+      // 5. New immutable version: a verbatim snapshot of the current version.
+      const newVersionId = uuidv7()
+      await tx.insert(documentVersions).values({
+        id: newVersionId,
+        document_id: documentId,
+        collection_id: current.collectionId,
+        collection_version: current.collectionVersion,
+        event_type: 'update',
+        status: current.status ?? 'draft',
+        change_summary: `re-anchored content source locale ${fromLocale} → ${targetLocale}`,
+      })
+      await this.copyAllVersionStoreRows(tx, current.versionId, newVersionId)
+
+      // 6. Ledger for the new version, computed against the new source locale.
+      await this.writeVersionLocaleLedger(tx, newVersionId, targetLocale)
+
+      return { documentId, status: 'reanchored', fromLocale, toLocale: targetLocale, newVersionId }
+    })
+  }
+
+  /**
+   * reAnchorDocuments
+   *
+   * Bulk re-anchor: walk every (non-deleted) logical document — optionally
+   * scoped to one collection — and re-anchor each that is complete in
+   * `targetLocale`, skipping (and reporting) the rest. Each document runs in its
+   * own transaction via `reAnchorDocument`, so one failure or skip never rolls
+   * back the others; the command is idempotent and resumable. This is the
+   * "client switched the default content locale, move every fully-translated
+   * document onto it" operation; the `skipped-incomplete` results double as the
+   * outstanding-translation backlog. `dryRun` reports what would happen without
+   * writing. See docs/DEFAULT-LOCALE-SWITCHING.md.
+   */
+  async reAnchorDocuments(params: {
+    targetLocale: string
+    collectionId?: string
+    dryRun?: boolean
+  }): Promise<ReAnchorReport> {
+    const { targetLocale, collectionId, dryRun = false } = params
+    const conditions = [eq(documentVersions.is_deleted, false)]
+    if (collectionId) {
+      conditions.push(eq(documentVersions.collection_id, collectionId))
+    }
+    const docs = await this.db
+      .selectDistinct({ documentId: documentVersions.document_id })
+      .from(documentVersions)
+      .where(and(...conditions))
+
+    const report: ReAnchorReport = {
+      targetLocale,
+      dryRun,
+      total: docs.length,
+      reanchored: 0,
+      skippedIncomplete: 0,
+      alreadyAnchored: 0,
+      notFound: 0,
+      results: [],
+    }
+    for (const { documentId } of docs) {
+      const result = await this.reAnchorDocument({ documentId, targetLocale, dryRun })
+      report.results.push(result)
+      switch (result.status) {
+        case 'reanchored':
+          report.reanchored++
+          break
+        case 'skipped-incomplete':
+          report.skippedIncomplete++
+          break
+        case 'already-anchored':
+          report.alreadyAnchored++
+          break
+        case 'not-found':
+          report.notFound++
+          break
+      }
+    }
+    return report
   }
 
   /**

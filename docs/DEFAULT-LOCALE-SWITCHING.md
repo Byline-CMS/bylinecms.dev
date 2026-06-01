@@ -6,10 +6,11 @@ summary: "Makes a system's default content locale safely switchable by recording
 
 # Switchable Default Content Locale
 
-> **Status:** In progress. Slices 1–4 shipped 2026-06-01 on
-> `feat/content-locale-resolution` — **switching `i18n.content.defaultLocale` is
-> now safe for existing data.** Remaining: Slice 5 (re-anchor operation) and
-> Slice 6 (source-locale indicator), both optional. Companion to the
+> **Status:** In progress. Slices 1–4 + the **Slice 5 bulk re-anchor command**
+> shipped 2026-06-01 on `feat/content-locale-resolution` — **switching
+> `i18n.content.defaultLocale` is now safe, and fully-translated documents can be
+> moved onto the new default in bulk.** Remaining (optional): Slice 5's per-document
+> interactive UI action, and Slice 6 (source-locale indicator). Companion to the
 > content-locale work; sketched 2026-06-01.
 >
 > **Settled decisions:** grain = **document-grain** (`byline_documents`);
@@ -243,7 +244,9 @@ Net cost ≈ one PK join + one carried `varchar` per row.
    - **Switching `i18n.content.defaultLocale` is now safe** — proved by a test
      that reads `en`-anchored documents through a query layer built with a `fr`
      default and gets the `en` content (and path) back intact.
-5. **Re-anchor operation** (`@byline/core` + admin) — see below.
+5. **Re-anchor operation** (`@byline/db-postgres` + admin) — **bulk command ✅
+   done** (adapter `reAnchorDocument`/`reAnchorDocuments` + `byline/scripts/re-anchor.ts`);
+   per-document interactive UI action still optional. See below.
 6. **Source-locale indicator** (`@byline/admin`) — see below.
 
 ## Deferred follow-up: make `source_locale` NOT NULL
@@ -271,18 +274,46 @@ When picking it up:
 ## Re-anchor (Slice 5): two modes
 
 The core operation: assert the doc is **complete** in the target locale (via the
-ledger / `_availableVersionLocales`) → flip `source_locale` → migrate/regenerate
-its path row → write a **new version** (recomputes the ledger against the new
-anchor). Refuses on incomplete targets — no manufacturing translations.
+ledger / `_availableVersionLocales`) → flip `source_locale` → move its path row
+onto the new locale → write a **new version** (recomputes the ledger against the
+new anchor). Refuses on incomplete targets — no manufacturing translations.
 
-Two triggers share that core:
+> **The real bottleneck is translation, not re-anchoring.** Switching the default
+> is safe immediately (Slices 1–4); the *hard* part of actually moving documents
+> onto the new default is having them fully translated into it — the system can
+> never manufacture a primary language with holes. So the realistic workflow is:
+> flip the config → translate documents into the new locale over time → re-run
+> the bulk re-anchor (it's idempotent) to sweep up the now-complete ones. The
+> command's `skipped-incomplete` report **is** the outstanding-translation
+> backlog.
 
-- **Bulk / system-wide** — a one-shot maintenance command (CLI/admin task, like
-  the backfills) that re-anchors every doc that is fully translated in the
-  target. This is what the original "client switched the default, re-anchor
-  everything" scenario actually wants; doing it as N UI clicks doesn't scale.
-  **The system-switch use case is satisfied by Slices 1–4 + this bulk command,
-  with no per-doc UI at all.**
+**Bulk command — ✅ done.** Implemented as adapter methods
+`reAnchorDocument({ documentId, targetLocale, dryRun? })` /
+`reAnchorDocuments({ targetLocale, collectionId?, dryRun? })` in
+`@byline/db-postgres` (off the core `IDbAdapter` contract, like the backfills),
+driven by `apps/webapp/byline/scripts/re-anchor.ts`
+(`pnpm tsx byline/scripts/re-anchor.ts --to fr [--collection <path>] [--dry-run]`).
+Per document, in one transaction: skip if `not-found` / `already-anchored` /
+`skipped-incomplete` (eligibility from the version-locale ledger — target present,
+or the doc is locale-agnostic); otherwise flip `source_locale`, **move** the path
+row onto the target locale (re-tag the slug, don't regenerate), write a **new
+immutable version** that is a *verbatim copy* of the current one (all eight store
+tables incl. `meta`, so block/array identities are preserved — decided over
+in-place recompute: immutability is a core invariant and storage is cheap), and
+recompute that version's ledger against the new source (shared
+`writeVersionLocaleLedger` helper, extracted from `createDocumentVersion` step 6).
+Each document is its own transaction → idempotent and resumable; `dryRun` reports
+the would-be outcome (and the backlog) without writing. Tests in
+`storage-locale-fallback.test.ts`.
+
+Decisions settled here (matching the "scope (a)" agreement):
+- **New version, not in-place** — immutability invariant + cheap storage + it's a
+  near-start one-time operation.
+- **Move the path row** (stable URL, re-tagged) rather than regenerate the slug.
+- **Refuse on incomplete** — skip + report, never partial.
+
+The remaining per-doc UI is optional:
+
 - **Per-document, interactive** — a "Set primary language" action in the
   `DocumentActions` dropdown (sibling of *Copy to Locale* / *Duplicate* /
   *Delete*; *Copy to Locale* is the closest precedent — locale-oriented,
@@ -326,23 +357,26 @@ through the admin for the chip text.
 5. **Re-anchor permission** — new `manageLocale` ability vs admin-only.
 
 **To resume in a fresh session:** read this doc plus
-[CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). Slices 1–4 are
-shipped — **switching `i18n.content.defaultLocale` is now safe for existing
-data** (write path anchors per-doc `source_locale`; reads + update-path gate
-re-base onto it; boot stamps any legacy NULL rows). Grain (document) and branch
+[CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). Slices 1–4 **plus the Slice 5 bulk re-anchor command** are shipped — switching
+`i18n.content.defaultLocale` is safe, and fully-translated documents can be moved
+onto the new default via `byline/scripts/re-anchor.ts` (adapter
+`reAnchorDocument`/`reAnchorDocuments`). Grain (document) and branch
 (`feat/content-locale-resolution`) are settled. **Remaining work is optional:**
 
-- **Slice 5 (re-anchor operation)** — the bulk command + optional per-doc
-  "Set primary language" action. Needs: thread a `sourceLocale` param into
-  `createDocumentVersion` (re-anchor writes a new version under the new source),
-  a path-row migrate/regenerate under the new source, eligibility gated on the
-  `_availableVersionLocales` ledger (refuse on incomplete targets), and the
-  `createDocument` validation relax ("establishes / must equal the doc's source
-  locale"). Open decisions: refuse-vs-warn on incomplete; re-anchor permission
-  (`collections.<path>.manageLocale` vs admin-only).
+- **Slice 5 — per-document interactive action** — a "Set primary language" item
+  in the `DocumentActions` dropdown (precedent: *Copy to Locale*): a host server
+  fn calling `reAnchorDocument`, a target picker fed by `_availableVersionLocales`
+  (incomplete locales disabled), a confirmation modal, and a permission above
+  plain edit. Open decisions: re-anchor permission (`collections.<path>.manageLocale`
+  vs admin-only); whether the interactive path writes a new version (it does today).
 - **Slice 6 (source-locale indicator)** — purely presentational; `source_locale`
   is already on every read payload. Show a quiet chip only when a doc's
   `source_locale` ≠ the current global default.
+
+Note: the deferred `createDocument` validation relax (create a doc directly in a
+non-default source locale) was **not** needed for re-anchor — re-anchor operates
+on existing docs by copying the current version. It remains a separate, optional
+"create in arbitrary source" feature.
 
 The recurring grep anchor is `defaultContentLocale` — every consumer is
 catalogued in "The split" above; line numbers there are approximate (they

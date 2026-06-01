@@ -651,4 +651,156 @@ describe('content-locale resolution & fallback', () => {
     expect(byId.get(both)?._availableVersionLocales).toEqual(['de', 'en'])
     expect(byId.get(enOnly)?._availableVersionLocales).toEqual(['en'])
   })
+
+  // --- re-anchor (Slice 5) -------------------------------------------------
+  // Placed last: the bulk re-anchor mutates every complete document in the
+  // collection, so no later test should depend on the pre-re-anchor state.
+
+  it('re-anchors a complete document: flips source, moves the path, writes a new version', async () => {
+    const id = await createDoc({
+      title: { en: 'Hello', de: 'Hallo' },
+      body: { en: 'World', de: 'Welt' },
+      sku: 'RA1',
+    })
+    const pathRow = await db.execute(
+      sql`SELECT path FROM byline_document_paths WHERE document_id = ${id}::uuid`
+    )
+    const slug = (pathRow.rows[0] as { path: string }).path
+    const before = await db.execute(
+      sql`SELECT count(*)::int AS n FROM byline_document_versions WHERE document_id = ${id}::uuid`
+    )
+
+    const result = await commandBuilders.documents.reAnchorDocument({
+      documentId: id,
+      targetLocale: 'de',
+    })
+    expect(result.status).toBe('reanchored')
+    expect(result.fromLocale).toBe('en')
+    expect(result.toLocale).toBe('de')
+    expect(result.newVersionId).toBeTruthy()
+
+    // Anchor flipped.
+    const doc = await db.execute(
+      sql`SELECT source_locale FROM byline_documents WHERE id = ${id}::uuid`
+    )
+    expect((doc.rows[0] as { source_locale: string }).source_locale).toBe('de')
+
+    // Path row moved to de (same slug), with no en row left behind.
+    const paths = await db.execute(
+      sql`SELECT locale, path FROM byline_document_paths WHERE document_id = ${id}::uuid`
+    )
+    expect(paths.rows).toEqual([{ locale: 'de', path: slug }])
+
+    // A new immutable version was written and is now current.
+    const after = await db.execute(
+      sql`SELECT count(*)::int AS n FROM byline_document_versions WHERE document_id = ${id}::uuid`
+    )
+    expect((after.rows[0] as { n: number }).n).toBe((before.rows[0] as { n: number }).n + 1)
+
+    // Content preserved verbatim across the copy.
+    const all = await readById(id, 'all')
+    expect(all?.fields.title).toEqual({ en: 'Hello', de: 'Hallo' })
+    expect(all?.fields.body).toEqual({ en: 'World', de: 'Welt' })
+    expect(all?.fields.sku).toBe('RA1')
+    expect(all?.source_locale).toBe('de')
+
+    // New version's ledger computed against de (both locales cover it).
+    const ledger = await db.execute(
+      sql`SELECT locale FROM byline_document_version_locales WHERE document_version_id = ${result.newVersionId}::uuid ORDER BY locale`
+    )
+    expect(ledger.rows.map((r) => (r as { locale: string }).locale)).toEqual(['de', 'en'])
+  })
+
+  it('refuses to re-anchor a document not complete in the target', async () => {
+    // en is full {title, body}; de has only title → de does not cover en.
+    const id = await createDoc({
+      title: { en: 'Hi', de: 'Hallo' },
+      body: { en: 'World' },
+      sku: 'RA2',
+    })
+    const result = await commandBuilders.documents.reAnchorDocument({
+      documentId: id,
+      targetLocale: 'de',
+    })
+    expect(result.status).toBe('skipped-incomplete')
+
+    const doc = await db.execute(
+      sql`SELECT source_locale FROM byline_documents WHERE id = ${id}::uuid`
+    )
+    expect((doc.rows[0] as { source_locale: string }).source_locale).toBe('en')
+    const versions = await db.execute(
+      sql`SELECT count(*)::int AS n FROM byline_document_versions WHERE document_id = ${id}::uuid`
+    )
+    expect((versions.rows[0] as { n: number }).n).toBe(1)
+  })
+
+  it('no-ops when the document is already anchored to the target', async () => {
+    const id = await createDoc({ title: { en: 'Hello' }, sku: 'RA3' })
+    const result = await commandBuilders.documents.reAnchorDocument({
+      documentId: id,
+      targetLocale: 'en',
+    })
+    expect(result.status).toBe('already-anchored')
+  })
+
+  it('treats a locale-agnostic document as eligible for any target', async () => {
+    const id = await createDoc({ sku: 'RA4' })
+    const result = await commandBuilders.documents.reAnchorDocument({
+      documentId: id,
+      targetLocale: 'de',
+    })
+    expect(result.status).toBe('reanchored')
+    const doc = await db.execute(
+      sql`SELECT source_locale FROM byline_documents WHERE id = ${id}::uuid`
+    )
+    expect((doc.rows[0] as { source_locale: string }).source_locale).toBe('de')
+  })
+
+  it('dryRun reports the would-be outcome without writing', async () => {
+    const id = await createDoc({
+      title: { en: 'Hello', de: 'Hallo' },
+      body: { en: 'World', de: 'Welt' },
+      sku: 'RA5',
+    })
+    const result = await commandBuilders.documents.reAnchorDocument({
+      documentId: id,
+      targetLocale: 'de',
+      dryRun: true,
+    })
+    expect(result.status).toBe('reanchored')
+
+    const doc = await db.execute(
+      sql`SELECT source_locale FROM byline_documents WHERE id = ${id}::uuid`
+    )
+    expect((doc.rows[0] as { source_locale: string }).source_locale).toBe('en')
+    const versions = await db.execute(
+      sql`SELECT count(*)::int AS n FROM byline_document_versions WHERE document_id = ${id}::uuid`
+    )
+    expect((versions.rows[0] as { n: number }).n).toBe(1)
+  })
+
+  it('bulk re-anchors complete documents and reports the incomplete ones', async () => {
+    const complete = await createDoc({
+      title: { en: 'C', de: 'C-de' },
+      body: { en: 'B', de: 'B-de' },
+      sku: 'RB1',
+    })
+    const incomplete = await createDoc({
+      title: { en: 'I', de: 'I-de' },
+      body: { en: 'B' }, // no de body → incomplete in de
+      sku: 'RB2',
+    })
+
+    const report = await commandBuilders.documents.reAnchorDocuments({
+      targetLocale: 'de',
+      collectionId: testCollection.id,
+    })
+
+    const byId = new Map(report.results.map((r) => [r.documentId, r]))
+    expect(byId.get(complete)?.status).toBe('reanchored')
+    expect(byId.get(incomplete)?.status).toBe('skipped-incomplete')
+    expect(report.total).toBeGreaterThanOrEqual(2)
+    expect(report.reanchored).toBeGreaterThanOrEqual(1)
+    expect(report.skippedIncomplete).toBeGreaterThanOrEqual(1)
+  })
 })

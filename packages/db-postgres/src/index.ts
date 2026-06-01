@@ -12,8 +12,18 @@ import pg from 'pg'
 
 import * as schema from './database/schema/index.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
-import { createCommandBuilders } from './modules/storage/storage-commands.js'
+import {
+  createCommandBuilders,
+  type ReAnchorReport,
+  type ReAnchorResult,
+} from './modules/storage/storage-commands.js'
 import { createQueryBuilders } from './modules/storage/storage-queries.js'
+
+export type {
+  ReAnchorReport,
+  ReAnchorResult,
+  ReAnchorStatus,
+} from './modules/storage/storage-commands.js'
 
 /**
  * Public return type of `pgAdapter`. Extends `IDbAdapter` with concrete
@@ -42,11 +52,35 @@ export interface PgAdapter extends IDbAdapter {
    * One-time maintenance: stamp `byline_documents.source_locale` for documents
    * created before the column existed, setting NULL rows to the configured
    * default content locale (the anchor they were implicitly authored against).
-   * Idempotent; run before the migration that sets the column NOT NULL. Kept
-   * off the core `IDbAdapter` contract (no service depends on it) — see
+   * Idempotent; run automatically at boot by `initBylineCore` (also exposed on
+   * the core `IDbAdapter` contract as an optional method) — see
    * docs/DEFAULT-LOCALE-SWITCHING.md.
    */
   backfillSourceLocales(): Promise<{ rowsUpdated: number }>
+  /**
+   * Re-anchor a single document's content source locale to `targetLocale`
+   * (its fallback floor, path locale, and completeness yardstick). Refuses
+   * unless the document is complete in the target. Writes a new immutable
+   * version. `dryRun` reports the would-be outcome without writing. Off the
+   * core `IDbAdapter` contract (maintenance/admin operation) — see
+   * docs/DEFAULT-LOCALE-SWITCHING.md.
+   */
+  reAnchorDocument(params: {
+    documentId: string
+    targetLocale: string
+    dryRun?: boolean
+  }): Promise<ReAnchorResult>
+  /**
+   * Bulk re-anchor every fully-translated document (optionally within one
+   * collection) onto `targetLocale`, skipping and reporting the rest. Each
+   * document is its own transaction — idempotent and resumable. This is the
+   * "switched the default content locale, move everything that's ready" command.
+   */
+  reAnchorDocuments(params: {
+    targetLocale: string
+    collectionId?: string
+    dryRun?: boolean
+  }): Promise<ReAnchorReport>
 }
 
 export const pgAdapter = ({
@@ -111,5 +145,7 @@ export const pgAdapter = ({
     pool,
     backfillVersionLocales: () => commandBuilders.documents.backfillVersionLocales(),
     backfillSourceLocales: () => commandBuilders.documents.backfillSourceLocales(),
+    reAnchorDocument: (params) => commandBuilders.documents.reAnchorDocument(params),
+    reAnchorDocuments: (params) => commandBuilders.documents.reAnchorDocuments(params),
   }
 }
