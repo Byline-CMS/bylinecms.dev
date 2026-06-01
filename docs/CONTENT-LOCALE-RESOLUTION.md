@@ -8,19 +8,21 @@ summary: "Why content-locale availability is a version-grain fact, how a request
 
 > **Status:** Implemented (Phases 1–3 + backfill + Phase 6) on branch
 > `feat/content-locale-resolution`; Phase 4 deferred, Phase 5 planned. Phase 6
-> — availability metadata on read results (`_availableVersionLocales`) — retires the
-> userland `availableLanguages` field for most sites. Began as a design /
+> — availability metadata on read results (`_availableVersionLocales`) — retired the
+> userland `availableLanguages` field. Began as a design /
 > decision record from a working session — the model below is the present-state
 > reference; see [Implementation status](#implementation-status) for what shipped.
 > Supersedes the ad-hoc reliance on the userland `availableLanguages` field for
-> *resolution* (that field remains the *advertising* signal — see below).
+> *resolution*; the *advertising* side is now the core `availableLocales` system
+> attribute (see [AVAILABLE-LOCALES.md](./AVAILABLE-LOCALES.md)), which folded that
+> field in.
 
 Companions:
 - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — path resolution already walks a `[requested, default]` locale chain (`buildLocaleChain`); this doc extends the *same* chain to content and explains why availability must **not** be bound to the path table.
 - [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md) — localized field values are stored per-locale in the `store_*` tables; availability is a function of which localized rows a *version* holds.
 - [I18N.md](./I18N.md) — the admin-interface translation system, and the `i18n.content.localeDefinitions` content-locale primitive this design grows a `fallback` slot onto.
 - [CLIENT-SDK.md](./CLIENT-SDK.md) — `find` / `findByPath` / `findOne` are the read surfaces that gain `onMissingLocale` and the resolution behaviour described here.
-- [DEFAULT-LOCALE-SWITCHING.md](./DEFAULT-LOCALE-SWITCHING.md) — *design, not started.* The fallback chain here ends at the global default; that doc re-bases the anchor onto a per-document `source_locale` so the system default becomes safely switchable.
+- [DEFAULT-LOCALE-SWITCHING.md](./DEFAULT-LOCALE-SWITCHING.md) — *in progress (slices 1–6 shipped 2026-06-01).* The fallback chain here ends at the global default; that doc re-bases the anchor onto a per-document `source_locale` so the system default becomes safely switchable.
 
 ---
 
@@ -93,16 +95,16 @@ Byline *already* has a locale fallback chain, but only for **paths**:
 The path layer got the chain; the value layer never did. Closing that asymmetry
 — giving content the same chain paths already walk — is the heart of the fix.
 
-### Why `availableLanguages` is the wrong layer for resolution
+### Why advertising is the wrong layer for resolution
 
-`availableLanguagesField()`
-(`apps/webapp/byline/fields/available-languages-field.ts`) is a good
+The editorial **advertising** signal (originally the userland
+`availableLanguagesField()`, now the core `availableLocales` attribute) is a good
 **advertising** signal and a poor **resolution** signal:
 
 - **Advertising** = "which locale URLs do we *promote* in hreflang / sitemap /
   the read-this-in affordance." A genuine editorial decision (a doc may be
   *renderable* in `de` via fallback yet not *promoted* as a German page).
-  `availableLanguages` is correct here — **keep it.**
+  The editorial set is correct here — it stays a separate concern.
 - **Resolution** = "given a `de` request, what do I render, and does this row
   belong in a `de` list?" This must come from a structural core fact, not a
   hand-maintained checkbox, because the checkbox (i) can drift from the actual
@@ -307,15 +309,15 @@ of the outer policy, so a populated relation tree never has holes.
 
 ---
 
-## Relationship to `availableLanguages`
+## Relationship to advertising (`availableLocales`)
 
 | Concern | Source of truth | Layer |
 | --- | --- | --- |
 | **Resolution** — what is *renderable*; what to render; list inclusion | version-grain locale set (this doc) | core (`@byline/core` / adapter) |
-| **Advertising** — what is *promoted* in hreflang / sitemap / affordances | `availableLanguages` group field | userland (host) |
+| **Advertising** — what is *promoted* in hreflang / sitemap / affordances | `availableLocales` system attribute | core (editor-set) |
 
 They are independent and can be **cross-checked**: a boot- or save-time warning
-when `availableLanguages` claims a locale the content does not actually cover (or
+when `availableLocales` claims a locale the content does not actually cover (or
 vice-versa) catches editorial drift without coupling the two.
 
 ---
@@ -378,7 +380,8 @@ no behaviour change for installs that don't set it, so it can land whenever a
 regional-variant or editorial-fallback need actually appears.
 
 **Phase 5 (optional) — advertising/availability cross-check.** Save- or
-boot-time warning when `availableLanguages` and the version-locale set disagree.
+boot-time warning when the editorial `availableLocales` set and the version-locale
+set disagree.
 
 **Phase 6 — availability metadata on read results — DONE.** Read results now
 carry `doc._availableVersionLocales: string[]` (the resolved version's locale set from
@@ -417,14 +420,16 @@ three consumers on **one source** (so they cannot drift):
   and is the explicit opt-in affordance that surfaces a non-default content URL
   without making it sticky.
 
-Net effect on `availableLanguages` (the userland field): demoted from "the only
-signal for what's translated" to an **optional editorial *advertising* override**
-— kept only when a site needs to promote ≠ availability (suppress-when-ready,
-stable-intent vs. auto-derived, or a different "ready" definition than
-path-coverage). Sites where *advertise == fully-translated* can drop the field
-entirely and derive everything from `_availableVersionLocales`. Pairs naturally with
-Phase 5: the cross-check is what flags an editorial override that contradicts the
-actual content.
+Net effect: the editorial *advertising* signal — once the userland
+`availableLanguages` field, now the core `availableLocales` attribute (opt in via
+`advertiseLocales: true`) — is no longer "the only signal for what's translated."
+It is an **optional editorial override**: the public advertised set is
+`availableLocales ∩ _availableVersionLocales`, so it can *narrow* the auto-derived
+availability (suppress-when-ready, stable intent, or a stricter "ready" definition
+than path-coverage). A site where *advertise == fully-translated* can skip
+`advertiseLocales` entirely and have the host derive hreflang straight from
+`_availableVersionLocales`. Pairs naturally with Phase 5: the cross-check flags an
+editorial override that contradicts the actual content.
 
 ---
 

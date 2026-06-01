@@ -1,7 +1,7 @@
 ---
 title: "Fields API"
 path: "fields"
-summary: "The Fields API: built-in types, optional, localized, validation, hooks, the schema-vs-admin split, and how to build reusable field helpers like availableLanguagesField."
+summary: "The Fields API: built-in types, optional, localized, validation, hooks, the schema-vs-admin split, and how to build reusable field helpers like publishedOnField."
 ---
 
 # Fields API
@@ -402,7 +402,7 @@ fields: {
 }
 ```
 
-At render time the field-renderer resolves the editor component admin-side first (the AI wrapper wins over the global registration), and that component reads `field.editorConfig` from the schema (the compact preset). The result is an AI-enabled editor running the compact toolbar — no special wiring required. The same applies across helper kinds — a schema-side `availableLanguagesField()` and a future `availableLanguagesAdmin()` would coexist the same way.
+At render time the field-renderer resolves the editor component admin-side first (the AI wrapper wins over the global registration), and that component reads `field.editorConfig` from the schema (the compact preset). The result is an AI-enabled editor running the compact toolbar — no special wiring required. The same applies across helper kinds — a schema-side `publishedOnField()` and a future `publishedOnAdmin()` would coexist the same way.
 
 ---
 
@@ -438,9 +438,9 @@ The fix is always the same: find or create a data-only subpath of the package (`
 | `FieldAdminConfig` (per-field admin shape) | `packages/core/src/@types/admin-types.ts` |
 | `CollectionAdminConfig` (collection-level admin shape) | `packages/core/src/@types/admin-types.ts` |
 | `RichTextEditorComponent` (per-field richtext override type) | `packages/core/src/@types/field-types.ts` |
-| Field-renderer dispatch (resolves slots + per-field editor) | `packages/ui/src/fields/field-renderer.tsx` |
-| Form-renderer (reads `adminConfig.fields[name]`) | `packages/ui/src/forms/form-renderer.tsx` |
-| Existing schema-side helpers | `apps/webapp/byline/fields/{published-on-field,available-languages-field,lexical-richtext-compact}.ts` |
+| Field-renderer dispatch (resolves slots + per-field editor) | `packages/admin/src/fields/field-renderer.tsx` |
+| Form-renderer (reads `adminConfig.fields[name]`) | `packages/admin/src/forms/form-renderer.tsx` |
+| Existing schema-side helpers | `apps/webapp/byline/fields/{published-on-field,lexical-richtext-compact}.ts` |
 | Existing admin-side helpers | `apps/webapp/byline/fields/{ai-text,ai-textarea,lexical-richtext-ai}.{ts,tsx}` |
 | AI widgets used by admin-side helpers | `apps/webapp/byline/fields/ai-widgets/` |
 | Reference admin config (admin-side wiring) | `apps/webapp/byline/admin.config.ts` |

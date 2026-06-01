@@ -1003,8 +1003,8 @@ export type BlocksUnion<Bs extends readonly Block[]> = Bs[number] extends infer 
  * on hand-authored fields without waiting for them to be placed inside a
  * `fields: [...]` array. Replaces the `as const satisfies Field` pattern.
  *
- * For factories that *generate* a field shape from input (e.g. mapped-type
- * driven fields like `availableLanguagesField`), a custom return type is
+ * For factories that *generate* a field shape from input (e.g. a helper whose
+ * return type is a mapped type over its options), a custom return type is
  * still the right tool — `defineField` is for identity / passthrough cases.
  *
  * The companion data-shape extractor `FieldData<F>` lives in

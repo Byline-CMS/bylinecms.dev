@@ -55,8 +55,6 @@ this:
 import type { CollectionDefinition } from '@byline/core'
 import { defineWorkflow } from '@byline/core'
 
-import { availableLanguagesField } from '~/fields/available-languages-field.js'
-
 export const Pages: CollectionDefinition = {
   path: 'pages',
   labels: { singular: 'Page', plural: 'Pages' },
@@ -69,13 +67,15 @@ export const Pages: CollectionDefinition = {
   // `path` is a reserved system attribute (stored in byline_document_paths);
   // opt into automatic derivation by naming the source field with useAsPath.
   useAsPath: 'title',
+  // `availableLocales` is likewise a reserved system attribute; opt in here and
+  // core renders the available-locales sidebar widget (not layout-addressable).
+  advertiseLocales: true,
   search: { fields: ['title'] },
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     { name: 'content', label: 'Content', type: 'richText', localized: true },
     { name: 'publishedOn', label: 'Published On', type: 'datetime', mode: 'datetime' },
     { name: 'featured', label: 'Featured', type: 'checkbox', optional: true },
-    availableLanguagesField(),
   ],
 }
 ```
@@ -112,7 +112,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
     // (tabSets, rows, groups). The 'path' widget is form chrome rendered
     // structurally from the schema's useAsPath — it is NOT addressable here.
     main: ['title', 'content'],
-    sidebar: ['availableLanguages', 'publishedOn', 'featured'],
+    sidebar: ['publishedOn', 'featured'],
   },
 })
 ```

@@ -6,10 +6,12 @@ summary: "Promotes the editorial 'advertise these locales' control from a userla
 
 # Available Locales
 
-> **Status:** Design / decision record. Not yet implemented. Supersedes the
-> userland `availableLanguagesField()`
-> (`apps/webapp/byline/fields/available-languages-field.ts`), folding it into
-> core as a system attribute + widget.
+> **Status:** Implemented (shipped 3.0, 2026-06-01). Opt a collection in with
+> `advertiseLocales: true` on its `CollectionDefinition`; core renders the
+> available-locales sidebar widget (`availableLocales` is a reserved name — not
+> layout-addressable), stores the set document-grain, and reconciles it at read
+> time against the ledger. Supersedes the userland `availableLanguagesField()`,
+> folding it into core as a system attribute + widget.
 
 Companions:
 - [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) — the first system attribute promoted
@@ -90,9 +92,9 @@ editor can uncheck to resolve). Realized purely through Checkbox `intent`
 colour — no per-row text.
 
 For the widget to render the ledger column it needs `_availableVersionLocales` at edit
-time — the admin edit response currently **strips** it (Zod parse drops unknown
-keys; `get.ts` already re-attaches `_restoreWarnings` explicitly, line ~151). So
-`_availableVersionLocales` must be preserved across that parse — the one prerequisite.
+time. The admin edit response would otherwise **strip** it (Zod parse drops unknown
+keys), so `get.ts` now preserves it across the parse alongside `availableLocales` and
+`_restoreWarnings` (Slice 6).
 
 ## Read surfacing
 
@@ -105,19 +107,21 @@ keys; `get.ts` already re-attaches `_restoreWarnings` explicitly, line ~151). So
 
 ## Migration
 
-Remove `apps/webapp/byline/fields/available-languages-field.ts` and the
-`availableLanguages` group from the `news` / `pages` / `docs` schemas; the
-control becomes the core attribute (opt-in via the directive). Existing
-`availableLanguages` field values would be migrated into the new
-`(document_id, locale)` store as the initial advertised set.
+The userland `available-languages-field.ts` and the `availableLanguages` group
+were removed from the `news` / `pages` / `docs` schemas; the control is now the
+core attribute (opt in via `advertiseLocales: true`). For this repo the advertised
+set is established on (re-)import rather than by a data migration — `import-docs.ts`
+sets `availableLocales` directly. A standalone site with existing
+`availableLanguages` values would map them into the new `(document_id, locale)`
+store as the initial advertised set.
 
 ## Implementation plan (sliced)
 
 Each slice is independently committable (green) and mirrors the `path` system
-attribute. Slices 1–3 are mechanical mirrors of `path` and go fast; 4–5 (the
-widget + form-context state) are the real work. Done so far: the userland field
-is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-languages-field.ts`);
-**Slice 1 shipped** (see below).
+attribute. Slices 1–3 are mechanical mirrors of `path`; 4–5 (the widget +
+form-context state) are the real work. **Slices 1–6 shipped (3.0, 2026-06-01)**;
+Slice 7 (data migration) is moot for this repo — see Migration above. The userland
+field has since been removed entirely.
 
 1. ✅ **Core reserve + directive** (`@byline/core`) — `'availableLocales'` added
    to `RESERVED_FIELD_NAMES` (`config/validate-collections.ts`); explicit opt-in
@@ -200,15 +204,13 @@ is marked `@deprecated`/reference (`apps/webapp/byline/fields/available-language
    collections never touch `byline_document_available_locales`. Verified by the
    25/25 workspace typecheck; the create/update→read round-trip is the same
    lifecycle path the Slice-3 `client-write.integration.test.ts` proves end-to-end.
-7. **Migration** — map existing `availableLanguages` field values into the new
-   store; drop the field from the `news`/`pages`/`docs` schemas.
+7. ✅ **Migration (schema drop)** — the `availableLanguages` group was dropped
+   from the `news`/`pages`/`docs` schemas and the userland field removed. No
+   data-migration step was needed in this repo: `import-docs.ts` establishes the
+   advertised set directly on (re-)import.
 
-**To resume in a fresh session:** read this doc, then start at **Slice 7**
-(Migration — the only remaining slice) on branch
-`feat/content-locale-resolution`. Slices 1–6 are shipped: the feature works
-end-to-end (opt into a collection with `advertiseLocales: true`, edit, toggle
-green locales, save). Slice 7 is the data migration from the old userland
-`availableLanguages` field. The `path`
+**Shipped (3.0, 2026-06-01).** The feature works end-to-end: opt a collection in
+with `advertiseLocales: true`, edit, toggle green locales, save. The `path`
 system attribute is the working reference at every layer
 (`docs/DOCUMENT-PATHS.md`); grep `useAsPath` / `systemPath` / `byline_document_paths`
 to find each analog.

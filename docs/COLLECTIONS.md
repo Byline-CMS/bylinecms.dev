@@ -157,7 +157,7 @@ defineAdmin(News, {
 defineAdmin(News, {
   layout: {
     main: ['main'],                                 // the 'main' tabSet from recipe 5
-    sidebar: ['availableLanguages', 'publishedOn'], // bare field names in the sidebar
+    sidebar: ['category', 'publishedOn'], // bare field names in the sidebar
   },
 })
 ```
