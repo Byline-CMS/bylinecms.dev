@@ -207,6 +207,6 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    */
   layout: {
     main: ['tabs'],
-    sidebar: ['publishedOn', 'availableLanguages'],
+    sidebar: ['publishedOn'],
   },
 })

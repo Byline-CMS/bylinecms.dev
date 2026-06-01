@@ -38,6 +38,7 @@ export const Docs = defineCollection({
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
+  advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true, // See type definition for details.
   // All hooks can be a single function or an array of functions.
   // If an array is provided, the functions will be executed in sequence.
@@ -156,7 +157,6 @@ export const Docs = defineCollection({
       optional: true,
       blocks: [RichTextBlock, PhotoBlock],
     },
-    availableLanguagesField(),
   ],
 })
 

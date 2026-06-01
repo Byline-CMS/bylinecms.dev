@@ -11,7 +11,7 @@
 import { useCallback, useMemo } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
-import { Checkbox } from '@byline/ui/react'
+import { Checkbox, Label } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { reconcileLocaleState } from './available-locales-reconcile'
@@ -79,16 +79,16 @@ export const AvailableLocalesWidget = ({
 
   return (
     <div className={cx('byline-form-available-locales', styles.container)}>
-      <span
-        id="available-locales-label"
-        className={cx('byline-form-available-locales-label', styles.label)}
-      >
-        {t('availableLocalesWidget.label')}
-      </span>
+      <Label
+        id="available-locales"
+        htmlFor="available-locales-group"
+        label={t('availableLocalesWidget.label')}
+      />
       <div
+        id="available-locales-group"
         className={cx('byline-form-available-locales-list', styles.list)}
         role="group"
-        aria-labelledby="available-locales-label"
+        aria-labelledby="label-for-available-locales"
         aria-describedby="available-locales-description"
       >
         {contentLocales.map(({ code, label }) => {

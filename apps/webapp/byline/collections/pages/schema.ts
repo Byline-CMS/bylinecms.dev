@@ -36,6 +36,8 @@ export const Pages = defineCollection({
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
+  advertiseLocales: true, // Renders the available-locales sidebar widget.
+  linksInEditor: true,
   /**
    * Pages live at the site root (no `/pages/` prefix) and may be nested
    * under an `area` segment. Same composition rule used by the admin
@@ -55,7 +57,6 @@ export const Pages = defineCollection({
     }
     return `/${doc.path}`
   },
-  linksInEditor: true,
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {
@@ -100,7 +101,6 @@ export const Pages = defineCollection({
       blocks: [RichTextBlock, PhotoBlock],
     },
     publishedOnField,
-    availableLanguagesField(),
   ],
 })
 
