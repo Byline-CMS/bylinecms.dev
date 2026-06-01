@@ -479,11 +479,12 @@ describe('Document lifecycle service', () => {
       expect(createDocumentVersion.mock.calls[0]?.[0].status).toBe('draft')
     })
 
-    it('drops path changes silently with a logger.warn on non-default-locale (translation) saves', async () => {
+    it('drops path changes silently with a logger.warn on non-source-locale (translation) saves', async () => {
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
       getDocumentById.mockResolvedValue({
         document_version_id: 'prev-ver',
         path: 'about',
+        source_locale: 'en',
         status: 'draft',
         fields: { title: 'About' },
       })
@@ -509,12 +510,36 @@ describe('Document lifecycle service', () => {
         expect.objectContaining({
           documentId: 'doc-1',
           requestedLocale: 'fr',
-          defaultLocale: 'en',
+          sourceLocale: 'en',
           suppliedPath: 'a-propos',
           currentPath: 'about',
         }),
-        expect.stringContaining('path changes apply only on default-locale writes')
+        expect.stringContaining('path changes apply only on source-locale writes')
       )
+    })
+
+    it('writes the path on a source-locale save even when it differs from the global default', async () => {
+      // Document anchored to de (re-anchored, or authored before a global
+      // default switch); the global default is en. A de save is the
+      // source-locale write, so the supplied path must flow through.
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'ueber-uns',
+        source_locale: 'de',
+        status: 'draft',
+        fields: { title: 'Über uns' },
+      })
+      const ctx = buildCtx(db)
+
+      await updateDocument(ctx, {
+        documentId: 'doc-1',
+        data: { title: 'Über uns — neu' },
+        locale: 'de',
+        path: 'ueber-uns-neu',
+      })
+
+      expect(createDocumentVersion.mock.calls[0]?.[0].path).toBe('ueber-uns-neu')
     })
 
     it('does not warn when a translation save supplies the same path as current', async () => {

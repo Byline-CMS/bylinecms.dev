@@ -514,6 +514,53 @@ describe('content-locale resolution & fallback', () => {
     expect(ledger.rows.map((r) => (r as { locale: string }).locale)).toEqual(['de'])
   })
 
+  // --- source_locale read path (Slice 3) -----------------------------------
+
+  it('field fallback resolves to the document source_locale, not the global default', async () => {
+    // Content lives only in de; the global default is en (no en content here).
+    const id = await createDoc({ title: { de: 'Hallo' }, body: { de: 'Welt' }, sku: 'RD1' })
+    // Re-anchor the document to de (global default stays en).
+    await db.execute(sql`UPDATE byline_documents SET source_locale = 'de' WHERE id = ${id}::uuid`)
+
+    // A fr read (absent) with fallback walks the chain [fr, <source=de>] and
+    // resolves de — NOT the global default en, which has no content here and
+    // would render empty.
+    const detail = await readById(id, 'fr', 'fallback')
+    expect(detail?.fields).toMatchObject({ title: 'Hallo', body: 'Welt', sku: 'RD1' })
+    expect(detail?.source_locale).toBe('de')
+
+    // Same per-document floor across a list query (exercises reconstructDocuments
+    // + the batched field fetch, which collects per-row source locales).
+    const { documents } = await queryBuilders.documents.findDocuments({
+      collection_id: testCollection.id,
+      locale: 'fr',
+      onMissingLocale: 'fallback',
+      pageSize: 100,
+    })
+    const listed = documents.find((d) => d.document_id === id)
+    expect(listed?.fields.title, 'list row falls back to its own source de').toBe('Hallo')
+  })
+
+  it('projects the path under the document source_locale floor', async () => {
+    const id = await createDoc({ title: { de: 'Hallo' }, sku: 'RP1' })
+    const pathRow = await db.execute(
+      sql`SELECT path FROM byline_document_paths WHERE document_id = ${id}::uuid`
+    )
+    const slug = (pathRow.rows[0] as { path: string }).path
+
+    // Proper re-anchor: move both the anchor and the path row to de.
+    await db.execute(sql`UPDATE byline_documents SET source_locale = 'de' WHERE id = ${id}::uuid`)
+    await db.execute(
+      sql`UPDATE byline_document_paths SET locale = 'de' WHERE document_id = ${id}::uuid`
+    )
+
+    // A fr read projects path via [fr, <source=de>] → finds the de path row.
+    // If the floor were the global default en, the (now-de) row wouldn't match
+    // and path would come back empty.
+    const detail = await readById(id, 'fr', 'fallback')
+    expect(detail?.path).toBe(slug)
+  })
+
   // --- availability metadata (Phase 6: _availableVersionLocales) -----------
 
   it('exposes _availableVersionLocales + _localeAgnostic on a detail read', async () => {

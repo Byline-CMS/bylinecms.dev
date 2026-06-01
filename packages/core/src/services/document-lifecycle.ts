@@ -335,28 +335,31 @@ function resolvePathForUpdate(args: {
   explicitPath: string | null
   currentPath: string | undefined
   requestLocale: string
-  defaultLocale: string
+  sourceLocale: string
   documentId: string
   logger?: BylineLogger
 }): string | undefined {
-  const { explicitPath, currentPath, requestLocale, defaultLocale, documentId, logger } = args
-  if (requestLocale === defaultLocale) {
-    // Default-locale write: pass path through when supplied; otherwise
-    // skip the write (existing path row stays as-is — sticky).
+  const { explicitPath, currentPath, requestLocale, sourceLocale, documentId, logger } = args
+  if (requestLocale === sourceLocale) {
+    // Source-locale write: pass path through when supplied; otherwise
+    // skip the write (existing path row stays as-is — sticky). The path row
+    // lives under the document's source_locale (its anchor), not the mutable
+    // global default — so this stays correct after the global default is
+    // switched. See docs/DEFAULT-LOCALE-SWITCHING.md.
     return explicitPath ?? undefined
   }
-  // Non-default-locale write: reject any path change with a warn so the
-  // operation succeeds but the editor / API caller is informed.
+  // Non-source-locale (translation) write: reject any path change with a warn
+  // so the operation succeeds but the editor / API caller is informed.
   if (explicitPath !== null && explicitPath !== currentPath) {
     logger?.warn(
       {
         documentId,
         requestedLocale: requestLocale,
-        defaultLocale,
+        sourceLocale,
         suppliedPath: explicitPath,
         currentPath,
       },
-      'path changes apply only on default-locale writes; ignored on translation save'
+      'path changes apply only on source-locale writes; ignored on translation save'
     )
   }
   return undefined
@@ -591,11 +594,15 @@ export async function updateDocument(
       const explicitPath =
         typeof params.path === 'string' && params.path.length > 0 ? params.path : null
       const requestLocale = params.locale ?? defaultLocale
+      // The document's own content-locale anchor governs which save writes the
+      // path row — not the mutable global default. Falls back to the global
+      // default for rows predating source_locale (not yet backfilled).
+      const sourceLocale = (originalData.source_locale as string | undefined) ?? defaultLocale
       const pathForCommand = resolvePathForUpdate({
         explicitPath,
         currentPath: originalData.path as string | undefined,
         requestLocale,
-        defaultLocale,
+        sourceLocale,
         documentId: params.documentId,
         logger: ctx.logger,
       })
@@ -749,11 +756,15 @@ export async function updateDocumentWithPatches(
       const explicitPath =
         typeof params.path === 'string' && params.path.length > 0 ? params.path : null
       const requestLocale = params.locale ?? defaultLocale
+      // The document's own content-locale anchor governs which save writes the
+      // path row — not the mutable global default. Falls back to the global
+      // default for rows predating source_locale (not yet backfilled).
+      const sourceLocale = (originalData.source_locale as string | undefined) ?? defaultLocale
       const pathForCommand = resolvePathForUpdate({
         explicitPath,
         currentPath: originalData.path as string | undefined,
         requestLocale,
-        defaultLocale,
+        sourceLocale,
         documentId: params.documentId,
         logger: ctx.logger,
       })

@@ -6,9 +6,10 @@ summary: "Makes a system's default content locale safely switchable by recording
 
 # Switchable Default Content Locale
 
-> **Status:** In progress. Slices 1–2 (schema + backfill primitive; storage
-> write path) shipped 2026-06-01 on `feat/content-locale-resolution`. Companion
-> to the content-locale work; sketched 2026-06-01.
+> **Status:** In progress. Slices 1–3 (schema + backfill primitive; storage
+> write path; read path + lifecycle rebase) shipped 2026-06-01 on
+> `feat/content-locale-resolution`. Companion to the content-locale work;
+> sketched 2026-06-01.
 >
 > **Settled decisions:** grain = **document-grain** (`byline_documents`);
 > branch = **continue on `feat/content-locale-resolution`** (not a separate
@@ -192,13 +193,37 @@ Net cost ≈ one PK join + one carried `varchar` per row.
    until a flip (Slice 4): pre-flip, `requestLocale === defaultLocale ===
    source_locale`, so the lifecycle's current comparisons stay correct. Moved to
    Slice 3 (and it must land there, *before* Slice 4 sanctions a flip).
-3. **Read path + lifecycle rebase** (`@byline/db-postgres` + `@byline/core`) — the
-   heavy one: expose `source_locale` on the current-documents views; make
-   `buildLocaleChain` / `pathProjection` / the ~430–455 effective-locale logic /
-   reconstruction-fallback per-document; **and** rebase the lifecycle
-   (`resolvePathForUpdate` gate, `derivePath`, `createDocument` validation relax)
-   onto the now-read-exposed `source_locale`. Tests: an `en`-anchored doc reads
-   correctly in `en` *and* falls back to `en` under a non-`en` global default.
+3. **Read path + lifecycle rebase** (`@byline/db-postgres` + `@byline/core`) —
+   ✅ **done** (migration `0004_real_jamie_braddock.sql` re-projects the views).
+   - Both current-documents views now project `source_locale` (the existing PK
+     join to `byline_documents`, already there for `order_key`).
+   - `buildLocaleChain` / `pathProjection` take a per-document floor;
+     `pathProjection` emits `COALESCE(d.source_locale, <default>)` as the
+     fallback locale. Threaded through every read site that has a row column:
+     `viewProjection`, `documentVersionsProjection` (history, via a correlated
+     subquery), detail (`getDocumentById` / `getDocumentByPath`), version-by-id,
+     the `findDocuments` raw SQL, relation/populate (`td{depth}.source_locale`),
+     and `getDocumentsByDocumentIds`.
+   - The field fetch (`getAllFieldValuesForMultipleVersions`) now pulls each
+     document's source-locale rows (distinct floors collected per page), and
+     `reconstructFromUnifiedRows` resolves the effective locale against the
+     document's own `source_locale`.
+   - `source_locale` is surfaced on every read return payload (feeds the lifecycle
+     and the Slice 6 indicator).
+   - Lifecycle: `resolvePathForUpdate` now gates on the document's `source_locale`
+     (read off the payload, default fallback for legacy rows) — an `en`-anchored
+     doc in an `fr`-default system still treats `en` saves as the path-bearing
+     source. **`createDocument` validation / `derivePath` were left as-is**: a new
+     doc's source ≡ the global default at creation, so `defaultLocale` is already
+     the correct anchor there; the "create in an arbitrary source locale"
+     relaxation is a multi-source feature, deferred to Slice 5 (it would need the
+     `sourceLocale` param threaded into `createDocumentVersion`).
+   - **`resolveDocumentIdByPath` (findByPath) intentionally stays on the global
+     default floor** — it resolves a URL with no row in hand, so it can't be
+     per-document; `[requested, global-default]` is the correct request-time
+     behaviour (post-flip the adapter's default has moved with the system).
+   - Tests: field fallback + path projection resolve against a re-anchored doc's
+     `source_locale`, not the global default; the lifecycle source-locale gate.
 4. **Backfill + NOT NULL + demote the global default** (`@byline/core`
    docs/config + migration) — run `backfillSourceLocales()`; **then** the
    `NOT NULL` follow-up migration (only safe once the backfill has stamped
@@ -268,21 +293,26 @@ through the admin for the chip text.
 5. **Re-anchor permission** — new `manageLocale` ability vs admin-only.
 
 **To resume in a fresh session:** read this doc plus
-[CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). Slices 1–2 are
-shipped (storage write path is per-document `source_locale`-anchored); **next is
-Slice 3 (read path + lifecycle rebase).** Grain (document) and branch
+[CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). Slices 1–3 are
+shipped — the write path anchors per-document `source_locale`, and the read path
++ update-path gate re-base onto it, so a re-anchored or post-flip document reads
+and resolves its path correctly. **Next is Slice 4 (backfill + NOT NULL + demote
+the global default).** Grain (document) and branch
 (`feat/content-locale-resolution`) are settled.
 
-Slice 3 work — the read side in `@byline/db-postgres`: project `source_locale`
-onto the current-documents views (`currentDocumentsView` /
-`currentPublishedDocumentsView`) via a PK join to `byline_documents`, then make
-per-document the bits in `storage-queries.ts` that currently read the global
-default — `buildLocaleChain` (~192), `pathProjection` (constant fallback array →
-`ARRAY[<requested>, d.source_locale]`), the ~430–455 effective-locale logic, and
-the reconstruction fallback. **Then** the `@byline/core` lifecycle rebase
-(deferred out of Slice 2): `resolvePathForUpdate` gate + `derivePath` +
-`createDocument` validation now key off the read-exposed `source_locale` instead
-of `defaultLocale`. This must be done before Slice 4 sanctions a config flip.
+Slice 4 work — (a) run `backfillSourceLocales()` as a maintenance step (CLI/admin
+task, like `backfillVersionLocales`); (b) **then** add the `NOT NULL` follow-up
+migration on `byline_documents.source_locale` (only safe once the backfill has
+stamped pre-existing NULL rows); (c) update `createDocumentVersion` to set the
+column NOT NULL-safely on every new doc (already does); (d) document in
+`@byline/core` config that `i18n.content.defaultLocale` now means "default
+authoring locale + request fallback," not the data anchor. Add a test proving a
+config-default flip leaves existing docs intact (they ride their own
+`source_locale`). After Slice 4 the config flip is safe.
+
+Then Slice 5 (re-anchor operation — needs the `sourceLocale` param threaded into
+`createDocumentVersion`, plus the `createDocument` validation relax) and Slice 6
+(source-locale indicator — `source_locale` is already on the read payload).
 
 The recurring grep anchor is `defaultContentLocale` — every consumer is
 catalogued in "The split" above; line numbers there are approximate (they

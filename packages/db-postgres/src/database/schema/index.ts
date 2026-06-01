@@ -319,6 +319,12 @@ export const currentDocumentsView = pgView('byline_current_documents').as((qb) =
       created_by: sq.created_by,
       change_summary: sq.change_summary,
       order_key: documents.order_key,
+      // The document's content-locale anchor, projected here so locale-aware
+      // read paths (`buildLocaleChain` / `pathProjection` / field-fallback)
+      // re-base onto the per-document source rather than the mutable global
+      // default — a primary-key join, already present for `order_key`.
+      // See docs/DEFAULT-LOCALE-SWITCHING.md.
+      source_locale: documents.source_locale,
     })
     .from(sq)
     .innerJoin(documents, eq(documents.id, sq.document_id))
@@ -370,6 +376,9 @@ export const currentPublishedDocumentsView = pgView('byline_current_published_do
         created_by: sq.created_by,
         change_summary: sq.change_summary,
         order_key: documents.order_key,
+        // See `currentDocumentsView` — the per-document content-locale anchor,
+        // carried for locale-aware reads. PK join, already present.
+        source_locale: documents.source_locale,
       })
       .from(sq)
       .innerJoin(documents, eq(documents.id, sq.document_id))

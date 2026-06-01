@@ -46,7 +46,13 @@ type DatabaseConnection = NodePgDatabase<typeof schema>
 // `path` was dropped from documentVersions in favour of byline_document_paths;
 // SELECT projections re-attach it via a locale-aware subquery (see
 // `pathProjection`), so the in-memory Document shape continues to carry it.
-type Document = Omit<typeof documentVersions.$inferSelect, 'doc'> & { path: string | null }
+// `source_locale` (the per-document content-locale anchor) rides alongside so
+// the locale-aware read paths re-base the fallback floor onto it rather than
+// the mutable global default. See docs/DEFAULT-LOCALE-SWITCHING.md.
+type Document = Omit<typeof documentVersions.$inferSelect, 'doc'> & {
+  path: string | null
+  source_locale: string | null
+}
 
 import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-restore.js'
 import {
@@ -179,20 +185,21 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Build the locale priority chain for path resolution:
-   * `[requested, default]`, deduplicated when both are the same.
-   *
-   * Used by every read path that touches `byline_document_paths`. In
-   * phase 1 only the default-locale row is ever populated, so a non-
-   * default `requested` locale always falls through to the default —
-   * but the chain shape is correct for phase 2 when per-locale rows
-   * begin to exist.
+   * Build the locale priority chain for fallback resolution:
+   * `[requested, floor]`, deduplicated when both are the same. The floor is
+   * the document's own `source_locale` anchor when known (so a re-anchored
+   * document, or any document read after the global default is switched, falls
+   * back to the locale it was actually authored in) — otherwise the configured
+   * global default, which is correct for not-yet-anchored rows and for
+   * row-less lookups (findByPath). See docs/DEFAULT-LOCALE-SWITCHING.md.
    */
-  private buildLocaleChain(requestedLocale: string | undefined): string[] {
-    const requested = requestedLocale ?? this.defaultContentLocale
-    return requested === this.defaultContentLocale
-      ? [requested]
-      : [requested, this.defaultContentLocale]
+  private buildLocaleChain(
+    requestedLocale: string | undefined,
+    sourceLocale?: string | null
+  ): string[] {
+    const floor = sourceLocale ?? this.defaultContentLocale
+    const requested = requestedLocale ?? floor
+    return requested === floor ? [requested] : [requested, floor]
   }
 
   /**
@@ -300,16 +307,25 @@ export class DocumentQueries implements IDocumentQueries {
    *  LIMIT 1)
    * ```
    */
-  private pathProjection(documentIdCol: SQL, requestedLocale?: string): SQL<string | null> {
-    const chain = this.buildLocaleChain(requestedLocale)
-    // Build a `ARRAY[$1, $2, ...]::text[]` literal so each locale is its
-    // own parameter. Passing a JS array as a single `${chain}` placeholder
+  private pathProjection(
+    documentIdCol: SQL,
+    requestedLocale?: string,
+    sourceLocaleCol?: SQL
+  ): SQL<string | null> {
+    // The fallback floor: the row's `source_locale` column when supplied
+    // (COALESCE-guarded for not-yet-anchored NULL rows), otherwise the
+    // configured global default. The chain is `[requested, floor]`; a runtime
+    // duplicate (requested === floor) is harmless — `array_position` picks the
+    // first match and `LIMIT 1` collapses it.
+    const floorSql: SQL = sourceLocaleCol
+      ? sql`COALESCE(${sourceLocaleCol}, ${this.defaultContentLocale})`
+      : sql`${this.defaultContentLocale}`
+    const requestedSql: SQL = requestedLocale != null ? sql`${requestedLocale}` : floorSql
+    // Build a `ARRAY[$1, $2]::text[]` literal so each locale is its own
+    // parameter. Passing a JS array as a single `${chain}` placeholder
     // serialises as a scalar string (`'en'`), which Postgres rejects when
     // cast to `text[]` ("malformed array literal").
-    const chainSql = sql.join(
-      chain.map((l) => sql`${l}`),
-      sql`, `
-    )
+    const chainSql = sql.join([requestedSql, floorSql], sql`, `)
     return sql<string | null>`(
       SELECT ${documentPaths.path} FROM ${documentPaths}
       WHERE ${documentPaths.document_id} = ${documentIdCol}
@@ -343,7 +359,12 @@ export class DocumentQueries implements IDocumentQueries {
       updated_at: view.updated_at,
       created_by: view.created_by,
       change_summary: view.change_summary,
-      path: this.pathProjection(sql`${view.document_id}`, requestedLocale),
+      source_locale: view.source_locale,
+      path: this.pathProjection(
+        sql`${view.document_id}`,
+        requestedLocale,
+        sql`${view.source_locale}`
+      ),
     }
   }
 
@@ -354,6 +375,13 @@ export class DocumentQueries implements IDocumentQueries {
    * the locale priority chain, since it no longer lives on the version row.
    */
   private documentVersionsProjection(requestedLocale: string | undefined) {
+    // `source_locale` lives on `byline_documents` (document-grain), not the
+    // version row — resolve it via a correlated subquery so point-in-time
+    // history reads re-base their fallback floor onto the document's anchor,
+    // consistent with the current-documents views.
+    const sourceLocaleSql = sql<
+      string | null
+    >`(SELECT source_locale FROM byline_documents WHERE id = ${documentVersions.document_id})`
     return {
       id: documentVersions.id,
       document_id: documentVersions.document_id,
@@ -366,7 +394,12 @@ export class DocumentQueries implements IDocumentQueries {
       updated_at: documentVersions.updated_at,
       created_by: documentVersions.created_by,
       change_summary: documentVersions.change_summary,
-      path: this.pathProjection(sql`${documentVersions.document_id}`, requestedLocale),
+      source_locale: sourceLocaleSql,
+      path: this.pathProjection(
+        sql`${documentVersions.document_id}`,
+        requestedLocale,
+        sourceLocaleSql
+      ),
     }
   }
 
@@ -474,7 +507,8 @@ export class DocumentQueries implements IDocumentQueries {
     locale: string,
     metaRows?: MetaRow[],
     lenient = false,
-    onMissingLocale?: MissingLocalePolicy
+    onMissingLocale?: MissingLocalePolicy,
+    sourceLocale?: string | null
   ): { fields: any; warnings: string[] } {
     const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
       extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
@@ -502,7 +536,7 @@ export class DocumentQueries implements IDocumentQueries {
       locale === 'all'
         ? undefined
         : onMissingLocale === 'fallback'
-          ? this.resolveEffectiveLocale(flattenedData, this.buildLocaleChain(locale))
+          ? this.resolveEffectiveLocale(flattenedData, this.buildLocaleChain(locale, sourceLocale))
           : locale
     const { data, warnings } = restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
 
@@ -606,7 +640,7 @@ export class DocumentQueries implements IDocumentQueries {
         docVersionId: sql`${view.id}`,
         documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
-        path: this.pathProjection(sql`${view.document_id}`, locale),
+        path: this.pathProjection(sql`${view.document_id}`, locale, sql`${view.source_locale}`),
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
@@ -628,7 +662,11 @@ export class DocumentQueries implements IDocumentQueries {
     }
 
     // 2. Get all field values for this document
-    const unifiedFieldValues = await this.getAllFieldValues(document.id, locale)
+    const unifiedFieldValues = await this.getAllFieldValues(
+      document.id,
+      locale,
+      document.source_locale
+    )
 
     // 3. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
@@ -650,7 +688,8 @@ export class DocumentQueries implements IDocumentQueries {
         locale,
         metaRows as MetaRow[],
         lenient,
-        onMissingLocale
+        onMissingLocale,
+        document.source_locale
       )
 
       const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
@@ -662,6 +701,7 @@ export class DocumentQueries implements IDocumentQueries {
         document_version_id: document.id,
         document_id: document.document_id,
         path: document.path ?? '',
+        source_locale: document.source_locale ?? null,
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
@@ -678,6 +718,7 @@ export class DocumentQueries implements IDocumentQueries {
       document_version_id: document.id,
       document_id: document.document_id,
       path: document.path ?? '',
+      source_locale: document.source_locale ?? null,
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
@@ -718,7 +759,7 @@ export class DocumentQueries implements IDocumentQueries {
         docVersionId: sql`${view.id}`,
         documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
-        path: this.pathProjection(sql`${view.document_id}`, locale),
+        path: this.pathProjection(sql`${view.document_id}`, locale, sql`${view.source_locale}`),
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
@@ -740,7 +781,11 @@ export class DocumentQueries implements IDocumentQueries {
     }
 
     // 2. Get all field values for this document
-    const unifiedFieldValues = await this.getAllFieldValues(document.id, locale)
+    const unifiedFieldValues = await this.getAllFieldValues(
+      document.id,
+      locale,
+      document.source_locale
+    )
 
     // 3. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
@@ -762,7 +807,8 @@ export class DocumentQueries implements IDocumentQueries {
         locale,
         metaRows as MetaRow[],
         false,
-        onMissingLocale
+        onMissingLocale,
+        document.source_locale
       )
 
       const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
@@ -774,6 +820,7 @@ export class DocumentQueries implements IDocumentQueries {
         document_version_id: document.id,
         document_id: document.document_id,
         path: document.path ?? '',
+        source_locale: document.source_locale ?? null,
         status: document.status,
         created_at: document.created_at,
         updated_at: document.updated_at,
@@ -789,6 +836,7 @@ export class DocumentQueries implements IDocumentQueries {
       document_version_id: document.id,
       document_id: document.document_id,
       path: document.path ?? '',
+      source_locale: document.source_locale ?? null,
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
@@ -819,7 +867,11 @@ export class DocumentQueries implements IDocumentQueries {
       }).log(getLogger())
     }
 
-    const unifiedFieldValues = await this.getAllFieldValues(document.id, locale)
+    const unifiedFieldValues = await this.getAllFieldValues(
+      document.id,
+      locale,
+      document.source_locale
+    )
     const definition = await this.getDefinitionForCollection(document.collection_id)
 
     const metaRows = await this.db
@@ -836,13 +888,17 @@ export class DocumentQueries implements IDocumentQueries {
       unifiedFieldValues,
       definition,
       locale,
-      metaRows as MetaRow[]
+      metaRows as MetaRow[],
+      false,
+      undefined,
+      document.source_locale
     )
 
     const documentWithFields = {
       document_version_id: document.id,
       document_id: document.document_id,
       path: document.path ?? '',
+      source_locale: document.source_locale ?? null,
       status: document.status,
       created_at: document.created_at,
       updated_at: document.updated_at,
@@ -920,7 +976,11 @@ export class DocumentQueries implements IDocumentQueries {
         docVersionId: sql`${view.id}`,
         documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
-        path: this.pathProjection(sql`${view.document_id}`, filterLocale),
+        path: this.pathProjection(
+          sql`${view.document_id}`,
+          filterLocale,
+          sql`${view.source_locale}`
+        ),
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, filterLocale, outerScope, readMode, 0))
@@ -1266,11 +1326,19 @@ export class DocumentQueries implements IDocumentQueries {
       ? resolveStoreTypes(definition.fields, requestedFields)
       : undefined
 
+    // The distinct fallback floors for the batch — each document's own
+    // `source_locale` anchor — so the field fetch pulls every locale a row in
+    // this page might fall back to, not just the global default.
+    const floorLocales = [
+      ...new Set(documents.map((d) => d.source_locale).filter((l): l is string => l != null)),
+    ]
+
     // Get field values for all versions in one query
     const allFieldValues = await this.getAllFieldValuesForMultipleVersions(
       versionIds,
       locale,
-      storeTypes
+      storeTypes,
+      floorLocales
     )
 
     // Group field values by document version
@@ -1319,7 +1387,8 @@ export class DocumentQueries implements IDocumentQueries {
         locale,
         docMetaRows,
         false,
-        onMissingLocale
+        onMissingLocale,
+        doc.source_locale
       )
 
       // When specific fields were requested, trim the reconstructed object
@@ -1334,6 +1403,7 @@ export class DocumentQueries implements IDocumentQueries {
         document_version_id: doc.id,
         document_id: doc.document_id,
         path: doc.path ?? '',
+        source_locale: doc.source_locale ?? null,
         status: doc.status,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
@@ -1352,9 +1422,15 @@ export class DocumentQueries implements IDocumentQueries {
    */
   private async getAllFieldValues(
     documentVersionId: string,
-    locale = 'all'
+    locale = 'all',
+    sourceLocale?: string | null
   ): Promise<UnionRowValue[]> {
-    return this.getAllFieldValuesForMultipleVersions([documentVersionId], locale)
+    return this.getAllFieldValuesForMultipleVersions(
+      [documentVersionId],
+      locale,
+      undefined,
+      sourceLocale ? [sourceLocale] : undefined
+    )
   }
 
   /**
@@ -1367,18 +1443,23 @@ export class DocumentQueries implements IDocumentQueries {
   private async getAllFieldValuesForMultipleVersions(
     documentVersionIds: string[],
     locale = 'all',
-    storeTypes?: Set<StoreType>
+    storeTypes?: Set<StoreType>,
+    floorLocales?: string[]
   ): Promise<UnionRowValue[]> {
     if (documentVersionIds.length === 0) return []
 
-    // For a concrete locale, fetch the whole fallback chain (`[requested,
-    // default]`) plus non-localized `'all'` rows. Per-version effective-locale
-    // resolution (see `resolveEffectiveLocale`) then picks one locale to
-    // restore from, so the default rows are the fallback source when a
-    // translation is missing. `'all'` skips the filter (admin multi-locale read).
+    // For a concrete locale, fetch the requested locale plus every fallback
+    // floor in the batch, plus non-localized `'all'` rows. The floors are the
+    // documents' own `source_locale` anchors (passed by the caller, which has
+    // them on the row) so a document authored in a non-default locale still
+    // has its fallback rows fetched; they default to the global default when
+    // unknown. Per-version effective-locale resolution (see
+    // `resolveEffectiveLocale`) then picks one locale to restore from. `'all'`
+    // skips the filter (admin multi-locale read).
     let localeCondition = sql``
     if (locale !== 'all') {
-      const chain = this.buildLocaleChain(locale)
+      const floors = floorLocales?.length ? floorLocales : [this.defaultContentLocale]
+      const chain = [...new Set([locale, ...floors])]
       const chainSql = sql.join(
         chain.map((l) => sql`${l}`),
         sql`, `
@@ -1482,7 +1563,7 @@ export class DocumentQueries implements IDocumentQueries {
     if (pathFilter) {
       conditions.push(
         this.buildFilterCondition(
-          this.pathProjection(sql`d.document_id`, locale),
+          this.pathProjection(sql`d.document_id`, locale, sql`d.source_locale`),
           pathFilter.operator,
           pathFilter.value
         )
@@ -1516,7 +1597,7 @@ export class DocumentQueries implements IDocumentQueries {
             docVersionId: sql`d.id`,
             documentId: sql`d.document_id`,
             status: sql`d.status`,
-            path: this.pathProjection(sql`d.document_id`, locale),
+            path: this.pathProjection(sql`d.document_id`, locale, sql`d.source_locale`),
           },
           readMode,
           0
@@ -1574,7 +1655,7 @@ export class DocumentQueries implements IDocumentQueries {
     // keyed by document_id + locale). Project it via the locale-aware
     // subquery so the result rows still carry `path` for the in-memory
     // Document shape.
-    const pathProjectionSql = this.pathProjection(sql`d.document_id`, locale)
+    const pathProjectionSql = this.pathProjection(sql`d.document_id`, locale, sql`d.source_locale`)
     const mainQuery = sql`
       SELECT d.*, ${pathProjectionSql} AS path
       FROM ${sourceTable} d
@@ -1599,6 +1680,7 @@ export class DocumentQueries implements IDocumentQueries {
       updated_at: new Date(row.updated_at as string | number),
       created_by: row.created_by as string,
       change_summary: row.change_summary as string,
+      source_locale: (row.source_locale as string | null) ?? null,
     }))
 
     const documents = await this.reconstructDocuments({
@@ -1764,8 +1846,13 @@ export class DocumentQueries implements IDocumentQueries {
       documentId: sql.raw(`td${depth}.document_id`),
       status: sql.raw(`td${depth}.status`),
       // `td${depth}.path` no longer exists on the view; resolve via the
-      // locale priority chain against byline_document_paths instead.
-      path: this.pathProjection(sql.raw(`td${depth}.document_id`), locale),
+      // locale priority chain against byline_document_paths instead, anchored
+      // to the target document's own `source_locale`.
+      path: this.pathProjection(
+        sql.raw(`td${depth}.document_id`),
+        locale,
+        sql.raw(`td${depth}.source_locale`)
+      ),
     }
 
     const nestedConditions: SQL[] = filter.nested.map((nested) =>
