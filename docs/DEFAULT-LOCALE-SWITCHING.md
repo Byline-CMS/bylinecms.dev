@@ -239,6 +239,17 @@ through the admin for the chip text.
 
 **To resume in a fresh session:** read this doc plus
 [CONTENT-LOCALE-RESOLUTION.md](./CONTENT-LOCALE-RESOLUTION.md). The work is not
-started; settle the open decisions, then begin at Slice 1. The recurring grep
-anchor is `defaultContentLocale` — every consumer is catalogued in "The split"
-above.
+started. Before writing code:
+
+1. **Settle the grain decision first** (open decision #1) — it gates Slice 1:
+   document-grain puts `source_locale` on `byline_documents`, version-grain on
+   `byline_document_versions`. Lean is document-grain. The other open decisions
+   can be settled as their slices arrive.
+2. **Pick a branch.** The content-locale work this builds on (availableLocales +
+   the route-error fix) lives on `feat/content-locale-resolution` and may not be
+   merged yet — decide whether to branch off it or off `main` once it lands, so
+   this unrelated feature doesn't pile onto that branch.
+
+Then begin at Slice 1. The recurring grep anchor is `defaultContentLocale` —
+every consumer is catalogued in "The split" above; line numbers there are
+approximate (they drift), so grep rather than trust them.
