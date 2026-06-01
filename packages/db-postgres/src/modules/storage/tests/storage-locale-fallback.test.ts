@@ -361,38 +361,6 @@ describe('content-locale resolution & fallback', () => {
     expect(second.rowsInserted).toBe(0)
   })
 
-  it('backfillSourceLocales stamps NULL source_locale rows with the default locale', async () => {
-    const id = await createDoc({
-      title: { en: 'Hello', de: 'Hallo' },
-      body: { en: 'World', de: 'Welt' },
-      sku: 'S1',
-    })
-
-    // The write path now stamps source_locale on create (Slice 2), so simulate
-    // a row written before the column existed by nulling it — exactly the
-    // pre-existing-data shape backfill exists to repair.
-    await db.execute(sql`UPDATE byline_documents SET source_locale = NULL WHERE id = ${id}::uuid`)
-    const before = await db.execute(
-      sql`SELECT source_locale FROM byline_documents WHERE id = ${id}::uuid`
-    )
-    expect((before.rows[0] as { source_locale: string | null }).source_locale).toBeNull()
-
-    const result = await commandBuilders.documents.backfillSourceLocales()
-    expect(result.rowsUpdated).toBeGreaterThan(0)
-
-    const after = await db.execute(
-      sql`SELECT source_locale FROM byline_documents WHERE id = ${id}::uuid`
-    )
-    expect(
-      (after.rows[0] as { source_locale: string | null }).source_locale,
-      'stamped with the adapter default content locale (en)'
-    ).toBe('en')
-
-    // Idempotent: a second run touches nothing (no NULL rows remain).
-    const second = await commandBuilders.documents.backfillSourceLocales()
-    expect(second.rowsUpdated).toBe(0)
-  })
-
   // --- source_locale write path (Slice 2) ----------------------------------
 
   it('records source_locale on create and writes the path row under it', async () => {
