@@ -246,6 +246,28 @@ Net cost ≈ one PK join + one carried `varchar` per row.
 5. **Re-anchor operation** (`@byline/core` + admin) — see below.
 6. **Source-locale indicator** (`@byline/admin`) — see below.
 
+## Deferred follow-up: make `source_locale` NOT NULL
+
+Slice 4 deliberately left the column **nullable** (boot-time backfill + COALESCE
+fallbacks) to avoid a `drizzle:migrate` ordering footgun on in-place upgrades.
+**Once the source_locale work has bedded in** — i.e. every live install has
+booted at least once on ≥ the release that ships Slice 4 (boot stamps legacy
+NULL rows) and the write path stamps every new document — a later release can add
+the hard DB constraint. Intent (Tony, 2026-06-01): come back and do this.
+
+When picking it up:
+- Precondition: confirm `SELECT count(*) FROM byline_documents WHERE source_locale
+  IS NULL` is 0 on representative installs (it will be, post-boot-backfill).
+- The migration is a bare `ALTER TABLE byline_documents ALTER COLUMN source_locale
+  SET NOT NULL` — safe because the boot backfill (kept in place) guarantees no
+  NULLs survive a startup, and the write path never inserts NULL. A static
+  migration still can't *run* the backfill (no access to the configured default),
+  so it relies on boot having already stamped — which the release ordering
+  guarantees (the app must boot on the Slice-4 release before this later one).
+- After it lands, the `COALESCE(source_locale, <default>)` guards in
+  `pathProjection` / `buildLocaleChain` / the lifecycle become dead-code
+  belt-and-suspenders; safe to keep, optional to simplify.
+
 ## Re-anchor (Slice 5): two modes
 
 The core operation: assert the doc is **complete** in the target locale (via the
