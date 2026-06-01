@@ -4,18 +4,19 @@ import { Accordion, Button, ChevronDownIcon, HomeIcon } from '@byline/ui/react'
 import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { useLocaleNavigation } from '@/i18n/hooks/use-locale-navigation'
-import { t } from '@/i18n/migrate-t'
 import { pathWithoutLocale } from '@/i18n/utils'
 import logoBlack from '@/images/byline-typelogo-dark.svg'
 import logoWhite from '@/images/byline-typelogo-light.svg'
 import { LangLink } from '../../i18n/components/lang-link'
 import type { Locale } from '@/i18n/i18n-config'
+import type { Translations } from '@/i18n/translations'
 
 import './mobile-menu.css'
 
 interface MenuItem {
-  title: string
+  labelKey: keyof Translations['frontend']
   path: string
   target?: string
   children: MenuItem[] | null
@@ -23,17 +24,17 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    title: 'Docs',
+    labelKey: 'navDocs',
     path: '/docs',
     children: null,
   },
   {
-    title: 'News',
+    labelKey: 'navNews',
     path: '/news',
     children: null,
   },
   {
-    title: 'About',
+    labelKey: 'navAbout',
     path: '/about-byline',
     children: null,
   },
@@ -63,6 +64,7 @@ export function MobileMenu({
 }: MobileMenuProps): React.JSX.Element {
   const { navigate } = useLocaleNavigation()
   const pathname = useLocation({ select: (loc) => loc.pathname })
+  const { t } = useTranslations('frontend')
 
   const handleMenuItemClick =
     (href: string | null) =>
@@ -118,7 +120,7 @@ export function MobileMenu({
               >
                 <HomeIcon className="mb-[-1px]" />
                 &nbsp;
-                <span>{t('Home')}</span>
+                <span>{t('navHome')}</span>
               </Accordion.Trigger>
             </Accordion.Item>
 
@@ -143,7 +145,7 @@ export function MobileMenu({
                       />
                     }
                   >
-                    {t(item.title)}
+                    {t(item.labelKey)}
                     <ChevronDownIcon
                       width="25px"
                       height="25px"
@@ -167,7 +169,7 @@ export function MobileMenu({
                       />
                     }
                   >
-                    {t(item.title)}
+                    {t(item.labelKey)}
                   </Accordion.Trigger>
                 ) : (
                   <Accordion.Trigger
@@ -181,7 +183,7 @@ export function MobileMenu({
                       />
                     }
                   >
-                    {t(item.title)}
+                    {t(item.labelKey)}
                   </Accordion.Trigger>
                 )}
                 {item?.children != null && item?.children?.length > 0 && (
@@ -196,7 +198,7 @@ export function MobileMenu({
                             })}
                             onClick={handleMenuItemClick(child?.path)}
                           >
-                            {t(child.title)}
+                            {t(child.labelKey)}
                           </button>
                         </li>
                       ))}
@@ -221,7 +223,7 @@ export function MobileMenu({
             size="lg"
             className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto"
           >
-            View on GitHub
+            {t('viewOnGitHub')}
           </Button>
         </div>
       </div>
