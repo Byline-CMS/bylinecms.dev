@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1779971470037,
-      "tag": "0000_black_sabra",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1780201722536,
-      "tag": "0001_brave_jackpot",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1780234507826,
-      "tag": "0002_fixed_mach_iv",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1780277853059,
-      "tag": "0003_ambitious_imperial_guard",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1780279172195,
-      "tag": "0004_real_jamie_braddock",
+      "when": 1780300346241,
+      "tag": "0000_foamy_franklin_storm",
       "breakpoints": true
     }
   ]

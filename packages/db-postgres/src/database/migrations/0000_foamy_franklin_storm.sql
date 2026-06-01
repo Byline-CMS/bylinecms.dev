@@ -115,6 +115,15 @@ CREATE TABLE "byline_store_datetime" (
 	CONSTRAINT "unique_datetime_field" UNIQUE("document_version_id","field_path","locale")
 );
 --> statement-breakpoint
+CREATE TABLE "byline_document_available_locales" (
+	"document_id" uuid NOT NULL,
+	"locale" varchar(10) NOT NULL,
+	"collection_id" uuid NOT NULL,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "byline_document_available_locales_document_id_locale_pk" PRIMARY KEY("document_id","locale")
+);
+--> statement-breakpoint
 CREATE TABLE "byline_document_paths" (
 	"document_id" uuid NOT NULL,
 	"locale" varchar(10) NOT NULL,
@@ -131,6 +140,12 @@ CREATE TABLE "byline_document_relationships" (
 	"child_document_id" uuid NOT NULL,
 	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "byline_document_relationships_parent_document_id_child_document_id_unique" UNIQUE("parent_document_id","child_document_id")
+);
+--> statement-breakpoint
+CREATE TABLE "byline_document_version_locales" (
+	"document_version_id" uuid NOT NULL,
+	"locale" varchar(10) NOT NULL,
+	CONSTRAINT "byline_document_version_locales_document_version_id_locale_pk" PRIMARY KEY("document_version_id","locale")
 );
 --> statement-breakpoint
 CREATE TABLE "byline_document_versions" (
@@ -152,6 +167,7 @@ CREATE TABLE "byline_documents" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"collection_id" uuid NOT NULL,
 	"order_key" varchar(128) COLLATE "C",
+	"source_locale" varchar(10),
 	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL
 );
@@ -270,10 +286,13 @@ ALTER TABLE "byline_store_boolean" ADD CONSTRAINT "byline_store_boolean_document
 ALTER TABLE "byline_store_boolean" ADD CONSTRAINT "byline_store_boolean_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_datetime" ADD CONSTRAINT "byline_store_datetime_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_datetime" ADD CONSTRAINT "byline_store_datetime_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_available_locales" ADD CONSTRAINT "byline_document_available_locales_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_available_locales" ADD CONSTRAINT "byline_document_available_locales_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_paths" ADD CONSTRAINT "byline_document_paths_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_paths" ADD CONSTRAINT "byline_document_paths_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_parent_document_id_byline_documents_id_fk" FOREIGN KEY ("parent_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_child_document_id_byline_documents_id_fk" FOREIGN KEY ("child_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_version_locales" ADD CONSTRAINT "byline_document_version_locales_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_versions" ADD CONSTRAINT "byline_document_versions_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_versions" ADD CONSTRAINT "byline_document_versions_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_documents" ADD CONSTRAINT "byline_documents_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -304,6 +323,7 @@ CREATE INDEX "idx_datetime_date" ON "byline_store_datetime" USING btree ("value_
 CREATE INDEX "idx_datetime_timestamp_tz" ON "byline_store_datetime" USING btree ("value_timestamp_tz");--> statement-breakpoint
 CREATE INDEX "idx_datetime_path_date" ON "byline_store_datetime" USING btree ("field_path","value_timestamp_tz");--> statement-breakpoint
 CREATE INDEX "idx_datetime_collection_date" ON "byline_store_datetime" USING btree ("collection_id","value_timestamp_tz");--> statement-breakpoint
+CREATE INDEX "idx_document_available_locales_document_id" ON "byline_document_available_locales" USING btree ("document_id");--> statement-breakpoint
 CREATE INDEX "idx_document_paths_document_id" ON "byline_document_paths" USING btree ("document_id");--> statement-breakpoint
 CREATE INDEX "idx_document_relationships_parent" ON "byline_document_relationships" USING btree ("parent_document_id");--> statement-breakpoint
 CREATE INDEX "idx_document_relationships_child" ON "byline_document_relationships" USING btree ("child_document_id");--> statement-breakpoint
@@ -342,5 +362,5 @@ CREATE INDEX "idx_text_value" ON "byline_store_text" USING btree ("value");--> s
 CREATE INDEX "idx_text_fulltext" ON "byline_store_text" USING gin (to_tsvector('english', "value"));--> statement-breakpoint
 CREATE INDEX "idx_text_locale_value" ON "byline_store_text" USING btree ("locale","value");--> statement-breakpoint
 CREATE INDEX "idx_text_path_value" ON "byline_store_text" USING btree ("field_path","value");--> statement-breakpoint
-CREATE VIEW "public"."byline_current_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false) select "sq"."id", "sq"."document_id", "sq"."collection_id", "sq"."collection_version", "sq"."event_type", "sq"."status", "sq"."is_deleted", "sq"."created_at", "sq"."updated_at", "sq"."created_by", "sq"."change_summary", "byline_documents"."order_key" from "sq" inner join "byline_documents" on "byline_documents"."id" = "sq"."document_id" where "rn" = 1);--> statement-breakpoint
-CREATE VIEW "public"."byline_current_published_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false AND "byline_document_versions"."status" = 'published') select "sq"."id", "sq"."document_id", "sq"."collection_id", "sq"."collection_version", "sq"."event_type", "sq"."status", "sq"."is_deleted", "sq"."created_at", "sq"."updated_at", "sq"."created_by", "sq"."change_summary", "byline_documents"."order_key" from "sq" inner join "byline_documents" on "byline_documents"."id" = "sq"."document_id" where "rn" = 1);
+CREATE VIEW "public"."byline_current_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false) select "sq"."id", "sq"."document_id", "sq"."collection_id", "sq"."collection_version", "sq"."event_type", "sq"."status", "sq"."is_deleted", "sq"."created_at", "sq"."updated_at", "sq"."created_by", "sq"."change_summary", "byline_documents"."order_key", "byline_documents"."source_locale" from "sq" inner join "byline_documents" on "byline_documents"."id" = "sq"."document_id" where "rn" = 1);--> statement-breakpoint
+CREATE VIEW "public"."byline_current_published_documents" AS (with "sq" as (select "id", "document_id", "collection_id", "collection_version", "event_type", "status", "is_deleted", "created_at", "updated_at", "created_by", "change_summary", row_number() OVER (PARTITION BY "document_id" ORDER BY "id" DESC) as "rn" from "byline_document_versions" where "byline_document_versions"."is_deleted" = false AND "byline_document_versions"."status" = 'published') select "sq"."id", "sq"."document_id", "sq"."collection_id", "sq"."collection_version", "sq"."event_type", "sq"."status", "sq"."is_deleted", "sq"."created_at", "sq"."updated_at", "sq"."created_by", "sq"."change_summary", "byline_documents"."order_key", "byline_documents"."source_locale" from "sq" inner join "byline_documents" on "byline_documents"."id" = "sq"."document_id" where "rn" = 1);

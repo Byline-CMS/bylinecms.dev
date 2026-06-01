@@ -1,5 +1,5 @@
 {
-  "id": "2d20cd37-0ecf-467c-86dd-9f880e9d41b4",
+  "id": "61b8a759-9f0f-404d-a809-8e5d0daf06be",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1053,6 +1053,102 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.byline_document_available_locales": {
+      "name": "byline_document_available_locales",
+      "schema": "",
+      "columns": {
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locale": {
+          "name": "locale",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection_id": {
+          "name": "collection_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_document_available_locales_document_id": {
+          "name": "idx_document_available_locales_document_id",
+          "columns": [
+            {
+              "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "byline_document_available_locales_document_id_byline_documents_id_fk": {
+          "name": "byline_document_available_locales_document_id_byline_documents_id_fk",
+          "tableFrom": "byline_document_available_locales",
+          "tableTo": "byline_documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "byline_document_available_locales_collection_id_byline_collections_id_fk": {
+          "name": "byline_document_available_locales_collection_id_byline_collections_id_fk",
+          "tableFrom": "byline_document_available_locales",
+          "tableTo": "byline_collections",
+          "columnsFrom": [
+            "collection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "byline_document_available_locales_document_id_locale_pk": {
+          "name": "byline_document_available_locales_document_id_locale_pk",
+          "columns": [
+            "document_id",
+            "locale"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.byline_document_paths": {
       "name": "byline_document_paths",
       "schema": "",
@@ -1260,6 +1356,53 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.byline_document_version_locales": {
+      "name": "byline_document_version_locales",
+      "schema": "",
+      "columns": {
+        "document_version_id": {
+          "name": "document_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locale": {
+          "name": "locale",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "byline_document_version_locales_document_version_id_byline_document_versions_id_fk": {
+          "name": "byline_document_version_locales_document_version_id_byline_document_versions_id_fk",
+          "tableFrom": "byline_document_version_locales",
+          "tableTo": "byline_document_versions",
+          "columnsFrom": [
+            "document_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "byline_document_version_locales_document_version_id_locale_pk": {
+          "name": "byline_document_version_locales_document_version_id_locale_pk",
+          "columns": [
+            "document_version_id",
+            "locale"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1527,6 +1670,12 @@
         "order_key": {
           "name": "order_key",
           "type": "varchar(128) COLLATE \"C\"",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_locale": {
+          "name": "source_locale",
+          "type": "varchar(10)",
           "primaryKey": false,
           "notNull": false
         },
@@ -2999,9 +3148,15 @@
           "type": "varchar(128) COLLATE \"C\"",
           "primaryKey": false,
           "notNull": false
+        },
+        "source_locale": {
+          "name": "source_locale",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
         }
       },
-      "definition": "with \"sq\" as (select \"id\", \"document_id\", \"collection_id\", \"collection_version\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\", row_number() OVER (PARTITION BY \"document_id\" ORDER BY \"id\" DESC) as \"rn\" from \"byline_document_versions\" where \"byline_document_versions\".\"is_deleted\" = false) select \"sq\".\"id\", \"sq\".\"document_id\", \"sq\".\"collection_id\", \"sq\".\"collection_version\", \"sq\".\"event_type\", \"sq\".\"status\", \"sq\".\"is_deleted\", \"sq\".\"created_at\", \"sq\".\"updated_at\", \"sq\".\"created_by\", \"sq\".\"change_summary\", \"byline_documents\".\"order_key\" from \"sq\" inner join \"byline_documents\" on \"byline_documents\".\"id\" = \"sq\".\"document_id\" where \"rn\" = 1",
+      "definition": "with \"sq\" as (select \"id\", \"document_id\", \"collection_id\", \"collection_version\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\", row_number() OVER (PARTITION BY \"document_id\" ORDER BY \"id\" DESC) as \"rn\" from \"byline_document_versions\" where \"byline_document_versions\".\"is_deleted\" = false) select \"sq\".\"id\", \"sq\".\"document_id\", \"sq\".\"collection_id\", \"sq\".\"collection_version\", \"sq\".\"event_type\", \"sq\".\"status\", \"sq\".\"is_deleted\", \"sq\".\"created_at\", \"sq\".\"updated_at\", \"sq\".\"created_by\", \"sq\".\"change_summary\", \"byline_documents\".\"order_key\", \"byline_documents\".\"source_locale\" from \"sq\" inner join \"byline_documents\" on \"byline_documents\".\"id\" = \"sq\".\"document_id\" where \"rn\" = 1",
       "name": "byline_current_documents",
       "schema": "public",
       "isExisting": false,
@@ -3085,9 +3240,15 @@
           "type": "varchar(128) COLLATE \"C\"",
           "primaryKey": false,
           "notNull": false
+        },
+        "source_locale": {
+          "name": "source_locale",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
         }
       },
-      "definition": "with \"sq\" as (select \"id\", \"document_id\", \"collection_id\", \"collection_version\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\", row_number() OVER (PARTITION BY \"document_id\" ORDER BY \"id\" DESC) as \"rn\" from \"byline_document_versions\" where \"byline_document_versions\".\"is_deleted\" = false AND \"byline_document_versions\".\"status\" = 'published') select \"sq\".\"id\", \"sq\".\"document_id\", \"sq\".\"collection_id\", \"sq\".\"collection_version\", \"sq\".\"event_type\", \"sq\".\"status\", \"sq\".\"is_deleted\", \"sq\".\"created_at\", \"sq\".\"updated_at\", \"sq\".\"created_by\", \"sq\".\"change_summary\", \"byline_documents\".\"order_key\" from \"sq\" inner join \"byline_documents\" on \"byline_documents\".\"id\" = \"sq\".\"document_id\" where \"rn\" = 1",
+      "definition": "with \"sq\" as (select \"id\", \"document_id\", \"collection_id\", \"collection_version\", \"event_type\", \"status\", \"is_deleted\", \"created_at\", \"updated_at\", \"created_by\", \"change_summary\", row_number() OVER (PARTITION BY \"document_id\" ORDER BY \"id\" DESC) as \"rn\" from \"byline_document_versions\" where \"byline_document_versions\".\"is_deleted\" = false AND \"byline_document_versions\".\"status\" = 'published') select \"sq\".\"id\", \"sq\".\"document_id\", \"sq\".\"collection_id\", \"sq\".\"collection_version\", \"sq\".\"event_type\", \"sq\".\"status\", \"sq\".\"is_deleted\", \"sq\".\"created_at\", \"sq\".\"updated_at\", \"sq\".\"created_by\", \"sq\".\"change_summary\", \"byline_documents\".\"order_key\", \"byline_documents\".\"source_locale\" from \"sq\" inner join \"byline_documents\" on \"byline_documents\".\"id\" = \"sq\".\"document_id\" where \"rn\" = 1",
       "name": "byline_current_published_documents",
       "schema": "public",
       "isExisting": false,

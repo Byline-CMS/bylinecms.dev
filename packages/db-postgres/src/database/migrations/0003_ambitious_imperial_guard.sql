@@ -1,1 +1,0 @@
-ALTER TABLE "byline_documents" ADD COLUMN "source_locale" varchar(10);
