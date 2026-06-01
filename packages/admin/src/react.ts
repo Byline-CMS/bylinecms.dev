@@ -71,6 +71,7 @@ export * from './presentation/row.js'
 export * from './presentation/tabs.js'
 // Collection-editor-shared widgets.
 export * from './widgets/diff-viewer/diff-modal.js'
+export * from './widgets/source-locale-badge/source-locale-badge.js'
 export * from './widgets/status-badge/status-badge.js'
 // Field-side service contract types.
 export type {

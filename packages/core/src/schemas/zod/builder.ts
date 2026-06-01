@@ -239,6 +239,10 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
     id: z.uuid(),
     versionId: z.uuid().optional(),
     path: z.string().optional(),
+    // The document's content source-locale anchor (see docs/DEFAULT-LOCALE-SWITCHING.md).
+    // Carried through list/get responses so the admin can badge it; Zod would
+    // otherwise strip it as an undeclared key.
+    sourceLocale: z.string().optional(),
     status: statusEnum,
     hasPublishedVersion: z.boolean().optional(),
     createdAt: z.iso.datetime(),

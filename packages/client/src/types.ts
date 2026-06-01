@@ -417,6 +417,15 @@ export interface ClientDocument<F = Record<string, any>> {
   path: string
   /** Workflow status (e.g. 'draft', 'published'). */
   status: string
+  /**
+   * The document's content **source locale** — the locale it was authored in,
+   * and its per-document anchor (fallback floor, path locale, completeness
+   * yardstick). Stable, document-grain. Surfaced so consumers / the admin can
+   * indicate a document whose primary language differs from the system default.
+   * Present on `find` / `findById` / `findByPath`. See
+   * `docs/DEFAULT-LOCALE-SWITCHING.md`.
+   */
+  sourceLocale?: string
   /** When this version was created. */
   createdAt: Date
   /** When this version was last updated. */

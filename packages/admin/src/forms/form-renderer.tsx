@@ -28,6 +28,7 @@ import { LocalDateTime } from '../fields/local-date-time'
 import { AdminGroup } from '../presentation/group'
 import { AdminRow } from '../presentation/row'
 import { AdminTabs } from '../presentation/tabs'
+import { SourceLocaleBadge } from '../widgets/source-locale-badge/source-locale-badge'
 import { AvailableLocalesWidget } from './available-locales-widget'
 import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
@@ -469,6 +470,12 @@ const FormContent = ({
   // field changes. Re-evaluated per keystroke via the meta-subscribe loop.
   const [formData, setFormData] = useState<Record<string, any>>(() => getFieldValues())
 
+  // The document's content source-locale anchor, carried on the loaded record
+  // (absent in create mode). Surfaced next to the heading as a quiet badge.
+  const sourceLocale = (initialData as Record<string, unknown> | undefined)?.sourceLocale as
+    | string
+    | undefined
+
   // Live document heading — tracks the useAsTitle field as the user types
   const liveTitle = useFieldValue<string>(useAsTitle ?? '')
   const heading =
@@ -672,6 +679,10 @@ const FormContent = ({
     <form noValidate onSubmit={handleSubmit} className={cx('byline-form', styles.form)}>
       <div className={cx('byline-form-heading-row', styles['heading-row'])}>
         <h1 className={cx('byline-form-heading', styles.heading)}>{heading}</h1>
+        {/* Source-locale anchor indicator. Shown for every document for now so
+            the anchor is visible; the end state is to show it only when it
+            differs from the system default. See docs/DEFAULT-LOCALE-SWITCHING.md. */}
+        {sourceLocale != null && sourceLocale !== '' && <SourceLocaleBadge locale={sourceLocale} />}
         {headerSlot}
       </div>
       <div className={cx('byline-form-status-bar', styles['status-bar'])}>

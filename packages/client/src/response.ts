@@ -39,6 +39,10 @@ export function shapeDocument<F = Record<string, any>>(
   if (Array.isArray(raw.restoreWarnings) && raw.restoreWarnings.length > 0) {
     shaped._restoreWarnings = raw.restoreWarnings as string[]
   }
+  // The per-document content source locale (storage key `source_locale`).
+  if (typeof raw.source_locale === 'string') {
+    shaped.sourceLocale = raw.source_locale as string
+  }
   // Locale advertising + availability metadata. Present on
   // find / findById / findByPath; absent on version/history reads.
   // Storage raw keys already match the surface names (passthrough) —

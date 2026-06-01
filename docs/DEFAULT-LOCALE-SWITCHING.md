@@ -6,12 +6,14 @@ summary: "Makes a system's default content locale safely switchable by recording
 
 # Switchable Default Content Locale
 
-> **Status:** In progress. Slices 1–4 + the **Slice 5 bulk re-anchor command**
-> shipped 2026-06-01 on `feat/content-locale-resolution` — **switching
-> `i18n.content.defaultLocale` is now safe, and fully-translated documents can be
-> moved onto the new default in bulk.** Remaining (optional): Slice 5's per-document
-> interactive UI action, and Slice 6 (source-locale indicator). Companion to the
-> content-locale work; sketched 2026-06-01.
+> **Status:** In progress. Slices 1–4, the **Slice 5 bulk re-anchor command**,
+> and the **Slice 6 edit-view source-locale badge** shipped 2026-06-01 on
+> `feat/content-locale-resolution` — **switching `i18n.content.defaultLocale` is
+> safe, fully-translated documents can be moved onto the new default in bulk, and
+> a document's content anchor is visible in the editor.** Remaining (optional):
+> Slice 5's per-document interactive UI action; Slice 6's list-view badge +
+> making the indicator mismatch-only. Companion to the content-locale work;
+> sketched 2026-06-01.
 >
 > **Settled decisions:** grain = **document-grain** (`byline_documents`);
 > branch = **continue on `feat/content-locale-resolution`** (not a separate
@@ -312,7 +314,8 @@ Decisions settled here (matching the "scope (a)" agreement):
 - **Move the path row** (stable URL, re-tagged) rather than regenerate the slug.
 - **Refuse on incomplete** — skip + report, never partial.
 
-The remaining per-doc UI is optional:
+The remaining per-doc UI is a **follow-up** (deferred — not blocking; the bulk
+command covers the system-switch use case):
 
 - **Per-document, interactive** — a "Set primary language" action in the
   `DocumentActions` dropdown (sibling of *Copy to Locale* / *Duplicate* /
@@ -332,17 +335,29 @@ Guards for the interactive action:
 
 ## Source-locale indicator (Slice 6)
 
-Purely presentational, depends only on `source_locale` being on the read payload
-(Slice 3). A subtle locale chip next to the document title in the **edit** view
-(beside the `useAsTitle` heading) and next to titles in the **list** view (list
-rows already carry per-row metadata like `availableLocales`).
+**Edit-view badge — ✅ done (always-on, temporary).** `SourceLocaleBadge`
+(`@byline/admin/react`, `packages/admin/src/widgets/source-locale-badge/`) — the
+shared `Badge` with the `noeffect` (neutral) intent, mirroring the localized-field
+`LocaleBadge` in spirit. Rendered next to the `useAsTitle` heading in
+`form-renderer.tsx`. Data: `ClientDocument.sourceLocale` (mapped from
+`source_locale` in `shapeDocument`) + `sourceLocale` added to the shared
+`createBaseSchema` (Zod was otherwise stripping it from the parsed get/list
+responses); the edit view reads it off `initialData`.
 
-**Make it signal, not noise:** only show/emphasize the chip when a document's
-`source_locale` **differs from the system's current default.** A normal
-single-default install shows nothing; a re-anchored doc (the `fr` doc in an
-`en`-default system) gets a quiet "FR" marker — meaningful precisely because
-it's the exception. Reuse the `contentLocales` code/label list already threaded
-through the admin for the chip text.
+**Currently shown for every document** so the anchor is visible during
+development — the badge component carries a `NOTE` to that effect.
+
+**End state (deferred):** make it *signal, not noise* — only show when a
+document's `source_locale` **differs from the system's current default content
+locale.** A normal single-default install then shows nothing; a re-anchored doc
+(the `fr` doc in an `en`-default system) gets a quiet "FR" marker. Needs the
+current default threaded to the component for the comparison.
+
+**List-view badge — deferred** (decision 2026-06-01: per-row noise + it needs
+threading through each collection's admin list schema). `sourceLocale` *is*
+already carried on the list response (added to `createBaseSchema`), so when we do
+it, it's mismatch-only rendering in `list.tsx` with no further data work. Reuse
+the `contentLocales` code/label list for the chip text if a label is wanted.
 
 ## Open decisions
 

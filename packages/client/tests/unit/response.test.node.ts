@@ -16,6 +16,7 @@ describe('shapeDocument', () => {
       document_id: 'doc-1',
       document_version_id: 'ver-1',
       path: 'hello-world',
+      source_locale: 'fr',
       status: 'published',
       created_at: new Date('2026-01-15T10:00:00Z'),
       updated_at: new Date('2026-02-20T14:30:00Z'),
@@ -27,6 +28,7 @@ describe('shapeDocument', () => {
     expect(result.id).toBe('doc-1')
     expect(result.versionId).toBe('ver-1')
     expect(result.path).toBe('hello-world')
+    expect(result.sourceLocale).toBe('fr')
     expect(result.status).toBe('published')
     expect(result.createdAt).toEqual(new Date('2026-01-15T10:00:00Z'))
     expect(result.updatedAt).toEqual(new Date('2026-02-20T14:30:00Z'))
