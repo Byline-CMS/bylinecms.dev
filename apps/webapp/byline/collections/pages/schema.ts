@@ -11,7 +11,6 @@ import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { PhotoBlock } from '~/blocks/photo-block'
 import { RichTextBlock } from '~/blocks/richtext-block'
-import { availableLanguagesField } from '~/fields/available-languages-field.js'
 import { publishedOnField } from '~/fields/published-on-field'
 
 // ---- Schema (server-safe, no UI concerns) ----
