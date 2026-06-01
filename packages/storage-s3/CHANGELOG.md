@@ -1,5 +1,17 @@
 # @byline/storage-s3
 
+## 3.0.0
+
+### Major Changes
+
+- added switchable default content locale (per-document `source_locale`) and `availableLocales` editorial advertising with a sidebar widget, wired end-to-end through the read/write paths plus routable content-locale frontend routing
+  squashed db migrations to a single 3.0 baseline with a migration guide and standalone upgrade SQL script
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.0.0
+
 ## 2.7.0
 
 ### Minor Changes
