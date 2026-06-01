@@ -12,9 +12,9 @@
  *
  * URL patterns (any *routable* locale — interface ∪ content):
  *   /foo/...          → default locale (en)
- *   /es/foo/...       → Spanish (interface locale)
- *   /fr/foo/...       → French (content-only locale — content renders in
- *                       `fr`, chrome falls back to the default interface
+ *   /fr/foo/...       → French (interface locale — chrome + content in `fr`)
+ *   /es/foo/...       → Spanish (content-only locale — content renders in
+ *                       `es`, chrome falls back to the default interface
  *                       locale; see `toInterfaceLocale`)
  *   /xyz/foo/...      → 404 (not a routable locale)
  */

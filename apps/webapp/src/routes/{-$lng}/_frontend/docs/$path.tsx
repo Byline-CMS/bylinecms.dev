@@ -10,6 +10,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import {
@@ -66,6 +67,7 @@ export const Route = createFileRoute('/{-$lng}/_frontend/docs/$path')({
 
 function RouteComponent() {
   const { result, lng } = Route.useLoaderData() as RouteLoaderData
+  const { t } = useTranslations('frontend')
   const title = result.fields.title ?? result.path ?? result.id
 
   return (
@@ -79,7 +81,7 @@ function RouteComponent() {
       />
       <BreadcrumbsClient
         breadcrumbs={[
-          { label: 'Documentation', href: `/docs` },
+          { label: t('docsTitle'), href: `/docs` },
           { label: title, href: `/docs/${result.path}` },
         ]}
       />

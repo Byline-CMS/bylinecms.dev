@@ -15,6 +15,7 @@ import { Container, Section } from '@byline/ui/react'
 // locales to be determined by the content locales in the CMS, but this is a
 // good starting point for now until we settle on a content locale vs interface
 // locale fallback or detection strategy.
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import {
@@ -77,6 +78,7 @@ export const Route = createFileRoute('/{-$lng}/_frontend/legal/$path')({
 
 function RouteComponent() {
   const { result, lng } = Route.useLoaderData() as RouteLoaderData
+  const { t } = useTranslations('frontend')
   const title = result.fields.title ?? result.path ?? result.id
 
   return (
@@ -92,7 +94,7 @@ function RouteComponent() {
         <Container className="mt-3">
           <Breadcrumbs
             breadcrumbs={[
-              { label: 'Legal', href: `/` },
+              { label: t('legal'), href: `/` },
               { label: title, href: `/legal/${result.path}` },
             ]}
           />

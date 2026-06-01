@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
+
 export function WYSIWYGAnimation() {
+  const { t } = useTranslations('frontend')
   const [currentText, setCurrentText] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
 
-  const fullText =
-    'Welcome to Byline CMS! This is a demonstration of our AI-powered WYSIWYG editor. With intelligent suggestions and seamless content creation, building amazing content has never been easier. The future of content management is here.'
+  const fullText = t('editorDemo')
 
   useEffect(() => {
     if (currentIndex < fullText.length) {
@@ -21,7 +23,7 @@ export function WYSIWYGAnimation() {
       setCurrentIndex(0)
     }, 3000)
     return () => clearTimeout(resetTimeout)
-  }, [currentIndex])
+  }, [currentIndex, fullText])
 
   return (
     <div className="bg-white dark:bg-canvas-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -77,7 +79,7 @@ export function WYSIWYGAnimation() {
       <div className="p-6 min-h-[300px] bg-white dark:bg-canvas-800">
         <div className="prose dark:prose-invert max-w-none">
           <div className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
-            Getting Started with Byline CMS
+            {t('editorHeading')}
           </div>
           <div className="text-gray-700 dark:text-gray-300 leading-relaxed">
             {currentText}

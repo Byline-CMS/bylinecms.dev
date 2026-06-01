@@ -1,0 +1,73 @@
+/* Mobile menu button */
+.mobile-menu-button {
+  color: black;
+  border-radius: 4px;
+  padding: 4px 8px;
+  text-decoration: none;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  outline: none;
+  transition: all 500ms ease-in-out;
+}
+
+.mobile-menu-button:hover {
+  color: white;
+  background-color: var(--primary-500);
+}
+
+.mobile-menu-button.active {
+  color: white;
+  background-color: var(--primary-500);
+}
+
+.dark .mobile-menu-button {
+  color: white;
+}
+
+.dark .mobile-menu-button:hover {
+  color: white;
+  background-color: var(--canvas-700);
+}
+
+.dark .mobile-menu-button.active {
+  color: white;
+  background-color: var(--canvas-700);
+}
+
+/* Mobile menu button child */
+.mobile-menu-button--child {
+  width: 100%;
+  text-align: left;
+  color: black;
+  border-radius: 4px;
+  padding: 4px 8px;
+  text-decoration: none;
+  font-size: 1.2rem;
+  line-height: 1.7rem;
+  outline: none;
+  transition: all 500ms ease-in-out;
+  border-width: 1px;
+  border-style: solid;
+  border-color: transparent;
+}
+
+.mobile-menu-button--child:hover {
+  border-color: black;
+}
+
+.mobile-menu-button--child.active {
+  border-color: black;
+}
+
+/* Mobile menu button child */
+.dark .mobile-menu-button--child {
+  color: white;
+}
+
+.dark .mobile-menu-button--child:hover {
+  border-color: white;
+}
+
+.dark .mobile-menu-button--child.active {
+  border-color: white;
+}

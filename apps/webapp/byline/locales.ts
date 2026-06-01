@@ -22,7 +22,7 @@
  * `interface` locales govern the CMS admin UI language; `content` locales
  * govern the languages a document can be published in. Note these are a
  * *different* set from the host **frontend** interface locales
- * (`src/i18n/i18n-config.ts` → `en`/`es`) — the admin chrome and the
+ * (`src/i18n/i18n-config.ts` → `en`/`fr`) — the admin chrome and the
  * public chrome are translated into deliberately different sets.
  */
 

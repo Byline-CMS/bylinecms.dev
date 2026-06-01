@@ -14,6 +14,7 @@ import { Container, Section } from '@byline/ui/react'
 // content), used to fetch the document in that locale and build the page's
 // canonical. Chrome + body-link building use `toInterfaceLocale(lng)` so
 // generic navigation reverts to the interface locale instead of going sticky.
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import {
@@ -76,6 +77,7 @@ export const Route = createFileRoute('/{-$lng}/_frontend/news/$path')({
 
 function RouteComponent() {
   const { result, lng } = Route.useLoaderData() as RouteLoaderData
+  const { t } = useTranslations('frontend')
   const title = result.fields.title ?? result.path ?? result.id
 
   return (
@@ -91,7 +93,7 @@ function RouteComponent() {
         <Container className="mt-3">
           <Breadcrumbs
             breadcrumbs={[
-              { label: 'News', href: '/news' },
+              { label: t('navNews'), href: '/news' },
               { label: title, href: `/news/${result.path}` },
             ]}
           />

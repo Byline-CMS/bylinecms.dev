@@ -10,6 +10,7 @@ import { Link } from '@tanstack/react-router'
 
 import { Badge, Card, Select } from '@byline/ui/react'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { lngParam, useLocale } from '@/i18n/hooks/use-locale-navigation'
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { RouterPager } from '@/ui/components/router-pager'
@@ -35,9 +36,10 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 export function NewsList({ result, categories, category, onCategoryChange }: NewsListProps) {
   const { docs, meta } = result
   const locale = useLocale()
+  const { t } = useTranslations('frontend')
 
   const categoryItems = [
-    { value: ALL_CATEGORIES, label: 'All Categories' },
+    { value: ALL_CATEGORIES, label: t('newsAllCategories') },
     ...categories.docs.map((doc) => ({
       value: doc.path ?? doc.id,
       label: doc.fields.name ?? doc.path ?? doc.id,
@@ -52,9 +54,9 @@ export function NewsList({ result, categories, category, onCategoryChange }: New
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center  mb-4 prose">
-        <h1 className="m-0 mr-auto mb-2 sm:mb-0">News</h1>
+        <h1 className="m-0 mr-auto mb-2 sm:mb-0">{t('navNews')}</h1>
         <Select<string>
-          ariaLabel="Filter by category"
+          ariaLabel={t('newsFilterByCategory')}
           size="sm"
           variant="outlined"
           value={category ?? ALL_CATEGORIES}
@@ -72,7 +74,7 @@ export function NewsList({ result, categories, category, onCategoryChange }: New
       </div>
       {docs.length === 0 ? (
         <div className="p-6 text-center text-gray-800 dark:text-gray-300">
-          <p>No news items found.</p>
+          <p>{t('newsEmpty')}</p>
         </div>
       ) : (
         <div className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6 p-0">

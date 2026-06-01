@@ -15,7 +15,7 @@ import type { Breadcrumb } from './@types'
 
 export function BreadcrumbsClient({
   breadcrumbs,
-  homeLabel = 'Home',
+  homeLabel,
   homePath = '/',
 }: {
   breadcrumbs: Breadcrumb[]

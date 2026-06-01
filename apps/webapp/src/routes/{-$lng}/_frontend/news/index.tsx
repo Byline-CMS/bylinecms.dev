@@ -10,6 +10,9 @@ import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-ro
 
 import { Container, Section } from '@byline/ui/react'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
+import { toInterfaceLocale } from '@/i18n/i18n-config'
+import { createTranslator } from '@/i18n/translations'
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { getNewsCategoriesFn } from '@/modules/news/categories'
 import { NewsList } from '@/modules/news/components/list'
@@ -27,23 +30,27 @@ export const Route = createFileRoute('/{-$lng}/_frontend/news/')({
   loaderDeps: ({ search: { category } }) => ({ category }),
   loader: async ({ context, deps: { category } }) => {
     const lng = context.locale
-    const [result, categories] = await Promise.all([
+    // Localized <title> resolved server-side — see docs/index.tsx for why
+    // the title is computed in the loader rather than in head().
+    const [result, categories, { t }] = await Promise.all([
       getNewsListFn({ data: { lng, category } }),
       getNewsCategoriesFn({ data: { lng } }),
+      createTranslator(toInterfaceLocale(lng), 'frontend'),
     ])
-    return { result, lng, categories }
+    return { result, lng, categories, title: t('navNews') }
   },
-  head: ({ params }) =>
+  head: ({ loaderData, params }) =>
     getMeta({
-      title: 'News',
+      title: loaderData?.title ?? 'News',
       path: buildLocalizedPath(params.lng, 'news'),
     }),
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  const { result, lng, categories } = Route.useLoaderData()
+  const { result, categories } = Route.useLoaderData()
   const { category } = Route.useSearch()
+  const { t } = useTranslations('frontend')
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
@@ -64,7 +71,7 @@ function RouteComponent() {
       <div id="byline-cms-meta" className="invisible max-h-0" aria-hidden data-collection="news" />
       <Section>
         <Container className="mt-3">
-          <Breadcrumbs breadcrumbs={[{ label: 'News', href: '/news' }]} />
+          <Breadcrumbs breadcrumbs={[{ label: t('navNews'), href: '/news' }]} />
         </Container>
       </Section>
       <Section>

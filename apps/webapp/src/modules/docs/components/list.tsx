@@ -12,6 +12,7 @@ import { Link } from '@tanstack/react-router'
 import { Card, ChevronRightIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
 import styles from './list.module.css'
 import type { Locale } from '@/i18n/i18n-config'
@@ -23,13 +24,11 @@ interface DocsListProps {
 }
 
 export function DocsList({ docs, lng }: DocsListProps): React.JSX.Element {
+  const { t } = useTranslations('frontend')
   return (
     <div className="prose">
-      <h1>Documentation</h1>
-      <p className={cx('byline-docs-list-lead', styles.lead)}>
-        Note that the documents below have been machine generated. More detailed guides and user
-        docs will be coming soon.
-      </p>
+      <h1>{t('docsTitle')}</h1>
+      <p className={cx('byline-docs-list-lead', styles.lead)}>{t('docsLead')}</p>
 
       <div className={cx('byline-docs-list', styles.grid)}>
         {docs.map((doc) => (

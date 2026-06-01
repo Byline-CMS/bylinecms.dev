@@ -1,7 +1,7 @@
 /**
  * Framework-agnostic translation loader.
  *
- * Locale source files are authored as plain JSON (`en.json`, `es.json`)
+ * Locale source files are authored as plain JSON (`en.json`, `fr.json`)
  * — translator-friendly, native to every translation tool, clean diffs.
  *
  * Vite's `?raw` query inlines each file as a string literal at transform
@@ -21,7 +21,7 @@
  *
  *   const loaders: Record<Locale, () => Promise<{ default: string }>> = {
  *     en: () => import('./en.json?raw'),
- *     es: () => import('./es.json?raw'),
+ *     fr: () => import('./fr.json?raw'),
  *   }
  *   const cache = new Map<Locale, Translations>()
  *   export async function getTranslations(lng: Locale): Promise<Translations> {
@@ -40,7 +40,7 @@
 import { IntlMessageFormat } from 'intl-messageformat'
 
 import enRaw from './en.json?raw'
-import esRaw from './es.json?raw'
+import frRaw from './fr.json?raw'
 import type { Locale } from '@/i18n/i18n-config'
 import type enType from './en.json'
 
@@ -48,7 +48,7 @@ export type Translations = typeof enType
 
 const translations: Record<string, Translations> = {
   en: JSON.parse(enRaw) as Translations,
-  es: JSON.parse(esRaw) as Translations,
+  fr: JSON.parse(frRaw) as Translations,
 }
 
 export const getTranslations = async (lng: Locale): Promise<Translations> =>
@@ -64,15 +64,15 @@ export async function createTranslator<T extends keyof Translations>(lng: Locale
   const namespacedTranslations = translations[namespace]
 
   return {
-    t: (key: keyof Translations[T], values?: Record<string, unknown>) => {
+    t: (key: keyof Translations[T], values?: Record<string, unknown>): string => {
       const message = namespacedTranslations[key] ?? key
 
       if (typeof message === 'string') {
         const formatter = new IntlMessageFormat(message)
-        return formatter.format(values)
+        return formatter.format(values) as string
       }
 
-      return message
+      return String(message)
     },
   }
 }

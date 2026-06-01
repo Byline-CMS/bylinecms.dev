@@ -5,7 +5,7 @@
  *
  * Copyright (c) Infonomic Company Limited
  *
- * Literal-locale shim route for `/es`. See `locale-home-shim.tsx` for
+ * Literal-locale shim route for `/fr`. See `locale-home-shim.tsx` for
  * the motivation. Adding a new locale: copy this file as `<lng>-route.tsx`,
  * change the route path + locale constant, then add a corresponding
  * `route('/<lng>', ...)` entry in `routes.virtual.ts`.
@@ -19,8 +19,8 @@ import {
   localeHomeShimHead,
 } from '@/route-shims/locale-home-shim'
 
-export const Route = createFileRoute('/es')({
-  loader: () => loadLocaleHomeShimData('es'),
+export const Route = createFileRoute('/fr')({
+  loader: () => loadLocaleHomeShimData('fr'),
   head: ({ loaderData }) => localeHomeShimHead(loaderData),
   component: RouteComponent,
 })

@@ -17,7 +17,7 @@
  *
  * Behaviour:
  *   - If the URL already carries a *routable* locale segment — interface
- *     (`/es/...`) or content-only (`/fr/...`) — pass through. The route's
+ *     (`/fr/...`) or content-only (`/es/...`) — pass through. The route's
  *     `beforeLoad` reads it out of `params.lng` and seeds the context.
  *     Content-only prefixes deliberately skip interface negotiation and
  *     never write the `lng` cookie, so they don't stick across a session.

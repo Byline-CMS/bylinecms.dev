@@ -10,16 +10,25 @@ import { createFileRoute, useLoaderData } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { toInterfaceLocale } from '@/i18n/i18n-config'
+import { createTranslator } from '@/i18n/translations'
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { DocsList } from '@/modules/docs/components/list'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
 export const Route = createFileRoute('/{-$lng}/_frontend/docs/')({
-  head: ({ params }) =>
+  // Resolve the localized <title> server-side: head() is synchronous and
+  // runs outside the React TranslationsProvider, so the title is computed
+  // here (context.locale is available) and read back via loaderData.
+  loader: async ({ context }) => {
+    const { t } = await createTranslator(toInterfaceLocale(context.locale), 'frontend')
+    return { title: t('docsTitle') }
+  },
+  head: ({ loaderData, params }) =>
     getMeta({
-      title: 'Documentation',
+      title: loaderData?.title ?? 'Documentation',
       path: buildLocalizedPath(params.lng, 'docs'),
     }),
   component: RouteComponent,
@@ -31,18 +40,19 @@ function RouteComponent() {
   // Read the parent docs layout's loader data directly — single source of
   // truth, no re-fetch, no own loader needed on this index route.
   const { docs, lng } = useLoaderData({ from: '/{-$lng}/_frontend/docs' })
+  const { t } = useTranslations('frontend')
 
   return (
     <>
-      <BreadcrumbsClient breadcrumbs={[{ label: 'Documentation', href: '/docs' }]} />
+      <BreadcrumbsClient breadcrumbs={[{ label: t('docsTitle'), href: '/docs' }]} />
       <Section className="pb-12">
         <Container>
           {docs.length > 0 ? (
             <DocsList docs={docs} lng={toInterfaceLocale(lng)} />
           ) : (
             <div className="prose mb-8">
-              <h1 className="mb-2">Documentation</h1>
-              <p className="muted">No documents have been published yet.</p>
+              <h1 className="mb-2">{t('docsTitle')}</h1>
+              <p className="muted">{t('docsEmpty')}</p>
             </div>
           )}
         </Container>

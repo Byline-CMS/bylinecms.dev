@@ -8,7 +8,7 @@ export const i18nConfig = {
   // switcher, and which URL prefix persists across a session. Distinct
   // from Byline's *admin* interface set (`byline/locales.ts` →
   // interfaceLocales, `en`/`fr`) and from the content set below.
-  locales: ['en', 'es'],
+  locales: ['en', 'fr'],
   defaultLocale: 'en',
   cookieName: 'lng',
 } as const

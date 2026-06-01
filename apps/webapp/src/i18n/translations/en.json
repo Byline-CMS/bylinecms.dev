@@ -1,4 +1,21 @@
 {
+  "frontend": {
+    "navHome": "Home",
+    "navDocs": "Docs",
+    "navNews": "News",
+    "navAbout": "About",
+    "docsTitle": "Documentation",
+    "legal": "Legal",
+    "docsLead": "Note that the documents below have been machine generated. More detailed guides and user docs will be coming soon.",
+    "docsEmpty": "No documents have been published yet.",
+    "newsAllCategories": "All Categories",
+    "newsFilterByCategory": "Filter by category",
+    "newsEmpty": "No news items found.",
+    "heroTagline": "A modern, headless, fast, and AI-first content management system (CMS) for content-driven applications.",
+    "heroAdminDashboard": "Admin Dashboard",
+    "editorHeading": "Getting Started with Byline CMS",
+    "editorDemo": "Welcome to Byline CMS! This is a demonstration of our AI-powered WYSIWYG editor. With intelligent suggestions and seamless content creation, building amazing content has never been easier. The future of content management is here."
+  },
   "common": {
     "Home": "Home",
     "About": "About",

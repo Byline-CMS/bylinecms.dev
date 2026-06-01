@@ -12,7 +12,7 @@ export type LanguageMap = Record<string, { nativeName: string }>
 // there is no parallel map to drift.
 export const interfaceLanguageMap: LanguageMap = {
   en: { nativeName: 'English' },
-  es: { nativeName: 'Español' },
+  fr: { nativeName: 'Français' },
 }
 
 export type AvailableLanguagesType = Record<string, boolean>

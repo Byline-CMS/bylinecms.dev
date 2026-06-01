@@ -9,7 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as DotDotRouteShimsEsRouteRouteImport } from './route-shims/es-route'
+import { Route as DotDotRouteShimsFrRouteRouteImport } from './route-shims/fr-route'
 import { Route as Char123LngChar125RouteRouteImport } from './routes/{-$lng}/route'
 import { Route as BylineRouteRouteImport } from './routes/_byline/route'
 import { Route as BylineSignInRouteImport } from './routes/_byline/sign-in'
@@ -37,9 +37,9 @@ import { Route as BylineAdminCollectionsCollectionIdIndexRouteImport } from './r
 import { Route as BylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/_byline/admin/collections/$collection/$id/history'
 import { Route as BylineAdminCollectionsCollectionIdApiRouteImport } from './routes/_byline/admin/collections/$collection/$id/api'
 
-const DotDotRouteShimsEsRouteRoute = DotDotRouteShimsEsRouteRouteImport.update({
-  id: '/es',
-  path: '/es',
+const DotDotRouteShimsFrRouteRoute = DotDotRouteShimsFrRouteRouteImport.update({
+  id: '/fr',
+  path: '/fr',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char123LngChar125RouteRoute = Char123LngChar125RouteRouteImport.update({
@@ -190,7 +190,7 @@ const BylineAdminCollectionsCollectionIdApiRoute =
 export interface FileRoutesByFullPath {
   '/': typeof BylineRouteRouteWithChildren
   '/{-$lng}': typeof Char123LngChar125RouteRouteWithChildren
-  '/es': typeof DotDotRouteShimsEsRouteRoute
+  '/fr': typeof DotDotRouteShimsFrRouteRoute
   '/admin': typeof BylineAdminRouteRouteWithChildren
   '/sign-in': typeof BylineSignInRoute
   '/{-$lng}/docs': typeof Char123LngChar125FrontendDocsRouteRouteWithChildren
@@ -218,7 +218,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof BylineRouteRouteWithChildren
   '/{-$lng}': typeof Char123LngChar125FrontendIndexRoute
-  '/es': typeof DotDotRouteShimsEsRouteRoute
+  '/fr': typeof DotDotRouteShimsFrRouteRoute
   '/sign-in': typeof BylineSignInRoute
   '/{-$lng}/$path': typeof Char123LngChar125FrontendPathRoute
   '/admin': typeof BylineAdminIndexRoute
@@ -244,7 +244,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_byline': typeof BylineRouteRouteWithChildren
   '/{-$lng}': typeof Char123LngChar125RouteRouteWithChildren
-  '/es': typeof DotDotRouteShimsEsRouteRoute
+  '/fr': typeof DotDotRouteShimsFrRouteRoute
   '/_byline/admin': typeof BylineAdminRouteRouteWithChildren
   '/{-$lng}/_frontend': typeof Char123LngChar125FrontendRouteRouteWithChildren
   '/_byline/sign-in': typeof BylineSignInRoute
@@ -275,7 +275,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/{-$lng}'
-    | '/es'
+    | '/fr'
     | '/admin'
     | '/sign-in'
     | '/{-$lng}/docs'
@@ -303,7 +303,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/{-$lng}'
-    | '/es'
+    | '/fr'
     | '/sign-in'
     | '/{-$lng}/$path'
     | '/admin'
@@ -328,7 +328,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_byline'
     | '/{-$lng}'
-    | '/es'
+    | '/fr'
     | '/_byline/admin'
     | '/{-$lng}/_frontend'
     | '/_byline/sign-in'
@@ -358,16 +358,16 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   BylineRouteRoute: typeof BylineRouteRouteWithChildren
   Char123LngChar125RouteRoute: typeof Char123LngChar125RouteRouteWithChildren
-  DotDotRouteShimsEsRouteRoute: typeof DotDotRouteShimsEsRouteRoute
+  DotDotRouteShimsFrRouteRoute: typeof DotDotRouteShimsFrRouteRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/es': {
-      id: '/es'
-      path: '/es'
-      fullPath: '/es'
-      preLoaderRoute: typeof DotDotRouteShimsEsRouteRouteImport
+    '/fr': {
+      id: '/fr'
+      path: '/fr'
+      fullPath: '/fr'
+      preLoaderRoute: typeof DotDotRouteShimsFrRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/{-$lng}': {
@@ -674,7 +674,7 @@ const Char123LngChar125RouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   BylineRouteRoute: BylineRouteRouteWithChildren,
   Char123LngChar125RouteRoute: Char123LngChar125RouteRouteWithChildren,
-  DotDotRouteShimsEsRouteRoute: DotDotRouteShimsEsRouteRoute,
+  DotDotRouteShimsFrRouteRoute: DotDotRouteShimsFrRouteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

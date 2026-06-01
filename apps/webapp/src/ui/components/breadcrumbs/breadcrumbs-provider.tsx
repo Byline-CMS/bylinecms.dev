@@ -17,7 +17,6 @@ const BreadcrumbsContext = createContext<BreadcrumbsContextType | undefined>(und
 
 export function BreadcrumbsProvider({ children }: { children: ReactNode }) {
   const [breadcrumbSettings, setBreadcrumbSettings] = useState<BreadcrumbsSettings>({
-    homeLabel: 'Home',
     homePath: '/',
     breadcrumbs: [],
   })

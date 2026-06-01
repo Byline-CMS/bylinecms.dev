@@ -8,21 +8,23 @@
  * Top-level navigation menu rendered inside the AppBar. Hidden on
  * narrow viewports — desktop only for now. Routes through `<LangLink>`
  * so each item resolves to the current locale's URL automatically
- * (e.g. `/docs` for default locale, `/es/docs` for Spanish).
+ * (e.g. `/docs` for default locale, `/fr/docs` for French).
  */
 
 import { useRouterState } from '@tanstack/react-router'
 
 import cx from 'classnames'
 
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { LangLink } from '@/i18n/components/lang-link'
 import { i18nConfig } from '@/i18n/i18n-config'
+import type { Translations } from '@/i18n/translations'
 
-const items: ReadonlyArray<{ to: string; label: string }> = [
-  { to: '/', label: 'Home' },
-  { to: '/docs', label: 'Docs' },
-  { to: '/news', label: 'News' },
-  { to: '/about-byline', label: 'About' },
+const items: ReadonlyArray<{ to: string; labelKey: keyof Translations['frontend'] }> = [
+  { to: '/', labelKey: 'navHome' },
+  { to: '/docs', labelKey: 'navDocs' },
+  { to: '/news', labelKey: 'navNews' },
+  { to: '/about-byline', labelKey: 'navAbout' },
 ]
 
 function stripLocalePrefix(pathname: string): string {
@@ -42,6 +44,7 @@ function getActive(pathname: string, to: string): boolean {
 
 export function MainMenu({ color }: { color?: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const { t } = useTranslations('frontend')
 
   return (
     <nav aria-label="Main" className="hidden lg:flex flex-1 justify-center">
@@ -60,7 +63,7 @@ export function MainMenu({ color }: { color?: string }) {
                   color
                 )}
               >
-                {item.label}
+                {t(item.labelKey)}
               </LangLink>
             </li>
           )

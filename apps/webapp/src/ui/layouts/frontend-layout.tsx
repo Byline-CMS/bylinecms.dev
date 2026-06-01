@@ -15,7 +15,7 @@ import { Outlet } from '@tanstack/react-router'
 
 import { DocsMenuProvider } from '@/modules/docs/components/docs-menu-provider'
 import { GradientBackground } from '@/modules/home/gradient-background'
-import { AppBar } from '@/ui/components/app-bar'
+import { AppBarFront } from '@/ui/components/app-bar-front'
 import { BreadcrumbsProvider } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
 import { ContentAdminBar } from '@/ui/components/content-admin-bar'
 import type { Locale } from '@/i18n/i18n-config'
@@ -44,7 +44,7 @@ export function FrontendLayout({
       <DocsMenuProvider>
         <GradientBackground />
         <ContentAdminBar user={adminUser} admin={adminPath} preview={preview} />
-        <AppBar lng={locale} />
+        <AppBarFront lng={locale} />
         <main id="main-content" className="flex flex-1 flex-col">
           {children ?? <Outlet />}
         </main>
