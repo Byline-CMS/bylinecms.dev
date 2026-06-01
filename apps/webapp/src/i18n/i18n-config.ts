@@ -30,8 +30,8 @@ export type ContentLocale = (typeof contentLocaleDefs)[number]['code']
  * Routable locales = interface ∪ content. The `{-$lng}` matcher resolves
  * any of these, so content-locale deep links (`/fr/news/foo`) work. This
  * is deliberately a *different* set from "advertised" locales (the
- * per-document `availableLanguages` that drive hreflang / sitemap): a URL
- * can resolve without being promoted.
+ * per-document `availableLocales ∩ _availableVersionLocales` that drive
+ * hreflang — see `@/lib/alternates`): a URL can resolve without being promoted.
  */
 export const routableLocales: readonly string[] = [
   ...new Set<string>([...i18nConfig.locales, ...contentLocales]),

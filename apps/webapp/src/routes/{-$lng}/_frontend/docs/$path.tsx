@@ -11,8 +11,8 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { Container, Section } from '@byline/ui/react'
 
 import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
+import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import {
-  buildLocalizedPath,
   getMeta,
   /* metaImageFromUpload, */
   truncateForMeta,
@@ -43,10 +43,19 @@ export const Route = createFileRoute('/{-$lng}/_frontend/docs/$path')({
     const summary = result.fields.summary?.trim()
     const description = summary != null && summary.length > 0 ? truncateForMeta(summary) : undefined
 
+    const { canonical, alternates, xDefaultPath } = resolveAlternates(
+      advertisedLocalesFor(result),
+      lng,
+      'docs',
+      result.path
+    )
+
     return getMeta({
       title,
       description,
-      path: buildLocalizedPath(lng, 'docs', result.path),
+      path: canonical,
+      alternates,
+      xDefaultPath,
       ogType: 'article',
     })
   },

@@ -15,8 +15,8 @@ import { Container, Section } from '@byline/ui/react'
 // canonical. Chrome + body-link building use `toInterfaceLocale(lng)` so
 // generic navigation reverts to the interface locale instead of going sticky.
 import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
+import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import {
-  buildLocalizedPath,
   getMeta,
   /* metaImageFromUpload, */
   truncateForMeta,
@@ -52,10 +52,19 @@ export const Route = createFileRoute('/{-$lng}/_frontend/news/$path')({
     // const featureMedia = result.fields.featureImage?.document?.fields
     // const image = metaImageFromUpload(featureMedia?.image, featureMedia?.altText ?? title)
 
+    const { canonical, alternates, xDefaultPath } = resolveAlternates(
+      advertisedLocalesFor(result),
+      lng,
+      'news',
+      result.path
+    )
+
     return getMeta({
       title,
       description,
-      path: buildLocalizedPath(lng, 'news', result.path),
+      path: canonical,
+      alternates,
+      xDefaultPath,
       // image,
       ogType: 'article',
     })

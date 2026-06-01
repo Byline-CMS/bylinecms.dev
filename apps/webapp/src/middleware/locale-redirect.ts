@@ -16,12 +16,15 @@
  * runs on client-side navigations.
  *
  * Behaviour:
- *   - If the URL already carries a valid locale segment (`/es/...`,
- *     `/fr/...`), pass through — the route's `beforeLoad` will read it
- *     out of `params.lng` and seed the context.
+ *   - If the URL already carries a *routable* locale segment — interface
+ *     (`/es/...`) or content-only (`/fr/...`) — pass through. The route's
+ *     `beforeLoad` reads it out of `params.lng` and seeds the context.
+ *     Content-only prefixes deliberately skip interface negotiation and
+ *     never write the `lng` cookie, so they don't stick across a session.
  *   - Otherwise read the locale cookie + Accept-Language header, run
- *     standards-compliant negotiation, and 302-redirect to the
- *     locale-prefixed URL if the detected locale is not the default.
+ *     standards-compliant negotiation over the *interface* locales, and
+ *     302-redirect to the locale-prefixed URL if the detected locale is
+ *     not the default.
  */
 
 import { redirect } from '@tanstack/react-router'
