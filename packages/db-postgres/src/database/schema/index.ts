@@ -102,13 +102,6 @@ export const documents = pgTable(
     // longer silently re-interprets existing data. Backfilled by
     // `backfillSourceLocales()` (boot-auto via initBylineCore).
     //
-    // DEFERRED NOT NULL: this ships nullable on purpose (read/write paths
-    // COALESCE NULL -> the configured default). The constraint is applied
-    // out-of-band by `sql/set-source-locale-not-null.sql` once installs have
-    // bedded in. **When that constraint becomes the norm, make this `.notNull()`**
-    // so future squashes/migrations carry it — until then a `drizzle:generate`
-    // against a DB that ran that script will spuriously want to drop the
-    // constraint. See docs/DEFAULT-LOCALE-SWITCHING.md ("Deferred follow-up").
     source_locale: varchar('source_locale', { length: 10 }).notNull(),
     ...timestamps,
   },
