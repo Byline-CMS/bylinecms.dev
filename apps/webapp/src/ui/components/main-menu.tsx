@@ -18,6 +18,7 @@ import cx from 'classnames'
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { LangLink } from '@/i18n/components/lang-link'
 import { i18nConfig } from '@/i18n/i18n-config'
+import type { Locale } from '@/i18n/i18n-config'
 import type { Translations } from '@/i18n/translations'
 
 const items: ReadonlyArray<{ to: string; labelKey: keyof Translations['frontend'] }> = [
@@ -42,7 +43,7 @@ function getActive(pathname: string, to: string): boolean {
   return stripped === to || stripped.startsWith(`${to}/`)
 }
 
-export function MainMenu({ color }: { color?: string }) {
+export function MainMenu({ lng, color }: { lng: Locale; color?: string }): React.JSX.Element {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { t } = useTranslations('frontend')
 

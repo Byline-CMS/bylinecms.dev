@@ -78,10 +78,7 @@ table {
     font-size: 0.92em;
   }
 
-  .prose
-    :where(blockquote):not(
-      :where([class~="not-prose"], [class~="not-prose"] *)
-    ) {
+  .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     font-size: 1em;
     font-weight: normal;
     line-height: 1.4;
@@ -90,19 +87,13 @@ table {
 
   .dark,
   [data-theme="dark"] {
-    .prose
-      :where(blockquote):not(
-        :where([class~="not-prose"], [class~="not-prose"] *)
-      ) {
+    .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
       color: var(--accent-200);
     }
   }
 
   @media (width >= 48rem) {
-    .prose
-      :where(blockquote):not(
-        :where([class~="not-prose"], [class~="not-prose"] *)
-      ) {
+    .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
       font-size: 1.07em;
       font-weight: normal;
       line-height: 1.45;
