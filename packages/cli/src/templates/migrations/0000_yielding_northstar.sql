@@ -167,7 +167,7 @@ CREATE TABLE "byline_documents" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"collection_id" uuid NOT NULL,
 	"order_key" varchar(128) COLLATE "C",
-	"source_locale" varchar(10),
+	"source_locale" varchar(10) NOT NULL,
 	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL
 );
