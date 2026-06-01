@@ -322,6 +322,71 @@ vice-versa) catches editorial drift without coupling the two.
 
 ---
 
+## Core vs host: who owns URLs, hreflang, sitemap, and meta
+
+Byline core stops at the **facts**. Per read it tells you which content locale a
+document resolved to, and which locales it is *available* and *advertised* in —
+nothing about URLs, tags, or files. Turning those facts into routes, `<link>`
+tags, a sitemap, or an "Also available in…" affordance is the **host
+application's** job, by design. The same boundary already governs `path` (core
+stores the slug; the host composes the URL) and interface i18n (see
+[I18N.md](./I18N.md)).
+
+**What core surfaces (per read):**
+
+- `availableLocales` — the editorial advertised set (document-grain, stored; see
+  [AVAILABLE-LOCALES.md](./AVAILABLE-LOCALES.md)).
+- `_availableVersionLocales` — the structural completeness ledger for the
+  resolved version (derived, read-only).
+- the effective locale a document resolved to (driven by `onMissingLocale`).
+
+The **public advertised set** a host should promote is the intersection
+`availableLocales ∩ _availableVersionLocales` — editorial intent gated by what
+the version actually covers.
+
+**What the host owns:**
+
+- **URL shape & locale routing** — whether a locale is a path prefix
+  (`/de/news/foo`), a subdomain, or a query param; which locales are *routable*
+  (resolvable) vs merely *advertised* (promoted); and the **non-sticky** rule —
+  a content-only locale appearing in a URL must not get pinned into the
+  visitor's session as they navigate on.
+- **`<link rel="canonical">` + hreflang `alternate`s** (incl. `x-default`),
+  built from the advertised set.
+- **`sitemap.xml`** alternates — the same advertised set, kept in sync with the
+  hreflang tags (ideally from one shared resolver).
+- **The per-page "Also available in…" menu** — content-locale links gated on
+  availability, distinct from the global interface-language switcher.
+- **`<meta>` / Open Graph / Twitter** tags.
+
+These are deliberately *not* in core: SEO conventions, URL strategy, and routing
+differ per host and per framework, and baking one opinion into the CMS would
+force it on every consumer.
+
+### Reference implementation (`apps/webapp`)
+
+This repo's example app is a worked reference for a TanStack-Start host — a
+starting point to copy and adapt, not a turnkey module:
+
+- `src/lib/alternates.ts` — `advertisedLocalesFor(doc)` computes the
+  `availableLocales ∩ _availableVersionLocales` intersection;
+  `resolveAlternates(...)` turns it into `{ canonical, alternates, xDefaultPath }`.
+  The single resolver that hreflang meta (and a future sitemap) both derive from.
+- `src/lib/meta.ts` — `getMeta(...)` emits the canonical + hreflang cluster +
+  `x-default` + OG/Twitter tags; consumed by each content detail route's `head`
+  (e.g. `routes/{-$lng}/_frontend/news/$path.tsx`).
+- `src/i18n/*` — the routing half: `routableLocales = interface ∪ content`,
+  `buildLocalizedPath`, and the **non-sticky** locale handling
+  (`middleware/locale-redirect.ts` passes content-only prefixes through *without*
+  writing the `lng` cookie; `hooks/use-locale-navigation.ts` and
+  `use-language-switcher.ts` rebase a content-only prefix back to the visitor's
+  interface locale on subsequent navigation).
+
+Not shipped in the example: a `sitemap.xml` route — it would consume the same
+`resolveAlternates`, so the two can never drift.
+
+---
+
 ## Implementation status
 
 Phased so each step was independently shippable; Phase 1 fixes the visible bug on

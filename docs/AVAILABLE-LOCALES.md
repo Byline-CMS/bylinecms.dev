@@ -105,6 +105,12 @@ keys), so `get.ts` now preserves it across the parse alongside `availableLocales
   expose the pre-reconciled set directly (a derived `_advertisedLocales`) so the
   host consumes one field, vs. leaving the intersection to the host.
 
+How a host turns that advertised set into canonical / hreflang / sitemap / the
+"Also available in…" menu — and the non-sticky locale routing it pairs with — is
+a **host concern**, not core's. See [Core vs host: who owns URLs, hreflang,
+sitemap, and meta](./CONTENT-LOCALE-RESOLUTION.md#core-vs-host-who-owns-urls-hreflang-sitemap-and-meta)
+for the boundary and a worked reference in `apps/webapp`.
+
 ## Migration
 
 The userland `available-languages-field.ts` and the `availableLanguages` group
