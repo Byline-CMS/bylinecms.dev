@@ -48,6 +48,8 @@ export function DocumentActions({
   onCopyToLocale,
   sourceLocale,
   contentLocales,
+  hasUnsavedChanges,
+  onUnsavedChanges,
 }: {
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
@@ -82,6 +84,19 @@ export function DocumentActions({
    * Copy-to-Locale Select lists every locale except `sourceLocale`.
    */
   contentLocales?: ReadonlyArray<DocumentActionsLocaleOption>
+  /**
+   * Whether the form currently has unsaved changes. Duplicate and
+   * Copy-to-Locale operate on the *saved* version, so when this is true
+   * the action is blocked and `onUnsavedChanges` fires instead of opening
+   * the action's modal. Delete is intentionally not gated.
+   */
+  hasUnsavedChanges?: boolean
+  /**
+   * Called when a save-gated action (duplicate / copy-to-locale) is
+   * triggered while `hasUnsavedChanges` is true. The parent surfaces a
+   * "save first" prompt.
+   */
+  onUnsavedChanges?: () => void
 }) {
   const { t } = useTranslation('byline-admin')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -118,7 +133,22 @@ export function DocumentActions({
     }
   }
 
+  const handleOpenDuplicate = () => {
+    // Duplicate copies the saved version — block when the form is dirty so
+    // unsaved edits are not silently dropped from the copy.
+    if (hasUnsavedChanges) {
+      onUnsavedChanges?.()
+      return
+    }
+    setShowDuplicateConfirm(true)
+  }
+
   const handleOpenCopyToLocale = () => {
+    // Copy-to-Locale reads the saved version — block when the form is dirty.
+    if (hasUnsavedChanges) {
+      onUnsavedChanges?.()
+      return
+    }
     // Reset on open: pick the first available target and clear the
     // overwrite checkbox so a previous-session "overwrite=true" choice
     // is not silently sticky.
@@ -189,11 +219,7 @@ export function DocumentActions({
               </DropdownComponent.Item>
             )}
             {onDuplicate && (
-              <DropdownComponent.Item
-                onClick={() => {
-                  setShowDuplicateConfirm(true)
-                }}
-              >
+              <DropdownComponent.Item onClick={handleOpenDuplicate}>
                 <div className={cx('byline-form-actions-item', styles.item)}>
                   <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
                     <button type="button">{t('common.actions.duplicate')}</button>

@@ -347,6 +347,11 @@ const FormContent = ({
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  // Block-only "save first" guard. Set true when the editor triggers a
+  // guarded action (status change, duplicate, copy-to-locale) while the form
+  // is dirty — those actions operate on the saved version, so unsaved edits
+  // would be silently excluded.
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
   const { uploadField } = useBylineFieldServices()
 
@@ -726,6 +731,10 @@ const FormContent = ({
                 intent={isTerminal ? 'info' : 'success'}
                 disabled={statusBusy}
                 onOptionSelect={async (value: string) => {
+                  if (hasChanges) {
+                    setShowUnsavedModal(true)
+                    return
+                  }
                   setStatusBusy(true)
                   try {
                     await onStatusChange(value)
@@ -737,6 +746,10 @@ const FormContent = ({
                   isTerminal
                     ? undefined
                     : async () => {
+                        if (hasChanges) {
+                          setShowUnsavedModal(true)
+                          return
+                        }
                         setStatusBusy(true)
                         try {
                           await onStatusChange(primaryStatus.name)
@@ -770,6 +783,8 @@ const FormContent = ({
             onCopyToLocale={onCopyToLocale}
             sourceLocale={contentLocale}
             contentLocales={contentLocales}
+            hasUnsavedChanges={hasChanges}
+            onUnsavedChanges={() => setShowUnsavedModal(true)}
           />
         </div>
       </div>
@@ -815,6 +830,39 @@ const FormContent = ({
           {(layout.sidebar ?? []).map((name) => renderItem(name))}
         </div>
       </div>
+      {showUnsavedModal && (
+        <Modal
+          isOpen={true}
+          closeOnOverlayClick={true}
+          onDismiss={() => setShowUnsavedModal(false)}
+        >
+          <Modal.Container style={{ maxWidth: '460px' }}>
+            <Modal.Header
+              className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}
+            >
+              <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
+                {t('forms.unsavedChanges.title')}
+              </h3>
+            </Modal.Header>
+            <Modal.Content>
+              <p className={cx('byline-form-guard-modal-text', styles['guard-modal-text'])}>
+                {t('forms.unsavedChanges.message')}
+              </p>
+            </Modal.Content>
+            <Modal.Actions>
+              <Button
+                size="sm"
+                style={{ minWidth: '60px' }}
+                intent="primary"
+                type="button"
+                onClick={() => setShowUnsavedModal(false)}
+              >
+                {t('forms.unsavedChanges.okButton')}
+              </Button>
+            </Modal.Actions>
+          </Modal.Container>
+        </Modal>
+      )}
       {guard.isBlocked && (
         <Modal isOpen={true} closeOnOverlayClick={false} onDismiss={guard.stay}>
           <Modal.Container style={{ maxWidth: '460px' }}>
