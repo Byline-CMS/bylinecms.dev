@@ -8,6 +8,7 @@
 export * from './copy-to-locale'
 export * from './create'
 export * from './delete'
+export * from './delete-locale'
 export * from './duplicate'
 export * from './get'
 export * from './history'

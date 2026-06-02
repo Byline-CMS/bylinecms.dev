@@ -52,6 +52,7 @@ function createMockDb(options: {
         setDocumentStatus: vi.fn(fail),
         archivePublishedVersions: vi.fn(fail) as any,
         softDeleteDocument: vi.fn(fail) as any,
+        deleteDocumentLocale: vi.fn(fail) as any,
         setOrderKey: vi.fn(fail) as any,
       },
       counters: {
@@ -218,6 +219,7 @@ describe('ensureCollections', () => {
           setDocumentStatus: vi.fn(),
           archivePublishedVersions: vi.fn() as any,
           softDeleteDocument: vi.fn() as any,
+          deleteDocumentLocale: vi.fn() as any,
           setOrderKey: vi.fn() as any,
         },
         counters: {

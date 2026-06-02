@@ -50,6 +50,9 @@ export function DocumentActions({
   contentLocales,
   hasUnsavedChanges,
   onUnsavedChanges,
+  onDeleteLocale,
+  defaultLocale,
+  availableLocales,
 }: {
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
@@ -92,11 +95,29 @@ export function DocumentActions({
    */
   hasUnsavedChanges?: boolean
   /**
-   * Called when a save-gated action (duplicate / copy-to-locale) is
-   * triggered while `hasUnsavedChanges` is true. The parent surfaces a
-   * "save first" prompt.
+   * Called when a save-gated action (duplicate / copy-to-locale /
+   * delete-locale) is triggered while `hasUnsavedChanges` is true. The parent
+   * surfaces a "save first" prompt.
    */
   onUnsavedChanges?: () => void
+  /**
+   * Called when the editor confirms the Delete-Locale modal. The parent runs
+   * the server fn, surfaces a toast, and navigates to a surviving locale.
+   * Menu item is hidden when omitted, or when the document has no non-default
+   * locale to delete.
+   */
+  onDeleteLocale?: (args: { targetLocale: string }) => Promise<void>
+  /**
+   * The default content locale (the document's anchor). Excluded from the
+   * Delete-Locale list — it can never be removed.
+   */
+  defaultLocale?: string
+  /**
+   * The locales the document currently has content in (the derived
+   * `_availableVersionLocales` ledger). The Delete-Locale list is this set
+   * minus the default locale and the `'all'` sentinel.
+   */
+  availableLocales?: string[]
 }) {
   const { t } = useTranslation('byline-admin')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -114,6 +135,21 @@ export function DocumentActions({
     availableTargetLocales[0]?.code ?? ''
   )
   const [copyOverwrite, setCopyOverwrite] = useState(false)
+
+  // Delete-Locale modal state. The menu item is hidden unless the host
+  // supplied a handler AND the document has at least one non-default locale
+  // with content. The default locale is the document's anchor and is never
+  // listed (it cannot be removed).
+  const deletableLocales = (availableLocales ?? [])
+    .filter((code) => code !== defaultLocale && code !== 'all')
+    .map((code) => ({
+      code,
+      label: contentLocales?.find((loc) => loc.code === code)?.label ?? code,
+    }))
+  const deleteLocaleAvailable = onDeleteLocale != null && deletableLocales.length > 0
+  const [showDeleteLocaleConfirm, setShowDeleteLocaleConfirm] = useState(false)
+  const [deleteLocaleBusy, setDeleteLocaleBusy] = useState(false)
+  const [deleteTargetLocale, setDeleteTargetLocale] = useState<string>('')
 
   const handleOnDelete = () => {
     setShowDeleteConfirm(false)
@@ -168,6 +204,31 @@ export function DocumentActions({
     }
   }
 
+  const handleOpenDeleteLocale = () => {
+    // Delete-Locale removes the saved version's locale content — block when
+    // the form is dirty so the editor saves (or discards) first.
+    if (hasUnsavedChanges) {
+      onUnsavedChanges?.()
+      return
+    }
+    // Default to the currently-viewed locale when it is deletable, otherwise
+    // the first available target.
+    const preferred = deletableLocales.find((loc) => loc.code === sourceLocale)?.code
+    setDeleteTargetLocale(preferred ?? deletableLocales[0]?.code ?? '')
+    setShowDeleteLocaleConfirm(true)
+  }
+
+  const handleOnDeleteLocale = async () => {
+    if (!onDeleteLocale || !deleteTargetLocale) return
+    setDeleteLocaleBusy(true)
+    try {
+      await onDeleteLocale({ targetLocale: deleteTargetLocale })
+      setShowDeleteLocaleConfirm(false)
+    } finally {
+      setDeleteLocaleBusy(false)
+    }
+  }
+
   // Preview text shown inside the modal. Falls back to the literal suffix
   // when no source title is supplied (collections without `useAsTitle`).
   const duplicatePreviewBefore = sourceTitle ?? ''
@@ -214,6 +275,15 @@ export function DocumentActions({
                 <div className={cx('byline-form-actions-item', styles.item)}>
                   <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
                     <button type="button">{t('documentActions.copyToLocaleMenuItem')}</button>
+                  </span>
+                </div>
+              </DropdownComponent.Item>
+            )}
+            {deleteLocaleAvailable && (
+              <DropdownComponent.Item onClick={handleOpenDeleteLocale}>
+                <div className={cx('byline-form-actions-item', styles.item)}>
+                  <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                    <button type="button">{t('documentActions.deleteLocale.menuItem')}</button>
                   </span>
                 </div>
               </DropdownComponent.Item>
@@ -499,6 +569,93 @@ export function DocumentActions({
               {copyToLocaleBusy
                 ? t('documentActions.copyToLocale.busyButton')
                 : t('documentActions.copyToLocale.confirmButton')}
+            </Button>
+          </Modal.Actions>
+        </Modal.Container>
+      </Modal>
+
+      <Modal
+        isOpen={showDeleteLocaleConfirm}
+        closeOnOverlayClick={!deleteLocaleBusy}
+        onDismiss={() => {
+          if (!deleteLocaleBusy) setShowDeleteLocaleConfirm(false)
+        }}
+      >
+        <Modal.Container style={{ maxWidth: '560px' }}>
+          <Modal.Header className={cx('byline-form-actions-modal-head', styles['modal-head'])}>
+            <h3 className={cx('byline-form-actions-modal-title', styles['modal-title'])}>
+              {t('documentActions.deleteLocale.title')}
+            </h3>
+            <IconButton
+              arial-label={t('common.actions.close')}
+              size="xs"
+              onClick={() => {
+                if (!deleteLocaleBusy) setShowDeleteLocaleConfirm(false)
+              }}
+            >
+              <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
+            </IconButton>
+          </Modal.Header>
+          <Modal.Content>
+            <p>{t('documentActions.deleteLocale.intro')}</p>
+            <div
+              className={cx('byline-form-actions-copy-row', styles['copy-row'])}
+              style={{ marginTop: 'var(--spacing-12)' }}
+            >
+              <span
+                className={cx('byline-form-actions-copy-label', styles['copy-label'])}
+                style={{ fontWeight: 500, marginRight: 'var(--spacing-8)' }}
+              >
+                {t('documentActions.deleteLocale.localeLabel')}
+              </span>
+              <Select<string>
+                size="sm"
+                ariaLabel={t('documentActions.deleteLocale.targetAriaLabel')}
+                value={deleteTargetLocale}
+                items={deletableLocales.map((loc) => ({
+                  value: loc.code,
+                  label: loc.label,
+                }))}
+                onValueChange={(value) => {
+                  if (value != null) setDeleteTargetLocale(value)
+                }}
+                disabled={deleteLocaleBusy}
+              />
+            </div>
+            <p style={{ marginTop: 'var(--spacing-12)' }}>
+              {t('documentActions.deleteLocale.warning')}
+            </p>
+          </Modal.Content>
+          <Modal.Actions>
+            <button
+              data-autofocus
+              type="button"
+              tabIndex={0}
+              className={cx('byline-form-actions-sr-only', styles['sr-only'])}
+            >
+              no action
+            </button>
+            <Button
+              size="sm"
+              style={{ minWidth: '80px' }}
+              intent="noeffect"
+              onClick={() => {
+                if (!deleteLocaleBusy) setShowDeleteLocaleConfirm(false)
+              }}
+              disabled={deleteLocaleBusy}
+            >
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              size="sm"
+              style={{ minWidth: '80px' }}
+              intent="danger"
+              onClick={handleOnDeleteLocale}
+              disabled={deleteLocaleBusy || !deleteTargetLocale}
+            >
+              {deleteLocaleBusy
+                ? t('documentActions.deleteLocale.busyButton')
+                : t('documentActions.deleteLocale.confirmButton')}
             </Button>
           </Modal.Actions>
         </Modal.Container>

@@ -398,6 +398,22 @@ export interface IDocumentCommands {
   softDeleteDocument(params: { document_id: string }): Promise<number>
 
   /**
+   * Remove one content locale's data from a document by writing a new
+   * immutable version that carries forward every store row except the target
+   * locale's (the `'all'` rows and all other locales are kept). The prior
+   * version still holds the deleted locale, so the operation is recoverable.
+   *
+   * `status` is the new version's status (the lifecycle service passes the
+   * workflow default — a fresh draft). Returns the new and previous version
+   * ids, or `null` when the document has no current version.
+   */
+  deleteDocumentLocale(params: {
+    documentId: string
+    locale: string
+    status?: string
+  }): Promise<{ newVersionId: string; previousVersionId: string } | null>
+
+  /**
    * Write the fractional-index `order_key` on a single `byline_documents`
    * row. Used by the reorder server fn for `orderable: true` collections.
    *

@@ -71,6 +71,14 @@ export interface FormRendererProps {
    */
   onCopyToLocale?: (args: { targetLocale: string; overwrite: boolean }) => Promise<void>
   /**
+   * Called when the editor confirms the Delete-Locale modal in
+   * `DocumentActions`. Edit views provide a handler that invokes the
+   * `deleteDocumentLocale` server fn and navigates to a surviving locale.
+   * When omitted (or when the document has no non-default locale with
+   * content), the Delete-Locale menu item is hidden.
+   */
+  onDeleteLocale?: (args: { targetLocale: string }) => Promise<void>
+  /**
    * All configured content locales (code + display label) — required for
    * the Copy-to-Locale modal's target Select. Threaded as an opaque list
    * through to `DocumentActions`.
@@ -299,6 +307,7 @@ const FormContent = ({
   onDelete,
   onDuplicate,
   onCopyToLocale,
+  onDeleteLocale,
   contentLocales,
   nextStatus,
   workflowStatuses,
@@ -785,6 +794,9 @@ const FormContent = ({
             contentLocales={contentLocales}
             hasUnsavedChanges={hasChanges}
             onUnsavedChanges={() => setShowUnsavedModal(true)}
+            onDeleteLocale={onDeleteLocale}
+            defaultLocale={defaultLocale}
+            availableLocales={initialData?._availableVersionLocales as string[] | undefined}
           />
         </div>
       </div>
@@ -903,6 +915,7 @@ export const FormRenderer = ({
   onDelete,
   onDuplicate,
   onCopyToLocale,
+  onDeleteLocale,
   contentLocales,
   nextStatus,
   workflowStatuses,
@@ -940,6 +953,7 @@ export const FormRenderer = ({
         onDelete={onDelete}
         onDuplicate={onDuplicate}
         onCopyToLocale={onCopyToLocale}
+        onDeleteLocale={onDeleteLocale}
         contentLocales={contentLocales}
         nextStatus={nextStatus}
         workflowStatuses={workflowStatuses}

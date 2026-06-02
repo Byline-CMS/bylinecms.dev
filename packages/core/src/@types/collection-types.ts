@@ -432,6 +432,8 @@ export interface BeforeUpdateContext {
   collectionPath: string
   restore?: { sourceVersionId: string }
   copyToLocale?: { sourceLocale: string; targetLocale: string }
+  /** Set only when the update originates from a Delete-Locale operation. */
+  deleteLocale?: { locale: string }
 }
 
 /**
@@ -453,6 +455,8 @@ export interface AfterUpdateContext {
   documentVersionId: string
   restore?: { sourceVersionId: string }
   copyToLocale?: { sourceLocale: string; targetLocale: string }
+  /** Mirrors `BeforeUpdateContext.deleteLocale`. */
+  deleteLocale?: { locale: string }
 }
 
 /**

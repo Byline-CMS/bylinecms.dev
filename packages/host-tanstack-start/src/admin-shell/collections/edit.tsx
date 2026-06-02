@@ -18,6 +18,7 @@ import { Container, Section, useToastManager } from '@byline/ui/react'
 import {
   copyDocumentToLocale,
   deleteDocument,
+  deleteDocumentLocale,
   duplicateCollectionDocument,
   unpublishDocument,
   updateCollectionDocumentWithPatches,
@@ -291,6 +292,58 @@ export const EditView = ({
     }
   }
 
+  const handleDeleteLocale = async ({ targetLocale }: { targetLocale: string }) => {
+    try {
+      const result = await deleteDocumentLocale({
+        data: {
+          collection: path,
+          id: String(initialData.id),
+          locale: targetLocale,
+        },
+      })
+      const targetLabel =
+        contentLocales.find((l) => l.code === result.locale)?.label ?? result.locale
+      const description = t('collections.edit.deletedLocaleDescription', {
+        label: singular,
+        locale: targetLabel,
+      })
+      toastManager.add({
+        title: t('collections.edit.deleteLocaleTitle', { label: singular }),
+        description,
+        data: {
+          intent: 'success',
+          iconType: 'success',
+          icon: true,
+          close: true,
+        },
+      })
+      setEditState({ status: 'success', message: description })
+      // The deleted locale may be the one being viewed — land on the default
+      // locale (which always survives) so the loader re-fetches a valid view.
+      navigate({
+        to: '/admin/collections/$collection/$id' as never,
+        params: { collection: path, id: String(initialData.id) },
+        search: { locale: defaultContentLocale },
+      })
+    } catch (err) {
+      console.error('Delete locale error:', err)
+      const description = t('collections.edit.deleteLocaleFailedDescription', {
+        message: (err as Error).message,
+      })
+      toastManager.add({
+        title: t('collections.edit.deleteLocaleTitle', { label: singular }),
+        description,
+        data: {
+          intent: 'danger',
+          iconType: 'danger',
+          icon: true,
+          close: true,
+        },
+      })
+      setEditState({ status: 'failed', message: description })
+    }
+  }
+
   const handleDelete = async () => {
     try {
       await deleteDocument({ data: { collection: path, id: String(initialData.id) } })
@@ -432,6 +485,7 @@ export const EditView = ({
           onDelete={handleDelete}
           onDuplicate={handleDuplicate}
           onCopyToLocale={handleCopyToLocale}
+          onDeleteLocale={handleDeleteLocale}
           contentLocales={contentLocales}
           publishedVersion={publishedVersion}
           restoreWarnings={restoreWarnings}

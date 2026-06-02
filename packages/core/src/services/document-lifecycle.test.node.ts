@@ -72,6 +72,7 @@ function createMockDb() {
         setDocumentStatus,
         archivePublishedVersions,
         softDeleteDocument,
+        deleteDocumentLocale: vi.fn() as any,
         setOrderKey: vi.fn() as any,
       },
       counters: {

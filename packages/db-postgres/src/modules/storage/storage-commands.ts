@@ -458,56 +458,67 @@ export class DocumentCommands implements IDocumentCommands {
    * version is assumed fresh (no rows), so no conflict handling is needed.
    * Used by `reAnchorDocument` to snapshot the current version into the new
    * re-anchored one without re-flattening (lossless, identity-preserving).
+   *
+   * When `excludeLocale` is provided, rows for that locale are skipped in the
+   * seven value-store tables — the carry-forward that powers `deleteDocumentLocale`
+   * (drop one locale's content, keep `'all'` + every other locale). The
+   * locale-agnostic `byline_store_meta` rows (block / array-item identities) are
+   * always copied wholesale, since a block's identity is shared across locales.
    */
   private async copyAllVersionStoreRows(
     tx: TxConnection,
     fromVersionId: string,
-    toVersionId: string
+    toVersionId: string,
+    excludeLocale?: string
   ): Promise<void> {
     const from = sql`${fromVersionId}::uuid`
     const to = sql`${toVersionId}::uuid`
+    // Appended to each value-store WHERE so the dropped locale's rows are not
+    // carried into the new version. Empty fragment (copy everything) when no
+    // exclusion is requested — the `reAnchorDocument` snapshot path.
+    const localeFilter = excludeLocale ? sql` AND locale <> ${excludeLocale}` : sql``
 
     await tx.execute(sql`
       INSERT INTO byline_store_text
         (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, word_count, created_at, updated_at)
       SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, value, word_count, NOW(), NOW()
-      FROM byline_store_text WHERE document_version_id = ${from}
+      FROM byline_store_text WHERE document_version_id = ${from}${localeFilter}
     `)
     await tx.execute(sql`
       INSERT INTO byline_store_numeric
         (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, number_type, value_integer, value_decimal, value_float, created_at, updated_at)
       SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, number_type, value_integer, value_decimal, value_float, NOW(), NOW()
-      FROM byline_store_numeric WHERE document_version_id = ${from}
+      FROM byline_store_numeric WHERE document_version_id = ${from}${localeFilter}
     `)
     await tx.execute(sql`
       INSERT INTO byline_store_boolean
         (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, created_at, updated_at)
       SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, value, NOW(), NOW()
-      FROM byline_store_boolean WHERE document_version_id = ${from}
+      FROM byline_store_boolean WHERE document_version_id = ${from}${localeFilter}
     `)
     await tx.execute(sql`
       INSERT INTO byline_store_datetime
         (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, date_type, value_date, value_time, value_timestamp_tz, created_at, updated_at)
       SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, date_type, value_date, value_time, value_timestamp_tz, NOW(), NOW()
-      FROM byline_store_datetime WHERE document_version_id = ${from}
+      FROM byline_store_datetime WHERE document_version_id = ${from}${localeFilter}
     `)
     await tx.execute(sql`
       INSERT INTO byline_store_json
         (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, value, json_schema, object_keys, created_at, updated_at)
       SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, value, json_schema, object_keys, NOW(), NOW()
-      FROM byline_store_json WHERE document_version_id = ${from}
+      FROM byline_store_json WHERE document_version_id = ${from}${localeFilter}
     `)
     await tx.execute(sql`
       INSERT INTO byline_store_relation
         (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, target_document_id, target_collection_id, relationship_type, cascade_delete, created_at, updated_at)
       SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, target_document_id, target_collection_id, relationship_type, cascade_delete, NOW(), NOW()
-      FROM byline_store_relation WHERE document_version_id = ${from}
+      FROM byline_store_relation WHERE document_version_id = ${from}${localeFilter}
     `)
     await tx.execute(sql`
       INSERT INTO byline_store_file
         (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, created_at, updated_at)
       SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, NOW(), NOW()
-      FROM byline_store_file WHERE document_version_id = ${from}
+      FROM byline_store_file WHERE document_version_id = ${from}${localeFilter}
     `)
     await tx.execute(sql`
       INSERT INTO byline_store_meta
@@ -515,6 +526,78 @@ export class DocumentCommands implements IDocumentCommands {
       SELECT gen_random_uuid(), ${to}, collection_id, type, path, item_id, meta, NOW(), NOW()
       FROM byline_store_meta WHERE document_version_id = ${from}
     `)
+  }
+
+  /**
+   * deleteDocumentLocale
+   *
+   * Remove one content locale's data from a document by writing a **new
+   * immutable version** that carries forward every store row except the
+   * target locale's (the `'all'` rows and all other locales are kept). The
+   * prior version still holds the deleted locale, so the operation is
+   * recoverable via version restore, and a previously-published version keeps
+   * serving until the new version is published.
+   *
+   * The new version's status is supplied by the caller (the lifecycle service
+   * passes the workflow's default — a fresh draft, matching `copyToLocale`).
+   * The derived availability ledger is recomputed from the carried-forward
+   * rows, so the deleted locale drops out automatically. The default content
+   * locale (the document's anchor) must never be passed here — the lifecycle
+   * service enforces that.
+   *
+   * Mirrors `reAnchorDocument`'s new-version mechanics; defensively returns
+   * `null` when the document has no current version (the service validates
+   * existence first, so this is a guard).
+   */
+  async deleteDocumentLocale(params: {
+    documentId: string
+    locale: string
+    status?: string
+  }): Promise<{ newVersionId: string; previousVersionId: string } | null> {
+    const { documentId, locale, status } = params
+    return this.db.transaction(async (tx) => {
+      // 1. Current (latest, non-deleted) version + the document's anchor.
+      const current = await tx
+        .select({
+          versionId: documentVersions.id,
+          collectionId: documentVersions.collection_id,
+          collectionVersion: documentVersions.collection_version,
+          sourceLocale: documents.source_locale,
+        })
+        .from(documentVersions)
+        .innerJoin(documents, eq(documents.id, documentVersions.document_id))
+        .where(
+          and(eq(documentVersions.document_id, documentId), eq(documentVersions.is_deleted, false))
+        )
+        .orderBy(desc(documentVersions.id))
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (current == null) return null
+
+      const sourceLocale = current.sourceLocale ?? this.defaultContentLocale
+
+      // 2. New immutable version: a snapshot of the current version with the
+      //    target locale's value rows dropped (meta + 'all' + other locales
+      //    carried forward).
+      const newVersionId = uuidv7()
+      await tx.insert(documentVersions).values({
+        id: newVersionId,
+        document_id: documentId,
+        collection_id: current.collectionId,
+        collection_version: current.collectionVersion,
+        event_type: 'delete_locale',
+        status: status ?? 'draft',
+        change_summary: `deleted content locale ${locale}`,
+      })
+      await this.copyAllVersionStoreRows(tx, current.versionId, newVersionId, locale)
+
+      // 3. Recompute the new version's availability ledger against the source
+      //    locale — the dropped locale no longer covers it, so it falls out.
+      await this.writeVersionLocaleLedger(tx, newVersionId, sourceLocale)
+
+      return { newVersionId, previousVersionId: current.versionId }
+    })
   }
 
   /**
