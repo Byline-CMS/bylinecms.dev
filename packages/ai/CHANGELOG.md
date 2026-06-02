@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 3.0.1
+
+### Patch Changes
+
+- added an active-state cue to the richtext AI toolbar button and refined toolbar icon hover/active states (**`@byline/richtext-lexical`**, **`@byline/ai`**)
+- Updated dependencies
+  - @byline/core@3.0.1
+  - @byline/richtext-lexical@3.0.1
+  - @byline/ui@3.0.1
+
 ## 3.0.0
 
 ### Major Changes

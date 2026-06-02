@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 3.0.1
+
+### Patch Changes
+
+- added an active-state cue to the richtext AI toolbar button and refined toolbar icon hover/active states (**`@byline/richtext-lexical`**, **`@byline/ai`**)
+
 ## 3.0.0
 
 ### Major Changes
