@@ -8,13 +8,7 @@
 
 /// <reference types="vite/client" />
 import type { ReactNode } from 'react'
-import {
-  createRootRoute,
-  HeadContent,
-  Outlet,
-  Scripts,
-  useRouterState,
-} from '@tanstack/react-router'
+import { createRootRoute, HeadContent, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
 import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
@@ -74,7 +68,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   // locale-prefixed URL — interface or content, including the literal
   // /<lng> home shims (which carry no {-$lng} param) — advertises the
   // correct language. Falls back to the default locale otherwise.
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const pathname = useLocation({ select: (loc) => loc.pathname })
   const firstSegment = pathname.split('/')[1] ?? ''
   const lang = isRoutableLocale(firstSegment) ? firstSegment : i18nConfig.defaultLocale
 

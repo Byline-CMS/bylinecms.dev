@@ -5,7 +5,7 @@ import { GithubIcon, Hamburger } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { LanguageMenu } from '@/i18n/components/language-menu'
-import { routableLocales } from '@/i18n/i18n-config'
+import { isRoutableLocale, routableLocales } from '@/i18n/i18n-config'
 import { DocsDrawerToggle } from '@/modules/docs/components/drawer-toggle'
 import { MainMenu } from '@/ui/components/main-menu'
 import { MobileMenu } from '@/ui/components/mobile-menu'
@@ -25,7 +25,13 @@ interface AppBarFrontProps {
 }
 
 export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps) => {
-  const pathName = useLocation({ select: (loc) => loc.pathname })
+  const pathname = useLocation({ select: (loc) => loc.pathname })
+  const firstSegment = pathname.split('/')[1] ?? ''
+  // Home = the site root, with or without a bare routable-locale prefix
+  // (`/`, `/en`, `/fr`, `/de`, …). Anything deeper is not home.
+  const isHome =
+    pathname === '/' || (isRoutableLocale(firstSegment) && pathname === `/${firstSegment}`)
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [hasScrolled, setHasScrolled] = useState(false)
   const [lastScrollY, setLastScrollY] = useState(0)
@@ -59,15 +65,11 @@ export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps)
       setLastScrollY(currentScrollY) // Update lastScrollY after logic
     }
 
-    // TODO - refine for correct locale detection
-    // For now home / and anything with a two character path
-    if (pathName.length <= 3) {
-      const position = window.scrollY
-      if (position > 100) {
-        setHasScrolled(true)
-      } else {
-        setHasScrolled(false)
-      }
+    // On the home page the bar starts transparent over the hero and
+    // turns opaque once scrolled past the fold. Other pages are always
+    // opaque (see appBarBackground), so there's nothing to track there.
+    if (isHome) {
+      setHasScrolled(window.scrollY > 100)
     }
   }
 
@@ -81,17 +83,17 @@ export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps)
   })
 
   // const appBarBackground =
-  //   hasScrolled || pathName.length > 3
+  //  hasScrolled || !isHome
   //     ? 'bg-white dark:bg-primary-900'
   //     : 'bg-transparent dark:bg-transparent'
 
   const appBarBackground =
-    hasScrolled || pathName.length > 3
+    hasScrolled || !isHome
       ? 'bg-white/70 dark:bg-canvas-900/60 backdrop-blur-md backdrop-saturate-150 shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] dark:shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]'
       : 'bg-transparent dark:bg-transparent'
 
   const appBarTextColor =
-    hasScrolled || pathName.length > 3
+    hasScrolled || !isHome
       ? 'text-black fill-black dark:text-white dark:fill-white'
       : 'text-black fill-black dark:text-white dark:fill-white'
 
@@ -115,8 +117,8 @@ export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps)
         )}
       >
         <div className="lg:flex-initial mr-auto flex items-center gap-2 pl-3">
-          {DOCS_PATH_RE.test(pathName) ? <DocsDrawerToggle /> : null}
-          <Branding lng={lng} hasScrolled={hasScrolled} pathName={pathName} />
+          {DOCS_PATH_RE.test(pathname) ? <DocsDrawerToggle /> : null}
+          <Branding lng={lng} />
         </div>
         <MainMenu lng={lng} color={appBarTextColor} />
         <div className="flex items-center gap-2 lg:gap-4 ml-auto">
