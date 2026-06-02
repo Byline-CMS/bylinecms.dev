@@ -8,6 +8,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { useEffect, useState } from 'react'
+
 import {
   type BylineToolbarConfig,
   BylineToolbarExtension,
@@ -15,17 +17,40 @@ import {
 } from '@byline/richtext-lexical'
 import { AiIcon } from '@byline/ui/react'
 import { ReactExtension } from '@lexical/react/ReactExtension'
-import { configExtension, declarePeerDependency, defineExtension } from 'lexical'
+import {
+  COMMAND_PRIORITY_LOW,
+  configExtension,
+  declarePeerDependency,
+  defineExtension,
+} from 'lexical'
 
-import { AiPluginLexical, TOGGLE_AI_DRAWER_COMMAND } from './plugin'
+import { AI_DRAWER_STATE_COMMAND, AiPluginLexical, TOGGLE_AI_DRAWER_COMMAND } from './plugin'
 
 function AiToolbarButton(): React.JSX.Element {
   const editor = useToolbarActiveEditor()
+  const [isOpen, setIsOpen] = useState(false)
+
+  // Reflect the drawer's open/closed state (broadcast by the drawer plugin
+  // via AI_DRAWER_STATE_COMMAND) so the button shows an `active` cue while
+  // the drawer is open — the same affordance Bold / Italic / etc. use.
+  useEffect(() => {
+    return editor.registerCommand<boolean>(
+      AI_DRAWER_STATE_COMMAND,
+      (open) => {
+        setIsOpen(open)
+        return false
+      },
+      COMMAND_PRIORITY_LOW
+    )
+  }, [editor])
+
   return (
     <button
       type="button"
-      className="toolbar-item spaced"
+      className={`toolbar-item spaced ${isOpen ? 'active' : ''}`}
       aria-label="Toggle AI assistant"
+      aria-pressed={isOpen}
+      title="AI assistant"
       onClick={() => {
         editor.dispatchCommand(TOGGLE_AI_DRAWER_COMMAND, undefined)
       }}

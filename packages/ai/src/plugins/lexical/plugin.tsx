@@ -31,6 +31,14 @@ import type { ExecuteInstruction, InstructionState } from '../../@types'
 
 export const TOGGLE_AI_DRAWER_COMMAND = createCommand('TOGGLE_AI_DRAWER_COMMAND')
 
+/**
+ * Broadcasts the AI drawer's open/closed state so contributed UI (the
+ * toolbar button) can show an active visual cue. Dispatched by the drawer
+ * plugin whenever `open` changes — including closes triggered from the
+ * drawer's own controls. Observers register a listener and return `false`.
+ */
+export const AI_DRAWER_STATE_COMMAND = createCommand<boolean>('AI_DRAWER_STATE_COMMAND')
+
 const emptyInstructionState: InstructionState = {
   prompt: '',
   editor: null,
@@ -374,6 +382,13 @@ export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element
       )
     )
   }, [editor])
+
+  // Broadcast open/closed state so the contributed toolbar button can
+  // reflect it. Fires on mount (false) and on every change, so the cue
+  // also tracks closes triggered from the drawer's own controls.
+  useEffect(() => {
+    editor.dispatchCommand(AI_DRAWER_STATE_COMMAND, open)
+  }, [editor, open])
 
   const helpContent = (
     <>
