@@ -11,6 +11,8 @@ import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '
 
 import { SummaryLength } from '~/components/summary-length.js'
 
+import { aiTextFieldAdmin } from '../../fields/ai-text.js'
+import { aiTextAreaFieldAdmin } from '../../fields/ai-textarea.js'
 import { Docs } from './schema.js'
 
 /**
@@ -103,11 +105,17 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * Placement is controlled exclusively through the layout primitives below.
    */
   fields: {
-    summary: {
+    title: aiTextFieldAdmin(),
+    summary: aiTextAreaFieldAdmin({
       components: {
         HelpText: SummaryLength,
       },
-    },
+    }),
+    // The AI-enabled richtext editor is now registered site-wide in
+    // `byline/admin.config.ts` (`fields.richText.editor = LexicalRichTextAi`),
+    // so the per-field opt-in below is redundant. Re-enable it (and the
+    // import above) only if the global registration is reverted.
+    // content: aiRichTextAdmin(),
   },
 
   /**
