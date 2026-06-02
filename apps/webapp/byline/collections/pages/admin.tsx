@@ -12,6 +12,8 @@ import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '
 import { SummaryLength } from '~/components/summary-length.js'
 import { i18n } from '~/i18n'
 
+import { aiTextFieldAdmin } from '../../fields/ai-text.js'
+import { aiTextAreaFieldAdmin } from '../../fields/ai-textarea.js'
 import { Pages } from './schema.js'
 
 /**
@@ -111,11 +113,12 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    * Placement is controlled exclusively through the layout primitives below.
    */
   fields: {
-    summary: {
+    title: aiTextFieldAdmin(),
+    summary: aiTextAreaFieldAdmin({
       components: {
         HelpText: SummaryLength,
       },
-    },
+    }),
   },
 
   /**

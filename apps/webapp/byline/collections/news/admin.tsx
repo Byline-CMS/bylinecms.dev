@@ -13,7 +13,7 @@ import { SummaryLength } from '~/components/summary-length.js'
 
 import { aiTextFieldAdmin } from '../../fields/ai-text.js'
 import { aiTextAreaFieldAdmin } from '../../fields/ai-textarea.js'
-import { aiRichTextAdmin } from '../../fields/lexical-richtext-ai.js'
+// import { aiRichTextAdmin } from '../../fields/lexical-richtext-ai.js'
 import { FeaturedFormatter } from './components/feature-formatter.js'
 import { News } from './schema.js'
 
@@ -120,7 +120,11 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
         HelpText: SummaryLength,
       },
     }),
-    content: aiRichTextAdmin(),
+    // The AI-enabled richtext editor is now registered site-wide in
+    // `byline/admin.config.ts` (`fields.richText.editor = LexicalRichTextAi`),
+    // so the per-field opt-in below is redundant. Re-enable it (and the
+    // import above) only if the global registration is reverted.
+    // content: aiRichTextAdmin(),
   },
 
   /**
