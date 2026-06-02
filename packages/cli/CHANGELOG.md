@@ -1,5 +1,12 @@
 # @byline/cli
 
+## 3.0.2
+
+### Patch Changes
+
+- added a Delete Locale document action and an unsaved-changes prompt before guarded document actions
+  fixed the locale badge on localized fields nested in blocks, groups, and arrays
+
 ## 3.0.1
 
 ### Patch Changes
