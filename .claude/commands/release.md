@@ -15,10 +15,9 @@ Drive the full release loop for the `@byline/*` lockstep set, end to end. The 12
 4. Runs `pnpm lint` to auto-fix any formatting churn on the bumped CHANGELOGs / package.json files.
 5. Stages the bump + lint output and creates a single `chore(release): X.Y.Z` commit on the current branch (usually `develop`).
 6. Pushes that branch.
-7. Runs `pnpm release:npm` — `changeset publish` reads the root `.npmrc` token, publishes to npm, and emits per-package tags locally.
-8. Pushes all new tags.
-9. Fast-forwards `main` to the release commit and pushes it, bringing `develop` and `main` back into sync.
-10. Creates the umbrella `v<version>` tag and a single GitHub release that summarises the cycle (the prior behaviour of this command, preserved).
+7. Runs `./publish-packages.sh` — builds, packs (rewriting `workspace:*` deps), `npm publish`es each package, and creates + pushes per-package tags. Replaces `changeset publish` / `pnpm release:npm`, which dead-ends under passkey-only 2FA.
+8. Fast-forwards `main` to the release commit and pushes it, bringing `develop` and `main` back into sync.
+9. Creates the umbrella `v<version>` tag and a single GitHub release that summarises the cycle (the prior behaviour of this command, preserved).
 
 The command is idempotent at every step — re-running after a partial failure should detect what's already done and skip it.
 
@@ -112,22 +111,27 @@ Stop here and show the user:
 - `PREV_VERSION → NEXT_VERSION`
 - The anchor commit SHA (short form, just-pushed `HEAD`)
 - The changeset summary line(s) you derived in Step 2
-- The list of remaining steps: `pnpm release:npm` → push tags → fast-forward `main` and push → create umbrella tag + GitHub release.
+- The list of remaining steps: `./publish-packages.sh` (publish + push per-package tags) → fast-forward `main` and push → create umbrella tag + GitHub release.
 
-Wait for explicit approval. `pnpm release:npm` actually publishes to the public npm registry and is not trivially reversible — the user must confirm.
+Wait for explicit approval. `./publish-packages.sh` actually publishes to the public npm registry and is not trivially reversible — the user must confirm.
 
-## Step 8 — Publish to npm
+## Step 8 — Publish to npm (+ push per-package tags)
 
-`pnpm release:npm` — runs `turbo run build` for all packages then `changeset publish`. This:
+`./publish-packages.sh --yes` — Step 7 already captured explicit approval, so `--yes` skips the script's own (otherwise redundant) confirmation prompt.
 
-- Publishes each package to npm using the token in the root `.npmrc`.
-- Creates per-package git tags locally (`@byline/core@<NEXT_VERSION>`, `@byline/host-tanstack-start@<NEXT_VERSION>`, etc.).
+This replaces `changeset publish` / `pnpm release:npm`, which **cannot publish under passkey-only 2FA** — pnpm's OTP pre-check accepts only a typed numeric code and dead-ends at `ERR_PNPM_OTP_NON_INTERACTIVE`. The script:
 
-If publish fails partway, surface the output verbatim and stop. Do not try to "recover" by retrying or by manually skipping packages — the user diagnoses.
+- Builds all `packages/*` via turbo.
+- For each package in `.changeset/config.json` `fixed[0]`: `pnpm pack` (which rewrites `workspace:*` into real versions), guards against a `workspace:` leak in the tarball, then `npm publish <tarball> --access public` (plain npm honours the `~/.npmrc` bypass token silently).
+- Creates per-package git tags at the release commit (`@byline/core@<NEXT_VERSION>`, etc.) **and pushes them** — so the old "push tags" step is already done.
+
+It is **idempotent**: packages already live at `NEXT_VERSION` are skipped and existing tags are left alone, so re-running after a partial failure just finishes the set. Run `./publish-packages.sh --dry-run` first if you want to pack + verify without publishing.
+
+If publish fails partway, surface the script's output verbatim and stop. Re-running the script is the intended recovery path (it skips what's already done) — but only after the user diagnoses why it failed.
 
 ## Step 9 — Push tags
 
-`git push --tags`. (Pushes every new per-package tag to origin.)
+Already handled by `./publish-packages.sh` in Step 8 — it pushes each per-package tag as it goes. Nothing to do here unless the script reported a tag-push failure, in which case `git push origin <tag> …` the ones it names.
 
 ## Step 10 — Sync `main`
 
@@ -207,14 +211,14 @@ This is the original `/release` behaviour, run with `NEXT_VERSION`:
 
 - `pnpm version-packages` produces no version change → no pending changesets were found; the changeset file likely wasn't written correctly. Surface and stop.
 - Lockstep mismatch after `version-packages` → one or more packages didn't bump. Likely a `fixed` config drift. Show the divergence; stop.
-- `pnpm release:npm` fails partway → some packages published, some didn't. Surface the changeset output verbatim and stop. Do not attempt to retry or re-run.
+- `./publish-packages.sh` fails partway → some packages published, some didn't. Surface the script output verbatim and stop, then let the user diagnose. Because the script is idempotent (skips already-published packages and existing tags), re-running it is the intended recovery once the cause is fixed.
 - `git merge --ff-only develop` on `main` fails → `main` has diverged. Stop and ask the user how to reconcile (they may want a regular merge, a rebase of develop, or to manually align).
 - `gh release create` fails because of branch protection → surface the error verbatim and stop.
 - Anchor commit is not on `main` after the sync step → warn loudly. The release should anchor to a commit reachable from `main`.
 
 ## What this command does NOT do
 
-- It does NOT bypass `pnpm release:npm` — that command does the actual npm publish and tag creation; this orchestrator only runs it.
+- It does NOT do the publish itself — `./publish-packages.sh` does the actual npm publish and per-package tag creation/push; this orchestrator only invokes it (with `--yes`, after the Step 7 approval).
 - It does NOT create draft GitHub releases by default. If the user wants a draft, they say so at the Step 11 confirmation.
 - It does NOT edit per-package tags. They are immutable npm-bookkeeping artefacts.
 - It does NOT skip hooks (`--no-verify`) or signing on the release commit.

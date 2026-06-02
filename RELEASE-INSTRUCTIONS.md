@@ -32,8 +32,8 @@ Write a summary for the change set.
 
 This will call changeset version, updating all package.json versions and updating release notes. It will also clear / remove the pending changeset from the .changeset directory.
 
-3. `pnpm release:npm`
+3. Commit + push the version bump as `chore(release): X.Y.Z`, then run `./publish-packages.sh`.
 
-This will build all packages, and then call changeset publish. It will publish to npm via whatever account you've authenticated locally with via `npm login`.
+This replaces `pnpm release:npm` / `changeset publish`, which **cannot publish under passkey-only 2FA** — pnpm's OTP pre-check accepts only a typed numeric code and dead-ends at `ERR_PNPM_OTP_NON_INTERACTIVE`. The script builds all packages, then for each package in the `fixed` group it `pnpm pack`s (rewriting `workspace:*` deps into real versions), `npm publish`es the tarball (plain npm honours the `~/.npmrc` bypass token silently), and creates + pushes per-package git tags. It is idempotent — already-published packages and existing tags are skipped — so a partial failure is safe to re-run. Use `./publish-packages.sh --dry-run` to pack + verify without publishing.
 
-NOTE: The manual flow will not create a Releases entry in the repo (and therefore not create any attached zip binaries).
+NOTE: The manual flow will not create a Releases entry in the repo (and therefore not create any attached zip binaries). Create the umbrella GitHub release separately — or use the `/release` command, which orchestrates this whole sequence (changeset → version-packages → release commit → `./publish-packages.sh` → main sync → umbrella release).
