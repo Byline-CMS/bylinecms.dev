@@ -14,5 +14,3 @@ export const interfaceLanguageMap: LanguageMap = {
   en: { nativeName: 'English' },
   fr: { nativeName: 'Français' },
 }
-
-export type AvailableLanguagesType = Record<string, boolean>

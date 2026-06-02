@@ -8,6 +8,8 @@
 
 import { Container, Section } from '@byline/ui/react'
 
+import { AvailableLanguages } from '@/i18n/components/available-languages'
+import { advertisedLocalesFor } from '@/lib/alternates'
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { RenderBlocks } from '@/ui/byline/render-blocks'
 import type { Locale } from '@/i18n/i18n-config'
@@ -27,6 +29,9 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 export function PageDetail({ result, lng }: PageDetailProps) {
   const { fields } = result
   const title = fields.title ?? result.path ?? result.id
+  // Public advertised content-locale set: availableLocales ∩ _availableVersionLocales
+  // (see src/lib/alternates.ts) — the same source the hreflang meta derives from.
+  const advertisedLocales = advertisedLocalesFor(result)
   const featureMedia = fields.featureImage?.document?.fields
   const featureImage = featureMedia?.image
   const imageAlt =
@@ -40,6 +45,7 @@ export function PageDetail({ result, lng }: PageDetailProps) {
         <Container className="pt-[12px]">
           <header className="mb-6">
             <h1 className="m-0">{title}</h1>
+            <AvailableLanguages advertisedLocales={advertisedLocales} className="mt-3" />
           </header>
           {featureImage ? (
             <ResponsiveImage

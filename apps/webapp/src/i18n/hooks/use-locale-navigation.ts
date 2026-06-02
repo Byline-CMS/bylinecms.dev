@@ -17,9 +17,25 @@ import {
   isRoutableLocale,
   type Locale,
   type RoutableLocale,
+  routableLocales,
   toInterfaceLocale,
 } from '@/i18n/i18n-config'
 import { setLanguageFn } from '@/i18n/set-language-fn'
+import { buildLocalizedPath } from '@/lib/meta'
+
+/**
+ * Strip a leading routable-locale segment (interface *or* content) from a
+ * pathname, yielding the locale-agnostic path. `/fr/about-byline` → `/about-byline`,
+ * `/fr` → `/`, `/about-byline` → `/about-byline` (unchanged). Used when switching
+ * the locale prefix on the current page so we never stack prefixes (`/es/fr/...`).
+ */
+export function stripRoutableLocalePrefix(pathname: string): string {
+  for (const loc of routableLocales) {
+    if (pathname === `/${loc}`) return '/'
+    if (pathname.startsWith(`/${loc}/`)) return pathname.slice(loc.length + 1)
+  }
+  return pathname
+}
 
 /**
  * Returns the **path** locale for the current URL — the locale actually in
@@ -96,6 +112,7 @@ interface NavigateOptions {
 export function useLocaleNavigation() {
   const navigate = useNavigate()
   const currentLocale = useLocale()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
 
   const navigateWithLocale = async ({
     to,
@@ -123,8 +140,36 @@ export function useLocaleNavigation() {
     })
   }
 
+  /**
+   * Switch the content locale on the **current** page, keeping the same
+   * document. Strips any existing routable-locale prefix from the current
+   * pathname and re-prepends the target (omitted for the default locale,
+   * e.g. `/about-byline` ↔ `/fr/about-byline`). Document slugs are not
+   * localized — `path` is anchored to the source locale — so the path is
+   * identical across locales and only the prefix changes; the rebuilt target
+   * is exactly the hreflang alternate path (`buildLocalizedPath`, the same
+   * resolver `resolveAlternates` uses), so the visible switcher and the SEO
+   * signal can never diverge.
+   *
+   * Used by the per-page "Also available in…" affordance. Cookie persistence
+   * follows the same rule as `navigateWithLocale` — written only for an
+   * interface-locale target, so a content-only prefix stays non-sticky.
+   */
+  const switchContentLocale = async (locale: RoutableLocale) => {
+    if (locale === currentLocale) return
+
+    if (isInterfaceLocale(locale) && locale !== currentLocale) {
+      await setLanguageFn({ data: { lng: locale } })
+    }
+
+    const cleanPath = stripRoutableLocalePrefix(pathname)
+    const segments = cleanPath.split('/').filter(Boolean)
+    navigate({ to: buildLocalizedPath(locale, ...segments), resetScroll: true })
+  }
+
   return {
     navigate: navigateWithLocale,
+    switchContentLocale,
     currentLocale,
     lngParam: lngParam(currentLocale),
   }
