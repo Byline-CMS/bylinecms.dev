@@ -243,6 +243,7 @@ export const FieldRenderer = ({
             }
             defaultValue={defaultValue}
             path={path}
+            contentLocale={contentLocale}
           />
         )
       case 'blocks':
@@ -252,6 +253,7 @@ export const FieldRenderer = ({
             field={field as unknown as BlocksFieldType}
             defaultValue={defaultValue}
             path={path}
+            contentLocale={contentLocale}
           />
         )
       case 'array':
@@ -262,6 +264,7 @@ export const FieldRenderer = ({
             defaultValue={defaultValue}
             path={path}
             disableSorting={disableSorting}
+            contentLocale={contentLocale}
           />
         )
       default:

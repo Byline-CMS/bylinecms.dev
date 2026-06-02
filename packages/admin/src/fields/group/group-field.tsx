@@ -32,9 +32,15 @@ interface GroupFieldProps {
   field: GroupFieldType
   defaultValue: any
   path: string
+  /**
+   * Active content locale, forwarded to child fields so localized widgets
+   * nested inside the group (e.g. a `localized` richText) can render their
+   * locale badge.
+   */
+  contentLocale?: string
 }
 
-export const GroupField = ({ field, defaultValue, path }: GroupFieldProps) => {
+export const GroupField = ({ field, defaultValue, path, contentLocale }: GroupFieldProps) => {
   const fieldError = useFieldError(field.name)
   // Default value for a group field is a plain object: { rating: 5, comment: '...' }
   // Normalize to a plain object if not already one.
@@ -74,6 +80,7 @@ export const GroupField = ({ field, defaultValue, path }: GroupFieldProps) => {
               defaultValue={groupData[innerField.name]}
               basePath={path}
               disableSorting={true}
+              contentLocale={contentLocale}
             />
           )
         })}

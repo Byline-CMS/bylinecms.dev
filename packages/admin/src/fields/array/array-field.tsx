@@ -29,11 +29,18 @@ export const ArrayField = ({
   defaultValue,
   path,
   disableSorting = false,
+  contentLocale,
 }: {
   field: ArrayFieldType
   defaultValue: any
   path: string
   disableSorting?: boolean
+  /**
+   * Active content locale, forwarded to each array item's fields so
+   * localized widgets nested inside an array (e.g. a `localized` richText)
+   * can render their locale badge.
+   */
+  contentLocale?: string
 }) => {
   const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
   const { t } = useTranslation('byline-admin')
@@ -190,6 +197,7 @@ export const ArrayField = ({
                 defaultValue={groupData[innerField.name]}
                 basePath={`${arrayElementPath}.${childField.name}`}
                 disableSorting={true}
+                contentLocale={contentLocale}
               />
             ))}
           </div>
@@ -203,6 +211,7 @@ export const ArrayField = ({
           defaultValue={initial}
           basePath={arrayElementPath}
           disableSorting={true}
+          contentLocale={contentLocale}
         />
       )
     })

@@ -40,10 +40,17 @@ export const BlocksField = ({
   field,
   defaultValue,
   path,
+  contentLocale,
 }: {
   field: BlocksFieldType
   defaultValue: any
   path: string
+  /**
+   * Active content locale, forwarded to each block item's fields so
+   * localized widgets nested inside a block (e.g. a `localized` richText)
+   * can render their locale badge.
+   */
+  contentLocale?: string
 }) => {
   const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
   const { t } = useTranslation('byline-admin')
@@ -219,6 +226,7 @@ export const BlocksField = ({
         }
         defaultValue={fieldData}
         path={arrayElementPath}
+        contentLocale={contentLocale}
       />
     )
 
