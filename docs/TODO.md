@@ -56,17 +56,17 @@ COLLECTIONS versioning Phase 2 — the smallest useful follow-up to the schema-v
 
 Phases 0–3 of host packaging shipped (per memory, 2026-04-30); next is the developer-facing CLI and the project template that uses it. Specific scope lives in `packages/host-tanstack-start` README and any planning notes nearby; this entry exists so the priority is visible alongside the others.
 
-### Admin UI components → `@byline/admin` with server/client scoped exports
-
-The five vertical directories under `packages/ui/src/admin/components/` (`admin-account`, `admin-permissions`, `admin-roles`, `admin-users`, `auth`) are admin-domain features, not UI primitives — each pairs with a matching backend module in `@byline/admin` (`modules/admin-users/`, etc.) that already owns the same vertical's commands, repository, service, schemas, and abilities. Move the UI directories into `@byline/admin` so each vertical lives in one folder, server + UI side by side. Retool `@byline/admin` to publish safe scoped exports for server-only vs client/UI code via subpath exports + package conditions — the rslib pattern we've used elsewhere keeps React peerDeps off the server entry points (`@byline/admin`, `@byline/admin/auth` for `JwtSessionProvider`) while letting `@byline/admin/admin-users/ui` etc. require React. `BylineAdminServicesProvider` / `BylineAdminServices` (today at `packages/ui/src/services/admin-services-context.tsx`) move too — they're admin-domain contracts, not generic UI plumbing. Leaves `@byline/ui` as the kit, the collection-form / field-renderer machinery, and the collection-editor UI under `admin/components/collections/`. Touches `@byline/host-tanstack-start` admin-shell imports and the CLI route/template imports; lockstep minor bump on landing.
-
 ### All things AI
 
 Native MCP Server and AI / content integration.
 
-### Admin UI Translations
+### Block config analogue — per-block `schema` / `admin` split
 
-Isolated admin UI string translations
+Blocks today are a single `defineBlock()` schema object (e.g. `apps/webapp/byline/blocks/richtext-block.ts`), with **no admin-side counterpart**. Collections get the clean schema-vs-presentation split (`schema.ts` + `admin.tsx` via `defineAdmin()`); blocks don't. The consequence: a richText field nested inside a block can't be opted into a specific editor (or any other per-field admin override) the way a top-level collection field can — `blocks-field.tsx` renders block children through `GroupField → FieldRenderer` with no per-field admin config threaded down, so block-nested fields can only inherit the **global** `fields.richText.editor` registration in `admin.config.ts`. (That global is what AI richtext currently rides on — see the active registration in `byline/admin.config.ts`.)
+
+Sketch + implement a block analogue to the collection model: a `defineBlockAdmin()` (or equivalent) carrying a per-field admin map keyed by the block's field names, paired with the React-free `defineBlock()` schema — same "schema files stay tsx-loadable / React-free, admin config lives separately" contract the collections enforce. Then thread the resolved block admin config from `blocks-field.tsx` into each child `FieldRenderer` so per-block-field overrides (starting with `editor`, e.g. `aiRichTextAdmin()` on one block's richText but not another's) actually land. Scope spans `@byline/core` (the new define/types), `@byline/admin` (`blocks-field.tsx` propagation + field-renderer wiring), and the `apps/webapp/byline/blocks/*` authoring surface. Closely related to the deferred [per-collection / per-field editor selection](#per-collection--per-field-editor-selection-richtext-phase-6) item — this is the block-scoped half of that same editor-variance question.
+
+Note: this is **only** about field config inside the block field itself. The `LexicalNestedComposer`-based nested editors (admonition body, inline-image caption) bypass the extension graph entirely and are intentionally out of scope — AI is not available there by design.
 
 ### Admin client-config registration — single-point resolution
 
