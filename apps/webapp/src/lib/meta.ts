@@ -103,16 +103,20 @@ export function getMeta(options: MetaOptions = {}): MetaHead {
   const alternateLinks =
     alternates.length > 0
       ? [
+          // React renders these via `<HeadContent />` as `<link>` DOM
+          // elements, so the prop must be the camelCase `hrefLang` — the
+          // lowercase `hreflang` trips React's "Invalid DOM property" warning
+          // and isn't applied as the proper attribute on the client.
           ...alternates.map((a) => ({
             rel: 'alternate',
-            hreflang: a.hreflang,
+            hrefLang: a.hreflang,
             href: new URL(a.path, serverUrl).toString(),
           })),
           ...(options.xDefaultPath != null
             ? [
                 {
                   rel: 'alternate',
-                  hreflang: 'x-default',
+                  hrefLang: 'x-default',
                   href: new URL(options.xDefaultPath, serverUrl).toString(),
                 },
               ]
