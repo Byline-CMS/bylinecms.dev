@@ -45,7 +45,7 @@ export function PageDetail({ result, lng }: PageDetailProps) {
         <Container className="pt-[12px]">
           <header className="mb-6">
             <h1 className="m-0">{title}</h1>
-            <AvailableLanguages advertisedLocales={advertisedLocales} className="mt-3" />
+            <AvailableLanguages advertisedLocales={advertisedLocales} />
           </header>
           {featureImage ? (
             <ResponsiveImage

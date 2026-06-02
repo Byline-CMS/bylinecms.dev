@@ -53,38 +53,40 @@ export function AvailableLanguages({
   if (advertisedLocales.length <= 1) return null
 
   return (
-    <div className={cx('not-prose flex gap-2 items-center justify-start mb-2', className)}>
-      <span className="text-[0.9rem]">{t('availableLanguages')}</span>
-      {advertisedLocales.map((locale) => {
-        const active = locale === currentLocale
-        return (
-          <button
-            type="button"
-            aria-label={`select language ${locale}`}
-            tabIndex={0}
-            key={locale}
-            onClick={handleOnClick(locale)}
-            className={cx(
-              'flex flex-row gap-1 items-center justify-center text-[0.8rem] rounded border min-w-[70px] py-[2px] px-[5px]',
-              'bg-gray-50/50 border-gray-100 hover:bg-gray-50 dark:bg-canvas-600/40 dark:hover:bg-canvas-600 dark:border-canvas-600',
-              active ? 'text-left' : 'text-center'
-            )}
-          >
-            {active && (
-              <span>
-                <CheckIcon
-                  width="18px"
-                  height="18px"
-                  svgClassName="fill-green-600 dark:fill-green-600"
-                />
+    <div className="flex gap-2 flex-wrap items-center mb-2 mt-1">
+      <div className="text-[0.9rem] m-0">{t('availableLanguages')}</div>
+      <div className={cx('not-prose flex flex-wrap gap-2 items-center justify-start', className)}>
+        {advertisedLocales.map((locale) => {
+          const active = locale === currentLocale
+          return (
+            <button
+              type="button"
+              aria-label={`select language ${locale}`}
+              tabIndex={0}
+              key={locale}
+              onClick={handleOnClick(locale)}
+              className={cx(
+                'flex flex-row gap-1 items-center justify-center text-[0.8rem] rounded border min-w-[70px] py-[2px] px-[5px]',
+                'bg-gray-50/50 border-gray-100 hover:bg-gray-50 dark:bg-canvas-600/40 dark:hover:bg-canvas-600 dark:border-canvas-600',
+                active ? 'text-left' : 'text-center'
+              )}
+            >
+              {active && (
+                <span>
+                  <CheckIcon
+                    width="18px"
+                    height="18px"
+                    svgClassName="fill-green-600 dark:fill-green-600"
+                  />
+                </span>
+              )}
+              <span className="inline-block w-full flex-1 text-black whitespace-nowrap dark:text-gray-100 leading-[1.4]">
+                {languageMap[locale]?.nativeName}
               </span>
-            )}
-            <span className="inline-block w-full flex-1 text-black dark:text-gray-100 leading-[1.4]">
-              {languageMap[locale]?.nativeName}
-            </span>
-          </button>
-        )
-      })}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
