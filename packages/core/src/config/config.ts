@@ -111,6 +111,43 @@ export function getServerConfig(): ServerConfig {
   return serverConfig
 }
 
+/**
+ * Order a set of locale codes by their position in the configured content
+ * locale list. The order source is `i18n.content.locales` — the authoritative,
+ * always-complete configured set — **not** `i18n.content.localeDefinitions`,
+ * which is an optional labels overlay a host may provide for only *some*
+ * codes (ordering off it would drop unlabelled content locales to the end).
+ *
+ * Codes absent from that order fall to the end, ordered alphabetically among
+ * themselves, so the result is always deterministic and never throws. This is
+ * deliberately origin-agnostic: a code that isn't a configured content
+ * locale — an interface-only locale, a stale/removed code, a typo — is
+ * preserved and sorted last rather than dropped or thrown. The function only
+ * sorts; it never filters, so set membership is never changed. The same holds
+ * when no server config is registered (the order is empty → plain a–z sort).
+ *
+ * `availableLocales` (and `_availableVersionLocales`) are *sets* — their
+ * array order carries no meaning — so this makes that order stable and
+ * config-driven at the read source. The payoff is canonical downstream
+ * ordering (display switcher, hreflang `alternates`, sitemap) regardless of
+ * the order a document declared its locales in. Read-time projection only;
+ * nothing persisted changes. See docs/I18N.md.
+ */
+export function orderByContentLocale(codes: string[]): string[] {
+  const content = getServerConfigInstance()?.i18n?.content
+  const order = content?.locales ?? content?.localeDefinitions?.map((l) => l.code) ?? []
+  const index = new Map(order.map((code, i) => [code, i] as const))
+  return [...codes].sort((a, b) => {
+    const ia = index.get(a) ?? Number.POSITIVE_INFINITY
+    const ib = index.get(b) ?? Number.POSITIVE_INFINITY
+    if (ia !== ib) return ia - ib
+    // Stable, deterministic tiebreak for codes that share a rank — i.e.
+    // multiple unknown codes (both +Infinity), or the no-config fallback
+    // where every code is unknown and this degrades to a plain a–z sort.
+    return a < b ? -1 : a > b ? 1 : 0
+  })
+}
+
 // ---------------------------------------------------------------------------
 // BylineCore singleton — the composed runtime returned by `initBylineCore`.
 // Server-side packages that need post-init state (the abilities registry,

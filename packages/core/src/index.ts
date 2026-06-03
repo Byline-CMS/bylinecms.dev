@@ -31,6 +31,7 @@ export {
   getCollectionAdminConfig,
   getCollectionDefinition,
   getServerConfig,
+  orderByContentLocale,
 } from './config/config.js'
 export { resolveRoutes } from './config/routes.js'
 export { validateAdminConfigs } from './config/validate-admin-configs.js'

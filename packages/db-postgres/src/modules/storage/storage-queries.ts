@@ -25,7 +25,7 @@ import type {
 // constructs query/command classes before initBylineCore() wires up the Pino
 // logger. A future refactor could inject the logger at construction time by
 // either deferring adapter construction or accepting a lazy logger parameter.
-import { ERR_DATABASE, ERR_NOT_FOUND, getLogger } from '@byline/core'
+import { ERR_DATABASE, ERR_NOT_FOUND, getLogger, orderByContentLocale } from '@byline/core'
 import { and, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
@@ -227,8 +227,9 @@ export class DocumentQueries implements IDocumentQueries {
   /**
    * Batch-fetch the version-locale availability sets from the
    * `byline_document_version_locales` ledger. For each version returns the
-   * concrete locales its content is complete in (`availableLocales`, sorted),
-   * or `localeAgnostic: true` when the version carries only the `'all'`
+   * concrete locales its content is complete in (`availableLocales`, in
+   * configured content-locale order), or `localeAgnostic: true` when the
+   * version carries only the `'all'`
    * sentinel (no localized content → renders identically in every locale).
    * Drives the `_availableVersionLocales` read metadata. One indexed query per call.
    */
@@ -255,15 +256,21 @@ export class DocumentQueries implements IDocumentQueries {
       if (row.locale === 'all') entry.localeAgnostic = true
       else entry.availableLocales.push(row.locale)
     }
-    for (const entry of result.values()) entry.availableLocales.sort()
+    // Stable, config-driven order — `_availableVersionLocales` is a set
+    // consumed via membership, so this just keeps its array order canonical
+    // (matching `availableLocales`). Falls back to a–z when no config.
+    for (const entry of result.values()) {
+      entry.availableLocales = orderByContentLocale(entry.availableLocales)
+    }
     return result
   }
 
   /**
    * Batch-fetch the editorial advertised-locale sets from
    * `byline_document_available_locales` (document-grain). For each logical
-   * document returns the sorted set of locales the editor has elected to
-   * advertise. Surfaced on reads as `availableLocales` — the deliberate
+   * document returns the set of locales the editor has elected to advertise,
+   * in configured content-locale order. Surfaced on reads as
+   * `availableLocales` — the deliberate
    * counterpart to the version-grain `_availableVersionLocales` ledger fact;
    * the public advertised set is their intersection. One indexed query per
    * call. See docs/I18N.md.
@@ -290,7 +297,11 @@ export class DocumentQueries implements IDocumentQueries {
       }
       arr.push(row.locale)
     }
-    for (const arr of result.values()) arr.sort()
+    // Project `availableLocales` in configured content-locale order (the set
+    // is order-insensitive). Read-time only — nothing persisted changes, and
+    // unknown/removed codes sort last rather than throwing. Falls back to a–z
+    // when no server config is registered (e.g. isolated storage tests).
+    for (const [did, arr] of result) result.set(did, orderByContentLocale(arr))
     return result
   }
 
