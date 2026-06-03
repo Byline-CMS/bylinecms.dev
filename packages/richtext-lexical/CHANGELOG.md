@@ -1,5 +1,20 @@
 # @byline/richtext-lexical
 
+## 3.1.0
+
+### Minor Changes
+
+- threaded the document's canonical (source-locale) `path` into the write-side collection hook contexts (`afterCreate`, `afterUpdate`, before/after `statusChange`, before/after `unpublish`, before/after `delete`) so cache-invalidation, CDN-purge, webhook, and search-reindex hooks can act on the specific document/URL
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [edd5228]
+  - @byline/admin@3.1.0
+  - @byline/client@3.1.0
+  - @byline/core@3.1.0
+  - @byline/ui@3.1.0
+
 ## 3.0.2
 
 ### Patch Changes

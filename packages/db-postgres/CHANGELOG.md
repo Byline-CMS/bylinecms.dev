@@ -1,5 +1,28 @@
 # @byline/db-postgres
 
+## 3.1.0
+
+### Minor Changes
+
+- threaded the document's canonical (source-locale) `path` into the write-side collection hook contexts (`afterCreate`, `afterUpdate`, before/after `statusChange`, before/after `unpublish`, before/after `delete`) so cache-invalidation, CDN-purge, webhook, and search-reindex hooks can act on the specific document/URL
+- edd5228: threaded the document's canonical (source-locale) `path` into the write-side
+  collection hook contexts — `afterCreate`, `afterUpdate`, `beforeUnpublish` /
+  `afterUnpublish`, `beforeDelete` / `afterDelete`, and `beforeStatusChange` /
+  `afterStatusChange` now carry `path` so cache-invalidation, CDN-purge, webhook,
+  and search-reindex hooks can act on the specific document/URL instead of
+  invalidating the whole collection. Added a narrow `getCurrentPath` storage query
+  (reusing the existing source-locale path projection) to back it. Additive and
+  backward-compatible; `beforeCreate` stays path-free because the path is not
+  resolved until after it runs.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [edd5228]
+  - @byline/admin@3.1.0
+  - @byline/auth@3.1.0
+  - @byline/core@3.1.0
+
 ## 3.0.2
 
 ### Patch Changes
