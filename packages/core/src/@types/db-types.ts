@@ -498,6 +498,13 @@ export interface IDocumentQueries {
    * contexts without widening `getCurrentVersionMetadata`.
    *
    * Returns `null` when the document has no path row (or does not exist).
+   *
+   * Source-locale only: this resolves the single canonical slug, which is the
+   * only path row a document has today. When per-locale paths land (see
+   * docs/DOCUMENT-PATHS.md → "Phase — per-locale paths"), the write-side hook
+   * contexts that consume this must be enriched to carry the locale each path
+   * was derived under (or the full `locale → path` set) — a single canonical
+   * `path` is no longer sufficient for per-localised-URL cache/CDN purges.
    */
   getCurrentPath(params: { collection_id: string; document_id: string }): Promise<string | null>
 
