@@ -5,7 +5,7 @@
  * `{-$lng}` path parameter based on the current (or explicitly supplied) locale.
  *
  * For the default locale the param is omitted, producing clean URLs
- * (e.g. `/about` instead of `/en/about`).
+ * (e.g. `/admin` instead of `/en/admin`).
  *
  * When `forceReload` is true, a plain `<a>` tag is rendered instead,
  * triggering a full page navigation.
@@ -19,7 +19,7 @@ import { i18nConfig, type RoutableLocale } from '@/i18n/i18n-config'
 
 export interface LangLinkProps
   extends Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'children'> {
-  /** Route path — use clean paths like '/about', not '/{-$lng}/about'. The locale prefix is added automatically. */
+  /** Route path — use clean paths like '/admin', not '/{-$lng}/admin'. The locale prefix is added automatically. */
   to: string
   /** Target locale — defaults to the current **interface** locale, so
    * generic navigation reverts off a content-only prefix. Pass a content
@@ -34,6 +34,11 @@ export interface LangLinkProps
     | ((current: Record<string, unknown>) => Record<string, unknown>)
   /** Trigger a full-page reload instead of client-side navigation */
   forceReload?: boolean
+  /** TanStack Router prefetch strategy. 'intent' (hover/focus),
+   * 'viewport' (IntersectionObserver), 'render' (on mount), or false. */
+  preload?: 'intent' | 'viewport' | 'render' | false
+  /** Delay (ms) before preloading on 'intent'. */
+  preloadDelay?: number
   /** Whether to scroll to top on navigation (default: true) */
   scroll?: boolean
   /** Replace the current history entry */
@@ -51,6 +56,8 @@ export function LangLink({
   forceReload,
   scroll = true,
   replace = false,
+  preload,
+  preloadDelay,
   ref,
   ...rest
 }: LangLinkProps) {
@@ -79,6 +86,8 @@ export function LangLink({
       search={search}
       replace={replace}
       resetScroll={scroll}
+      preload={preload}
+      preloadDelay={preloadDelay}
       ref={ref}
       {...rest}
     >
