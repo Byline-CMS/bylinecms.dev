@@ -114,14 +114,24 @@ export function RouteProgressBar() {
     }
   }, [])
 
+  // Dev-only: append `?__rpb` to any admin URL to pin the bar in its visible
+  // phase. Local navigations are usually faster than SHOW_DELAY_MS, so the real
+  // thing rarely renders long enough to eyeball the color/glow/height. Reactive
+  // across navigations (raw `searchStr`, so route search-validation can't strip
+  // it) and fully stripped from production via `import.meta.env.DEV`.
+  const debugParam = useRouterState({
+    select: (s) => s.location.searchStr.includes('__rpb'),
+  })
+  const effectivePhase: Phase = import.meta.env.DEV && debugParam ? 'visible' : phase
+
   return (
     <div
       aria-hidden="true"
       className={cx('route-progress-bar', styles.bar, {
-        [styles.barVisible]: phase === 'visible',
-        'route-progress-bar-visible': phase === 'visible',
-        [styles.barFinishing]: phase === 'finishing',
-        'route-progress-bar-finishing': phase === 'finishing',
+        [styles.barVisible]: effectivePhase === 'visible',
+        'route-progress-bar-visible': effectivePhase === 'visible',
+        [styles.barFinishing]: effectivePhase === 'finishing',
+        'route-progress-bar-finishing': effectivePhase === 'finishing',
       })}
     />
   )

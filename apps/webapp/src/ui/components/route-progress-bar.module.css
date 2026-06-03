@@ -10,13 +10,21 @@
 
 .bar,
 :global(.route-progress-bar) {
+  /* Single source for fill + halo, so theme overrides only swap one value. */
+  --rpb-color: var(--color-amber-500);
   position: fixed;
   top: 0;
   left: 0;
   z-index: 100;
-  height: 2px;
+  height: 3px;
   width: 0%;
-  background-color: black;
+  background-color: var(--rpb-color);
+  /* Soft halo lifts the thin bar off the page — the biggest visibility win,
+     and it keeps the line readable on light app-bar surfaces without making
+     it any taller. Two layers: a wide glow + a tight, brighter core. */
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--rpb-color) 60%, transparent),
+    0 0 3px color-mix(in srgb, var(--rpb-color) 85%, transparent);
   opacity: 0;
   pointer-events: none;
   will-change: width, opacity;
@@ -25,7 +33,7 @@
 :global(.dark),
 :global([data-theme="dark"]) {
   .bar {
-    background-color: white;
+    --rpb-color: var(--color-primary-500);
   }
 }
 
