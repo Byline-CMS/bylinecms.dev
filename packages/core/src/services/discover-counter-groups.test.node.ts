@@ -53,6 +53,7 @@ function makeAdapter(options?: {
       documents: {
         getDocumentById: vi.fn(fail),
         getCurrentVersionMetadata: vi.fn(fail) as any,
+        getCurrentPath: vi.fn(fail) as any,
         getDocumentByPath: vi.fn(fail),
         getDocumentByVersion: vi.fn(fail),
         getDocumentsByVersionIds: vi.fn(fail),

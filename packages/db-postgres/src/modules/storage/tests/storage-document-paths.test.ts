@@ -231,4 +231,93 @@ describe('byline_document_paths integration', () => {
     })
     expect(result).toBe(null)
   })
+
+  describe('getCurrentPath', () => {
+    it('resolves a document’s canonical path under its default source locale', async () => {
+      const canonicalPath = `current-path-${Date.now()}`
+
+      const created = await commandBuilders.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionVersion: 1,
+        collectionConfig: PathsCollectionConfig,
+        action: 'create',
+        documentData: { title: 'Has Path' },
+        path: canonicalPath,
+        locale: 'all',
+        status: 'draft',
+      })
+      const documentId = created.document.document_id
+
+      const path = await queryBuilders.documents.getCurrentPath({
+        collection_id: testCollection.id,
+        document_id: documentId,
+      })
+
+      expect(path).toBe(canonicalPath)
+    })
+
+    it('follows the source-locale anchor after a document is re-anchored', async () => {
+      const canonicalPath = `reanchor-path-${Date.now()}`
+
+      // Create locale-agnostic content (ledger carries the 'all' sentinel) so
+      // the document is "complete" in any target and re-anchoring is eligible.
+      const created = await commandBuilders.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionVersion: 1,
+        collectionConfig: PathsCollectionConfig,
+        action: 'create',
+        documentData: { title: 'Re-anchor me' },
+        path: canonicalPath,
+        locale: 'all',
+        status: 'draft',
+      })
+      const documentId = created.document.document_id
+
+      // Flip the document's source locale from the default ('en') to 'fr'.
+      // reAnchorDocument moves the path row onto the new source locale,
+      // keeping the slug. getCurrentPath passes requestedLocale: undefined, so
+      // its fallback floor is COALESCE(source_locale, default) — it must now
+      // resolve via the 'fr' anchor, not the global default 'en'.
+      const result = await commandBuilders.documents.reAnchorDocument({
+        documentId,
+        targetLocale: 'fr',
+      })
+      expect(result.status).toBe('reanchored')
+
+      const path = await queryBuilders.documents.getCurrentPath({
+        collection_id: testCollection.id,
+        document_id: documentId,
+      })
+      expect(path).toBe(canonicalPath)
+    })
+
+    it('returns null when the document has no path row', async () => {
+      // Create a version without a `path` — no document_paths row is written.
+      const created = await commandBuilders.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionVersion: 1,
+        collectionConfig: PathsCollectionConfig,
+        action: 'create',
+        documentData: { title: 'No Path' },
+        locale: 'all',
+        status: 'draft',
+      })
+      const documentId = created.document.document_id
+
+      const path = await queryBuilders.documents.getCurrentPath({
+        collection_id: testCollection.id,
+        document_id: documentId,
+      })
+
+      expect(path).toBe(null)
+    })
+
+    it('returns null for a non-existent document', async () => {
+      const path = await queryBuilders.documents.getCurrentPath({
+        collection_id: testCollection.id,
+        document_id: crypto.randomUUID(),
+      })
+      expect(path).toBe(null)
+    })
+  })
 })

@@ -69,6 +69,7 @@ function createMockDb(options: {
       documents: {
         getDocumentById: vi.fn(fail),
         getCurrentVersionMetadata: vi.fn(fail) as any,
+        getCurrentPath: vi.fn(fail) as any,
         getDocumentByPath: vi.fn(fail),
         getDocumentByVersion: vi.fn(fail),
         getDocumentsByVersionIds: vi.fn(fail),
@@ -236,6 +237,7 @@ describe('ensureCollections', () => {
         documents: {
           getDocumentById: vi.fn(),
           getCurrentVersionMetadata: vi.fn() as any,
+          getCurrentPath: vi.fn() as any,
           getDocumentByPath: vi.fn(),
           getDocumentByVersion: vi.fn(),
           getDocumentsByVersionIds: vi.fn(),

@@ -401,6 +401,12 @@ export interface BeforeCreateContext {
  * Includes the `documentId` and `documentVersionId` returned by storage
  * so the hook can reference the persisted document.
  *
+ * `path` is the document's canonical (source-locale) routing path as
+ * written into `byline_document_paths` — the value a consumer needs to
+ * invalidate a cache key, purge a CDN URL, or fire a webhook against the
+ * specific document. (Resolved *after* `beforeCreate`, since that hook may
+ * mutate the source field that path derivation reads.)
+ *
  * `duplicate` mirrors `BeforeCreateContext.duplicate` — present only when
  * the create was triggered by `duplicateDocument`.
  */
@@ -409,6 +415,8 @@ export interface AfterCreateContext {
   collectionPath: string
   documentId: string
   documentVersionId: string
+  /** The document's canonical (source-locale) routing path. */
+  path: string
   duplicate?: { sourceDocumentId: string }
 }
 
@@ -442,6 +450,11 @@ export interface BeforeUpdateContext {
  * Includes the `documentId` and `documentVersionId` of the newly created
  * version so the hook can reference the persisted document.
  *
+ * `path` is the document's canonical (source-locale) routing path after the
+ * update — surfaced explicitly so cache-invalidation / CDN-purge / webhook
+ * hooks need not dig it out of `originalData`. (Previously available only
+ * implicitly via `originalData.path`.)
+ *
  * `restore` mirrors `BeforeUpdateContext.restore` — present only when the
  * update was triggered by restoring a historical version.
  * `copyToLocale` mirrors `BeforeUpdateContext.copyToLocale` — present only
@@ -453,6 +466,8 @@ export interface AfterUpdateContext {
   collectionPath: string
   documentId: string
   documentVersionId: string
+  /** The document's canonical (source-locale) routing path. */
+  path: string
   restore?: { sourceVersionId: string }
   copyToLocale?: { sourceLocale: string; targetLocale: string }
   /** Mirrors `BeforeUpdateContext.deleteLocale`. */
@@ -461,40 +476,63 @@ export interface AfterUpdateContext {
 
 /**
  * Context passed to `beforeStatusChange` / `afterStatusChange` hooks.
+ *
+ * `path` is the document's canonical (source-locale) routing path — present
+ * so a status-change hook (publish → purge CDN, archive → drop cache key) can
+ * act on the specific document/URL rather than invalidating the whole
+ * collection.
  */
 export interface StatusChangeContext {
   documentId: string
   documentVersionId: string
   collectionPath: string
+  /** The document's canonical (source-locale) routing path. */
+  path: string
   previousStatus: string
   nextStatus: string
 }
 
 /**
  * Context passed to `beforeUnpublish` hooks.
+ *
+ * `path` is the document's canonical (source-locale) routing path — present
+ * so an unpublish hook can target the specific document/URL.
  */
 export interface BeforeUnpublishContext {
   documentId: string
   collectionPath: string
+  /** The document's canonical (source-locale) routing path. */
+  path: string
 }
 
 /**
  * Context passed to `afterUnpublish` hooks.
  *
  * `archivedCount` indicates how many published versions were archived.
+ *
+ * `path` is the document's canonical (source-locale) routing path — present
+ * so an unpublish hook can target the specific document/URL.
  */
 export interface AfterUnpublishContext {
   documentId: string
   collectionPath: string
+  /** The document's canonical (source-locale) routing path. */
+  path: string
   archivedCount: number
 }
 
 /**
- * Context passed to `beforeDelete` / `afterDelete` hooks (future).
+ * Context passed to `beforeDelete` / `afterDelete` hooks.
+ *
+ * `path` is the document's canonical (source-locale) routing path — present
+ * so a delete hook can purge the specific document/URL (cache key, CDN, search
+ * index) rather than the entire collection.
  */
 export interface DeleteContext {
   documentId: string
   collectionPath: string
+  /** The document's canonical (source-locale) routing path. */
+  path: string
 }
 
 /**

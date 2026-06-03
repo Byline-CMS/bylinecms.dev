@@ -603,6 +603,43 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * getCurrentPath — resolve a document's canonical (source-locale) path.
+   *
+   * Reuses `pathProjection` against `current_documents`, passing
+   * `requestedLocale: undefined` so the projection's fallback floor — the
+   * document's own `source_locale` (COALESCE-guarded to the default content
+   * locale for not-yet-anchored rows) — supplies the canonical path. Used by
+   * the lifecycle to populate `path` on the status-change / unpublish hook
+   * contexts. Returns `null` when no path row (or document) exists.
+   */
+  async getCurrentPath({
+    collection_id,
+    document_id,
+  }: {
+    collection_id: string
+    document_id: string
+  }): Promise<string | null> {
+    const [row] = await this.db
+      .select({
+        path: this.pathProjection(
+          sql`${currentDocumentsView.document_id}`,
+          undefined,
+          sql`${currentDocumentsView.source_locale}`
+        ),
+      })
+      .from(currentDocumentsView)
+      .where(
+        and(
+          eq(currentDocumentsView.collection_id, collection_id),
+          eq(currentDocumentsView.document_id, document_id)
+        )
+      )
+      .limit(1)
+
+    return row?.path ?? null
+  }
+
+  /**
    * getDocumentById — gets the current version of a document by its logical document ID.
    *
    * When `lenient` is true, schema-mismatch warnings emitted during

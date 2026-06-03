@@ -59,6 +59,7 @@ function createMockDb() {
   const softDeleteDocument = vi.fn().mockResolvedValue(1)
   const getDocumentById = vi.fn().mockResolvedValue(null)
   const getCurrentVersionMetadata = vi.fn().mockResolvedValue(null)
+  const getCurrentPath = vi.fn().mockResolvedValue('current-path')
 
   const db: IDbAdapter = {
     commands: {
@@ -89,6 +90,7 @@ function createMockDb() {
       documents: {
         getDocumentById,
         getCurrentVersionMetadata,
+        getCurrentPath,
         getDocumentByPath: vi.fn(),
         getDocumentByVersion: vi.fn(),
         getDocumentsByVersionIds: vi.fn(),
@@ -113,6 +115,7 @@ function createMockDb() {
     softDeleteDocument,
     getDocumentById,
     getCurrentVersionMetadata,
+    getCurrentPath,
   }
 }
 
@@ -209,6 +212,19 @@ describe('Document lifecycle service', () => {
           documentId: 'doc-1',
           documentVersionId: 'ver-1',
         })
+      )
+    })
+
+    it('afterCreate receives the resolved canonical path', async () => {
+      const afterCreate = vi.fn()
+      const { db } = createMockDb()
+      const definition = { ...minimalCollection, hooks: { afterCreate } }
+      const ctx = buildCtx(db, definition)
+
+      await createDocument(ctx, { data: { title: 'X' }, path: 'my-explicit-path' })
+
+      expect(afterCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ path: 'my-explicit-path' })
       )
     })
 
@@ -422,6 +438,44 @@ describe('Document lifecycle service', () => {
           documentVersionId: 'ver-1',
         })
       )
+    })
+
+    it('afterUpdate carries the sticky path forward when none is supplied', async () => {
+      const afterUpdate = vi.fn()
+      const { db, getDocumentById } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'sticky-path',
+        fields: { title: 'Old' },
+      })
+
+      const definition = { ...minimalCollection, hooks: { afterUpdate } }
+      const ctx = buildCtx(db, definition)
+
+      await updateDocument(ctx, { documentId: 'doc-1', data: { title: 'New' } })
+
+      expect(afterUpdate).toHaveBeenCalledWith(expect.objectContaining({ path: 'sticky-path' }))
+    })
+
+    it('afterUpdate surfaces an explicitly-supplied path', async () => {
+      const afterUpdate = vi.fn()
+      const { db, getDocumentById } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'prev-ver',
+        path: 'sticky-path',
+        fields: { title: 'Old' },
+      })
+
+      const definition = { ...minimalCollection, hooks: { afterUpdate } }
+      const ctx = buildCtx(db, definition)
+
+      await updateDocument(ctx, {
+        documentId: 'doc-1',
+        data: { title: 'New' },
+        path: 'new-path',
+      })
+
+      expect(afterUpdate).toHaveBeenCalledWith(expect.objectContaining({ path: 'new-path' }))
     })
 
     it('does not pass path to the storage primitive when no explicit path is supplied', async () => {
@@ -819,7 +873,11 @@ describe('Document lifecycle service', () => {
           nextStatus: 'published',
           documentId: 'doc-1',
           documentVersionId: 'ver-1',
+          path: 'current-path',
         })
+      )
+      expect(hooks.afterStatusChange).toHaveBeenCalledWith(
+        expect.objectContaining({ path: 'current-path' })
       )
     })
 
@@ -933,10 +991,14 @@ describe('Document lifecycle service', () => {
       await unpublishDocument(ctx, { documentId: 'doc-1' })
 
       expect(callOrder).toEqual(['before', 'archive', 'after'])
+      expect(hooks.beforeUnpublish).toHaveBeenCalledWith(
+        expect.objectContaining({ documentId: 'doc-1', path: 'current-path' })
+      )
       expect(hooks.afterUnpublish).toHaveBeenCalledWith(
         expect.objectContaining({
           documentId: 'doc-1',
           archivedCount: 2,
+          path: 'current-path',
         })
       )
     })
@@ -984,6 +1046,35 @@ describe('Document lifecycle service', () => {
       await unpublishDocument(ctx, { documentId: 'doc-1' })
 
       expect(callOrder).toEqual(['before-1', 'before-2', 'archive', 'after-1', 'after-2'])
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // deleteDocument
+  // -----------------------------------------------------------------------
+  describe('deleteDocument', () => {
+    it('invokes beforeDelete / afterDelete with the document path', async () => {
+      const beforeDelete = vi.fn()
+      const afterDelete = vi.fn()
+      const { db, getDocumentById } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'doc-to-delete',
+        fields: {},
+      })
+
+      const definition = { ...minimalCollection, hooks: { beforeDelete, afterDelete } }
+      const ctx = buildCtx(db, definition)
+
+      await deleteDocument(ctx, { documentId: 'doc-1' })
+
+      expect(beforeDelete).toHaveBeenCalledWith(
+        expect.objectContaining({ documentId: 'doc-1', path: 'doc-to-delete' })
+      )
+      expect(afterDelete).toHaveBeenCalledWith(
+        expect.objectContaining({ documentId: 'doc-1', path: 'doc-to-delete' })
+      )
     })
   })
 
@@ -1158,6 +1249,8 @@ describe('Document lifecycle service', () => {
         expect.objectContaining({
           documentId: 'doc-1',
           documentVersionId: 'ver-restored',
+          // Sticky path comes from the current version's envelope, not the source.
+          path: 'sticky-path',
           restore: { sourceVersionId },
         })
       )
@@ -1483,6 +1576,11 @@ describe('Document lifecycle service', () => {
       expect(afterCtx.duplicate).toEqual({ sourceDocumentId: 'doc-source' })
       expect(afterCtx.documentId).toBe('doc-new')
       expect(afterCtx.documentVersionId).toBe('ver-new')
+      // afterCreate carries the final path written for the duplicate — the
+      // same value handed to createDocumentVersion.
+      const writtenPath = mocks.createDocumentVersion.mock.calls[0]?.[0]?.path
+      expect(typeof afterCtx.path).toBe('string')
+      expect(afterCtx.path).toBe(writtenPath)
     })
 
     it('enforces collections.<path>.create — rejects an admin actor missing the ability', async () => {
@@ -1804,6 +1902,8 @@ describe('Document lifecycle service', () => {
         sourceLocale: 'en',
         targetLocale: 'fr',
       })
+      // Sticky path read off the target-locale envelope.
+      expect(afterUpdate.mock.calls[0]?.[0].path).toBe('hello')
     })
 
     it('enforces collections.<path>.update — rejects an admin actor missing the ability', async () => {

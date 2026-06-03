@@ -488,6 +488,19 @@ export interface IDocumentQueries {
     updated_at: Date
   } | null>
 
+  /**
+   * Resolve a document's canonical (source-locale) routing path.
+   *
+   * Returns the `byline_document_paths` row for the document under its own
+   * `source_locale` anchor (falling back to the configured default content
+   * locale for rows predating `source_locale`). Narrow by design — used by
+   * the lifecycle to populate `path` on the status-change / unpublish hook
+   * contexts without widening `getCurrentVersionMetadata`.
+   *
+   * Returns `null` when the document has no path row (or does not exist).
+   */
+  getCurrentPath(params: { collection_id: string; document_id: string }): Promise<string | null>
+
   getDocumentByPath(params: {
     collection_id: string
     path: string

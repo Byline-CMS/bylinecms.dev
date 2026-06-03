@@ -145,28 +145,44 @@ For high-traffic deployments, an in-memory cache between the server function and
 
 ### Invalidation via Byline collection hooks
 
-Tag-based invalidation pairs naturally with Byline's collection hooks. In a collection definition:
+Tag-based invalidation pairs naturally with Byline's collection hooks. Every
+write-side hook context — `afterCreate`, `afterUpdate`, `afterStatusChange`,
+`afterUnpublish`, and `afterDelete` — carries the document's canonical
+(source-locale) `path`, so an invalidation hook can target the exact key/URL
+for the document that changed rather than purging the whole collection. In a
+collection definition:
 
 ```ts
 hooks: {
-  afterChange: [
-    async ({ doc, operation }) => {
-      if (operation === 'create' || operation === 'delete') {
-        await invalidateTag('cms::news')
-      } else {
-        await invalidateTag(`cms::news::${doc.path}`)
-        await invalidateTag('cms::news')
-      }
+  afterUpdate: [
+    async ({ path }) => {
+      await invalidateTag(`cms::news::${path}`)
+      await invalidateTag('cms::news')
+    },
+  ],
+  afterStatusChange: [
+    async ({ path }) => {
+      await invalidateTag(`cms::news::${path}`)
+      await invalidateTag('cms::news')
+    },
+  ],
+  afterCreate: [
+    async () => {
+      // No specific URL to purge yet — a create only widens the list view.
+      await invalidateTag('cms::news')
     },
   ],
   afterDelete: [
-    async ({ doc }) => {
+    async ({ path }) => {
       await invalidateTag('cms::news')
-      await invalidateTag(`cms::news::${doc.path}`)
+      await invalidateTag(`cms::news::${path}`)
     },
   ],
 },
 ```
+
+(`path` on these contexts is real, not aspirational — it is populated by the
+lifecycle from `byline_document_paths` for every write hook.)
 
 The same hook can drive both L1 invalidation (in-process, synchronous) and an L2 purge call to the CDN (network, asynchronous, fire-and-forget). Order them so the L1 invalidation always succeeds even if the CDN call fails.
 

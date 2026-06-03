@@ -99,6 +99,7 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
       documents: {
         getDocumentById,
         getCurrentVersionMetadata,
+        getCurrentPath: vi.fn(async () => 'original-path'),
         getDocumentByPath: vi.fn(),
         getDocumentByVersion: vi.fn(),
         getDocumentsByVersionIds: vi.fn(),

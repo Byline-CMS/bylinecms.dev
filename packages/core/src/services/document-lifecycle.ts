@@ -519,6 +519,7 @@ export async function createDocument(
         collectionPath,
         documentId,
         documentVersionId,
+        path: resolvedPath,
       })
 
       return { documentId, documentVersionId }
@@ -642,6 +643,7 @@ export async function updateDocument(
         collectionPath,
         documentId,
         documentVersionId,
+        path: pathForCommand ?? (originalData.path as string),
       })
 
       return { documentId, documentVersionId }
@@ -805,6 +807,7 @@ export async function updateDocumentWithPatches(
         collectionPath,
         documentId,
         documentVersionId,
+        path: pathForCommand ?? (originalData.path as string),
       })
 
       return { documentId, documentVersionId }
@@ -884,10 +887,20 @@ export async function changeDocumentStatus(
         }).log(ctx.logger)
       }
 
+      // Resolve the document's canonical path so the hooks can act on the
+      // specific document/URL (CDN purge, cache-key drop). Narrow lookup —
+      // getCurrentVersionMetadata deliberately omits the path subquery.
+      const path =
+        (await ctx.db.queries.documents.getCurrentPath({
+          collection_id: collectionId,
+          document_id: params.documentId,
+        })) ?? ''
+
       const hookCtx = {
         documentId: params.documentId,
         documentVersionId,
         collectionPath,
+        path,
         previousStatus: currentStatus,
         nextStatus: params.nextStatus,
       }
@@ -934,7 +947,7 @@ export async function unpublishDocument(
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'unpublishDocument' },
     async () => {
-      const { db, collectionPath, definition } = ctx
+      const { db, collectionId, collectionPath, definition } = ctx
       // Unpublish is a workflow transition out of `published` — reuse the
       // changeStatus gate rather than a separate ability.
       assertActorCanPerform(ctx.requestContext, collectionPath, 'changeStatus')
@@ -948,9 +961,18 @@ export async function unpublishDocument(
       }
       const hooks: CollectionHooks | undefined = definition.hooks
 
+      // Resolve the document's canonical path so the hooks can target the
+      // specific document/URL (CDN purge, cache-key drop).
+      const path =
+        (await db.queries.documents.getCurrentPath({
+          collection_id: collectionId,
+          document_id: params.documentId,
+        })) ?? ''
+
       await invokeHook(hooks?.beforeUnpublish, {
         documentId: params.documentId,
         collectionPath,
+        path,
       })
 
       const archivedCount = await db.commands.documents.archivePublishedVersions({
@@ -960,6 +982,7 @@ export async function unpublishDocument(
       await invokeHook(hooks?.afterUnpublish, {
         documentId: params.documentId,
         collectionPath,
+        path,
         archivedCount,
       })
 
@@ -1120,13 +1143,15 @@ export async function restoreDocumentVersion(
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
 
-      // 7. afterUpdate.
+      // 7. afterUpdate. Restore is path-sticky: the canonical path comes
+      //    from the current version's envelope (originalData), not the source.
       await invokeHook(hooks?.afterUpdate, {
         data: sourceFields,
         originalData,
         collectionPath,
         documentId,
         documentVersionId,
+        path: (originalData.path as string) ?? '',
         restore: restoreContext,
       })
 
@@ -1221,6 +1246,11 @@ export async function deleteDocument(
       const hookCtx = {
         documentId: params.documentId,
         collectionPath,
+        // The current document was fetched above (reconstructed only for
+        // upload collections, but the envelope carries the locale-resolved
+        // `path` projection either way). Surface it so delete hooks can purge
+        // the specific document/URL.
+        path: (latest as Record<string, any>).path ?? '',
       }
 
       // 2. beforeDelete hook.
@@ -1506,6 +1536,7 @@ export async function duplicateDocument(
         collectionPath,
         documentId: newDocumentId,
         documentVersionId: newDocumentVersionId,
+        path: finalPath,
         duplicate: duplicateMarker,
       })
 
@@ -1876,6 +1907,9 @@ export async function copyToLocale(
         collectionPath,
         documentId: params.documentId,
         documentVersionId,
+        // Path is sticky and source-locale-anchored; copy-to-locale never
+        // touches it. Read it off the target envelope.
+        path: (targetRecord.path as string) ?? '',
         copyToLocale: copyToLocaleMarker,
       })
 
@@ -2003,6 +2037,9 @@ export async function deleteLocale(
         collectionPath,
         documentId: params.documentId,
         documentVersionId: result.newVersionId,
+        // Path is sticky and source-locale-anchored; deleting a translation
+        // never touches it. Read it off the target envelope.
+        path: (targetRecord.path as string) ?? '',
         deleteLocale: deleteLocaleMarker,
       })
 
