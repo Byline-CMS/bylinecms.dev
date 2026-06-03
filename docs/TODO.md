@@ -52,10 +52,6 @@ List views currently render `target_document_id` as a string for relation fields
 
 COLLECTIONS versioning Phase 2 — the smallest useful follow-up to the schema-version recording that already ships. One row per version-bump carrying the snapshot of `CollectionDefinition` at that version. Unblocks Phase 3 (fetch-by-version) and is the prerequisite for any future read-time forward-migration work. See [COLLECTIONS.md → Phase 2 — historical config snapshots](./COLLECTIONS.md#phase-2--historical-config-snapshots).
 
-### Host packaging Phase 4 — CLI / template
-
-Phases 0–3 of host packaging shipped (per memory, 2026-04-30); next is the developer-facing CLI and the project template that uses it. Specific scope lives in `packages/host-tanstack-start` README and any planning notes nearby; this entry exists so the priority is visible alongside the others.
-
 ### All things AI
 
 Native MCP Server and AI / content integration.

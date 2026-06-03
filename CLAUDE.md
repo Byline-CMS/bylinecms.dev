@@ -26,6 +26,7 @@ Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v3.x
 | `packages/ui` | `@byline/ui` | Framework-agnostic React primitives — Button, Input, Modal, Drawer, Table, Alert, icons, datepicker, generic `DraggableSortable`. No CMS concepts; importable independent of admin. Single barrel at `@byline/ui/react`. |
 | `packages/i18n` | `@byline/i18n` | Admin-interface translation system — `TranslationBundle` types, `mergeTranslations`, ICU formatter, locale resolution. React surface (`I18nProvider`, `useTranslation`, `LanguageMenu`) at `@byline/i18n/react`. Built-in `byline-admin` bundle (EN/FR) + `adminTranslations({ locales })` factory at `@byline/i18n/admin`. |
 | `packages/richtext-lexical` | `@byline/richtext-lexical` | Lexical-based richtext editor adapter |
+| `packages/ai` | `@byline/ai` | AI subsystem — provider-agnostic execution (OpenAI / Google / Anthropic) for `executeInstruction`, `generateStructured`, and Lexical-node `patch` (streaming + non-streaming). Browser-safe root entry; SDK-backed execution behind `@byline/ai/server`; editor plugins at `@byline/ai/plugins/{text,lexical}`. See `packages/ai/README.md` |
 | `packages/cli` | `@byline/cli` | Guided installer that adds Byline to an existing TanStack Start app (`byline init`, `doctor`, …) |
 
 Internal packages use `@byline/*` imports. The webapp uses `@/` alias for `apps/webapp/src`.
