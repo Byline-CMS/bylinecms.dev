@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 3.1.1
+
+### Patch Changes
+
+- added `@byline/richtext-lexical/config` subpath for eager-light editor registration plus name-based extension toggling; fixed `availableLocales` reads to follow the configured content-locale order
+- Updated dependencies
+  - @byline/ui@3.1.1
+
 ## 3.1.0
 
 ### Minor Changes
