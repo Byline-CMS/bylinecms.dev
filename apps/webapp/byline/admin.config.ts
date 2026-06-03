@@ -58,13 +58,15 @@ export const config: ClientConfig = {
 
     // ---------------------------------------------------------------------
     // Alternatively — register the editor without the AI assistant, only
-    // suppressing the floating text-format popover on the root editor:
+    // suppressing the floating text-format popover on the root editor.
+    // Import from the light `/config` subpath and toggle built-ins by name
+    // so the registration stays free of the editor runtime:
     //
-    // import { FloatingTextFormatExtension, lexicalEditor } from '@byline/richtext-lexical'
+    // import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/config'
     //
     // richText: {
     //   editor: lexicalEditor((c) => {
-    //     c.extensions.remove(FloatingTextFormatExtension)
+    //     c.extensions.remove(builtInExtensions.FloatingTextFormat)
     //     return c
     //   }),
     // },
@@ -76,19 +78,14 @@ export const config: ClientConfig = {
     // mutations are local to this call. Per-field `editorConfig` continues
     // to take precedence over whatever is baked in here.
     //
-    // import {
-    //   AdmonitionExtension,
-    //   CodeHighlightExtension,
-    //   TableExtension,
-    //   lexicalEditor,
-    // } from '@byline/richtext-lexical'
+    // import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/config'
     //
     // richText: {
     //   editor: lexicalEditor((c) => {
     //     c.extensions
-    //       .remove(TableExtension)
-    //       .remove(CodeHighlightExtension)
-    //       .remove(AdmonitionExtension)
+    //       .remove(builtInExtensions.Table)
+    //       .remove(builtInExtensions.CodeHighlight)
+    //       .remove(builtInExtensions.Admonition)
     //     c.settings.placeholderText = 'Start writing...'
     //     return c
     //   }),

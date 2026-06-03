@@ -17,7 +17,6 @@ import {
   // CLEAR_EDITOR_COMMAND,
   COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_NORMAL,
-  createCommand,
   type LexicalEditor,
   SELECTION_CHANGE_COMMAND,
   type SerializedEditorState,
@@ -25,19 +24,10 @@ import {
 
 import { useAiPublicConfig } from '../../config/ai-provider'
 import { AiPluginBase, type AiPluginSubmitContext } from '../ai-plugin-base'
+import { AI_DRAWER_STATE_COMMAND, TOGGLE_AI_DRAWER_COMMAND } from './commands'
 import { createEmptyEditorState } from './create-empty-editor-state'
 import { importHtmlToSerializedEditorState } from './import-html'
 import type { ExecuteInstruction, InstructionState } from '../../@types'
-
-export const TOGGLE_AI_DRAWER_COMMAND = createCommand('TOGGLE_AI_DRAWER_COMMAND')
-
-/**
- * Broadcasts the AI drawer's open/closed state so contributed UI (the
- * toolbar button) can show an active visual cue. Dispatched by the drawer
- * plugin whenever `open` changes — including closes triggered from the
- * drawer's own controls. Observers register a listener and return `false`.
- */
-export const AI_DRAWER_STATE_COMMAND = createCommand<boolean>('AI_DRAWER_STATE_COMMAND')
 
 const emptyInstructionState: InstructionState = {
   prompt: '',

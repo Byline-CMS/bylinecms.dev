@@ -37,18 +37,28 @@ export class ExtensionsList {
   }
 
   /**
-   * Remove every entry whose name matches `extension.name`. No-op when
-   * the extension isn't present.
+   * Remove every entry whose name matches the target. Accepts either an
+   * extension object (matched by `.name`) or the name string directly —
+   * the string form lets config-only code remove a built-in via
+   * `builtInExtensions.*` without importing the heavy extension class.
+   * No-op when the extension isn't present.
    */
-  remove(extension: AnyLexicalExtension): this {
-    const targetName = extension.name
+  remove(extension: AnyLexicalExtension | string): this {
+    const targetName = resolveTargetName(extension)
     this.items = this.items.filter((item) => extensionName(item) !== targetName)
     return this
   }
 
-  /** Replace `oldExtension` with `newExtension`, preserving position. */
-  replace(oldExtension: AnyLexicalExtension, newExtension: AnyLexicalExtensionArgument): this {
-    const targetName = oldExtension.name
+  /**
+   * Replace `oldExtension` with `newExtension`, preserving position.
+   * `oldExtension` may be an extension object or its name string; the
+   * replacement must be a real extension argument.
+   */
+  replace(
+    oldExtension: AnyLexicalExtension | string,
+    newExtension: AnyLexicalExtensionArgument
+  ): this {
+    const targetName = resolveTargetName(oldExtension)
     let replaced = false
     this.items = this.items.map((item) => {
       if (!replaced && extensionName(item) === targetName) {
@@ -75,9 +85,12 @@ export class ExtensionsList {
     return this.replace(extension, wrapped)
   }
 
-  /** True when an entry with the same `name` is present. */
-  has(extension: AnyLexicalExtension): boolean {
-    const targetName = extension.name
+  /**
+   * True when an entry with the same `name` is present. Accepts an
+   * extension object or its name string.
+   */
+  has(extension: AnyLexicalExtension | string): boolean {
+    const targetName = resolveTargetName(extension)
     return this.items.some((item) => extensionName(item) === targetName)
   }
 
@@ -90,6 +103,11 @@ export class ExtensionsList {
   toArray(): AnyLexicalExtensionArgument[] {
     return [...this.items]
   }
+}
+
+/** Resolve a remove/has/replace target to its comparison name. */
+function resolveTargetName(target: AnyLexicalExtension | string): string {
+  return typeof target === 'string' ? target : target.name
 }
 
 function extensionName(item: AnyLexicalExtensionArgument): string | undefined {

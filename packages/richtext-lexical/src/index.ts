@@ -10,6 +10,10 @@ export type {
   SerializedTextNode,
 } from 'lexical'
 
+export {
+  type BuiltInExtensionName,
+  builtInExtensions,
+} from './field/config/built-in-extension-names'
 export { defaultEditorConfig } from './field/config/default'
 export {
   defaultClientEditorConfig,

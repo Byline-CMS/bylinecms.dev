@@ -6,5 +6,5 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+export { TOGGLE_AI_DRAWER_COMMAND } from './commands'
 export { AiLexicalExtension } from './extension'
-export { AiPluginLexical, TOGGLE_AI_DRAWER_COMMAND } from './plugin'

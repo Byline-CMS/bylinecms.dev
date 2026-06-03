@@ -8,13 +8,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
 import {
   type BylineToolbarConfig,
   BylineToolbarExtension,
   useToolbarActiveEditor,
-} from '@byline/richtext-lexical'
+} from '@byline/richtext-lexical/config'
 import { AiIcon } from '@byline/ui/react'
 import { ReactExtension } from '@lexical/react/ReactExtension'
 import {
@@ -24,7 +24,19 @@ import {
   defineExtension,
 } from 'lexical'
 
-import { AI_DRAWER_STATE_COMMAND, AiPluginLexical, TOGGLE_AI_DRAWER_COMMAND } from './plugin'
+import { AI_DRAWER_STATE_COMMAND, TOGGLE_AI_DRAWER_COMMAND } from './commands'
+
+/**
+ * The AI drawer is dynamic-imported so that merely *referencing*
+ * `AiLexicalExtension` (e.g. from an eagerly-evaluated admin/client
+ * config) does not pull the drawer's React component graph — and its
+ * Anthropic/OpenAI/Google-adjacent imports — into the importing bundle.
+ * The chunk loads on first editor mount, behind the editor's own lazy
+ * boundary; the inner `Suspense` is a belt-and-braces fallback.
+ */
+const AiPluginLexical = lazy(async () => ({
+  default: (await import('./plugin')).AiPluginLexical,
+}))
 
 function AiToolbarButton(): React.JSX.Element {
   const editor = useToolbarActiveEditor()
@@ -73,7 +85,15 @@ function AiToolbarButton(): React.JSX.Element {
  */
 export const AiLexicalExtension = defineExtension({
   name: '@byline/ai/Lexical',
-  dependencies: [configExtension(ReactExtension, { decorators: [<AiPluginLexical key="d" />] })],
+  dependencies: [
+    configExtension(ReactExtension, {
+      decorators: [
+        <Suspense key="d" fallback={null}>
+          <AiPluginLexical />
+        </Suspense>,
+      ],
+    }),
+  ],
   peerDependencies: [
     declarePeerDependency<typeof BylineToolbarExtension>(BylineToolbarExtension.name, {
       items: [
