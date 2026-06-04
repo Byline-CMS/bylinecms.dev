@@ -26,7 +26,6 @@ import type { RequestContext } from '@byline/auth'
 import {
   type CollectionDefinition,
   type CollectionHookSlot,
-  type CollectionHooks,
   type Field,
   type FieldSet,
   type IDbAdapter,
@@ -36,6 +35,7 @@ import {
   isGroupField,
   normalizeCollectionHook,
   type RichTextEmbedFn,
+  resolveHooks,
 } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { getCollectionDefinition, getServerConfig } from '../config/config.js'
@@ -457,7 +457,7 @@ export async function createDocument(
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
       const slugifier = ctx.slugifier ?? slugify
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
       const data = params.data
 
       if (params.locale != null && params.locale !== defaultLocale) {
@@ -567,7 +567,7 @@ export async function updateDocument(
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
       const data = params.data
 
       // Fetch the real original so hooks get accurate originalData (fixes the
@@ -694,7 +694,7 @@ export async function updateDocumentWithPatches(
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
 
       // 1. Fetch current document.
       const latest = await db.queries.documents.getDocumentById({
@@ -856,7 +856,7 @@ export async function changeDocumentStatus(
           details: { collectionPath, nextStatus: params.nextStatus },
         }).log(ctx.logger)
       }
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
 
       // 1. Fetch current version metadata. No field reconstruction needed —
       //    status transitions only touch the document_versions.status column.
@@ -959,7 +959,7 @@ export async function unpublishDocument(
           details: { collectionPath },
         }).log(ctx.logger)
       }
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
 
       // Resolve the document's canonical path so the hooks can target the
       // specific document/URL (CDN purge, cache-key drop).
@@ -1043,7 +1043,7 @@ export async function restoreDocumentVersion(
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
 
       // 1. Read source version (full multi-locale tree).
       const source = await db.queries.documents.getDocumentByVersion({
@@ -1198,7 +1198,7 @@ export async function deleteDocument(
     async () => {
       const { db, collectionPath, definition, logger } = ctx
       assertActorCanPerform(ctx.requestContext, collectionPath, 'delete')
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
 
       // 1. Verify the document exists.
       //    For collections that have any upload-capable image/file field
@@ -1413,7 +1413,7 @@ export async function duplicateDocument(
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
       const slugifier = ctx.slugifier ?? slugify
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
 
       // 1. Read source with locale='all' — single read, full multi-locale tree.
       const source = await db.queries.documents.getDocumentById({
@@ -1866,7 +1866,7 @@ export async function copyToLocale(
       // 4. Hooks see the target-locale view as originalData (consistent
       //    with how updateDocument scopes originalData to the active
       //    locale) and the merged payload as the next `data`.
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
       const copyToLocaleMarker = {
         sourceLocale: params.sourceLocale,
         targetLocale: params.targetLocale,
@@ -2007,7 +2007,7 @@ export async function deleteLocale(
         }).log(ctx.logger)
       }
 
-      const hooks: CollectionHooks | undefined = definition.hooks
+      const hooks = await resolveHooks(definition)
       const deleteLocaleMarker = { locale: params.locale }
       const originalData: Record<string, any> = targetRecord.fields ?? {}
 

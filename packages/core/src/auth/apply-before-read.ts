@@ -8,10 +8,11 @@
 
 import type { RequestContext } from '@byline/auth'
 
-import type {
-  BeforeReadHookFn,
-  BeforeReadHookSlot,
-  CollectionDefinition,
+import {
+  type BeforeReadHookFn,
+  type BeforeReadHookSlot,
+  type CollectionDefinition,
+  resolveHooks,
 } from '../@types/collection-types.js'
 import type { ReadContext } from '../@types/db-types.js'
 import type { QueryPredicate } from '../@types/query-predicate.js'
@@ -47,7 +48,8 @@ export async function applyBeforeRead(params: {
     return readContext.beforeReadCache.get(collectionPath) ?? null
   }
 
-  const hooks = normalizeBeforeReadHook(definition.hooks?.beforeRead)
+  const resolved = await resolveHooks(definition)
+  const hooks = normalizeBeforeReadHook(resolved?.beforeRead)
   if (hooks.length === 0) {
     readContext.beforeReadCache.set(collectionPath, null)
     return null

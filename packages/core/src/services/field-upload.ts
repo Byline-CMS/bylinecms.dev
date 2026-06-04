@@ -8,6 +8,7 @@
 
 import type { RequestContext } from '@byline/auth'
 
+import { resolveUploadHooks } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_DATABASE, ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
@@ -323,7 +324,11 @@ export async function uploadField(
       //    rather than throw — `assertActorCanPerform` is the auth gate
       //    for whether the upload should run at all, not the hook layer.
       const sanitised = sanitiseFilename(originalFilename || 'upload')
-      const beforeStoreHooks = normalizeUploadHook<BeforeStoreHookFn>(upload.hooks?.beforeStore)
+      // Resolve the field's upload hooks once. The loader form
+      // (`hooks: () => import('./media.hooks.js')`) keeps server-only hook
+      // graphs out of the client bundle; the inline form returns as-is.
+      const uploadHooks = await resolveUploadHooks(upload.hooks)
+      const beforeStoreHooks = normalizeUploadHook<BeforeStoreHookFn>(uploadHooks?.beforeStore)
       const effectiveFilename = await runBeforeStoreChain(
         beforeStoreHooks,
         {
@@ -422,7 +427,7 @@ export async function uploadField(
 
       // -- afterStore chain. Failures are logged but do not roll back
       //    the storage write (consistent with `afterCreate` etc.).
-      const afterStoreHooks = normalizeUploadHook<AfterStoreHookFn>(upload.hooks?.afterStore)
+      const afterStoreHooks = normalizeUploadHook<AfterStoreHookFn>(uploadHooks?.afterStore)
       for (const fn of afterStoreHooks) {
         try {
           const afterCtx: AfterStoreContext = {
