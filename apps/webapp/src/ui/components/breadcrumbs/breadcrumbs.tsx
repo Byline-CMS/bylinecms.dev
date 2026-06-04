@@ -6,11 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { Link } from '@tanstack/react-router'
-
 import cx from 'classnames'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
+import { LangLink } from '@/i18n/components/lang-link'
 import { truncate } from '@/utils/utils.general.ts'
 import type { Breadcrumb } from './@types'
 
@@ -31,10 +30,8 @@ export function Breadcrumbs({
     <nav aria-label="Breadcrumb" className={cx('flex', className)}>
       <ul className="m-0 inline-flex list-inside list-none flex-wrap items-center space-x-1 p-0 md:space-x-1">
         <li className="m-0 inline-flex items-center">
-          <Link
-            // lng={lng}
+          <LangLink
             to={homePath}
-            href={homePath}
             className="m-0 inline-flex items-center font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
           >
             <svg
@@ -47,7 +44,7 @@ export function Breadcrumbs({
               <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
             </svg>
             {resolvedHomeLabel}
-          </Link>
+          </LangLink>
         </li>
         {breadcrumbs != null &&
           breadcrumbs.length > 0 &&
@@ -69,14 +66,12 @@ export function Breadcrumbs({
                         clipRule="evenodd"
                       />
                     </svg>
-                    <Link
-                      // lng={lng}
+                    <LangLink
                       to={breadcrumb.href}
-                      href={breadcrumb.href}
                       className="m-0 font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
                     >
                       {truncate(breadcrumb.label, 20, true)}
-                    </Link>
+                    </LangLink>
                   </div>
                 </li>
               )
