@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 3.2.1
+
+### Patch Changes
+
+- removed lodash-es from the client bundle graph in `@byline/admin` and `@byline/richtext-lexical`, replacing it with local helpers to trim a transitive dependency
+
 ## 3.2.0
 
 ### Minor Changes

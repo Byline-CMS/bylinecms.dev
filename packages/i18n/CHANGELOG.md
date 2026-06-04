@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 3.2.1
+
+### Patch Changes
+
+- removed lodash-es from the client bundle graph in `@byline/admin` and `@byline/richtext-lexical`, replacing it with local helpers to trim a transitive dependency
+- Updated dependencies
+  - @byline/ui@3.2.1
+
 ## 3.2.0
 
 ### Minor Changes
