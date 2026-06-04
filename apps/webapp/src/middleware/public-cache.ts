@@ -23,9 +23,13 @@
  *     response nor serve any previously cached entry for that request, so
  *     signed-in editors always see live content and their just-published
  *     edits appear immediately.
- *   - Otherwise emit `Cache-Control: public, s-maxage=60,
+ *   - Otherwise emit `Cache-Control: public, max-age=0, s-maxage=60,
  *     stale-while-revalidate=86400`. Anonymous traffic is served from the
  *     CDN edge for 60s, with a 24h SWR window for background refresh.
+ *     `max-age=0` keeps the *browser* from storing (or heuristically
+ *     caching) the HTML/server-fn response — only the shared CDN cache
+ *     holds it (`s-maxage`), so a visitor always revalidates against the
+ *     edge rather than serving stale content from their own browser cache.
  *
  * Why the preview cookie is NOT in the bypass set:
  *   - `byline_preview` only takes effect when paired with a valid admin
@@ -75,7 +79,10 @@ export const publicCacheMiddleware = createMiddleware().server(async ({ next }) 
   if (hasCacheBypassCookie()) {
     setResponseHeader('Cache-Control', 'private, no-store')
   } else {
-    setResponseHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=86400')
+    setResponseHeader(
+      'Cache-Control',
+      'public, max-age=0, s-maxage=60, stale-while-revalidate=86400'
+    )
   }
   return next()
 })
