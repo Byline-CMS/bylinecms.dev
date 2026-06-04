@@ -1,5 +1,18 @@
 # @infonomic/ai
 
+## 3.2.0
+
+### Minor Changes
+
+- added a lazy-loader form for collection and upload hooks (`hooks: () => import('./hooks.js')`) that keeps server-only hook code out of the isomorphic client bundle
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.2.0
+  - @byline/richtext-lexical@3.2.0
+  - @byline/ui@3.2.0
+
 ## 3.1.1
 
 ### Patch Changes
