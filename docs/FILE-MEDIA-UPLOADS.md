@@ -165,6 +165,10 @@ fields: [
 
 A storage provider is identified at write time by `storedFile.storageProvider`; the read path doesn't need to know which provider produced a given file beyond what's already in the envelope.
 
+> **⚠️ `upload.storage` is server-only — setting it inline leaks into the client bundle.** A collection schema is **isomorphic** (bundled into the browser admin as well as the server). The `import { s3StorageProvider } from '@byline/storage-s3'` above is a *static* import at the top of the schema, so the provider's entire server-only graph — the AWS SDK, `node:*` built-ins — gets dragged into the client bundle. This is the same hazard as a hook statically importing server-only code (see [COLLECTIONS.md → Hooks must not statically import server-only code](./COLLECTIONS.md#hooks-must-not-statically-import-server-only-code)), but for a provider *instance* rather than a function — so the `hooks: () => import(...)` loader form doesn't transplant to it directly. It fails the usual way: silent in `build` (tree-shaken), a `Module "node:…" has been externalized` crash in `dev`.
+>
+> Until a first-class deferral lands, prefer the **site-wide `ServerConfig.storage` default** (configured server-side in `server.config.ts`) over inline per-field providers, or hide the provider construction behind a client-safe, SSR-gated shim (same technique as the hooks "Alternative" in COLLECTIONS.md). No collection ships an inline `upload.storage` today, so this is a latent affordance rather than an active bug. A build-time `server-only` poison that would catch it is tracked in [TODO.md](./TODO.md).
+
 → [Storage routing](#storage-routing)
 
 ### 5. Rename uploaded files via `beforeStore`
