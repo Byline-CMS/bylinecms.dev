@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { AfterStoreContext, BeforeStoreContext, CollectionFieldData } from '@byline/core'
+import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -115,14 +115,14 @@ export const Media = defineCollection({
             quality: 55,
           },
         ],
-        hooks: {
-          beforeStore: (ctx: BeforeStoreContext) => {
-            console.log('beforeStore hook called', ctx)
-          },
-          afterStore: (ctx: AfterStoreContext) => {
-            console.log('afterStore hook called', ctx)
-          },
-        },
+        // Upload hooks run server-side only, but this schema is isomorphic
+        // (also bundled into the browser admin). Declared via the loader form
+        // — a thunk that dynamically imports a sibling module — so
+        // `./hooks.ts` and its server-only imports (here `node:crypto` /
+        // `node:path`, in a real app a storage SDK or `sharp`) stay out of
+        // the client bundle. See `./hooks.ts` and docs/COLLECTIONS.md →
+        // "Hooks must not statically import server-only code".
+        hooks: () => import('./hooks.js'),
       },
     },
     // Descriptive metadata fields.

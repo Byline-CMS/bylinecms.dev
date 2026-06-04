@@ -552,7 +552,33 @@ Hooks are the one place a schema reaches server-only behaviour, and — because 
 
 The failure is asymmetric, which makes it easy to miss: **production** tree-shakes the unused hook bodies, so the leaked graph often disappears and the build looks clean; **dev** (Vite) does not tree-shake, so the module is evaluated in the browser, and a Node built-in anywhere in that graph throws at runtime — `Module "node:…" has been externalized for browser compatibility.`
 
-**The rule:** a hook may *call* server-only code, but the schema file must never *statically import* it. Defer it behind a **client-safe, SSR-gated shim** that the schema imports by name — the shim's only static import is `import type`, and the real module loads behind an SSR guard, so it never enters the schema's static graph:
+**The rule:** a hook may *call* server-only code, but the schema file must never *statically import* it.
+
+**Recommended fix — the loader form of `hooks`.** `hooks` accepts a thunk that dynamically imports the hooks module: `hooks: () => import('./docs.hooks.js')`. Because the schema reaches the hooks only through `import()`, the hooks module — and its entire transitive server-only graph — is *structurally absent* from the client bundle. No per-import discipline, no SSR guards in app code; the isolation is by construction.
+
+```ts
+// docs.schema.ts — isomorphic, client-safe by construction
+export const Docs = defineCollection({
+  // …declarative field config…
+  hooks: () => import('./docs.hooks.js'),
+})
+```
+
+```ts
+// docs.hooks.ts — server-only; may statically import any server-only module freely
+import { invalidateDocument } from '@/cache/with-cache'
+import { defineHooks } from '@byline/core'
+
+export default defineHooks({
+  afterCreate: ({ collectionPath, path }) => invalidateDocument(collectionPath, path),
+})
+```
+
+The loader is resolved once and memoized (keyed on the loader's identity), so the dynamic `import()` runs at most once per process regardless of how many documents flow through it. `defineHooks(...)` is optional — it mirrors `defineCollection` / `defineBlock` as a named factory; `export default { … } satisfies CollectionHooks` is equivalent. The hooks module's `default` export (or a bare returned object) is used. The inline form (`hooks: { … }`) stays valid for hooks whose bodies only touch isomorphic / declarative code.
+
+**Field upload hooks (`field.upload.hooks`) take the same loader form.** `beforeStore` / `afterStore` are declared on an `upload`-capable field *inside the schema*, so they have identical client-bundle exposure — and are the most likely hooks to reach for server-only code (storage SDKs, `sharp`, AV scanners). Declare them the same way: `upload: { …, hooks: () => import('./media.hooks.js') }`, with the sibling module `export default { … } satisfies UploadHooks`. (Note: **field-level** validation hooks like `beforeValidate` are a different case — they can legitimately run client-side, so they are not server-only and are not deferred this way.)
+
+**Alternative — keep hooks inline behind a client-safe, SSR-gated shim.** When you'd rather keep hook bodies in the schema file, defer the server-only call behind a shim the schema imports by name — the shim's only static import is `import type`, and the real module loads behind an SSR guard, so it never enters the schema's static graph:
 
 ```ts
 // cache/invalidate-deferred.ts — client-safe; statically imports only types
@@ -569,9 +595,7 @@ export async function invalidateDocument(path: string, opts?: InvalidateDocument
 import { invalidateDocument } from '@/cache/invalidate-deferred'
 ```
 
-Verify in **dev, not just `build`** — `build` tree-shaking masks the leak. If a server-only dependency appears in the client module graph, it is a schema-authoring bug, not a bundler-config problem.
-
-> The framework could make this safer by construction — e.g. a first-class lazy-loader form of `hooks`, or a build-time `server-only` poison that fails loudly when a schema's client graph reaches it. See the tracking note in [TODO.md](./TODO.md).
+Either way, verify in **dev, not just `build`** — `build` tree-shaking masks the leak. If a server-only dependency appears in the client module graph, it is a schema-authoring bug, not a bundler-config problem.
 
 ### Orderable collections
 

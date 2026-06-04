@@ -39,78 +39,19 @@ export const Docs = defineCollection({
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true, // See type definition for details.
-  // All hooks can be a single function or an array of functions.
-  // If an array is provided, the functions will be executed in sequence.
-  hooks: {
-    beforeCreate: async ({ data, collectionPath }) => {
-      // Example: beforeCreate hook
-      console.log(
-        `beforeCreate: Creating a new document in collection ${collectionPath} with data:`,
-        data
-      )
-    },
-    afterCreate: async ({ data, collectionPath, documentId, documentVersionId }) => {
-      // Example: log the creation of a new document.
-      console.log(
-        `afterCreate: Document created with ID ${documentId} and version ID ${documentVersionId} in collection ${collectionPath}`
-      )
-    },
-    beforeUpdate: async ({ data, originalData, collectionPath }) => {
-      // Example: prevent a document from being published if it doesn't have a title.
-      console.log(
-        `beforeUpdate: Updating a document in collection ${collectionPath} with data:`,
-        data
-      )
-    },
-    afterUpdate: async ({ data, originalData, collectionPath, documentId, documentVersionId }) => {
-      // Example: log the update of a document.
-      console.log(
-        `afterUpdate: Document with ID ${documentId} and version ID ${documentVersionId} in collection ${collectionPath} was updated`
-      )
-    },
-    beforeStatusChange: async ({
-      documentId,
-      documentVersionId,
-      collectionPath,
-      previousStatus,
-      nextStatus,
-    }) => {
-      console.log(
-        `beforeStatusChange: Changing status of document in collection ${collectionPath} from ${previousStatus} to ${nextStatus} with document ID ${documentId} and version ID ${documentVersionId}`
-      )
-    },
-    afterStatusChange: async ({
-      documentId,
-      documentVersionId,
-      collectionPath,
-      previousStatus,
-      nextStatus,
-    }) => {
-      console.log(
-        `afterStatusChange: Status of document in collection ${collectionPath} changed from ${previousStatus} to ${nextStatus} with document ID ${documentId} and version ID ${documentVersionId}`
-      )
-    },
-    beforeUnpublish: async ({ documentId, collectionPath }) => {
-      console.log(
-        `beforeUnpublish: Unpublishing document in collection ${collectionPath} with document ID ${documentId}.`
-      )
-    },
-    afterUnpublish: async ({ documentId, collectionPath }) => {
-      console.log(
-        `afterUnpublish: Document in collection ${collectionPath} with document ID ${documentId} unpublished.`
-      )
-    },
-    beforeDelete: async ({ documentId, collectionPath }) => {
-      console.log(
-        `beforeDelete: Deleting document in collection ${collectionPath} with document ID ${documentId}.`
-      )
-    },
-    afterDelete: async ({ documentId, collectionPath }) => {
-      console.log(
-        `afterDelete: Document in collection ${collectionPath} with document ID ${documentId} deleted.`
-      )
-    },
-  },
+  // Collection lifecycle hooks. Hooks run **server-side only**, but this
+  // schema is isomorphic (also bundled into the browser admin), so we declare
+  // the hooks via the **loader form** — a thunk that dynamically imports a
+  // sibling module — rather than an inline object. Because the schema reaches
+  // them only through `import()`, `./hooks.ts` and its entire import graph
+  // stay out of the client bundle, leaving that file free to import any
+  // server-only code (Node built-ins, DB clients, caches, secrets). See
+  // `./hooks.ts` for the full explanation, and docs/COLLECTIONS.md →
+  // "Hooks must not statically import server-only code".
+  //
+  // (Hooks that only touch isomorphic code may still be declared inline as
+  // `hooks: { … }`; the loader form is what makes server-only imports safe.)
+  hooks: () => import('./hooks.js'),
   fields: [
     {
       name: 'title',

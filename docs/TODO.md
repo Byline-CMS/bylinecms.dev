@@ -78,9 +78,11 @@ The eager single point **is** possible without breaking slot components' context
 
 Each entry names the trigger that would move it into Next. No work happens until the trigger fires.
 
-### Framework guard for server-only code in collection hooks
+### Build-time `server-only` poison for collection hooks
 
-**Trigger:** a third app hits the leak, or the shim discipline proves too easy to forget. A collection schema is isomorphic (bundled into the client admin), but `hooks` may reference server-only modules — and a static import of one drags it into the client bundle (today's mitigation is a client-safe, SSR-gated shim, applied by hand). Core could make this safe by construction: a first-class lazy-loader form of `hooks` (`hooks: () => import('./x.hooks')`, resolved once server-side in `document-lifecycle`), and/or a build-time `server-only` poison that fails loudly when a schema's client graph reaches it. See [COLLECTIONS.md → Hooks must not statically import server-only code](./COLLECTIONS.md#hooks-must-not-statically-import-server-only-code). Lives in `@byline/core` (`bylinecms.dev`), not this app.
+**Shipped (the isolation half):** `@byline/core` now accepts a first-class lazy-loader form of `hooks` — `hooks: () => import('./x.hooks')`, resolved once and memoized via `resolveHooks` across every lifecycle and read site. Because the schema reaches the hooks only through `import()`, the hooks module's server-only graph is structurally absent from the client bundle. See [COLLECTIONS.md → Hooks must not statically import server-only code](./COLLECTIONS.md#hooks-must-not-statically-import-server-only-code).
+
+**Trigger (the guardrail half, still deferred):** someone bypasses the loader (static-imports a `*.hooks` module into a schema) and ships dead weight or a runtime throw without noticing. Add a `@byline/core/server-only` subpath — the React/Next pattern: a browser-conditional export that fails the build — that authors `import` at the top of a `*.hooks` file, so a hooks module pulled into the client build fails loudly instead of silently. Verify-first: confirm the webapp's **Vite client build** actually honors the poisoned export condition before promising it (if it silently resolves, the guard doesn't guard). Lives in `@byline/core` (`bylinecms.dev`), not this app.
 
 ### Stable HTTP API transport
 

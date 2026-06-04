@@ -22,7 +22,7 @@
  * `beforeCreate` / `afterCreate` hooks.
  */
 
-import { normalizeCollectionHook } from '../@types/index.js'
+import { normalizeCollectionHook, resolveHooks } from '../@types/index.js'
 import type {
   AfterReadContext,
   CollectionDefinition,
@@ -54,7 +54,8 @@ export async function applyAfterRead(params: {
   definition: CollectionDefinition
   readContext: ReadContext
 }): Promise<void> {
-  const hook = params.definition.hooks?.afterRead
+  const resolved = await resolveHooks(params.definition)
+  const hook = resolved?.afterRead
   if (!hook) return
   const docId = params.doc?.document_id
   if (typeof docId !== 'string') return

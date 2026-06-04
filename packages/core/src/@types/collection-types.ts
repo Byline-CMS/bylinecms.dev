@@ -133,9 +133,14 @@ export interface UploadConfig {
    * have been written to the storage provider, before the document
    * version is created.
    *
+   * Accepts an inline object, or — because the schema is isomorphic — a
+   * **loader** (`hooks: () => import('./media.hooks.js')`) that defers the
+   * hooks module so server-only code (storage SDKs, `sharp`, AV scanners)
+   * never enters the client bundle. See {@link UploadHooksLoader}.
+   *
    * @see UploadHooks
    */
-  hooks?: UploadHooks
+  hooks?: UploadHooks | UploadHooksLoader
 }
 
 // ---------------------------------------------------------------------------
@@ -645,6 +650,64 @@ export interface UploadHooks {
 }
 
 /**
+ * A lazy loader for a field's upload hooks — the function form of
+ * `field.upload.hooks`. Returns the `UploadHooks` object, or a module
+ * namespace whose `default` export is the `UploadHooks` object (so
+ * `() => import('./media.hooks.js')` works directly against an
+ * `export default { … } satisfies UploadHooks`).
+ *
+ * Same rationale as {@link CollectionHooksLoader}: upload hooks are declared
+ * on a field *inside the collection schema*, which is **isomorphic** (bundled
+ * into the client admin). `beforeStore` / `afterStore` bodies typically reach
+ * for server-only code — storage SDKs, `sharp`, AV scanners, `node:crypto` —
+ * so declaring them inline drags that graph into the client bundle. The
+ * loader form defers the hooks module behind a dynamic `import()`, keeping it
+ * structurally absent from the client.
+ *
+ * @example
+ * // media.schema.ts — isomorphic, client-safe by construction
+ * {
+ *   name: 'image',
+ *   type: 'image',
+ *   upload: {
+ *     mimeTypes: ['image/*'],
+ *     hooks: () => import('./media.hooks.js'),
+ *   },
+ * }
+ *
+ * // media.hooks.ts — server-only; may import any server-only module freely
+ * export default { afterStore: (ctx) => { … } } satisfies UploadHooks
+ */
+export type UploadHooksLoader = () => Promise<UploadHooks | { default: UploadHooks }>
+
+const resolvedUploadHooksCache = new WeakMap<UploadHooksLoader, UploadHooks>()
+
+/**
+ * Resolve a field's `upload.hooks` to a concrete `UploadHooks` object.
+ *
+ * - The inline-object form (`hooks: { … }`) is returned as-is.
+ * - The loader form (`hooks: () => import('./media.hooks.js')`) is invoked
+ *   once and its result (unwrapping a module `default` export) memoized,
+ *   keyed on the loader's function identity. The upload pipeline resolves
+ *   through here, so a loader's dynamic `import()` runs at most once per
+ *   process.
+ *
+ * Returns `undefined` when no upload hooks are declared. The counterpart to
+ * {@link resolveHooks} for the field-upload surface.
+ */
+export async function resolveUploadHooks(
+  hooks: UploadHooks | UploadHooksLoader | undefined
+): Promise<UploadHooks | undefined> {
+  if (typeof hooks !== 'function') return hooks
+  const cached = resolvedUploadHooksCache.get(hooks)
+  if (cached) return cached
+  const loaded = await hooks()
+  const resolved = 'default' in loaded ? loaded.default : loaded
+  resolvedUploadHooksCache.set(hooks, resolved)
+  return resolved
+}
+
+/**
  * Context passed to `afterRead` hooks.
  *
  * Fires once per materialised document on every read path that runs through
@@ -824,6 +887,87 @@ export interface CollectionHooks {
   // fields runs each field's pipeline independently.
 }
 
+/**
+ * A lazy loader for a collection's hooks — the function form of
+ * `CollectionDefinition.hooks`. Returns the `CollectionHooks` object, or a
+ * module namespace whose `default` export is the `CollectionHooks` object
+ * (so `() => import('./docs.hooks.js')` works directly against an
+ * `export default { … } satisfies CollectionHooks`).
+ *
+ * Why this exists: a `CollectionDefinition` is **isomorphic** — the same
+ * schema module is bundled into the *client* admin as well as the server.
+ * Any module the schema *statically imports* is dragged into the client
+ * bundle, so a hook body that imports server-only code (cache invalidation,
+ * queue clients, Node built-ins) leaks that entire graph into the browser.
+ * The loader form defers the hooks module behind a dynamic `import()`, so
+ * the hooks module and its server-only graph are *structurally absent* from
+ * the client — no per-call-site SSR guards required.
+ *
+ * @example
+ * // docs.schema.ts — isomorphic, client-safe by construction
+ * export const Docs = defineCollection({
+ *   // …declarative field config…
+ *   hooks: () => import('./docs.hooks.js'),
+ * })
+ *
+ * // docs.hooks.ts — server-only; may import any server-only module freely
+ * import { invalidateDocument } from '@/lib/cache/with-cache'
+ * export default {
+ *   afterCreate: ({ collectionPath, path }) => invalidateDocument(collectionPath, path),
+ * } satisfies CollectionHooks
+ */
+export type CollectionHooksLoader = () => Promise<CollectionHooks | { default: CollectionHooks }>
+
+const resolvedHooksCache = new WeakMap<CollectionHooksLoader, CollectionHooks>()
+
+/**
+ * Resolve a collection's `hooks` to a concrete `CollectionHooks` object.
+ *
+ * - The inline-object form (`hooks: { … }`) is returned as-is.
+ * - The loader form (`hooks: () => import('./docs.hooks.js')`) is invoked
+ *   once and its result (unwrapping a module `default` export) memoized,
+ *   keyed on the loader's function identity. Every read/write path resolves
+ *   through here, so a loader's dynamic `import()` runs at most once per
+ *   process regardless of how many documents flow through it.
+ *
+ * Returns `undefined` when no hooks are declared.
+ */
+export async function resolveHooks(
+  definition: CollectionDefinition
+): Promise<CollectionHooks | undefined> {
+  const hooks = definition.hooks
+  if (typeof hooks !== 'function') return hooks
+  const cached = resolvedHooksCache.get(hooks)
+  if (cached) return cached
+  const loaded = await hooks()
+  const resolved = 'default' in loaded ? loaded.default : loaded
+  resolvedHooksCache.set(hooks, resolved)
+  return resolved
+}
+
+/**
+ * Type-safe factory for authoring a collection's hooks in a separate
+ * module (the loader form: `hooks: () => import('./docs.hooks.js')`).
+ * Returns the object as-is — the counterpart to `defineCollection` /
+ * `defineBlock` for the sibling hooks file.
+ *
+ * Note: hook contexts currently type `data` as `Record<string, any>`, so
+ * this provides the same checking as `satisfies CollectionHooks` (a named
+ * factory + a stable place to hang docs), not per-collection field-data
+ * narrowing. Threading `CollectionFieldData<C>` into hook contexts is a
+ * separate future enhancement; when it lands it can be added here without
+ * authors changing call sites.
+ *
+ * @example
+ * // docs.hooks.ts
+ * export default defineHooks({
+ *   afterCreate: ({ collectionPath, path }) => invalidateDocument(collectionPath, path),
+ * })
+ */
+export function defineHooks(hooks: CollectionHooks): CollectionHooks {
+  return hooks
+}
+
 export interface CollectionDefinition {
   labels: {
     singular: string
@@ -833,8 +977,17 @@ export interface CollectionDefinition {
   fields: Field[]
   /** Sequential workflow configuration. Falls back to DEFAULT_WORKFLOW if omitted. */
   workflow?: WorkflowConfig
-  /** Lifecycle hooks for server-side document operations. */
-  hooks?: CollectionHooks
+  /**
+   * Lifecycle hooks for server-side document operations.
+   *
+   * Two forms:
+   * - **Inline** (`hooks: { afterCreate, … }`) — valid for hooks whose
+   *   bodies only touch isomorphic / declarative code.
+   * - **Loader** (`hooks: () => import('./docs.hooks.js')`) — defers the
+   *   hooks module behind a dynamic `import()` so server-only code never
+   *   enters the client bundle. See {@link CollectionHooksLoader}.
+   */
+  hooks?: CollectionHooks | CollectionHooksLoader
   /**
    * Configures which text fields are searched when the admin list view's
    * search box is used. Only `store_text` fields are supported for now.
