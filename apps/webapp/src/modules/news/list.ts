@@ -7,25 +7,15 @@
  */
 
 /**
- * Public News list server fn.
- *
- * Reads the `news` collection through the shared *viewer* `BylineClient`,
- * which behaves as the public client by default and transparently
- * upgrades to the admin actor when the `byline_preview` cookie is set
- * **and** a valid admin session resolves. `isPreviewActive()` performs
- * the same paired check and decides whether this read passes
- * `status: 'any'` (admin sees drafts) or `status: 'published'` (everyone
- * else). The optional `category` input is matched against the related
- * news-category's `path` slug.
+ * Public News list server fn — the TanStack Start boundary only. The actual
+ * read (Byline viewer SDK) lives in `./list.server`, loaded with a dynamic
+ * `import()` inside the handler so the server-only SDK never enters the client
+ * bundle. See `../pages/detail` for the full rationale.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import type { FindResult, WithPopulated } from '@byline/client'
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
 import type { MediaFields } from '~/collections/media/schema.js'
 import type { NewsFields } from '~/collections/news/schema.js'
@@ -39,7 +29,7 @@ import { publicCacheMiddleware } from '@/middleware/public-cache'
  * shape (`RelatedDocumentValue`); `WithPopulated` overlays the populated
  * envelope so dot-notation through `.document.fields.x` is fully checked.
  */
-type NewsListFields = WithPopulated<
+export type NewsListFields = WithPopulated<
   WithPopulated<NewsFields, 'category', NewsCategoryFields>,
   'featureImage',
   MediaFields
@@ -54,7 +44,7 @@ export interface NewsListInput {
   lng?: string
 }
 
-interface ResolvedNewsListInput {
+export interface ResolvedNewsListInput {
   category: string | undefined
   page: number
   pageSize: number
@@ -72,17 +62,6 @@ export const getNewsListFn = createServerFn({ method: 'GET' })
     })
   )
   .handler(async (ctx): Promise<NewsListResult> => {
-    const data = ctx.data as ResolvedNewsListInput
-    const client = getViewerBylineClient()
-    const preview = await isPreviewActive()
-
-    return client.collection('news').find<NewsListFields>({
-      where: data.category ? { category: { path: data.category } } : undefined,
-      sort: { publishedOn: 'desc' },
-      populate: { category: '*', featureImage: '*' },
-      page: data.page,
-      pageSize: data.pageSize,
-      locale: data.lng,
-      status: preview ? 'any' : 'published',
-    })
+    const { getNewsList } = await import('./list.server')
+    return getNewsList(ctx.data as ResolvedNewsListInput)
   })

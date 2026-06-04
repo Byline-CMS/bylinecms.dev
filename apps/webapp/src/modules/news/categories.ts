@@ -7,21 +7,15 @@
  */
 
 /**
- * Public News Categories list server fn.
- *
- * Reads the `news-categories` collection through the shared *viewer*
- * `BylineClient`, mirroring the preview-aware status handling used by
- * `./list.ts`. Used to populate the category filter Select on the public
- * news index page.
+ * Public News Categories list server fn — the TanStack Start boundary only.
+ * The actual read (Byline viewer SDK) lives in `./categories.server`, loaded
+ * with a dynamic `import()` inside the handler so the server-only SDK never
+ * enters the client bundle. See `../pages/detail` for the full rationale.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import type { FindResult } from '@byline/client'
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
 import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
 
@@ -38,14 +32,6 @@ export const getNewsCategoriesFn = createServerFn({ method: 'GET' })
     })
   )
   .handler(async (ctx): Promise<NewsCategoriesListResult> => {
-    const { lng } = ctx.data as NewsCategoriesListInput
-    const client = getViewerBylineClient()
-    const preview = await isPreviewActive()
-
-    return client.collection('news-categories').find<NewsCategoryFields>({
-      sort: { name: 'asc' },
-      pageSize: 200,
-      locale: lng,
-      status: preview ? 'any' : 'published',
-    })
+    const { getNewsCategories } = await import('./categories.server')
+    return getNewsCategories(ctx.data as NewsCategoriesListInput)
   })

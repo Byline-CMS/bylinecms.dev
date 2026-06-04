@@ -78,6 +78,10 @@ The eager single point **is** possible without breaking slot components' context
 
 Each entry names the trigger that would move it into Next. No work happens until the trigger fires.
 
+### Framework guard for server-only code in collection hooks
+
+**Trigger:** a third app hits the leak, or the shim discipline proves too easy to forget. A collection schema is isomorphic (bundled into the client admin), but `hooks` may reference server-only modules — and a static import of one drags it into the client bundle (today's mitigation is a client-safe, SSR-gated shim, applied by hand). Core could make this safe by construction: a first-class lazy-loader form of `hooks` (`hooks: () => import('./x.hooks')`, resolved once server-side in `document-lifecycle`), and/or a build-time `server-only` poison that fails loudly when a schema's client graph reaches it. See [COLLECTIONS.md → Hooks must not statically import server-only code](./COLLECTIONS.md#hooks-must-not-statically-import-server-only-code). Lives in `@byline/core` (`bylinecms.dev`), not this app.
+
 ### Stable HTTP API transport
 
 **Trigger:** first non-admin client arrives (mobile, desktop, third-party). Today every read/write goes through TanStack Start server fns inside the admin webapp; no stable HTTP shape is published. Designed across the full surface area at that point, not just one verb. See [ROUTING-API.md](./ROUTING-API.md) and the deferral note in `CLAUDE.md`.

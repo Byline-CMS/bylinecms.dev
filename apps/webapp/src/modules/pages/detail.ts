@@ -7,28 +7,33 @@
  */
 
 /**
- * Public Page detail server fn.
+ * Public Page detail server fn — the TanStack Start boundary only.
  *
- * Reads through the shared *viewer* `BylineClient` so unpublished versions
- * stay invisible for ordinary visitors but become visible to admins who
- * have toggled preview mode (cookie + valid admin session). Populates
- * `featureImage` so the page renders without a follow-up request.
+ * The actual read (Byline viewer SDK) lives in `./detail.server` and is loaded
+ * with a dynamic `import()` *inside* the handler. This split is deliberate:
+ *
+ *   A `createServerFn` module is imported by the **client** too — the client
+ *   needs the typed RPC stub to call the fn. The Start compiler strips the
+ *   `.handler()` *body* from the client build but keeps every top-level
+ *   `import`. So any server-only module reached by a *static* import from this
+ *   file is dragged into the browser bundle — here, the Byline viewer SDK.
+ *   Loading the impl through a handler-local dynamic import keeps the SDK
+ *   reachable only from the server build.
+ *
+ * Keep this file's static imports client-safe: `createServerFn`, the
+ * (client-safe) middleware, and `import type` only.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import type { ClientDocument, WithPopulated } from '@byline/client'
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
 import type { MediaFields } from '~/collections/media/schema.js'
 import type { PageFields } from '~/collections/pages/schema.js'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 
-type PageDetailFields = WithPopulated<PageFields, 'featureImage', MediaFields>
+export type PageDetailFields = WithPopulated<PageFields, 'featureImage', MediaFields>
 
 export type PageDetailResult = ClientDocument<PageDetailFields> | null
 
@@ -46,13 +51,6 @@ export const getPageDetailFn = createServerFn({ method: 'GET' })
     })
   )
   .handler(async (ctx): Promise<PageDetailResult> => {
-    const { path, lng } = ctx.data as PageDetailInput
-    const client = getViewerBylineClient()
-    const preview = await isPreviewActive()
-
-    return client.collection('pages').findByPath<PageDetailFields>(path, {
-      populate: { featureImage: '*', photo: '*' },
-      locale: lng,
-      status: preview ? 'any' : 'published',
-    })
+    const { getPageDetail } = await import('./detail.server')
+    return getPageDetail(ctx.data as PageDetailInput)
   })

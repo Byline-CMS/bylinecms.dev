@@ -7,22 +7,15 @@
  */
 
 /**
- * Public News detail server fn.
- *
- * Mirrors the list-side patterns in `./list.ts`: reads through the
- * shared *viewer* `BylineClient` so unpublished versions stay invisible
- * for ordinary visitors but become visible to admins who have toggled
- * preview mode (cookie + valid admin session). Populates `category` +
- * `featureImage` so the page renders without a follow-up request.
+ * Public News detail server fn — the TanStack Start boundary only. The actual
+ * read (Byline viewer SDK) lives in `./detail.server`, loaded with a dynamic
+ * `import()` inside the handler so the server-only SDK never enters the client
+ * bundle. See `../pages/detail` for the full rationale.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import type { ClientDocument, WithPopulated } from '@byline/client'
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
 import type { MediaFields } from '~/collections/media/schema.js'
 import type { NewsFields } from '~/collections/news/schema.js'
@@ -30,7 +23,7 @@ import type { NewsCategoryFields } from '~/collections/news-categories/schema.js
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 
-type NewsDetailFields = WithPopulated<
+export type NewsDetailFields = WithPopulated<
   WithPopulated<NewsFields, 'category', NewsCategoryFields>,
   'featureImage',
   MediaFields
@@ -52,13 +45,6 @@ export const getNewsDetailFn = createServerFn({ method: 'GET' })
     })
   )
   .handler(async (ctx): Promise<NewsDetailResult> => {
-    const { path, lng } = ctx.data as NewsDetailInput
-    const client = getViewerBylineClient()
-    const preview = await isPreviewActive()
-
-    return client.collection('news').findByPath<NewsDetailFields>(path, {
-      populate: { category: '*', featureImage: '*' },
-      locale: lng,
-      status: preview ? 'any' : 'published',
-    })
+    const { getNewsDetail } = await import('./detail.server')
+    return getNewsDetail(ctx.data as NewsDetailInput)
   })

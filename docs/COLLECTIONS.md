@@ -288,6 +288,8 @@ What you cannot do *yet*: ask the server to render that document against the his
 A collection lives in two files:
 
 - **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data: `path`, `labels`, `fields[]`, `useAsTitle`, `useAsPath`, `workflow`, `hooks`, `search`, `showStats`, `linksInEditor`, `orderable`, `version`. **Must be tsx-loadable** — the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
+
+  The schema is **isomorphic** — the same module is *also* pulled into the **client** admin bundle (the admin shell reads field config from it). So the constraint runs both ways: just as a schema must avoid browser-only globals (so the server bootstrap can load it), it must avoid **server-only** modules (so the client can bundle it without dragging Node built-ins or backend code into the browser). Declarative field data satisfies both directions for free. The **one exception is `hooks`** — their bodies run server-side only, but they are *referenced* from this client-bundled module, which makes them the single place server-only code can leak into the client. See [Hooks must not statically import server-only code](#hooks-must-not-statically-import-server-only-code).
 - **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: `columns`, `picker`, `tabSets` / `rows` / `groups` / `layout`, `preview.url`, `listView`, `fields{}` (per-field admin), `group`. React, CSS modules, and Vite-managed imports are all fine.
 
 The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides — the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `slug` from `schema.path` automatically). See [FIELDS.md](./FIELDS.md) for the equivalent split at the field level.
@@ -543,6 +545,33 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 **`afterRead`** runs once per materialised document on every read path that flows through `@byline/client` or `populateDocuments`. Can mutate `ctx.doc.fields` in place; mutations propagate through the response. Fires after populate on the source document, so hooks see the fully populated tree. Hooks that perform their own reads should thread `ctx.readContext` through to preserve the visited set and read budget (A→B→A safety).
 
 Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's `upload` block — not on the collection — because they are field-scoped and field-aware. A collection with multiple image/file fields runs each field's pipeline independently.
+
+#### Hooks must not statically import server-only code
+
+Hooks are the one place a schema reaches server-only behaviour, and — because the schema is [isomorphic](#the-schema--admin-split) — they are also the one place server-only code can leak into the **client** bundle. The hook *bodies* never execute in the browser, but they are referenced from a client-bundled module, so the bundler keeps whatever they **statically import** at the top of the schema file. That pulls the entire transitive graph of those imports into the client.
+
+The failure is asymmetric, which makes it easy to miss: **production** tree-shakes the unused hook bodies, so the leaked graph often disappears and the build looks clean; **dev** (Vite) does not tree-shake, so the module is evaluated in the browser, and a Node built-in anywhere in that graph throws at runtime — `Module "node:…" has been externalized for browser compatibility.`
+
+**The rule:** a hook may *call* server-only code, but the schema file must never *statically import* it. Defer it behind a **client-safe, SSR-gated shim** that the schema imports by name — the shim's only static import is `import type`, and the real module loads behind an SSR guard, so it never enters the schema's static graph:
+
+```ts
+// cache/invalidate-deferred.ts — client-safe; statically imports only types
+import type { InvalidateDocumentOptions } from './with-cache'
+
+export async function invalidateDocument(path: string, opts?: InvalidateDocumentOptions) {
+  if (!import.meta.env.SSR) return            // dead-code-eliminated on the client
+  await (await import('./with-cache')).invalidateDocument(path, opts)
+}
+```
+
+```ts
+// schema.ts — hook body unchanged; the import no longer reaches server-only code
+import { invalidateDocument } from '@/cache/invalidate-deferred'
+```
+
+Verify in **dev, not just `build`** — `build` tree-shaking masks the leak. If a server-only dependency appears in the client module graph, it is a schema-authoring bug, not a bundler-config problem.
+
+> The framework could make this safer by construction — e.g. a first-class lazy-loader form of `hooks`, or a build-time `server-only` poison that fails loudly when a schema's client graph reaches it. See the tracking note in [TODO.md](./TODO.md).
 
 ### Orderable collections
 

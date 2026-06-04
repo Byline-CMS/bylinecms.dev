@@ -7,32 +7,21 @@
  */
 
 /**
- * Public Docs list server fn.
- *
- * Returns published docs ordered by the collection's fractional-index
- * `orderKey` ascending (matches `orderable: true` semantics on the
- * `Docs` schema). Routes through the shared *viewer* `BylineClient` so
- * preview mode surfaces unpublished versions for signed-in admins.
- *
- * Narrow projection — only `title` is selected (id/path/status/timestamps
- * are always present on ClientDocument). This keeps the docs table-of-
- * contents payload tiny; the index and `$path` routes fetch the full
- * document via `getDocDetailFn` for the body render.
+ * Public Docs list server fn — the TanStack Start boundary only. The actual
+ * read (Byline viewer SDK) lives in `./list.server`, loaded with a dynamic
+ * `import()` inside the handler so the server-only SDK never enters the client
+ * bundle. See `../pages/detail` for the full rationale.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import type { ClientDocument, FindResult } from '@byline/client'
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
 import type { DocFields } from '~/collections/docs/schema.js'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 
-type DocListFields = Pick<DocFields, 'title' | 'summary'>
+export type DocListFields = Pick<DocFields, 'title' | 'summary'>
 
 export type DocListItem = ClientDocument<DocListFields>
 export type DocListResult = FindResult<DocListFields>
@@ -49,15 +38,6 @@ export const getDocsListFn = createServerFn({ method: 'GET' })
     })
   )
   .handler(async (ctx): Promise<DocListResult> => {
-    const { lng } = ctx.data as DocListInput
-    const client = getViewerBylineClient()
-    const preview = await isPreviewActive()
-
-    return client.collection('docs').find<DocListFields>({
-      select: ['title', 'summary'],
-      locale: lng,
-      status: preview ? 'any' : 'published',
-      sort: { orderKey: 'asc' },
-      pageSize: 10_000,
-    })
+    const { getDocsList } = await import('./list.server')
+    return getDocsList(ctx.data as DocListInput)
   })
