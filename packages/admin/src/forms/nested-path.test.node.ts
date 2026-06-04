@@ -1,0 +1,85 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+import { describe, expect, it } from 'vitest'
+
+import { get, set, toPath } from './nested-path'
+
+describe('toPath', () => {
+  it('parses dot and bracket notation', () => {
+    expect(toPath('title')).toEqual(['title'])
+    expect(toPath('a.b.c')).toEqual(['a', 'b', 'c'])
+    expect(toPath('items[0].title')).toEqual(['items', '0', 'title'])
+    expect(toPath('blocks[2].nested[1].field')).toEqual(['blocks', '2', 'nested', '1', 'field'])
+  })
+})
+
+describe('get', () => {
+  const obj = { a: { b: 1, zero: 0, empty: '' }, items: [{ title: 'x' }, { title: 'y' }] }
+
+  it('reads nested, array, and mixed paths', () => {
+    expect(get(obj, 'a.b')).toBe(1)
+    expect(get(obj, 'items[0].title')).toBe('x')
+    expect(get(obj, 'items[1].title')).toBe('y')
+  })
+
+  it('preserves falsy values (does not conflate with missing)', () => {
+    expect(get(obj, 'a.zero')).toBe(0)
+    expect(get(obj, 'a.empty')).toBe('')
+  })
+
+  it('returns undefined for missing paths or nullish roots', () => {
+    expect(get(obj, 'a.x')).toBeUndefined()
+    expect(get(obj, 'missing.deep.path')).toBeUndefined()
+    expect(get(obj, 'items[5].title')).toBeUndefined()
+    expect(get(null, 'a.b')).toBeUndefined()
+    expect(get(undefined, 'a.b')).toBeUndefined()
+  })
+})
+
+describe('set', () => {
+  it('sets simple and nested values, creating intermediate objects', () => {
+    const o: any = {}
+    set(o, 'a.b.c', 1)
+    expect(o).toEqual({ a: { b: { c: 1 } } })
+  })
+
+  it('creates arrays for numeric index segments', () => {
+    const o: any = {}
+    set(o, 'items[0].title', 'x')
+    expect(Array.isArray(o.items)).toBe(true)
+    expect(o.items[0]).toEqual({ title: 'x' })
+  })
+
+  it('handles deep, mixed array/object paths', () => {
+    const o: any = {}
+    set(o, 'blocks[1].nested[0].field', 42)
+    expect(Array.isArray(o.blocks)).toBe(true)
+    expect(Array.isArray(o.blocks[1].nested)).toBe(true)
+    expect(o.blocks[1].nested[0].field).toBe(42)
+  })
+
+  it('overwrites existing values and preserves siblings', () => {
+    const o: any = { a: { b: 1, keep: 2 } }
+    set(o, 'a.b', 9)
+    expect(o).toEqual({ a: { b: 9, keep: 2 } })
+  })
+
+  it('writes into a pre-existing array element without clobbering the array', () => {
+    const o: any = { items: [{ title: 'x' }, { title: 'y' }] }
+    set(o, 'items[1].title', 'z')
+    expect(o.items[1].title).toBe('z')
+    expect(o.items[0].title).toBe('x')
+    expect(Array.isArray(o.items)).toBe(true)
+  })
+
+  it('returns the mutated root', () => {
+    const o: any = {}
+    expect(set(o, 'x', 1)).toBe(o)
+  })
+})

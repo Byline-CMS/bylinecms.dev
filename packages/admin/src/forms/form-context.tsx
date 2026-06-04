@@ -14,7 +14,12 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { Field, FieldBeforeChangeResult, FieldHookContext } from '@byline/core'
 import { normalizeHooks } from '@byline/core'
 import type { DocumentPatch, FieldSetPatch } from '@byline/core/patches'
-import { get as getNestedValue, set as setNestedValue } from 'lodash-es'
+
+// Vendored nested get/set (see ./nested-path) — removes the lodash-es dep
+// outright. A bare `from 'lodash-es'` import otherwise pools into a single
+// ~85KB chunk that leaks onto the public frontend bundle (form-context is
+// reachable from the layout graph).
+import { get as getNestedValue, set as setNestedValue } from './nested-path'
 
 interface FormError {
   field: string

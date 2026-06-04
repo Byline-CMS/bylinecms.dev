@@ -46,17 +46,22 @@ function loadEditorBundle(): Promise<EditorBundle> {
   // the factory more than once would otherwise create parallel promises.
   if (!editorBundlePromise) {
     editorBundlePromise = (async () => {
-      const [richtextMod, defaultMod, extensionsMod, lodashMod] = await Promise.all([
+      const [richtextMod, defaultMod, extensionsMod, cloneDeepMod] = await Promise.all([
         import('./richtext-field'),
         import('./field/config/default'),
         import('./field/config/default-extensions'),
-        import('lodash-es'),
+        // Use the in-package cloneDeep rather than pulling the whole lodash-es
+        // namespace (a dynamic `import('lodash-es')` defeats tree-shaking and
+        // emits a ~85KB chunk shared onto unrelated bundles). The local util
+        // also preserves functions/classes by reference — `structuredClone`
+        // would throw on the Lexical node classes in the config.
+        import('./field/utils/cloneDeep'),
       ])
       return {
         RichTextField: richtextMod.RichTextField,
         defaultEditorConfig: defaultMod.defaultEditorConfig,
         defaultExtensionsList: extensionsMod.defaultExtensionsList,
-        cloneDeep: lodashMod.cloneDeep,
+        cloneDeep: cloneDeepMod.cloneDeep,
       }
     })()
   }

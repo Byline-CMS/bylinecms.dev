@@ -265,9 +265,6 @@ importers:
       jose:
         specifier: ^6.2.3
         version: 6.2.3
-      lodash-es:
-        specifier: ^4.18.1
-        version: 4.18.1
       react-diff-viewer-continued:
         specifier: ^4.2.2
         version: 4.2.2(@types/react@19.2.15)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -290,9 +287,6 @@ importers:
       '@rslib/core':
         specifier: ^0.21.5
         version: 0.21.5(typescript@6.0.3)
-      '@types/lodash-es':
-        specifier: ^4.17.12
-        version: 4.17.12
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
@@ -913,9 +907,6 @@ importers:
       lexical:
         specifier: 0.44.0
         version: 0.44.0
-      lodash-es:
-        specifier: ^4.18.1
-        version: 4.18.1
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
@@ -935,12 +926,6 @@ importers:
       '@rslib/core':
         specifier: ^0.21.5
         version: 0.21.5(typescript@6.0.3)
-      '@types/lodash':
-        specifier: ^4.17.24
-        version: 4.17.24
-      '@types/lodash-es':
-        specifier: ^4.17.12
-        version: 4.17.12
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
@@ -3465,12 +3450,6 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
-  '@types/lodash-es@4.17.12':
-    resolution: {integrity: sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ==}
-
-  '@types/lodash@4.17.24':
-    resolution: {integrity: sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ==}
-
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
@@ -5069,9 +5048,6 @@ packages:
   locate-path@5.0.0:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
     engines: {node: '>=8'}
-
-  lodash-es@4.18.1:
-    resolution: {integrity: sha512-J8xewKD/Gk22OZbhpOVSwcs60zhd95ESDwezOFuA3/099925PdHJ7OFHNTGtajL3AlZkykD32HykiMo+BIBI8A==}
 
   lodash.camelcase@4.3.0:
     resolution: {integrity: sha512-TwuEnCnxbc3rAvhf/LbG7tJUDzhqXyFnv3dtzLOPgCG/hODL7WFnsbwktkD7yUV0RrreP/l1PALq/YSg6VvjlA==}
@@ -9067,12 +9043,6 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
-  '@types/lodash-es@4.17.12':
-    dependencies:
-      '@types/lodash': 4.17.24
-
-  '@types/lodash@4.17.24': {}
-
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
@@ -10662,8 +10632,6 @@ snapshots:
   locate-path@5.0.0:
     dependencies:
       p-locate: 4.1.0
-
-  lodash-es@4.18.1: {}
 
   lodash.camelcase@4.3.0: {}
 
