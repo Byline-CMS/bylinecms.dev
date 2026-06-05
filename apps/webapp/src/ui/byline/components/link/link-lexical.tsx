@@ -134,13 +134,20 @@ function getHref(args: LinkAttributes): string {
   }
 
   if (!isLocalHref(href)) {
-    try {
-      const objectURL = new URL(href)
-      if (objectURL.origin === publicWebsiteUrl) {
-        href = objectURL.href.replace(publicWebsiteUrl, '')
+    // `new URL(href)` needs an ABSOLUTE URL (with a scheme); a relative custom
+    // href like `../foo` or `foo/bar` would throw "Invalid URL". Only attempt
+    // to normalise absolute URLs — relative / scheme-less hrefs are left as
+    // authored and rendered verbatim, rather than throwing and spamming the
+    // console. (`mailto:` / `tel:` never reach here — `isLocalHref` claims them.)
+    if (/^[a-z][a-z\d+.-]*:/i.test(href)) {
+      try {
+        const objectURL = new URL(href)
+        if (objectURL.origin === publicWebsiteUrl) {
+          href = objectURL.href.replace(publicWebsiteUrl, '')
+        }
+      } catch (e) {
+        console.error(`Failed to format url: ${href}`, e) // eslint-disable-line no-console
       }
-    } catch (e) {
-      console.error(`Failed to format url: ${href}`, e) // eslint-disable-line no-console
     }
   }
 
