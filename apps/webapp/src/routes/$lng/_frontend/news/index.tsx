@@ -11,7 +11,7 @@ import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-ro
 import { Container, Section } from '@byline/ui/react'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
-import { toInterfaceLocale } from '@/i18n/i18n-config'
+import { resolveInterfaceLocale } from '@/i18n/resolve-interface-locale-fn'
 import { createTranslator } from '@/i18n/translations'
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { getNewsCategoriesFn } from '@/modules/news/categories'
@@ -31,11 +31,14 @@ export const Route = createFileRoute('/$lng/_frontend/news/')({
   loader: async ({ context, deps: { category } }) => {
     const lng = context.locale
     // Localized <title> resolved server-side — see docs/index.tsx for why
-    // the title is computed in the loader rather than in head().
+    // the title is computed in the loader rather than in head(). Content
+    // (news list / categories) keys off the URL locale; the chrome title
+    // keys off the resolved interface locale.
+    const interfaceLocale = await resolveInterfaceLocale(lng)
     const [result, categories, { t }] = await Promise.all([
       getNewsListFn({ data: { lng, category } }),
       getNewsCategoriesFn({ data: { lng } }),
-      createTranslator(toInterfaceLocale(lng), 'frontend'),
+      createTranslator(interfaceLocale, 'frontend'),
     ])
     return { result, lng, categories, title: t('navNews') }
   },

@@ -12,10 +12,11 @@ import { Container, Section } from '@byline/ui/react'
 
 // `lng` here is the URL's *content* locale (a routable locale — interface ∪
 // content), used to fetch the document in that locale and build the page's
-// canonical. Chrome + body-link building use `toInterfaceLocale(lng)` so
-// generic navigation reverts to the interface locale instead of going sticky.
+// canonical. Chrome + body-link building use the resolved interface locale
+// (`useInterfaceLocale()`) so generic navigation reverts to the visitor's
+// interface locale instead of going sticky on a content-only prefix.
 import { useTranslations } from '@/i18n/client/translations-provider'
-import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
+import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import {
   getMeta,
@@ -26,6 +27,7 @@ import { NewsDetail } from '@/modules/news/components/detail'
 import { getNewsDetailFn, type NewsDetailResult } from '@/modules/news/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
+import type { RoutableLocale } from '@/i18n/i18n-config'
 
 // See `../$path.tsx` for notes on why this cast is needed.
 type RouteLoaderData = { result: NonNullable<NewsDetailResult>; lng: RoutableLocale }
@@ -76,8 +78,9 @@ export const Route = createFileRoute('/$lng/_frontend/news/$path')({
 })
 
 function RouteComponent() {
-  const { result, lng } = Route.useLoaderData() as RouteLoaderData
+  const { result } = Route.useLoaderData() as RouteLoaderData
   const { t } = useTranslations('frontend')
+  const interfaceLocale = useInterfaceLocale()
   const title = result.fields.title ?? result.path ?? result.id
 
   return (
@@ -101,7 +104,7 @@ function RouteComponent() {
       </Section>
       <Section>
         <Container>
-          <NewsDetail result={result} lng={toInterfaceLocale(lng)} />
+          <NewsDetail result={result} lng={interfaceLocale} />
         </Container>
       </Section>
     </>

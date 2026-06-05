@@ -11,7 +11,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { Container, Section } from '@byline/ui/react'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
-import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
+import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import {
   getMeta,
@@ -22,6 +22,7 @@ import { DocDetail } from '@/modules/docs/components/detail'
 import { type DocDetailResult, getDocDetailFn } from '@/modules/docs/detail'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
+import type { RoutableLocale } from '@/i18n/i18n-config'
 
 // See `_frontend/$path.tsx` for notes on why this cast is needed.
 type RouteLoaderData = { result: NonNullable<DocDetailResult>; lng: RoutableLocale }
@@ -66,8 +67,9 @@ export const Route = createFileRoute('/$lng/_frontend/docs/$path')({
 })
 
 function RouteComponent() {
-  const { result, lng } = Route.useLoaderData() as RouteLoaderData
+  const { result } = Route.useLoaderData() as RouteLoaderData
   const { t } = useTranslations('frontend')
+  const interfaceLocale = useInterfaceLocale()
   const title = result.fields.title ?? result.path ?? result.id
 
   return (
@@ -87,7 +89,7 @@ function RouteComponent() {
       />
       <Section>
         <Container>
-          <DocDetail result={result} lng={toInterfaceLocale(lng)} />
+          <DocDetail result={result} lng={interfaceLocale} />
         </Container>
       </Section>
     </>

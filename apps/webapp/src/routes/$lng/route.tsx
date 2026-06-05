@@ -27,7 +27,8 @@
 import { createFileRoute, notFound, Outlet } from '@tanstack/react-router'
 
 import { TranslationsProvider } from '@/i18n/client/translations-provider'
-import { isRoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
+import { isRoutableLocale } from '@/i18n/i18n-config'
+import { resolveInterfaceLocale } from '@/i18n/resolve-interface-locale-fn'
 import { getTranslations } from '@/i18n/translations'
 import { RouteProgressBar } from '@/ui/components/route-progress-bar'
 
@@ -44,17 +45,20 @@ export const Route = createFileRoute('/$lng')({
     },
     stringify: ({ lng }) => ({ lng }),
   },
-  // `context.locale` is the URL's locale (may be a content-only locale).
-  // It drives content fetching + meta downstream; chrome uses the
-  // interface fallback in the loader below.
-  beforeLoad: ({ params }) => ({
-    locale: params.lng,
-  }),
+  // `context.locale` is the URL's locale (may be a content-only locale); it
+  // drives content fetching + meta downstream.
+  beforeLoad: ({ params }) => ({ locale: params.lng }),
+  // The resolved CHROME locale: the URL locale when it's an interface locale,
+  // else the visitor's last-known / detected interface locale (cookie →
+  // Accept-Language → default). Resolved in the loader — NOT beforeLoad — so it
+  // is `staleTime`-cached rather than re-running on every navigation and every
+  // `intent` preload. Interface-locale URLs resolve synchronously (no RPC);
+  // only content-only locales call the server fn. Returned in loader data for
+  // `useInterfaceLocale` to read.
   loader: async ({ context }) => {
-    // Chrome bundle keys off the interface locale — a content-only locale
-    // (e.g. `fr`) has no frontend UI translations and falls back to the default.
-    const translations = await getTranslations(toInterfaceLocale(context.locale))
-    return { translations }
+    const interfaceLocale = await resolveInterfaceLocale(context.locale)
+    const translations = await getTranslations(interfaceLocale)
+    return { translations, interfaceLocale }
   },
   component: LocaleLayout,
 })

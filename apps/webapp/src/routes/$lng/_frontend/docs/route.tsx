@@ -10,7 +10,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { Section } from '@byline/ui/react'
 
-import { toInterfaceLocale } from '@/i18n/i18n-config'
+import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { DocsContent } from '@/modules/docs/components/content'
 import { DocsMenuDrawer } from '@/modules/docs/components/menu-drawer'
 import { getDocsListFn } from '@/modules/docs/list'
@@ -30,7 +30,8 @@ export const Route = createFileRoute('/$lng/_frontend/docs')({
 })
 
 function DocsLayout() {
-  const { docs, lng } = Route.useLoaderData()
+  const { docs } = Route.useLoaderData()
+  const interfaceLocale = useInterfaceLocale()
 
   return (
     <>
@@ -38,7 +39,7 @@ function DocsLayout() {
         <DocsBreadcrumbs />
       </Section>
       <div className="flex flex-1 w-full">
-        <DocsMenuDrawer docs={docs} lng={toInterfaceLocale(lng)} />
+        <DocsMenuDrawer docs={docs} lng={interfaceLocale} />
         <DocsContent>
           <Outlet />
         </DocsContent>

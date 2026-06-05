@@ -10,7 +10,7 @@
  * persists the new preference via the setLanguageFn server function.
  */
 
-import { useNavigate, useRouterState } from '@tanstack/react-router'
+import { useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
 
 import {
   i18nConfig,
@@ -65,13 +65,26 @@ export function useLocale(): RoutableLocale {
 }
 
 /**
- * Returns the **interface** locale for the current URL: the path locale if
- * it's an interface locale, otherwise the default. Drives chrome bundles
- * and the default target for generic navigation, so a content-only prefix
- * (`/fr`) reverts to the visitor's interface locale rather than sticking.
+ * Returns the **interface** locale for chrome on the current URL. When the URL
+ * locale is an interface locale it is used directly; when it is a content-only
+ * locale (e.g. `zh-CN`) chrome reverts to the visitor's last-known / detected
+ * interface locale rather than sticking to the content prefix.
+ *
+ * The authoritative value is resolved server-side in the `$lng` layout loader
+ * (`resolveInterfaceLocaleFn`: cookie → Accept-Language → default) and read
+ * here from that route's loader data, so chrome links and the loaded chrome
+ * translation bundle always agree. Falls back to the pure path-derived
+ * `toInterfaceLocale` when the `$lng` match is absent (e.g. an error component
+ * rendered outside the locale layout).
  */
 export function useInterfaceLocale(): Locale {
-  return toInterfaceLocale(useLocale())
+  const pathLocale = useLocale()
+  const resolved = useMatch({
+    from: '/$lng',
+    shouldThrow: false,
+    select: (match) => match.loaderData?.interfaceLocale,
+  })
+  return resolved ?? toInterfaceLocale(pathLocale)
 }
 
 /**
