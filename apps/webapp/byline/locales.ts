@@ -47,4 +47,6 @@ export const contentLocales = [
   { code: 'fr', label: 'Français' },
   { code: 'es', label: 'Español' },
   { code: 'de', label: 'Deutsch' },
+  { code: 'zh-CN', label: '中文' },
+  { code: 'th-TH', label: 'ไทย' },
 ] as const
