@@ -18,7 +18,7 @@ import { DocsList } from '@/modules/docs/components/list'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
-export const Route = createFileRoute('/{-$lng}/_frontend/docs/')({
+export const Route = createFileRoute('/$lng/_frontend/docs/')({
   // Resolve the localized <title> server-side: head() is synchronous and
   // runs outside the React TranslationsProvider, so the title is computed
   // here (context.locale is available) and read back via loaderData.
@@ -39,7 +39,7 @@ export const Route = createFileRoute('/{-$lng}/_frontend/docs/')({
 function RouteComponent() {
   // Read the parent docs layout's loader data directly — single source of
   // truth, no re-fetch, no own loader needed on this index route.
-  const { docs, lng } = useLoaderData({ from: '/{-$lng}/_frontend/docs' })
+  const { docs, lng } = useLoaderData({ from: '/$lng/_frontend/docs' })
   const { t } = useTranslations('frontend')
 
   return (

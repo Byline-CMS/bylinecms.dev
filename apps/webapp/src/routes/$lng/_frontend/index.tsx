@@ -11,9 +11,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { HomeView } from '@/modules/home/home-view'
 
-export const Route = createFileRoute('/{-$lng}/_frontend/')({
+export const Route = createFileRoute('/$lng/_frontend/')({
   // Owns the canonical / og:url for the home page (the root layout
-  // intentionally doesn't emit one). `params.lng` is the optional `{-$lng}`
+  // intentionally doesn't emit one). `params.lng` is the optional `$lng`
   // segment — `buildLocalizedPath` resolves it to `/` for the default locale
   // and `/<lng>` otherwise.
   head: ({ params }) => getMeta({ path: buildLocalizedPath(params.lng) }),

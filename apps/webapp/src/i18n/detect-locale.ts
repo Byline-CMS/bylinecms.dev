@@ -3,7 +3,7 @@
  *
  * Detection priority (mirrors the previous Next.js middleware):
  *   1. Cookie (`lng`)
- *   2. Path parameter (the optional {-$lng} segment)
+ *   2. Path parameter (the `$lng` segment, when supplied by the caller)
  *   3. Accept-Language header negotiation
  *   4. Default locale fallback
  *
@@ -19,7 +19,7 @@ import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 interface DetectLocaleOptions {
   /** The cookie value for the locale (e.g. from getCookie('lng')). */
   cookie?: string | null
-  /** The {-$lng} path param from the URL, if present. */
+  /** The `$lng` path param from the URL, if present. */
   pathLocale?: string | null
   /** The raw Accept-Language header value. */
   acceptLanguage?: string | null

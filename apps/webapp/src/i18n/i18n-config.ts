@@ -27,7 +27,7 @@ export const contentLocales = contentLocaleDefs.map((l) => l.code)
 export type ContentLocale = (typeof contentLocaleDefs)[number]['code']
 
 /**
- * Routable locales = interface ∪ content. The `{-$lng}` matcher resolves
+ * Routable locales = interface ∪ content. The `$lng` matcher resolves
  * any of these, so content-locale deep links (`/fr/news/foo`) work. This
  * is deliberately a *different* set from "advertised" locales (the
  * per-document `availableLocales ∩ _availableVersionLocales` that drive

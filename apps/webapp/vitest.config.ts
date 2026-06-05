@@ -10,6 +10,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // Resolve the `@/*` → `./src/*` tsconfig path alias so tests can use
+    // value imports via `@/` (matching app code). Type-only `@/` imports are
+    // erased at transform and never needed resolution; value imports do.
+    resolve: {
+      tsconfigPaths: true,
+    },
     test: {
       setupFiles: './vitest.setup.node.ts',
       environment: mode === 'node' ? 'node' : 'jsdom',

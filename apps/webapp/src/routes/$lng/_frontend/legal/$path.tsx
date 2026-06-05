@@ -15,9 +15,10 @@ import { Container, Section } from '@byline/ui/react'
 // locales to be determined by the content locales in the CMS, but this is a
 // good starting point for now until we settle on a content locale vs interface
 // locale fallback or detection strategy.
+import { useTranslations } from '@/i18n/client/translations-provider'
 import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
+import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import {
-  buildLocalizedPath,
   getMeta,
   /* metaImageFromUpload, */
   truncateForMeta,
@@ -27,26 +28,18 @@ import { getPageDetailFn, type PageDetailResult } from '@/modules/pages/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
-// Shape of this route's loader return. Used to narrow `loaderData` inside
-// `head()` — TanStack Start's server-fn types currently strip the
-// `ClientDocument<…>` return down to `{}` via `ValidateSerializableInput`,
-// so we cast back to the actual shape we know the loader produces. The same
-// pattern is used implicitly by `RouteComponent` below via
-// `Route.useLoaderData()`.
+// See `../$path.tsx` for notes on why this cast is needed.
 type RouteLoaderData = { result: NonNullable<PageDetailResult>; lng: RoutableLocale }
 
-export const Route = createFileRoute('/{-$lng}/_frontend/$path')({
+export const Route = createFileRoute('/$lng/_frontend/legal/$path')({
   loader: async ({ params, context }) => {
     const lng = context.locale
     const result = await getPageDetailFn({ data: { path: params.path, lng } })
     if (result == null) throw notFound()
     return { result, lng }
   },
-  // The `head` function is merged with every other matched route's `head`
-  // (root + layout + leaf). Meta entries are de-duplicated by their
-  // identifying key (`title`, `name`, `property`, `httpEquiv`, `charSet`),
-  // with later entries winning — so anything declared here overrides the
-  // defaults from `__root.tsx`'s `getMeta()` call.
+  // See `../$path.tsx` for notes on how TanStack Router merges and
+  // de-duplicates `head` output across the matched route chain.
   head: ({ loaderData }) => {
     const data = loaderData as RouteLoaderData | undefined
     if (data == null) return {}
@@ -57,18 +50,23 @@ export const Route = createFileRoute('/{-$lng}/_frontend/$path')({
     const description = summary != null && summary.length > 0 ? truncateForMeta(summary) : undefined
 
     // Feature-image extraction — wired up but disabled until media is
-    // served from S3 + a public CDN. Today `storageUrl` is a local
-    // filesystem path that external OG/social scrapers can't fetch, so
-    // we let `getMeta`'s default `/opengraph-image.png` win. Once the
-    // storage adapter is swapped over, uncomment the two lines below and
-    // pass `image` to `getMeta`.
+    // served from S3 + a public CDN. See `../$path.tsx` for full notes.
     // const featureMedia = result.fields.featureImage?.document?.fields
     // const image = metaImageFromUpload(featureMedia?.image, featureMedia?.altText ?? title)
+
+    const { canonical, alternates, xDefaultPath } = resolveAlternates(
+      advertisedLocalesFor(result),
+      lng,
+      'legal',
+      result.path
+    )
 
     return getMeta({
       title,
       description,
-      path: buildLocalizedPath(lng, result.path),
+      path: canonical,
+      alternates,
+      xDefaultPath,
       // image,
       ogType: 'article',
     })
@@ -80,6 +78,7 @@ export const Route = createFileRoute('/{-$lng}/_frontend/$path')({
 
 function RouteComponent() {
   const { result, lng } = Route.useLoaderData() as RouteLoaderData
+  const { t } = useTranslations('frontend')
   const title = result.fields.title ?? result.path ?? result.id
 
   return (
@@ -93,7 +92,12 @@ function RouteComponent() {
       />
       <Section>
         <Container className="mt-3">
-          <Breadcrumbs breadcrumbs={[{ label: title, href: `/${result.path}` }]} />
+          <Breadcrumbs
+            breadcrumbs={[
+              { label: t('legal'), href: `/` },
+              { label: title, href: `/legal/${result.path}` },
+            ]}
+          />
         </Container>
       </Section>
       <PageDetail result={result} lng={toInterfaceLocale(lng)} />

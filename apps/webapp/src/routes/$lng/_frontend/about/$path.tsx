@@ -31,7 +31,7 @@ import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 // See sibling `../$path.tsx` for notes on why this cast is needed.
 type RouteLoaderData = { result: NonNullable<PageDetailResult>; lng: RoutableLocale }
 
-export const Route = createFileRoute('/{-$lng}/_frontend/about/$path')({
+export const Route = createFileRoute('/$lng/_frontend/about/$path')({
   loader: async ({ params, context }) => {
     const lng = context.locale
     const result = await getPageDetailFn({ data: { path: params.path, lng } })

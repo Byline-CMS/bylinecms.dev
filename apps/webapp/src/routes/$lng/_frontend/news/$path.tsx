@@ -10,11 +10,10 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
-// NOTE: This will restrict our retrieved content to front-end interface locales
-// defined in i18nConfig, which is not exactly what we want. We want the available
-// locales to be determined by the content locales in the CMS, but this is a
-// good starting point for now until we settle on a content locale vs interface
-// locale fallback or detection strategy.
+// `lng` here is the URL's *content* locale (a routable locale — interface ∪
+// content), used to fetch the document in that locale and build the page's
+// canonical. Chrome + body-link building use `toInterfaceLocale(lng)` so
+// generic navigation reverts to the interface locale instead of going sticky.
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
@@ -23,18 +22,18 @@ import {
   /* metaImageFromUpload, */
   truncateForMeta,
 } from '@/lib/meta'
-import { PageDetail } from '@/modules/pages/components/detail'
-import { getPageDetailFn, type PageDetailResult } from '@/modules/pages/detail'
+import { NewsDetail } from '@/modules/news/components/detail'
+import { getNewsDetailFn, type NewsDetailResult } from '@/modules/news/detail'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
 // See `../$path.tsx` for notes on why this cast is needed.
-type RouteLoaderData = { result: NonNullable<PageDetailResult>; lng: RoutableLocale }
+type RouteLoaderData = { result: NonNullable<NewsDetailResult>; lng: RoutableLocale }
 
-export const Route = createFileRoute('/{-$lng}/_frontend/legal/$path')({
+export const Route = createFileRoute('/$lng/_frontend/news/$path')({
   loader: async ({ params, context }) => {
     const lng = context.locale
-    const result = await getPageDetailFn({ data: { path: params.path, lng } })
+    const result = await getNewsDetailFn({ data: { path: params.path, lng } })
     if (result == null) throw notFound()
     return { result, lng }
   },
@@ -57,7 +56,7 @@ export const Route = createFileRoute('/{-$lng}/_frontend/legal/$path')({
     const { canonical, alternates, xDefaultPath } = resolveAlternates(
       advertisedLocalesFor(result),
       lng,
-      'legal',
+      'news',
       result.path
     )
 
@@ -87,20 +86,24 @@ function RouteComponent() {
         id="byline-cms-meta"
         className="invisible max-h-0"
         aria-hidden
-        data-collection="pages"
+        data-collection="news"
         data-id={result.id}
       />
       <Section>
         <Container className="mt-3">
           <Breadcrumbs
             breadcrumbs={[
-              { label: t('legal'), href: `/` },
-              { label: title, href: `/legal/${result.path}` },
+              { label: t('navNews'), href: '/news' },
+              { label: title, href: `/news/${result.path}` },
             ]}
           />
         </Container>
       </Section>
-      <PageDetail result={result} lng={toInterfaceLocale(lng)} />
+      <Section>
+        <Container>
+          <NewsDetail result={result} lng={toInterfaceLocale(lng)} />
+        </Container>
+      </Section>
     </>
   )
 }

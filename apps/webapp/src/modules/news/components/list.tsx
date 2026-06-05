@@ -92,7 +92,7 @@ export function NewsList({ result, categories, category, onCategoryChange }: New
             return (
               <Link
                 key={doc.id}
-                to="/{-$lng}/news/$path"
+                to="/$lng/news/$path"
                 params={{ ...lngParam(locale), path: doc.path ?? doc.id }}
                 className="no-underline text-inherit"
               >

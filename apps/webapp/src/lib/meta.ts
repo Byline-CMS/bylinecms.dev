@@ -15,7 +15,7 @@
  * they want to change.
  *
  * Usage:
- *   export const Route = createFileRoute('/{-$lng}/_frontend/about')({
+ *   export const Route = createFileRoute('/$lng/_frontend/about')({
  *     head: () => getMeta({ title: 'About', path: '/about' }),
  *     component: About,
  *   })

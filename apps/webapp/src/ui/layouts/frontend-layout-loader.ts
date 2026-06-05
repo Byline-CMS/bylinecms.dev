@@ -5,10 +5,9 @@
  *
  * Copyright (c) Infonomic Company Limited
  *
- * Shared loader for the public frontend layout. Both the canonical
- * `{-$lng}/_frontend/route.tsx` layout and any future shim layouts (e.g.
- * a literal-locale tree mounted to disambiguate `/<locale>` from the
- * catch-all) call this so the layout's data fetches live in one place.
+ * Shared loader for the public frontend layout. The
+ * `$lng/_frontend/route.tsx` layout calls this so the layout's data
+ * fetches live in one place.
  */
 
 import { resolveRoutes } from '@byline/core'

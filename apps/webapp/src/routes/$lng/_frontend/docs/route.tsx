@@ -18,7 +18,7 @@ import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { useBreadcrumbs } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
-export const Route = createFileRoute('/{-$lng}/_frontend/docs')({
+export const Route = createFileRoute('/$lng/_frontend/docs')({
   loader: async ({ context }) => {
     const lng = context.locale
     const result = await getDocsListFn({ data: { lng } })

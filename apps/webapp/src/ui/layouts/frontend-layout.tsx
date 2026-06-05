@@ -5,9 +5,8 @@
  *
  * Copyright (c) Infonomic Company Limited
  *
- * Reusable public frontend layout. Both the canonical
- * `{-$lng}/_frontend/route.tsx` and any literal-locale shim layouts
- * render this so chrome / providers / data threading stay in one place.
+ * Reusable public frontend layout. The `$lng/_frontend/route.tsx` layout
+ * renders this so chrome / providers / data threading stay in one place.
  */
 
 import type { ReactNode } from 'react'

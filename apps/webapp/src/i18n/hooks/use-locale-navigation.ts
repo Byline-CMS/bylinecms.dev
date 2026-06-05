@@ -2,8 +2,9 @@
  * Locale-aware navigation hook for TanStack Router.
  *
  * Replaces the Next.js useLangNavigation hook. In TanStack Router the locale
- * is an optional path parameter {-$lng}, so navigation works by passing the
- * `lng` param to the router's navigate/Link APIs.
+ * is a required path parameter `$lng`, so navigation works by passing the
+ * `lng` param to the router's navigate/Link APIs. Clean URLs for the default
+ * locale come from the router's `rewrite.output`, not from omitting the param.
  *
  * When the locale changes (differs from the cookie value) the hook also
  * persists the new preference via the setLanguageFn server function.
@@ -43,12 +44,11 @@ export function stripRoutableLocalePrefix(pathname: string): string {
  * drives content rendering, meta, and the per-page content-language
  * affordance's active state.
  *
- * Derived from the first path segment rather than `params.lng` so it
- * works uniformly across both routing trees: the optional-{-$lng}
- * file-based tree (where `lng` is a route param) AND the literal-locale
- * shim routes mounted via `routes.virtual.ts` (where the locale is part
- * of the URL but not a declared param). Falls back to the default
- * locale when the first segment is absent or unrecognised.
+ * Derived from the first path segment rather than `params.lng` so it reads
+ * uniformly regardless of route depth. Post-`rewrite.input`, the router's
+ * internal pathname always carries a locale segment; this still falls back
+ * to the default locale when the first segment is absent or unrecognised
+ * (e.g. a locale-less admin path).
  *
  * For **chrome** (nav links, the language switcher) use
  * `useInterfaceLocale()` instead — generic navigation must revert off a
@@ -78,21 +78,25 @@ export function useInterfaceLocale(): Locale {
  * Returns a locale param object suitable for passing to TanStack Router's
  * `<Link params={...}>` or `navigate({ params: ... })`.
  *
- * For the default locale the param is `undefined` so it produces clean URLs
- * (e.g. `/about` instead of `/en/about`).
+ * `$lng` is a REQUIRED segment, so the param is always set (including the
+ * default locale). Clean URLs for the default locale are produced by the
+ * router's `rewrite.output` (`src/i18n/locale-rewrite.ts`), which strips the
+ * `/en` prefix from generated hrefs — not by omitting the param here.
  */
-export function lngParam(locale: RoutableLocale): { lng: RoutableLocale | undefined } {
-  return { lng: locale === i18nConfig.defaultLocale ? undefined : locale }
+export function lngParam(locale: RoutableLocale): { lng: RoutableLocale } {
+  return { lng: locale }
 }
 
 /**
- * Prepend the optional locale segment to a clean path so it matches the
- * generated TanStack route IDs (e.g. `'/about'` → `'/{-$lng}/about'`).
- * Paths that already have the prefix are returned unchanged.
+ * Prepend the required locale segment to a clean path so it matches the
+ * generated TanStack route IDs (e.g. `'/about'` → `'/$lng/about'`). Paths
+ * that already have the prefix are returned unchanged. The router's
+ * `rewrite.input` re-localises bare paths too, but routing through the typed
+ * `$lng` route id keeps `<Link>`/`navigate` type-safe.
  */
 export function toLocaleRoute(path: string): string {
-  if (path.startsWith('/{-$lng}')) return path
-  return path === '/' ? '/{-$lng}' : `/{-$lng}${path}`
+  if (path.startsWith('/$lng')) return path
+  return path === '/' ? '/$lng' : `/$lng${path}`
 }
 
 interface NavigateOptions {

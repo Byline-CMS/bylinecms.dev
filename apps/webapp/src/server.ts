@@ -20,15 +20,31 @@ import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 
 import { serveUploads } from '@byline/host-tanstack-start/integrations/serve-uploads'
 
-// Runtime mount for `/uploads/*`. The local storage provider writes to
-// `<cwd>/uploads`; `serveUploads` streams that directory back on every
-// request so new uploads appear without a rebuild. See the helper module
-// for why `nitro.publicAssets` cannot be used here. Must match `uploadDir`
-// in `byline/server.config.ts`.
+import { negotiateLocaleRedirect } from '@/i18n/server-locale-redirect'
+
+// The server entry is the lowest app-owned request chokepoint — it runs on
+// the original, un-rewritten request before the router (and therefore before
+// `rewrite.input`). Two jobs here, in order:
+//
+//   1. `/uploads/*` — the local storage provider writes to `<cwd>/uploads`;
+//      `serveUploads` streams that directory back on every request so new
+//      uploads appear without a rebuild. See the helper for why
+//      `nitro.publicAssets` cannot be used. Must match `uploadDir` in
+//      `byline/server.config.ts`.
+//   2. Locale negotiation / canonicalisation — redirect a first-time visitor
+//      to their preferred non-default interface locale, and 301 an
+//      externally-typed `/en/…` to the clean form. This MUST run here rather
+//      than in route middleware: `rewrite.input` prepends the default locale
+//      before route middleware sees the URL, hiding whether it arrived bare.
+//      See `src/i18n/server-locale-redirect.ts`.
 export default createServerEntry({
   async fetch(request) {
     const upload = await serveUploads(request)
     if (upload) return upload
+
+    const localeRedirect = negotiateLocaleRedirect(request)
+    if (localeRedirect) return localeRedirect
+
     return handler.fetch(request)
   },
 })

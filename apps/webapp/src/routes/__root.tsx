@@ -65,9 +65,9 @@ function RootComponent() {
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   // Derive <html lang> from the URL's leading locale segment so any
-  // locale-prefixed URL — interface or content, including the literal
-  // /<lng> home shims (which carry no {-$lng} param) — advertises the
-  // correct language. Falls back to the default locale otherwise.
+  // locale-prefixed URL — interface or content — advertises the correct
+  // language. Post-`rewrite.input` the router's internal pathname always
+  // carries a locale segment; falls back to the default locale otherwise.
   const pathname = useLocation({ select: (loc) => loc.pathname })
   const firstSegment = pathname.split('/')[1] ?? ''
   const lang = isRoutableLocale(firstSegment) ? firstSegment : i18nConfig.defaultLocale

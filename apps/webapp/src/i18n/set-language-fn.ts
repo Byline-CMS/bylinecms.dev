@@ -2,8 +2,8 @@
  * TanStack Start server function for persisting the locale preference.
  *
  * Initial locale detection (cookie + Accept-Language negotiation) lives
- * in `apps/webapp/src/middleware/locale-redirect.ts` and runs at the
- * HTTP middleware layer for the `{-$lng}` route subtree — it is not a
+ * in `apps/webapp/src/i18n/server-locale-redirect.ts` and runs in the
+ * server entry (`src/server.ts`) on the original request — it is not a
  * server function and has no client trampoline.
  */
 

@@ -10,10 +10,6 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
 
-// `lng` here is the URL's *content* locale (a routable locale — interface ∪
-// content), used to fetch the document in that locale and build the page's
-// canonical. Chrome + body-link building use `toInterfaceLocale(lng)` so
-// generic navigation reverts to the interface locale instead of going sticky.
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { type RoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
@@ -22,22 +18,22 @@ import {
   /* metaImageFromUpload, */
   truncateForMeta,
 } from '@/lib/meta'
-import { NewsDetail } from '@/modules/news/components/detail'
-import { getNewsDetailFn, type NewsDetailResult } from '@/modules/news/detail'
-import { Breadcrumbs } from '@/ui/components/breadcrumbs'
+import { DocDetail } from '@/modules/docs/components/detail'
+import { type DocDetailResult, getDocDetailFn } from '@/modules/docs/detail'
+import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 
-// See `../$path.tsx` for notes on why this cast is needed.
-type RouteLoaderData = { result: NonNullable<NewsDetailResult>; lng: RoutableLocale }
+// See `_frontend/$path.tsx` for notes on why this cast is needed.
+type RouteLoaderData = { result: NonNullable<DocDetailResult>; lng: RoutableLocale }
 
-export const Route = createFileRoute('/{-$lng}/_frontend/news/$path')({
+export const Route = createFileRoute('/$lng/_frontend/docs/$path')({
   loader: async ({ params, context }) => {
     const lng = context.locale
-    const result = await getNewsDetailFn({ data: { path: params.path, lng } })
+    const result = await getDocDetailFn({ data: { path: params.path, lng } })
     if (result == null) throw notFound()
     return { result, lng }
   },
-  // See `../$path.tsx` for notes on how TanStack Router merges and
+  // See `_frontend/$path.tsx` for notes on how TanStack Router merges and
   // de-duplicates `head` output across the matched route chain.
   head: ({ loaderData }) => {
     const data = loaderData as RouteLoaderData | undefined
@@ -48,15 +44,10 @@ export const Route = createFileRoute('/{-$lng}/_frontend/news/$path')({
     const summary = result.fields.summary?.trim()
     const description = summary != null && summary.length > 0 ? truncateForMeta(summary) : undefined
 
-    // Feature-image extraction — wired up but disabled until media is
-    // served from S3 + a public CDN. See `../$path.tsx` for full notes.
-    // const featureMedia = result.fields.featureImage?.document?.fields
-    // const image = metaImageFromUpload(featureMedia?.image, featureMedia?.altText ?? title)
-
     const { canonical, alternates, xDefaultPath } = resolveAlternates(
       advertisedLocalesFor(result),
       lng,
-      'news',
+      'docs',
       result.path
     )
 
@@ -66,7 +57,6 @@ export const Route = createFileRoute('/{-$lng}/_frontend/news/$path')({
       path: canonical,
       alternates,
       xDefaultPath,
-      // image,
       ogType: 'article',
     })
   },
@@ -86,22 +76,18 @@ function RouteComponent() {
         id="byline-cms-meta"
         className="invisible max-h-0"
         aria-hidden
-        data-collection="news"
+        data-collection="docs"
         data-id={result.id}
       />
-      <Section>
-        <Container className="mt-3">
-          <Breadcrumbs
-            breadcrumbs={[
-              { label: t('navNews'), href: '/news' },
-              { label: title, href: `/news/${result.path}` },
-            ]}
-          />
-        </Container>
-      </Section>
+      <BreadcrumbsClient
+        breadcrumbs={[
+          { label: t('docsTitle'), href: `/docs` },
+          { label: title, href: `/docs/${result.path}` },
+        ]}
+      />
       <Section>
         <Container>
-          <NewsDetail result={result} lng={toInterfaceLocale(lng)} />
+          <DocDetail result={result} lng={toInterfaceLocale(lng)} />
         </Container>
       </Section>
     </>

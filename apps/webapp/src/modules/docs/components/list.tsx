@@ -53,7 +53,7 @@ function DocCard({ doc, lng }: DocCardProps): React.JSX.Element {
       className={cx('byline-docs-list-card', styles.card)}
       render={
         <Link
-          to="/{-$lng}/docs/$path"
+          to="/$lng/docs/$path"
           params={{ ...lngParam(lng), path: doc.path }}
           aria-label={`Read ${title}`}
         />

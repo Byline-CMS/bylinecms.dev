@@ -8,7 +8,7 @@ import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import { FrontendLayout } from '@/ui/layouts/frontend-layout'
 import { loadFrontendLayoutData } from '@/ui/layouts/frontend-layout-loader'
 
-export const Route = createFileRoute('/{-$lng}/_frontend')({
+export const Route = createFileRoute('/$lng/_frontend')({
   loader: loadFrontendLayoutData,
   server: {
     middleware: [publicCacheMiddleware],

@@ -8,11 +8,22 @@
 
 import { createRouter } from '@tanstack/react-router'
 
+import { localeInputRewrite, localeOutputRewrite } from '@/i18n/locale-rewrite'
 import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
   const router = createRouter({
     routeTree,
+    // Isomorphic locale URL rewrite (runs on both server request-parse and
+    // client navigation). `input` guarantees the matcher always sees a
+    // locale-prefixed frontend URL (the required `$lng` segment); `output`
+    // strips the default locale so the address bar / generated hrefs stay
+    // clean for `en`. Non-default and content-only locales are preserved.
+    // See `src/i18n/locale-rewrite.ts` for the two invariants.
+    rewrite: {
+      input: ({ url }) => localeInputRewrite(url),
+      output: ({ url }) => localeOutputRewrite(url),
+    },
     scrollRestoration: true,
     defaultPreload: 'intent',
     defaultPreloadDelay: 50, // optional, ms before intent fires

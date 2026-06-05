@@ -33,7 +33,7 @@ function MenuItem({ doc, active, compact, lng, onNavigate }: MenuItemProps) {
   return (
     <li className={cx('menu-item', { active, compact })}>
       <Link
-        to="/{-$lng}/docs/$path"
+        to="/$lng/docs/$path"
         params={{ ...lngParam(lng), path: doc.path }}
         onClick={onNavigate}
       >

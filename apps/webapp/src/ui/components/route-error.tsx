@@ -39,7 +39,7 @@ export function RouteNotFound(_props: NotFoundRouteProps) {
           The page or resource you&apos;re looking for could not be found.
         </p>
         <div className="actions flex gap-3 py-2">
-          <Button render={<Link to="/{-$lng}" params={lngParam} />}>Home</Button>
+          <Button render={<Link to="/$lng" params={lngParam} />}>Home</Button>
           <BackButton />
         </div>
       </Container>
@@ -64,7 +64,7 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
           >
             Try again
           </Button>
-          <Button render={<Link to="/{-$lng}" params={lngParam} />}>Home</Button>
+          <Button render={<Link to="/$lng" params={lngParam} />}>Home</Button>
         </div>
       </Container>
     </Section>
