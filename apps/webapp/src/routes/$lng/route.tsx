@@ -27,8 +27,7 @@
 import { createFileRoute, notFound, Outlet } from '@tanstack/react-router'
 
 import { TranslationsProvider } from '@/i18n/client/translations-provider'
-import { isRoutableLocale } from '@/i18n/i18n-config'
-import { resolveInterfaceLocale } from '@/i18n/resolve-interface-locale-fn'
+import { isRoutableLocale, toInterfaceLocale } from '@/i18n/i18n-config'
 import { getTranslations } from '@/i18n/translations'
 import { RouteProgressBar } from '@/ui/components/route-progress-bar'
 
@@ -48,17 +47,15 @@ export const Route = createFileRoute('/$lng')({
   // `context.locale` is the URL's locale (may be a content-only locale); it
   // drives content fetching + meta downstream.
   beforeLoad: ({ params }) => ({ locale: params.lng }),
-  // The resolved CHROME locale: the URL locale when it's an interface locale,
-  // else the visitor's last-known / detected interface locale (cookie →
-  // Accept-Language → default). Resolved in the loader — NOT beforeLoad — so it
-  // is `staleTime`-cached rather than re-running on every navigation and every
-  // `intent` preload. Interface-locale URLs resolve synchronously (no RPC);
-  // only content-only locales call the server fn. Returned in loader data for
-  // `useInterfaceLocale` to read.
+  // Chrome bundle keys off the INTERFACE locale: a content-only locale (e.g.
+  // `zh-CN`) has no frontend UI translations and falls back to the default
+  // interface locale. `toInterfaceLocale` is a pure function of the URL locale
+  // (no cookie / Accept-Language consult), so the rendered chrome is
+  // deterministic per URL and a content-only-locale page stays cacheable on a
+  // shared URL-keyed proxy — see docs/I18N-ANALYSIS.md "Option B".
   loader: async ({ context }) => {
-    const interfaceLocale = await resolveInterfaceLocale(context.locale)
-    const translations = await getTranslations(interfaceLocale)
-    return { translations, interfaceLocale }
+    const translations = await getTranslations(toInterfaceLocale(context.locale))
+    return { translations }
   },
   component: LocaleLayout,
 })

@@ -10,7 +10,7 @@
  * persists the new preference via the setLanguageFn server function.
  */
 
-import { useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 
 import {
   i18nConfig,
@@ -65,26 +65,23 @@ export function useLocale(): RoutableLocale {
 }
 
 /**
- * Returns the **interface** locale for chrome on the current URL. When the URL
- * locale is an interface locale it is used directly; when it is a content-only
- * locale (e.g. `zh-CN`) chrome reverts to the visitor's last-known / detected
- * interface locale rather than sticking to the content prefix.
+ * Returns the **interface** locale for chrome on the current URL: the path
+ * locale when it's an interface locale, otherwise the DEFAULT interface
+ * locale. A content-only prefix (`/zh-CN`) therefore renders chrome in the
+ * default locale rather than sticking the content prefix onto the chrome;
+ * generic navigation off such a page reverts to clean default-locale URLs.
  *
- * The authoritative value is resolved server-side in the `$lng` layout loader
- * (`resolveInterfaceLocaleFn`: cookie → Accept-Language → default) and read
- * here from that route's loader data, so chrome links and the loaded chrome
- * translation bundle always agree. Falls back to the pure path-derived
- * `toInterfaceLocale` when the `$lng` match is absent (e.g. an error component
- * rendered outside the locale layout).
+ * Deliberately a PURE function of the URL locale — no cookie / Accept-Language
+ * consult. Chrome on a content-only-locale URL must be deterministic per URL
+ * so the response stays cacheable on a shared URL-keyed proxy (Cloudflare,
+ * etc.); resolving it from out-of-URL signals would make one URL render
+ * different chrome per visitor and poison the cache. See docs/I18N-ANALYSIS.md
+ * "Option B" for the full caching rationale. The `$lng` loader keys its chrome
+ * translation bundle off the same `toInterfaceLocale`, so the loaded bundle and
+ * this hook agree by construction.
  */
 export function useInterfaceLocale(): Locale {
-  const pathLocale = useLocale()
-  const resolved = useMatch({
-    from: '/$lng',
-    shouldThrow: false,
-    select: (match) => match.loaderData?.interfaceLocale,
-  })
-  return resolved ?? toInterfaceLocale(pathLocale)
+  return toInterfaceLocale(useLocale())
 }
 
 /**

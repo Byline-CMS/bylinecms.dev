@@ -12,7 +12,7 @@ import { Container, Section } from '@byline/ui/react'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
-import { resolveInterfaceLocale } from '@/i18n/resolve-interface-locale-fn'
+import { toInterfaceLocale } from '@/i18n/i18n-config'
 import { createTranslator } from '@/i18n/translations'
 import { buildLocalizedPath, getMeta } from '@/lib/meta'
 import { DocsList } from '@/modules/docs/components/list'
@@ -24,8 +24,7 @@ export const Route = createFileRoute('/$lng/_frontend/docs/')({
   // runs outside the React TranslationsProvider, so the title is computed
   // here (context.locale is available) and read back via loaderData.
   loader: async ({ context }) => {
-    const interfaceLocale = await resolveInterfaceLocale(context.locale)
-    const { t } = await createTranslator(interfaceLocale, 'frontend')
+    const { t } = await createTranslator(toInterfaceLocale(context.locale), 'frontend')
     return { title: t('docsTitle') }
   },
   head: ({ loaderData, params }) =>

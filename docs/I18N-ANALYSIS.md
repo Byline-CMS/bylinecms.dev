@@ -173,11 +173,37 @@ flaw. The i18n model (and Byline's available/advertised-locale mechanics) are
 sound. Standard answers all apply: don't vary the response, vary the cache key,
 or personalize client-side.
 
-### Decision pending
+### Decision made — Option B (implemented)
 
-Choose B / C / D (NOT `?clocale`). Leaning B for simplicity + consistency, with
-D as the upgrade path if personalized chrome on content pages matters. If B:
-the change is small — `resolveInterfaceLocale()` returns the default locale for
-content-only path locales instead of consulting cookie/AL (effectively reverts
-Issue #2's server-fn tier for those URLs), making content-locale pages
-deterministic and cacheable again.
+**Chose B.** Cleanest, zero-infra, cache-safe, canonical-clean, and
+philosophically consistent with "content locales are non-sticky." **D is not a
+competing implementation** — it's an ops/CDN configuration (cache-key
+normalization at Cloudflare et al.) that leaves the app unchanged; it remains
+available to any deployment that runs a programmable edge and decides
+personalized chrome on these throwaway pages is worth the fragmentation. B works
+everywhere unconditionally, so it's the baseline.
+
+**What B reverts:** Issue #2 (`c1cd8475`) did two things — (1) added an async
+server-fn tier that resolved content-only-locale chrome from cookie/Accept-Language
+(the per-visitor variance), and (2) switched the 5 detail routes from inline
+`toInterfaceLocale(lng)` to the `useInterfaceLocale()` hook (a genuine cleanup).
+B is a **surgical** revert that keeps (2) and undoes (1):
+
+- **deleted** `resolve-interface-locale-fn.ts` + `resolve-interface-locale.server.ts`
+  (the server-fn tier — dead; `detectLocale` survives, still used by
+  `server-locale-redirect.ts` for bare-path negotiation).
+- `useInterfaceLocale()` → `toInterfaceLocale(useLocale())` — a pure function of
+  the URL locale again (no cookie/header consult, no loader-data read).
+- `$lng/route.tsx`, `docs/index.tsx`, `news/index.tsx` loaders use
+  `toInterfaceLocale(...)` synchronously; the `$lng` loader returns just
+  `{ translations }`.
+
+Net effect: chrome on a content-only-locale URL is deterministic per URL → the
+page is cacheable again. The detail routes are untouched (the hook now returns
+the same value the old inline cast did).
+
+**Status:** implemented + verified (typecheck 0 / lint 0 / 21 i18n tests) across
+all three repos on `develop` — bylinecms.dev, bylinecms.app, and
+modulus-learning.org (the last also has the extra
+`$lng/_frontend/registry.tsx` consumer reverted to `toInterfaceLocale`). All
+uncommitted, pending commit.
