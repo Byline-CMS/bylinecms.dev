@@ -38,15 +38,15 @@ NOTE: If you use `pnpm` - installing dependencies may bail out asking you to `pn
 You can stop the `cli@latest init` - approve builds, and then re-run `pnpm dlx @byline/cli@latest init` and
 it will pick up where it left off. You may need to do this more than once.
 
-If there are any issues, you can follow the example application in this repo under `apps/webapp`.
+If there are any issues, you can follow the example application in the Byline CMS main repo under `apps/webapp`.
 
-NOTE: For AI-assisted editing, you'll need to add your API keys as shown in `apps/webapp/.env.example`
+NOTE: For AI-assisted editing, you'll need to add your API keys as shown in `apps/webapp/.env.local.example`
 
-IMPORTANT: The core Byline routes will be placed under a pathless route at `routes/_byline`, with its own route.tsx template. To prevent your front-end TanStack Start application's styling from 'leaking' into the Byline dashboard, you'll need to create or move your top-most layout route into its own pathless layout route - for example, under `routes/_font-end` or `routes/_public` - with any styling, headers, footers etc., that might have been in __root.tsx - moved into the route.tsx layout file inside your front-end pathless layout route.
+IMPORTANT: The core Byline routes will be placed under a pathless route at `routes/_byline`, with its own route.tsx template. To prevent your front-end TanStack Start application's styling from 'leaking' into the Byline dashboard, you'll need to create or move your top-most layout route into its own pathless layout route - for example, under `routes/_fontend` or `routes/_public` - with any styling, headers, footers etc., that might have been in __root.tsx - moved into the route.tsx layout file inside your frontend pathless layout route.
 
 See the TanStack Router docs for [File-Based Routing](https://tanstack.com/router/latest/docs/routing/file-based-routing) and [Virtual File Routes](https://tanstack.com/router/latest/docs/routing/virtual-file-routes) for more information.
 
-NOTE: If you have manually configured Byline by copying code from the example application here (byline directories, .env, start, server, __root.tsx, and vite.config.ts settings), and only want to provision the database and seed the super-admin and example docs in the new application, use `byline setup` instead of `byline init`:
+NOTE: If you have manually configured Byline by copying code from the example application in the repo (byline directories, .env, start, server, __root.tsx, and vite.config.ts settings), and only want to provision the database and seed the super-admin and example docs in the new application, use `byline setup` instead of `byline init`:
 
 ```sh
 npx @byline/cli@latest setup
@@ -84,7 +84,7 @@ byline setup --force --reset --i-mean-it
 
 By default `setup` consults `.byline-install.json` and skips phases already recorded as complete. `--force` bypasses that and re-runs each phase against fresh state — useful after a manual DB reset, when you want to re-seed, or to re-verify a setup is healthy. A confirmation prompt fires before either of the `--force` flows runs (skippable with `-y`); the destructive `--reset` flow has its own confirm inside `db-init` unless `--i-mean-it` is also passed.
 
-Before running any phase, `setup` performs a quick pre-flight: it bails if the core `@byline/*` packages aren't installed in your app's `package.json`, bails if `.env` is missing, and warns-and-confirms if `.env` is present but missing keys Byline expects (some keys may legitimately be supplied via shell env). For new TanStack Start apps that need the full scaffold, use `byline init` instead.
+Before running any phase, `setup` performs a quick pre-flight: it bails if the core `@byline/*` packages aren't installed in your app's `package.json`, bails if `.env` or `.env.local` is missing, and warns-and-confirms if `.env` or `.env.local` is present but missing keys Byline expects (some keys may legitimately be supplied via shell env). For new TanStack Start apps that need the full scaffold, use `byline init` instead.
 
 
 ## Getting started - Development environment and example application (this repo)
@@ -139,10 +139,7 @@ cd ../..
 ```
 
 > **Foot-gun protection.** Our `./db_init` script sources (imports)
-> `common.sh`, which has a hardcoded value for the name of the development
-> database. The script can only ever drop and recreate this database name. If
-> you'd like to use a database name other than `byline_dev`, change the last
-> line in `common.sh` as well as your corresponding `.env` settings.
+> `common.sh`, which has a guarded check that will only allow `_dev` or `_test` databases to be initialized or reset.
 
 ```sh
 # You can optionally run pnpm drizzle:generate, although since
