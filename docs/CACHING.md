@@ -31,7 +31,7 @@ The demo application carries a reference middleware that other TanStack Start ho
 
 In the demo it is applied to:
 
-- The public `_frontend` route layout (HTML page render path) — see `apps/webapp/src/routes/{-$lng}/_frontend/route.tsx`.
+- The public `_frontend` route layout (HTML page render path) — see `apps/webapp/src/routes/$lng/_frontend/route.tsx`.
 - Public-read server functions under `apps/webapp/src/modules/**` — `getPageDetailFn`, `getNewsListFn`, `getNewsDetailFn`, etc. This means client-side route transitions that re-fetch their loader data also flow through the CDN, not just full-page navigations.
 
 The rest of this section describes the strategy the reference middleware implements. None of this is enforced by `@byline/*`; an adopter is free to swap TTLs, add cookies to the bypass list, or replace the middleware entirely.

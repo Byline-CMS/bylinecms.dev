@@ -23,7 +23,7 @@ The architecture is four layers, top to bottom:
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │ Admin UI (React + TanStack Router)                               │
-│   apps/webapp/src/routes/{-$lng}/(byline)/...                    │
+│   apps/webapp/src/routes/_byline/...                            │
 └──────────────────────────────────────────────────────────────────┘
                               │  invokes via @tanstack/react-start
                               ▼
@@ -214,7 +214,7 @@ If Byline is later hosted behind a dedicated API server (e.g. a Fastify applicat
 
 | Concern                                  | Location                                                                  |
 |------------------------------------------|---------------------------------------------------------------------------|
-| Admin UI routes                          | `apps/webapp/src/routes/{-$lng}/(byline)/`                                |
+| Admin UI routes                          | `apps/webapp/src/routes/_byline/`                                         |
 | Document server fns (current transport)  | `packages/host-tanstack-start/src/server-fns/collections/`                |
 | Auth server fns                          | `packages/host-tanstack-start/src/server-fns/auth/`                       |
 | Admin-management server fns              | `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/` |
