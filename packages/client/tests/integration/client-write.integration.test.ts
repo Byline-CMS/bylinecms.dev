@@ -138,7 +138,10 @@ describe('client write path — availableLocales', () => {
     await handle.update(documentId, { title: 'Sticky v2', path: 'advertised-sticky', summary: 's' })
 
     const doc = await handle.findById(documentId, any)
-    expect(doc?.availableLocales, 'carried forward across the version').toEqual(['de', 'en'])
+    // Order follows configured content-locale order (fixture: content.locales =
+    // ['en']), so `en` leads and the unconfigured `de` falls last — the set
+    // itself is what carried forward across the version.
+    expect(doc?.availableLocales, 'carried forward across the version').toEqual(['en', 'de'])
   })
 
   it('replaces the set wholesale when an explicit array is supplied', async () => {
