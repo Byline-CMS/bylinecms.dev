@@ -1,5 +1,14 @@
 # @infonomic/ai
 
+## 3.3.0
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.3.0
+  - @byline/richtext-lexical@3.3.0
+  - @byline/ui@3.3.0
+
 ## 3.2.1
 
 ### Patch Changes

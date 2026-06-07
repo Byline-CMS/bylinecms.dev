@@ -1,5 +1,14 @@
 # @byline/db-postgres
 
+## 3.3.0
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.3.0
+  - @byline/admin@3.3.0
+  - @byline/auth@3.3.0
+
 ## 3.2.1
 
 ### Patch Changes

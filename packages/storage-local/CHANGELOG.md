@@ -1,5 +1,12 @@
 # @byline/storage-local
 
+## 3.3.0
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.3.0
+
 ## 3.2.1
 
 ### Patch Changes

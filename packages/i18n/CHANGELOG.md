@@ -1,5 +1,11 @@
 # @byline/i18n
 
+## 3.3.0
+
+### Patch Changes
+
+- @byline/ui@3.3.0
+
 ## 3.2.1
 
 ### Patch Changes

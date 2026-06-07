@@ -1,5 +1,15 @@
 # @byline/core
 
+## 3.3.0
+
+### Minor Changes
+
+- decoupled the document-grain system fields (`path`, `availableLocales`) from the version workflow. Editing them in the admin path / available-locales widgets now writes through a dedicated, non-versioned path (`updateDocumentSystemFields` → new `updateDocumentPath` / `setDocumentAvailableLocales` storage commands and the `updateCollectionDocumentSystemFields` host server fn) that applies the change immediately **without** minting a new document version or resetting workflow status — matching the document-grain, sticky-across-versions nature of these fields. The form keeps a single Save button but partitions its dirty state into `none` / `content` / `direct-write` / `both`, and confirms immediate writes with a modal that reassures editors their content edits still follow the normal revision/publish workflow. See docs/I18N.md.
+
+### Patch Changes
+
+- @byline/auth@3.3.0
+
 ## 3.2.1
 
 ### Patch Changes

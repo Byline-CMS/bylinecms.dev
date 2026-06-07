@@ -1,5 +1,7 @@
 # @byline/cli
 
+## 3.3.0
+
 ## 3.2.1
 
 ### Patch Changes
