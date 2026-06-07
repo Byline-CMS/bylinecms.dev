@@ -157,7 +157,7 @@ FROM document_versions
 WHERE is_deleted = false
 ```
 
-…then filters to `rn = 1`. Status changes mutate the existing version row in place — `status` is lifecycle metadata, not content, so there is no need to fork a new version when a draft becomes published.
+…then filters to `rn = 1`. Status changes mutate the existing version row in place — `status` is lifecycle metadata, not content, so there is no need to fork a new version when a draft becomes published. The document-grain system fields — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`) — sit outside the version stream entirely: keyed by logical document and sticky across versions, they are edited in the admin through dedicated non-versioned commands (`updateDocumentPath`, `setDocumentAvailableLocales`) that mint no version and leave status untouched. See [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md) and [I18N.md](./I18N.md).
 
 Locale copy-forward on versioned writes runs in a **single transaction batch** — when only the `en` locale is being written, the seven per-store `INSERT ... SELECT`s that carry forward `fr` / `de` / etc. rows from the previous version run as one round trip, not seven.
 

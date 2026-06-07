@@ -175,13 +175,15 @@ Behaviour:
 - **"Regenerate from {source}" action** — small text-style link rendered right-aligned to the label when `livePreview !== systemPath`. Clicking writes the live preview into the override slot. Used to re-anchor a stale path against an updated title.
 - **Live validation hint** — typed values are slugified for comparison; if the typed value differs from its slugified form, an inline `Suggested: "..."` hint surfaces without blocking input.
 
-The widget bypasses the patch system. The `systemPath` slot on form context (`getSystemPath`, `setSystemPath`, `subscribeSystemPath`) is initialised from `initialData.path` on mount, tracked in dirty state, reset on form save, and threaded into the `onSubmit({ data, patches, systemPath })` payload that `FormRenderer` emits.
+The widget bypasses the patch system. The `systemPath` slot on form context (`getSystemPath`, `setSystemPath`, `subscribeSystemPath`) is initialised from `initialData.path` on mount, tracked in dirty state, reset on form save, and threaded into the `onSubmit(...)` payload that `FormRenderer` emits.
+
+On an existing document, a path edit in the admin is a **document-grain, non-versioned write**: `path` lives in `byline_document_paths` keyed by logical document (sticky across versions), so editing it does not mint a new version or reset workflow status. `FormRenderer` partitions its dirty state (`getDirtyBreakdown()` → `none` / `content` / `direct-write` / `both`), confirms the immediate write with a modal, and persists `path` through the dedicated non-versioned write path below. On **create**, `path` is still part of the initial version write. See [I18N.md](./I18N.md) for the shared design (the available-locales widget works the same way).
 
 ## Server transport
 
-Admin server fns under `packages/host-tanstack-start/src/server-fns/collections/{create,update}.ts` accept an optional top-level `path` on the request payload (separate from `data`) and forward it as `params.path` to the lifecycle. This mirrors the precedent set by `setDocumentStatus`: system metadata is addressed via dedicated parameters, not field patches.
+The **create** server fn (`.../collections/create.ts`) accepts an optional top-level `path` on the request payload (separate from `data`) and forwards it as `params.path` to the lifecycle — on create, `path` is part of the initial version write. **Editing** an existing document's `path` in the admin no longer rides the versioned update: it routes through a dedicated `updateCollectionDocumentSystemFields` server fn → `updateDocumentSystemFields` lifecycle service → `updateDocumentPath` storage command — an immediate write that mints no version and leaves status untouched. (`updateCollectionDocumentWithPatches` no longer carries `path`.) This still mirrors the `setDocumentStatus` precedent: system metadata is addressed via dedicated parameters, not field patches.
 
-The `@byline/client` SDK exposes the same: `CreateOptions.path` and `UpdateOptions.path` on `CollectionHandle.create/update`.
+The `@byline/client` SDK exposes `CreateOptions.path` and `UpdateOptions.path` on `CollectionHandle.create/update`. Note the SDK's whole-document `update` still writes `path` as part of its version (path is one parameter of a deliberate version write); the non-versioned direct write is the interactive admin-editor affordance.
 
 ## Patches stay admin-internal
 

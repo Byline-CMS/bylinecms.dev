@@ -89,7 +89,7 @@ Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `
 
 ### Immutable Versioning
 
-Document versions saved by default (UUIDv7 time-ordered). `ROW_NUMBER() OVER PARTITION` resolves "current" version via the `current_documents` DB view. Status changes mutate the existing version row in-place (status is lifecycle metadata, not content).
+Document versions saved by default (UUIDv7 time-ordered). `ROW_NUMBER() OVER PARTITION` resolves "current" version via the `current_documents` DB view. Status changes mutate the existing version row in-place (status is lifecycle metadata, not content). Document-grain system fields (`path`, editorial `availableLocales`) are likewise written outside the version stream — the admin edits them via dedicated non-versioned commands (`updateDocumentPath`, `setDocumentAvailableLocales`) that mint no version and don't reset status. See docs/DOCUMENT-PATHS.md and docs/I18N.md.
 
 ### Patch-Based Updates
 
