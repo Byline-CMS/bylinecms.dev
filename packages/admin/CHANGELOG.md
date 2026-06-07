@@ -1,5 +1,16 @@
 # @byline/admin
 
+## 3.3.1
+
+### Patch Changes
+
+- refined the immediate-save confirmation modal styling and layout
+- Updated dependencies
+  - @byline/auth@3.3.1
+  - @byline/core@3.3.1
+  - @byline/i18n@3.3.1
+  - @byline/ui@3.3.1
+
 ## 3.3.0
 
 ### Patch Changes

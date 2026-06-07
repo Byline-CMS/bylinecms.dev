@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 3.3.1
+
+### Patch Changes
+
+- refined the immediate-save confirmation modal styling and layout
+
 ## 3.3.0
 
 ## 3.2.1

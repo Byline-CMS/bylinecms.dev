@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 3.3.1
+
+### Patch Changes
+
+- refined the immediate-save confirmation modal styling and layout
+- Updated dependencies
+  - @byline/ui@3.3.1
+
 ## 3.3.0
 
 ### Patch Changes
