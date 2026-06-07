@@ -20,7 +20,7 @@ import type {
 } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, ComboButton, Modal } from '@byline/ui/react'
+import { Alert, Button, CloseIcon, ComboButton, IconButton, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { FieldRenderer } from '../fields/field-renderer'
@@ -940,11 +940,41 @@ const FormContent = ({
               className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}
             >
               <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
-                {t('forms.systemFieldsConfirm.title')}
+                {pendingSystemFieldsSubmit.contentDirty
+                  ? t('forms.systemFieldsConfirm.bothTitle')
+                  : t('forms.systemFieldsConfirm.title')}
               </h3>
+              <IconButton
+                aria-label={t('common.actions.close')}
+                size="xs"
+                onClick={() => setPendingSystemFieldsSubmit(null)}
+              >
+                <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
+              </IconButton>
             </Modal.Header>
             <Modal.Content className="prose">
-              <p className="m-0">{t('forms.systemFieldsConfirm.intro')}</p>
+              {/* Lead with reassurance: content edits follow the normal
+                  revision + publish workflow. The immediate, document-level
+                  system-field write is explained below the divider. */}
+              {pendingSystemFieldsSubmit.contentDirty && (
+                <p className={cx('byline-form-system-fields-content-note', 'm-0')}>
+                  {t('forms.systemFieldsConfirm.contentNote')}
+                </p>
+              )}
+              <p
+                className="m-0"
+                style={
+                  pendingSystemFieldsSubmit.contentDirty
+                    ? {
+                        marginTop: 'var(--spacing-8)',
+                        paddingTop: 'var(--spacing-12)',
+                        borderTop: '1px solid var(--border-color)',
+                      }
+                    : undefined
+                }
+              >
+                {t('forms.systemFieldsConfirm.intro')}
+              </p>
               <ul className={cx('byline-form-system-fields-list', styles['guard-modal-text'])}>
                 {pendingSystemFieldsSubmit.pathDirty && (
                   <li>{t('forms.systemFieldsConfirm.bulletPath')}</li>
@@ -953,14 +983,16 @@ const FormContent = ({
                   <li>{t('forms.systemFieldsConfirm.bulletLocales')}</li>
                 )}
               </ul>
-              <p className="m-0">
-                {publishedVersion != null
-                  ? t('forms.systemFieldsConfirm.publishedLine')
-                  : t('forms.systemFieldsConfirm.draftLine')}
+              <p
+                className={cx('byline-form-system-fields-effect', styles['guard-modal-text'])}
+                style={{
+                  marginTop: 'var(--spacing-4)',
+                  marginBottom: 0,
+                  color: 'var(--text-subtle)',
+                }}
+              >
+                {t('forms.systemFieldsConfirm.effectLine')}
               </p>
-              {pendingSystemFieldsSubmit.contentDirty && (
-                <p className="m-0">{t('forms.systemFieldsConfirm.contentNote')}</p>
-              )}
             </Modal.Content>
             <Modal.Actions>
               <Button
