@@ -957,12 +957,12 @@ const FormContent = ({
                   revision + publish workflow. The immediate, document-level
                   system-field write is explained below the divider. */}
               {pendingSystemFieldsSubmit.contentDirty && (
-                <p className={cx('byline-form-system-fields-content-note', 'm-0')}>
+                <p className={cx('byline-form-system-fields-content-note', 'm-0 mt-2')}>
                   {t('forms.systemFieldsConfirm.contentNote')}
                 </p>
               )}
               <p
-                className="m-0"
+                className="m-0 mt-2"
                 style={
                   pendingSystemFieldsSubmit.contentDirty
                     ? {
@@ -975,7 +975,9 @@ const FormContent = ({
               >
                 {t('forms.systemFieldsConfirm.intro')}
               </p>
-              <ul className={cx('byline-form-system-fields-list', styles['guard-modal-text'])}>
+              <ul
+                className={cx('byline-form-system-fields-list', styles['guard-modal-text'], 'm-0')}
+              >
                 {pendingSystemFieldsSubmit.pathDirty && (
                   <li>{t('forms.systemFieldsConfirm.bulletPath')}</li>
                 )}
