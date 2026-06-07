@@ -33,6 +33,8 @@ function makeAdapter(options?: {
       collections: { create: vi.fn(fail), update: vi.fn(fail), delete: vi.fn(fail) },
       documents: {
         createDocumentVersion: vi.fn(fail) as any,
+        updateDocumentPath: vi.fn(fail) as any,
+        setDocumentAvailableLocales: vi.fn(fail) as any,
         setDocumentStatus: vi.fn(fail),
         archivePublishedVersions: vi.fn(fail) as any,
         softDeleteDocument: vi.fn(fail) as any,

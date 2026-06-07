@@ -212,22 +212,12 @@ export class DocumentCommands implements IDocumentCommands {
       // (collection_id, locale, path) bubble up as a Postgres error which the
       // lifecycle wraps as ERR_PATH_CONFLICT.
       if (params.path !== undefined) {
-        await tx
-          .insert(documentPaths)
-          .values({
-            document_id: documentId,
-            locale: sourceLocale,
-            collection_id: params.collectionId,
-            path: params.path,
-          })
-          .onConflictDoUpdate({
-            target: [documentPaths.document_id, documentPaths.locale],
-            set: {
-              path: params.path,
-              collection_id: params.collectionId,
-              updated_at: new Date(),
-            },
-          })
+        await this.writeDocumentPath(tx, {
+          documentId,
+          locale: sourceLocale,
+          collectionId: params.collectionId,
+          path: params.path,
+        })
       }
 
       // 2b. Replace the document_available_locales rows when an editorial set
@@ -237,19 +227,11 @@ export class DocumentCommands implements IDocumentCommands {
       // included — replaces it wholesale. Deduplicated so a caller-supplied
       // duplicate doesn't collide on the (document_id, locale) primary key.
       if (params.availableLocales !== undefined) {
-        await tx
-          .delete(documentAvailableLocales)
-          .where(eq(documentAvailableLocales.document_id, documentId))
-        const locales = [...new Set(params.availableLocales)]
-        if (locales.length > 0) {
-          await tx.insert(documentAvailableLocales).values(
-            locales.map((locale) => ({
-              document_id: documentId,
-              locale,
-              collection_id: params.collectionId,
-            }))
-          )
-        }
+        await this.writeDocumentAvailableLocales(tx, {
+          documentId,
+          collectionId: params.collectionId,
+          availableLocales: params.availableLocales,
+        })
       }
 
       // 3. Flatten the document data to field values
@@ -397,6 +379,124 @@ export class DocumentCommands implements IDocumentCommands {
         document: documentVersion,
         fieldCount: flattenedFields.length,
       }
+    })
+  }
+
+  /**
+   * writeDocumentPath
+   *
+   * Upsert the `byline_document_paths` row for a (document, locale) pair. The
+   * path row is document-grain and sticky across versions — it lives under the
+   * document's `source_locale` (its data anchor), not the mutable global
+   * default. Shared by `createDocumentVersion` (step 2a, create write path) and
+   * the standalone `updateDocumentPath` command (the non-versioned admin path
+   * widget write). The unique constraint on `(collection_id, locale, path)` may
+   * raise a `23505`, which the lifecycle layer maps to `ERR_PATH_CONFLICT`.
+   */
+  private async writeDocumentPath(
+    tx: TxConnection,
+    args: { documentId: string; locale: string; collectionId: string; path: string }
+  ): Promise<void> {
+    await tx
+      .insert(documentPaths)
+      .values({
+        document_id: args.documentId,
+        locale: args.locale,
+        collection_id: args.collectionId,
+        path: args.path,
+      })
+      .onConflictDoUpdate({
+        target: [documentPaths.document_id, documentPaths.locale],
+        set: {
+          path: args.path,
+          collection_id: args.collectionId,
+          updated_at: new Date(),
+        },
+      })
+  }
+
+  /**
+   * writeDocumentAvailableLocales
+   *
+   * Replace a document's `byline_document_available_locales` rows wholesale —
+   * the editorial advertised-locale set. Document-grain and sticky across
+   * versions: `delete`-then-`insert`, deduplicated so a caller-supplied
+   * duplicate doesn't collide on the `(document_id, locale)` primary key. An
+   * empty array clears the set (advertise nothing). Shared by
+   * `createDocumentVersion` (step 2b, create write path) and the standalone
+   * `setDocumentAvailableLocales` command (the non-versioned admin
+   * available-locales widget write). See docs/I18N.md.
+   */
+  private async writeDocumentAvailableLocales(
+    tx: TxConnection,
+    args: { documentId: string; collectionId: string; availableLocales: string[] }
+  ): Promise<void> {
+    await tx
+      .delete(documentAvailableLocales)
+      .where(eq(documentAvailableLocales.document_id, args.documentId))
+    const locales = [...new Set(args.availableLocales)]
+    if (locales.length > 0) {
+      await tx.insert(documentAvailableLocales).values(
+        locales.map((locale) => ({
+          document_id: args.documentId,
+          locale,
+          collection_id: args.collectionId,
+        }))
+      )
+    }
+  }
+
+  /**
+   * updateDocumentPath
+   *
+   * Standalone, non-versioned write of a document's URL path. Backs the admin
+   * path widget's direct-write Save path: it edits `byline_document_paths`
+   * in-place (document-grain, sticky) **without** minting a new document
+   * version or touching workflow status. The path's document-grain nature means
+   * the change is immediate and applies across every version of the document.
+   *
+   * Source-locale enforcement and `ERR_PATH_CONFLICT` mapping live in the
+   * lifecycle service that calls this; the command itself only performs the
+   * upsert (and surfaces the raw `23505` for the service to translate).
+   */
+  async updateDocumentPath(params: {
+    documentId: string
+    collectionId: string
+    locale: string
+    path: string
+  }): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await this.writeDocumentPath(tx, {
+        documentId: params.documentId,
+        locale: params.locale,
+        collectionId: params.collectionId,
+        path: params.path,
+      })
+    })
+  }
+
+  /**
+   * setDocumentAvailableLocales
+   *
+   * Standalone, non-versioned write of a document's editorial advertised-locale
+   * set. Backs the admin available-locales widget's direct-write Save path: it
+   * replaces `byline_document_available_locales` wholesale (document-grain)
+   * **without** minting a new document version or touching workflow status. The
+   * change is immediate and applies across every version of the document; the
+   * public advertised set remains the intersection with the resolved version's
+   * completeness ledger. See docs/I18N.md.
+   */
+  async setDocumentAvailableLocales(params: {
+    documentId: string
+    collectionId: string
+    availableLocales: string[]
+  }): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await this.writeDocumentAvailableLocales(tx, {
+        documentId: params.documentId,
+        collectionId: params.collectionId,
+        availableLocales: params.availableLocales,
+      })
     })
   }
 

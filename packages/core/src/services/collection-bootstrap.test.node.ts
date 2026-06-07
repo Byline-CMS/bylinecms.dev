@@ -49,6 +49,8 @@ function createMockDb(options: {
       collections: { create, update, delete: vi.fn(fail) },
       documents: {
         createDocumentVersion: vi.fn(fail) as any,
+        updateDocumentPath: vi.fn(fail) as any,
+        setDocumentAvailableLocales: vi.fn(fail) as any,
         setDocumentStatus: vi.fn(fail),
         archivePublishedVersions: vi.fn(fail) as any,
         softDeleteDocument: vi.fn(fail) as any,
@@ -217,6 +219,8 @@ describe('ensureCollections', () => {
         collections: { create, update, delete: vi.fn() },
         documents: {
           createDocumentVersion: vi.fn() as any,
+          updateDocumentPath: vi.fn() as any,
+          setDocumentAvailableLocales: vi.fn() as any,
           setDocumentStatus: vi.fn(),
           archivePublishedVersions: vi.fn() as any,
           softDeleteDocument: vi.fn() as any,

@@ -367,6 +367,36 @@ export interface IDocumentCommands {
   }): Promise<{ document: any; fieldCount: number }>
 
   /**
+   * Standalone, non-versioned write of a document's URL path
+   * (`byline_document_paths`). Edits the document-grain, sticky path row
+   * in-place **without** minting a new version or touching workflow status —
+   * the change is immediate and applies across every version. Backs the admin
+   * path widget's direct-write Save. The unique constraint on
+   * `(collection_id, locale, path)` may surface as `ERR_PATH_CONFLICT` from the
+   * lifecycle layer. See `docs/I18N.md`.
+   */
+  updateDocumentPath(params: {
+    documentId: string
+    collectionId: string
+    locale: string
+    path: string
+  }): Promise<void>
+
+  /**
+   * Standalone, non-versioned write of a document's editorial advertised-locale
+   * set (`byline_document_available_locales`). Replaces the document-grain set
+   * wholesale **without** minting a new version or touching workflow status —
+   * the change is immediate and applies across every version. `[]` clears it.
+   * Backs the admin available-locales widget's direct-write Save. See
+   * `docs/I18N.md`.
+   */
+  setDocumentAvailableLocales(params: {
+    documentId: string
+    collectionId: string
+    availableLocales: string[]
+  }): Promise<void>
+
+  /**
    * Mutate the status on an existing document version row.
    *
    * This is the one case where we UPDATE a version in-place rather than

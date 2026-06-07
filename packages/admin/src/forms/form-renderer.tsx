@@ -18,6 +18,7 @@ import type {
   TabSetDefinition,
   WorkflowStatus,
 } from '@byline/core'
+import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton, Modal } from '@byline/ui/react'
 import cx from 'classnames'
@@ -44,6 +45,24 @@ export interface PublishedVersionInfo {
   status: string
   createdAt: string | Date
   updatedAt: string | Date
+}
+
+/**
+ * Payload emitted by the form on Save. Carries the content (field data +
+ * patches) alongside the document-grain system fields (path / advertised
+ * locales) and per-bucket dirty flags so the host can route each piece to the
+ * right write path — versioned for content, immediate/non-versioned for the
+ * system fields. See docs/I18N.md.
+ */
+export interface SystemFieldsSubmitPayload {
+  // biome-ignore lint/suspicious/noExplicitAny: data is collection-specific
+  data: any
+  patches: DocumentPatch[]
+  contentDirty: boolean
+  pathDirty: boolean
+  systemPath?: string | null
+  availableLocalesDirty: boolean
+  systemAvailableLocales?: string[]
 }
 
 /** Props shared by both the public FormRenderer and its internal FormContent component. */
@@ -340,6 +359,7 @@ const FormContent = ({
     hasChanges: hasChangesFn,
     resetHasChanges,
     getPatches,
+    getDirtyBreakdown,
     getSystemPath,
     getSystemAvailableLocales,
     subscribeErrors,
@@ -361,6 +381,11 @@ const FormContent = ({
   // is dirty — those actions operate on the saved version, so unsaved edits
   // would be silently excluded.
   const [showUnsavedModal, setShowUnsavedModal] = useState(false)
+  // Holds the pending Save payload while the editor confirms an immediate,
+  // non-versioned system-field write (path / advertised locales). Non-null
+  // means the confirmation modal is open. See docs/I18N.md.
+  const [pendingSystemFieldsSubmit, setPendingSystemFieldsSubmit] =
+    useState<SystemFieldsSubmitPayload | null>(null)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
   const { uploadField } = useBylineFieldServices()
 
@@ -528,6 +553,18 @@ const FormContent = ({
     }
   }
 
+  // Emit the payload and optimistically clear dirty state (parity with the
+  // prior submit behaviour — the host surfaces failures via toast).
+  const submitPayload = useCallback(
+    (payload: SystemFieldsSubmitPayload) => {
+      if (onSubmit && typeof onSubmit === 'function') {
+        onSubmit(payload)
+        resetHasChanges()
+      }
+    },
+    [onSubmit, resetHasChanges]
+  )
+
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
 
@@ -583,16 +620,33 @@ const FormContent = ({
 
       const data = getFieldValues()
       const patches = getPatches()
+      const { contentDirty, pathDirty, availableLocalesDirty, reason } = getDirtyBreakdown()
       const systemPath = getSystemPath()
       // Only emit the advertised-locale set for collections that opted into the
       // widget — otherwise leave it undefined so the write path never touches
       // `byline_document_available_locales` for non-advertising collections.
       const systemAvailableLocales = advertiseLocales ? getSystemAvailableLocales() : undefined
 
-      if (onSubmit && typeof onSubmit === 'function') {
-        onSubmit({ data, patches, systemPath, systemAvailableLocales })
-        resetHasChanges()
+      const payload: SystemFieldsSubmitPayload = {
+        data,
+        patches,
+        contentDirty,
+        pathDirty,
+        systemPath,
+        availableLocalesDirty,
+        systemAvailableLocales,
       }
+
+      // Editing the document-grain system fields (path / advertised locales) is
+      // an immediate, non-versioned write that does NOT reset workflow status,
+      // so confirm it before saving. Create mode writes everything as part of
+      // the initial version, so no confirmation applies there.
+      if (mode === 'edit' && (reason === 'direct-write' || reason === 'both')) {
+        setPendingSystemFieldsSubmit(payload)
+        return
+      }
+
+      submitPayload(payload)
     })()
   }
 
@@ -870,6 +924,66 @@ const FormContent = ({
                 onClick={() => setShowUnsavedModal(false)}
               >
                 {t('forms.unsavedChanges.okButton')}
+              </Button>
+            </Modal.Actions>
+          </Modal.Container>
+        </Modal>
+      )}
+      {pendingSystemFieldsSubmit != null && (
+        <Modal
+          isOpen={true}
+          closeOnOverlayClick={true}
+          onDismiss={() => setPendingSystemFieldsSubmit(null)}
+        >
+          <Modal.Container style={{ maxWidth: '520px' }}>
+            <Modal.Header
+              className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}
+            >
+              <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
+                {t('forms.systemFieldsConfirm.title')}
+              </h3>
+            </Modal.Header>
+            <Modal.Content className="prose">
+              <p className="m-0">{t('forms.systemFieldsConfirm.intro')}</p>
+              <ul className={cx('byline-form-system-fields-list', styles['guard-modal-text'])}>
+                {pendingSystemFieldsSubmit.pathDirty && (
+                  <li>{t('forms.systemFieldsConfirm.bulletPath')}</li>
+                )}
+                {pendingSystemFieldsSubmit.availableLocalesDirty && (
+                  <li>{t('forms.systemFieldsConfirm.bulletLocales')}</li>
+                )}
+              </ul>
+              <p className="m-0">
+                {publishedVersion != null
+                  ? t('forms.systemFieldsConfirm.publishedLine')
+                  : t('forms.systemFieldsConfirm.draftLine')}
+              </p>
+              {pendingSystemFieldsSubmit.contentDirty && (
+                <p className="m-0">{t('forms.systemFieldsConfirm.contentNote')}</p>
+              )}
+            </Modal.Content>
+            <Modal.Actions>
+              <Button
+                size="sm"
+                style={{ minWidth: '80px' }}
+                intent="noeffect"
+                type="button"
+                onClick={() => setPendingSystemFieldsSubmit(null)}
+              >
+                {t('common.actions.cancel')}
+              </Button>
+              <Button
+                size="sm"
+                style={{ minWidth: '80px' }}
+                intent="primary"
+                type="button"
+                onClick={() => {
+                  const payload = pendingSystemFieldsSubmit
+                  setPendingSystemFieldsSubmit(null)
+                  submitPayload(payload)
+                }}
+              >
+                {t('forms.systemFieldsConfirm.confirmButton')}
               </Button>
             </Modal.Actions>
           </Modal.Container>

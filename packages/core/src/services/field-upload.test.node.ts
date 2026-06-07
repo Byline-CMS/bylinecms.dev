@@ -65,6 +65,8 @@ function createMockDb() {
       },
       documents: {
         createDocumentVersion,
+        updateDocumentPath: vi.fn(),
+        setDocumentAvailableLocales: vi.fn(),
         setDocumentStatus: vi.fn(),
         archivePublishedVersions: vi.fn(),
         softDeleteDocument: vi.fn(),

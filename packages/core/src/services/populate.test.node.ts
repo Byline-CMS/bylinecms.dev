@@ -163,6 +163,8 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
       collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
         createDocumentVersion: vi.fn(),
+        updateDocumentPath: vi.fn(),
+        setDocumentAvailableLocales: vi.fn(),
         setDocumentStatus: vi.fn(),
         archivePublishedVersions: vi.fn(),
         softDeleteDocument: vi.fn(),

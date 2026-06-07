@@ -21,6 +21,7 @@ import {
   deleteDocumentLocale,
   duplicateCollectionDocument,
   unpublishDocument,
+  updateCollectionDocumentSystemFields,
   updateCollectionDocumentWithPatches,
   updateDocumentStatus,
 } from '../../server-fns/collections/index.js'
@@ -386,28 +387,57 @@ export const EditView = ({
   const handleSubmit = async ({
     data: _data,
     patches,
+    contentDirty,
+    pathDirty,
     systemPath,
+    availableLocalesDirty,
     systemAvailableLocales,
   }: {
     // biome-ignore lint/suspicious/noExplicitAny: data is collection-specific
     data: any
     // biome-ignore lint/suspicious/noExplicitAny: patches list shape
     patches: any[]
+    /** Document field data / patches changed → versioned write. */
+    contentDirty: boolean
+    /** Path widget changed → non-versioned direct write. */
+    pathDirty: boolean
     systemPath?: string | null
+    /** Available-locales widget changed → non-versioned direct write. */
+    availableLocalesDirty: boolean
     systemAvailableLocales?: string[]
   }) => {
     try {
-      await updateCollectionDocumentWithPatches({
-        data: {
-          collection: path,
-          id: String(initialData.id),
-          patches,
-          versionId: initialData.versionId as string | undefined,
-          locale,
-          ...(systemPath ? { path: systemPath } : {}),
-          ...(systemAvailableLocales ? { availableLocales: systemAvailableLocales } : {}),
-        },
-      })
+      // Document-grain system fields write first via their own non-versioned
+      // path — so a path conflict surfaces before we mint a content version,
+      // and these immediate writes never reset workflow status. See
+      // docs/I18N.md.
+      if (pathDirty || availableLocalesDirty) {
+        await updateCollectionDocumentSystemFields({
+          data: {
+            collection: path,
+            id: String(initialData.id),
+            locale,
+            ...(pathDirty ? { path: systemPath ?? null } : {}),
+            ...(availableLocalesDirty ? { availableLocales: systemAvailableLocales ?? [] } : {}),
+          },
+        })
+      }
+
+      // Content (field data / patches) follows the normal versioned path —
+      // mints a new draft version. Skipped entirely when only the system
+      // fields changed, so a path/advertising edit never creates an empty
+      // content version.
+      if (contentDirty) {
+        await updateCollectionDocumentWithPatches({
+          data: {
+            collection: path,
+            id: String(initialData.id),
+            patches,
+            versionId: initialData.versionId as string | undefined,
+            locale,
+          },
+        })
+      }
 
       const description = t('collections.edit.updatedDescription', { label: singularLower })
       toastManager.add({

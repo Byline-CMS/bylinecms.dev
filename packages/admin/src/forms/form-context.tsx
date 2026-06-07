@@ -58,6 +58,29 @@ const sameLocaleSet = (a: string[], b: string[]): boolean => {
   return sa.every((v, i) => v === sb[i])
 }
 
+/**
+ * Why the form is dirty, partitioned by write semantics — drives the single
+ * Save button. `content` mints a new version (normal workflow). `direct-write`
+ * is an immediate, non-versioned write of the document-grain system fields
+ * (path / advertised locales) that does NOT reset workflow status. `both` does
+ * each through its own write path. See docs/I18N.md.
+ */
+export type DirtyReason = 'none' | 'content' | 'direct-write' | 'both'
+
+export interface DirtyBreakdown {
+  reason: DirtyReason
+  /** Document field data / patches changed → versioned write. */
+  contentDirty: boolean
+  /** Path widget changed → non-versioned direct write. */
+  pathDirty: boolean
+  /** Available-locales widget changed → non-versioned direct write. */
+  availableLocalesDirty: boolean
+}
+
+/** Dirty-tracking keys for the two system-managed, document-grain slots. */
+const SYSTEM_PATH_DIRTY_KEY = '__systemPath__'
+const SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY = '__systemAvailableLocales__'
+
 interface FormContextType {
   setFieldValue: (name: string, value: any) => void
   setFieldStore: (name: string, value: any) => void
@@ -76,6 +99,12 @@ interface FormContextType {
   setFieldError: (field: string, message: string) => void
   clearFieldError: (field: string) => void
   isDirty: (fieldName: string) => boolean
+  /**
+   * Partition the current dirty state into content vs. system-field (path /
+   * advertised-locales) writes so the Save button can branch. See
+   * docs/I18N.md.
+   */
+  getDirtyBreakdown: () => DirtyBreakdown
   subscribeField: (name: string, listener: FieldListener) => () => void
   subscribeErrors: (listener: ErrorsListener) => () => void
   subscribeMeta: (listener: MetaListener) => () => void
@@ -310,6 +339,34 @@ export const FormProvider = ({
     return dirtyFields.current.has(fieldName)
   }, [])
 
+  // Partition the current dirty set by write semantics so the single Save
+  // button can route each piece correctly: content → versioned write; the
+  // document-grain system fields (path / advertised locales) → immediate,
+  // non-versioned direct write that leaves workflow status untouched.
+  // See docs/I18N.md.
+  const getDirtyBreakdown = useCallback((): DirtyBreakdown => {
+    const keys = dirtyFields.current
+    const pathDirty = keys.has(SYSTEM_PATH_DIRTY_KEY)
+    const availableLocalesDirty = keys.has(SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY)
+    let contentDirty = false
+    for (const key of keys) {
+      if (key !== SYSTEM_PATH_DIRTY_KEY && key !== SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY) {
+        contentDirty = true
+        break
+      }
+    }
+    const directWrite = pathDirty || availableLocalesDirty
+    const reason: DirtyReason =
+      contentDirty && directWrite
+        ? 'both'
+        : contentDirty
+          ? 'content'
+          : directWrite
+            ? 'direct-write'
+            : 'none'
+    return { reason, contentDirty, pathDirty, availableLocalesDirty }
+  }, [])
+
   // -------------------------------------------------------------------------
   // System path slot
   // -------------------------------------------------------------------------
@@ -320,9 +377,9 @@ export const FormProvider = ({
     (value: string | null) => {
       systemPathRef.current = value
       if (value !== initialSystemPath.current) {
-        dirtyFields.current.add('__systemPath__')
+        dirtyFields.current.add(SYSTEM_PATH_DIRTY_KEY)
       } else {
-        dirtyFields.current.delete('__systemPath__')
+        dirtyFields.current.delete(SYSTEM_PATH_DIRTY_KEY)
       }
       systemPathListeners.current.forEach((listener) => {
         listener(value)
@@ -350,9 +407,9 @@ export const FormProvider = ({
       const next = [...value]
       systemAvailableLocalesRef.current = next
       if (!sameLocaleSet(next, initialSystemAvailableLocales.current)) {
-        dirtyFields.current.add('__systemAvailableLocales__')
+        dirtyFields.current.add(SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY)
       } else {
-        dirtyFields.current.delete('__systemAvailableLocales__')
+        dirtyFields.current.delete(SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY)
       }
       systemAvailableLocalesListeners.current.forEach((listener) => {
         listener(next)
@@ -646,6 +703,7 @@ export const FormProvider = ({
         setFieldError,
         clearFieldError,
         isDirty,
+        getDirtyBreakdown,
         subscribeField,
         subscribeErrors,
         subscribeMeta,
