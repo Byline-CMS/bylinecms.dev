@@ -177,6 +177,19 @@ The status filter runs **before** the window function, so a draft saved over a p
 
 The adapter's `readMode?: 'published' | 'any'` parameter threads through `findDocuments`, `getDocumentById`, `getDocumentByPath`, `getDocumentsByDocumentIds`, and `populateDocuments`. Admin paths default to `'any'` (the adapter default); `@byline/client` defaults to `'published'`.
 
+## Phase — document-grain audit log (planned)
+
+Immutable versioning gives content changes a complete, queryable history: every save is a new `document_versions` row, and the admin **History** view renders that lineage with per-version diffs. Two classes of change deliberately sit **outside** that version stream and so have no home in version history today:
+
+1. **Document-grain system fields** — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`). As of v3.3.0 these are edited through dedicated **non-versioned** writes (`updateDocumentPath`, `setDocumentAvailableLocales` via `updateDocumentSystemFields`) that mint no version and don't reset status. The decoupling was deliberate — these fields are document-grain and sticky across versions, so gating them behind the publish workflow falsely implied per-version staging (see [I18N.md](./I18N.md) and [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md)). The trade is that an immediate write leaves no audit trail.
+2. **Status / lifecycle transitions** — already mutate the version row in place rather than forking a new version, so a publish → unpublish → re-publish sequence isn't independently recorded beyond the current status value.
+
+**The phase:** round out Byline's auditable history so *every* change is accountable — not just content. A document-grain **audit log** table records `(document_id, collection_id, actor, action, field, before, after, occurred_at)` for the non-versioned mutations above (and, optionally, status transitions), written from the same service entry points (`updateDocumentSystemFields`, `changeDocumentStatus`) under the existing `assertActorCanPerform` gate. Honours the project's auditable + accountable philosophy: an immediate write is still a *recorded* write.
+
+**Admin surface:** a new tab under the existing document **History** view — content/version history stays on the current tab; a **System & document-level history** tab renders the audit-log entries (who changed the path / advertised locales / status, when, and from→to). This keeps the version timeline clean while making the out-of-band changes first-class and reviewable.
+
+Scope when picked up: the audit table + schema, write-points wired into the system-field and status services, a read/query surface (likely a `getDocumentAuditLog(document_id)` query), and the admin history-tab UI. See the [TODO index](./TODO.md#document-grain-audit-log--system-history-view).
+
 ## Indicative benchmarks
 
 Numbers below are **development-machine, cold-path, indicative**. They are not a production performance gate. The full sweep was run on 2026-04-18 against an Apple M1 Pro MacBook Pro with local Dockerised Postgres 17, default config, no tuning. Reproduction commands and per-scale `EXPLAIN ANALYZE` plans live alongside [`benchmarks/storage/results/`](../benchmarks/storage/results/).

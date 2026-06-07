@@ -28,6 +28,10 @@ Deferred from the round that landed the populate primitive. The CI integration-t
 
 ## Next
 
+### Document-grain audit log + system-history view
+
+Phase 2 of the v3.3.0 system-field decoupling. The non-versioned writes for document-grain fields (`path`, editorial `availableLocales`) are immediate and deliberately absent from version history — so they currently leave no audit trail. Round out Byline's auditable history so *every* change is accountable, not just content: a document-grain audit-log table (`actor` / `action` / `field` / `before` → `after` / `occurred_at`) written from `updateDocumentSystemFields` (and optionally `changeDocumentStatus`) under the existing auth gate, plus a **new tab under the document History view** — content/version history on the current tab, **system & document-level history** on the new one (who changed the path / advertised locales / status, when, and from→to). See [CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned).
+
 ### `hasMany` relations
 
 The single biggest planned addition to the relations surface. Schema, storage, populate output, and `where` quantifiers (`$some` / `$every` / `$none`) all change in concert. Largest item in this list by scope. See [RELATIONSHIPS.md → Phase — hasMany relations](./RELATIONSHIPS.md#phase--hasmany-relations).
