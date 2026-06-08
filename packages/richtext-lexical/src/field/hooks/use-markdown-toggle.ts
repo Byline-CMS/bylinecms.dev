@@ -11,16 +11,13 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { $createCodeNode, $isCodeNode } from '@lexical/code'
-import {
-  $convertFromMarkdownString,
-  $convertToMarkdownString,
-  TRANSFORMERS,
-} from '@lexical/markdown'
+import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $getRoot, type EditorState, RootNode } from 'lexical'
 
 import { APPLY_VALUE_TAG } from '../constants'
 import { useMarkdownMode } from '../context/markdown-mode-context'
+import { BYLINE_TRANSFORMERS } from '../markdown/transformers'
 
 const MARKDOWN_LANGUAGE = 'markdown'
 
@@ -90,7 +87,7 @@ export function useMarkdownToggle(): {
     // never emitted to the form.
     markdownModeRef.current = true
     editor.update(() => {
-      const markdown = $convertToMarkdownString(TRANSFORMERS, undefined, true)
+      const markdown = $convertToMarkdownString(BYLINE_TRANSFORMERS, undefined, true)
       originalMarkdownRef.current = markdown
       const codeNode = $createCodeNode(MARKDOWN_LANGUAGE)
       $getRoot().clear().append(codeNode)
@@ -121,7 +118,7 @@ export function useMarkdownToggle(): {
       // emitted to the form (one field change → one patch).
       markdownModeRef.current = false
       editor.update(() => {
-        $convertFromMarkdownString(currentMarkdown, TRANSFORMERS, undefined, true)
+        $convertFromMarkdownString(currentMarkdown, BYLINE_TRANSFORMERS, undefined, true)
       })
     }
 

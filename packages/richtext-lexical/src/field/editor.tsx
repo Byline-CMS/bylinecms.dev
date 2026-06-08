@@ -11,7 +11,6 @@
 import type * as React from 'react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 
-import { TRANSFORMERS } from '@lexical/markdown'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin'
@@ -35,6 +34,7 @@ import {
   selectFloatingUIItems,
 } from './extensions/byline-floating-ui/byline-floating-ui-extension'
 import { TableExtension as BylineTableExtension } from './extensions/table/table-extension'
+import { BYLINE_TRANSFORMERS } from './markdown/transformers'
 // import { AiPlugin } from './plugins/ai-plugin'
 // import { DragDropPaste } from './plugins/drag-drop-paste-plugin'
 import { TablePlugin } from './plugins/table-plugin'
@@ -166,7 +166,9 @@ export const Editor = memo(function Editor({
               ErrorBoundary={LexicalErrorBoundary}
             />
             <HistoryPlugin externalHistoryState={historyState} />
-            {markdownShortcutPlugin && <MarkdownShortcutPlugin transformers={TRANSFORMERS} />}
+            {markdownShortcutPlugin && (
+              <MarkdownShortcutPlugin transformers={BYLINE_TRANSFORMERS} />
+            )}
             {floatingAnchorElem != null &&
               !isSmallWidthViewport &&
               floatingUIItems.map(({ id, Component }) => (
