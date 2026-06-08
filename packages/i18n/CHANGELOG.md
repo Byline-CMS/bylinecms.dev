@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 3.4.1
+
+### Patch Changes
+
+- fixed the **`@byline/richtext-lexical`** admonition markdown transformer so `:::note[Title]` directives convert in the as-you-type shortcut path (not just the source toggle)
+- Updated dependencies
+  - @byline/ui@3.4.1
+
 ## 3.4.0
 
 ### Minor Changes

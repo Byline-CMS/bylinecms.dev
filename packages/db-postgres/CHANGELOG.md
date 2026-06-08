@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 3.4.1
+
+### Patch Changes
+
+- fixed the **`@byline/richtext-lexical`** admonition markdown transformer so `:::note[Title]` directives convert in the as-you-type shortcut path (not just the source toggle)
+- Updated dependencies
+  - @byline/admin@3.4.1
+  - @byline/auth@3.4.1
+  - @byline/core@3.4.1
+
 ## 3.4.0
 
 ### Minor Changes
