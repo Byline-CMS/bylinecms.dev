@@ -140,7 +140,11 @@ html[data-theme="dark"] .LexicalEditorTheme__textCode,
   background-color: rgb(240, 242, 245);
   font-family: Menlo, Consolas, Monaco, monospace;
   display: block;
-  padding: 8px;
+  /* No left padding: the sticky gutter must sit flush at the block's left
+   * edge. Any left padding offsets the gutter rightward and leaves a strip
+   * to its left where scrolled code text peeks through. The gutter's own
+   * padding + margin-right provides the spacing before the code. */
+  padding: 8px 8px 8px 0;
   line-height: 1.53;
   font-size: 15px;
   margin: 0;
