@@ -2,6 +2,9 @@
   display: flex;
   isolation: isolate;
   width: 100%;
+  /* Flex container — keep it from being widened by its content (a wide
+   * white-space:pre code block) past its allotted column width. */
+  min-width: 0;
 }
 
 .lexicalRichTextEditor--read-only {
@@ -21,6 +24,9 @@
 .lexicalRichTextEditor__wrap {
   width: 100%;
   position: relative;
+  /* Flex item of .lexicalRichTextEditor — default min-width:auto would let
+   * the code block's intrinsic width grow this past 100%. */
+  min-width: 0;
 }
 
 .lexicalRichTextEditor.error {

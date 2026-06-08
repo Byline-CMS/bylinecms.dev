@@ -12,6 +12,10 @@
   display: flex;
   flex: 1 1 0%;
   height: 100%;
+  /* Allow shrinking below content min-content so a wide (white-space:pre)
+   * code block inside the editor scrolls internally instead of stretching
+   * this field — and the form column — across the sidebar. */
+  min-width: 0;
 }
 
 .label-row,
@@ -26,4 +30,7 @@
   flex: 1 1 0%;
   flex-direction: column;
   gap: 0.25rem;
+  /* Same rationale as .wrapper — keep the editor body from growing to the
+   * code block's intrinsic width. */
+  min-width: 0;
 }

@@ -48,6 +48,11 @@
   flex: auto;
   position: relative;
   max-width: 100%;
+  /* Flex item default min-width:auto would let a wide (white-space:pre) code
+   * block grow this wrapper to its content width and scroll the whole editor.
+   * min-width:0 keeps the wrapper at the container width so the code block's
+   * own overflow-x scrolls internally and its sticky gutter stays pinned. */
+  min-width: 0;
   resize: vertical;
   z-index: -1;
 }

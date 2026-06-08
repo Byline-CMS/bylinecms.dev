@@ -140,26 +140,41 @@ html[data-theme="dark"] .LexicalEditorTheme__textCode,
   background-color: rgb(240, 242, 245);
   font-family: Menlo, Consolas, Monaco, monospace;
   display: block;
-  padding: 8px 8px 8px 52px;
+  padding: 8px;
   line-height: 1.53;
   font-size: 15px;
   margin: 0;
   margin-top: 8px;
   margin-bottom: 8px;
   tab-size: 2;
-  /* white-space: pre; */
+  /* Code lines must NOT wrap. The data-gutter line numbers track logical
+   * (newline-separated) lines; if lines wrap, the visual line count exceeds
+   * the gutter and the numbers no longer line up. Overflow scrolls within
+   * the block instead. max-width/box-sizing keep the scroll inside the code
+   * element rather than blowing out the editor width. */
+  white-space: pre;
   overflow-x: auto;
   position: relative;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .LexicalEditorTheme__code:before {
   content: attr(data-gutter);
-  position: absolute;
-  background-color: #eee;
+  /* sticky + float keeps the gutter pinned to the left edge while the code
+   * scrolls horizontally (previously position: absolute, which scrolled out
+   * of view with the content, leaving the line numbers behind). */
+  position: sticky;
+  float: left;
   left: 0;
   top: 0;
+  z-index: 3;
+  min-height: 100%;
+  background-color: #eee;
   border-right: 1px solid #ccc;
   padding: 8px;
+  margin-right: 10px;
+  margin-top: -8px;
   color: #777;
   white-space: pre-wrap;
   text-align: right;
