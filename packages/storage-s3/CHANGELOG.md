@@ -1,5 +1,17 @@
 # @byline/storage-s3
 
+## 3.4.0
+
+### Minor Changes
+
+- added a document-level markdown source toggle to the **`@byline/richtext-lexical`** editor, with table + admonition round-trip transformers
+  fixed code blocks to scroll horizontally with a pinned line-number gutter instead of wrapping
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.4.0
+
 ## 3.3.1
 
 ### Patch Changes
