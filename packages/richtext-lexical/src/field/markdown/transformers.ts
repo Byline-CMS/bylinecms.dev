@@ -236,7 +236,12 @@ export const ADMONITION: MultilineElementTransformer = {
     return body ? `${heading}\n${body}\n:::` : `${heading}\n:::`
   },
   regExpStart: ADMONITION_START_REG_EXP,
-  regExpEnd: ADMONITION_END_REG_EXP,
+  // `optional` is required for the as-you-type shortcut path to run this
+  // transformer at all: runMultilineElementTransformers skips any multiline
+  // transformer whose regExpEnd is non-optional (the closing ::: hasn't been
+  // typed yet when the start line fires). The toggle/import path still honours
+  // the explicit ::: end when present, falling back to EOF only if it's absent.
+  regExpEnd: { optional: true, regExp: ADMONITION_END_REG_EXP },
   replace: (rootNode, children, startMatch, _endMatch, linesInBetween) => {
     const rawType = startMatch[1]
     if (!ADMONITION_TYPES.has(rawType)) {
