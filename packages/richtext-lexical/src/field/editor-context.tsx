@@ -22,6 +22,7 @@ import {
 
 import { defaultExtensionsList } from './config/default-extensions'
 import { EditorConfigContext } from './config/editor-config-context'
+import { MarkdownModeProvider } from './context/markdown-mode-context'
 import { SharedHistoryContext } from './context/shared-history-context'
 import { SharedOnChangeContext } from './context/shared-on-change-context'
 import { Editor } from './editor'
@@ -119,18 +120,20 @@ export function EditorContext(props: {
     <EditorConfigContext config={editorConfig.settings}>
       <SharedOnChangeContext onChange={onChange}>
         <SharedHistoryContext>
-          <LexicalExtensionComposer
-            extension={rootExtension}
-            contentEditable={null}
-            key={composerKey + editable}
-          >
-            <div className="editor-shell">
-              {beforeEditor}
-              <Editor minHeight={props.minHeight} maxHeight={props.maxHeight} />
-              {afterEditor}
-              {children}
-            </div>
-          </LexicalExtensionComposer>
+          <MarkdownModeProvider>
+            <LexicalExtensionComposer
+              extension={rootExtension}
+              contentEditable={null}
+              key={composerKey + editable}
+            >
+              <div className="editor-shell">
+                {beforeEditor}
+                <Editor minHeight={props.minHeight} maxHeight={props.maxHeight} />
+                {afterEditor}
+                {children}
+              </div>
+            </LexicalExtensionComposer>
+          </MarkdownModeProvider>
         </SharedHistoryContext>
       </SharedOnChangeContext>
     </EditorConfigContext>

@@ -14,6 +14,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
     showTreeView: false,
     textAlignment: true,
     markdownShortcutPlugin: false,
+    markdownToggle: false,
     undoRedo: true,
     textStyle: true,
     inlineCode: true,

@@ -50,6 +50,12 @@ import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/confi
  */
 export const LexicalRichTextAi = lexicalEditor((c) => {
   c.extensions.add(AiLexicalExtension).remove(builtInExtensions.FloatingTextFormat)
+  // Document-level "view as markdown source" toolbar toggle (the capital-M
+  // button) enabled site-wide on the AI editor. Settings live on the baked
+  // registration config so every richtext field keeps the AI assistant AND
+  // the markdown toggle — a schema-side `editorConfig` would override this
+  // baked config and strip the AI extension (it can't carry extensions).
+  c.settings.options.markdownToggle = true
   return c
 }) satisfies (props: RichTextEditorProps) => React.JSX.Element
 

@@ -26,6 +26,7 @@ import type { EditorState, LexicalEditor } from 'lexical'
 
 import { useEditorConfig } from './config/editor-config-context'
 import { ContentEditable } from './content-editable'
+import { useMarkdownMode } from './context/markdown-mode-context'
 import { useSharedHistoryContext } from './context/shared-history-context'
 import { useSharedOnChange } from './context/shared-on-change-context'
 import { Debug } from './debug'
@@ -63,6 +64,7 @@ export const Editor = memo(function Editor({
   const _debugTagLogCountRef = useState(() => ({ count: 0 }))[0]
   const { onChange } = useSharedOnChange()
   const { historyState } = useSharedHistoryContext()
+  const { markdownModeRef } = useMarkdownMode()
   const {
     config: {
       options: { debug, richText, showTreeView, markdownShortcutPlugin },
@@ -148,6 +150,9 @@ export const Editor = memo(function Editor({
             //   console.log('[lexical][top] tags', Array.from(tags))
             // }
             if (tags.has(APPLY_VALUE_TAG)) return
+            // Markdown-source edits are a transient view — never persisted to
+            // the form. Only the single convert-back on exit reaches onChange.
+            if (markdownModeRef.current) return
             if (!tags.has('focus') || tags.size > 1) {
               if (onChange != null) onChange(editorState, editor, tags)
             }

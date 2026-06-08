@@ -92,6 +92,7 @@ import {
   OPEN_LINK_MODAL_COMMAND,
   TOGGLE_LINK_COMMAND,
 } from '../../extensions/link'
+import { useMarkdownToggle } from '../../hooks/use-markdown-toggle'
 import { IS_APPLE } from '../../shared/environment'
 import { DropDown, DropDownItem } from '../../ui/dropdown'
 import { getSelectedNode } from '../../utils/getSelectedNode'
@@ -372,9 +373,10 @@ export function ToolbarPlugin(): React.JSX.Element {
   const {
     uuid,
     config: {
-      options: { textAlignment, undoRedo, textStyle, inlineCode },
+      options: { textAlignment, undoRedo, textStyle, inlineCode, markdownToggle },
     },
   } = useEditorConfig()
+  const { isMarkdown, toggleMarkdown } = useMarkdownToggle()
   // const { openModal } = usePayloadModal()
   // const editDepth = useEditDepth()
 
@@ -869,6 +871,23 @@ export function ToolbarPlugin(): React.JSX.Element {
           <Fragment key={item.id}>{item.node}</Fragment>
         ))}
       </ToolbarActiveEditorProvider>
+
+      {markdownToggle && (
+        <>
+          <Divider />
+          <button
+            type="button"
+            disabled={!isEditable}
+            onClick={toggleMarkdown}
+            className={`toolbar-item spaced markdown-toggle ${isMarkdown ? 'active' : ''}`}
+            title={isMarkdown ? 'Convert from Markdown' : 'Convert to Markdown'}
+            aria-label={isMarkdown ? 'Convert from markdown' : 'Convert to markdown'}
+            aria-pressed={isMarkdown}
+          >
+            <span className="markdown-toggle-label">M</span>
+          </button>
+        </>
+      )}
     </div>
   )
 }

@@ -14,6 +14,7 @@ export type OptionName =
   | 'showTreeView'
   | 'textAlignment'
   | 'markdownShortcutPlugin'
+  | 'markdownToggle'
   | 'undoRedo'
   | 'textStyle'
   | 'inlineCode'

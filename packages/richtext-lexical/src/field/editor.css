@@ -1255,6 +1255,28 @@ button.toolbar-item.active i {
   opacity: 1;
 }
 
+button.toolbar-item .markdown-toggle-label {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 18px;
+  width: 18px;
+  text-align: center;
+  /* Explicit color (like `.toolbar-item .text`) rather than inheriting —
+   * in dark mode `.editor-shell` sets the inherited color to #fff, which the
+   * `.toolbar span { filter: invert(1) }` rule would then flip to black.
+   * A mid-gray inverts to a visible mid-gray in both themes. */
+  color: #777;
+}
+
+button.toolbar-item.active .markdown-toggle-label {
+  color: #1a1a1a;
+}
+
+button.toolbar-item:disabled .markdown-toggle-label {
+  color: #bbb;
+}
+
 .toolbar-item.font-family .text {
   display: block;
   max-width: 40px;
