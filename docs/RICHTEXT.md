@@ -54,7 +54,8 @@ defineClientConfig({
     richText: {
       editor: lexicalEditor((c) => {
         c.settings.placeholderText = 'Start writing…'
-        c.settings.options.markdownShortcutPlugin = true
+        c.settings.options.markdownShortcutPlugin = true // inline `# `, `**bold**`, … shortcuts
+        c.settings.options.markdownToggle = true // document-level "view as markdown source" toolbar button
         return c
       }),
     },
@@ -412,6 +413,15 @@ c.extensions.has(extension)                       // boolean test by name
 
 Comparison is by extension `name` (Lexical's own dedup key), so a bare `LinkExtension` and `configExtension(LinkExtension, {...})` are treated as the same entry. Adding two extensions with the same name throws at composer-build time — replace built-ins via `remove(...)` + `add(yours)`, not by name collision.
 
+### Markdown source toggle and transformers
+
+A document-level "view as markdown source" toggle, opt-in per installation via the `markdownToggle` editor setting (default `false`; recipe 2 enables it). When on, a capital-**M** button sits at the right of the toolbar; clicking it flips the editing surface between the WYSIWYG editor and a single markdown `CodeNode` holding the document's raw markdown — and back.
+
+- **Patch-aware.** The editor is bound to a Byline form field that accumulates `DocumentPatch[]`. While in source mode, keystrokes are suppressed from the form's `OnChangePlugin` via a synchronous `markdownModeRef` guard, so the transient source view never leaks into the patch stream. A no-edit round-trip (WYSIWYG → markdown → WYSIWYG with no changes) restores the *exact* captured `EditorState`, so the form records **no patch**; edits made in source emit a single field change on toggle-back (**one patch**). Mode state lives in `MarkdownModeProvider` (`field/context/markdown-mode-context.tsx`); the conversion + root-shape guard live in the `useMarkdownToggle` hook (`field/hooks/use-markdown-toggle.ts`).
+- **Transformers.** Conversion runs through `BYLINE_TRANSFORMERS` (`field/markdown/transformers.ts`) — the stock `@lexical/markdown` `TRANSFORMERS` extended with custom handlers: GFM pipe **tables** (adapted from the Lexical playground) and Docusaurus-style `:::type[Title] … :::` **admonitions** (`note` / `tip` / `warning` / `danger`). Admonition bodies use an inline-only transformer set because the node's nested editor (a bare `createEditor()`) holds only paragraphs + inline formatting. The same `BYLINE_TRANSFORMERS` array is wired into the inline `MarkdownShortcutPlugin` so typed shortcuts and the source view stay consistent.
+- **Lossy nodes (known gap).** Custom nodes without a transformer — **layout** columns and **inline images** — are dropped/flattened on a markdown round-trip. A guard to disable the toggle (or warn) when an un-round-trippable node is present is planned alongside extending the transformer set.
+- **Distinct from server-side export.** This toggle is the *bidirectional, lossless* browser path for a single richtext field. Serving a markdown representation of a whole published document at its route is a separate, one-way concern — see [Phase 8](#phase-8--markdown-export).
+
 ### The toolbar registry
 
 `BylineToolbarExtension` is a typed Lexical extension whose merged config is `{ items: BylineToolbarItem[] }`. Contributors declare it as a peer dependency and supply an `items` array; the toolbar plugin reads the merged list via `useExtensionDependency(BylineToolbarExtension)` and dispatches by placement.
@@ -722,6 +732,17 @@ Today's slot is site-wide. A future phase may want to register an editor per col
 
 This phase is Lexical-specific. A second editor package (Phase 2) would have its own extensibility surface shaped by its own plugin model; the Phase 7 design here doesn't generalise to TipTap or ProseMirror.
 
+### Phase 8 — Markdown export
+
+The editor's [markdown source toggle](#markdown-source-toggle-and-transformers) gives authors a bidirectional, lossless view of a single richtext field. A separate — and higher-value — concern is serving a **markdown representation of a whole published document** at its route (`/news/foo.md`, `Accept: text/markdown` content negotiation, a `<link rel="alternate" type="text/markdown">` in the page head, an `llms.txt` index). This is increasingly expected by AI agents and documentation tooling, and it's the stronger strategic reason to invest in markdown serialization. Decided in direction, not yet built:
+
+- **Export is one-way, and that's a feature.** `SerializedEditorState → markdown` is a pure tree walk; the output is read-only and never re-imported, so *lossy is acceptable* — flattening an inline image to `![alt](url)` or a layout column to stacked sections is fine. It does **not** require the bidirectional, lossless transformers the toggle needs. Build the one-way serializer first; it's the path with the real value and the lower fidelity bar.
+- **No `@lexical/headless` on the server.** Headless has been unreliable for Byline's node set (not every node/extension registers cleanly in a server-only env). The export walks the stored serialized JSON directly — the pattern already used by `apps/webapp/src/ui/byline/components/richtext-lexical/serialize/` and the `packages/ai` text utilities — so there's no editor instantiation, no DOM, and no node registration.
+- **Document-grain, not field-grain.** A page is a composite — text fields, *multiple* richtext fields, blocks, arrays, relations. `documentToMarkdown(doc, collectionDef)` walks the collection's fields and composes one markdown file: frontmatter from title/meta, each field/block as a section, relations as links. So there are two registries: a Lexical-node→markdown serializer (the richtext piece) and a field/block→markdown assembler (the document piece). They emit the same syntax as `BYLINE_TRANSFORMERS` but are separate artifacts — at most they share a small pure string helper.
+- **Caching.** Keyed purely on the **content locale in the URL** (default-locale fallback for untranslated documents — Byline's content-locale resolution/fallback model, see [I18N.md](./I18N.md)); the UI locale stays the invisible signal it should be. One `.md` variant per content locale, same cache key as the HTML page — nothing new to design.
+
+Distinct from [Phase 5](#phase-5--editor-side-server-pipeline) (field-grain search / excerpt / plain-text projections), though both are server-side derived projections and could share the JSON tree-walk scaffolding.
+
 ---
 
 ## Known followups
@@ -768,6 +789,10 @@ The link visitor's three branches (found / hook-threw / target-missing) and `emb
 | Toolbar consumer (reads contributed items) | `packages/richtext-lexical/src/field/plugins/toolbar-plugin/index.tsx` |
 | Editor-context composition (root extension) | `packages/richtext-lexical/src/field/editor-context.tsx` |
 | Editor.tsx (mounts floating UIs from the registry) | `packages/richtext-lexical/src/field/editor.tsx` |
+| Markdown source toggle (state provider) | `packages/richtext-lexical/src/field/context/markdown-mode-context.tsx` |
+| Markdown source toggle (conversion + root guard hook) | `packages/richtext-lexical/src/field/hooks/use-markdown-toggle.ts` |
+| Byline markdown transformers (`BYLINE_TRANSFORMERS`, table + admonition) | `packages/richtext-lexical/src/field/markdown/transformers.ts` |
+| `markdownToggle` editor setting | `packages/richtext-lexical/src/field/config/types.ts` |
 | Byline `TableExtension` (incl. action-menu floating UI) | `packages/richtext-lexical/src/field/extensions/table/` |
 | Byline `HorizontalRuleExtension` wrapper | `packages/richtext-lexical/src/field/extensions/horizontal-rule/` |
 | Link extension (UI + extension + floating editor) | `packages/richtext-lexical/src/field/extensions/link/` |

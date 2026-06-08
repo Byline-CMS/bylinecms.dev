@@ -28,6 +28,19 @@ Deferred from the round that landed the populate primitive. The CI integration-t
 
 ## Next
 
+### Markdown export — `documentToMarkdown` + `.md` routes
+
+Serve a markdown representation of published documents at their routes (`/news/foo.md`, `Accept: text/markdown` content negotiation, a `<link rel="alternate" type="text/markdown">` in the page head, an `llms.txt` index) — increasingly expected by AI agents and documentation tooling, and the stronger strategic reason to invest in markdown serialization. **Ranked high.**
+
+Key decisions already settled (so this can be picked up cold):
+
+- **Export-first and one-way.** `SerializedEditorState → markdown` is a pure tree walk; output is read-only and never re-imported, so *lossy is acceptable* (flatten an inline image to `![alt](url)`, a layout column to stacked sections). This is **not** the same problem as the editor's markdown source toggle — that one needs bidirectional, lossless transformers (`BYLINE_TRANSFORMERS`); export does not. Build the one-way serializer; don't let the toggle's harder fidelity bar gate it.
+- **No `@lexical/headless` on the server** — it has been unreliable for Byline's node set. Walk the stored serialized JSON directly, following the existing pattern in `apps/webapp/src/ui/byline/components/richtext-lexical/serialize/` and the `packages/ai` text utilities. No editor instantiation, no DOM, no node registration.
+- **Document-grain, not field-grain.** A page is a composite (text, multiple richtext fields, blocks, arrays, relations). `documentToMarkdown(doc, collectionDef)` walks the collection's fields → one markdown file (frontmatter from title/meta, fields/blocks as sections, relations as links). Two registries: a Lexical-node→markdown serializer and a field/block→markdown assembler.
+- **Caching** keys purely on the **content locale in the URL** (default-locale fallback for untranslated docs); UI locale stays the invisible signal. Same cache key as the HTML page — one `.md` variant per content locale.
+
+Likely home for the serializer is `@byline/core/services` (or the richtext adapter's `/server` entry for the Lexical-node half); the `.md` route handler is host-side. See [RICHTEXT.md → Phase 8 — markdown export](./RICHTEXT.md#phase-8--markdown-export).
+
 ### Document-grain audit log + system-history view
 
 Phase 2 of the v3.3.0 system-field decoupling. The non-versioned writes for document-grain fields (`path`, editorial `availableLocales`) are immediate and deliberately absent from version history — so they currently leave no audit trail. Round out Byline's auditable history so *every* change is accountable, not just content: a document-grain audit-log table (`actor` / `action` / `field` / `before` → `after` / `occurred_at`) written from `updateDocumentSystemFields` (and optionally `changeDocumentStatus`) under the existing auth gate, plus a **new tab under the document History view** — content/version history on the current tab, **system & document-level history** on the new one (who changed the path / advertised locales / status, when, and from→to). See [CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned).
