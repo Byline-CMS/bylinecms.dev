@@ -14,7 +14,9 @@ Companions:
 
 `@byline/ui` is Byline's **framework-agnostic React primitives package** — `Button`, `Card`, `Modal`, `Input`, `Drawer`, `Table`, `Search`, `Datepicker`, every icon, every loader, plus the cascade-layered stylesheet system and a generic `DraggableSortable` over `@dnd-kit/sortable`. The entire surface is **synced verbatim** from [`@infonomic/uikit`](https://github.com/infonomic/uikit), the upstream open-source project the Byline maintainers also author. Byline does not fork these components; the upstream repository remains the single source of truth.
 
-> **What changed in v2.6.0.** Earlier versions of `@byline/ui` also carried Byline-specific surfaces — the document-editor form runtime, field widgets, admin layout primitives, and editor-shared widgets (status badge, diff modal). Those moved to `@byline/admin` in v2.6.0 because they embed CMS concepts (`CollectionDefinition`, `CollectionAdminConfig`, `DocumentPatch`, workflow status) and had no non-admin consumers. The reshape leaves `@byline/ui` as a true primitives package; the admin-aware surface is now `@byline/admin/react`. See the v2.6.0 release notes for the full symbol-move list.
+:::note[What changed in v2.6.0]
+Earlier versions of `@byline/ui` also carried Byline-specific surfaces — the document-editor form runtime, field widgets, admin layout primitives, and editor-shared widgets (status badge, diff modal). Those moved to `@byline/admin` in v2.6.0 because they embed CMS concepts (`CollectionDefinition`, `CollectionAdminConfig`, `DocumentPatch`, workflow status) and had no non-admin consumers. The reshape leaves `@byline/ui` as a true primitives package; the admin-aware surface is now `@byline/admin/react`. See the v2.6.0 release notes for the full symbol-move list.
+:::
 
 ## Why a single package
 

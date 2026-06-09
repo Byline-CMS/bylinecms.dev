@@ -6,11 +6,13 @@ summary: "Byline as a Model Context Protocol server — a peer transport that bi
 
 # MCP Server
 
-> **Status: concept / decision note — not yet built; build deferred until after
-> `hasMany`.** This captures the intended shape of `packages/mcp` so the
-> dependencies (service-account auth, the operation layer, relationship
-> completeness) are settled before code lands. Where this note and a shipped doc
-> disagree, the shipped doc wins until this one loses the status banner.
+:::note[Status]
+**Concept / decision note — not yet built; build deferred until after
+`hasMany`.** This captures the intended shape of `packages/mcp` so the
+dependencies (service-account auth, the operation layer, relationship
+completeness) are settled before code lands. Where this note and a shipped doc
+disagree, the shipped doc wins until this one loses the status banner.
+:::
 
 Companions:
 - [TRANSPORTS.md](./TRANSPORTS.md) — MCP is a **peer transport** in that family. It shares the operation layer with the HTTP bindings and differs only in how it surfaces operations (tools/resources/prompts vs HTTP routes). Read that first.

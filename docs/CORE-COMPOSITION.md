@@ -26,7 +26,9 @@ Two consequences worth flagging for any future field-level adapter:
 
 A user-land lifecycle hook surface on adapters (Phase 3b in `RICHTEXT.md`) is deliberately *not* part of this pattern. That layer waits for a second editor implementation to reveal what it should look like; today's slot is for framework-managed phases only.
 
-> **Status: Phase 1 shipped.** `createCommand` is live in `@byline/admin` and every admin module's `commands.ts` is built on it. Phases 2–5 remain forward-looking. The phases below are ordered by leverage and by how independent each one is.
+:::note[Status: Phase 1 shipped]
+`createCommand` is live in `@byline/admin` and every admin module's `commands.ts` is built on it. Phases 2–5 remain forward-looking. The phases below are ordered by leverage and by how independent each one is.
+:::
 
 ## Where we are now
 

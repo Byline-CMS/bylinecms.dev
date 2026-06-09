@@ -117,11 +117,13 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
 })
 ```
 
-> `useAsTitle`, `search`, and `workflow` live on the schema (not the admin
-> config) because they describe the document itself, not how it's rendered.
-> `useAsTitle` names the field that represents a document's identity — used
-> by the relation picker summary, populate's default projection, and any
-> other server-side consumer. Analogous to Django's `Model.__str__`.
+:::note[Schema-level fields]
+`useAsTitle`, `search`, and `workflow` live on the schema (not the admin
+config) because they describe the document itself, not how it's rendered.
+`useAsTitle` names the field that represents a document's identity — used
+by the relation picker summary, populate's default projection, and any
+other server-side consumer. Analogous to Django's `Model.__str__`.
+:::
 
 The advantages of this approach:
 

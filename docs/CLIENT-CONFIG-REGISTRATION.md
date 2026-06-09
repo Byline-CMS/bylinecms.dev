@@ -26,12 +26,14 @@ Companions:
 - [RICHTEXT.md](./RICHTEXT.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
 - [TODO.md](./TODO.md) — priority index; this is the linked detail for "Admin client-config registration — single-point resolution."
 
-> **Status (2026-06): groundwork shipped, eager single-point deferred.** The
-> richtext side is light (`@byline/richtext-lexical/config`, lazy
-> `AiLexicalExtension`). The dual registration remains, blocked by the
-> admin-presentation-barrel coupling described below. The eager single point is
-> *possible* but its cost/benefit is currently poor — see
-> [Verdict](#verdict-possible-context-safe-but-not-currently-worth-it).
+:::note[Status (2026-06)]
+**Groundwork shipped, eager single-point deferred.** The
+richtext side is light (`@byline/richtext-lexical/config`, lazy
+`AiLexicalExtension`). The dual registration remains, blocked by the
+admin-presentation-barrel coupling described below. The eager single point is
+*possible* but its cost/benefit is currently poor — see
+[Verdict](#verdict-possible-context-safe-but-not-currently-worth-it).
+:::
 
 ---
 

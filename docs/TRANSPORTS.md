@@ -6,13 +6,15 @@ summary: "The pluggable transport family — a single framework-agnostic operati
 
 # Transports
 
-> **Status: concept / decision note — not yet built.** This document captures the
-> intended architecture for Byline's transport layer *before* code lands, so the
-> contract-first shape is settled and the work can be sequenced against the auth
-> subsystem and `hasMany`. It is the concrete form of the "stable HTTP boundary
-> phase" that [ROUTING-API.md](./ROUTING-API.md) explicitly defers until the first
-> non-admin client arrives. Where this note and a shipped doc disagree, the shipped
-> doc wins until this one loses the status banner.
+:::note[Status]
+**Concept / decision note — not yet built.** This document captures the
+intended architecture for Byline's transport layer *before* code lands, so the
+contract-first shape is settled and the work can be sequenced against the auth
+subsystem and `hasMany`. It is the concrete form of the "stable HTTP boundary
+phase" that [ROUTING-API.md](./ROUTING-API.md) explicitly defers until the first
+non-admin client arrives. Where this note and a shipped doc disagree, the shipped
+doc wins until this one loses the status banner.
+:::
 
 Companions:
 - [ROUTING-API.md](./ROUTING-API.md) — the current internal-transport phase and *why* a stable boundary is deferred. This note is the answer to "what triggers it / what does it look like."
