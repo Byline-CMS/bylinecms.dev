@@ -1,17 +1,13 @@
-@layer base,
-  byline-base,
-  theme,
-  byline-theme,
-  byline-functional,
-  byline-typography,
-  components,
-  byline-components,
-  utilities,
-  byline-utilities;
+@layer infonomic-base,
+  infonomic-functional,
+  infonomic-utilities,
+  infonomic-theme,
+  infonomic-typography,
+  infonomic-components;
 
-@layer byline-components {
+@layer infonomic-components {
   .alert,
-  :global(.byline-alert) {
+  :global(.infonomic-alert) {
     display: flex;
     align-items: start;
     width: 100%;
@@ -22,20 +18,26 @@
     font-weight: normal;
     transition: all 0.3s ease-in-out;
     border: 1px solid var(--alert-border);
-    background-color: var(--alert-background);
+    /* Multiply the fill token's existing alpha channel to layer on additional
+       transparency, without altering the --fill-<intent>-weak color primitives. */
+    --alert-background-opacity: 0.5;
+    background-color: oklch(
+      from var(--alert-background) l c h /
+        calc(alpha * var(--alert-background-opacity))
+    );
     color: var(--foreground);
     margin-bottom: 1rem;
   }
 
   .alert-with-title,
-  :global(.byline-alert-with-title) {
+  :global(.infonomic-alert-with-title) {
     display: flex;
     flex-direction: column;
     width: 100%;
   }
 
   .icon,
-  :global(.byline-alert-icon) {
+  :global(.infonomic-alert-icon) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -46,7 +48,7 @@
   }
 
   .close,
-  :global(.byline-alert-close) {
+  :global(.infonomic-alert-close) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -61,13 +63,13 @@
   }
 
   .fade,
-  :global(.byline-alert-fade) {
+  :global(.infonomic-alert-fade) {
     opacity: 0;
     transition: opacity 0.4s ease-in-out;
   }
 
   .header,
-  :global(.byline-alert-header) {
+  :global(.infonomic-alert-header) {
     display: flex;
     align-items: start;
     width: 100%;
@@ -76,72 +78,64 @@
   }
 
   .title,
-  :global(.byline-alert-title) {
+  :global(.infonomic-alert-title) {
     display: flex;
     font-weight: bold;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     line-height: 1;
     padding-top: 1px;
   }
 
   .content,
-  :global(.byline-alert-content) {
+  :global(.infonomic-alert-content) {
     padding-top: 1px;
-    margin: 0;
-    font-size: 1.1rem;
-  }
-
-  @media (min-width: 40rem) {
-    .content,
-    :global(.byline-alert-content) {
-      font-size: 1rem;
-    }
+    font-size: var(--font-size-sm);
   }
 
   .content:first-child,
-  :global(.byline-alert-content:first-child) {
+  :global(.infonomic-alert-content:first-child) {
     margin-top: 0;
   }
 
   /* Intents */
   .primary,
-  :global(.byline-alert-primary) {
+  :global(.infonomic-alert-primary) {
     --alert-border: var(--stroke-primary);
     --alert-background: var(--fill-primary-weak);
   }
 
   .secondary,
-  :global(.byline-alert-secondary) {
+  :global(.infonomic-alert-secondary) {
     --alert-border: var(--stroke-secondary);
     --alert-background: var(--fill-secondary-weak);
   }
 
   .noeffect,
-  :global(.byline-alert-noeffect) {
+  :global(.infonomic-alert-noeffect) {
     --alert-border: var(--stroke-noeffect);
     --alert-background: var(--fill-noeffect-weak);
   }
 
   .success,
-  :global(.byline-alert-success) {
+  :global(.infonomic-alert-success) {
     --alert-border: var(--stroke-success);
     --alert-background: var(--fill-success-weak);
   }
 
   .info,
-  :global(.byline-alert-info) {
+  :global(.infonomic-alert-info) {
     --alert-border: var(--stroke-info);
     --alert-background: var(--fill-info-weak);
   }
 
   .warning,
-  :global(.byline-alert-warning) {
+  :global(.infonomic-alert-warning) {
     --alert-border: var(--stroke-warning);
     --alert-background: var(--fill-warning-weak);
   }
 
   .danger,
-  :global(.byline-alert-danger) {
+  :global(.infonomic-alert-danger) {
     --alert-border: var(--stroke-danger);
     --alert-background: var(--fill-danger-weak);
   }
