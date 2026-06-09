@@ -79,7 +79,7 @@
   :global(.byline-alert-title) {
     display: flex;
     font-weight: bold;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     line-height: 1;
     padding-top: 1px;
   }
@@ -87,7 +87,15 @@
   .content,
   :global(.byline-alert-content) {
     padding-top: 1px;
-    font-size: var(--font-size-sm);
+    margin: 0;
+    font-size: 1.1rem;
+  }
+
+  @media (min-width: 40rem) {
+    .content,
+    :global(.byline-alert-content) {
+      font-size: 1rem;
+    }
   }
 
   .content:first-child,
