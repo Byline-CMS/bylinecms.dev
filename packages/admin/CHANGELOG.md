@@ -1,5 +1,19 @@
 # @byline/admin
 
+## 3.5.0
+
+### Minor Changes
+
+- reworked richtext admonitions for full markdown round-trip with doc-import detection; added responsive sizing and transparency to UI alerts
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.5.0
+  - @byline/core@3.5.0
+  - @byline/i18n@3.5.0
+  - @byline/ui@3.5.0
+
 ## 3.4.1
 
 ### Patch Changes

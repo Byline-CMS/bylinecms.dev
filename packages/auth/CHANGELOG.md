@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 3.5.0
+
+### Minor Changes
+
+- reworked richtext admonitions for full markdown round-trip with doc-import detection; added responsive sizing and transparency to UI alerts
+
 ## 3.4.1
 
 ### Patch Changes
