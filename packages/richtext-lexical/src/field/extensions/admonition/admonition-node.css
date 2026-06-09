@@ -86,6 +86,11 @@
   background-color: rgba(60, 132, 244, 0.18);
 }
 
+.LexicalEditor__admonition .AdmonitionNode__content {
+  font-size: 0.925em;
+  color: #4b5563;
+}
+
 .LexicalEditor__admonition .AdmonitionNode__content > * {
   margin-bottom: 0.25em;
 }
@@ -96,6 +101,10 @@
 
 .dark .LexicalEditor__admonition {
   border-color: #444444;
+}
+
+.dark .LexicalEditor__admonition .AdmonitionNode__content {
+  color: #9ca3af;
 }
 
 .dark .LexicalEditor__admonition .AdmonitionNode__edit-button {
