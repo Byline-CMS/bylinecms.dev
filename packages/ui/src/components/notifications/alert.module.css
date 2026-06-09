@@ -89,7 +89,15 @@
   .content,
   :global(.infonomic-alert-content) {
     padding-top: 1px;
-    font-size: var(--font-size-sm);
+    font-size: 1.1rem;
+  }
+
+  @media (min-width: 40rem) {
+    .content,
+    :global(.infonomic-alert-content) {
+      padding-top: 1px;
+      font-size: 1rem;
+    }
   }
 
   .content:first-child,
