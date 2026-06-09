@@ -138,8 +138,11 @@ cd src/database
 cd ../..
 ```
 
-> **Foot-gun protection.** Our `./db_init` script sources (imports)
-> `common.sh`, which has a guarded check that will only allow `_dev` or `_test` databases to be initialized or reset.
+:::warning[Foot-gun protection]
+Our `./db_init` script sources (imports) `common.sh`, which has a guarded
+check that will only allow `_dev` or `_test` databases to be initialized or
+reset.
+:::
 
 ```sh
 # You can optionally run pnpm drizzle:generate, although since

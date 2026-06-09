@@ -32,7 +32,7 @@ export function AdmonitionSerializer({
   // the node itself (was previously a nested editor under
   // `content.editorState.root.children`).
   return (
-    <Alert title={node.title} intent={intent} close={false} className="not-prose">
+    <Alert title={node.title} intent={intent} close={false} className="not-prose my-6">
       {node?.children != null ? (
         serialize({ nodes: node.children, lng, options })
       ) : (

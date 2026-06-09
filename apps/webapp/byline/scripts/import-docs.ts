@@ -24,7 +24,9 @@
  *
  * Per-file flow:
  *   1. Read the file, split frontmatter from body with gray-matter.
- *   2. Parse the body to mdast via remark-parse + remark-gfm.
+ *   2. Parse the body to mdast via remark-parse + remark-gfm, lifting
+ *      Docusaurus-style admonition fences (`:::note[Title] … :::`) into
+ *      synthetic nodes (see lib/parse-markdown.ts).
  *   3. Rewrite `./SIBLING.md[#hash]` links to `/docs/<imported-path>`
  *      using a sourcePath→docPath map built from a frontmatter pre-pass.
  *      Targets outside the batch are stripped to plain text.
@@ -48,13 +50,10 @@ import { resolve } from 'node:path'
 import { createSuperAdminContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
 import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
-import type { Root } from 'mdast'
-import remarkGfm from 'remark-gfm'
-import remarkParse from 'remark-parse'
-import { unified } from 'unified'
 
 import { type DocFrontmatter, parseDocFile } from './lib/frontmatter.js'
 import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexical.js'
+import { parseBodyToMdast } from './lib/parse-markdown.js'
 import { type DocLinkRewriteWarning, rewriteDocLinks } from './lib/rewrite-doc-links.js'
 import { stripLeadingH1IfMatches } from './lib/strip-leading-h1.js'
 
@@ -93,10 +92,6 @@ async function expandPatterns(patterns: string[]): Promise<string[]> {
     }
   }
   return [...out].sort()
-}
-
-function parseBodyToMdast(body: string): Root {
-  return unified().use(remarkParse).use(remarkGfm).parse(body) as Root
 }
 
 function logWarnings(filePath: string, warnings: MdastToLexicalWarning[]): void {

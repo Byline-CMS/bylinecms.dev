@@ -6,20 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { Root } from 'mdast'
-import remarkGfm from 'remark-gfm'
-import remarkParse from 'remark-parse'
-import { unified } from 'unified'
 import { describe, expect, test } from 'vitest'
 
 import { mdastToLexical } from './mdast-to-lexical.js'
-
-function parse(md: string): Root {
-  return unified().use(remarkParse).use(remarkGfm).parse(md) as Root
-}
+import { parseBodyToMdast } from './parse-markdown.js'
 
 function convert(md: string) {
-  return mdastToLexical(parse(md))
+  return mdastToLexical(parseBodyToMdast(md))
 }
 
 describe('mdastToLexical', () => {
@@ -258,5 +251,85 @@ describe('mdastToLexical', () => {
     expect(paragraph.children[0].text).toBe(
       'In a world where AI produces content fast, into dozens of languages, why does a CMS matter?'
     )
+  })
+
+  describe('admonitions', () => {
+    test('titled note becomes an admonition node with body paragraphs', () => {
+      const md = [':::note[Heads up]', 'First line.', '', 'Second line.', ':::'].join('\n')
+      const { state, warnings } = convert(md)
+      expect(warnings).toEqual([])
+      expect(state.root.children).toHaveLength(1)
+      const adm = state.root.children[0] as unknown as {
+        type: string
+        admonitionType: string
+        title: string
+        children: Array<{ type: string; children: Array<{ text: string }> }>
+      }
+      expect(adm).toMatchObject({ type: 'admonition', admonitionType: 'note', title: 'Heads up' })
+      expect(adm.children).toHaveLength(2)
+      expect(adm.children[0]).toMatchObject({ type: 'paragraph' })
+      expect(adm.children[0].children[0].text).toBe('First line.')
+      expect(adm.children[1].children[0].text).toBe('Second line.')
+    })
+
+    test('inline formatting + links survive inside an admonition body', () => {
+      const md = [
+        ':::warning[Careful]',
+        'This is **bold** and a [link](https://x.io).',
+        ':::',
+      ].join('\n')
+      const { state } = convert(md)
+      const adm = state.root.children[0] as unknown as {
+        admonitionType: string
+        children: Array<{ children: Array<{ type: string; text?: string; format?: number }> }>
+      }
+      expect(adm.admonitionType).toBe('warning')
+      const inline = adm.children[0].children
+      expect(inline).toContainEqual(expect.objectContaining({ text: 'bold', format: 1 }))
+      expect(inline).toContainEqual(expect.objectContaining({ type: 'link' }))
+    })
+
+    test('untitled admonition carries an empty title', () => {
+      const { state } = convert([':::tip', 'A quick tip.', ':::'].join('\n'))
+      const adm = state.root.children[0] as unknown as { admonitionType: string; title: string }
+      expect(adm).toMatchObject({ admonitionType: 'tip', title: '' })
+    })
+
+    test('an empty admonition body is seeded with one empty paragraph', () => {
+      const { state } = convert([':::danger[Stop]', ':::'].join('\n'))
+      const adm = state.root.children[0] as unknown as {
+        admonitionType: string
+        children: Array<{ type: string; children: unknown[] }>
+      }
+      expect(adm.admonitionType).toBe('danger')
+      expect(adm.children).toEqual([expect.objectContaining({ type: 'paragraph', children: [] })])
+    })
+
+    test('admonitions sit alongside ordinary blocks in source order', () => {
+      const md = ['# Title', '', ':::note[Note]', 'Body.', ':::', '', 'After.'].join('\n')
+      const { state } = convert(md)
+      expect(state.root.children.map((c) => (c as { type: string }).type)).toEqual([
+        'heading',
+        'admonition',
+        'paragraph',
+      ])
+    })
+
+    test('colon-bearing prose is never mistaken for a directive', () => {
+      // The line scanner only matches the four container fences, so inline
+      // colons (`9:30`, `1:2:3`, `note:foo`) pass through untouched.
+      const { state, warnings } = convert('Run at 9:30 with a 1:2:3 ratio and note:foo.')
+      expect(warnings).toEqual([])
+      const paragraph = state.root.children[0] as unknown as { children: Array<{ text: string }> }
+      expect(paragraph.children).toHaveLength(1)
+      expect(paragraph.children[0].text).toBe('Run at 9:30 with a 1:2:3 ratio and note:foo.')
+    })
+
+    test('a `:::` fence inside a code block is treated as literal code', () => {
+      const md = ['```', ':::note[Not an admonition]', 'still code', ':::', '```'].join('\n')
+      const { state } = convert(md)
+      expect(state.root.children).toHaveLength(1)
+      expect(state.root.children[0]).toMatchObject({ type: 'code' })
+    })
   })
 })
