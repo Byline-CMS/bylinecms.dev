@@ -6,13 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+export * from './admonition-commands'
 export * from './admonition-node'
-// Intentionally NOT re-exported: `admonition-node-component` is loaded
-// lazily via `React.lazy` inside `admonition-node.tsx` so it can land in
-// its own chunk. Re-exporting it here would static-import it back into
-// any consumer of this barrel and defeat the split.
-//
-// Likewise NOT re-exported: `admonition-extension.tsx` and its dependencies
-// (`admonition-modal.tsx`, `fields.ts`, `types.ts`) — those pull React UI
-// and would bloat consumers that only want the node class.
+// Intentionally NOT re-exported: `admonition-extension.tsx` and its
+// dependencies (`admonition-modal.tsx`, `fields.ts`, `types.ts`) — those pull
+// React UI and would bloat consumers that only want the node class.
 export * from './node-types'

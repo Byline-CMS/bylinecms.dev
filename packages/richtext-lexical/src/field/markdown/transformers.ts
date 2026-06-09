@@ -24,6 +24,7 @@ import {
   $convertFromMarkdownString,
   $convertToMarkdownString,
   type ElementTransformer,
+  LINK,
   type MultilineElementTransformer,
   TEXT_FORMAT_TRANSFORMERS,
   TRANSFORMERS,
@@ -41,7 +42,7 @@ import {
   TableNode,
   TableRowNode,
 } from '@lexical/table'
-import { $isParagraphNode, $isTextNode } from 'lexical'
+import { $createParagraphNode, $isParagraphNode, $isTextNode } from 'lexical'
 
 import {
   $createAdmonitionNode,
@@ -202,20 +203,32 @@ const mapToTableCells = (textContent: string): Array<TableCellNode> | null => {
 // ---------------------------------------------------------------------------
 // Admonitions  →  Docusaurus directive syntax:  :::type[Title] … :::
 //
-// AdmonitionNode is a DecoratorNode whose body is a *nested* LexicalEditor
-// (a bare `createEditor()` — paragraph/text/linebreak only). So the body is
-// converted with an inline-only transformer set that matches what the nested
-// editor can hold; block constructs in the body are intentionally not
-// round-tripped because the node can't represent them anyway.
+// Markdown format hat-tip: this mirrors Docusaurus admonitions —
+// https://docusaurus.io/docs/markdown-features/admonitions — which in turn
+// follow the remark-directive "generic directives" proposal
+// (https://github.com/remarkjs/remark-directive). We support the four
+// Docusaurus types (note / tip / warning / danger) and the optional
+// `[Title]` on the opening fence.
+//
+// AdmonitionNode is an ElementNode whose body lives as real children in the
+// main editor tree, so the body round-trips through the *same* markdown
+// engine — no second editor, no second transformer registry. The body is
+// deliberately restricted to formatted text + links (paragraphs only): the
+// `ADMONITION_BODY_TRANSFORMERS` set never imports block constructs, and the
+// extension's structure transform strips anything richer that slips in via
+// paste. Type/title ride the opening fence, not the body.
 // ---------------------------------------------------------------------------
 
 const ADMONITION_TYPES: ReadonlySet<string> = new Set(['note', 'tip', 'warning', 'danger'])
 const ADMONITION_START_REG_EXP = /^:::(note|tip|warning|danger)(?:\[([^\]]*)\])?\s*$/
 const ADMONITION_END_REG_EXP = /^:::\s*$/
 
-// Inline-only — the nested admonition editor has no block nodes beyond the
-// default paragraph, so importing headings/lists/tables into it would fail.
-const ADMONITION_BODY_TRANSFORMERS: Array<Transformer> = [...TEXT_FORMAT_TRANSFORMERS]
+// Body restriction: inline text formatting + links. Paragraph splitting on
+// blank lines is inherent to the markdown importer/exporter, so multi-
+// paragraph bodies round-trip without any element transformer. Excluding the
+// block transformers here is what keeps headings / lists / tables / nested
+// admonitions out of an admonition body at parse time.
+const ADMONITION_BODY_TRANSFORMERS: Array<Transformer> = [...TEXT_FORMAT_TRANSFORMERS, LINK]
 
 export const ADMONITION: MultilineElementTransformer = {
   dependencies: [AdmonitionNode],
@@ -226,11 +239,9 @@ export const ADMONITION: MultilineElementTransformer = {
     const type = node.getAdmonitionType()
     const title = node.getTitle()
 
-    // Convert the nested editor's content to markdown in its own read context.
-    let body = ''
-    node.__content.read(() => {
-      body = $convertToMarkdownString(ADMONITION_BODY_TRANSFORMERS).trim()
-    })
+    // The body is real children of `node` — export its subtree directly with
+    // the same engine.
+    const body = $convertToMarkdownString(ADMONITION_BODY_TRANSFORMERS, node).trim()
 
     const heading = title ? `:::${type}[${title}]` : `:::${type}`
     return body ? `${heading}\n${body}\n:::` : `${heading}\n:::`
@@ -242,7 +253,7 @@ export const ADMONITION: MultilineElementTransformer = {
   // typed yet when the start line fires). The toggle/import path still honours
   // the explicit ::: end when present, falling back to EOF only if it's absent.
   regExpEnd: { optional: true, regExp: ADMONITION_END_REG_EXP },
-  replace: (rootNode, children, startMatch, _endMatch, linesInBetween) => {
+  replace: (rootNode, children, startMatch, _endMatch, linesInBetween, isImport) => {
     const rawType = startMatch[1]
     if (!ADMONITION_TYPES.has(rawType)) {
       return false
@@ -252,21 +263,31 @@ export const ADMONITION: MultilineElementTransformer = {
 
     const node = $createAdmonitionNode({ admonitionType, title })
 
-    // Import path: body arrives as the lines between the fences. Populate the
-    // nested editor synchronously so it's flushed before render/serialize.
-    if (!children && linesInBetween != null) {
+    if (children != null) {
+      // As-you-type shortcut path: the lines between the fences arrive as
+      // already-parsed nodes — move them into the body. The structure
+      // transform normalises anything outside the allowed subset.
+      node.append(...children)
+    } else if (linesInBetween != null) {
+      // Import / toggle path: body arrives as raw text between the fences.
       const body = linesInBetween.join('\n').trim()
       if (body) {
-        node.__content.update(
-          () => {
-            $convertFromMarkdownString(body, ADMONITION_BODY_TRANSFORMERS)
-          },
-          { discrete: true }
-        )
+        $convertFromMarkdownString(body, ADMONITION_BODY_TRANSFORMERS, node)
       }
     }
 
+    // Never leave the shadow root empty (no place for the caret to land).
+    if (node.getChildrenSize() === 0) {
+      node.append($createParagraphNode())
+    }
+
     rootNode.append(node)
+
+    // Drop the caret into the body on the live shortcut path; the bulk import
+    // path manages selection itself.
+    if (!isImport) {
+      node.selectStart()
+    }
   },
   type: 'multiline-element',
 }

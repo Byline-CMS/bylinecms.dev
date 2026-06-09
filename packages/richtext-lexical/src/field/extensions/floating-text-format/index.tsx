@@ -279,7 +279,8 @@ function TextFormatFloatingToolbar({
 
 function useFloatingTextFormatToolbar(
   editor: LexicalEditor,
-  anchorElem: HTMLElement
+  anchorElem: HTMLElement,
+  shouldShow?: () => boolean
 ): React.JSX.Element | null {
   const [isText, setIsText] = useState(false)
   const [isLink, setIsLink] = useState(false)
@@ -315,6 +316,13 @@ function useFloatingTextFormatToolbar(
         return
       }
 
+      // Caller-supplied gate (e.g. "only inside an admonition body"). Runs in
+      // this read context so it can inspect the current selection's ancestry.
+      if (shouldShow != null && !shouldShow()) {
+        setIsText(false)
+        return
+      }
+
       const node = getSelectedNode(selection)
 
       // Update text format
@@ -345,7 +353,7 @@ function useFloatingTextFormatToolbar(
         setIsText(false)
       }
     })
-  }, [editor])
+  }, [editor, shouldShow])
 
   useEffect(() => {
     document.addEventListener('selectionchange', updatePopup)
@@ -390,9 +398,17 @@ function useFloatingTextFormatToolbar(
 
 export function FloatingTextFormatToolbarPlugin({
   anchorElem = document.body,
+  shouldShow,
 }: {
   anchorElem?: HTMLElement
+  /**
+   * Optional gate evaluated inside an editor read context. Return `false`
+   * to suppress the popover for the current selection — used to scope the
+   * toolbar to admonition bodies on editors where the global
+   * `FloatingTextFormatExtension` is removed.
+   */
+  shouldShow?: () => boolean
 }): React.JSX.Element | null {
   const [editor] = useLexicalComposerContext()
-  return useFloatingTextFormatToolbar(editor, anchorElem)
+  return useFloatingTextFormatToolbar(editor, anchorElem, shouldShow)
 }

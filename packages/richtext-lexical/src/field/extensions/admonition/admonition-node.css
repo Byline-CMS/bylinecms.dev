@@ -1,0 +1,104 @@
+/**
+ * Admonition (callout) block — ElementNode chrome.
+ *
+ * The container is a real block in the main editor tree. The header
+ * (icon + title + Edit button) is non-editable chrome injected in
+ * `createDOM`; the body paragraphs render into `.AdmonitionNode__content`
+ * (the DOM slot returned by `getDOMSlot`).
+ */
+
+.LexicalEditor__admonition {
+  position: relative;
+  margin-top: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 8px 12px 4px;
+  border: solid 1px #666666;
+  border-left-width: 4px;
+  border-radius: 3px;
+}
+
+/* Per-type accent — colours the left border + header icon. */
+.LexicalEditor__admonition.admonition-note {
+  border-left-color: #4a90d9;
+}
+.LexicalEditor__admonition.admonition-tip {
+  border-left-color: #3fa45b;
+}
+.LexicalEditor__admonition.admonition-warning {
+  border-left-color: #d9a334;
+}
+.LexicalEditor__admonition.admonition-danger {
+  border-left-color: #d94a4a;
+}
+
+.LexicalEditor__admonition .AdmonitionNode__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: bold;
+  font-size: 1rem;
+  text-transform: capitalize;
+  margin-bottom: 0.25rem;
+  user-select: none;
+}
+
+.LexicalEditor__admonition .AdmonitionNode__icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.LexicalEditor__admonition .AdmonitionNode__icon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.LexicalEditor__admonition.admonition-note .AdmonitionNode__icon {
+  color: #4a90d9;
+}
+.LexicalEditor__admonition.admonition-tip .AdmonitionNode__icon {
+  color: #3fa45b;
+}
+.LexicalEditor__admonition.admonition-warning .AdmonitionNode__icon {
+  color: #d9a334;
+}
+.LexicalEditor__admonition.admonition-danger .AdmonitionNode__icon {
+  color: #d94a4a;
+}
+
+.LexicalEditor__admonition .AdmonitionNode__title {
+  flex: 1 1 auto;
+}
+
+.LexicalEditor__admonition .AdmonitionNode__edit-button {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  background-color: rgba(0, 0, 0, 0.04);
+  color: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.LexicalEditor__admonition .AdmonitionNode__edit-button:hover {
+  background-color: rgba(60, 132, 244, 0.18);
+}
+
+.LexicalEditor__admonition .AdmonitionNode__content > * {
+  margin-bottom: 0.25em;
+}
+
+.LexicalEditor__admonition .AdmonitionNode__content > *:last-child {
+  margin-bottom: 0;
+}
+
+.dark .LexicalEditor__admonition {
+  border-color: #444444;
+}
+
+.dark .LexicalEditor__admonition .AdmonitionNode__edit-button {
+  border-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.08);
+}
