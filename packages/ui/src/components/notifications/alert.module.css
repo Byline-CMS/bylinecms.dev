@@ -1,11 +1,15 @@
-@layer infonomic-base,
-  infonomic-functional,
-  infonomic-utilities,
-  infonomic-theme,
-  infonomic-typography,
-  infonomic-components;
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  utilities,
+  byline-utilities;
 
-@layer infonomic-components {
+@layer byline-components {
   .alert,
   :global(.infonomic-alert) {
     display: flex;
