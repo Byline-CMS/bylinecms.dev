@@ -31,13 +31,22 @@ export function AdmonitionSerializer({
   // The admonition is now an ElementNode — its body lives as real children on
   // the node itself (was previously a nested editor under
   // `content.editorState.root.children`).
+  //
+  // The wrapper owns the vertical gap via padding, not margin. The alert is a
+  // normal-flow sibling of the surrounding prose blocks, so its own top/bottom
+  // margins would collapse with the adjacent paragraph/heading margins (gap =
+  // max of the two, not additive). Padding never collapses, so `py-*` here adds
+  // to the neighbour's margin for true separation; the alert's own margins are
+  // zeroed (`my-0`) so the wrapper is the single source of the gap.
   return (
-    <Alert title={node.title} intent={intent} close={false} className="not-prose my-6">
-      {node?.children != null ? (
-        serialize({ nodes: node.children, lng, options })
-      ) : (
-        <span>Content not found for admonition.</span>
-      )}
-    </Alert>
+    <div className="not-prose py-3">
+      <Alert title={node.title} intent={intent} close={false} className="not-prose my-0">
+        {node?.children != null ? (
+          serialize({ nodes: node.children, lng, options })
+        ) : (
+          <span>Content not found for admonition.</span>
+        )}
+      </Alert>
+    </div>
   )
 }
