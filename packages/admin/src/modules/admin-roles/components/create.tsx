@@ -128,6 +128,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
   return (
     <div className={cx('byline-role-create-wrap', styles.wrap)}>
       <form
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()

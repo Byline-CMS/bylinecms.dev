@@ -173,6 +173,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
   return (
     <div className={cx('byline-user-update-wrap', styles.wrap)}>
       <form
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()

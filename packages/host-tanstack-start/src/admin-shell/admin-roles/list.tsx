@@ -264,6 +264,7 @@ export function AdminRolesListView({ data }: { data: AdminRoleListResponse }) {
         {orderChanged ? (
           <div className={cx('byline-roles-list-save', styles.save)}>
             <form
+              method="post"
               onSubmit={handleOnSave}
               noValidate
               className={cx('byline-roles-list-save-form', styles.saveForm)}

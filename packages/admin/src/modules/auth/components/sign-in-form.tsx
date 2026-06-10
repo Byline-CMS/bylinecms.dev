@@ -88,7 +88,12 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
         )}
       </Card.Header>
       <Card.Content>
-        <form onSubmit={handleSubmit} noValidate className={cx('byline-sign-in-form', styles.form)}>
+        <form
+          method="post"
+          onSubmit={handleSubmit}
+          noValidate
+          className={cx('byline-sign-in-form', styles.form)}
+        >
           <div className={cx('byline-sign-in-fields', styles.fields)}>
             <Input
               label={t('common.fields.email')}

@@ -105,6 +105,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
   return (
     <div className={cx('byline-user-set-password-wrap', styles.wrap)}>
       <form
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()

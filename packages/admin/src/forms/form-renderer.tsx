@@ -737,7 +737,12 @@ const FormContent = ({
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit} className={cx('byline-form', styles.form)}>
+    <form
+      method="post"
+      noValidate
+      onSubmit={handleSubmit}
+      className={cx('byline-form', styles.form)}
+    >
       <div className={cx('byline-form-heading-row', styles['heading-row'])}>
         <h1 className={cx('byline-form-heading', styles.heading)}>{heading}</h1>
         {/* Source-locale anchor indicator removed pending heading-layout work.

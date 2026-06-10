@@ -131,6 +131,7 @@ export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
   return (
     <div className={cx('byline-role-update-wrap', styles.wrap)}>
       <form
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()

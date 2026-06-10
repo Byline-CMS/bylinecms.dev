@@ -131,6 +131,7 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
   return (
     <div className={cx('byline-account-preferences-wrap', styles.wrap)}>
       <form
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()

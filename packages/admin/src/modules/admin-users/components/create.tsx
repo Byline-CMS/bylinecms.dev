@@ -155,6 +155,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
   return (
     <div className={cx('byline-user-create-wrap', styles.wrap)}>
       <form
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()

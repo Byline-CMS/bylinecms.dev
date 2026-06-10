@@ -130,6 +130,7 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
   return (
     <div className={cx('byline-account-change-password-wrap', styles.wrap)}>
       <form
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()

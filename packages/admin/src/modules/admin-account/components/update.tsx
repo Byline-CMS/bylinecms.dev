@@ -158,6 +158,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
   return (
     <div className={cx('byline-account-update-wrap', styles.wrap)}>
       <form
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
