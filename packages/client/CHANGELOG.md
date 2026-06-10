@@ -1,5 +1,14 @@
 # @byline/client
 
+## 3.5.1
+
+### Patch Changes
+
+- updated admin forms to set an explicit post method
+- Updated dependencies
+  - @byline/auth@3.5.1
+  - @byline/core@3.5.1
+
 ## 3.5.0
 
 ### Minor Changes

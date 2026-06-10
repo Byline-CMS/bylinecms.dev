@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 3.5.1
+
+### Patch Changes
+
+- updated admin forms to set an explicit post method
+- Updated dependencies
+  - @byline/ui@3.5.1
+
 ## 3.5.0
 
 ### Minor Changes
