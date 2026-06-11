@@ -62,8 +62,26 @@ const serverSchema = z.object({
 
 export type ServerConfig = z.infer<typeof serverSchema>
 
-const initServerConfig = (): ServerConfig =>
-  serverSchema.parse({
+const initServerConfig = (): ServerConfig => {
+  // VITE_* keys are read via `import.meta.env` so the value comes purely
+  // from `.env` / `.env.production` at build time — same source as the
+  // public config and the client bundle. fly.toml `[env]` only sets
+  // `process.env`, which doesn't drive Vite's static replacement, so
+  // reading via `import.meta.env` here removes a class of drift bugs
+  // where build-time and runtime values disagree.
+  //
+  // When this server-only module is loaded by a plain `tsx` script (seeds,
+  // import-docs, re-anchor, …) there is no Vite, so `import.meta.env` is
+  // `undefined` — fall back to `process.env`, which `byline/load-env.ts`
+  // has already populated from `.env` / `.env.local`. (The *public* config
+  // below must keep the literal `import.meta.env.VITE_*` expressions: it
+  // runs in the client bundle, where only the exact expression is
+  // statically replaced.)
+  const viteEnv: Record<string, string | undefined> =
+    (import.meta as { env?: Record<string, string | undefined> }).env ??
+    (process.env as Record<string, string | undefined>)
+
+  return serverSchema.parse({
     // Vite's dev server owns the port in development (`--port 5173`), so
     // PORT is only set in production (see the `start` script).
     port: process.env.PORT ?? 5173,
@@ -71,15 +89,9 @@ const initServerConfig = (): ServerConfig =>
       level: process.env.LOG_LEVEL ?? 'info',
       pretty: process.env.LOG_PRETTY ?? 'false',
     },
-    // VITE_* keys are read via `import.meta.env` so the value comes purely
-    // from `.env` / `.env.production` at build time — same source as the
-    // public config and the client bundle. fly.toml `[env]` only sets
-    // `process.env`, which doesn't drive Vite's static replacement, so
-    // reading via `import.meta.env` here removes a class of drift bugs
-    // where build-time and runtime values disagree.
-    siteName: import.meta.env.VITE_SITE_NAME,
-    siteDescription: import.meta.env.VITE_SITE_DESCRIPTION,
-    serverUrl: import.meta.env.VITE_SERVER_URL,
+    siteName: viteEnv.VITE_SITE_NAME,
+    siteDescription: viteEnv.VITE_SITE_DESCRIPTION,
+    serverUrl: viteEnv.VITE_SERVER_URL,
     cache: {
       // Default OFF: unset env ⇒ cache disabled, behaviour identical to today.
       dataRequests: process.env.CACHING_DATA_REQUESTS ?? 'false',
@@ -91,6 +103,7 @@ const initServerConfig = (): ServerConfig =>
       privateNetworkApplicationPort: process.env.PRIVATE_NETWORK_APPLICATION_PORT,
     },
   })
+}
 
 let cachedServerConfig: ServerConfig
 
