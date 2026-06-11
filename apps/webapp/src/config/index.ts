@@ -64,7 +64,13 @@ export type ServerConfig = z.infer<typeof serverSchema>
 
 const initServerConfig = (): ServerConfig =>
   serverSchema.parse({
-    port: process.env.PORT,
+    // Vite's dev server owns the port in development (`--port 5173`), so
+    // PORT is only set in production (see the `start` script).
+    port: process.env.PORT ?? 5173,
+    log: {
+      level: process.env.LOG_LEVEL ?? 'info',
+      pretty: process.env.LOG_PRETTY ?? 'false',
+    },
     // VITE_* keys are read via `import.meta.env` so the value comes purely
     // from `.env` / `.env.production` at build time — same source as the
     // public config and the client bundle. fly.toml `[env]` only sets
