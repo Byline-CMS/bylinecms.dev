@@ -26,10 +26,10 @@ import {
   unpublishDocument,
   updateDocument,
   updateDocumentWithPatches,
-} from './document-lifecycle.js'
+} from './document-lifecycle/index.js'
 import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
 import type { BylineLogger } from '../lib/logger.js'
-import type { DocumentLifecycleContext } from './document-lifecycle.js'
+import type { DocumentLifecycleContext } from './document-lifecycle/index.js'
 
 // ---------------------------------------------------------------------------
 // Fixtures / Helpers

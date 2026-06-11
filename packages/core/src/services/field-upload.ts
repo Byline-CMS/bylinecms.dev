@@ -12,7 +12,7 @@ import { resolveUploadHooks } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_DATABASE, ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
-import { createDocument, type DocumentLifecycleContext } from './document-lifecycle.js'
+import { createDocument, type DocumentLifecycleContext } from './document-lifecycle/index.js'
 import type {
   AfterStoreContext,
   AfterStoreHookFn,

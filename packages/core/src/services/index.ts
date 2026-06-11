@@ -19,7 +19,7 @@ export {
   type DiscoverCounterGroupsInput,
   discoverCounterGroups,
 } from './discover-counter-groups.js'
-export * from './document-lifecycle.js'
+export * from './document-lifecycle/index.js'
 export * from './document-read.js'
 export * from './field-upload.js'
 export {
