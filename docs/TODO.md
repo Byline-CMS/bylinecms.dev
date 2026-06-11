@@ -34,6 +34,10 @@ The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./TESTIN
 
 ### Markdown export — `documentToMarkdown` + `.md` routes
 
+**Core pipeline shipped:** `lexicalToMarkdown` (`@byline/richtext-lexical/server`, one-way stored-JSON walk, GFM alerts for admonitions), `documentToMarkdown` (`@byline/core`, schema-aware assembler with frontmatter), the `ServerConfig.fields.richText.toMarkdown` seam, and the first `.md` route — `/docs/{path}.md` per content locale via a `{$path}[.]md` suffixed-param route, L1-cached on the document's detail tag. The locale rewrite treats `.md` as content (one variant per content locale), and `devMarkdownPassthrough` (vite.config.ts) keeps Vite's dev middleware from claiming `.md` requests. Contract tests pin the format in both packages; e2e covers the route.
+
+**Remaining:** `llms.txt` (sitemap-pattern route + shared URL providers), `<link rel="alternate" type="text/markdown">` in HTML heads, news/pages route rollout, optional `Accept: text/markdown` negotiation on canonical URLs, a `docs/MARKDOWN-EXPORT.md` present-state doc (including the GFM-alert vs `:::` importer dialect asymmetry), and the docs-corpus round-trip test.
+
 Serve a markdown representation of published documents at their routes (`/news/foo.md`, `Accept: text/markdown` content negotiation, a `<link rel="alternate" type="text/markdown">` in the page head, an `llms.txt` index) — increasingly expected by AI agents and documentation tooling, and the stronger strategic reason to invest in markdown serialization. **Ranked high.**
 
 Key decisions already settled (so this can be picked up cold):
