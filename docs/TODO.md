@@ -38,7 +38,9 @@ The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./TESTIN
 
 **Also shipped:** `llms.txt` (sitemap-sibling route; both surfaces consume one shared published-URL enumeration in `apps/webapp/src/lib/published-index.ts` — one scan, one cache entry, no drift; links point at the `.md` representations), and the news/pages route rollout (generic loader in `apps/webapp/src/lib/markdown.ts`, per-area page routes with an `area` acceptance guard).
 
-**Remaining:** `<link rel="alternate" type="text/markdown">` in HTML heads, optional `Accept: text/markdown` negotiation on canonical URLs, a `docs/MARKDOWN-EXPORT.md` present-state doc (including the GFM-alert vs `:::` importer dialect asymmetry), and the docs-corpus round-trip test.
+**All three advertisement channels shipped:** the `.md` URL convention, `<link rel="alternate" type="text/markdown">` in detail-page heads (via `getMeta`'s `markdownAlternatePath`), and `Accept: text/markdown` negotiation on canonical URLs (strict 302 in the server entry — never fires for browsers, cache keys stay distinct; see `apps/webapp/src/lib/markdown-negotiation.ts`).
+
+**Remaining:** a `docs/MARKDOWN-EXPORT.md` present-state doc (including the GFM-alert vs `:::` importer dialect asymmetry) and the docs-corpus round-trip test (import → export convergence over `docs/*.md`).
 
 Serve a markdown representation of published documents at their routes (`/news/foo.md`, `Accept: text/markdown` content negotiation, a `<link rel="alternate" type="text/markdown">` in the page head, an `llms.txt` index) — increasingly expected by AI agents and documentation tooling, and the stronger strategic reason to invest in markdown serialization. **Ranked high.**
 

@@ -47,6 +47,26 @@ test.describe('markdown export — /docs/{path}.md', () => {
     expect((await request.get('/legal/test-page.md')).status()).toBe(404)
   })
 
+  test('the HTML head advertises the markdown alternate', async ({ request }) => {
+    const response = await request.get('/docs/getting-started')
+    const html = await response.text()
+    expect(html).toContain('rel="alternate"')
+    expect(html).toContain('type="text/markdown"')
+    expect(html).toMatch(/href="[^"]*\/docs\/getting-started\.md"/)
+  })
+
+  test('Accept: text/markdown on the canonical URL negotiates to the .md variant', async ({
+    request,
+  }) => {
+    const response = await request.get('/docs/getting-started', {
+      headers: { accept: 'text/markdown' },
+    })
+    // Playwright follows the 302; the final response is the markdown variant.
+    expect(response.status()).toBe(200)
+    expect(response.url()).toContain('/docs/getting-started.md')
+    expect(response.headers()['content-type']).toContain('text/markdown')
+  })
+
   test('the HTML route is unaffected by the .md sibling', async ({ request }) => {
     const response = await request.get('/docs/getting-started')
     expect(response.status()).toBe(200)

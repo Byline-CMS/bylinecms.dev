@@ -21,6 +21,7 @@ import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 import { serveUploads } from '@byline/host-tanstack-start/integrations/serve-uploads'
 
 import { negotiateLocaleRedirect } from '@/i18n/server-locale-redirect'
+import { negotiateMarkdownRedirect } from '@/lib/markdown-negotiation'
 
 // The server entry is the lowest app-owned request chokepoint — it runs on
 // the original, un-rewritten request before the router (and therefore before
@@ -44,6 +45,12 @@ export default createServerEntry({
 
     const localeRedirect = negotiateLocaleRedirect(request)
     if (localeRedirect) return localeRedirect
+
+    // 3. `Accept: text/markdown` on a canonical HTML URL → 302 to the `.md`
+    //    sibling. Strict (never fires for browsers) and redirect-based so
+    //    cache keys stay distinct. See `src/lib/markdown-negotiation.ts`.
+    const markdownRedirect = negotiateMarkdownRedirect(request)
+    if (markdownRedirect) return markdownRedirect
 
     return handler.fetch(request)
   },

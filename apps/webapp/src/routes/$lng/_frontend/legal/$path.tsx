@@ -61,6 +61,7 @@ export const Route = createFileRoute('/$lng/_frontend/legal/$path')({
       title,
       description,
       path: canonical,
+      markdownAlternatePath: `${canonical}.md`,
       alternates,
       xDefaultPath,
       // image,

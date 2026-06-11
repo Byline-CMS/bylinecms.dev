@@ -55,6 +55,13 @@ export interface MetaOptions {
   alternates?: Array<{ hreflang: string; path: string }>
   /** Path for the `x-default` hreflang. Emitted only alongside `alternates`. */
   xDefaultPath?: string
+  /**
+   * Path of the page's markdown representation (canonical + `.md`).
+   * Emits `<link rel="alternate" type="text/markdown">` — one of the three
+   * advertisement channels for the agent-readable surface, alongside the
+   * `.md` URL convention itself and `llms.txt`.
+   */
+  markdownAlternatePath?: string
 }
 
 export interface MetaHead {
@@ -148,7 +155,19 @@ export function getMeta(options: MetaOptions = {}): MetaHead {
       { name: 'twitter:image:alt', content: tw.alt },
       { name: 'twitter:image:type', content: tw.type },
     ],
-    links: [...(url != null ? [{ rel: 'canonical', href: url }] : []), ...alternateLinks],
+    links: [
+      ...(url != null ? [{ rel: 'canonical', href: url }] : []),
+      ...(options.markdownAlternatePath != null
+        ? [
+            {
+              rel: 'alternate',
+              type: 'text/markdown',
+              href: new URL(options.markdownAlternatePath, serverUrl).toString(),
+            },
+          ]
+        : []),
+      ...alternateLinks,
+    ],
   }
 }
 

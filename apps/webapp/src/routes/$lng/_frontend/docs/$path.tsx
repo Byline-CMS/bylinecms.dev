@@ -56,6 +56,7 @@ export const Route = createFileRoute('/$lng/_frontend/docs/$path')({
       title,
       description,
       path: canonical,
+      markdownAlternatePath: `${canonical}.md`,
       alternates,
       xDefaultPath,
       ogType: 'article',
