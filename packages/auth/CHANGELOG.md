@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 3.6.0
+
+### Minor Changes
+
+- create → edit: saving a new document now lands on its edit view instead of the collection list (**`@byline/host-tanstack-start`**); split **`@byline/core`**'s document-lifecycle service into per-operation modules (no behavioural change)
+
 ## 3.5.1
 
 ### Patch Changes
