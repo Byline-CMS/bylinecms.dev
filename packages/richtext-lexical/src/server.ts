@@ -43,6 +43,7 @@ import type {
   RichTextEmbedFn,
   RichTextPopulateContext,
   RichTextPopulateFn,
+  RichTextToMarkdownFn,
 } from '@byline/core'
 
 import { inlineImageVisitor } from './field/extensions/inline-image/populate'
@@ -56,6 +57,18 @@ import { type LexicalNodeVisitor, runLexicalPopulate } from './field/lexical-pop
 // their CSS imports; the `/server` subpath stays React-free.
 // ---------------------------------------------------------------------------
 export { defaultEditorConfig } from './field/config/default'
+export {
+  type LexicalToMarkdownOptions,
+  type LexicalToMarkdownResult,
+  type LexicalToMarkdownWarning,
+  lexicalToMarkdown,
+} from './field/markdown/lexical-to-markdown'
+
+import {
+  type LexicalToMarkdownOptions,
+  lexicalToMarkdown,
+} from './field/markdown/lexical-to-markdown'
+
 export { inlineImageVisitor } from './field/extensions/inline-image/populate'
 export { linkVisitor } from './field/extensions/link/populate'
 export type { EditorConfig, EditorSettings, EditorSettingsOverride } from './field/config/types'
@@ -120,6 +133,20 @@ export function lexicalEditorPopulateServer(options: LexicalServerOptions): Rich
  * per-leaf errors and leaves the leaf untouched on hard failure (branch
  * C of docs/RICHTEXT-LINK-REFACTOR-STRATEGY.md § 3.3).
  */
+/**
+ * One-way markdown serializer for the agent-readable export surface,
+ * shaped for `ServerConfig.fields.richText.toMarkdown`. The sibling of
+ * `lexicalEditorPopulateServer` / `lexicalEditorEmbedServer` — but pure
+ * and synchronous: it walks the stored editor JSON with
+ * `lexicalToMarkdown` and performs no reads. See that function's header
+ * for the dialect contract (GFM alerts, lossy-OK).
+ */
+export function lexicalEditorToMarkdownServer(
+  options: LexicalToMarkdownOptions = {}
+): RichTextToMarkdownFn {
+  return (ctx) => lexicalToMarkdown(ctx.value, options).markdown
+}
+
 export function lexicalEditorEmbedServer(options: LexicalServerOptions): RichTextEmbedFn {
   const visitors = options.visitors ?? [inlineImageVisitor, linkVisitor]
   return async (ctx: RichTextEmbedContext): Promise<void> => {
