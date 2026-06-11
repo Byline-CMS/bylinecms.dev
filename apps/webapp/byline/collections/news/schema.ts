@@ -35,6 +35,10 @@ export const News = defineCollection({
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true, // See type definition for details.
+  // Server-only lifecycle hooks (L1 cache invalidation), loaded via dynamic
+  // import so their server-only graph never enters the client bundle. See
+  // ./hooks.ts and docs/COLLECTIONS.md.
+  hooks: () => import('./hooks.js'),
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {

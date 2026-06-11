@@ -20,6 +20,44 @@ const serverSchema = z.object({
     level: z.string().optional(),
     pretty: booleanSchema(),
   }),
+  /**
+   * Optional L1 in-memory data cache (see docs/DATA-CACHE-DESIGN.md). All
+   * server-only — read from `process.env`, never shipped to the client.
+   * Defaults keep the cache and the cluster fan-out OFF unless explicitly
+   * enabled, so adopters opt in deliberately.
+   */
+  cache: z
+    .object({
+      /** Master switch for the L1 data cache. */
+      dataRequests: booleanSchema(),
+      /**
+       * Default per-entry TTL (ms) for cached reads. Per-call sites may
+       * override (e.g. sitemaps use a longer TTL). Keep in step with
+       * `DEFAULT_TTL_MS` in `src/lib/cache/cache-manager.ts`.
+       */
+      ttl: z.coerce.number().int().positive().default(60_000),
+      /**
+       * In-memory SWR trigger, expressed as ms of *remaining* TTL. When an
+       * entry's remaining TTL drops below this, the next read returns the
+       * stale value immediately and refreshes it in the background. Must be
+       * less than `ttl`. Unset ⇒ no SWR (a plain synchronous miss on expiry).
+       */
+      refreshThreshold: z.coerce.number().int().positive().optional(),
+      /**
+       * Fly.io (or any multi-instance) cross-instance invalidation fan-out.
+       * Off by default — a single origin behind a CDN never needs it. Only
+       * read by `invalidateTag` / `invalidateKey` when `true`.
+       */
+      clusterEnabled: booleanSchema(),
+      /** Fly private (6PN) DNS name used to enumerate sibling instances. */
+      privateNetworkDomain: z.string().optional(),
+      /** Port the sibling cache-invalidation endpoint listens on. */
+      privateNetworkApplicationPort: z.coerce.number().int().optional(),
+    })
+    .refine((c) => c.refreshThreshold == null || c.refreshThreshold < c.ttl, {
+      message: 'cache.refreshThreshold must be less than cache.ttl',
+      path: ['refreshThreshold'],
+    }),
 })
 
 export type ServerConfig = z.infer<typeof serverSchema>
@@ -36,6 +74,16 @@ const initServerConfig = (): ServerConfig =>
     siteName: import.meta.env.VITE_SITE_NAME,
     siteDescription: import.meta.env.VITE_SITE_DESCRIPTION,
     serverUrl: import.meta.env.VITE_SERVER_URL,
+    cache: {
+      // Default OFF: unset env ⇒ cache disabled, behaviour identical to today.
+      dataRequests: process.env.CACHING_DATA_REQUESTS ?? 'false',
+      // Unset ⇒ schema defaults (ttl 60s, no SWR).
+      ttl: process.env.CACHING_TTL,
+      refreshThreshold: process.env.CACHING_REFRESH_THRESHOLD,
+      clusterEnabled: process.env.CACHING_CLUSTER_ENABLED ?? 'false',
+      privateNetworkDomain: process.env.PRIVATE_NETWORK_DOMAIN,
+      privateNetworkApplicationPort: process.env.PRIVATE_NETWORK_APPLICATION_PORT,
+    },
   })
 
 let cachedServerConfig: ServerConfig

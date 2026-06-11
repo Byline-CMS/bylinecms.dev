@@ -17,11 +17,12 @@
  * config from it. Anything the schema *statically imports* therefore ships to
  * the client. Hook *bodies*, however, only ever run server-side.
  *
- * If hooks were declared inline in the schema, any server-only module they
- * import (a Node built-in, a DB client, a cache/queue, secrets) would be
- * dragged into the client bundle — silently in `build` (tree-shaken away),
- * but fatally in `dev` (Vite evaluates it and a `node:*` import throws
- * `Module "node:…" has been externalized for browser compatibility`).
+ * The L1 data cache is the canonical example: `@/lib/cache/with-cache` pulls
+ * `./index` → `./cluster-manager`, which imports `node:dns`. Importing that
+ * graph from the schema would drag a Node built-in (which throws in the
+ * browser) into the client bundle — silent in `build` (tree-shaken away) but
+ * fatal in `dev` (`Module "node:dns" has been externalized for browser
+ * compatibility`).
  *
  * The schema avoids that by referencing these hooks through a **dynamic
  * import** instead of an inline object:
@@ -32,100 +33,54 @@
  * Because the schema reaches this module only through `import()`, this file —
  * and its entire transitive import graph — is **structurally absent** from
  * the client bundle. `@byline/core` resolves the loader once on the server
- * (memoized) and calls these hooks exactly as it would inline ones.
+ * (memoized) and calls these hooks exactly as it would inline ones. The
+ * upshot: **inside this file we may statically import server-only modules
+ * directly** — both the cache runtime and `node:crypto` below are the
+ * affordance in action; placing either import at the top of `schema.ts`
+ * would crash the dev server. See docs/COLLECTIONS.md → "Hooks must not
+ * statically import server-only code" and docs/DATA-CACHE-DESIGN.md.
  *
- * The practical upshot, and the whole point of advertising hooks as
- * server-only: **inside this file you are free to statically import whatever
- * you like.** The `node:crypto` import below is a deliberate demonstration —
- * placing that same import at the top of `schema.ts` would crash the dev
- * server; here it is completely safe.
+ * ──────────────────────────────────────────────────────────────────────────
+ *  Invalidation policy for `docs`
+ * ──────────────────────────────────────────────────────────────────────────
+ * `docs` is a list-bearing collection, so edits affect its list reads too.
+ * Per-document invalidation (every hook carries `path`): a single edit clears
+ * only this document's detail — other docs' cached detail stay warm.
+ *   - update    → detail (+ old path on rename) + list (title/summary show in lists)
+ *   - structural (create / publish / unpublish / delete) → detail + list + sitemap
+ * `afterStatusChange` / `afterUnpublish` are included because publish /
+ * unpublish flow through the status lifecycle, not `afterUpdate`, and they are
+ * when content becomes visible / invisible to anonymous traffic.
+ *
+ * Hooks run outside the storage transaction, so these awaits are safe.
  */
 
 import { createHash } from 'node:crypto'
 
 import { defineHooks } from '@byline/core'
 
-/**
- * `defineHooks(...)` is the named factory counterpart to `defineCollection` /
- * `defineBlock`. It returns the object unchanged and types it as
- * `CollectionHooks`; `export default { … } satisfies CollectionHooks` is
- * equivalent. Each hook may be a single function or an array of functions
- * (arrays run sequentially in declaration order).
- */
+import { invalidateDocument } from '@/lib/cache/with-cache'
+
 export default defineHooks({
-  beforeCreate: async ({ data, collectionPath }) => {
-    // Example: beforeCreate hook. Runs before the document is persisted and
-    // may mutate `data`.
-    console.log(
-      `beforeCreate: Creating a new document in collection ${collectionPath} with data:`,
-      data
-    )
-  },
-  afterCreate: async ({ data, collectionPath, documentId, documentVersionId }) => {
+  afterCreate: async ({ data, collectionPath, path, documentId }) => {
     // Example use of a server-only import: derive a content fingerprint with
-    // Node's crypto module. This is the affordance in action — `node:crypto`
-    // is imported statically at the top of this file, which is only safe
-    // because the module never reaches the client bundle.
+    // Node's crypto module — only safe here because this module never
+    // reaches the client bundle (see the affordance note above).
     const fingerprint = createHash('sha256').update(JSON.stringify(data)).digest('hex').slice(0, 12)
     console.log(
-      `afterCreate: Document created with ID ${documentId} and version ID ${documentVersionId} in collection ${collectionPath} (content fingerprint ${fingerprint})`
+      `afterCreate: document ${documentId} created in '${collectionPath}' (content fingerprint ${fingerprint})`
     )
+    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
   },
-  beforeUpdate: async ({ data, originalData, collectionPath }) => {
-    // Example: inspect/guard the next version before it is persisted. `data`
-    // is the incoming version (mutable); `originalData` is the previous one.
-    console.log(
-      `beforeUpdate: Updating a document in collection ${collectionPath} with data:`,
-      data
-    )
-  },
-  afterUpdate: async ({ data, originalData, collectionPath, documentId, documentVersionId }) => {
-    // Example: log the update of a document. A real app might invalidate a
-    // cache key or purge a CDN URL for `path` here.
-    console.log(
-      `afterUpdate: Document with ID ${documentId} and version ID ${documentVersionId} in collection ${collectionPath} was updated`
-    )
-  },
-  beforeStatusChange: async ({
-    documentId,
-    documentVersionId,
-    collectionPath,
-    previousStatus,
-    nextStatus,
-  }) => {
-    console.log(
-      `beforeStatusChange: Changing status of document in collection ${collectionPath} from ${previousStatus} to ${nextStatus} with document ID ${documentId} and version ID ${documentVersionId}`
-    )
-  },
-  afterStatusChange: async ({
-    documentId,
-    documentVersionId,
-    collectionPath,
-    previousStatus,
-    nextStatus,
-  }) => {
-    console.log(
-      `afterStatusChange: Status of document in collection ${collectionPath} changed from ${previousStatus} to ${nextStatus} with document ID ${documentId} and version ID ${documentVersionId}`
-    )
-  },
-  beforeUnpublish: async ({ documentId, collectionPath }) => {
-    console.log(
-      `beforeUnpublish: Unpublishing document in collection ${collectionPath} with document ID ${documentId}.`
-    )
-  },
-  afterUnpublish: async ({ documentId, collectionPath }) => {
-    console.log(
-      `afterUnpublish: Document in collection ${collectionPath} with document ID ${documentId} unpublished.`
-    )
-  },
-  beforeDelete: async ({ documentId, collectionPath }) => {
-    console.log(
-      `beforeDelete: Deleting document in collection ${collectionPath} with document ID ${documentId}.`
-    )
-  },
-  afterDelete: async ({ documentId, collectionPath }) => {
-    console.log(
-      `afterDelete: Document in collection ${collectionPath} with document ID ${documentId} deleted.`
-    )
-  },
+  afterUpdate: ({ collectionPath, path, originalData }) =>
+    invalidateDocument(collectionPath, path, {
+      prevPath: (originalData as { path?: string } | undefined)?.path,
+      list: true,
+    }),
+  afterStatusChange: ({ collectionPath, path }) =>
+    invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
+  afterUnpublish: ({ collectionPath, path }) =>
+    invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
+  afterDelete: ({ collectionPath, path }) =>
+    invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
 })

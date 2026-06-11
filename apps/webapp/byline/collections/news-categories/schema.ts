@@ -29,6 +29,10 @@ export const NewsCategories = defineCollection({
   // value persists on `byline_documents.order_key` without bumping the
   // document version. See docs/COLLECTIONS.md (Orderable collections).
   orderable: true,
+  // Server-only lifecycle hooks (L1 cache invalidation), loaded via dynamic
+  // import so their server-only graph never enters the client bundle. See
+  // ./hooks.ts and docs/COLLECTIONS.md.
+  hooks: () => import('./hooks.js'),
   fields: [
     { name: 'name', label: 'Name', type: 'text', localized: true },
     { name: 'description', label: 'Description', type: 'textArea', localized: true },

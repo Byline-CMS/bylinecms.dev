@@ -37,6 +37,10 @@ export const Pages = defineCollection({
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true,
+  // Server-only lifecycle hooks (L1 cache invalidation), loaded via dynamic
+  // import so their server-only graph never enters the client bundle. See
+  // ./hooks.ts and docs/COLLECTIONS.md.
+  hooks: () => import('./hooks.js'),
   /**
    * Pages live at the site root (no `/pages/` prefix) and may be nested
    * under an `area` segment. Same composition rule used by the admin

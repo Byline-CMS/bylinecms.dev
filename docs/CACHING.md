@@ -21,7 +21,7 @@ A Byline application has several places where work can be skipped on a hot read 
 | **L3 — Browser** | Minor; mostly relevant for static assets, not HTML | `max-age=0` on HTML by default | n/a |
 | **L4 — Client-side route loaders (TanStack Query / Router)** | Smooth client-side transitions, request de-duplication | Per-query staleness | Tag-based refetch on mutation |
 
-The `@byline/*` packages do not ship a caching layer of their own — caching policy is the application's concern. The demo `apps/webapp` in this repository contains a worked **L2** example that adopters can copy or adapt; **L1** is opt-in application code wired in if and when origin load justifies it.
+The `@byline/*` packages do not ship a caching layer of their own — caching policy is the application's concern. The demo `apps/webapp` in this repository contains worked examples of both: **L2** as copyable middleware (below), and **L1** as an opt-in tagged in-memory cache (`apps/webapp/src/lib/cache/`, off by default via `CACHING_DATA_REQUESTS`) whose first consumer is the dynamic `sitemap.xml` route. The full L1 design — stack choice, the tag-map fix, the per-document tag scheme, and the optional cluster fan-out — lives in [`apps/webapp/docs/DATA-CACHE-DESIGN.md`](../apps/webapp/docs/DATA-CACHE-DESIGN.md).
 
 ## L2 — CDN edge
 
