@@ -8,10 +8,9 @@
 
 /**
  * The shared "what languages does this URL advertise" resolver — the single
- * source of truth for per-page hreflang meta (`getMeta`). A dynamic
- * `sitemap.xml` (not shipped in this reference app) would derive its
- * alternate-language links from the same function, keeping the two from
- * drifting; that is the point of factoring it out here.
+ * source of truth that keeps per-page hreflang meta (`getMeta`) and the
+ * dynamic `sitemap.xml` from drifting. Both derive their alternate-language
+ * links from this one function.
  *
  * Keyed off Byline's 3.0 read-surface metadata: the public *advertised* set is
  * `availableLocales ∩ _availableVersionLocales` — the editorial "publish this

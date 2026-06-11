@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as BylineRouteRouteImport } from './routes/_byline/route'
 import { Route as LngRouteRouteImport } from './routes/$lng/route'
 import { Route as BylineSignInRouteImport } from './routes/_byline/sign-in'
@@ -36,6 +37,11 @@ import { Route as BylineAdminCollectionsCollectionIdIndexRouteImport } from './r
 import { Route as BylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/_byline/admin/collections/$collection/$id/history'
 import { Route as BylineAdminCollectionsCollectionIdApiRouteImport } from './routes/_byline/admin/collections/$collection/$id/api'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BylineRouteRoute = BylineRouteRouteImport.update({
   id: '/_byline',
   getParentRoute: () => rootRouteImport,
@@ -174,6 +180,7 @@ const BylineAdminCollectionsCollectionIdApiRoute =
 export interface FileRoutesByFullPath {
   '/$lng': typeof LngRouteRouteWithChildren
   '/': typeof BylineRouteRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof BylineAdminRouteRouteWithChildren
   '/sign-in': typeof BylineSignInRoute
   '/$lng/docs': typeof LngFrontendDocsRouteRouteWithChildren
@@ -201,6 +208,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/$lng': typeof LngFrontendIndexRoute
   '/': typeof BylineRouteRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sign-in': typeof BylineSignInRoute
   '/$lng/$path': typeof LngFrontendPathRoute
   '/admin': typeof BylineAdminIndexRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/$lng': typeof LngRouteRouteWithChildren
   '/_byline': typeof BylineRouteRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/$lng/_frontend': typeof LngFrontendRouteRouteWithChildren
   '/_byline/admin': typeof BylineAdminRouteRouteWithChildren
   '/_byline/sign-in': typeof BylineSignInRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/$lng'
     | '/'
+    | '/sitemap.xml'
     | '/admin'
     | '/sign-in'
     | '/$lng/docs'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
   to:
     | '/$lng'
     | '/'
+    | '/sitemap.xml'
     | '/sign-in'
     | '/$lng/$path'
     | '/admin'
@@ -307,6 +318,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/$lng'
     | '/_byline'
+    | '/sitemap.xml'
     | '/$lng/_frontend'
     | '/_byline/admin'
     | '/_byline/sign-in'
@@ -336,10 +348,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   LngRouteRoute: typeof LngRouteRouteWithChildren
   BylineRouteRoute: typeof BylineRouteRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_byline': {
       id: '/_byline'
       path: ''
@@ -628,6 +648,7 @@ const BylineRouteRouteWithChildren = BylineRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   LngRouteRoute: LngRouteRouteWithChildren,
   BylineRouteRoute: BylineRouteRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
