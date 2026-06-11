@@ -34,7 +34,7 @@ test.describe('markdown export — /docs/{path}.md', () => {
     expect((await request.get('/xx/docs/getting-started.md')).status()).toBe(404)
   })
 
-  test('news and area pages serve markdown too — with the area guard', async ({ request }) => {
+  test('news and pages serve markdown too — canonical composed from area', async ({ request }) => {
     const news = await request.get('/news/demo-news-item.md')
     expect(news.status()).toBe(200)
     expect(await news.text()).toContain('collection: "news"')
@@ -43,8 +43,12 @@ test.describe('markdown export — /docs/{path}.md', () => {
     expect(about.status()).toBe(200)
     expect(await about.text()).toContain('collection: "pages"')
 
-    // A page mounts only under its own area prefix.
-    expect((await request.get('/legal/test-page.md')).status()).toBe(404)
+    // Mirrors the HTML routes: a page serves at ANY prefix (area drives
+    // link composition only) — and every shape declares the same
+    // area-composed canonical.
+    const offCanonical = await request.get('/legal/test-page.md')
+    expect(offCanonical.status()).toBe(200)
+    expect(await offCanonical.text()).toMatch(/canonical: "[^"]*\/about\/test-page"/)
   })
 
   test('the HTML head advertises the markdown alternate', async ({ request }) => {

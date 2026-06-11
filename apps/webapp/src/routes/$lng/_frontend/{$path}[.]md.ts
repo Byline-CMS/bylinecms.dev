@@ -20,7 +20,7 @@ export const Route = createFileRoute('/$lng/_frontend/{$path}.md')({
     handlers: {
       GET: async ({ params }: { params: { lng: string; path: string } }) => {
         const { getPageMarkdown, markdownResponse } = await import('@/modules/pages/markdown')
-        return markdownResponse(await getPageMarkdown(params.lng, params.path, 'root'))
+        return markdownResponse(await getPageMarkdown(params.lng, params.path))
       },
     },
   },

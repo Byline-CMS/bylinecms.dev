@@ -160,8 +160,8 @@ the same cache-key dimension as the HTML page (see CACHING.md):
 | `/[lng/]docs/{path}.md` | `$lng/_frontend/docs/{$path}[.]md.ts` | docs |
 | `/[lng/]news/{path}.md` | `$lng/_frontend/news/{$path}[.]md.ts` | news |
 | `/[lng/]{path}.md` | `$lng/_frontend/{$path}[.]md.ts` | pages (root area) |
-| `/[lng/]about/{path}.md` | `$lng/_frontend/about/{$path}[.]md.ts` | pages (`area` guarded) |
-| `/[lng/]legal/{path}.md` | `$lng/_frontend/legal/{$path}[.]md.ts` | pages (`area` guarded) |
+| `/[lng/]about/{path}.md` | `$lng/_frontend/about/{$path}[.]md.ts` | pages |
+| `/[lng/]legal/{path}.md` | `$lng/_frontend/legal/{$path}[.]md.ts` | pages |
 | `/llms.txt` | `llms[.]txt.ts` (locale-less top level) | all of the above |
 
 Mechanics worth knowing (each cost a spike to learn):
@@ -187,10 +187,12 @@ Mechanics worth knowing (each cost a spike to learn):
   bodies through handler-local dynamic `import()` so the server-only chain
   (Byline SDK, L1 cache → `node:dns`) stays out of the client graph — the
   `sitemap[.]xml.ts` pattern.
-- **Pages carry an `area` acceptance guard**: `/legal/x.md` 404s for an
-  `about`-area page, mirroring the HTML routes. The canonical segments
-  participate in the L1 cache key so two URL shapes for one document can
-  never share an entry.
+- **Pages serve at any prefix, like their HTML siblings.** The HTML
+  loaders never enforce `area` — it drives link composition only — so a
+  page is reachable at `/x`, `/about/x`, and `/legal/x` alike. The `.md`
+  surface mirrors that exactly; the frontmatter `canonical` composes from
+  the document's own `area`, independent of which URL shape was requested,
+  so every shape serves identical output (and shares one L1 entry).
 
 ## Advertisement channels
 

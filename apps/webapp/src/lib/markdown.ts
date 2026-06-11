@@ -57,16 +57,15 @@ export interface GetDocumentMarkdownOptions {
   /** Relation populate map for the read (mirrors the HTML detail loader). */
   populate?: Record<string, '*'>
   /**
-   * URL segments (after the locale) of the document's canonical HTML page,
-   * e.g. `['docs', path]` or `['about', path]` for an area page.
+   * URL segments (after the locale) of the document's canonical HTML page —
+   * e.g. `['docs', path]` — or a function deriving them from the loaded
+   * fields (pages compose their canonical from the document's `area`).
+   * The canonical is always the *true* canonical, independent of which URL
+   * shape the request used: the `.md` surface mirrors the HTML routes,
+   * which serve a page at any prefix and treat `area` purely as link
+   * composition.
    */
-  canonicalSegments: string[]
-  /**
-   * Extra acceptance check on the loaded document — e.g. the pages routes
-   * verify the document's `area` matches the URL prefix so `/legal/x.md`
-   * can't serve an `about` page. Return `false` → 404.
-   */
-  accept?: (fields: Record<string, any>) => boolean
+  canonicalSegments: string[] | ((fields: Record<string, any>) => string[])
 }
 
 export async function getDocumentMarkdown(
@@ -78,10 +77,10 @@ export async function getDocumentMarkdown(
   if (!definition) return null
 
   return withCache<string | null>({
-    // The canonical segments participate in the key so two URL shapes for
-    // one document (e.g. `/about/x.md` vs `/legal/x.md`, distinguished
-    // only by the `accept` check inside this fn) can never share an entry.
-    cacheKey: `${cacheKeys.detail(collection, path, lng)}::md::${options.canonicalSegments.join('/')}`,
+    // One entry per (collection, path, locale): every URL shape for one
+    // document serves identical output (the canonical is derived from the
+    // document itself), so the shapes deliberately share the entry.
+    cacheKey: `${cacheKeys.detail(collection, path, lng)}::md`,
     tags: [tags.detail(collection, path), tags.collection(collection)],
     ttl: MD_TTL_MS,
     fn: async () => {
@@ -92,15 +91,18 @@ export async function getDocumentMarkdown(
         status: 'published',
       })
       if (doc == null) return null
-      if (options.accept && !options.accept(doc.fields as Record<string, any>)) return null
 
+      const segments =
+        typeof options.canonicalSegments === 'function'
+          ? options.canonicalSegments(doc.fields as Record<string, any>)
+          : options.canonicalSegments
       const { serverUrl } = getPublicConfig()
       const toMarkdown = getServerConfig().fields?.richText?.toMarkdown
       const absolute = (relative: string) => new URL(relative, serverUrl).toString()
 
       return documentToMarkdown(doc, definition, {
         locale: lng,
-        canonicalUrl: absolute(buildLocalizedPath(lng, ...options.canonicalSegments)),
+        canonicalUrl: absolute(buildLocalizedPath(lng, ...segments)),
         richTextToMarkdown: toMarkdown,
         resolveUrl: (collectionPath, documentPath) => {
           const segments = publicUrlFor(collectionPath, documentPath)
