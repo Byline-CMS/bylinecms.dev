@@ -34,6 +34,19 @@ test.describe('markdown export — /docs/{path}.md', () => {
     expect((await request.get('/xx/docs/getting-started.md')).status()).toBe(404)
   })
 
+  test('news and area pages serve markdown too — with the area guard', async ({ request }) => {
+    const news = await request.get('/news/demo-news-item.md')
+    expect(news.status()).toBe(200)
+    expect(await news.text()).toContain('collection: "news"')
+
+    const about = await request.get('/about/test-page.md')
+    expect(about.status()).toBe(200)
+    expect(await about.text()).toContain('collection: "pages"')
+
+    // A page mounts only under its own area prefix.
+    expect((await request.get('/legal/test-page.md')).status()).toBe(404)
+  })
+
   test('the HTML route is unaffected by the .md sibling', async ({ request }) => {
     const response = await request.get('/docs/getting-started')
     expect(response.status()).toBe(200)
