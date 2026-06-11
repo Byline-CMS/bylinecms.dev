@@ -7,21 +7,21 @@
  */
 
 /**
- * Markdown representation of a published `docs` document — handler body
- * for `/​{lng}/docs/{path}.md`. The shared machinery (loading, caching,
- * serialization, response shaping) lives in `@/lib/markdown`.
+ * Markdown representation of a published `news` document — handler body
+ * for `/​{lng}/news/{path}.md`. The shared machinery lives in
+ * `@/lib/markdown`.
  */
 
 import { getDocumentMarkdown } from '@/lib/markdown'
 
 export { markdownResponse } from '@/lib/markdown'
 
-export async function getDocMarkdown(lng: string, path: string): Promise<string | null> {
+export async function getNewsMarkdown(lng: string, path: string): Promise<string | null> {
   return getDocumentMarkdown({
-    collection: 'docs',
+    collection: 'news',
     lng,
     path,
-    populate: { featureImage: '*' },
-    canonicalSegments: ['docs', path],
+    populate: { category: '*', featureImage: '*' },
+    canonicalSegments: ['news', path],
   })
 }
