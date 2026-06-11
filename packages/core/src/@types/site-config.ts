@@ -12,7 +12,12 @@ import type { SlugifierFn } from '../utils/slugify.js'
 import type { CollectionAdminConfig } from './admin-types.js'
 import type { CollectionDefinition } from './collection-types.js'
 import type { IDbAdapter } from './db-types.js'
-import type { RichTextEditorComponent, RichTextEmbedFn, RichTextPopulateFn } from './field-types.js'
+import type {
+  RichTextEditorComponent,
+  RichTextEmbedFn,
+  RichTextPopulateFn,
+  RichTextToMarkdownFn,
+} from './field-types.js'
 import type { IStorageProvider } from './storage-types.js'
 
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
@@ -300,6 +305,16 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
      * Required when any collection has a `richText` field with
      * `embedRelationsOnSave: true`; `initBylineCore()` enforces this.
      */
-    richText?: { populate?: RichTextPopulateFn; embed?: RichTextEmbedFn }
+    richText?: {
+      populate?: RichTextPopulateFn
+      embed?: RichTextEmbedFn
+      /**
+       * `toMarkdown` — one-way markdown serializer for the agent-readable
+       * export surface (`documentToMarkdown`, `.md` routes, `llms.txt`).
+       * Optional: only installations that expose a markdown surface need
+       * it. Synchronous and read-only — it walks stored editor JSON.
+       */
+      toMarkdown?: RichTextToMarkdownFn
+    }
   }
 }

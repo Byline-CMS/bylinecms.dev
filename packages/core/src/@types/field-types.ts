@@ -949,3 +949,31 @@ export interface RichTextEmbedContext {
  * each field's `embedRelationsOnSave` flag.
  */
 export type RichTextEmbedFn = (ctx: RichTextEmbedContext) => Promise<void>
+
+// ---------------------------------------------------------------------------
+// Richtext server adapter — markdown export (read-time, one-way)
+// ---------------------------------------------------------------------------
+
+/**
+ * Context passed to the richtext markdown serializer for one rich-text
+ * field value. Read-only and synchronous — the export surface walks the
+ * stored editor JSON directly (no editor instantiation, no DB reads).
+ */
+export interface RichTextToMarkdownContext {
+  /** The richText field's value (raw editor JSON, possibly stringified). */
+  value: unknown
+  /** Field path within the document — e.g. `'body'` or `'content.0.caption'`. */
+  fieldPath: string
+  /** Collection path the document belongs to. */
+  collectionPath: string
+}
+
+/**
+ * Server-side markdown serializer contract for the agent-readable export
+ * surface (`documentToMarkdown`, `.md` routes, `llms.txt`). Editor
+ * adapters export an implementation (e.g. `lexicalToMarkdown` from
+ * `@byline/richtext-lexical/server`); installations register one via
+ * `ServerConfig.fields.richText.toMarkdown`. One-way and lossy-tolerant
+ * by contract — output is never re-imported.
+ */
+export type RichTextToMarkdownFn = (ctx: RichTextToMarkdownContext) => string
