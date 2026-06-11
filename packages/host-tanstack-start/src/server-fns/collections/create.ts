@@ -59,7 +59,7 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       requestContext: await getAdminRequestContext(),
     }
 
-    await createDocument(ctx, {
+    const result = await createDocument(ctx, {
       data: structuredClone(documentData),
       status: documentData.status,
       locale: locale ?? serverConfig.i18n.content.defaultLocale,
@@ -67,5 +67,11 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       availableLocales,
     })
 
-    return { status: 'ok' as const }
+    // The new document's id is returned so the create view can navigate
+    // straight to the edit view (create → edit).
+    return {
+      status: 'ok' as const,
+      documentId: result.documentId,
+      documentVersionId: result.documentVersionId,
+    }
   })

@@ -52,7 +52,7 @@ export const CreateView = ({
     systemAvailableLocales?: string[]
   }) => {
     try {
-      await createCollectionDocument({
+      const result = await createCollectionDocument({
         data: {
           collection: path,
           data,
@@ -60,11 +60,23 @@ export const CreateView = ({
           ...(systemAvailableLocales ? { availableLocales: systemAvailableLocales } : {}),
         },
       })
-      navigate({
-        to: '/admin/collections/$collection' as never,
-        params: { collection: path },
-        search: { action: 'created' },
-      })
+      // Create → edit: land the editor on the new document, where the rest
+      // of the work (content, status, relations) happens. The list-view
+      // fallback covers callers running against an older server fn that
+      // doesn't return the new document's id.
+      if (result?.documentId) {
+        navigate({
+          to: '/admin/collections/$collection/$id' as never,
+          params: { collection: path, id: result.documentId } as never,
+          search: { action: 'created' },
+        })
+      } else {
+        navigate({
+          to: '/admin/collections/$collection' as never,
+          params: { collection: path },
+          search: { action: 'created' },
+        })
+      }
     } catch (err) {
       console.error(err)
 
