@@ -56,6 +56,17 @@ describe('localeInputRewrite — the matcher always sees a locale segment', () =
     expect(input('/apple-touch-icon.png')).toBe('/apple-touch-icon.png')
   })
 
+  it('treats `.md` as content, not asset — localized like the HTML page', () => {
+    // The markdown representation lives at canonical URL + `.md`, one
+    // variant per content locale (docs/TODO.md → markdown export).
+    expect(input('/docs/getting-started.md')).toBe('/en/docs/getting-started.md')
+    expect(input('/fr/docs/getting-started.md')).toBe('/fr/docs/getting-started.md')
+    expect(input('/news/some-post.md')).toBe('/en/news/some-post.md')
+    // Other text-ish extensions stay assets (llms.txt is a locale-less
+    // top-level surface like sitemap.xml).
+    expect(input('/llms.txt')).toBe('/llms.txt')
+  })
+
   it('preserves search and hash', () => {
     const url = new URL('/about-byline?ref=nav#team', ORIGIN)
     const out = localeInputRewrite(url)
@@ -111,5 +122,7 @@ describe('isLocalizablePath', () => {
     expect(isLocalizablePath('/admin')).toBe(false)
     expect(isLocalizablePath('/_serverFn/x')).toBe(false)
     expect(isLocalizablePath('/favicon.ico')).toBe(false)
+    expect(isLocalizablePath('/docs/getting-started.md')).toBe(true)
+    expect(isLocalizablePath('/sitemap.xml')).toBe(false)
   })
 })

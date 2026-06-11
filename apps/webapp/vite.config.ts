@@ -33,6 +33,29 @@ const browserAsyncHooksAlias = (): Plugin => ({
   },
 })
 
+// Dev-only: let content `.md` URLs reach the TanStack Start SSR handler.
+// Vite's dev middlewares claim extension-bearing requests whose `Accept`
+// header is not `text/html` (curl, agents, Playwright `request` — exactly
+// the clients the markdown surface serves) and 404 them as missing static
+// files before Start's catch-all runs. Production has no Vite middleware,
+// so without this shim dev and prod would diverge on the feature's primary
+// consumer shape. Normalising `Accept` on content `.md` GETs makes Vite's
+// fallback hand them to SSR, where the `{$path}[.]md` routes match. Routes
+// still return `text/markdown` — only the *request* header is touched.
+const devMarkdownPassthrough = (): Plugin => ({
+  name: 'byline:dev-markdown-passthrough',
+  apply: 'serve',
+  configureServer(server) {
+    server.middlewares.use((req, _res, next) => {
+      const pathname = req.url?.split('?')[0] ?? ''
+      if (req.method === 'GET' && pathname.endsWith('.md')) {
+        req.headers.accept = 'text/html'
+      }
+      next()
+    })
+  },
+})
+
 // Inline every `@byline/*` package through Vite's SSR pipeline. The
 // regex catches future packages without requiring a config edit. The
 // dual `environments.ssr.resolve.noExternal` + legacy `ssr.noExternal`
@@ -144,6 +167,7 @@ const config = defineConfig({
         }) as PluginOption)
       : null,
     browserAsyncHooksAlias(),
+    devMarkdownPassthrough(),
     devtools(),
     nitro({
       preset: 'node',
