@@ -32,30 +32,11 @@ The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./TESTIN
 
 ## Next
 
-### Markdown export — `documentToMarkdown` + `.md` routes
+### Markdown export — remaining polish
 
-**Core pipeline shipped:** `lexicalToMarkdown` (`@byline/richtext-lexical/server`, one-way stored-JSON walk, GFM alerts for admonitions), `documentToMarkdown` (`@byline/core`, schema-aware assembler with frontmatter), the `ServerConfig.fields.richText.toMarkdown` seam, and the first `.md` route — `/docs/{path}.md` per content locale via a `{$path}[.]md` suffixed-param route, L1-cached on the document's detail tag. The locale rewrite treats `.md` as content (one variant per content locale), and `devMarkdownPassthrough` (vite.config.ts) keeps Vite's dev middleware from claiming `.md` requests. Contract tests pin the format in both packages; e2e covers the route.
+The agent-readable surface **shipped** (the full present-state reference is [MARKDOWN-EXPORT.md](./MARKDOWN-EXPORT.md)): `lexicalToMarkdown`, `documentToMarkdown`, the `fields.richText.toMarkdown` seam, `.md` routes per content locale for docs/news/pages, `llms.txt` over a shared published-URL index with the sitemap, and all three advertisement channels (`.md` URLs, head `rel=alternate` links, strict `Accept: text/markdown` 302 negotiation).
 
-**Also shipped:** `llms.txt` (sitemap-sibling route; both surfaces consume one shared published-URL enumeration in `apps/webapp/src/lib/published-index.ts` — one scan, one cache entry, no drift; links point at the `.md` representations), and the news/pages route rollout (generic loader in `apps/webapp/src/lib/markdown.ts`, per-area page routes with an `area` acceptance guard).
-
-**All three advertisement channels shipped:** the `.md` URL convention, `<link rel="alternate" type="text/markdown">` in detail-page heads (via `getMeta`'s `markdownAlternatePath`), and `Accept: text/markdown` negotiation on canonical URLs (strict 302 in the server entry — never fires for browsers, cache keys stay distinct; see `apps/webapp/src/lib/markdown-negotiation.ts`).
-
-**Remaining:** a `docs/MARKDOWN-EXPORT.md` present-state doc (does not exist yet) consolidating the architecture, the format contract, the routing/dev-server mechanics, and the advertisement channels — plus the docs-corpus round-trip test (`import(export(import(md))) ≅ import(md)` over `docs/*.md`, comparing Lexical trees rather than strings; tests the *export* serializer against real production-shaped content, with the import pipeline as the vehicle).
-
-**Admonition dialect (decided 2026-06-11, document in MARKDOWN-EXPORT.md):** the export emits **GFM alerts** — `> [!NOTE]` first line, body as ordinary blockquote content (any block content is valid), and since GFM alerts carry no title parameter, the Byline admonition title renders as a bold lead paragraph (`> **Title**`). The editor's source toggle (`BYLINE_TRANSFORMERS`) and the docs importer (`parse-markdown.ts`) speak the Docusaurus `:::type[Title]` dialect — a deliberate asymmetry: GFM is what agents and GitHub render. The round-trip test should either normalise admonitions or (preferred) extend `parse-markdown.ts` to also *accept* GFM alerts, erasing the asymmetry: two accepted input dialects, one output dialect.
-
-Serve a markdown representation of published documents at their routes (`/news/foo.md`, `Accept: text/markdown` content negotiation, a `<link rel="alternate" type="text/markdown">` in the page head, an `llms.txt` index) — increasingly expected by AI agents and documentation tooling, and the stronger strategic reason to invest in markdown serialization. **Ranked high.**
-
-Key decisions already settled (so this can be picked up cold):
-
-- **Export-first and one-way.** `SerializedEditorState → markdown` is a pure tree walk; output is read-only and never re-imported, so *lossy is acceptable* (flatten an inline image to `![alt](url)`, a layout column to stacked sections). This is **not** the same problem as the editor's markdown source toggle — that one needs bidirectional, lossless transformers (`BYLINE_TRANSFORMERS`); export does not. Build the one-way serializer; don't let the toggle's harder fidelity bar gate it.
-- **No `@lexical/headless` on the server** — it has been unreliable for Byline's node set. Walk the stored serialized JSON directly, following the existing pattern in `apps/webapp/src/ui/byline/components/richtext-lexical/serialize/` and the `packages/ai` text utilities. No editor instantiation, no DOM, no node registration.
-- **Document-grain, not field-grain.** A page is a composite (text, multiple richtext fields, blocks, arrays, relations). `documentToMarkdown(doc, collectionDef)` walks the collection's fields → one markdown file (frontmatter from title/meta, fields/blocks as sections, relations as links). Two registries: a Lexical-node→markdown serializer and a field/block→markdown assembler.
-- **Caching** keys purely on the **content locale in the URL** (default-locale fallback for untranslated docs); UI locale stays the invisible signal. Same cache key as the HTML page — one `.md` variant per content locale.
-- **Published-only, opt-in per collection.** The `.md` routes and `llms.txt` read through `@byline/client` with `status: 'published'` — drafts never leak; unpublished/missing → 404 same as HTML. Collections opt in to the agent-readable surface via admin config (no accidental exposure of e.g. a media library). Relations serialize as links to the targets' canonical URLs (which have their own `.md` variants), so the corpus is traversable.
-- **The output is a contract surface.** Agents will build on the shape — snapshot-test the serializer per field type from day one so format drift is loud, not silent.
-
-Likely home for the serializer is `@byline/core/services` (or the richtext adapter's `/server` entry for the Lexical-node half); the `.md` route handler is host-side. See [RICHTEXT.md → Phase 8 — markdown export](./RICHTEXT.md#phase-8--markdown-export).
+Remaining, specified in [MARKDOWN-EXPORT.md → Future phases](./MARKDOWN-EXPORT.md#future-phases): the **docs-corpus round-trip test** (`import(export(import(md))) ≅ import(md)` over `docs/*.md`, comparing Lexical trees — tests the export serializer against production-shaped content; preferred companion: teach `parse-markdown.ts` to also accept GFM alerts, erasing the admonition dialect asymmetry documented there). Deferred with triggers: per-field markdown opt-out, host-package route factories, `llms-full.txt` / MCP consumption.
 
 ### `hasMany` relations
 
