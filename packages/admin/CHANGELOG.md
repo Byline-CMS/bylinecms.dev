@@ -1,5 +1,19 @@
 # @byline/admin
 
+## 3.7.0
+
+### Minor Changes
+
+- markdown export: added the one-way `lexicalToMarkdown` serializer (**`@byline/richtext-lexical/server`**) and the `documentToMarkdown` assembler + `fields.richText.toMarkdown` seam (**`@byline/core`**) — the agent-readable surface behind `.md` routes and `llms.txt` (see docs/MARKDOWN-EXPORT.md)
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.7.0
+  - @byline/core@3.7.0
+  - @byline/i18n@3.7.0
+  - @byline/ui@3.7.0
+
 ## 3.6.0
 
 ### Minor Changes
