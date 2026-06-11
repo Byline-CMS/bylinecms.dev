@@ -24,6 +24,10 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 Deferred from the round that landed the populate primitive. The CI integration-test pipeline now runs the suite on every PR (see [TESTING.md](./TESTING.md)) so this can land at any time. Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Relations — embed and populate](./RICHTEXT.md#relations--embed-and-populate) for the populate primitive itself.
 
+### Admin editor smoke suite — remaining scenarios
+
+The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./TESTING.md#editor-smoke-suite-playwright)): auth setup through the real sign-in form, dashboard/list rendering, create → edit → save round-trip, and a workflow status transition. Remaining scenarios from the growth checklist in `apps/webapp/e2e/editor-smoke.spec.ts`: each remaining field type (datetime, select, checkbox, relation, richtext), file upload (media collection), content-locale switch + translation save, duplicate / restore-version flows. Scope stays ~10–15 happy-path scenarios, not coverage. Completes **before `hasMany`** (which is heavily an admin-UI feature: multi-relation picker, list rendering).
+
 ---
 
 ## Next
@@ -38,16 +42,30 @@ Key decisions already settled (so this can be picked up cold):
 - **No `@lexical/headless` on the server** — it has been unreliable for Byline's node set. Walk the stored serialized JSON directly, following the existing pattern in `apps/webapp/src/ui/byline/components/richtext-lexical/serialize/` and the `packages/ai` text utilities. No editor instantiation, no DOM, no node registration.
 - **Document-grain, not field-grain.** A page is a composite (text, multiple richtext fields, blocks, arrays, relations). `documentToMarkdown(doc, collectionDef)` walks the collection's fields → one markdown file (frontmatter from title/meta, fields/blocks as sections, relations as links). Two registries: a Lexical-node→markdown serializer and a field/block→markdown assembler.
 - **Caching** keys purely on the **content locale in the URL** (default-locale fallback for untranslated docs); UI locale stays the invisible signal. Same cache key as the HTML page — one `.md` variant per content locale.
+- **Published-only, opt-in per collection.** The `.md` routes and `llms.txt` read through `@byline/client` with `status: 'published'` — drafts never leak; unpublished/missing → 404 same as HTML. Collections opt in to the agent-readable surface via admin config (no accidental exposure of e.g. a media library). Relations serialize as links to the targets' canonical URLs (which have their own `.md` variants), so the corpus is traversable.
+- **The output is a contract surface.** Agents will build on the shape — snapshot-test the serializer per field type from day one so format drift is loud, not silent.
 
 Likely home for the serializer is `@byline/core/services` (or the richtext adapter's `/server` entry for the Lexical-node half); the `.md` route handler is host-side. See [RICHTEXT.md → Phase 8 — markdown export](./RICHTEXT.md#phase-8--markdown-export).
-
-### Document-grain audit log + system-history view
-
-Phase 2 of the v3.3.0 system-field decoupling. The non-versioned writes for document-grain fields (`path`, editorial `availableLocales`) are immediate and deliberately absent from version history — so they currently leave no audit trail. Round out Byline's auditable history so *every* change is accountable, not just content: a document-grain audit-log table (`actor` / `action` / `field` / `before` → `after` / `occurred_at`) written from `updateDocumentSystemFields` (and optionally `changeDocumentStatus`) under the existing auth gate, plus a **new tab under the document History view** — content/version history on the current tab, **system & document-level history** on the new one (who changed the path / advertised locales / status, when, and from→to). See [CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned).
 
 ### `hasMany` relations
 
 The single biggest planned addition to the relations surface. Schema, storage, populate output, and `where` quantifiers (`$some` / `$every` / `$none`) all change in concert. Largest item in this list by scope. See [RELATIONSHIPS.md → Phase — hasMany relations](./RELATIONSHIPS.md#phase--hasmany-relations).
+
+### Search-provider interface (design doc first)
+
+A pluggable search seam in core: a `SearchProvider` interface with Postgres FTS as the built-in driver, so external providers (BM25 rankers, vector / hybrid retrieval) plug in through a sanctioned extension point instead of ad-hoc forks. First deliverable is the design doc (`docs/SEARCH.md`): interface shape, index lifecycle (publish/unpublish hooks, reindex command), what feeds it (richtext plain-text extraction — Phase 5's named trigger "the search/indexing story takes shape" fires here — and the attachment text-extraction pipeline below), and the query surface. Implementation follows once the doc settles.
+
+### Attachment text-extraction pipeline
+
+Extract text and structure from uploaded file attachments (PDF, DOCX, …) to feed search indexing and downstream retrieval. Shape: an extraction-provider interface — `file → { markdown, plainText, metadata }` — so structure-aware, markdown-emitting extractors (Docling-class) and classic extractors (Apache Tika) are interchangeable drivers. Extracted output lands in its own table keyed to the file (never as synthetic `store_*` field data), invalidated on re-upload. Markdown-first output deliberately converges with the markdown-export surface, so documents and attachments share one representation for indexing, chunking, and agents.
+
+### Relation column formatter
+
+List views currently render `target_document_id` as a string for relation fields. A formatter that resolves to the target's `useAsTitle` (with the picker's `displayField` fallback chain) is small, self-contained, and worth doing alongside `hasMany` so the formatter handles "A, B, +3 more" from the start. See [RELATIONSHIPS.md → Phase — relation column formatter](./RELATIONSHIPS.md#phase--relation-column-formatter).
+
+### Document-grain audit log + system-history view
+
+Phase 2 of the v3.3.0 system-field decoupling. The non-versioned writes for document-grain fields (`path`, editorial `availableLocales`) are immediate and deliberately absent from version history — so they currently leave no audit trail. Round out Byline's auditable history so *every* change is accountable, not just content: a document-grain audit-log table (`actor` / `action` / `field` / `before` → `after` / `occurred_at`) written from `updateDocumentSystemFields` (and optionally `changeDocumentStatus`) under the existing auth gate, plus a **new tab under the document History view** — content/version history on the current tab, **system & document-level history** on the new one (who changed the path / advertised locales / status, when, and from→to). See [CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned).
 
 ### Bulk "refresh embedded relations" admin command
 
@@ -61,17 +79,13 @@ The `cascade_delete` flag round-trips today but isn't enforced. Future write-pat
 
 Periodic admin command that scans richtext fields and `store_relation` rows for links to deleted or unresolvable targets, then surfaces them in a "broken links" admin view. Reuses populate's missing-target detection (`_resolved: false`) but materialises the result as a triage list. See [RELATIONSHIPS.md → Phase — cross-document link integrity job](./RELATIONSHIPS.md#phase--cross-document-link-integrity-job).
 
-### Relation column formatter
-
-List views currently render `target_document_id` as a string for relation fields. A formatter that resolves to the target's `useAsTitle` (with the picker's `displayField` fallback chain) is small, self-contained, and worth doing alongside `hasMany` so the formatter handles "A, B, +3 more" from the start. See [RELATIONSHIPS.md → Phase — relation column formatter](./RELATIONSHIPS.md#phase--relation-column-formatter).
-
 ### Historical config snapshots — `collection_versions` history table
 
 COLLECTIONS versioning Phase 2 — the smallest useful follow-up to the schema-version recording that already ships. One row per version-bump carrying the snapshot of `CollectionDefinition` at that version. Unblocks Phase 3 (fetch-by-version) and is the prerequisite for any future read-time forward-migration work. See [COLLECTIONS.md → Phase 2 — historical config snapshots](./COLLECTIONS.md#phase-2--historical-config-snapshots).
 
-### All things AI
+### Native MCP server
 
-Native MCP Server and AI / content integration.
+Sequenced after the markdown / `llms.txt` surface and the search-provider seam: the agent-readable representation and the retrieval layer land first, then the protocol surface that exposes them. See [MCP.md](./MCP.md).
 
 ### Block config analogue — per-block `schema` / `admin` split
 
