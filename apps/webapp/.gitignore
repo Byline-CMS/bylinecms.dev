@@ -3,3 +3,7 @@ node_modules
 dist
 build
 uploads
+# Playwright (editor smoke suite)
+e2e/.auth/
+e2e/test-results/
+playwright-report/

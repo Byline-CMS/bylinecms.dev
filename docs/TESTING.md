@@ -108,3 +108,36 @@ Watch mode (re-runs on file change):
 ```sh
 pnpm test:watch
 ```
+
+## Editor smoke suite (Playwright)
+
+Browser-level happy paths over the admin document editor — the regression net for the
+surfaces unit tests structurally can't see (`@byline/admin` forms/fields, host-adapter
+server fns, richtext) and for Lexical / TanStack Start version bumps. Lives in
+`apps/webapp/e2e/` with `apps/webapp/playwright.config.ts`. Scope is ~10–15 happy-path
+scenarios, not coverage (see the growth checklist at the top of
+`apps/webapp/e2e/editor-smoke.spec.ts`).
+
+```sh
+# One-time per machine
+cd apps/webapp && pnpm exec playwright install chromium
+
+# Requirements: dev Postgres up, byline_dev migrated + seeded, and .env.local
+# carrying BYLINE_SUPERADMIN_EMAIL / BYLINE_SUPERADMIN_PASSWORD
+cd apps/webapp && pnpm tsx byline/seed.ts   # if not already seeded
+
+# Run (starts or reuses the Vite dev server on :5173)
+cd apps/webapp && pnpm test:e2e
+cd apps/webapp && pnpm test:e2e:ui          # headed UI mode
+```
+
+The `setup` project signs in through the real form (keeping the sign-in flow itself under
+test — the surface the v3.5.1 form-GET leak lived on) and persists the session to
+`e2e/.auth/admin.json` for the other projects. Tests that mutate documents create their
+own document first, so reruns stay clean against a long-lived dev database.
+
+**Hydration caveat:** interactions that land before React hydrates set native input values
+without reaching the form context, so the dirty-gated Save button never enables — and a
+pre-hydration submit falls back to the native form post. The suite waits for hydration via
+React fiber keys (`waitForHydration` in `editor-smoke.spec.ts`) before interacting; new
+scenarios should do the same after any full page load.
