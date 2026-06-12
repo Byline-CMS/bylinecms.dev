@@ -31,6 +31,7 @@ import { flattenFieldSetData } from './storage-flatten.js'
 import { prepareFieldInsertBuckets } from './storage-insert.js'
 import { getFirstOrThrow } from './storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
+import type { DBManager } from '../../lib/db-manager.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
 /** The transaction handle passed to `this.db.transaction(async (tx) => …)`. */
@@ -66,7 +67,17 @@ export interface ReAnchorReport {
  * CollectionCommands
  */
 export class CollectionCommands implements ICollectionCommands {
-  constructor(private db: DatabaseConnection) {}
+  constructor(private dbManager: DBManager) {}
+
+  /**
+   * The executor for this call — the ambient transaction when a
+   * `withTransaction` boundary is open, otherwise the pool. Resolved per
+   * access so every `this.db.*` below transparently joins an enclosing
+   * transaction with no call-site change. See docs/TRANSACTIONS.md.
+   */
+  private get db(): DatabaseConnection {
+    return this.dbManager.get()
+  }
 
   async create(
     path: string,
@@ -112,9 +123,19 @@ export class CollectionCommands implements ICollectionCommands {
  */
 export class DocumentCommands implements IDocumentCommands {
   constructor(
-    private db: DatabaseConnection,
+    private dbManager: DBManager,
     private defaultContentLocale: string
   ) {}
+
+  /**
+   * The executor for this call — the ambient transaction when a
+   * `withTransaction` boundary is open, otherwise the pool. Resolved per
+   * access so every `this.db.*` below transparently joins an enclosing
+   * transaction with no call-site change. See docs/TRANSACTIONS.md.
+   */
+  private get db(): DatabaseConnection {
+    return this.dbManager.get()
+  }
 
   /**
    * createDocumentVersion
@@ -1034,9 +1055,9 @@ export class DocumentCommands implements IDocumentCommands {
   }
 }
 
-export function createCommandBuilders(db: DatabaseConnection, defaultContentLocale: string) {
+export function createCommandBuilders(dbManager: DBManager, defaultContentLocale: string) {
   return {
-    collections: new CollectionCommands(db),
-    documents: new DocumentCommands(db, defaultContentLocale),
+    collections: new CollectionCommands(dbManager),
+    documents: new DocumentCommands(dbManager, defaultContentLocale),
   }
 }

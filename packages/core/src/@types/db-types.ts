@@ -234,6 +234,24 @@ export interface IDbAdapter {
     documents: IDocumentQueries
   }
   /**
+   * Optional capability: run `fn` inside a single database transaction so the
+   * writes it performs commit or roll back atomically. The adapter propagates
+   * the transaction to every `commands.*` call made within `fn` (see
+   * docs/TRANSACTIONS.md — AsyncLocalStorage propagation), so a service can
+   * compose multiple commands into one unit of work without threading a
+   * transaction handle through their signatures.
+   *
+   * **Loud-failure contract.** Optional because not every adapter can provide
+   * interactive transactions — a pure HTTP-gateway serverless driver (Neon
+   * HTTP, Cloudflare D1, …) cannot. An adapter that cannot **must omit this
+   * method** (or implement it to throw); a consumer that requires atomicity
+   * (e.g. the audit log) MUST assert its presence and throw — never silently
+   * run non-atomically, which would defeat the very guarantee it provides. See
+   * docs/TRANSACTIONS.md ("Serverless / HTTP-gateway databases — the contract
+   * seam").
+   */
+  withTransaction?: <T>(fn: () => Promise<T>) => Promise<T>
+  /**
    * Optional maintenance: stamp `source_locale` (the per-document content
    * anchor) on documents created before the column existed, setting NULL rows
    * to the adapter's configured default content locale. Called idempotently at

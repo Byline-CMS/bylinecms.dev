@@ -11,6 +11,7 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
 import * as schema from './database/schema/index.js'
+import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
 import {
   createCommandBuilders,
@@ -131,7 +132,15 @@ export const pgAdapter = ({
 
   const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema })
 
-  const commandBuilders = createCommandBuilders(db, defaultContentLocale)
+  // Request-scoped transaction propagation (docs/TRANSACTIONS.md). The command
+  // builders run on the DBManager — each `this.db` access resolves to the
+  // ambient transaction when a `withTransaction` boundary is open, else the
+  // pool. Queries and counters stay on the raw `db` for now (reads don't need
+  // to join the audit transaction); they migrate opportunistically.
+  const dbManager = new DBManagerImpl({ dbPool: db })
+  const txManager = new TXManagerImpl({ db: dbManager })
+
+  const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
   const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale)
   const counterCommands = createCounterCommands(db)
 
@@ -141,6 +150,7 @@ export const pgAdapter = ({
       counters: counterCommands,
     },
     queries: queryBuilders,
+    withTransaction: (fn) => txManager.withTransaction(fn),
     drizzle: db,
     pool,
     backfillVersionLocales: () => commandBuilders.documents.backfillVersionLocales(),
