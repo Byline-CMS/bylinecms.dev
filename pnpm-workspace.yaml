@@ -2,7 +2,7 @@ packages:
   - "packages/*"
   - "apps/*"
   - "benchmarks/storage"
-minimumReleaseAge: 0
+minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - "@infonomic/*"
   - "@byline/*"
