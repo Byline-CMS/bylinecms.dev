@@ -29,14 +29,29 @@ import type { SlugifierFn } from '../../utils/slugify.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 /**
+ * Matches a canonical UUID (any version). Real admin / end-user actors carry
+ * UUID ids (`uuidv7`); synthetic actors do not.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
  * The acting user's id for the version audit trail (`created_by` on
- * `byline_document_versions`). `undefined` for internal-tooling callers
- * without a `requestContext` (seeds, migrations — the documented escape
- * hatch), which persists as NULL. Both actor realms (`AdminAuth`,
- * `UserAuth`) carry `id`. See docs/AUDIT.md — Workstream 1.
+ * `byline_document_versions`).
+ *
+ * Returns the id only when it is a real **persisted user id** — i.e. a UUID.
+ * Synthetic actors used by scripts, seeds, and tests (e.g.
+ * `createSuperAdminContext({ id: 'import-docs-script' })`, or the default
+ * `'super-admin'`) are **not** users: their non-UUID ids would be rejected by
+ * the `uuid` column outright, and the correct audit value for a system/tooling
+ * write is NULL regardless. So a non-UUID id — and a missing `requestContext`
+ * (the seeds/migrations escape hatch) — both yield `undefined` → NULL
+ * `created_by`, which the history strip renders as "unknown". Real
+ * `AdminAuth` / `UserAuth` actors always carry UUID ids, so their attribution
+ * is unaffected. See docs/AUDIT.md — Workstream 1.
  */
 export function actorId(ctx: DocumentLifecycleContext): string | undefined {
-  return ctx.requestContext?.actor?.id
+  const id = ctx.requestContext?.actor?.id
+  return id != null && UUID_RE.test(id) ? id : undefined
 }
 
 /**

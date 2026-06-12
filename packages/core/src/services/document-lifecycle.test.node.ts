@@ -132,6 +132,11 @@ const noopLogger: BylineLogger = {
   silent: vi.fn(),
 }
 
+// A real persisted-user id is a UUID; `actorId()` only attributes UUIDs (see
+// the regression note below). Use a valid UUID so the default context's
+// writes are attributed.
+const TEST_ACTOR_ID = '01901234-0000-7000-8000-000000000001'
+
 function buildCtx(
   db: IDbAdapter,
   definition: CollectionDefinition = minimalCollection
@@ -148,7 +153,7 @@ function buildCtx(
     // tests do not have to care about ability enforcement. The dedicated
     // "enforcement" block below covers the missing-context / missing-ability
     // negative cases.
-    requestContext: createSuperAdminContext({ id: 'test-super-admin' }),
+    requestContext: createSuperAdminContext({ id: TEST_ACTOR_ID }),
   }
 }
 
@@ -186,7 +191,21 @@ describe('Document lifecycle service', () => {
 
       // Audit contract (docs/AUDIT.md — W1): every version row
       // records the actor that created it.
-      expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBe('test-super-admin')
+      expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBe(TEST_ACTOR_ID)
+    })
+
+    it('writes NULL createdBy for a synthetic (non-UUID) script/seed actor', async () => {
+      // Regression guard (v3.8.0): a synthetic super-admin id such as
+      // `import-docs-script` is not a real user and is not a UUID — writing
+      // it into the `created_by` UUID column crashed every import/seed. Such
+      // system/tooling writes must attribute to NULL, not the synthetic id.
+      const { db, createDocumentVersion } = createMockDb()
+      const ctx = buildCtx(db)
+      ctx.requestContext = createSuperAdminContext({ id: 'import-docs-script' })
+
+      await createDocument(ctx, { data: { title: 'Hello' }, locale: 'en' })
+
+      expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBeUndefined()
     })
 
     it('invokes beforeCreate and afterCreate hooks in order', async () => {
@@ -419,7 +438,7 @@ describe('Document lifecycle service', () => {
         data: { title: 'New' },
       })
 
-      expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBe('test-super-admin')
+      expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBe(TEST_ACTOR_ID)
     })
 
     it('fetches the original before calling hooks', async () => {
