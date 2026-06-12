@@ -218,10 +218,28 @@ the two sources at read time. The audit log records only what the version
 stream cannot: non-versioned document-grain writes, in-place status
 transitions, deletions, and (later) admin-module actions.
 
+### Atomicity (the load-bearing decision)
+
+The mutation and its audit-log row **must commit together**. The one
+unacceptable outcome for an auditability feature is a change that succeeds
+while its audit row silently fails to write — a silent gap in the record.
+So the audit insert runs in the **same database transaction** as the
+mutation, not best-effort afterwards.
+
+This is delivered through a request-scoped `withTransaction` boundary owned
+by the service layer (the audit write becomes a peer command in the same
+transaction; the storage adapter never learns the word "audit"), rather than
+by threading audit intent into each storage command. That mechanism — its
+AsyncLocalStorage propagation, the DB↔DB vs DB↔external distinction, and the
+serverless db-contract-seam decisions — is specified in
+**[TRANSACTIONS.md](./TRANSACTIONS.md)**, and is the **prerequisite this
+workstream builds on first**.
+
 ### Write points
 
 Inside the existing service entry points, under the existing auth gates
-(no new enforcement surface):
+(no new enforcement surface), each wrapped in `withTransaction` with its
+audit-log append:
 
 - `updateDocumentSystemFields` (`document-lifecycle/system-fields.ts`) —
   path and availableLocales changes, with before/after.
