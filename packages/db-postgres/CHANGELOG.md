@@ -1,5 +1,19 @@
 # @byline/db-postgres
 
+## 3.8.0
+
+### Minor Changes
+
+- added a per-version audit trail — the acting user and action behind every document version — surfaced as an audit strip in the admin history view
+  fixed the history view to derive its identity column from useAsTitle and to keep page-size changes on the history route
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@3.8.0
+  - @byline/auth@3.8.0
+  - @byline/core@3.8.0
+
 ## 3.7.0
 
 ### Minor Changes

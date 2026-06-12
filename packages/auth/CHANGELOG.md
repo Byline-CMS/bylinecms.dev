@@ -1,5 +1,12 @@
 # @byline/auth
 
+## 3.8.0
+
+### Minor Changes
+
+- added a per-version audit trail — the acting user and action behind every document version — surfaced as an audit strip in the admin history view
+  fixed the history view to derive its identity column from useAsTitle and to keep page-size changes on the history route
+
 ## 3.7.0
 
 ### Minor Changes
