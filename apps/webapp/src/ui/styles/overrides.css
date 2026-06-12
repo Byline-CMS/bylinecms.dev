@@ -1,4 +1,8 @@
-td h4 {
+/* Content (richtext-rendered) tables only — scoped to .prose so these
+   don't leak into the admin area's tables (e.g. the history view's narrow
+   version-number column). The byline Table primitive sets its own
+   border-collapse. */
+.prose td h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.1;
@@ -6,7 +10,7 @@ td h4 {
   margin-bottom: 0.65rem;
 }
 
-table {
+.prose table {
   border-collapse: collapse;
 
   td:first-child,
