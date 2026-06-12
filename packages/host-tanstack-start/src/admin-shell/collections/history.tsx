@@ -164,8 +164,8 @@ export const HistoryView = ({
     delete params.page
     params.page_size = Number.parseInt(value, 10)
     navigate({
-      to: '/admin/collections/$collection' as never,
-      params: { collection },
+      to: '/admin/collections/$collection/$id/history' as never,
+      params: { collection, id } as never,
       search: params,
     })
   }
