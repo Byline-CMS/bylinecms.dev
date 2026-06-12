@@ -138,6 +138,10 @@ export const HistoryView = ({
   const { t } = useTranslation('byline-admin')
   const columns = adminConfig?.columns || []
   const { labels } = collectionDefinition
+  // The identity column — drives the clickable compare cell and the
+  // injected restore column, mirroring list.tsx. `useAsTitle` is optional;
+  // when absent, those affordances (and the strip colspan's +1) turn off.
+  const titleFieldName = collectionDefinition.useAsTitle
   const location = useRouterState({ select: (s) => s.location })
   const locale = (location.search as { locale?: string }).locale
   const [selectedVersion, setSelectedVersion] = useState<{
@@ -218,7 +222,7 @@ export const HistoryView = ({
                         className={column.className}
                       />
                     )
-                    if (column.fieldName === 'title') {
+                    if (titleFieldName != null && column.fieldName === titleFieldName) {
                       return [
                         cell,
                         <th
@@ -255,7 +259,11 @@ export const HistoryView = ({
                   // Version-number cell + data columns + the restore cell
                   // appended after `title` when present.
                   const auditColSpan =
-                    1 + columns.length + (columns.some((c) => c.fieldName === 'title') ? 1 : 0)
+                    1 +
+                    columns.length +
+                    (titleFieldName != null && columns.some((c) => c.fieldName === titleFieldName)
+                      ? 1
+                      : 0)
                   return (
                     <Fragment key={versionId ?? document.id}>
                       <Table.Row className={cx('byline-coll-history-row', styles.historyRow)}>
@@ -295,7 +303,7 @@ export const HistoryView = ({
                                 [styles.cellCenter]: column.align === 'center',
                               })}
                             >
-                              {column.fieldName === 'title' ? (
+                              {titleFieldName != null && column.fieldName === titleFieldName ? (
                                 versionId && currentDocument ? (
                                   <button
                                     type="button"
@@ -363,7 +371,7 @@ export const HistoryView = ({
                               )}
                             </Table.Cell>
                           )
-                          if (column.fieldName === 'title') {
+                          if (titleFieldName != null && column.fieldName === titleFieldName) {
                             return [
                               dataCell,
                               <Table.Cell
