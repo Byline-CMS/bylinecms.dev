@@ -125,7 +125,11 @@
 
 .versionButton,
 :global(.byline-coll-history-version-button) {
-  font-size: 0.75rem;
+  /* Shrink the xs round IconButton (26px) down to a 20px stamp so the
+     content row can sit tighter. */
+  min-height: 20px;
+  min-width: 20px;
+  font-size: 0.6875rem;
   font-family: var(--font-family-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -167,10 +171,13 @@
 
 /* Attribution audit strip (docs/AUDIT.md — W1). The content row's bottom
    border is suppressed so the strip reads as part of the same entry; the
-   strip row carries the row divider instead. */
+   strip row carries the row divider instead. Vertical padding is tightened
+   against the table default (--spacing-8) to keep the two-row entry compact. */
 .historyRow td,
 :global(.byline-coll-history-row td) {
   border-bottom: none;
+  padding-top: 0.375rem;
+  padding-bottom: 0.25rem;
 }
 
 .auditRow td,
