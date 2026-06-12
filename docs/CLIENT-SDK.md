@@ -338,7 +338,7 @@ Run it with `pnpm tsx byline/scripts/regenerate-media.ts` (the script imports `b
                           ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │ @byline/core services                                            │
-│   - document-lifecycle.ts  (create / update / delete / status)   │
+│   - document-lifecycle/    (create / update / delete / status)   │
 │   - document-read.ts       (afterRead orchestration)             │
 │   - populate.ts            (relation expansion)                  │
 │   - apply-before-read.ts   (predicate compilation + cache)       │
@@ -624,7 +624,7 @@ These are not the same package and should not be conflated. In-process SDK evolu
 | `populateDocuments` orchestration | `packages/core/src/services/populate.ts` |
 | `afterRead` orchestration | `packages/core/src/services/document-read.ts` |
 | `beforeRead` predicate application | `packages/core/src/auth/apply-before-read.ts` |
-| Document write services | `packages/core/src/services/document-lifecycle.ts` |
+| Document write services | `packages/core/src/services/document-lifecycle/` (per-operation modules) |
 | `current_published_documents` view | `packages/db-postgres/src/database/migrations/0000_*.sql` |
 | Public client (no preview) | `packages/host-tanstack-start/src/integrations/byline-public-client.ts` |
 | Viewer client + `isPreviewActive` | `packages/host-tanstack-start/src/integrations/byline-viewer-client.ts` |

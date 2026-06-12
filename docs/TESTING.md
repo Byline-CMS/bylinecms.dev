@@ -141,3 +141,15 @@ without reaching the form context, so the dirty-gated Save button never enables 
 pre-hydration submit falls back to the native form post. The suite waits for hydration via
 React fiber keys (`waitForHydration` in `editor-smoke.spec.ts`) before interacting; new
 scenarios should do the same after any full page load.
+
+## Agent-surface specs (Playwright)
+
+The same Playwright run carries contract specs for the public agent-facing routes,
+alongside the editor smoke suite: `e2e/sitemap.spec.ts` (dynamic `sitemap.xml` with
+hreflang alternates), `e2e/markdown.spec.ts` (the `.md` document representations), and
+`e2e/llms.spec.ts` (the `llms.txt` index). These pin the served output of the markdown
+export surface — the format contract itself is documented in
+[MARKDOWN-EXPORT.md](./MARKDOWN-EXPORT.md) and unit-pinned in `packages/richtext-lexical`
+and `packages/core`; the e2e specs cover the route/negotiation layer on top (locale
+prefixing, caching headers, the `Accept: text/markdown` redirect). Same requirements as
+above: seeded dev database, `pnpm test:e2e`.

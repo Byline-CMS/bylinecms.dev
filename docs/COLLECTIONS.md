@@ -622,7 +622,7 @@ Either way, verify in **dev, not just `build`** — `build` tree-shaking masks t
 |---|---|
 | The column | `byline_documents.order_key varchar(128) NULL` |
 | The sort index | `idx_documents_collection_order` on `(collection_id, order_key)` |
-| Append-at-end on create / duplicate | `document-lifecycle.ts` → `maybeAppendOrderKey` |
+| Append-at-end on create / duplicate | `document-lifecycle/internals.ts` → `maybeAppendOrderKey` |
 | Drag-to-reorder UI | `host-tanstack-start/admin-shell/collections/list.tsx` |
 | Reorder API | `host-tanstack-start/server-fns/collections/reorder.ts` |
 | Key generator | `@byline/core` → `generateKeyBetween`, `generateNKeysBetween` |
@@ -861,14 +861,14 @@ A `strictCollectionVersions: true` flag on `BylineCore` config. When enabled, `r
 | `CollectionAdminConfig` + layout primitives + `ColumnDefinition` | `packages/core/src/@types/admin-types.ts` |
 | `defineCollection` / `defineAdmin` factories | `packages/core/src/@types/collection-types.ts`, `packages/core/src/@types/admin-types.ts` |
 | `defineWorkflow` + workflow transition validator | `packages/core/src/workflow/workflow.ts` |
-| Lifecycle hook dispatch | `packages/core/src/services/document-lifecycle.ts` |
+| Lifecycle hook dispatch | `packages/core/src/services/document-lifecycle/` (per-operation modules) |
 | `beforeRead` predicate compilation | `packages/core/src/auth/apply-before-read.ts`, `packages/core/src/query/parse-where.ts` |
 | Fingerprint | `packages/core/src/storage/collection-fingerprint.ts` |
 | Fingerprint contract tests | `packages/core/src/storage/collection-fingerprint.test.node.ts` |
 | Startup reconciliation | `packages/core/src/services/collection-bootstrap.ts` |
 | `BylineCore` accessor | `packages/core/src/core.ts` (`getCollectionRecord(path)`) |
 | Optional `version` pin | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.version`) |
-| `collection_version` write | `packages/core/src/services/document-lifecycle.ts` (`DocumentLifecycleContext.collectionVersion`) |
+| `collection_version` write | `packages/core/src/services/document-lifecycle/context.ts` (`DocumentLifecycleContext.collectionVersion`) |
 | Postgres schema (columns + views) | `packages/db-postgres/src/database/schema/index.ts` |
 | `collections.create/update` adapter | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | Baseline migration | `packages/db-postgres/src/database/migrations/0000_hard_madame_hydra.sql` |

@@ -19,6 +19,7 @@ Companions:
 - [CLIENT-SDK.md](./CLIENT-SDK.md) — every MCP tool delegates to `CollectionHandle` / `document-lifecycle`. The hard problems (populate, status-aware reads, validation) are solved below the transport line.
 - [AUTHN-AUTHZ.md](./AUTHN-AUTHZ.md) — MCP needs a non-interactive **service-account token** actor; `assertActorCanPerform` gates every tool inside the service, not in the tool handler.
 - [RELATIONSHIPS.md](./RELATIONSHIPS.md) — `populate` + `hasMany` are what make MCP reads rich; relationship completeness gates a satisfying MCP experience, hence the sequencing.
+- [MARKDOWN-EXPORT.md](./MARKDOWN-EXPORT.md) — the agent-readable representation **already shipped**: `documentToMarkdown`, `.md` routes, `llms.txt`. The MCP content tools should serve these same representations rather than invent a parallel shape (that doc's `llms-full.txt` / MCP phase names this server as its consumer).
 - [CONTENT-IN-THE-TIME-OF-AI.md](./CONTENT-IN-THE-TIME-OF-AI.md) — the "why": structured versioning, workflow, and provenance matter *more* when an LLM is the author. MCP is where that thesis meets a keyboard.
 
 ## Overview

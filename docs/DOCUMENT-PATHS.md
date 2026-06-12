@@ -145,7 +145,7 @@ The slugifier is intentionally trivial to swap. Installations with strict URL or
 
 ## Lifecycle wiring
 
-`packages/core/src/services/document-lifecycle.ts` carries the `derivePath` helper (private to the module) and threads `defaultLocale` + optional `slugifier` through `DocumentLifecycleContext`. All callers — admin server fns, the client SDK's `CollectionHandle.create/update`, and the upload service — populate these fields explicitly from `ServerConfig`.
+`packages/core/src/services/document-lifecycle/internals.ts` carries the `derivePath` helper (shared by the create / duplicate operation modules, not exported from the package) and `context.ts` threads `defaultLocale` + optional `slugifier` through `DocumentLifecycleContext`. All callers — admin server fns, the client SDK's `CollectionHandle.create/update`, and the upload service — populate these fields explicitly from `ServerConfig`.
 
 `createDocument` enforces the default-locale rule and runs the derivation cascade, then the storage primitive's `createDocumentVersion` upserts the corresponding row in `byline_document_paths`. `updateDocument` and `updateDocumentWithPatches` are sticky: when no `params.path` is supplied the path row is left untouched (no DB write), and when a `path` is supplied on a non-default-locale (translation) save it is dropped silently with a `logger.warn` rather than overwriting the default-locale row. All three accept an optional `params.path` for explicit override on default-locale operations.
 
@@ -276,7 +276,7 @@ The widget currently posts through TanStack Start server functions. Once Byline 
 | `useAsPath` on `CollectionDefinition`               | `packages/core/src/@types/collection-types.ts`                            |
 | `slugifier` on `ServerConfig`                       | `packages/core/src/@types/site-config.ts`                                 |
 | Reserved-name + `useAsPath` validation              | `packages/core/src/config/validate-collections.ts`                        |
-| Lifecycle derivation + sticky update + locale rules | `packages/core/src/services/document-lifecycle.ts`                        |
+| Lifecycle derivation + sticky update + locale rules | `packages/core/src/services/document-lifecycle/` (`internals.ts`, `create.ts`, `update.ts`) |
 | `ERR_PATH_CONFLICT` error type                      | `packages/core/src/lib/errors.ts`                                         |
 | `byline_document_paths` schema                      | `packages/db-postgres/src/database/schema/index.ts`                       |
 | Storage adapter — locale-aware path resolution      | `packages/db-postgres/src/modules/storage/storage-queries.ts` (`pathProjection`, `resolveDocumentIdByPath`, `viewProjection`) |

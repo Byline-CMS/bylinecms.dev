@@ -267,7 +267,7 @@ The `_id` UUIDv7 on blocks and array items is **synthetic metadata**, not a data
 | Flatten / reconstruct                    | `packages/db-postgres/src/modules/storage/storage-utils.ts`                             |
 | Per-store column manifest                | `packages/db-postgres/src/modules/storage/storage-store-manifest.ts`                    |
 | Selective field loading                  | `resolveStoreTypes()` in `storage-utils.ts`; partial UNION ALL in `storage-queries.ts`  |
-| Document write services                  | `packages/core/src/services/document-lifecycle.ts`                                      |
+| Document write services                  | `packages/core/src/services/document-lifecycle/` (per-operation modules)                |
 | Document read services + `afterRead`     | `packages/core/src/services/document-read.ts`                                           |
 | Populate orchestration                   | `packages/core/src/services/populate.ts`                                                |
 | `IDocumentQueries` interface             | `packages/core/src/@types/db-types.ts`                                                  |

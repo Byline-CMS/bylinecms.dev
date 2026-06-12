@@ -40,7 +40,7 @@ The architecture is four layers, top to bottom:
 ┌──────────────────────────────────────────────────────────────────┐
 │ Core services (business logic, framework-agnostic)               │
 │   packages/core/src/services/                                    │
-│     - document-lifecycle.ts (create / update / status / delete)  │
+│     - document-lifecycle/   (create / update / status / delete)  │
 │     - field-upload.ts       (validate / store / hooks / variants)│
 │     - document-read.ts      (afterRead orchestration)            │
 │     - populate.ts           (relation expansion)                 │
@@ -67,7 +67,7 @@ Server functions live under `packages/host-tanstack-start/src/server-fns/` and a
 
 ### `collections/` — document operations
 
-Per-collection document operations against the universal storage layer. All of these route through `document-lifecycle.ts` (writes) or the `@byline/client` `CollectionHandle` (reads) and pass through the `assertActorCanPerform` ability check before touching storage.
+Per-collection document operations against the universal storage layer. All of these route through the `document-lifecycle/` services (writes) or the `@byline/client` `CollectionHandle` (reads) and pass through the `assertActorCanPerform` ability check before touching storage.
 
 | File          | Verb   | Purpose                                                                                          |
 |---------------|--------|--------------------------------------------------------------------------------------------------|
@@ -145,13 +145,13 @@ const createDocumentFn = createServerFn({ method: 'POST' })
   })
 ```
 
-The `requestContext` is what `assertActorCanPerform` reads inside `document-lifecycle.ts` — the gate runs in the service, not in the transport. That keeps the policy enforcement on the same side of the wire as the business logic, so any future stable HTTP transport inherits the gate for free.
+The `requestContext` is what `assertActorCanPerform` reads inside the `document-lifecycle/` services — the gate runs in the service, not in the transport. That keeps the policy enforcement on the same side of the wire as the business logic, so any future stable HTTP transport inherits the gate for free.
 
 ## The `@byline/client` indirection
 
 Read paths in the admin webapp do not call the database adapter directly. They go through `@byline/client` (`CollectionHandle`) — the same in-process SDK a non-admin reader would use. This is intentional: it means admin reads exercise the same `beforeRead` hooks, the same `afterRead` shaping, and the same populate orchestration as future external clients. The transport layer is the only thing that changes when a stable HTTP boundary lands.
 
-Writes go straight to `document-lifecycle.ts`. The client's write surface (`create` / `update` / `delete` / `changeStatus`) wraps the same lifecycle functions, so a future stable HTTP endpoint can be a thin shim around either path with no business-logic changes.
+Writes go straight to the `document-lifecycle/` services. The client's write surface (`create` / `update` / `delete` / `changeStatus`) wraps the same lifecycle functions, so a future stable HTTP endpoint can be a thin shim around either path with no business-logic changes.
 
 ## What we deliberately do not have
 
@@ -163,6 +163,8 @@ There is **no stable, public, framework-agnostic HTTP API contract today** for a
 - No SDKs published for external use beyond the in-process `@byline/client`.
 
 Everything goes through TanStack Start's server-function transport, which is conceptually closer to RPC than HTTP — the wire shape is an implementation detail of TanStack Start, not a contract Byline owns.
+
+One adjacent surface ships today without being an API: the **markdown representations** of published documents — `.md` at every canonical URL, plus the `llms.txt` index (see [MARKDOWN-EXPORT.md](./MARKDOWN-EXPORT.md)). These are app-owned, read-only representations with the same standing as the HTML pages and `sitemap.xml`, not a transport boundary, and they don't change the trigger calculus below. They do partially answer "where's the public API?" for the nearest-term external consumers — AI agents — which read the `.md` surface without any stable HTTP contract existing.
 
 If we introduced a stable HTTP transport now only for one operation (e.g. uploads, or just `findById`), we would create a misleading partial boundary: that operation would have a public transport shape while everything around it would still be internal RPC. That split would force a later redesign once the first external client appeared.
 
@@ -219,7 +221,7 @@ If Byline is later hosted behind a dedicated API server (e.g. a Fastify applicat
 | Auth server fns                          | `packages/host-tanstack-start/src/server-fns/auth/`                       |
 | Admin-management server fns              | `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/` |
 | Auth context resolver                    | `packages/host-tanstack-start/src/auth/auth-context.ts` (`getAdminRequestContext`) |
-| Document write services                  | `packages/core/src/services/document-lifecycle.ts`                        |
+| Document write services                  | `packages/core/src/services/document-lifecycle/` (per-operation modules)  |
 | Field-level upload service               | `packages/core/src/services/field-upload.ts`                              |
 | Document read services + hooks           | `packages/core/src/services/document-read.ts` + `populate.ts`             |
 | Auth gates                               | `packages/core/src/auth/assert-actor-can-perform.ts`, `packages/admin/src/lib/assert-admin-actor.ts` |

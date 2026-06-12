@@ -459,11 +459,11 @@ The diagram below traces what happens when a user picks an image in the Media ad
 │                                                                              │
 │  Net result: TWO server round-trips per save —                               │
 │    (1) per-field upload  → field-upload.ts                                   │
-│    (2) document write    → document-lifecycle.ts                             │
+│    (2) document write    → document-lifecycle/ services                      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**When `field-upload.ts` is invoked.** In the form flow above the service is called **once per pending file**, on a separate round-trip *before* the document save, with `shouldCreateDocument: false`. The document save is a second, independent server fn (`create.ts` / `update.ts`) that goes through `document-lifecycle.ts`. The `shouldCreateDocument: true` branch — which calls `createDocument` from `document-lifecycle` and rolls back storage on failure — is the alternate, **single-shot** path for callers that aren't going through a form (CLI imports, scripted ingest). It is *not* what the admin form takes.
+**When `field-upload.ts` is invoked.** In the form flow above the service is called **once per pending file**, on a separate round-trip *before* the document save, with `shouldCreateDocument: false`. The document save is a second, independent server fn (`create.ts` / `update.ts`) that goes through the `document-lifecycle/` services. The `shouldCreateDocument: true` branch — which calls `createDocument` from `document-lifecycle` and rolls back storage on failure — is the alternate, **single-shot** path for callers that aren't going through a form (CLI imports, scripted ingest). It is *not* what the admin form takes.
 
 ### Files vs images
 
