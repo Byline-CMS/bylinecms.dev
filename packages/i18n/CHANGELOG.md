@@ -1,5 +1,17 @@
 # @byline/i18n
 
+## 3.9.0
+
+### Minor Changes
+
+- added a request-scoped `withTransaction` capability to the Postgres adapter — multiple storage commands now commit or roll back atomically via AsyncLocalStorage propagation, with no transaction handle threaded through their signatures
+  fixed a v3.8.0 regression where script/seed writes with a non-UUID actor (e.g. the docs import) crashed on the new `created_by` column — such system writes now persist NULL
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/ui@3.9.0
+
 ## 3.8.0
 
 ### Minor Changes
