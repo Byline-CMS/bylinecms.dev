@@ -28,6 +28,10 @@ Deferred from the round that landed the populate primitive. The CI integration-t
 
 The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./TESTING.md#editor-smoke-suite-playwright)): auth setup through the real sign-in form, dashboard/list rendering, create → edit → save round-trip, and a workflow status transition. Remaining scenarios from the growth checklist in `apps/webapp/e2e/editor-smoke.spec.ts`: each remaining field type (datetime, select, checkbox, relation, richtext), file upload (media collection), content-locale switch + translation save, duplicate / restore-version flows. Scope stays ~10–15 happy-path scenarios, not coverage. Completes **before `hasMany`** (which is heavily an admin-UI feature: multi-relation picker, list rendering).
 
+### Auditability work domain
+
+The domain home is [AUDIT.md](./AUDIT.md) — four workstreams closing the gap between the public auditability claim ("who wrote it, who changed it") and the admin surfaces. W1: actor attribution on the version stream — `document_versions.created_by` exists but is never written; wire `requestContext.actor.id` through every `createDocumentVersion` call site, surface as `createdBy` (raw column, sibling of `updatedAt`), display labels batch-resolved admin-side as an `actors` map, and render attribution in a framework-owned **audit strip** sub-row (History view default-on; list views toggleable) — keeping `listViewColumns` a user-fields surface. W2: the audit log table + migration, with transitive per-document read gating and a separate `admin.activity.read` gate for the system-wide log (subsumes the former standalone entry below). W3: content-versions / document-history split on the history route (tabs-vs-child-routes parked). W4: system activity area — new admin menu item + route with a filterable report over the version stream + audit log union. W1 is migration-free and ships first.
+
 ---
 
 ## Next
@@ -56,7 +60,7 @@ List views currently render `target_document_id` as a string for relation fields
 
 ### Document-grain audit log + system-history view
 
-Phase 2 of the v3.3.0 system-field decoupling. The non-versioned writes for document-grain fields (`path`, editorial `availableLocales`) are immediate and deliberately absent from version history — so they currently leave no audit trail. Round out Byline's auditable history so *every* change is accountable, not just content: a document-grain audit-log table (`actor` / `action` / `field` / `before` → `after` / `occurred_at`) written from `updateDocumentSystemFields` (and optionally `changeDocumentStatus`) under the existing auth gate, plus a **new tab under the document History view** — content/version history on the current tab, **system & document-level history** on the new one (who changed the path / advertised locales / status, when, and from→to). See [CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned).
+**Folded into the auditability work domain (Now) — see [AUDIT.md](./AUDIT.md)** Workstreams 2 and 3, which carry this entry's spec forward (audit-log table written from `updateDocumentSystemFields` / `changeStatus` under the existing auth gate; tabbed History view). The original phase sketch remains at [CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned).
 
 ### Bulk "refresh embedded relations" admin command
 

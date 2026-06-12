@@ -179,6 +179,11 @@ The adapter's `readMode?: 'published' | 'any'` parameter threads through `findDo
 
 ## Phase — document-grain audit log (planned)
 
+> **Domain home moved:** this phase is now Workstreams 2–3 of the broader
+> auditability domain — actor attribution, audit log, tabbed history, and the
+> system activity report — specified in [AUDIT.md](./AUDIT.md). The sketch
+> below stands as the original rationale.
+
 Immutable versioning gives content changes a complete, queryable history: every save is a new `document_versions` row, and the admin **History** view renders that lineage with per-version diffs. Two classes of change deliberately sit **outside** that version stream and so have no home in version history today:
 
 1. **Document-grain system fields** — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`). As of v3.3.0 these are edited through dedicated **non-versioned** writes (`updateDocumentPath`, `setDocumentAvailableLocales` via `updateDocumentSystemFields`) that mint no version and don't reset status. The decoupling was deliberate — these fields are document-grain and sticky across versions, so gating them behind the publish workflow falsely implied per-version staging (see [I18N.md](./I18N.md) and [DOCUMENT-PATHS.md](./DOCUMENT-PATHS.md)). The trade is that an immediate write leaves no audit trail.
