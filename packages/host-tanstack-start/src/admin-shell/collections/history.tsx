@@ -119,7 +119,7 @@ export const HistoryView = ({
   adminConfig?: CollectionAdminConfig
   data: AnyCollectionSchemaTypes['HistoryType'] & {
     /**
-     * Version-attribution display labels, resolved admin-side from each
+     * Audit display labels (the acting user per version), resolved admin-side from each
      * version's `createdBy` id (see docs/AUDIT.md — Workstream 1). Ids
      * absent from the map belong to deleted users.
      */
@@ -246,8 +246,8 @@ export const HistoryView = ({
                     : (page - 1) * pageSize + rowIndex + 1
                   // Audit strip (docs/AUDIT.md — W1): who created this
                   // version, via which action. A present-but-unresolved id
-                  // is a deleted user; an absent id is a pre-attribution
-                  // row or an internal-tooling write.
+                  // is a deleted user; an absent id is a row written before
+                  // audit wiring or an internal-tooling write.
                   const actorLabel = document.createdBy
                     ? (data.actors?.[document.createdBy]?.label ??
                       t('collections.history.audit.formerUser'))

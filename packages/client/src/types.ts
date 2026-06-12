@@ -434,7 +434,7 @@ export interface ClientDocument<F = Record<string, any>> {
    * The acting user's id that created **this version** (storage column
    * `byline_document_versions.created_by`). Because versions are immutable,
    * the creator of the current version is also "who last updated the
-   * document". Absent on rows written before attribution wiring or by
+   * document". Absent on rows written before audit wiring or by
    * internal tooling without a request context. Raw id only — display-name
    * resolution is an admin-realm concern (see docs/AUDIT.md — Workstream 1).
    */

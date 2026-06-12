@@ -7,7 +7,7 @@
  */
 
 /**
- * Version-attribution label resolution (docs/AUDIT.md — Workstream 1).
+ * Audit actor-label resolution (docs/AUDIT.md — Workstream 1).
  *
  * Shaped documents carry only the raw `createdBy` uuid; turning ids into
  * display labels is an **admin-realm** concern, so it happens here — in

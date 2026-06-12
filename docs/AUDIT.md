@@ -1,7 +1,7 @@
 ---
 title: "Auditability"
 path: "audit"
-summary: "The auditability work domain: actor attribution on the version stream, the document-grain audit log, the tabbed history view, and the system-wide activity report. Closes the gap between the public auditability claim and what the admin actually shows."
+summary: "The auditability work domain: the version audit trail (acting user + action), the document-grain audit log, the tabbed history view, and the system-wide activity report. Closes the gap between the public auditability claim and what the admin actually shows."
 ---
 
 # Auditability
@@ -33,6 +33,23 @@ immutable versions, a History view, per-version diffs. The **who** half is
 currently unhonoured, and two classes of change have no recorded history at
 all. This domain closes the gap in four workstreams.
 
+### Vocabulary — "audit", not "attribution"
+
+Two words that sound adjacent but must not bleed in Byline:
+
+- **Attribution** is *public-facing*: copyright, author / publisher credit on
+  **published** content (the "original, attributable, auditable" thesis aimed
+  at readers and the provenance story). It surfaces to the audience — e.g. a
+  media item's `Credit / Attribution` field.
+- **Auditability** is *internal*: which staff actor did what to a document or
+  version, and when. A staff-accountability record inside the admin, never
+  shown to readers.
+
+Everything in this domain is the second. The internal vocabulary is
+consistently **audit** (the record), **acting user / actor** (the who), and
+**auditability** (the property) — never "attribution", which is reserved for
+the public credit concept. The stored column is the neutral `created_by`.
+
 ## Present state — the gap, precisely
 
 What exists today:
@@ -52,8 +69,8 @@ What exists today:
   storage command.
 - **The actor is available at every write.** `DocumentLifecycleContext.requestContext`
   carries the `Actor` (`AdminAuth.id` is the `byline_admin_users` id);
-  `assertActorCanPerform` already rejects writes without it. Attribution is
-  a wiring problem, not an auth-design problem.
+  `assertActorCanPerform` already rejects writes without it. Recording the
+  actor is a wiring problem, not an auth-design problem.
 - **The client read shape drops it.** `shapeDocument`
   (`packages/client/src/response.ts`) does not map `created_by`, so even a
   populated column would not reach the admin UI or any SDK consumer.
@@ -66,7 +83,7 @@ What exists today:
 - **Admin-module actions are unrecorded.** User/role/permission changes
   (`@byline/admin` commands) have no activity record.
 
-## Workstream 1 — actor attribution on the version stream
+## Workstream 1 — the version audit trail (acting user + action)
 
 **The cheapest, highest-leverage piece; ships first and alone.** Answers
 "who wrote it, who changed it" for every content save.
@@ -94,7 +111,7 @@ optional explicit "system" convention.
 ### Read side
 
 - **Naming: plain `createdBy`, no underscore, no `updatedBy`.** Versions
-  are immutable — every operation *creates* a row, so the attribution on a
+  are immutable — every operation *creates* a row, so the audit record on a
   version is its creator. A shaped `ClientDocument` is the current-version
   projection, so the same name is accurate at both grains. And since
   `created_by` is a raw column (not derived), the read-surface underscore
@@ -126,7 +143,7 @@ optional explicit "system" convention.
 
 ### UI — the audit strip
 
-Decision (2026-06-12): attribution and audit metadata render in a
+Decision (2026-06-12): the audit record (acting user + action + time) renders in a
 **framework-owned, muted colspan sub-row under each table row** (the
 "audit strip") — in the History view and in list views — rather than as
 injected or opt-in `listViewColumns` entries. Rationale:
@@ -134,7 +151,7 @@ injected or opt-in `listViewColumns` entries. Rationale:
 - **Structural separation of domains.** `listViewColumns` is the
   collection author's presentation surface over **user-defined fields**;
   audit metadata is a system concern that should not be configurable away
-  per collection — an auditability claim wants attribution to be
+  per collection — an auditability claim wants the audit record to be
   *structurally present*, not opt-in. The strip gives each domain its own
   mechanism.
 - The root fallback in `getColumnValue` (`history.tsx` — `fields` first,
@@ -145,7 +162,7 @@ injected or opt-in `listViewColumns` entries. Rationale:
   affordance; the strip is not sortable.
 - Strip content, compact single line:
   `created by <label> · <action: create/update/restore/duplicate/copy_to_locale> · <when>`.
-  Pre-attribution rows (NULL `created_by`) render an em-dash label.
+  Rows written before audit wiring (NULL `created_by`) render an em-dash label.
 - **Density trade-off, managed:** the strip roughly halves row density.
   Default **on** in the History view (history *is* the audit surface);
   list views get a toggle (per-collection admin config or a view-level
@@ -245,7 +262,7 @@ whose tab bar is simply two styled links — converge in TanStack (linkable
 either way), so the choice can wait. The content split is settled:
 
 1. **Content versions** — the existing table, diff modal, restore flow,
-   now with the attribution audit strip from Workstream 1. Unchanged
+   now with the audit strip from Workstream 1. Unchanged
    otherwise.
 2. **Document history** — a simple chronological list of audit-log entries
    for this document: who, what (action + field), when, from → to. No
@@ -284,7 +301,7 @@ like the rest of the shell).
 ## Sequencing
 
 ```
-W1  attribution on version stream      ── independent, ships first
+W1  audit trail on version stream      ── independent, ships first
 W2  audit table + write points         ──┐  one PR-chain: schema → writes → reads
 W3  tabbed history view                ──┘  (W3 consumes W2's read surface)
 W4  activity area + report             ── needs W1 + W2; ships last
@@ -312,7 +329,7 @@ just "migrate then deploy". W1 needs no DDL at all.
   either way).
 - **System writes.** Seeds/migrations write NULL actor today. Worth an
   explicit sentinel (`actor_realm: 'system'`) in the audit log so "no
-  actor" is distinguishable from "pre-attribution row"?
+  actor" is distinguishable from "a row written before audit wiring"?
 - **Restore/duplicate provenance.** Should a restored version's audit
   entry record *which* version it was restored from? (The version row
   itself has `previousVersionId`; probably sufficient.)
@@ -327,7 +344,7 @@ just "migrate then deploy". W1 needs no DDL at all.
 
 | Concern | Location |
 |---|---|
-| Version attribution write | `packages/core/src/services/document-lifecycle/{create,update,duplicate,restore,copy-to-locale}.ts` |
+| Version audit-trail write (`created_by`) | `packages/core/src/services/document-lifecycle/{create,update,duplicate,restore,copy-to-locale}.ts` |
 | `createDocumentVersion` `createdBy` param (exists) | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | `created_by` column + view projection (exists) | `packages/db-postgres/src/database/schema/index.ts` |
 | Client shaping (`createdBy`) | `packages/client/src/response.ts` |

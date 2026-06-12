@@ -175,7 +175,7 @@ describe('Document lifecycle service', () => {
       expect(result.documentVersionId).toBe('ver-1')
     })
 
-    it('passes the acting user id as createdBy for version attribution', async () => {
+    it('passes the acting user id as createdBy for the audit trail', async () => {
       const { db, createDocumentVersion } = createMockDb()
       const ctx = buildCtx(db)
 
@@ -184,7 +184,7 @@ describe('Document lifecycle service', () => {
         locale: 'en',
       })
 
-      // Attribution contract (docs/AUDIT.md — W1): every version row
+      // Audit contract (docs/AUDIT.md — W1): every version row
       // records the actor that created it.
       expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBe('test-super-admin')
     })
@@ -409,7 +409,7 @@ describe('Document lifecycle service', () => {
   // updateDocument (PUT)
   // -----------------------------------------------------------------------
   describe('updateDocument', () => {
-    it('passes the acting user id as createdBy for version attribution', async () => {
+    it('passes the acting user id as createdBy for the audit trail', async () => {
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
       getDocumentById.mockResolvedValue({ status: 'draft', fields: { title: 'Old' } })
       const ctx = buildCtx(db)

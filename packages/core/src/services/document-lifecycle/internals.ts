@@ -29,7 +29,7 @@ import type { SlugifierFn } from '../../utils/slugify.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 /**
- * The acting user's id for version attribution (`created_by` on
+ * The acting user's id for the version audit trail (`created_by` on
  * `byline_document_versions`). `undefined` for internal-tooling callers
  * without a `requestContext` (seeds, migrations — the documented escape
  * hatch), which persists as NULL. Both actor realms (`AdminAuth`,

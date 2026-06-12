@@ -43,7 +43,7 @@ describe('shapeDocument', () => {
     expect(() => shapeDocument({ created_at: new Date() })).toThrow(/updated_at/)
   })
 
-  it('should map created_by and event_type for version attribution', () => {
+  it('should map created_by and event_type for the audit trail', () => {
     const raw = {
       document_id: 'doc-1',
       document_version_id: 'ver-1',
@@ -61,7 +61,7 @@ describe('shapeDocument', () => {
     expect(result.eventType).toBe('update')
   })
 
-  it('should omit createdBy for pre-attribution rows (NULL created_by)', () => {
+  it('should omit createdBy for rows written before audit wiring (NULL created_by)', () => {
     const raw = {
       document_id: 'doc-1',
       document_version_id: 'ver-1',

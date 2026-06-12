@@ -14,7 +14,7 @@
  *   .byline-coll-history-title-button   — clickable title cell button
  *   .byline-coll-history-page-size — page-size select alignment
  *   .byline-coll-history-row        — content row (strip sibling above)
- *   .byline-coll-history-audit-row  — attribution audit strip row
+ *   .byline-coll-history-audit-row  — audit strip row (acting user + action + time)
  *   .byline-coll-history-audit-spacer-cell — empty cell under the version column
  *   .byline-coll-history-audit-cell — colspan cell carrying the strip
  *   .byline-coll-history-audit      — the muted strip line itself
@@ -173,7 +173,7 @@
   white-space: nowrap;
 }
 
-/* Attribution audit strip (docs/AUDIT.md — W1). The content row's bottom
+/* Audit strip (docs/AUDIT.md — W1). The content row's bottom
    border is suppressed so the strip reads as part of the same entry; the
    strip row carries the row divider instead. Vertical padding is tightened
    against the table default (--spacing-8) to keep the two-row entry compact. */
