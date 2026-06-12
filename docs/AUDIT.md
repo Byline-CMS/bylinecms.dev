@@ -143,6 +143,11 @@ optional explicit "system" convention.
 
 ### UI — the audit strip
 
+> **Shipped state (v3.8.0):** the **History view** strip is live (default-on).
+> The **list-view** strip is **deferred** — its toggle mechanism (per-collection
+> admin config vs. a view-level density control) is unresolved; see the density
+> bullet below. The list server fn does not yet resolve actor labels.
+
 Decision (2026-06-12): the audit record (acting user + action + time) renders in a
 **framework-owned, muted colspan sub-row under each table row** (the
 "audit strip") — in the History view and in list views — rather than as
@@ -167,9 +172,11 @@ injected or opt-in `listViewColumns` entries. Rationale:
   Default **on** in the History view (history *is* the audit surface);
   list views get a toggle (per-collection admin config or a view-level
   density control — decide at build time).
-- Markup: a second `<tr><td colSpan>` per row; needs a small extension to
-  the `@byline/ui` `Table` primitive (and a11y care so screen readers
-  associate the strip with its row).
+- Markup: a second `<tr>` per row — an empty spacer cell under the
+  version-number column, then a `<td colSpan>` carrying the strip. The
+  `@byline/ui` `Table.Cell` already spreads `colSpan`, so no Table-primitive
+  extension was needed after all (the history view ships this directly).
+  A11y care still applies so screen readers associate the strip with its row.
 
 ## Workstream 2 — document-grain audit log (new table + migration)
 
