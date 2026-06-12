@@ -15,6 +15,7 @@
  *   .byline-coll-history-page-size — page-size select alignment
  *   .byline-coll-history-row        — content row (strip sibling above)
  *   .byline-coll-history-audit-row  — attribution audit strip row
+ *   .byline-coll-history-audit-spacer-cell — empty cell under the version column
  *   .byline-coll-history-audit-cell — colspan cell carrying the strip
  *   .byline-coll-history-audit      — the muted strip line itself
  */
@@ -172,9 +173,21 @@
   border-bottom: none;
 }
 
+.auditRow td,
+:global(.byline-coll-history-audit-row td) {
+  padding-top: 0;
+  padding-bottom: 0.375rem;
+}
+
+.auditSpacerCell,
+:global(.byline-coll-history-audit-spacer-cell) {
+  /* empty cell under the version-number column; the strip starts on the
+     second column */
+}
+
 .auditCell,
 :global(.byline-coll-history-audit-cell) {
-  padding-top: 0;
+  /* override handle */
 }
 
 .audit,

@@ -256,10 +256,11 @@ export const HistoryView = ({
                     ? AUDIT_ACTION_KEYS[document.eventType]
                     : undefined
                   const actionLabel = actionKey ? t(actionKey) : (document.eventType ?? '')
-                  // Version-number cell + data columns + the restore cell
-                  // appended after `title` when present.
+                  // The strip starts on the second column — an empty spacer
+                  // cell sits under the version-number column, then one cell
+                  // spans the data columns plus the restore cell appended
+                  // after the identity column when present.
                   const auditColSpan =
-                    1 +
                     columns.length +
                     (titleFieldName != null && columns.some((c) => c.fieldName === titleFieldName)
                       ? 1
@@ -415,6 +416,12 @@ export const HistoryView = ({
                           label: actorLabel,
                         })}
                       >
+                        <Table.Cell
+                          className={cx(
+                            'byline-coll-history-audit-spacer-cell',
+                            styles.auditSpacerCell
+                          )}
+                        />
                         <Table.Cell
                           colSpan={auditColSpan}
                           className={cx('byline-coll-history-audit-cell', styles.auditCell)}
