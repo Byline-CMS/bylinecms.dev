@@ -1,24 +1,29 @@
 ---
 title: "Transactions"
 path: "transactions"
-summary: "Request-scoped transaction propagation via AsyncLocalStorage — a service-owned withTransaction boundary that lets multiple db commands commit or roll back atomically, without threading a tx handle through every signature. Decision note; not yet built."
+summary: "Request-scoped transaction propagation via AsyncLocalStorage — a service-owned withTransaction boundary that lets multiple db commands commit or roll back atomically, without threading a tx handle through every signature. Foundation shipped in v3.9.0; the first consumer (the audit log) is pending."
 ---
 
 # Transactions
 
 :::note[Status]
-**Decision note — not yet built.** Records the chosen approach to
-multi-command atomicity so the seam is designed before the first consumer
-(the [audit log, AUDIT.md Workstream 2](./AUDIT.md#workstream-2--document-grain-audit-log-new-table--migration))
-lands. Where this note and shipped code disagree, the code wins.
+**Foundation shipped in v3.9.0; first consumer pending.** The request-scoped
+`withTransaction` capability is live in `@byline/db-postgres` —
+`DBManager` / `TXManager` (AsyncLocalStorage propagation), the optional
+`IDbAdapter.withTransaction` capability on the core contract, and the storage
+command builders converted to resolve their executor through it. The first
+consumer — the
+[audit log, AUDIT.md Workstream 2](./AUDIT.md#workstream-2--document-grain-audit-log-new-table--migration) —
+is **not yet built**, so no production write currently opens a multi-command
+transaction. Where this note and shipped code disagree, the code wins.
 :::
 
 ## The problem
 
-Today every `db.commands.*` mutation owns its own transaction internally
-(`this.db.transaction(...)` — 6 sites, all in
+Before this capability, every `db.commands.*` mutation owned its own
+transaction internally (`this.db.transaction(...)` — 6 sites, all in
 `packages/db-postgres/src/modules/storage/storage-commands.ts`). Each command
-is atomic **in isolation**, but two commands cannot be composed into one
+was atomic **in isolation**, but two commands could not be composed into one
 transaction. That's a gap the moment a single logical operation must write
 two things atomically:
 
@@ -72,42 +77,48 @@ await txManager.withTransaction(async () => {
 
 The audit write lives in the **service** (where the actor and before/after
 already are); the adapter only gains a dumb `audit.append` command that
-inserts a row. The storage layer never learns the word "audit".
+inserts a row. The storage layer never learns the word "audit". (`audit.append`
+and the service wiring arrive with Workstream 2; the example above shows the
+intended consumption, not a shipped call site.)
 
 ## Boundary placement
 
-`withTransaction` is **owned by the service layer**, not the adapter and not
-the transport. The `DocumentLifecycleContext` (or the equivalent per-realm
-context) carries the `TXManager`, so a lifecycle service decides what spans a
-transaction. Commands stay transaction-agnostic — correct whether called
-standalone (their statements run on the pool) or inside a `withTransaction`
-(they join the ambient tx).
+`withTransaction` is exposed today as an **adapter capability**
+(`IDbAdapter.withTransaction`, wired in `pgAdapter`). Ownership of the
+*boundary* — deciding what spans a transaction — belongs to the **service
+layer**: when Workstream 2 lands, a lifecycle service wraps its mutation +
+`audit.append` in `db.withTransaction(...)`. Commands stay
+transaction-agnostic — correct whether called standalone (their statements run
+on the pool) or inside a `withTransaction` (they join the ambient tx).
 
 When `get()` already returns a tx and a command opens its own
 `.transaction(...)`, Drizzle issues a **SAVEPOINT** (nested transaction): an
 inner failure rolls back to the savepoint, an outer failure rolls back
-everything — the correct semantics. The 6 existing transaction sites should
-be reviewed for this nesting behaviour as they're converted, but it's
-low-risk for the simple update/insert commands the audit work touches.
+everything — the correct semantics. The integration test
+(`storage-transactions.test.ts`) confirms commit-together and
+roll-back-together across nested command transactions.
 
-## Incremental adoption
+## Adoption — what shipped, what's incremental
 
-Not a big-bang rewrite of the adapter:
+Not a big-bang rewrite of the adapter. Shipped in v3.9.0:
 
-1. Introduce `DBManager` / `TXManager` (the ~40-line port) and swap the
-   adapter's injected `db` for a `DBManager` at the composition point
-   (constructor injection today: `constructor(private db: DatabaseConnection)`).
-2. Convert only the commands the first consumer needs — for the audit log:
-   `setDocumentStatus`, `updateDocumentPath`, `setDocumentAvailableLocales`,
-   `softDeleteDocument`, plus the new `audit.append` — to obtain their
-   executor via `get()`.
-3. Let the rest of the adapter's `this.db.` references migrate
-   opportunistically.
+1. `DBManager` / `TXManager` (`packages/db-postgres/src/lib/db-manager.ts`),
+   constructed in `pgAdapter` and wired to expose `withTransaction`.
+2. **Both storage command-builder classes** (`CollectionCommands`,
+   `DocumentCommands`) converted in one stroke via a `private get db()` getter
+   that resolves `this.dbManager.get()` — so **every** command-builder method,
+   not just the four the audit log needs, transparently joins an ambient
+   transaction with zero call-site changes.
 
-**The one caveat:** a command **not yet converted** won't see the ambient
-transaction — it silently runs on the pool. So every `withTransaction` block
-must only span *converted* commands until the migration is complete. Easy to
-honour; worth a deliberate check at each call site.
+Still on the raw pool (migrate opportunistically): the **query builders** and
+the **counter commands**. Reads don't need to join the audit transaction, and
+counters aren't in any audit unit of work.
+
+**The one caveat:** an *unconverted* path won't see the ambient transaction —
+it silently runs on the pool. Since the command builders are fully converted,
+this now only means a `withTransaction` block should not rely on a **query** or
+**counter** call participating. Easy to honour; worth a deliberate check when
+those paths are eventually wrapped.
 
 ## DB↔DB vs DB↔external — what this does and does not solve
 
@@ -170,13 +181,15 @@ future adapter has a clear target:
    shapes" discipline used for the stable HTTP transport and the richtext
    adapter contract.
 
-## Code map (planned)
+## Code map
 
 | Concern | Location |
 |---|---|
-| `DBManager` / `TXManager` (ALS propagation) | `packages/db-postgres/src/` (new — adapter-internal) |
-| `withTransaction` on the adapter contract | `packages/core/src/@types/db-types.ts` (new capability) |
-| Transaction boundary owner | service layer via `DocumentLifecycleContext` |
-| Existing per-command transaction sites | `packages/db-postgres/src/modules/storage/storage-commands.ts` (6) |
+| `DBManager` / `TXManager` (ALS propagation) | `packages/db-postgres/src/lib/db-manager.ts` |
+| `withTransaction` capability (optional) on the contract | `packages/core/src/@types/db-types.ts` (`IDbAdapter.withTransaction?`) |
+| Command-builder executor getter (`private get db()`) | `packages/db-postgres/src/modules/storage/storage-commands.ts` (`CollectionCommands`, `DocumentCommands`) |
+| Manager construction + `withTransaction` wiring | `packages/db-postgres/src/index.ts` (`pgAdapter`) |
+| Atomicity / propagation test | `packages/db-postgres/src/modules/storage/tests/storage-transactions.test.ts` |
+| Per-command transaction sites (now resolve via the getter) | `packages/db-postgres/src/modules/storage/storage-commands.ts` (6) |
 | Prior-art ALS usage in-repo | `packages/core/src/lib/logger.ts` (`withLogContext`) |
-| First consumer | [AUDIT.md Workstream 2](./AUDIT.md#workstream-2--document-grain-audit-log-new-table--migration) |
+| First consumer (pending) | [AUDIT.md Workstream 2](./AUDIT.md#workstream-2--document-grain-audit-log-new-table--migration) |

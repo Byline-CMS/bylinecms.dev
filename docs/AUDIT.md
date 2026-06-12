@@ -104,9 +104,15 @@ Pass `createdBy: context.requestContext?.actor?.id` at every
 
 No schema change, no migration — the column exists. Historical rows stay
 NULL (render as em-dash / "unknown"); there is nothing to backfill from.
-Internal-tooling callers without a `requestContext` (seeds, migrations —
-the documented escape hatch) keep writing NULL; see Open questions for an
-optional explicit "system" convention.
+**Attribution requires a real persisted user id — a UUID** (`actorId()` in
+`document-lifecycle/internals.ts`). Internal-tooling callers either pass no
+`requestContext` (seeds, migrations — the documented escape hatch) **or** a
+synthetic super-admin context whose id is not a UUID
+(`createSuperAdminContext({ id: 'import-docs-script' })`); both yield NULL
+`created_by`. This was a deliberate hardening after a v3.8.0 regression where
+a synthetic non-UUID actor id crashed every script/seed write on the `uuid`
+column (`invalid input syntax for type uuid`); the fix shipped in v3.9.0. See
+Open questions for the optional explicit "system" convention.
 
 ### Read side
 
@@ -232,8 +238,10 @@ transaction; the storage adapter never learns the word "audit"), rather than
 by threading audit intent into each storage command. That mechanism — its
 AsyncLocalStorage propagation, the DB↔DB vs DB↔external distinction, and the
 serverless db-contract-seam decisions — is specified in
-**[TRANSACTIONS.md](./TRANSACTIONS.md)**, and is the **prerequisite this
-workstream builds on first**.
+**[TRANSACTIONS.md](./TRANSACTIONS.md)**. That prerequisite **shipped in
+v3.9.0** (the `withTransaction` capability on `@byline/db-postgres`); this
+workstream now consumes it — wrapping each mutation + `audit.append` in
+`db.withTransaction(...)`.
 
 ### Write points
 
@@ -352,9 +360,12 @@ just "migrate then deploy". W1 needs no DDL at all.
 - **List-view strip toggle.** Per-collection admin config vs a view-level
   density control — decide at W1 build time (History view is default-on
   either way).
-- **System writes.** Seeds/migrations write NULL actor today. Worth an
-  explicit sentinel (`actor_realm: 'system'`) in the audit log so "no
-  actor" is distinguishable from "a row written before audit wiring"?
+- **System writes.** Seeds/migrations and synthetic non-UUID actors write
+  NULL `created_by` today (shipped v3.9.0 — see Workstream 1 read side). On
+  the version stream that NULL is indistinguishable from a pre-audit row.
+  For the **audit log** (W2), is an explicit `actor_realm: 'system'` sentinel
+  worth carrying so a deliberate system write is distinguishable from "no
+  actor recorded"?
 - **Restore/duplicate provenance.** Should a restored version's audit
   entry record *which* version it was restored from? (The version row
   itself has `previousVersionId`; probably sufficient.)
