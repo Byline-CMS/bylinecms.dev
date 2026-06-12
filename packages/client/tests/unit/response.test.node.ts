@@ -43,6 +43,41 @@ describe('shapeDocument', () => {
     expect(() => shapeDocument({ created_at: new Date() })).toThrow(/updated_at/)
   })
 
+  it('should map created_by and event_type for version attribution', () => {
+    const raw = {
+      document_id: 'doc-1',
+      document_version_id: 'ver-1',
+      status: 'draft',
+      created_at: new Date('2026-01-15T10:00:00Z'),
+      updated_at: new Date('2026-01-15T10:00:00Z'),
+      created_by: 'user-1',
+      event_type: 'update',
+      fields: {},
+    }
+
+    const result = shapeDocument(raw)
+
+    expect(result.createdBy).toBe('user-1')
+    expect(result.eventType).toBe('update')
+  })
+
+  it('should omit createdBy for pre-attribution rows (NULL created_by)', () => {
+    const raw = {
+      document_id: 'doc-1',
+      document_version_id: 'ver-1',
+      status: 'draft',
+      created_at: new Date('2026-01-15T10:00:00Z'),
+      updated_at: new Date('2026-01-15T10:00:00Z'),
+      created_by: null,
+      fields: {},
+    }
+
+    const result = shapeDocument(raw)
+
+    expect(result.createdBy).toBeUndefined()
+    expect('createdBy' in result).toBe(false)
+  })
+
   it('should coerce string dates to Date objects', () => {
     const raw = {
       document_id: 'doc-1',

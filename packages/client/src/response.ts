@@ -43,6 +43,16 @@ export function shapeDocument<F = Record<string, any>>(
   if (typeof raw.source_locale === 'string') {
     shaped.sourceLocale = raw.source_locale as string
   }
+  // Version attribution + action (storage keys `created_by` / `event_type`).
+  // `created_by` is NULL on rows written before attribution wiring or by
+  // internal tooling without a request context — omitted here, rendered as
+  // "unknown" by consumers. See docs/AUDIT.md — Workstream 1.
+  if (typeof raw.created_by === 'string') {
+    shaped.createdBy = raw.created_by as string
+  }
+  if (typeof raw.event_type === 'string') {
+    shaped.eventType = raw.event_type as string
+  }
   // Locale advertising + availability metadata. Present on
   // find / findById / findByPath; absent on version/history reads.
   // Storage raw keys already match the surface names (passthrough) —

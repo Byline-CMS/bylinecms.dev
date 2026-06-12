@@ -430,6 +430,21 @@ export interface ClientDocument<F = Record<string, any>> {
   createdAt: Date
   /** When this version was last updated. */
   updatedAt: Date
+  /**
+   * The acting user's id that created **this version** (storage column
+   * `byline_document_versions.created_by`). Because versions are immutable,
+   * the creator of the current version is also "who last updated the
+   * document". Absent on rows written before attribution wiring or by
+   * internal tooling without a request context. Raw id only — display-name
+   * resolution is an admin-realm concern (see docs/AUDIT.md — Workstream 1).
+   */
+  createdBy?: string
+  /**
+   * The lifecycle action that produced this version (storage column
+   * `event_type`): `create` / `update` / `restore` / `copy_to_locale` /
+   * `delete_locale`. Surfaced for audit rendering in history views.
+   */
+  eventType?: string
   /** Reconstructed field data. */
   fields: F
   /**

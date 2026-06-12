@@ -126,6 +126,13 @@ export interface CountAdminUsersOptions {
 export interface AdminUsersRepository {
   create(input: CreateAdminUserInput): Promise<AdminUserRow>
   getById(id: string): Promise<AdminUserRow | null>
+  /**
+   * Bulk lookup for version-attribution label resolution (the `actors`
+   * map on admin document reads — see docs/AUDIT.md, Workstream 1). Ids
+   * with no matching row are simply absent from the result; callers
+   * render a tombstone label for them.
+   */
+  getByIds(ids: string[]): Promise<AdminUserRow[]>
   getByEmail(email: string): Promise<AdminUserRow | null>
   getByUsername(username: string): Promise<AdminUserRow | null>
   /**

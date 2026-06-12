@@ -15,6 +15,7 @@ import { normaliseDateFields } from '../../utils/normalise-dates.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import {
+  actorId,
   applyRichTextEmbed,
   extractDocumentId,
   extractVersionId,
@@ -139,6 +140,7 @@ export async function updateDocument(
           status: defaultStatus,
           locale: requestLocale,
           previousVersionId: originalData.document_version_id as string | undefined,
+          createdBy: actorId(ctx),
         })
         .catch((err: unknown) => rethrowPathConflict(err, pathForCommand ?? '', defaultLocale))
 
@@ -302,6 +304,7 @@ export async function updateDocumentWithPatches(
           status: defaultStatus,
           locale: requestLocale,
           previousVersionId: originalData.document_version_id as string | undefined,
+          createdBy: actorId(ctx),
         })
         .catch((err: unknown) => rethrowPathConflict(err, pathForCommand ?? '', defaultLocale))
 

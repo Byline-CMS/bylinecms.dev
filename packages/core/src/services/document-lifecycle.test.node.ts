@@ -175,6 +175,20 @@ describe('Document lifecycle service', () => {
       expect(result.documentVersionId).toBe('ver-1')
     })
 
+    it('passes the acting user id as createdBy for version attribution', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const ctx = buildCtx(db)
+
+      await createDocument(ctx, {
+        data: { title: 'Hello' },
+        locale: 'en',
+      })
+
+      // Attribution contract (docs/AUDIT.md — W1): every version row
+      // records the actor that created it.
+      expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBe('test-super-admin')
+    })
+
     it('invokes beforeCreate and afterCreate hooks in order', async () => {
       const callOrder: string[] = []
 
@@ -395,6 +409,19 @@ describe('Document lifecycle service', () => {
   // updateDocument (PUT)
   // -----------------------------------------------------------------------
   describe('updateDocument', () => {
+    it('passes the acting user id as createdBy for version attribution', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({ status: 'draft', fields: { title: 'Old' } })
+      const ctx = buildCtx(db)
+
+      await updateDocument(ctx, {
+        documentId: 'doc-1',
+        data: { title: 'New' },
+      })
+
+      expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBe('test-super-admin')
+    })
+
     it('fetches the original before calling hooks', async () => {
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
       getDocumentById.mockResolvedValue({ status: 'draft', fields: { title: 'Old' } })

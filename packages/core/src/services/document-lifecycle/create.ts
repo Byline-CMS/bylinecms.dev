@@ -15,6 +15,7 @@ import { slugify } from '../../utils/slugify.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import {
+  actorId,
   applyRichTextEmbed,
   derivePath,
   extractDocumentId,
@@ -123,6 +124,7 @@ export async function createDocument(
           status: params.status ?? data.status ?? getDefaultStatus(definition),
           locale: params.locale ?? defaultLocale,
           orderKey,
+          createdBy: actorId(ctx),
         })
         .catch((err: unknown) => rethrowPathConflict(err, resolvedPath, defaultLocale))
 

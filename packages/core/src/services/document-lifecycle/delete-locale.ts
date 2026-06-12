@@ -11,7 +11,7 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
-import { invokeHook } from './internals.js'
+import { actorId, invokeHook } from './internals.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface DeleteLocaleResult {
@@ -116,6 +116,7 @@ export async function deleteLocale(
         documentId: params.documentId,
         locale: params.locale,
         status: getDefaultStatus(definition),
+        createdBy: actorId(ctx),
       })
 
       if (result == null) {

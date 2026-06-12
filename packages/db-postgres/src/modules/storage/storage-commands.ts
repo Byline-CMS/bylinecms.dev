@@ -199,6 +199,7 @@ export class DocumentCommands implements IDocumentCommands {
           collection_version: params.collectionVersion,
           event_type: params.action ?? 'create',
           status: params.status ?? 'draft',
+          created_by: params.createdBy ?? null,
         })
         .returning()
         .then(getFirstOrThrow('Failed to create document version'))
@@ -653,8 +654,9 @@ export class DocumentCommands implements IDocumentCommands {
     documentId: string
     locale: string
     status?: string
+    createdBy?: string
   }): Promise<{ newVersionId: string; previousVersionId: string } | null> {
-    const { documentId, locale, status } = params
+    const { documentId, locale, status, createdBy } = params
     return this.db.transaction(async (tx) => {
       // 1. Current (latest, non-deleted) version + the document's anchor.
       const current = await tx
@@ -689,6 +691,7 @@ export class DocumentCommands implements IDocumentCommands {
         event_type: 'delete_locale',
         status: status ?? 'draft',
         change_summary: `deleted content locale ${locale}`,
+        created_by: createdBy ?? null,
       })
       await this.copyAllVersionStoreRows(tx, current.versionId, newVersionId, locale)
 
@@ -719,8 +722,9 @@ export class DocumentCommands implements IDocumentCommands {
     documentId: string
     targetLocale: string
     dryRun?: boolean
+    createdBy?: string
   }): Promise<ReAnchorResult> {
-    const { documentId, targetLocale, dryRun = false } = params
+    const { documentId, targetLocale, dryRun = false, createdBy } = params
     return this.db.transaction(async (tx) => {
       // 1. Current (latest, non-deleted) version + the document's anchor.
       const current = await tx
@@ -789,6 +793,7 @@ export class DocumentCommands implements IDocumentCommands {
         event_type: 'update',
         status: current.status ?? 'draft',
         change_summary: `re-anchored content source locale ${fromLocale} → ${targetLocale}`,
+        created_by: createdBy ?? null,
       })
       await this.copyAllVersionStoreRows(tx, current.versionId, newVersionId)
 

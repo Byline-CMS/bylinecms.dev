@@ -441,6 +441,8 @@ export interface IDocumentCommands {
     documentId: string
     locale: string
     status?: string
+    /** Acting user id for version attribution (`created_by`). See docs/AUDIT.md. */
+    createdBy?: string
   }): Promise<{ newVersionId: string; previousVersionId: string } | null>
 
   /**

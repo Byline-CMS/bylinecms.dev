@@ -13,6 +13,10 @@
  *   .byline-coll-history-version-button — number-stamped version button
  *   .byline-coll-history-title-button   — clickable title cell button
  *   .byline-coll-history-page-size — page-size select alignment
+ *   .byline-coll-history-row        — content row (strip sibling above)
+ *   .byline-coll-history-audit-row  — attribution audit strip row
+ *   .byline-coll-history-audit-cell — colspan cell carrying the strip
+ *   .byline-coll-history-audit      — the muted strip line itself
  */
 
 .head,
@@ -158,6 +162,31 @@
 .restoreCell,
 :global(.byline-coll-history-restore-cell) {
   white-space: nowrap;
+}
+
+/* Attribution audit strip (docs/AUDIT.md — W1). The content row's bottom
+   border is suppressed so the strip reads as part of the same entry; the
+   strip row carries the row divider instead. */
+.historyRow td,
+:global(.byline-coll-history-row td) {
+  border-bottom: none;
+}
+
+.auditCell,
+:global(.byline-coll-history-audit-cell) {
+  padding-top: 0;
+}
+
+.audit,
+:global(.byline-coll-history-audit) {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
+:is([data-theme="dark"], :global(.dark)) .audit,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-coll-history-audit) {
+  color: var(--gray-400);
 }
 
 .restoreButton,

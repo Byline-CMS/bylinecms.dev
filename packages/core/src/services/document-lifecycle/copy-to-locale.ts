@@ -11,7 +11,7 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
-import { applyRichTextEmbed, extractVersionId, invokeHook } from './internals.js'
+import { actorId, applyRichTextEmbed, extractVersionId, invokeHook } from './internals.js'
 import { mergeLocaleData } from './merge-locale-data.js'
 import type { DocumentLifecycleContext } from './context.js'
 
@@ -180,6 +180,7 @@ export async function copyToLocale(
         status: getDefaultStatus(definition),
         locale: params.targetLocale,
         previousVersionId,
+        createdBy: actorId(ctx),
       })
 
       const documentVersionId = extractVersionId(writeResult.document)

@@ -12,6 +12,7 @@ import { ERR_NOT_FOUND, getCollectionSchemasForPath, getLogger } from '@byline/c
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { getAdminBylineClient } from '../../integrations/byline-client.js'
+import { type ActorLabelMap, resolveActorLabels } from './actors.js'
 import { serialise } from './utils'
 
 // ---------------------------------------------------------------------------
@@ -60,14 +61,22 @@ export const getCollectionDocumentHistory = createServerFn({ method: 'GET' })
     const serialised = serialise(result)
     const { history } = getCollectionSchemasForPath(path)
 
+    // Version-attribution labels for the audit strip (docs/AUDIT.md — W1).
+    // Resolved here, in the admin realm, from the page's raw `createdBy`
+    // ids; the UI joins by id. Deleted users are absent from the map.
+    const actors: ActorLabelMap = await resolveActorLabels(result.docs.map((d) => d.createdBy))
+
     // When locale is 'all' the storage layer returns localized fields as
     // locale-keyed objects which don't conform to the typed Zod schema — skip
     // validation in that case, same as getCollectionDocument. Cast through
     // the inferred Zod type so both branches share one return shape; the
     // runtime contents are structurally compatible.
     if (params.locale === 'all') {
-      return serialised as unknown as ReturnType<typeof history.parse>
+      return {
+        ...(serialised as unknown as ReturnType<typeof history.parse>),
+        actors,
+      }
     }
 
-    return history.parse(serialised)
+    return { ...history.parse(serialised), actors }
   })

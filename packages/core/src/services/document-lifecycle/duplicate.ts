@@ -14,6 +14,7 @@ import { type SlugifierFn, slugify } from '../../utils/slugify.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import {
+  actorId,
   applyRichTextEmbed,
   derivePath,
   extractDocumentId,
@@ -235,6 +236,7 @@ export async function duplicateDocument(
             status: defaultStatus,
             locale: 'all',
             orderKey,
+            createdBy: actorId(ctx),
           })
           .catch((err: unknown) => rethrowPathConflict(err, finalPath, defaultLocale))
       } catch (err: unknown) {
@@ -261,6 +263,7 @@ export async function duplicateDocument(
             status: defaultStatus,
             locale: 'all',
             orderKey,
+            createdBy: actorId(ctx),
           })
           .catch((retryErr: unknown) => rethrowPathConflict(retryErr, finalPath, defaultLocale))
       }

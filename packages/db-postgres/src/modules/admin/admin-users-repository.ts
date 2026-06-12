@@ -11,7 +11,7 @@ import {
   type AdminUsersRepository,
   ERR_ADMIN_USER_VERSION_CONFLICT,
 } from '@byline/admin/admin-users'
-import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -91,6 +91,11 @@ export function createAdminUsersRepository(
     async getById(id) {
       const [row] = await db.select(PUBLIC_COLUMNS).from(adminUsers).where(eq(adminUsers.id, id))
       return row ?? null
+    },
+
+    async getByIds(ids) {
+      if (ids.length === 0) return []
+      return db.select(PUBLIC_COLUMNS).from(adminUsers).where(inArray(adminUsers.id, ids))
     },
 
     async getByEmail(email) {

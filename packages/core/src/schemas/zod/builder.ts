@@ -247,6 +247,11 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
     hasPublishedVersion: z.boolean().optional(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
+    // Version attribution + action (see docs/AUDIT.md — Workstream 1).
+    // Declared so list/get/history responses carry them through the
+    // server-fn parse; Zod would otherwise strip them as undeclared keys.
+    createdBy: z.uuid().optional(),
+    eventType: z.string().optional(),
   })
 }
 

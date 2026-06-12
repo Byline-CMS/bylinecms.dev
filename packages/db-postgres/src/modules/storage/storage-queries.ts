@@ -751,8 +751,10 @@ export class DocumentQueries implements IDocumentQueries {
         path: document.path ?? '',
         source_locale: document.source_locale ?? null,
         status: document.status,
+        event_type: document.event_type,
         created_at: document.created_at,
         updated_at: document.updated_at,
+        created_by: document.created_by ?? null,
         fields,
         availableLocales: advertised ?? [],
         _availableVersionLocales: availability?.availableLocales ?? [],
@@ -768,8 +770,10 @@ export class DocumentQueries implements IDocumentQueries {
       path: document.path ?? '',
       source_locale: document.source_locale ?? null,
       status: document.status,
+      event_type: document.event_type,
       created_at: document.created_at,
       updated_at: document.updated_at,
+      created_by: document.created_by ?? null,
       fields: fieldValues,
     }
   }
@@ -870,8 +874,10 @@ export class DocumentQueries implements IDocumentQueries {
         path: document.path ?? '',
         source_locale: document.source_locale ?? null,
         status: document.status,
+        event_type: document.event_type,
         created_at: document.created_at,
         updated_at: document.updated_at,
+        created_by: document.created_by ?? null,
         fields,
         availableLocales: advertised ?? [],
         _availableVersionLocales: availability?.availableLocales ?? [],
@@ -886,8 +892,10 @@ export class DocumentQueries implements IDocumentQueries {
       path: document.path ?? '',
       source_locale: document.source_locale ?? null,
       status: document.status,
+      event_type: document.event_type,
       created_at: document.created_at,
       updated_at: document.updated_at,
+      created_by: document.created_by ?? null,
       fields: fieldValues,
     }
   }
@@ -1453,8 +1461,10 @@ export class DocumentQueries implements IDocumentQueries {
         path: doc.path ?? '',
         source_locale: doc.source_locale ?? null,
         status: doc.status,
+        event_type: doc.event_type,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
+        created_by: doc.created_by ?? null,
         fields: trimmedFields,
       }
 

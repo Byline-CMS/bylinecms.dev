@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { lazy, Suspense, useState } from 'react'
+import { Fragment, lazy, Suspense, useState } from 'react'
 import { useParams, useRouterState } from '@tanstack/react-router'
 
 import { renderFormatted, StatusBadge } from '@byline/admin/react'
@@ -94,6 +94,18 @@ function padRows(value: number) {
   ))
 }
 
+/**
+ * Maps `event_type` values to audit-strip action labels. Unknown event
+ * types fall back to the raw value rather than a missing-key warning.
+ */
+const AUDIT_ACTION_KEYS: Record<string, string> = {
+  create: 'collections.history.audit.actionCreate',
+  update: 'collections.history.audit.actionUpdate',
+  restore: 'collections.history.audit.actionRestore',
+  copy_to_locale: 'collections.history.audit.actionCopyToLocale',
+  delete_locale: 'collections.history.audit.actionDeleteLocale',
+}
+
 export const HistoryView = ({
   collectionDefinition,
   adminConfig,
@@ -105,7 +117,14 @@ export const HistoryView = ({
 }: {
   collectionDefinition: CollectionDefinition
   adminConfig?: CollectionAdminConfig
-  data: AnyCollectionSchemaTypes['HistoryType']
+  data: AnyCollectionSchemaTypes['HistoryType'] & {
+    /**
+     * Version-attribution display labels, resolved admin-side from each
+     * version's `createdBy` id (see docs/AUDIT.md — Workstream 1). Ids
+     * absent from the map belong to deleted users.
+     */
+    actors?: Record<string, { label: string }>
+  }
   workflowStatuses?: WorkflowStatus[]
   currentDocument?: Record<string, unknown> | null
   contentLocales: ReadonlyArray<ContentLocaleOption>
@@ -221,147 +240,187 @@ export const HistoryView = ({
                   const versionNumber = desc
                     ? total - (page - 1) * pageSize - rowIndex
                     : (page - 1) * pageSize + rowIndex + 1
+                  // Audit strip (docs/AUDIT.md — W1): who created this
+                  // version, via which action. A present-but-unresolved id
+                  // is a deleted user; an absent id is a pre-attribution
+                  // row or an internal-tooling write.
+                  const actorLabel = document.createdBy
+                    ? (data.actors?.[document.createdBy]?.label ??
+                      t('collections.history.audit.formerUser'))
+                    : t('collections.history.audit.unknown')
+                  const actionKey = document.eventType
+                    ? AUDIT_ACTION_KEYS[document.eventType]
+                    : undefined
+                  const actionLabel = actionKey ? t(actionKey) : (document.eventType ?? '')
+                  // Version-number cell + data columns + the restore cell
+                  // appended after `title` when present.
+                  const auditColSpan =
+                    1 + columns.length + (columns.some((c) => c.fieldName === 'title') ? 1 : 0)
                   return (
-                    <Table.Row key={versionId ?? document.id}>
-                      <Table.Cell
-                        className={cx('byline-coll-history-version-cell', styles.versionCell)}
-                      >
-                        {versionId && currentDocument ? (
-                          <IconButton
-                            size="xs"
-                            variant="outlined"
-                            intent="noeffect"
-                            aria-label={t('collections.history.compareAriaLabel')}
-                            title={t('collections.history.compareTitle')}
-                            className={cx(
-                              'byline-coll-history-version-button',
-                              styles.versionButton
-                            )}
-                            onClick={() =>
-                              setSelectedVersion({
-                                versionId,
-                                label: new Date(document.createdAt).toLocaleString(),
-                              })
-                            }
-                          >
-                            {versionNumber}
-                          </IconButton>
-                        ) : null}
-                      </Table.Cell>
-                      {columns.flatMap((column) => {
-                        const dataCell = (
-                          <Table.Cell
-                            key={String(column.fieldName)}
-                            className={cx({
-                              'byline-coll-history-cell-right': column.align === 'right',
-                              [styles.cellRight]: column.align === 'right',
-                              'byline-coll-history-cell-center': column.align === 'center',
-                              [styles.cellCenter]: column.align === 'center',
-                            })}
-                          >
-                            {column.fieldName === 'title' ? (
-                              versionId && currentDocument ? (
-                                <button
-                                  type="button"
-                                  className={cx(
-                                    'byline-coll-history-title-button',
-                                    styles.titleButton
-                                  )}
-                                  onClick={() =>
-                                    setSelectedVersion({
-                                      versionId,
-                                      label: new Date(document.createdAt).toLocaleString(),
-                                    })
-                                  }
-                                >
-                                  {column.formatter
-                                    ? renderFormatted(
-                                        getColumnValue(document, column.fieldName as string),
-                                        document,
-                                        column.formatter
-                                      )
-                                    : resolveDisplayValue(
-                                        getColumnValue(document, column.fieldName as string),
-                                        locale,
-                                        defaultContentLocale
-                                      ) || '------'}
-                                </button>
-                              ) : (
-                                <Link
-                                  to={'/admin/collections/$collection/$id' as never}
-                                  params={{
-                                    collection,
-                                    id: document.id,
-                                  }}
-                                >
-                                  {column.formatter
-                                    ? renderFormatted(
-                                        getColumnValue(document, column.fieldName as string),
-                                        document,
-                                        column.formatter
-                                      )
-                                    : resolveDisplayValue(
-                                        getColumnValue(document, column.fieldName as string),
-                                        locale,
-                                        defaultContentLocale
-                                      ) || '------'}
-                                </Link>
-                              )
-                            ) : column.formatter ? (
-                              renderFormatted(
-                                getColumnValue(document, column.fieldName as string),
-                                document,
-                                column.formatter
-                              )
-                            ) : column.fieldName === 'status' && workflowStatuses ? (
-                              <StatusBadge
-                                status={document.status}
-                                workflowStatuses={workflowStatuses}
-                              />
-                            ) : (
-                              resolveDisplayValue(
-                                getColumnValue(document, column.fieldName as string),
-                                locale,
-                                defaultContentLocale
-                              ) || ''
-                            )}
-                          </Table.Cell>
-                        )
-                        if (column.fieldName === 'title') {
-                          return [
-                            dataCell,
-                            <Table.Cell
-                              key="__restore"
-                              className={cx('byline-coll-history-restore-cell', styles.restoreCell)}
+                    <Fragment key={versionId ?? document.id}>
+                      <Table.Row className={cx('byline-coll-history-row', styles.historyRow)}>
+                        <Table.Cell
+                          className={cx('byline-coll-history-version-cell', styles.versionCell)}
+                        >
+                          {versionId && currentDocument ? (
+                            <IconButton
+                              size="xs"
+                              variant="outlined"
+                              intent="noeffect"
+                              aria-label={t('collections.history.compareAriaLabel')}
+                              title={t('collections.history.compareTitle')}
+                              className={cx(
+                                'byline-coll-history-version-button',
+                                styles.versionButton
+                              )}
+                              onClick={() =>
+                                setSelectedVersion({
+                                  versionId,
+                                  label: new Date(document.createdAt).toLocaleString(),
+                                })
+                              }
                             >
-                              {versionId && versionId !== currentVersionId ? (
-                                <Button
-                                  type="button"
-                                  variant="outlined"
-                                  size="xs"
-                                  intent="noeffect"
-                                  onClick={() =>
-                                    setRestoreTarget({
-                                      versionId,
-                                      label: new Date(document.createdAt).toLocaleString(),
-                                      versionNumber,
-                                    })
-                                  }
-                                  className={cx(
-                                    'byline-coll-history-restore-button',
-                                    styles.restoreButton
-                                  )}
-                                  title={t('collections.history.restoreButtonTitle')}
-                                >
-                                  {t('collections.history.restoreButton')}
-                                </Button>
-                              ) : null}
-                            </Table.Cell>,
-                          ]
-                        }
-                        return [dataCell]
-                      })}
-                    </Table.Row>
+                              {versionNumber}
+                            </IconButton>
+                          ) : null}
+                        </Table.Cell>
+                        {columns.flatMap((column) => {
+                          const dataCell = (
+                            <Table.Cell
+                              key={String(column.fieldName)}
+                              className={cx({
+                                'byline-coll-history-cell-right': column.align === 'right',
+                                [styles.cellRight]: column.align === 'right',
+                                'byline-coll-history-cell-center': column.align === 'center',
+                                [styles.cellCenter]: column.align === 'center',
+                              })}
+                            >
+                              {column.fieldName === 'title' ? (
+                                versionId && currentDocument ? (
+                                  <button
+                                    type="button"
+                                    className={cx(
+                                      'byline-coll-history-title-button',
+                                      styles.titleButton
+                                    )}
+                                    onClick={() =>
+                                      setSelectedVersion({
+                                        versionId,
+                                        label: new Date(document.createdAt).toLocaleString(),
+                                      })
+                                    }
+                                  >
+                                    {column.formatter
+                                      ? renderFormatted(
+                                          getColumnValue(document, column.fieldName as string),
+                                          document,
+                                          column.formatter
+                                        )
+                                      : resolveDisplayValue(
+                                          getColumnValue(document, column.fieldName as string),
+                                          locale,
+                                          defaultContentLocale
+                                        ) || '------'}
+                                  </button>
+                                ) : (
+                                  <Link
+                                    to={'/admin/collections/$collection/$id' as never}
+                                    params={{
+                                      collection,
+                                      id: document.id,
+                                    }}
+                                  >
+                                    {column.formatter
+                                      ? renderFormatted(
+                                          getColumnValue(document, column.fieldName as string),
+                                          document,
+                                          column.formatter
+                                        )
+                                      : resolveDisplayValue(
+                                          getColumnValue(document, column.fieldName as string),
+                                          locale,
+                                          defaultContentLocale
+                                        ) || '------'}
+                                  </Link>
+                                )
+                              ) : column.formatter ? (
+                                renderFormatted(
+                                  getColumnValue(document, column.fieldName as string),
+                                  document,
+                                  column.formatter
+                                )
+                              ) : column.fieldName === 'status' && workflowStatuses ? (
+                                <StatusBadge
+                                  status={document.status}
+                                  workflowStatuses={workflowStatuses}
+                                />
+                              ) : (
+                                resolveDisplayValue(
+                                  getColumnValue(document, column.fieldName as string),
+                                  locale,
+                                  defaultContentLocale
+                                ) || ''
+                              )}
+                            </Table.Cell>
+                          )
+                          if (column.fieldName === 'title') {
+                            return [
+                              dataCell,
+                              <Table.Cell
+                                key="__restore"
+                                className={cx(
+                                  'byline-coll-history-restore-cell',
+                                  styles.restoreCell
+                                )}
+                              >
+                                {versionId && versionId !== currentVersionId ? (
+                                  <Button
+                                    type="button"
+                                    variant="outlined"
+                                    size="xs"
+                                    intent="noeffect"
+                                    onClick={() =>
+                                      setRestoreTarget({
+                                        versionId,
+                                        label: new Date(document.createdAt).toLocaleString(),
+                                        versionNumber,
+                                      })
+                                    }
+                                    className={cx(
+                                      'byline-coll-history-restore-button',
+                                      styles.restoreButton
+                                    )}
+                                    title={t('collections.history.restoreButtonTitle')}
+                                  >
+                                    {t('collections.history.restoreButton')}
+                                  </Button>
+                                ) : null}
+                              </Table.Cell>,
+                            ]
+                          }
+                          return [dataCell]
+                        })}
+                      </Table.Row>
+                      <Table.Row
+                        className={cx('byline-coll-history-audit-row', styles.auditRow)}
+                        aria-label={t('collections.history.audit.createdBy', {
+                          label: actorLabel,
+                        })}
+                      >
+                        <Table.Cell
+                          colSpan={auditColSpan}
+                          className={cx('byline-coll-history-audit-cell', styles.auditCell)}
+                        >
+                          <span className={cx('byline-coll-history-audit', styles.audit)}>
+                            {actionLabel}
+                            {' · '}
+                            {t('collections.history.audit.createdBy', { label: actorLabel })}
+                            {' · '}
+                            {new Date(document.createdAt).toLocaleString()}
+                          </span>
+                        </Table.Cell>
+                      </Table.Row>
+                    </Fragment>
                   )
                 })}
               </Table.Body>

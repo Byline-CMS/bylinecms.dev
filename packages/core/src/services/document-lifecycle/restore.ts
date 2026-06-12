@@ -11,7 +11,13 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_INVALID_TRANSITION, ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
-import { applyRichTextEmbed, extractDocumentId, extractVersionId, invokeHook } from './internals.js'
+import {
+  actorId,
+  applyRichTextEmbed,
+  extractDocumentId,
+  extractVersionId,
+  invokeHook,
+} from './internals.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface RestoreVersionResult {
@@ -167,6 +173,7 @@ export async function restoreDocumentVersion(
         status: getDefaultStatus(definition),
         locale: 'all',
         previousVersionId: currentMeta.document_version_id,
+        createdBy: actorId(ctx),
       })
 
       const documentId = extractDocumentId(result.document) || params.documentId

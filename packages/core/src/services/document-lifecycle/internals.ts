@@ -29,6 +29,17 @@ import type { SlugifierFn } from '../../utils/slugify.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 /**
+ * The acting user's id for version attribution (`created_by` on
+ * `byline_document_versions`). `undefined` for internal-tooling callers
+ * without a `requestContext` (seeds, migrations — the documented escape
+ * hatch), which persists as NULL. Both actor realms (`AdminAuth`,
+ * `UserAuth`) carry `id`. See docs/AUDIT.md — Workstream 1.
+ */
+export function actorId(ctx: DocumentLifecycleContext): string | undefined {
+  return ctx.requestContext?.actor?.id
+}
+
+/**
  * Safely invoke an optional hook slot, awaiting the result if it returns a
  * Promise. When the slot is an array of functions they are executed
  * sequentially in order.
