@@ -116,6 +116,10 @@
 .versionCell,
 :global(.byline-coll-history-version-cell) {
   text-align: left;
+  /* The column is width: 1% (shrink-to-content), so the horizontal padding
+     is what actually sets its width around the 20px stamp. */
+  padding-left: 0.375rem;
+  padding-right: 0.25rem;
 }
 
 .colVersion,
