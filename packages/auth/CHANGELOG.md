@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 3.10.0
+
+### Minor Changes
+
+- added the document-grain audit log: atomic audit rows for status, deletion, path, and available-locale changes, a gated auditLog() read, and a tabbed document-history view
+
 ## 3.9.0
 
 ### Minor Changes

@@ -1,5 +1,18 @@
 # @byline/db-postgres
 
+## 3.10.0
+
+### Minor Changes
+
+- added the document-grain audit log: atomic audit rows for status, deletion, path, and available-locale changes, a gated auditLog() read, and a tabbed document-history view
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@3.10.0
+  - @byline/auth@3.10.0
+  - @byline/core@3.10.0
+
 ## 3.9.0
 
 ### Minor Changes
