@@ -16,6 +16,7 @@ import cx from 'classnames'
 
 import { adminSignOut, type CurrentAdminUser } from '../../server-fns/auth/index.js'
 import styles from './admin-app-bar.module.css'
+import { AdminDrawerToggle } from './admin-drawer-toggle.js'
 import { Branding } from './branding.js'
 import { Breadcrumbs } from './breadcrumbs/breadcrumbs.js'
 import { useBreadcrumbs } from './breadcrumbs/breadcrumbs-provider.js'
@@ -53,6 +54,7 @@ export function AdminAppBar({ user }: AdminAppBarProps) {
   return (
     <header className={cx('byline-admin-app-bar', styles.header)}>
       <div className={cx('byline-admin-app-bar-left', styles.left)}>
+        <AdminDrawerToggle />
         <Branding />
         <Breadcrumbs
           homePath={breadCrumbSettings.homePath}

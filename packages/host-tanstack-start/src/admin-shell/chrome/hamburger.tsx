@@ -5,8 +5,8 @@ import type React from 'react'
 import { useTranslation } from '@byline/i18n/react'
 import cx from 'classnames'
 
+import { useAdminMenu } from './admin-menu-provider.jsx'
 import styles from './hamburger.module.css'
-import { useAdminMenu } from './menu-provider.js'
 
 interface HamburgerProps {
   className?: string

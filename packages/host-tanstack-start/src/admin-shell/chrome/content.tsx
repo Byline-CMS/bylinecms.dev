@@ -13,8 +13,8 @@ import { useEffect } from 'react'
 
 import cx from 'classnames'
 
+import { useAdminMenu } from './admin-menu-provider.jsx'
 import styles from './content.module.css'
-import { useAdminMenu } from './menu-provider.js'
 
 /**
  * Wrapper for the main content area of the admin shell.

@@ -30,10 +30,9 @@ import cx from 'classnames'
 
 import { AdminAppBar } from '../admin-shell/chrome/admin-app-bar.js'
 import layoutStyles from '../admin-shell/chrome/admin-layout.module.css'
+import { AdminMenuDrawer } from '../admin-shell/chrome/admin-menu-drawer.jsx'
+import { AdminMenuProvider } from '../admin-shell/chrome/admin-menu-provider.jsx'
 import { Content } from '../admin-shell/chrome/content.js'
-import { DrawerToggle } from '../admin-shell/chrome/drawer-toggle.js'
-import { AdminMenuDrawer } from '../admin-shell/chrome/menu-drawer.js'
-import { AdminMenuProvider } from '../admin-shell/chrome/menu-provider.js'
 import { RouteError, RouteNotFound } from '../admin-shell/chrome/route-error.js'
 import { RouteProgressBar } from '../admin-shell/chrome/route-progress-bar.js'
 import { buildLocaleDefinitions } from '../i18n/locale-definitions.js'
@@ -107,7 +106,6 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
                   <RouteProgressBar />
                   <AdminAppBar user={user} />
                   <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
-                    <DrawerToggle />
                     <AdminMenuDrawer />
                     <Content>
                       <Outlet />

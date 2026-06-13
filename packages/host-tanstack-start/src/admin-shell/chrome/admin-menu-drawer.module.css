@@ -16,14 +16,16 @@
 :global(.byline-admin-menu-drawer-aside) {
   display: flex;
   flex-direction: column;
-  border-right: var(--border-width-thin) var(--border-style-solid) var(--gray-50);
+  border-right: var(--border-width-thin) var(--border-style-solid)
+    var(--gray-50);
   background-color: var(--canvas-25);
   z-index: 40;
-  transition: all 300ms ease-in-out;
+  transition: all 200ms ease-in-out;
 }
 
 :is([data-theme="dark"], :global(.dark)) .aside,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer-aside) {
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-admin-menu-drawer-aside) {
   border-right-color: var(--canvas-700);
   background-color: var(--canvas-800);
 }
@@ -31,7 +33,7 @@
 .asideMobile,
 :global(.byline-admin-menu-drawer-aside-mobile) {
   position: fixed;
-  top: 45px;
+  top: 0;
   bottom: 0;
   left: 0;
 }
@@ -67,7 +69,7 @@
 .nav,
 :global(.byline-admin-menu-drawer) {
   position: sticky;
-  top: 55px;
+  top: 0;
   margin: 0;
   max-height: calc(100vh - 60px);
   overflow-y: auto;
@@ -75,7 +77,7 @@
 
 .nav ul,
 :global(.byline-admin-menu-drawer) ul {
-  margin: 1.4rem 0.5rem 0.5rem;
+  margin: 0.75rem 0.5rem 0.5rem;
   padding: 0;
   list-style: none;
   list-style-position: outside;
@@ -132,18 +134,27 @@
 }
 
 .nav ul :global(li.menu-item) :is(a, button):disabled,
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item) :is(a, button):disabled {
+:global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item)
+  :is(a, button):disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .nav ul :global(li.menu-item.compact) :is(a, button),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact) :is(a, button) {
+:global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item.compact)
+  :is(a, button) {
   justify-content: center;
 }
 
 .nav ul :global(li.menu-item.active) :is(a, button),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.active) :is(a, button) {
+:global(.byline-admin-menu-drawer)
+  ul
+  :global(li.menu-item.active)
+  :is(a, button) {
   color: #111111;
   text-decoration: none;
 }
@@ -156,7 +167,11 @@
   background-color: #dddddd;
 }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item) :is(a, button),
+:is([data-theme="dark"], :global(.dark))
+  .nav
+  ul
+  :global(li.menu-item)
+  :is(a, button),
 :is([data-theme="dark"], :global(.dark))
   :global(.byline-admin-menu-drawer)
   ul
@@ -165,7 +180,11 @@
   color: #dddddd;
 }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active) :is(a, button),
+:is([data-theme="dark"], :global(.dark))
+  .nav
+  ul
+  :global(li.menu-item.active)
+  :is(a, button),
 :is([data-theme="dark"], :global(.dark))
   :global(.byline-admin-menu-drawer)
   ul

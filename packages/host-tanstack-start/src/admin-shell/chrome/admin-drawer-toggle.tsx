@@ -9,10 +9,10 @@
 import { IconButton, Tooltip } from '@byline/ui/react'
 import cx from 'classnames'
 
-import styles from './drawer-toggle.module.css'
-import { useAdminMenu } from './menu-provider.js'
+import styles from './admin-drawer-toggle.module.css'
+import { useAdminMenu } from './admin-menu-provider.jsx'
 
-export function DrawerToggle() {
+export function AdminDrawerToggle() {
   const { toggleDrawer, drawerOpen } = useAdminMenu()
 
   return (

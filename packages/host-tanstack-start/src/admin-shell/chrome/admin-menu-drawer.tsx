@@ -26,11 +26,11 @@ import {
 import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 
-import { useAbilities } from '../../integrations/abilities.js'
+import { useAbilities } from '../../integrations/abilities.jsx'
+import styles from './admin-menu-drawer.module.css'
+import { useAdminMenu } from './admin-menu-provider.jsx'
 import { Link } from './loose-router.js'
-import styles from './menu-drawer.module.css'
-import { useAdminMenu } from './menu-provider.js'
-import { PreviewToggle } from './preview-toggle.js'
+import { PreviewToggle } from './preview-toggle.jsx'
 
 const isActive = (currentPath: string, linkHref: string): boolean => {
   // Root admin highlights only on exact match so it doesn't stay lit on
