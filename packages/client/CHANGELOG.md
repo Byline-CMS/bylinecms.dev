@@ -1,5 +1,14 @@
 # @byline/client
 
+## 3.11.3
+
+### Patch Changes
+
+- polished the admin shell UI — compact menu-drawer items now render as square icon buttons
+- Updated dependencies
+  - @byline/auth@3.11.3
+  - @byline/core@3.11.3
+
 ## 3.11.2
 
 ### Patch Changes

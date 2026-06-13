@@ -25,8 +25,7 @@
   font-size: 1.125rem;
   line-height: 1.75rem;
   font-weight: 600;
-  border-bottom: var(--border-width-thin) var(--border-style-solid)
-    var(--gray-50);
+  border-bottom: var(--border-width-thin) var(--border-style-solid) var(--gray-50);
 }
 
 :is([data-theme="dark"], :global(.dark)) .header,

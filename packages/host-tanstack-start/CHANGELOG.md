@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 3.11.3
+
+### Patch Changes
+
+- polished the admin shell UI — compact menu-drawer items now render as square icon buttons
+- Updated dependencies
+  - @byline/admin@3.11.3
+  - @byline/ai@3.11.3
+  - @byline/auth@3.11.3
+  - @byline/client@3.11.3
+  - @byline/core@3.11.3
+  - @byline/i18n@3.11.3
+  - @byline/ui@3.11.3
+
 ## 3.11.2
 
 ### Patch Changes

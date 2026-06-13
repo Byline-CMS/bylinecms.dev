@@ -1,5 +1,13 @@
 # @byline/storage-s3
 
+## 3.11.3
+
+### Patch Changes
+
+- polished the admin shell UI — compact menu-drawer items now render as square icon buttons
+- Updated dependencies
+  - @byline/core@3.11.3
+
 ## 3.11.2
 
 ### Patch Changes
