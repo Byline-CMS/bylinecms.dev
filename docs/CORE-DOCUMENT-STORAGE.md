@@ -177,12 +177,15 @@ The status filter runs **before** the window function, so a draft saved over a p
 
 The adapter's `readMode?: 'published' | 'any'` parameter threads through `findDocuments`, `getDocumentById`, `getDocumentByPath`, `getDocumentsByDocumentIds`, and `populateDocuments`. Admin paths default to `'any'` (the adapter default); `@byline/client` defaults to `'published'`.
 
-## Phase — document-grain audit log (planned)
+## Phase — document-grain audit log
 
-> **Domain home moved:** this phase is now Workstreams 2–3 of the broader
-> auditability domain — actor attribution, audit log, tabbed history, and the
-> system activity report — specified in [AUDIT.md](./AUDIT.md). The sketch
-> below stands as the original rationale.
+> **Shipped (v3.10.0) — domain home moved:** Workstreams 2–3 of this phase —
+> the `byline_audit_log` table, the atomic write-points, the gated
+> `getDocumentAuditLog` read, and the admin **Document history** tab — shipped
+> in **v3.10.0** (actor attribution, W1, shipped earlier in v3.8.0). The whole
+> auditability domain, including the still-pending system activity report (W4),
+> is specified in [AUDIT.md](./AUDIT.md). The sketch below stands as the
+> original rationale.
 
 Immutable versioning gives content changes a complete, queryable history: every save is a new `document_versions` row, and the admin **History** view renders that lineage with per-version diffs. Two classes of change deliberately sit **outside** that version stream and so have no home in version history today:
 
@@ -193,7 +196,7 @@ Immutable versioning gives content changes a complete, queryable history: every 
 
 **Admin surface:** a new tab under the existing document **History** view — content/version history stays on the current tab; a **System & document-level history** tab renders the audit-log entries (who changed the path / advertised locales / status, when, and from→to). This keeps the version timeline clean while making the out-of-band changes first-class and reviewable.
 
-Scope when picked up: the audit table + schema, write-points wired into the system-field and status services, a read/query surface (likely a `getDocumentAuditLog(document_id)` query), and the admin history-tab UI. See the [TODO index](./TODO.md#document-grain-audit-log--system-history-view).
+Shipped scope (v3.10.0): the `byline_audit_log` table + schema, write-points wired into the system-field, status, **and delete** services, the `getDocumentAuditLog(document_id)` read query (gated through the document's own read pipeline), and the admin **Document history** tab. The system-wide activity report (W4) remains. See [AUDIT.md](./AUDIT.md) and the [TODO index](./TODO.md#document-grain-audit-log--system-history-view).
 
 ## Indicative benchmarks
 

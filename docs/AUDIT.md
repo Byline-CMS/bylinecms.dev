@@ -7,12 +7,13 @@ summary: "The auditability work domain: the version audit trail (acting user + a
 # Auditability
 
 :::note[Status]
-**Working document / plan — nothing in this doc is built yet** except where
-explicitly marked as shipped. This is the domain home for the auditability
-work; it subsumes the earlier
-[CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned)
+**Workstreams 1–3 shipped (W1 in v3.8.0; W2 + W3 in v3.10.0); Workstream 4
+(the system activity area + report) remains planned.** Sections below are
+marked shipped inline; anything not so marked — chiefly W4 — is still a plan.
+This is the domain home for the auditability work; it subsumes the earlier
+[CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log)
 and expands around it. Where this doc and a shipped doc disagree, the shipped
-doc wins until this one loses the status banner.
+doc wins.
 :::
 
 ## Why — the claim we have to honour
@@ -196,7 +197,7 @@ injected or opt-in `listViewColumns` entries. Rationale:
 > system-wide `findAuditLog` report + activity area (Workstream 4).
 
 The spec sketched in
-[CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned),
+[CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log),
 adopted here as the authoritative home. Records the changes the version
 stream deliberately does not.
 
