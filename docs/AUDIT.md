@@ -186,6 +186,14 @@ injected or opt-in `listViewColumns` entries. Rationale:
 
 ## Workstream 2 — document-grain audit log (new table + migration)
 
+> **Storage + write-points shipped to `develop` (unreleased).** The
+> `byline_audit_log` table (migration `0001`), the `audit.append` command +
+> `getDocumentAuditLog` query on the adapter contract, and the three
+> write-points (`updateDocumentSystemFields`, `changeStatus`, `deleteDocument`,
+> each wrapping its mutation + audit append in `db.withTransaction(...)`) are
+> all live. **Still pending:** the host server fns + the document-history view
+> (Workstream 3), and the system-wide `findAuditLog` report (Workstream 4).
+
 The spec sketched in
 [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned),
 adopted here as the authoritative home. Records the changes the version
@@ -210,13 +218,16 @@ byline_audit_log
 ```
 
 **One generic table, not a document-scoped one.** `document_id` is nullable
-and `action` is namespaced (`document.path.updated`,
-`document.locales.updated`, `document.status.changed`,
-`document.deleted`, `admin.user.created`, `admin.role.updated`, …) so
+and `action` is namespaced — shipped: `document.path.changed`,
+`document.locales.changed`, `document.status.changed`, `document.deleted`;
+reserved for later: `admin.user.created`, `admin.role.updated`, … — so
 Workstream 4's system-wide activity report and any future admin-module
-auditing land in the same table without a second migration. Indexes on
-`(document_id, id)` and `(actor_id, id)`; UUIDv7 ids give time ordering
-for free.
+auditing land in the same table without a second migration. `actor_realm` is
+`'admin' | 'user' | 'system'` (`'system'` for non-UUID synthetic / tooling
+actors). Deliberately **FK-free** — an audit row outlives the doc / collection /
+actor it names (a `document.deleted` row cannot cascade-delete itself).
+Indexes on `(document_id, id)`, `(actor_id, id)`, `(action, id)`; UUIDv7 ids
+give time ordering for free.
 
 **The version stream stays the record for content.** Content saves are
 **never** double-written into the audit log — the activity surfaces union
@@ -243,27 +254,34 @@ v3.9.0** (the `withTransaction` capability on `@byline/db-postgres`); this
 workstream now consumes it — wrapping each mutation + `audit.append` in
 `db.withTransaction(...)`.
 
-### Write points
+### Write points (shipped)
 
 Inside the existing service entry points, under the existing auth gates
-(no new enforcement surface), each wrapped in `withTransaction` with its
-audit-log append:
+(no new enforcement surface), each wrapping its mutation + audit append in
+`db.withTransaction(...)`. The shared helper (`document-lifecycle/audit.ts`)
+provides `requireAuditCapability(db)` — which throws `ERR_AUDIT_UNSUPPORTED`
+loudly if the adapter lacks `withTransaction` / `commands.audit` rather than
+recording a gap — plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthetic
+→ NULL + `'system'`) and the `AUDIT_ACTIONS` constants.
 
-- `updateDocumentSystemFields` (`document-lifecycle/system-fields.ts`) —
-  path and availableLocales changes, with before/after.
-- `changeStatus` (`document-lifecycle/status.ts`) — every transition,
-  from→to.
-- `delete.ts` / `delete-locale.ts` — deletion events (the one change that
-  otherwise erases its own history).
-- Later, the `@byline/admin` user/role/permission commands (gated behind
-  Workstream 4 actually needing them — don't build ahead of the report).
+- `updateDocumentSystemFields` (`document-lifecycle/system-fields.ts`) — path
+  and availableLocales changes, **one row per field that actually changed**
+  (before/after; a same-value save records nothing).
+- `changeStatus` (`document-lifecycle/status.ts`) — every transition, from→to.
+- `deleteDocument` (`document-lifecycle/delete.ts`) — the deletion event (the
+  one change that otherwise erases its own history); the soft-delete is in the
+  transaction, the storage-file cleanup stays outside it (DB↔external).
+- **Pending:** `delete-locale.ts` (it mints a version, so W1 already records
+  the actor — revisit whether it also warrants an audit row) and, later, the
+  `@byline/admin` user/role/permission commands (gated behind Workstream 4).
 
 ### Read surface
 
-A paged adapter query + core service (`getDocumentAuditLog(documentId)`
-and `findAuditLog({ where, page })` for the activity report), exposed
-through new host server fns following the existing
-`server-fns/collections/*` pattern.
+`getDocumentAuditLog(documentId)` (per-document history, **shipped** on the
+adapter contract + Postgres adapter) backs Workstream 3. `findAuditLog({
+where, page })` for the system-wide activity report is **pending** with
+Workstream 4. Both are exposed through new host server fns following the
+existing `server-fns/collections/*` pattern (also pending).
 
 ### Authorization — transitive per document, gated system-wide
 
