@@ -111,11 +111,22 @@ const config = defineConfig({
         // which references Vite-virtual modules (e.g.
         // `tanstack-start-injected-head-scripts:v`) that the dep optimizer
         // cannot resolve.
+        //
+        // `use-sync-external-store/shim{,/with-selector}` are pinned explicitly
+        // too. Their named exports sit behind a `process.env.NODE_ENV`
+        // re-export; if Vite emits one as a standalone optimized chunk via the
+        // discovery path its interop only synthesises a default export, and a
+        // named `import { useSyncExternalStoreWithSelector }` (from
+        // @base-ui/utils' store) then throws "does not provide an export named …"
+        // and the route never hydrates. Listing them as entries makes Vite walk
+        // the re-export and emit a proper named-export facade.
         include: [
           '@byline/ui/react',
           '@byline/ai',
           '@byline/ai/plugins/text',
           '@byline/ai/plugins/lexical',
+          'use-sync-external-store/shim',
+          'use-sync-external-store/shim/with-selector',
         ],
         rolldownOptions: {
           plugins: [

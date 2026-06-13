@@ -116,7 +116,26 @@ const config = defineConfig({
         // (with HMR per source file). Pre-bundling would re-introduce the
         // dist round-trip that this whole arrangement is meant to bypass.
         // It's listed in `exclude` below for belt-and-suspenders safety.
-        include: ['@byline/ai', '@byline/ai/plugins/text', '@byline/ai/plugins/lexical'],
+        // @byline/ui is served from source in dev (excluded below), so its
+        // transitive CJS leaves are reached through Vite's on-demand pipeline
+        // rather than being inlined into a pre-bundle. `use-sync-external-store`
+        // ships its named exports behind a `process.env.NODE_ENV` re-export
+        // (`module.exports = require('../cjs/.../with-selector.development.js')`).
+        // When that module is emitted as a standalone optimized chunk via the
+        // discovery path, Vite's interop only synthesises a default export, so a
+        // named `import { useSyncExternalStoreWithSelector }` (from @base-ui/utils'
+        // store) throws "does not provide an export named …" and the route never
+        // hydrates. Listing the CJS leaves as explicit entries makes Vite walk
+        // the re-export with cjs-module-lexer and emit a proper named-export
+        // facade, so the named import resolves regardless of which path reaches
+        // it.
+        include: [
+          '@byline/ai',
+          '@byline/ai/plugins/text',
+          '@byline/ai/plugins/lexical',
+          'use-sync-external-store/shim',
+          'use-sync-external-store/shim/with-selector',
+        ],
         exclude: ['@byline/ui/react'],
         rolldownOptions: {
           plugins: [
