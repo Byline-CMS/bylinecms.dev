@@ -21,6 +21,7 @@ import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs
 import { HistoryView } from '../admin-shell/collections/history.js'
 import {
   getCollectionDocument,
+  getCollectionDocumentAuditLog,
   getCollectionDocumentHistory,
 } from '../server-fns/collections/index.js'
 import type { ContentLocaleOption } from '../admin-shell/collections/view-menu.js'
@@ -31,7 +32,16 @@ const searchSchema = z.object({
   order: z.string().optional(),
   desc: z.coerce.boolean().optional(),
   locale: z.string().optional(),
+  // Which sub-view of the history page is active (docs/AUDIT.md — Workstream
+  // 3). 'versions' is the content version stream; 'document' is the
+  // document-grain audit log. Absent → 'versions'.
+  tab: z.enum(['versions', 'document']).optional(),
 })
+
+// The per-document audit log is small and bounded (path / locale / status
+// changes + the deletion event), so v1 fetches a single generous page rather
+// than wiring a second, tab-specific pager into the shared history route.
+const AUDIT_LOG_PAGE_SIZE = 100
 
 interface CollectionHistoryOpts {
   contentLocales: ReadonlyArray<ContentLocaleOption>
@@ -67,7 +77,7 @@ export function createCollectionHistoryRoute(path: string, opts: CollectionHisto
         throw notFound()
       }
 
-      const [history, currentDocument] = await Promise.all([
+      const [history, currentDocument, auditLog] = await Promise.all([
         getCollectionDocumentHistory({
           data: {
             collection: params.collection,
@@ -84,15 +94,26 @@ export function createCollectionHistoryRoute(path: string, opts: CollectionHisto
         // Fetch the current document with the same locale (or 'all') so diffs
         // compare the same shape as what the user is viewing.
         getCollectionDocument(params.collection, params.id, deps.locale ?? 'all'),
+        // Document-grain audit log for the "Document history" tab (W3). Fetched
+        // in parallel and unconditionally — it's cheap, and the active tab is a
+        // pure render concern read from the URL, so switching tabs never
+        // refetches.
+        getCollectionDocumentAuditLog({
+          data: {
+            collection: params.collection,
+            id: params.id,
+            params: { page: 1, page_size: AUDIT_LOG_PAGE_SIZE },
+          },
+        }),
       ])
 
-      return { history, currentDocument }
+      return { history, currentDocument, auditLog }
     },
     staleTime: 0,
     gcTime: 0,
     shouldReload: true,
     component: function CollectionHistoryComponent() {
-      const { history, currentDocument } = Route.useLoaderData()
+      const { history, currentDocument, auditLog } = Route.useLoaderData()
       const { collection } = Route.useParams() as { collection: string; id: string }
       const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
@@ -119,6 +140,7 @@ export function createCollectionHistoryRoute(path: string, opts: CollectionHisto
             workflowStatuses={getWorkflowStatuses(collectionDef)}
             adminConfig={adminConfig ?? undefined}
             data={history}
+            auditLog={auditLog}
             currentDocument={currentDocument as Record<string, unknown> | null}
             contentLocales={opts.contentLocales}
             defaultContentLocale={opts.defaultContentLocale}

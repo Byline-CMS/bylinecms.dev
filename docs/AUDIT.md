@@ -191,8 +191,9 @@ injected or opt-in `listViewColumns` entries. Rationale:
 > `getDocumentAuditLog` query on the adapter contract, and the three
 > write-points (`updateDocumentSystemFields`, `changeStatus`, `deleteDocument`,
 > each wrapping its mutation + audit append in `db.withTransaction(...)`) are
-> all live. **Still pending:** the host server fns + the document-history view
-> (Workstream 3), and the system-wide `findAuditLog` report (Workstream 4).
+> all live. **Workstream 3 (per-document read path + document-history view) is
+> now also shipped to `develop`** — see below. **Still pending:** the
+> system-wide `findAuditLog` report + activity area (Workstream 4).
 
 The spec sketched in
 [CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log-planned),
@@ -278,10 +279,12 @@ recording a gap — plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthet
 ### Read surface
 
 `getDocumentAuditLog(documentId)` (per-document history, **shipped** on the
-adapter contract + Postgres adapter) backs Workstream 3. `findAuditLog({
-where, page })` for the system-wide activity report is **pending** with
-Workstream 4. Both are exposed through new host server fns following the
-existing `server-fns/collections/*` pattern (also pending).
+adapter contract + Postgres adapter) backs Workstream 3, and is now reached
+end-to-end: `CollectionHandle.auditLog()` (the gated client read) →
+`getCollectionDocumentAuditLog` host server fn (`server-fns/collections/audit.ts`,
+following the existing pattern, resolving actor labels admin-side) → the
+document-history tab. `findAuditLog({ where, page })` for the system-wide
+activity report is **pending** with Workstream 4.
 
 ### Authorization — transitive per document, gated system-wide
 
@@ -305,25 +308,43 @@ Two distinct read scopes, deliberately not transitive between each other:
 
 ## Workstream 3 — tabbed history view
 
-Two views on the document's history; **the tabs-vs-routes question is
-deliberately parked** until Workstreams 1 and 2 are nailed down. The two
-candidate shapes — one route with the `tabs.tsx` presentation primitive
-(`@byline/admin/src/presentation/`), or two child routes under `/history`
-whose tab bar is simply two styled links — converge in TanStack (linkable
-either way), so the choice can wait. The content split is settled:
+> **Shipped to `develop` (unreleased).** Both tabs render on the existing
+> `/history` route. Read end-to-end through the gated client read
+> (`CollectionHandle.auditLog()`), the `getCollectionDocumentAuditLog` host
+> server fn, and the loader's parallel fetch.
+
+Two views on the document's history. **Tabs-vs-routes resolved in favour of
+the single-route + `tab` search param shape**: the existing `/history` route
+gained a `tab` search param (`'versions' | 'document'`, absent → `'versions'`)
+and an `AdminTabs` (the `tabs.tsx` presentation primitive) bar under the view
+menu. Rationale: it keeps the diff-modal / current-document loader and the
+audit-log fetch on one route (one `Promise.all`), needs no second physical
+route file in the host app's file-based tree, and stays fully linkable
+(`?tab=document`). The audit log is fetched unconditionally and in parallel —
+the active tab is a pure render concern read from the URL, so switching tabs
+never refetches. The content split:
 
 1. **Content versions** — the existing table, diff modal, restore flow,
-   now with the audit strip from Workstream 1. Unchanged
+   with the audit strip from Workstream 1. Default tab; unchanged
    otherwise.
-2. **Document history** — a simple chronological list of audit-log entries
-   for this document: who, what (action + field), when, from → to. No
-   diff viewer needed; before/after render inline. Empty state explains
-   that content edits live on the first view. Read access per the
-   Authorization section in Workstream 2 (gated by the document's own
-   read pipeline).
+2. **Document history** — a chronological list of audit-log entries
+   for this document: when, action, actor, from → to. No diff viewer;
+   before/after render inline (arrays comma-join, the deletion event shows
+   an em-dash). Empty state explains that content edits live on the first
+   tab. Read access per the Authorization section in Workstream 2 — the
+   client `auditLog()` gate mirrors `history()` exactly (`findById` with
+   `status: 'any'`; an excluded document yields an empty log). Acting-user
+   ids are resolved to labels admin-side via the shared `resolveActorLabels`
+   helper (system/tooling rows → "system"; deleted users → "former user").
 
-i18n keys for both views in the `byline-admin` bundle (EN/FR) from the
-start.
+The per-document audit log is small and bounded, so v1 fetches a single
+generous page (`page_size: 100`) rather than wiring a second, tab-specific
+pager into the shared route; a dedicated pager can follow if a real
+installation needs it.
+
+i18n keys for both views shipped in the `byline-admin` bundle (EN/FR):
+`collections.history.tabs.*` (tab labels) and `collections.documentHistory.*`
+(column headers, per-action labels, the system-actor and empty-state strings).
 
 ## Workstream 4 — system activity area
 
@@ -364,7 +385,10 @@ assembly once the two data sources exist.
 
 **Downstream-site note**: W2's migration is purely additive (new table, no
 backfill, no NOT NULL retrofit), so the existing-site upgrade playbook is
-just "migrate then deploy". W1 needs no DDL at all.
+just "migrate then deploy". The Drizzle-independent script for existing
+production databases is
+[`packages/db-postgres/sql/0003_add-audit-log.sql`](../packages/db-postgres/sql/0003_add-audit-log.sql)
+(run as the app DB role, not a superuser). W1 needs no DDL at all.
 
 ## Open questions
 
@@ -410,7 +434,9 @@ just "migrate then deploy". W1 needs no DDL at all.
 | Tabs primitive | `packages/admin/src/presentation/tabs.tsx` |
 | Audit table schema + migration | `packages/db-postgres/src/database/schema/index.ts` + `migrations/` |
 | Audit write points | `packages/core/src/services/document-lifecycle/{system-fields,status,delete,delete-locale}.ts` |
-| Audit read service | `packages/core/src/services/` (new) |
+| Audit read (gated client) | `packages/client/src/collection-handle.ts` → `auditLog()` (+ `AuditLogOptions` in `types.ts`, re-exports in `index.ts`) |
+| Audit read host server fn | `packages/host-tanstack-start/src/server-fns/collections/audit.ts` (`getCollectionDocumentAuditLog`) |
+| Document-history tab UI | `packages/host-tanstack-start/src/admin-shell/collections/{history.tsx (AdminTabs),document-history.tsx}` |
 | Activity route factory + menu item | `packages/host-tanstack-start/src/routes/` + `admin-shell/chrome/` |
 | `admin.activity.read` ability | `packages/admin/src/` (abilities) |
 | Example list-view opt-in | `apps/webapp/byline/collections/docs/admin.tsx` |

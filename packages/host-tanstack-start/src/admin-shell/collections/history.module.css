@@ -67,6 +67,12 @@
   background-color: var(--canvas-700);
 }
 
+/* Sub-view tab bar (Content versions / Document history — docs/AUDIT.md W3). */
+.tabs,
+:global(.byline-coll-history-tabs) {
+  margin-top: 0.25rem;
+}
+
 .options,
 :global(.byline-coll-history-options) {
   display: flex;

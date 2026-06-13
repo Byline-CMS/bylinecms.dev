@@ -291,6 +291,23 @@ export interface HistoryOptions extends BeforeReadControls {
 }
 
 /**
+ * Options for `CollectionHandle.auditLog(documentId, options)`. The
+ * document-grain audit log (docs/AUDIT.md — Workstream 3) records the
+ * non-versioned changes the immutable version stream does not capture an
+ * actor for: system-field writes (path, available-locales), in-place status
+ * transitions, and the deletion event. Entries are newest-first and paged;
+ * `_bypassBeforeRead` skips the `findById` access gate for admin tooling.
+ */
+export interface AuditLogOptions extends BeforeReadControls {
+  page?: number
+  pageSize?: number
+  /** Locale used by the access-gate `findById`. Defaults to the client's `defaultLocale`. */
+  locale?: string
+  /** @internal — see `_readContext` on read options. */
+  _readContext?: ReadContext
+}
+
+/**
  * Options for `CollectionHandle.findByVersion(versionId, options)`. No
  * `BeforeReadControls` — `findByVersion` is a low-level pass-through
  * intended for admin diff views; row-level scoping is the caller's

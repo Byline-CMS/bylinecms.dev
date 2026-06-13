@@ -386,3 +386,23 @@ describe('beforeRead — history access gate', () => {
     expect(result.docs.length).toBeGreaterThan(0)
   })
 })
+
+describe('beforeRead — audit-log access gate', () => {
+  it("returns empty when the actor's predicate excludes the document", async () => {
+    setActor('alice')
+    // bob's draft is row-scoped away from alice — the gate (findById) returns
+    // null, so the audit log is empty rather than leaking change metadata,
+    // mirroring the history gate exactly (docs/AUDIT.md — W2 authorization).
+    const result = await ctx.client.collection(postsDefinition.path).auditLog(bobDraftId)
+    expect(result.entries).toEqual([])
+  })
+
+  it('returns the audit log when the actor can read the document', async () => {
+    setActor('alice')
+    // alice's published post had a status change in setup, which the W2 status
+    // write-point recorded as a `document.status.changed` audit row.
+    const result = await ctx.client.collection(postsDefinition.path).auditLog(alicePublishedId)
+    expect(result.entries.length).toBeGreaterThan(0)
+    expect(result.entries.some((e) => e.action === 'document.status.changed')).toBe(true)
+  })
+})

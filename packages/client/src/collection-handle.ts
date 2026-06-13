@@ -8,6 +8,7 @@
 
 import type { RequestContext } from '@byline/auth'
 import type {
+  AuditLogPage,
   ChangeStatusResult,
   CollectionDefinition,
   CreateDocumentResult,
@@ -42,6 +43,7 @@ import {
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
 import type { BylineClient } from './client.js'
 import type {
+  AuditLogOptions,
   ClientDocument,
   CreateOptions,
   FindByIdOptions,
@@ -506,6 +508,52 @@ export class CollectionHandle {
         totalPages: result.meta.total_pages,
       },
     }
+  }
+
+  /**
+   * Fetch the document-grain audit log for a single document (docs/AUDIT.md —
+   * Workstream 3): the non-versioned system-field writes (path,
+   * available-locales), in-place status transitions, and the deletion event
+   * the immutable version stream deliberately does not record an actor for.
+   *
+   * Applies `beforeRead` as an access gate via `findById` — exactly as
+   * `history()` does — so an actor who cannot see the document at all gets an
+   * empty log rather than leaking change metadata. Entries are newest-first.
+   * Actor *ids* are returned raw; resolving them to display labels is an
+   * admin-realm concern handled above the SDK.
+   *
+   * Returns an empty page when the adapter has no audit-query capability
+   * (`queries.audit` absent) — the same graceful shape as a gated-out read.
+   */
+  async auditLog(documentId: string, options: AuditLogOptions = {}): Promise<AuditLogPage> {
+    await this.resolveAndAssertRead()
+    const readCtx = options._readContext ?? createReadContext()
+    const locale = options.locale ?? this.client.defaultLocale
+    const page = options.page ?? 1
+    const pageSize = options.pageSize ?? 20
+
+    const empty: AuditLogPage = { entries: [], meta: { total: 0, page, pageSize, totalPages: 0 } }
+
+    // Access gate — same rationale as `history()`. `status: 'any'` asks "can
+    // the actor see *any* version of this document?", so a draft-only doc with
+    // the owning actor still surfaces its audit log.
+    if (!options._bypassBeforeRead) {
+      const accessible = await this.findById(documentId, {
+        locale,
+        status: 'any',
+        _readContext: readCtx,
+      })
+      if (accessible == null) return empty
+    }
+
+    const audit = this.client.db.queries.audit
+    if (audit == null) return empty
+
+    return audit.getDocumentAuditLog({
+      document_id: documentId,
+      page,
+      page_size: pageSize,
+    })
   }
 
   /**

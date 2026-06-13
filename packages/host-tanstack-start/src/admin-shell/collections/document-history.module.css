@@ -1,0 +1,46 @@
+/**
+ * DocumentHistoryView — the document-grain audit log tab (docs/AUDIT.md — W3).
+ *
+ * Override handles:
+ *   .byline-coll-dochistory-empty      — empty-state explanation
+ *   .byline-coll-dochistory-table-wrap — table container
+ *   .byline-coll-dochistory-when       — timestamp cell
+ *   .byline-coll-dochistory-change     — before → after cell
+ *   .byline-coll-dochistory-before     — pre-change value
+ *   .byline-coll-dochistory-arrow      — muted transition arrow
+ *   .byline-coll-dochistory-after      — post-change value
+ */
+
+.empty,
+:global(.byline-coll-dochistory-empty) {
+  margin: 1.5rem 0;
+  color: var(--gray-500);
+  font-size: 0.875rem;
+}
+
+:is([data-theme="dark"], :global(.dark)) .empty,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-coll-dochistory-empty) {
+  color: var(--gray-400);
+}
+
+.tableWrap,
+:global(.byline-coll-dochistory-table-wrap) {
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.when,
+:global(.byline-coll-dochistory-when) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.change,
+:global(.byline-coll-dochistory-change) {
+  font-variant-numeric: tabular-nums;
+}
+
+.arrow,
+:global(.byline-coll-dochistory-arrow) {
+  color: var(--gray-400);
+}

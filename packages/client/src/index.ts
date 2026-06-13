@@ -7,6 +7,8 @@
  */
 
 export {
+  type AuditLogEntry,
+  type AuditLogPage,
   type ChangeStatusResult,
   type CreateDocumentResult,
   type CycleRelationValue,
@@ -33,6 +35,7 @@ export {
 export { BylineClient, createBylineClient } from './client.js'
 export { CollectionHandle } from './collection-handle.js'
 export type {
+  AuditLogOptions,
   BylineClientConfig,
   ClientDocument,
   CreateOptions,
