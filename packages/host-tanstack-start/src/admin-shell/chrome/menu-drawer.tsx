@@ -9,11 +9,19 @@
 import type React from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
+import { ADMIN_ACTIVITY_ABILITIES } from '@byline/admin/admin-activity'
 import { ADMIN_PERMISSIONS_ABILITIES } from '@byline/admin/admin-permissions'
 import { ADMIN_ROLES_ABILITIES } from '@byline/admin/admin-roles'
 import { ADMIN_USERS_ABILITIES } from '@byline/admin/admin-users'
 import { useTranslation } from '@byline/i18n/react'
-import { HomeIcon, RolesIcon, SettingsSlidersIcon, UserIcon, UsersIcon } from '@byline/ui/react'
+import {
+  ActivityIcon,
+  HomeIcon,
+  RolesIcon,
+  SettingsSlidersIcon,
+  UserIcon,
+  UsersIcon,
+} from '@byline/ui/react'
 import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 
@@ -63,7 +71,8 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
   const canReadUsers = has(ADMIN_USERS_ABILITIES.read)
   const canReadRoles = has(ADMIN_ROLES_ABILITIES.read)
   const canReadPermissions = has(ADMIN_PERMISSIONS_ABILITIES.read)
-  const showAdminSection = canReadUsers || canReadRoles || canReadPermissions
+  const canReadActivity = has(ADMIN_ACTIVITY_ABILITIES.read)
+  const showAdminSection = canReadUsers || canReadRoles || canReadPermissions || canReadActivity
 
   const handlers = useSwipeable({
     onSwipedLeft: () => {
@@ -129,6 +138,15 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
                   to="/admin/permissions"
                   label={t('chrome.menu.permissions')}
                   icon={<SettingsSlidersIcon width="20px" height="20px" />}
+                  pathname={pathname}
+                  compact={compact}
+                />
+              )}
+              {canReadActivity && (
+                <MenuItem
+                  to="/admin/activity"
+                  label={t('chrome.menu.activity')}
+                  icon={<ActivityIcon width="20px" height="20px" />}
                   pathname={pathname}
                   compact={compact}
                 />

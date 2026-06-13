@@ -349,6 +349,44 @@ export interface IAuditQueries {
     page?: number
     page_size?: number
   }): Promise<AuditLogPage>
+
+  /**
+   * The system-wide activity feed (docs/AUDIT.md — Workstream 4), newest
+   * first, paged and filterable. A read-time **union** of two disjoint event
+   * sources, normalised onto the `AuditLogEntry` shape:
+   *
+   * - the **version stream** (`byline_document_versions`) — content saves,
+   *   surfaced as `document.created` / `document.updated` (from `event_type`)
+   *   and attributed via Workstream 1's `created_by`; `field` / `before` /
+   *   `after` are null (no per-field diff is captured at save time);
+   * - the **audit log** (`byline_audit_log`) — everything the version stream
+   *   does not attribute: path / locale / status changes and deletions, plus
+   *   future admin-realm events (`document_id` NULL).
+   *
+   * The two sources never overlap (a delete mints no version; a status change
+   * mutates the version row in place), so the union double-counts nothing.
+   * Ordered by the normalised `occurredAt` (version `created_at` / audit
+   * `occurred_at`) — the per-source UUIDv7 ids are separate sequences and
+   * cannot order across the union.
+   *
+   * Unlike `getDocumentAuditLog`, this is **not** document- or
+   * collection-scoped and is gated system-wide by `admin.activity.read` at the
+   * transport layer — it does no scoping of its own.
+   */
+  findAuditLog(params: {
+    /** Restrict to one acting user (matches version `created_by` / audit `actor_id`). */
+    actorId?: string
+    /** Restrict to one collection. */
+    collectionId?: string
+    /** Exact action match, e.g. `document.updated` or `document.status.changed`. */
+    action?: string
+    /** Inclusive lower bound on `occurredAt`. */
+    from?: Date
+    /** Inclusive upper bound on `occurredAt`. */
+    to?: Date
+    page?: number
+    page_size?: number
+  }): Promise<AuditLogPage>
 }
 
 /**

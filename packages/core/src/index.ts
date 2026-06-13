@@ -40,6 +40,7 @@ export { type BylineCore, getBylineCore, initBylineCore } from './core.js'
 export * from './defaults/default-values.js'
 export {
   BylineError,
+  ERR_AUDIT_UNSUPPORTED,
   ERR_DATABASE,
   ERR_NOT_FOUND,
   ERR_READ_BUDGET_EXCEEDED,

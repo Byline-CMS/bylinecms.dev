@@ -8,6 +8,7 @@
 
 import type { AbilityRegistry } from '@byline/auth'
 
+import { registerAdminActivityAbilities } from './modules/admin-activity/abilities.js'
 import { registerAdminPermissionsAbilities } from './modules/admin-permissions/abilities.js'
 import { registerAdminRolesAbilities } from './modules/admin-roles/abilities.js'
 import { registerAdminUsersAbilities } from './modules/admin-users/abilities.js'
@@ -28,5 +29,6 @@ export function registerAdminAbilities(registry: AbilityRegistry): void {
   registerAdminUsersAbilities(registry)
   registerAdminRolesAbilities(registry)
   registerAdminPermissionsAbilities(registry)
+  registerAdminActivityAbilities(registry)
   // registerAccountAbilities(registry) — added when that module lands
 }

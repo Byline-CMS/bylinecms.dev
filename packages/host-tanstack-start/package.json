@@ -56,6 +56,10 @@
       "types": "./dist/server-fns/admin-account/index.d.ts",
       "import": "./dist/server-fns/admin-account/index.js"
     },
+    "./server-fns/admin-activity": {
+      "types": "./dist/server-fns/admin-activity/index.d.ts",
+      "import": "./dist/server-fns/admin-activity/index.js"
+    },
     "./server-fns/ai": {
       "types": "./dist/server-fns/ai/index.d.ts",
       "import": "./dist/server-fns/ai/index.js"

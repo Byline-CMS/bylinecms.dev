@@ -32,6 +32,7 @@ export {
   createCommand,
 } from './lib/create-command.js'
 export * from './modules/admin-account/index.js'
+export * from './modules/admin-activity/index.js'
 export * from './modules/admin-permissions/index.js'
 export * from './modules/admin-roles/index.js'
 export * from './modules/admin-users/index.js'

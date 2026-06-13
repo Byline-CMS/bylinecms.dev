@@ -1,0 +1,69 @@
+/**
+ * ActivitySystemView — the system-wide activity report (docs/AUDIT.md — W4).
+ *
+ * Override handles:
+ *   .byline-activity-head       — title row
+ *   .byline-activity-title      — page title
+ *   .byline-activity-options    — filter + pager bar
+ *   .byline-activity-empty      — empty-state line
+ *   .byline-activity-table-wrap — table container
+ *   .byline-activity-when        — timestamp cell
+ *   .byline-activity-change      — before → after cell
+ *   .byline-activity-before      — pre-change value
+ *   .byline-activity-arrow       — muted transition arrow
+ *   .byline-activity-after       — post-change value
+ */
+
+.head,
+:global(.byline-activity-head) {
+  margin-bottom: 0.5rem;
+}
+
+.title,
+:global(.byline-activity-title) {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.options,
+:global(.byline-activity-options) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+}
+
+.empty,
+:global(.byline-activity-empty) {
+  margin: 1.5rem 0;
+  color: var(--gray-500);
+  font-size: 0.875rem;
+}
+
+:is([data-theme="dark"], :global(.dark)) .empty,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-activity-empty) {
+  color: var(--gray-400);
+}
+
+.tableWrap,
+:global(.byline-activity-table-wrap) {
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.when,
+:global(.byline-activity-when) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.change,
+:global(.byline-activity-change) {
+  font-variant-numeric: tabular-nums;
+}
+
+.arrow,
+:global(.byline-activity-arrow) {
+  color: var(--gray-400);
+}

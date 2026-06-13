@@ -7,9 +7,8 @@ summary: "The auditability work domain: the version audit trail (acting user + a
 # Auditability
 
 :::note[Status]
-**Workstreams 1–3 shipped (W1 in v3.8.0; W2 + W3 in v3.10.0); Workstream 4
-(the system activity area + report) remains planned.** Sections below are
-marked shipped inline; anything not so marked — chiefly W4 — is still a plan.
+**All four workstreams shipped (W1 in v3.8.0; W2 + W3 in v3.10.0; W4 on
+`develop`, unreleased).** Sections below are marked shipped inline.
 This is the domain home for the auditability work; it subsumes the earlier
 [CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log)
 and expands around it. Where this doc and a shipped doc disagree, the shipped
@@ -349,27 +348,38 @@ i18n keys for both views shipped in the `byline-admin` bundle (EN/FR):
 
 ## Workstream 4 — system activity area
 
-A new top-level admin area: dedicated menu item + route under the dashboard
-(root entry `apps/webapp/src/routes/_byline/admin/index.tsx`, factory-built
-like the rest of the shell).
+> **Shipped to `develop` (unreleased).** A new top-level admin area:
+> dedicated menu item + route, factory-built like the rest of the shell.
 
-- **Route**: `/_byline/admin/activity` via a new
-  `createAdminActivityRoute` factory in
-  `@byline/host-tanstack-start/routes`; menu item added to the admin
-  chrome alongside Collections / Users / Roles.
+- **Route**: `/_byline/admin/activity` via the `createAdminActivityRoute`
+  factory in `@byline/host-tanstack-start/routes` (physical route at
+  `apps/webapp/src/routes/_byline/admin/activity/index.tsx`); an **Activity**
+  menu item (`ActivityIcon`) sits in the admin-management section of the menu
+  drawer alongside Users / Roles / Permissions, shown when the actor holds
+  `admin.activity.read`.
 - **The report**: a filterable, paged feed over the **read-time union** of
-  the version stream (content saves, attributed via Workstream 1) and the
-  audit log (everything else). Filters: actor, collection, action type,
-  date range. Each row links to the document (or admin entity) it
-  describes.
-- **Authorization**: a new `admin.activity.read` ability (registered like
-  the existing `admin.users.*` abilities) so activity visibility is
-  grantable independently of content abilities — an auditor role should
-  not need write access.
-- **Deferred polish** (named triggers, not now): CSV/JSON export of a
-  filtered range (trigger: a real compliance ask); retention/pruning
-  policy (trigger: an installation where the log's growth actually
-  matters).
+  the version stream (content saves, surfaced as `document.created` /
+  `document.updated` from `event_type` and attributed via Workstream 1) and
+  the audit log (everything else). The two sources are disjoint — a delete
+  mints no version, a status change mutates the version row in place — so the
+  union double-counts nothing. Ordered by the normalised `occurred_at` (the
+  per-source UUIDv7 ids are separate sequences). Backed by
+  `IAuditQueries.findAuditLog` (`@byline/db-postgres` `AuditQueries`, a
+  `UNION ALL` normalised onto the `AuditLogEntry` shape). Filters: actor,
+  collection (by path, resolved to id server-side), action type, date range.
+  Each row resolves its actor label (`resolveActorLabels`; system / deleted →
+  tombstone) and collection label, and links to the document it describes.
+- **Authorization**: the `admin.activity.read` ability
+  (`@byline/admin/admin-activity`, registered through `registerAdminAbilities`
+  like `admin.users.*`) gates the host server fn `getSystemActivityLog` via
+  `assertAdminActor` — system-wide, **not** reachable transitively from any
+  collection ability, so an auditor role gets activity visibility without
+  content read/write.
+- **Deferred polish** (named triggers, not now): an actor-filter UI control
+  (the `actorId` param is plumbed end-to-end; the picker needs an admin-user
+  lookup); CSV/JSON export of a filtered range (trigger: a real compliance
+  ask); retention/pruning policy (trigger: an installation where the log's
+  growth actually matters).
 
 ## Sequencing
 

@@ -21,6 +21,7 @@
  */
 
 export { createAdminAccountRoute } from './create-admin-account-route.js'
+export { createAdminActivityRoute } from './create-admin-activity-route.js'
 export { createAdminDashboardRoute } from './create-admin-dashboard-route.js'
 export { createAdminLayoutRoute } from './create-admin-layout-route.js'
 export { createAdminPermissionsRoute } from './create-admin-permissions-route.js'

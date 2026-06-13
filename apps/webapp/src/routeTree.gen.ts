@@ -24,6 +24,7 @@ import { Route as LngFrontendDocsRouteRouteImport } from './routes/$lng/_fronten
 import { Route as BylineAdminUsersIndexRouteImport } from './routes/_byline/admin/users/index'
 import { Route as BylineAdminRolesIndexRouteImport } from './routes/_byline/admin/roles/index'
 import { Route as BylineAdminPermissionsIndexRouteImport } from './routes/_byline/admin/permissions/index'
+import { Route as BylineAdminActivityIndexRouteImport } from './routes/_byline/admin/activity/index'
 import { Route as BylineAdminAccountIndexRouteImport } from './routes/_byline/admin/account/index'
 import { Route as LngFrontendNewsIndexRouteImport } from './routes/$lng/_frontend/news/index'
 import { Route as LngFrontendDocsIndexRouteImport } from './routes/$lng/_frontend/docs/index'
@@ -116,6 +117,12 @@ const BylineAdminPermissionsIndexRoute =
   BylineAdminPermissionsIndexRouteImport.update({
     id: '/permissions/',
     path: '/permissions/',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
+const BylineAdminActivityIndexRoute =
+  BylineAdminActivityIndexRouteImport.update({
+    id: '/activity/',
+    path: '/activity/',
     getParentRoute: () => BylineAdminRouteRoute,
   } as any)
 const BylineAdminAccountIndexRoute = BylineAdminAccountIndexRouteImport.update({
@@ -241,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/$lng/docs/': typeof LngFrontendDocsIndexRoute
   '/$lng/news/': typeof LngFrontendNewsIndexRoute
   '/admin/account/': typeof BylineAdminAccountIndexRoute
+  '/admin/activity/': typeof BylineAdminActivityIndexRoute
   '/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
   '/admin/roles/': typeof BylineAdminRolesIndexRoute
   '/admin/users/': typeof BylineAdminUsersIndexRoute
@@ -272,6 +280,7 @@ export interface FileRoutesByTo {
   '/$lng/docs': typeof LngFrontendDocsIndexRoute
   '/$lng/news': typeof LngFrontendNewsIndexRoute
   '/admin/account': typeof BylineAdminAccountIndexRoute
+  '/admin/activity': typeof BylineAdminActivityIndexRoute
   '/admin/permissions': typeof BylineAdminPermissionsIndexRoute
   '/admin/roles': typeof BylineAdminRolesIndexRoute
   '/admin/users': typeof BylineAdminUsersIndexRoute
@@ -308,6 +317,7 @@ export interface FileRoutesById {
   '/$lng/_frontend/docs/': typeof LngFrontendDocsIndexRoute
   '/$lng/_frontend/news/': typeof LngFrontendNewsIndexRoute
   '/_byline/admin/account/': typeof BylineAdminAccountIndexRoute
+  '/_byline/admin/activity/': typeof BylineAdminActivityIndexRoute
   '/_byline/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
   '/_byline/admin/roles/': typeof BylineAdminRolesIndexRoute
   '/_byline/admin/users/': typeof BylineAdminUsersIndexRoute
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/$lng/docs/'
     | '/$lng/news/'
     | '/admin/account/'
+    | '/admin/activity/'
     | '/admin/permissions/'
     | '/admin/roles/'
     | '/admin/users/'
@@ -375,6 +386,7 @@ export interface FileRouteTypes {
     | '/$lng/docs'
     | '/$lng/news'
     | '/admin/account'
+    | '/admin/activity'
     | '/admin/permissions'
     | '/admin/roles'
     | '/admin/users'
@@ -410,6 +422,7 @@ export interface FileRouteTypes {
     | '/$lng/_frontend/docs/'
     | '/$lng/_frontend/news/'
     | '/_byline/admin/account/'
+    | '/_byline/admin/activity/'
     | '/_byline/admin/permissions/'
     | '/_byline/admin/roles/'
     | '/_byline/admin/users/'
@@ -534,6 +547,13 @@ declare module '@tanstack/react-router' {
       path: '/permissions'
       fullPath: '/admin/permissions/'
       preLoaderRoute: typeof BylineAdminPermissionsIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/activity/': {
+      id: '/_byline/admin/activity/'
+      path: '/activity'
+      fullPath: '/admin/activity/'
+      preLoaderRoute: typeof BylineAdminActivityIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
     '/_byline/admin/account/': {
@@ -731,6 +751,7 @@ const LngRouteRouteWithChildren = LngRouteRoute._addFileChildren(
 interface BylineAdminRouteRouteChildren {
   BylineAdminIndexRoute: typeof BylineAdminIndexRoute
   BylineAdminAccountIndexRoute: typeof BylineAdminAccountIndexRoute
+  BylineAdminActivityIndexRoute: typeof BylineAdminActivityIndexRoute
   BylineAdminPermissionsIndexRoute: typeof BylineAdminPermissionsIndexRoute
   BylineAdminRolesIndexRoute: typeof BylineAdminRolesIndexRoute
   BylineAdminUsersIndexRoute: typeof BylineAdminUsersIndexRoute
@@ -746,6 +767,7 @@ interface BylineAdminRouteRouteChildren {
 const BylineAdminRouteRouteChildren: BylineAdminRouteRouteChildren = {
   BylineAdminIndexRoute: BylineAdminIndexRoute,
   BylineAdminAccountIndexRoute: BylineAdminAccountIndexRoute,
+  BylineAdminActivityIndexRoute: BylineAdminActivityIndexRoute,
   BylineAdminPermissionsIndexRoute: BylineAdminPermissionsIndexRoute,
   BylineAdminRolesIndexRoute: BylineAdminRolesIndexRoute,
   BylineAdminUsersIndexRoute: BylineAdminUsersIndexRoute,
