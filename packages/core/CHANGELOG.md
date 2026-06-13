@@ -1,5 +1,14 @@
 # @byline/core
 
+## 3.10.1
+
+### Patch Changes
+
+- fixed a dev-only hydration crash from the use-sync-external-store CJS shim and made the **`@byline/db-postgres`** audit-log migration superuser-safe
+  migrated host/webapp server fns off the deprecated `createServerFn().inputValidator()`
+- Updated dependencies
+  - @byline/auth@3.10.1
+
 ## 3.10.0
 
 ### Minor Changes
