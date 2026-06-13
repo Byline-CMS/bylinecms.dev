@@ -142,12 +142,27 @@
   opacity: 0.6;
 }
 
+/* Compact items render as a centered square so the hover/active background
+   (applied to the <li>) reads as a square icon button rather than a wide
+   rectangle. The <li> is the hover target, so it must carry the square size. */
+.nav ul :global(li.menu-item.compact),
+:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact) {
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Fill the square and drop the default 7px padding so the icon centers
+   exactly within the <li> hover area. */
 .nav ul :global(li.menu-item.compact) :is(a, button),
 :global(.byline-admin-menu-drawer)
   ul
   :global(li.menu-item.compact)
   :is(a, button) {
   justify-content: center;
+  padding: 0;
+  height: 100%;
 }
 
 .nav ul :global(li.menu-item.active) :is(a, button),

@@ -58,7 +58,7 @@ function MenuItem({ to, label, icon, pathname, compact }: MenuItemProps) {
     <li className={cx('menu-item', { active: isActive(pathname, to), compact })}>
       <Link to={to}>
         {compact ? (
-          <Tooltip text={label} side="right">
+          <Tooltip text={label} side="right" delay={0}>
             {iconSpan}
           </Tooltip>
         ) : (

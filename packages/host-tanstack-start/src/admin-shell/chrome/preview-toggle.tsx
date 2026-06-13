@@ -107,7 +107,7 @@ export function PreviewToggle({ compact }: PreviewToggleProps) {
         }
       >
         {compact ? (
-          <Tooltip text={label} side="right">
+          <Tooltip text={label} side="right" delay={0}>
             {iconSpan}
           </Tooltip>
         ) : (
