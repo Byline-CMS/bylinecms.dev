@@ -161,6 +161,7 @@ export const ErrorCodes = {
   STORAGE: 'ERR_STORAGE',
   READ_BUDGET_EXCEEDED: 'ERR_READ_BUDGET_EXCEEDED',
   PATH_CONFLICT: 'ERR_PATH_CONFLICT',
+  AUDIT_UNSUPPORTED: 'ERR_AUDIT_UNSUPPORTED',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -183,3 +184,13 @@ export const ERR_READ_BUDGET_EXCEEDED = createErrorType(ErrorCodes.READ_BUDGET_E
  * `byline_document_paths(collection_id, locale, path)`.
  */
 export const ERR_PATH_CONFLICT = createErrorType(ErrorCodes.PATH_CONFLICT, 'warn')
+/**
+ * Thrown when an audited write (a document-grain change that must be recorded
+ * atomically — path / available-locales / status / delete) runs against a db
+ * adapter that does not provide both the `withTransaction` capability and the
+ * `commands.audit` / `queries.audit` surfaces. A misconfiguration, not a
+ * user error: an auditability guarantee cannot be honoured non-atomically, so
+ * the write is refused loudly rather than recorded with a gap. See
+ * docs/TRANSACTIONS.md and docs/AUDIT.md.
+ */
+export const ERR_AUDIT_UNSUPPORTED = createErrorType(ErrorCodes.AUDIT_UNSUPPORTED)

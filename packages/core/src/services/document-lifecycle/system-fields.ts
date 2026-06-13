@@ -9,6 +9,7 @@
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
+import { AUDIT_ACTIONS, auditActor, requireAuditCapability, sameLocaleSet } from './audit.js'
 import { resolvePathForUpdate, rethrowPathConflict } from './internals.js'
 import type { DocumentLifecycleContext } from './context.js'
 
@@ -45,7 +46,9 @@ export interface UpdateDocumentSystemFieldsResult {
  *      `setDocumentAvailableLocales`.
  *
  * No content hooks fire — these are not content writes. Accountability for
- * these mutations is the job of the (planned) document-grain audit log.
+ * these mutations is the document-grain audit log: each field that actually
+ * changes records a `document.path.changed` / `document.locales.changed` row
+ * atomically with the write (docs/AUDIT.md — Workstream 2).
  *
  * @throws {BylineError} ERR_NOT_FOUND if the document does not exist.
  * @throws {BylineError} ERR_PATH_CONFLICT if the path is already in use.
@@ -111,26 +114,61 @@ export async function updateDocumentSystemFields(
         logger: ctx.logger,
       })
 
-      if (pathForCommand !== undefined) {
-        await db.commands.documents
-          .updateDocumentPath({
+      // Both document-grain writes and their audit rows commit atomically.
+      // These fields are non-versioned, so the version stream never records
+      // them — the audit log is their only accountability home. One audit row
+      // per field that actually changed (docs/AUDIT.md).
+      const currentPath = originalData.path as string | undefined
+      const currentLocales = (originalData.availableLocales as string[] | undefined) ?? []
+      const availableLocalesWritten = params.availableLocales !== undefined
+
+      const audit = requireAuditCapability(db)
+      const actor = auditActor(ctx)
+      await audit.withTransaction(async () => {
+        if (pathForCommand !== undefined) {
+          await db.commands.documents
+            .updateDocumentPath({
+              documentId: params.documentId,
+              collectionId,
+              locale: sourceLocale,
+              path: pathForCommand,
+            })
+            .catch((err: unknown) => rethrowPathConflict(err, pathForCommand, defaultLocale))
+          if (pathForCommand !== currentPath) {
+            await audit.append({
+              documentId: params.documentId,
+              collectionId,
+              actorId: actor.actorId,
+              actorRealm: actor.actorRealm,
+              action: AUDIT_ACTIONS.pathChanged,
+              field: 'path',
+              before: currentPath ?? null,
+              after: pathForCommand,
+            })
+          }
+        }
+
+        // Advertised locales: rewrite the document-grain set wholesale.
+        if (params.availableLocales !== undefined) {
+          await db.commands.documents.setDocumentAvailableLocales({
             documentId: params.documentId,
             collectionId,
-            locale: sourceLocale,
-            path: pathForCommand,
+            availableLocales: params.availableLocales,
           })
-          .catch((err: unknown) => rethrowPathConflict(err, pathForCommand, defaultLocale))
-      }
-
-      // Advertised locales: rewrite the document-grain set wholesale.
-      const availableLocalesWritten = params.availableLocales !== undefined
-      if (params.availableLocales !== undefined) {
-        await db.commands.documents.setDocumentAvailableLocales({
-          documentId: params.documentId,
-          collectionId,
-          availableLocales: params.availableLocales,
-        })
-      }
+          if (!sameLocaleSet(currentLocales, params.availableLocales)) {
+            await audit.append({
+              documentId: params.documentId,
+              collectionId,
+              actorId: actor.actorId,
+              actorRealm: actor.actorRealm,
+              action: AUDIT_ACTIONS.localesChanged,
+              field: 'availableLocales',
+              before: currentLocales,
+              after: params.availableLocales,
+            })
+          }
+        }
+      })
 
       return {
         documentId: params.documentId,

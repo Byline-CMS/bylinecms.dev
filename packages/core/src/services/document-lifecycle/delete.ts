@@ -11,6 +11,7 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getUploadFields } from '../../utils/storage-utils.js'
+import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
 import { invokeHook } from './internals.js'
 import type { DocumentLifecycleContext } from './context.js'
 
@@ -110,9 +111,26 @@ export async function deleteDocument(
       // 2. beforeDelete hook.
       await invokeHook(hooks?.beforeDelete, hookCtx)
 
-      // 3. Soft-delete all versions.
-      const deletedVersionCount = await db.commands.documents.softDeleteDocument({
-        document_id: params.documentId,
+      // 3. Soft-delete all versions, atomically with the audit record. A
+      //    whole-document delete mints no new version, so the version stream
+      //    never records it — the audit log is the only place a deletion is
+      //    accountable (docs/AUDIT.md). Storage-file cleanup (step 4) is a
+      //    DB↔external side-effect and stays OUTSIDE the transaction — it is
+      //    post-commit, best-effort compensation (docs/TRANSACTIONS.md).
+      const audit = requireAuditCapability(db)
+      const actor = auditActor(ctx)
+      let deletedVersionCount = 0
+      await audit.withTransaction(async () => {
+        deletedVersionCount = await db.commands.documents.softDeleteDocument({
+          document_id: params.documentId,
+        })
+        await audit.append({
+          documentId: params.documentId,
+          collectionId: ctx.collectionId,
+          actorId: actor.actorId,
+          actorRealm: actor.actorRealm,
+          action: AUDIT_ACTIONS.deleted,
+        })
       })
 
       // 4. Clean up storage files. Non-fatal: logs errors but does not throw.

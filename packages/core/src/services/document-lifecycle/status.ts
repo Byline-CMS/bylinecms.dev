@@ -11,6 +11,7 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_INVALID_TRANSITION, ERR_NOT_FOUND } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getWorkflow, validateStatusTransition } from '../../workflow/workflow.js'
+import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
 import { invokeHook } from './internals.js'
 import type { DocumentLifecycleContext } from './context.js'
 
@@ -116,19 +117,34 @@ export async function changeDocumentStatus(
       // 3. beforeStatusChange hook.
       await invokeHook(hooks?.beforeStatusChange, hookCtx)
 
-      // 4. Mutate status in-place.
-      await db.commands.documents.setDocumentStatus({
-        document_version_id: documentVersionId,
-        status: params.nextStatus,
-      })
-
-      // 5. Auto-archive previous published versions.
-      if (params.nextStatus === 'published') {
-        await db.commands.documents.archivePublishedVersions({
-          document_id: params.documentId,
-          excludeVersionId: documentVersionId,
+      // 4–5. Mutate status in-place + auto-archive, atomically with the audit
+      //      record. Status mutates the version row rather than minting a new
+      //      version, so the version stream never captures *who* changed it —
+      //      the audit log is its only accountability home (docs/AUDIT.md).
+      const audit = requireAuditCapability(db)
+      const actor = auditActor(ctx)
+      await audit.withTransaction(async () => {
+        await db.commands.documents.setDocumentStatus({
+          document_version_id: documentVersionId,
+          status: params.nextStatus,
         })
-      }
+        if (params.nextStatus === 'published') {
+          await db.commands.documents.archivePublishedVersions({
+            document_id: params.documentId,
+            excludeVersionId: documentVersionId,
+          })
+        }
+        await audit.append({
+          documentId: params.documentId,
+          collectionId,
+          actorId: actor.actorId,
+          actorRealm: actor.actorRealm,
+          action: AUDIT_ACTIONS.statusChanged,
+          field: 'status',
+          before: currentStatus,
+          after: params.nextStatus,
+        })
+      })
 
       // 6. afterStatusChange hook.
       await invokeHook(hooks?.afterStatusChange, hookCtx)
