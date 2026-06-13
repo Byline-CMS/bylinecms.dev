@@ -14,7 +14,7 @@ import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export const whoHasAbility = createServerFn({ method: 'GET' })
-  .inputValidator((input: { ability: string }) => input)
+  .validator((input: { ability: string }) => input)
   .handler(async ({ data }): Promise<WhoHasAbilityResponse> => {
     const context = await getAdminRequestContext()
     return whoHasAbilityCommand(context, data, {

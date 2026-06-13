@@ -25,7 +25,7 @@ export interface CreateAdminUserInput {
 }
 
 export const createAdminUser = createServerFn({ method: 'POST' })
-  .inputValidator((input: CreateAdminUserInput) => input)
+  .validator((input: CreateAdminUserInput) => input)
   .handler(async ({ data }): Promise<AdminUserResponse> => {
     const context = await getAdminRequestContext()
     return createAdminUserCommand(context, data, { store: bylineCore().adminStore! })

@@ -13,7 +13,7 @@ import { setCookie } from '@tanstack/react-start/server'
 import { i18nConfig, type Locale } from '@/i18n/i18n-config'
 
 export const setLanguageFn = createServerFn({ method: 'POST' })
-  .inputValidator((input: { lng: string }) => {
+  .validator((input: { lng: string }) => {
     if (!i18nConfig.locales.includes(input.lng as Locale)) {
       throw new Error(`Invalid locale: ${input.lng}`)
     }

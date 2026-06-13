@@ -33,7 +33,7 @@ export interface DocDetailInput {
 
 export const getDocDetailFn = createServerFn({ method: 'GET' })
   .middleware([publicCacheMiddleware])
-  .inputValidator(
+  .validator(
     (input: DocDetailInput): DocDetailInput => ({
       path: input.path,
       lng: input.lng,

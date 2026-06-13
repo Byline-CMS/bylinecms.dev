@@ -20,7 +20,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // ---------------------------------------------------------------------------
 
 export const deleteDocument = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; id: string }) => input)
+  .validator((input: { collection: string; id: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, id } = input
     const logger = getLogger()

@@ -44,7 +44,7 @@ export interface PageDetailInput {
 
 export const getPageDetailFn = createServerFn({ method: 'GET' })
   .middleware([publicCacheMiddleware])
-  .inputValidator(
+  .validator(
     (input: PageDetailInput): PageDetailInput => ({
       path: input.path,
       lng: input.lng,

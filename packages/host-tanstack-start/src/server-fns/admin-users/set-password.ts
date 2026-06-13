@@ -20,7 +20,7 @@ export interface SetAdminUserPasswordInput {
 }
 
 export const setAdminUserPassword = createServerFn({ method: 'POST' })
-  .inputValidator((input: SetAdminUserPasswordInput) => input)
+  .validator((input: SetAdminUserPasswordInput) => input)
   .handler(async ({ data }): Promise<AdminUserResponse> => {
     const context = await getAdminRequestContext()
     return setAdminUserPasswordCommand(context, data, { store: bylineCore().adminStore! })

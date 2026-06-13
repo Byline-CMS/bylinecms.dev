@@ -20,7 +20,7 @@ export interface ChangeAccountPasswordInput {
 }
 
 export const changeAccountPassword = createServerFn({ method: 'POST' })
-  .inputValidator((input: ChangeAccountPasswordInput) => input)
+  .validator((input: ChangeAccountPasswordInput) => input)
   .handler(async ({ data }): Promise<AccountResponse> => {
     const context = await getAdminRequestContext()
     return changeAccountPasswordCommand(context, data, { store: bylineCore().adminStore! })

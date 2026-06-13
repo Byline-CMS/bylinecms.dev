@@ -18,7 +18,7 @@ import { bylineCore } from '../../integrations/byline-core.js'
 // modules each declare their own identical `OkResponse` today, and the
 // root `@byline/admin` barrel can only re-export one of them.
 export const deleteAdminRole = createServerFn({ method: 'POST' })
-  .inputValidator((input: { id: string; vid: number }) => input)
+  .validator((input: { id: string; vid: number }) => input)
   .handler(async ({ data }): Promise<{ ok: true }> => {
     const context = await getAdminRequestContext()
     return deleteAdminRoleCommand(context, data, { store: bylineCore().adminStore! })

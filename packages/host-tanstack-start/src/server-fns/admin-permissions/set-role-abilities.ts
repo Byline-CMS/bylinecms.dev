@@ -22,7 +22,7 @@ export interface SetRoleAbilitiesInput {
 }
 
 export const setRoleAbilities = createServerFn({ method: 'POST' })
-  .inputValidator((input: SetRoleAbilitiesInput) => input)
+  .validator((input: SetRoleAbilitiesInput) => input)
   .handler(async ({ data }): Promise<SetRoleAbilitiesResponse> => {
     const context = await getAdminRequestContext()
     return setRoleAbilitiesCommand(context, data, {

@@ -40,7 +40,7 @@ export interface CollectionSearchParams {
 // ---------------------------------------------------------------------------
 
 export const getCollectionDocuments = createServerFn({ method: 'GET' })
-  .inputValidator((input: { collection: string; params: CollectionSearchParams }) => input)
+  .validator((input: { collection: string; params: CollectionSearchParams }) => input)
   .handler(async ({ data }) => {
     const { collection: path, params } = data
     const config = await ensureCollection(path)

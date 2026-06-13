@@ -30,7 +30,7 @@ import { serialise } from './utils'
 // ---------------------------------------------------------------------------
 
 const getDocumentFn = createServerFn({ method: 'GET' })
-  .inputValidator(
+  .validator(
     (input: {
       collection: string
       id: string
@@ -183,7 +183,7 @@ const getDocumentFn = createServerFn({ method: 'GET' })
 // ---------------------------------------------------------------------------
 
 const getDocumentByVersionFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: { collection: string; versionId: string; locale?: string }) => input)
+  .validator((input: { collection: string; versionId: string; locale?: string }) => input)
   .handler(async ({ data }) => {
     const { collection: path, versionId, locale } = data
     const resolvedLocale = locale ?? 'all'

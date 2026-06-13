@@ -33,7 +33,7 @@ export interface ListAdminUsersInput {
  * TanStack Start transport layer for the client to branch on.
  */
 export const listAdminUsers = createServerFn({ method: 'GET' })
-  .inputValidator((input: ListAdminUsersInput) => input ?? {})
+  .validator((input: ListAdminUsersInput) => input ?? {})
   .handler(async ({ data }): Promise<AdminUserListResponse> => {
     const context = await getAdminRequestContext()
     return listAdminUsersCommand(context, data, { store: bylineCore().adminStore! })

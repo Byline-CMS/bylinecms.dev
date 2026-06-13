@@ -31,7 +31,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
  * TanStack Start's transport layer for the client to branch on.
  */
 export const duplicateCollectionDocument = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; id: string }) => input)
+  .validator((input: { collection: string; id: string }) => input)
   .handler(async ({ data: input }): Promise<DuplicateDocumentResult> => {
     const { collection: path, id: sourceDocumentId } = input
     const logger = getLogger()

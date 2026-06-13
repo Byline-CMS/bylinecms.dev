@@ -26,7 +26,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // ---------------------------------------------------------------------------
 
 export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POST' })
-  .inputValidator(
+  .validator(
     (input: {
       collection: string
       id: string
@@ -78,7 +78,7 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
 // ---------------------------------------------------------------------------
 
 export const updateCollectionDocumentSystemFields = createServerFn({ method: 'POST' })
-  .inputValidator(
+  .validator(
     (input: {
       collection: string
       id: string

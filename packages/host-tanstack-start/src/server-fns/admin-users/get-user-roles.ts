@@ -14,7 +14,7 @@ import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export const getUserRoles = createServerFn({ method: 'GET' })
-  .inputValidator((input: { userId: string }) => input)
+  .validator((input: { userId: string }) => input)
   .handler(async ({ data }): Promise<UserRolesResponse> => {
     const context = await getAdminRequestContext()
     return getRolesForUserCommand(context, data, { store: bylineCore().adminStore! })

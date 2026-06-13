@@ -21,7 +21,7 @@ export interface CreateAdminRoleInput {
 }
 
 export const createAdminRole = createServerFn({ method: 'POST' })
-  .inputValidator((input: CreateAdminRoleInput) => input)
+  .validator((input: CreateAdminRoleInput) => input)
   .handler(async ({ data }): Promise<AdminRoleResponse> => {
     const context = await getAdminRequestContext()
     return createAdminRoleCommand(context, data, { store: bylineCore().adminStore! })

@@ -36,7 +36,7 @@ export interface SignInResult {
 }
 
 export const adminSignIn = createServerFn({ method: 'POST' })
-  .inputValidator((input: SignInInput) => {
+  .validator((input: SignInInput) => {
     if (typeof input?.email !== 'string' || input.email.length === 0) {
       throw new Error('email is required')
     }

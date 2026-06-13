@@ -54,7 +54,7 @@ export interface SetInterfaceLocaleResult {
 }
 
 export const setInterfaceLocaleFn = createServerFn({ method: 'POST' })
-  .inputValidator((input: SetInterfaceLocaleInput) => input)
+  .validator((input: SetInterfaceLocaleInput) => input)
   .handler(async ({ data }): Promise<SetInterfaceLocaleResult> => {
     const core = bylineCore()
     const locales = core.config.i18n.interface.locales

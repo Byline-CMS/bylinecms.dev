@@ -20,7 +20,7 @@ import { bylineCore } from '../../integrations/byline-core.js'
  * doesn't carry.
  */
 export const getAccount = createServerFn({ method: 'GET' })
-  .inputValidator((input?: Record<string, never>) => input ?? {})
+  .validator((input?: Record<string, never>) => input ?? {})
   .handler(async ({ data }): Promise<AccountResponse> => {
     const context = await getAdminRequestContext()
     return getAccountCommand(context, data, { store: bylineCore().adminStore! })

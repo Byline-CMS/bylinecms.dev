@@ -23,7 +23,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // ---------------------------------------------------------------------------
 
 export const updateDocumentStatus = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; id: string; status: string }) => input)
+  .validator((input: { collection: string; id: string; status: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, id, status: nextStatus } = input
     const logger = getLogger()
@@ -64,7 +64,7 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const unpublishDocument = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; id: string }) => input)
+  .validator((input: { collection: string; id: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, id } = input
     const logger = getLogger()

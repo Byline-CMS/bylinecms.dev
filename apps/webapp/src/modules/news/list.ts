@@ -53,7 +53,7 @@ export interface ResolvedNewsListInput {
 
 export const getNewsListFn = createServerFn({ method: 'GET' })
   .middleware([publicCacheMiddleware])
-  .inputValidator(
+  .validator(
     (input: NewsListInput | undefined): ResolvedNewsListInput => ({
       category: input?.category || undefined,
       page: input?.page ?? 1,

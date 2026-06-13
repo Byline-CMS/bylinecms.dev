@@ -38,7 +38,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // ---------------------------------------------------------------------------
 
 export const reorderCollectionDocument = createServerFn({ method: 'POST' })
-  .inputValidator(
+  .validator(
     (input: {
       collection: string
       documentId: string

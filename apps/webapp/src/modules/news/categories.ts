@@ -26,7 +26,7 @@ export interface NewsCategoriesListInput {
 }
 
 export const getNewsCategoriesFn = createServerFn({ method: 'GET' })
-  .inputValidator(
+  .validator(
     (input: NewsCategoriesListInput | undefined): NewsCategoriesListInput => ({
       lng: input?.lng,
     })

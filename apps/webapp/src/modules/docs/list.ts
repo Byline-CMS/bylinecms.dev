@@ -32,7 +32,7 @@ export interface DocListInput {
 
 export const getDocsListFn = createServerFn({ method: 'GET' })
   .middleware([publicCacheMiddleware])
-  .inputValidator(
+  .validator(
     (input: DocListInput | undefined): DocListInput => ({
       lng: input?.lng,
     })

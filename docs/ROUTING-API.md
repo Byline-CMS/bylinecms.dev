@@ -31,7 +31,7 @@ The architecture is four layers, top to bottom:
 │ Server functions (transport layer)                               │
 │   packages/host-tanstack-start/src/server-fns/<area>/<verb>.ts   │
 │     - createServerFn({ method: 'GET' | 'POST' })                 │
-│     - inputValidator(...)                                        │
+│     - validator(...)                                        │
 │     - resolves RequestContext via getAdminRequestContext()       │
 │     - serialises the result                                      │
 └──────────────────────────────────────────────────────────────────┘
@@ -109,7 +109,7 @@ A representative handler — `collections/get.ts`:
 
 ```ts
 const getDocumentFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: { collection: string; id: string; locale?: string; depth?: number }) => input)
+  .validator((input: { collection: string; id: string; locale?: string; depth?: number }) => input)
   .handler(async ({ data }) => {
     const { collection: path, id, locale, depth } = data
     const logger = getLogger()
@@ -134,7 +134,7 @@ For writes the pattern adds `requestContext` threading:
 
 ```ts
 const createDocumentFn = createServerFn({ method: 'POST' })
-  .inputValidator(parseCreateInput)
+  .validator(parseCreateInput)
   .handler(async ({ data }) => {
     const lifecycleCtx = {
       db, definition, collectionId, ...,

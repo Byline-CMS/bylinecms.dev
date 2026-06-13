@@ -20,7 +20,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // ---------------------------------------------------------------------------
 
 export const restoreDocumentVersion = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; id: string; versionId: string }) => input)
+  .validator((input: { collection: string; id: string; versionId: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, id, versionId } = input
     const logger = getLogger()

@@ -14,7 +14,7 @@ import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export const reorderAdminRoles = createServerFn({ method: 'POST' })
-  .inputValidator((input: { ids: string[] }) => input)
+  .validator((input: { ids: string[] }) => input)
   .handler(async ({ data }): Promise<{ ok: true }> => {
     const context = await getAdminRequestContext()
     return reorderAdminRolesCommand(context, data, { store: bylineCore().adminStore! })

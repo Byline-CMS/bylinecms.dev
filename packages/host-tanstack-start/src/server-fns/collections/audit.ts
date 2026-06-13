@@ -49,9 +49,7 @@ export interface AuditLogEntryDto {
 // ---------------------------------------------------------------------------
 
 export const getCollectionDocumentAuditLog = createServerFn({ method: 'GET' })
-  .inputValidator(
-    (input: { collection: string; id: string; params?: AuditLogSearchParams }) => input
-  )
+  .validator((input: { collection: string; id: string; params?: AuditLogSearchParams }) => input)
   .handler(async ({ data }) => {
     const { collection: path, id, params } = data
     const config = await ensureCollection(path)

@@ -30,7 +30,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
  * transport layer.
  */
 export const deleteDocumentLocale = createServerFn({ method: 'POST' })
-  .inputValidator((input: { collection: string; id: string; locale: string }) => input)
+  .validator((input: { collection: string; id: string; locale: string }) => input)
   .handler(async ({ data: input }): Promise<DeleteLocaleResult> => {
     const { collection: path, id, locale } = input
     const logger = getLogger()

@@ -152,7 +152,7 @@
     "@byline/core": "workspace:*",
     "@byline/i18n": "workspace:*",
     "@byline/ui": "workspace:*",
-    "@tanstack/react-form-start": "^1.32.0",
+    "@tanstack/react-form-start": "^1.33.0",
     "classnames": "^2.5.1",
     "jose": "^6.2.3",
     "react-diff-viewer-continued": "^4.2.2",

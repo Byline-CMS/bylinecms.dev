@@ -38,7 +38,7 @@ type ExecuteAiInstructionInput = {
 }
 
 export const executeAiInstruction = createServerFn({ method: 'POST' })
-  .inputValidator((input: ExecuteAiInstructionInput) => input)
+  .validator((input: ExecuteAiInstructionInput) => input)
   .handler(async ({ data }): Promise<Response> => {
     // Throws ERR_UNAUTHENTICATED if there is no admin session.
     await getAdminRequestContext()

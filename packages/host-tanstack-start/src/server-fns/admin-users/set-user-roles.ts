@@ -19,7 +19,7 @@ export interface SetUserRolesInput {
 }
 
 export const setUserRoles = createServerFn({ method: 'POST' })
-  .inputValidator((input: SetUserRolesInput) => input)
+  .validator((input: SetUserRolesInput) => input)
   .handler(async ({ data }): Promise<UserRolesResponse> => {
     const context = await getAdminRequestContext()
     return setRolesForUserCommand(context, data, { store: bylineCore().adminStore! })

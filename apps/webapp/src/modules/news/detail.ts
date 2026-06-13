@@ -38,7 +38,7 @@ export interface NewsDetailInput {
 
 export const getNewsDetailFn = createServerFn({ method: 'GET' })
   .middleware([publicCacheMiddleware])
-  .inputValidator(
+  .validator(
     (input: NewsDetailInput): NewsDetailInput => ({
       path: input.path,
       lng: input.lng,

@@ -412,7 +412,7 @@ The diagram below traces what happens when a user picks an image in the Media ad
 │                                                                              │
 │  packages/host-tanstack-start/src/server-fns/collections/upload.ts           │
 │    uploadCollectionField = createServerFn({ method: 'POST' })                │
-│      .inputValidator(parseUploadFormData)                                    │
+│      .validator(parseUploadFormData)                                    │
 │      .handler(...)                                                           │
 │        - ensureCollection(collectionPath)                                    │
 │        - resolveUploadFieldName(definition, 'image')   ← per-field selector  │

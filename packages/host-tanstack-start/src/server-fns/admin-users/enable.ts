@@ -17,7 +17,7 @@ import { bylineCore } from '../../integrations/byline-core.js'
 // detail-view enable/disable control they will be wired into. Keep until
 // that control lands; not dead code.
 export const enableAdminUser = createServerFn({ method: 'POST' })
-  .inputValidator((input: { id: string }) => input)
+  .validator((input: { id: string }) => input)
   .handler(async ({ data }): Promise<OkResponse> => {
     const context = await getAdminRequestContext()
     return enableAdminUserCommand(context, data, { store: bylineCore().adminStore! })

@@ -25,7 +25,7 @@ export interface CollectionStatusCount {
 // ---------------------------------------------------------------------------
 
 const getCollectionStatsFn = createServerFn({ method: 'GET' })
-  .inputValidator((input: { collection: string }) => input)
+  .validator((input: { collection: string }) => input)
   .handler(async ({ data }) => {
     const config = await ensureCollection(data.collection)
     if (!config) return { stats: [] as CollectionStatusCount[] }

@@ -20,7 +20,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // ---------------------------------------------------------------------------
 
 export const createCollectionDocument = createServerFn({ method: 'POST' })
-  .inputValidator(
+  .validator(
     (input: {
       collection: string
       data: any

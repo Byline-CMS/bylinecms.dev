@@ -29,7 +29,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
  * failures propagate to TanStack Start's transport layer.
  */
 export const copyDocumentToLocale = createServerFn({ method: 'POST' })
-  .inputValidator(
+  .validator(
     (input: {
       collection: string
       id: string

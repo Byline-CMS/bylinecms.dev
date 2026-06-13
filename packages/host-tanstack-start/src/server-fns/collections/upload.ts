@@ -147,7 +147,7 @@ function resolveUploadFieldName(
  * without depending on TanStack Start server-function transport details.
  */
 export const uploadCollectionField = createServerFn({ method: 'POST' })
-  .inputValidator(parseUploadFormData)
+  .validator(parseUploadFormData)
   .handler(async ({ data }) => {
     const { collectionPath, shouldCreateDocument, fieldName, file, fields } = data
     const logger = getLogger()

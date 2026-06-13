@@ -24,7 +24,7 @@ export interface UpdateAccountInput {
 }
 
 export const updateAccount = createServerFn({ method: 'POST' })
-  .inputValidator((input: UpdateAccountInput) => input)
+  .validator((input: UpdateAccountInput) => input)
   .handler(async ({ data }): Promise<AccountResponse> => {
     const context = await getAdminRequestContext()
     return updateAccountCommand(context, data, { store: bylineCore().adminStore! })

@@ -14,7 +14,7 @@ import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export const deleteAdminUser = createServerFn({ method: 'POST' })
-  .inputValidator((input: { id: string; vid: number }) => input)
+  .validator((input: { id: string; vid: number }) => input)
   .handler(async ({ data }): Promise<OkResponse> => {
     const context = await getAdminRequestContext()
     return deleteAdminUserCommand(context, data, { store: bylineCore().adminStore! })

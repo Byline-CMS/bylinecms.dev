@@ -32,7 +32,7 @@ export interface HistorySearchParams {
 // ---------------------------------------------------------------------------
 
 export const getCollectionDocumentHistory = createServerFn({ method: 'GET' })
-  .inputValidator((input: { collection: string; id: string; params: HistorySearchParams }) => input)
+  .validator((input: { collection: string; id: string; params: HistorySearchParams }) => input)
   .handler(async ({ data }) => {
     const { collection: path, id, params } = data
     const config = await ensureCollection(path)

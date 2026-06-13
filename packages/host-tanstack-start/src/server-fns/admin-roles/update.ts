@@ -24,7 +24,7 @@ export interface UpdateAdminRoleInput {
 }
 
 export const updateAdminRole = createServerFn({ method: 'POST' })
-  .inputValidator((input: UpdateAdminRoleInput) => input)
+  .validator((input: UpdateAdminRoleInput) => input)
   .handler(async ({ data }): Promise<AdminRoleResponse> => {
     const context = await getAdminRequestContext()
     return updateAdminRoleCommand(context, data, { store: bylineCore().adminStore! })
