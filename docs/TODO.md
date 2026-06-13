@@ -90,6 +90,14 @@ The Byline client config (`defineClientConfig`) is registered from **two** point
 
 The eager single point **is** possible without breaking slot components' context access (defer *when* slot code loads, not *where* it renders), but the cost/benefit is poor today (reworks the slot authoring API + adds Suspense plumbing to remove two correct import statements). **Deferred until a concrete driver makes eager-light config necessary.** Full root-cause analysis, the three viable mechanisms, and the "is it even possible given slot components need context?" answer live in **[CLIENT-CONFIG-REGISTRATION.md](./CLIENT-CONFIG-REGISTRATION.md)**.
 
+### Admin route splat handler — host-owned admin route resolution
+
+Today every admin route is an **app-owned physical file** calling a `create*Route` factory from `@byline/host-tanstack-start/routes` (`src/routes/_byline/admin/<area>/index.tsx`). The package ships the route factory **and** the sidebar menu item, but not the route file — so adding a new admin area means the package renders a menu item that 404s in every consumer until each app hand-adds the matching route file. The v3.11.0 system activity area hit exactly this: the **Activity** menu item appeared on the downstream production sites while `/admin/activity` 404'd, and the CLI scaffold needed a follow-up (v3.11.2) to wire it for fresh installs. Each new admin area repeats the friction.
+
+The strategy: a **single app-owned splat/catch-all route** under the admin layout (e.g. `_byline/admin/$.tsx`) that forwards all path segments to a host-package resolver. The host package then owns **both** the menu items and the routing — a new admin area is a package-only change, zero app wiring, no per-consumer route file, no scaffold drift. This also subsumes the floated `byline doctor` "menu-item-without-registered-route" check (the gap can't exist).
+
+Design surface to work through: the per-route factories currently set `validateSearch` + `loader` per route, so a splat needs a **dispatch registry** keyed by the leading segment(s) that supplies each area's loader / search schema / component (the host already centralises these as factories — they'd become registry entries instead of file exports). Trade-off: file-based routing's per-route codegen — typed params, `Route.useLoaderData()` typing, route-tree generation — is weaker under a splat, so the resolver carries the typing the generated tree gives away today. The admin-path slug rewrite (`/admin` → custom slug) still applies, but to one file instead of the tree. Low urgency — admin routes are few and the per-file pattern works — but it permanently closes the "menu ships, route 404s on upgrade" class. (Idea raised 2026-06-13 during the activity-area rollout.)
+
 ---
 
 ## Deferred
