@@ -25,6 +25,7 @@ import {
   restoreDocumentVersion,
   unpublishDocument,
   updateDocument,
+  updateDocumentSystemFields,
   updateDocumentWithPatches,
 } from './document-lifecycle/index.js'
 import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
@@ -60,6 +61,11 @@ function createMockDb() {
   const getDocumentById = vi.fn().mockResolvedValue(null)
   const getCurrentVersionMetadata = vi.fn().mockResolvedValue(null)
   const getCurrentPath = vi.fn().mockResolvedValue('current-path')
+  // Audit capability (docs/AUDIT.md — W2). `withTransaction` is a passthrough
+  // in unit tests (runs the unit of work immediately, no real tx); `append`
+  // records the calls so write-point tests can assert the audit rows emitted.
+  const auditAppend = vi.fn().mockResolvedValue({ id: 'audit-1' })
+  const withTransaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
 
   const db: IDbAdapter = {
     commands: {
@@ -70,8 +76,8 @@ function createMockDb() {
       },
       documents: {
         createDocumentVersion,
-        updateDocumentPath: vi.fn() as any,
-        setDocumentAvailableLocales: vi.fn() as any,
+        updateDocumentPath: vi.fn().mockResolvedValue(undefined) as any,
+        setDocumentAvailableLocales: vi.fn().mockResolvedValue(undefined) as any,
         setDocumentStatus,
         archivePublishedVersions,
         softDeleteDocument,
@@ -82,7 +88,9 @@ function createMockDb() {
         ensureCounterGroup: vi.fn() as any,
         nextCounterValue: vi.fn() as any,
       },
+      audit: { append: auditAppend },
     },
+    withTransaction: withTransaction as any,
     queries: {
       collections: {
         getAllCollections: vi.fn(),
@@ -118,6 +126,8 @@ function createMockDb() {
     getDocumentById,
     getCurrentVersionMetadata,
     getCurrentPath,
+    auditAppend,
+    withTransaction,
   }
 }
 
@@ -866,6 +876,29 @@ describe('Document lifecycle service', () => {
       expect(result.newStatus).toBe('published')
     })
 
+    it('records a document.status.changed audit row atomically (from → to)', async () => {
+      const { db, getCurrentVersionMetadata, auditAppend, withTransaction } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
+      const ctx = buildCtx(db)
+
+      await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+
+      // The mutation + audit row run inside one withTransaction (docs/AUDIT.md).
+      expect(withTransaction).toHaveBeenCalledOnce()
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: 'doc-1',
+          collectionId: 'col-1',
+          actorId: TEST_ACTOR_ID,
+          actorRealm: 'admin',
+          action: 'document.status.changed',
+          field: 'status',
+          before: 'draft',
+          after: 'published',
+        })
+      )
+    })
+
     it('throws ERR_NOT_FOUND when document is missing', async () => {
       const { db, getCurrentVersionMetadata } = createMockDb()
       getCurrentVersionMetadata.mockResolvedValue(null)
@@ -1122,6 +1155,96 @@ describe('Document lifecycle service', () => {
       )
       expect(afterDelete).toHaveBeenCalledWith(
         expect.objectContaining({ documentId: 'doc-1', path: 'doc-to-delete' })
+      )
+    })
+
+    it('records a document.deleted audit row atomically with the soft-delete', async () => {
+      const { db, getDocumentById, softDeleteDocument, auditAppend, withTransaction } =
+        createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'doc-to-delete',
+        fields: {},
+      })
+      const ctx = buildCtx(db)
+
+      await deleteDocument(ctx, { documentId: 'doc-1' })
+
+      expect(withTransaction).toHaveBeenCalledOnce()
+      expect(softDeleteDocument).toHaveBeenCalledWith({ document_id: 'doc-1' })
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: 'doc-1',
+          collectionId: 'col-1',
+          actorRealm: 'admin',
+          action: 'document.deleted',
+        })
+      )
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // updateDocumentSystemFields (audited, non-versioned)
+  // -----------------------------------------------------------------------
+  describe('updateDocumentSystemFields', () => {
+    function setupDoc(getDocumentById: any, overrides?: Record<string, any>) {
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'old-slug',
+        source_locale: 'en',
+        availableLocales: ['en'],
+        fields: {},
+        ...overrides,
+      })
+    }
+
+    it('records document.path.changed when the path actually changes', async () => {
+      const { db, getDocumentById, auditAppend, withTransaction } = createMockDb()
+      setupDoc(getDocumentById)
+      const ctx = buildCtx(db)
+
+      await updateDocumentSystemFields(ctx, { documentId: 'doc-1', path: 'new-slug' })
+
+      expect(withTransaction).toHaveBeenCalledOnce()
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'document.path.changed',
+          field: 'path',
+          before: 'old-slug',
+          after: 'new-slug',
+        })
+      )
+    })
+
+    it('records no audit row when the path is unchanged', async () => {
+      const { db, getDocumentById, auditAppend } = createMockDb()
+      setupDoc(getDocumentById)
+      const ctx = buildCtx(db)
+
+      await updateDocumentSystemFields(ctx, { documentId: 'doc-1', path: 'old-slug' })
+
+      expect(auditAppend).not.toHaveBeenCalled()
+    })
+
+    it('records document.locales.changed with before/after sets', async () => {
+      const { db, getDocumentById, auditAppend } = createMockDb()
+      setupDoc(getDocumentById)
+      const ctx = buildCtx(db)
+
+      await updateDocumentSystemFields(ctx, {
+        documentId: 'doc-1',
+        availableLocales: ['en', 'fr'],
+      })
+
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'document.locales.changed',
+          field: 'availableLocales',
+          before: ['en'],
+          after: ['en', 'fr'],
+        })
       )
     })
   })
