@@ -802,6 +802,45 @@ export const jsonStoreRelations = relations(jsonStore, ({ one }) => ({
 }))
 
 // ---------------------------------------------------------------------------
+// Audit log — byline_audit_log
+// ---------------------------------------------------------------------------
+
+// Document-grain audit log. Records the changes the immutable version stream
+// does NOT capture an actor for: non-versioned system-field writes (path,
+// availableLocales), in-place status transitions, and deletions — plus, later,
+// admin-module events. One generic table (nullable `document_id`, namespaced
+// `action`) so the system-wide activity report and future admin-realm auditing
+// fit without a second migration. Append-only and deliberately **FK-free**: an
+// audit row is an immutable historical fact that must outlive the document,
+// collection, or actor it references — a `document.deleted` row cannot be
+// allowed to cascade-delete itself. See docs/AUDIT.md — Workstream 2.
+export const auditLog = pgTable(
+  'byline_audit_log',
+  {
+    id: uuid('id').primaryKey(), // UUIDv7 — time-ordered, so id ordering ≈ time ordering
+    document_id: uuid('document_id'), // NULL for admin-realm (non-document) events; no FK
+    collection_id: uuid('collection_id'), // no FK — outlives the collection
+    actor_id: uuid('actor_id'), // NULL = system / internal tooling / non-UUID synthetic actor
+    actor_realm: varchar('actor_realm', { length: 16 }).notNull(), // 'admin' | 'user' | 'system'
+    action: varchar('action', { length: 64 }).notNull(), // namespaced, e.g. 'document.path.changed'
+    field: varchar('field', { length: 128 }), // the changed field where meaningful (e.g. 'path'), else NULL
+    before: jsonb('before'),
+    after: jsonb('after'),
+    occurred_at: timestamp('occurred_at', { precision: 6, withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    // Per-document history, time-ordered (id is UUIDv7).
+    index('idx_audit_log_document_id').on(table.document_id, table.id),
+    // Per-actor activity — the system-wide report's actor filter.
+    index('idx_audit_log_actor_id').on(table.actor_id, table.id),
+    // Action-type filter for the activity report.
+    index('idx_audit_log_action').on(table.action, table.id),
+  ]
+)
+
+// ---------------------------------------------------------------------------
 // Auth schema — byline_admin_users, byline_admin_roles, etc.
 // See ./auth.ts for definitions and rationale.
 // ---------------------------------------------------------------------------

@@ -228,10 +228,20 @@ export interface IDbAdapter {
     collections: ICollectionCommands
     documents: IDocumentCommands
     counters: ICounterCommands
+    /**
+     * Append-only audit-log writes (docs/AUDIT.md — Workstream 2). Optional
+     * capability, paired with `withTransaction`: a consumer that records audit
+     * entries asserts both are present and throws otherwise (it must never
+     * silently skip the audit row). Adapters that model the audit log
+     * implement it; others omit it.
+     */
+    audit?: IAuditCommands
   }
   queries: {
     collections: ICollectionQueries
     documents: IDocumentQueries
+    /** Audit-log reads — per-document history, system-wide report. See docs/AUDIT.md. */
+    audit?: IAuditQueries
   }
   /**
    * Optional capability: run `fn` inside a single database transaction so the
@@ -261,6 +271,84 @@ export interface IDbAdapter {
    * need not implement it. See docs/I18N.md.
    */
   backfillSourceLocales?: () => Promise<{ rowsUpdated: number }>
+}
+
+// ---------------------------------------------------------------------------
+// Audit log (docs/AUDIT.md — Workstream 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * The realm of the actor that performed an audited change. `'admin'` for
+ * admin-user actions, `'user'` reserved for the end-user realm, `'system'`
+ * for deliberate internal-tooling writes. See docs/AUDIT.md.
+ */
+export type AuditActorRealm = 'admin' | 'user' | 'system'
+
+/** Input to `IAuditCommands.append` — one audit-log row. */
+export interface AuditLogAppendInput {
+  /** The document the change concerns; NULL for admin-realm (non-document) events. */
+  documentId?: string | null
+  collectionId?: string | null
+  /** The acting user id, only when it is a real persisted user (a UUID); NULL otherwise. */
+  actorId?: string | null
+  actorRealm: AuditActorRealm
+  /** Namespaced action, e.g. `document.path.changed`. */
+  action: string
+  /** The changed field where meaningful (e.g. `path`); NULL for whole-entity events. */
+  field?: string | null
+  /** Prior value (JSON-serialisable); NULL where not applicable. */
+  before?: unknown
+  /** New value (JSON-serialisable); NULL where not applicable. */
+  after?: unknown
+}
+
+/** A materialised audit-log row. */
+export interface AuditLogEntry {
+  id: string
+  documentId: string | null
+  collectionId: string | null
+  actorId: string | null
+  actorRealm: string
+  action: string
+  field: string | null
+  before: unknown
+  after: unknown
+  occurredAt: Date
+}
+
+/** A page of audit-log entries with pagination metadata. */
+export interface AuditLogPage {
+  entries: AuditLogEntry[]
+  meta: { total: number; page: number; pageSize: number; totalPages: number }
+}
+
+/**
+ * Append-only audit-log writes. The companion read interface is
+ * `IAuditQueries`. See docs/AUDIT.md — Workstream 2.
+ */
+export interface IAuditCommands {
+  /**
+   * Append one immutable audit-log row. The adapter generates the row id
+   * (UUIDv7) and `occurred_at`. Runs on the ambient executor, so when called
+   * inside `withTransaction` it commits atomically with the mutation it
+   * records — the load-bearing guarantee of the audit log.
+   */
+  append(input: AuditLogAppendInput): Promise<{ id: string }>
+}
+
+/** Audit-log reads. See docs/AUDIT.md — Workstreams 3 & 4. */
+export interface IAuditQueries {
+  /**
+   * The audit history for one document, newest first, paged. Backs the
+   * document-history view. The caller is responsible for the access gate
+   * (the document's own read pipeline) before reaching this — it does no
+   * scoping of its own.
+   */
+  getDocumentAuditLog(params: {
+    document_id: string
+    page?: number
+    page_size?: number
+  }): Promise<AuditLogPage>
 }
 
 /**

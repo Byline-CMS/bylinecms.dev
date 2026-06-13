@@ -12,6 +12,8 @@ import pg from 'pg'
 
 import * as schema from './database/schema/index.js'
 import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
+import { createAuditCommands } from './modules/audit/audit-commands.js'
+import { createAuditQueries } from './modules/audit/audit-queries.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
 import {
   createCommandBuilders,
@@ -143,13 +145,21 @@ export const pgAdapter = ({
   const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
   const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale)
   const counterCommands = createCounterCommands(db)
+  // Audit writes run on the DBManager so they join an ambient `withTransaction`
+  // (atomic with the mutation they record); audit reads run on the pool.
+  const auditCommands = createAuditCommands(dbManager)
+  const auditQueries = createAuditQueries(db)
 
   return {
     commands: {
       ...commandBuilders,
       counters: counterCommands,
+      audit: auditCommands,
     },
-    queries: queryBuilders,
+    queries: {
+      ...queryBuilders,
+      audit: auditQueries,
+    },
     withTransaction: (fn) => txManager.withTransaction(fn),
     drizzle: db,
     pool,

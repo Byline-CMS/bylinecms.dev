@@ -8,6 +8,13 @@
       "when": 1780302968051,
       "tag": "0000_yielding_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781310448796,
+      "tag": "0001_silly_mojo",
+      "breakpoints": true
     }
   ]
 }
