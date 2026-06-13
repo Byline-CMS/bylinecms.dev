@@ -1,5 +1,16 @@
 # @byline/richtext-lexical
 
+## 3.11.2
+
+### Patch Changes
+
+- added the `/admin/activity` route to the **`@byline/cli`** scaffold template so a fresh `byline init` wires the system activity area — the template had every other admin route but not activity, so fresh installs rendered the Activity menu item yet 404'd on the route (existing apps add the one-line route file themselves)
+- Updated dependencies
+  - @byline/admin@3.11.2
+  - @byline/client@3.11.2
+  - @byline/core@3.11.2
+  - @byline/ui@3.11.2
+
 ## 3.11.1
 
 ### Patch Changes
