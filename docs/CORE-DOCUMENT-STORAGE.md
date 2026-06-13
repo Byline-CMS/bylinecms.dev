@@ -179,12 +179,12 @@ The adapter's `readMode?: 'published' | 'any'` parameter threads through `findDo
 
 ## Phase — document-grain audit log
 
-> **Shipped (v3.10.0) — domain home moved:** Workstreams 2–3 of this phase —
+> **Shipped — domain home moved:** Workstreams 2–3 of this phase —
 > the `byline_audit_log` table, the atomic write-points, the gated
 > `getDocumentAuditLog` read, and the admin **Document history** tab — shipped
-> in **v3.10.0** (actor attribution, W1, shipped earlier in v3.8.0). The whole
-> auditability domain, including the still-pending system activity report (W4),
-> is specified in [AUDIT.md](./AUDIT.md). The sketch below stands as the
+> in **v3.10.0** (actor attribution, W1, shipped earlier in v3.8.0; the
+> system-wide activity report, W4, in **v3.11.0**). The whole auditability
+> domain is specified in [AUDIT.md](./AUDIT.md). The sketch below stands as the
 > original rationale.
 
 Immutable versioning gives content changes a complete, queryable history: every save is a new `document_versions` row, and the admin **History** view renders that lineage with per-version diffs. Two classes of change deliberately sit **outside** that version stream and so have no home in version history today:

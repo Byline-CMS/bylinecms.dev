@@ -7,15 +7,16 @@ summary: "Request-scoped transaction propagation via AsyncLocalStorage — a ser
 # Transactions
 
 :::note[Status]
-**Foundation shipped in v3.9.0; first consumer pending.** The request-scoped
-`withTransaction` capability is live in `@byline/db-postgres` —
+**Foundation shipped in v3.9.0; first consumer live since v3.10.0.** The
+request-scoped `withTransaction` capability is live in `@byline/db-postgres` —
 `DBManager` / `TXManager` (AsyncLocalStorage propagation), the optional
 `IDbAdapter.withTransaction` capability on the core contract, and the storage
-command builders converted to resolve their executor through it. The first
+command builders converted to resolve their executor through it. Its first
 consumer — the
-[audit log, AUDIT.md Workstream 2](./AUDIT.md#workstream-2--document-grain-audit-log-new-table--migration) —
-is **not yet built**, so no production write currently opens a multi-command
-transaction. Where this note and shipped code disagree, the code wins.
+[document-grain audit log](./AUDIT.md#the-document-grain-audit-log) — shipped in
+v3.10.0: each audited write-point wraps its mutation + `audit.append` in
+`db.withTransaction(...)` so the change and its audit row commit atomically.
+Where this note and shipped code disagree, the code wins.
 :::
 
 ## The problem
@@ -78,15 +79,16 @@ await txManager.withTransaction(async () => {
 The audit write lives in the **service** (where the actor and before/after
 already are); the adapter only gains a dumb `audit.append` command that
 inserts a row. The storage layer never learns the word "audit". (`audit.append`
-and the service wiring arrive with Workstream 2; the example above shows the
-intended consumption, not a shipped call site.)
+and the service wiring shipped in v3.10.0 — see
+[the document-grain audit log](./AUDIT.md#the-document-grain-audit-log); the
+example above shows the consumption shape.)
 
 ## Boundary placement
 
 `withTransaction` is exposed today as an **adapter capability**
 (`IDbAdapter.withTransaction`, wired in `pgAdapter`). Ownership of the
 *boundary* — deciding what spans a transaction — belongs to the **service
-layer**: when Workstream 2 lands, a lifecycle service wraps its mutation +
+layer**: each audited lifecycle service (v3.10.0) wraps its mutation +
 `audit.append` in `db.withTransaction(...)`. Commands stay
 transaction-agnostic — correct whether called standalone (their statements run
 on the pool) or inside a `withTransaction` (they join the ambient tx).
@@ -192,4 +194,4 @@ future adapter has a clear target:
 | Atomicity / propagation test | `packages/db-postgres/src/modules/storage/tests/storage-transactions.test.ts` |
 | Per-command transaction sites (now resolve via the getter) | `packages/db-postgres/src/modules/storage/storage-commands.ts` (6) |
 | Prior-art ALS usage in-repo | `packages/core/src/lib/logger.ts` (`withLogContext`) |
-| First consumer (pending) | [AUDIT.md Workstream 2](./AUDIT.md#workstream-2--document-grain-audit-log-new-table--migration) |
+| First consumer (live, v3.10.0) | [the document-grain audit log](./AUDIT.md#the-document-grain-audit-log) |

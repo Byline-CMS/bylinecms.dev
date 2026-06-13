@@ -1,21 +1,22 @@
 ---
 title: "Auditability"
 path: "audit"
-summary: "The auditability work domain: the version audit trail (acting user + action), the document-grain audit log, the tabbed history view, and the system-wide activity report. Closes the gap between the public auditability claim and what the admin actually shows."
+summary: "Present-state reference for the auditability subsystem: the version audit trail (acting user + action), the document-grain audit log, the tabbed document-history view, and the system-wide activity area. The internal staff-accountability record behind the public 'who wrote it, who changed it' claim."
 ---
 
 # Auditability
 
-:::note[Status]
-**All four workstreams shipped (W1 in v3.8.0; W2 + W3 in v3.10.0; W4 on
-`develop`, unreleased).** Sections below are marked shipped inline.
-This is the domain home for the auditability work; it subsumes the earlier
+:::note
+Present-state reference for the auditability subsystem. It is the domain home
+for everything here and supersedes the earlier
 [CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log)
-and expands around it. Where this doc and a shipped doc disagree, the shipped
-doc wins.
+sketch. Shipped incrementally across v3.8.0 (version audit trail), v3.9.0 (the
+`withTransaction` prerequisite — see [TRANSACTIONS.md](./TRANSACTIONS.md)),
+v3.10.0 (the audit-log table + document-history view) and v3.11.0 (the system
+activity area). Where this doc and the code disagree, the code wins.
 :::
 
-## Why — the claim we have to honour
+## Why — the claim being honoured
 
 bylinecms.app leads with auditability as a principle:
 
@@ -25,13 +26,11 @@ bylinecms.app leads with auditability as a principle:
 > "Every document carries its history: **who wrote it, who changed it**, and
 > which version is the one you stand behind."
 
-> "Accountable. Because your content is original, attributable and auditable,
-> you can stand behind it."
-
-The version stream honours the *what* and *when* halves of that claim —
-immutable versions, a History view, per-version diffs. The **who** half is
-currently unhonoured, and two classes of change have no recorded history at
-all. This domain closes the gap in four workstreams.
+The immutable version stream honours the *what* and *when* — versions, a
+History view, per-version diffs. The auditability subsystem honours the **who**,
+and records the two classes of change that sit outside the version stream
+(non-versioned document-grain writes, in-place status transitions) plus
+deletions and — reserved — admin-module actions.
 
 ### Vocabulary — "audit", not "attribution"
 
@@ -50,51 +49,19 @@ consistently **audit** (the record), **acting user / actor** (the who), and
 **auditability** (the property) — never "attribution", which is reserved for
 the public credit concept. The stored column is the neutral `created_by`.
 
-## Present state — the gap, precisely
+## The version audit trail (acting user + action)
 
-What exists today:
-
-- **Immutable version stream.** Every content save is a new
-  `document_versions` row (UUIDv7, time-ordered). The History view
-  (`packages/host-tanstack-start/src/admin-shell/collections/history.tsx`)
-  renders the lineage with a `DiffModal` per version, driven by the
-  collection's `listViewColumns` (`adminConfig.columns`).
-- **A `created_by` column that is never written.** `document_versions`
-  carries `created_by uuid NULL` (`packages/db-postgres/src/database/schema/index.ts`),
-  it is projected through the `current_documents` /
-  `current_published_documents` views and the adapter's read queries, and
-  `createDocumentVersion` accepts an optional `createdBy` param — but **no
-  lifecycle service passes it**. Every row is NULL. The plumbing exists end
-  to end except the single hand-off from the lifecycle context to the
-  storage command.
-- **The actor is available at every write.** `DocumentLifecycleContext.requestContext`
-  carries the `Actor` (`AdminAuth.id` is the `byline_admin_users` id);
-  `assertActorCanPerform` already rejects writes without it. Recording the
-  actor is a wiring problem, not an auth-design problem.
-- **The client read shape drops it.** `shapeDocument`
-  (`packages/client/src/response.ts`) does not map `created_by`, so even a
-  populated column would not reach the admin UI or any SDK consumer.
-- **Non-versioned writes leave no trail.** `path` and editorial
-  `availableLocales` are deliberately written outside the version stream
-  (v3.3.0 decoupling, via `updateDocumentSystemFields`) — immediate writes
-  with no record of who/when/from→to.
-- **Status transitions mutate in place.** A publish → unpublish → re-publish
-  sequence is not independently recorded beyond the current status value.
-- **Admin-module actions are unrecorded.** User/role/permission changes
-  (`@byline/admin` commands) have no activity record.
-
-## Workstream 1 — the version audit trail (acting user + action)
-
-**The cheapest, highest-leverage piece; ships first and alone.** Answers
-"who wrote it, who changed it" for every content save.
+Answers "who wrote it, who changed it" for every content save. A content save
+is a new `document_versions` row, so the audit record on a version *is* its
+creator — there is no separate `updatedBy`.
 
 ### Write side
 
-Pass `createdBy: context.requestContext?.actor?.id` at every
-`createDocumentVersion` call site in
-`packages/core/src/services/document-lifecycle/`:
+Every `createDocumentVersion` call site in
+`packages/core/src/services/document-lifecycle/` passes
+`createdBy: context.requestContext?.actor?.id`:
 
-| Module | Call sites | Action recorded |
+| Module | Call sites | Action |
 |---|---|---|
 | `create.ts` | 1 | `create` |
 | `update.ts` | 2 | `update` (whole-doc + patches) |
@@ -102,115 +69,73 @@ Pass `createdBy: context.requestContext?.actor?.id` at every
 | `restore.ts` | 1 | `restore` |
 | `copy-to-locale.ts` | 1 | `copy_to_locale` |
 
-No schema change, no migration — the column exists. Historical rows stay
-NULL (render as em-dash / "unknown"); there is nothing to backfill from.
+No schema change was needed — `document_versions.created_by uuid NULL` already
+existed, projected through the `current_documents` /
+`current_published_documents` views. Rows written before the wiring stay NULL
+(render as em-dash / "unknown"); there is nothing to backfill from.
+
 **Attribution requires a real persisted user id — a UUID** (`actorId()` in
 `document-lifecycle/internals.ts`). Internal-tooling callers either pass no
 `requestContext` (seeds, migrations — the documented escape hatch) **or** a
 synthetic super-admin context whose id is not a UUID
 (`createSuperAdminContext({ id: 'import-docs-script' })`); both yield NULL
-`created_by`. This was a deliberate hardening after a v3.8.0 regression where
-a synthetic non-UUID actor id crashed every script/seed write on the `uuid`
-column (`invalid input syntax for type uuid`); the fix shipped in v3.9.0. See
-Open questions for the optional explicit "system" convention.
+`created_by`. This is deliberate hardening: a v3.8.0 regression where a
+synthetic non-UUID actor id crashed every script/seed write on the `uuid`
+column (`invalid input syntax for type uuid`) was fixed in v3.9.0.
 
 ### Read side
 
-- **Naming: plain `createdBy`, no underscore, no `updatedBy`.** Versions
-  are immutable — every operation *creates* a row, so the audit record on a
-  version is its creator. A shaped `ClientDocument` is the current-version
-  projection, so the same name is accurate at both grains. And since
-  `created_by` is a raw column (not derived), the read-surface underscore
-  convention (leading `_` = derived/computed) does **not** apply —
-  `createdBy` is the exact sibling of `updatedAt`. UI labels remain free
-  to read "Updated By" in list contexts; that's presentation.
-- Surface `created_by` per version through the history server fn
-  (`packages/host-tanstack-start/src/server-fns/collections/history.ts`)
-  and through `shapeDocument` as `createdBy` (raw uuid) on
-  `ClientDocument` / history rows.
-- **Display names are an admin-realm concern, resolved in the admin
-  server fns.** The shared SDK carries only the raw id. The admin server
-  fns are the realm-correct seam: document reads already go through
-  `getAdminBylineClient()` — the shared `BylineClient` constructed with
-  `requestContext: getAdminRequestContext`, so the *context* is the admin
-  actor even though the SDK is shared — and the same fns reach the admin
-  store the way `admin-users/list.ts` does (`bylineCore().adminStore`).
-  They batch-resolve ids via a new `AdminUsersRepository.getByIds(ids)`
-  (the repo has `getById` only today) and return an
-  **`actors: Record<id, { label }>` map alongside the page**; the UI
-  joins. What stays ruled out is the *document storage module* in
-  `db-postgres` JOINing `byline_admin_users` — that would bake admin-realm
-  knowledge into the shared document store and break when a `UserAuth`
-  actor writes a version.
-- **Public-client exposure (decision needed).** The public client
-  (`byline-public-client.ts`) never resolves labels; whether public reads
-  should include even the raw `createdBy` uuid is an open call — leaning
-  **omit** (admin identity metadata on an anonymous surface).
+- **Naming: plain `createdBy`, no underscore.** `created_by` is a raw column
+  (not derived), so the read-surface underscore convention (leading `_` =
+  derived/computed) does not apply — `createdBy` is the exact sibling of
+  `updatedAt`. UI labels remain free to read "Updated By" in list contexts;
+  that's presentation.
+- `created_by` is surfaced per version through the history server fn
+  (`packages/host-tanstack-start/src/server-fns/collections/history.ts`) and
+  through `shapeDocument` (`packages/client/src/response.ts`) as `createdBy`
+  (raw uuid) on `ClientDocument` / history rows.
+- **Display names are an admin-realm concern, resolved in the admin server
+  fns** — never a JOIN inside the document storage adapter (which must stay
+  ignorant of `byline_admin_users` for the future `UserAuth` writer realm).
+  The fns batch-resolve ids via `AdminUsersRepository.getByIds(ids)` and return
+  an `actors: Record<id, { label }>` map alongside the page; the UI joins by
+  id (`resolveActorLabels`, `server-fns/collections/actors.ts`). Ids absent
+  from the map are deleted users — rendered as a "former user" tombstone.
 
 ### UI — the audit strip
 
-> **Shipped state (v3.8.0):** the **History view** strip is live (default-on).
-> The **list-view** strip is **deferred** — its toggle mechanism (per-collection
-> admin config vs. a view-level density control) is unresolved; see the density
-> bullet below. The list server fn does not yet resolve actor labels.
+The audit record (acting user + action + time) renders in a framework-owned,
+muted colspan sub-row under each table row (the "audit strip") rather than as
+`listViewColumns` entries — `listViewColumns` is the collection author's
+surface over **user-defined fields**, whereas audit metadata is a system
+concern that should be structurally present, not opt-in per collection.
 
-Decision (2026-06-12): the audit record (acting user + action + time) renders in a
-**framework-owned, muted colspan sub-row under each table row** (the
-"audit strip") — in the History view and in list views — rather than as
-injected or opt-in `listViewColumns` entries. Rationale:
-
-- **Structural separation of domains.** `listViewColumns` is the
-  collection author's presentation surface over **user-defined fields**;
-  audit metadata is a system concern that should not be configurable away
-  per collection — an auditability claim wants the audit record to be
-  *structurally present*, not opt-in. The strip gives each domain its own
-  mechanism.
-- The root fallback in `getColumnValue` (`history.tsx` — `fields` first,
-  then document root) remains as the **documented whitelist** for
-  version-grain fields that genuinely belong in columns: `status`
-  (workflow is a concern editors act on) and `updatedAt` (sortable).
-  These keep working unchanged — sorting stays a header-column
-  affordance; the strip is not sortable.
 - Strip content, compact single line:
-  `created by <label> · <action: create/update/restore/duplicate/copy_to_locale> · <when>`.
-  Rows written before audit wiring (NULL `created_by`) render an em-dash label.
-- **Density trade-off, managed:** the strip roughly halves row density.
-  Default **on** in the History view (history *is* the audit surface);
-  list views get a toggle (per-collection admin config or a view-level
-  density control — decide at build time).
-- Markup: a second `<tr>` per row — an empty spacer cell under the
-  version-number column, then a `<td colSpan>` carrying the strip. The
-  `@byline/ui` `Table.Cell` already spreads `colSpan`, so no Table-primitive
-  extension was needed after all (the history view ships this directly).
-  A11y care still applies so screen readers associate the strip with its row.
+  `created by <label> · <action> · <when>`. NULL-`created_by` rows render an
+  em-dash label.
+- Markup: a second `<tr>` per row — an empty spacer cell under the version
+  column, then a `<td colSpan>` carrying the strip (`@byline/ui` `Table.Cell`
+  spreads `colSpan`, so no Table-primitive extension was needed).
+- **Shipped in the History view (default-on, v3.8.0).** The **list-view** strip
+  is deferred — it roughly halves row density, and the toggle mechanism
+  (per-collection admin config vs. a view-level density control) is unresolved;
+  the list server fn does not yet resolve actor labels.
 
-## Workstream 2 — document-grain audit log (new table + migration)
+## The document-grain audit log
 
-> **Storage + write-points shipped to `develop` (unreleased).** The
-> `byline_audit_log` table (migration `0001`), the `audit.append` command +
-> `getDocumentAuditLog` query on the adapter contract, and the three
-> write-points (`updateDocumentSystemFields`, `changeStatus`, `deleteDocument`,
-> each wrapping its mutation + audit append in `db.withTransaction(...)`) are
-> all live. **Workstream 3 (per-document read path + document-history view) is
-> now also shipped to `develop`** — see below. **Still pending:** the
-> system-wide `findAuditLog` report + activity area (Workstream 4).
-
-The spec sketched in
-[CORE-DOCUMENT-STORAGE.md](./CORE-DOCUMENT-STORAGE.md#phase--document-grain-audit-log),
-adopted here as the authoritative home. Records the changes the version
-stream deliberately does not.
+Records the changes the version stream deliberately does not: non-versioned
+document-grain writes (`path`, `availableLocales`), in-place status
+transitions, deletions, and — reserved — admin-module actions.
 
 ### Table
-
-One new table, one migration:
 
 ```
 byline_audit_log
   id            uuid PK (UUIDv7 — time-ordered, no separate sort column needed)
   document_id   uuid NULL      -- nullable: admin-realm events have no document
   collection_id uuid NULL
-  actor_id      uuid NULL      -- NULL = system/internal tooling
-  actor_realm   varchar(16)    -- 'admin' today; 'user' reserved
+  actor_id      uuid NULL      -- NULL = system / internal tooling
+  actor_realm   varchar(16)    -- 'admin' | 'user' | 'system'
   action        varchar(64)    -- namespaced, see below
   field         varchar(128) NULL
   before        jsonb NULL
@@ -219,46 +144,39 @@ byline_audit_log
 ```
 
 **One generic table, not a document-scoped one.** `document_id` is nullable
-and `action` is namespaced — shipped: `document.path.changed`,
-`document.locales.changed`, `document.status.changed`, `document.deleted`;
-reserved for later: `admin.user.created`, `admin.role.updated`, … — so
-Workstream 4's system-wide activity report and any future admin-module
-auditing land in the same table without a second migration. `actor_realm` is
-`'admin' | 'user' | 'system'` (`'system'` for non-UUID synthetic / tooling
-actors). Deliberately **FK-free** — an audit row outlives the doc / collection /
-actor it names (a `document.deleted` row cannot cascade-delete itself).
-Indexes on `(document_id, id)`, `(actor_id, id)`, `(action, id)`; UUIDv7 ids
-give time ordering for free.
+and `action` is namespaced — `document.path.changed`, `document.locales.changed`,
+`document.status.changed`, `document.deleted` today; `admin.user.created`,
+`admin.role.updated`, … reserved — so the system activity area and any future
+admin-module auditing land in the same table without a second migration.
+`actor_realm` is `'admin' | 'user' | 'system'` (`'system'` for non-UUID
+synthetic / tooling actors). Deliberately **FK-free** — an audit row outlives
+the doc / collection / actor it names (a `document.deleted` row cannot
+cascade-delete itself). Indexes on `(document_id, id)`, `(actor_id, id)`,
+`(action, id)`.
 
 **The version stream stays the record for content.** Content saves are
-**never** double-written into the audit log — the activity surfaces union
-the two sources at read time. The audit log records only what the version
-stream cannot: non-versioned document-grain writes, in-place status
-transitions, deletions, and (later) admin-module actions.
+**never** double-written into the audit log — the activity area unions the two
+sources at read time. The audit log records only what the version stream
+cannot.
 
-### Atomicity (the load-bearing decision)
+### Atomicity (the load-bearing property)
 
-The mutation and its audit-log row **must commit together**. The one
-unacceptable outcome for an auditability feature is a change that succeeds
-while its audit row silently fails to write — a silent gap in the record.
-So the audit insert runs in the **same database transaction** as the
-mutation, not best-effort afterwards.
+The mutation and its audit-log row **commit together**. The one unacceptable
+outcome for an auditability feature is a change that succeeds while its audit
+row silently fails to write — a silent gap in the record. So the audit insert
+runs in the **same database transaction** as the mutation, not best-effort
+afterwards.
 
-This is delivered through a request-scoped `withTransaction` boundary owned
-by the service layer (the audit write becomes a peer command in the same
-transaction; the storage adapter never learns the word "audit"), rather than
-by threading audit intent into each storage command. That mechanism — its
-AsyncLocalStorage propagation, the DB↔DB vs DB↔external distinction, and the
-serverless db-contract-seam decisions — is specified in
-**[TRANSACTIONS.md](./TRANSACTIONS.md)**. That prerequisite **shipped in
-v3.9.0** (the `withTransaction` capability on `@byline/db-postgres`); this
-workstream now consumes it — wrapping each mutation + `audit.append` in
-`db.withTransaction(...)`.
+This rides on the request-scoped `withTransaction` boundary owned by the
+service layer (the audit write is a peer command in the same transaction; the
+storage adapter never learns the word "audit"). That mechanism — its
+AsyncLocalStorage propagation and the DB↔DB vs DB↔external distinction — is
+specified in **[TRANSACTIONS.md](./TRANSACTIONS.md)**.
 
-### Write points (shipped)
+### Write points
 
-Inside the existing service entry points, under the existing auth gates
-(no new enforcement surface), each wrapping its mutation + audit append in
+Inside the existing service entry points, under the existing auth gates (no new
+enforcement surface), each wrapping its mutation + audit append in
 `db.withTransaction(...)`. The shared helper (`document-lifecycle/audit.ts`)
 provides `requireAuditCapability(db)` — which throws `ERR_AUDIT_UNSUPPORTED`
 loudly if the adapter lacks `withTransaction` / `commands.audit` rather than
@@ -272,182 +190,132 @@ recording a gap — plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthet
 - `deleteDocument` (`document-lifecycle/delete.ts`) — the deletion event (the
   one change that otherwise erases its own history); the soft-delete is in the
   transaction, the storage-file cleanup stays outside it (DB↔external).
-- **Pending:** `delete-locale.ts` (it mints a version, so W1 already records
-  the actor — revisit whether it also warrants an audit row) and, later, the
-  `@byline/admin` user/role/permission commands (gated behind Workstream 4).
 
 ### Read surface
 
-`getDocumentAuditLog(documentId)` (per-document history, **shipped** on the
-adapter contract + Postgres adapter) backs Workstream 3, and is now reached
-end-to-end: `CollectionHandle.auditLog()` (the gated client read) →
-`getCollectionDocumentAuditLog` host server fn (`server-fns/collections/audit.ts`,
-following the existing pattern, resolving actor labels admin-side) → the
-document-history tab. `findAuditLog({ where, page })` for the system-wide
-activity report is **pending** with Workstream 4.
+- `getDocumentAuditLog(documentId)` — per-document history, on the adapter
+  contract + Postgres adapter. Reached end-to-end through
+  `CollectionHandle.auditLog()` (the gated client read) →
+  `getCollectionDocumentAuditLog` host server fn
+  (`server-fns/collections/audit.ts`) → the document-history tab.
+- `findAuditLog({ … })` — the system-wide activity union (see below).
 
 ### Authorization — transitive per document, gated system-wide
 
 Two distinct read scopes, deliberately not transitive between each other:
 
-- **Per-document audit history (W3 tab)** inherits the document's own
-  read gate. The precedent is already in the code: version history routes
-  through `CollectionHandle.history`, which gates via `findById` — when
-  the actor's `beforeRead` predicate excludes the document, history
-  returns empty rather than leaking version metadata
-  (`server-fns/collections/history.ts`). `getDocumentAuditLog` mirrors
-  this exactly: resolve the document through the actor's read pipeline
-  first (inheriting the `collections.<path>.read` ability **and**
-  row-scoping), then fetch audit rows scoped `WHERE document_id = X`. An
-  actor with access to the `docs` collection sees that document's grain
-  history — never the wider log.
-- **The system-wide activity report (W4)** is *not* reachable
-  transitively from any collection ability — it sits behind the separate
-  `admin.activity.read` ability. Admin-realm events (`document_id NULL`)
-  appear only there.
+- **Per-document audit history** inherits the document's own read gate.
+  `getDocumentAuditLog` resolves the document through the actor's read pipeline
+  first (inheriting the `collections.<path>.read` ability **and** `beforeRead`
+  row-scoping), then fetches audit rows scoped `WHERE document_id = X` — exactly
+  as version `history` gates via `findById`. An actor who cannot see the
+  document gets an empty log rather than leaked change metadata.
+- **The system-wide activity area** is *not* reachable transitively from any
+  collection ability — it sits behind the separate `admin.activity.read`
+  ability. Admin-realm events (`document_id NULL`) appear only there.
 
-## Workstream 3 — tabbed history view
+## The document-history view
 
-> **Shipped to `develop` (unreleased).** Both tabs render on the existing
-> `/history` route. Read end-to-end through the gated client read
-> (`CollectionHandle.auditLog()`), the `getCollectionDocumentAuditLog` host
-> server fn, and the loader's parallel fetch.
+Two tabs on a document's `/history` route, selected by a `tab` search param
+(`'versions' | 'document'`, absent → `'versions'`) under an `AdminTabs` bar.
+Both data sources load in parallel in one `Promise.all`; the active tab is a
+pure render concern read from the URL, so switching tabs never refetches.
 
-Two views on the document's history. **Tabs-vs-routes resolved in favour of
-the single-route + `tab` search param shape**: the existing `/history` route
-gained a `tab` search param (`'versions' | 'document'`, absent → `'versions'`)
-and an `AdminTabs` (the `tabs.tsx` presentation primitive) bar under the view
-menu. Rationale: it keeps the diff-modal / current-document loader and the
-audit-log fetch on one route (one `Promise.all`), needs no second physical
-route file in the host app's file-based tree, and stays fully linkable
-(`?tab=document`). The audit log is fetched unconditionally and in parallel —
-the active tab is a pure render concern read from the URL, so switching tabs
-never refetches. The content split:
+1. **Content versions** — the existing table, diff modal, restore flow, with
+   the audit strip. Default tab.
+2. **Document history** — a chronological list of audit-log entries for this
+   document: when, action, actor, from → to. No diff viewer; before/after
+   render inline (arrays comma-join, the deletion event shows an em-dash).
+   Empty state explains that content edits live on the first tab. The client
+   `auditLog()` gate mirrors `history()` (`findById` with `status: 'any'`; an
+   excluded document yields an empty log). Acting-user ids resolve to labels
+   admin-side (`resolveActorLabels`: system/tooling → "system"; deleted →
+   "former user").
 
-1. **Content versions** — the existing table, diff modal, restore flow,
-   with the audit strip from Workstream 1. Default tab; unchanged
-   otherwise.
-2. **Document history** — a chronological list of audit-log entries
-   for this document: when, action, actor, from → to. No diff viewer;
-   before/after render inline (arrays comma-join, the deletion event shows
-   an em-dash). Empty state explains that content edits live on the first
-   tab. Read access per the Authorization section in Workstream 2 — the
-   client `auditLog()` gate mirrors `history()` exactly (`findById` with
-   `status: 'any'`; an excluded document yields an empty log). Acting-user
-   ids are resolved to labels admin-side via the shared `resolveActorLabels`
-   helper (system/tooling rows → "system"; deleted users → "former user").
+The per-document log is small and bounded, so it fetches a single generous page
+(`page_size: 100`) rather than wiring a tab-specific pager. i18n keys ship in
+the `byline-admin` bundle (EN/FR): `collections.history.tabs.*` and
+`collections.documentHistory.*`.
 
-The per-document audit log is small and bounded, so v1 fetches a single
-generous page (`page_size: 100`) rather than wiring a second, tab-specific
-pager into the shared route; a dedicated pager can follow if a real
-installation needs it.
+## The system activity area
 
-i18n keys for both views shipped in the `byline-admin` bundle (EN/FR):
-`collections.history.tabs.*` (tab labels) and `collections.documentHistory.*`
-(column headers, per-action labels, the system-actor and empty-state strings).
+A top-level admin area at `/admin/activity` — the installation-wide
+who-did-what feed.
 
-## Workstream 4 — system activity area
-
-> **Shipped to `develop` (unreleased).** A new top-level admin area:
-> dedicated menu item + route, factory-built like the rest of the shell.
-
-- **Route**: `/_byline/admin/activity` via the `createAdminActivityRoute`
-  factory in `@byline/host-tanstack-start/routes` (physical route at
+- **Route**: `createAdminActivityRoute` factory in
+  `@byline/host-tanstack-start/routes` (physical route at
   `apps/webapp/src/routes/_byline/admin/activity/index.tsx`); an **Activity**
-  menu item (`ActivityIcon`) sits in the admin-management section of the menu
-  drawer alongside Users / Roles / Permissions, shown when the actor holds
-  `admin.activity.read`.
-- **The report**: a filterable, paged feed over the **read-time union** of
+  menu item (`ActivityIcon`) in the admin-management section of the menu
+  drawer, shown when the actor holds `admin.activity.read`.
+- **The report** is a filterable, paged feed over the **read-time union** of
   the version stream (content saves, surfaced as `document.created` /
-  `document.updated` from `event_type` and attributed via Workstream 1) and
-  the audit log (everything else). The two sources are disjoint — a delete
-  mints no version, a status change mutates the version row in place — so the
-  union double-counts nothing. Ordered by the normalised `occurred_at` (the
+  `document.updated` from `event_type` and attributed via `created_by`) and the
+  audit log (everything else). The two sources are disjoint — a delete mints no
+  version, a status change mutates the version row in place — so the union
+  double-counts nothing. Ordered by the normalised `occurred_at` (the
   per-source UUIDv7 ids are separate sequences). Backed by
   `IAuditQueries.findAuditLog` (`@byline/db-postgres` `AuditQueries`, a
-  `UNION ALL` normalised onto the `AuditLogEntry` shape). Filters: actor,
-  collection (by path, resolved to id server-side), action type, date range.
-  Each row resolves its actor label (`resolveActorLabels`; system / deleted →
-  tombstone) and collection label, and links to the document it describes.
+  `UNION ALL` normalised onto the `AuditLogEntry` shape). Filters: collection
+  (by path, resolved to id server-side), action type, date range, and actor
+  (param plumbed; UI control deferred). Each row resolves its actor and
+  collection labels and links to the document it describes.
 - **Authorization**: the `admin.activity.read` ability
   (`@byline/admin/admin-activity`, registered through `registerAdminAbilities`
   like `admin.users.*`) gates the host server fn `getSystemActivityLog` via
-  `assertAdminActor` — system-wide, **not** reachable transitively from any
-  collection ability, so an auditor role gets activity visibility without
-  content read/write.
-- **Deferred polish** (named triggers, not now): an actor-filter UI control
-  (the `actorId` param is plumbed end-to-end; the picker needs an admin-user
-  lookup); CSV/JSON export of a filtered range (trigger: a real compliance
-  ask); retention/pruning policy (trigger: an installation where the log's
-  growth actually matters).
+  `assertAdminActor`. Unlike the per-document modules it owns no AdminStore
+  command — it reads the document db adapter's `findAuditLog` directly — so the
+  assertion lives in the host server fn. The ability is system-wide and **not**
+  reachable transitively from any collection ability, so an auditor role gets
+  activity visibility without content read/write.
 
-## Sequencing
+## Deferred / future
 
-```
-W1  audit trail on version stream      ── independent, ships first
-W2  audit table + write points         ──┐  one PR-chain: schema → writes → reads
-W3  tabbed history view                ──┘  (W3 consumes W2's read surface)
-W4  activity area + report             ── needs W1 + W2; ships last
-```
+Named items, none active. Triggers noted where they exist.
 
-W1 has no migration and no design risk — it can land immediately. W2+W3
-are one coherent slice. W4 is the visible centerpiece but is mostly
-assembly once the two data sources exist.
-
-**Downstream-site note**: W2's migration is purely additive (new table, no
-backfill, no NOT NULL retrofit), so the existing-site upgrade playbook is
-just "migrate then deploy". The Drizzle-independent script for existing
-production databases is
-[`packages/db-postgres/sql/0003_add-audit-log.sql`](../packages/db-postgres/sql/0003_add-audit-log.sql)
-(run as the app DB role, not a superuser). W1 needs no DDL at all.
-
-## Open questions
-
-- **Deleted admin users.** `created_by` / `actor_id` reference users that
-  may later be deleted. Resolution: keep the id, render a tombstone label
-  ("former user") — or soft-delete admin users. Decide before W4 (the
-  report is where dangling ids become visible).
-- **Public-client `createdBy` exposure.** Leaning omit (see Workstream 1
-  read side) — decide before W1 ships, since it sets the public
-  `ClientDocument` shape.
-- **List-view strip toggle.** Per-collection admin config vs a view-level
-  density control — decide at W1 build time (History view is default-on
-  either way).
-- **System writes.** Seeds/migrations and synthetic non-UUID actors write
-  NULL `created_by` today (shipped v3.9.0 — see Workstream 1 read side). On
-  the version stream that NULL is indistinguishable from a pre-audit row.
-  For the **audit log** (W2), is an explicit `actor_realm: 'system'` sentinel
-  worth carrying so a deliberate system write is distinguishable from "no
-  actor recorded"?
-- **Restore/duplicate provenance.** Should a restored version's audit
-  entry record *which* version it was restored from? (The version row
-  itself has `previousVersionId`; probably sufficient.)
-- **Status history granularity.** Status mutates the version row in place;
-  the audit log records the transition. Is per-version status history ever
-  needed beyond that? (Current answer: no — the audit log is the record.)
+- **Actor-filter UI control.** The `actorId` param is plumbed end-to-end
+  through `findAuditLog`; the activity-feed picker needs an admin-user lookup.
+- **List-view audit strip.** Shipped only in the History view; the list-view
+  strip awaits a density-toggle decision (per-collection admin config vs a
+  view-level control). The list server fn would also need to resolve actor
+  labels.
+- **Admin-module auditing.** `admin.user.created` / `admin.role.updated` / …
+  rows from the `@byline/admin` user/role/permission commands. The table and
+  the activity feed already accommodate `document_id NULL` admin-realm rows.
+- **`delete-locale.ts` audit row.** It mints a version (so the actor is already
+  on the version stream); whether it also warrants an audit-log row is open.
+- **Public-client `createdBy` exposure.** The public client never resolves
+  labels; whether public reads should include even the raw `createdBy` uuid is
+  an open call — leaning **omit** (admin identity metadata on an anonymous
+  surface).
+- **Export / retention.** CSV/JSON export of a filtered activity range (trigger:
+  a real compliance ask); a retention/pruning policy (trigger: an installation
+  where the log's growth actually matters).
+- **Restore/duplicate provenance.** Whether a restored version's audit entry
+  should record *which* version it was restored from (the version row already
+  carries `previousVersionId`; probably sufficient).
 - **`hasMany` interaction.** None expected — relations live in the version
-  stream — but the activity report's row-rendering should be checked
-  against `hasMany` shapes when both exist.
+  stream — but the activity feed's row-rendering should be checked against
+  `hasMany` shapes when both exist.
 
-## Code map (planned touch points)
+## Code map
 
 | Concern | Location |
 |---|---|
 | Version audit-trail write (`created_by`) | `packages/core/src/services/document-lifecycle/{create,update,duplicate,restore,copy-to-locale}.ts` |
-| `createDocumentVersion` `createdBy` param (exists) | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
-| `created_by` column + view projection (exists) | `packages/db-postgres/src/database/schema/index.ts` |
+| `createDocumentVersion` `createdBy` param | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
+| `created_by` column + view projection | `packages/db-postgres/src/database/schema/index.ts` |
 | Client shaping (`createdBy`) | `packages/client/src/response.ts` |
-| Display-name batch resolution (`actors` map) | `packages/host-tanstack-start/src/server-fns/collections/*` + `bylineCore().adminStore` |
-| `AdminUsersRepository.getByIds` (new bulk lookup) | `packages/admin/src/modules/admin-users/repository.ts` + `@byline/db-postgres/admin` |
-| History view (audit strip, history/document views) | `packages/host-tanstack-start/src/admin-shell/collections/history.tsx` |
-| Audit strip component | `packages/admin/src/widgets/` (exported from `@byline/admin/react`) |
-| `Table` sub-row support | `packages/ui/src/` (Table primitive) |
+| Display-name batch resolution (`actors` map) | `packages/host-tanstack-start/src/server-fns/collections/actors.ts` + `bylineCore().adminStore` |
+| `AdminUsersRepository.getByIds` | `packages/admin/src/modules/admin-users/repository.ts` + `@byline/db-postgres/admin` |
+| History view + audit strip | `packages/host-tanstack-start/src/admin-shell/collections/history.tsx` |
 | Tabs primitive | `packages/admin/src/presentation/tabs.tsx` |
-| Audit table schema + migration | `packages/db-postgres/src/database/schema/index.ts` + `migrations/` |
-| Audit write points | `packages/core/src/services/document-lifecycle/{system-fields,status,delete,delete-locale}.ts` |
-| Audit read (gated client) | `packages/client/src/collection-handle.ts` → `auditLog()` (+ `AuditLogOptions` in `types.ts`, re-exports in `index.ts`) |
-| Audit read host server fn | `packages/host-tanstack-start/src/server-fns/collections/audit.ts` (`getCollectionDocumentAuditLog`) |
-| Document-history tab UI | `packages/host-tanstack-start/src/admin-shell/collections/{history.tsx (AdminTabs),document-history.tsx}` |
-| Activity route factory + menu item | `packages/host-tanstack-start/src/routes/` + `admin-shell/chrome/` |
-| `admin.activity.read` ability | `packages/admin/src/` (abilities) |
-| Example list-view opt-in | `apps/webapp/byline/collections/docs/admin.tsx` |
+| Audit table schema | `packages/db-postgres/src/database/schema/index.ts` (folded into the squashed `0000` baseline; existing-site script `packages/db-postgres/sql/0003_add-audit-log.sql`) |
+| Audit write points | `packages/core/src/services/document-lifecycle/{system-fields,status,delete}.ts` + shared `audit.ts` |
+| Audit queries (`getDocumentAuditLog`, `findAuditLog`) | `packages/db-postgres/src/modules/audit/audit-queries.ts` (contract: `packages/core/src/@types/db-types.ts` `IAuditQueries`) |
+| Audit read (gated client) | `packages/client/src/collection-handle.ts` → `auditLog()` |
+| Per-document audit host server fn | `packages/host-tanstack-start/src/server-fns/collections/audit.ts` (`getCollectionDocumentAuditLog`) |
+| Document-history tab UI | `packages/host-tanstack-start/src/admin-shell/collections/document-history.tsx` |
+| System activity server fn | `packages/host-tanstack-start/src/server-fns/admin-activity/get.ts` (`getSystemActivityLog`) |
+| Activity route factory + feed UI | `packages/host-tanstack-start/src/routes/create-admin-activity-route.tsx` + `admin-shell/admin-activity/list.tsx` |
+| Activity menu item | `packages/host-tanstack-start/src/admin-shell/chrome/menu-drawer.tsx` |
+| `admin.activity.read` ability | `packages/admin/src/modules/admin-activity/abilities.ts` |

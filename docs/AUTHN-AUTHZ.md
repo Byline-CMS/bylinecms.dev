@@ -340,6 +340,7 @@ collections.pages.changeStatus
 admin.users.create
 admin.roles.update
 admin.permissions.read
+admin.activity.read
 ```
 
 The flat-string choice is deliberate: it is what the role editor renders as a checkbox tree, what `assertAbility` checks, and what `admin_permissions` stores as one row per (role, ability) grant. CASL-style structured `{ subject, action }` pairs were considered and rejected — they complicate the role editor without payoff at this scope.
@@ -356,7 +357,7 @@ collections.<path>.{ read, create, update, delete }
 collections.<path>.{ publish, changeStatus }    // when a workflow is configured
 ```
 
-`@byline/admin` registers its own abilities (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`) the same way — via `register*Abilities()` exports. Future plugins follow the same pattern: register at init time, assert at call sites. The core knows nothing plugin-specific while still rendering a complete admin UI.
+`@byline/admin` registers its own abilities (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`, and the read-only `admin.activity.read` that gates the [system activity area](./AUDIT.md#the-system-activity-area)) the same way — via `register*Abilities()` exports. Future plugins follow the same pattern: register at init time, assert at call sites. The core knows nothing plugin-specific while still rendering a complete admin UI.
 
 ### Two-layer access control
 
@@ -400,9 +401,9 @@ Call sites:
 **`assertAdminActor` — admin management.** Policy:
 
 - Always requires a present `AdminAuth` actor — no anonymous path.
-- Asserts the specific module ability: `admin.users.*`, `admin.roles.*`, `admin.permissions.*`.
+- Asserts the specific module ability: `admin.users.*`, `admin.roles.*`, `admin.permissions.*`, `admin.activity.read`.
 
-Called inside every `*Command` in `@byline/admin/admin-{users,roles,permissions,account}`. The transport wrappers (the matching server fns under `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/`) carry no policy — they resolve `RequestContext` and delegate.
+Called inside every `*Command` in `@byline/admin/admin-{users,roles,permissions,account}`. The transport wrappers (the matching server fns under `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/`) carry no policy — they resolve `RequestContext` and delegate. The exception is `admin.activity.read`: the activity area owns no AdminStore command (it reads the document db adapter's `findAuditLog` directly), so its `assertAdminActor` call lives in the host server fn `getSystemActivityLog` rather than in an `@byline/admin` command.
 
 ### The documented escape hatches
 
