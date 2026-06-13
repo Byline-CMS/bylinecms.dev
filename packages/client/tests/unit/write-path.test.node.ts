@@ -57,6 +57,11 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
   const setDocumentStatus = vi.fn(async (_params: any) => {})
   const archivePublishedVersions = vi.fn(async (_params: any) => 1)
   const softDeleteDocument = vi.fn(async (_params: any) => 3)
+  // Audit capability (docs/AUDIT.md — W2). The audited write-points
+  // (changeStatus / delete / system-fields) require both `withTransaction`
+  // and `commands.audit`; `withTransaction` is a passthrough in unit tests.
+  const auditAppend = vi.fn(async (_input: any) => ({ id: 'audit:1' }))
+  const withTransaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
 
   const getDocumentById = vi.fn(async (_params: any) =>
     existingDoc === undefined
@@ -89,7 +94,9 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
         ensureCounterGroup: vi.fn(),
         nextCounterValue: vi.fn(),
       },
+      audit: { append: auditAppend },
     },
+    withTransaction: withTransaction as any,
     queries: {
       collections: {
         getAllCollections: vi.fn(),
@@ -121,6 +128,8 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
     softDeleteDocument,
     getDocumentById,
     getCurrentVersionMetadata,
+    auditAppend,
+    withTransaction,
   }
 }
 
