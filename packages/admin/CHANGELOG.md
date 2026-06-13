@@ -1,5 +1,20 @@
 # @byline/admin
 
+## 3.11.0
+
+### Minor Changes
+
+- added the system activity area (`/admin/activity`) — a paged, filterable feed over the version-stream + audit-log union, gated by the new `admin.activity.read` ability (audit Workstream 4)
+  added hover tooltips to the collapsed admin sidebar menu icons
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.11.0
+  - @byline/core@3.11.0
+  - @byline/i18n@3.11.0
+  - @byline/ui@3.11.0
+
 ## 3.10.1
 
 ### Patch Changes
