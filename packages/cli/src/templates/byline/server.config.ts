@@ -27,6 +27,7 @@ import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/b
 import {
   lexicalEditorEmbedServer,
   lexicalEditorPopulateServer,
+  lexicalEditorToMarkdownServer,
 } from '@byline/richtext-lexical/server'
 import { localStorageProvider } from '@byline/storage-local'
 
@@ -134,6 +135,10 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       richText: {
         embed: lexicalEditorEmbedServer({ getClient: getAdminBylineClient }),
         populate: lexicalEditorPopulateServer({ getClient: getAdminBylineClient }),
+        // One-way Lexical → markdown serializer for the agent-readable export
+        // surface (`.md` content routes, `llms.txt`). Pure JSON walk — no
+        // client needed. Remove if you don't expose the markdown surface.
+        toMarkdown: lexicalEditorToMarkdownServer(),
       },
     },
   })

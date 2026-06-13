@@ -35,13 +35,14 @@ export interface DepSpec {
   optional?: DepOptionalFlag
 }
 
-// Floor for installed `@byline/*` versions. Must match the minor that
-// introduced any new API the templates we drop into the host project
-// reference. e.g. `byline/server.config.ts` imports
-// `lexicalEditorEmbedServer` from `@byline/richtext-lexical/server`,
-// which landed in 2.5.0 — so we floor at ^2.5.0 to keep pnpm from
-// resolving an older lockfile pin under `^2.0.0`.
-export const BYLINE_VERSION = '^2.5.0'
+// Floor for installed `@byline/*` versions. The `@byline/*` packages release
+// in lockstep, and the templates we drop into the host project reference
+// 3.x-only APIs throughout (e.g. `i18n.translations` / `adminTranslations`,
+// `source_locale`, the audit log, and `lexicalEditorToMarkdownServer`). A `^2`
+// floor would let pnpm resolve the latest 2.x against these 3.x templates, so
+// we floor at the current major. Bump the minor when a template starts using an
+// API that landed in a later 3.x release.
+export const BYLINE_VERSION = '^3.0.0'
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------
@@ -86,6 +87,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     version: BYLINE_VERSION,
     group: 'byline',
     note: 'TanStack Start integrations + route stubs',
+  },
+  {
+    name: '@byline/i18n',
+    version: BYLINE_VERSION,
+    group: 'byline',
+    note: 'admin-interface translations; imported by byline/i18n.ts (adminTranslations)',
   },
   {
     name: '@byline/richtext-lexical',

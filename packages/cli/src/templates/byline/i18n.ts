@@ -7,32 +7,24 @@
  */
 
 /**
- * Shared i18n locale configuration — no upstream dependencies, safe to import
- * from both config entry-points and collection schema files without circular
- * references.
+ * Shared i18n configuration — assembles the `defineServerConfig` /
+ * `defineClientConfig` payload from the host's locale sets and the admin
+ * translation bundle.
+ *
+ * The locale arrays themselves live in `./locales.ts`, a dependency-free leaf
+ * module, so the public frontend can import them without pulling in the admin
+ * translation graph this file depends on. Re-exported here for back-compat
+ * with existing `~/i18n` importers.
  *
  * `interface` locales govern the CMS admin UI language.
  * `content` locales govern the languages a document can be published in.
  */
 
-export interface LocaleDefinition {
-  code: string
-  label: string
-}
+import { adminTranslations } from '@byline/i18n/admin'
 
-/** Locales available in the CMS admin interface. */
-export const interfaceLocales: LocaleDefinition[] = [
-  { code: 'en', label: 'English' },
-  { code: 'es', label: 'Español' },
-]
+import { contentLocales, interfaceLocales, type LocaleDefinition } from './locales.js'
 
-/** Locales a document can be published in. */
-export const contentLocales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'de', label: 'Deutsch' },
-] as const
+export { contentLocales, interfaceLocales, type LocaleDefinition }
 
 /** Derived config object — passed directly to defineServerConfig / defineClientConfig. */
 export const i18n = {
@@ -40,7 +32,7 @@ export const i18n = {
     defaultLocale: 'en',
     locales: interfaceLocales.map((l) => l.code),
     // Optional display names for the admin language switcher. Lets you
-    // author `Español` rather than the lowercase `español` that
+    // author `Français` rather than the lowercase `français` that
     // Intl.DisplayNames returns; omit to fall back to Intl per code.
     localeDefinitions: interfaceLocales.map((l) => ({ code: l.code, nativeName: l.label })),
   },
@@ -53,4 +45,14 @@ export const i18n = {
     // hreflang / "read this in…" affordances without a parallel map.
     localeDefinitions: contentLocales.map((l) => ({ code: l.code, nativeName: l.label })),
   },
+  // Admin UI translations. `adminTranslations({...})` ships the `byline-admin`
+  // namespace bundled into `@byline/i18n/admin`. A non-empty `interface.locales`
+  // REQUIRES this — `initBylineCore()` throws at boot otherwise. To extend the
+  // registry with your own namespace (custom fields, plugins), merge bundles:
+  //   import { mergeTranslations } from '@byline/i18n'
+  //   translations: mergeTranslations(
+  //     adminTranslations({ locales: interfaceLocales.map((l) => l.code) }),
+  //     myPluginTranslations({ locales: interfaceLocales.map((l) => l.code) })
+  //   ),
+  translations: adminTranslations({ locales: interfaceLocales.map((l) => l.code) }),
 }

@@ -2,7 +2,7 @@
 -- Byline 3.0 hardening: byline_documents.source_locale -> NOT NULL
 -- =============================================================================
 --
--- Sibling to `upgrade-2.7.0-to-3.0.sql`. Run this **after** the 3.0 upgrade is
+-- Sibling to `0001_upgrade-2.7.0-to-3.0.sql`. Run this **after** the 3.0 upgrade is
 -- complete and every document has a stamped `source_locale` — i.e. after the
 -- 3.0 server has booted at least once (`initBylineCore()` runs
 -- `backfillSourceLocales()` on startup) or you have run the backfill explicitly.
@@ -11,7 +11,7 @@
 -- has to hard-code the default locale and `drizzle:migrate` never fails on the
 -- constraint. This script applies the invariant once installs have bedded in.
 --
---   psql "$DATABASE_URL" -f packages/db-postgres/sql/set-source-locale-not-null.sql
+--   psql "$DATABASE_URL" -f packages/db-postgres/sql/0002_set-source-locale-not-null.sql
 --
 -- Idempotent and safe to re-run: the guard re-checks, and `SET NOT NULL` is a
 -- no-op when the constraint already exists. Runs in one transaction, so a failed

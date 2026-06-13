@@ -10,7 +10,7 @@
 -- matches a deployed DB, and the deployed DBs may not carry the Drizzle schema
 -- at all.
 --
---   psql "$DATABASE_URL" -f packages/db-postgres/sql/upgrade-2.7.0-to-3.0.sql
+--   psql "$DATABASE_URL" -f packages/db-postgres/sql/0001_upgrade-2.7.0-to-3.0.sql
 --
 -- Idempotent and safe to re-run: every object uses IF [NOT] EXISTS, and the
 -- whole thing runs in one transaction (Postgres DDL is transactional), so a
