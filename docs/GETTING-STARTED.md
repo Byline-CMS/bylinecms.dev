@@ -38,6 +38,18 @@ NOTE: If you use `pnpm` - installing dependencies may bail out asking you to `pn
 You can stop the `cli@latest init` - approve builds, and then re-run `pnpm dlx @byline/cli@latest init` and
 it will pick up where it left off. You may need to do this more than once.
 
+At a minimum - for `pnpm >= 11` - you'll need a `pnpm-workspace.yaml` file in the root of your project that looks something like this:
+
+```
+minimumReleaseAge: 1440
+allowBuilds:
+  "@google/genai": true
+  "@parcel/watcher": true
+  protobufjs: true
+  sharp: true
+
+```
+
 If there are any issues, you can follow the example application in the Byline CMS main repo under `apps/webapp`.
 
 NOTE: For AI-assisted editing, you'll need to add your API keys as shown in `apps/webapp/.env.local.example`
