@@ -24,7 +24,7 @@
 import { useEffect, useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
-import { EyeClosedIcon, EyeOpenIcon } from '@byline/ui/react'
+import { EyeClosedIcon, EyeOpenIcon, Tooltip } from '@byline/ui/react'
 import cx from 'classnames'
 
 import {
@@ -89,6 +89,7 @@ export function PreviewToggle({ compact }: PreviewToggleProps) {
   ) : (
     <EyeClosedIcon width="20px" height="20px" />
   )
+  const iconSpan = <span className="icon">{icon}</span>
 
   return (
     <li className={cx('menu-item byline-preview-toggle', { compact, active: preview })}>
@@ -99,9 +100,19 @@ export function PreviewToggle({ compact }: PreviewToggleProps) {
         aria-label={
           preview ? t('chrome.preview.disableAriaLabel') : t('chrome.preview.enableAriaLabel')
         }
-        title={preview ? t('chrome.preview.onTitle') : t('chrome.preview.offTitle')}
+        // Native title for the expanded state; in compact mode the styled
+        // Tooltip below takes over so the two don't fire at once.
+        title={
+          compact ? undefined : preview ? t('chrome.preview.onTitle') : t('chrome.preview.offTitle')
+        }
       >
-        <span className="icon">{icon}</span>
+        {compact ? (
+          <Tooltip text={label} side="right">
+            {iconSpan}
+          </Tooltip>
+        ) : (
+          iconSpan
+        )}
         <span className="label">{label}</span>
       </button>
     </li>

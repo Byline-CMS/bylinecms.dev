@@ -19,6 +19,7 @@ import {
   HomeIcon,
   RolesIcon,
   SettingsSlidersIcon,
+  Tooltip,
   UserIcon,
   UsersIcon,
 } from '@byline/ui/react'
@@ -47,10 +48,22 @@ interface MenuItemProps {
 }
 
 function MenuItem({ to, label, icon, pathname, compact }: MenuItemProps) {
+  // In the compact (icon-only) state the label text is hidden, so a tooltip on
+  // the icon is the only way to discover what the item is. When labels are
+  // visible the tooltip would be redundant, so it's gated on `compact`. The
+  // span is the trigger (not the bare icon) so the ref / hover handlers Base UI
+  // merges always land on a DOM node regardless of how each icon forwards props.
+  const iconSpan = <span className="icon">{icon}</span>
   return (
     <li className={cx('menu-item', { active: isActive(pathname, to), compact })}>
       <Link to={to}>
-        <span className="icon">{icon}</span>
+        {compact ? (
+          <Tooltip text={label} side="right">
+            {iconSpan}
+          </Tooltip>
+        ) : (
+          iconSpan
+        )}
         <span className="label">{label}</span>
       </Link>
     </li>
