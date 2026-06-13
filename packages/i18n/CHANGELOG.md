@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 3.11.1
+
+### Patch Changes
+
+- fixed **`@byline/admin`** packaging so the `admin-activity` subpath is exposed in `publishConfig.exports` — the v3.11.0 subpath was declared only in the top-level `exports`, so the published package omitted it and broke downstream production builds importing `@byline/admin/admin-activity`
+- Updated dependencies
+  - @byline/ui@3.11.1
+
 ## 3.11.0
 
 ### Minor Changes

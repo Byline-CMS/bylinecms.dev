@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 3.11.1
+
+### Patch Changes
+
+- fixed **`@byline/admin`** packaging so the `admin-activity` subpath is exposed in `publishConfig.exports` — the v3.11.0 subpath was declared only in the top-level `exports`, so the published package omitted it and broke downstream production builds importing `@byline/admin/admin-activity`
+- Updated dependencies
+  - @byline/admin@3.11.1
+  - @byline/ai@3.11.1
+  - @byline/auth@3.11.1
+  - @byline/client@3.11.1
+  - @byline/core@3.11.1
+  - @byline/i18n@3.11.1
+  - @byline/ui@3.11.1
+
 ## 3.11.0
 
 ### Minor Changes
