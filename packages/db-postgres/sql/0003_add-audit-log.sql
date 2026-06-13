@@ -12,14 +12,14 @@
 --
 --   psql "$DATABASE_URL" -f packages/db-postgres/sql/0003_add-audit-log.sql
 --
--- Run as the application's DB role (the role in $DATABASE_URL / the database
--- owner), NOT as a superuser — so the table is owned by the app role and the
--- running server can read/write it. A table created by `postgres` is invisible
--- to the app role (permission denied) until ownership is reassigned.
+-- Safe to run as either the application's DB role OR a superuser: the final
+-- step reassigns the new table to the database owner (the app role), so the
+-- running server can always read/write it. (Without that, a table created by a
+-- superuser like `postgres` is invisible to the app role — `permission denied`.)
 --
--- Idempotent and safe to re-run: every object uses IF NOT EXISTS, and the whole
--- thing runs in one transaction (Postgres DDL is transactional), so a failure
--- rolls back cleanly.
+-- Idempotent and safe to re-run: every object uses IF NOT EXISTS, the ownership
+-- reassignment is a no-op when already correct, and the whole thing runs in one
+-- transaction (Postgres DDL is transactional), so a failure rolls back cleanly.
 --
 -- Purely additive: a new table, no backfill, no NOT NULL retrofit, no view
 -- changes — so the existing-site upgrade is just "run this script, then deploy".
@@ -57,5 +57,21 @@ CREATE INDEX IF NOT EXISTS "idx_audit_log_actor_id"
   ON "byline_audit_log" USING btree ("actor_id", "id");
 CREATE INDEX IF NOT EXISTS "idx_audit_log_action"
   ON "byline_audit_log" USING btree ("action", "id");
+
+-- ---------------------------------------------------------------------------
+-- Ownership guard. If this script is run as a superuser (e.g. `postgres`), the
+-- new table would be owned by that superuser and the application's DB role would
+-- get "permission denied". Reassign it to the database owner — which is the app
+-- role (CREATE DATABASE ... WITH OWNER <app_role>) — so the table is accessible
+-- regardless of who runs the script. Indexes inherit table ownership, so they
+-- follow automatically. No-op when the table is already correctly owned.
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  EXECUTE format(
+    'ALTER TABLE "byline_audit_log" OWNER TO %I',
+    (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database())
+  );
+END $$;
 
 COMMIT;
