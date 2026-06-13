@@ -202,6 +202,11 @@
         "import": "./dist/modules/auth/index.js",
         "require": "./dist/modules/auth/index.js"
       },
+      "./admin-activity": {
+        "types": "./dist/modules/admin-activity/index.d.ts",
+        "import": "./dist/modules/admin-activity/index.js",
+        "require": "./dist/modules/admin-activity/index.js"
+      },
       "./admin-users": {
         "types": "./dist/modules/admin-users/index.d.ts",
         "import": "./dist/modules/admin-users/index.js",
