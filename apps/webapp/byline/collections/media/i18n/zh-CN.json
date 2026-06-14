@@ -1,0 +1,15 @@
+{
+  "header.uploadAriaLabel": "上传新媒体",
+  "toolbar.searchPlaceholder": "搜索媒体…",
+  "toolbar.orderByLabel": "排序方式",
+  "toolbar.pagerTopAriaLabel": "顶部分页器",
+  "toolbar.pagerBottomAriaLabel": "底部分页器",
+  "order.recentlyUpdated": "最近更新",
+  "order.oldestUpdated": "最早更新",
+  "order.titleAsc": "标题 A–Z",
+  "order.titleDesc": "标题 Z–A",
+  "order.newestCreated": "最新创建",
+  "order.oldestCreated": "最早创建",
+  "empty": "未找到媒体项。",
+  "card.noImage": "无图片"
+}

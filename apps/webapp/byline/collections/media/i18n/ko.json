@@ -1,0 +1,15 @@
+{
+  "header.uploadAriaLabel": "새 미디어 업로드",
+  "toolbar.searchPlaceholder": "미디어 검색…",
+  "toolbar.orderByLabel": "정렬 기준",
+  "toolbar.pagerTopAriaLabel": "상단 페이지 탐색",
+  "toolbar.pagerBottomAriaLabel": "하단 페이지 탐색",
+  "order.recentlyUpdated": "최근 업데이트순",
+  "order.oldestUpdated": "오래된 업데이트순",
+  "order.titleAsc": "제목 A–Z",
+  "order.titleDesc": "제목 Z–A",
+  "order.newestCreated": "최신 생성순",
+  "order.oldestCreated": "오래된 생성순",
+  "empty": "미디어 항목을 찾을 수 없습니다.",
+  "card.noImage": "이미지 없음"
+}

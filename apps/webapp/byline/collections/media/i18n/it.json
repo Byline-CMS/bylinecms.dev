@@ -1,0 +1,15 @@
+{
+  "header.uploadAriaLabel": "Carica nuovo elemento multimediale",
+  "toolbar.searchPlaceholder": "Cerca contenuti multimediali…",
+  "toolbar.orderByLabel": "Ordina per",
+  "toolbar.pagerTopAriaLabel": "Paginazione superiore",
+  "toolbar.pagerBottomAriaLabel": "Paginazione inferiore",
+  "order.recentlyUpdated": "Aggiornati di recente",
+  "order.oldestUpdated": "Aggiornati meno di recente",
+  "order.titleAsc": "Titolo A–Z",
+  "order.titleDesc": "Titolo Z–A",
+  "order.newestCreated": "Creati più di recente",
+  "order.oldestCreated": "Creati meno di recente",
+  "empty": "Nessun elemento multimediale trovato.",
+  "card.noImage": "Nessuna immagine"
+}

@@ -8,7 +8,17 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { adminTranslations, bundledLocales, en, fr } from './index.js'
+import {
+  adminTranslations,
+  bundledLocales,
+  de,
+  en,
+  es,
+  fr,
+  it as itBundle,
+  ko,
+  zhCN,
+} from './index.js'
 
 describe('bundled locale data', () => {
   it('exposes a non-empty bundledLocales list', () => {
@@ -26,6 +36,16 @@ describe('bundled locale data', () => {
 
   it('exports the fr bundle with the same key set as en (no drift)', () => {
     expect(new Set(Object.keys(fr))).toEqual(new Set(Object.keys(en)))
+  })
+
+  it.each([
+    ['es', es],
+    ['de', de],
+    ['it', itBundle],
+    ['zh-CN', zhCN],
+    ['ko', ko],
+  ])('exports the %s bundle with the same key set as en (no drift)', (_code, bundle) => {
+    expect(new Set(Object.keys(bundle))).toEqual(new Set(Object.keys(en)))
   })
 
   it('carries at least the headline action keys', () => {

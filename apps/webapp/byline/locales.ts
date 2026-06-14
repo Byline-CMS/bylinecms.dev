@@ -39,6 +39,11 @@ export interface LocaleDefinition {
 export const interfaceLocales: LocaleDefinition[] = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'zh-CN', label: '简体中文' },
+  { code: 'ko', label: '한국어' },
 ]
 
 /** Locales a document can be published in. */

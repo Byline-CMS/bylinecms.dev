@@ -1,0 +1,15 @@
+{
+  "header.uploadAriaLabel": "Subir nuevo medio",
+  "toolbar.searchPlaceholder": "Buscar medios…",
+  "toolbar.orderByLabel": "Ordenar por",
+  "toolbar.pagerTopAriaLabel": "Paginación superior",
+  "toolbar.pagerBottomAriaLabel": "Paginación inferior",
+  "order.recentlyUpdated": "Actualizado recientemente",
+  "order.oldestUpdated": "Actualizado hace más tiempo",
+  "order.titleAsc": "Título A–Z",
+  "order.titleDesc": "Título Z–A",
+  "order.newestCreated": "Creado más recientemente",
+  "order.oldestCreated": "Creado hace más tiempo",
+  "empty": "No se encontraron medios.",
+  "card.noImage": "Sin imagen"
+}

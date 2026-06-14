@@ -1,0 +1,15 @@
+{
+  "header.uploadAriaLabel": "Neues Medium hochladen",
+  "toolbar.searchPlaceholder": "Medien suchen…",
+  "toolbar.orderByLabel": "Sortieren nach",
+  "toolbar.pagerTopAriaLabel": "Obere Seitennavigation",
+  "toolbar.pagerBottomAriaLabel": "Untere Seitennavigation",
+  "order.recentlyUpdated": "Zuletzt aktualisiert",
+  "order.oldestUpdated": "Am längsten nicht aktualisiert",
+  "order.titleAsc": "Titel A–Z",
+  "order.titleDesc": "Titel Z–A",
+  "order.newestCreated": "Neueste zuerst",
+  "order.oldestCreated": "Älteste zuerst",
+  "empty": "Keine Medien gefunden.",
+  "card.noImage": "Kein Bild"
+}

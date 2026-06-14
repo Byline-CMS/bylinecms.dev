@@ -36,8 +36,13 @@
 import type { LocaleCode, NamespaceTranslations, TranslationBundle } from '@byline/i18n'
 import { mergeTranslations } from '@byline/i18n'
 
+import de from './de.json'
 import en from './en.json'
+import es from './es.json'
 import fr from './fr.json'
+import it from './it.json'
+import ko from './ko.json'
+import zhCN from './zh-CN.json'
 
 /**
  * The namespace this extension owns. Pick a globally-unique string —
@@ -50,6 +55,11 @@ export const MEDIA_ADMIN_NAMESPACE = 'webapp-media-admin'
 const BUNDLES: Readonly<Record<LocaleCode, NamespaceTranslations>> = {
   en: en as NamespaceTranslations,
   fr: fr as NamespaceTranslations,
+  es: es as NamespaceTranslations,
+  de: de as NamespaceTranslations,
+  it: it as NamespaceTranslations,
+  'zh-CN': zhCN as NamespaceTranslations,
+  ko: ko as NamespaceTranslations,
 }
 
 /** Locale codes for which this extension ships a translation in-tree. */

@@ -27,12 +27,22 @@
  */
 
 import { mergeTranslations } from '../merge.js'
+import deJson from './de.json'
 import enJson from './en.json'
+import esJson from './es.json'
 import frJson from './fr.json'
+import itJson from './it.json'
+import koJson from './ko.json'
+import zhCNJson from './zh-CN.json'
 import type { LocaleCode, NamespaceTranslations, TranslationBundle } from '../types.js'
 
 const en: NamespaceTranslations = enJson
 const fr: NamespaceTranslations = frJson
+const es: NamespaceTranslations = esJson
+const de: NamespaceTranslations = deJson
+const it: NamespaceTranslations = itJson
+const zhCN: NamespaceTranslations = zhCNJson
+const ko: NamespaceTranslations = koJson
 
 /**
  * Map of every bundled locale → its `byline-admin` namespace
@@ -44,13 +54,18 @@ const fr: NamespaceTranslations = frJson
 const BUNDLES: Readonly<Record<LocaleCode, NamespaceTranslations>> = {
   en,
   fr,
+  es,
+  de,
+  it,
+  'zh-CN': zhCN,
+  ko,
 }
 
 /** Locale codes for which a bundled translation ships in-package. */
 export const bundledLocales: readonly LocaleCode[] = Object.freeze(Object.keys(BUNDLES))
 
 /** Re-exported as typed consts for plugin authors who want the literal-key autocomplete. */
-export { en, fr }
+export { de, en, es, fr, it, ko, zhCN }
 export type AdminNamespaceTranslations = typeof enJson
 
 export interface AdminTranslationsOptions {
