@@ -93,6 +93,8 @@
   "account.preferences.interfaceLanguage": "Langue de l'interface :",
   "account.preferences.editButton": "Changer de langue",
   "account.preferences.help": "Le même paramètre est disponible dans le menu de langue de la barre supérieure.",
+  "account.preferences.languageLabel": "Langue de l'interface",
+  "account.preferences.languageHelp": "Le réglage par défaut du navigateur suit les paramètres de langue de votre navigateur.",
   "account.sections.appearance": "Apparence",
   "account.appearance.colorTheme": "Thème de couleur",
   "account.appearance.light": "Clair",

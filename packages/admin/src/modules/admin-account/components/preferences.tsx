@@ -37,6 +37,7 @@ import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import { getClientConfig } from '@byline/core'
+import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Select } from '@byline/ui/react'
 import cx from 'classnames'
 import { z } from 'zod'
@@ -74,6 +75,7 @@ interface PreferencesProps {
 }
 
 export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
+  const { t } = useTranslation('byline-admin')
   const { setInterfaceLocale } = useBylineAdminServices()
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -91,8 +93,8 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
       value: code,
       label: definitionByCode.get(code) ?? code,
     }))
-    return [{ value: AUTO_VALUE, label: 'Use browser default' }, ...items]
-  }, [])
+    return [{ value: AUTO_VALUE, label: t('language.useBrowserDefault') }, ...items]
+  }, [t])
 
   const form = useForm({
     defaultValues: defaultsFrom(account),
@@ -108,7 +110,7 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
       setSuccessMessage(null)
       const nextLocale = value.locale === AUTO_VALUE ? null : value.locale
       if (nextLocale === (account.preferred_locale ?? null)) {
-        setSuccessMessage('No changes to save.')
+        setSuccessMessage(t('common.feedback.noChanges'))
         return
       }
       try {
@@ -116,14 +118,12 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
         // Pre-auth path returns `account: null`; the form is only
         // reachable behind an admin session, so `account` should be
         // populated. Treat absence as a defensive no-op.
+        setSuccessMessage(t('common.feedback.saved'))
         if (result.account != null) {
-          setSuccessMessage('Saved.')
           onSuccess?.(result.account)
-        } else {
-          setSuccessMessage('Saved.')
         }
       } catch {
-        setFormError('Could not save changes. Please try again.')
+        setFormError(t('common.errors.couldNotSave'))
       }
     },
   })
@@ -150,12 +150,12 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
                 htmlFor="preferences-locale-select"
                 className={cx('byline-account-preferences-label', styles.label)}
               >
-                Interface language
+                {t('account.preferences.languageLabel')}
               </label>
               <Select<string>
                 id="preferences-locale-select"
                 size="sm"
-                ariaLabel="Interface language"
+                ariaLabel={t('account.preferences.languageLabel')}
                 value={field.state.value}
                 items={localeItems}
                 onValueChange={(value) => {
@@ -163,7 +163,7 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
                 }}
               />
               <p className={cx('muted', 'byline-account-preferences-help', styles.help)}>
-                Choose "Use browser default" to let your browser's language settings decide.
+                {t('account.preferences.languageHelp')}
               </p>
             </div>
           )}
@@ -177,7 +177,7 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
             onClick={onClose}
             className={cx('byline-account-preferences-action', styles.action)}
           >
-            {successMessage ? 'Close' : 'Cancel'}
+            {successMessage ? t('common.actions.close') : t('common.actions.cancel')}
           </Button>
           <form.Subscribe
             selector={(state) => ({
@@ -193,7 +193,7 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
                 disabled={!canSubmit || isSubmitting}
                 className={cx('byline-account-preferences-action', styles.action)}
               >
-                {isSubmitting === true ? <LoaderEllipsis size={42} /> : 'Save'}
+                {isSubmitting === true ? <LoaderEllipsis size={42} /> : t('common.actions.save')}
               </Button>
             )}
           </form.Subscribe>

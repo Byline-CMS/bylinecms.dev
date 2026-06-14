@@ -93,6 +93,8 @@
   "account.preferences.interfaceLanguage": "界面语言：",
   "account.preferences.editButton": "更改语言",
   "account.preferences.help": "顶部栏的语言菜单中也提供相同的设置。",
+  "account.preferences.languageLabel": "界面语言",
+  "account.preferences.languageHelp": "浏览器默认设置会跟随您浏览器的语言设置。",
   "account.sections.appearance": "外观",
   "account.appearance.colorTheme": "颜色主题",
   "account.appearance.light": "浅色",

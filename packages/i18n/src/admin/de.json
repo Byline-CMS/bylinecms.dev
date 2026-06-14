@@ -93,6 +93,8 @@
   "account.preferences.interfaceLanguage": "Oberflächensprache:",
   "account.preferences.editButton": "Sprache ändern",
   "account.preferences.help": "Dieselbe Einstellung ist im Sprachmenü in der oberen Leiste verfügbar.",
+  "account.preferences.languageLabel": "Oberflächensprache",
+  "account.preferences.languageHelp": "Die Browser-Standardeinstellung folgt den Spracheinstellungen Ihres Browsers.",
   "account.sections.appearance": "Darstellung",
   "account.appearance.colorTheme": "Farbthema",
   "account.appearance.light": "Hell",
