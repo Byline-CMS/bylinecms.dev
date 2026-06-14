@@ -1,0 +1,88 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/*
+ * LanguageMenu styles. The menu is built on `@byline/ui`'s Dropdown, so
+ * the popup chrome (background, border, radius, shadow, hover, dark-mode
+ * colours) already comes from `.byline-dropdown-content` /
+ * `.byline-dropdown-item` via design tokens. This module only adds the
+ * switcher-specific layout plus a couple of explicit overrides of those
+ * dropdown defaults — notably a little extra space to the right of each
+ * label, inside the hover area.
+ *
+ * The full `@layer` order is declared here (matching the dropdown module)
+ * so these rules land in `byline-components` regardless of import order.
+ */
+
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  utilities,
+  byline-utilities;
+
+@layer byline-components {
+  .trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-1);
+    color: inherit;
+    border-radius: var(--border-radius-sm);
+    outline: none;
+  }
+
+  .trigger:disabled {
+    opacity: 0.5;
+  }
+
+  /* Locale label next to the globe — hidden on narrow viewports. */
+  .label {
+    display: none;
+    margin-right: 4px;
+  }
+
+  @media (min-width: 640px) {
+    .label {
+      display: inline;
+    }
+  }
+
+  /*
+   * Override `.byline-dropdown-content`: fix the popup width and give it a
+   * touch more horizontal padding than the dropdown default. The compound
+   * selector raises specificity above the base rule so the override holds
+   * irrespective of stylesheet order within the layer.
+   */
+  :global(.byline-dropdown-content).content {
+    width: 7rem;
+    padding: 4px 6px;
+  }
+
+  .row {
+    display: flex;
+  }
+
+  /* Fixed-width gutter holding the active-locale check mark. */
+  .checkCol {
+    display: inline-block;
+    width: 22px;
+  }
+
+  /* Label inherits its colour from `.byline-dropdown-item` (token-driven). */
+  .itemLabel {
+    flex: 1 1 0%;
+    align-self: flex-start;
+    width: 100%;
+    text-align: left;
+  }
+}

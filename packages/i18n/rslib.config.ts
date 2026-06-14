@@ -26,10 +26,16 @@ export default defineConfig({
     distPath: {
       root: './dist',
     },
+    // Component CSS Modules (e.g. the LanguageMenu) are emitted alongside
+    // their JS in the unbundled tree, the same way `@byline/ui` ships its
+    // component styles — package components use CSS / CSS Modules, never
+    // Tailwind. The consumer's bundler links the emitted `.css`.
+    cssModules: {},
+    emitCss: true,
   },
   source: {
     entry: {
-      index: ['./src/**/!(*.test).ts?(x)', './src/**/*.json'],
+      index: ['./src/**/!(*.test).ts?(x)', './src/**/*.json', './src/**/*.module.css'],
     },
     tsconfigPath: './tsconfig.build.json',
   },

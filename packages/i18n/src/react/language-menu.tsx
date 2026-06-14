@@ -26,6 +26,7 @@ import { CheckIcon, Dropdown as DropdownMenu, GlobeIcon } from '@byline/ui/react
 import cx from 'classnames'
 
 import { I18nContext } from './i18n-context.js'
+import styles from './language-menu.module.css'
 import type { LocaleCode } from '../types.js'
 
 export interface LanguageMenuProps {
@@ -72,37 +73,29 @@ export function LanguageMenu({ className, color, disabled }: LanguageMenuProps) 
               type="button"
               aria-label={active?.nativeName ?? activeLocale}
               disabled={isDisabled}
-              className="component--byline-language-menu rounded flex items-center justify-between gap-1 outline-none disabled:opacity-50"
+              className={cx('component--byline-language-menu', styles.trigger)}
             />
           }
         >
           <GlobeIcon svgClassName={color} />
-          <span className={cx(color, 'hidden sm:inline mr-[4px]')}>
-            {active?.nativeName ?? activeLocale}
-          </span>
+          <span className={cx(color, styles.label)}>{active?.nativeName ?? activeLocale}</span>
         </DropdownMenu.Trigger>
 
         <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            align="center"
-            sideOffset={10}
-            className={cx(
-              'z-40 rounded radix-side-bottom:animate-slide-down radix-side-top:animate-slide-up',
-              'w-32 px-1.5 py-1 shadow-md',
-              'bg-white dark:bg-canvas-800 border dark:border-canvas-700 shadow'
-            )}
-          >
+          <DropdownMenu.Content align="center" sideOffset={10} className={styles.content}>
             {localeDefinitions.map((def) => {
               const isActive = def.code === activeLocale
               return (
-                <DropdownMenu.Item key={def.code} onClick={() => handleSelect(def.code)}>
-                  <div className="flex">
-                    <span className="inline-block w-[22px]">
+                <DropdownMenu.Item
+                  key={def.code}
+                  onClick={() => handleSelect(def.code)}
+                  className={styles.item}
+                >
+                  <div className={styles.row}>
+                    <span className={styles.checkCol}>
                       {isActive && <CheckIcon width="18px" height="18px" />}
                     </span>
-                    <span className="text-left inline-block w-full flex-1 self-start text-black dark:text-gray-300">
-                      {def.nativeName}
-                    </span>
+                    <span className={styles.itemLabel}>{def.nativeName}</span>
                   </div>
                 </DropdownMenu.Item>
               )
