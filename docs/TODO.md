@@ -113,6 +113,16 @@ Cost framing today is a 4-place tax per new admin area: package factory + webapp
 
 ---
 
+### Lazy admin-locale loading — async bundle map past the ~5-locale threshold
+
+`@byline/i18n/admin` ships every bundled locale via static `import enJson from './en.json'` statements, so the bundler inlines a fixed-size set and **all** of them land in the initial admin JS payload. The design always named ~5 locales as the point where lazy loading earns its complexity (see [I18N.md → Bundling and code-splitting](./I18N.md#bundling-and-code-splitting) and the `Remaining work` bullet). **That threshold is now crossed:** as of 2026-06-14 the admin ships **7** interface locales (`en`, `fr`, `es`, `de`, `it`, `zh-CN`, `ko`) — so this is no longer hypothetical, it's a live (if low-severity) payload-weight item.
+
+Severity is genuinely low today: the `byline-admin` bundle is ~5 kB gzipped per locale (flat key→string JSON), so 7 locales is roughly ~35 kB of admin-only JS — real but small, and it never touches the public bundle (the admin graph is already code-split out via the `_byline` lazy route). The cost grows linearly: every locale added, and every plugin/custom-field/extension namespace that fans out across those locales (e.g. the `webapp-media-admin` bundle), adds its slice to the eager payload.
+
+The strategy: replace the eager static-import `BUNDLES` map with async loaders (`() => import('./<code>.json')`) resolved per active locale, so only the locale(s) actually in use are fetched. Design surface to work through: (1) the locale is resolved server-side in `beforeLoad` (host adapter, for no-flicker SSR) **and** read on the client — the async load has to satisfy both without a hydration flash; (2) the `adminTranslations({ locales })` factory is currently synchronous and returns a fully-materialised `TranslationBundle` — going async changes its contract and the `mergeTranslations(...)` composition in `byline/i18n.ts`, which also has to thread through every contributed namespace (the same fan-out the media bundle demonstrates); (3) the boot validator (`initBylineCore()`) currently fails fast on a missing bundle by reading the eager map — under lazy loading it can only validate the *requested* locale(s) eagerly, or move to a manifest of available codes. Trigger to actually do it: the admin payload weight shows up in a real measurement, or locale count keeps climbing. (Threshold crossed 2026-06-14 during the ES/DE/IT/zh-CN/ko rollout.)
+
+---
+
 ## Deferred
 
 Each entry names the trigger that would move it into Next. No work happens until the trigger fires.
