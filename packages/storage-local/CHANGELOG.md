@@ -1,5 +1,17 @@
 # @byline/storage-local
 
+## 3.12.0
+
+### Minor Changes
+
+- added Spanish, German, Italian, Simplified Chinese and Korean admin interface translations, plus an account colour-theme switch (light/dark/system)
+  localised the account preferences drawer and moved the language menu off Tailwind to a CSS module
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.12.0
+
 ## 3.11.3
 
 ### Patch Changes
