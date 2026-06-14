@@ -1,0 +1,37 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/*
+ * ThemeSwitch — the segmented control fills the card width; the help
+ * line below it matches the muted helper styling used elsewhere on the
+ * account cards.
+ *
+ * Override handles:
+ *   .byline-account-theme-switch — wrapper
+ *   .byline-account-theme-group  — the segmented control
+ *   .byline-account-theme-help   — muted helper line
+ */
+
+.wrap,
+:global(.byline-account-theme-switch) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.group,
+:global(.byline-account-theme-group) {
+  width: 100%;
+}
+
+.help,
+:global(.byline-account-theme-help) {
+  margin-top: var(--spacing-4);
+  margin-bottom: 0;
+  font-size: var(--font-size-xs);
+}

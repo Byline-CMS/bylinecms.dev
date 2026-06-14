@@ -29,12 +29,13 @@ import { useState } from 'react'
 
 import { LocalDateTime } from '@byline/admin/react'
 import { useTranslation } from '@byline/i18n/react'
-import { Button, CloseIcon, Drawer, EditIcon, IconButton } from '@byline/ui/react'
+import { CloseIcon, Drawer, EditIcon, IconButton } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { ChangeAccountPassword } from './change-password.js'
 import styles from './container.module.css'
 import { Preferences } from './preferences.js'
+import { ThemeSwitch } from './theme-switch.js'
 import { UpdateAccount } from './update.js'
 import type { AccountResponse } from '../index.js'
 
@@ -139,7 +140,7 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
                 </span>
               )}
             </p>
-            <p className={cx('byline-account-cta-line', styles['cta-line'])}>
+            <p className={cx('byline-account-line', styles.line)}>
               <span className="muted">{t('account.profile.username')}</span>{' '}
               {currentAccount.username ?? (
                 <span className={cx('muted', 'byline-account-not-set', styles['not-set'])}>
@@ -147,9 +148,6 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
                 </span>
               )}
             </p>
-            <Button size="sm" onClick={openDrawer('update')}>
-              {t('account.profile.editButton')}
-            </Button>
             <div className={cx('muted', 'byline-account-meta', styles.meta)}>
               <p>
                 <span className="font-bold">{t('account.profile.created')}&nbsp;</span>
@@ -179,11 +177,6 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
                 </span>
               )}
             </p>
-            <p className={cx('byline-account-cta-line', styles['cta-line'])}>
-              <Button size="sm" onClick={openDrawer('preferences')}>
-                {t('account.preferences.editButton')}
-              </Button>
-            </p>
             <p className={cx('muted', 'byline-account-status-help', styles['status-help'])}>
               {t('account.preferences.help')}
             </p>
@@ -196,12 +189,11 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
             onEdit={openDrawer('change_password')}
             editAriaLabel={editAriaFor(t('account.sections.password'))}
           >
-            <p className={cx('byline-account-cta-line', styles['cta-line'])}>
-              {t('account.password.intro')}
-            </p>
-            <Button size="sm" onClick={openDrawer('change_password')}>
-              {t('account.password.editButton')}
-            </Button>
+            <p className={cx('byline-account-line', styles.line)}>{t('account.password.intro')}</p>
+          </ContainerSection>
+
+          <ContainerSection title={t('account.sections.appearance')}>
+            <ThemeSwitch />
           </ContainerSection>
 
           <ContainerSection title={t('account.sections.status')}>
