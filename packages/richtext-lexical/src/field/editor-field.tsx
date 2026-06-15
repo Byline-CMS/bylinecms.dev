@@ -34,8 +34,7 @@
 import type * as React from 'react'
 import { lazy, Suspense } from 'react'
 
-import { Shimmer } from '@byline/ui/react'
-
+import { EditorPlaceholder } from './editor-placeholder'
 import type { EditorFieldProps } from '../types'
 
 const EditorComponent = lazy(() =>
@@ -44,7 +43,7 @@ const EditorComponent = lazy(() =>
 
 export function EditorField(props: EditorFieldProps): React.JSX.Element {
   return (
-    <Suspense fallback={<Shimmer variant="text" lines={20} lineHeight="1.15rem" />}>
+    <Suspense fallback={<EditorPlaceholder />}>
       <EditorComponent {...props} />
     </Suspense>
   )
