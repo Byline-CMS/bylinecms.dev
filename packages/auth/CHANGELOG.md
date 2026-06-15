@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 3.12.2
+
+### Patch Changes
+
+- fixed a **`@byline/ui`** drawer console warning by wrapping the popup in Base UI's viewport; refactored the **`@byline/admin`** form-renderer / form-context internals (no behavioural change)
+
 ## 3.12.1
 
 ### Patch Changes
