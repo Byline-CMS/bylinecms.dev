@@ -20,7 +20,7 @@ import type {
 } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, CloseIcon, ComboButton, IconButton, Modal } from '@byline/ui/react'
+import { Alert, Button, ComboButton } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { FieldRenderer } from '../fields/field-renderer'
@@ -32,10 +32,13 @@ import { AdminTabs } from '../presentation/tabs'
 import { AvailableLocalesWidget } from './available-locales-widget'
 import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
+import { NavigationGuardModal, SystemFieldsConfirmModal, UnsavedChangesModal } from './form-modals'
 import styles from './form-renderer.module.css'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
+import { computeStatusTransitions } from './status-transitions'
 import { executeUploadsWithProgress } from './upload-executor'
+import { useFormLayout } from './use-form-layout'
 import type { UseNavigationGuard } from './navigation-guard'
 
 /** Metadata about a previously published version that is still live. */
@@ -241,81 +244,6 @@ const FormStatusDisplay = ({
   )
 }
 
-/**
- * Compute the primary and secondary status transitions for the ComboButton.
- * - Primary: the main action (forward step), or the current status itself
- *   when the document has reached the final workflow step (terminal state).
- * - Secondary: other available transitions to show as dropdown options.
- * - isTerminal: true when the document is at the final workflow status —
- *   the primary button renders as a non-actionable indicator and all
- *   back-steps move into the dropdown.
- */
-function computeStatusTransitions(
-  currentStatus: string | undefined,
-  workflowStatuses: WorkflowStatus[] | undefined,
-  nextStatus: WorkflowStatus | undefined
-): {
-  primaryStatus: WorkflowStatus | undefined
-  secondaryStatuses: WorkflowStatus[]
-  isTerminal: boolean
-} {
-  if (!workflowStatuses || workflowStatuses.length === 0 || !currentStatus) {
-    return { primaryStatus: nextStatus, secondaryStatuses: [], isTerminal: false }
-  }
-
-  // Single-status workflows (e.g. SINGLE_STATUS_WORKFLOW for lookups) have
-  // no transitions — short-circuit so the form shows only Close / Save.
-  if (workflowStatuses.length <= 1) {
-    return { primaryStatus: undefined, secondaryStatuses: [], isTerminal: false }
-  }
-
-  const currentIndex = workflowStatuses.findIndex((s) => s.name === currentStatus)
-  if (currentIndex === -1) {
-    return { primaryStatus: nextStatus, secondaryStatuses: [], isTerminal: false }
-  }
-
-  const isAtEnd = currentIndex === workflowStatuses.length - 1
-  const isAtStart = currentIndex === 0
-
-  // Collect all available target statuses
-  const availableTargets: WorkflowStatus[] = []
-
-  // Reset to first (if not at first)
-  if (!isAtStart && workflowStatuses[0]) {
-    availableTargets.push(workflowStatuses[0])
-  }
-
-  // Back one step (if not at start and the previous is not already the first)
-  const prev = workflowStatuses[currentIndex - 1]
-  if (currentIndex > 1 && prev) {
-    availableTargets.push(prev)
-  }
-
-  // Forward one step (if not at end) - this is the nextStatus
-  const next = workflowStatuses[currentIndex + 1]
-  if (!isAtEnd && next) {
-    availableTargets.push(next)
-  }
-
-  if (isAtEnd) {
-    // Terminal state: the primary button is a non-actionable indicator of the
-    // current status; both back-steps (revert to previous / reset to first)
-    // are surfaced in the dropdown.
-    return {
-      primaryStatus: workflowStatuses[currentIndex],
-      secondaryStatuses: availableTargets,
-      isTerminal: true,
-    }
-  }
-
-  // Not at end: primary is the forward step (nextStatus)
-  return {
-    primaryStatus: nextStatus,
-    secondaryStatuses: availableTargets.filter((s) => s.name !== nextStatus?.name),
-    isTerminal: false,
-  }
-}
-
 const FormContent = ({
   mode,
   fields,
@@ -394,80 +322,12 @@ const FormContent = ({
     if (initialLocale) setContentLocale(initialLocale)
   }, [initialLocale])
 
-  // ---------------------------------------------------------------------
-  // Layout primitives + lookup tables.
-  //
-  // Built once per render from `adminConfig`. The validator at startup
-  // guarantees every reachable name resolves and every schema field is
-  // placed at most once, so render-time lookups are unguarded.
-  // ---------------------------------------------------------------------
-
-  const fieldByName = useMemo(() => {
-    const map = new Map<string, Field>()
-    for (const field of fields) {
-      if ('name' in field) map.set(field.name, field)
-    }
-    return map
-  }, [fields])
-
-  const tabSetByName = useMemo(() => {
-    const map = new Map<string, TabSetDefinition>()
-    for (const set of adminConfig?.tabSets ?? []) map.set(set.name, set)
-    return map
-  }, [adminConfig])
-
-  const rowByName = useMemo(() => {
-    const map = new Map<string, RowDefinition>()
-    for (const row of adminConfig?.rows ?? []) map.set(row.name, row)
-    return map
-  }, [adminConfig])
-
-  const groupByName = useMemo(() => {
-    const map = new Map<string, GroupDefinition>()
-    for (const group of adminConfig?.groups ?? []) map.set(group.name, group)
-    return map
-  }, [adminConfig])
-
-  // When `layout` is omitted, synthesise main = all schema fields in order.
-  const layout = useMemo(() => {
-    if (adminConfig?.layout) return adminConfig.layout
-    return { main: fields.filter((f) => 'name' in f).map((f) => (f as { name: string }).name) }
-  }, [adminConfig, fields])
-
-  // Reverse index: schema field name → which tab set + tab it lives in.
-  // Powers per-tab-set error badge counts. Fields not under any tab set
-  // (e.g. raw-field placement directly in `layout.main`) are absent from
-  // this map.
-  const fieldToTabPath = useMemo(() => {
-    const map = new Map<string, { tabSetName: string; tabName: string }>()
-    const visit = (
-      names: readonly string[],
-      tabSetName: string,
-      tabName: string,
-      seen: Set<string>
-    ) => {
-      for (const name of names) {
-        if (fieldByName.has(name)) {
-          map.set(name, { tabSetName, tabName })
-        } else if (seen.has(name)) {
-        } else if (rowByName.has(name)) {
-          const row = rowByName.get(name)!
-          const next = new Set(seen).add(name)
-          visit(row.fields, tabSetName, tabName, next)
-        } else if (groupByName.has(name)) {
-          const group = groupByName.get(name)!
-          const next = new Set(seen).add(name)
-          visit(group.fields, tabSetName, tabName, next)
-        }
-      }
-    }
-    for (const set of adminConfig?.tabSets ?? []) {
-      for (const tab of set.tabs) {
-        visit(tab.fields, set.name, tab.name, new Set())
-      }
-    }
-    return map
-  }, [adminConfig, fieldByName, rowByName, groupByName])
+  // Layout primitives + lookup tables — pure derivations of `adminConfig` +
+  // `fields`. The validator at startup guarantees every reachable name
+  // resolves and every schema field is placed at most once, so the render-time
+  // lookups below are unguarded. See ./use-form-layout.
+  const { fieldByName, tabSetByName, rowByName, groupByName, layout, fieldToTabPath } =
+    useFormLayout(adminConfig, fields)
 
   // ---------------------------------------------------------------------
   // Active-tab state — one tab name per declared tab set.
@@ -901,159 +761,21 @@ const FormContent = ({
           {(layout.sidebar ?? []).map((name) => renderItem(name))}
         </div>
       </div>
-      {showUnsavedModal && (
-        <Modal
-          isOpen={true}
-          closeOnOverlayClick={true}
-          onDismiss={() => setShowUnsavedModal(false)}
-        >
-          <Modal.Container style={{ maxWidth: '460px' }}>
-            <Modal.Header
-              className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}
-            >
-              <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
-                {t('forms.unsavedChanges.title')}
-              </h3>
-            </Modal.Header>
-            <Modal.Content>
-              <p className={cx('byline-form-guard-modal-text', styles['guard-modal-text'])}>
-                {t('forms.unsavedChanges.message')}
-              </p>
-            </Modal.Content>
-            <Modal.Actions>
-              <Button
-                size="sm"
-                style={{ minWidth: '60px' }}
-                intent="primary"
-                type="button"
-                onClick={() => setShowUnsavedModal(false)}
-              >
-                {t('forms.unsavedChanges.okButton')}
-              </Button>
-            </Modal.Actions>
-          </Modal.Container>
-        </Modal>
-      )}
+      {showUnsavedModal && <UnsavedChangesModal onClose={() => setShowUnsavedModal(false)} />}
       {pendingSystemFieldsSubmit != null && (
-        <Modal
-          isOpen={true}
-          closeOnOverlayClick={true}
-          onDismiss={() => setPendingSystemFieldsSubmit(null)}
-        >
-          <Modal.Container style={{ maxWidth: '520px' }}>
-            <Modal.Header
-              className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}
-            >
-              <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
-                {pendingSystemFieldsSubmit.contentDirty
-                  ? t('forms.systemFieldsConfirm.bothTitle')
-                  : t('forms.systemFieldsConfirm.title')}
-              </h3>
-              <IconButton
-                aria-label={t('common.actions.close')}
-                size="xs"
-                onClick={() => setPendingSystemFieldsSubmit(null)}
-              >
-                <CloseIcon width="16px" height="16px" svgClassName="white-icon" />
-              </IconButton>
-            </Modal.Header>
-            <Modal.Content className="prose">
-              {/* Lead with reassurance: content edits follow the normal
-                  revision + publish workflow. The immediate, document-level
-                  system-field write is explained below the divider. */}
-              {pendingSystemFieldsSubmit.contentDirty && (
-                <p className={cx('byline-form-system-fields-content-note', 'm-0 mt-2')}>
-                  {t('forms.systemFieldsConfirm.contentNote')}
-                </p>
-              )}
-              <p
-                className="m-0 mt-2"
-                style={
-                  pendingSystemFieldsSubmit.contentDirty
-                    ? {
-                        marginTop: 'var(--spacing-8)',
-                        paddingTop: 'var(--spacing-12)',
-                        borderTop: '1px solid var(--border-color)',
-                      }
-                    : undefined
-                }
-              >
-                {t('forms.systemFieldsConfirm.intro')}
-              </p>
-              <ul
-                className={cx('byline-form-system-fields-list', styles['guard-modal-text'], 'm-0')}
-              >
-                {pendingSystemFieldsSubmit.pathDirty && (
-                  <li>{t('forms.systemFieldsConfirm.bulletPath')}</li>
-                )}
-                {pendingSystemFieldsSubmit.availableLocalesDirty && (
-                  <li>{t('forms.systemFieldsConfirm.bulletLocales')}</li>
-                )}
-              </ul>
-              <p
-                className={cx('byline-form-system-fields-effect', styles['guard-modal-text'])}
-                style={{
-                  marginTop: 'var(--spacing-4)',
-                  marginBottom: 0,
-                  color: 'var(--text-subtle)',
-                }}
-              >
-                {t('forms.systemFieldsConfirm.effectLine')}
-              </p>
-            </Modal.Content>
-            <Modal.Actions>
-              <Button
-                size="sm"
-                style={{ minWidth: '80px' }}
-                intent="noeffect"
-                type="button"
-                onClick={() => setPendingSystemFieldsSubmit(null)}
-              >
-                {t('common.actions.cancel')}
-              </Button>
-              <Button
-                size="sm"
-                style={{ minWidth: '80px' }}
-                intent="primary"
-                type="button"
-                onClick={() => {
-                  const payload = pendingSystemFieldsSubmit
-                  setPendingSystemFieldsSubmit(null)
-                  submitPayload(payload)
-                }}
-              >
-                {t('forms.systemFieldsConfirm.confirmButton')}
-              </Button>
-            </Modal.Actions>
-          </Modal.Container>
-        </Modal>
+        <SystemFieldsConfirmModal
+          contentDirty={pendingSystemFieldsSubmit.contentDirty}
+          pathDirty={pendingSystemFieldsSubmit.pathDirty}
+          availableLocalesDirty={pendingSystemFieldsSubmit.availableLocalesDirty}
+          onCancel={() => setPendingSystemFieldsSubmit(null)}
+          onConfirm={() => {
+            const payload = pendingSystemFieldsSubmit
+            setPendingSystemFieldsSubmit(null)
+            submitPayload(payload)
+          }}
+        />
       )}
-      {guard.isBlocked && (
-        <Modal isOpen={true} closeOnOverlayClick={false} onDismiss={guard.stay}>
-          <Modal.Container style={{ maxWidth: '460px' }}>
-            <Modal.Header
-              className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}
-            >
-              <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
-                {t('forms.navigationGuard.title')}
-              </h3>
-            </Modal.Header>
-            <Modal.Content>
-              <p className={cx('byline-form-guard-modal-text', styles['guard-modal-text'])}>
-                {t('forms.navigationGuard.message')}
-              </p>
-            </Modal.Content>
-            <Modal.Actions>
-              <Button size="sm" intent="noeffect" type="button" onClick={guard.stay}>
-                {t('forms.navigationGuard.stayButton')}
-              </Button>
-              <Button size="sm" intent="danger" type="button" onClick={guard.proceed}>
-                {t('forms.navigationGuard.leaveButton')}
-              </Button>
-            </Modal.Actions>
-          </Modal.Container>
-        </Modal>
-      )}
+      {guard.isBlocked && <NavigationGuardModal onStay={guard.stay} onProceed={guard.proceed} />}
     </form>
   )
 }

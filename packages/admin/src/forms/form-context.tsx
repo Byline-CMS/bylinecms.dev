@@ -20,6 +20,7 @@ import type { DocumentPatch, FieldSetPatch } from '@byline/core/patches'
 // ~85KB chunk that leaks onto the public frontend bundle (form-context is
 // reachable from the layout graph).
 import { get as getNestedValue, set as setNestedValue } from './nested-path'
+import { useTrackedSlot } from './use-tracked-slot'
 
 interface FormError {
   field: string
@@ -168,27 +169,6 @@ export const FormProvider = ({
   const errorListeners = useRef<Set<ErrorsListener>>(new Set())
   const metaListeners = useRef<Set<MetaListener>>(new Set())
 
-  // System path slot — initialised from the loaded version's top-level
-  // `path` (edit mode) or `null` (create mode). Edits via `setSystemPath`
-  // mark the form dirty so the Save button enables.
-  const systemPathRef = useRef<string | null>(
-    typeof initialData?.path === 'string' && (initialData.path as string).length > 0
-      ? (initialData.path as string)
-      : null
-  )
-  const initialSystemPath = useRef<string | null>(systemPathRef.current)
-  const systemPathListeners = useRef<Set<SystemPathListener>>(new Set())
-
-  // System available-locales slot — initialised from the loaded version's
-  // top-level `availableLocales` (edit mode) or `[]` (create mode / not yet
-  // surfaced). Edits via `setSystemAvailableLocales` mark the form dirty so
-  // the Save button enables. Stored as a defensive copy.
-  const systemAvailableLocalesRef = useRef<string[]>(
-    Array.isArray(initialData?.availableLocales) ? [...initialData.availableLocales] : []
-  )
-  const initialSystemAvailableLocales = useRef<string[]>([...systemAvailableLocalesRef.current])
-  const systemAvailableLocalesListeners = useRef<Set<SystemAvailableLocalesListener>>(new Set())
-
   const subscribeField = useCallback((name: string, listener: FieldListener) => {
     if (!fieldListeners.current.has(name)) {
       fieldListeners.current.set(name, new Set())
@@ -239,6 +219,32 @@ export const FormProvider = ({
       listener()
     })
   }, [])
+
+  // Document-grain system-field slots — dirty-tracked, ref-backed, each with
+  // its own listener set. The `path` slot is initialised from the loaded
+  // version's top-level `path` (edit) or `null` (create); the available-locales
+  // slot from `availableLocales` (edit) or `[]`. Edits toggle the slot's dirty
+  // key so the single Save button can branch. See ./use-tracked-slot.
+  const pathSlot = useTrackedSlot<string | null>({
+    initial:
+      typeof initialData?.path === 'string' && (initialData.path as string).length > 0
+        ? (initialData.path as string)
+        : null,
+    dirtyKey: SYSTEM_PATH_DIRTY_KEY,
+    dirtyFields,
+    notifyMeta: notifyMetaListeners,
+  })
+
+  const availableLocalesSlot = useTrackedSlot<string[]>({
+    initial: Array.isArray(initialData?.availableLocales) ? [...initialData.availableLocales] : [],
+    dirtyKey: SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY,
+    dirtyFields,
+    notifyMeta: notifyMetaListeners,
+    // The slot holds an array; a fresh reference is never `===` its baseline,
+    // so dirty tracking compares membership, not identity. Stored as a copy.
+    isEqual: sameLocaleSet,
+    clone: (value) => [...value],
+  })
 
   const updateFieldStoreInternal = useCallback(
     (name: string, value: any) => {
@@ -330,10 +336,10 @@ export const FormProvider = ({
   const resetHasChanges = useCallback(() => {
     dirtyFields.current.clear()
     patchesRef.current = []
-    initialSystemPath.current = systemPathRef.current
-    initialSystemAvailableLocales.current = [...systemAvailableLocalesRef.current]
+    pathSlot.commitInitial()
+    availableLocalesSlot.commitInitial()
     notifyMetaListeners()
-  }, [notifyMetaListeners])
+  }, [notifyMetaListeners, pathSlot.commitInitial, availableLocalesSlot.commitInitial])
 
   const isDirty = useCallback((fieldName: string) => {
     return dirtyFields.current.has(fieldName)
@@ -366,68 +372,6 @@ export const FormProvider = ({
             : 'none'
     return { reason, contentDirty, pathDirty, availableLocalesDirty }
   }, [])
-
-  // -------------------------------------------------------------------------
-  // System path slot
-  // -------------------------------------------------------------------------
-
-  const getSystemPath = useCallback(() => systemPathRef.current, [])
-
-  const setSystemPath = useCallback(
-    (value: string | null) => {
-      systemPathRef.current = value
-      if (value !== initialSystemPath.current) {
-        dirtyFields.current.add(SYSTEM_PATH_DIRTY_KEY)
-      } else {
-        dirtyFields.current.delete(SYSTEM_PATH_DIRTY_KEY)
-      }
-      systemPathListeners.current.forEach((listener) => {
-        listener(value)
-      })
-      notifyMetaListeners()
-    },
-    [notifyMetaListeners]
-  )
-
-  const subscribeSystemPath = useCallback((listener: SystemPathListener) => {
-    systemPathListeners.current.add(listener)
-    return () => {
-      systemPathListeners.current.delete(listener)
-    }
-  }, [])
-
-  // -------------------------------------------------------------------------
-  // System available-locales slot
-  // -------------------------------------------------------------------------
-
-  const getSystemAvailableLocales = useCallback(() => systemAvailableLocalesRef.current, [])
-
-  const setSystemAvailableLocales = useCallback(
-    (value: string[]) => {
-      const next = [...value]
-      systemAvailableLocalesRef.current = next
-      if (!sameLocaleSet(next, initialSystemAvailableLocales.current)) {
-        dirtyFields.current.add(SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY)
-      } else {
-        dirtyFields.current.delete(SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY)
-      }
-      systemAvailableLocalesListeners.current.forEach((listener) => {
-        listener(next)
-      })
-      notifyMetaListeners()
-    },
-    [notifyMetaListeners]
-  )
-
-  const subscribeSystemAvailableLocales = useCallback(
-    (listener: SystemAvailableLocalesListener) => {
-      systemAvailableLocalesListeners.current.add(listener)
-      return () => {
-        systemAvailableLocalesListeners.current.delete(listener)
-      }
-    },
-    []
-  )
 
   // ---------------------------------------------------------------------------
   // Pending uploads (deferred until save)
@@ -715,12 +659,12 @@ export const FormProvider = ({
         setFieldUploading,
         getIsFieldUploading,
         subscribeFieldUploading,
-        getSystemPath,
-        setSystemPath,
-        subscribeSystemPath,
-        getSystemAvailableLocales,
-        setSystemAvailableLocales,
-        subscribeSystemAvailableLocales,
+        getSystemPath: pathSlot.get,
+        setSystemPath: pathSlot.set,
+        subscribeSystemPath: pathSlot.subscribe,
+        getSystemAvailableLocales: availableLocalesSlot.get,
+        setSystemAvailableLocales: availableLocalesSlot.set,
+        subscribeSystemAvailableLocales: availableLocalesSlot.subscribe,
       }}
     >
       {children}
