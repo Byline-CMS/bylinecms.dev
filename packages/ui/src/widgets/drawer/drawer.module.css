@@ -34,6 +34,16 @@
     background-color: rgba(0, 0, 0, 0.5);
   }
 
+  /* Viewport — Base UI's swipe / scroll-lock container. Layout-neutral here
+     (`display: contents`) so the Popup keeps owning its own fixed positioning;
+     the wrapper exists only to satisfy Base UI's Popup-within-Viewport
+     requirement. */
+
+  .viewport,
+  :global(.byline-drawer-viewport) {
+    display: contents;
+  }
+
   /* Drawer wrapper / popup — the sliding panel itself */
 
   .drawer-wrapper,

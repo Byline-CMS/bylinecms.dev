@@ -71,18 +71,25 @@ const Drawer = ({
           className={cx('byline-drawer-backdrop', styles.backdrop)}
           style={hasTopOffset ? { top: topOffset } : undefined}
         />
-        <BaseDrawer.Popup
-          className={cx(
-            'byline-drawer-wrapper',
-            styles['drawer-wrapper'],
-            typedStyles[`drawer-${width}`],
-            typedStyles[`drawer-depth-${depth.toString()}`],
-            className
-          )}
-          style={hasTopOffset ? { top: topOffset } : undefined}
-        >
-          {children}
-        </BaseDrawer.Popup>
+        {/* Base UI expects <Popup> to live inside a <Viewport> — the element
+            that owns swipe-dismiss + touch scroll-locking. Our positioning
+            lives on the Popup itself, so the Viewport is a layout-neutral
+            (`display: contents`) wrapper here: it satisfies the context and
+            silences the warning without disturbing the Popup's fixed layout. */}
+        <BaseDrawer.Viewport className={cx('byline-drawer-viewport', styles.viewport)}>
+          <BaseDrawer.Popup
+            className={cx(
+              'byline-drawer-wrapper',
+              styles['drawer-wrapper'],
+              typedStyles[`drawer-${width}`],
+              typedStyles[`drawer-depth-${depth.toString()}`],
+              className
+            )}
+            style={hasTopOffset ? { top: topOffset } : undefined}
+          >
+            {children}
+          </BaseDrawer.Popup>
+        </BaseDrawer.Viewport>
       </BaseDrawer.Portal>
     </BaseDrawer.Root>
   )
