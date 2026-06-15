@@ -25,7 +25,6 @@ import cx from 'classnames'
 
 import { FieldRenderer } from '../fields/field-renderer'
 import { useBylineFieldServices } from '../fields/field-services-context'
-import { LocalDateTime } from '../fields/local-date-time'
 import { AdminGroup } from '../presentation/group'
 import { AdminRow } from '../presentation/row'
 import { AdminTabs } from '../presentation/tabs'
@@ -34,6 +33,7 @@ import { DocumentActions, type DocumentActionsLocaleOption } from './document-ac
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import { NavigationGuardModal, SystemFieldsConfirmModal, UnsavedChangesModal } from './form-modals'
 import styles from './form-renderer.module.css'
+import { FormStatusDisplay } from './form-status-display'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
 import { computeStatusTransitions } from './status-transitions'
@@ -157,91 +157,6 @@ export interface FormRendererProps {
    * If neither is set, a no-op `beforeunload`-only guard is used.
    */
   useNavigationGuard?: UseNavigationGuard
-}
-
-const FormStatusDisplay = ({
-  initialData,
-  workflowStatuses,
-  publishedVersion,
-  onUnpublish,
-}: {
-  initialData?: Record<string, any>
-  workflowStatuses?: WorkflowStatus[]
-  publishedVersion?: PublishedVersionInfo | null
-  onUnpublish?: () => Promise<void>
-}) => {
-  const { t } = useTranslation('byline-admin')
-  const statusCode = initialData?.status
-  const statusLabel = workflowStatuses?.find((s) => s.name === statusCode)?.label ?? statusCode
-  // Single-status workflows (e.g. lookups) have no editorial lifecycle —
-  // suppress the "Status: …" cell since there is nothing meaningful to convey.
-  const showStatusCell = (workflowStatuses?.length ?? 0) > 1
-
-  return (
-    <div className={cx('byline-form-status', styles.status)}>
-      <div className={cx('byline-form-status-meta', styles['status-meta'])}>
-        {showStatusCell && (
-          <div className={cx('byline-form-status-cell', styles['status-cell'])}>
-            <span className={cx('byline-form-status-muted', styles['status-muted'])}>
-              {t('forms.status.label')}
-            </span>
-            <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
-              {statusLabel}
-            </span>
-          </div>
-        )}
-
-        {initialData?.updatedAt != null && (
-          <div className={cx('byline-form-status-cell', styles['status-cell'])}>
-            <span className={cx('byline-form-status-muted', styles['status-muted'])}>
-              {t('forms.status.lastModified')}
-            </span>
-            <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
-              <LocalDateTime value={initialData.updatedAt} />
-            </span>
-          </div>
-        )}
-
-        {initialData?.createdAt != null && (
-          <div className={cx('byline-form-status-cell', styles['status-cell'])}>
-            <span className={cx('byline-form-status-muted', styles['status-muted'])}>
-              {t('forms.status.created')}
-            </span>
-            <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
-              <LocalDateTime value={initialData.createdAt} />
-            </span>
-          </div>
-        )}
-      </div>
-
-      {publishedVersion != null && (
-        <div className={cx('byline-form-status-published', styles['status-published'])}>
-          <span className={cx('byline-form-status-muted', styles['status-muted'])}>
-            {t('forms.status.publishedLive')}{' '}
-            {publishedVersion.updatedAt ? (
-              <span>
-                {t('forms.status.publishedOn', { date: new Date(publishedVersion.updatedAt) })}
-              </span>
-            ) : (
-              ''
-            )}
-          </span>
-          {onUnpublish && (
-            <>
-              {' '}
-              <button
-                type="button"
-                onClick={onUnpublish}
-                className={cx('byline-form-status-unpublish', styles['status-unpublish'])}
-              >
-                {t('common.actions.unpublish')}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  )
 }
 
 const FormContent = ({
