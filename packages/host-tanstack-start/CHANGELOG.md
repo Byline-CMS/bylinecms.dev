@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 3.12.1
+
+### Patch Changes
+
+- **`@byline/richtext-lexical`** editor loading placeholder now renders a document-shaped skeleton (heading, paragraphs, image, sub-heading) instead of a flat block of shimmer rows
+- Updated dependencies
+  - @byline/admin@3.12.1
+  - @byline/ai@3.12.1
+  - @byline/auth@3.12.1
+  - @byline/client@3.12.1
+  - @byline/core@3.12.1
+  - @byline/i18n@3.12.1
+  - @byline/ui@3.12.1
+
 ## 3.12.0
 
 ### Minor Changes

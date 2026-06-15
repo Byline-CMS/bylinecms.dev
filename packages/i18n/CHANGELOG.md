@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 3.12.1
+
+### Patch Changes
+
+- **`@byline/richtext-lexical`** editor loading placeholder now renders a document-shaped skeleton (heading, paragraphs, image, sub-heading) instead of a flat block of shimmer rows
+- Updated dependencies
+  - @byline/ui@3.12.1
+
 ## 3.12.0
 
 ### Minor Changes
