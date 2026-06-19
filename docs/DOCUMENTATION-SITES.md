@@ -6,6 +6,17 @@ summary: "A usage-scenario guide for building hierarchical documentation / book 
 
 # Documentation Sites
 
+> **⚠️ Direction change (2026-06-19) — read first.** The **Model A (parent-up)**
+> mechanics below are being superseded. Instead of building the hierarchy on a
+> *versioned* `relation` field plus the global `order_key`, the parent edge is
+> being promoted to a dedicated **document-grain, unversioned single-parent tree
+> primitive** (`tree: true`), with per-parent ordering. See
+> [DOCUMENT-TREE.md](./DOCUMENT-TREE.md) for the agreed design. The reader-facing
+> conclusions here (canonical single spine, cross-links for multi-home,
+> breadcrumbs / prev-next / On-This-Page) still hold — only the storage and grain
+> of the parent edge change. **This guide will be reconciled to the new approach
+> soon.** Model B (children-down) is unaffected.
+
 This is a **scenario guide**, not a subsystem reference. It shows how to assemble
 Byline's existing primitives into a hierarchical documentation or book site —
 ordered top-level subjects/chapters, nested leaf topics, and the read-side

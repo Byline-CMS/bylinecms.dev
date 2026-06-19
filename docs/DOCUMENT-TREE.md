@@ -1,0 +1,327 @@
+---
+title: "Document Trees"
+path: "document-tree"
+summary: "A document-grain, single-parent ordered hierarchy primitive for self-referential collections — the structural backbone for documentation / book sites. Promotes the 'parent' edge out of the versioned content stream and into a dedicated, unversioned tree table alongside path / availableLocales / order_key."
+status: "DESIGN — not yet implemented. This is the agreed spec, captured for build."
+---
+
+# Document Trees
+
+> **Status: design / spec.** Nothing here is shipped yet. This document records
+> the decisions reached and the invariants the implementation must hold. It is
+> the build contract for the feature, not a present-state reference.
+
+## Thesis
+
+[DOCUMENTATION-SITES.md](./DOCUMENTATION-SITES.md) describes **Model A
+(parent-up)** as a hierarchy built on an ordinary, *versioned* `relation` field
+plus the global `order_key`. That works, but it mixes grains: the `parent`
+relation lives at **document-version** grain while `order_key` lives at
+**document** grain. That asymmetry is the source of every wrinkle the scenario
+guide has to manage — a global keyspace shared across all siblings, re-parenting
+that mints a version, non-atomic two-grain moves, and a draft-vs-published
+ordering window.
+
+This spec removes the asymmetry by promoting the hierarchy to a **first-class,
+document-grain, unversioned tree primitive** — a fourth structural system field
+alongside `path`, `availableLocales`, and `order_key`. The tree is **meta**: it
+describes where a document sits in a table of contents and says nothing about the
+document's content. Re-parenting, reordering, and nesting touch **no** user
+fields and mint **no** versions, exactly like `updateDocumentPath` and
+`setOrderKey` today.
+
+The structure is stored in the (reshaped) `byline_document_relationships` table —
+the dormant table that was originally built as a many-to-many and was previously
+slated for removal. Instead of deleting it, we **constrain** it into a canonical
+single-parent ordered tree. The act of constraining is what makes it safe.
+
+## Locked decisions
+
+These are settled; the implementation must hold them.
+
+1. **Self-referential, single collection.** A tree relates documents *within one
+   collection* (docs → docs). No cross-collection trees. Matches Model A.
+2. **Single parent only.** Each document has at most one parent. No multi-parent
+   / leaf reuse. A topic that genuinely belongs in two places is a *cross-link*
+   relation field ("See also"), never a second tree edge. This is deliberately
+   as opinionated as the single-collection rule.
+3. **Never cascade-delete children.** Deleting a node must **promote its children
+   to root**, not remove them. The documents survive; they simply lose their
+   parent.
+4. **Document-grain and unversioned.** Tree mutations write the tree table only.
+   They mint no document version, do not reset status, and do not touch user
+   fields. They are pure structural metadata, like `path` / `availableLocales` /
+   `order_key`.
+5. **Per-parent ordering.** Sibling order is an `order_key` *on the edge row*,
+   scoped to the parent. Each parent is its own ordering keyspace.
+6. **Collection-flag gated.** A collection opts in via a definition-level flag.
+   The flag turns on the tree storage, the authoring widget, and the read path.
+   Collections without it are unaffected.
+
+## Why per-parent ordering matters (what it fixes)
+
+Moving `order_key` into the edge row, partitioned by parent, dissolves the three
+problems the scenario guide has to live with under Model A:
+
+- **Cross-sibling key collisions → gone.** Under the global `order_key`, two
+  independent sibling-scoped reorders share one keyspace and can occasionally
+  mint colliding keys, tripping `reorderCollectionDocument`'s collection-wide
+  corruption detector and forcing an O(n) re-key. With ordering scoped to
+  `(parent_document_id)`, siblings under different parents are never compared, so
+  the collision path cannot occur.
+- **Grain skew → gone.** Parent and order now live in the *same row* at the same
+  grain. A re-parent-at-position is a single transactional edge upsert (set
+  parent + mint key among the new siblings). Atomic.
+- **Draft-vs-published ordering window → gone.** Because the tree is unversioned,
+  there is no draft-parent / published-parent divergence and no single
+  `order_key` straddling two sibling groups.
+
+## Table shape (reshape of `byline_document_relationships`)
+
+Current shape (`packages/db-postgres/src/database/schema/index.ts`) is a
+many-to-many edge list: `(parent_document_id, child_document_id, createdAt)` with
+`unique(parent_document_id, child_document_id)`, both FKs `onDelete: cascade`, no
+ordering. Reshape to a single-parent ordered adjacency model:
+
+| Column | Change | Why |
+|---|---|---|
+| `child_document_id` | FK → `documents.id`, **`onDelete: cascade`** | When the node itself is deleted, its membership row disappears — it leaves the tree. |
+| `parent_document_id` | FK → `documents.id`, **nullable**, **`onDelete: 'set null'`** | Nullable = root. `set null` = automatic "promote children to root" when a parent document is deleted (decision 3), at the DB level. |
+| `order_key` | **new**, byte-sorted varchar (same collation as `byline_documents.order_key`) | Per-parent sibling order (decision 5). |
+| `created_at` / `updated_at` | keep `created_at`; **add `updated_at`** | Structure is now editable, not append-only. |
+| *(audit)* | optional `created_by` / `updated_by` | Ties into the document-grain audit-log work; structural moves are auditable events. |
+
+Constraints / indexes:
+
+- **`unique(child_document_id)`** — replaces the pair-unique. This is the
+  single-parent invariant (decision 2). Each document appears in at most one row.
+- **`index(parent_document_id, order_key)`** — the per-parent sibling read, in
+  order. Drives both the authoring tree and the read-side flatten.
+
+> The previous comment claimed "FK constraints are not used; integrity at the
+> application layer," yet the code declared cascading FKs. The reshape makes the
+> FKs load-bearing and *correct*: cascade on child (leave the tree), set-null on
+> parent (promote to root).
+
+## Node placement — the tri-state
+
+`unique(child_document_id)` + nullable parent yields three clean states per
+document:
+
+| State | Edge row | Meaning |
+|---|---|---|
+| **Unplaced** | no row | Created but not yet inserted into the TOC. Not in the tree. |
+| **Root** | row, `parent_document_id IS NULL` | Top-level node; ordered among roots by `order_key`. |
+| **Child** | row, `parent_document_id` set | Nested node; ordered among its parent's children by `order_key`. |
+
+All ordering — roots included — lives in the edge table. For a tree collection,
+`byline_documents.order_key` is unused; the edge `order_key` is authoritative.
+
+## Write path
+
+All tree writes are new document-grain commands (siblings of
+`updateDocumentPath` / `setOrderKey`), unversioned, each firing the invalidation
+hook (below).
+
+- **Place / move to a position** — upsert the node's edge row: set
+  `parent_document_id` (or NULL for root) and mint `order_key` with
+  `generateKeyBetween(leftSibling, rightSibling)` resolved **within the target
+  sibling group**. Single row, single transaction.
+- **Reorder within siblings** — same upsert, parent unchanged, new `order_key`
+  between the in-group neighbours. (This *replaces* `reorderCollectionDocument`
+  for tree collections — that fn operates on `byline_documents.order_key`, which
+  a tree collection no longer uses.)
+- **Re-parent** — set `parent_document_id` + mint a key among the new siblings,
+  in one transaction. Atomic; no version; no status change.
+
+Two invariants the write path must enforce in application code (the DB cannot):
+
+- **Cycle guard.** A parent pointer can form cycles (A→B while B→A). Before any
+  re-parent, walk the ancestor chain of the target parent and reject if the moved
+  node appears. Concurrency makes this real — two editors cross-moving — so the
+  check and the write belong in one transaction.
+- **Same-collection guard.** Both endpoints must belong to the flag-bearing
+  collection (decision 1).
+
+**Promote-on-delete.** `onDelete: 'set null'` handles the *data* (children's
+`parent_document_id` → NULL, i.e. promoted to root). But two things still want an
+application-level delete command: (a) firing the invalidation fan-out for the
+promoted subtree, and (b) optionally re-keying the promoted orphans into the root
+group (they otherwise inherit a stale per-parent key, which sorts them arbitrarily
+among roots — harmless but untidy).
+
+## Read path
+
+The tree is **not** in `store_relation`, so the existing `populateDocuments` /
+relation-envelope / `beforeRead` pipeline does not see it. The tree gets its own
+read path:
+
+- **Subtree read** — a recursive CTE over `byline_document_relationships`,
+  depth-bounded, joined to the document content. Returns a nested shape (node +
+  ordered children) for the authoring tree and for server-rendered navigation.
+  Carry a **depth column** in the CTE and a caller-supplied max depth as a
+  backstop; the cycle guard prevents true cycles, but a bounded recursion is
+  cheap insurance and gives the read its `depth` semantics.
+- **Status at the edge level.** A published parent can own a draft-only child.
+  Public reads join `byline_current_published_documents` and **drop edges whose
+  child has no published version** — otherwise breadcrumbs / prev-next point at
+  404s. Admin reads join `byline_current_documents` (status `any`). The
+  published/any axis applies per *edge*, not just per document.
+- **Unpublished nodes hide their subtree (decision).** In a strict single-parent
+  tree, a node whose parent edge is dropped (parent unpublished) is unreachable
+  via the spine — so an unpublished mid-tree node makes its **whole subtree absent
+  from public navigation**, even where individual descendants are published. This
+  is the intended semantic: you have not published the chapter, so its topics are
+  not yet navigable. Descendants are *not* promoted to the dropped node's parent
+  for public reads. (Authors still see the full tree under status `any`.)
+- **Flatten for prev/next** — depth-first walk of the ordered tree gives the
+  linear spine; previous/next are the entries adjacent to the current node.
+- **Breadcrumbs** — walk `parent_document_id` upward (now a direct, indexed
+  single-collection lookup, not a populate of a versioned relation).
+
+Breadcrumb and prev/next **link targets remain `path`** (see below); the tree
+provides structure and order, `path` provides the URL.
+
+### Locale semantics
+
+The tree references the **logical `document_id`**, so a node's position is
+**per-document and locale-agnostic** — all locale variants of a document share one
+tree position. A localized documentation site has **one structure**, with
+localized content hanging off each node. Status-at-edge (above) is evaluated
+against the locale being read. This is the correct grain: the table of contents is
+a property of the work, not of a translation.
+
+## Invalidation contract
+
+Tree mutations mint no version, so the normal version-write invalidation does not
+fire. Each tree write must emit a **collection lifecycle event** whose payload is
+the **affected set**, not a single node — because one structural change ripples:
+
+- the moved node,
+- **every descendant** (their breadcrumb trails changed),
+- the **old** parent's child list,
+- the **new** parent's child list,
+- the **prev/next neighbours on both sides** of the flatten (old position and new
+  position).
+
+A single drag that relocates a subtree is **one** logical event over many edges,
+batched — not N events. Consumers (cache/ISR invalidation, markdown-export
+refresh, search reindex) subscribe to this event. Note that
+`reorderCollectionDocument` today fires *no* hook at all; this is new surface.
+
+## Command surface (proposed)
+
+New document-grain commands on the storage adapter, mirroring the
+`updateDocumentPath` / `setOrderKey` pattern (unversioned, single-row writes).
+Names are provisional:
+
+| Command | Effect |
+|---|---|
+| `placeTreeNode({ document_id, parent_document_id \| null, before \| after })` | Insert/move a node: set parent (or root) and mint `order_key` between the resolved in-group neighbours. Covers place, reorder, and re-parent — they differ only in whether `parent_document_id` changes. |
+| `removeFromTree({ document_id })` | Delete the node's edge row (node becomes *unplaced*). Distinct from document deletion. |
+| `getSubtree({ root_document_id \| null, depth, status })` | Recursive-CTE read (above). `null` root = whole tree from the roots. |
+| `getAncestors({ document_id })` | Breadcrumb walk upward. |
+
+The cycle guard and same-collection guard live inside `placeTreeNode`, in the same
+transaction as the write. Each mutating command emits the invalidation event.
+
+These are surfaced through `@byline/client` as a small tree API on the
+collection handle (shape TBD) so frontend developers get the same ergonomics as
+the rest of the client — and so the authoring widget and public navigation read
+through one path.
+
+## Migration & adoption
+
+- **Schema migration.** The reshape is a Drizzle migration: drop the pair-unique,
+  add `unique(child_document_id)`, make `parent_document_id` nullable, change the
+  parent FK to `onDelete: 'set null'` (keep child FK `onDelete: cascade`), add
+  `order_key` + `updated_at` (+ optional audit columns), add
+  `index(parent_document_id, order_key)`. The table is **dormant and empty** (no
+  code reads or writes it today), so there is no data backfill — the migration is
+  pure DDL.
+- **Drizzle `relations()` wiring.** The existing `documentRelationshipsRelations`
+  (`schema/index.ts`, ~L701) and the `parent_relationships` / `child_relationships`
+  entries on `documentsRelations` (~L688) must be updated — they currently point
+  `parent`/`child` at `documentVersions` while the FK targets `documents`. Fix to
+  reference `documents` and the single-parent shape. The `common.ts` comment about
+  "append-only relationship rows" also no longer applies (the table is now
+  editable, with `updated_at`).
+- **Collection adoption.** Flipping `tree: true` on an existing collection leaves
+  every document **unplaced** (no edge rows) — the tree starts empty and authors
+  build it via the widget. No automatic placement. A collection can be migrated
+  off the legacy Model A `parent` relation field by reading that field once and
+  seeding `placeTreeNode` calls, but that is a per-site script, not a platform
+  migration.
+
+## Collection flag
+
+Opt-in at the **collection definition** (schema) level — not `defineAdmin` —
+because the flag changes storage authority and the read path, not just
+presentation:
+
+```ts
+export const Docs = defineCollection({
+  path: 'docs',
+  useAsTitle: 'title',
+  useAsPath: 'title',
+  tree: true,            // ← turns on the document-tree primitive
+  fields: [ /* … no `parent` relation field; the tree owns structure … */ ],
+})
+```
+
+The flag turns on: the edge-table storage + commands, the authoring tree widget
+(replacing the default list view), the recursive read path, and the invalidation
+event. A `tree: true` collection does **not** also set `orderable: true` — the
+tree owns ordering; `byline_documents.order_key` is inert for it.
+
+> Naming is open. `tree: true` describes the mechanism; `documentation: true`
+> (floated in discussion) describes the use case. Prefer naming the mechanism,
+> since a single-parent ordered tree is useful beyond documentation sites.
+
+## Path independence (deliberate)
+
+Breadcrumb **URLs** use `path` (`byline_document_paths`), itself an independent
+document-grain primitive. We **keep `path` independent of the tree** — flat
+canonical slugs, not tree-derived `parent-slug/child-slug`. Rationale:
+
+- Tree-derived paths would make a re-parent rewrite the path of the **entire
+  subtree** — an SEO-visible change requiring redirects, and it would break the
+  "documents are untouched by their tree position" purity this design is built on.
+- Breadcrumbs render *from the tree* (structure) while *linking to independent
+  paths* (URLs). The two systems cooperate without coupling.
+
+Hierarchical URLs remain possible later as an explicit, separately-owned feature
+(subtree path-rewrite + redirect management) — but they are **out of scope** here.
+
+## Relationship to DOCUMENTATION-SITES.md
+
+This primitive **supersedes Model A's mechanics**. Once shipped:
+
+- Model A's "single-target `parent` *relation field*" becomes "the `tree: true`
+  document-grain primitive." The reader-facing conclusions of the scenario guide
+  (canonical single spine, cross-links for multi-home, breadcrumbs + prev/next +
+  On-This-Page) are unchanged — only the *storage and grain* of the parent edge
+  change.
+- Model B (children-down / `hasMany`) is unaffected and remains the alternative
+  for firmly two-level structures that want the parent-owns-an-ordered-list
+  authoring model.
+- `DOCUMENTATION-SITES.md` should be reconciled to point at this doc for the
+  parent-up mechanics once the primitive lands.
+
+## Open items (not yet decided)
+
+- **Audit columns** — whether `created_by` / `updated_by` land in v1 or follow
+  the broader audit-log work.
+- **Re-key on promote** — whether promote-on-delete re-keys orphans into the root
+  group eagerly or leaves the (harmless) stale key.
+- **Authoring widget scope** — full drag-the-whole-TOC tree vs. incremental
+  per-node "move to…"; both ride the same write commands.
+- **Client tree-API shape** — the exact `@byline/client` surface for
+  `getSubtree` / `getAncestors` / `placeTreeNode`.
+
+Resolved: flag name is **`tree: true`**; self-referential single collection;
+single-parent only; promote-orphans-to-root (no cascade); per-parent ordering;
+path independent of tree; unpublished nodes hide their subtree publicly;
+tree is per-logical-document (locale-agnostic).
+</content>
+</invoke>
