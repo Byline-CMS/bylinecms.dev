@@ -30,6 +30,7 @@ import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import { buildLocalizedPath, getMeta, truncateForMeta } from '@/lib/meta'
 import { DocDetail } from '@/modules/docs/components/detail'
+import { DocsPrevNext } from '@/modules/docs/components/prev-next'
 import { type DocSplatResult, getDocBySplatFn } from '@/modules/docs/detail'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
@@ -132,6 +133,7 @@ function RouteComponent() {
       <Section>
         <Container>
           <DocDetail result={doc} lng={interfaceLocale} />
+          <DocsPrevNext currentChain={chainSegments.join('/')} lng={interfaceLocale} />
         </Container>
       </Section>
     </>

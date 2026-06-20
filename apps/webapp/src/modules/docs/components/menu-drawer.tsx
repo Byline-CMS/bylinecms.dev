@@ -30,10 +30,10 @@ import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
+import { type DocNavNode, flattenDocNav } from '@/modules/docs/nav'
 import { useDocsMenu } from './docs-menu-provider.js'
 import styles from './menu-drawer.module.css'
 import type { Locale } from '@/i18n/i18n-config'
-import type { DocNavNode } from '@/modules/docs/nav'
 
 /** Normalize a splat to a comparable `a/b/c` chain key (no leading/trailing /). */
 function chainKey(splat: string): string {
@@ -51,15 +51,6 @@ function activeAncestorIds(nodes: DocNavNode[], activeKey: string): Set<string> 
   }
   for (const node of nodes) walk(node)
   return open
-}
-
-/** Pre-order flatten — used by the icon-only compact rail. */
-function flatten(nodes: DocNavNode[], out: DocNavNode[] = []): DocNavNode[] {
-  for (const node of nodes) {
-    out.push(node)
-    flatten(node.children, out)
-  }
-  return out
 }
 
 interface NavItemProps {
@@ -199,7 +190,7 @@ export function DocsMenuDrawer({ nodes, lng }: DocsMenuDrawerProps): React.JSX.E
   // Compact = icon-only. Only applies to the desktop-closed state; the mobile
   // overlay always renders with full labels for readability.
   const compact = mobile === false && drawerOpen === false
-  const compactItems = useMemo(() => (compact ? flatten(nodes) : []), [compact, nodes])
+  const compactItems = useMemo(() => (compact ? flattenDocNav(nodes) : []), [compact, nodes])
 
   return (
     <aside

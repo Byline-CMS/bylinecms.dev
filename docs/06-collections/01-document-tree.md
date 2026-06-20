@@ -2,13 +2,13 @@
 title: "Document Trees"
 path: "document-tree"
 summary: "A document-grain, single-parent ordered hierarchy primitive for self-referential collections — the structural backbone for documentation / book sites. Promotes the 'parent' edge out of the versioned content stream and into a dedicated, unversioned tree table alongside path / availableLocales / order_key."
-status: "BACKEND + ADMIN + PUBLIC FRONTEND COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget, the built-in tree list view, the public hierarchical-URL splat handler (HTML + .md, canonical 301 / status-at-edge 404), and the tree-rendered docs nav (collapsible drawer with animated caret + auto-expand, tree-ordered index, direct hierarchical links) are shipped and live on the docs collection. Remaining: prev/next spine links and the phase-2 admin drag/drop reorder view (item 3)."
+status: "BACKEND + ADMIN + PUBLIC FRONTEND COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget, the built-in tree list view, the public hierarchical-URL splat handler (HTML + .md, canonical 301 / status-at-edge 404), and the tree-rendered docs nav (collapsible drawer with animated caret + auto-expand, tree-ordered index, direct hierarchical links), and the GitBook/Docusaurus-style prev/next tiles are shipped and live on the docs collection. Remaining: the phase-2 admin drag/drop reorder view (item 3)."
 ---
 
 # Document Trees
 
 > **Status: backend + admin + public frontend (hierarchical URLs + tree nav)
-> complete; prev/next links and phase-2 admin drag reorder remain.** See the
+> complete; only the phase-2 admin drag reorder remains.** See the
 > [Session checkpoint](#session-checkpoint-resume-here) below for exactly what is
 > shipped, the decisions reached, and what to build next. The build contract in
 > the body of this document still holds.
@@ -110,8 +110,12 @@ status: "BACKEND + ADMIN + PUBLIC FRONTEND COMPLETE — storage, commands, flag,
    grid emit **direct hierarchical links** (each node's full `chain`) — no 301
    hop — and the index cards are in tree (pre-order) order. The compact desktop
    rail stays a flat icon list. The old `list.ts`/`list.server.ts` were removed.
-   *Remaining sub-item:* **prev/next** spine links on the detail page (flatten of
-   `getSubtree`) — not yet built.
+   **prev/next** GitBook/Docusaurus-style tiles ship on the detail page
+   (`components/prev-next.tsx`): the document's neighbours in the spine (pre-order
+   flatten via the shared `flattenDocNav`, derived from the layout's
+   already-loaded nav tree — no extra fetch), as two bordered tiles with
+   `rel="prev"`/`rel="next"` and direct hierarchical links. A future phase may add
+   summary text to the tiles.
 3. **Phase-2 admin list view** — drag-to-reorder + re-parent on the built-in
    tree list view (currently read/browse only; placement is per-doc via the
    widget).

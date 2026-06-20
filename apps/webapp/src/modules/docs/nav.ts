@@ -38,6 +38,20 @@ export interface DocsNavResult {
   nodes: DocNavNode[]
 }
 
+/**
+ * Flatten the nav tree to its pre-order (depth-first) **spine** — the linear
+ * reading order. Drives the index card grid, the compact icon rail, and the
+ * detail page's prev/next links (a document's neighbours in the spine). Pure
+ * and client-safe.
+ */
+export function flattenDocNav(nodes: DocNavNode[], out: DocNavNode[] = []): DocNavNode[] {
+  for (const node of nodes) {
+    out.push(node)
+    flattenDocNav(node.children, out)
+  }
+  return out
+}
+
 export interface DocsNavInput {
   lng?: string
 }

@@ -1,0 +1,122 @@
+/**
+ * Docs prev / next spine tiles (bottom of a docs detail page) — GitBook /
+ * Docusaurus pattern: two equal-width bordered tiles, prev pinned left, next
+ * pinned right.
+ *
+ * Override handles:
+ *   .byline-docs-prevnext       — the <nav> wrapper
+ *   .byline-docs-prevnext-tile  — each tile <a>
+ */
+
+.prevnext {
+  display: flex;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+}
+
+:is([data-theme="dark"], :global(.dark)) .prevnext {
+  border-top-color: var(--canvas-700);
+}
+
+/* Two equal halves; a lone tile stays on its own side (the empty slot holds
+ * the other half open). */
+.slot {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.slotRight {
+  justify-content: flex-end;
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 1rem 1.1rem;
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.tile:hover {
+  border-color: var(--theme-400, var(--gray-300));
+  background-color: var(--canvas-50);
+}
+
+:is([data-theme="dark"], :global(.dark)) .tile {
+  border-color: var(--canvas-700);
+}
+
+:is([data-theme="dark"], :global(.dark)) .tile:hover {
+  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
+}
+
+.prev {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.next {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.dir {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-500, #6b7280);
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--theme-600, var(--theme-500, #2563eb));
+}
+
+:is([data-theme="dark"], :global(.dark)) .title {
+  color: var(--theme-300, var(--theme-400));
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--gray-400, #9ca3af);
+  transition: color 160ms ease;
+}
+
+.tile:hover .icon {
+  color: var(--theme-500, var(--theme-400));
+}
+
+@media screen and (max-width: 40rem) {
+  .prevnext {
+    flex-direction: column;
+  }
+
+  .slot {
+    flex: 1 1 auto;
+  }
+}
