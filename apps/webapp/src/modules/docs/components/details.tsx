@@ -9,14 +9,14 @@
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { RenderBlocks } from '@/ui/byline/render-blocks'
 import type { Locale } from '@/i18n/i18n-config'
-import type { DocDetailResult } from '@/modules/docs/detail'
+import type { DocDetailsResult } from '@/modules/docs/details'
 
-interface DocDetailProps {
+interface DocDetailsProps {
   lng: Locale
-  result: NonNullable<DocDetailResult>
+  result: NonNullable<DocDetailsResult>
 }
 
-export function DocDetail({ result, lng }: DocDetailProps) {
+export function DocDetails({ result, lng }: DocDetailsProps) {
   const { fields } = result
   const title = fields.title ?? result.path ?? result.id
   const featureMedia = fields.featureImage?.document?.fields

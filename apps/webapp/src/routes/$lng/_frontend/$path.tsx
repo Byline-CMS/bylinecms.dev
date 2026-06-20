@@ -17,8 +17,8 @@ import {
   /* metaImageFromUpload, */
   truncateForMeta,
 } from '@/lib/meta'
-import { PageDetail } from '@/modules/pages/components/detail'
-import { getPageDetailFn, type PageDetailResult } from '@/modules/pages/detail'
+import { PageDetails } from '@/modules/pages/components/details'
+import { getPageDetailsFn, type PageDetailsResult } from '@/modules/pages/details'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import type { RoutableLocale } from '@/i18n/i18n-config'
@@ -29,12 +29,12 @@ import type { RoutableLocale } from '@/i18n/i18n-config'
 // so we cast back to the actual shape we know the loader produces. The same
 // pattern is used implicitly by `RouteComponent` below via
 // `Route.useLoaderData()`.
-type RouteLoaderData = { result: NonNullable<PageDetailResult>; lng: RoutableLocale }
+type RouteLoaderData = { result: NonNullable<PageDetailsResult>; lng: RoutableLocale }
 
 export const Route = createFileRoute('/$lng/_frontend/$path')({
   loader: async ({ params, context }) => {
     const lng = context.locale
-    const result = await getPageDetailFn({ data: { path: params.path, lng } })
+    const result = await getPageDetailsFn({ data: { path: params.path, lng } })
     if (result == null) throw notFound()
     return { result, lng }
   },
@@ -102,7 +102,7 @@ function RouteComponent() {
           <Breadcrumbs breadcrumbs={[{ label: title, href: `/${result.path}` }]} />
         </Container>
       </Section>
-      <PageDetail result={result} lng={interfaceLocale} />
+      <PageDetails result={result} lng={interfaceLocale} />
     </>
   )
 }

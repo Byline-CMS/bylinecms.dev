@@ -11,12 +11,12 @@ import { Badge } from '@byline/ui/react'
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
 import type { Locale } from '@/i18n/i18n-config'
-import type { NewsDetailResult } from '@/modules/news/detail'
+import type { NewsDetailsResult } from '@/modules/news/details'
 
-interface NewsDetailProps {
+interface NewsDetailsProps {
   /** Locale for body-link building (passed from the route's resolved locale). */
   lng: Locale
-  result: NonNullable<NewsDetailResult>
+  result: NonNullable<NewsDetailsResult>
 }
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -25,7 +25,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
-export function NewsDetail({ result, lng }: NewsDetailProps) {
+export function NewsDetails({ result, lng }: NewsDetailsProps) {
   const { fields } = result
   const title = fields.title ?? result.path ?? result.id
   const categoryLabel = fields.category?.document?.fields.name

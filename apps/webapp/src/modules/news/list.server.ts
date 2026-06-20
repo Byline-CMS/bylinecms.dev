@@ -9,7 +9,7 @@
 /**
  * Server-only implementation of the News list read. Loaded via a dynamic
  * `import()` from `./list` so the Byline viewer SDK never enters the client
- * bundle — see the boundary note in `../pages/detail`.
+ * bundle — see the boundary note in `../pages/details`.
  *
  * Reads the `news` collection through the shared *viewer* `BylineClient`, which
  * behaves as the public client by default and transparently upgrades to the

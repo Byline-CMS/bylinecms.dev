@@ -8,9 +8,9 @@
 
 /**
  * Public News detail server fn — the TanStack Start boundary only. The actual
- * read (Byline viewer SDK) lives in `./detail.server`, loaded with a dynamic
+ * read (Byline viewer SDK) lives in `./details.server`, loaded with a dynamic
  * `import()` inside the handler so the server-only SDK never enters the client
- * bundle. See `../pages/detail` for the full rationale.
+ * bundle. See `../pages/details` for the full rationale.
  */
 
 import { createServerFn } from '@tanstack/react-start'
@@ -23,28 +23,28 @@ import type { NewsCategoryFields } from '~/collections/news-categories/schema.js
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 
-export type NewsDetailFields = WithPopulated<
+export type NewsDetailsFields = WithPopulated<
   WithPopulated<NewsFields, 'category', NewsCategoryFields>,
   'featureImage',
   MediaFields
 >
 
-export type NewsDetailResult = ClientDocument<NewsDetailFields> | null
+export type NewsDetailsResult = ClientDocument<NewsDetailsFields> | null
 
-export interface NewsDetailInput {
+export interface NewsDetailsInput {
   path: string
   lng?: string
 }
 
-export const getNewsDetailFn = createServerFn({ method: 'GET' })
+export const getNewsDetailsFn = createServerFn({ method: 'GET' })
   .middleware([publicCacheMiddleware])
   .validator(
-    (input: NewsDetailInput): NewsDetailInput => ({
+    (input: NewsDetailsInput): NewsDetailsInput => ({
       path: input.path,
       lng: input.lng,
     })
   )
-  .handler(async (ctx): Promise<NewsDetailResult> => {
-    const { getNewsDetail } = await import('./detail.server')
-    return getNewsDetail(ctx.data as NewsDetailInput)
+  .handler(async (ctx): Promise<NewsDetailsResult> => {
+    const { getNewsDetails } = await import('./details.server')
+    return getNewsDetails(ctx.data as NewsDetailsInput)
   })

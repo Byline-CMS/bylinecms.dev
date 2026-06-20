@@ -16,7 +16,7 @@
  * Reads through the *public* client (`status: 'published'` — drafts never
  * leak; preview never applies to the agent surface, same contract as the
  * sitemap). Serialized markdown is cached in L1 tagged with the document's
- * detail tag, so the collection hooks' per-document invalidation sweeps it
+ * details tag, so the collection hooks' per-document invalidation sweeps it
  * on every edit alongside the HTML reads.
  */
 
@@ -33,7 +33,7 @@ const MD_TTL_MS = 60 * 60 * 1000
 
 /**
  * Map a relation target to its public HTML URL. Returns `undefined` for
- * collections without a public detail page (e.g. `media`), which renders
+ * collections without a public details page (e.g. `media`), which renders
  * the relation as plain text instead of a broken link. Pages compose from
  * the document's `area` at render time — from a bare relation we can only
  * assume root.
@@ -54,7 +54,7 @@ export interface GetDocumentMarkdownOptions {
   collection: string
   lng: string
   path: string
-  /** Relation populate map for the read (mirrors the HTML detail loader). */
+  /** Relation populate map for the read (mirrors the HTML details loader). */
   populate?: Record<string, '*'>
   /**
    * URL segments (after the locale) of the document's canonical HTML page —
@@ -80,8 +80,8 @@ export async function getDocumentMarkdown(
     // One entry per (collection, path, locale): every URL shape for one
     // document serves identical output (the canonical is derived from the
     // document itself), so the shapes deliberately share the entry.
-    cacheKey: `${cacheKeys.detail(collection, path, lng)}::md`,
-    tags: [tags.detail(collection, path), tags.collection(collection)],
+    cacheKey: `${cacheKeys.details(collection, path, lng)}::md`,
+    tags: [tags.details(collection, path), tags.collection(collection)],
     ttl: MD_TTL_MS,
     fn: async () => {
       const client = getPublicBylineClient()

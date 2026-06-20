@@ -9,7 +9,7 @@
 /**
  * Public Page detail server fn — the TanStack Start boundary only.
  *
- * The actual read (Byline viewer SDK) lives in `./detail.server` and is loaded
+ * The actual read (Byline viewer SDK) lives in `./details.server` and is loaded
  * with a dynamic `import()` *inside* the handler. This split is deliberate:
  *
  *   A `createServerFn` module is imported by the **client** too — the client
@@ -33,24 +33,24 @@ import type { PageFields } from '~/collections/pages/schema.js'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 
-export type PageDetailFields = WithPopulated<PageFields, 'featureImage', MediaFields>
+export type PageDetailsFields = WithPopulated<PageFields, 'featureImage', MediaFields>
 
-export type PageDetailResult = ClientDocument<PageDetailFields> | null
+export type PageDetailsResult = ClientDocument<PageDetailsFields> | null
 
-export interface PageDetailInput {
+export interface PageDetailsInput {
   path: string
   lng?: string
 }
 
-export const getPageDetailFn = createServerFn({ method: 'GET' })
+export const getPageDetailsFn = createServerFn({ method: 'GET' })
   .middleware([publicCacheMiddleware])
   .validator(
-    (input: PageDetailInput): PageDetailInput => ({
+    (input: PageDetailsInput): PageDetailsInput => ({
       path: input.path,
       lng: input.lng,
     })
   )
-  .handler(async (ctx): Promise<PageDetailResult> => {
-    const { getPageDetail } = await import('./detail.server')
-    return getPageDetail(ctx.data as PageDetailInput)
+  .handler(async (ctx): Promise<PageDetailsResult> => {
+    const { getPageDetails } = await import('./details.server')
+    return getPageDetails(ctx.data as PageDetailsInput)
   })

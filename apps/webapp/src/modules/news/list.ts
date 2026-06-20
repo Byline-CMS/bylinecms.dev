@@ -10,7 +10,7 @@
  * Public News list server fn — the TanStack Start boundary only. The actual
  * read (Byline viewer SDK) lives in `./list.server`, loaded with a dynamic
  * `import()` inside the handler so the server-only SDK never enters the client
- * bundle. See `../pages/detail` for the full rationale.
+ * bundle. See `../pages/details` for the full rationale.
  */
 
 import { createServerFn } from '@tanstack/react-start'

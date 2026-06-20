@@ -9,7 +9,7 @@
 /**
  * Server-only implementation of the Docs navigation read. Loaded via a dynamic
  * `import()` from `./nav` so the Byline viewer SDK never enters the client
- * bundle — see the boundary note in `../pages/detail`.
+ * bundle — see the boundary note in `../pages/details`.
  *
  * Reads the document **tree** via `getSubtree` (pre-order, per-parent ordered)
  * through the *viewer* client, so drafts stay hidden for visitors but become

@@ -29,9 +29,9 @@ import { useTranslations } from '@/i18n/client/translations-provider'
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import { buildLocalizedPath, getMeta, truncateForMeta } from '@/lib/meta'
-import { DocDetail } from '@/modules/docs/components/detail'
+import { DocDetails } from '@/modules/docs/components/details'
 import { DocsPrevNext } from '@/modules/docs/components/prev-next'
-import { type DocSplatResult, getDocBySplatFn } from '@/modules/docs/detail'
+import { type DocSplatResult, getDocBySplatFn } from '@/modules/docs/details'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import type { RoutableLocale } from '@/i18n/i18n-config'
@@ -132,7 +132,7 @@ function RouteComponent() {
       <BreadcrumbsClient breadcrumbs={breadcrumbs} />
       <Section>
         <Container>
-          <DocDetail result={doc} lng={interfaceLocale} />
+          <DocDetails result={doc} lng={interfaceLocale} />
           <DocsPrevNext currentChain={chainSegments.join('/')} lng={interfaceLocale} />
         </Container>
       </Section>

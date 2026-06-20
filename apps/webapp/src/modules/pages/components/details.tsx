@@ -13,11 +13,11 @@ import { advertisedLocalesFor } from '@/lib/alternates'
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { RenderBlocks } from '@/ui/byline/render-blocks'
 import type { Locale } from '@/i18n/i18n-config'
-import type { PageDetailResult } from '@/modules/pages/detail'
+import type { PageDetailsResult } from '@/modules/pages/details'
 
-interface PageDetailProps {
+interface PageDetailsProps {
   lng: Locale
-  result: NonNullable<PageDetailResult>
+  result: NonNullable<PageDetailsResult>
 }
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -26,7 +26,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
-export function PageDetail({ result, lng }: PageDetailProps) {
+export function PageDetails({ result, lng }: PageDetailsProps) {
   const { fields } = result
   const title = fields.title ?? result.path ?? result.id
   // Public advertised content-locale set: availableLocales ∩ _availableVersionLocales

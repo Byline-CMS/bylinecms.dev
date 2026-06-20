@@ -8,8 +8,8 @@
 
 /**
  * Server-only implementation of the News detail read. Loaded via a dynamic
- * `import()` from `./detail` so the Byline viewer SDK never enters the client
- * bundle — see the boundary note in `../pages/detail`.
+ * `import()` from `./details` so the Byline viewer SDK never enters the client
+ * bundle — see the boundary note in `../pages/details`.
  *
  * Reads through the shared *viewer* `BylineClient` so unpublished versions stay
  * invisible for ordinary visitors but become visible to admins who have toggled
@@ -22,13 +22,13 @@ import {
   isPreviewActive,
 } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
-import type { NewsDetailFields, NewsDetailInput, NewsDetailResult } from './detail'
+import type { NewsDetailsFields, NewsDetailsInput, NewsDetailsResult } from './details'
 
-export async function getNewsDetail({ path, lng }: NewsDetailInput): Promise<NewsDetailResult> {
+export async function getNewsDetails({ path, lng }: NewsDetailsInput): Promise<NewsDetailsResult> {
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  return client.collection('news').findByPath<NewsDetailFields>(path, {
+  return client.collection('news').findByPath<NewsDetailsFields>(path, {
     populate: { category: '*', featureImage: '*' },
     locale: lng,
     status: preview ? 'any' : 'published',

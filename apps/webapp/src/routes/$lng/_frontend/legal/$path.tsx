@@ -18,19 +18,19 @@ import {
   /* metaImageFromUpload, */
   truncateForMeta,
 } from '@/lib/meta'
-import { PageDetail } from '@/modules/pages/components/detail'
-import { getPageDetailFn, type PageDetailResult } from '@/modules/pages/detail'
+import { PageDetails } from '@/modules/pages/components/details'
+import { getPageDetailsFn, type PageDetailsResult } from '@/modules/pages/details'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import type { RoutableLocale } from '@/i18n/i18n-config'
 
 // See `../$path.tsx` for notes on why this cast is needed.
-type RouteLoaderData = { result: NonNullable<PageDetailResult>; lng: RoutableLocale }
+type RouteLoaderData = { result: NonNullable<PageDetailsResult>; lng: RoutableLocale }
 
 export const Route = createFileRoute('/$lng/_frontend/legal/$path')({
   loader: async ({ params, context }) => {
     const lng = context.locale
-    const result = await getPageDetailFn({ data: { path: params.path, lng } })
+    const result = await getPageDetailsFn({ data: { path: params.path, lng } })
     if (result == null) throw notFound()
     return { result, lng }
   },
@@ -98,7 +98,7 @@ function RouteComponent() {
           />
         </Container>
       </Section>
-      <PageDetail result={result} lng={interfaceLocale} />
+      <PageDetails result={result} lng={interfaceLocale} />
     </>
   )
 }

@@ -8,8 +8,8 @@
 
 /**
  * Server-only implementation of the Doc detail read. Loaded via a dynamic
- * `import()` from `./detail` so the Byline viewer SDK never enters the client
- * bundle — see the boundary note in `../pages/detail`.
+ * `import()` from `./details` so the Byline viewer SDK never enters the client
+ * bundle — see the boundary note in `../pages/details`.
  *
  * Reads through the shared *viewer* `BylineClient` so unpublished versions stay
  * invisible for ordinary visitors but become visible to admins who have toggled
@@ -28,13 +28,13 @@ import {
 } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
 import { resolveDocTreeBySplat } from './resolve.server'
-import type { DocDetailFields, DocSplatInput, DocSplatResult } from './detail'
+import type { DocDetailsFields, DocSplatInput, DocSplatResult } from './details'
 
 export async function getDocBySplat({ splat, lng }: DocSplatInput): Promise<DocSplatResult> {
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  return resolveDocTreeBySplat<DocDetailFields>(client.collection('docs'), {
+  return resolveDocTreeBySplat<DocDetailsFields>(client.collection('docs'), {
     splat,
     locale: lng,
     status: preview ? 'any' : 'published',

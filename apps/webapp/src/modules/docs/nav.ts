@@ -10,7 +10,7 @@
  * Public Docs navigation server fn — the TanStack Start boundary only. The
  * actual read (Byline viewer SDK `getSubtree`) lives in `./nav.server`, loaded
  * with a dynamic `import()` inside the handler so the server-only SDK never
- * enters the client bundle. See `../pages/detail` for the full rationale.
+ * enters the client bundle. See `../pages/details` for the full rationale.
  *
  * `docs` is a `tree: true` collection, so the nav is the document **tree**, in
  * tree order, rather than a flat `orderKey`-sorted list. Each node carries its

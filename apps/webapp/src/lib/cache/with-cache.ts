@@ -29,7 +29,7 @@
  *   3. (implicitly) any caller that simply doesn't reach for `withCache`.
  *
  * Cache keys MUST encode everything that determines the response —
- * collection, shape (list/detail/sitemap), path, locale, and read mode —
+ * collection, shape (list/details/sitemap), path, locale, and read mode —
  * so a draft can never be served to anonymous traffic and one locale's
  * content can never leak into another. The `cacheKeys` / `tags` helpers
  * below are the single source of truth for those strings; the collection
@@ -55,25 +55,25 @@ const PUBLISHED = 'published'
  * 3.1+), invalidation is per-document, not collection-wide. Each cached read
  * carries TWO tags:
  *
- *   - a granular tag for its own shape (`detail(path)` / `list` / `sitemap`), and
+ *   - a granular tag for its own shape (`details(path)` / `list` / `sitemap`), and
  *   - the coarse `collection` tag, as a deliberate "big hammer" reserved for
  *     cross-collection embeds (e.g. a news-category edit must clear every news
  *     read because category data is populated into them) — NOT used by a
  *     collection's own per-document edits.
  *
- * So a normal edit to one document clears only that document's detail (and the
- * list/sitemap as needed), leaving every *other* document's cached detail warm.
+ * So a normal edit to one document clears only that document's details (and the
+ * list/sitemap as needed), leaving every *other* document's cached details warm.
  *
- * `detail` is locale-agnostic on purpose: one document renders under several
+ * `details` is locale-agnostic on purpose: one document renders under several
  * locale keys, and an edit should clear all of them. (Safe while Byline has no
  * localized paths; revisit when per-locale paths land — see DATA-CACHE-DESIGN.md.)
  */
 export const tags = {
   /** Coarse: every cached read of the collection. Big hammer for embeds/bulk. */
   collection: (collectionPath: string): string => `cms::${collectionPath}`,
-  /** One document's detail page, across all locales. */
-  detail: (collectionPath: string, path: string): string =>
-    `cms::${collectionPath}::detail::${path}`,
+  /** One document's details page, across all locales. */
+  details: (collectionPath: string, path: string): string =>
+    `cms::${collectionPath}::details::${path}`,
   /** The collection's list reads (any filter/pagination). */
   list: (collectionPath: string): string => `cms::${collectionPath}::list`,
   /** The collection's sitemap read. */
@@ -104,8 +104,8 @@ export const cacheKeys = {
    */
   list: (collectionPath: string, locale: string | undefined, params?: ListParams): string =>
     `cms::${collectionPath}::list::${locale ?? 'default'}${serializeParams(params)}::${PUBLISHED}`,
-  detail: (collectionPath: string, path: string, locale: string | undefined): string =>
-    `cms::${collectionPath}::detail::${path}::${locale ?? 'default'}::${PUBLISHED}`,
+  details: (collectionPath: string, path: string, locale: string | undefined): string =>
+    `cms::${collectionPath}::details::${path}::${locale ?? 'default'}::${PUBLISHED}`,
   sitemap: (collectionPath: string): string => `cms::${collectionPath}::sitemap::${PUBLISHED}`,
 }
 
@@ -152,7 +152,7 @@ export async function withCache<T>({
 export interface InvalidateDocumentOptions {
   /**
    * The document's previous path, when an edit may have re-anchored it (from
-   * `originalData.path` in `afterUpdate`). Clears the stale detail entry under
+   * `originalData.path` in `afterUpdate`). Clears the stale details entry under
    * the old path in addition to the new one. No-op when equal/absent.
    */
   prevPath?: string
@@ -168,18 +168,18 @@ export interface InvalidateDocumentOptions {
 
 /**
  * Invalidate the L1 cache for a single document after a lifecycle event.
- * Always clears that document's detail (all locales); `list` / `sitemap` are
+ * Always clears that document's details (all locales); `list` / `sitemap` are
  * opt-in per the event and collection shape. This is the per-document successor
- * to the old collection-wide sweep — other documents' cached detail survive.
+ * to the old collection-wide sweep — other documents' cached details survive.
  */
 export async function invalidateDocument(
   collectionPath: string,
   path: string,
   options: InvalidateDocumentOptions = {}
 ): Promise<void> {
-  await invalidateTag(tags.detail(collectionPath, path))
+  await invalidateTag(tags.details(collectionPath, path))
   if (options.prevPath != null && options.prevPath !== path) {
-    await invalidateTag(tags.detail(collectionPath, options.prevPath))
+    await invalidateTag(tags.details(collectionPath, options.prevPath))
   }
   if (options.list === true) await invalidateTag(tags.list(collectionPath))
   if (options.sitemap === true) await invalidateTag(tags.sitemap(collectionPath))

@@ -9,7 +9,7 @@
 /**
  * Server-only implementation of the News Categories list read. Loaded via a
  * dynamic `import()` from `./categories` so the Byline viewer SDK never enters
- * the client bundle — see the boundary note in `../pages/detail`.
+ * the client bundle — see the boundary note in `../pages/details`.
  *
  * Reads the `news-categories` collection through the shared *viewer*
  * `BylineClient`, mirroring the preview-aware status handling used by

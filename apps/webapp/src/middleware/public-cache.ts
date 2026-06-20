@@ -12,7 +12,7 @@
  *
  * Used by:
  *   - The public `_frontend` route loader (HTML page render path).
- *   - Public-read server fns (`getPageDetailFn`, `getDocsNavFn`,
+ *   - Public-read server fns (`getPageDetailsFn`, `getDocsNavFn`,
  *     `getDocBySplatFn`) so client-side route transitions don't always
  *     round-trip to origin.
  *

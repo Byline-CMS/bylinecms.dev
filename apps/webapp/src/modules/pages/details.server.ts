@@ -8,8 +8,8 @@
 
 /**
  * Server-only implementation of the Page detail read. Loaded via a dynamic
- * `import()` from `./detail` so the Byline viewer SDK never enters the client
- * bundle — see the boundary note in `./detail`.
+ * `import()` from `./details` so the Byline viewer SDK never enters the client
+ * bundle — see the boundary note in `./details`.
  *
  * Reads through the shared *viewer* `BylineClient` so unpublished versions stay
  * invisible for ordinary visitors but become visible to admins who have toggled
@@ -22,13 +22,13 @@ import {
   isPreviewActive,
 } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
-import type { PageDetailFields, PageDetailInput, PageDetailResult } from './detail'
+import type { PageDetailsFields, PageDetailsInput, PageDetailsResult } from './details'
 
-export async function getPageDetail({ path, lng }: PageDetailInput): Promise<PageDetailResult> {
+export async function getPageDetails({ path, lng }: PageDetailsInput): Promise<PageDetailsResult> {
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  return client.collection('pages').findByPath<PageDetailFields>(path, {
+  return client.collection('pages').findByPath<PageDetailsFields>(path, {
     populate: { featureImage: '*', photo: '*' },
     locale: lng,
     status: preview ? 'any' : 'published',

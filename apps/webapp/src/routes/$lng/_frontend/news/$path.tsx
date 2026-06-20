@@ -23,19 +23,19 @@ import {
   /* metaImageFromUpload, */
   truncateForMeta,
 } from '@/lib/meta'
-import { NewsDetail } from '@/modules/news/components/detail'
-import { getNewsDetailFn, type NewsDetailResult } from '@/modules/news/detail'
+import { NewsDetails } from '@/modules/news/components/details'
+import { getNewsDetailsFn, type NewsDetailsResult } from '@/modules/news/details'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import type { RoutableLocale } from '@/i18n/i18n-config'
 
 // See `../$path.tsx` for notes on why this cast is needed.
-type RouteLoaderData = { result: NonNullable<NewsDetailResult>; lng: RoutableLocale }
+type RouteLoaderData = { result: NonNullable<NewsDetailsResult>; lng: RoutableLocale }
 
 export const Route = createFileRoute('/$lng/_frontend/news/$path')({
   loader: async ({ params, context }) => {
     const lng = context.locale
-    const result = await getNewsDetailFn({ data: { path: params.path, lng } })
+    const result = await getNewsDetailsFn({ data: { path: params.path, lng } })
     if (result == null) throw notFound()
     return { result, lng }
   },
@@ -105,7 +105,7 @@ function RouteComponent() {
       </Section>
       <Section>
         <Container>
-          <NewsDetail result={result} lng={interfaceLocale} />
+          <NewsDetails result={result} lng={interfaceLocale} />
         </Container>
       </Section>
     </>

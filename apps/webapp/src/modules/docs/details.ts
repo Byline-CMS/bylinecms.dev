@@ -8,9 +8,9 @@
 
 /**
  * Public Doc detail server fn — the TanStack Start boundary only. The actual
- * read (Byline viewer SDK + tree resolution) lives in `./detail.server`, loaded
+ * read (Byline viewer SDK + tree resolution) lives in `./details.server`, loaded
  * with a dynamic `import()` inside the handler so the server-only SDK never
- * enters the client bundle. See `../pages/detail` for the full rationale.
+ * enters the client bundle. See `../pages/details` for the full rationale.
  *
  * `docs` is a `tree: true` collection, so the read is **splat-shaped**: the
  * loader passes the full path after `/docs/` and the server resolves the leaf,
@@ -28,13 +28,13 @@ import type { MediaFields } from '~/collections/media/schema.js'
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 import type { DocTreeResolution } from './resolve.server'
 
-export type DocDetailFields = WithPopulated<DocFields, 'featureImage', MediaFields>
+export type DocDetailsFields = WithPopulated<DocFields, 'featureImage', MediaFields>
 
-export type DocDetailResult = ClientDocument<DocDetailFields> | null
+export type DocDetailsResult = ClientDocument<DocDetailsFields> | null
 
 /** Full splat resolution: the document, its breadcrumb chain, and the canonical
  * path segments. `null` ⇒ leaf not found or (public) spine broken → 404. */
-export type DocSplatResult = DocTreeResolution<DocDetailFields> | null
+export type DocSplatResult = DocTreeResolution<DocDetailsFields> | null
 
 export interface DocSplatInput {
   /** The path after `/docs/`, e.g. `getting-started/cli`. */
@@ -51,6 +51,6 @@ export const getDocBySplatFn = createServerFn({ method: 'GET' })
     })
   )
   .handler(async (ctx): Promise<DocSplatResult> => {
-    const { getDocBySplat } = await import('./detail.server')
+    const { getDocBySplat } = await import('./details.server')
     return getDocBySplat(ctx.data as DocSplatInput)
   })
