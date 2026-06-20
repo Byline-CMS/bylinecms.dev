@@ -125,6 +125,54 @@ export async function maybeAppendOrderKey(
   return generateKeyBetween(last, null)
 }
 
+/**
+ * Append a document as the **last root** of its `tree: true` collection's tree.
+ * Mints a fresh root-group `order_key` after the current trailing root. Used by
+ * create's auto-place and update's self-heal so a tree collection never strands a
+ * document in the "unplaced" limbo. Issues the storage command directly — the
+ * caller has already asserted the relevant ability and this is a system step.
+ */
+export async function appendTreeRoot(
+  ctx: DocumentLifecycleContext,
+  documentId: string
+): Promise<void> {
+  const roots = await ctx.db.queries.documents.getTreeChildren({
+    collectionId: ctx.collectionId,
+    parentDocumentId: null,
+  })
+  await ctx.db.commands.documents.placeTreeNode({
+    collectionId: ctx.collectionId,
+    documentId,
+    parentDocumentId: null,
+    beforeDocumentId: roots.at(-1)?.document_id ?? null,
+  })
+}
+
+/**
+ * Self-heal a genuinely-*unplaced* document on update: if the collection is a
+ * tree and the document has no edge row, append it as a root (mirroring create's
+ * auto-place). `getTreeParent` distinguishes unplaced from root, so an existing
+ * root or child is left exactly where it is — only strays (e.g. docs created
+ * before the flag, or whose create-time auto-place failed) are re-treed.
+ *
+ * No-op for non-tree collections. Best-effort and post-version: a failure leaves
+ * the document saved-but-unplaced and is logged, never thrown. See
+ * docs/DOCUMENT-TREE.md.
+ */
+export async function selfHealTreePlacement(
+  ctx: DocumentLifecycleContext,
+  documentId: string
+): Promise<void> {
+  if (ctx.definition.tree !== true) return
+  try {
+    const { placed } = await ctx.db.queries.documents.getTreeParent({ document_id: documentId })
+    if (placed) return
+    await appendTreeRoot(ctx, documentId)
+  } catch (err: unknown) {
+    ctx.logger.error({ err, documentId }, 'failed to self-heal tree placement on update')
+  }
+}
+
 /** Extract `id` from the document object returned by `createDocumentVersion`. */
 export function extractVersionId(document: any): string {
   return document?.id ?? document?.document_version_id ?? ''

@@ -715,6 +715,21 @@ export class CollectionHandle {
     return ids.map((id) => shapedById.get(id)).filter((d): d is ClientDocument<F> => d != null)
   }
 
+  /**
+   * Resolve a document's placement state in the tree — the tri-state that
+   * `getAncestors` cannot express (it returns `[]` for both a root and an
+   * unplaced node). Returns `{ placed, parentDocumentId }`: `placed: false` is
+   * *unplaced* (no edge row), `placed: true` with a null parent is a *root*, and
+   * a non-null parent is a *child*. Structure-only — no document hydration.
+   */
+  async getTreeParent(
+    documentId: string
+  ): Promise<{ placed: boolean; parentDocumentId: string | null }> {
+    this.assertTreeCollection()
+    await this.resolveAndAssertRead()
+    return this.client.db.queries.documents.getTreeParent({ document_id: documentId })
+  }
+
   // -------------------------------------------------------------------------
   // Internals
   // -------------------------------------------------------------------------

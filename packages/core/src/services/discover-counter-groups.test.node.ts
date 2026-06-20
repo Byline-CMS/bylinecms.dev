@@ -72,6 +72,7 @@ function makeAdapter(options?: {
         getCanonicalDocumentOrder: vi.fn(fail) as any,
         getTreeAncestors: vi.fn(fail) as any,
         getTreeChildren: vi.fn(fail) as any,
+        getTreeParent: vi.fn(fail) as any,
         getTreeSubtree: vi.fn(fail) as any,
       },
     },

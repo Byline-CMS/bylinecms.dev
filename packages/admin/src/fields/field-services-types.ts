@@ -93,6 +93,16 @@ export type GetTreeAncestorsFn = (input: {
   documentId: string
 }) => Promise<TreeAncestor[]>
 
+/**
+ * Resolve a document's placement state — the tri-state (unplaced / root / child)
+ * that `getTreeAncestors` cannot express (it returns `[]` for both root and
+ * unplaced). `placed: false` = unplaced; `placed: true` + null parent = root.
+ */
+export type GetTreeParentFn = (input: {
+  collection: string
+  documentId: string
+}) => Promise<{ placed: boolean; parentDocumentId: string | null }>
+
 export interface BylineFieldServices {
   getCollectionDocuments: GetCollectionDocumentsFn
   uploadField: UploadFieldFn
@@ -104,4 +114,5 @@ export interface BylineFieldServices {
   placeTreeNode?: PlaceTreeNodeFn
   removeFromTree?: RemoveFromTreeFn
   getTreeAncestors?: GetTreeAncestorsFn
+  getTreeParent?: GetTreeParentFn
 }

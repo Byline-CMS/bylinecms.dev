@@ -1377,6 +1377,29 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * getTreeParent — see {@link IDocumentQueries.getTreeParent}.
+   *
+   * Single indexed lookup on the edge table by `child_document_id` (unique).
+   * No row → *unplaced*; a row with a null parent → *root*; a row with a parent
+   * → *child*. Distinguishes the unplaced/root states that `getTreeAncestors`
+   * (which returns `[]` for both) conflates.
+   */
+  async getTreeParent({
+    document_id,
+  }: {
+    document_id: string
+  }): Promise<{ placed: boolean; parentDocumentId: string | null }> {
+    const rows = await this.db
+      .select({ parent_document_id: documentRelationships.parent_document_id })
+      .from(documentRelationships)
+      .where(eq(documentRelationships.child_document_id, document_id))
+      .limit(1)
+    const row = rows[0]
+    if (row == null) return { placed: false, parentDocumentId: null }
+    return { placed: true, parentDocumentId: row.parent_document_id ?? null }
+  }
+
+  /**
    * getTreeSubtree — see {@link IDocumentQueries.getTreeSubtree}.
    *
    * Recursive CTE descending from the requested root (or the collection's

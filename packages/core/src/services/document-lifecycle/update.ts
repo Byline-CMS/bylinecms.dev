@@ -22,6 +22,7 @@ import {
   invokeHook,
   resolvePathForUpdate,
   rethrowPathConflict,
+  selfHealTreePlacement,
 } from './internals.js'
 import type { DocumentPatch } from '../../patches/index.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -146,6 +147,10 @@ export async function updateDocument(
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
+
+      // Self-heal: re-root a genuinely-unplaced doc in a tree collection so any
+      // save re-trees a stray (system step, best-effort, no-op when placed).
+      await selfHealTreePlacement(ctx, documentId)
 
       await invokeHook(hooks?.afterUpdate, {
         data,
@@ -310,6 +315,10 @@ export async function updateDocumentWithPatches(
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
+
+      // Self-heal: re-root a genuinely-unplaced doc in a tree collection so any
+      // save re-trees a stray (system step, best-effort, no-op when placed).
+      await selfHealTreePlacement(ctx, documentId)
 
       // 7. afterUpdate hook.
       await invokeHook(hooks?.afterUpdate, {

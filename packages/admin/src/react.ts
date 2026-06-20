@@ -81,6 +81,7 @@ export type {
   CollectionListResponse,
   GetCollectionDocumentsFn,
   GetTreeAncestorsFn,
+  GetTreeParentFn,
   PlaceTreeNodeFn,
   PlaceTreeNodeInput,
   RemoveFromTreeFn,

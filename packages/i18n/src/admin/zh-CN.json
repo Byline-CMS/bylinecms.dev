@@ -438,6 +438,8 @@
   "treeWidget.parentPrefix": "父级：",
   "treeWidget.choose": "选择父级…",
   "treeWidget.makeRoot": "移动到顶层",
+  "treeWidget.notInTree": "不在树中",
+  "treeWidget.addToTree": "添加到树",
   "treeWidget.remove": "从树中移除",
   "treeWidget.error": "无法更新树形位置。",
   "treeWidget.srDescription": "此文档在导航树中的父级。",

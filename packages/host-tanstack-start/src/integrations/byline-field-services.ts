@@ -20,6 +20,7 @@ import type {
   BylineFieldServices,
   GetCollectionDocumentsFn,
   GetTreeAncestorsFn,
+  GetTreeParentFn,
   PlaceTreeNodeFn,
   RemoveFromTreeFn,
   UploadFieldFn,
@@ -28,6 +29,7 @@ import type {
 import { getCollectionDocuments as serverGetCollectionDocuments } from '../server-fns/collections/list.js'
 import {
   getTreeAncestors as serverGetTreeAncestors,
+  getTreeParent as serverGetTreeParent,
   placeTreeNode as serverPlaceTreeNode,
   removeFromTree as serverRemoveFromTree,
 } from '../server-fns/collections/tree.js'
@@ -53,10 +55,14 @@ const removeFromTree: RemoveFromTreeFn = async (input) => {
 const getTreeAncestors: GetTreeAncestorsFn = (input) =>
   serverGetTreeAncestors({ data: input }) as ReturnType<GetTreeAncestorsFn>
 
+const getTreeParent: GetTreeParentFn = (input) =>
+  serverGetTreeParent({ data: input }) as ReturnType<GetTreeParentFn>
+
 export const bylineFieldServices: BylineFieldServices = {
   getCollectionDocuments,
   uploadField,
   placeTreeNode,
   removeFromTree,
   getTreeAncestors,
+  getTreeParent,
 }

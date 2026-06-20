@@ -438,6 +438,8 @@
   "treeWidget.parentPrefix": "Parent:",
   "treeWidget.choose": "Choose parent…",
   "treeWidget.makeRoot": "Move to top level",
+  "treeWidget.notInTree": "Not in tree",
+  "treeWidget.addToTree": "Add to tree",
   "treeWidget.remove": "Remove from tree",
   "treeWidget.error": "Couldn't update tree placement.",
   "treeWidget.srDescription": "This document's parent in the navigation tree.",

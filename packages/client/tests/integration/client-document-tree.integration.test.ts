@@ -93,7 +93,7 @@ describe('client document-tree API', () => {
     const advancedNode = root.children.find((c) => c.document.fields.title === 'Advanced')!
     expect(advancedNode.depth).toBe(1)
     expect(advancedNode.children.map((c) => c.document.fields.title)).toEqual(['CLI'])
-    expect(advancedNode.children[0]!.depth).toBe(2)
+    expect(advancedNode.children[0]?.depth).toBe(2)
   })
 
   it('walks ancestors root-first', async () => {
@@ -140,7 +140,7 @@ describe('client document-tree API', () => {
 
     // Published (client default): the draft node and its subtree drop out.
     const published = await handle.getSubtree({ rootDocumentId: sec })
-    expect(published[0]!.children.map((c) => c.document.fields.title)).toEqual(['Pub'])
+    expect(published[0]?.children.map((c) => c.document.fields.title)).toEqual(['Pub'])
 
     // Any: the whole subtree is visible.
     const any = await handle.getSubtree({ rootDocumentId: sec, status: 'any' })
@@ -154,10 +154,10 @@ describe('client document-tree API', () => {
     const kid = await makeDoc('RemKid')
     await handle.placeTreeNode(root, { parentDocumentId: null })
     await handle.placeTreeNode(kid, { parentDocumentId: root })
-    expect((await handle.getSubtree({ rootDocumentId: root }))[0]!.children).toHaveLength(1)
+    expect((await handle.getSubtree({ rootDocumentId: root }))[0]?.children).toHaveLength(1)
 
     await handle.removeFromTree(kid)
-    expect((await handle.getSubtree({ rootDocumentId: root }))[0]!.children).toHaveLength(0)
+    expect((await handle.getSubtree({ rootDocumentId: root }))[0]?.children).toHaveLength(0)
     expect(await handle.getAncestors(kid)).toEqual([])
   })
 
@@ -172,7 +172,7 @@ describe('client document-tree API', () => {
 })
 
 /** Flatten a TreeNode forest to a pre-order list. */
-function flatten<F>(nodes: Array<{ document: any; depth: number; children: any[] }>): any[] {
+function flatten<_F>(nodes: Array<{ document: any; depth: number; children: any[] }>): any[] {
   const out: any[] = []
   for (const n of nodes) {
     out.push(n)

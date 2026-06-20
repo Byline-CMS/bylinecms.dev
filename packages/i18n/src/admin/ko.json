@@ -438,6 +438,8 @@
   "treeWidget.parentPrefix": "상위:",
   "treeWidget.choose": "상위 선택…",
   "treeWidget.makeRoot": "최상위로 이동",
+  "treeWidget.notInTree": "트리에 없음",
+  "treeWidget.addToTree": "트리에 추가",
   "treeWidget.remove": "트리에서 제거",
   "treeWidget.error": "트리 위치를 업데이트하지 못했습니다.",
   "treeWidget.srDescription": "탐색 트리에서 이 문서의 상위 항목입니다.",

@@ -16,6 +16,7 @@ import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import {
   actorId,
+  appendTreeRoot,
   applyRichTextEmbed,
   derivePath,
   extractDocumentId,
@@ -141,16 +142,7 @@ export async function createDocument(
       // thrown. See docs/DOCUMENT-TREE.md.
       if (definition.tree === true) {
         try {
-          const roots = await db.queries.documents.getTreeChildren({
-            collectionId,
-            parentDocumentId: null,
-          })
-          await db.commands.documents.placeTreeNode({
-            collectionId,
-            documentId,
-            parentDocumentId: null,
-            beforeDocumentId: roots.at(-1)?.document_id ?? null,
-          })
+          await appendTreeRoot(ctx, documentId)
         } catch (err: unknown) {
           ctx.logger.error({ err, documentId }, 'failed to auto-place new document in tree')
         }

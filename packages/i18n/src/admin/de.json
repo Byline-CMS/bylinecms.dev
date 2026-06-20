@@ -438,6 +438,8 @@
   "treeWidget.parentPrefix": "Übergeordnet:",
   "treeWidget.choose": "Übergeordnetes wählen…",
   "treeWidget.makeRoot": "Auf oberste Ebene verschieben",
+  "treeWidget.notInTree": "Nicht im Baum",
+  "treeWidget.addToTree": "Zum Baum hinzufügen",
   "treeWidget.remove": "Aus dem Baum entfernen",
   "treeWidget.error": "Position konnte nicht aktualisiert werden.",
   "treeWidget.srDescription": "Das übergeordnete Element dieses Dokuments im Navigationsbaum.",

@@ -84,17 +84,30 @@ status: "BACKEND + ADMIN COMPLETE — storage, commands, flag, client API, inval
    tree list view (currently read/browse only; placement is per-doc via the
    widget).
 
-**Heal unplaced docs (decided, not yet built).** `getTreeAncestors` returns `[]`
-for both a *root* (edge row, parent null) and an *unplaced* doc (no edge row), so
-the widget conflates them and there is no direct way to re-root an unplaced doc.
-Plan: add a `getTreeParent(documentId) → { placed, parentDocumentId }` primitive
-(distinguishes unplaced from root), then (a) **self-heal on update** —
-`document-lifecycle/update.ts` places a genuinely-unplaced doc as a root
-(guarded, mirroring create's auto-place), so any save re-trees a stray doc; and
-(b) widget shows an explicit "Add to tree" for unplaced docs instead of the
-misleading "Top level". Chosen over a standalone "re-tree" command (less
-ceremony, self-correcting). Interim workaround: pick any parent via the picker,
-then "Move to top level".
+**Heal unplaced docs (shipped).** `getTreeAncestors` returns `[]` for both a
+*root* (edge row, parent null) and an *unplaced* doc (no edge row), which
+conflated the two. Resolved as planned:
+
+- **`getTreeParent(documentId) → { placed, parentDocumentId }`** primitive — a
+  single indexed lookup on the edge table that distinguishes unplaced (no row)
+  from root (row, null parent) from child (row, parent set). Declared on
+  `IDocumentQueries` (`db-types.ts`), implemented in `storage-queries.ts`,
+  surfaced on `CollectionHandle.getTreeParent`, the `getTreeParent` host server
+  fn, and the `getTreeParent` field service. Integration coverage in
+  `storage-document-tree.test.ts`.
+- **Self-heal on update** — `document-lifecycle/internals.ts` factors create's
+  auto-place into `appendTreeRoot`; the new `selfHealTreePlacement` checks
+  `getTreeParent` and re-roots a genuinely-unplaced doc (guarded, best-effort,
+  logged). Wired into both `updateDocument` and `updateDocumentWithPatches`, so
+  any save re-trees a stray doc. No-op when already placed.
+- **Widget "Add to tree"** — `tree-placement-widget.tsx` now loads placement via
+  `getTreeParent` alongside the ancestor chain; an unplaced doc shows "Not in
+  tree" + an "Add to tree" action (places as root) instead of the misleading
+  "Top level". New i18n keys `treeWidget.notInTree` / `treeWidget.addToTree`
+  across all locales. Hosts that don't wire `getTreeParent` degrade to the prior
+  behaviour (treat as placed).
+
+Chosen over a standalone "re-tree" command (less ceremony, self-correcting).
 
 **Smaller follow-ups:** filter self/descendants out of the placement picker
 (server already rejects them, surfaced as an inline error); decide whether to

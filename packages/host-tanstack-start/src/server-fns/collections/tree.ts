@@ -104,6 +104,24 @@ export const getTreeAncestors = createServerFn({ method: 'GET' })
   })
 
 // ---------------------------------------------------------------------------
+// Resolve a document's placement state in the tree (unplaced / root / child)
+// ---------------------------------------------------------------------------
+
+export const getTreeParent = createServerFn({ method: 'GET' })
+  .validator((input: { collection: string; documentId: string }) => input)
+  .handler(async ({ data }) => {
+    const { collection: path, documentId } = data
+    const config = await ensureCollection(path)
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(getLogger())
+    }
+    return getAdminBylineClient().collection(path).getTreeParent(documentId)
+  })
+
+// ---------------------------------------------------------------------------
 // Read the whole collection tree as ordered, depth-tagged rows for the built-in
 // tree list view. Placed nodes come first (pre-order, root-first), then any
 // *unplaced* documents (created but not yet positioned) so nothing is

@@ -8,7 +8,8 @@
 
 /**
  * Integration tests for the document-tree commands — `placeTreeNode` /
- * `removeFromTree` (writes) and `getTreeAncestors` / `getTreeChildren` (reads).
+ * `removeFromTree` (writes) and `getTreeAncestors` / `getTreeChildren` /
+ * `getTreeParent` (reads).
  * These back the `tree: true` document-tree primitive: a document-grain,
  * unversioned single-parent ordered hierarchy stored in
  * `byline_document_relationships`. See docs/DOCUMENT-TREE.md.
@@ -259,6 +260,45 @@ describe('document-tree commands', () => {
 
     // Root + unplaced nodes have no ancestors.
     expect(await queryBuilders.documents.getTreeAncestors({ document_id: a })).toEqual([])
+  })
+
+  it('getTreeParent distinguishes unplaced, root, and child', async () => {
+    const root = await createDoc(treeCollection.id, TreeCollectionConfig, 'TP Root')
+    const child = await createDoc(treeCollection.id, TreeCollectionConfig, 'TP Child')
+    const stray = await createDoc(treeCollection.id, TreeCollectionConfig, 'TP Stray')
+
+    // Stray is created but never placed → unplaced (no edge row). This is the
+    // state getTreeAncestors cannot tell apart from a root.
+    expect(await queryBuilders.documents.getTreeParent({ document_id: stray })).toEqual({
+      placed: false,
+      parentDocumentId: null,
+    })
+
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: root,
+      parentDocumentId: null,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: child,
+      parentDocumentId: root,
+    })
+
+    // Root: placed with a null parent.
+    expect(await queryBuilders.documents.getTreeParent({ document_id: root })).toEqual({
+      placed: true,
+      parentDocumentId: null,
+    })
+    // Child: placed with its parent id.
+    expect(await queryBuilders.documents.getTreeParent({ document_id: child })).toEqual({
+      placed: true,
+      parentDocumentId: root,
+    })
+
+    // Both root and unplaced report empty ancestors — the conflation getTreeParent fixes.
+    expect(await queryBuilders.documents.getTreeAncestors({ document_id: root })).toEqual([])
+    expect(await queryBuilders.documents.getTreeAncestors({ document_id: stray })).toEqual([])
   })
 
   it('rejects a self-parent and a cycle', async () => {

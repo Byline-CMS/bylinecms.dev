@@ -48,10 +48,15 @@ export const TreePlacementWidget = ({
   useAsTitle,
 }: TreePlacementWidgetProps) => {
   const { t } = useTranslation('byline-admin')
-  const { getTreeAncestors, placeTreeNode } = useBylineFieldServices()
+  const { getTreeAncestors, getTreeParent, placeTreeNode } = useBylineFieldServices()
   const targetDefinition = getCollectionDefinition(collectionPath)
 
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null)
+  // Whether the document has an edge row at all. `false` = *unplaced* (no row);
+  // `true` with a null `parent` = a *root*. Distinguishing the two drives the
+  // "Add to tree" (unplaced) vs "Top level" (root) display. Hosts that don't
+  // wire `getTreeParent` fall back to `true` — the pre-tri-state behaviour.
+  const [placed, setPlaced] = useState(true)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -59,16 +64,23 @@ export const TreePlacementWidget = ({
 
   const treeServicesReady = getTreeAncestors != null && placeTreeNode != null
 
-  // Load the document's current parent (the deepest ancestor) on mount.
+  // Load the document's placement state and current parent on mount. The parent
+  // title comes from the (hydrated) ancestor chain; `getTreeParent` (when wired)
+  // tells unplaced from root, which the ancestor chain alone cannot.
   useEffect(() => {
     if (getTreeAncestors == null) return
     let cancelled = false
     setLoading(true)
-    getTreeAncestors({ collection: collectionPath, documentId })
-      .then((ancestors) => {
+    Promise.all([
+      getTreeAncestors({ collection: collectionPath, documentId }),
+      getTreeParent?.({ collection: collectionPath, documentId }) ??
+        Promise.resolve({ placed: true, parentDocumentId: null }),
+    ])
+      .then(([ancestors, placement]) => {
         if (cancelled) return
         const immediate = ancestors.at(-1)
         setParent(immediate ? { id: immediate.id, title: immediate.title } : null)
+        setPlaced(placement.placed)
       })
       .catch(() => {
         if (!cancelled) setError(t('treeWidget.error'))
@@ -79,27 +91,31 @@ export const TreePlacementWidget = ({
     return () => {
       cancelled = true
     }
-  }, [getTreeAncestors, collectionPath, documentId, t])
+  }, [getTreeAncestors, getTreeParent, collectionPath, documentId, t])
 
   // Place (or re-parent) the node, optimistically updating the current-parent
-  // display and reverting on a server rejection (e.g. a cycle).
+  // display and reverting on a server rejection (e.g. a cycle). Any successful
+  // placement (including making the node a root) leaves it placed.
   const place = useCallback(
     async (parentDocumentId: string | null, optimistic: { id: string; title: string } | null) => {
       if (placeTreeNode == null || busy) return
-      const previous = parent
+      const previousParent = parent
+      const previousPlaced = placed
       setError(null)
       setBusy(true)
       setParent(optimistic)
+      setPlaced(true)
       try {
         await placeTreeNode({ collection: collectionPath, documentId, parentDocumentId })
       } catch {
-        setParent(previous)
+        setParent(previousParent)
+        setPlaced(previousPlaced)
         setError(t('treeWidget.error'))
       } finally {
         setBusy(false)
       }
     },
-    [placeTreeNode, busy, parent, collectionPath, documentId, t]
+    [placeTreeNode, busy, parent, placed, collectionPath, documentId, t]
   )
 
   const handlePick = useCallback(
@@ -124,7 +140,9 @@ export const TreePlacementWidget = ({
 
       <div className={cx('byline-form-tree-current', styles.current)}>
         <span className={styles.parentLabel}>{t('treeWidget.parentPrefix')}</span>{' '}
-        {parent ? (
+        {!placed ? (
+          <span className={cx(styles.parentValue, styles.root)}>{t('treeWidget.notInTree')}</span>
+        ) : parent ? (
           <span className={styles.parentValue}>{parent.title}</span>
         ) : (
           <span className={cx(styles.parentValue, styles.root)}>{t('treeWidget.rootOption')}</span>
@@ -142,15 +160,26 @@ export const TreePlacementWidget = ({
         >
           {t('treeWidget.choose')}
         </Button>
-        {parent != null && (
+        {!placed ? (
           <button
             type="button"
             className={cx('byline-form-tree-link', styles.link)}
-            disabled={busy}
+            disabled={loading || busy}
             onClick={() => place(null, null)}
           >
-            {t('treeWidget.makeRoot')}
+            {t('treeWidget.addToTree')}
           </button>
+        ) : (
+          parent != null && (
+            <button
+              type="button"
+              className={cx('byline-form-tree-link', styles.link)}
+              disabled={busy}
+              onClick={() => place(null, null)}
+            >
+              {t('treeWidget.makeRoot')}
+            </button>
+          )
         )}
       </div>
 

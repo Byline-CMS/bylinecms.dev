@@ -110,7 +110,7 @@ describe('document-tree invalidation contract', () => {
     // Move `mid` (and its child `leaf`) under `dest`.
     await handle.placeTreeNode(mid, { parentDocumentId: dest })
 
-    const affected = new Set(captured[0]!.affectedDocumentIds)
+    const affected = new Set(captured[0]?.affectedDocumentIds)
     expect(affected).toContain(mid)
     expect(affected).toContain(leaf) // descendant travels along
     expect(affected).toContain(root) // old parent
@@ -128,9 +128,9 @@ describe('document-tree invalidation contract', () => {
     await handle.removeFromTree(kid)
 
     expect(captured).toHaveLength(1)
-    expect(captured[0]!.change).toBe('remove')
-    expect(captured[0]!.documentId).toBe(kid)
-    expect(new Set(captured[0]!.affectedDocumentIds)).toEqual(new Set([kid, root]))
+    expect(captured[0]?.change).toBe('remove')
+    expect(captured[0]?.documentId).toBe(kid)
+    expect(new Set(captured[0]?.affectedDocumentIds)).toEqual(new Set([kid, root]))
   })
 
   it('promotes children to root and fires the event when a parent is deleted', async () => {
@@ -155,8 +155,8 @@ describe('document-tree invalidation contract', () => {
     // A single promote-on-delete event covering the deleted node + subtrees.
     const promote = captured.find((e) => e.change === 'promote-on-delete')
     expect(promote).toBeDefined()
-    expect(promote!.documentId).toBe(parent)
-    const affected = new Set(promote!.affectedDocumentIds)
+    expect(promote?.documentId).toBe(parent)
+    const affected = new Set(promote?.affectedDocumentIds)
     expect(affected).toContain(parent)
     expect(affected).toContain(c1)
     expect(affected).toContain(c2)

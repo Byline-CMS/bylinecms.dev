@@ -963,6 +963,23 @@ export interface IDocumentQueries {
   }): Promise<Array<{ document_id: string; order_key: string }>>
 
   /**
+   * Resolve a single node's placement state in the tree, distinguishing the
+   * three tri-states (docs/DOCUMENT-TREE.md → "Node placement"):
+   *
+   *   - **Unplaced** (no edge row) → `{ placed: false, parentDocumentId: null }`
+   *   - **Root** (edge row, null parent) → `{ placed: true,  parentDocumentId: null }`
+   *   - **Child** (edge row, parent set) → `{ placed: true,  parentDocumentId: <id> }`
+   *
+   * `getTreeAncestors` returns `[]` for *both* a root and an unplaced node, so it
+   * cannot tell them apart; this primitive can. Backs the update-time self-heal
+   * (re-root a stray doc) and the authoring widget's "Add to tree" vs "Top level"
+   * distinction.
+   */
+  getTreeParent(params: {
+    document_id: string
+  }): Promise<{ placed: boolean; parentDocumentId: string | null }>
+
+  /**
    * Read a node's subtree as a flat, **pre-order (depth-first)** list — each
    * node immediately followed by its descendants, siblings in `order_key`
    * order, with a 0-based `depth` (the requested root / the collection roots
