@@ -88,6 +88,7 @@ function createMockDb(options: {
         getCanonicalDocumentOrder: vi.fn(fail) as any,
         getTreeAncestors: vi.fn(fail) as any,
         getTreeChildren: vi.fn(fail) as any,
+        getTreeSubtree: vi.fn(fail) as any,
       },
     },
   }
@@ -262,6 +263,7 @@ describe('ensureCollections', () => {
           getCanonicalDocumentOrder: vi.fn() as any,
           getTreeAncestors: vi.fn() as any,
           getTreeChildren: vi.fn() as any,
+          getTreeSubtree: vi.fn() as any,
         },
       },
     }

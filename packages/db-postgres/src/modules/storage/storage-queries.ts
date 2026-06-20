@@ -1377,6 +1377,75 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * getTreeSubtree — see {@link IDocumentQueries.getTreeSubtree}.
+   *
+   * Recursive CTE descending from the requested root (or the collection's
+   * roots when `rootDocumentId` is null). Each row carries a `/`-joined path of
+   * ancestor `order_key`s; ordering by that path under `COLLATE "C"` yields a
+   * pre-order depth-first walk (a parent's path is a prefix of its children's,
+   * and `/` (0x2F) sorts below every key character). Status-at-edge: every node
+   * — anchor included — must exist in the chosen current-documents view, so an
+   * unpublished node and its whole subtree drop out in `published` mode.
+   */
+  async getTreeSubtree({
+    collectionId,
+    rootDocumentId = null,
+    maxDepth = 10_000,
+    readMode = 'any',
+  }: {
+    collectionId: string
+    rootDocumentId?: string | null
+    maxDepth?: number
+    readMode?: ReadMode
+  }): Promise<
+    Array<{
+      document_id: string
+      parent_document_id: string | null
+      depth: number
+      order_key: string
+    }>
+  > {
+    const statusView =
+      readMode === 'published' ? 'byline_current_published_documents' : 'byline_current_documents'
+    const rootCondition =
+      rootDocumentId == null
+        ? sql`r.parent_document_id IS NULL`
+        : sql`r.child_document_id = ${rootDocumentId}::uuid`
+
+    const { rows } = await this.db.execute(sql`
+      WITH RECURSIVE subtree AS (
+        SELECT r.child_document_id, r.parent_document_id, r.order_key,
+               0 AS depth, r.order_key::text AS path
+        FROM byline_document_relationships r
+        JOIN byline_documents d ON d.id = r.child_document_id
+        WHERE d.collection_id = ${collectionId}::uuid
+          AND ${rootCondition}
+          AND EXISTS (
+            SELECT 1 FROM ${sql.raw(statusView)} v WHERE v.document_id = r.child_document_id
+          )
+        UNION ALL
+        SELECT r.child_document_id, r.parent_document_id, r.order_key,
+               s.depth + 1, s.path || '/' || r.order_key
+        FROM byline_document_relationships r
+        JOIN subtree s ON r.parent_document_id = s.child_document_id
+        WHERE s.depth + 1 <= ${maxDepth}
+          AND EXISTS (
+            SELECT 1 FROM ${sql.raw(statusView)} v WHERE v.document_id = r.child_document_id
+          )
+      )
+      SELECT child_document_id AS document_id, parent_document_id, depth, order_key
+      FROM subtree
+      ORDER BY path COLLATE "C"
+    `)
+    return rows.map((r) => ({
+      document_id: r.document_id as string,
+      parent_document_id: (r.parent_document_id as string | null) ?? null,
+      depth: Number(r.depth),
+      order_key: r.order_key as string,
+    }))
+  }
+
+  /**
    * getDocumentCountsByStatus
    *
    * Returns a count of current documents grouped by workflow status for a

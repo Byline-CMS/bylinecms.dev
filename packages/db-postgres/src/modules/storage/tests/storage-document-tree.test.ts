@@ -49,7 +49,12 @@ const OtherCollectionConfig: CollectionDefinition = {
 let treeCollection: { id: string } = {} as any
 let otherCollection: { id: string } = {} as any
 
-async function createDoc(collectionId: string, config: CollectionDefinition, title: string) {
+async function createDoc(
+  collectionId: string,
+  config: CollectionDefinition,
+  title: string,
+  status: 'published' | 'draft' = 'published'
+) {
   const created = await commandBuilders.documents.createDocumentVersion({
     collectionId,
     collectionVersion: 1,
@@ -58,7 +63,7 @@ async function createDoc(collectionId: string, config: CollectionDefinition, tit
     documentData: { title },
     path: `${title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}`,
     locale: 'all',
-    status: 'published',
+    status,
   })
   return created.document.document_id as string
 }
@@ -343,5 +348,94 @@ describe('document-tree commands', () => {
     await expect(
       commandBuilders.documents.removeFromTree({ documentId: c })
     ).resolves.toBeUndefined()
+  })
+
+  it('getTreeSubtree returns a pre-order depth-first walk with 0-based depth', async () => {
+    // Build:  SA ─ SB ─ SD
+    //              └ SC
+    const sa = await createDoc(treeCollection.id, TreeCollectionConfig, 'SA')
+    const sb = await createDoc(treeCollection.id, TreeCollectionConfig, 'SB')
+    const sc = await createDoc(treeCollection.id, TreeCollectionConfig, 'SC')
+    const sd = await createDoc(treeCollection.id, TreeCollectionConfig, 'SD')
+    // beforeDocumentId = left neighbour → the node lands immediately AFTER it.
+    const place = (
+      documentId: string,
+      parentDocumentId: string | null,
+      beforeDocumentId?: string
+    ) =>
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId,
+        parentDocumentId,
+        beforeDocumentId,
+      })
+    await place(sa, null)
+    await place(sb, sa)
+    await place(sc, sa, sb) // SC lands after SB
+    await place(sd, sb) // SD under SB
+
+    const subtree = await queryBuilders.documents.getTreeSubtree({
+      collectionId: treeCollection.id,
+      rootDocumentId: sa,
+    })
+    // Pre-order: SA(0) → SB(1) → SD(2) → SC(1)
+    expect(subtree.map((n) => n.document_id)).toEqual([sa, sb, sd, sc])
+    expect(subtree.map((n) => n.depth)).toEqual([0, 1, 2, 1])
+    expect(subtree.find((n) => n.document_id === sd)?.parent_document_id).toBe(sb)
+
+    // Depth bound: only the root and its immediate children.
+    const shallow = await queryBuilders.documents.getTreeSubtree({
+      collectionId: treeCollection.id,
+      rootDocumentId: sa,
+      maxDepth: 1,
+    })
+    expect(shallow.map((n) => n.document_id)).toEqual([sa, sb, sc])
+  })
+
+  it('status-at-edge hides an unpublished node and its whole subtree', async () => {
+    // PA(pub) ─ PB(pub)
+    //        └ PC(draft) ─ PD(pub)
+    const pa = await createDoc(treeCollection.id, TreeCollectionConfig, 'PPA', 'published')
+    const pb = await createDoc(treeCollection.id, TreeCollectionConfig, 'PPB', 'published')
+    const pc = await createDoc(treeCollection.id, TreeCollectionConfig, 'PPC', 'draft')
+    const pd = await createDoc(treeCollection.id, TreeCollectionConfig, 'PPD', 'published')
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: pa,
+      parentDocumentId: null,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: pb,
+      parentDocumentId: pa,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: pc,
+      parentDocumentId: pa,
+      beforeDocumentId: pb, // PC lands after PB
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: pd,
+      parentDocumentId: pc,
+    })
+
+    // any-mode sees the whole subtree.
+    const any = await queryBuilders.documents.getTreeSubtree({
+      collectionId: treeCollection.id,
+      rootDocumentId: pa,
+      readMode: 'any',
+    })
+    expect(any.map((n) => n.document_id)).toEqual([pa, pb, pc, pd])
+
+    // published-mode drops the draft PC, and PD (under PC) is unreachable —
+    // the spine is broken, so the whole subtree is hidden, not promoted.
+    const published = await queryBuilders.documents.getTreeSubtree({
+      collectionId: treeCollection.id,
+      rootDocumentId: pa,
+      readMode: 'published',
+    })
+    expect(published.map((n) => n.document_id)).toEqual([pa, pb])
   })
 })

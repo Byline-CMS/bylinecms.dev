@@ -104,6 +104,7 @@ function createMockDb() {
         getCanonicalDocumentOrder: vi.fn(),
         getTreeAncestors: vi.fn(),
         getTreeChildren: vi.fn(),
+        getTreeSubtree: vi.fn(),
       },
     },
   }

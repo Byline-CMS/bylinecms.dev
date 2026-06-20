@@ -618,9 +618,13 @@ export interface IDocumentCommands {
    *   - **same-collection guard** — both endpoints must belong to
    *     `collectionId` (the tree is self-referential within one collection).
    *
-   * `beforeDocumentId` / `afterDocumentId` are the sibling nodes (within the
-   * target parent group) the placed node should land between; either may be
-   * null (prepend / append / first child). See docs/DOCUMENT-TREE.md.
+   * Neighbour semantics match `reorderCollectionDocument`: `beforeDocumentId`
+   * is the sibling the placed node should land immediately **after** (its left
+   * neighbour) and `afterDocumentId` is the sibling it should land immediately
+   * **before** (its right neighbour). Either may be null — `{}` appends as the
+   * only/last child, `beforeDocumentId` alone appends after it, `afterDocumentId`
+   * alone prepends before it. Both are resolved within the *target* parent
+   * group. See docs/DOCUMENT-TREE.md.
    */
   placeTreeNode(params: {
     collectionId: string
@@ -957,4 +961,39 @@ export interface IDocumentQueries {
     collectionId: string
     parentDocumentId: string | null
   }): Promise<Array<{ document_id: string; order_key: string }>>
+
+  /**
+   * Read a node's subtree as a flat, **pre-order (depth-first)** list — each
+   * node immediately followed by its descendants, siblings in `order_key`
+   * order, with a 0-based `depth` (the requested root / the collection roots
+   * are depth 0). Drives the authoring tree, server-rendered navigation, and
+   * the prev/next spine flatten.
+   *
+   * `rootDocumentId: null` (the default) reads the whole tree from the
+   * collection's roots; a value reads the subtree rooted at (and including)
+   * that node.
+   *
+   * **Status-at-edge.** `readMode: 'published'` joins
+   * `byline_current_published_documents` and drops any node without a current
+   * published version; because the walk only recurses through *included*
+   * nodes, an unpublished node's entire subtree is omitted — the spine is
+   * broken and descendants are not promoted (see docs/DOCUMENT-TREE.md).
+   * `readMode: 'any'` (the default) includes every current, non-deleted node.
+   * Depth-bounded by `maxDepth` as a backstop.
+   *
+   * Returns structure only; hydrate content via `getDocumentsByDocumentIds`.
+   */
+  getTreeSubtree(params: {
+    collectionId: string
+    rootDocumentId?: string | null
+    maxDepth?: number
+    readMode?: ReadMode
+  }): Promise<
+    Array<{
+      document_id: string
+      parent_document_id: string | null
+      depth: number
+      order_key: string
+    }>
+  >
 }
