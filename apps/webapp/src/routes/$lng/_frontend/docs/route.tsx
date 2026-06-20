@@ -13,7 +13,7 @@ import { Section } from '@byline/ui/react'
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { DocsContent } from '@/modules/docs/components/content'
 import { DocsMenuDrawer } from '@/modules/docs/components/menu-drawer'
-import { getDocsListFn } from '@/modules/docs/list'
+import { getDocsNavFn } from '@/modules/docs/nav'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { useBreadcrumbs } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
@@ -21,8 +21,8 @@ import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 export const Route = createFileRoute('/$lng/_frontend/docs')({
   loader: async ({ context }) => {
     const lng = context.locale
-    const result = await getDocsListFn({ data: { lng } })
-    return { docs: result.docs, lng }
+    const result = await getDocsNavFn({ data: { lng } })
+    return { nodes: result.nodes, lng }
   },
   component: DocsLayout,
   errorComponent: RouteError,
@@ -30,7 +30,7 @@ export const Route = createFileRoute('/$lng/_frontend/docs')({
 })
 
 function DocsLayout() {
-  const { docs } = Route.useLoaderData()
+  const { nodes } = Route.useLoaderData()
   const interfaceLocale = useInterfaceLocale()
 
   return (
@@ -39,7 +39,7 @@ function DocsLayout() {
         <DocsBreadcrumbs />
       </Section>
       <div className="flex flex-1 w-full">
-        <DocsMenuDrawer docs={docs} lng={interfaceLocale} />
+        <DocsMenuDrawer nodes={nodes} lng={interfaceLocale} />
         <DocsContent>
           <Outlet />
         </DocsContent>

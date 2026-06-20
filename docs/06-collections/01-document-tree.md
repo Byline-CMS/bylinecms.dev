@@ -2,13 +2,13 @@
 title: "Document Trees"
 path: "document-tree"
 summary: "A document-grain, single-parent ordered hierarchy primitive for self-referential collections — the structural backbone for documentation / book sites. Promotes the 'parent' edge out of the versioned content stream and into a dedicated, unversioned tree table alongside path / availableLocales / order_key."
-status: "BACKEND + ADMIN + HIERARCHICAL URLS COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget, the built-in tree list view, and the public hierarchical-URL splat handler (HTML + .md, canonical 301 / status-at-edge 404) are shipped and live on the docs collection. Remaining: the rendered TOC / nav (item 2) and the phase-2 drag/drop reorder view (item 3)."
+status: "BACKEND + ADMIN + PUBLIC FRONTEND COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget, the built-in tree list view, the public hierarchical-URL splat handler (HTML + .md, canonical 301 / status-at-edge 404), and the tree-rendered docs nav (collapsible drawer with animated caret + auto-expand, tree-ordered index, direct hierarchical links) are shipped and live on the docs collection. Remaining: prev/next spine links and the phase-2 admin drag/drop reorder view (item 3)."
 ---
 
 # Document Trees
 
-> **Status: backend + admin + public hierarchical URLs complete; rendered TOC /
-> nav and phase-2 drag reorder remain.** See the
+> **Status: backend + admin + public frontend (hierarchical URLs + tree nav)
+> complete; prev/next links and phase-2 admin drag reorder remain.** See the
 > [Session checkpoint](#session-checkpoint-resume-here) below for exactly what is
 > shipped, the decisions reached, and what to build next. The build contract in
 > the body of this document still holds.
@@ -67,6 +67,14 @@ status: "BACKEND + ADMIN + HIERARCHICAL URLS COMPLETE — storage, commands, fla
   fresh on re-parent. The old single-segment `docs/$path.tsx` + `{$path}[.]md.ts`
   routes are removed; docs list / menu links target the splat (`_splat`) and
   self-heal to canonical.
+- **Tree-rendered docs nav** — the docs drawer is now the document tree, fed by
+  `getDocsNavFn` (`apps/webapp/src/modules/docs/nav.server.ts` → `getSubtree`,
+  tree order, status-aware), replacing the old flat `orderKey` list read. The
+  drawer (`components/menu-drawer.tsx`) renders collapsible branches with an
+  animated caret + smooth `grid-template-rows` expand/collapse; the active doc's
+  branch auto-expands from the route `_splat` (SSR-correct, JS-free). Drawer +
+  index card grid emit direct hierarchical links (no 301 hop); index cards are in
+  tree order. Old `list.ts`/`list.server.ts` removed.
 
 **Decisions reached this session (don't re-litigate):**
 
@@ -90,14 +98,20 @@ status: "BACKEND + ADMIN + HIERARCHICAL URLS COMPLETE — storage, commands, fla
 1. ~~**Public docs splat handler + hierarchical URLs.**~~ **SHIPPED** — see the
    "Public hierarchical-URL splat handler" bullet above and
    [Public URL resolution](#public-url-resolution-the-splat-handler). Breadcrumbs
-   already render the hierarchical chain (HTML route). Note the splat resolves
-   the *leaf* only, so list/menu links still point at flat `_splat` slugs that
-   301 to canonical — switching them to direct hierarchical links is part of
-   item 2 (it needs the chain per list item, which the nav read provides).
-2. **Rendered table of contents / navigation.** A server-rendered docs nav (and
-   prev-next) built from `getSubtree` / `getAncestors`. The public docs list
-   currently sorts by the (now inert) `order_key`; switch it to read the tree
-   order, and emit direct hierarchical links (no 301 hop).
+   render the hierarchical chain (HTML route).
+2. ~~**Rendered table of contents / navigation.**~~ **SHIPPED** — the docs nav is
+   now the document tree, server-rendered from `getSubtree` in tree order
+   (`apps/webapp/src/modules/docs/nav.server.ts` → `getDocsNavFn`, replacing the
+   old flat `orderKey` list read). The drawer
+   (`apps/webapp/src/modules/docs/components/menu-drawer.tsx`) renders collapsible
+   branches with an **animated caret** and a smooth `grid-template-rows` height
+   expand/collapse; the active document's branch auto-expands (computed from the
+   route `_splat`, SSR-correct and JS-free). Both the drawer and the index card
+   grid emit **direct hierarchical links** (each node's full `chain`) — no 301
+   hop — and the index cards are in tree (pre-order) order. The compact desktop
+   rail stays a flat icon list. The old `list.ts`/`list.server.ts` were removed.
+   *Remaining sub-item:* **prev/next** spine links on the detail page (flatten of
+   `getSubtree`) — not yet built.
 3. **Phase-2 admin list view** — drag-to-reorder + re-parent on the built-in
    tree list view (currently read/browse only; placement is per-doc via the
    widget).

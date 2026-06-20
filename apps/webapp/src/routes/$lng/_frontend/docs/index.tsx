@@ -39,8 +39,9 @@ export const Route = createFileRoute('/$lng/_frontend/docs/')({
 
 function RouteComponent() {
   // Read the parent docs layout's loader data directly — single source of
-  // truth, no re-fetch, no own loader needed on this index route.
-  const { docs } = useLoaderData({ from: '/$lng/_frontend/docs' })
+  // truth, no re-fetch, no own loader needed on this index route. The nav is
+  // the document tree; the card grid shows every doc in tree (pre-order) order.
+  const { nodes } = useLoaderData({ from: '/$lng/_frontend/docs' })
   const { t } = useTranslations('frontend')
   const interfaceLocale = useInterfaceLocale()
 
@@ -49,8 +50,8 @@ function RouteComponent() {
       <BreadcrumbsClient breadcrumbs={[{ label: t('docsTitle'), href: '/docs' }]} />
       <Section className="pb-12">
         <Container>
-          {docs.length > 0 ? (
-            <DocsList docs={docs} lng={interfaceLocale} />
+          {nodes.length > 0 ? (
+            <DocsList nodes={nodes} lng={interfaceLocale} />
           ) : (
             <div className="prose mb-8">
               <h1 className="mb-2">{t('docsTitle')}</h1>

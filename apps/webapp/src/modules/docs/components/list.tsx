@@ -16,14 +16,23 @@ import { useTranslations } from '@/i18n/client/translations-provider'
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
 import styles from './list.module.css'
 import type { Locale } from '@/i18n/i18n-config'
-import type { DocListItem } from '@/modules/docs/list'
+import type { DocNavNode } from '@/modules/docs/nav'
+
+/** Pre-order flatten of the doc tree — the card grid shows every doc in tree order. */
+function flatten(nodes: DocNavNode[], out: DocNavNode[] = []): DocNavNode[] {
+  for (const node of nodes) {
+    out.push(node)
+    flatten(node.children, out)
+  }
+  return out
+}
 
 interface DocsListProps {
-  docs: DocListItem[]
+  nodes: DocNavNode[]
   lng: Locale
 }
 
-export function DocsList({ docs, lng }: DocsListProps): React.JSX.Element {
+export function DocsList({ nodes, lng }: DocsListProps): React.JSX.Element {
   const { t } = useTranslations('frontend')
   return (
     <div className="prose">
@@ -31,8 +40,8 @@ export function DocsList({ docs, lng }: DocsListProps): React.JSX.Element {
       <p className={cx('byline-docs-list-lead', styles.lead)}>{t('docsLead')}</p>
 
       <div className={cx('byline-docs-list', styles.grid)}>
-        {docs.map((doc) => (
-          <DocCard key={doc.id} doc={doc} lng={lng} />
+        {flatten(nodes).map((node) => (
+          <DocCard key={node.id} node={node} lng={lng} />
         ))}
       </div>
     </div>
@@ -40,13 +49,13 @@ export function DocsList({ docs, lng }: DocsListProps): React.JSX.Element {
 }
 
 interface DocCardProps {
-  doc: DocListItem
+  node: DocNavNode
   lng: Locale
 }
 
-function DocCard({ doc, lng }: DocCardProps): React.JSX.Element {
-  const title = doc.fields.title ?? doc.path ?? doc.id
-  const summary = doc.fields.summary?.trim()
+function DocCard({ node, lng }: DocCardProps): React.JSX.Element {
+  const title = node.title
+  const summary = node.summary
 
   return (
     <Card
@@ -54,7 +63,7 @@ function DocCard({ doc, lng }: DocCardProps): React.JSX.Element {
       render={
         <Link
           to="/$lng/docs/$"
-          params={{ ...lngParam(lng), _splat: doc.path }}
+          params={{ ...lngParam(lng), _splat: node.chain.join('/') }}
           aria-label={`Read ${title}`}
         />
       }

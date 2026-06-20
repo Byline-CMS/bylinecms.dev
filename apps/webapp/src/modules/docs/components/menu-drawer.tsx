@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -6,10 +8,24 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+/**
+ * Docs navigation drawer. `docs` is a `tree: true` collection, so the nav is
+ * the document tree (docs/DOCUMENT-TREE.md): parents are collapsible with an
+ * animated caret, children are indented and expand/collapse with a smooth
+ * height transition. Links are **direct hierarchical URLs** (each node's full
+ * `chain`), so no canonical 301 hop. The branch containing the active document
+ * is expanded on load — computed from the route's `_splat`, so it is correct in
+ * SSR and works without JS.
+ *
+ * The compact (desktop-collapsed) rail is icon-only, so it renders a flat
+ * pre-order list rather than the indented tree.
+ */
+
 import type React from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 
-import { DocumentIcon } from '@byline/ui/react'
+import { ChevronRightIcon, DocumentIcon } from '@byline/ui/react'
 import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 
@@ -17,40 +33,162 @@ import { lngParam } from '@/i18n/hooks/use-locale-navigation'
 import { useDocsMenu } from './docs-menu-provider.js'
 import styles from './menu-drawer.module.css'
 import type { Locale } from '@/i18n/i18n-config'
-import type { DocListItem } from '@/modules/docs/list'
+import type { DocNavNode } from '@/modules/docs/nav'
 
-interface MenuItemProps {
-  doc: DocListItem
-  active: boolean
-  compact: boolean
+/** Normalize a splat to a comparable `a/b/c` chain key (no leading/trailing /). */
+function chainKey(splat: string): string {
+  return splat.replace(/^\/+|\/+$/g, '')
+}
+
+/** The ids of every parent node on the path to the active document (to expand). */
+function activeAncestorIds(nodes: DocNavNode[], activeKey: string): Set<string> {
+  const open = new Set<string>()
+  const walk = (node: DocNavNode): void => {
+    const key = node.chain.join('/')
+    const onPath = activeKey === key || activeKey.startsWith(`${key}/`)
+    if (onPath && node.children.length > 0) open.add(node.id)
+    for (const child of node.children) walk(child)
+  }
+  for (const node of nodes) walk(node)
+  return open
+}
+
+/** Pre-order flatten — used by the icon-only compact rail. */
+function flatten(nodes: DocNavNode[], out: DocNavNode[] = []): DocNavNode[] {
+  for (const node of nodes) {
+    out.push(node)
+    flatten(node.children, out)
+  }
+  return out
+}
+
+interface NavItemProps {
+  node: DocNavNode
+  depth: number
+  activeKey: string
+  expanded: Set<string>
+  onToggle: (id: string) => void
   lng: Locale
   onNavigate: () => void
 }
 
-function MenuItem({ doc, active, compact, lng, onNavigate }: MenuItemProps) {
-  const title = doc.fields.title ?? doc.path ?? doc.id
+function NavItem({ node, depth, activeKey, expanded, onToggle, lng, onNavigate }: NavItemProps) {
+  const key = node.chain.join('/')
+  const hasChildren = node.children.length > 0
+  const isActive = activeKey === key
+  const isOpen = expanded.has(node.id)
 
   return (
-    <li className={cx('menu-item', { active, compact })}>
-      <Link to="/$lng/docs/$" params={{ ...lngParam(lng), _splat: doc.path }} onClick={onNavigate}>
+    <li
+      className={cx('menu-item', { active: isActive, 'has-children': hasChildren, open: isOpen })}
+    >
+      <div className="row" style={{ paddingLeft: `${depth * 14}px` }}>
+        {hasChildren ? (
+          <button
+            type="button"
+            className="caret"
+            aria-expanded={isOpen}
+            aria-label={isOpen ? `Collapse ${node.title}` : `Expand ${node.title}`}
+            onClick={() => onToggle(node.id)}
+          >
+            <span className="caret-icon">
+              <ChevronRightIcon width="14px" height="14px" />
+            </span>
+          </button>
+        ) : (
+          <span className="caret-spacer" aria-hidden="true" />
+        )}
+        <Link
+          className="link"
+          to="/$lng/docs/$"
+          params={{ ...lngParam(lng), _splat: key }}
+          onClick={onNavigate}
+        >
+          <span className="icon">
+            <DocumentIcon width="20px" height="20px" />
+          </span>
+          <span className="label">{node.title}</span>
+        </Link>
+      </div>
+
+      {hasChildren && (
+        <div className={cx('subtree', { open: isOpen })}>
+          <ul className="subtree-inner">
+            {node.children.map((child) => (
+              <NavItem
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                activeKey={activeKey}
+                expanded={expanded}
+                onToggle={onToggle}
+                lng={lng}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+    </li>
+  )
+}
+
+interface CompactItemProps {
+  node: DocNavNode
+  active: boolean
+  lng: Locale
+  onNavigate: () => void
+}
+
+function CompactItem({ node, active, lng, onNavigate }: CompactItemProps) {
+  return (
+    <li className={cx('menu-item', 'compact', { active })}>
+      <Link
+        to="/$lng/docs/$"
+        params={{ ...lngParam(lng), _splat: node.chain.join('/') }}
+        onClick={onNavigate}
+        title={node.title}
+      >
         <span className="icon">
           <DocumentIcon width="20px" height="20px" />
         </span>
-        <span className="label">{title}</span>
+        <span className="label">{node.title}</span>
       </Link>
     </li>
   )
 }
 
 interface DocsMenuDrawerProps {
-  docs: DocListItem[]
+  nodes: DocNavNode[]
   lng: Locale
 }
 
-export function DocsMenuDrawer({ docs, lng }: DocsMenuDrawerProps): React.JSX.Element | null {
+export function DocsMenuDrawer({ nodes, lng }: DocsMenuDrawerProps): React.JSX.Element | null {
   const { mobile, drawerOpen, closeDrawer } = useDocsMenu()
-  const params = useParams({ strict: false }) as { path?: string }
-  const currentPath = params.path
+  const params = useParams({ strict: false }) as { _splat?: string }
+  const activeKey = chainKey(params._splat ?? '')
+
+  // Expand the active document's branch on load and whenever navigation changes
+  // it — without collapsing branches the user has opened manually.
+  const [expanded, setExpanded] = useState<Set<string>>(() => activeAncestorIds(nodes, activeKey))
+  useEffect(() => {
+    const ancestors = activeAncestorIds(nodes, activeKey)
+    if (ancestors.size === 0) return
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      for (const id of ancestors) next.add(id)
+      return next
+    })
+  }, [nodes, activeKey])
+
+  const toggle = (id: string): void => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const handlers = useSwipeable({
     onSwipedLeft: () => {
@@ -58,13 +196,10 @@ export function DocsMenuDrawer({ docs, lng }: DocsMenuDrawerProps): React.JSX.El
     },
   })
 
-  // Compact = icon-only. Only applies to the desktop-closed state; the
-  // mobile overlay always renders with full labels for readability.
+  // Compact = icon-only. Only applies to the desktop-closed state; the mobile
+  // overlay always renders with full labels for readability.
   const compact = mobile === false && drawerOpen === false
-
-  // On the index route there is no $path param yet; fall back to the first doc
-  // so the default detail view still gets highlighted.
-  const activePath = currentPath ?? docs[0]?.path
+  const compactItems = useMemo(() => (compact ? flatten(nodes) : []), [compact, nodes])
 
   return (
     <aside
@@ -86,18 +221,34 @@ export function DocsMenuDrawer({ docs, lng }: DocsMenuDrawerProps): React.JSX.El
       {...handlers}
     >
       <nav className={cx('byline-docs-menu-drawer docs-menu-drawer', styles.nav)}>
-        <ul>
-          {docs.map((doc) => (
-            <MenuItem
-              key={doc.id}
-              doc={doc}
-              active={activePath === doc.path}
-              compact={compact}
-              lng={lng}
-              onNavigate={closeDrawer}
-            />
-          ))}
-        </ul>
+        {compact ? (
+          <ul>
+            {compactItems.map((node) => (
+              <CompactItem
+                key={node.id}
+                node={node}
+                active={activeKey === node.chain.join('/')}
+                lng={lng}
+                onNavigate={closeDrawer}
+              />
+            ))}
+          </ul>
+        ) : (
+          <ul>
+            {nodes.map((node) => (
+              <NavItem
+                key={node.id}
+                node={node}
+                depth={0}
+                activeKey={activeKey}
+                expanded={expanded}
+                onToggle={toggle}
+                lng={lng}
+                onNavigate={closeDrawer}
+              />
+            ))}
+          </ul>
+        )}
       </nav>
     </aside>
   )

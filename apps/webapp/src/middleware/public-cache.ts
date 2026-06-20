@@ -12,8 +12,8 @@
  *
  * Used by:
  *   - The public `_frontend` route loader (HTML page render path).
- *   - Public-read server fns (`getPageDetailFn`, `getDocsListFn`,
- *     `getDocDetailFn`) so client-side route transitions don't always
+ *   - Public-read server fns (`getPageDetailFn`, `getDocsNavFn`,
+ *     `getDocBySplatFn`) so client-side route transitions don't always
  *     round-trip to origin.
  *
  * Behaviour:

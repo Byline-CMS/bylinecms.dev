@@ -1,14 +1,16 @@
 /**
- * Docs menu drawer.
+ * Docs menu drawer (document-tree nav).
  *
  * Override handles:
  *   .byline-docs-menu-drawer-aside  — outer <aside> wrapper
  *   .byline-docs-menu-drawer        — <nav> inside the aside
- *   .byline-docs-menu-item          — each <li.menu-item>
+ *   .menu-item / .row / .caret / .subtree — per-node tree structure
  *
- * Inner classnames (`.menu-item`, `.icon`, `.label`, `.compact`, `.active`)
- * stay as plain string class names so the CSS rule chains stay readable;
- * targeted via :global in this module.
+ * The per-node classnames (`.menu-item`, `.row`, `.caret`, `.caret-icon`,
+ * `.caret-spacer`, `.link`, `.icon`, `.label`, `.subtree`, `.subtree-inner`,
+ * `.compact`, `.active`, `.open`) are plain global strings so the rule chains
+ * stay readable; they are scoped under the stable global `.byline-docs-menu-drawer`
+ * nav class (which sits on the same <nav> as the module-hashed `.nav`).
  */
 
 .aside,
@@ -62,7 +64,7 @@
 
 .asideDesktopOpen,
 :global(.byline-docs-menu-drawer-aside-desktop-open) {
-  width: 240px;
+  width: 260px;
 }
 
 .asideDesktopClosed,
@@ -80,23 +82,94 @@
   scrollbar-width: thin;
 }
 
-.nav ul,
-:global(.byline-docs-menu-drawer) ul {
+/* Top-level list gets the outer breathing room; nested lists reset. */
+:global(.byline-docs-menu-drawer) > ul {
   margin: 1.4rem 0.5rem 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+:global(.byline-docs-menu-drawer) ul {
+  margin: 0;
   padding: 0;
   list-style: none;
   list-style-position: outside;
 }
 
-.nav ul :global(li.menu-item),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item) {
-  border-radius: 4px;
+:global(.byline-docs-menu-drawer .menu-item) {
   margin: 0;
-  transition: all 200ms ease;
 }
 
-.nav ul :global(li.menu-item .icon),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item .icon) {
+/* ── Row: caret + link ──────────────────────────────────────────────── */
+
+:global(.byline-docs-menu-drawer .row) {
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: background-color 160ms ease;
+}
+
+:global(.byline-docs-menu-drawer .row:hover),
+:global(.byline-docs-menu-drawer .menu-item.active) > :global(.row) {
+  background-color: var(--canvas-50);
+}
+
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-menu-drawer .row:hover),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-docs-menu-drawer .menu-item.active)
+  > :global(.row) {
+  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
+}
+
+/* ── Caret (expand / collapse) ──────────────────────────────────────── */
+
+:global(.byline-docs-menu-drawer .caret) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+:global(.byline-docs-menu-drawer .caret-spacer) {
+  flex-shrink: 0;
+  width: 22px;
+}
+
+:global(.byline-docs-menu-drawer .caret-icon) {
+  display: inline-flex;
+  color: var(--gray-400, #9ca3af);
+  transition: transform 200ms ease;
+}
+
+/* Animated caret: points right when collapsed, rotates down when open. */
+:global(.byline-docs-menu-drawer .menu-item.open) > :global(.row) :global(.caret-icon) {
+  transform: rotate(90deg);
+}
+
+/* ── Link (icon + label) ────────────────────────────────────────────── */
+
+:global(.byline-docs-menu-drawer .link) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+  padding: 7px 7px 7px 0;
+  color: #111111;
+  font-size: 1.1rem;
+  font-weight: normal;
+  text-decoration: none;
+}
+
+:global(.byline-docs-menu-drawer .icon) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -105,122 +178,121 @@
   transition: color 180ms ease;
 }
 
-/* Active item: tint the document icon with the theme/primary color. The
- * icon SVG uses stroke="currentColor", so setting `color` on the wrapping
- * .icon span handles the stroke automatically. The path-level `fill` rule
- * fills the document shape with the same color — :not([fill="none"]) skips
- * the SVG's 24x24 bounding-box path. */
-.nav ul :global(li.menu-item.active .icon),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item.active .icon) {
-  color: var(--theme-500, var(--theme-400));
-}
-
-.nav ul :global(li.menu-item.active .icon svg path:not([fill="none"])),
-:global(.byline-docs-menu-drawer)
-  ul
-  :global(li.menu-item.active .icon svg path:not([fill="none"])) {
-  fill: currentColor;
-  transition: fill 180ms ease;
-}
-
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active .icon),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer)
-  ul
-  :global(li.menu-item.active .icon) {
-  color: var(--theme-300, var(--theme-400));
-}
-
-.nav ul :global(li.menu-item .label),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item .label) {
+:global(.byline-docs-menu-drawer .label) {
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.nav ul :global(li.menu-item.compact .label),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item.compact .label) {
-  display: none;
+/* Active doc: bold label + themed document icon. */
+:global(.byline-docs-menu-drawer .menu-item.active) > :global(.row) :global(.link) {
+  color: #111111;
+  font-weight: 600;
 }
 
-.nav ul :global(li.menu-item.active),
-.nav ul :global(li.menu-item:hover),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item.active),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item:hover) {
-  background-color: var(--canvas-50);
+:global(.byline-docs-menu-drawer .menu-item.active) > :global(.row) :global(.icon) {
+  color: var(--theme-500, var(--theme-400));
 }
 
-.nav ul :global(li.menu-item) :is(a, button),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item) :is(a, button) {
+:global(.byline-docs-menu-drawer .menu-item.active)
+  > :global(.row)
+  :global(.icon svg path:not([fill="none"])) {
+  fill: currentColor;
+  transition: fill 180ms ease;
+}
+
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-menu-drawer .link) {
+  color: #dddddd;
+}
+
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-docs-menu-drawer .menu-item.active)
+  > :global(.row)
+  :global(.link) {
+  color: #ffffff;
+}
+
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-docs-menu-drawer .menu-item.active)
+  > :global(.row)
+  :global(.icon) {
+  color: var(--theme-300, var(--theme-400));
+}
+
+/* ── Subtree expand/collapse (smooth height via grid-template-rows) ──── */
+
+:global(.byline-docs-menu-drawer .subtree) {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms ease;
+}
+
+:global(.byline-docs-menu-drawer .subtree.open) {
+  grid-template-rows: 1fr;
+}
+
+:global(.byline-docs-menu-drawer .subtree-inner) {
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.byline-docs-menu-drawer .subtree),
+  :global(.byline-docs-menu-drawer .caret-icon) {
+    transition: none;
+  }
+}
+
+/* ── Compact (icon-only desktop rail) ───────────────────────────────── */
+
+:global(.byline-docs-menu-drawer .menu-item.compact) :global(a) {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   width: 100%;
   padding: 7px;
   gap: 8px;
   color: #111111;
   font-size: 1.1rem;
-  font-weight: normal;
   text-decoration: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
+  border-radius: 4px;
 }
 
-.nav ul :global(li.menu-item) :is(a, button):disabled,
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item) :is(a, button):disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+:global(.byline-docs-menu-drawer .menu-item.compact) :global(.label) {
+  display: none;
 }
 
-.nav ul :global(li.menu-item.compact) :is(a, button),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item.compact) :is(a, button) {
-  justify-content: center;
+:global(.byline-docs-menu-drawer .menu-item.compact:hover),
+:global(.byline-docs-menu-drawer .menu-item.compact.active) {
+  background-color: var(--canvas-50);
+  border-radius: 4px;
 }
 
-.nav ul :global(li.menu-item.active) :is(a, button),
-:global(.byline-docs-menu-drawer) ul :global(li.menu-item.active) :is(a, button) {
-  color: #111111;
-  font-weight: 600;
-  text-decoration: none;
+:global(.byline-docs-menu-drawer .menu-item.compact.active) :global(.icon) {
+  color: var(--theme-500, var(--theme-400));
 }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item) :is(a, button),
+:global(.byline-docs-menu-drawer .menu-item.compact.active)
+  :global(.icon svg path:not([fill="none"])) {
+  fill: currentColor;
+}
+
 :is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer)
-  ul
-  :global(li.menu-item)
-  :is(a, button) {
+  :global(.byline-docs-menu-drawer .menu-item.compact)
+  :global(a) {
   color: #dddddd;
 }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active) :is(a, button),
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-menu-drawer .menu-item.compact:hover),
 :is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer)
-  ul
-  :global(li.menu-item.active)
-  :is(a, button) {
-  color: #ffffff;
-}
-
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active),
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item:hover),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer)
-  ul
-  :global(li.menu-item.active),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer)
-  ul
-  :global(li.menu-item:hover) {
+  :global(.byline-docs-menu-drawer .menu-item.compact.active) {
   background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
 }
 
 @media screen and (width >= 48rem) {
-  .nav ul :global(li.menu-item) :is(a, button),
-  :global(.byline-docs-menu-drawer) ul :global(li.menu-item) :is(a, button) {
+  :global(.byline-docs-menu-drawer .link),
+  :global(.byline-docs-menu-drawer .menu-item.compact) :global(a) {
     font-size: 0.9rem;
   }
 }
