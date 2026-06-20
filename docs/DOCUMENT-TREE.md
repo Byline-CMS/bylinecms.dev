@@ -191,6 +191,71 @@ localized content hanging off each node. Status-at-edge (above) is evaluated
 against the locale being read. This is the correct grain: the table of contents is
 a property of the work, not of a translation.
 
+### Public URL resolution (the splat handler)
+
+Hierarchical public URLs (Axis 2 in [Path & URL](#path--url-two-independent-axes))
+are served by a host-app **splat** route, not by storing hierarchical paths. This
+leans entirely on primitives the tree already provides and changes no storage.
+
+The current docs route is a single-segment `$lng/_frontend/docs/$path.tsx`
+resolved via `client.collection('docs').findByPath(path)`, with a parallel
+markdown channel `docs/{$path}.md.ts`. A single `$path` captures exactly one
+segment; a tree collection swaps it for a splat — the bare `$.tsx` file — which
+exposes `params._splat` = everything after `/docs/`. (This is a **public
+frontend** route change only — the host-package *admin* route resolution is
+unrelated and unchanged.)
+
+Loader (server-side, SSR), **leaf-resolve + canonicalize**:
+
+```ts
+const segments = _splat.split('/')                  // ['getting-started','cli']
+const leaf = segments.at(-1)!                        // 'cli'
+const doc = await client.collection('docs')
+  .findByPath(leaf, { status: 'published', locale }) // unique per collection+locale
+if (!doc) throw notFound()
+
+const ancestors = await client.collection('docs').getAncestors(doc.id)
+const canonical = [...ancestors.map((a) => a.path), doc.path].join('/')
+if (canonical !== _splat) {
+  throw redirect({ to: `/${lng}/docs/${canonical}`, statusCode: 301 })
+}
+
+return { doc, ancestors }   // ancestors → breadcrumbs, already ordered
+```
+
+Properties that make this the right shape:
+
+- **Cost is O(1) + O(depth).** One indexed `findByPath` plus one bounded ancestor
+  walk. The *intermediate* segments are never used to locate the document — only
+  to validate and canonicalize — so resolution reuses existing infrastructure.
+- **Self-healing canonical URL.** Every non-canonical-but-reachable form (wrong
+  ancestors, the bare `/docs/cli`, a stale URL after a re-parent) `301`s to the
+  one true URL computed from the live tree. No stored redirect table for
+  re-parents — the tree *is* the source of truth and the redirect is derived.
+- **Status-at-edge falls out for free.** Run `getAncestors` under
+  `status: 'published'` and it drops at the first unpublished ancestor → the chain
+  cannot validate → 404, enforcing the "unpublished node hides its subtree"
+  decision at the URL layer. (`getAncestors` must apply the published-*edge*
+  filter, not merely resolve IDs.)
+- **Markdown/agent surface inherits it.** The `.md` channel gets the same splat
+  treatment, so hierarchical URLs work for `Accept: text/markdown` and `llms.txt`.
+
+Two tree-specific decisions for the handler:
+
+- **Unplaced docs** (in the collection, no tree edge) have a `path` but empty
+  ancestors. Default: serve `/docs/<slug>` with canonical = bare slug rather than
+  404 — they are still published resources.
+- **Ownership.** The route is app-owned at a known prefix, so it already knows the
+  collection. If the host package ships it, it is a route *factory*
+  (`createTreeContentRoute({ collection, basePath })`) but the file stays
+  app-owned — and, unlike the admin splat, it must **not** pass through the admin
+  auth boundary; it is a public read.
+
+The **composite-key alternative** (only if leaf-uniqueness is later relaxed) keeps
+the same splat route but swaps the resolver body: walk *down* — resolve the root by
+the first segment, then `getChildBySlug(parentId, segment)` per hop — O(depth)
+queries instead of 1 + walk, plus a `(parent, slug)` resolution primitive.
+
 ## Invalidation contract
 
 Tree mutations mint no version, so the normal version-write invalidation does not
@@ -278,20 +343,57 @@ tree owns ordering; `byline_documents.order_key` is inert for it.
 > (floated in discussion) describes the use case. Prefer naming the mechanism,
 > since a single-parent ordered tree is useful beyond documentation sites.
 
-## Path independence (deliberate)
+## Path & URL: two independent axes
 
-Breadcrumb **URLs** use `path` (`byline_document_paths`), itself an independent
-document-grain primitive. We **keep `path` independent of the tree** — flat
-canonical slugs, not tree-derived `parent-slug/child-slug`. Rationale:
+This design separates **where a document is stored** from **how it is reached**.
+An earlier framing conflated them under one "keep paths flat" banner, which
+overstated the cost of hierarchical URLs. They are two axes:
 
-- Tree-derived paths would make a re-parent rewrite the path of the **entire
-  subtree** — an SEO-visible change requiring redirects, and it would break the
-  "documents are untouched by their tree position" purity this design is built on.
-- Breadcrumbs render *from the tree* (structure) while *linking to independent
-  paths* (URLs). The two systems cooperate without coupling.
+**Axis 1 — stored canonical path (LOCKED: flat, tree-independent).**
+`byline_document_paths` continues to store a flat slug (`cli`), globally unique
+per `(collection_id, locale, path)`. Re-parenting, reordering, and nesting write
+**only** the tree table and **never** touch the path row. This preserves the core
+purity of the design — a document is untouched by its position in the tree — and
+it is non-negotiable. Tree-*derived* stored paths (writing `getting-started/cli`
+into the path column) are explicitly rejected: they would force a re-parent to
+rewrite the stored path of the **entire subtree**, the exact grain-mixing this
+primitive exists to remove.
 
-Hierarchical URLs remain possible later as an explicit, separately-owned feature
-(subtree path-rewrite + redirect management) — but they are **out of scope** here.
+**Axis 2 — public URL presentation (a separate, deferred-but-cheap choice).**
+The URL a visitor uses is *composed at read time*, independent of how the path is
+stored. Two options, neither of which touches Axis 1:
+
+- **Flat URL** (`/docs/cli`) — the single-segment route in use today
+  (`$lng/_frontend/docs/$path.tsx`). No tree involvement.
+- **Hierarchical URL via read-time composition** (`/docs/getting-started/cli`) — a
+  public **splat** route resolves the leaf slug with the existing `findByPath`,
+  derives the ancestor chain with the tree's own `getAncestors`, and `301`s any
+  non-canonical reachable form to the URL computed from the live tree. **No stored
+  path is rewritten on re-parent**; the redirect is *derived*, not persisted. See
+  [Public URL resolution](#public-url-resolution-the-splat-handler) under the read
+  path for the worked handler.
+
+Hierarchical URLs are **web-correct and worth having** for tree collections: they
+give a single canonical URL per document while signalling the resource's location
+in the hierarchy, and they make re-parents self-healing (old URL → derived 301)
+without a redirect table. They are *decorative* in one precise sense — because the
+leaf slug stays globally unique per collection (Axis 1), you cannot yet have two
+documents share a leaf under different parents (`getting-started/install` **and**
+`advanced/install`). The ancestor segments are structural context, not part of
+resolution. Breadcrumbs still render *from the tree* (structure) while *linking to
+the composed URL* — the two systems cooperate without coupling.
+
+**True non-unique-leaf hierarchy** (where `a/install` and `b/install` coexist) is
+the one variant that *does* reach into storage: it requires relaxing the unique
+index to `(collection_id, locale, parent, slug)` and a composite-key resolver that
+walks down the chain instead of leaf-looking-up. That is a deliberate,
+separately-owned future feature — **out of scope here** — but it is named so the
+read-time-composition option above is not mistaken for the ceiling.
+
+**Net:** Axis 1 is locked flat. Axis 2 is a presentation choice the host app makes
+per tree collection; the read-time-composition route is the recommended default
+for documentation sites and costs only a splat route + the spec's existing
+`getAncestors`.
 
 ## Relationship to DOCUMENTATION-SITES.md
 
@@ -318,10 +420,16 @@ This primitive **supersedes Model A's mechanics**. Once shipped:
   per-node "move to…"; both ride the same write commands.
 - **Client tree-API shape** — the exact `@byline/client` surface for
   `getSubtree` / `getAncestors` / `placeTreeNode`.
+- **Unplaced-doc public routing** — default is to serve `/docs/<slug>` for a
+  document with no tree edge (canonical = bare slug); confirm vs. 404-until-placed.
+- **Hierarchical-URL adoption** — whether the read-time-composition splat ships
+  with the primitive or follows as a per-site frontend opt-in.
 
 Resolved: flag name is **`tree: true`**; self-referential single collection;
 single-parent only; promote-orphans-to-root (no cascade); per-parent ordering;
-path independent of tree; unpublished nodes hide their subtree publicly;
-tree is per-logical-document (locale-agnostic).
+**stored path stays flat / tree-independent (Axis 1)** while hierarchical public
+URLs are an optional read-time-composition presentation choice (Axis 2);
+unpublished nodes hide their subtree publicly; tree is per-logical-document
+(locale-agnostic).
 </content>
 </invoke>
