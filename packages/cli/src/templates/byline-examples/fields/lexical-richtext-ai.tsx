@@ -27,7 +27,7 @@
 
 import { AiLexicalExtension } from '@byline/ai/plugins/lexical'
 import type { FieldAdminConfig, RichTextEditorProps } from '@byline/core'
-import { lexicalEditor } from '@byline/richtext-lexical'
+import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/config'
 
 /**
  * AI-enabled wrapper around `@byline/richtext-lexical`'s editor.
@@ -49,7 +49,17 @@ import { lexicalEditor } from '@byline/richtext-lexical'
  * **Per-field** opt-in — see `aiRichTextAdmin()` below.
  */
 export const LexicalRichTextAi = lexicalEditor((c) => {
-  c.extensions.add(AiLexicalExtension)
+  c.extensions.add(AiLexicalExtension).remove(builtInExtensions.FloatingTextFormat)
+  // Document-level "view as markdown source" toolbar toggle (the capital-M
+  // button) enabled site-wide on the AI editor. Settings live on the baked
+  // registration config so every richtext field keeps the AI assistant AND
+  // the markdown toggle — a schema-side `editorConfig` would override this
+  // baked config and strip the AI extension (it can't carry extensions).
+  c.settings.options.markdownToggle = true
+  // Inline as-you-type markdown shortcuts (`# ` → H1, `- ` → list, `**x**`
+  // → bold, `| a | b |` → table, `:::note` → admonition, …). Uses the same
+  // BYLINE_TRANSFORMERS set as the source toggle. Remove this line to disable.
+  c.settings.options.markdownShortcutPlugin = true
   return c
 }) satisfies (props: RichTextEditorProps) => React.JSX.Element
 

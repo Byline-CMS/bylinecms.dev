@@ -44,6 +44,8 @@ import type {
   ThematicBreak,
 } from 'mdast'
 
+import type { AdmonitionDirective } from './parse-markdown.js'
+
 // Lexical inline format bits — kept in sync with
 // apps/webapp/src/ui/byline/components/richtext-lexical/serialize/richtext-node-formats.ts
 const IS_BOLD = 1
@@ -113,6 +115,11 @@ function walkBlocks(nodes: Content[], warnings: MdastToLexicalWarning[]): Lexica
 }
 
 function blockNode(node: Content, warnings: MdastToLexicalWarning[]): LexicalNode | null {
+  // Synthetic admonition container injected by `parse-markdown` — handled
+  // ahead of the mdast switch since it isn't a real mdast node type.
+  if ((node as { type: string }).type === 'admonitionDirective') {
+    return admonitionNode(node as unknown as AdmonitionDirective, warnings)
+  }
   switch (node.type) {
     case 'paragraph':
       return paragraphNode(node, warnings)
@@ -247,6 +254,26 @@ function blockquoteNode(node: Blockquote, warnings: MdastToLexicalWarning[]): Le
     format: '',
     indent: 0,
     children: inline,
+  }
+}
+
+// Byline admonition (callout). An ElementNode whose body lives as real
+// block children — paragraphs + inline content — matching the editor's
+// `AdmonitionNode`. `admonitionType` / `title` ride the node, not the body.
+function admonitionNode(node: AdmonitionDirective, warnings: MdastToLexicalWarning[]): LexicalNode {
+  const children = walkBlocks(node.children as Content[], warnings)
+  // Never leave the body empty — mirrors the editor transformer, which
+  // seeds an empty paragraph so the caret has somewhere to land.
+  if (children.length === 0) children.push(emptyParagraph())
+  return {
+    type: 'admonition',
+    version: 1,
+    direction: 'ltr',
+    format: '',
+    indent: 0,
+    admonitionType: node.admonitionType,
+    title: node.title,
+    children,
   }
 }
 

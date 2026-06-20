@@ -149,10 +149,12 @@ CREATE TABLE "byline_document_paths" (
 );
 --> statement-breakpoint
 CREATE TABLE "byline_document_relationships" (
-	"parent_document_id" uuid NOT NULL,
 	"child_document_id" uuid NOT NULL,
+	"parent_document_id" uuid,
+	"order_key" varchar(128) COLLATE "C" NOT NULL,
 	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "byline_document_relationships_parent_document_id_child_document_id_unique" UNIQUE("parent_document_id","child_document_id")
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "uq_document_relationships_child" UNIQUE("child_document_id")
 );
 --> statement-breakpoint
 CREATE TABLE "byline_document_version_locales" (
@@ -303,8 +305,8 @@ ALTER TABLE "byline_document_available_locales" ADD CONSTRAINT "byline_document_
 ALTER TABLE "byline_document_available_locales" ADD CONSTRAINT "byline_document_available_locales_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_paths" ADD CONSTRAINT "byline_document_paths_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_paths" ADD CONSTRAINT "byline_document_paths_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_parent_document_id_byline_documents_id_fk" FOREIGN KEY ("parent_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_child_document_id_byline_documents_id_fk" FOREIGN KEY ("child_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_parent_document_id_byline_documents_id_fk" FOREIGN KEY ("parent_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_version_locales" ADD CONSTRAINT "byline_document_version_locales_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_versions" ADD CONSTRAINT "byline_document_versions_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_versions" ADD CONSTRAINT "byline_document_versions_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -341,8 +343,7 @@ CREATE INDEX "idx_datetime_path_date" ON "byline_store_datetime" USING btree ("f
 CREATE INDEX "idx_datetime_collection_date" ON "byline_store_datetime" USING btree ("collection_id","value_timestamp_tz");--> statement-breakpoint
 CREATE INDEX "idx_document_available_locales_document_id" ON "byline_document_available_locales" USING btree ("document_id");--> statement-breakpoint
 CREATE INDEX "idx_document_paths_document_id" ON "byline_document_paths" USING btree ("document_id");--> statement-breakpoint
-CREATE INDEX "idx_document_relationships_parent" ON "byline_document_relationships" USING btree ("parent_document_id");--> statement-breakpoint
-CREATE INDEX "idx_document_relationships_child" ON "byline_document_relationships" USING btree ("child_document_id");--> statement-breakpoint
+CREATE INDEX "idx_document_relationships_parent_order" ON "byline_document_relationships" USING btree ("parent_document_id","order_key");--> statement-breakpoint
 CREATE INDEX "idx_documents_document_id" ON "byline_document_versions" USING btree ("document_id");--> statement-breakpoint
 CREATE INDEX "idx_documents_collection_document_deleted" ON "byline_document_versions" USING btree ("collection_id","document_id","is_deleted");--> statement-breakpoint
 CREATE INDEX "idx_documents_current_view" ON "byline_document_versions" USING btree ("collection_id","document_id","is_deleted","id");--> statement-breakpoint

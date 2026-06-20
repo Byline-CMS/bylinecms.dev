@@ -24,7 +24,9 @@
  *
  * Per-file flow:
  *   1. Read the file, split frontmatter from body with gray-matter.
- *   2. Parse the body to mdast via remark-parse + remark-gfm.
+ *   2. Parse the body to mdast via remark-parse + remark-gfm, lifting
+ *      Docusaurus-style admonition fences (`:::note[Title] … :::`) into
+ *      synthetic nodes (see lib/parse-markdown.ts).
  *   3. Rewrite `./SIBLING.md[#hash]` links to `/docs/<imported-path>`
  *      using a sourcePath→docPath map built from a frontmatter pre-pass.
  *      Targets outside the batch are stripped to plain text.
@@ -36,6 +38,17 @@
  * Flags:
  *   --dry-run     Parse + log, no DB writes.
  *   --verbose     Print warnings for dropped/unsupported nodes.
+ *   --tree        After importing, build the document tree from the source
+ *                 directory layout (the "folder + index.md" convention). A flat
+ *                 `D/leaf.md` nests under `D/index.md`; a `D/index.md` (a node
+ *                 that owns a folder) nests under the grandparent's index,
+ *                 `dirname(D)/index.md`; a node with no `index.md` parent is a
+ *                 root. A folder appears exactly when a node has children, at
+ *                 any depth. Sibling order follows the source file sort, so
+ *                 number directories/files with `NN-` prefixes to curate the
+ *                 TOC — prefixes never reach the slug (paths come from
+ *                 frontmatter). The `docs` collection must be `tree: true`.
+ *                 See docs/DOCUMENT-TREE.md.
  */
 
 import '../load-env.js'
@@ -43,18 +56,15 @@ import '../server.config.js'
 
 import { readFileSync } from 'node:fs'
 import { glob } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 import { createSuperAdminContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
 import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
-import type { Root } from 'mdast'
-import remarkGfm from 'remark-gfm'
-import remarkParse from 'remark-parse'
-import { unified } from 'unified'
 
 import { type DocFrontmatter, parseDocFile } from './lib/frontmatter.js'
 import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexical.js'
+import { parseBodyToMdast } from './lib/parse-markdown.js'
 import { type DocLinkRewriteWarning, rewriteDocLinks } from './lib/rewrite-doc-links.js'
 import { stripLeadingH1IfMatches } from './lib/strip-leading-h1.js'
 
@@ -66,14 +76,16 @@ const DEFAULT_IMPORT_STATUS = 'published'
 interface Flags {
   dryRun: boolean
   verbose: boolean
+  tree: boolean
   patterns: string[]
 }
 
 function parseFlags(argv: string[]): Flags {
-  const flags: Flags = { dryRun: false, verbose: false, patterns: [] }
+  const flags: Flags = { dryRun: false, verbose: false, tree: false, patterns: [] }
   for (const arg of argv) {
     if (arg === '--dry-run') flags.dryRun = true
     else if (arg === '--verbose') flags.verbose = true
+    else if (arg === '--tree') flags.tree = true
     else if (arg.startsWith('--')) throw new Error(`unknown flag: ${arg}`)
     else flags.patterns.push(arg)
   }
@@ -93,10 +105,6 @@ async function expandPatterns(patterns: string[]): Promise<string[]> {
     }
   }
   return [...out].sort()
-}
-
-function parseBodyToMdast(body: string): Root {
-  return unified().use(remarkParse).use(remarkGfm).parse(body) as Root
 }
 
 function logWarnings(filePath: string, warnings: MdastToLexicalWarning[]): void {
@@ -305,6 +313,73 @@ async function processFile(
   return { filePath, action: 'created', documentId: result.documentId, path: docPath }
 }
 
+/**
+ * Resolve the source file of a node's parent under the "folder + index.md"
+ * convention: a flat `D/leaf.md` is a child of `D/index.md`; a `D/index.md` (a
+ * node that owns a folder) is a child of the grandparent's index,
+ * `dirname(D)/index.md`. The returned path may not exist (e.g. the docs root
+ * has no `index.md`); the caller treats a miss as "this node is a root".
+ */
+function parentIndexFile(filePath: string): string {
+  const dir = dirname(filePath)
+  const base = basename(filePath)
+  const isIndex = base === 'index.md' || base === 'index.markdown'
+  return join(isIndex ? dirname(dir) : dir, 'index.md')
+}
+
+/**
+ * Build the document tree from the source directory layout, after every file
+ * has been imported (so all parent documents exist). A node's parent is the
+ * `index.md` resolved by {@link parentIndexFile}; a node whose parent index is
+ * not in the batch is a root. Structure is filesystem-derived (not name-matched
+ * to paths), so directory names are free and `NN-` prefixes only affect order.
+ *
+ * Siblings are appended after the previous sibling in their group so they get
+ * distinct, monotonically-increasing per-parent keys (placing with no
+ * neighbours would mint the same first key for every sibling). Files are
+ * processed in sorted order, so prefix order carries straight through.
+ */
+async function placeTreeFromDirectories(
+  handle: CollectionHandle,
+  results: ProcessResult[]
+): Promise<void> {
+  const placeable = results.filter(
+    (r): r is ProcessResult & { documentId: string } => r.documentId != null
+  )
+  // Index nodes by source file so a child resolves its parent's `index.md`
+  // structurally (by path on disk), not by matching directory names to slugs.
+  const idByFile = new Map(placeable.map((r) => [r.filePath, r.documentId]))
+
+  const ROOT_GROUP = '__root__'
+  const lastSiblingByGroup = new Map<string, string>()
+
+  let rooted = 0
+  let placed = 0
+  let failed = 0
+  for (const r of placeable) {
+    const parentId = idByFile.get(parentIndexFile(r.filePath))
+    const parentDocumentId = parentId != null && parentId !== r.documentId ? parentId : null
+    const groupKey = parentDocumentId ?? ROOT_GROUP
+    const beforeDocumentId = lastSiblingByGroup.get(groupKey) ?? null
+    try {
+      await handle.placeTreeNode(r.documentId, { parentDocumentId, beforeDocumentId })
+      lastSiblingByGroup.set(groupKey, r.documentId)
+      if (parentDocumentId != null) {
+        placed += 1
+        console.log(`  ↳ placed   ${r.path}  under  ${basename(dirname(r.filePath))}`)
+      } else {
+        rooted += 1
+      }
+    } catch (err) {
+      failed += 1
+      console.error(`  ✗ tree     ${r.path}: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+  console.log(
+    `import-docs: tree — ${rooted} root(s), ${placed} child placement(s), ${failed} failed.`
+  )
+}
+
 async function run(): Promise<void> {
   const flags = parseFlags(process.argv.slice(2))
   const files = await expandPatterns(flags.patterns)
@@ -328,10 +403,12 @@ async function run(): Promise<void> {
   let updated = 0
   let skipped = 0
   let failed = 0
+  const results: ProcessResult[] = []
 
   for (const file of files) {
     try {
       const result = await processFile(file, client, handle, flags, pathMap)
+      results.push(result)
       if (result.action === 'created') created += 1
       else if (result.action === 'updated') updated += 1
       else skipped += 1
@@ -346,6 +423,15 @@ async function run(): Promise<void> {
   console.log(
     `import-docs: ${created} created, ${updated} updated, ${skipped} skipped, ${failed} failed.`
   )
+
+  // Build the tree from the directory layout, once every parent exists.
+  if (flags.tree && !flags.dryRun) {
+    console.log('import-docs: building document tree from directory layout…')
+    await placeTreeFromDirectories(handle, results)
+  } else if (flags.tree && flags.dryRun) {
+    console.log('import-docs: --tree requested but skipped under --dry-run (no DB writes).')
+  }
+
   if (failed > 0) process.exit(1)
 }
 
