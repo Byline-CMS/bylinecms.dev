@@ -50,7 +50,8 @@
 
 .tile:hover {
   border-color: var(--theme-400, var(--gray-300));
-  background-color: var(--canvas-50);
+  /* Translucent so the site-wide gradient shows through the tile on hover. */
+  background-color: oklch(from var(--canvas-50) l c h / 0.85);
 }
 
 :is([data-theme="dark"], :global(.dark)) .tile {
@@ -58,7 +59,7 @@
 }
 
 :is([data-theme="dark"], :global(.dark)) .tile:hover {
-  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
+  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h / 0.65);
 }
 
 .prev {

@@ -35,7 +35,7 @@ function DocsLayout() {
 
   return (
     <>
-      <Section className="mt-3 px-4">
+      <Section className="mt-3 mb-3 px-4">
         <DocsBreadcrumbs />
       </Section>
       <div className="flex flex-1 w-full">

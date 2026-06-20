@@ -7,8 +7,8 @@
  *   .menu-item / .row / .caret / .subtree — per-node tree structure
  *
  * The per-node classnames (`.menu-item`, `.row`, `.caret`, `.caret-icon`,
- * `.caret-spacer`, `.link`, `.icon`, `.label`, `.subtree`, `.subtree-inner`,
- * `.compact`, `.active`, `.open`) are plain global strings so the rule chains
+ * `.caret-spacer`, `.link`, `.label`, `.subtree`, `.subtree-inner`,
+ * `.active`, `.open`) are plain global strings so the rule chains
  * stay readable; they are scoped under the stable global `.byline-docs-drawer`
  * nav class (which sits on the same <nav> as the module-hashed `.nav`).
  */
@@ -17,7 +17,8 @@
 :global(.byline-docs-drawer-aside) {
   display: flex;
   flex-direction: column;
-  border-right: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  border-right: var(--border-width-thin) var(--border-style-solid)
+    var(--gray-100);
   z-index: 40;
   transition: all 200ms ease-in-out;
 }
@@ -30,7 +31,7 @@
 .asideMobile,
 :global(.byline-docs-drawer-aside-mobile) {
   position: fixed;
-  top: 45px;
+  top: 50px; /* clear the sticky 50px app bar so the overlay isn't tucked under it */
   bottom: 0;
   left: 0;
 }
@@ -69,7 +70,9 @@
 
 .asideDesktopClosed,
 :global(.byline-docs-drawer-aside-desktop-closed) {
-  width: 60px;
+  width: 0;
+  overflow: hidden;
+  border-right: none;
 }
 
 .nav,
@@ -109,16 +112,41 @@
   transition: background-color 160ms ease;
 }
 
+/* Opaque highlight — used by the mobile overlay, which has a solid panel
+   background. Desktop overrides below make it translucent. */
 :global(.byline-docs-drawer .row:hover),
 :global(.byline-docs-drawer .menu-item.active) > :global(.row) {
   background-color: var(--canvas-50);
 }
 
-:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer .row:hover),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-docs-drawer .row:hover),
 :is([data-theme="dark"], :global(.dark))
   :global(.byline-docs-drawer .menu-item.active)
   > :global(.row) {
   background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
+}
+
+/* Desktop: the drawer sits directly on the site-wide gradient (no panel
+   background), so the hover / active highlight is translucent and lets the
+   gradient show through. Scoped to the desktop aside so the mobile overlay
+   keeps its opaque highlight. */
+:global(.byline-docs-drawer-aside-desktop)
+  :global(.byline-docs-drawer .row:hover),
+:global(.byline-docs-drawer-aside-desktop)
+  :global(.byline-docs-drawer .menu-item.active)
+  > :global(.row) {
+  background-color: oklch(from var(--canvas-50) l c h / 0.85);
+}
+
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-docs-drawer-aside-desktop)
+  :global(.byline-docs-drawer .row:hover),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-docs-drawer-aside-desktop)
+  :global(.byline-docs-drawer .menu-item.active)
+  > :global(.row) {
+  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h / 0.65);
 }
 
 /* ── Caret (expand / collapse) ──────────────────────────────────────── */
@@ -149,7 +177,9 @@
 }
 
 /* Animated caret: points right when collapsed, rotates down when open. */
-:global(.byline-docs-drawer .menu-item.open) > :global(.row) :global(.caret-icon) {
+:global(.byline-docs-drawer .menu-item.open)
+  > :global(.row)
+  :global(.caret-icon) {
   transform: rotate(90deg);
 }
 
@@ -169,15 +199,6 @@
   text-decoration: none;
 }
 
-:global(.byline-docs-drawer .icon) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  flex-shrink: 0;
-  transition: color 180ms ease;
-}
-
 :global(.byline-docs-drawer .label) {
   line-height: 1.2;
   overflow: hidden;
@@ -185,21 +206,10 @@
   white-space: nowrap;
 }
 
-/* Active doc: bold label + themed document icon. */
+/* Active doc: bold label. */
 :global(.byline-docs-drawer .menu-item.active) > :global(.row) :global(.link) {
   color: #111111;
   font-weight: 600;
-}
-
-:global(.byline-docs-drawer .menu-item.active) > :global(.row) :global(.icon) {
-  color: var(--theme-500, var(--theme-400));
-}
-
-:global(.byline-docs-drawer .menu-item.active)
-  > :global(.row)
-  :global(.icon svg path:not([fill="none"])) {
-  fill: currentColor;
-  transition: fill 180ms ease;
 }
 
 :is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer .link) {
@@ -211,13 +221,6 @@
   > :global(.row)
   :global(.link) {
   color: #ffffff;
-}
-
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-drawer .menu-item.active)
-  > :global(.row)
-  :global(.icon) {
-  color: var(--theme-300, var(--theme-400));
 }
 
 /* ── Subtree expand/collapse (smooth height via grid-template-rows) ──── */
@@ -244,55 +247,8 @@
   }
 }
 
-/* ── Compact (icon-only desktop rail) ───────────────────────────────── */
-
-:global(.byline-docs-drawer .menu-item.compact) :global(a) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 7px;
-  gap: 8px;
-  color: #111111;
-  font-size: 1.1rem;
-  text-decoration: none;
-  border-radius: 4px;
-}
-
-:global(.byline-docs-drawer .menu-item.compact) :global(.label) {
-  display: none;
-}
-
-:global(.byline-docs-drawer .menu-item.compact:hover),
-:global(.byline-docs-drawer .menu-item.compact.active) {
-  background-color: var(--canvas-50);
-  border-radius: 4px;
-}
-
-:global(.byline-docs-drawer .menu-item.compact.active) :global(.icon) {
-  color: var(--theme-500, var(--theme-400));
-}
-
-:global(.byline-docs-drawer .menu-item.compact.active)
-  :global(.icon svg path:not([fill="none"])) {
-  fill: currentColor;
-}
-
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-drawer .menu-item.compact)
-  :global(a) {
-  color: #dddddd;
-}
-
-:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer .menu-item.compact:hover),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-drawer .menu-item.compact.active) {
-  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
-}
-
 @media screen and (width >= 48rem) {
-  :global(.byline-docs-drawer .link),
-  :global(.byline-docs-drawer .menu-item.compact) :global(a) {
-    font-size: 0.9rem;
+  :global(.byline-docs-drawer .link) {
+    font-size: 1rem;
   }
 }

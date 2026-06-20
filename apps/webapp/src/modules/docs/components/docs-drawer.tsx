@@ -17,23 +17,23 @@
  * is expanded on load — computed from the route's `_splat`, so it is correct in
  * SSR and works without JS.
  *
- * The compact (desktop-collapsed) rail is icon-only, so it renders a flat
- * pre-order list rather than the indented tree.
+ * On desktop the drawer is either fully open (pushing content) or fully closed;
+ * on mobile it is an overlay. There is no intermediate icon-only state.
  */
 
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 
-import { ChevronRightIcon, DocumentIcon } from '@byline/ui/react'
+import { ChevronRightIcon } from '@byline/ui/react'
 import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
-import { type DocNavNode, flattenDocNav } from '@/modules/docs/nav'
 import styles from './docs-drawer.module.css'
 import { useDocsMenu } from './docs-provider.js'
 import type { Locale } from '@/i18n/i18n-config'
+import type { DocNavNode } from '@/modules/docs/nav'
 
 /** Normalize a splat to a comparable `a/b/c` chain key (no leading/trailing /). */
 function chainKey(splat: string): string {
@@ -95,9 +95,6 @@ function NavItem({ node, depth, activeKey, expanded, onToggle, lng, onNavigate }
           params={{ ...lngParam(lng), _splat: key }}
           onClick={onNavigate}
         >
-          <span className="icon">
-            <DocumentIcon width="20px" height="20px" />
-          </span>
           <span className="label">{node.title}</span>
         </Link>
       </div>
@@ -120,31 +117,6 @@ function NavItem({ node, depth, activeKey, expanded, onToggle, lng, onNavigate }
           </ul>
         </div>
       )}
-    </li>
-  )
-}
-
-interface CompactItemProps {
-  node: DocNavNode
-  active: boolean
-  lng: Locale
-  onNavigate: () => void
-}
-
-function CompactItem({ node, active, lng, onNavigate }: CompactItemProps) {
-  return (
-    <li className={cx('menu-item', 'compact', { active })}>
-      <Link
-        to="/$lng/docs/$"
-        params={{ ...lngParam(lng), _splat: node.chain.join('/') }}
-        onClick={onNavigate}
-        title={node.title}
-      >
-        <span className="icon">
-          <DocumentIcon width="20px" height="20px" />
-        </span>
-        <span className="label">{node.title}</span>
-      </Link>
     </li>
   )
 }
@@ -187,11 +159,6 @@ export function DocsDrawer({ nodes, lng }: DocsDrawerProps): React.JSX.Element |
     },
   })
 
-  // Compact = icon-only. Only applies to the desktop-closed state; the mobile
-  // overlay always renders with full labels for readability.
-  const compact = mobile === false && drawerOpen === false
-  const compactItems = useMemo(() => (compact ? flattenDocNav(nodes) : []), [compact, nodes])
-
   return (
     <aside
       id="docs-menu"
@@ -212,34 +179,20 @@ export function DocsDrawer({ nodes, lng }: DocsDrawerProps): React.JSX.Element |
       {...handlers}
     >
       <nav className={cx('byline-docs-drawer docs-drawer', styles.nav)}>
-        {compact ? (
-          <ul>
-            {compactItems.map((node) => (
-              <CompactItem
-                key={node.id}
-                node={node}
-                active={activeKey === node.chain.join('/')}
-                lng={lng}
-                onNavigate={closeDrawer}
-              />
-            ))}
-          </ul>
-        ) : (
-          <ul>
-            {nodes.map((node) => (
-              <NavItem
-                key={node.id}
-                node={node}
-                depth={0}
-                activeKey={activeKey}
-                expanded={expanded}
-                onToggle={toggle}
-                lng={lng}
-                onNavigate={closeDrawer}
-              />
-            ))}
-          </ul>
-        )}
+        <ul>
+          {nodes.map((node) => (
+            <NavItem
+              key={node.id}
+              node={node}
+              depth={0}
+              activeKey={activeKey}
+              expanded={expanded}
+              onToggle={toggle}
+              lng={lng}
+              onNavigate={closeDrawer}
+            />
+          ))}
+        </ul>
       </nav>
     </aside>
   )
