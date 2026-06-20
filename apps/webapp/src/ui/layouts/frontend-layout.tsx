@@ -12,7 +12,7 @@
 import type { ReactNode } from 'react'
 import { Outlet } from '@tanstack/react-router'
 
-import { DocsMenuProvider } from '@/modules/docs/components/docs-menu-provider'
+import { DocsProvider } from '@/modules/docs/components/docs-provider'
 import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBarFront } from '@/ui/components/app-bar-front'
 import { BreadcrumbsProvider } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
@@ -40,14 +40,14 @@ export function FrontendLayout({
 }: FrontendLayoutProps) {
   return (
     <BreadcrumbsProvider>
-      <DocsMenuProvider>
+      <DocsProvider>
         <GradientBackground />
         <ContentAdminBar user={adminUser} admin={adminPath} preview={preview} />
         <AppBarFront lng={locale} />
         <main id="main-content" className="flex flex-1 flex-col">
           {children ?? <Outlet />}
         </main>
-      </DocsMenuProvider>
+      </DocsProvider>
     </BreadcrumbsProvider>
   )
 }

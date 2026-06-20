@@ -12,7 +12,7 @@ import { Section } from '@byline/ui/react'
 
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { DocsContent } from '@/modules/docs/components/content'
-import { DocsMenuDrawer } from '@/modules/docs/components/menu-drawer'
+import { DocsDrawer } from '@/modules/docs/components/docs-drawer'
 import { getDocsNavFn } from '@/modules/docs/nav'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { useBreadcrumbs } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
@@ -39,7 +39,7 @@ function DocsLayout() {
         <DocsBreadcrumbs />
       </Section>
       <div className="flex flex-1 w-full">
-        <DocsMenuDrawer nodes={nodes} lng={interfaceLocale} />
+        <DocsDrawer nodes={nodes} lng={interfaceLocale} />
         <DocsContent>
           <Outlet />
         </DocsContent>

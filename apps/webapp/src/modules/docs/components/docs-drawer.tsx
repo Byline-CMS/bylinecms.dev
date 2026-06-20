@@ -31,8 +31,8 @@ import { useSwipeable } from 'react-swipeable'
 
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
 import { type DocNavNode, flattenDocNav } from '@/modules/docs/nav'
-import { useDocsMenu } from './docs-menu-provider.js'
-import styles from './menu-drawer.module.css'
+import styles from './docs-drawer.module.css'
+import { useDocsMenu } from './docs-provider.js'
 import type { Locale } from '@/i18n/i18n-config'
 
 /** Normalize a splat to a comparable `a/b/c` chain key (no leading/trailing /). */
@@ -149,12 +149,12 @@ function CompactItem({ node, active, lng, onNavigate }: CompactItemProps) {
   )
 }
 
-interface DocsMenuDrawerProps {
+interface DocsDrawerProps {
   nodes: DocNavNode[]
   lng: Locale
 }
 
-export function DocsMenuDrawer({ nodes, lng }: DocsMenuDrawerProps): React.JSX.Element | null {
+export function DocsDrawer({ nodes, lng }: DocsDrawerProps): React.JSX.Element | null {
   const { mobile, drawerOpen, closeDrawer } = useDocsMenu()
   const params = useParams({ strict: false }) as { _splat?: string }
   const activeKey = chainKey(params._splat ?? '')
@@ -195,23 +195,23 @@ export function DocsMenuDrawer({ nodes, lng }: DocsMenuDrawerProps): React.JSX.E
   return (
     <aside
       id="docs-menu"
-      className={cx('byline-docs-menu-drawer-aside', styles.aside, {
-        'byline-docs-menu-drawer-aside-mobile': mobile === true,
+      className={cx('byline-docs-drawer-aside', styles.aside, {
+        'byline-docs-drawer-aside-mobile': mobile === true,
         [styles.asideMobile]: mobile === true,
-        'byline-docs-menu-drawer-aside-mobile-open': mobile === true && drawerOpen === true,
+        'byline-docs-drawer-aside-mobile-open': mobile === true && drawerOpen === true,
         [styles.asideMobileOpen]: mobile === true && drawerOpen === true,
-        'byline-docs-menu-drawer-aside-mobile-closed': mobile === true && drawerOpen === false,
+        'byline-docs-drawer-aside-mobile-closed': mobile === true && drawerOpen === false,
         [styles.asideMobileClosed]: mobile === true && drawerOpen === false,
-        'byline-docs-menu-drawer-aside-desktop': mobile === false,
+        'byline-docs-drawer-aside-desktop': mobile === false,
         [styles.asideDesktop]: mobile === false,
-        'byline-docs-menu-drawer-aside-desktop-open': mobile === false && drawerOpen === true,
+        'byline-docs-drawer-aside-desktop-open': mobile === false && drawerOpen === true,
         [styles.asideDesktopOpen]: mobile === false && drawerOpen === true,
-        'byline-docs-menu-drawer-aside-desktop-closed': mobile === false && drawerOpen === false,
+        'byline-docs-drawer-aside-desktop-closed': mobile === false && drawerOpen === false,
         [styles.asideDesktopClosed]: mobile === false && drawerOpen === false,
       })}
       {...handlers}
     >
-      <nav className={cx('byline-docs-menu-drawer docs-menu-drawer', styles.nav)}>
+      <nav className={cx('byline-docs-drawer docs-drawer', styles.nav)}>
         {compact ? (
           <ul>
             {compactItems.map((node) => (

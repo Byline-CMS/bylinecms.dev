@@ -9,7 +9,7 @@
 import { IconButton, Tooltip } from '@byline/ui/react'
 import cx from 'classnames'
 
-import { useDocsMenu } from './docs-menu-provider.js'
+import { useDocsMenu } from './docs-provider.js'
 import styles from './drawer-toggle.module.css'
 
 export function DocsDrawerToggle() {

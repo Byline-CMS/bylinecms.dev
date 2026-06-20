@@ -14,7 +14,7 @@ import { useEffect } from 'react'
 import cx from 'classnames'
 
 import styles from './content.module.css'
-import { useDocsMenu } from './docs-menu-provider.js'
+import { useDocsMenu } from './docs-provider.js'
 
 interface DocsContentProps {
   children: React.ReactNode

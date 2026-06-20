@@ -2,19 +2,19 @@
  * Docs menu drawer (document-tree nav).
  *
  * Override handles:
- *   .byline-docs-menu-drawer-aside  — outer <aside> wrapper
- *   .byline-docs-menu-drawer        — <nav> inside the aside
+ *   .byline-docs-drawer-aside  — outer <aside> wrapper
+ *   .byline-docs-drawer        — <nav> inside the aside
  *   .menu-item / .row / .caret / .subtree — per-node tree structure
  *
  * The per-node classnames (`.menu-item`, `.row`, `.caret`, `.caret-icon`,
  * `.caret-spacer`, `.link`, `.icon`, `.label`, `.subtree`, `.subtree-inner`,
  * `.compact`, `.active`, `.open`) are plain global strings so the rule chains
- * stay readable; they are scoped under the stable global `.byline-docs-menu-drawer`
+ * stay readable; they are scoped under the stable global `.byline-docs-drawer`
  * nav class (which sits on the same <nav> as the module-hashed `.nav`).
  */
 
 .aside,
-:global(.byline-docs-menu-drawer-aside) {
+:global(.byline-docs-drawer-aside) {
   display: flex;
   flex-direction: column;
   border-right: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
@@ -23,12 +23,12 @@
 }
 
 :is([data-theme="dark"], :global(.dark)) .aside,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-menu-drawer-aside) {
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer-aside) {
   border-right-color: var(--canvas-700);
 }
 
 .asideMobile,
-:global(.byline-docs-menu-drawer-aside-mobile) {
+:global(.byline-docs-drawer-aside-mobile) {
   position: fixed;
   top: 45px;
   bottom: 0;
@@ -36,44 +36,44 @@
 }
 
 .asideMobileOpen,
-:global(.byline-docs-menu-drawer-aside-mobile-open) {
+:global(.byline-docs-drawer-aside-mobile-open) {
   width: min(320px, 85vw);
   background-color: white;
 }
 
 :is([data-theme="dark"], :global(.dark)) {
   .asideMobileOpen,
-  :global(.byline-docs-menu-drawer-aside-mobile-open) {
+  :global(.byline-docs-drawer-aside-mobile-open) {
     width: min(320px, 85vw);
     background-color: var(--canvas-900);
   }
 }
 
 .asideMobileClosed,
-:global(.byline-docs-menu-drawer-aside-mobile-closed) {
+:global(.byline-docs-drawer-aside-mobile-closed) {
   width: 0;
   overflow: hidden;
 }
 
 .asideDesktop,
-:global(.byline-docs-menu-drawer-aside-desktop) {
+:global(.byline-docs-drawer-aside-desktop) {
   position: relative;
   align-self: stretch;
   flex-shrink: 0;
 }
 
 .asideDesktopOpen,
-:global(.byline-docs-menu-drawer-aside-desktop-open) {
+:global(.byline-docs-drawer-aside-desktop-open) {
   width: 260px;
 }
 
 .asideDesktopClosed,
-:global(.byline-docs-menu-drawer-aside-desktop-closed) {
+:global(.byline-docs-drawer-aside-desktop-closed) {
   width: 60px;
 }
 
 .nav,
-:global(.byline-docs-menu-drawer) {
+:global(.byline-docs-drawer) {
   position: sticky;
   top: 55px;
   margin: 0;
@@ -83,47 +83,47 @@
 }
 
 /* Top-level list gets the outer breathing room; nested lists reset. */
-:global(.byline-docs-menu-drawer) > ul {
+:global(.byline-docs-drawer) > ul {
   margin: 1.4rem 0.5rem 0.5rem;
   padding: 0;
   list-style: none;
 }
 
-:global(.byline-docs-menu-drawer) ul {
+:global(.byline-docs-drawer) ul {
   margin: 0;
   padding: 0;
   list-style: none;
   list-style-position: outside;
 }
 
-:global(.byline-docs-menu-drawer .menu-item) {
+:global(.byline-docs-drawer .menu-item) {
   margin: 0;
 }
 
 /* ── Row: caret + link ──────────────────────────────────────────────── */
 
-:global(.byline-docs-menu-drawer .row) {
+:global(.byline-docs-drawer .row) {
   display: flex;
   align-items: center;
   border-radius: 4px;
   transition: background-color 160ms ease;
 }
 
-:global(.byline-docs-menu-drawer .row:hover),
-:global(.byline-docs-menu-drawer .menu-item.active) > :global(.row) {
+:global(.byline-docs-drawer .row:hover),
+:global(.byline-docs-drawer .menu-item.active) > :global(.row) {
   background-color: var(--canvas-50);
 }
 
-:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-menu-drawer .row:hover),
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer .row:hover),
 :is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer .menu-item.active)
+  :global(.byline-docs-drawer .menu-item.active)
   > :global(.row) {
   background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
 }
 
 /* ── Caret (expand / collapse) ──────────────────────────────────────── */
 
-:global(.byline-docs-menu-drawer .caret) {
+:global(.byline-docs-drawer .caret) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -137,25 +137,25 @@
   color: inherit;
 }
 
-:global(.byline-docs-menu-drawer .caret-spacer) {
+:global(.byline-docs-drawer .caret-spacer) {
   flex-shrink: 0;
   width: 22px;
 }
 
-:global(.byline-docs-menu-drawer .caret-icon) {
+:global(.byline-docs-drawer .caret-icon) {
   display: inline-flex;
   color: var(--gray-400, #9ca3af);
   transition: transform 200ms ease;
 }
 
 /* Animated caret: points right when collapsed, rotates down when open. */
-:global(.byline-docs-menu-drawer .menu-item.open) > :global(.row) :global(.caret-icon) {
+:global(.byline-docs-drawer .menu-item.open) > :global(.row) :global(.caret-icon) {
   transform: rotate(90deg);
 }
 
 /* ── Link (icon + label) ────────────────────────────────────────────── */
 
-:global(.byline-docs-menu-drawer .link) {
+:global(.byline-docs-drawer .link) {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -169,7 +169,7 @@
   text-decoration: none;
 }
 
-:global(.byline-docs-menu-drawer .icon) {
+:global(.byline-docs-drawer .icon) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -178,7 +178,7 @@
   transition: color 180ms ease;
 }
 
-:global(.byline-docs-menu-drawer .label) {
+:global(.byline-docs-drawer .label) {
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -186,35 +186,35 @@
 }
 
 /* Active doc: bold label + themed document icon. */
-:global(.byline-docs-menu-drawer .menu-item.active) > :global(.row) :global(.link) {
+:global(.byline-docs-drawer .menu-item.active) > :global(.row) :global(.link) {
   color: #111111;
   font-weight: 600;
 }
 
-:global(.byline-docs-menu-drawer .menu-item.active) > :global(.row) :global(.icon) {
+:global(.byline-docs-drawer .menu-item.active) > :global(.row) :global(.icon) {
   color: var(--theme-500, var(--theme-400));
 }
 
-:global(.byline-docs-menu-drawer .menu-item.active)
+:global(.byline-docs-drawer .menu-item.active)
   > :global(.row)
   :global(.icon svg path:not([fill="none"])) {
   fill: currentColor;
   transition: fill 180ms ease;
 }
 
-:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-menu-drawer .link) {
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer .link) {
   color: #dddddd;
 }
 
 :is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer .menu-item.active)
+  :global(.byline-docs-drawer .menu-item.active)
   > :global(.row)
   :global(.link) {
   color: #ffffff;
 }
 
 :is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer .menu-item.active)
+  :global(.byline-docs-drawer .menu-item.active)
   > :global(.row)
   :global(.icon) {
   color: var(--theme-300, var(--theme-400));
@@ -222,31 +222,31 @@
 
 /* ── Subtree expand/collapse (smooth height via grid-template-rows) ──── */
 
-:global(.byline-docs-menu-drawer .subtree) {
+:global(.byline-docs-drawer .subtree) {
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows 220ms ease;
 }
 
-:global(.byline-docs-menu-drawer .subtree.open) {
+:global(.byline-docs-drawer .subtree.open) {
   grid-template-rows: 1fr;
 }
 
-:global(.byline-docs-menu-drawer .subtree-inner) {
+:global(.byline-docs-drawer .subtree-inner) {
   overflow: hidden;
   min-height: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :global(.byline-docs-menu-drawer .subtree),
-  :global(.byline-docs-menu-drawer .caret-icon) {
+  :global(.byline-docs-drawer .subtree),
+  :global(.byline-docs-drawer .caret-icon) {
     transition: none;
   }
 }
 
 /* ── Compact (icon-only desktop rail) ───────────────────────────────── */
 
-:global(.byline-docs-menu-drawer .menu-item.compact) :global(a) {
+:global(.byline-docs-drawer .menu-item.compact) :global(a) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -259,40 +259,40 @@
   border-radius: 4px;
 }
 
-:global(.byline-docs-menu-drawer .menu-item.compact) :global(.label) {
+:global(.byline-docs-drawer .menu-item.compact) :global(.label) {
   display: none;
 }
 
-:global(.byline-docs-menu-drawer .menu-item.compact:hover),
-:global(.byline-docs-menu-drawer .menu-item.compact.active) {
+:global(.byline-docs-drawer .menu-item.compact:hover),
+:global(.byline-docs-drawer .menu-item.compact.active) {
   background-color: var(--canvas-50);
   border-radius: 4px;
 }
 
-:global(.byline-docs-menu-drawer .menu-item.compact.active) :global(.icon) {
+:global(.byline-docs-drawer .menu-item.compact.active) :global(.icon) {
   color: var(--theme-500, var(--theme-400));
 }
 
-:global(.byline-docs-menu-drawer .menu-item.compact.active)
+:global(.byline-docs-drawer .menu-item.compact.active)
   :global(.icon svg path:not([fill="none"])) {
   fill: currentColor;
 }
 
 :is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer .menu-item.compact)
+  :global(.byline-docs-drawer .menu-item.compact)
   :global(a) {
   color: #dddddd;
 }
 
-:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-menu-drawer .menu-item.compact:hover),
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer .menu-item.compact:hover),
 :is([data-theme="dark"], :global(.dark))
-  :global(.byline-docs-menu-drawer .menu-item.compact.active) {
+  :global(.byline-docs-drawer .menu-item.compact.active) {
   background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
 }
 
 @media screen and (width >= 48rem) {
-  :global(.byline-docs-menu-drawer .link),
-  :global(.byline-docs-menu-drawer .menu-item.compact) :global(a) {
+  :global(.byline-docs-drawer .link),
+  :global(.byline-docs-drawer .menu-item.compact) :global(a) {
     font-size: 0.9rem;
   }
 }

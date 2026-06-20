@@ -22,11 +22,11 @@ interface DocsMenuContextType {
 
 const DocsMenuContext = createContext<DocsMenuContextType | undefined>(undefined)
 
-interface DocsMenuProviderProps {
+interface DocsProviderProps {
   children: React.ReactNode
 }
 
-export function DocsMenuProvider({ children }: DocsMenuProviderProps): React.JSX.Element {
+export function DocsProvider({ children }: DocsProviderProps): React.JSX.Element {
   // Mobile-first: assume mobile until the media query resolves so the drawer
   // doesn't flash open before closing on small screens.
   const mobile = useMediaQuery('(max-width: 800px)') ?? true
@@ -56,7 +56,7 @@ export function DocsMenuProvider({ children }: DocsMenuProviderProps): React.JSX
 export function useDocsMenu(): DocsMenuContextType {
   const context = useContext(DocsMenuContext)
   if (context === undefined) {
-    throw new Error('useDocsMenu must be used within a DocsMenuProvider')
+    throw new Error('useDocsMenu must be used within a DocsProvider')
   }
   return context
 }
