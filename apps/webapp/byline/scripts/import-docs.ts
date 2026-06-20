@@ -330,6 +330,13 @@ async function placeTreeFromDirectories(
   )
   const idByPath = new Map(placeable.map((r) => [r.path, r.documentId]))
 
+  // Append each node after the previous sibling in its group so siblings get
+  // distinct, monotonically-increasing per-parent keys (placing with no
+  // neighbours would mint the same first key for every sibling). Files are
+  // already processed in sorted order, so this preserves source order.
+  const ROOT_GROUP = '__root__'
+  const lastSiblingByGroup = new Map<string, string>()
+
   let rooted = 0
   let placed = 0
   let failed = 0
@@ -337,8 +344,11 @@ async function placeTreeFromDirectories(
     const parentSlug = basename(dirname(r.filePath))
     const parentId = idByPath.get(parentSlug)
     const parentDocumentId = parentId != null && parentId !== r.documentId ? parentId : null
+    const groupKey = parentDocumentId ?? ROOT_GROUP
+    const beforeDocumentId = lastSiblingByGroup.get(groupKey) ?? null
     try {
-      await handle.placeTreeNode(r.documentId, { parentDocumentId })
+      await handle.placeTreeNode(r.documentId, { parentDocumentId, beforeDocumentId })
+      lastSiblingByGroup.set(groupKey, r.documentId)
       if (parentDocumentId != null) {
         placed += 1
         console.log(`  ↳ placed   ${r.path}  under  ${parentSlug}`)
