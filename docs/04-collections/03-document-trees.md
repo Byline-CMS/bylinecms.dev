@@ -16,7 +16,10 @@ The tree is **metadata about position**, not content. Where a document sits in
 the table of contents says nothing about what the document *is*. So reordering,
 nesting, and re-parenting touch no content fields and mint no new versions — they
 behave exactly like editing a document's `path`. The structure lives in its own
-table, at document grain, outside the version stream.
+table, at document grain, outside the version stream. The tree edge is one of the
+three document-grain system attributes (alongside `path` and `availableLocales`);
+see [Architecture → Document grain vs version grain](../03-architecture/index.md#3-document-grain-vs-version-grain)
+for why that grain matters and how it relates to versioning and audit.
 
 ## Enabling a tree
 

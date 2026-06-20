@@ -12,6 +12,14 @@ version stream, and the history and activity views built on top of them. It
 builds on the [`withTransaction`](../03-architecture/03-transactions.md)
 capability that lets each audited change and its audit row commit atomically.
 
+Audit and versioning are two halves of one accountability story, split along
+Byline's [document-grain vs version-grain](../03-architecture/index.md#3-document-grain-vs-version-grain)
+line: **versioning** makes every *content* change accountable as an immutable,
+diffable version, while the **audit log** covers the document-grain and status
+changes that deliberately mint no version (`path`, `availableLocales`, the tree
+edge, and lifecycle transitions). Read that architectural decision first if you
+want the why behind the split.
+
 ## Why — the claim being honoured
 
 bylinecms.app leads with auditability as a principle:

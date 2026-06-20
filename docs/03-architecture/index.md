@@ -1,7 +1,7 @@
 ---
 title: "Key Architectural Decisions"
 path: "architecture"
-summary: "The load-bearing design decisions behind Byline: universal EAV storage, immutable versioning, patch-based updates, the schema/admin split, and the authorization model. Each links to its full reference."
+summary: "The load-bearing design decisions behind Byline: universal EAV storage, immutable versioning, the document-grain vs version-grain split (path, available locales, tree edge), patch-based updates, the schema/admin split, and the authorization model. Each links to its full reference."
 ---
 
 # Key Architectural Decisions
@@ -34,7 +34,61 @@ document-versioning runtime, and [Collection Versioning](../04-collections/07-co
 for the *schema*-versioning track that records which schema shape each document
 was authored against.
 
-## 3. Patch-based updates
+## 3. Document grain vs version grain
+
+Not everything about a document changes at the same rate, and Byline stores state
+at two distinct grains to match:
+
+- **Version grain — content.** Every field value lives in the version stream.
+  Editing content mints a new immutable `documentVersions` row (decision 2);
+  nothing is overwritten.
+- **Document grain — identity and placement.** A few system attributes belong to
+  the *logical document* rather than to any one version, and are **sticky across
+  versions**:
+  - `path` — the document's URL slug (`byline_document_paths`); see
+    [Document Paths](../04-collections/04-document-paths.md).
+  - `availableLocales` — the editorial set of advertised content locales
+    (`byline_document_available_locales`); see
+    [Content locales](../07-internationalization/03-content-locales.md).
+  - the **tree edge** — the document's single parent and its order among siblings
+    (`byline_document_relationships`); see
+    [Document Trees](../04-collections/03-document-trees.md).
+
+Document-grain fields are written by dedicated, **non-versioned** commands
+(`updateDocumentPath`, `setDocumentAvailableLocales`, `placeTreeNode`) that mint
+no version and don't reset workflow status. The write is immediate and applies
+across every version of the document.
+
+The reason is that these attributes describe *where a document is and how it's
+reached*, not *what it says*. A path, a tree position, or an advertised-locale set
+cannot honestly be "pending publish" — there is no per-version copy to stage.
+Coupling them to the publish workflow would reset the document to draft on a
+purely structural move and imply a staging step that never existed: the editorial
+write already lands at save time. Keeping them at document grain makes the data
+model and the UX agree — re-parenting a document, fixing a slug, or toggling a
+locale is an immediate metadata edit, much like renaming a file.
+
+| Concern | Grain | Storage | Written by | In version history? |
+|---|---|---|---|---|
+| Field content | version | `store_*` | `createDocumentVersion` | ✅ each edit is a version |
+| Workflow status | version (in place) | `documentVersions.status` | `changeDocumentStatus` | partial — current value only |
+| `path` | document | `byline_document_paths` | `updateDocumentPath` | ❌ non-versioned |
+| `availableLocales` | document | `byline_document_available_locales` | `setDocumentAvailableLocales` | ❌ non-versioned |
+| tree edge (parent + order) | document | `byline_document_relationships` | `placeTreeNode` | ❌ non-versioned |
+
+**This split is the architectural reason the audit log exists.** Versioning
+already makes *content* changes fully accountable — each is an immutable, diffable
+version. But document-grain writes (and in-place status transitions) deliberately
+sit outside the version stream, so they leave no version to point at.
+Accountability for them is the job of the document-grain
+[audit log](../06-auth-and-security/02-auditability.md): every non-versioned
+mutation records who changed what, when, and from→to — written in the *same*
+transaction as the change itself (see [Transactions](./03-transactions.md)) so a
+change can never commit without its audit row. Versioning covers the content; the
+audit log covers everything that changes outside it. Together they make *every*
+change accountable.
+
+## 4. Patch-based updates
 
 The admin client accumulates a `DocumentPatch[]` and applies it server-side
 against the reconstructed document. Three patch families — field, array, and
@@ -46,7 +100,7 @@ Patches are admin-form internal; public writes go whole-document. See
 [Client SDK → Write surface](../05-reading-and-delivery/01-client-sdk.md#write-surface)
 for the public write contract.
 
-## 4. Schema and presentation are separate systems
+## 5. Schema and presentation are separate systems
 
 A collection's **schema** (what it *is*) is defined separately from its **admin
 config** (how it *renders*), with the admin config referencing the schema:
@@ -163,7 +217,7 @@ This mirrors a pattern several mature frameworks settled on independently:
   custom inputs as real React components rather than string references.
 - **Keystatic** separates schema from its reader and admin UIs.
 
-## 5. Authentication and authorization
+## 6. Authentication and authorization
 
 A typed actor / `RequestContext` model threads through every read and write path.
 Service-layer enforcement asserts collection abilities on the write side, and the
