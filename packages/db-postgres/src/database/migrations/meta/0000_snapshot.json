@@ -1,5 +1,5 @@
 {
-  "id": "00066c6d-bed5-4d32-8431-d950cb3ce641",
+  "id": "aebcb197-52c4-4601-a3b5-da89fe333c09",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1403,15 +1403,21 @@
       "name": "byline_document_relationships",
       "schema": "",
       "columns": {
-        "parent_document_id": {
-          "name": "parent_document_id",
+        "child_document_id": {
+          "name": "child_document_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "child_document_id": {
-          "name": "child_document_id",
+        "parent_document_id": {
+          "name": "parent_document_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "order_key": {
+          "name": "order_key",
+          "type": "varchar(128) COLLATE \"C\"",
           "primaryKey": false,
           "notNull": true
         },
@@ -1421,29 +1427,27 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {
-        "idx_document_relationships_parent": {
-          "name": "idx_document_relationships_parent",
+        "idx_document_relationships_parent_order": {
+          "name": "idx_document_relationships_parent_order",
           "columns": [
             {
               "expression": "parent_document_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_document_relationships_child": {
-          "name": "idx_document_relationships_child",
-          "columns": [
+            },
             {
-              "expression": "child_document_id",
+              "expression": "order_key",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1456,19 +1460,6 @@
         }
       },
       "foreignKeys": {
-        "byline_document_relationships_parent_document_id_byline_documents_id_fk": {
-          "name": "byline_document_relationships_parent_document_id_byline_documents_id_fk",
-          "tableFrom": "byline_document_relationships",
-          "tableTo": "byline_documents",
-          "columnsFrom": [
-            "parent_document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "byline_document_relationships_child_document_id_byline_documents_id_fk": {
           "name": "byline_document_relationships_child_document_id_byline_documents_id_fk",
           "tableFrom": "byline_document_relationships",
@@ -1481,15 +1472,27 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "byline_document_relationships_parent_document_id_byline_documents_id_fk": {
+          "name": "byline_document_relationships_parent_document_id_byline_documents_id_fk",
+          "tableFrom": "byline_document_relationships",
+          "tableTo": "byline_documents",
+          "columnsFrom": [
+            "parent_document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "byline_document_relationships_parent_document_id_child_document_id_unique": {
-          "name": "byline_document_relationships_parent_document_id_child_document_id_unique",
+        "uq_document_relationships_child": {
+          "name": "uq_document_relationships_child",
           "nullsNotDistinct": false,
           "columns": [
-            "parent_document_id",
             "child_document_id"
           ]
         }
