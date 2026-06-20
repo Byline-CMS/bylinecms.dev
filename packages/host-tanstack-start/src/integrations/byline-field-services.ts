@@ -19,10 +19,18 @@
 import type {
   BylineFieldServices,
   GetCollectionDocumentsFn,
+  GetTreeAncestorsFn,
+  PlaceTreeNodeFn,
+  RemoveFromTreeFn,
   UploadFieldFn,
 } from '@byline/admin/react'
 
 import { getCollectionDocuments as serverGetCollectionDocuments } from '../server-fns/collections/list.js'
+import {
+  getTreeAncestors as serverGetTreeAncestors,
+  placeTreeNode as serverPlaceTreeNode,
+  removeFromTree as serverRemoveFromTree,
+} from '../server-fns/collections/tree.js'
 import { uploadField as serverUploadField } from '../server-fns/collections/upload.js'
 
 const getCollectionDocuments: GetCollectionDocumentsFn = ({ collection, params }) =>
@@ -33,7 +41,22 @@ const getCollectionDocuments: GetCollectionDocumentsFn = ({ collection, params }
 const uploadField: UploadFieldFn = (collection, formData, createDocument) =>
   serverUploadField(collection, formData, createDocument)
 
+const placeTreeNode: PlaceTreeNodeFn = async (input) => {
+  const { orderKey } = await serverPlaceTreeNode({ data: input })
+  return { orderKey }
+}
+
+const removeFromTree: RemoveFromTreeFn = async (input) => {
+  await serverRemoveFromTree({ data: input })
+}
+
+const getTreeAncestors: GetTreeAncestorsFn = (input) =>
+  serverGetTreeAncestors({ data: input }) as ReturnType<GetTreeAncestorsFn>
+
 export const bylineFieldServices: BylineFieldServices = {
   getCollectionDocuments,
   uploadField,
+  placeTreeNode,
+  removeFromTree,
+  getTreeAncestors,
 }

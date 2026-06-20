@@ -37,6 +37,7 @@ import { FormStatusDisplay } from './form-status-display'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
 import { computeStatusTransitions } from './status-transitions'
+import { TreePlacementWidget } from './tree-placement-widget'
 import { executeUploadsWithProgress } from './upload-executor'
 import { useFormLayout } from './use-form-layout'
 import type { UseNavigationGuard } from './navigation-guard'
@@ -129,6 +130,13 @@ export interface FormRendererProps {
    * against the document's `_availableVersionLocales` ledger fact.
    */
   advertiseLocales?: boolean
+  /**
+   * Opts the document-tree placement widget into the sidebar (above the
+   * available-locales widget). Sourced from `CollectionDefinition.tree` by the
+   * caller. Renders only in edit mode (placement needs a persisted document)
+   * and only when the host wires the tree services. See docs/DOCUMENT-TREE.md.
+   */
+  tree?: boolean
   headingLabel?: string
   headerSlot?: ReactNode
   /** Collection path forwarded to upload-capable fields (e.g. `'media'`). */
@@ -179,6 +187,7 @@ const FormContent = ({
   useAsTitle,
   useAsPath,
   advertiseLocales,
+  tree,
   headingLabel,
   headerSlot,
   collectionPath,
@@ -665,6 +674,13 @@ const FormContent = ({
               mode={mode}
             />
           )}
+          {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
+            <TreePlacementWidget
+              collectionPath={collectionPath ?? ''}
+              documentId={initialData.id as string}
+              useAsTitle={useAsTitle}
+            />
+          )}
           {advertiseLocales && (
             <AvailableLocalesWidget
               contentLocales={contentLocales ?? []}
@@ -715,6 +731,7 @@ export const FormRenderer = ({
   useAsTitle,
   useAsPath,
   advertiseLocales,
+  tree,
   headingLabel,
   headerSlot,
   collectionPath,
@@ -753,6 +770,7 @@ export const FormRenderer = ({
         useAsTitle={useAsTitle}
         useAsPath={useAsPath}
         advertiseLocales={advertiseLocales}
+        tree={tree}
         headingLabel={headingLabel}
         headerSlot={headerSlot}
         collectionPath={collectionPath}

@@ -491,6 +491,7 @@ export const EditView = ({
           useAsTitle={collectionDefinition.useAsTitle}
           useAsPath={collectionDefinition.useAsPath}
           advertiseLocales={collectionDefinition.advertiseLocales}
+          tree={collectionDefinition.tree === true}
           headingLabel={labels.singular}
           initialLocale={locale}
           onLocaleChange={handleLocaleChange}

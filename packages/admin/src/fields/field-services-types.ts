@@ -62,7 +62,46 @@ export type UploadFieldFn = (
   createDocument?: boolean
 ) => Promise<UploadedFileResult>
 
+// --- Document tree (the `tree: true` primitive — docs/DOCUMENT-TREE.md) -----
+
+/** One hydrated ancestor in a document's breadcrumb trail (root-first). */
+export interface TreeAncestor {
+  id: string
+  title: string
+  path?: string
+}
+
+export interface PlaceTreeNodeInput {
+  collection: string
+  documentId: string
+  /** The new parent; `null` makes the document a root node. */
+  parentDocumentId: string | null
+  /** Optional sibling neighbours (left = land after, right = land before). */
+  beforeDocumentId?: string | null
+  afterDocumentId?: string | null
+}
+
+/** Place / move a document within its collection's tree. */
+export type PlaceTreeNodeFn = (input: PlaceTreeNodeInput) => Promise<{ orderKey: string }>
+
+/** Remove a document from the tree (back to the unplaced state). */
+export type RemoveFromTreeFn = (input: { collection: string; documentId: string }) => Promise<void>
+
+/** Resolve a document's ancestor chain, root-first, hydrated with titles. */
+export type GetTreeAncestorsFn = (input: {
+  collection: string
+  documentId: string
+}) => Promise<TreeAncestor[]>
+
 export interface BylineFieldServices {
   getCollectionDocuments: GetCollectionDocumentsFn
   uploadField: UploadFieldFn
+  /**
+   * Document-tree operations, consumed by the sidebar tree-placement widget.
+   * Optional — only hosts that serve `tree: true` collections need to wire
+   * them; the widget guards on their presence.
+   */
+  placeTreeNode?: PlaceTreeNodeFn
+  removeFromTree?: RemoveFromTreeFn
+  getTreeAncestors?: GetTreeAncestorsFn
 }

@@ -80,6 +80,11 @@ export type {
   CollectionListParams,
   CollectionListResponse,
   GetCollectionDocumentsFn,
+  GetTreeAncestorsFn,
+  PlaceTreeNodeFn,
+  PlaceTreeNodeInput,
+  RemoveFromTreeFn,
+  TreeAncestor,
   UploadedFileResult,
   UploadFieldFn,
 } from './fields/field-services-types.js'
