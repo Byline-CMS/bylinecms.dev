@@ -17,7 +17,7 @@
 }
 
 :is([data-theme="dark"], :global(.dark)) .prevnext {
-  border-top-color: var(--canvas-700);
+  border-top-color: var(--canvas-600);
 }
 
 /* Two equal halves; a lone tile stays on its own side (the empty slot holds
@@ -37,6 +37,9 @@
   align-items: center;
   gap: 0.85rem;
   width: 100%;
+  /* Allow the tile (and its text column) to shrink below content size so a long
+     title ellipsizes instead of widening the tile. */
+  min-width: 0;
   padding: 1rem 1.1rem;
   border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
   border-radius: 10px;
@@ -76,6 +79,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -97,8 +101,14 @@
   color: var(--theme-600, var(--theme-500, #2563eb));
 }
 
-:is([data-theme="dark"], :global(.dark)) .title {
-  color: var(--theme-300, var(--theme-400));
+:is([data-theme="dark"], :global(.dark)) {
+  .dir {
+    color: var(--gray-200, #6b7280);
+  }
+
+  .title {
+    color: var(--theme-100, var(--theme-100));
+  }
 }
 
 .icon {

@@ -14,9 +14,9 @@ import cx from 'classnames'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
-import { type DocNavNode, flattenDocNav } from '@/modules/docs/nav'
 import styles from './list.module.css'
 import type { Locale } from '@/i18n/i18n-config'
+import type { DocNavNode } from '@/modules/docs/nav'
 
 interface DocsListProps {
   nodes: DocNavNode[]
@@ -31,7 +31,7 @@ export function DocsList({ nodes, lng }: DocsListProps): React.JSX.Element {
       <p className={cx('byline-docs-list-lead', styles.lead)}>{t('docsLead')}</p>
 
       <div className={cx('byline-docs-list', styles.grid)}>
-        {flattenDocNav(nodes).map((node) => (
+        {nodes.map((node) => (
           <DocCard key={node.id} node={node} lng={lng} />
         ))}
       </div>
