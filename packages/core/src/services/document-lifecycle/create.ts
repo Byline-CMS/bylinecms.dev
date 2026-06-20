@@ -131,6 +131,31 @@ export async function createDocument(
       const documentId = extractDocumentId(result.document)
       const documentVersionId = extractVersionId(result.document)
 
+      // `tree: true` collections place every document in the tree by default:
+      // a new document is appended as a root (a top-level nav entry) so it is
+      // never stranded in the "unplaced" limbo. This is a system step of create
+      // (the actor already passed the `create` ability), so it calls the storage
+      // command directly — no `update` re-assertion, no separate tree event
+      // (afterCreate covers invalidation). Post-version and best-effort: a
+      // failure leaves the document created-but-unplaced and is logged, not
+      // thrown. See docs/DOCUMENT-TREE.md.
+      if (definition.tree === true) {
+        try {
+          const roots = await db.queries.documents.getTreeChildren({
+            collectionId,
+            parentDocumentId: null,
+          })
+          await db.commands.documents.placeTreeNode({
+            collectionId,
+            documentId,
+            parentDocumentId: null,
+            beforeDocumentId: roots.at(-1)?.document_id ?? null,
+          })
+        } catch (err: unknown) {
+          ctx.logger.error({ err, documentId }, 'failed to auto-place new document in tree')
+        }
+      }
+
       await invokeHook(hooks?.afterCreate, {
         data,
         collectionPath,

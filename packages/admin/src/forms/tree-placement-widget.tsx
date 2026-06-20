@@ -48,7 +48,7 @@ export const TreePlacementWidget = ({
   useAsTitle,
 }: TreePlacementWidgetProps) => {
   const { t } = useTranslation('byline-admin')
-  const { getTreeAncestors, placeTreeNode, removeFromTree } = useBylineFieldServices()
+  const { getTreeAncestors, placeTreeNode } = useBylineFieldServices()
   const targetDefinition = getCollectionDefinition(collectionPath)
 
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null)
@@ -57,8 +57,7 @@ export const TreePlacementWidget = ({
   const [error, setError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
 
-  const treeServicesReady =
-    getTreeAncestors != null && placeTreeNode != null && removeFromTree != null
+  const treeServicesReady = getTreeAncestors != null && placeTreeNode != null
 
   // Load the document's current parent (the deepest ancestor) on mount.
   useEffect(() => {
@@ -115,22 +114,6 @@ export const TreePlacementWidget = ({
     [place, useAsTitle]
   )
 
-  const handleRemove = useCallback(async () => {
-    if (removeFromTree == null || busy) return
-    const previous = parent
-    setError(null)
-    setBusy(true)
-    setParent(null)
-    try {
-      await removeFromTree({ collection: collectionPath, documentId })
-    } catch {
-      setParent(previous)
-      setError(t('treeWidget.error'))
-    } finally {
-      setBusy(false)
-    }
-  }, [removeFromTree, busy, parent, collectionPath, documentId, t])
-
   if (!treeServicesReady) return null
 
   return (
@@ -169,14 +152,6 @@ export const TreePlacementWidget = ({
             {t('treeWidget.makeRoot')}
           </button>
         )}
-        <button
-          type="button"
-          className={cx('byline-form-tree-link', styles.link)}
-          disabled={busy}
-          onClick={handleRemove}
-        >
-          {t('treeWidget.remove')}
-        </button>
       </div>
 
       {error != null && <p className={cx('byline-form-tree-error', styles.error)}>{error}</p>}
