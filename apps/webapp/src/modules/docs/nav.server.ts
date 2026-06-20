@@ -26,6 +26,7 @@ import {
   isPreviewActive,
 } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
+import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { DocNavNode, DocsNavInput, DocsNavResult } from './nav'
 
 interface NavFields {
@@ -51,11 +52,21 @@ export async function getDocsNav({ lng }: DocsNavInput): Promise<DocsNavResult> 
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  const forest = await client.collection('docs').getSubtree<NavFields>({
-    select: ['title', 'summary'],
-    locale: lng,
-    status: preview ? 'any' : 'published',
+  // Cached as a collection-wide `list`-shaped read: a docs content edit
+  // (invalidateDocument with `list: true`) refreshes titles, and a structural
+  // `afterTreeChange` (invalidateCollection) refreshes the tree shape. Preview
+  // bypasses the cache and reads the full draft tree.
+  return withCache<DocsNavResult>({
+    cacheKey: cacheKeys.list('docs', lng),
+    tags: [tags.collection('docs'), tags.list('docs')],
+    preview,
+    fn: async () => {
+      const forest = await client.collection('docs').getSubtree<NavFields>({
+        select: ['title', 'summary'],
+        locale: lng,
+        status: preview ? 'any' : 'published',
+      })
+      return { nodes: forest.map((node) => toNavNode(node, [])) }
+    },
   })
-
-  return { nodes: forest.map((node) => toNavNode(node, [])) }
 }

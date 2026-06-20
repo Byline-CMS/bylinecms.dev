@@ -22,15 +22,22 @@ import {
   isPreviewActive,
 } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
+import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { NewsDetailsFields, NewsDetailsInput, NewsDetailsResult } from './details'
 
 export async function getNewsDetails({ path, lng }: NewsDetailsInput): Promise<NewsDetailsResult> {
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  return client.collection('news').findByPath<NewsDetailsFields>(path, {
-    populate: { category: '*', featureImage: '*' },
-    locale: lng,
-    status: preview ? 'any' : 'published',
+  return withCache<NewsDetailsResult>({
+    cacheKey: cacheKeys.details('news', path, lng),
+    tags: [tags.collection('news'), tags.details('news', path)],
+    preview,
+    fn: () =>
+      client.collection('news').findByPath<NewsDetailsFields>(path, {
+        populate: { category: '*', featureImage: '*' },
+        locale: lng,
+        status: preview ? 'any' : 'published',
+      }),
   })
 }

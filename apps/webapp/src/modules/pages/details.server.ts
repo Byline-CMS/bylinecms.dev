@@ -15,6 +15,10 @@
  * invisible for ordinary visitors but become visible to admins who have toggled
  * preview mode (cookie + valid admin session). Populates `featureImage` so the
  * page renders without a follow-up request.
+ *
+ * The published read is wrapped in `withCache` (L1), tagged so the collection's
+ * lifecycle hooks invalidate it on change; an active preview bypasses the cache
+ * entirely and reads live.
  */
 
 import {
@@ -22,15 +26,22 @@ import {
   isPreviewActive,
 } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
+import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { PageDetailsFields, PageDetailsInput, PageDetailsResult } from './details'
 
 export async function getPageDetails({ path, lng }: PageDetailsInput): Promise<PageDetailsResult> {
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  return client.collection('pages').findByPath<PageDetailsFields>(path, {
-    populate: { featureImage: '*', photo: '*' },
-    locale: lng,
-    status: preview ? 'any' : 'published',
+  return withCache<PageDetailsResult>({
+    cacheKey: cacheKeys.details('pages', path, lng),
+    tags: [tags.collection('pages'), tags.details('pages', path)],
+    preview,
+    fn: () =>
+      client.collection('pages').findByPath<PageDetailsFields>(path, {
+        populate: { featureImage: '*', photo: '*' },
+        locale: lng,
+        status: preview ? 'any' : 'published',
+      }),
   })
 }

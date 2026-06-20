@@ -24,6 +24,7 @@ import {
 
 import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
 
+import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { NewsCategoriesListInput, NewsCategoriesListResult } from './categories'
 
 export async function getNewsCategories({
@@ -32,10 +33,16 @@ export async function getNewsCategories({
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  return client.collection('news-categories').find<NewsCategoryFields>({
-    sort: { name: 'asc' },
-    pageSize: 200,
-    locale: lng,
-    status: preview ? 'any' : 'published',
+  return withCache<NewsCategoriesListResult>({
+    cacheKey: cacheKeys.list('news-categories', lng),
+    tags: [tags.collection('news-categories'), tags.list('news-categories')],
+    preview,
+    fn: () =>
+      client.collection('news-categories').find<NewsCategoryFields>({
+        sort: { name: 'asc' },
+        pageSize: 200,
+        locale: lng,
+        status: preview ? 'any' : 'published',
+      }),
   })
 }

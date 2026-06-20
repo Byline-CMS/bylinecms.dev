@@ -27,6 +27,7 @@ import {
   isPreviewActive,
 } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
+import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import { resolveDocTreeBySplat } from './resolve.server'
 import type { DocDetailsFields, DocSplatInput, DocSplatResult } from './details'
 
@@ -34,11 +35,28 @@ export async function getDocBySplat({ splat, lng }: DocSplatInput): Promise<DocS
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  return resolveDocTreeBySplat<DocDetailsFields>(client.collection('docs'), {
-    splat,
-    locale: lng,
-    status: preview ? 'any' : 'published',
-    enforceSpine: !preview,
-    populate: { featureImage: '*', photo: '*' },
+  // The resolution depends only on the leaf slug + locale (slugs are globally
+  // unique per collection, so the requested URL form — flat or hierarchical —
+  // never changes the result). Key and tag by the leaf so every reachable form
+  // shares one entry and the collection's per-document invalidation reaches it.
+  const leaf =
+    splat
+      .split('/')
+      .map((s) => decodeURIComponent(s))
+      .filter((s) => s.length > 0)
+      .at(-1) ?? splat
+
+  return withCache<DocSplatResult>({
+    cacheKey: cacheKeys.details('docs', leaf, lng),
+    tags: [tags.collection('docs'), tags.details('docs', leaf)],
+    preview,
+    fn: () =>
+      resolveDocTreeBySplat<DocDetailsFields>(client.collection('docs'), {
+        splat,
+        locale: lng,
+        status: preview ? 'any' : 'published',
+        enforceSpine: !preview,
+        populate: { featureImage: '*', photo: '*' },
+      }),
   })
 }
