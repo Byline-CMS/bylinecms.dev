@@ -22,6 +22,7 @@
  * applies to anonymous, cacheable agent surfaces.
  */
 
+import type { TreeNode } from '@byline/client'
 import { getPublicBylineClient } from '@byline/host-tanstack-start/integrations/byline-public-client'
 
 import type { DocFields } from '~/collections/docs/schema.js'
@@ -60,19 +61,32 @@ export async function getDocsIndex(): Promise<PublishedIndexEntry[]> {
     ttl: INDEX_TTL_MS,
     fn: async () => {
       const client = getPublicBylineClient()
-      const result = await client.collection('docs').find<DocFields>({
+      // `docs` is a `tree: true` collection, so enumerate the published tree in
+      // pre-order (the table-of-contents order) and emit **hierarchical** URLs
+      // (`/docs/getting-started/cli`) rather than flat slugs. `getSubtree`
+      // applies status-at-edge, so a published doc hidden behind an unpublished
+      // ancestor is omitted — its hierarchical URL would 404, exactly matching
+      // the public splat route.
+      const forest = await client.collection('docs').getSubtree<DocFields>({
         select: ['title', 'summary', 'publishedOn'],
         status: 'published',
-        sort: { orderKey: 'asc' },
-        pageSize: 10_000,
       })
-      return result.docs.map((doc) => ({
-        segments: ['docs', doc.path],
-        title: stringOrUndefined(doc.fields.title),
-        description: stringOrUndefined(doc.fields.summary),
-        lastmod: doc.fields.publishedOn ?? doc.updatedAt,
-        advertisedLocales: advertisedLocalesFor(doc),
-      }))
+
+      const entries: PublishedIndexEntry[] = []
+      const walk = (node: TreeNode<DocFields>, parentChain: string[]): void => {
+        const doc = node.document
+        const chain = [...parentChain, doc.path]
+        entries.push({
+          segments: ['docs', ...chain],
+          title: stringOrUndefined(doc.fields.title),
+          description: stringOrUndefined(doc.fields.summary),
+          lastmod: doc.fields.publishedOn ?? doc.updatedAt,
+          advertisedLocales: advertisedLocalesFor(doc),
+        })
+        for (const child of node.children) walk(child, chain)
+      }
+      for (const node of forest) walk(node, [])
+      return entries
     },
   })
 }
