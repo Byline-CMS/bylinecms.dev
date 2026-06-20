@@ -13,14 +13,14 @@ status: "DESIGN — not yet implemented. This is the agreed spec, captured for b
 
 ## Thesis
 
-[DOCUMENTATION-SITES.md](./DOCUMENTATION-SITES.md) describes **Model A
-(parent-up)** as a hierarchy built on an ordinary, *versioned* `relation` field
-plus the global `order_key`. That works, but it mixes grains: the `parent`
-relation lives at **document-version** grain while `order_key` lives at
-**document** grain. That asymmetry is the source of every wrinkle the scenario
-guide has to manage — a global keyspace shared across all siblings, re-parenting
-that mints a version, non-atomic two-grain moves, and a draft-vs-published
-ordering window.
+The earliest approach to hierarchy on Byline — call it **Model A (parent-up)** —
+built the tree on an ordinary, *versioned* `relation` field (each node carries a
+single-target `parent` relation; root nodes have none) plus the global
+`order_key`. That works, but it mixes grains: the `parent` relation lives at
+**document-version** grain while `order_key` lives at **document** grain. That
+asymmetry is the source of every wrinkle that approach has to manage — a global
+keyspace shared across all siblings, re-parenting that mints a version, non-atomic
+two-grain moves, and a draft-vs-published ordering window.
 
 This spec removes the asymmetry by promoting the hierarchy to a **first-class,
 document-grain, unversioned tree primitive** — a fourth structural system field
@@ -61,7 +61,7 @@ These are settled; the implementation must hold them.
 ## Why per-parent ordering matters (what it fixes)
 
 Moving `order_key` into the edge row, partitioned by parent, dissolves the three
-problems the scenario guide has to live with under Model A:
+problems the parent-up relation-field approach (Model A) has to live with:
 
 - **Cross-sibling key collisions → gone.** Under the global `order_key`, two
   independent sibling-scoped reorders share one keyspace and can occasionally
@@ -395,20 +395,26 @@ per tree collection; the read-time-composition route is the recommended default
 for documentation sites and costs only a splat route + the spec's existing
 `getAncestors`.
 
-## Relationship to DOCUMENTATION-SITES.md
+## Relationship to the prior relation-field approach
 
-This primitive **supersedes Model A's mechanics**. Once shipped:
+This primitive **supersedes the Model A (parent-up) mechanics** described above —
+the single-target `parent` *relation field* plus global `order_key`. The earlier
+parent-up model is no longer the recommended way to build a hierarchy; this
+document is the present design.
 
 - Model A's "single-target `parent` *relation field*" becomes "the `tree: true`
-  document-grain primitive." The reader-facing conclusions of the scenario guide
-  (canonical single spine, cross-links for multi-home, breadcrumbs + prev/next +
-  On-This-Page) are unchanged — only the *storage and grain* of the parent edge
-  change.
-- Model B (children-down / `hasMany`) is unaffected and remains the alternative
-  for firmly two-level structures that want the parent-owns-an-ordered-list
-  authoring model.
-- `DOCUMENTATION-SITES.md` should be reconciled to point at this doc for the
-  parent-up mechanics once the primitive lands.
+  document-grain primitive." The reader-facing conclusions of a documentation site
+  (canonical single spine, **cross-links** for multi-home topics — an ordinary
+  "See also" relation field, never a second tree edge — breadcrumbs + prev/next +
+  client-side On-This-Page) are unchanged. Only the *storage and grain* of the
+  parent edge change.
+- **Model B (children-down)** — a `hasMany` `children` array owned by the parent,
+  with child order as the array index — is a separate, unaffected option. It
+  remains the alternative for firmly two-level structures that want the
+  parent-owns-an-ordered-list authoring model, and it depends on the planned
+  `hasMany` phase (see [RELATIONSHIPS.md](./RELATIONSHIPS.md)). The `tree: true`
+  primitive does not replace it; the two address different shapes (arbitrary depth
+  vs. firmly two-level).
 
 ## Open items (not yet decided)
 
