@@ -363,6 +363,71 @@ export interface UpdateOptions {
 }
 
 // ---------------------------------------------------------------------------
+// Document-tree options (the `tree: true` primitive — docs/DOCUMENT-TREE.md)
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for `CollectionHandle.placeTreeNode(documentId, options)`. Places or
+ * moves a node within the collection's single-parent ordered tree — one upsert
+ * covering place / reorder / re-parent.
+ *
+ * Neighbour semantics match `reorderCollectionDocument`: `beforeDocumentId` is
+ * the sibling the node should land immediately **after** (its left neighbour);
+ * `afterDocumentId` is the sibling it should land immediately **before** (its
+ * right neighbour). Both are resolved within the *target* parent group; either
+ * may be null/omitted (append as last child, or prepend before a given sibling).
+ */
+export interface PlaceTreeNodeOptions {
+  /** The new parent; `null` makes the node a root. */
+  parentDocumentId: string | null
+  /** Left neighbour — the node lands immediately after it. */
+  beforeDocumentId?: string | null
+  /** Right neighbour — the node lands immediately before it. */
+  afterDocumentId?: string | null
+}
+
+/**
+ * Options for `CollectionHandle.getSubtree(options)`. Reads a node's subtree as
+ * a nested {@link TreeNode} forest. `rootDocumentId: null` (the default) reads
+ * the whole tree from the collection's roots; a value reads the subtree rooted
+ * at (and including) that node. `depth` bounds the descent (0-based; the root is
+ * depth 0). `status` follows the usual published/any selector — in `'published'`
+ * mode an unpublished node hides its entire subtree (the spine breaks).
+ */
+export interface GetSubtreeOptions<F = Record<string, any>> extends StatusControls {
+  rootDocumentId?: string | null
+  depth?: number
+  /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
+  locale?: string
+  /** Return only these fields on each node. Omit for all fields. */
+  select?: (keyof F & string)[] | string[]
+}
+
+/**
+ * Options for `CollectionHandle.getAncestors(documentId, options)`. Walks the
+ * node's ancestor chain upward, returning the ancestors **root-first** (the
+ * breadcrumb trail, excluding the node itself). In `'published'` mode only
+ * ancestors with a published version are returned.
+ */
+export interface GetAncestorsOptions<F = Record<string, any>> extends StatusControls {
+  /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
+  locale?: string
+  /** Return only these fields on each ancestor. Omit for all fields. */
+  select?: (keyof F & string)[] | string[]
+}
+
+/**
+ * A node in a hydrated document tree. `document` is the fully-shaped
+ * `ClientDocument`; `depth` is 0-based from the subtree root; `children` are the
+ * node's ordered children (per-parent `order_key` order).
+ */
+export interface TreeNode<F = Record<string, any>> {
+  document: ClientDocument<F>
+  depth: number
+  children: TreeNode<F>[]
+}
+
+// ---------------------------------------------------------------------------
 // Where clause
 // ---------------------------------------------------------------------------
 

@@ -30,6 +30,7 @@ import {
   createDocument,
   createReadContext,
   deleteDocument,
+  ERR_VALIDATION,
   mergePredicates,
   parseSort,
   parseWhere,
@@ -52,7 +53,11 @@ import type {
   FindOneOptions,
   FindOptions,
   FindResult,
+  GetAncestorsOptions,
+  GetSubtreeOptions,
   HistoryOptions,
+  PlaceTreeNodeOptions,
+  TreeNode,
   UpdateOptions,
 } from './types.js'
 
@@ -582,6 +587,135 @@ export class CollectionHandle {
   }
 
   // -------------------------------------------------------------------------
+  // Document tree (the `tree: true` primitive — docs/DOCUMENT-TREE.md)
+  //
+  // A document-grain, unversioned single-parent ordered hierarchy. Reads/writes
+  // here go through the storage adapter's dedicated tree commands, NOT the
+  // store_relation / populate pipeline. Every method requires the collection to
+  // be a tree (`tree: true`); writes assert the `update` ability (structural
+  // moves are metadata-level updates), reads assert `read`.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Place or move a document within this collection's tree — a single upsert
+   * covering place, reorder, and re-parent (they differ only in whether the
+   * parent changes). Document-grain and unversioned: mints no new document
+   * version and does not touch workflow status. The storage layer enforces the
+   * cycle and same-collection invariants atomically. Returns the minted
+   * per-parent `order_key`.
+   */
+  async placeTreeNode(
+    documentId: string,
+    options: PlaceTreeNodeOptions
+  ): Promise<{ orderKey: string }> {
+    this.assertTreeCollection()
+    await this.resolveAndAssertUpdate()
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    return this.client.db.commands.documents.placeTreeNode({
+      collectionId,
+      documentId,
+      parentDocumentId: options.parentDocumentId,
+      beforeDocumentId: options.beforeDocumentId ?? null,
+      afterDocumentId: options.afterDocumentId ?? null,
+    })
+  }
+
+  /**
+   * Remove a document from the tree, returning it to the *unplaced* state (still
+   * in the collection, but not in any table of contents). Distinct from
+   * deleting the document. No-op when already unplaced.
+   */
+  async removeFromTree(documentId: string): Promise<void> {
+    this.assertTreeCollection()
+    await this.resolveAndAssertUpdate()
+    await this.client.db.commands.documents.removeFromTree({ documentId })
+  }
+
+  /**
+   * Read a node's subtree as a nested {@link TreeNode} forest, hydrated to
+   * `ClientDocument`s. `rootDocumentId: null` (default) returns the whole tree
+   * from the collection roots; a value returns the subtree rooted at (and
+   * including) that node. Children are ordered per-parent. `status` defaults to
+   * `'published'` (the client default) — an unpublished node hides its whole
+   * subtree in that mode.
+   */
+  async getSubtree<F = Record<string, any>>(
+    options: GetSubtreeOptions<F> = {}
+  ): Promise<TreeNode<F>[]> {
+    this.assertTreeCollection()
+    await this.resolveAndAssertRead()
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const locale = options.locale ?? this.client.defaultLocale
+    const readMode = resolveReadMode(options.status)
+
+    const structure = await this.client.db.queries.documents.getTreeSubtree({
+      collectionId,
+      rootDocumentId: options.rootDocumentId ?? null,
+      maxDepth: options.depth,
+      readMode,
+    })
+    if (structure.length === 0) return []
+
+    const shapedById = await this.hydrateTreeNodes<F>(
+      collectionId,
+      structure.map((n) => n.document_id),
+      locale,
+      readMode,
+      options.select as string[] | undefined
+    )
+
+    // Assemble the nested forest. Rows arrive pre-order, so a parent is always
+    // materialised before its children; a row whose parent is not in the result
+    // set (null parent, or the requested root's own parent) is a top-level node.
+    const nodeById = new Map<string, TreeNode<F>>()
+    const roots: TreeNode<F>[] = []
+    for (const row of structure) {
+      const document = shapedById.get(row.document_id)
+      if (document == null) continue
+      const node: TreeNode<F> = { document, depth: row.depth, children: [] }
+      nodeById.set(row.document_id, node)
+      const parent =
+        row.parent_document_id != null ? nodeById.get(row.parent_document_id) : undefined
+      if (parent) parent.children.push(node)
+      else roots.push(node)
+    }
+    return roots
+  }
+
+  /**
+   * Walk a document's ancestor chain upward, returning the ancestors
+   * **root-first** (the breadcrumb trail, excluding the node itself), hydrated
+   * to `ClientDocument`s. In `'published'` mode (the client default) only
+   * ancestors that have a published version are returned.
+   */
+  async getAncestors<F = Record<string, any>>(
+    documentId: string,
+    options: GetAncestorsOptions<F> = {}
+  ): Promise<ClientDocument<F>[]> {
+    this.assertTreeCollection()
+    await this.resolveAndAssertRead()
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const locale = options.locale ?? this.client.defaultLocale
+    const readMode = resolveReadMode(options.status)
+
+    const ancestors = await this.client.db.queries.documents.getTreeAncestors({
+      document_id: documentId,
+    })
+    if (ancestors.length === 0) return []
+
+    const ids = ancestors.map((a) => a.document_id)
+    const shapedById = await this.hydrateTreeNodes<F>(
+      collectionId,
+      ids,
+      locale,
+      readMode,
+      options.select as string[] | undefined
+    )
+    // Preserve root-first order; drop ancestors not visible in this read mode.
+    return ids.map((id) => shapedById.get(id)).filter((d): d is ClientDocument<F> => d != null)
+  }
+
+  // -------------------------------------------------------------------------
   // Internals
   // -------------------------------------------------------------------------
 
@@ -619,6 +753,70 @@ export class CollectionHandle {
     const requestContext = await this.client.resolveRequestContext()
     assertActorCanPerform(requestContext, this.definition.path, 'read')
     return requestContext
+  }
+
+  /**
+   * Resolve the caller's `RequestContext` and enforce the `update` ability.
+   * Used by the tree write commands (`placeTreeNode` / `removeFromTree`),
+   * which call the storage adapter directly rather than through a
+   * `document-lifecycle` service — so the ability assertion lives here, the
+   * same way `reorderCollectionDocument` gates structural moves on `update`.
+   */
+  private async resolveAndAssertUpdate(): Promise<RequestContext> {
+    const requestContext = await this.client.resolveRequestContext()
+    assertActorCanPerform(requestContext, this.definition.path, 'update')
+    return requestContext
+  }
+
+  /**
+   * Guard that this collection opts into the document-tree primitive. The
+   * tree commands are inert (and the read path meaningless) for a non-tree
+   * collection, so fail loudly rather than silently writing edge rows that
+   * nothing will read.
+   */
+  private assertTreeCollection(): void {
+    if (this.definition.tree !== true) {
+      throw ERR_VALIDATION({
+        message: `collection '${this.definition.path}' is not a document tree; set \`tree: true\` on its collection definition to use the tree API`,
+        details: { collectionPath: this.definition.path },
+      })
+    }
+  }
+
+  /**
+   * Batch-hydrate a set of tree node document ids into shaped
+   * `ClientDocument`s, keyed by document id. Reuses the populate batch read
+   * (`getDocumentsByDocumentIds`) under the requested `readMode` — the tree's
+   * own status-at-edge filtering already happened structurally, so a node
+   * absent here in `'published'` mode simply has no published version. Fires
+   * `afterRead` per node (deduped within one shared `ReadContext`) to stay
+   * consistent with the other client read paths.
+   */
+  private async hydrateTreeNodes<F>(
+    collectionId: string,
+    documentIds: string[],
+    locale: string,
+    readMode: ReadMode,
+    select: string[] | undefined
+  ): Promise<Map<string, ClientDocument<F>>> {
+    const shapedById = new Map<string, ClientDocument<F>>()
+    if (documentIds.length === 0) return shapedById
+
+    const rawDocs = await this.client.db.queries.documents.getDocumentsByDocumentIds({
+      collection_id: collectionId,
+      document_ids: documentIds,
+      locale,
+      readMode,
+      fields: select,
+    })
+
+    const readContext = createReadContext()
+    for (const raw of rawDocs) {
+      const doc = raw as Record<string, any>
+      await applyAfterRead({ doc, definition: this.definition, readContext })
+      shapedById.set(doc.document_id as string, this.shapeWithPopulated<F>(doc))
+    }
+    return shapedById
   }
 
   /**
