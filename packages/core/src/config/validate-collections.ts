@@ -78,6 +78,9 @@ function walkFields(fields: readonly Field[], visit: (field: Field) => void): vo
  *  - When `advertiseLocales` is `true`, the collection must have at least
  *    one `localized` field — advertising content locales is meaningless
  *    otherwise.
+ *  - A collection may not set both `tree: true` and `orderable: true`. A
+ *    document-tree owns ordering per-parent on the tree edge, so
+ *    `byline_documents.order_key` is inert for it.
  *
  * Throws a plain `Error` (not a `BylineError`) because configuration
  * validation runs at startup, before the logger and error registry are
@@ -113,6 +116,12 @@ export function validateCollections(collections: readonly CollectionDefinition[]
     if (collection.advertiseLocales === true && !hasLocalizedField(collection.fields)) {
       throw new Error(
         `Collection "${collection.path}" sets \`advertiseLocales: true\` but has no localized fields. The available-locales control advertises content locales, which is only meaningful when at least one field is \`localized\`.`
+      )
+    }
+
+    if (collection.tree === true && collection.orderable === true) {
+      throw new Error(
+        `Collection "${collection.path}" sets both \`tree: true\` and \`orderable: true\`. A document-tree collection owns ordering on the tree edge (per-parent), so \`byline_documents.order_key\` is inert — set only \`tree: true\`.`
       )
     }
   }

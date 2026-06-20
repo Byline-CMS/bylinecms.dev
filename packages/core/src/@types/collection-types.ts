@@ -1101,6 +1101,34 @@ export interface CollectionDefinition {
    * inside a collection (bios, team members, FAQ items, sections).
    */
   orderable?: boolean
+
+  /**
+   * When `true`, this collection is a **document tree** — a self-referential,
+   * single-parent ordered hierarchy (the structural backbone for documentation
+   * / book sites). Each node's parent and its per-parent sibling order are
+   * stored document-grain and unversioned in `byline_document_relationships`
+   * and mutated via the dedicated tree commands (`placeTreeNode` /
+   * `removeFromTree`), which mint no document version — exactly like `path`,
+   * `availableLocales`, and `order_key`.
+   *
+   * Lives on the schema (not `defineAdmin`) because it changes **storage
+   * authority and the read path**, not just presentation: it turns on the
+   * edge-table storage + commands, the recursive tree read path
+   * (`getTreeSubtree` / `getTreeAncestors` / `getTreeChildren`), the authoring
+   * tree widget, and the structural-change invalidation event.
+   *
+   * Mutually exclusive with `orderable`: the tree owns ordering (per-parent, on
+   * the edge row), so `byline_documents.order_key` is inert for a tree
+   * collection. Setting both throws at startup.
+   *
+   * The hierarchy is *meta* — it describes where a document sits in a table of
+   * contents and says nothing about its content; re-parenting and reordering
+   * touch no user fields. Do **not** also declare a `parent` relation field; the
+   * tree owns structure (a topic that genuinely belongs in two places is a
+   * cross-link relation field, never a second tree edge). See
+   * docs/DOCUMENT-TREE.md.
+   */
+  tree?: boolean
   /**
    * Optional explicit version pin. When omitted, the startup bootstrap
    * auto-increments the collection's stored version any time the schema

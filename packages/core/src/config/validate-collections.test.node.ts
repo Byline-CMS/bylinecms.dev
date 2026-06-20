@@ -238,4 +238,31 @@ describe('validateCollections', () => {
   it('accepts advertiseLocales omitted regardless of localized fields', () => {
     expect(() => validateCollections([baseCollection])).not.toThrow()
   })
+
+  it('accepts tree: true on its own', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      useAsTitle: 'title',
+      useAsPath: 'title',
+      tree: true,
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('rejects tree: true together with orderable: true', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      tree: true,
+      orderable: true,
+    }
+    expect(() => validateCollections([collection])).toThrow(/tree: true.*orderable: true|orderable/)
+  })
+
+  it('accepts orderable: true without tree', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      orderable: true,
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
 })
