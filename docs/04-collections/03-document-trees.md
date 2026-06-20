@@ -107,6 +107,40 @@ table-of-contents (pre-order) order. The **prev/next spine** is a depth-first
 flatten of that ordered tree: a document's neighbours are simply the entries
 adjacent to it in the flattened list. Breadcrumbs come from `getAncestors`.
 
+For example, building a navigation tree and a document's breadcrumb +
+prev/next neighbours from a frontend loader:
+
+```ts
+// The whole published docs tree, in table-of-contents order.
+const nav = await client.collection('docs').getSubtree({
+  rootDocumentId: null,
+  status: 'published',
+})
+
+// Breadcrumbs for the current document (root → parent, already ordered).
+const ancestors = await client.collection('docs').getAncestors({
+  documentId: doc.id,
+})
+
+// Prev/next: flatten the ordered tree to a linear spine, find the neighbours.
+const spine = []
+const flatten = (nodes) => {
+  for (const n of nodes) {
+    spine.push(n)
+    if (n.children?.length) flatten(n.children)
+  }
+}
+flatten(nav)
+const i = spine.findIndex((n) => n.id === doc.id)
+const prev = spine[i - 1] ?? null
+const next = spine[i + 1] ?? null
+```
+
+Each node carries its `path` and the full ancestor `chain`, so a link target is
+the joined chain (`/docs/getting-started/cli`) rather than the bare slug — the
+[public URL resolution](#path-and-url-are-two-independent-axes) section below
+covers how those URLs resolve and self-heal.
+
 ### Status applies at each edge
 
 A published parent can own a draft-only child. Status is therefore evaluated
