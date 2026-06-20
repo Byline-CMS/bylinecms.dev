@@ -39,12 +39,15 @@
  *   --dry-run     Parse + log, no DB writes.
  *   --verbose     Print warnings for dropped/unsupported nodes.
  *   --tree        After importing, build the document tree from the source
- *                 directory layout. A file in a directory whose name matches an
- *                 imported doc's path becomes that doc's child; everything else
- *                 becomes a root. Convention: leaf children live in a directory
- *                 named after their parent (e.g. `docs/getting-started/cli.md`
- *                 nests under `docs/GETTING-STARTED.md`, which slugifies to
- *                 `getting-started`). The `docs` collection must be `tree: true`.
+ *                 directory layout (the "folder + index.md" convention). A flat
+ *                 `D/leaf.md` nests under `D/index.md`; a `D/index.md` (a node
+ *                 that owns a folder) nests under the grandparent's index,
+ *                 `dirname(D)/index.md`; a node with no `index.md` parent is a
+ *                 root. A folder appears exactly when a node has children, at
+ *                 any depth. Sibling order follows the source file sort, so
+ *                 number directories/files with `NN-` prefixes to curate the
+ *                 TOC — prefixes never reach the slug (paths come from
+ *                 frontmatter). The `docs` collection must be `tree: true`.
  *                 See docs/DOCUMENT-TREE.md.
  */
 
@@ -53,7 +56,7 @@ import '../server.config.js'
 
 import { readFileSync } from 'node:fs'
 import { glob } from 'node:fs/promises'
-import { basename, dirname, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 import { createSuperAdminContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
@@ -311,15 +314,30 @@ async function processFile(
 }
 
 /**
+ * Resolve the source file of a node's parent under the "folder + index.md"
+ * convention: a flat `D/leaf.md` is a child of `D/index.md`; a `D/index.md` (a
+ * node that owns a folder) is a child of the grandparent's index,
+ * `dirname(D)/index.md`. The returned path may not exist (e.g. the docs root
+ * has no `index.md`); the caller treats a miss as "this node is a root".
+ */
+function parentIndexFile(filePath: string): string {
+  const dir = dirname(filePath)
+  const base = basename(filePath)
+  const isIndex = base === 'index.md' || base === 'index.markdown'
+  return join(isIndex ? dirname(dir) : dir, 'index.md')
+}
+
+/**
  * Build the document tree from the source directory layout, after every file
- * has been imported (so all parent documents exist).
+ * has been imported (so all parent documents exist). A node's parent is the
+ * `index.md` resolved by {@link parentIndexFile}; a node whose parent index is
+ * not in the batch is a root. Structure is filesystem-derived (not name-matched
+ * to paths), so directory names are free and `NN-` prefixes only affect order.
  *
- * A file's parent is the imported doc whose `path` equals the name of the
- * file's immediate containing directory — the "children live in a directory
- * named after the parent" convention. Files whose containing directory matches
- * no imported doc path (e.g. the docs root) are placed as roots. Placement is
- * order-independent: every node gets its own edge row, so a child placed before
- * its parent is still consistent once the parent is rooted.
+ * Siblings are appended after the previous sibling in their group so they get
+ * distinct, monotonically-increasing per-parent keys (placing with no
+ * neighbours would mint the same first key for every sibling). Files are
+ * processed in sorted order, so prefix order carries straight through.
  */
 async function placeTreeFromDirectories(
   handle: CollectionHandle,
@@ -328,12 +346,10 @@ async function placeTreeFromDirectories(
   const placeable = results.filter(
     (r): r is ProcessResult & { documentId: string } => r.documentId != null
   )
-  const idByPath = new Map(placeable.map((r) => [r.path, r.documentId]))
+  // Index nodes by source file so a child resolves its parent's `index.md`
+  // structurally (by path on disk), not by matching directory names to slugs.
+  const idByFile = new Map(placeable.map((r) => [r.filePath, r.documentId]))
 
-  // Append each node after the previous sibling in its group so siblings get
-  // distinct, monotonically-increasing per-parent keys (placing with no
-  // neighbours would mint the same first key for every sibling). Files are
-  // already processed in sorted order, so this preserves source order.
   const ROOT_GROUP = '__root__'
   const lastSiblingByGroup = new Map<string, string>()
 
@@ -341,8 +357,7 @@ async function placeTreeFromDirectories(
   let placed = 0
   let failed = 0
   for (const r of placeable) {
-    const parentSlug = basename(dirname(r.filePath))
-    const parentId = idByPath.get(parentSlug)
+    const parentId = idByFile.get(parentIndexFile(r.filePath))
     const parentDocumentId = parentId != null && parentId !== r.documentId ? parentId : null
     const groupKey = parentDocumentId ?? ROOT_GROUP
     const beforeDocumentId = lastSiblingByGroup.get(groupKey) ?? null
@@ -351,7 +366,7 @@ async function placeTreeFromDirectories(
       lastSiblingByGroup.set(groupKey, r.documentId)
       if (parentDocumentId != null) {
         placed += 1
-        console.log(`  ↳ placed   ${r.path}  under  ${parentSlug}`)
+        console.log(`  ↳ placed   ${r.path}  under  ${basename(dirname(r.filePath))}`)
       } else {
         rooted += 1
       }
