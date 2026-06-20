@@ -271,13 +271,82 @@ Use only from internal tooling. Never inside application code paths — the whol
 
 Sessions are pluggable behind `SessionProvider`. The built-in `JwtSessionProvider` is fully featured (15-min access, 30-day refresh, rotation, replay detection, argon2id), but Lucia, better-auth, WorkOS, Clerk, or institutional SSO can drop in by implementing the interface.
 
-**Edit:** `apps/webapp/byline/server.config.ts`.
+A provider implements five methods. The load-bearing one is **`resolveActor`** — it turns an admin-user id into the runtime `AdminAuth` (the actor id plus its flat ability set) that every access check reads. Credential verification and token storage are yours to wire to whatever identity service you use; this example delegates credentials to an external IdP and issues short-lived JWT access tokens:
+
+```ts
+// byline-session-mycustom/src/provider.ts
+import { AdminAuth, type SessionProvider } from '@byline/auth'
+import type { AdminStore } from '@byline/admin'
+import { SignJWT, jwtVerify } from 'jose'
+
+const ACCESS_TTL = '15m'
+const secret = new TextEncoder().encode(process.env.SESSION_SECRET!)
+
+export class MyCustomSessionProvider implements SessionProvider {
+  constructor(
+    private deps: {
+      store: AdminStore // resolves an admin user's roles → permissions → abilities
+      verifyCredentials: (email: string, password: string) => Promise<{ adminUserId: string } | null>
+      refreshTokens: RefreshTokenStore // your persistence: issue / rotate / revoke
+    },
+  ) {}
+
+  // Drives which affordances the admin UI renders (e.g. SSO hides the password form).
+  readonly capabilities = { passwordChange: false, magicLink: false, sso: true }
+
+  async signInWithPassword({ email, password }: { email: string; password: string; ip: string; userAgent: string }) {
+    const verified = await this.deps.verifyCredentials(email, password)
+    if (!verified) throw new Error('invalid credentials') // map to an AuthError in real code
+    const actor = await this.resolveActor(verified.adminUserId)
+    return {
+      actor,
+      accessToken: await this.mintAccess(actor.id),
+      refreshToken: await this.deps.refreshTokens.issue(actor.id),
+    }
+  }
+
+  async verifyAccessToken(token: string) {
+    const { payload } = await jwtVerify(token, secret)
+    return { actor: await this.resolveActor(payload.sub!) }
+  }
+
+  async refreshSession(refreshToken: string) {
+    // rotate() invalidates the old token and detects replay of a rotated one
+    const { adminUserId, nextToken } = await this.deps.refreshTokens.rotate(refreshToken)
+    return { accessToken: await this.mintAccess(adminUserId), refreshToken: nextToken }
+  }
+
+  async revokeSession(refreshToken: string) {
+    await this.deps.refreshTokens.revoke(refreshToken)
+  }
+
+  // The load-bearing method: build the actor + its abilities from the admin store.
+  async resolveActor(adminUserId: string): Promise<AdminAuth> {
+    const { id, isSuperAdmin, abilities } = await this.deps.store.resolveAdminAuth(adminUserId)
+    return new AdminAuth({ id, abilities: new Set(abilities), isSuperAdmin })
+  }
+
+  private mintAccess(sub: string) {
+    return new SignJWT({})
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject(sub)
+      .setExpirationTime(ACCESS_TTL)
+      .sign(secret)
+  }
+}
+```
+
+Then wire it in `apps/webapp/byline/server.config.ts`:
 
 ```ts
 import { initBylineCore } from '@byline/core'
 import { MyCustomSessionProvider } from '@my-org/byline-session-mycustom'
 
-const sessionProvider = new MyCustomSessionProvider({ /* … */ })
+const sessionProvider = new MyCustomSessionProvider({
+  store: adminStore,
+  verifyCredentials: myIdp.verify,
+  refreshTokens: myRefreshTokenStore,
+})
 
 const core = await initBylineCore<AdminStore>({
   // …db, collections, storage, adminStore, …
@@ -285,7 +354,7 @@ const core = await initBylineCore<AdminStore>({
 })
 ```
 
-The provider's `capabilities` flags (`passwordChange`, `magicLink`, `sso`) drive which affordances the admin UI renders.
+`getAdminRequestContext()` calls `verifyAccessToken` on every admin request, so the `AdminAuth` your `resolveActor` returns is exactly what `assertAbility` / `assertActorCanPerform` check downstream. The `capabilities` flags drive which affordances the admin UI renders — a provider without `passwordChange` hides the password-change form rather than failing the call.
 
 → [Sessions — `SessionProvider`](#sessions--sessionprovider-interface)
 

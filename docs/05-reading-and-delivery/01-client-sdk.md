@@ -260,7 +260,50 @@ Every write resolves the client's configured `requestContext` and runs `assertAc
 
 ### 10. A standalone script
 
-Putting it all together — a one-shot Node script that iterates a collection, regenerates the bytes behind every `media` document, and writes the new value back through the SDK. The script:
+Build a client, then read and write — no host application or `initBylineCore()` required. A minimal end-to-end run (connect → read → create → update → publish → read back):
+
+```ts
+// scripts/demo.ts — run with: pnpm tsx scripts/demo.ts
+import { createBylineClient } from '@byline/client'
+import { createSuperAdminContext } from '@byline/auth'
+import { pgAdapter } from '@byline/db-postgres'
+
+import { collections } from '../byline/collections/index.js'
+
+const client = createBylineClient({
+  db: pgAdapter({ connectionString: process.env.BYLINE_DB_URL! }),
+  collections,
+  requestContext: createSuperAdminContext({ id: 'demo-script' }),
+})
+
+const news = client.collection('news')
+
+// READ — the latest published articles
+const { docs, meta } = await news.find({ status: 'published', sort: '-publishedOn', pageSize: 5 })
+console.log(`${meta.total} published; latest: ${docs[0]?.fields.title ?? '(none)'}`)
+
+// CREATE — a new draft (defaults to the workflow's first status)
+const draft = await news.create(
+  { title: 'Hello from a script', summary: 'Written via @byline/client.' },
+  { locale: 'en' },
+)
+
+// UPDATE — whole-document write (patches are admin-UI internal)
+await news.update(draft.documentId, { title: 'Hello, world' }, { locale: 'en' })
+
+// PUBLISH — walk the workflow forward
+await news.changeStatus(draft.documentId, 'published')
+
+// READ BACK — a published read now resolves the freshly published version
+const fresh = await news.findById(draft.documentId, { status: 'published' })
+console.log('published title:', fresh?.fields.title)
+
+process.exit(0) // pgAdapter holds a connection pool; end the process when done
+```
+
+Every write resolves the configured `requestContext` and runs `assertActorCanPerform`; the super-admin context here passes every check (use a real scoped context to exercise authorization). The same shape fits seeds, content imports, and one-shot maintenance jobs.
+
+The advanced example below is a real maintenance job that iterates a collection, regenerates the bytes behind every `media` document, and writes the new value back. The script:
 
 - side-effect imports `server.config.ts` so `initBylineCore()` registers config + collections;
 - builds a client from `getServerConfig()` and a super-admin context;

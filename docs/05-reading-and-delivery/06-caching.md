@@ -143,6 +143,93 @@ For high-traffic deployments, an in-memory cache between the server function and
 - Cache keys composed from the inputs that actually determine the response: collection, query, locale, page, **and the read mode** (`'published'` vs `'any'`). Never share a cache entry across modes — a draft would otherwise leak into anonymous traffic.
 - **Editors bypass L1 entirely.** When `isPreviewActive()` is true, the server function calls the storage layer directly and does not wrap the call in the cache helper.
 
+### A worked L1 helper
+
+A small in-process helper covers the common case. It keys entries by everything
+that determines the response, indexes each entry by one or more **tags** (so a
+collection hook can purge "everything tagged `cms::news`"), and is bounded with a
+short TTL. This example uses [`lru-cache`](https://www.npmjs.com/package/lru-cache);
+any bounded map with TTL works.
+
+```ts
+// cache/l1.ts — a tag-indexed, bounded in-process read cache for public reads
+import { LRUCache } from 'lru-cache'
+
+const cache = new LRUCache<string, unknown>({
+  max: 5000,        // bounded — least-recently-used entries are evicted past this
+  ttl: 60_000,      // 60s per-entry TTL
+  allowStale: true, // a get can serve the stale value once while it is refreshed
+})
+
+// tag → the keys carrying that tag, so a hook can purge a whole collection/URL.
+const tagIndex = new Map<string, Set<string>>()
+
+/**
+ * Wrap a read in L1. `key` must capture every input that changes the result —
+ * collection, query, locale, page, and the read mode — so a draft can never be
+ * served to anonymous traffic. `tags` drive invalidation from collection hooks.
+ */
+export async function cachedRead<T>(
+  key: string,
+  tags: string[],
+  load: () => Promise<T>,
+): Promise<T> {
+  const hit = cache.get(key)
+  if (hit !== undefined) return hit as T
+
+  const value = await load()
+  cache.set(key, value)
+  for (const tag of tags) {
+    let keys = tagIndex.get(tag)
+    if (!keys) tagIndex.set(tag, (keys = new Set()))
+    keys.add(key)
+  }
+  return value
+}
+
+/** Purge every entry carrying `tag`. Called from afterChange / afterDelete hooks. */
+export function invalidateTag(tag: string): void {
+  const keys = tagIndex.get(tag)
+  if (!keys) return
+  for (const key of keys) cache.delete(key)
+  tagIndex.delete(tag)
+}
+```
+
+Using it from a public read, with the editor bypass:
+
+```ts
+// modules/news/detail.ts — a cached published detail read
+import { getPublicBylineClient } from '@/lib/byline-client'
+import { isPreviewActive } from '@/lib/preview'
+import { cachedRead } from '@/cache/l1'
+
+export async function getNewsArticle(path: string, locale: string) {
+  const read = () =>
+    getPublicBylineClient()
+      .collection('news')
+      .findByPath(path, { status: 'published', locale, populate: true })
+
+  // Editors previewing drafts must never read or populate the public cache.
+  if (isPreviewActive()) return read()
+
+  // Tags pair with the hooks below: a collection-wide tag plus a per-URL tag.
+  return cachedRead(
+    `news:detail:${locale}:${path}:published`,
+    ['cms::news', `cms::news::${path}`],
+    read,
+  )
+}
+```
+
+A list read is the same shape with a page in the key and only the collection-wide
+tag: `cachedRead(\`news:list:${locale}:p${page}:published\`, ['cms::news'], read)`.
+
+> For in-memory SWR (serve-stale-while-refreshing), `lru-cache`'s `fetch` +
+> `fetchMethod` with `allowStale` refreshes an expired entry in the background
+> while returning the stale value — the in-process analogue of the CDN's
+> stale-while-revalidate.
+
 ### Invalidation via Byline collection hooks
 
 Tag-based invalidation pairs naturally with Byline's collection hooks. Every
