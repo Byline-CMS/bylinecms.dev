@@ -91,3 +91,50 @@
 .cellCenter {
   text-align: center;
 }
+
+/* ── Drag-to-reorder / re-parent ────────────────────────────────────── */
+
+.dragCell {
+  width: 34px;
+  padding-inline: 0.25rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--gray-400);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.dragHandle:hover {
+  color: var(--gray-600);
+  background-color: var(--gray-50);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+:is([data-theme="dark"], :global(.dark)) .dragHandle:hover {
+  color: var(--gray-200);
+  background-color: var(--canvas-700);
+}
+
+/* The row being dragged — highlight + a left rule that reads as "this is the
+ * grabbed node at its projected depth". */
+.draggingRow {
+  background-color: var(--gray-25);
+  box-shadow: inset 2px 0 0 var(--theme-400, var(--gray-400));
+}
+
+:is([data-theme="dark"], :global(.dark)) .draggingRow {
+  background-color: var(--canvas-700);
+}

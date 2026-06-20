@@ -26,6 +26,7 @@ import { TreeListView } from '../admin-shell/collections/tree-list.js'
 import {
   getCollectionDocuments,
   getCollectionTree,
+  placeTreeNode,
   reorderCollectionDocument,
 } from '../server-fns/collections/index.js'
 import type { CollectionTreeRow } from '../server-fns/collections/tree.js'
@@ -177,6 +178,22 @@ export function createCollectionListRoute(path: string) {
               useAsTitle={collectionDef.useAsTitle}
               collection={collection}
               collectionLabels={data.included.collection.labels}
+              onMove={async ({
+                documentId,
+                parentDocumentId,
+                beforeDocumentId,
+                afterDocumentId,
+              }) => {
+                await placeTreeNode({
+                  data: {
+                    collection,
+                    documentId,
+                    parentDocumentId,
+                    beforeDocumentId,
+                    afterDocumentId,
+                  },
+                })
+              }}
             />
           ) : CustomListView ? (
             <CustomListView data={data} workflowStatuses={workflowStatuses} />

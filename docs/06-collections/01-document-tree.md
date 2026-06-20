@@ -2,13 +2,14 @@
 title: "Document Trees"
 path: "document-tree"
 summary: "A document-grain, single-parent ordered hierarchy primitive for self-referential collections — the structural backbone for documentation / book sites. Promotes the 'parent' edge out of the versioned content stream and into a dedicated, unversioned tree table alongside path / availableLocales / order_key."
-status: "BACKEND + ADMIN + PUBLIC FRONTEND COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget, the built-in tree list view, the public hierarchical-URL splat handler (HTML + .md, canonical 301 / status-at-edge 404), and the tree-rendered docs nav (collapsible drawer with animated caret + auto-expand, tree-ordered index, direct hierarchical links), and the GitBook/Docusaurus-style prev/next tiles are shipped and live on the docs collection. Remaining: the phase-2 admin drag/drop reorder view (item 3)."
+status: "FEATURE COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget, the built-in tree list view with drag-to-reorder + re-parent, the public hierarchical-URL splat handler (HTML + .md, canonical 301 / status-at-edge 404), the tree-rendered docs nav (collapsible drawer with animated caret + auto-expand, tree-ordered index, direct hierarchical links), and the GitBook/Docusaurus-style prev/next tiles are all shipped and live on the docs collection. Optional follow-ups only (collapse-during-drag, unplaced-drag, prev/next summary text)."
 ---
 
 # Document Trees
 
-> **Status: backend + admin + public frontend (hierarchical URLs + tree nav)
-> complete; only the phase-2 admin drag reorder remains.** See the
+> **Status: feature complete** — backend, admin (incl. drag-to-reorder +
+> re-parent), and the full public frontend (hierarchical URLs, tree nav,
+> prev/next) are shipped. Only optional polish remains. See the
 > [Session checkpoint](#session-checkpoint-resume-here) below for exactly what is
 > shipped, the decisions reached, and what to build next. The build contract in
 > the body of this document still holds.
@@ -44,10 +45,14 @@ status: "BACKEND + ADMIN + PUBLIC FRONTEND COMPLETE — storage, commands, flag,
   "Remove from tree" link was deliberately removed — see decisions.) Host
   transport: `host-tanstack-start/src/server-fns/collections/tree.ts`, wired into
   `byline-field-services.ts`.
-- **Built-in tree list view** — `tree: true` collections render
-  `host-tanstack-start/src/admin-shell/collections/tree-list.tsx` (ordered rows,
-  depth-indented children, an "Unplaced" group). Fed by the `getCollectionTree`
-  server fn. Branched in `routes/create-collection-list-route.tsx`.
+- **Built-in tree list view + drag-to-reorder / re-parent** — `tree: true`
+  collections render `host-tanstack-start/src/admin-shell/collections/tree-list.tsx`
+  (ordered rows, depth-indented children, an "Unplaced" group), fed by the
+  `getCollectionTree` server fn (now carrying `parentId`). The placed tree is
+  drag-enabled (dnd-kit): a grip drags a node + subtree, horizontal offset
+  projects the target depth/parent (`tree-list-projection.ts`, unit-tested),
+  drops persist via `placeTreeNode`. Branched in
+  `routes/create-collection-list-route.tsx`.
 - **Docs collection is a live tree** — `apps/webapp/byline/collections/docs/schema.ts`
   has `tree: true`; `apps/webapp/byline/scripts/import-docs.ts` builds the tree
   from the `NN-slug/index.md` directory layout (`--tree`). `/docs` reorganized to
@@ -116,9 +121,21 @@ status: "BACKEND + ADMIN + PUBLIC FRONTEND COMPLETE — storage, commands, flag,
    already-loaded nav tree — no extra fetch), as two bordered tiles with
    `rel="prev"`/`rel="next"` and direct hierarchical links. A future phase may add
    summary text to the tiles.
-3. **Phase-2 admin list view** — drag-to-reorder + re-parent on the built-in
-   tree list view (currently read/browse only; placement is per-doc via the
-   widget).
+3. ~~**Phase-2 admin list view** — drag-to-reorder + re-parent.~~ **SHIPPED** —
+   the built-in tree list (`admin-shell/collections/tree-list.tsx`) is now
+   drag-enabled via dnd-kit. A grip handle drags a node (and its subtree); the
+   drag's **horizontal offset projects a target depth** (Notion-style indent),
+   clamped to what the neighbouring rows allow, resolving the new parent +
+   sibling neighbours — the dnd-kit "sortable tree" pattern. The pure projection
+   (`tree-list-projection.ts`: `getTreeProjection` / `applyProjection` /
+   `descendantIds`) is unit-tested (`tree-list-projection.test.node.ts`); drops
+   persist through the existing `placeTreeNode` command (parent + before/after),
+   optimistic with `router.invalidate()` + a failure toast. `CollectionTreeRow`
+   gained `parentId` to feed the client-side reconstruction. Scope of v1: the
+   **placed** tree is fully drag-reorder + re-parent; the **Unplaced** group
+   stays static (place via the widget) and branches are always expanded.
+   *Possible follow-ups:* collapse-during-drag and dragging an unplaced doc into
+   the tree.
 
 **Heal unplaced docs (shipped).** `getTreeAncestors` returns `[]` for both a
 *root* (edge row, parent null) and an *unplaced* doc (no edge row), which

@@ -130,6 +130,9 @@ export const getTreeParent = createServerFn({ method: 'GET' })
 
 export interface CollectionTreeRow {
   id: string
+  /** Parent document id, or `null` for a root or unplaced node. Drives the
+   * client-side tree reconstruction for drag-to-reorder / re-parent. */
+  parentId: string | null
   depth: number
   unplaced: boolean
   status: string
@@ -155,11 +158,12 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
     const forest = await handle.getSubtree({ status: 'any', locale: data.locale })
     const rows: CollectionTreeRow[] = []
     const placed = new Set<string>()
-    const walk = (nodes: typeof forest, depth: number): void => {
+    const walk = (nodes: typeof forest, depth: number, parentId: string | null): void => {
       for (const node of nodes) {
         const doc = node.document
         rows.push({
           id: doc.id,
+          parentId,
           depth,
           unplaced: false,
           status: doc.status,
@@ -169,10 +173,10 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
           fields: doc.fields as Record<string, any>,
         })
         placed.add(doc.id)
-        walk(node.children, depth + 1)
+        walk(node.children, depth + 1, doc.id)
       }
     }
-    walk(forest, 0)
+    walk(forest, 0, null)
 
     // Surface documents not yet in the tree (e.g. freshly created) so they
     // remain reachable. Trees are small by design, so a single wide read is fine.
@@ -181,6 +185,7 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
       if (placed.has(doc.id)) continue
       rows.push({
         id: doc.id,
+        parentId: null,
         depth: 0,
         unplaced: true,
         status: doc.status,
