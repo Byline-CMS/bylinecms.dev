@@ -15,6 +15,11 @@
  * invisible for ordinary visitors but become visible to admins who have toggled
  * preview mode (cookie + valid admin session). Populates `featureImage` so the
  * page renders without a follow-up request.
+ *
+ * `docs` is a `tree: true` collection: the read leaf-resolves the splat,
+ * derives the ancestor chain, and (for non-preview reads) enforces an unbroken
+ * published spine — see `./resolve.server`. Preview reads see the full tree
+ * (`status: 'any'`, no spine enforcement).
  */
 
 import {
@@ -22,15 +27,18 @@ import {
   isPreviewActive,
 } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
 
-import type { DocDetailFields, DocDetailInput, DocDetailResult } from './detail'
+import { resolveDocTreeBySplat } from './resolve.server'
+import type { DocDetailFields, DocSplatInput, DocSplatResult } from './detail'
 
-export async function getDocDetail({ path, lng }: DocDetailInput): Promise<DocDetailResult> {
+export async function getDocBySplat({ splat, lng }: DocSplatInput): Promise<DocSplatResult> {
   const client = getViewerBylineClient()
   const preview = await isPreviewActive()
 
-  return client.collection('docs').findByPath<DocDetailFields>(path, {
-    populate: { featureImage: '*', photo: '*' },
+  return resolveDocTreeBySplat<DocDetailFields>(client.collection('docs'), {
+    splat,
     locale: lng,
     status: preview ? 'any' : 'published',
+    enforceSpine: !preview,
+    populate: { featureImage: '*', photo: '*' },
   })
 }

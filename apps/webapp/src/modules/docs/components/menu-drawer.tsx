@@ -32,11 +32,7 @@ function MenuItem({ doc, active, compact, lng, onNavigate }: MenuItemProps) {
 
   return (
     <li className={cx('menu-item', { active, compact })}>
-      <Link
-        to="/$lng/docs/$path"
-        params={{ ...lngParam(lng), path: doc.path }}
-        onClick={onNavigate}
-      >
+      <Link to="/$lng/docs/$" params={{ ...lngParam(lng), _splat: doc.path }} onClick={onNavigate}>
         <span className="icon">
           <DocumentIcon width="20px" height="20px" />
         </span>

@@ -944,10 +944,20 @@ export interface IDocumentQueries {
    * Backs breadcrumbs and the read-time hierarchical-URL canonicalization
    * (docs/DOCUMENT-TREE.md). Depth-bounded as a backstop against pathological
    * key state even though the write-path cycle guard prevents true cycles.
+   *
+   * **Status-at-edge.** `readMode: 'published'` joins
+   * `byline_current_published_documents` at each hop and **stops at the first
+   * unpublished ancestor** — it does *not* skip past it. So an unpublished
+   * mid-spine node truncates the returned chain, which the hierarchical-URL
+   * splat handler turns into a 404 (the "unpublished node hides its subtree"
+   * decision, enforced at the URL layer). `readMode: 'any'` (the default) walks
+   * the raw edges, matching the breadcrumb/lifecycle use that wants every
+   * ancestor regardless of status.
    */
   getTreeAncestors(params: {
     document_id: string
     maxDepth?: number
+    readMode?: ReadMode
   }): Promise<Array<{ document_id: string; depth: number }>>
 
   /**

@@ -1315,24 +1315,43 @@ export class DocumentQueries implements IDocumentQueries {
    * Recursive CTE walking `parent_document_id` upward from the given node.
    * Returns ancestors root-first (`ORDER BY depth DESC`), each with a 1-based
    * depth (1 = immediate parent). Empty for a root or unplaced node.
+   *
+   * Status-at-edge: in `published` mode each hop must resolve in
+   * `byline_current_published_documents`, so the walk stops at the first
+   * unpublished ancestor rather than skipping it (a truncated spine the splat
+   * handler turns into a 404). `any` mode walks the raw edges unchanged.
    */
   async getTreeAncestors({
     document_id,
     maxDepth = 10_000,
+    readMode = 'any',
   }: {
     document_id: string
     maxDepth?: number
+    readMode?: ReadMode
   }): Promise<Array<{ document_id: string; depth: number }>> {
+    // Published mode gates every hop on the ancestor having a current published
+    // version; `any` mode imposes no such gate (raw edge walk).
+    const publishedGate = (parentColumn: string) =>
+      readMode === 'published'
+        ? sql`AND EXISTS (
+            SELECT 1 FROM byline_current_published_documents v
+            WHERE v.document_id = ${sql.raw(parentColumn)}
+          )`
+        : sql``
+
     const { rows } = await this.db.execute(sql`
       WITH RECURSIVE ancestors AS (
         SELECT parent_document_id AS ancestor_id, child_document_id AS node_id, 1 AS depth
         FROM byline_document_relationships
         WHERE child_document_id = ${document_id}::uuid AND parent_document_id IS NOT NULL
+        ${publishedGate('parent_document_id')}
         UNION ALL
         SELECT r.parent_document_id, r.child_document_id, a.depth + 1
         FROM byline_document_relationships r
         JOIN ancestors a ON r.child_document_id = a.ancestor_id
         WHERE r.parent_document_id IS NOT NULL AND a.depth < ${maxDepth}
+        ${publishedGate('r.parent_document_id')}
       )
       SELECT ancestor_id AS document_id, depth FROM ancestors ORDER BY depth DESC
     `)

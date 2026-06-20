@@ -2,12 +2,13 @@
 title: "Document Trees"
 path: "document-tree"
 summary: "A document-grain, single-parent ordered hierarchy primitive for self-referential collections — the structural backbone for documentation / book sites. Promotes the 'parent' edge out of the versioned content stream and into a dedicated, unversioned tree table alongside path / availableLocales / order_key."
-status: "BACKEND + ADMIN COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget and built-in tree list view are shipped and live on the docs collection. Remaining: the public frontend (hierarchical-URL splat + rendered TOC) and the phase-2 drag/drop reorder view."
+status: "BACKEND + ADMIN + HIERARCHICAL URLS COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget, the built-in tree list view, and the public hierarchical-URL splat handler (HTML + .md, canonical 301 / status-at-edge 404) are shipped and live on the docs collection. Remaining: the rendered TOC / nav (item 2) and the phase-2 drag/drop reorder view (item 3)."
 ---
 
 # Document Trees
 
-> **Status: backend + admin complete; public frontend remains.** See the
+> **Status: backend + admin + public hierarchical URLs complete; rendered TOC /
+> nav and phase-2 drag reorder remain.** See the
 > [Session checkpoint](#session-checkpoint-resume-here) below for exactly what is
 > shipped, the decisions reached, and what to build next. The build contract in
 > the body of this document still holds.
@@ -51,6 +52,21 @@ status: "BACKEND + ADMIN COMPLETE — storage, commands, flag, client API, inval
   has `tree: true`; `apps/webapp/byline/scripts/import-docs.ts` builds the tree
   from the `NN-slug/index.md` directory layout (`--tree`). `/docs` reorganized to
   folder-per-doc with `NN-` prefixes; verified 26 roots + nested children.
+- **Public hierarchical-URL splat handler (HTML + `.md`)** — `tree: true` docs
+  now serve at `/docs/<chain>/<leaf>` via the splat route
+  `apps/webapp/src/routes/$lng/_frontend/docs/$.tsx` and its suffixed-splat
+  markdown sibling `{$}[.]md.ts`. Shared read-time resolver
+  (`apps/webapp/src/modules/docs/resolve.server.ts`): leaf-resolve via
+  `findByPath`, derive the chain via `getAncestors`, validate reachability via
+  `getTreeParent`, then **301** any non-canonical reachable form to the
+  tree-derived canonical and **404** an unreachable one. Status-at-edge is real:
+  `getTreeAncestors` gained a `readMode` param so `published` mode stops at the
+  first unpublished ancestor (an unpublished node hides its subtree publicly);
+  preview reads (`status: 'any'`) see the full tree. `afterTreeChange` now
+  invalidates the `docs` collection cache so hierarchical canonical URLs stay
+  fresh on re-parent. The old single-segment `docs/$path.tsx` + `{$path}[.]md.ts`
+  routes are removed; docs list / menu links target the splat (`_splat`) and
+  self-heal to canonical.
 
 **Decisions reached this session (don't re-litigate):**
 
@@ -69,17 +85,19 @@ status: "BACKEND + ADMIN COMPLETE — storage, commands, flag, client API, inval
 - The importer tolerates a non-workflow `status:` frontmatter (design docs use
   it descriptively) — see `byline/scripts/lib/frontmatter.ts`.
 
-**What's next (public frontend — not started):**
+**What's next (public frontend):**
 
-1. **Public docs splat handler + hierarchical URLs.** Implement the read-time
-   composition splat described in [Public URL resolution](#public-url-resolution-the-splat-handler):
-   a `$lng/_frontend/docs/$.tsx` (and `.md` sibling) that leaf-resolves via
-   `findByPath`, derives the chain via `getAncestors`, and `301`s to the
-   canonical chain. Today's route is a single-segment `docs/$path.tsx`.
+1. ~~**Public docs splat handler + hierarchical URLs.**~~ **SHIPPED** — see the
+   "Public hierarchical-URL splat handler" bullet above and
+   [Public URL resolution](#public-url-resolution-the-splat-handler). Breadcrumbs
+   already render the hierarchical chain (HTML route). Note the splat resolves
+   the *leaf* only, so list/menu links still point at flat `_splat` slugs that
+   301 to canonical — switching them to direct hierarchical links is part of
+   item 2 (it needs the chain per list item, which the nav read provides).
 2. **Rendered table of contents / navigation.** A server-rendered docs nav (and
-   breadcrumbs / prev-next) built from `getSubtree` / `getAncestors`. The public
-   docs list currently sorts by the (now inert) `order_key`; switch it to read
-   the tree order.
+   prev-next) built from `getSubtree` / `getAncestors`. The public docs list
+   currently sorts by the (now inert) `order_key`; switch it to read the tree
+   order, and emit direct hierarchical links (no 301 hop).
 3. **Phase-2 admin list view** — drag-to-reorder + re-parent on the built-in
    tree list view (currently read/browse only; placement is per-doc via the
    widget).

@@ -301,6 +301,74 @@ describe('document-tree commands', () => {
     expect(await queryBuilders.documents.getTreeAncestors({ document_id: stray })).toEqual([])
   })
 
+  it('getTreeAncestors stops at the first unpublished ancestor in published mode', async () => {
+    // GP(pub) ─ MID(draft) ─ LEAF(pub)
+    const gp = await createDoc(treeCollection.id, TreeCollectionConfig, 'AE GP', 'published')
+    const mid = await createDoc(treeCollection.id, TreeCollectionConfig, 'AE Mid', 'draft')
+    const leaf = await createDoc(treeCollection.id, TreeCollectionConfig, 'AE Leaf', 'published')
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: gp,
+      parentDocumentId: null,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: mid,
+      parentDocumentId: gp,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: leaf,
+      parentDocumentId: mid,
+    })
+
+    // any-mode: the full chain, root-first.
+    expect(
+      (await queryBuilders.documents.getTreeAncestors({ document_id: leaf, readMode: 'any' })).map(
+        (r) => r.document_id
+      )
+    ).toEqual([gp, mid])
+
+    // published-mode: the walk stops at the draft MID — it does NOT skip to GP.
+    expect(
+      await queryBuilders.documents.getTreeAncestors({ document_id: leaf, readMode: 'published' })
+    ).toEqual([])
+
+    // A draft root above a published parent truncates at the root, keeping the
+    // published parent but never reaching the draft root.
+    const draftRoot = await createDoc(treeCollection.id, TreeCollectionConfig, 'AE DRoot', 'draft')
+    const pubMid = await createDoc(treeCollection.id, TreeCollectionConfig, 'AE PMid', 'published')
+    const pubLeaf = await createDoc(
+      treeCollection.id,
+      TreeCollectionConfig,
+      'AE PLeaf',
+      'published'
+    )
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: draftRoot,
+      parentDocumentId: null,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: pubMid,
+      parentDocumentId: draftRoot,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: pubLeaf,
+      parentDocumentId: pubMid,
+    })
+    expect(
+      (
+        await queryBuilders.documents.getTreeAncestors({
+          document_id: pubLeaf,
+          readMode: 'published',
+        })
+      ).map((r) => r.document_id)
+    ).toEqual([pubMid]) // stops below the draft root, does not include it
+  })
+
   it('rejects a self-parent and a cycle', async () => {
     const a = await createDoc(treeCollection.id, TreeCollectionConfig, 'CA')
     const c = await createDoc(treeCollection.id, TreeCollectionConfig, 'CC')

@@ -62,6 +62,12 @@ describe('localeInputRewrite — the matcher always sees a locale segment', () =
     expect(input('/docs/getting-started.md')).toBe('/en/docs/getting-started.md')
     expect(input('/fr/docs/getting-started.md')).toBe('/fr/docs/getting-started.md')
     expect(input('/news/some-post.md')).toBe('/en/news/some-post.md')
+    // Hierarchical (tree) docs URLs localize the same way at any depth — the
+    // `.md` suffixed splat (`docs/{$}.md`) serves a markdown variant per
+    // content locale. The asset heuristic checks only the last segment, so a
+    // multi-segment path with `.md` still localizes.
+    expect(input('/docs/getting-started/cli.md')).toBe('/en/docs/getting-started/cli.md')
+    expect(input('/fr/docs/getting-started/cli.md')).toBe('/fr/docs/getting-started/cli.md')
     // Other text-ish extensions stay assets (llms.txt is a locale-less
     // top-level surface like sitemap.xml).
     expect(input('/llms.txt')).toBe('/llms.txt')

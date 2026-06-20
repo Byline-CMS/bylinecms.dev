@@ -59,7 +59,7 @@ import { createHash } from 'node:crypto'
 
 import { defineHooks } from '@byline/core'
 
-import { invalidateDocument } from '@/lib/cache/with-cache'
+import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
 
 export default defineHooks({
   afterCreate: async ({ data, collectionPath, path, documentId }) => {
@@ -83,4 +83,12 @@ export default defineHooks({
     invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
   afterDelete: ({ collectionPath, path }) =>
     invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
+  // A structural tree change (place / reorder / re-parent / promote-on-delete)
+  // ripples across the affected set — every moved node, its descendants, and
+  // both sibling lists have new breadcrumbs / hierarchical canonical URLs. Trees
+  // are small and restructures are infrequent, so the coarse collection-wide
+  // sweep (detail + list + sitemap) is the pragmatic correct choice over
+  // resolving the affected ids to paths. See docs/DOCUMENT-TREE.md →
+  // "Invalidation contract".
+  afterTreeChange: ({ collectionPath }) => invalidateCollection(collectionPath),
 })

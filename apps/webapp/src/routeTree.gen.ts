@@ -32,8 +32,8 @@ import { Route as LngFrontendNewsChar123pathChar125DotmdRouteImport } from './ro
 import { Route as LngFrontendNewsPathRouteImport } from './routes/$lng/_frontend/news/$path'
 import { Route as LngFrontendLegalChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/legal/{$path}[.]md'
 import { Route as LngFrontendLegalPathRouteImport } from './routes/$lng/_frontend/legal/$path'
-import { Route as LngFrontendDocsChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/docs/{$path}[.]md'
-import { Route as LngFrontendDocsPathRouteImport } from './routes/$lng/_frontend/docs/$path'
+import { Route as LngFrontendDocsChar123Char125DotmdRouteImport } from './routes/$lng/_frontend/docs/{$}[.]md'
+import { Route as LngFrontendDocsSplatRouteImport } from './routes/$lng/_frontend/docs/$'
 import { Route as LngFrontendAboutChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/about/{$path}[.]md'
 import { Route as LngFrontendAboutPathRouteImport } from './routes/$lng/_frontend/about/$path'
 import { Route as BylineAdminUsersIdIndexRouteImport } from './routes/_byline/admin/users/$id/index'
@@ -162,15 +162,15 @@ const LngFrontendLegalPathRoute = LngFrontendLegalPathRouteImport.update({
   path: '/legal/$path',
   getParentRoute: () => LngFrontendRouteRoute,
 } as any)
-const LngFrontendDocsChar123pathChar125DotmdRoute =
-  LngFrontendDocsChar123pathChar125DotmdRouteImport.update({
-    id: '/{$path}.md',
-    path: '/{$path}.md',
+const LngFrontendDocsChar123Char125DotmdRoute =
+  LngFrontendDocsChar123Char125DotmdRouteImport.update({
+    id: '/{$}.md',
+    path: '/{$}.md',
     getParentRoute: () => LngFrontendDocsRouteRoute,
   } as any)
-const LngFrontendDocsPathRoute = LngFrontendDocsPathRouteImport.update({
-  id: '/$path',
-  path: '/$path',
+const LngFrontendDocsSplatRoute = LngFrontendDocsSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => LngFrontendDocsRouteRoute,
 } as any)
 const LngFrontendAboutChar123pathChar125DotmdRoute =
@@ -239,8 +239,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof BylineAdminIndexRoute
   '/$lng/about/$path': typeof LngFrontendAboutPathRoute
   '/$lng/about/{$path}.md': typeof LngFrontendAboutChar123pathChar125DotmdRoute
-  '/$lng/docs/$path': typeof LngFrontendDocsPathRoute
-  '/$lng/docs/{$path}.md': typeof LngFrontendDocsChar123pathChar125DotmdRoute
+  '/$lng/docs/$': typeof LngFrontendDocsSplatRoute
+  '/$lng/docs/{$}.md': typeof LngFrontendDocsChar123Char125DotmdRoute
   '/$lng/legal/$path': typeof LngFrontendLegalPathRoute
   '/$lng/legal/{$path}.md': typeof LngFrontendLegalChar123pathChar125DotmdRoute
   '/$lng/news/$path': typeof LngFrontendNewsPathRoute
@@ -271,8 +271,8 @@ export interface FileRoutesByTo {
   '/admin': typeof BylineAdminIndexRoute
   '/$lng/about/$path': typeof LngFrontendAboutPathRoute
   '/$lng/about/{$path}.md': typeof LngFrontendAboutChar123pathChar125DotmdRoute
-  '/$lng/docs/$path': typeof LngFrontendDocsPathRoute
-  '/$lng/docs/{$path}.md': typeof LngFrontendDocsChar123pathChar125DotmdRoute
+  '/$lng/docs/$': typeof LngFrontendDocsSplatRoute
+  '/$lng/docs/{$}.md': typeof LngFrontendDocsChar123Char125DotmdRoute
   '/$lng/legal/$path': typeof LngFrontendLegalPathRoute
   '/$lng/legal/{$path}.md': typeof LngFrontendLegalChar123pathChar125DotmdRoute
   '/$lng/news/$path': typeof LngFrontendNewsPathRoute
@@ -308,8 +308,8 @@ export interface FileRoutesById {
   '/_byline/admin/': typeof BylineAdminIndexRoute
   '/$lng/_frontend/about/$path': typeof LngFrontendAboutPathRoute
   '/$lng/_frontend/about/{$path}.md': typeof LngFrontendAboutChar123pathChar125DotmdRoute
-  '/$lng/_frontend/docs/$path': typeof LngFrontendDocsPathRoute
-  '/$lng/_frontend/docs/{$path}.md': typeof LngFrontendDocsChar123pathChar125DotmdRoute
+  '/$lng/_frontend/docs/$': typeof LngFrontendDocsSplatRoute
+  '/$lng/_frontend/docs/{$}.md': typeof LngFrontendDocsChar123Char125DotmdRoute
   '/$lng/_frontend/legal/$path': typeof LngFrontendLegalPathRoute
   '/$lng/_frontend/legal/{$path}.md': typeof LngFrontendLegalChar123pathChar125DotmdRoute
   '/$lng/_frontend/news/$path': typeof LngFrontendNewsPathRoute
@@ -345,8 +345,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/$lng/about/$path'
     | '/$lng/about/{$path}.md'
-    | '/$lng/docs/$path'
-    | '/$lng/docs/{$path}.md'
+    | '/$lng/docs/$'
+    | '/$lng/docs/{$}.md'
     | '/$lng/legal/$path'
     | '/$lng/legal/{$path}.md'
     | '/$lng/news/$path'
@@ -377,8 +377,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/$lng/about/$path'
     | '/$lng/about/{$path}.md'
-    | '/$lng/docs/$path'
-    | '/$lng/docs/{$path}.md'
+    | '/$lng/docs/$'
+    | '/$lng/docs/{$}.md'
     | '/$lng/legal/$path'
     | '/$lng/legal/{$path}.md'
     | '/$lng/news/$path'
@@ -413,8 +413,8 @@ export interface FileRouteTypes {
     | '/_byline/admin/'
     | '/$lng/_frontend/about/$path'
     | '/$lng/_frontend/about/{$path}.md'
-    | '/$lng/_frontend/docs/$path'
-    | '/$lng/_frontend/docs/{$path}.md'
+    | '/$lng/_frontend/docs/$'
+    | '/$lng/_frontend/docs/{$}.md'
     | '/$lng/_frontend/legal/$path'
     | '/$lng/_frontend/legal/{$path}.md'
     | '/$lng/_frontend/news/$path'
@@ -605,18 +605,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LngFrontendLegalPathRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
-    '/$lng/_frontend/docs/{$path}.md': {
-      id: '/$lng/_frontend/docs/{$path}.md'
-      path: '/{$path}.md'
-      fullPath: '/$lng/docs/{$path}.md'
-      preLoaderRoute: typeof LngFrontendDocsChar123pathChar125DotmdRouteImport
+    '/$lng/_frontend/docs/{$}.md': {
+      id: '/$lng/_frontend/docs/{$}.md'
+      path: '/{$}.md'
+      fullPath: '/$lng/docs/{$}.md'
+      preLoaderRoute: typeof LngFrontendDocsChar123Char125DotmdRouteImport
       parentRoute: typeof LngFrontendDocsRouteRoute
     }
-    '/$lng/_frontend/docs/$path': {
-      id: '/$lng/_frontend/docs/$path'
-      path: '/$path'
-      fullPath: '/$lng/docs/$path'
-      preLoaderRoute: typeof LngFrontendDocsPathRouteImport
+    '/$lng/_frontend/docs/$': {
+      id: '/$lng/_frontend/docs/$'
+      path: '/$'
+      fullPath: '/$lng/docs/$'
+      preLoaderRoute: typeof LngFrontendDocsSplatRouteImport
       parentRoute: typeof LngFrontendDocsRouteRoute
     }
     '/$lng/_frontend/about/{$path}.md': {
@@ -686,15 +686,15 @@ declare module '@tanstack/react-router' {
 }
 
 interface LngFrontendDocsRouteRouteChildren {
-  LngFrontendDocsPathRoute: typeof LngFrontendDocsPathRoute
-  LngFrontendDocsChar123pathChar125DotmdRoute: typeof LngFrontendDocsChar123pathChar125DotmdRoute
+  LngFrontendDocsSplatRoute: typeof LngFrontendDocsSplatRoute
+  LngFrontendDocsChar123Char125DotmdRoute: typeof LngFrontendDocsChar123Char125DotmdRoute
   LngFrontendDocsIndexRoute: typeof LngFrontendDocsIndexRoute
 }
 
 const LngFrontendDocsRouteRouteChildren: LngFrontendDocsRouteRouteChildren = {
-  LngFrontendDocsPathRoute: LngFrontendDocsPathRoute,
-  LngFrontendDocsChar123pathChar125DotmdRoute:
-    LngFrontendDocsChar123pathChar125DotmdRoute,
+  LngFrontendDocsSplatRoute: LngFrontendDocsSplatRoute,
+  LngFrontendDocsChar123Char125DotmdRoute:
+    LngFrontendDocsChar123Char125DotmdRoute,
   LngFrontendDocsIndexRoute: LngFrontendDocsIndexRoute,
 }
 

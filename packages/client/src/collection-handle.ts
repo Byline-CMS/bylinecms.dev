@@ -685,8 +685,10 @@ export class CollectionHandle {
   /**
    * Walk a document's ancestor chain upward, returning the ancestors
    * **root-first** (the breadcrumb trail, excluding the node itself), hydrated
-   * to `ClientDocument`s. In `'published'` mode (the client default) only
-   * ancestors that have a published version are returned.
+   * to `ClientDocument`s. In `'published'` mode (the client default) the walk
+   * applies status-at-edge: it stops at the first unpublished ancestor (a
+   * truncated chain), so a broken spine surfaces as a short chain the caller can
+   * detect rather than a silently-compacted one.
    */
   async getAncestors<F = Record<string, any>>(
     documentId: string,
@@ -700,6 +702,7 @@ export class CollectionHandle {
 
     const ancestors = await this.client.db.queries.documents.getTreeAncestors({
       document_id: documentId,
+      readMode,
     })
     if (ancestors.length === 0) return []
 
