@@ -26,6 +26,14 @@ import type { StoredFileValue } from '@byline/core'
 import { getPublicConfig } from '@/config'
 import { i18nConfig } from '@/i18n/i18n-config'
 
+/**
+ * Cache-busting version for the static social images in `public/`. Bump this
+ * whenever `opengraph-image.png` or `twitter-image.png` is replaced — social
+ * scrapers (Facebook, X, LinkedIn) and CDNs key their caches on the full URL
+ * including the query string, so a new value forces a re-fetch after deploy.
+ */
+const SOCIAL_IMAGE_VERSION = '1'
+
 export interface MetaImage {
   url?: string
   width?: number
@@ -84,14 +92,14 @@ export function getMeta(options: MetaOptions = {}): MetaHead {
   const url = options.path != null ? new URL(options.path, serverUrl).toString() : null
 
   const defaultOgImage: Required<MetaImage> = {
-    url: '/opengraph-image.png',
+    url: `/opengraph-image.png?v=${SOCIAL_IMAGE_VERSION}`,
     width: 1200,
     height: 630,
     type: 'image/png',
     alt: siteDescription,
   }
   const defaultTwitterImage: Required<MetaImage> = {
-    url: '/twitter-image.png',
+    url: `/twitter-image.png?v=${SOCIAL_IMAGE_VERSION}`,
     width: 1200,
     height: 675,
     type: 'image/png',
