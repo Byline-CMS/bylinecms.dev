@@ -438,6 +438,7 @@
   "treeWidget.remove": "从树中移除",
   "treeWidget.error": "无法更新树形位置。",
   "treeWidget.srDescription": "此文档在导航树中的父级。",
+  "treeListView.unplacedHeading": "未放置",
   "fields.blocks.addBlockAriaLabel": "添加块",
   "fields.blocks.modalTitle": "块",
   "fields.array.addItemAriaLabel": "添加项",

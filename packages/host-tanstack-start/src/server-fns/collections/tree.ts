@@ -93,7 +93,7 @@ export const getTreeAncestors = createServerFn({ method: 'GET' })
       .collection(path)
       .getAncestors(documentId, { status: 'any' })
     return ancestors.map((doc) => {
-      const fields = doc.fields as Record<string, unknown> | undefined
+      const fields = doc.fields as Record<string, any> | undefined
       const title = useAsTitle ? fields?.[useAsTitle] : undefined
       return {
         id: doc.id,
@@ -101,4 +101,80 @@ export const getTreeAncestors = createServerFn({ method: 'GET' })
         path: doc.path,
       }
     })
+  })
+
+// ---------------------------------------------------------------------------
+// Read the whole collection tree as ordered, depth-tagged rows for the built-in
+// tree list view. Placed nodes come first (pre-order, root-first), then any
+// *unplaced* documents (created but not yet positioned) so nothing is
+// unreachable from the list. Admin reads use `status: 'any'`.
+// ---------------------------------------------------------------------------
+
+export interface CollectionTreeRow {
+  id: string
+  depth: number
+  unplaced: boolean
+  status: string
+  path: string
+  createdAt: Date
+  updatedAt: Date
+  fields: Record<string, any>
+}
+
+export const getCollectionTree = createServerFn({ method: 'GET' })
+  .validator((input: { collection: string; locale?: string }) => input)
+  .handler(async ({ data }) => {
+    const { collection: path } = data
+    const config = await ensureCollection(path)
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: path },
+      }).log(getLogger())
+    }
+    const handle = getAdminBylineClient().collection(path)
+
+    const forest = await handle.getSubtree({ status: 'any', locale: data.locale })
+    const rows: CollectionTreeRow[] = []
+    const placed = new Set<string>()
+    const walk = (nodes: typeof forest, depth: number): void => {
+      for (const node of nodes) {
+        const doc = node.document
+        rows.push({
+          id: doc.id,
+          depth,
+          unplaced: false,
+          status: doc.status,
+          path: doc.path,
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+          fields: doc.fields as Record<string, any>,
+        })
+        placed.add(doc.id)
+        walk(node.children, depth + 1)
+      }
+    }
+    walk(forest, 0)
+
+    // Surface documents not yet in the tree (e.g. freshly created) so they
+    // remain reachable. Trees are small by design, so a single wide read is fine.
+    const all = await handle.find({ status: 'any', pageSize: 1000, _bypassBeforeRead: true })
+    for (const doc of all.docs) {
+      if (placed.has(doc.id)) continue
+      rows.push({
+        id: doc.id,
+        depth: 0,
+        unplaced: true,
+        status: doc.status,
+        path: doc.path,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+        fields: doc.fields as Record<string, any>,
+      })
+    }
+
+    return {
+      rows,
+      included: { collection: { path: config.collection.path, labels: config.definition.labels } },
+    }
   })

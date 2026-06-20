@@ -22,10 +22,13 @@ import { z } from 'zod'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { useNavigate } from '../admin-shell/chrome/loose-router.js'
 import { ListView } from '../admin-shell/collections/list.js'
+import { TreeListView } from '../admin-shell/collections/tree-list.js'
 import {
   getCollectionDocuments,
+  getCollectionTree,
   reorderCollectionDocument,
 } from '../server-fns/collections/index.js'
+import type { CollectionTreeRow } from '../server-fns/collections/tree.js'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -69,6 +72,15 @@ export function createCollectionListRoute(path: string) {
       const collectionDef = getCollectionDefinition(params.collection)
       if (!collectionDef) {
         throw notFound()
+      }
+
+      // `tree: true` collections use the built-in tree list view: load the whole
+      // tree (ordered, depth-tagged rows + unplaced docs) rather than a
+      // paginated single-collection page.
+      if (collectionDef.tree === true) {
+        return await getCollectionTree({
+          data: { collection: params.collection, locale: deps.locale },
+        })
       }
 
       // Derive the field names the list view needs from the admin column config.
@@ -157,7 +169,16 @@ export function createCollectionListRoute(path: string) {
               },
             ]}
           />
-          {CustomListView ? (
+          {collectionDef.tree === true ? (
+            <TreeListView
+              rows={(data as { rows: CollectionTreeRow[] }).rows}
+              columns={columns}
+              workflowStatuses={workflowStatuses}
+              useAsTitle={collectionDef.useAsTitle}
+              collection={collection}
+              collectionLabels={data.included.collection.labels}
+            />
+          ) : CustomListView ? (
             <CustomListView data={data} workflowStatuses={workflowStatuses} />
           ) : (
             <ListView

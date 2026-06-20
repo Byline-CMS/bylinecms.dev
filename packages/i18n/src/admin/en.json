@@ -438,6 +438,7 @@
   "treeWidget.remove": "Remove from tree",
   "treeWidget.error": "Couldn't update tree placement.",
   "treeWidget.srDescription": "This document's parent in the navigation tree.",
+  "treeListView.unplacedHeading": "Unplaced",
   "fields.blocks.addBlockAriaLabel": "Add block",
   "fields.blocks.modalTitle": "Blocks",
   "fields.array.addItemAriaLabel": "Add item",

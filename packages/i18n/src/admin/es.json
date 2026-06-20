@@ -438,6 +438,7 @@
   "treeWidget.remove": "Quitar del árbol",
   "treeWidget.error": "No se pudo actualizar la ubicación.",
   "treeWidget.srDescription": "El elemento padre de este documento en el árbol de navegación.",
+  "treeListView.unplacedHeading": "Sin ubicar",
   "fields.blocks.addBlockAriaLabel": "Añadir bloque",
   "fields.blocks.modalTitle": "Bloques",
   "fields.array.addItemAriaLabel": "Añadir elemento",

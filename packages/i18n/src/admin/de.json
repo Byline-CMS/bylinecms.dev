@@ -438,6 +438,7 @@
   "treeWidget.remove": "Aus dem Baum entfernen",
   "treeWidget.error": "Position konnte nicht aktualisiert werden.",
   "treeWidget.srDescription": "Das übergeordnete Element dieses Dokuments im Navigationsbaum.",
+  "treeListView.unplacedHeading": "Nicht platziert",
   "fields.blocks.addBlockAriaLabel": "Block hinzufügen",
   "fields.blocks.modalTitle": "Blöcke",
   "fields.array.addItemAriaLabel": "Element hinzufügen",
