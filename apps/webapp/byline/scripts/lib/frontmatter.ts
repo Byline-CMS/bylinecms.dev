@@ -87,14 +87,13 @@ export function parseDocFile(source: string, filePath: string): ParsedDoc {
     fm.summary = data.summary
   }
 
-  if (data.status !== undefined) {
-    if (typeof data.status !== 'string' || !ALLOWED_STATUSES.has(data.status)) {
-      throw new Error(
-        `${filePath}: 'status' must be one of ${[...ALLOWED_STATUSES].join(', ')}; got '${String(
-          data.status
-        )}'.`
-      )
-    }
+  // `status` is overloaded: a workflow status (draft / published / …) is an
+  // import directive, but Byline's own design docs also use `status:` for
+  // *descriptive* metadata (e.g. "PARTIALLY IMPLEMENTED — …"). Treat a value
+  // that isn't a workflow status as descriptive — ignore it for import (the
+  // file falls back to the default import status) rather than rejecting the
+  // whole file. Only a workflow status is carried through as a directive.
+  if (typeof data.status === 'string' && ALLOWED_STATUSES.has(data.status)) {
     fm.status = data.status as DocFrontmatter['status']
   }
 

@@ -33,7 +33,13 @@ export const Docs = defineCollection({
     customStatuses: [{ name: 'needs_review', label: 'Needs Review', verb: 'Request Review' }],
   }),
   showStats: true,
-  orderable: true,
+  // Document tree (docs/DOCUMENT-TREE.md): the docs collection is a
+  // single-parent ordered hierarchy. Mutually exclusive with `orderable` —
+  // the tree owns ordering (per-parent, on the edge), so `order_key` on
+  // `byline_documents` is inert here. Sibling order and nesting are edited via
+  // the sidebar tree-placement widget; the import script derives placement
+  // from the source directory layout (see byline/scripts/import-docs.ts).
+  tree: true,
   search: { fields: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
