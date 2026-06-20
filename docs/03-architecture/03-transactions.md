@@ -11,7 +11,7 @@ database commands can commit or roll back atomically, without threading a
 transaction handle through every signature. The boundary is owned by the service
 layer; commands resolve their executor through an `AsyncLocalStorage`-propagated
 transaction. Its primary consumer is the
-[document-grain audit log](../06-auth-and-security/02-auditability.md#the-document-grain-audit-log),
+[document-level audit log](../06-auth-and-security/02-auditability.md#the-document-level-audit-log),
 where each audited write-point wraps its mutation and `audit.append` in one
 transaction so the change and its audit row commit together.
 
@@ -24,7 +24,7 @@ was atomic **in isolation**, but two commands could not be composed into one
 transaction. That's a gap the moment a single logical operation must write
 two things atomically:
 
-- **The audit log (the forcing case).** A document-grain change — a path
+- **The audit log (the forcing case).** A document-level change — a path
   edit, a status transition, a delete — and its audit-log row must commit
   together. The one unacceptable outcome for an *auditability* feature is a
   change that succeeds while its audit row silently fails to write. See
@@ -75,7 +75,7 @@ await txManager.withTransaction(async () => {
 The audit write lives in the **service** (where the actor and before/after
 already are); the adapter only gains a dumb `audit.append` command that
 inserts a row. The storage layer never learns the word "audit". See
-[the document-grain audit log](../06-auth-and-security/02-auditability.md#the-document-grain-audit-log)
+[the document-level audit log](../06-auth-and-security/02-auditability.md#the-document-level-audit-log)
 for the consuming side.
 
 ## Boundary placement
@@ -189,4 +189,4 @@ future adapter has a clear target:
 | Atomicity / propagation test | `packages/db-postgres/src/modules/storage/tests/storage-transactions.test.ts` |
 | Per-command transaction sites (now resolve via the getter) | `packages/db-postgres/src/modules/storage/storage-commands.ts` (6) |
 | Prior-art ALS usage in-repo | `packages/core/src/lib/logger.ts` (`withLogContext`) |
-| First consumer | [the document-grain audit log](../06-auth-and-security/02-auditability.md#the-document-grain-audit-log) |
+| First consumer | [the document-level audit log](../06-auth-and-security/02-auditability.md#the-document-level-audit-log) |

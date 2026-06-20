@@ -36,6 +36,20 @@ configuration.
 
 And these three concerns should all work together.
 
+What lets them work together is one architectural decision: Byline separates a
+document's **identity and placement** — its URL path, the content locales it
+advertises, and where it sits in a navigation tree — from its **versioned
+content**. Identity and placement live at the *document level* and stay stable as
+content moves through drafts and revisions; content lives in an *immutable version
+stream*. Keeping the two apart is what stops them from fighting: renaming a slug,
+re-advertising a locale, or re-ordering a chapter is an immediate structural edit
+that never resets a document's workflow status or clutters its version history,
+while every change to the content itself remains a tracked, reviewable version. It
+is also why provenance holds end to end — versioning accounts for the content, and
+an audit trail accounts for the structural changes that sit outside it. See
+[Document level vs version level](../03-architecture/index.md#3-document-level-vs-version-level)
+for the full picture.
+
 ## Data Ownership
 
 We believe that if you create and store content, you should be able to get it

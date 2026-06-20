@@ -1,21 +1,21 @@
 ---
 title: "Auditability"
 path: "audit"
-summary: "Present-state reference for the auditability subsystem: the version audit trail (acting user + action), the document-grain audit log, the tabbed document-history view, and the system-wide activity area. The internal staff-accountability record behind the public 'who wrote it, who changed it' claim."
+summary: "Present-state reference for the auditability subsystem: the version audit trail (acting user + action), the document-level audit log, the tabbed document-history view, and the system-wide activity area. The internal staff-accountability record behind the public 'who wrote it, who changed it' claim."
 ---
 
 # Auditability
 
 This is the reference for Byline's auditability subsystem: the per-version
-acting-user trail, the document-grain audit log for changes that sit outside the
+acting-user trail, the document-level audit log for changes that sit outside the
 version stream, and the history and activity views built on top of them. It
 builds on the [`withTransaction`](../03-architecture/03-transactions.md)
 capability that lets each audited change and its audit row commit atomically.
 
 Audit and versioning are two halves of one accountability story, split along
-Byline's [document-grain vs version-grain](../03-architecture/index.md#3-document-grain-vs-version-grain)
+Byline's [document-level vs version-level](../03-architecture/index.md#3-document-level-vs-version-level)
 line: **versioning** makes every *content* change accountable as an immutable,
-diffable version, while the **audit log** covers the document-grain and status
+diffable version, while the **audit log** covers the document-level and status
 changes that deliberately mint no version (`path`, `availableLocales`, the tree
 edge, and lifecycle transitions). Read that architectural decision first if you
 want the why behind the split.
@@ -33,7 +33,7 @@ bylinecms.app leads with auditability as a principle:
 The immutable version stream honours the *what* and *when* — versions, a
 History view, per-version diffs. The auditability subsystem honours the **who**,
 and records the two classes of change that sit outside the version stream
-(non-versioned document-grain writes, in-place status transitions) plus
+(non-versioned document-level writes, in-place status transitions) plus
 deletions and — reserved — admin-module actions.
 
 ### Vocabulary — "audit", not "attribution"
@@ -123,10 +123,10 @@ concern that should be structurally present, not opt-in per collection.
   **list view** — it roughly halves row density, and the density toggle
   (per-collection admin config vs. a view-level control) is unresolved.
 
-## The document-grain audit log
+## The document-level audit log
 
 Records the changes the version stream deliberately does not: non-versioned
-document-grain writes (`path`, `availableLocales`), in-place status
+document-level writes (`path`, `availableLocales`), in-place status
 transitions, deletions, and — reserved — admin-module actions.
 
 ### Table

@@ -177,7 +177,7 @@ Behaviour:
 
 The widget bypasses the patch system. The `systemPath` slot on form context (`getSystemPath`, `setSystemPath`, `subscribeSystemPath`) is initialised from `initialData.path` on mount, tracked in dirty state, reset on form save, and threaded into the `onSubmit(...)` payload that `FormRenderer` emits.
 
-On an existing document, a path edit in the admin is a **document-grain, non-versioned write**: `path` lives in `byline_document_paths` keyed by logical document (sticky across versions), so editing it does not mint a new version or reset workflow status. `FormRenderer` partitions its dirty state (`getDirtyBreakdown()` → `none` / `content` / `direct-write` / `both`), confirms the immediate write with a modal, and persists `path` through the dedicated non-versioned write path below. On **create**, `path` is still part of the initial version write. See [Internationalization](../07-internationalization/index.md) for the shared design (the available-locales widget works the same way).
+On an existing document, a path edit in the admin is a **document-level, non-versioned write**: `path` lives in `byline_document_paths` keyed by logical document (sticky across versions), so editing it does not mint a new version or reset workflow status. `FormRenderer` partitions its dirty state (`getDirtyBreakdown()` → `none` / `content` / `direct-write` / `both`), confirms the immediate write with a modal, and persists `path` through the dedicated non-versioned write path below. On **create**, `path` is still part of the initial version write. See [Internationalization](../07-internationalization/index.md) for the shared design (the available-locales widget works the same way).
 
 ## Server transport
 

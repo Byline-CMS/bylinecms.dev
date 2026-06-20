@@ -1,7 +1,7 @@
 ---
 title: "Content locales"
 path: "i18n-content-locales"
-summary: "The language a document is published in: per-document locale resolution and fallback (onMissingLocale), the version-grain completeness rule, and the editorial availableLocales control that decides which locales a document advertises in hreflang, sitemaps, and 'Also available in…' menus."
+summary: "The language a document is published in: per-document locale resolution and fallback (onMissingLocale), the version-level completeness rule, and the editorial availableLocales control that decides which locales a document advertises in hreflang, sitemaps, and 'Also available in…' menus."
 ---
 
 ## Content locales
@@ -44,7 +44,7 @@ body. Resolution closes that gap with three rules:
    at the default content locale** (which must therefore be published first). A
    read always returns *something*, and only 404s when the document does not
    exist *at all* — never merely because a translation is missing.
-3. **"Available in locale L" is a version-grain fact** — a property of a document
+3. **"Available in locale L" is a version-level fact** — a property of a document
    *version's* content, computed once at write time and frozen on the immutable
    version. Keying it to the version (not the document) is what keeps it correct
    under restore and point-in-time reads.
@@ -179,7 +179,7 @@ locale.
 
 ## Saving advertised locales is immediate and non-versioned
 
-`availableLocales` is **document-grain** — it lives in
+`availableLocales` is **document-level** — it lives in
 `byline_document_available_locales` keyed by logical document, sticky across
 versions (the same shape as `path`). Editing it is therefore **not** part of the
 version workflow: toggling a locale writes through its own path
@@ -196,12 +196,12 @@ system-field write), and `both` (each through its own path). When a save involve
 a `direct-write`, the editor first confirms a modal that spells out the immediate,
 non-workflow nature of the change (tailored by whether a published version is
 live). The path widget rides the exact same machinery for the exact same reason
-(it is also document-grain and sticky). Because these writes are immediate rather
-than gated, accountability for them is the job of the document-grain
+(it is also document-level and sticky). Because these writes are immediate rather
+than gated, accountability for them is the job of the document-level
 [audit log](../06-auth-and-security/02-auditability.md) rather than the version
 history.
 
-> **Why not gate it behind publish?** A document-grain field can't honestly be
+> **Why not gate it behind publish?** A document-level field can't honestly be
 > "pending publish" — there is no per-version copy of it to stage. Coupling it to
 > the version workflow (the pre-decoupling behaviour) reset the document to draft
 > and *implied* gating that never existed: the editorial write already landed at
@@ -214,7 +214,7 @@ and tags:
 
 | Field | Meaning |
 |---|---|
-| `availableLocales` | the editorial advertised set (document-grain, stored). |
+| `availableLocales` | the editorial advertised set (document-level, stored). |
 | `_availableVersionLocales` | the structural completeness ledger for the resolved version (derived, read-only, sorted). |
 | `_localeAgnostic` | `true` for a document with no localized content ("renders everywhere"); a per-document affordance should render no menu. |
 | `sourceLocale` | the document's content anchor — see [Administering content locales](./04-administering-locales.md). |
