@@ -170,6 +170,8 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         softDeleteDocument: vi.fn(),
         deleteDocumentLocale: vi.fn(),
         setOrderKey: vi.fn(),
+        placeTreeNode: vi.fn(),
+        removeFromTree: vi.fn(),
       },
       counters: {
         ensureCounterGroup: vi.fn(),
@@ -198,6 +200,8 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         getLastOrderKey: vi.fn(),
         getNeighborOrderKeys: vi.fn(),
         getCanonicalDocumentOrder: vi.fn(),
+        getTreeAncestors: vi.fn(),
+        getTreeChildren: vi.fn(),
       },
     },
   } satisfies IDbAdapter

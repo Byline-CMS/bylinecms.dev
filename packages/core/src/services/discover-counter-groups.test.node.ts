@@ -40,6 +40,8 @@ function makeAdapter(options?: {
         softDeleteDocument: vi.fn(fail) as any,
         deleteDocumentLocale: vi.fn(fail) as any,
         setOrderKey: vi.fn(fail) as any,
+        placeTreeNode: vi.fn(fail) as any,
+        removeFromTree: vi.fn(fail) as any,
       },
       counters: {
         ensureCounterGroup,
@@ -68,6 +70,8 @@ function makeAdapter(options?: {
         getLastOrderKey: vi.fn(fail) as any,
         getNeighborOrderKeys: vi.fn(fail) as any,
         getCanonicalDocumentOrder: vi.fn(fail) as any,
+        getTreeAncestors: vi.fn(fail) as any,
+        getTreeChildren: vi.fn(fail) as any,
       },
     },
   }

@@ -56,6 +56,8 @@ function createMockDb(options: {
         softDeleteDocument: vi.fn(fail) as any,
         deleteDocumentLocale: vi.fn(fail) as any,
         setOrderKey: vi.fn(fail) as any,
+        placeTreeNode: vi.fn(fail) as any,
+        removeFromTree: vi.fn(fail) as any,
       },
       counters: {
         ensureCounterGroup: vi.fn(fail) as any,
@@ -84,6 +86,8 @@ function createMockDb(options: {
         getLastOrderKey: vi.fn(fail) as any,
         getNeighborOrderKeys: vi.fn(fail) as any,
         getCanonicalDocumentOrder: vi.fn(fail) as any,
+        getTreeAncestors: vi.fn(fail) as any,
+        getTreeChildren: vi.fn(fail) as any,
       },
     },
   }
@@ -226,6 +230,8 @@ describe('ensureCollections', () => {
           softDeleteDocument: vi.fn() as any,
           deleteDocumentLocale: vi.fn() as any,
           setOrderKey: vi.fn() as any,
+          placeTreeNode: vi.fn() as any,
+          removeFromTree: vi.fn() as any,
         },
         counters: {
           ensureCounterGroup: vi.fn() as any,
@@ -254,6 +260,8 @@ describe('ensureCollections', () => {
           getLastOrderKey: vi.fn() as any,
           getNeighborOrderKeys: vi.fn() as any,
           getCanonicalDocumentOrder: vi.fn() as any,
+          getTreeAncestors: vi.fn() as any,
+          getTreeChildren: vi.fn() as any,
         },
       },
     }

@@ -598,6 +598,45 @@ export interface IDocumentCommands {
    * on the row is refreshed so list-view caches can invalidate cleanly.
    */
   setOrderKey(params: { document_id: string; order_key: string }): Promise<void>
+
+  /**
+   * Place or move a document within its collection's single-parent ordered
+   * tree (the `tree: true` document-tree primitive). Upserts the node's edge
+   * row in `byline_document_relationships`: sets `parentDocumentId` (or NULL
+   * for a root node) and mints a per-parent fractional `order_key` between the
+   * resolved in-group neighbours. Covers place, reorder, and re-parent — they
+   * differ only in whether `parentDocumentId` changes.
+   *
+   * Document-grain and unversioned: writes the edge table only — no new
+   * document version, no status change, no user-field write (exactly like
+   * `setOrderKey` / `updateDocumentPath`).
+   *
+   * Two invariants the DB cannot hold are enforced in the same transaction as
+   * the write, so concurrent cross-moves cannot race them:
+   *   - **cycle guard** — rejects a move that would make the node its own
+   *     ancestor (walks the new parent's ancestor chain).
+   *   - **same-collection guard** — both endpoints must belong to
+   *     `collectionId` (the tree is self-referential within one collection).
+   *
+   * `beforeDocumentId` / `afterDocumentId` are the sibling nodes (within the
+   * target parent group) the placed node should land between; either may be
+   * null (prepend / append / first child). See docs/DOCUMENT-TREE.md.
+   */
+  placeTreeNode(params: {
+    collectionId: string
+    documentId: string
+    parentDocumentId: string | null
+    beforeDocumentId?: string | null
+    afterDocumentId?: string | null
+  }): Promise<{ orderKey: string }>
+
+  /**
+   * Remove a document's edge row, returning it to the *unplaced* state (in the
+   * collection, but not in the tree). Distinct from document deletion — the
+   * document and its content are untouched. No-op when the node is already
+   * unplaced. See docs/DOCUMENT-TREE.md.
+   */
+  removeFromTree(params: { documentId: string }): Promise<void>
 }
 
 export interface ICollectionQueries {
@@ -891,4 +930,31 @@ export interface IDocumentQueries {
   getCanonicalDocumentOrder(params: {
     collection_id: string
   }): Promise<Array<{ id: string; order_key: string | null }>>
+
+  /**
+   * Walk a document's ancestor chain upward through the document tree
+   * (`byline_document_relationships`). Returns the ancestors ordered
+   * **root-first** with a 1-based `depth` (1 = the document's immediate
+   * parent, increasing toward the root). Empty for a root or unplaced node.
+   *
+   * Backs breadcrumbs and the read-time hierarchical-URL canonicalization
+   * (docs/DOCUMENT-TREE.md). Depth-bounded as a backstop against pathological
+   * key state even though the write-path cycle guard prevents true cycles.
+   */
+  getTreeAncestors(params: {
+    document_id: string
+    maxDepth?: number
+  }): Promise<Array<{ document_id: string; depth: number }>>
+
+  /**
+   * List the immediate children of a tree node, ordered by the per-parent
+   * `order_key`. `parentDocumentId: null` returns the collection's root nodes.
+   * Scoped to `collectionId` so root reads (which have no parent to scope by)
+   * stay within the collection. One level only — the recursive subtree read is
+   * a separate query. See docs/DOCUMENT-TREE.md.
+   */
+  getTreeChildren(params: {
+    collectionId: string
+    parentDocumentId: string | null
+  }): Promise<Array<{ document_id: string; order_key: string }>>
 }

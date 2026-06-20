@@ -26,7 +26,7 @@ import type {
 // logger. A future refactor could inject the logger at construction time by
 // either deferring adapter construction or accepting a lazy logger parameter.
 import { ERR_DATABASE, ERR_NOT_FOUND, getLogger, orderByContentLocale } from '@byline/core'
-import { and, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import {
@@ -35,6 +35,7 @@ import {
   currentPublishedDocumentsView,
   documentAvailableLocales,
   documentPaths,
+  documentRelationships,
   documents,
   documentVersionLocales,
   documentVersions,
@@ -1305,6 +1306,73 @@ export class DocumentQueries implements IDocumentQueries {
       .from(documents)
       .where(eq(documents.collection_id, collection_id))
       .orderBy(sql`${documents.order_key} ASC NULLS LAST`, desc(documents.created_at))
+    return rows
+  }
+
+  /**
+   * getTreeAncestors — see {@link IDocumentQueries.getTreeAncestors}.
+   *
+   * Recursive CTE walking `parent_document_id` upward from the given node.
+   * Returns ancestors root-first (`ORDER BY depth DESC`), each with a 1-based
+   * depth (1 = immediate parent). Empty for a root or unplaced node.
+   */
+  async getTreeAncestors({
+    document_id,
+    maxDepth = 10_000,
+  }: {
+    document_id: string
+    maxDepth?: number
+  }): Promise<Array<{ document_id: string; depth: number }>> {
+    const { rows } = await this.db.execute(sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT parent_document_id AS ancestor_id, child_document_id AS node_id, 1 AS depth
+        FROM byline_document_relationships
+        WHERE child_document_id = ${document_id}::uuid AND parent_document_id IS NOT NULL
+        UNION ALL
+        SELECT r.parent_document_id, r.child_document_id, a.depth + 1
+        FROM byline_document_relationships r
+        JOIN ancestors a ON r.child_document_id = a.ancestor_id
+        WHERE r.parent_document_id IS NOT NULL AND a.depth < ${maxDepth}
+      )
+      SELECT ancestor_id AS document_id, depth FROM ancestors ORDER BY depth DESC
+    `)
+    return rows.map((r) => ({
+      document_id: r.document_id as string,
+      depth: Number(r.depth),
+    }))
+  }
+
+  /**
+   * getTreeChildren — see {@link IDocumentQueries.getTreeChildren}.
+   *
+   * Immediate children of a node ordered by the per-parent `order_key`.
+   * `parentDocumentId: null` returns the collection's root nodes; the join to
+   * `byline_documents` scopes roots to the collection (they have no parent to
+   * scope by).
+   */
+  async getTreeChildren({
+    collectionId,
+    parentDocumentId,
+  }: {
+    collectionId: string
+    parentDocumentId: string | null
+  }): Promise<Array<{ document_id: string; order_key: string }>> {
+    const rows = await this.db
+      .select({
+        document_id: documentRelationships.child_document_id,
+        order_key: documentRelationships.order_key,
+      })
+      .from(documentRelationships)
+      .innerJoin(documents, eq(documents.id, documentRelationships.child_document_id))
+      .where(
+        and(
+          eq(documents.collection_id, collectionId),
+          parentDocumentId == null
+            ? isNull(documentRelationships.parent_document_id)
+            : eq(documentRelationships.parent_document_id, parentDocumentId)
+        )
+      )
+      .orderBy(documentRelationships.order_key)
     return rows
   }
 

@@ -72,6 +72,8 @@ function createMockDb() {
         softDeleteDocument: vi.fn(),
         deleteDocumentLocale: vi.fn(),
         setOrderKey: vi.fn(),
+        placeTreeNode: vi.fn(),
+        removeFromTree: vi.fn(),
       },
       counters: {
         ensureCounterGroup: vi.fn(),
@@ -100,6 +102,8 @@ function createMockDb() {
         getLastOrderKey: vi.fn(),
         getNeighborOrderKeys: vi.fn(),
         getCanonicalDocumentOrder: vi.fn(),
+        getTreeAncestors: vi.fn(),
+        getTreeChildren: vi.fn(),
       },
     },
   }

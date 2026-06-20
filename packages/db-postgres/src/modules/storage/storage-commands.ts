@@ -7,7 +7,8 @@
  */
 
 import type { CollectionDefinition, ICollectionCommands, IDocumentCommands } from '@byline/core'
-import { and, desc, eq, ne, sql } from 'drizzle-orm'
+import { ERR_NOT_FOUND, ERR_VALIDATION, generateKeyBetween } from '@byline/core'
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -17,6 +18,7 @@ import {
   datetimeStore,
   documentAvailableLocales,
   documentPaths,
+  documentRelationships,
   documents,
   documentVersionLocales,
   documentVersions,
@@ -36,6 +38,14 @@ import type { DBManager } from '../../lib/db-manager.js'
 type DatabaseConnection = NodePgDatabase<typeof schema>
 /** The transaction handle passed to `this.db.transaction(async (tx) => …)`. */
 type TxConnection = Parameters<Parameters<DatabaseConnection['transaction']>[0]>[0]
+
+/**
+ * Depth backstop for the document-tree recursive walks (cycle guard, ancestor
+ * walk). The write-path cycle guard prevents true cycles, so this only bounds
+ * recursion against pre-existing pathological state — far deeper than any real
+ * documentation hierarchy. See docs/DOCUMENT-TREE.md.
+ */
+const TREE_MAX_DEPTH = 10_000
 
 /** Outcome of re-anchoring a single document's content source locale. */
 export type ReAnchorStatus = 'reanchored' | 'skipped-incomplete' | 'already-anchored' | 'not-found'
@@ -1052,6 +1062,155 @@ export class DocumentCommands implements IDocumentCommands {
         updated_at: new Date(),
       })
       .where(eq(documents.id, params.document_id))
+  }
+
+  /**
+   * placeTreeNode — see {@link IDocumentCommands.placeTreeNode}.
+   *
+   * Single transaction: same-collection guard → cycle guard → resolve the
+   * target sibling group's neighbour keys → mint a fractional key → upsert the
+   * edge row (conflict on `child_document_id`, the single-parent invariant).
+   * Unversioned; touches only `byline_document_relationships`.
+   */
+  async placeTreeNode(params: {
+    collectionId: string
+    documentId: string
+    parentDocumentId: string | null
+    beforeDocumentId?: string | null
+    afterDocumentId?: string | null
+  }): Promise<{ orderKey: string }> {
+    const { collectionId, documentId, parentDocumentId } = params
+    const beforeDocumentId = params.beforeDocumentId ?? null
+    const afterDocumentId = params.afterDocumentId ?? null
+
+    if (parentDocumentId === documentId) {
+      throw ERR_VALIDATION({
+        message: 'a document cannot be its own parent in the document tree',
+        details: { documentId },
+      })
+    }
+
+    return await this.db.transaction(async (tx) => {
+      // Same-collection guard — both endpoints must live in `collectionId`.
+      const ids = parentDocumentId ? [documentId, parentDocumentId] : [documentId]
+      const docRows = await tx
+        .select({ id: documents.id, collection_id: documents.collection_id })
+        .from(documents)
+        .where(inArray(documents.id, ids))
+      const collectionById = new Map(docRows.map((r) => [r.id, r.collection_id]))
+
+      if (collectionById.get(documentId) == null) {
+        throw ERR_NOT_FOUND({ message: 'document not found', details: { documentId } })
+      }
+      if (collectionById.get(documentId) !== collectionId) {
+        throw ERR_VALIDATION({
+          message: 'document does not belong to the collection',
+          details: { documentId, collectionId },
+        })
+      }
+
+      if (parentDocumentId != null) {
+        if (collectionById.get(parentDocumentId) == null) {
+          throw ERR_NOT_FOUND({
+            message: 'parent document not found',
+            details: { parentDocumentId },
+          })
+        }
+        if (collectionById.get(parentDocumentId) !== collectionId) {
+          throw ERR_VALIDATION({
+            message: 'parent document is in a different collection',
+            details: { parentDocumentId, collectionId },
+          })
+        }
+
+        // Cycle guard — reject when `documentId` is the new parent itself or
+        // any of its ancestors (which would put the node below its own
+        // subtree). Walk upward from `parentDocumentId`; depth-bounded.
+        const cycle = await tx.execute(sql`
+          WITH RECURSIVE chain AS (
+            SELECT ${parentDocumentId}::uuid AS node_id, 0 AS depth
+            UNION ALL
+            SELECT r.parent_document_id, c.depth + 1
+            FROM byline_document_relationships r
+            JOIN chain c ON r.child_document_id = c.node_id
+            WHERE r.parent_document_id IS NOT NULL AND c.depth < ${TREE_MAX_DEPTH}
+          )
+          SELECT 1 FROM chain WHERE node_id = ${documentId}::uuid LIMIT 1
+        `)
+        if (cycle.rows.length > 0) {
+          throw ERR_VALIDATION({
+            message: 'move would create a cycle in the document tree',
+            details: { documentId, parentDocumentId },
+          })
+        }
+      }
+
+      // Resolve the neighbour keys within the target sibling group and mint a
+      // fractional key between them. Per-parent keyspace, so collisions across
+      // sibling groups are structurally impossible.
+      const neighbourIds: string[] = []
+      if (beforeDocumentId) neighbourIds.push(beforeDocumentId)
+      if (afterDocumentId) neighbourIds.push(afterDocumentId)
+
+      let left: string | null = null
+      let right: string | null = null
+      if (neighbourIds.length > 0) {
+        const edgeRows = await tx
+          .select({
+            child: documentRelationships.child_document_id,
+            order_key: documentRelationships.order_key,
+          })
+          .from(documentRelationships)
+          .where(inArray(documentRelationships.child_document_id, neighbourIds))
+        const keyByChild = new Map(edgeRows.map((r) => [r.child, r.order_key]))
+        left = beforeDocumentId ? (keyByChild.get(beforeDocumentId) ?? null) : null
+        right = afterDocumentId ? (keyByChild.get(afterDocumentId) ?? null) : null
+      }
+
+      let orderKey: string
+      try {
+        orderKey = generateKeyBetween(left, right)
+      } catch (err) {
+        throw ERR_VALIDATION({
+          message: 'cannot generate order_key between the supplied tree neighbours',
+          details: {
+            documentId,
+            parentDocumentId,
+            left,
+            right,
+            cause: err instanceof Error ? err.message : String(err),
+          },
+        })
+      }
+
+      await tx
+        .insert(documentRelationships)
+        .values({
+          child_document_id: documentId,
+          parent_document_id: parentDocumentId,
+          order_key: orderKey,
+        })
+        .onConflictDoUpdate({
+          target: documentRelationships.child_document_id,
+          set: {
+            parent_document_id: parentDocumentId,
+            order_key: orderKey,
+            updated_at: new Date(),
+          },
+        })
+
+      return { orderKey }
+    })
+  }
+
+  /**
+   * removeFromTree — see {@link IDocumentCommands.removeFromTree}.
+   * Single-row delete; no-op when the node is already unplaced.
+   */
+  async removeFromTree(params: { documentId: string }): Promise<void> {
+    await this.db
+      .delete(documentRelationships)
+      .where(eq(documentRelationships.child_document_id, params.documentId))
   }
 }
 
