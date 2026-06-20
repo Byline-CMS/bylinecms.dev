@@ -1,54 +1,55 @@
 ---
 title: "Key Architectural Decisions"
 path: "architecture"
-summary: "The load-bearing design decisions behind Byline: universal EAV storage, immutable versioning, patch-based updates, the schema/admin split, and the workflow system."
+summary: "The load-bearing design decisions behind Byline: universal EAV storage, immutable versioning, patch-based updates, the schema/admin split, and the authorization model. Each links to its full reference."
 ---
 
 # Key Architectural Decisions
 
-These are the load-bearing design decisions behind Byline. Each is described
-in more depth in the matching reference document under [`docs/`](.).
+These are the load-bearing decisions behind Byline. Each is described in depth in
+its own reference document; this page is the map.
 
-## 1. Universal Storage (Inverted Index / EAV-per-type)
+## 1. Universal storage (EAV-per-type)
 
-One of our experiments in this effort is the creation of a general purpose
-storage model that does not require per-collection schema deployments or
-migrations regardless of collection shape. It is similar to an
-Entity-Attribute-Value store partitioned by type. Our typed `store_*` tables
-give us proper column types, indexability, and future full-text/GIN indexing —
-which we feel is a significant advantage over a single JSONB-per-document
-approach. We use a custom store path notation (`content.1.photoBlock.0.display`)
-as our addressing scheme for 'flattening' and 'reconstructing' documents.
+Byline stores every document in a general-purpose model that needs no
+per-collection tables and no migrations when a collection's shape changes. It
+resembles an entity-attribute-value store, partitioned by primitive type: typed
+`store_*` tables give proper column types, indexability, and full-text / GIN
+indexing — a meaningful advantage over a single JSONB-per-document blob. A custom
+path notation (`content.1.photoBlock.0.display`) addresses each value, and the
+storage layer flattens documents into rows on write and reconstructs them on
+read.
 
-For a deep dive — including the strategic analysis, benchmarks, and roadmap —
-see [CORE-DOCUMENT-STORAGE](./01-document-storage.md).
+For the full treatment — data model, benchmarks, and risks — see
+[Document Storage](./01-document-storage.md).
 
-## 2. Immutable Versioning
+## 2. Immutable versioning
 
-We save document versions by default (UUIDv7 time-ordered). This gives us
-built-in version history, enables eventual audit trails, and avoids in-place
-mutation. We use `ROW_NUMBER() OVER PARTITION` for resolving "latest" versions.
+Every save writes a new document version (UUIDv7, time-ordered) rather than
+mutating in place. This gives version history and audit trails for free; a
+`ROW_NUMBER() OVER PARTITION` view resolves the current version per document.
 
-See [CORE-DOCUMENT-STORAGE → Versioning](./01-document-storage.md#versioning) for the document-versioning runtime, and [COLLECTIONS → Versioning](../04-collections/index.md#versioning) for the *schema*-versioning track that records which schema shape each document was authored against.
+See [Document Storage → Versioning](./01-document-storage.md#versioning) for the
+document-versioning runtime, and [Collection Versioning](../04-collections/07-collection-versioning.md)
+for the *schema*-versioning track that records which schema shape each document
+was authored against.
 
-## 3. Patch-Based Updates
+## 3. Patch-based updates
 
-We accumulate `DocumentPatch[]` on the client and apply them server-side
-against the reconstructed document. Three patch families (field, array, block)
-cover the essential operations. We also feel our patch-based strategy is a
-good foundation for future collaborative editing (OT/CRDT).
+The admin client accumulates a `DocumentPatch[]` and applies it server-side
+against the reconstructed document. Three patch families — field, array, and
+block — cover the essential operations, and the patch model is a foundation for
+future collaborative editing (OT/CRDT).
 
-Patches are admin-form internal — public writes go whole-document. See
-`packages/core/src/patches/` for the implementation, and
-[CLIENT-SDK → Write surface](../05-reading-and-delivery/01-client-sdk.md#write-surface) for the public
-write contract.
+Patches are admin-form internal; public writes go whole-document. See
+`packages/core/src/patches/` for the implementation and
+[Client SDK → Write surface](../05-reading-and-delivery/01-client-sdk.md#write-surface)
+for the public write contract.
 
-## 4. Schema and Presentation Are Separate Systems
+## 4. Schema and presentation are separate systems
 
-We're fairly sure that splitting schema from presentation concerns is the
-right way to go. The core idea is to have schema/data config defined
-separately from admin UI config (which references the schema). Something like
-this:
+A collection's **schema** (what it *is*) is defined separately from its **admin
+config** (how it *renders*), with the admin config referencing the schema:
 
 ```ts
 // collections/pages/schema.ts  (server-safe, no UI concerns)
@@ -122,53 +123,53 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
 config) because they describe the document itself, not how it's rendered.
 `useAsTitle` names the field that represents a document's identity — used
 by the relation picker summary, populate's default projection, and any
-other server-side consumer. Analogous to Django's `Model.__str__`.
+other server-side consumer. It is analogous to Django's `Model.__str__`.
 :::
 
-The advantages of this approach:
+The split pays off in several ways:
 
-- Schema definitions become truly server-only — no import-map strings, no
-  admin blocks, no client components anywhere near them. They're plain data,
-  trivially serializable, testable, and publishable as an API contract.
-- Admin UI config can use real JSX and real imports because it's explicitly a
-  client (or RSC) module. No string indirection needed.
+- Schema definitions are truly server-only — plain data, with no import-map
+  strings, admin blocks, or client components near them. They are trivially
+  serializable, testable, and publishable as an API contract.
+- Admin config can use real JSX and real imports, because it is explicitly a
+  client (or RSC) module — no string indirection.
 - The schema can be consumed by other frontends (mobile, CLI tools, external
-  APIs) without dragging admin UI baggage along.
-- Type-safety improves: `defineAdmin(PagesSchema, ...)` can infer field names
-  from the schema and offer autocomplete for UI overrides.
+  APIs) without dragging admin UI dependencies along.
+- Type-safety improves: `defineAdmin(Pages, …)` infers field names from the
+  schema and offers autocomplete for UI overrides.
 
-What it costs:
+The cost:
 
-- Two files instead of one (or two declarations in a single file — though
-  this is arguably better separation of concerns).
-- A linking step is needed so the framework knows which admin config
-  belongs to which schema. In Byline today this is `defineAdmin(schema, …)` —
-  it sets the admin config's `slug` from `schema.path` automatically.
-- Harder to see "the whole picture" at a glance for a single collection.
+- Two files instead of one (or two declarations in one file).
+- A linking step so the framework knows which admin config belongs to which
+  schema — `defineAdmin(schema, …)`, which sets the admin config's slug from
+  `schema.path` automatically.
+- It is harder to see the whole picture of a single collection at a glance.
 
-See [COLLECTIONS](../04-collections/index.md) for the full collection-level reference
-(columns, layout primitives, preview URL, custom list views, versioning) and
-[FIELDS](../04-collections/01-fields.md) for the equivalent split applied at the field level
-(component slots, helper factories, the per-field richtext editor swap).
+See [Collections](../04-collections/index.md) for the full collection-level
+reference (columns, layout primitives, preview URL, custom list views) and
+[Fields](../04-collections/01-fields.md) for the same split applied at the field
+level (component slots, helper factories, the per-field richtext editor swap).
 
 ### Prior art for this split
 
-- **Django** does exactly this: models (schema) are separate from `ModelAdmin`
-  (admin site presentation). It's one of Django's most praised architectural
-  decisions.
-- **Rails ActiveAdmin / Administrate**: resource definitions are separate from
-  their admin "dashboard" configuration.
-- **Sanity Studio v3**: schema types are defined separately from "desk
-  structure" (how the admin UI organizes and presents them). Custom input
-  components are real React components, not string references.
-- **Keystatic**: schema and UI ("reader" vs "admin") are somewhat separated by
-  design.
+This mirrors a pattern several mature frameworks settled on independently:
 
-## 5. Authentication and Authorization
+- **Django** separates models (schema) from `ModelAdmin` (admin presentation) —
+  one of its most praised decisions.
+- **Rails** ActiveAdmin / Administrate separate resource definitions from their
+  admin dashboard configuration.
+- **Sanity Studio v3** defines schema types separately from desk structure, with
+  custom inputs as real React components rather than string references.
+- **Keystatic** separates schema from its reader and admin UIs.
 
-A typed actor / `RequestContext` model threads through every read and write
-path. Service-layer enforcement asserts collection abilities on the write
-side; the `beforeRead` collection hook AND-merges per-actor `QueryPredicate`s
-into the same SQL machinery the public client uses.
+## 5. Authentication and authorization
 
-For the full story, including six worked `beforeRead` recipes (owner-only drafts, multi-tenant scoping, embargo, soft-delete hide, department visibility, self-only), see [AUTHN-AUTHZ](../06-auth-and-security/01-authn-authz.md).
+A typed actor / `RequestContext` model threads through every read and write path.
+Service-layer enforcement asserts collection abilities on the write side, and the
+`beforeRead` collection hook AND-merges a per-actor `QueryPredicate` into the same
+SQL machinery the public client uses.
+
+For the full story — including six worked `beforeRead` recipes (owner-only
+drafts, multi-tenant scoping, embargo, soft-delete hide, department visibility,
+self-only) — see [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md).

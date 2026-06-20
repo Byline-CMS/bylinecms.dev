@@ -9,7 +9,7 @@ summary: "Universal EAV-per-type storage: typed store_* tables, the path notatio
 Companions:
 - [Relationships](../04-collections/02-relationships.md) — the first read consumer that spans collections.
 - [Document Paths](../04-collections/04-document-paths.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
-- [Collections](../04-collections/index.md) — schema versioning (Versioning section) sits beside, but is independent of, document versioning.
+- [Collection Versioning](../04-collections/07-collection-versioning.md) — schema versioning sits beside, but is independent of, document versioning.
 - [Storage benchmark sweep — 2026-04-18](../benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
 
 ## Overview
@@ -177,26 +177,14 @@ The status filter runs **before** the window function, so a draft saved over a p
 
 The adapter's `readMode?: 'published' | 'any'` parameter threads through `findDocuments`, `getDocumentById`, `getDocumentByPath`, `getDocumentsByDocumentIds`, and `populateDocuments`. Admin paths default to `'any'` (the adapter default); `@byline/client` defaults to `'published'`.
 
-## Phase — document-grain audit log
+## Changes outside the version stream
 
-> **Shipped — domain home moved:** Workstreams 2–3 of this phase —
-> the `byline_audit_log` table, the atomic write-points, the gated
-> `getDocumentAuditLog` read, and the admin **Document history** tab — shipped
-> in **v3.10.0** (actor attribution, W1, shipped earlier in v3.8.0; the
-> system-wide activity report, W4, in **v3.11.0**). The whole auditability
-> domain is specified in [Auditability](../06-auth-and-security/02-auditability.md). The sketch below stands as the
-> original rationale.
+Immutable versioning gives content changes a complete, queryable history: every save is a new `document_versions` row, and the admin **History** view renders that lineage with per-version diffs. Two classes of change deliberately sit **outside** that version stream:
 
-Immutable versioning gives content changes a complete, queryable history: every save is a new `document_versions` row, and the admin **History** view renders that lineage with per-version diffs. Two classes of change deliberately sit **outside** that version stream and so have no home in version history today:
+1. **Document-grain system fields** — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`). These are edited through dedicated **non-versioned** writes (`updateDocumentPath`, `setDocumentAvailableLocales` via `updateDocumentSystemFields`) that mint no version and don't reset status. They are document-grain and sticky across versions, so gating them behind the publish workflow would falsely imply per-version staging (see [Internationalization](../07-internationalization/index.md) and [Document Paths](../04-collections/04-document-paths.md)).
+2. **Status / lifecycle transitions** — these mutate the version row in place rather than forking a new version, so a publish → unpublish → re-publish sequence is not independently recorded by the version timeline beyond the current status value.
 
-1. **Document-grain system fields** — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`). As of v3.3.0 these are edited through dedicated **non-versioned** writes (`updateDocumentPath`, `setDocumentAvailableLocales` via `updateDocumentSystemFields`) that mint no version and don't reset status. The decoupling was deliberate — these fields are document-grain and sticky across versions, so gating them behind the publish workflow falsely implied per-version staging (see [Internationalization](../07-internationalization/index.md) and [Document Paths](../04-collections/04-document-paths.md)). The trade is that an immediate write leaves no audit trail.
-2. **Status / lifecycle transitions** — already mutate the version row in place rather than forking a new version, so a publish → unpublish → re-publish sequence isn't independently recorded beyond the current status value.
-
-**The phase:** round out Byline's auditable history so *every* change is accountable — not just content. A document-grain **audit log** table records `(document_id, collection_id, actor, action, field, before, after, occurred_at)` for the non-versioned mutations above (and, optionally, status transitions), written from the same service entry points (`updateDocumentSystemFields`, `changeDocumentStatus`) under the existing `assertActorCanPerform` gate. Honours the project's auditable + accountable philosophy: an immediate write is still a *recorded* write.
-
-**Admin surface:** a new tab under the existing document **History** view — content/version history stays on the current tab; a **System & document-level history** tab renders the audit-log entries (who changed the path / advertised locales / status, when, and from→to). This keeps the version timeline clean while making the out-of-band changes first-class and reviewable.
-
-Shipped scope (v3.10.0): the `byline_audit_log` table + schema, write-points wired into the system-field, status, **and delete** services, the `getDocumentAuditLog(document_id)` read query (gated through the document's own read pipeline), and the admin **Document history** tab. The system-wide activity report (W4) remains. See [Auditability](../06-auth-and-security/02-auditability.md) and the TODO index.
+Because these changes are immediate rather than versioned, accountability for them is the job of the document-grain audit log: a `byline_audit_log` table records who changed the path, advertised locales, or status — and when, and from what to what — written from the same service entry points under the existing `assertActorCanPerform` gate. The admin surfaces it as a **Document history** tab beside the version timeline. See [Auditability](../06-auth-and-security/02-auditability.md) for the full reference.
 
 ## Indicative benchmarks
 

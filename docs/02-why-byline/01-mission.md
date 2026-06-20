@@ -50,8 +50,8 @@ way that made extraction painful and lossy.
 
 We're not trying to be the next WordPress or the next Contentful. We're not
 building a platform that does everything for everyone. And we're not pretending
-we have all the answers. Byline is shipping under the 1.x line but is best
-treated as a release candidate, and there's still meaningful work ahead.
+we have all the answers. Byline ships as a stable 3.x release, with meaningful
+work still ahead.
 
 ## Building in the Open
 
@@ -70,7 +70,7 @@ top of other frameworks. Once our core model settled down, and following the
 adopted a 'guided' approach to using LLM-based generative AI to design and
 plan phases of work. It's been a remarkable journey. The marginal cost of
 developing Byline has dropped significantly as a result — enough that, with
-just a 2-person team, we've been able to ship and iterate on the 2.x line
+just a 2-person team, we've been able to ship and iterate through the 3.x line
 on our own.
 
 Our hunch is that even within the rapidly evolving world of LLM-based AI, a
