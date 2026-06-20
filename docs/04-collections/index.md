@@ -15,7 +15,7 @@ Companions:
 
 ## Overview
 
-A collection is the unit of authoring in Byline. Like a Django model with its `ModelAdmin`, it lives in two places: a **schema** that declares what the collection *is* (`CollectionDefinition`, returned by `defineCollection`), and an **admin** that declares how it *renders* in the dashboard (`CollectionAdminConfig`, returned by `defineAdmin`). The two are linked by the schema's `path`. This doc is the working reference for both halves, plus the **schema-versioning** layer that records, on every document save, the integer schema version the document was authored against.
+A collection is the unit of authoring in Byline. Like a Django model with its `ModelAdmin`, it lives in two places: a **schema** that declares what the collection *is* (`CollectionDefinition`, returned by `defineCollection`), and an **admin** that declares how it *renders* in the dashboard (`CollectionAdminConfig`, returned by `defineAdmin`). The two are linked by the schema's `path`. This doc is the working reference for both halves; the related [Collection Versioning](./07-collection-versioning.md) reference covers the schema-versioning layer that records which schema version each document was authored against.
 
 ```
 schema.ts                            admin.tsx

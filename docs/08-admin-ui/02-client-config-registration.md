@@ -1,5 +1,5 @@
 ---
-title: "Client-config registration — topology, the dual-registration solution, and the eager-single-point question"
+title: "Client-config registration"
 path: "client-config-registration"
 summary: "Why the Byline client config is registered from two points on the _byline route, the root cause that blocks collapsing it to one eager point, and whether an eager single-point registration is even possible given that custom slot components need React context."
 ---
@@ -25,13 +25,11 @@ Companions:
 - [Core Composition](../03-architecture/02-core-composition.md) — the *server* composition story (`initBylineCore()`); this doc is the *client* config analogue.
 - [Rich Text](../04-collections/06-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
 
-:::note[Status (2026-06)]
-**Groundwork shipped, eager single-point deferred.** The
-richtext side is light (`@byline/richtext-lexical/config`, lazy
-`AiLexicalExtension`). The dual registration remains, blocked by the
-admin-presentation-barrel coupling described below. The eager single point is
-*possible* but its cost/benefit is currently poor — see
-[Verdict](#verdict-possible-context-safe-but-not-currently-worth-it).
+:::note
+Byline registers the client config from two points today. Collapsing that to a
+single eager registration is *possible* but blocked from being worthwhile by the
+admin-presentation-barrel coupling described below — see the
+[verdict](#verdict-possible-context-safe-but-not-currently-worth-it).
 :::
 
 ---

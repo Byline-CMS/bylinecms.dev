@@ -16,7 +16,9 @@ Companions:
 
 Byline is in an **internal transport phase**. The only active client today is the admin UI inside `apps/webapp`, so document, upload, and admin-management operations are exposed through **TanStack Start server functions** rather than a stable, framework-agnostic HTTP API.
 
-This is deliberate. We explicitly do **not** want to evolve ad-hoc HTTP endpoints one operation at a time while the admin UI is the only client. Doing so would prematurely lock in a public API surface before we have the broader client requirements needed to design that surface coherently.
+This is deliberate. Byline avoids evolving ad-hoc HTTP endpoints one operation at a time while the admin UI is the only client — doing so would prematurely lock in a public API surface before the broader client requirements needed to design it coherently exist.
+
+If you need to read or write Byline content from your own code today (a public frontend, a script, a seed), the supported door is the in-process [Client SDK](./01-client-sdk.md), not an HTTP endpoint.
 
 The architecture is four layers, top to bottom:
 
@@ -153,7 +155,7 @@ Read paths in the admin webapp do not call the database adapter directly. They g
 
 Writes go straight to the `document-lifecycle/` services. The client's write surface (`create` / `update` / `delete` / `changeStatus`) wraps the same lifecycle functions, so a future stable HTTP endpoint can be a thin shim around either path with no business-logic changes.
 
-## What we deliberately do not have
+## What Byline deliberately does not have
 
 There is **no stable, public, framework-agnostic HTTP API contract today** for any of these operations. Specifically:
 
@@ -166,7 +168,7 @@ Everything goes through TanStack Start's server-function transport, which is con
 
 One adjacent surface ships today without being an API: the **markdown representations** of published documents — `.md` at every canonical URL, plus the `llms.txt` index (see [Markdown Export](./04-markdown-export.md)). These are app-owned, read-only representations with the same standing as the HTML pages and `sitemap.xml`, not a transport boundary, and they don't change the trigger calculus below. They do partially answer "where's the public API?" for the nearest-term external consumers — AI agents — which read the `.md` surface without any stable HTTP contract existing.
 
-If we introduced a stable HTTP transport now only for one operation (e.g. uploads, or just `findById`), we would create a misleading partial boundary: that operation would have a public transport shape while everything around it would still be internal RPC. That split would force a later redesign once the first external client appeared.
+Introducing a stable HTTP transport now for just one operation (uploads, say, or `findById`) would create a misleading partial boundary: that operation would have a public transport shape while everything around it stayed internal RPC. The split would force a later redesign once the first external client appeared.
 
 ## What triggers a stable HTTP boundary
 

@@ -242,7 +242,7 @@ becomes literal:
 | Bearer / API-key actor + provider    | extends `@byline/auth` `SessionProvider` (new work)|
 | Core services (unchanged)            | `packages/core/src/services/`                      |
 
-## What we deliberately defer
+## What is deliberately deferred
 
 - **A GraphQL transport.** Possible as another peer binding later; not in the first phase.
 - **OpenAPI emission.** The `OperationDefinition[]` manifest is the natural source for an OpenAPI document, but generating one waits until the HTTP contract has shipped and stabilised.

@@ -6,15 +6,11 @@ summary: "Present-state reference for the auditability subsystem: the version au
 
 # Auditability
 
-:::note
-Present-state reference for the auditability subsystem. It is the domain home
-for everything here and supersedes the earlier
-[Document Storage → Phase — document-grain audit log](../03-architecture/01-document-storage.md#phase--document-grain-audit-log)
-sketch. Shipped incrementally across v3.8.0 (version audit trail), v3.9.0 (the
-`withTransaction` prerequisite — see [Transactions](../03-architecture/03-transactions.md)),
-v3.10.0 (the audit-log table + document-history view) and v3.11.0 (the system
-activity area). Where this doc and the code disagree, the code wins.
-:::
+This is the reference for Byline's auditability subsystem: the per-version
+acting-user trail, the document-grain audit log for changes that sit outside the
+version stream, and the history and activity views built on top of them. It
+builds on the [`withTransaction`](../03-architecture/03-transactions.md)
+capability that lets each audited change and its audit row commit atomically.
 
 ## Why — the claim being honoured
 
@@ -79,9 +75,8 @@ existed, projected through the `current_documents` /
 `requestContext` (seeds, migrations — the documented escape hatch) **or** a
 synthetic super-admin context whose id is not a UUID
 (`createSuperAdminContext({ id: 'import-docs-script' })`); both yield NULL
-`created_by`. This is deliberate hardening: a v3.8.0 regression where a
-synthetic non-UUID actor id crashed every script/seed write on the `uuid`
-column (`invalid input syntax for type uuid`) was fixed in v3.9.0.
+`created_by`. A non-UUID actor id is treated as "no attributable user" rather
+than written to the `uuid` column, so script and seed writes never fail on it.
 
 ### Read side
 
@@ -116,10 +111,9 @@ concern that should be structurally present, not opt-in per collection.
 - Markup: a second `<tr>` per row — an empty spacer cell under the version
   column, then a `<td colSpan>` carrying the strip (`@byline/ui` `Table.Cell`
   spreads `colSpan`, so no Table-primitive extension was needed).
-- **Shipped in the History view (default-on, v3.8.0).** The **list-view** strip
-  is deferred — it roughly halves row density, and the toggle mechanism
-  (per-collection admin config vs. a view-level density control) is unresolved;
-  the list server fn does not yet resolve actor labels.
+- The strip renders in the **History view** by default. It is not shown in the
+  **list view** — it roughly halves row density, and the density toggle
+  (per-collection admin config vs. a view-level control) is unresolved.
 
 ## The document-grain audit log
 

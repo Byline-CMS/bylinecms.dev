@@ -420,7 +420,7 @@ A document-level "view as markdown source" toggle, opt-in per installation via t
 - **Patch-aware.** The editor is bound to a Byline form field that accumulates `DocumentPatch[]`. While in source mode, keystrokes are suppressed from the form's `OnChangePlugin` via a synchronous `markdownModeRef` guard, so the transient source view never leaks into the patch stream. A no-edit round-trip (WYSIWYG → markdown → WYSIWYG with no changes) restores the *exact* captured `EditorState`, so the form records **no patch**; edits made in source emit a single field change on toggle-back (**one patch**). Mode state lives in `MarkdownModeProvider` (`field/context/markdown-mode-context.tsx`); the conversion + root-shape guard live in the `useMarkdownToggle` hook (`field/hooks/use-markdown-toggle.ts`).
 - **Transformers.** Conversion runs through `BYLINE_TRANSFORMERS` (`field/markdown/transformers.ts`) — the stock `@lexical/markdown` `TRANSFORMERS` extended with custom handlers: GFM pipe **tables** (adapted from the Lexical playground) and Docusaurus-style `:::type[Title] … :::` **admonitions** (`note` / `tip` / `warning` / `danger`). Admonition bodies use an inline-only transformer set because the node's nested editor (a bare `createEditor()`) holds only paragraphs + inline formatting. The same `BYLINE_TRANSFORMERS` array is wired into the inline `MarkdownShortcutPlugin` so typed shortcuts and the source view stay consistent.
 - **Lossy nodes (known gap).** Custom nodes without a transformer — **layout** columns and **inline images** — are dropped/flattened on a markdown round-trip. A guard to disable the toggle (or warn) when an un-round-trippable node is present is planned alongside extending the transformer set.
-- **Distinct from server-side export.** This toggle is the *bidirectional, lossless* browser path for a single richtext field. Serving a markdown representation of a whole published document at its route is a separate, one-way concern — shipped; see [Markdown Export](../05-reading-and-delivery/04-markdown-export.md).
+- **Distinct from server-side export.** This toggle is the *bidirectional, lossless* browser path for a single richtext field. Serving a markdown representation of a whole published document at its route is a separate, one-way concern; see [Markdown Export](../05-reading-and-delivery/04-markdown-export.md).
 
 ### The toolbar registry
 
@@ -474,7 +474,7 @@ export interface BylineFloatingUIItem {
 
 **Table cell-merge.** `TableActionMenuPlugin` reads `hasCellMerge` from the upstream `LexicalTableExtension.config` via `useExtensionDependency`. Override it with `c.extensions.configure(LexicalTableExtension, { hasCellMerge: false })` — the action menu UI follows automatically.
 
-**The toolbar plugin** (the fixed row above the content-editable) is a *consumer* of `BylineToolbarExtension`, not a contributor. It needs a fixed DOM position the decorator slot can't express, so it lives in `Editor.tsx` directly. If we ever want it under the extension graph an Output Component pattern works; not currently a pain point.
+**The toolbar plugin** (the fixed row above the content-editable) is a *consumer* of `BylineToolbarExtension`, not a contributor. It needs a fixed DOM position the decorator slot can't express, so it lives in `Editor.tsx` directly. Moving it under the extension graph later is possible via an Output Component pattern; it is not currently a pain point.
 
 ### Relations — embed and populate
 
