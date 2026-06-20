@@ -40,7 +40,6 @@ export const timestamps = {
 /**
  * `created_at` only — for tables whose rows are immutable once
  * inserted (junction tables like `byline_admin_role_admin_user`,
- * append-only relationship rows like `byline_document_relationships`,
  * registry rows like `byline_counter_groups`).
  *
  * Spread into a `pgTable` definition the same way as `timestamps`.

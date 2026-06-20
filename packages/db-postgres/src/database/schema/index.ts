@@ -245,26 +245,38 @@ export const documentVersionLocales = pgTable(
   (table) => [primaryKey({ columns: [table.document_version_id, table.locale] })]
 )
 
-// Document Relationships (Parent/Child) - Many-to-Many
+// Document Tree — single-parent ordered adjacency. See docs/DOCUMENT-TREE.md.
+//
+// A document-grain, unversioned hierarchy primitive for `tree: true`
+// collections (self-referential, single collection). Rows reference the logical
+// `document_id`, not the version `id`. Unlike most edge tables the FKs are
+// load-bearing here:
+//   - child  → cascade : when the document is deleted, its membership row
+//                        disappears (the node leaves the tree).
+//   - parent → set null: when a parent document is deleted, its children's
+//                        parent pointer clears — they promote to root.
 export const documentRelationships = pgTable(
   'byline_document_relationships',
   {
-    // Note: These reference the logical `document_id`, not the version `id`.
-    // Foreign key constraints are not used; integrity is handled at the application layer.
-    parent_document_id: uuid('parent_document_id')
-      .notNull()
-      .references(() => documents.id, { onDelete: 'cascade' }),
     child_document_id: uuid('child_document_id')
       .notNull()
       .references(() => documents.id, { onDelete: 'cascade' }),
-    ...createdAt,
+    // Nullable = root node. `set null` promotes orphans to root on parent delete.
+    parent_document_id: uuid('parent_document_id').references(() => documents.id, {
+      onDelete: 'set null',
+    }),
+    // Per-parent sibling order (each parent is its own keyspace). COLLATE "C"
+    // so DB ordering matches the JS fractional-index algorithm, exactly like
+    // `byline_documents.order_key`.
+    order_key: varcharByteSorted('order_key', { length: 128 }).notNull(),
+    ...timestamps,
   },
   (table) => [
-    // Composite primary key to ensure a child is only parented once by the same parent.
-    unique().on(table.parent_document_id, table.child_document_id),
-    // Indexes for efficient lookups of children and parents.
-    index('idx_document_relationships_parent').on(table.parent_document_id),
-    index('idx_document_relationships_child').on(table.child_document_id),
+    // Single-parent invariant: each document appears in at most one row.
+    unique('uq_document_relationships_child').on(table.child_document_id),
+    // Per-parent sibling read, in order — drives the authoring tree and the
+    // read-side flatten.
+    index('idx_document_relationships_parent_order').on(table.parent_document_id, table.order_key),
   ]
 )
 
@@ -683,11 +695,6 @@ export const documentsRelations = relations(documentVersions, ({ one, many }) =>
     fields: [documentVersions.collection_id],
     references: [collections.id],
   }),
-  // Relations for parent/child documents
-  // A document can be a child in many relationships. This finds the links.
-  parent_relationships: many(documentRelationships, { relationName: 'child' }),
-  // A document can be a parent in many relationships. This finds the links.
-  child_relationships: many(documentRelationships, { relationName: 'parent' }),
   // Relations for field values
   text_values: many(textStore),
   numeric_values: many(numericStore),
@@ -699,16 +706,28 @@ export const documentsRelations = relations(documentVersions, ({ one, many }) =>
 }))
 
 export const documentRelationshipsRelations = relations(documentRelationships, ({ one }) => ({
-  parent: one(documentVersions, {
+  parent: one(documents, {
     fields: [documentRelationships.parent_document_id],
-    references: [documentVersions.document_id],
-    relationName: 'parent',
+    references: [documents.id],
+    relationName: 'tree_parent',
   }),
-  child: one(documentVersions, {
+  child: one(documents, {
     fields: [documentRelationships.child_document_id],
-    references: [documentVersions.document_id],
-    relationName: 'child',
+    references: [documents.id],
+    relationName: 'tree_child',
   }),
+}))
+
+// Document-tree edges on the logical document. The tree read path itself is a
+// recursive CTE (see docs/DOCUMENT-TREE.md), not the Drizzle query builder —
+// these relations exist for completeness / ad-hoc joins.
+export const documentTreeRelations = relations(documents, ({ many }) => ({
+  // The membership edge where this document is the child — its placement in the
+  // tree. 0..1 by the unique(child_document_id) constraint; modelled as `many`
+  // per Drizzle's inverse-side convention (the FK lives on the edge table).
+  tree_parent_edge: many(documentRelationships, { relationName: 'tree_child' }),
+  // Edges where this document is the parent — its ordered children.
+  tree_child_edges: many(documentRelationships, { relationName: 'tree_parent' }),
 }))
 
 // Field value relations
