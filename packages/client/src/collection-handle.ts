@@ -34,8 +34,10 @@ import {
   mergePredicates,
   parseSort,
   parseWhere,
+  placeTreeNode as placeTreeNodeLifecycle,
   populateDocuments,
   populateRichTextFields,
+  removeFromTree as removeFromTreeLifecycle,
   restoreDocumentVersion,
   unpublishDocument,
   updateDocument,
@@ -609,10 +611,8 @@ export class CollectionHandle {
     options: PlaceTreeNodeOptions
   ): Promise<{ orderKey: string }> {
     this.assertTreeCollection()
-    await this.resolveAndAssertUpdate()
-    const collectionId = await this.client.resolveCollectionId(this.definition.path)
-    return this.client.db.commands.documents.placeTreeNode({
-      collectionId,
+    const ctx = await this.buildLifecycleContext()
+    return placeTreeNodeLifecycle(ctx, {
       documentId,
       parentDocumentId: options.parentDocumentId,
       beforeDocumentId: options.beforeDocumentId ?? null,
@@ -627,8 +627,8 @@ export class CollectionHandle {
    */
   async removeFromTree(documentId: string): Promise<void> {
     this.assertTreeCollection()
-    await this.resolveAndAssertUpdate()
-    await this.client.db.commands.documents.removeFromTree({ documentId })
+    const ctx = await this.buildLifecycleContext()
+    await removeFromTreeLifecycle(ctx, { documentId })
   }
 
   /**
@@ -752,19 +752,6 @@ export class CollectionHandle {
   private async resolveAndAssertRead(): Promise<RequestContext> {
     const requestContext = await this.client.resolveRequestContext()
     assertActorCanPerform(requestContext, this.definition.path, 'read')
-    return requestContext
-  }
-
-  /**
-   * Resolve the caller's `RequestContext` and enforce the `update` ability.
-   * Used by the tree write commands (`placeTreeNode` / `removeFromTree`),
-   * which call the storage adapter directly rather than through a
-   * `document-lifecycle` service — so the ability assertion lives here, the
-   * same way `reorderCollectionDocument` gates structural moves on `update`.
-   */
-  private async resolveAndAssertUpdate(): Promise<RequestContext> {
-    const requestContext = await this.client.resolveRequestContext()
-    assertActorCanPerform(requestContext, this.definition.path, 'update')
     return requestContext
   }
 

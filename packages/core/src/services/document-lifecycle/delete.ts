@@ -13,6 +13,7 @@ import { withLogContext } from '../../lib/logger.js'
 import { getUploadFields } from '../../utils/storage-utils.js'
 import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
 import { invokeHook } from './internals.js'
+import { promoteChildrenAndRemove } from './tree.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface DeleteDocumentResult {
@@ -144,7 +145,26 @@ export async function deleteDocument(
         }
       }
 
-      // 5. afterDelete hook.
+      // 5. Reconcile the document tree for `tree: true` collections. Byline
+      //    deletes are soft (the document row survives), so the table's
+      //    promote/cascade foreign keys never fire — promote the node's
+      //    children to root and remove its edge here instead, firing the
+      //    structural-change invalidation event. Post-commit and best-effort,
+      //    like file cleanup: a failure here leaves the soft-delete intact
+      //    (status-at-edge already hides the deleted node's subtree from
+      //    reads) and is logged rather than thrown. See docs/DOCUMENT-TREE.md.
+      if (definition.tree === true) {
+        try {
+          await promoteChildrenAndRemove(ctx, { documentId: params.documentId })
+        } catch (err: unknown) {
+          logger.error(
+            { err, documentId: params.documentId },
+            'failed to reconcile document tree on delete'
+          )
+        }
+      }
+
+      // 6. afterDelete hook.
       await invokeHook(hooks?.afterDelete, hookCtx)
 
       return { deletedVersionCount }

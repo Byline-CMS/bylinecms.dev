@@ -2,14 +2,19 @@
 title: "Document Trees"
 path: "document-tree"
 summary: "A document-grain, single-parent ordered hierarchy primitive for self-referential collections — the structural backbone for documentation / book sites. Promotes the 'parent' edge out of the versioned content stream and into a dedicated, unversioned tree table alongside path / availableLocales / order_key."
-status: "DESIGN — not yet implemented. This is the agreed spec, captured for build."
+status: "PARTIALLY IMPLEMENTED — storage, commands, flag, client API, and the invalidation contract are shipped; authoring widget and public hierarchical-URL route remain."
 ---
 
 # Document Trees
 
-> **Status: design / spec.** Nothing here is shipped yet. This document records
-> the decisions reached and the invariants the implementation must hold. It is
-> the build contract for the feature, not a present-state reference.
+> **Status: partially implemented.** Shipped: the reshaped
+> `byline_document_relationships` table + `0004` migration, the storage tree
+> commands (`placeTreeNode` / `removeFromTree` / `getTreeAncestors` /
+> `getTreeChildren` / `getTreeSubtree`), the `tree: true` collection flag, the
+> `@byline/client` tree API, and the invalidation contract (the
+> `afterTreeChange` hook + promote-on-delete). **Remaining:** the authoring tree
+> widget and the public read-time hierarchical-URL splat route. The build
+> contract below still holds; sections describing unbuilt pieces are marked.
 
 ## Thesis
 
@@ -419,13 +424,9 @@ document is the present design.
 ## Open items (not yet decided)
 
 - **Audit columns** — whether `created_by` / `updated_by` land in v1 or follow
-  the broader audit-log work.
-- **Re-key on promote** — whether promote-on-delete re-keys orphans into the root
-  group eagerly or leaves the (harmless) stale key.
+  the broader audit-log work. (Not in the shipped `0004` reshape.)
 - **Authoring widget scope** — full drag-the-whole-TOC tree vs. incremental
-  per-node "move to…"; both ride the same write commands.
-- **Client tree-API shape** — the exact `@byline/client` surface for
-  `getSubtree` / `getAncestors` / `placeTreeNode`.
+  per-node "move to…"; both ride the same write commands. (Widget not yet built.)
 - **Unplaced-doc public routing** — default is to serve `/docs/<slug>` for a
   document with no tree edge (canonical = bare slug); confirm vs. 404-until-placed.
 - **Hierarchical-URL adoption** — whether the read-time-composition splat ships
@@ -436,6 +437,12 @@ single-parent only; promote-orphans-to-root (no cascade); per-parent ordering;
 **stored path stays flat / tree-independent (Axis 1)** while hierarchical public
 URLs are an optional read-time-composition presentation choice (Axis 2);
 unpublished nodes hide their subtree publicly; tree is per-logical-document
-(locale-agnostic).
+(locale-agnostic); **promote-on-delete re-keys orphans eagerly** (the delete
+lifecycle calls `placeTreeNode(child, { parentDocumentId: null })`, minting a
+fresh root-group key); **the invalidation event is the `afterTreeChange`
+collection hook**, fired once per structural write (place / remove /
+promote-on-delete) with the affected set, by the `document-lifecycle` tree
+service; **the client tree-API surface** is `placeTreeNode` / `removeFromTree` /
+`getSubtree` / `getAncestors` on the collection handle.
 </content>
 </invoke>

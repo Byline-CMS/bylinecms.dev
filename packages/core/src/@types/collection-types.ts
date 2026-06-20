@@ -541,6 +541,40 @@ export interface DeleteContext {
 }
 
 /**
+ * Context passed to the `afterTreeChange` hook — the structural-change
+ * invalidation event for `tree: true` collections (docs/DOCUMENT-TREE.md).
+ *
+ * Tree mutations are document-grain and **unversioned**, so the normal
+ * version-write invalidation (`afterCreate` / `afterUpdate` / `afterStatusChange`)
+ * never fires for them. A single structural change ripples — the moved node, its
+ * descendants (their breadcrumb trails changed), and the old/new parents and
+ * sibling lists — so the hook fires **once per write** carrying the whole
+ * `affectedDocumentIds` set as a batched event, rather than one event per edge.
+ * Consumers (cache / ISR invalidation, markdown-export refresh, search reindex)
+ * refresh exactly that set.
+ */
+export interface TreeChangeContext {
+  collectionPath: string
+  /**
+   * The kind of structural change:
+   *   - `'place'`  — a node was placed, reordered, or re-parented.
+   *   - `'remove'` — a node was removed from the tree (back to *unplaced*).
+   *   - `'promote-on-delete'` — a document was deleted, so its children were
+   *     promoted to root and it left the tree.
+   */
+  change: 'place' | 'remove' | 'promote-on-delete'
+  /** The primary node the change acted on. */
+  documentId: string
+  /**
+   * Every document whose tree position, breadcrumb trail, or sibling context
+   * changed and which downstream caches / indexes should refresh: the acted-on
+   * node, its descendants, the old and new parents, and the affected sibling
+   * lists. De-duplicated; order is not significant.
+   */
+  affectedDocumentIds: string[]
+}
+
+/**
  * Context passed to `beforeStore` hooks (configured on
  * `field.upload.hooks`).
  *
@@ -858,6 +892,17 @@ export interface CollectionHooks {
   beforeDelete?: CollectionHookSlot<DeleteContext>
   /** Runs after a document is deleted. */
   afterDelete?: CollectionHookSlot<DeleteContext>
+
+  // -- Document tree (structural change) ------------------------------------
+  /**
+   * Runs after a structural change to a `tree: true` collection's hierarchy —
+   * a place / reorder / re-parent (`placeTreeNode`), a removal
+   * (`removeFromTree`), or the promote-children-to-root that accompanies a
+   * delete. Tree writes mint no document version, so this is the only
+   * invalidation signal for them. Fires once per write with the full affected
+   * set ({@link TreeChangeContext}). See docs/DOCUMENT-TREE.md.
+   */
+  afterTreeChange?: CollectionHookSlot<TreeChangeContext>
 
   // -- Document read --------------------------------------------------------
   /**
