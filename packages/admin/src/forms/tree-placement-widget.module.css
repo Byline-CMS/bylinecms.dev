@@ -3,8 +3,11 @@
  * collection's single-parent tree (the `tree: true` primitive).
  *
  * Override handles:
- *   .byline-form-tree          — wrapper div
- *   .byline-form-tree-remove   — "Remove from tree" link button
+ *   .byline-form-tree           — wrapper div
+ *   .byline-form-tree-current   — current-parent line
+ *   .byline-form-tree-actions   — actions row
+ *   .byline-form-tree-link      — text-button actions (move to top level / remove)
+ *   .byline-form-tree-error     — inline error
  */
 
 .tree,
@@ -14,9 +17,41 @@
   gap: var(--spacing-8);
 }
 
-.remove,
-:global(.byline-form-tree-remove) {
-  align-self: flex-start;
+.heading,
+:global(.byline-form-tree-heading) {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.current,
+:global(.byline-form-tree-current) {
+  font-size: 0.875rem;
+}
+
+.parentLabel {
+  color: var(--gray-500);
+}
+
+.parentValue {
+  font-weight: 500;
+}
+
+.root {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--gray-500);
+}
+
+.actions,
+:global(.byline-form-tree-actions) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.link,
+:global(.byline-form-tree-link) {
   background: none;
   border: none;
   padding: 0;
@@ -26,10 +61,17 @@
   cursor: pointer;
 }
 
-.remove:disabled,
-:global(.byline-form-tree-remove):disabled {
+.link:disabled,
+:global(.byline-form-tree-link):disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.error,
+:global(.byline-form-tree-error) {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--danger-600, #c0392b);
 }
 
 .sr-only {
