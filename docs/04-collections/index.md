@@ -7,11 +7,11 @@ summary: "Defining collections in Byline: defineCollection, the workflow system,
 # Collections
 
 Companions:
-- [FIELDS.md](./01-fields.md) — field-level schema and admin (slot components, helper factories, the per-field richtext editor swap).
-- [RICHTEXT.md](./06-rich-text.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
-- [AUTHN-AUTHZ.md](../06-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
-- [CORE-DOCUMENT-STORAGE.md](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar — this doc covers *schema* versioning).
-- [DOCUMENT-PATHS.md](./04-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
+- [Fields](./01-fields.md) — field-level schema and admin (slot components, helper factories, the per-field richtext editor swap).
+- [Rich Text](./06-rich-text.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
+- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
+- [Document Storage](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar — this doc covers *schema* versioning).
+- [Document Paths](./04-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
 
 ## Overview
 
@@ -292,7 +292,7 @@ A collection lives in two files:
   The schema is **isomorphic** — the same module is *also* pulled into the **client** admin bundle (the admin shell reads field config from it). So the constraint runs both ways: just as a schema must avoid browser-only globals (so the server bootstrap can load it), it must avoid **server-only** modules (so the client can bundle it without dragging Node built-ins or backend code into the browser). Declarative field data satisfies both directions for free. The **one exception is `hooks`** — their bodies run server-side only, but they are *referenced* from this client-bundled module, which makes them the single place server-only code can leak into the client. See [Hooks must not statically import server-only code](#hooks-must-not-statically-import-server-only-code).
 - **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: `columns`, `picker`, `tabSets` / `rows` / `groups` / `layout`, `preview.url`, `listView`, `fields{}` (per-field admin), `group`. React, CSS modules, and Vite-managed imports are all fine.
 
-The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides — the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `slug` from `schema.path` automatically). See [FIELDS.md](./01-fields.md) for the equivalent split at the field level.
+The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides — the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `slug` from `schema.path` automatically). See [Fields](./01-fields.md) for the equivalent split at the field level.
 
 ### The `CollectionDefinition` surface
 
@@ -320,9 +320,9 @@ export interface CollectionDefinition {
 |---|---|
 | `path` | The collection's URL slug + storage key. Must be unique. Drives `collection_path` in storage and the admin route. |
 | `labels` | Display strings for the admin shell (sidebar, breadcrumbs, "New X" buttons). |
-| `fields` | Schema-side field definitions. See [FIELDS.md](./01-fields.md) for the field-level model. |
+| `fields` | Schema-side field definitions. See [Fields](./01-fields.md) for the field-level model. |
 | `useAsTitle` | The field whose value is the document's single-line label — form heading, relation widget summary, populate's default projection, log lines. Analogous to Django's `Model.__str__`. |
-| `useAsPath` | The field whose value initialises a document's `path` row in `byline_document_paths`. Slugified once; sticky after creation. Collections without `useAsPath` receive a UUID path. See [DOCUMENT-PATHS.md](./04-document-paths.md). |
+| `useAsPath` | The field whose value initialises a document's `path` row in `byline_document_paths`. Slugified once; sticky after creation. Collections without `useAsPath` receive a UUID path. See [Document Paths](./04-document-paths.md). |
 | `workflow` | Sequential workflow config — see [Workflow](#workflow). Defaults to a standard `draft` → `published` → `archived` triple. |
 | `hooks` | Lifecycle hooks (server-side). See [Lifecycle hooks](#lifecycle-hooks). |
 | `search` | Field names included in the admin list view's search box. Only `store_text` fields are supported today. Defaults to `{ fields: ['title'] }`. |
@@ -353,7 +353,7 @@ export interface CollectionAdminConfig<T = any> {
 }
 ```
 
-The four major slot areas are: **columns** (list view + relation picker), **layout** (tabs / rows / groups composed into main/sidebar), **preview** (the preview URL builder), and **listView** (the custom-component escape hatch). Per-field admin lives in `fields{}` and is documented in [FIELDS.md](./01-fields.md).
+The four major slot areas are: **columns** (list view + relation picker), **layout** (tabs / rows / groups composed into main/sidebar), **preview** (the preview URL builder), and **listView** (the custom-component escape hatch). Per-field admin lives in `fields{}` and is documented in [Fields](./01-fields.md).
 
 ### Columns and picker
 
@@ -540,7 +540,7 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 | Unpublish | `beforeUnpublish`, `afterUnpublish` |
 | Read | `beforeRead` (row-scoping predicate), `afterRead` (per-document mutation) |
 
-**`beforeRead`** is the row-scoping hook. It runs once per `findDocuments` call (and once per populate batch, per target collection), **before** any DB work, and returns a `QueryPredicate` that the query layer ANDs onto the caller's `where`. Use it for multi-tenant scoping, owner-only-drafts, soft-delete hide, etc. See [AUTHN-AUTHZ.md — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) for the full reference, and the Quick Reference there for six worked recipes.
+**`beforeRead`** is the row-scoping hook. It runs once per `findDocuments` call (and once per populate batch, per target collection), **before** any DB work, and returns a `QueryPredicate` that the query layer ANDs onto the caller's `where`. Use it for multi-tenant scoping, owner-only-drafts, soft-delete hide, etc. See [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) for the full reference, and the Quick Reference there for six worked recipes.
 
 **`afterRead`** runs once per materialised document on every read path that flows through `@byline/client` or `populateDocuments`. Can mutate `ctx.doc.fields` in place; mutations propagate through the response. Fires after populate on the source document, so hooks see the fully populated tree. Hooks that perform their own reads should thread `ctx.readContext` through to preserve the visited set and read budget (A→B→A safety).
 

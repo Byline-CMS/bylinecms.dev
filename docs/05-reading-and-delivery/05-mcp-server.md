@@ -6,21 +6,20 @@ summary: "Byline as a Model Context Protocol server — a peer transport that bi
 
 # MCP Server
 
-:::note[Status]
-**Concept / decision note — not yet built; build deferred until after
-`hasMany`.** This captures the intended shape of `packages/mcp` so the
-dependencies (service-account auth, the operation layer, relationship
-completeness) are settled before code lands. Where this note and a shipped doc
-disagree, the shipped doc wins until this one loses the status banner.
+:::note[Planned]
+This document describes a planned subsystem. It sets out the intended shape of
+the MCP server so its dependencies — service-account auth, the shared operation
+layer, and relationship completeness — are settled first. Treat it as the design
+the implementation follows rather than a description of shipped code.
 :::
 
 Companions:
-- [TRANSPORTS.md](./03-transports.md) — MCP is a **peer transport** in that family. It shares the operation layer with the HTTP bindings and differs only in how it surfaces operations (tools/resources/prompts vs HTTP routes). Read that first.
-- [CLIENT-SDK.md](./01-client-sdk.md) — every MCP tool delegates to `CollectionHandle` / `document-lifecycle`. The hard problems (populate, status-aware reads, validation) are solved below the transport line.
-- [AUTHN-AUTHZ.md](../06-auth-and-security/01-authn-authz.md) — MCP needs a non-interactive **service-account token** actor; `assertActorCanPerform` gates every tool inside the service, not in the tool handler.
-- [RELATIONSHIPS.md](../04-collections/02-relationships.md) — `populate` + `hasMany` are what make MCP reads rich; relationship completeness gates a satisfying MCP experience, hence the sequencing.
-- [MARKDOWN-EXPORT.md](./04-markdown-export.md) — the agent-readable representation **already shipped**: `documentToMarkdown`, `.md` routes, `llms.txt`. The MCP content tools should serve these same representations rather than invent a parallel shape (that doc's `llms-full.txt` / MCP phase names this server as its consumer).
-- [CONTENT-IN-THE-TIME-OF-AI.md](../02-why-byline/02-content-in-the-time-of-ai.md) — the "why": structured versioning, workflow, and provenance matter *more* when an LLM is the author. MCP is where that thesis meets a keyboard.
+- [Transports](./03-transports.md) — MCP is a **peer transport** in that family. It shares the operation layer with the HTTP bindings and differs only in how it surfaces operations (tools/resources/prompts vs HTTP routes). Read that first.
+- [Client SDK](./01-client-sdk.md) — every MCP tool delegates to `CollectionHandle` / `document-lifecycle`. The hard problems (populate, status-aware reads, validation) are solved below the transport line.
+- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — MCP needs a non-interactive **service-account token** actor; `assertActorCanPerform` gates every tool inside the service, not in the tool handler.
+- [Relationships](../04-collections/02-relationships.md) — `populate` + `hasMany` are what make MCP reads rich; relationship completeness gates a satisfying MCP experience, hence the sequencing.
+- [Markdown Export](./04-markdown-export.md) — the agent-readable representation **already shipped**: `documentToMarkdown`, `.md` routes, `llms.txt`. The MCP content tools should serve these same representations rather than invent a parallel shape (that doc's `llms-full.txt` / MCP phase names this server as its consumer).
+- [Content Management in the Time of AI](../02-why-byline/02-content-in-the-time-of-ai.md) — the "why": structured versioning, workflow, and provenance matter *more* when an LLM is the author. MCP is where that thesis meets a keyboard.
 
 ## Overview
 
@@ -116,7 +115,7 @@ Two MCP affordances beyond tools are worth shipping:
                                    ──▶  serialize  ──▶  tool result
 ```
 
-The shared **operation layer** from [TRANSPORTS.md](./03-transports.md) means
+The shared **operation layer** from [Transports](./03-transports.md) means
 `create_document` and the HTTP `POST /api/posts` route invoke the *same*
 `OperationDefinition` — MCP differs only in binding (tool envelope, JSON-RPC over
 stdio / Streamable HTTP) rather than re-deciding what "create a post" means. Get
@@ -140,7 +139,7 @@ machinery Byline already has:
    turning the schema into a guardrail rather than a wall.
 4. **Provenance.** Versions are immutable and attributable to the service-account
    actor, so "what did the AI write, and when" is answerable after the fact — the
-   [CONTENT-IN-THE-TIME-OF-AI.md](../02-why-byline/02-content-in-the-time-of-ai.md) thesis in action.
+   [Content Management in the Time of AI](../02-why-byline/02-content-in-the-time-of-ai.md) thesis in action.
 
 ## Authentication
 
@@ -149,7 +148,7 @@ MCP is non-interactive — there is no cookie, no login screen. It needs a
 provisioned explicitly (e.g. `collections.posts.read`, `collections.posts.create`,
 but *not* `collections.posts.publish`). This is new auth work — today's auth is
 JWT-session, built for the admin UI — and it is shared with the HTTP API's
-bearer-token need (see [TRANSPORTS.md](./03-transports.md) → the auth seam). The
+bearer-token need (see [Transports](./03-transports.md) → the auth seam). The
 `SessionProvider` interface in `@byline/auth` is the extension point.
 
 ## Transport and deployment
@@ -159,7 +158,7 @@ MCP defines two transports; both are relevant:
 ```
   A) stdio  — host launches the MCP process locally
      Claude Desktop ──spawn──▶ byline-mcp (local) ──HTTP──▶ remote Byline /api
-     requires the HTTP boundary (TRANSPORTS.md) to exist first.
+     requires the HTTP boundary (Transports) to exist first.
 
   B) Streamable HTTP — MCP server is a deployed, networked endpoint
      Claude (any host) ──HTTPS──▶ byline-mcp (co-located w/ Byline) ──in-proc──▶ @byline/client ──▶ Postgres
@@ -179,14 +178,14 @@ content**. An MCP that cannot represent many-to-many relationships will feel thi
 and relationship completeness (`hasMany`) is high on the TODO already. So:
 
 - Land `hasMany` and confirm `populate` is complete across relation cardinalities.
-- Land the operation layer + `http-nitro` (proves the contract; see TRANSPORTS.md).
+- Land the operation layer + `http-nitro` (proves the contract; see Transports).
 - Then build `packages/mcp` as a binding over that proven surface.
 
 Building MCP before the operation layer exists would mean inventing the contract
 inside the MCP package and re-inventing it again for HTTP — the precise drift
-TRANSPORTS.md is structured to avoid.
+Transports is structured to avoid.
 
-## Code map (planned)
+## Code map
 
 | Concern                          | Intended location                                      |
 |----------------------------------|--------------------------------------------------------|
@@ -195,20 +194,6 @@ TRANSPORTS.md is structured to avoid.
 | Resource providers               | `packages/mcp/src/resources/`                          |
 | Prompt templates                 | `packages/mcp/src/prompts/`                            |
 | Zod → MCP inputSchema bridge     | `packages/mcp/src/schema/`                             |
-| Shared operation layer           | `packages/http/src/operations/` (see TRANSPORTS.md)    |
+| Shared operation layer           | `packages/http/src/operations/` (see Transports)    |
 | Service-account actor + provider | extends `@byline/auth` `SessionProvider` (new work)    |
 
-## Open questions
-
-- **Tool granularity vs collection count.** Generic `query_documents` keeps the tool
-  list small, but very large installs may benefit from a few collection-specific
-  prompts to steer the model. Measure before specialising.
-- **Dynamic tool listing.** Should the tool list reflect the actor's abilities
-  (hide `publish_document` if the token can't publish)? Leaning yes — fewer tools
-  the model can misuse.
-- **Resource volume.** Exposing every document as a resource does not scale;
-  resources likely list collections + recent/queried documents, not the full corpus.
-- **Streaming long writes.** Whether large create/update results stream progress
-  back over Streamable HTTP, or return once. Probably return-once to start.
-- **Where the operation layer finally lives** — `packages/http` vs lifted into
-  `@byline/core` — is decided when MCP proves the HTTP/MCP overlap (TRANSPORTS.md).

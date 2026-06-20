@@ -9,9 +9,9 @@ summary: "Present-state reference for the auditability subsystem: the version au
 :::note
 Present-state reference for the auditability subsystem. It is the domain home
 for everything here and supersedes the earlier
-[CORE-DOCUMENT-STORAGE.md → Phase — document-grain audit log](../03-architecture/01-document-storage.md#phase--document-grain-audit-log)
+[Document Storage → Phase — document-grain audit log](../03-architecture/01-document-storage.md#phase--document-grain-audit-log)
 sketch. Shipped incrementally across v3.8.0 (version audit trail), v3.9.0 (the
-`withTransaction` prerequisite — see [TRANSACTIONS.md](../03-architecture/03-transactions.md)),
+`withTransaction` prerequisite — see [Transactions](../03-architecture/03-transactions.md)),
 v3.10.0 (the audit-log table + document-history view) and v3.11.0 (the system
 activity area). Where this doc and the code disagree, the code wins.
 :::
@@ -171,7 +171,7 @@ This rides on the request-scoped `withTransaction` boundary owned by the
 service layer (the audit write is a peer command in the same transaction; the
 storage adapter never learns the word "audit"). That mechanism — its
 AsyncLocalStorage propagation and the DB↔DB vs DB↔external distinction — is
-specified in **[TRANSACTIONS.md](../03-architecture/03-transactions.md)**.
+specified in **[Transactions](../03-architecture/03-transactions.md)**.
 
 ### Write points
 
@@ -267,35 +267,6 @@ who-did-what feed.
   assertion lives in the host server fn. The ability is system-wide and **not**
   reachable transitively from any collection ability, so an auditor role gets
   activity visibility without content read/write.
-
-## Deferred / future
-
-Named items, none active. Triggers noted where they exist.
-
-- **Actor-filter UI control.** The `actorId` param is plumbed end-to-end
-  through `findAuditLog`; the activity-feed picker needs an admin-user lookup.
-- **List-view audit strip.** Shipped only in the History view; the list-view
-  strip awaits a density-toggle decision (per-collection admin config vs a
-  view-level control). The list server fn would also need to resolve actor
-  labels.
-- **Admin-module auditing.** `admin.user.created` / `admin.role.updated` / …
-  rows from the `@byline/admin` user/role/permission commands. The table and
-  the activity feed already accommodate `document_id NULL` admin-realm rows.
-- **`delete-locale.ts` audit row.** It mints a version (so the actor is already
-  on the version stream); whether it also warrants an audit-log row is open.
-- **Public-client `createdBy` exposure.** The public client never resolves
-  labels; whether public reads should include even the raw `createdBy` uuid is
-  an open call — leaning **omit** (admin identity metadata on an anonymous
-  surface).
-- **Export / retention.** CSV/JSON export of a filtered activity range (trigger:
-  a real compliance ask); a retention/pruning policy (trigger: an installation
-  where the log's growth actually matters).
-- **Restore/duplicate provenance.** Whether a restored version's audit entry
-  should record *which* version it was restored from (the version row already
-  carries `previousVersionId`; probably sufficient).
-- **`hasMany` interaction.** None expected — relations live in the version
-  stream — but the activity feed's row-rendering should be checked against
-  `hasMany` shapes when both exist.
 
 ## Code map
 

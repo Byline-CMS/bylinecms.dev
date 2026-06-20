@@ -7,13 +7,13 @@ summary: "First-class typed relations: the populate pipeline, depth-bounded recu
 # Relationships
 
 Companions:
-- [CORE-DOCUMENT-STORAGE.md](../03-architecture/01-document-storage.md) — the foundational EAV layer relations read and write against (`store_relation` is one of the seven typed stores).
-- [CLIENT-SDK.md](../05-reading-and-delivery/01-client-sdk.md) — `@byline/client` is where most relation reads land; the populate / `WithPopulated` patterns are documented there too.
-- [COLLECTIONS.md](./index.md) — `picker` column definitions for relation-picker rows, and the `useAsTitle` field used by populate's default projection.
-- [DOCUMENT-PATHS.md](./04-document-paths.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and locale-resolved per request.
-- [AUTHN-AUTHZ.md](../06-auth-and-security/01-authn-authz.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
-- [FILE-MEDIA-UPLOADS.md](./05-file-media-uploads.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
-- [RICHTEXT.md](./06-rich-text.md) — document links inside richtext field values are a second consumer of the relation envelope.
+- [Document Storage](../03-architecture/01-document-storage.md) — the foundational EAV layer relations read and write against (`store_relation` is one of the seven typed stores).
+- [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — `@byline/client` is where most relation reads land; the populate / `WithPopulated` patterns are documented there too.
+- [Collections](./index.md) — `picker` column definitions for relation-picker rows, and the `useAsTitle` field used by populate's default projection.
+- [Document Paths](./04-document-paths.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and locale-resolved per request.
+- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
+- [File / Media Uploads](./05-file-media-uploads.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
+- [Rich Text](./06-rich-text.md) — document links inside richtext field values are a second consumer of the relation envelope.
 
 ## Overview
 
@@ -238,7 +238,7 @@ await client.collection('news').find<NewsListFields>({
 
 The wrapper is purely at the type level — a matching `populate: { … }` at the call site is still required for the runtime envelope to actually be populated.
 
-→ [CLIENT-SDK.md — Typing populated relations](../05-reading-and-delivery/01-client-sdk.md#typing-populated-relations)
+→ [Client SDK — Typing populated relations](../05-reading-and-delivery/01-client-sdk.md#typing-populated-relations)
 
 ### 10. Status awareness through populate
 
@@ -403,7 +403,7 @@ The **default projection** is the document row metadata that's always free (`doc
 
 **`useAsTitle` lives on `CollectionDefinition`.** The default projection is **schema-aware without a UI dependency**. `useAsTitle` was deliberately placed on `CollectionDefinition` (server-safe) rather than on `CollectionAdminConfig` (admin-only) so populate, `afterRead` consumers, and any future access-control consumer can read a document's identity without taking a UI runtime dependency. Django's `Model.__str__` is the analogue.
 
-`CollectionAdminConfig` retains a separate `picker?: ColumnDefinition[]` slot that drives rich row rendering in the relation-picker modal (e.g. thumbnail + title + status for Media). It's distinct from `columns` (which drives list-view rendering); formatters are reusable across both. See [COLLECTIONS.md § Columns and picker](./index.md#columns-and-picker).
+`CollectionAdminConfig` retains a separate `picker?: ColumnDefinition[]` slot that drives rich row rendering in the relation-picker modal (e.g. thumbnail + title + status for Media). It's distinct from `columns` (which drives list-view rendering); formatters are reusable across both. See [Collections § Columns and picker](./index.md#columns-and-picker).
 
 ### Status awareness through populate
 
@@ -420,7 +420,7 @@ export interface ReadContext {
   maxReads: number              // default 500
   maxDepth: number              // default 8 (caps `depth`)
   afterReadFired: Set<string>   // each doc runs through afterRead at most once per request
-  beforeReadCache: ...          // beforeRead predicate cache, see AUTHN-AUTHZ.md
+  beforeReadCache: ...          // beforeRead predicate cache, see Authentication & Authorization
 }
 
 export function createReadContext(overrides?: Partial<ReadContext>): ReadContext
@@ -481,7 +481,7 @@ The old `z.any()` catch-all is gone — the picker's contract is enforced at for
 
 A second application of the relationship primitive: links to other Byline documents *inside* a richtext field value, plus inline-image references to media documents. Two paired Lexical plugins consume the same `DocumentRelation` envelope this doc defines.
 
-The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts — lives in **[RICHTEXT.md → Relations — embed and populate](./06-rich-text.md#relations--embed-and-populate)**.
+The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts — lives in **[Rich Text → Relations — embed and populate](./06-rich-text.md#relations--embed-and-populate)**.
 
 One eligibility flag stays here because it lives on `CollectionDefinition`, not on the editor adapter:
 
@@ -516,66 +516,21 @@ The first production relation is in the News collection (`apps/webapp/byline/col
 }
 ```
 
-…and the seeded News documents in `apps/webapp/byline/seeds/documents.ts` reference existing Media items. Editing a news item shows the picker; saving writes through the standard form-state pipeline; reloading the API preview at depth 1 shows the populated Media envelope (including the file's `variants` array — see [FILE-MEDIA-UPLOADS.md](./05-file-media-uploads.md)); depth 2 walks into Media's own field set; deleting the referenced Media item and reloading at depth 1 shows the `_resolved: false` placeholder rather than a crash.
+…and the seeded News documents in `apps/webapp/byline/seeds/documents.ts` reference existing Media items. Editing a news item shows the picker; saving writes through the standard form-state pipeline; reloading the API preview at depth 1 shows the populated Media envelope (including the file's `variants` array — see [File / Media Uploads](./05-file-media-uploads.md)); depth 2 walks into Media's own field set; deleting the referenced Media item and reloading at depth 1 shows the `_resolved: false` placeholder rather than a crash.
 
 ---
 
-## Risks worth tracking
+## Current limitations
 
-- **Field-tree walker drift.** Three walkers exist today — the flatten/reconstruct walker (`storage-utils.ts`), `walkRelationLeaves` in `populate.ts`, and the `afterRead` walker in `document-read.ts`. They all need to recurse through `group` / `array` / `blocks` the same way. If they diverge, relations inside compound fields populate incorrectly. The right time to extract a shared `walkFieldTree(fields, data, visitor)` into `@byline/core` is the next time anything needs to touch a walker (a new compound type, `hasMany`, a new collection hook). Premature extraction now would over-fit on three known consumers; one more consumer makes the right shape obvious.
-- **Wide depth × wide fan-out `IN(...)` lists.** 20 docs × 5 relations × 3 depth is still capped at three round-trips per target collection, but the IN list itself can grow. The integration test asserts the batch-per-level expectation; an explicit query-count regression would catch a silent fanout-per-leaf change.
-- **`cascade_delete` round-trips but is not acted on.** The column persists; nothing reads it. Cascading deletes belongs to the future write-path work and shares design questions with relation-integrity scanning.
-- **No relation column formatter in list views.** List views currently render `target_document_id` as a string for relation fields. A formatter that resolves to `useAsTitle` is a small, independent piece of work — useful but out of scope here.
-
-## Future phases of work
-
-The current surface is feature-complete for the single-target / read-time-populate model. The phases below are concrete, planned tracks that build on it. Each is independent — none blocks the others, and the `hasMany` track is the largest by scope.
-
-### Phase — `hasMany` relations
-
-`hasMany: true` on `RelationField` is the single biggest planned addition to this area. It changes four things in concert:
-
-1. **Schema.** `RelationField` grows `hasMany?: boolean`. The field's value type becomes an array of envelopes rather than a single envelope (or null). The Zod schema builder emits an array-of-object shape under `hasMany`.
-2. **Storage.** Multiple `store_relation` rows per `(document_version_id, locale, path)` rather than at most one. The `path` carries an array index for ordering (`tags.0`, `tags.1`, …); `flattenFieldSetData` already supports this via array recursion. No new store table.
-3. **Populate output.** Each leaf in the array narrows through the same envelope as today. The four states (unpopulated, populated, unresolved, cycle) apply per-element. A single deleted target inside a `hasMany` field becomes one `_resolved: false` envelope at its position; sibling elements are unaffected.
-4. **`where` quantifiers.** Today's nested-object sub-where (`{ author: { id: 'X' } }`) means "the author's id equals X." With `hasMany`, the question splits: *some* of the targets, *every* one, or *none*. The DSL grows `$some` / `$every` / `$none` quantifiers:
-   ```ts
-   where: { tags: { $some: { name: 'urgent' } } }
-   where: { authors: { $every: { isStaff: true } } }
-   ```
-   `parse-where.ts` recognises the quantifier as a wrapper around the existing nested-`DocumentFilter[]`, and the Postgres adapter compiles each quantifier to a different `EXISTS` / `NOT EXISTS` / count-comparison shape over `store_relation` joined to the target's `current(_published)_documents` view.
-
-The picker UX is the largest UI piece. Add / remove / reorder over a list, with the same target-collection / search / pagination affordances as the single-select picker. The patch surface is unchanged in spirit (`field.set` with the new array value); whether to introduce richer per-element patches (`relation.add`, `relation.remove`, `relation.reorder`) is an open Phase decision — the analogue of how blocks have `block.add` / `block.replace` / `block.remove` rather than always replacing the whole array.
-
-### Phase — cascade-delete acted on
-
-The `cascade_delete` flag round-trips today but is not acted on. A future write-path pass walks relations to deleted targets and applies the policy:
-
-- `cascade_delete: true` → hard-delete the referencing relation rows (and possibly the document itself, depending on context).
-- `cascade_delete: false` → leave the relation row in place; reads see `_resolved: false`.
-- `cascade_delete: 'restrict'` (a future third value) → refuse the target delete with `ERR_REFERENTIAL_INTEGRITY` listing the referrers.
-
-This shares design questions with the broader integrity-scanning track below — both need to walk every relation that points at a given target, efficiently, on a soft-delete event. A reverse index on `(target_collection_id, target_document_id)` already exists on `store_relation` for this purpose.
-
-### Phase — cross-document link integrity job
-
-A periodic admin command that scans richtext fields and `store_relation` rows for links to deleted or unresolvable targets, then surfaces them in a "broken links" admin view. The natural shape: a server fn that reuses populate's missing-target detection (`_resolved: false`) but materialises the result as a list of `(linking_document, target_id, target_collection)` rows for triage. Bulk "fix" affordances (re-link, remove the link, replace the link) follow as separate user-facing actions.
-
-### Phase — bulk "refresh embedded links" command
-
-For richtext links in `embedRelationsOnSave: true` mode (the default), embedded attributes drift when a target's `title` / `path` / `altText` / image variants change. A bulk command would walk every richtext value in a chosen collection (or the whole installation), re-resolve each link's target, and re-embed the cached fields in place — without bumping `documentVersions`. Useful when staleness compounds (e.g. after a bulk title rename) and a per-document re-save isn't practical.
-
-### Phase — relation column formatter
-
-List views currently render `target_document_id` as a string for relation cells. A formatter that resolves to the target's `useAsTitle` (with the picker's `displayField` fallback chain) is small, self-contained, and independent of the other phases. Worth doing alongside `hasMany` so the formatter handles "A, B, +3 more" from the start rather than being retrofitted.
-
-### Out of scope (not currently planned)
-
-- **Anchor / fragment targeting** inside richtext links — pointing a link at a specific heading inside the target document. Editor-feature work, orthogonal to the storage shape.
-- **Mixed-mode richtext links** (per-link choice between embed and populate inside the same editor, rather than per-field). Almost certainly not worth the complexity until a real use case demands it.
-- **`AsyncLocalStorage` for `ReadContext`.** Could replace the explicit `_readContext` parameter on `CollectionHandle` later. Not blocking anything.
-
----
+- **Single-target relations only.** A relation field references at most one
+  target document. Ordered multi-target (`hasMany`) relations — with `$some` /
+  `$every` / `$none` query quantifiers and an add/remove/reorder picker — are not
+  yet supported.
+- **`cascadeDelete` is recorded but not enforced.** The flag round-trips through
+  storage; deleting a target does not yet act on it. A deleted target surfaces as
+  an unresolved relation envelope (`_resolved: false`) on read.
+- **No relation formatter in list views.** A relation cell renders the target
+  document id rather than its `useAsTitle` value.
 
 ## Code map
 
@@ -596,7 +551,7 @@ List views currently render `target_document_id` as a string for relation cells.
 | Admin API preview depth selector | `apps/webapp/src/routes/(byline)/admin/collections/$collection/$id/api.tsx` |
 | Admin `getDocument` server fn | `packages/host-tanstack-start/src/server-fns/collections/get.ts` |
 | `linksInEditor` flag | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.linksInEditor`) |
-| Richtext document links + embed / populate strategy | [RICHTEXT.md → Relations — embed and populate](./06-rich-text.md#relations--embed-and-populate) |
+| Richtext document links + embed / populate strategy | [Rich Text → Relations — embed and populate](./06-rich-text.md#relations--embed-and-populate) |
 | Reference relation field | `apps/webapp/byline/collections/news/schema.ts` (`featureImage` field) |
 | Reference list reading populated relations | `apps/webapp/src/modules/news/list.ts` |
 | Reference detail reading populated relations | `apps/webapp/src/modules/news/detail.ts` |

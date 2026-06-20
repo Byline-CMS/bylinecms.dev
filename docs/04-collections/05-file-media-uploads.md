@@ -7,12 +7,12 @@ summary: "The full upload pipeline — field-level validation, storage providers
 # File / Media Uploads
 
 Companions:
-- [COLLECTIONS.md](./index.md) — collection schema and admin (the Media collection is a worked example).
-- [FIELDS.md](./01-fields.md) — schema/admin split applied to fields, including upload fields.
-- [CORE-DOCUMENT-STORAGE.md](../03-architecture/01-document-storage.md) — `store_file` is the row that backs a persisted upload.
-- [RELATIONSHIPS.md](./02-relationships.md) — `populate` over a `relation` to a media collection carries the file envelope and its variants in one round-trip.
-- [CLIENT-SDK.md](../05-reading-and-delivery/01-client-sdk.md) — reading uploaded files (and their variants) via `@byline/client`.
-- [ROUTING-API.md](../05-reading-and-delivery/02-routing-and-api.md) — the upload transport is an internal TanStack Start server function today; a stable public HTTP boundary is deferred.
+- [Collections](./index.md) — collection schema and admin (the Media collection is a worked example).
+- [Fields](./01-fields.md) — schema/admin split applied to fields, including upload fields.
+- [Document Storage](../03-architecture/01-document-storage.md) — `store_file` is the row that backs a persisted upload.
+- [Relationships](./02-relationships.md) — `populate` over a `relation` to a media collection carries the file envelope and its variants in one round-trip.
+- [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — reading uploaded files (and their variants) via `@byline/client`.
+- [Routing & API](../05-reading-and-delivery/02-routing-and-api.md) — the upload transport is an internal TanStack Start server function today; a stable public HTTP boundary is deferred.
 
 ## Overview
 
@@ -166,9 +166,9 @@ fields: [
 A storage provider is identified at write time by `storedFile.storageProvider`; the read path doesn't need to know which provider produced a given file beyond what's already in the envelope.
 
 :::warning[upload.storage is server-only]
-**Setting it inline leaks into the client bundle.** A collection schema is **isomorphic** (bundled into the browser admin as well as the server). The `import { s3StorageProvider } from '@byline/storage-s3'` above is a *static* import at the top of the schema, so the provider's entire server-only graph — the AWS SDK, `node:*` built-ins — gets dragged into the client bundle. This is the same hazard as a hook statically importing server-only code (see [COLLECTIONS.md → Hooks must not statically import server-only code](./index.md#hooks-must-not-statically-import-server-only-code)), but for a provider *instance* rather than a function — so the `hooks: () => import(...)` loader form doesn't transplant to it directly. It fails the usual way: silent in `build` (tree-shaken), a `Module "node:…" has been externalized` crash in `dev`.
+**Setting it inline leaks into the client bundle.** A collection schema is **isomorphic** (bundled into the browser admin as well as the server). The `import { s3StorageProvider } from '@byline/storage-s3'` above is a *static* import at the top of the schema, so the provider's entire server-only graph — the AWS SDK, `node:*` built-ins — gets dragged into the client bundle. This is the same hazard as a hook statically importing server-only code (see [Collections → Hooks must not statically import server-only code](./index.md#hooks-must-not-statically-import-server-only-code)), but for a provider *instance* rather than a function — so the `hooks: () => import(...)` loader form doesn't transplant to it directly. It fails the usual way: silent in `build` (tree-shaken), a `Module "node:…" has been externalized` crash in `dev`.
 
-Until a first-class deferral lands, prefer the **site-wide `ServerConfig.storage` default** (configured server-side in `server.config.ts`) over inline per-field providers, or hide the provider construction behind a client-safe, SSR-gated shim (same technique as the hooks "Alternative" in COLLECTIONS.md). No collection ships an inline `upload.storage` today, so this is a latent affordance rather than an active bug. A build-time `server-only` poison that would catch it is tracked in TODO.md.
+Until a first-class deferral lands, prefer the **site-wide `ServerConfig.storage` default** (configured server-side in `server.config.ts`) over inline per-field providers, or hide the provider construction behind a client-safe, SSR-gated shim (the same technique as the hooks "Alternative" in [Collections](./index.md#lifecycle-hooks)). No collection ships an inline `upload.storage` today, so this is a latent affordance rather than an active bug. A build-time `server-only` poison that would catch it is a possible future safeguard.
 :::
 
 → [Storage routing](#storage-routing)
@@ -593,7 +593,7 @@ Field resolution (`resolveUploadFieldName` in `packages/host-tanstack-start/src/
 The endpoint always operates on a **single field at a time**. Multi-file forms upload sequentially; the orchestration is the client's problem, not the transport's. `executeUploads` (`packages/ui/src/forms/upload-executor.ts`) is the in-form orchestrator.
 
 :::note[Stable HTTP boundary]
-The current transport is internal to the TanStack Start app. A stable, framework-agnostic HTTP upload boundary is intentionally deferred until the first non-admin client (mobile, desktop, third-party) lands and forces the transport surface to be designed across the full read / write / upload surface, not just uploads. See [ROUTING-API.md](../05-reading-and-delivery/02-routing-and-api.md).
+The current transport is internal to the TanStack Start app. A stable, framework-agnostic HTTP upload boundary is intentionally deferred until the first non-admin client (mobile, desktop, third-party) lands and forces the transport surface to be designed across the full read / write / upload surface, not just uploads. See [Routing & API](../05-reading-and-delivery/02-routing-and-api.md).
 :::
 
 ### `beforeStore` and `afterStore` hooks
@@ -708,13 +708,17 @@ For non-image uploads, `variants` is absent and `imageWidth` / `imageHeight` / `
 
 ---
 
-## Open questions
+## Current limitations
 
-1. **Variant URL freshness.** `storageUrl` is captured at upload time. If a storage provider's `getUrl()` ever depends on per-request state (signed S3 URLs with short TTLs, CDN rewrites), persisted URLs will go stale. Two reasonable options when that lands: (a) store only `storagePath` and resolve `storageUrl` on read via `storage.getUrl()`, or (b) keep both and let the read path re-resolve when the provider opts in. Deferred — `storage-local` and a vanilla S3 with public-read both have stable URLs.
-2. **Orphan reaper.** No sweeper exists today for files written in the gap between the upload round-trip and the document save round-trip. A reaper that walks the storage backend and removes files older than N hours whose `storagePath` doesn't appear in any `store_file` row would close the gap cheaply on the local provider; on S3 a lifecycle rule plus an "uncommitted" object tag would do the same. An alternative is a "pending uploads" table that records the storage path at upload time and clears on document save (or TTL).
-3. **Image-field constraints beyond upload.** `aspectRatio`, `minWidth` / `maxWidth`, `requiredAlt` — all field-level concerns that don't exist yet. The natural home is `UploadConfig` (or a sibling block on `ImageField`).
-4. **Inline-image uploads in richtext.** The richtext inline-image plugin currently relies on a relation to `media`. Field-level `upload` doesn't change that, but it does open the door to an image-block whose own `upload` config defines the variants for inline uses.
-5. **Server-side hooks for non-upload field types.** `beforeStore` / `afterStore` is upload-specific by design. Server-side `beforeChange` / `afterChange` for arbitrary fields (e.g. to derive a slug field server-side) would live under a new `field.serverHooks` slot rather than colliding with this contract or with the existing client-side `field.hooks`.
+- **Variant URLs are captured at upload time.** `storageUrl` is persisted when the
+  file is stored, so a provider whose URLs depend on per-request state (short-TTL
+  signed S3 URLs, CDN rewrites) can serve stale URLs. The local provider and a
+  public-read S3 bucket both have stable URLs, so this does not bite today.
+- **No orphan reaper.** A file written in the gap between the upload round-trip and
+  the document save is not swept up if the save never happens. On S3 a lifecycle
+  rule covers it; the local provider has no equivalent yet.
+- **Image constraints are upload-only.** Aspect-ratio, min/max dimensions, and
+  required-alt validation are not yet expressible on an image field.
 
 ## Code map
 

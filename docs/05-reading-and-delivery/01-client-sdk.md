@@ -7,18 +7,18 @@ summary: "The in-process @byline/client SDK above the storage primitives — fin
 # Client SDK (`@byline/client`)
 
 Companions:
-- [ROUTING-API.md](./02-routing-and-api.md) — broader transport-phase context: admin UI is the only client today, stable HTTP is deferred. The SDK is what fills the gap.
-- [CORE-DOCUMENT-STORAGE.md](../03-architecture/01-document-storage.md) — storage primitives the SDK sits above.
-- [RELATIONSHIPS.md](../04-collections/02-relationships.md) — `populate` / `depth` machinery the SDK exposes.
-- [AUTHN-AUTHZ.md](../06-auth-and-security/01-authn-authz.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
-- [COLLECTIONS.md](../04-collections/index.md) — `CollectionAdminConfig.preview.url` builder used by the admin preview affordance.
+- [Routing & API](./02-routing-and-api.md) — broader transport-phase context: admin UI is the only client today, stable HTTP is deferred. The SDK is what fills the gap.
+- [Document Storage](../03-architecture/01-document-storage.md) — storage primitives the SDK sits above.
+- [Relationships](../04-collections/02-relationships.md) — `populate` / `depth` machinery the SDK exposes.
+- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
+- [Collections](../04-collections/index.md) — `CollectionAdminConfig.preview.url` builder used by the admin preview affordance.
 - [`packages/client/DESIGN.md`](../packages/client/DESIGN.md) — implementation-detail design doc; phase-by-phase status snapshot.
 
 ## Overview
 
 `@byline/client` is an **in-process, server-side SDK** for querying and mutating Byline documents. It sits above the storage primitives (`IDbAdapter`) and the `document-lifecycle` services, and exposes a richer DSL than the adapter alone: field-level filters, sort, pagination, populate, status awareness, and automatic `beforeRead` / `afterRead` hook firing. It is *not* a browser-safe SDK, *not* a public HTTP client, and *not* a framework-agnostic network transport client.
 
-The distinction matters because Byline today is in an internal transport phase (see [ROUTING-API.md](./02-routing-and-api.md)). The admin UI is the only active client, TanStack Start server functions are the internal transport boundary, and stable/public HTTP transport is intentionally deferred until the first real non-admin client arrives. `@byline/client` fits that phase well — it lives in the same Node process as Byline Core, holds direct references to the configured DB and storage adapters, and does no network I/O of its own.
+The distinction matters because Byline today is in an internal transport phase (see [Routing & API](./02-routing-and-api.md)). The admin UI is the only active client, TanStack Start server functions are the internal transport boundary, and stable/public HTTP transport is intentionally deferred until the first real non-admin client arrives. `@byline/client` fits that phase well — it lives in the same Node process as Byline Core, holds direct references to the configured DB and storage adapters, and does no network I/O of its own.
 
 What this gives consumers in trusted runtimes:
 
@@ -182,7 +182,7 @@ await client.collection('news').find({
 
 The default projection includes the target's `useAsTitle` field implicitly, so link labels keep working even if the caller didn't list it. Populate threads `readMode` through every hop — published-mode reads stay on `current_published_documents` all the way down.
 
-→ [Population](#population) · [RELATIONSHIPS.md § Populate](../04-collections/02-relationships.md#populate)
+→ [Population](#population) · [Relationships § Populate](../04-collections/02-relationships.md#populate)
 
 ### 7. Type a populated relation with `WithPopulated`
 
@@ -427,7 +427,7 @@ Field sort compiles to `LEFT JOIN LATERAL` against the appropriate store; docume
 fields: ['title', 'publishedAt', 'heroImage']
 ```
 
-Cuts the 7-way `UNION ALL` to just the stores those fields use, then trims the response to the requested keys. See [CORE-DOCUMENT-STORAGE.md § Selective field loading](../03-architecture/01-document-storage.md#selective-field-loading) for the full pipeline.
+Cuts the 7-way `UNION ALL` to just the stores those fields use, then trims the response to the requested keys. See [Document Storage § Selective field loading](../03-architecture/01-document-storage.md#selective-field-loading) for the full pipeline.
 
 ### Population
 
@@ -438,7 +438,7 @@ populate: { heroImage: true, author: { populate: { dept: true } } }
 depth: 2                                                    // default 1 when populate present
 ```
 
-The default projection includes the target's `useAsTitle` field implicitly, so widgets that render link labels keep working even if the caller's `select` didn't ask for it. See [RELATIONSHIPS.md § Populate](../04-collections/02-relationships.md#populate).
+The default projection includes the target's `useAsTitle` field implicitly, so widgets that render link labels keep working even if the caller's `select` didn't ask for it. See [Relationships § Populate](../04-collections/02-relationships.md#populate).
 
 ### Typing populated relations
 
@@ -496,7 +496,7 @@ Editorial workflows usually want one extra capability: an admin should be able t
 |---|---|---|
 | Drawer toggle (`Preview ON / OFF`) | `@byline/host-tanstack-start/admin-shell/chrome/preview-toggle` | Source-of-truth indicator above Account in the admin menu drawer. Always visible, always reversible. Reflects cookie state via `getPreviewStateFn`. |
 | `<PreviewLink>` | `@byline/host-tanstack-start/admin-shell/collections/preview-link` | Per-document external-link icon on the edit page header. On click: `enablePreviewModeFn()` then `window.open(url)`. Hides when `preview.url(doc)` returns `null`. |
-| `CollectionAdminConfig.preview` | `defineAdmin(...)` in your collection's `admin.tsx` | `{ url(doc, { locale }) }` — see [COLLECTIONS.md § Preview URL](../04-collections/index.md#preview-url) for the full reference. |
+| `CollectionAdminConfig.preview` | `defineAdmin(...)` in your collection's `admin.tsx` | `{ url(doc, { locale }) }` — see [Collections § Preview URL](../04-collections/index.md#preview-url) for the full reference. |
 | ContentAdminBar pill | `apps/webapp/src/ui/components/content-admin-bar.tsx` | Public-side "Preview" pill + "Exit Preview" button when the cookie is set. Threaded down from the public layout loader (`getPreviewStateFn`). Calls `disablePreviewModeFn` then `router.invalidate()` on exit. |
 
 **Trust model.** The cookie is a *flag*, not a credential. The actual safety check is layered:
@@ -564,13 +564,13 @@ Policy:
 - **`actor: null`** → permitted only on `read` with `readMode: 'published'`. Any write or non-published read with a null actor throws.
 - **Otherwise** → `actor.assertAbility('collections.<path>.<verb>')`. Super-admin (`actor.isSuperAdmin === true`) short-circuits.
 
-The same `_bypassBeforeRead: true` escape hatch on read options is available for admin tooling that needs to see everything regardless of `beforeRead` scoping. Use sparingly; it's a deliberate exit from access control. See [AUTHN-AUTHZ.md](../06-auth-and-security/01-authn-authz.md) for the full auth subsystem.
+The same `_bypassBeforeRead: true` escape hatch on read options is available for admin tooling that needs to see everything regardless of `beforeRead` scoping. Use sparingly; it's a deliberate exit from access control. See [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) for the full auth subsystem.
 
 ### Read-time hooks
 
 Two collection-level hooks fire automatically through the SDK:
 
-- **`beforeRead`** — called once per `find*` call (and once per populate batch per target collection), before any DB work. Returns a `QueryPredicate` AND-merged into the SQL. Per-`ReadContext` cache (`beforeReadCache`) ensures async hooks run once per collection per request. See [AUTHN-AUTHZ.md § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) (the Quick Reference there carries six worked recipes).
+- **`beforeRead`** — called once per `find*` call (and once per populate batch per target collection), before any DB work. Returns a `QueryPredicate` AND-merged into the SQL. Per-`ReadContext` cache (`beforeReadCache`) ensures async hooks run once per collection per request. See [Authentication & Authorization § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) (the Quick Reference there carries six worked recipes).
 - **`afterRead`** — called once per materialised document on every read path and once per populated relation target. `ReadContext.afterReadFired` enforces "at most once per logical request" (A→B→A foreclosure). Mutations to `doc.fields` propagate into the shaped response.
 
 Hooks share `ReadContext` with populate: a relation field and a richtext document link pointing at the same target cost one materialisation, not two.
@@ -593,7 +593,7 @@ The presence (or growth) of `@byline/client` does **not** mean Byline now needs 
 
 The trigger for a stable HTTP API is the arrival of the first real client that **cannot safely or practically** consume adapters in-process. Examples: a mobile app, a desktop app, a separately-deployed frontend, an external integration, a hosted remote Byline service. When that happens, uploads are not the only concern — the same boundary has to cover reads, list/find, create/update/delete, status transitions, version history, and auth. That is why the stable HTTP boundary is designed as a broader phase of work, not an accidental side-effect of the SDK gaining methods.
 
-See [ROUTING-API.md § What triggers a stable HTTP boundary](./02-routing-and-api.md#what-triggers-a-stable-http-boundary) for the full discussion.
+See [Routing & API § What triggers a stable HTTP boundary](./02-routing-and-api.md#what-triggers-a-stable-http-boundary) for the full discussion.
 
 ## Two clients, eventually
 

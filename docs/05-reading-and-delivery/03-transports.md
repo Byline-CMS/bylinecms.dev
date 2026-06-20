@@ -1,27 +1,25 @@
 ---
 title: "Transports"
 path: "transports"
-summary: "The pluggable transport family — a single framework-agnostic operation contract bound to many runtimes (Nitro, Fastify, Hono) plus MCP as a peer transport. The concrete shape of the stable boundary ROUTING-API.md defers."
+summary: "The pluggable transport family — a single framework-agnostic operation contract bound to many runtimes (Nitro, Fastify, Hono) plus MCP as a peer transport. The concrete shape of the stable boundary Routing & API defers."
 ---
 
 # Transports
 
-:::note[Status]
-**Concept / decision note — not yet built.** This document captures the
-intended architecture for Byline's transport layer *before* code lands, so the
-contract-first shape is settled and the work can be sequenced against the auth
-subsystem and `hasMany`. It is the concrete form of the "stable HTTP boundary
-phase" that [ROUTING-API.md](./02-routing-and-api.md) explicitly defers until the first
-non-admin client arrives. Where this note and a shipped doc disagree, the shipped
-doc wins until this one loses the status banner.
+:::note[Planned]
+This document describes a planned subsystem: the intended, contract-first
+architecture for Byline's transport layer. It is the concrete form of the stable
+HTTP boundary that [Routing & API](./02-routing-and-api.md) defers until the
+first non-admin client arrives. Treat it as the design the implementation
+follows rather than a description of shipped code.
 :::
 
 Companions:
-- [ROUTING-API.md](./02-routing-and-api.md) — the current internal-transport phase and *why* a stable boundary is deferred. This note is the answer to "what triggers it / what does it look like."
-- [CLIENT-SDK.md](./01-client-sdk.md) — `@byline/client` is the in-process transport and the layer every other transport delegates to. Transports are bindings over the same `CollectionHandle` / `document-lifecycle` surface.
-- [AUTHN-AUTHZ.md](../06-auth-and-security/01-authn-authz.md) — service-layer enforcement (`assertActorCanPerform`) means transports carry no policy; they only resolve a `RequestContext`. The per-transport context resolver is the one genuinely pluggable auth seam.
-- [MCP.md](./05-mcp-server.md) — MCP is a *peer transport* in this family, sharing the operation layer but binding it to tools/resources/prompts instead of HTTP routes.
-- [RELATIONSHIPS.md](../04-collections/02-relationships.md) — `populate` / `depth` are part of the operation surface every transport exposes; relationship completeness (`hasMany`) gates a satisfying read experience over any transport.
+- [Routing & API](./02-routing-and-api.md) — the current internal-transport phase and *why* a stable boundary is deferred. This note is the answer to "what triggers it / what does it look like."
+- [Client SDK](./01-client-sdk.md) — `@byline/client` is the in-process transport and the layer every other transport delegates to. Transports are bindings over the same `CollectionHandle` / `document-lifecycle` surface.
+- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — service-layer enforcement (`assertActorCanPerform`) means transports carry no policy; they only resolve a `RequestContext`. The per-transport context resolver is the one genuinely pluggable auth seam.
+- [MCP Server](./05-mcp-server.md) — MCP is a *peer transport* in this family, sharing the operation layer but binding it to tools/resources/prompts instead of HTTP routes.
+- [Relationships](../04-collections/02-relationships.md) — `populate` / `depth` are part of the operation surface every transport exposes; relationship completeness (`hasMany`) gates a satisfying read experience over any transport.
 
 ## Overview
 
@@ -44,7 +42,7 @@ framework" layout gets wrong:
 If each framework package re-implements the contract, the surfaces drift, and the
 create / update / read / list / status / upload / auth surface gets maintained N
 times — exactly the "misleading partial boundary / later redesign" cost
-[ROUTING-API.md](./02-routing-and-api.md) warns about, multiplied by framework count. So
+[Routing & API](./02-routing-and-api.md) warns about, multiplied by framework count. So
 the contract is declarative and shared (the same instinct as the
 [store manifest](../03-architecture/01-document-storage.md)); bindings only know how to iterate
 it.
@@ -118,7 +116,7 @@ contract — paths, schemas, abilities, error envelope — lives once in
 
 Transports carry **no policy** — `assertActorCanPerform` (documents) and
 `assertAdminActor` (admin management) run inside the core/admin services, so every
-transport inherits the gate for free (see [AUTHN-AUTHZ.md](../06-auth-and-security/01-authn-authz.md)). The
+transport inherits the gate for free (see [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md)). The
 one thing that genuinely varies per transport is *how an incoming request becomes a
 `RequestContext`*:
 
@@ -126,7 +124,7 @@ one thing that genuinely varies per transport is *how an incoming request become
 |----------------------|------------------------------------------------------|
 | TanStack server fns  | cookie + `JwtSessionProvider` (interactive admin)    |
 | HTTP API (any binding)| `Authorization: Bearer` — API key / token actor      |
-| MCP                  | service-account token → scoped `Actor` (see MCP.md)  |
+| MCP                  | service-account token → scoped `Actor` (see MCP Server)  |
 | in-process client    | caller passes `RequestContext` directly              |
 
 So the operation layer defines a single `ContextResolver` interface — "give me a
@@ -185,7 +183,7 @@ infrastructure, and the cheapest possible real proof of the contract layer.
 | `packages/http-nitro`| Binding. Iterates the manifest into h3 route handlers. Co-mounts in the TanStack host (scenario 2). **Ship first.** |
 | `packages/http-fastify`| Binding. Standalone Node API server (scenarios 3/4). Ships when split-host demand appears. |
 | `packages/http-hono` | Binding. Edge/Workers/Deno runtimes. Deferred until an edge consumer exists. |
-| `packages/mcp`       | Peer transport. Binds the *same* operations to MCP tools/resources/prompts. See [MCP.md](./05-mcp-server.md). Ships after `hasMany`. |
+| `packages/mcp`       | Peer transport. Binds the *same* operations to MCP tools/resources/prompts. See [MCP Server](./05-mcp-server.md). Ships after `hasMany`. |
 
 Whether the transport-agnostic `OperationDefinition[]` lives in `packages/http` or
 is factored up into `@byline/core` is left open until MCP proves what is genuinely
@@ -206,12 +204,12 @@ gated by real demand:
 2. `packages/http-fastify` — when a split-host / standalone-API deployment
    (scenario 3/4) is actually needed.
 3. `packages/mcp` — after `hasMany`, so the operation surface exposes complete
-   relationships (see [MCP.md](./05-mcp-server.md)).
+   relationships (see [MCP Server](./05-mcp-server.md)).
 4. `packages/http-hono` — only when an edge runtime consumer exists.
 
-## Relationship to ROUTING-API.md
+## Relationship to Routing & API
 
-[ROUTING-API.md](./02-routing-and-api.md) describes the *current* phase (server fns are the
+[Routing & API](./02-routing-and-api.md) describes the *current* phase (server fns are the
 only transport; stable HTTP deferred) and lists what triggers the next phase — "the
 arrival of the first real non-admin client." This note is that next phase, designed
 ahead of the trigger so it is not improvised one endpoint at a time. The rule from
@@ -219,7 +217,7 @@ that doc still holds and is reinforced here: **the HTTP boundary is designed acr
 the full surface area at once, as a contract, not grown incrementally around one
 operation.**
 
-When this family ships, the architecture from ROUTING-API.md's closing diagram
+When this family ships, the architecture from Routing & API's closing diagram
 becomes literal:
 
 ```
@@ -230,7 +228,7 @@ becomes literal:
    in-process client  (@byline/client)                          ──┘     → adapters
 ```
 
-## Code map (planned)
+## Code map
 
 | Concern                              | Intended location                                  |
 |--------------------------------------|----------------------------------------------------|
@@ -240,7 +238,7 @@ becomes literal:
 | Nitro/h3 binding                     | `packages/http-nitro/src/`                         |
 | Fastify binding                      | `packages/http-fastify/src/`                       |
 | Hono binding                         | `packages/http-hono/src/`                          |
-| MCP binding                          | `packages/mcp/src/` (see [MCP.md](./05-mcp-server.md))       |
+| MCP binding                          | `packages/mcp/src/` (see [MCP Server](./05-mcp-server.md))       |
 | Bearer / API-key actor + provider    | extends `@byline/auth` `SessionProvider` (new work)|
 | Core services (unchanged)            | `packages/core/src/services/`                      |
 

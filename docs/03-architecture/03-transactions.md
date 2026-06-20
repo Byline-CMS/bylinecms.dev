@@ -32,7 +32,7 @@ two things atomically:
   edit, a status transition, a delete — and its audit-log row must commit
   together. The one unacceptable outcome for an *auditability* feature is a
   change that succeeds while its audit row silently fails to write. See
-  [AUDIT.md](../06-auth-and-security/02-auditability.md).
+  [Auditability](../06-auth-and-security/02-auditability.md).
 - **Uploads (the half-case — see below).** The media record and its related
   rows should commit together.
 
@@ -134,7 +134,7 @@ A sharp line, because conflating the two leads to a wrong design:
   the file, write the DB record in a transaction, and on DB failure delete
   the file (the upload flow already carries partial compensation:
   `shouldCreateDocument: true` "rolls back storage on failure", see
-  [FILE-MEDIA-UPLOADS.md](../04-collections/05-file-media-uploads.md)). This work makes the *DB
+  [File / Media Uploads](../04-collections/05-file-media-uploads.md)). This work makes the *DB
   side* of uploads atomic and tidier; the file↔DB boundary still needs
   compensation. "Transactions fix uploads" is **not** a promise this makes.
 
@@ -164,7 +164,7 @@ future adapter has a clear target:
    never in `@byline/core`. Transactions are inherently driver-specific;
    `DBManager` / `TXManager` are adapter internals. Core stays
    transport-agnostic — consistent with guard rail 3 in
-   [CORE-COMPOSITION.md](./02-core-composition.md#architectural-guard-rails).
+   [Core Composition](./02-core-composition.md#architectural-guard-rails).
 2. **`withTransaction` is an adapter capability on the contract.** Services
    depend on `IDbAdapter.withTransaction(fn)`, not on Postgres specifically,
    so a future Fastify/serverless adapter has an explicit method to satisfy

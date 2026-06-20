@@ -22,9 +22,8 @@ and — the load-bearing question — whether an eager single-point registration
 even possible given that custom slot components legitimately need React context.
 
 Companions:
-- [CORE-COMPOSITION.md](../03-architecture/02-core-composition.md) — the *server* composition story (`initBylineCore()`); this doc is the *client* config analogue.
-- [RICHTEXT.md](../04-collections/06-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
-- TODO.md — priority index; this is the linked detail for "Admin client-config registration — single-point resolution."
+- [Core Composition](../03-architecture/02-core-composition.md) — the *server* composition story (`initBylineCore()`); this doc is the *client* config analogue.
+- [Rich Text](../04-collections/06-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
 
 :::note[Status (2026-06)]
 **Groundwork shipped, eager single-point deferred.** The

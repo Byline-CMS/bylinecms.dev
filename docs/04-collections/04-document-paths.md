@@ -7,13 +7,13 @@ summary: "How byline_document_paths keys (document_id, locale) → path, why pat
 # Document Paths
 
 Companions:
-- [CORE-DOCUMENT-STORAGE.md](../03-architecture/01-document-storage.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
-- [RELATIONSHIPS.md](./02-relationships.md) — `path` is the routing identifier used by relation filters (`where: { category: { path: 'news' } }`) and resolved via `findByPath` under the same `readMode` rule populate honours, with locale fallback applied per request.
-- [COLLECTIONS.md](./index.md) — `useAsPath` participates in the collection schema fingerprint (see the Fingerprint section).
+- [Document Storage](../03-architecture/01-document-storage.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
+- [Relationships](./02-relationships.md) — `path` is the routing identifier used by relation filters (`where: { category: { path: 'news' } }`) and resolved via `findByPath` under the same `readMode` rule populate honours, with locale fallback applied per request.
+- [Collections](./index.md) — `useAsPath` participates in the collection schema fingerprint (see the Fingerprint section).
 
 ## Overview
 
-`path` is a reserved system attribute. It is the routing primitive that resolves a URL path back to a document — the cheapest path-resolution lookup in the system, used by `findByPath` and by relation filters. Storage lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)` with a unique constraint on `(collection_id, locale, path)`. See [Path uniqueness — shipped](#path-uniqueness--shipped) below for the full schema and lifecycle behaviour.
+`path` is a reserved system attribute. It is the routing primitive that resolves a URL path back to a document — the cheapest path-resolution lookup in the system, used by `findByPath` and by relation filters. Storage lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)` with a unique constraint on `(collection_id, locale, path)`. See [Path uniqueness](#path-uniqueness) below for the full schema and lifecycle behaviour.
 
 Three rules anchor the model:
 
@@ -119,7 +119,7 @@ try {
 
 Auto-suffixing is intentionally not implemented — silent rename is footgun-shaped. Seeders / bulk imports can pre-resolve uniqueness in caller code if they need to.
 
-→ [Path uniqueness — shipped](#path-uniqueness--shipped)
+→ [Path uniqueness](#path-uniqueness)
 
 ---
 
@@ -177,7 +177,7 @@ Behaviour:
 
 The widget bypasses the patch system. The `systemPath` slot on form context (`getSystemPath`, `setSystemPath`, `subscribeSystemPath`) is initialised from `initialData.path` on mount, tracked in dirty state, reset on form save, and threaded into the `onSubmit(...)` payload that `FormRenderer` emits.
 
-On an existing document, a path edit in the admin is a **document-grain, non-versioned write**: `path` lives in `byline_document_paths` keyed by logical document (sticky across versions), so editing it does not mint a new version or reset workflow status. `FormRenderer` partitions its dirty state (`getDirtyBreakdown()` → `none` / `content` / `direct-write` / `both`), confirms the immediate write with a modal, and persists `path` through the dedicated non-versioned write path below. On **create**, `path` is still part of the initial version write. See [I18N.md](../07-internationalization/index.md) for the shared design (the available-locales widget works the same way).
+On an existing document, a path edit in the admin is a **document-grain, non-versioned write**: `path` lives in `byline_document_paths` keyed by logical document (sticky across versions), so editing it does not mint a new version or reset workflow status. `FormRenderer` partitions its dirty state (`getDirtyBreakdown()` → `none` / `content` / `direct-write` / `both`), confirms the immediate write with a modal, and persists `path` through the dedicated non-versioned write path below. On **create**, `path` is still part of the initial version write. See [Internationalization](../07-internationalization/index.md) for the shared design (the available-locales widget works the same way).
 
 ## Server transport
 
@@ -189,7 +189,7 @@ The `@byline/client` SDK exposes `CreateOptions.path` and `UpdateOptions.path` o
 
 `path` is **not** addressable via `field.*` / `array.*` / `block.*` patches — it is system metadata, parallel to `status`. The widget writes to the separate `systemPath` slot; the submit payload sends it as a top-level field. This keeps the patch system aligned with UI intent (reordering, block insertion, field-level changes) and keeps system metadata out of the patch grammar.
 
-## Path uniqueness — shipped
+## Path uniqueness
 
 Per-collection path uniqueness is enforced at the database level via a dedicated `byline_document_paths` table. The version-level `documentVersions.path` column has been retired. The new model:
 
@@ -223,50 +223,17 @@ Reads compose a fallback chain `[requested, default]`, deduplicated when both va
 
 `pgAdapter()` takes a `defaultContentLocale: string` parameter, threaded from `ServerConfig.i18n.content.defaultLocale`. The storage adapter uses this when writing path rows on default-locale operations and as the fallback in the read-side locale chain. `@byline/client` resolves the same value (from explicit config, the supplied `ServerConfig`, or `'en'` as a last-resort fallback for tests / migration scripts) and applies it as the implicit default for `locale` on every read method.
 
-## Future phases of work
+## Current limitations
 
-The current model deliberately doesn't address two things. Both are deferred until a real workload forces the question.
-
-### Phase — per-collection slugifier override
-
-Add when a real need surfaces — for example a media collection that wants to preserve filename extensions. The plumbing point is well-defined: `useAsPath: { source, formatter }` would be the natural shape, with the per-collection formatter taking precedence over `ServerConfig.slugifier`.
-
-### Phase — per-locale paths (translated paths)
-
-The current rule — one `path` per document, written under the installation's default content locale — is a deliberate simplification, not a structural limit. From a pure web-resource perspective it is technically correct: a document has one canonical resource identifier, and locale-prefixed variants (`/en/about`, `/de/ueber-uns`) are presentation/routing concerns expressed via `<link rel="alternate">` and equivalent. Most sites need nothing more.
-
-The phase-2 change is **purely additive** — the `byline_document_paths` schema is already locale-keyed, so flipping on per-locale support means *writing additional rows*, not reshaping the table.
-
-#### What's already in place
-
-The shipped phase-1 schema is locale-ready:
-
-```ts
-byline_document_paths
-  document_id   uuid    } composite primary key
-  locale        varchar(10) }
-  collection_id uuid
-  path          varchar(255)
-  UNIQUE (collection_id, locale, path)
-```
-
-The reads already resolve through a `[requested, default]` priority chain — a `'de'` request that has no `'de'` row falls through to the `'en'` (default) row. Phase 2 adds the *write* side without touching the read pipeline.
-
-#### Lifecycle changes for phase 2
-
-- **`createDocument`** — still enforces default-locale-first creation; writes the default-locale row exactly as today. Optionally accepts a `paths?: Record<string, string>` payload to bulk-write additional locale rows on first save.
-- **`updateDocument` in a non-default locale** — instead of dropping the supplied path with a warn (the phase-1 behaviour), upserts a row keyed by the request locale. The unique constraint on `(collection_id, locale, path)` still applies per-locale.
-- **Path widget** — gains a per-locale layout: either a small table of locale → path pairs, or a per-locale tab pattern matching how localised regular fields are edited. The widget surfaces the live-preview slugifier per locale, plus the existing `Suggested:` hint.
-- **Read-side fallback policy** — already in place; admin reads explicitly opt out of fallback (`locale` enforced strict) when editing a translation so you can see whether a row exists for that locale or whether the read is falling through.
-- **Write-side hook contexts** — **must be revisited.** As of v3.1.0 the write-side collection hooks (`afterCreate`, `afterUpdate`, before/after `statusChange`, before/after `unpublish`, before/after `delete`) carry a single `path: string` — the **canonical (source-locale) slug**, resolved by `IDocumentQueries.getCurrentPath` with `requestedLocale: undefined` (so it reads the row under the document's `source_locale`). That is the only path row a document has today, so the value is unambiguous. Once per-locale paths land, a document will hold multiple slugs and a single canonical `path` is no longer sufficient for consumers that purge/invalidate **per localised URL**. At that point the hook contexts need enriching to either (a) carry the locale each path was derived from/retrieved under alongside the slug, or (b) expose the full `locale → path` map. `getCurrentPath` would gain a locale-aware sibling (or return the set). The document-grain contexts (`statusChange` / `unpublish` / `delete`) also carry **no locale** today and would need one. Keep the existing `path` field for backward compatibility (canonical slug) and add the locale-aware surface additively. See `CACHING.md` for how consumers use `ctx.path`.
-
-#### Why this is a future phase, not a current plan
-
-No real consumer needs this today. The current design supports multilingual content (every other field can be localised) and multilingual routing (a frontend can prefix `/{locale}/{path}` without any CMS-side change). The wrinkle is only sites that want **translated paths** as a CMS concern, and that's a niche requirement worth deferring until someone asks. The structural answer is on file and the schema is ready: phase 2 is widget UX, lifecycle write-side, and a small set of admin server fns — no migrations.
-
-### Phase — stable HTTP transport for `path`
-
-The widget currently posts through TanStack Start server functions. Once Byline introduces a stable HTTP boundary (see [ROUTING-API.md](../05-reading-and-delivery/02-routing-and-api.md)), `path` will need a defined wire shape — likely the same top-level field the server functions already accept. Trivial work that will fall out naturally from the broader transport-design pass.
+- **One path per document, under the default content locale.** Translated paths
+  (a different slug per locale) are not yet a CMS concern. This is a deliberate
+  simplification, not a structural limit — `byline_document_paths` is already
+  locale-keyed and reads resolve through a `[requested, default]` chain, so a
+  frontend can route `/{locale}/{path}` today and per-locale slugs can be added
+  additively later. Most sites need nothing more.
+- **No per-collection slugifier override.** The slugifier is configured once on
+  `ServerConfig`; a collection cannot yet supply its own (for example to preserve
+  filename extensions on a media collection).
 
 ## Code map
 

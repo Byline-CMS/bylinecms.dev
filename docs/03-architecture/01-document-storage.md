@@ -7,9 +7,9 @@ summary: "Universal EAV-per-type storage: typed store_* tables, the path notatio
 # Core Document Storage
 
 Companions:
-- [RELATIONSHIPS.md](../04-collections/02-relationships.md) — the first read consumer that spans collections.
-- [DOCUMENT-PATHS.md](../04-collections/04-document-paths.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
-- [COLLECTIONS.md](../04-collections/index.md) — schema versioning (Versioning section) sits beside, but is independent of, document versioning.
+- [Relationships](../04-collections/02-relationships.md) — the first read consumer that spans collections.
+- [Document Paths](../04-collections/04-document-paths.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
+- [Collections](../04-collections/index.md) — schema versioning (Versioning section) sits beside, but is independent of, document versioning.
 - [Storage benchmark sweep — 2026-04-18](../benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
 
 ## Overview
@@ -66,7 +66,7 @@ store_meta         (document_version_id, locale, path, key text, value text)
 current_documents             view ── ROW_NUMBER() OVER (PARTITION BY document_id) → rn = 1
 current_published_documents   view ── filtered to status='published' first, then ROW_NUMBER
 
-admin_*                            ── separate auth subsystem; see AUTHN-AUTHZ.md
+admin_*                            ── separate auth subsystem; see Authentication & Authorization
 ```
 
 Indexes follow the access pattern: every `store_*` table has `(document_version_id, locale, path)` covering the dominant point lookup, and per-store secondary indexes (GIN on `store_text.value`, btree on `store_numeric.value` and `store_datetime.value`) for filter/sort queries.
@@ -157,7 +157,7 @@ FROM document_versions
 WHERE is_deleted = false
 ```
 
-…then filters to `rn = 1`. Status changes mutate the existing version row in place — `status` is lifecycle metadata, not content, so there is no need to fork a new version when a draft becomes published. The document-grain system fields — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`) — sit outside the version stream entirely: keyed by logical document and sticky across versions, they are edited in the admin through dedicated non-versioned commands (`updateDocumentPath`, `setDocumentAvailableLocales`) that mint no version and leave status untouched. See [DOCUMENT-PATHS.md](../04-collections/04-document-paths.md) and [I18N.md](../07-internationalization/index.md).
+…then filters to `rn = 1`. Status changes mutate the existing version row in place — `status` is lifecycle metadata, not content, so there is no need to fork a new version when a draft becomes published. The document-grain system fields — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`) — sit outside the version stream entirely: keyed by logical document and sticky across versions, they are edited in the admin through dedicated non-versioned commands (`updateDocumentPath`, `setDocumentAvailableLocales`) that mint no version and leave status untouched. See [Document Paths](../04-collections/04-document-paths.md) and [Internationalization](../07-internationalization/index.md).
 
 Locale copy-forward on versioned writes runs in a **single transaction batch** — when only the `en` locale is being written, the seven per-store `INSERT ... SELECT`s that carry forward `fr` / `de` / etc. rows from the previous version run as one round trip, not seven.
 
@@ -184,19 +184,19 @@ The adapter's `readMode?: 'published' | 'any'` parameter threads through `findDo
 > `getDocumentAuditLog` read, and the admin **Document history** tab — shipped
 > in **v3.10.0** (actor attribution, W1, shipped earlier in v3.8.0; the
 > system-wide activity report, W4, in **v3.11.0**). The whole auditability
-> domain is specified in [AUDIT.md](../06-auth-and-security/02-auditability.md). The sketch below stands as the
+> domain is specified in [Auditability](../06-auth-and-security/02-auditability.md). The sketch below stands as the
 > original rationale.
 
 Immutable versioning gives content changes a complete, queryable history: every save is a new `document_versions` row, and the admin **History** view renders that lineage with per-version diffs. Two classes of change deliberately sit **outside** that version stream and so have no home in version history today:
 
-1. **Document-grain system fields** — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`). As of v3.3.0 these are edited through dedicated **non-versioned** writes (`updateDocumentPath`, `setDocumentAvailableLocales` via `updateDocumentSystemFields`) that mint no version and don't reset status. The decoupling was deliberate — these fields are document-grain and sticky across versions, so gating them behind the publish workflow falsely implied per-version staging (see [I18N.md](../07-internationalization/index.md) and [DOCUMENT-PATHS.md](../04-collections/04-document-paths.md)). The trade is that an immediate write leaves no audit trail.
+1. **Document-grain system fields** — `path` (`byline_document_paths`) and the editorial `availableLocales` set (`byline_document_available_locales`). As of v3.3.0 these are edited through dedicated **non-versioned** writes (`updateDocumentPath`, `setDocumentAvailableLocales` via `updateDocumentSystemFields`) that mint no version and don't reset status. The decoupling was deliberate — these fields are document-grain and sticky across versions, so gating them behind the publish workflow falsely implied per-version staging (see [Internationalization](../07-internationalization/index.md) and [Document Paths](../04-collections/04-document-paths.md)). The trade is that an immediate write leaves no audit trail.
 2. **Status / lifecycle transitions** — already mutate the version row in place rather than forking a new version, so a publish → unpublish → re-publish sequence isn't independently recorded beyond the current status value.
 
 **The phase:** round out Byline's auditable history so *every* change is accountable — not just content. A document-grain **audit log** table records `(document_id, collection_id, actor, action, field, before, after, occurred_at)` for the non-versioned mutations above (and, optionally, status transitions), written from the same service entry points (`updateDocumentSystemFields`, `changeDocumentStatus`) under the existing `assertActorCanPerform` gate. Honours the project's auditable + accountable philosophy: an immediate write is still a *recorded* write.
 
 **Admin surface:** a new tab under the existing document **History** view — content/version history stays on the current tab; a **System & document-level history** tab renders the audit-log entries (who changed the path / advertised locales / status, when, and from→to). This keeps the version timeline clean while making the out-of-band changes first-class and reviewable.
 
-Shipped scope (v3.10.0): the `byline_audit_log` table + schema, write-points wired into the system-field, status, **and delete** services, the `getDocumentAuditLog(document_id)` read query (gated through the document's own read pipeline), and the admin **Document history** tab. The system-wide activity report (W4) remains. See [AUDIT.md](../06-auth-and-security/02-auditability.md) and the TODO index.
+Shipped scope (v3.10.0): the `byline_audit_log` table + schema, write-points wired into the system-field, status, **and delete** services, the `getDocumentAuditLog(document_id)` read query (gated through the document's own read pipeline), and the admin **Document history** tab. The system-wide activity report (W4) remains. See [Auditability](../06-auth-and-security/02-auditability.md) and the TODO index.
 
 ## Indicative benchmarks
 
@@ -255,7 +255,7 @@ Production numbers will differ — different hardware, tuned Postgres, real conc
 
 This is the strategic risk worth tracking. The window function evaluates every non-deleted version every list-view query. At the scales tested it stays well within acceptable, but the growth is real and roughly linear in non-deleted versions per collection.
 
-**Prepared mitigation, not yet built:** materialise `current_documents` as a table — either trigger-maintained on every `documentVersions` insert/update, or periodically refreshed at a cadence the workload tolerates. The view definition and its consumers don't have to change; the view is replaced by a table of the same shape. The work is deferred until a real workload demands it; the benchmark harness makes the trigger to reopen specific.
+**The mitigation** is to materialise `current_documents` as a table — either trigger-maintained on every `documentVersions` insert/update, or refreshed periodically at a cadence the workload tolerates. The view definition and its consumers don't change; the view is simply replaced by a table of the same shape, so the change is contained when a workload demands it.
 
 ### EAV write amplification at large fan-out
 

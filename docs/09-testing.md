@@ -149,7 +149,7 @@ alongside the editor smoke suite: `e2e/sitemap.spec.ts` (dynamic `sitemap.xml` w
 hreflang alternates), `e2e/markdown.spec.ts` (the `.md` document representations), and
 `e2e/llms.spec.ts` (the `llms.txt` index). These pin the served output of the markdown
 export surface — the format contract itself is documented in
-[MARKDOWN-EXPORT.md](./05-reading-and-delivery/04-markdown-export.md) and unit-pinned in `packages/richtext-lexical`
+[Markdown Export](./05-reading-and-delivery/04-markdown-export.md) and unit-pinned in `packages/richtext-lexical`
 and `packages/core`; the e2e specs cover the route/negotiation layer on top (locale
 prefixing, caching headers, the `Accept: text/markdown` redirect). Same requirements as
 above: seeded dev database, `pnpm test:e2e`.

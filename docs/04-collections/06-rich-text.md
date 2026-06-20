@@ -7,8 +7,8 @@ summary: "Byline's Lexical-based rich text editor: the extension API, built-in n
 # Rich Text Editor
 
 Companions:
-- [CORE-COMPOSITION.md](../03-architecture/02-core-composition.md) — the broader roadmap for how Byline composes adapter packages (db, storage, session, editors).
-- [RELATIONSHIPS.md](./02-relationships.md) — the relation-field primitive that richtext links and inline images are layered on top of.
+- [Core Composition](../03-architecture/02-core-composition.md) — the broader roadmap for how Byline composes adapter packages (db, storage, session, editors).
+- [Relationships](./02-relationships.md) — the relation-field primitive that richtext links and inline images are layered on top of.
 
 ## Overview
 
@@ -420,7 +420,7 @@ A document-level "view as markdown source" toggle, opt-in per installation via t
 - **Patch-aware.** The editor is bound to a Byline form field that accumulates `DocumentPatch[]`. While in source mode, keystrokes are suppressed from the form's `OnChangePlugin` via a synchronous `markdownModeRef` guard, so the transient source view never leaks into the patch stream. A no-edit round-trip (WYSIWYG → markdown → WYSIWYG with no changes) restores the *exact* captured `EditorState`, so the form records **no patch**; edits made in source emit a single field change on toggle-back (**one patch**). Mode state lives in `MarkdownModeProvider` (`field/context/markdown-mode-context.tsx`); the conversion + root-shape guard live in the `useMarkdownToggle` hook (`field/hooks/use-markdown-toggle.ts`).
 - **Transformers.** Conversion runs through `BYLINE_TRANSFORMERS` (`field/markdown/transformers.ts`) — the stock `@lexical/markdown` `TRANSFORMERS` extended with custom handlers: GFM pipe **tables** (adapted from the Lexical playground) and Docusaurus-style `:::type[Title] … :::` **admonitions** (`note` / `tip` / `warning` / `danger`). Admonition bodies use an inline-only transformer set because the node's nested editor (a bare `createEditor()`) holds only paragraphs + inline formatting. The same `BYLINE_TRANSFORMERS` array is wired into the inline `MarkdownShortcutPlugin` so typed shortcuts and the source view stay consistent.
 - **Lossy nodes (known gap).** Custom nodes without a transformer — **layout** columns and **inline images** — are dropped/flattened on a markdown round-trip. A guard to disable the toggle (or warn) when an un-round-trippable node is present is planned alongside extending the transformer set.
-- **Distinct from server-side export.** This toggle is the *bidirectional, lossless* browser path for a single richtext field. Serving a markdown representation of a whole published document at its route is a separate, one-way concern — shipped; see [MARKDOWN-EXPORT.md](../05-reading-and-delivery/04-markdown-export.md).
+- **Distinct from server-side export.** This toggle is the *bidirectional, lossless* browser path for a single richtext field. Serving a markdown representation of a whole published document at its route is a separate, one-way concern — shipped; see [Markdown Export](../05-reading-and-delivery/04-markdown-export.md).
 
 ### The toolbar registry
 
@@ -684,79 +684,18 @@ No `featureAfterEditor` injection, no React-context registry hop — the extensi
 
 ---
 
-## Future phases
+## Current limitations
 
-Concrete next steps, roughly ordered by likely sequence. None committed to a timeline.
-
-### Phase 2 — A second editor package
-
-The single most useful next step is the **existence of a second editor package** — almost certainly `@byline/richtext-tiptap` or a markdown-focused `@byline/richtext-md`. Until that exists, every adapter-shape question is one-sided. A second package will surface the real questions:
-
-- Is `RichTextEditorProps` enough, or are editors hitting its limits?
-- Do they share *anything* in the way they want to expose features?
-- What does the per-instance `editorConfig` prop look like across editors, and is the variance painful enough to warrant a normalised shape?
-- Where do per-editor stylesheet conventions and theme tokens live?
-
-A second package is also where the test for *whether to grow the contract* becomes empirical rather than speculative.
-
-### Phase 3a — Server-side embed and populate primitives (shipped)
-
-The richtext adapter has two server-side primitives wired into the framework. The **embed** primitive runs on every save through `document-lifecycle`, refreshing embedded relation envelopes (link `document.path` via `CollectionDefinition.buildDocumentPath`, inline-image bag) before persistence. The **populate** primitive runs on every read through `populateRichTextFields`, refreshing the same envelopes against current target documents before user-land `afterRead` fires. Both share the same Lexical visitor pipeline. See [Server-side embed and populate](#server-side-embed-and-populate).
-
-### Phase 3b — User-land editor lifecycle hooks (deferred)
-
-Other CMS frameworks expose per-editor lifecycle hooks — typically `beforeChange`, `afterChange`, `beforeRead`, `serialize`, `deserialize` — that fire as the document moves through the field pipeline. Useful when an editor needs to transform its serialized output before storage, rehydrate a stored shape into the editor's runtime state on read, run validation that depends on the editor's internal model, or emit derived data (excerpt, plain-text projection, search payload, TOC).
-
-Byline already has analogous hooks one level up — `FieldHooks.beforeValidate` / `beforeChange` on every field, plus collection-level `beforeRead` / `afterRead` / `beforeChange` / `afterChange`. The question is whether a future editor needs its own pipeline distinct from the field-level one. Lexical's serialized state round-trips through the existing `validate` and field hooks without help. If a second editor surfaces a real need, that becomes the moment to design the editor-level pipeline against two concrete shapes rather than one. Pipeline ordering relative to field and collection hooks is the design question that matters most — the likely answer is *editor hooks fire innermost*, but that should be confirmed against two implementations.
-
-### Phase 4 — Feature-graph configuration
-
-If two or more editor packages settle into compatible feature shapes — or a real installation needs to express feature parity across editors — design a shared feature-graph contract. Until that pressure exists, every editor's configuration stays opaque.
-
-### Phase 5 — Editor-side server pipeline
-
-Independent of the adapter shape: derived projections from rich text content (search payload, excerpt, plain-text fallback for SSR, structured outline) are useful enough to deserve their own design pass once the search / indexing story takes shape. More naturally a concern of `@byline/core/services` than the editor adapter, but the adapter is the boundary that knows how to traverse its own document tree.
-
-### Phase 6 — Per-collection / per-field editor selection
-
-Today's slot is site-wide. A future phase may want to register an editor per collection or per field — for example, a markdown editor in a documentation collection and Lexical elsewhere. The existing `FieldComponentSlots.Field` already provides the per-field escape hatch and works today; a more structured per-collection or per-field selection is only worth designing once there's a clear product reason.
-
-### Phase 7 — Extensibility (shipped)
-
-`@byline/richtext-lexical` exposes a BYO-extension surface so installations can add their own Lexical nodes / plugins without forking the package. All four sub-pieces shipped:
-
-1. **Unified extensions list** — the root extension's `dependencies` array is sourced from `editorConfig.extensions.toArray()`. See [Editor settings and extensions](#editor-settings-and-extensions).
-2. **`BylineToolbarExtension` contract** — typed Lexical extension; built-ins and third parties contribute via `peerDependencies`. See [The toolbar registry](#the-toolbar-registry).
-3. **`BylineFloatingUIExtension` registry** — mirror of the toolbar registry for floating UIs. The three built-in floating UIs migrated to peer contributions; per-plugin boolean toggles were dropped (suppression is now `c.extensions.remove(...)`); `TableActionMenuPlugin` reads `hasCellMerge` from the upstream Lexical table extension. See [The floating-UI registry](#the-floating-ui-registry).
-4. **Extensions README** — in-tree pointer at `packages/richtext-lexical/src/field/extensions/README.md` deep-links back to the recipes above.
-
-This phase is Lexical-specific. A second editor package (Phase 2) would have its own extensibility surface shaped by its own plugin model; the Phase 7 design here doesn't generalise to TipTap or ProseMirror.
-
-### Phase 8 — Markdown export (shipped)
-
-**Shipped — the full present-state reference is [MARKDOWN-EXPORT.md](../05-reading-and-delivery/04-markdown-export.md).** The design decided here landed as specified: a one-way, lossy-tolerant `lexicalToMarkdown` serializer (`packages/richtext-lexical/src/field/markdown/lexical-to-markdown.ts`, exported from `@byline/richtext-lexical/server`) that walks the stored `SerializedEditorState` JSON directly — no `@lexical/headless`, no DOM, no node registration — registered through the `ServerConfig.fields.richText.toMarkdown` seam, with the document-grain `documentToMarkdown` assembler in `@byline/core` composing frontmatter + fields + blocks into one file. The webapp serves one `.md` variant per content locale at the canonical URL + `.md`, plus `llms.txt` and the three advertisement channels (`.md` URLs, head `rel=alternate` links, `Accept: text/markdown` negotiation).
-
-The export remains deliberately distinct from the [markdown source toggle](#markdown-source-toggle-and-transformers) (bidirectional, lossless, browser-side, single field) — don't let either's requirements gate the other. Also distinct from [Phase 5](#phase-5--editor-side-server-pipeline) (field-grain search / excerpt / plain-text projections), though both are server-side derived projections and could share the JSON tree-walk scaffolding.
-
----
-
-## Known followups
-
-Carried over from the link-refactor work (steps 1–9 of the now-archived `RICHTEXT-LINK-REFACTOR-STRATEGY.md`). Each is **deferred, not speculative** — direction is decided; just not implemented yet.
-
-### Multi-locale write walking
-
-`restoreDocumentVersion` and `duplicateDocument` write with `locale: 'all'`, producing a multi-locale `{ <locale>: lexicalJson }` shape per localized richtext leaf. The embed walker silently no-ops for those leaves today — `getLexicalRoot` can't parse the map as a single tree. Non-localized leaves still refresh. The renderer's fallback chain copes either way (a restored document keeps the picker-time embed envelope its source had). A per-locale walk is the obvious next step but adds complexity; not blocking, not yet pulled in. See the **Multi-locale write caveat** note in [Server-side embed and populate](#server-side-embed-and-populate) for the current behaviour and the source comments in `packages/core/src/services/richtext-embed.ts`.
-
-### `CollectionAdminConfig.preview.url` defaults to `buildDocumentPath` (shipped)
-
-When `preview.url` is omitted, `resolvePreviewUrl` (`packages/host-tanstack-start/src/admin-shell/collections/preview-link.tsx`) now consults `CollectionDefinition.buildDocumentPath` before falling back to the generic `/${collectionPath}/${doc.path}` compose. The schema-side hook is the single source of truth for both the richtext embed walker and the admin Preview button. Hosts that need request-scoped composition (locale prefix, query string, conditional return-null) still write their own `preview.url` — Pages does this in `apps/webapp/byline/collections/pages/admin.tsx` because the prefix is locale-aware while `buildDocumentPath` is locale-agnostic by contract.
-
-### Fixture-driven unit tests for the link visitor and embed walker
-
-The link visitor's three branches (found / hook-threw / target-missing) and `embedRichTextFields`'s per-leaf error swallow (branch C) have no dedicated unit tests today — `packages/richtext-lexical` has tests only for `hasText` and `editor-component`, and `packages/core/src/services/richtext-embed.ts` is exercised only indirectly through the document-lifecycle integration tests. A small fixture-driven suite (a couple of Lexical trees with link nodes pointing at known fixtures, one branch per test) would lock in the resolution semantics before the next round of work touches them. Pattern: existing `packages/core/src/services/richtext-populate.test.node.ts`.
-
----
+- **One editor at a time, site-wide.** The editor slot is registered once for the
+  whole installation (Lexical, via `@byline/richtext-lexical`). Per-collection or
+  per-field editor *selection* is not built; the per-field `Field` component slot is
+  the escape hatch when one field needs a different input.
+- **Multi-locale write-walking caveat.** On `restoreDocumentVersion` and
+  `duplicateDocument`, localized rich-text leaves are written as a multi-locale
+  `{ <locale>: lexicalJson }` map, and the server-side embed walker no-ops for those
+  leaves (it cannot parse the map as a single tree). Non-localized leaves still
+  refresh, and the renderer falls back to the embed envelope the source carried, so
+  a restored document still renders correctly.
 
 ## Code map
 
@@ -787,7 +726,7 @@ The link visitor's three branches (found / hook-threw / target-missing) and `emb
 | Markdown source toggle (state provider) | `packages/richtext-lexical/src/field/context/markdown-mode-context.tsx` |
 | Markdown source toggle (conversion + root guard hook) | `packages/richtext-lexical/src/field/hooks/use-markdown-toggle.ts` |
 | Byline markdown transformers (`BYLINE_TRANSFORMERS`, table + admonition) | `packages/richtext-lexical/src/field/markdown/transformers.ts` |
-| One-way export serializer (`lexicalToMarkdown`, see [MARKDOWN-EXPORT.md](../05-reading-and-delivery/04-markdown-export.md)) | `packages/richtext-lexical/src/field/markdown/lexical-to-markdown.ts` |
+| One-way export serializer (`lexicalToMarkdown`, see [Markdown Export](../05-reading-and-delivery/04-markdown-export.md)) | `packages/richtext-lexical/src/field/markdown/lexical-to-markdown.ts` |
 | `markdownToggle` editor setting | `packages/richtext-lexical/src/field/config/types.ts` |
 | Byline `TableExtension` (incl. action-menu floating UI) | `packages/richtext-lexical/src/field/extensions/table/` |
 | Byline `HorizontalRuleExtension` wrapper | `packages/richtext-lexical/src/field/extensions/horizontal-rule/` |

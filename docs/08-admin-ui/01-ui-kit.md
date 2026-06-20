@@ -7,7 +7,7 @@ summary: "The shared @byline/ui component library — primitives, themed surface
 # UI Kit (`@byline/ui`)
 
 Companions:
-- [GETTING-STARTED.md](../01-getting-started/index.md) — onboarding flow that pulls in `@byline/ui` styles and components.
+- [Getting Started](../01-getting-started/index.md) — onboarding flow that pulls in `@byline/ui` styles and components.
 - Upstream: [github.com/infonomic/uikit](https://github.com/infonomic/uikit) — the source of truth for the foundational components and stylesheets.
 
 ## Overview
@@ -131,7 +131,7 @@ Byline ships the kit through a small set of subpath exports:
 
 The `/react/` segment is intentional: it leaves room for a future `/vue/` or `/svelte/` namespace if a non-React adapter ever ships, without breaking existing imports. A single barrel (rather than per-area subpaths) dodges the Vite `optimizeDeps` Context-identity trap — see the comment at the top of `packages/ui/src/react.ts`.
 
-Byline-owned admin surfaces — `FormRenderer`, `FieldRenderer`, every per-type field widget, `AdminGroup` / `AdminRow` / `AdminTabs`, `StatusBadge`, `DiffModal`, `BylineFieldServicesProvider`, `LocalDateTime`, `DateTimeFormatter`, `useFormContext`, `useFieldValue` — live in **`@byline/admin/react`**. See [`docs/COLLECTIONS.md`](../04-collections/index.md) and [`docs/FIELDS.md`](../04-collections/01-fields.md) for the import patterns.
+Byline-owned admin surfaces — `FormRenderer`, `FieldRenderer`, every per-type field widget, `AdminGroup` / `AdminRow` / `AdminTabs`, `StatusBadge`, `DiffModal`, `BylineFieldServicesProvider`, `LocalDateTime`, `DateTimeFormatter`, `useFormContext`, `useFieldValue` — live in **`@byline/admin/react`**. See [`docs/Collections`](../04-collections/index.md) and [`docs/Fields`](../04-collections/01-fields.md) for the import patterns.
 
 ## Consumer setup
 

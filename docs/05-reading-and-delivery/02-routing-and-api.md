@@ -7,10 +7,10 @@ summary: "The current internal-transport phase — TanStack Start server functio
 # Routing & API
 
 Companions:
-- [TRANSPORTS.md](./03-transports.md) — the concrete shape of the stable HTTP boundary this doc defers: a framework-agnostic operation contract bound to Nitro / Fastify / Hono, plus MCP as a peer transport.
-- [FILE-MEDIA-UPLOADS.md](../04-collections/05-file-media-uploads.md) — uploads ride on the same internal transport described here.
-- [CORE-DOCUMENT-STORAGE.md](../03-architecture/01-document-storage.md) — what the document write/read services persist.
-- [CLIENT-SDK.md](./01-client-sdk.md) — the in-process client that admin server fns and (future) public HTTP routes both delegate to.
+- [Transports](./03-transports.md) — the concrete shape of the stable HTTP boundary this doc defers: a framework-agnostic operation contract bound to Nitro / Fastify / Hono, plus MCP as a peer transport.
+- [File / Media Uploads](../04-collections/05-file-media-uploads.md) — uploads ride on the same internal transport described here.
+- [Document Storage](../03-architecture/01-document-storage.md) — what the document write/read services persist.
+- [Client SDK](./01-client-sdk.md) — the in-process client that admin server fns and (future) public HTTP routes both delegate to.
 
 ## Overview
 
@@ -79,7 +79,7 @@ Per-collection document operations against the universal storage layer. All of t
 | `status.ts`   | `POST` | Workflow transition (`PATCH-shape`); validates against `defineWorkflow` config.                  |
 | `history.ts`  | `GET`  | Version history for a document.                                                                  |
 | `stats.ts`    | `GET`  | Document counts grouped by status — feeds the dashboard cards.                                   |
-| `upload.ts`   | `POST` | Field-level file upload; full pipeline documented in [FILE-MEDIA-UPLOADS.md](../04-collections/05-file-media-uploads.md). |
+| `upload.ts`   | `POST` | Field-level file upload; full pipeline documented in [File / Media Uploads](../04-collections/05-file-media-uploads.md). |
 | `utils.ts`    | —      | `serialise()` helpers shared across the above.                                                   |
 
 ### `auth/` — sign-in / sign-out / session
@@ -164,7 +164,7 @@ There is **no stable, public, framework-agnostic HTTP API contract today** for a
 
 Everything goes through TanStack Start's server-function transport, which is conceptually closer to RPC than HTTP — the wire shape is an implementation detail of TanStack Start, not a contract Byline owns.
 
-One adjacent surface ships today without being an API: the **markdown representations** of published documents — `.md` at every canonical URL, plus the `llms.txt` index (see [MARKDOWN-EXPORT.md](./04-markdown-export.md)). These are app-owned, read-only representations with the same standing as the HTML pages and `sitemap.xml`, not a transport boundary, and they don't change the trigger calculus below. They do partially answer "where's the public API?" for the nearest-term external consumers — AI agents — which read the `.md` surface without any stable HTTP contract existing.
+One adjacent surface ships today without being an API: the **markdown representations** of published documents — `.md` at every canonical URL, plus the `llms.txt` index (see [Markdown Export](./04-markdown-export.md)). These are app-owned, read-only representations with the same standing as the HTML pages and `sitemap.xml`, not a transport boundary, and they don't change the trigger calculus below. They do partially answer "where's the public API?" for the nearest-term external consumers — AI agents — which read the `.md` surface without any stable HTTP contract existing.
 
 If we introduced a stable HTTP transport now only for one operation (e.g. uploads, or just `findById`), we would create a misleading partial boundary: that operation would have a public transport shape while everything around it would still be internal RPC. That split would force a later redesign once the first external client appeared.
 

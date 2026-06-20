@@ -4,40 +4,24 @@ path: "collection-versioning"
 summary: "Byline records which schema version each document was written against. How the collection fingerprint (schema_hash) decides when a version bumps, the auto-bump-with-pin policy, startup reconciliation, and the boundary: what is recorded today versus what is not yet read by version."
 ---
 
-## Versioning
+Immutable versioning is one of Byline's differentiating pillars. The *document* half of that story is fundamental: every save writes a new `documentVersions` row keyed by UUIDv7, a `current_documents` view resolves "the latest" via `ROW_NUMBER() OVER PARTITION`, and a status change is the deliberate exception that mutates a row in place. **Collection versioning** is the schema-side companion: on every document save, Byline records which version of the collection's *schema* the document was written against.
 
-Byline lists **immutable versioning** as a differentiating pillar. The document half of that story has been in place since the beginning: every save writes a new `documentVersions` row keyed by UUIDv7, a `current_documents` view resolves "the latest" via `ROW_NUMBER() OVER PARTITION`, and status changes are the deliberate exception that mutates a row in place.
+> **What you can rely on.** Every document version carries an integer `collection_version` you can read and reason about, and every collection row carries a `schema_hash` that bumps when the data-affecting parts of the schema change. The aim is that a document version can later be resolved against the collection schema *as it was* when the version was written, and migrated forward in memory. Today Byline records the version; it does not yet read documents by it — the read path uses the live `CollectionDefinition` regardless of `collection_version`. See [the boundary](#boundary--what-does-not-read-by-version-yet) below for exactly where that line sits.
 
-The collection half is *partially* in place. **Phase 1 — data model + fingerprinting — is shipped.** It records, on every document save, which schema version the document was written against. It does not yet read by that version.
-
-| Phase | Goal | Status |
-|---|---|---|
-| 1 | Record `version` + `schema_hash` on `collections`; stamp `collection_version` on every `document_versions` row | **Shipped** |
-| 2 | Historical config snapshots in a `collection_versions` table; FK from `document_versions` | Deferred |
-| 3 | `getCollectionByVersion(collectionId, version)` lookup in core / client API | Deferred |
-| 4 | In-memory forward-migration from any historical shape to the current shape | Deferred |
-| 5 | Optional strict-CI mode (require manual `version` bumps on any hash change) | Deferred |
-
-The larger goal is unchanged: a developer should be able to fetch any document version, resolve the collection schema *as it was* at that point in time, and migrate it forward in memory. Phase 1 is the recording layer that makes that possible later. Phases 2–5 build the migration machinery itself.
-
-> **What you can rely on today.** Every document version carries an integer `collection_version` you can read and reason about, and every collection row carries a `schema_hash` that bumps when the data-affecting parts of the schema change. **What you cannot rely on yet:** materialising an old document against its original schema. The read path uses the live `CollectionDefinition` regardless of `collection_version`. See [Boundary](#boundary--what-does-not-read-by-version-yet) below.
-
-### What Phase 1 ships
+## What is recorded
 
 Two columns on `collections`, one on `document_versions`:
 
 ```sql
 collections
   version       integer  NOT NULL DEFAULT 1
-  schema_hash   varchar(64)             -- nullable in Phase 1; tightens in Phase 2
+  schema_hash   varchar(64)             -- nullable; see below
 
 document_versions
   collection_version  integer  NOT NULL
 ```
 
-Both `current_documents` and `current_published_documents` views project `collection_version` so it surfaces on every read. The columns landed in the baseline schema migration `0000_hard_madame_hydra.sql` (earlier migrations were consolidated into this one; they are not separate as-shipped). Every pre-existing row is implicitly v1.
-
-`schema_hash` stays nullable until Phase 2 introduces the `collection_versions` history table — at that point the post-`ensureCollections()` invariant ("any row written by Byline has a hash") becomes a database constraint.
+Both `current_documents` and `current_published_documents` views project `collection_version` so it surfaces on every read. Every pre-existing row is implicitly v1. `schema_hash` is nullable to accommodate rows that predate the feature; any row written after `ensureCollections()` runs carries a hash.
 
 ### Fingerprint
 
@@ -132,56 +116,22 @@ The Phase-1 code is structured so that dropping in a lazy or hybrid strategy lat
 
 ---
 
-## Future phases (versioning Phases 2–5)
+## Current limitations
 
-The remaining versioning phases turn `collection_version` from recorded data into a load-bearing read primitive. Each phase produces a useful artefact on its own; they don't have to land together.
+Recording the schema version is in place; *reading* by it is not. The boundary is:
 
-### Phase 2 — historical config snapshots
-
-The smallest useful follow-up. Add a `collection_versions` history table:
-
-```sql
-collection_versions
-  collection_id   uuid          fk → collections.id
-  version         integer
-  config          jsonb         -- the snapshot of CollectionDefinition at this version
-  schema_hash     varchar(64)   NOT NULL
-  created_at      timestamptz
-  primary key (collection_id, version)
-```
-
-`reconcileCollection` writes one row per bump. `schema_hash` on `collections` tightens to `NOT NULL`. A composite FK from `document_versions.(collection_id, collection_version)` to `collection_versions.(collection_id, version)` becomes available; whether to add it is a Phase-2 decision (it pins the data integrity but breaks soft-delete-and-restore of versions).
-
-### Phase 3 — fetch by version
-
-Add `getCollectionByVersion(collectionId, version)` to `ICollectionQueries`, exposed through `BylineCore` and `@byline/client`. Returns the historical `CollectionDefinition` (deserialised from `collection_versions.config`). Cached per `(collectionId, version)` for the process lifetime — historical rows are immutable, so the cache has no invalidation problem.
-
-This is the smallest read-side piece that unblocks anything interesting. With it, debugging tools and admin previews can render an old document against its original schema even before forward-migration logic exists.
-
-### Phase 4 — in-memory forward-migration
-
-Wire historical-definition lookup through `restoreFieldSetData` and the populate walk. The shape:
-
-1. Read `(documentVersionId, collectionVersion)` from `document_versions`.
-2. Fetch the historical `CollectionDefinition` for `(collectionId, collectionVersion)`.
-3. Reconstruct the document against the historical schema.
-4. Apply a chain of registered migration functions (`migrateV1ToV2`, `migrateV2ToV3`, …) to project the historical document onto the current schema in memory.
-5. Hand the migrated document to the rest of the read pipeline.
-
-The migration functions themselves are application code — Byline ships the framework that calls them, not the migrations. The contract is "given a document at version N, return a document at version N+1." Each migration is one function on `CollectionDefinition.migrations`, declared alongside the schema.
-
-Open design question for Phase 4: whether migrations run on read (every read pays the migration cost; storage is never rewritten) or on next-write (the document is rewritten under the latest schema the next time it's edited). Today's leaning is read-time, with an opt-in "write-back" mode that materialises the migration into a new `documentVersion` after reading. Decided when Phase 4 lands.
-
-### Phase 5 — strict-CI mode
-
-A `strictCollectionVersions: true` flag on `BylineCore` config. When enabled, `reconcileCollection` throws if `definition.version` is omitted and the hash differs. Useful for CI pipelines that want every schema change to be an explicit, code-reviewable version bump. Off by default — auto-bump remains the dev-loop ergonomics choice.
-
----
-
-## Known limitations today
-
-- **`schema_hash` is nullable.** It tightens to `NOT NULL` when Phase 2 lands. The runtime invariant is that any row written post-`ensureCollections()` has a hash; only rows that exist *before* the first Phase-1 boot can legitimately carry `NULL`.
-- **No composite FK from `document_versions` to a `(collection_id, version)` pair.** No table to anchor against until Phase 2.
-- **Bootstrap is fail-fast, not fail-partial.** If one of N collections throws (e.g. a backwards pin), `Promise.all` rejects on the first failure and the server refuses to start. Other in-flight reconciliations may have already written to the DB. Intentional — a partially-reconciled startup is worse than no startup — but worth knowing.
-- **`initBylineCore` is async.** The webapp uses top-level `await` in `byline/server.config.ts`, which TanStack Start / Vite support natively. Scripts that import the config for side effects (seeds, one-offs) inherit the wait via ESM module evaluation. A future non-Vite consumer would need to await explicitly.
-- **Reads ignore `collection_version`.** A v2 document loaded against a live v3 schema reconstructs against v3, not v2. Renamed fields, removed fields, and type changes between versions are not handled until Phase 4.
+- **Reads ignore `collection_version`.** A document written under v2 and loaded
+  against a live v3 definition reconstructs against v3. A field v3 added is absent;
+  a field v3 removed leaves orphaned store rows that are ignored; a renamed field
+  reads as the old name orphaned and the new name absent. Materialising an old
+  document against its original schema — and migrating it forward in memory — is
+  not yet supported.
+- **`schema_hash` is nullable.** The runtime invariant is that any row written
+  after `ensureCollections()` carries a hash; only rows predating the feature can
+  legitimately be `NULL`.
+- **Bootstrap is fail-fast, not fail-partial.** If one collection throws (e.g. a
+  backwards version pin), reconciliation rejects and the server refuses to start —
+  other in-flight reconciliations may already have written. A partially-reconciled
+  startup is deliberately treated as worse than no startup.
+- **`initBylineCore` is async.** The webapp awaits it via top-level `await` in
+  `byline/server.config.ts`; a non-Vite consumer would need to await explicitly.

@@ -7,9 +7,9 @@ summary: "The Fields API: built-in types, optional, localized, validation, hooks
 # Fields API
 
 Companions:
-- [RICHTEXT.md](./06-rich-text.md) — the Lexical adapter and how `lexicalEditor()` / per-field editor overrides plug in.
-- [COLLECTIONS.md](./index.md) — collection-level admin (columns, layout, preview URL, custom list views).
-- [ARCHITECTURE.md](../03-architecture/index.md) — the schema / admin split (Django-style model vs ModelAdmin) at the framework level.
+- [Rich Text](./06-rich-text.md) — the Lexical adapter and how `lexicalEditor()` / per-field editor overrides plug in.
+- [Collections](./index.md) — collection-level admin (columns, layout, preview URL, custom list views).
+- [Architecture](../03-architecture/index.md) — the schema / admin split (Django-style model vs ModelAdmin) at the framework level.
 
 ## Overview
 
@@ -384,7 +384,7 @@ fields: {
 
 Lives on the admin side because it carries a React component reference, and schemas must stay tsx-loadable. Per-field `editor` takes precedence over the globally registered `ClientConfig.fields.richText.editor`. Ignored on non-`richText` fields.
 
-For *settings* differences only (placeholder, toolbar toggles, the inline-image upload collection), use a schema-side preset like `lexicalRichTextCompact` instead — that data is JSON-safe and rides along in `RichTextField.editorConfig`. See [RICHTEXT.md](./06-rich-text.md) for the full editor configuration story.
+For *settings* differences only (placeholder, toolbar toggles, the inline-image upload collection), use a schema-side preset like `lexicalRichTextCompact` instead — that data is JSON-safe and rides along in `RichTextField.editorConfig`. See [Rich Text](./06-rich-text.md) for the full editor configuration story.
 
 ### Mixing both layers
 

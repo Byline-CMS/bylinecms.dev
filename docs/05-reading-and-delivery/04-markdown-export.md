@@ -153,7 +153,7 @@ state is *two accepted input dialects, one output dialect*: extend
 ## Routes and URL surface
 
 One markdown variant **per content locale**, at the canonical URL + `.md` —
-the same cache-key dimension as the HTML page (see CACHING.md):
+the same cache-key dimension as the HTML page (see Caching):
 
 | URL | Route file | Collection |
 |---|---|---|
@@ -248,40 +248,5 @@ descriptions.
 - **Not re-importable.** `import-docs.ts` consumes authored markdown, not
   export output.
 - **Not the stable HTTP API.** The `.md` routes are app-owned representations
-  of published documents, not a transport boundary (see ROUTING-API.md).
+  of published documents, not a transport boundary (see Routing & API).
 
-## Future phases
-
-### Phase — docs-corpus round-trip test
-
-**Trigger:** can land any time; highest value before the next Lexical
-version bump. `import(export(import(md))) ≅ import(md)` over the repo's
-`docs/*.md` corpus, comparing **Lexical trees** rather than strings (so
-cosmetic marker/escaping differences don't fail). The subject under test is
-the *export* serializer against real production-shaped content — the import
-pipeline (`byline/scripts/lib/`) is the vehicle. Preferred companion change:
-extend `parse-markdown.ts` to also **accept** GFM alerts, erasing the
-admonition dialect asymmetry and making the round-trip exact.
-
-### Phase — per-field markdown opt-out
-
-**Trigger:** real noise complaints about config-flavoured scalars in the
-output (e.g. a block's `display` select rendering as `**Display:** default`).
-The likely shape: a `markdown: false` flag on field definitions consulted by
-`documentToMarkdown`. Booleans/json are already excluded wholesale; hold off
-until a concrete case shows the per-field flag is needed.
-
-### Phase — host-package route factories
-
-**Trigger:** a second host app (or the CLI installer) wants the `.md` surface
-without hand-writing routes. Promote the generic loader
-(`apps/webapp/src/lib/markdown.ts`) and route shape into
-`@byline/host-tanstack-start` factories, the way the admin routes are
-factory-built today.
-
-### Phase — `llms-full.txt` and MCP
-
-**Trigger:** an agent integration that wants the full corpus in one fetch
-(`llms-full.txt` is a cheap concatenation once per-document serialization
-exists), and the MCP server (see MCP.md), whose content tools should serve
-these same representations.

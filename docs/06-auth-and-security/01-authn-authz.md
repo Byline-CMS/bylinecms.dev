@@ -7,10 +7,10 @@ summary: "How actors, abilities, and request context flow through Byline — plu
 # Authentication & Authorization
 
 Companions:
-- [COLLECTIONS.md](../04-collections/index.md) — lifecycle hooks (including `beforeRead` / `afterRead`) live on the collection schema; this doc is the reference for the auth subsystem the hooks plug into.
-- [ROUTING-API.md](../05-reading-and-delivery/02-routing-and-api.md) — server-fn transport that resolves `RequestContext` and passes it down.
-- [RELATIONSHIPS.md](../04-collections/02-relationships.md) — `ReadContext` is the seed for the actor-carrying `RequestContext`; populate threads `beforeRead` through to populated target collections.
-- [CLIENT-SDK.md](../05-reading-and-delivery/01-client-sdk.md) — the in-process SDK is where actor threading becomes externally visible.
+- [Collections](../04-collections/index.md) — lifecycle hooks (including `beforeRead` / `afterRead`) live on the collection schema; this doc is the reference for the auth subsystem the hooks plug into.
+- [Routing & API](../05-reading-and-delivery/02-routing-and-api.md) — server-fn transport that resolves `RequestContext` and passes it down.
+- [Relationships](../04-collections/02-relationships.md) — `ReadContext` is the seed for the actor-carrying `RequestContext`; populate threads `beforeRead` through to populated target collections.
+- [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — the in-process SDK is where actor threading becomes externally visible.
 
 ## Overview
 
@@ -246,7 +246,7 @@ hooks: {
 }
 ```
 
-`afterRead` fires after populate on the source document, so hooks see the fully populated tree. See [COLLECTIONS.md — Lifecycle hooks](../04-collections/index.md#lifecycle-hooks) for the full hook contract.
+`afterRead` fires after populate on the source document, so hooks see the fully populated tree. See [Collections — Lifecycle hooks](../04-collections/index.md#lifecycle-hooks) for the full hook contract.
 
 → [Field-level redaction with `afterRead`](#field-level-redaction-with-afterread)
 
@@ -394,7 +394,7 @@ Two helpers, one per realm:
 Call sites:
 
 - Every `document-lifecycle.*` write entry point (`createDocument`, `updateDocument`, `updateDocumentWithPatches`, `changeStatus`, `unpublishDocument`, `deleteDocument`, `restoreDocumentVersion`, `duplicateDocument`, `copyToLocale`).
-- `field-upload.uploadField` — uploads are effectively a write under collection scope, gated on `create` even when `shouldCreateDocument: false`. See [FILE-MEDIA-UPLOADS.md](../04-collections/05-file-media-uploads.md).
+- `field-upload.uploadField` — uploads are effectively a write under collection scope, gated on `create` even when `shouldCreateDocument: false`. See [File / Media Uploads](../04-collections/05-file-media-uploads.md).
 - `@byline/client` `CollectionHandle` on every read path (`find`, `findById`, `findByPath`, `findOne`, `countByStatus`, `history`, `findByVersion`).
 - Every admin webapp document-collection server fn (`packages/host-tanstack-start/src/server-fns/collections/{list,get,history,stats,create,update,delete,status,upload,restore-version,duplicate,copy-to-locale}.ts`). Writes thread `requestContext` into `DocumentLifecycleContext`; reads call `assertActorCanPerform` directly before the adapter call.
 
@@ -509,7 +509,7 @@ Typical patterns:
 
 `afterRead` runs after populate on the source document, so hooks observe the fully populated tree. Hooks that perform their own reads must thread `readContext` back through (`client.collection(…).find({ _readContext: readContext })`) so visited-set / read-budget / `afterReadFired` machinery stays consistent.
 
-See [COLLECTIONS.md — Lifecycle hooks](../04-collections/index.md#lifecycle-hooks) for the broader hook surface (create / update / delete / status-change / unpublish), and Quick Reference recipe 10 for a worked masking example.
+See [Collections — Lifecycle hooks](../04-collections/index.md#lifecycle-hooks) for the broader hook surface (create / update / delete / status-change / unpublish), and Quick Reference recipe 10 for a worked masking example.
 
 ### Admin UI surface
 
@@ -557,7 +557,7 @@ admin_users
   is_email_verified        boolean
   preferred_locale         varchar(16)       -- nullable; admin interface
                                              -- language for this editor.
-                                             -- See docs/I18N.md
+                                             -- See docs/Internationalization
   created_at, updated_at   timestamptz
 
 admin_roles
