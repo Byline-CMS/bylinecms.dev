@@ -1,5 +1,31 @@
 # @byline/admin
 
+## 3.13.0
+
+### Minor Changes
+
+- Document trees + squashed migration baseline.
+
+  **Document trees (`tree: true` collections).** Self-referential collections can opt into a single-parent, ordered, document-grain hierarchy — the backbone for documentation / book sites. Includes the storage reshape, tree commands and `@byline/client` tree API (`placeTreeNode` / `removeFromTree` / `getSubtree` / `getAncestors` / `getTreeParent`), the admin tree list view (drag-to-reorder + re-parent) and sidebar placement widget, hierarchical public URLs (splat handler with canonical 301 / status-at-edge 404, HTML + `.md`), tree-rendered nav and prev/next, and tree-aware sitemap / `llms.txt` enumeration. `byline init` now scaffolds the docs collection in tree mode.
+
+  **Migrations — squashed baseline.** The Drizzle migrations are squashed to a single `0000_ordinary_rhino.sql` baseline. **Fresh installs need no action** — `drizzle:migrate` applies the baseline.
+
+  **⚠️ Existing-site migration.** A database already provisioned on a previous release must **not** re-run the squashed baseline. To adopt `tree: true` collections, apply the standalone DDL that reshapes `byline_document_relationships` from the dormant many-to-many edge list into the single-parent ordered adjacency model:
+
+  ```sh
+  psql "$DATABASE_URL" -f packages/db-postgres/sql/0004_document_relationships.sql
+  ```
+
+  The table is dormant and empty by contract, so this is pure DDL with **no data backfill**. The script lives in the GitHub repository (the published `@byline/db-postgres` package ships `dist` only, not `sql/`). See `packages/db-postgres/sql/0004_document_relationships.sql` and `docs/DOCUMENT-TREE.md` for the full reshape and invariants.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.13.0
+  - @byline/core@3.13.0
+  - @byline/i18n@3.13.0
+  - @byline/ui@3.13.0
+
 ## 3.12.2
 
 ### Patch Changes
