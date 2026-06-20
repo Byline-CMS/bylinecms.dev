@@ -2,19 +2,96 @@
 title: "Document Trees"
 path: "document-tree"
 summary: "A document-grain, single-parent ordered hierarchy primitive for self-referential collections — the structural backbone for documentation / book sites. Promotes the 'parent' edge out of the versioned content stream and into a dedicated, unversioned tree table alongside path / availableLocales / order_key."
-status: "PARTIALLY IMPLEMENTED — storage, commands, flag, client API, and the invalidation contract are shipped; authoring widget and public hierarchical-URL route remain."
+status: "BACKEND + ADMIN COMPLETE — storage, commands, flag, client API, invalidation, auto-place, the admin tree-placement widget and built-in tree list view are shipped and live on the docs collection. Remaining: the public frontend (hierarchical-URL splat + rendered TOC) and the phase-2 drag/drop reorder view."
 ---
 
 # Document Trees
 
-> **Status: partially implemented.** Shipped: the reshaped
-> `byline_document_relationships` table + `0004` migration, the storage tree
-> commands (`placeTreeNode` / `removeFromTree` / `getTreeAncestors` /
-> `getTreeChildren` / `getTreeSubtree`), the `tree: true` collection flag, the
-> `@byline/client` tree API, and the invalidation contract (the
-> `afterTreeChange` hook + promote-on-delete). **Remaining:** the authoring tree
-> widget and the public read-time hierarchical-URL splat route. The build
-> contract below still holds; sections describing unbuilt pieces are marked.
+> **Status: backend + admin complete; public frontend remains.** See the
+> [Session checkpoint](#session-checkpoint-resume-here) below for exactly what is
+> shipped, the decisions reached, and what to build next. The build contract in
+> the body of this document still holds.
+
+## Session checkpoint (resume here)
+
+**Shipped and verified (commits on `develop`):**
+
+- **Storage** — `byline_document_relationships` reshaped to a single-parent
+  ordered adjacency (`packages/db-postgres/src/database/schema/index.ts`); the
+  standalone `packages/db-postgres/sql/0004_document_relationships.sql` for
+  existing prod DBs. Run against `byline_dev` + `byline_test`.
+- **Storage commands / queries** (`packages/db-postgres/src/modules/storage/`):
+  `placeTreeNode`, `removeFromTree`; `getTreeAncestors`, `getTreeChildren`,
+  `getTreeSubtree` (recursive CTE, status-at-edge, pre-order DFS). Integration
+  tests in `storage-document-tree.test.ts`.
+- **`tree: true` flag** on `CollectionDefinition`
+  (`packages/core/src/@types/collection-types.ts`); mutual-exclusion with
+  `orderable` validated in `config/validate-collections.ts`.
+- **`@byline/client` tree API** — `placeTreeNode` / `removeFromTree` /
+  `getSubtree` / `getAncestors` on `CollectionHandle`
+  (`packages/client/src/collection-handle.ts`).
+- **Invalidation** — `afterTreeChange` collection hook fired by the
+  `document-lifecycle/tree.ts` service with the affected set; **promote-on-delete**
+  wired into `document-lifecycle/delete.ts` (soft-delete promotes children to
+  root + removes the node's edge).
+- **Auto-place on create** — `document-lifecycle/create.ts` appends every new
+  document in a `tree: true` collection as a **root**, so there is no "unplaced"
+  limbo in normal use (system step; storage command direct, best-effort, logged).
+- **Admin tree-placement widget** — sidebar widget in `FormRenderer`
+  (`packages/admin/src/forms/tree-placement-widget.tsx`) using the collection's
+  own `RelationPicker` to choose a parent, plus "Move to top level". (The
+  "Remove from tree" link was deliberately removed — see decisions.) Host
+  transport: `host-tanstack-start/src/server-fns/collections/tree.ts`, wired into
+  `byline-field-services.ts`.
+- **Built-in tree list view** — `tree: true` collections render
+  `host-tanstack-start/src/admin-shell/collections/tree-list.tsx` (ordered rows,
+  depth-indented children, an "Unplaced" group). Fed by the `getCollectionTree`
+  server fn. Branched in `routes/create-collection-list-route.tsx`.
+- **Docs collection is a live tree** — `apps/webapp/byline/collections/docs/schema.ts`
+  has `tree: true`; `apps/webapp/byline/scripts/import-docs.ts` builds the tree
+  from the `NN-slug/index.md` directory layout (`--tree`). `/docs` reorganized to
+  folder-per-doc with `NN-` prefixes; verified 26 roots + nested children.
+
+**Decisions reached this session (don't re-litigate):**
+
+- Docs filesystem convention: **a folder appears exactly when a node has
+  children**; leaves are flat `NN-slug.md`, parents are `NN-slug/index.md`,
+  children nest inside. Folder names are free local segments; **paths come from
+  frontmatter**, so `NN-` prefixes never reach the slug.
+- **The bundle owns order** — `NN-` prefixes are the editorial TOC order;
+  `--tree` re-applies them authoritatively each run (no non-destructive mode).
+- **Auto-place on create + no "unplaced" UX.** Because `tree: true` is imperative,
+  every doc belongs in the tree. New docs auto-place as roots; "Remove from tree"
+  was dropped from the widget (to take a doc out of the nav you *delete* it,
+  which promotes its children). The `removeFromTree` API still exists for
+  programmatic use; the open promote-on-*remove* question is therefore moot for
+  the UI.
+- The importer tolerates a non-workflow `status:` frontmatter (design docs use
+  it descriptively) — see `byline/scripts/lib/frontmatter.ts`.
+
+**What's next (public frontend — not started):**
+
+1. **Public docs splat handler + hierarchical URLs.** Implement the read-time
+   composition splat described in [Public URL resolution](#public-url-resolution-the-splat-handler):
+   a `$lng/_frontend/docs/$.tsx` (and `.md` sibling) that leaf-resolves via
+   `findByPath`, derives the chain via `getAncestors`, and `301`s to the
+   canonical chain. Today's route is a single-segment `docs/$path.tsx`.
+2. **Rendered table of contents / navigation.** A server-rendered docs nav (and
+   breadcrumbs / prev-next) built from `getSubtree` / `getAncestors`. The public
+   docs list currently sorts by the (now inert) `order_key`; switch it to read
+   the tree order.
+3. **Phase-2 admin list view** — drag-to-reorder + re-parent on the built-in
+   tree list view (currently read/browse only; placement is per-doc via the
+   widget).
+
+**Smaller follow-ups:** filter self/descendants out of the placement picker
+(server already rejects them, surfaced as an inline error); decide whether to
+drop the now-unused `treeWidget.remove` i18n key.
+
+**To see it running:** restart the webapp dev server (rebuild `@byline/*`; clear
+`apps/webapp/node_modules/.vite` if stale). The docs list is at
+`/admin/collections/docs`; edit a child (e.g. *Getting Started - Experimental
+CLI*) to see the placement widget.
 
 ## Thesis
 
