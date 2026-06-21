@@ -12,6 +12,7 @@
 // pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md --verbose
 // pnpm tsx byline/scripts/import-docs.ts '../../docs/*.md' --dry-run --verbose
 // pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md
+// pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md --force --tree
 //
 // Run tests...
 //
@@ -38,6 +39,17 @@
  * Flags:
  *   --dry-run     Parse + log, no DB writes.
  *   --verbose     Print warnings for dropped/unsupported nodes.
+ *   --force       Overwrite a soft-deleted document occupying the target path.
+ *                 A Byline delete is soft (`is_deleted = true` on every version)
+ *                 but leaves the `byline_document_paths` row in place, so the
+ *                 path stays reserved while `findByPath` (which reads the
+ *                 deleted-filtering `current_documents` view) returns nothing —
+ *                 a re-import then hits `ERR_PATH_CONFLICT` on create. With
+ *                 `--force`, when no live document is found at the path, the
+ *                 importer revives the soft-deleted occupier in place (clearing
+ *                 `is_deleted` across its versions, preserving the document id,
+ *                 audit trail and path row) and then runs the normal update +
+ *                 republish flow against it. No-op for genuinely new paths.
  *   --tree        After importing, build the document tree from the source
  *                 directory layout (the "folder + index.md" convention). A flat
  *                 `D/leaf.md` nests under `D/index.md`; a `D/index.md` (a node
@@ -60,7 +72,8 @@ import { basename, dirname, join, resolve } from 'node:path'
 
 import { createSuperAdminContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
-import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
+import { getBylineCore, getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
+import type { PgAdapter } from '@byline/db-postgres'
 
 import { type DocFrontmatter, parseDocFile } from './lib/frontmatter.js'
 import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexical.js'
@@ -77,15 +90,17 @@ interface Flags {
   dryRun: boolean
   verbose: boolean
   tree: boolean
+  force: boolean
   patterns: string[]
 }
 
 function parseFlags(argv: string[]): Flags {
-  const flags: Flags = { dryRun: false, verbose: false, tree: false, patterns: [] }
+  const flags: Flags = { dryRun: false, verbose: false, tree: false, force: false, patterns: [] }
   for (const arg of argv) {
     if (arg === '--dry-run') flags.dryRun = true
     else if (arg === '--verbose') flags.verbose = true
     else if (arg === '--tree') flags.tree = true
+    else if (arg === '--force') flags.force = true
     else if (arg.startsWith('--')) throw new Error(`unknown flag: ${arg}`)
     else flags.patterns.push(arg)
   }
@@ -145,6 +160,44 @@ async function resolveFeatureImage(
   })
   if (!doc) return null
   return { targetCollectionId: mediaCollectionId, targetDocumentId: doc.id }
+}
+
+/**
+ * Revive a soft-deleted document that still owns `path` (locale-scoped) so a
+ * re-import can overwrite it in place. Returns the revived document id, or
+ * `null` when no document occupies the path (a genuinely new import).
+ *
+ * Soft-delete sets `is_deleted = true` on every version but leaves the
+ * `byline_document_paths` row intact, so the path lookup still resolves to the
+ * deleted document. We clear the tombstone across all of its versions, which
+ * makes the latest version current again via the `current_documents` view —
+ * the caller then re-`findByPath`s and runs the normal update + republish path.
+ *
+ * Reaches the live pg pool through the configured adapter (`PgAdapter` exposes
+ * `pool` for exactly this housekeeping use) rather than opening a second
+ * connection. Only invoked under `--force`.
+ */
+async function reviveDeletedDocumentAtPath(
+  adapter: PgAdapter,
+  collectionId: string,
+  locale: string,
+  path: string
+): Promise<string | null> {
+  const found = await adapter.pool.query<{ document_id: string }>(
+    `SELECT document_id FROM byline_document_paths
+       WHERE collection_id = $1 AND locale = $2 AND path = $3
+       LIMIT 1`,
+    [collectionId, locale, path]
+  )
+  const documentId = found.rows[0]?.document_id
+  if (!documentId) return null
+  await adapter.pool.query(
+    `UPDATE byline_document_versions
+        SET is_deleted = false
+      WHERE document_id = $1 AND is_deleted = true`,
+    [documentId]
+  )
+  return documentId
 }
 
 interface BuildPayloadArgs {
@@ -233,7 +286,8 @@ async function processFile(
   client: ReturnType<typeof createBylineClient>,
   handle: CollectionHandle,
   flags: Flags,
-  pathMap: Map<string, string>
+  pathMap: Map<string, string>,
+  adapter: PgAdapter
 ): Promise<ProcessResult> {
   const source = readFileSync(filePath, 'utf8')
   const parsed = parseDocFile(source, filePath)
@@ -279,11 +333,28 @@ async function processFile(
   const workflowStatuses = definition?.workflow?.statuses ?? []
   const defaultStatus = workflowStatuses[0]?.name ?? 'draft'
 
-  const existing = await handle.findByPath(docPath, {
+  let existing = await handle.findByPath(docPath, {
     locale,
     status: 'any',
     _bypassBeforeRead: true,
   })
+
+  // --force: no live document at this path, but the path may still be reserved
+  // by a soft-deleted document. Revive it in place, then re-read so the update
+  // branch below overwrites + republishes it (preserving the document id and
+  // audit trail) rather than failing with ERR_PATH_CONFLICT on create.
+  if (!existing && flags.force) {
+    const collectionId = await client.resolveCollectionId(DOCS_COLLECTION)
+    const revivedId = await reviveDeletedDocumentAtPath(adapter, collectionId, locale, docPath)
+    if (revivedId) {
+      console.log(`  ↻ revived  soft-deleted doc at '${docPath}' (locale=${locale})`)
+      existing = await handle.findByPath(docPath, {
+        locale,
+        status: 'any',
+        _bypassBeforeRead: true,
+      })
+    }
+  }
 
   if (existing) {
     // Don't clobber publishedOn if Byline already has one.
@@ -394,6 +465,10 @@ async function run(): Promise<void> {
   const requestContext = createSuperAdminContext({ id: 'import-docs-script' })
   const client = createBylineClient({ config, requestContext })
   const handle = client.collection(DOCS_COLLECTION)
+  // The configured Postgres adapter — its raw pool backs `--force`'s
+  // soft-delete revive (server.config side-effect import has already run
+  // initBylineCore, so the core is resolvable here).
+  const adapter = getBylineCore().db as PgAdapter
 
   // Pre-pass: map each source file to the path its imported doc will
   // live at, so pass 2 can rewrite cross-doc markdown links.
@@ -407,7 +482,7 @@ async function run(): Promise<void> {
 
   for (const file of files) {
     try {
-      const result = await processFile(file, client, handle, flags, pathMap)
+      const result = await processFile(file, client, handle, flags, pathMap, adapter)
       results.push(result)
       if (result.action === 'created') created += 1
       else if (result.action === 'updated') updated += 1
