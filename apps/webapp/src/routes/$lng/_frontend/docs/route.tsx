@@ -8,7 +8,7 @@
 
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
-import { Section } from '@byline/ui/react'
+import { Container, Section } from '@byline/ui/react'
 
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { DocsContent } from '@/modules/docs/components/content'
@@ -34,17 +34,17 @@ function DocsLayout() {
   const interfaceLocale = useInterfaceLocale()
 
   return (
-    <>
-      <Section className="mt-3 mb-3 px-4">
-        <DocsBreadcrumbs />
-      </Section>
-      <div className="flex flex-1 w-full">
-        <DocsDrawer nodes={nodes} lng={interfaceLocale} />
-        <DocsContent>
-          <Outlet />
-        </DocsContent>
-      </div>
-    </>
+    <div className="flex flex-1 w-full">
+      <DocsDrawer nodes={nodes} lng={interfaceLocale} />
+      <DocsContent>
+        <Section className="mt-0 mb-4">
+          <Container>
+            <DocsBreadcrumbs />
+          </Container>
+        </Section>
+        <Outlet />
+      </DocsContent>
+    </div>
   )
 }
 

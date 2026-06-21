@@ -17,7 +17,8 @@
 :global(.byline-docs-drawer-aside) {
   display: flex;
   flex-direction: column;
-  border-right: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  border-right: var(--border-width-thin) var(--border-style-solid)
+    var(--gray-100);
   z-index: 40;
   transition: all 200ms ease-in-out;
 }
@@ -37,14 +38,13 @@
 
 .asideMobileOpen,
 :global(.byline-docs-drawer-aside-mobile-open) {
-  width: min(320px, 85vw);
+  width: min(360px, 85vw);
   background-color: white;
 }
 
 :is([data-theme="dark"], :global(.dark)) {
   .asideMobileOpen,
   :global(.byline-docs-drawer-aside-mobile-open) {
-    width: min(320px, 85vw);
     background-color: var(--canvas-900);
   }
 }
@@ -64,7 +64,7 @@
 
 .asideDesktopOpen,
 :global(.byline-docs-drawer-aside-desktop-open) {
-  width: 260px;
+  width: 320px;
 }
 
 .asideDesktopClosed,
@@ -118,7 +118,8 @@
   background-color: var(--canvas-50);
 }
 
-:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer .row:hover),
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-docs-drawer .row:hover),
 :is([data-theme="dark"], :global(.dark))
   :global(.byline-docs-drawer .menu-item.active)
   > :global(.row) {
@@ -129,7 +130,8 @@
    background), so the hover / active highlight is translucent and lets the
    gradient show through. Scoped to the desktop aside so the mobile overlay
    keeps its opaque highlight. */
-:global(.byline-docs-drawer-aside-desktop) :global(.byline-docs-drawer .row:hover),
+:global(.byline-docs-drawer-aside-desktop)
+  :global(.byline-docs-drawer .row:hover),
 :global(.byline-docs-drawer-aside-desktop)
   :global(.byline-docs-drawer .menu-item.active)
   > :global(.row) {
@@ -143,7 +145,7 @@
   :global(.byline-docs-drawer-aside-desktop)
   :global(.byline-docs-drawer .menu-item.active)
   > :global(.row) {
-  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h / 0.65);
+  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h / 0.45);
 }
 
 /* ── Caret (expand / collapse) ──────────────────────────────────────── */
@@ -174,7 +176,9 @@
 }
 
 /* Animated caret: points right when collapsed, rotates down when open. */
-:global(.byline-docs-drawer .menu-item.open) > :global(.row) :global(.caret-icon) {
+:global(.byline-docs-drawer .menu-item.open)
+  > :global(.row)
+  :global(.caret-icon) {
   transform: rotate(90deg);
 }
 
@@ -203,8 +207,8 @@
 
 /* Active doc: bold label. */
 :global(.byline-docs-drawer .menu-item.active) > :global(.row) :global(.link) {
-  color: #111111;
-  font-weight: 600;
+  color: var(--primary-900);
+  font-weight: 400;
 }
 
 :is([data-theme="dark"], :global(.dark)) :global(.byline-docs-drawer .link) {
@@ -215,7 +219,7 @@
   :global(.byline-docs-drawer .menu-item.active)
   > :global(.row)
   :global(.link) {
-  color: #ffffff;
+  color: var(--primary-200);
 }
 
 /* ── Subtree expand/collapse (smooth height via grid-template-rows) ──── */

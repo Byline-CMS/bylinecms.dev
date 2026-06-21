@@ -1,5 +1,5 @@
 ---
-title: "Getting Started - Experimental CLI"
+title: "Experimental CLI"
 path: "getting-started-cli"
 summary: "The experimental Byline CLI: 'byline init' against an existing TanStack Start app, plus 'setup' and 'doctor' for adding Byline to a fresh project."
 ---

@@ -1,12 +1,12 @@
 ---
-title: "Getting Started - Development environment and example application"
+title: "Development environment and example application"
 path: "getting-started-development-environment"
 summary: "Clone the Byline CMS repo, provision PostgreSQL, seed the database, and run the example application (apps/webapp) in dev mode."
 ---
 
 This is the development environment and example application (this repo).
 
-### 1. Clone and install dependencies
+## 1. Clone and install dependencies
 
 ```sh
 # git clone this repo
@@ -18,13 +18,13 @@ pnpm install
 pnpm build
 ```
 
-### 2. Set up your database
+## 2. Set up your database
 
 Byline currently requires PostgreSQL. There is a `docker-compose.yml` in the
 root `postgres` directory. Note that the default root password is set to
 `test` in `docker-compose.yml`.
 
-#### 2.1. Create the `data` subdirectory and start Postgres
+### 2.1. Create the `data` subdirectory and start Postgres
 
 ```sh
 # From the root of the project
@@ -38,7 +38,7 @@ mkdir data
 ./postgres.sh down
 ```
 
-#### 2.2. Initialize the database and schema
+### 2.2. Initialize the database and schema
 
 Only the Postgres adapter is available at the moment.
 
@@ -69,7 +69,7 @@ reset.
 pnpm drizzle:migrate
 ```
 
-#### 2.3. Configure the webapp, and optionally seed documents
+### 2.3. Configure the webapp, and optionally seed documents
 
 ```
 # Seed the database with a single super-admin user — and optionally,
@@ -94,7 +94,7 @@ openssl rand -base64 48
 pnpm tsx --env-file=.env.local byline/seed.ts
 ```
 
-### 3. Start dev mode
+## 3. Start dev mode
 
 Again, from the root of the project, start the dev environment.
 

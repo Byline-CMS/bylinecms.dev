@@ -14,6 +14,7 @@ import cx from 'classnames'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
+import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import styles from './list.module.css'
 import type { Locale } from '@/i18n/i18n-config'
 import type { DocNavNode } from '@/modules/docs/nav'
@@ -26,16 +27,19 @@ interface DocsListProps {
 export function DocsList({ nodes, lng }: DocsListProps): React.JSX.Element {
   const { t } = useTranslations('frontend')
   return (
-    <div className="prose">
-      <h1>{t('docsTitle')}</h1>
-      <p className={cx('byline-docs-list-lead', styles.lead)}>{t('docsLead')}</p>
+    <>
+      <BreadcrumbsClient breadcrumbs={[{ label: t('docsTitle'), href: '/docs' }]} />
+      <div className="prose">
+        <h1>{t('docsTitle')}</h1>
+        <p className={cx('byline-docs-list-lead', styles.lead)}>{t('docsLead')}</p>
 
-      <div className={cx('byline-docs-list', styles.grid)}>
-        {nodes.map((node) => (
-          <DocCard key={node.id} node={node} lng={lng} />
-        ))}
+        <div className={cx('byline-docs-list', styles.grid)}>
+          {nodes.map((node) => (
+            <DocCard key={node.id} node={node} lng={lng} />
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

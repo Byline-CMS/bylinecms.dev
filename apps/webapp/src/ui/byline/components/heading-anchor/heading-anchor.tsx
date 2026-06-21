@@ -31,10 +31,8 @@ export function HeadingWithAnchorSerializer({
   } else {
     return (
       <Element id={headingId} className="relative clear-both ">
-        <a href={`#${headingId}`} className="component--heading-anchor not-prose no-underline">
-          <span className="component--heading-anchor-text font-bold text-theme-900 dark:text-white">
-            {text}
-          </span>
+        <a href={`#${headingId}`} className="component--heading-anchor no-underline">
+          <span className="component--heading-anchor-text">{text}</span>
           <span
             className={cx(
               'component--heading-anchor-icon absolute p-0 leading-4 sm:inline-block',

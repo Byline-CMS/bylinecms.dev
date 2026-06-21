@@ -105,7 +105,7 @@
   font-size: 2rem;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--headings);
 }
 
@@ -114,7 +114,7 @@
   margin: 0;
   font-size: 1.7rem;
   line-height: 1.25;
-  font-weight: 650;
+  font-weight: 450;
   letter-spacing: -0.01em;
   color: var(--headings);
   /* Clamp at two lines so cards remain visually balanced. */
@@ -155,7 +155,7 @@
   align-items: center;
   gap: 0.35rem;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--theme-600, var(--theme-500));
 }
@@ -168,7 +168,9 @@
 
 .card:hover .ctaIcon,
 .card:focus-visible .ctaIcon,
-:global(.byline-docs-list-card):hover :global(.byline-docs-list-cta) :global(.chevron-right-icon),
+:global(.byline-docs-list-card):hover
+  :global(.byline-docs-list-cta)
+  :global(.chevron-right-icon),
 :global(.byline-docs-list-card):focus-visible
   :global(.byline-docs-list-cta)
   :global(.chevron-right-icon) {

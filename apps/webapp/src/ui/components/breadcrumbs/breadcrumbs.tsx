@@ -32,7 +32,7 @@ export function Breadcrumbs({
         <li className="m-0 inline-flex items-center">
           <LangLink
             to={homePath}
-            className="m-0 inline-flex items-center font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+            className="m-0 inline-flex items-center text-gray-900 hover:text-gray-800 dark:text-gray-200 dark:hover:text-white"
           >
             <svg
               role="presentation"
@@ -55,7 +55,7 @@ export function Breadcrumbs({
                   <div className="flex items-center m-0">
                     <svg
                       role="presentation"
-                      className="h-5 w-5 text-gray-400"
+                      className="h-5 w-5 text-gray-200"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                       xmlns="http://www.w3.org/2000/svg"
@@ -68,7 +68,7 @@ export function Breadcrumbs({
                     </svg>
                     <LangLink
                       to={breadcrumb.href}
-                      className="m-0 font-medium text-gray-900 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                      className="m-0 text-gray-900 hover:text-gray-800 dark:text-gray-200 dark:hover:text-white"
                     >
                       {truncate(breadcrumb.label, 20, true)}
                     </LangLink>
@@ -92,7 +92,7 @@ export function Breadcrumbs({
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span className="font-medium text-gray-800 dark:text-gray-400 leading-5">
+                  <span className="text-gray-800 dark:text-gray-200 leading-5">
                     {truncate(breadcrumb.label, 20, true)}
                   </span>
                 </div>
