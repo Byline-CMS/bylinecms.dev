@@ -34,75 +34,117 @@ than features bolted on later.
   server-safe data; admin UI lives in a parallel `defineAdmin()` config 
   (think Django models vs ModelAdmin, applied to headless content).
 
-For the longer story, see [docs/MISSION.md](docs/MISSION.md) and
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For the longer story, see [docs/02-why-byline/01-mission.md](docs/02-why-byline/01-mission.md) and
+[docs/03-architecture/index.md](docs/03-architecture/index.md).
 
 ## Documentation
 
-### Start Here
+The docs live under [`docs/`](docs/) as a numbered, folder-per-section tree —
+itself a Byline-importable markdown repository. Each section has an `index.md`
+overview; the highlights below link straight to the per-topic references.
 
-- **[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)** — full setup,
-  including Postgres bring-up and seeding.
+### 1. [Getting Started](docs/01-getting-started/index.md)
 
-### Background
+- **[Experimental CLI](docs/01-getting-started/01-experimental-cli.md)** — add
+  Byline to an existing TanStack Start app with `byline init` / `setup`.
+- **[Development environment](docs/01-getting-started/02-development-environment.md)**
+  — clone this repo, bring up Postgres, seed, and run the example app.
 
-1. **[docs/MISSION.md](docs/MISSION.md)** — why Byline exists, the three
-  pillars, building in the open, and a note on how we use AI in
+### 2. [Why Byline](docs/02-why-byline/index.md)
+
+- **[Mission & Vision](docs/02-why-byline/01-mission.md)** — why Byline exists,
+  the three pillars, building in the open, and a note on how we use AI in
   development.
-1. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — key architectural
-  decisions in depth, with code examples.
-1. **[docs/CORE-DOCUMENT-STORAGE.md](docs/CORE-DOCUMENT-STORAGE.md)** —
-   universal storage (EAV-per-type), the seven typed `store_*` tables,
-   flatten/reconstruct, immutable versioning, and indicative benchmark
-   numbers.
-1. **[docs/CORE-COMPOSITION.md](docs/CORE-COMPOSITION.md)** —
-    forward-looking roadmap for `createCommand`, module registries,
-    a command tree on `BylineCore`, per-realm request-context
-    builders, and `loadConfig()`.
-1. **[docs/CONTENT-IN-THE-TIME-OF-AI.md](docs/CONTENT-IN-THE-TIME-OF-AI.md)**
-  — why we think structured content management matters more, not less,
-  alongside generative AI.
+- **[Content in the Time of AI](docs/02-why-byline/02-content-in-the-time-of-ai.md)**
+  — why structured content management matters more, not less, alongside
+  generative AI.
 
-### Subsystem Reference
+### 3. [Architecture](docs/03-architecture/index.md)
 
-1. **[docs/COLLECTIONS.md](docs/COLLECTIONS.md)** — collection schema and
-    admin (columns, layout, preview, custom list views) plus schema
-    versioning: Phase 1 (data model + fingerprinting) shipped; Phases
-    2–5 (history table, fetch-by-version, in-memory forward migration,
-    strict-CI mode) deferred.
-1. **[docs/FIELDS.md](docs/FIELDS.md)** - field schemas, admin and field helpers
-1. **[docs/DOCUMENT-PATHS.md](docs/DOCUMENT-PATHS.md)** — the `path`
-   system attribute (stored in a dedicated `byline_document_paths`
-   table keyed by `(document_id, locale)`), `useAsPath`, the slugifier,
-   the path widget, and per-locale paths as a future phase.
+- **[Document Storage](docs/03-architecture/01-document-storage.md)** — universal
+  storage (EAV-per-type), the seven typed `store_*` tables, flatten/reconstruct,
+  immutable versioning, and indicative benchmark numbers.
+- **[Core Composition](docs/03-architecture/02-core-composition.md)** —
+  forward-looking roadmap for `createCommand`, module registries, a command tree
+  on `BylineCore`, per-realm request-context builders, and `loadConfig()`.
+- **[Transactions](docs/03-architecture/03-transactions.md)** — the transaction
+  model spanning storage writes, hooks, and uploads.
 
-1. **[docs/RELATIONSHIPS.md](docs/RELATIONSHIPS.md)** — cross-collection
-   relations, populate, the relation envelope, recursion safety via
-   `ReadContext`, and `hasMany` as a future phase.
-1. **[docs/FILE-MEDIA-UPLOADS.md](docs/FILE-MEDIA-UPLOADS.md)** —
-   field-level uploads, the two-round-trip flow (field upload then
-   document save), `beforeStore`/`afterStore` hooks, and variant
-   persistence.
-1. **[docs/ROUTING-API.md](docs/ROUTING-API.md)** — the internal
-   TanStack-server-fn transport phase, today's server-fn surface, and
-   what triggers a stable HTTP boundary.
-1. **[docs/AUTHN-AUTHZ.md](docs/AUTHN-AUTHZ.md)** — two auth realms,
-   abilities and roles, the `AbilityRegistry`, service-layer
-   enforcement, and the `beforeRead` hook.
-1. **[docs/CLIENT-SDK.md](docs/CLIENT-SDK.md)** — `@byline/client` as
-   an in-process, server-side SDK: read DSL, write surface, populate,
-   status modes, and what it deliberately is *not*.
-1. **[docs/RICHTEXT.md](docs/RICHTEXT.md)** — pluggable richtext editor
-   adapter, the current Lexical implementation, and future phases for
-   a second editor.
-1. **[docs/CACHING.md](docs/CACHING.md)** — L1/L2 cache layers, the
-   reference `publicCacheMiddleware`, cookie-aware CDN bypass for
-   editors, invalidation strategies, and clustering trade-offs.
-1. **[docs/UIKIT.md](docs/UIKIT.md)** — `@byline/ui` as a single
-   brand-coherent UI surface: the foundational kit synced from
-   `@infonomic/uikit`, the byline-prefixed cascade-layer system, the
-   `pnpm sync:uikit` workflow, and the `./react/{admin,fields,forms,services}`
-   subpath exports.
+### 4. [Collections](docs/04-collections/index.md)
+
+Collection schema and admin (columns, layout, preview, custom list views) plus
+schema versioning.
+
+- **[Fields](docs/04-collections/01-fields.md)** — field schemas, admin and field helpers.
+- **[Relationships](docs/04-collections/02-relationships.md)** — cross-collection
+  relations, populate, the relation envelope, recursion safety via
+  `ReadContext`, and `hasMany` as a future phase.
+- **[Document Trees](docs/04-collections/03-document-trees.md)** — hierarchical
+  documents, tree mode, and auto-placement.
+- **[Document Paths](docs/04-collections/04-document-paths.md)** — the `path`
+  system attribute (stored in a dedicated `byline_document_paths` table keyed by
+  `(document_id, locale)`), `useAsPath`, the slugifier, and the path widget.
+- **[File & Media Uploads](docs/04-collections/05-file-media-uploads.md)** —
+  field-level uploads, the two-round-trip flow, `beforeStore`/`afterStore`
+  hooks, and variant persistence.
+- **[Rich Text](docs/04-collections/06-rich-text.md)** — pluggable richtext
+  editor adapter, the current Lexical implementation, and per-field overrides.
+- **[Collection Versioning](docs/04-collections/07-collection-versioning.md)** —
+  schema versioning: Phase 1 (data model + fingerprinting) shipped; later phases
+  deferred.
+
+### 5. [Reading & Delivery](docs/05-reading-and-delivery/index.md)
+
+- **[Client SDK](docs/05-reading-and-delivery/01-client-sdk.md)** — `@byline/client`
+  as an in-process, server-side SDK: read DSL, write surface, populate, status
+  modes, and what it deliberately is *not*.
+- **[Routing & API](docs/05-reading-and-delivery/02-routing-and-api.md)** — the
+  internal TanStack-server-fn transport phase, today's server-fn surface, and
+  what triggers a stable HTTP boundary.
+- **[Transports](docs/05-reading-and-delivery/03-transports.md)** — layering
+  framework-agnostic logic under host-specific bindings.
+- **[Markdown Export](docs/05-reading-and-delivery/04-markdown-export.md)** —
+  one-way Lexical-to-markdown rendering, the `.md` URL surface, and `llms.txt`
+  for agent consumers.
+- **[MCP Server](docs/05-reading-and-delivery/05-mcp-server.md)** — exposing
+  Byline content to AI agents over the Model Context Protocol.
+- **[Caching](docs/05-reading-and-delivery/06-caching.md)** — L1/L2 cache layers,
+  the reference `publicCacheMiddleware`, cookie-aware CDN bypass for editors,
+  invalidation strategies, and clustering trade-offs.
+
+### 6. [Auth & Security](docs/06-auth-and-security/index.md)
+
+- **[Authentication & Authorization](docs/06-auth-and-security/01-authn-authz.md)**
+  — two auth realms, abilities and roles, the `AbilityRegistry`, service-layer
+  enforcement, and the `beforeRead` hook with worked row-scoping recipes.
+- **[Auditability](docs/06-auth-and-security/02-auditability.md)** — the
+  per-version acting-user trail, the document-level audit log, and the history
+  and activity views built on top of them.
+
+### 7. [Internationalization](docs/07-internationalization/index.md)
+
+- **[Host i18n](docs/07-internationalization/01-host-i18n.md)** — per-request
+  locale resolution and the isomorphic URL rewrite.
+- **[Admin Translations](docs/07-internationalization/02-admin-translations.md)**
+  — `@byline/i18n`, the `byline-admin` bundle, and the extension surface.
+- **[Content Locales](docs/07-internationalization/03-content-locales.md)** —
+  translating content independently of the interface.
+- **[Administering Locales](docs/07-internationalization/04-administering-locales.md)**
+  — configuring and managing locales.
+
+### 8. [Admin UI](docs/08-admin-ui/index.md)
+
+- **[UI Kit](docs/08-admin-ui/01-ui-kit.md)** — `@byline/ui` as a single
+  brand-coherent UI surface: the foundational kit synced from `@infonomic/uikit`,
+  the byline-prefixed cascade-layer system, the `pnpm sync:uikit` workflow, and
+  the `./react/{admin,fields,forms,services}` subpath exports.
+- **[Client-config Registration](docs/08-admin-ui/02-client-config-registration.md)**
+  — how the admin/editor config is registered on the client and code-split away
+  from public routes.
+
+### 9. [Testing](docs/09-testing.md)
+
+Unit and integration suites, the `byline_test` database, and isolation strategy.
 
 ## Deployment Scenarios (Current and Future)
 
@@ -284,7 +326,7 @@ Open http://localhost:5173/.
 
 Full notes — including the foot-gun protection on `db_init`, alternate
 database names, and what the seed does — are in
-[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
+[docs/01-getting-started/02-development-environment.md](docs/01-getting-started/02-development-environment.md).
 
 ## FAQ
 
