@@ -40,16 +40,11 @@
     --prose-headings: var(--primary-600);
   }
 
-  .prose
-    :where(h2, h3, h4):not(
-      :where([class~="not-prose"], [class~="not-prose"] *)
-    ) {
+  .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     --prose-headings: var(--gray-900);
   }
 
-  .prose
-    :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *))
-    a {
+  .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) a {
     --prose-links: var(--gray-900);
   }
 
@@ -57,23 +52,15 @@
   [data-theme="dark"] {
     --prose-body: var(--gray-100);
 
-    .prose
-      :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    .prose :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
       --prose-headings: var(--primary-200);
     }
 
-    .prose
-      :where(h2, h3, h4):not(
-        :where([class~="not-prose"], [class~="not-prose"] *)
-      ) {
+    .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
       --prose-headings: var(--gray-50);
     }
 
-    .prose
-      :where(h2, h3, h4):not(
-        :where([class~="not-prose"], [class~="not-prose"] *)
-      )
-      a {
+    .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) a {
       font-weight: 400;
       --prose-links: var(--gray-50);
     }
@@ -118,10 +105,7 @@
     font-size: 0.92em;
   }
 
-  .prose
-    :where(blockquote):not(
-      :where([class~="not-prose"], [class~="not-prose"] *)
-    ) {
+  .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     font-size: 1em;
     font-weight: 400;
     line-height: 1.4;
@@ -130,10 +114,7 @@
 
   .dark,
   [data-theme="dark"] {
-    .prose
-      :where(blockquote):not(
-        :where([class~="not-prose"], [class~="not-prose"] *)
-      ) {
+    .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
       color: var(--accent-200);
     }
   }
@@ -145,10 +126,7 @@
       line-height: 1.54;
     }
 
-    .prose
-      :where(blockquote):not(
-        :where([class~="not-prose"], [class~="not-prose"] *)
-      ) {
+    .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
       font-size: 1.07em;
       font-weight: normal;
       line-height: 1.45;

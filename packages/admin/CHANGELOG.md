@@ -1,5 +1,16 @@
 # @byline/admin
 
+## 3.13.1
+
+### Patch Changes
+
+- refined `@byline/ui` prose typography styles alongside docs index layout and prev/next css updates
+- Updated dependencies
+  - @byline/auth@3.13.1
+  - @byline/core@3.13.1
+  - @byline/i18n@3.13.1
+  - @byline/ui@3.13.1
+
 ## 3.13.0
 
 ### Minor Changes

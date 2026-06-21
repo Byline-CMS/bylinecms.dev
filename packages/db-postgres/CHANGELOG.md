@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 3.13.1
+
+### Patch Changes
+
+- refined `@byline/ui` prose typography styles alongside docs index layout and prev/next css updates
+- Updated dependencies
+  - @byline/admin@3.13.1
+  - @byline/auth@3.13.1
+  - @byline/core@3.13.1
+
 ## 3.13.0
 
 ### Minor Changes

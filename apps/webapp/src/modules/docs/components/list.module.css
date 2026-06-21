@@ -168,9 +168,7 @@
 
 .card:hover .ctaIcon,
 .card:focus-visible .ctaIcon,
-:global(.byline-docs-list-card):hover
-  :global(.byline-docs-list-cta)
-  :global(.chevron-right-icon),
+:global(.byline-docs-list-card):hover :global(.byline-docs-list-cta) :global(.chevron-right-icon),
 :global(.byline-docs-list-card):focus-visible
   :global(.byline-docs-list-cta)
   :global(.chevron-right-icon) {

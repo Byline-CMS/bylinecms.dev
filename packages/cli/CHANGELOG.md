@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 3.13.1
+
+### Patch Changes
+
+- refined `@byline/ui` prose typography styles alongside docs index layout and prev/next css updates
+
 ## 3.13.0
 
 ### Minor Changes
