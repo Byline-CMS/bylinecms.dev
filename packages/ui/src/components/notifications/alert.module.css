@@ -27,7 +27,7 @@
     --alert-background-opacity: 0.5;
     background-color: oklch(
       from var(--alert-background) l c h /
-        calc(alpha * var(--alert-background-opacity))
+      calc(alpha * var(--alert-background-opacity))
     );
     color: var(--foreground);
     margin-bottom: 1rem;

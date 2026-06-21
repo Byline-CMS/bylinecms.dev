@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 3.13.2
+
+### Patch Changes
+
+- refined `@byline/ui` prose typography — looser list-item spacing and primary-colored `ul` disc markers — plus normal-weight alert titles
+- Updated dependencies
+  - @byline/core@3.13.2
+  - @byline/richtext-lexical@3.13.2
+  - @byline/ui@3.13.2
+
 ## 3.13.1
 
 ### Patch Changes

@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 3.13.2
+
+### Patch Changes
+
+- refined `@byline/ui` prose typography — looser list-item spacing and primary-colored `ul` disc markers — plus normal-weight alert titles
+- Updated dependencies
+  - @byline/admin@3.13.2
+  - @byline/ai@3.13.2
+  - @byline/auth@3.13.2
+  - @byline/client@3.13.2
+  - @byline/core@3.13.2
+  - @byline/i18n@3.13.2
+  - @byline/ui@3.13.2
+
 ## 3.13.1
 
 ### Patch Changes
