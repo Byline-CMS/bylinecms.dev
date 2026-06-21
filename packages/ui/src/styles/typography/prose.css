@@ -23,7 +23,7 @@
     --prose-lead: #4b5563;
     --prose-links: var(--accent-950);
     --prose-counters: #6b7280;
-    --prose-bullets: #d1d5db;
+    --prose-bullets: var(--primary-600);
     --prose-hr: #e5e7eb;
     --prose-quotes: var(--accent-700);
     --prose-quote-borders: var(--accent-700);
@@ -40,7 +40,7 @@
     --prose-invert-lead: #9ca3af;
     --prose-invert-links: var(--accent-500);
     --prose-invert-counters: #9ca3af;
-    --prose-invert-bullets: #4b5563;
+    --prose-invert-bullets: var(--primary-200);
     --prose-invert-hr: #374151;
     --prose-invert-quotes: var(--accent-400);
     --prose-invert-quote-borders: var(--accent-400);
@@ -86,7 +86,7 @@
     --prose-lead: #4b5563;
     --prose-links: var(--accent-950);
     --prose-counters: #6b7280;
-    --prose-bullets: #d1d5db;
+    --prose-bullets: var(--primary-600);
     --prose-hr: #e5e7eb;
     --prose-quotes: var(--accent-700);
     --prose-quote-borders: var(--accent-700);
@@ -278,6 +278,11 @@
       margin-top: 1.25em;
       margin-bottom: 1.25em;
       padding-inline-start: 1.625em;
+    }
+
+    .prose :where(li):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      margin-top: 0.5em;
+      margin-bottom: 0.5em;
     }
 
     .prose :where(ol > li):not(:where([class~="not-prose"], [class~="not-prose"] *))::marker {
