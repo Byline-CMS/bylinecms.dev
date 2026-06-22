@@ -73,22 +73,7 @@ function NavItem({ node, depth, activeKey, expanded, onToggle, lng, onNavigate }
     <li
       className={cx('menu-item', { active: isActive, 'has-children': hasChildren, open: isOpen })}
     >
-      <div className="row" style={{ paddingLeft: `${depth * 14}px` }}>
-        {hasChildren ? (
-          <button
-            type="button"
-            className="caret"
-            aria-expanded={isOpen}
-            aria-label={isOpen ? `Collapse ${node.title}` : `Expand ${node.title}`}
-            onClick={() => onToggle(node.id)}
-          >
-            <span className="caret-icon">
-              <ChevronRightIcon width="14px" height="14px" />
-            </span>
-          </button>
-        ) : (
-          <span className="caret-spacer" aria-hidden="true" />
-        )}
+      <div className="row" style={{ paddingLeft: `${depth * 14 + 5}px` }}>
         <Link
           className="link"
           to="/$lng/docs/$"
@@ -97,6 +82,19 @@ function NavItem({ node, depth, activeKey, expanded, onToggle, lng, onNavigate }
         >
           <span className="label">{node.title}</span>
         </Link>
+        {hasChildren && (
+          <button
+            type="button"
+            className="caret"
+            aria-expanded={isOpen}
+            aria-label={isOpen ? `Collapse ${node.title}` : `Expand ${node.title}`}
+            onClick={() => onToggle(node.id)}
+          >
+            <span className="caret-icon">
+              <ChevronRightIcon width="16px" height="16px" />
+            </span>
+          </button>
+        )}
       </div>
 
       {hasChildren && (

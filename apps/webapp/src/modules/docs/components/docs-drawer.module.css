@@ -7,7 +7,7 @@
  *   .menu-item / .row / .caret / .subtree — per-node tree structure
  *
  * The per-node classnames (`.menu-item`, `.row`, `.caret`, `.caret-icon`,
- * `.caret-spacer`, `.link`, `.label`, `.subtree`, `.subtree-inner`,
+ * `.link`, `.label`, `.subtree`, `.subtree-inner`,
  * `.active`, `.open`) are plain global strings so the rule chains
  * stay readable; they are scoped under the stable global `.byline-docs-drawer`
  * nav class (which sits on the same <nav> as the module-hashed `.nav`).
@@ -103,11 +103,13 @@
   margin: 0;
 }
 
-/* ── Row: caret + link ──────────────────────────────────────────────── */
+/* ── Row: link + caret ──────────────────────────────────────────────── */
 
 :global(.byline-docs-drawer .row) {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding-right: 4px;
   border-radius: 4px;
   transition: background-color 160ms ease;
 }
@@ -149,7 +151,7 @@
   background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h / 0.45);
 }
 
-/* ── Caret (expand / collapse) ──────────────────────────────────────── */
+/* ── Caret (expand / collapse) — right-aligned ──────────────────────── */
 
 :global(.byline-docs-drawer .caret) {
   display: flex;
@@ -158,6 +160,8 @@
   flex-shrink: 0;
   width: 22px;
   height: 32px;
+  margin-left: 4px;
+  margin-right: 4px;
   padding: 0;
   background: none;
   border: none;
@@ -165,15 +169,15 @@
   color: inherit;
 }
 
-:global(.byline-docs-drawer .caret-spacer) {
-  flex-shrink: 0;
-  width: 22px;
-}
-
 :global(.byline-docs-drawer .caret-icon) {
   display: inline-flex;
-  color: var(--gray-400, #9ca3af);
+  color: var(--gray-600, #4b5563);
   transition: transform 200ms ease;
+}
+
+:is([data-theme="dark"], :global(.dark))
+  :global(.byline-docs-drawer .caret-icon) {
+  color: var(--gray-100, #d1d5db);
 }
 
 /* Animated caret: points right when collapsed, rotates down when open. */
@@ -192,7 +196,7 @@
   flex: 1;
   min-width: 0;
   gap: 8px;
-  padding: 7px 7px 7px 0;
+  padding: 7px 7px 7px 8px;
   color: #111111;
   font-size: 1.1rem;
   font-weight: normal;
