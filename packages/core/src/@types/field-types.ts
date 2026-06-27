@@ -609,6 +609,30 @@ export interface RelationField extends NonlocalizableField {
    * summary. Falls back to the first text field if omitted.
    */
   displayField?: string
+
+  /**
+   * When `true`, the field holds an **ordered list** of target references
+   * rather than a single one. The value shape becomes an array of relation
+   * envelopes (`RelatedDocumentValue[]`), persisted as indexed `store_relation`
+   * rows (`<field>.0`, `<field>.1`, …) and reconstructed in order. The admin
+   * widget renders an add / remove / drag-reorder list of summary tiles.
+   *
+   * A given target may appear at most once (the widget dedups on
+   * `targetDocumentId`). Defaults to single-target (`false` / absent).
+   */
+  hasMany?: boolean
+
+  /**
+   * Minimum number of references required when `hasMany` is `true`. Enforced by
+   * the generated Zod schema. Ignored for single-target relations.
+   */
+  minItems?: number
+
+  /**
+   * Maximum number of references allowed when `hasMany` is `true`. Enforced by
+   * the generated Zod schema. Ignored for single-target relations.
+   */
+  maxItems?: number
 }
 
 // ---------------------------------------------------------------------------

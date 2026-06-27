@@ -611,3 +611,18 @@ export interface PopulatedRelation<T> {
 export type WithPopulated<F, K extends keyof F, Target> = {
   [P in keyof F]: P extends K ? PopulatedRelation<Target> : F[P]
 }
+
+/**
+ * `hasMany` counterpart of {@link WithPopulated}: re-types key `K` as an
+ * **ordered array** of populated relation envelopes. Use for `hasMany: true`
+ * relation fields, whose populated value is `PopulatedRelation<Target>[]` (one
+ * envelope per referenced target, in stored order).
+ *
+ * ```ts
+ * type ArticlePopulated = WithPopulatedMany<ArticleFields, 'authors', AuthorFields>
+ * client.collection('articles').find<ArticlePopulated>({ populate: { authors: '*' } })
+ * ```
+ */
+export type WithPopulatedMany<F, K extends keyof F, Target> = {
+  [P in keyof F]: P extends K ? Array<PopulatedRelation<Target>> : F[P]
+}

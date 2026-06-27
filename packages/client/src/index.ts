@@ -56,4 +56,5 @@ export type {
   WhereClause,
   WhereValue,
   WithPopulated,
+  WithPopulatedMany,
 } from './types.js'

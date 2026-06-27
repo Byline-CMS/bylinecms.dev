@@ -26,6 +26,7 @@
  *   - [x] select field (`area`) round-trip
  *   - [x] checkbox field (block `constrainedWidth`) round-trip
  *   - [x] relation field (`featureImage` picker) round-trip
+ *   - [x] hasMany relation (`gallery` tiles: add / remove) round-trip
  *   - [ ] file upload (media collection) — parked
  *   - [ ] content-locale switch + translation save — parked
  *   - [ ] duplicate / restore-version flows — parked
@@ -206,6 +207,48 @@ test.describe('document editor', () => {
     await waitForHydration(page, '#title')
     await expect(page.getByRole('button', { name: 'Remove Media Item' })).toBeVisible()
     await expect(page.locator('.byline-field-relation.featureImage')).toContainText(pickedTitle)
+  })
+
+  test('hasMany relation: add gallery items → remove one → save → reload round-trip', async ({
+    page,
+  }) => {
+    await createPage(page, `Smoke gallery ${Date.now()}`)
+
+    // `gallery` is a hasMany relation (→ media) in the Details tab. Its empty
+    // state renders an add button (#gallery); each pick appends a tile.
+    await waitForHydration(page, '#gallery')
+
+    const addMedia = async (rowIndex: number): Promise<string> => {
+      await page.locator('#gallery').click()
+      const row = page.locator('.byline-field-relation-picker-row-button').nth(rowIndex)
+      await expect(row).toBeVisible({ timeout: 30_000 })
+      const title = (await row.innerText())
+        .split('\n')
+        .map((s) => s.trim())
+        .find((s) => s.length > 0) as string
+      await row.click()
+      await page.getByRole('button', { name: 'Select', exact: true }).click()
+      return title
+    }
+
+    // Add two distinct media items → two tiles.
+    await addMedia(0)
+    const secondTitle = await addMedia(1)
+    const tiles = page.locator('.byline-field-relation-many-tile')
+    await expect(tiles).toHaveCount(2)
+
+    // Remove the first tile; the second (secondTitle) remains.
+    await tiles.first().getByRole('button', { name: 'Remove Media Item' }).click()
+    await expect(page.locator('.byline-field-relation-many-tile')).toHaveCount(1)
+
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    // Reload — the single remaining gallery item must persist.
+    await page.reload()
+    await waitForHydration(page, '#title')
+    await expect(page.locator('.byline-field-relation-many-tile')).toHaveCount(1)
+    await expect(page.locator('.byline-field-relation.gallery')).toContainText(secondTitle)
   })
 
   test('checkbox field: toggle block constrainedWidth → save → reload round-trip', async ({

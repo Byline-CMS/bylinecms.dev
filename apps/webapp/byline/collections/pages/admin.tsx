@@ -168,7 +168,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
         {
           name: 'details',
           label: 'Details',
-          fields: ['title', 'area', 'summary', 'featureImage'],
+          fields: ['title', 'area', 'summary', 'featureImage', 'gallery'],
         },
         {
           name: 'content',

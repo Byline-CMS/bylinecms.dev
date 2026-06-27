@@ -451,6 +451,8 @@
   "fields.relation.changeAriaLabel": "{label} ändern",
   "fields.relation.removeAriaLabel": "{label} entfernen",
   "fields.relation.selectButton": "{label} auswählen …",
+  "fields.relation.addButton": "{label} hinzufügen",
+  "fields.relation.manyEmpty": "Keine {label} ausgewählt",
   "fields.relation.unknownError": "Das Beziehungsfeld \"{name}\" verweist auf die unbekannte Sammlung \"{target}\".",
   "fields.relation.unknownHint": "Registrieren Sie die Sammlung in Ihrer Byline-Konfiguration oder korrigieren Sie den Zielpfad.",
   "fields.relation.picker.searchPlaceholder": "Suchen",

@@ -190,7 +190,7 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       schema = z.any()
       break
 
-    case 'relation':
+    case 'relation': {
       // Relation values are `RelatedDocumentValue` objects:
       //   { targetDocumentId, targetCollectionId,
       //     relationshipType?, cascadeDelete? }
@@ -200,15 +200,23 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       //
       // Populated responses (depth > 0) skip this schema in the route layer
       // because the tree then contains nested documents, not bare refs.
-      schema = z
-        .object({
-          targetDocumentId: z.string(),
-          targetCollectionId: z.string(),
-          relationshipType: z.string().optional(),
-          cascadeDelete: z.boolean().optional(),
-        })
-        .nullable()
+      const relationValue = z.object({
+        targetDocumentId: z.string(),
+        targetCollectionId: z.string(),
+        relationshipType: z.string().optional(),
+        cascadeDelete: z.boolean().optional(),
+      })
+      if (field.hasMany) {
+        // Ordered list of relation values; `minItems` / `maxItems` bound it.
+        let arr = z.array(relationValue)
+        if (typeof field.minItems === 'number') arr = arr.min(field.minItems)
+        if (typeof field.maxItems === 'number') arr = arr.max(field.maxItems)
+        schema = arr
+      } else {
+        schema = relationValue.nullable()
+      }
       break
+    }
 
     default:
       schema = z.string()

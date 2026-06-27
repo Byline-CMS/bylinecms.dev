@@ -699,6 +699,23 @@ function collectRelationLeaves(
     if (leaf.field.type !== 'relation') continue
     const sub = matchesPopulate(leaf.field.name, populate)
     if (sub === undefined) continue
+
+    // hasMany: the value is an ordered array of relation envelopes. Expand it
+    // into one leaf ref per element, whose `parent` is the array itself and
+    // `key` is the index — so the envelope-assignment pass writes each
+    // populated result back into its array slot, in place.
+    if (leaf.field.hasMany) {
+      if (!Array.isArray(leaf.value)) continue
+      const arr = leaf.value as any[]
+      for (let i = 0; i < arr.length; i++) {
+        const item = arr[i]
+        if (!isRelatedDocumentValue(item)) continue
+        if ('_resolved' in (item as Record<string, any>)) continue
+        acc.push({ parent: arr, key: String(i), field: leaf.field, value: item, sub })
+      }
+      continue
+    }
+
     if (!isRelatedDocumentValue(leaf.value)) continue
     // Skip leaves that have already been replaced (e.g. via shared-ref
     // duplication at the previous level); only raw RelatedDocumentValues

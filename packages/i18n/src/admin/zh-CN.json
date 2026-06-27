@@ -451,6 +451,8 @@
   "fields.relation.changeAriaLabel": "更改{label}",
   "fields.relation.removeAriaLabel": "移除{label}",
   "fields.relation.selectButton": "选择{label}…",
+  "fields.relation.addButton": "添加{label}",
+  "fields.relation.manyEmpty": "未选择{label}",
   "fields.relation.unknownError": "关系字段“{name}”指向未知集合“{target}”。",
   "fields.relation.unknownHint": "请在您的 Byline 配置中注册该集合，或更正目标路径。",
   "fields.relation.picker.searchPlaceholder": "搜索",

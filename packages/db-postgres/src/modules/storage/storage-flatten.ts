@@ -147,6 +147,22 @@ function* flattenFieldDataGen(
     }
   }
 
+  // Ordered multi-target relation: emit one relation row per item at an
+  // indexed path (`<field>.0`, `<field>.1`, …), mirroring the array path
+  // convention. `restoreFieldSetData` reassembles the ordered array.
+  // Relations are non-localized, so every row carries locale 'all'. Identity
+  // is the `targetDocumentId` (the widget dedups), so no `store_meta` rows are
+  // needed. Must intercept before the generic value branch, which would
+  // otherwise read the whole array as a single relation value.
+  else if (field.type === 'relation' && field.hasMany) {
+    const items = data as RelatedDocumentValue[]
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item == null) continue
+      yield flattenValueFieldData(field, [...field_path, `${i}`], item, 'all')
+    }
+  }
+
   // Handle localized fields separately.
   else if (field.localized) {
     // If locale is 'all', data is expected to be an object that maps locales to

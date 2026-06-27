@@ -84,6 +84,18 @@ export const Pages = defineCollection({
       displayField: 'title',
       optional: true,
     },
+    // hasMany relation demo — an ordered list of Media references rendered as
+    // drag-reorderable summary tiles in the editor. See docs/RELATIONSHIPS.md.
+    {
+      name: 'gallery',
+      label: 'Gallery',
+      type: 'relation',
+      targetCollection: 'media',
+      displayField: 'title',
+      hasMany: true,
+      optional: true,
+      helpText: 'An ordered list of media items. Drag to reorder; ✕ to remove.',
+    },
     {
       name: 'area',
       label: 'Area',

@@ -520,12 +520,36 @@ The first production relation is in the News collection (`apps/webapp/byline/col
 
 ---
 
+## `hasMany` relations
+
+A relation field with `hasMany: true` holds an **ordered list** of target
+references instead of a single one (with optional `minItems` / `maxItems`):
+
+```ts
+{ name: 'authors', type: 'relation', targetCollection: 'people', hasMany: true }
+```
+
+It is modelled as an array of relation values: each item flattens to its own
+`store_relation` row at an indexed path (`authors.0`, `authors.1`, …) and
+reconstructs in order — no new storage column or migration (the
+`unique(version, field_path, locale)` constraint already permits it since each
+index is a distinct path). `populate` resolves **each** element into its own
+envelope, yielding an ordered array of populated values; a deleted target
+surfaces as a `_resolved: false` slot in place rather than collapsing the array.
+The editor renders a drag-reorderable list of summary tiles (the same
+`RelationSummary` the single field uses) with a per-tile remove and an "Add"
+button that appends through the standard picker (`packages/admin/src/fields/relation/relation-many-field.tsx`).
+Items are identified by `targetDocumentId` (a target may appear at most once);
+each edit writes the whole array back as a coalesced `field.set` patch. See
+`apps/webapp/byline/collections/pages/schema.ts` (`gallery`) for a reference field.
+Use `WithPopulatedMany<F, K, Target>` (`@byline/client`) to type the populated
+array shape.
+
 ## Current limitations
 
-- **Single-target relations only.** A relation field references at most one
-  target document. Ordered multi-target (`hasMany`) relations — with `$some` /
-  `$every` / `$none` query quantifiers and an add/remove/reorder picker — are not
-  yet supported.
+- **No `where` quantifiers for `hasMany` yet.** Filtering a query by a
+  multi-target relation (`$some` / `$every` / `$none`) is the deferred
+  fast-follow; reading and populating ordered lists works today.
 - **`cascadeDelete` is recorded but not enforced.** The flag round-trips through
   storage; deleting a target does not yet act on it. A deleted target surfaces as
   an unresolved relation envelope (`_resolved: false`) on read.

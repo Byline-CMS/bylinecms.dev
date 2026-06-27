@@ -451,6 +451,8 @@
   "fields.relation.changeAriaLabel": "Cambia {label}",
   "fields.relation.removeAriaLabel": "Rimuovi {label}",
   "fields.relation.selectButton": "Seleziona {label}…",
+  "fields.relation.addButton": "Aggiungi {label}",
+  "fields.relation.manyEmpty": "Nessun {label} selezionato",
   "fields.relation.unknownError": "Il campo relazione \"{name}\" punta a una raccolta sconosciuta \"{target}\".",
   "fields.relation.unknownHint": "Registra la raccolta nella tua configurazione di Byline o correggi il percorso di destinazione.",
   "fields.relation.picker.searchPlaceholder": "Cerca",

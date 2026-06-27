@@ -66,9 +66,15 @@ export const restoreFieldSetData = (
     }
   }
 
-  // Array/blocks/group fixup.
+  // Array/blocks/group/hasMany-relation fixup — a required list-shaped field
+  // with no stored rows reconstructs as an empty array rather than absent.
   for (const field of fields) {
-    if ((field.type === 'array' || field.type === 'blocks') && !field.optional) {
+    if (
+      (field.type === 'array' ||
+        field.type === 'blocks' ||
+        (field.type === 'relation' && field.hasMany)) &&
+      !field.optional
+    ) {
       result[field.name] = result[field.name] || []
     } else if (field.type === 'group' && !field.optional) {
       result[field.name] = result[field.name] || {}
@@ -92,6 +98,8 @@ const restoreFieldData = (
     return restoreArrayFieldData(field, target, data, pathIndex, warnings, resolveLocale)
   } else if (field.type === 'blocks') {
     return restoreBlocksFieldData(field, target, data, pathIndex, warnings, resolveLocale)
+  } else if (field.type === 'relation' && field.hasMany) {
+    return restoreMultiRelationFieldData(target, data, pathIndex, warnings)
   }
 
   if (field.localized) {
@@ -273,6 +281,34 @@ const restoreBlocksFieldData = (
     warnings,
     resolveLocale
   )
+  return target
+}
+
+const restoreMultiRelationFieldData = (
+  target: any,
+  data: FlattenedFieldValue,
+  pathIndex: number,
+  warnings: string[]
+): any => {
+  // Path shape: `[...prefix, <field>, <index>]`. At `pathIndex` we have the
+  // ordered position; the row itself is a single relation value.
+  const arrayIndex = Number.parseInt(data.field_path[pathIndex] ?? '', 10)
+  if (Number.isNaN(arrayIndex) || arrayIndex < 0) {
+    warnings.push(
+      `Invalid relation index '${data.field_path[pathIndex]}' in path ${data.field_path.join('.')}`
+    )
+    return target
+  }
+
+  if (data.field_type !== 'relation') {
+    warnings.push(
+      `Expected relation row for hasMany relation but got ${data.field_type} at path ${data.field_path.join('.')}`
+    )
+    return target
+  }
+
+  target = target || []
+  target[arrayIndex] = extractValueFieldData(data)
   return target
 }
 

@@ -451,6 +451,8 @@
   "fields.relation.changeAriaLabel": "Change {label}",
   "fields.relation.removeAriaLabel": "Remove {label}",
   "fields.relation.selectButton": "Select {label}…",
+  "fields.relation.addButton": "Add {label}",
+  "fields.relation.manyEmpty": "No {label} selected",
   "fields.relation.unknownError": "Relation field \"{name}\" targets unknown collection \"{target}\".",
   "fields.relation.unknownHint": "Register the collection in your Byline config or correct the target path.",
   "fields.relation.picker.searchPlaceholder": "Search",

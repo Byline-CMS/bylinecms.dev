@@ -28,6 +28,7 @@ import { ImageField } from './image/image-field'
 import { LocaleBadge } from './locale-badge'
 import { NumericalField } from './numerical/numerical-field'
 import { RelationField } from './relation/relation-field'
+import { RelationManyField } from './relation/relation-many-field'
 import { SelectField } from './select/select-field'
 import { TextField } from './text/text-field'
 import { TextAreaField } from './text-area/text-area-field'
@@ -223,6 +224,16 @@ export const FieldRenderer = ({
           />
         )
       case 'relation':
+        if (field.hasMany) {
+          return (
+            <RelationManyField
+              field={hideLabel ? { ...field, label: undefined } : field}
+              defaultValue={defaultValue}
+              path={path}
+              id={htmlId}
+            />
+          )
+        }
         return (
           <RelationField
             field={hideLabel ? { ...field, label: undefined } : field}
