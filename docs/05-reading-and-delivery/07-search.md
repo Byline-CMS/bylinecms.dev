@@ -247,11 +247,20 @@ const docs = await client.collection('docs').search({
 const site = await client.search({
   zone: 'site',
   query: 'fractional indexing',
+  hydrate: true,         // opt in to shaped ClientDocuments for a rich page; omit for plain rows
   limit, offset,
 })
 
 // results: {
-//   hits: Array<{ collectionPath: string; document: ClientDocument; score: number; highlights?: … }>,
+//   hits: Array<{
+//     collectionPath: string
+//     documentId: string
+//     title: string
+//     path: string | null
+//     score: number
+//     highlights?: …             // matched snippets — enough for a plain-text row
+//     document?: ClientDocument  // present only when `hydrate` / `populate` is requested
+//   }>,
 //   facets?, total,
 // }
 ```
@@ -260,10 +269,15 @@ const site = await client.search({
   `client.collection(x).search(…)`) returns ranked, shaped documents — the
   developer renders the hits, no indexing plumbing in their app. That ease is the
   whole point of the seam.
-- **Hits are documents, not rows.** Each hit carries a shaped `ClientDocument`
-  (optionally `populate`d), so consumers get the same rich shape `find()` returns,
-  plus `score`, `highlights`, and — for zone (cross-collection) queries — the
-  `collectionPath` to route/render per type.
+- **Two-tier results: rows now, rich items on demand.** Every hit always carries a
+  lightweight projection — `collectionPath`, `documentId`, `title`, `path`,
+  `score`, and matched-snippet `highlights` — enough to render a plain-text row in
+  a long, possibly cross-collection list without hydrating anything. Hydration is
+  **opt-in**: pass `hydrate` (or `populate`) and core batch-reads the hit ids per
+  collection through the normal read path and attaches a shaped `ClientDocument`
+  to each hit. A consumer building a rich results page either requests hydration
+  or takes the ids and hydrates them itself (batched per collection) — see
+  [Rendering heterogeneous results](#rendering-heterogeneous-results).
 - **Authorization is not bypassable.** The provider returns candidate ids; core
   re-resolves them through the normal read path so `beforeRead` row-scoping and
   published-only rules apply uniformly. The index is a relevance accelerator, not
@@ -274,6 +288,33 @@ const site = await client.search({
 - **MCP** exposes the same surface as a `search` tool — the retrieval verb that
   makes the MCP surface more than `find()`-over-a-wire. Secondary to the SDK, and
   built on it.
+
+## Rendering heterogeneous results
+
+A zone (cross-collection) results page faces a problem Byline **already solves**:
+*render an item of collection X as a row or tile.* That is exactly what the
+relation picker does — and the proposal is to reuse the same machinery.
+
+Each collection's `CollectionAdminConfig.picker` already declares its row/tile
+columns and formatters (thumbnail, title, date, …), drawn by `PickerCell` /
+`RelationSummary` — the same components the relation picker and the `hasMany`
+relation tiles use. A search results page maps each hit's `collectionPath` to that
+collection's picker presentation and renders the hydrated item through it. The
+upshot:
+
+- **Heterogeneous result rows come "for free"** from config the host already wrote
+  for relations — a publications hit renders in its publication style, a docs hit
+  in its docs style, in one mixed list.
+- **Item-row presentation stays consistent** across the relation picker, `hasMany`
+  tiles, and search results — one definition, three surfaces.
+- The lightweight tier still covers consumers that want a **plain** list (or no UI
+  at all): `title` + `highlights` render a text row with zero hydration.
+
+Layering note: this is an **admin / host-UI** concern that sits *above* the core
+search contract. The core `search()` API returns data — rows, ids, and optional
+shaped documents — never components, so non-UI consumers (MCP, a JSON HTTP
+endpoint) are unaffected. The picker-presentation reuse is how the admin (and host
+apps that adopt the same config) turn those rows into a rich page.
 
 ## Attachment text-extraction
 
@@ -311,6 +352,12 @@ the markdown-export surface so attachments and documents share one representatio
   labels, a declared default zone, validation that referenced zones exist).
   Changing a collection's zone membership requires re-tagging its documents — a
   cheap `reindex` (no text re-extraction) — but it needs a trigger.
+- **Unifying item-row presentation.** The `picker` config is now reused for
+  relation summary tiles and (proposed) search result rows — it is really a
+  per-collection "item row/tile presentation," not picker-specific. Whether to
+  generalise/rename it (e.g. `admin.itemView`, with `picker` kept as an alias) so
+  its broader role is explicit is a small API-shape question worth settling before
+  search results lean on it.
 - **Facets over EAV.** How facetable fields map from the EAV store to the index
   without re-flattening — likely the same `search`-config projection that builds
   `body`, but the cardinality/typing story needs design.
