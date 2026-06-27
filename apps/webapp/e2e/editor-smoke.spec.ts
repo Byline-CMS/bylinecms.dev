@@ -25,10 +25,10 @@
  *   - [x] richtext-in-blocks (add block → type in Lexical) round-trip
  *   - [x] select field (`area`) round-trip
  *   - [x] checkbox field (block `constrainedWidth`) round-trip
- *   - [ ] relation field (`featureImage` picker)
- *   - [ ] file upload (media collection)
- *   - [ ] content-locale switch + translation save
- *   - [ ] duplicate / restore-version flows
+ *   - [x] relation field (`featureImage` picker) round-trip
+ *   - [ ] file upload (media collection) — parked
+ *   - [ ] content-locale switch + translation save — parked
+ *   - [ ] duplicate / restore-version flows — parked
  */
 
 import { expect, test } from '@playwright/test'
@@ -168,6 +168,44 @@ test.describe('document editor', () => {
     await page.reload()
     await waitForHydration(page, '#area')
     await expect(page.locator('#area')).toContainText('Legal')
+  })
+
+  test('relation field: pick featureImage → save → reload round-trip', async ({ page }) => {
+    await createPage(page, `Smoke relation ${Date.now()}`)
+
+    // `featureImage` is a relation to the media collection, in the Details tab
+    // (the default active tab). The empty state renders an open button
+    // (#featureImage); clicking it opens the picker modal listing media rows.
+    await waitForHydration(page, '#featureImage')
+    await page.locator('#featureImage').click()
+
+    // Rows load async via the field-services list fn. Pick the first one and
+    // capture its title (the first non-empty text line of the row) so we can
+    // assert the same media still shows after a reload.
+    const firstRow = page.locator('.byline-field-relation-picker-row-button').first()
+    await expect(firstRow).toBeVisible({ timeout: 30_000 })
+    const pickedTitle = (await firstRow.innerText())
+      .split('\n')
+      .map((s) => s.trim())
+      .find((s) => s.length > 0) as string
+    await firstRow.click()
+    // Confirm the selection — the picker's primary action, distinct from the
+    // empty-state open button labelled "Select Media Item…".
+    await page.getByRole('button', { name: 'Select', exact: true }).click()
+
+    // Selection replaces the open button with a summary tile + Change/Remove
+    // controls; the summary renders the same columns as the picker row.
+    const relationField = page.locator('.byline-field-relation.featureImage')
+    await expect(page.getByRole('button', { name: 'Remove Media Item' })).toBeVisible()
+    await expect(relationField).toContainText(pickedTitle)
+
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    await page.reload()
+    await waitForHydration(page, '#title')
+    await expect(page.getByRole('button', { name: 'Remove Media Item' })).toBeVisible()
+    await expect(page.locator('.byline-field-relation.featureImage')).toContainText(pickedTitle)
   })
 
   test('checkbox field: toggle block constrainedWidth → save → reload round-trip', async ({
