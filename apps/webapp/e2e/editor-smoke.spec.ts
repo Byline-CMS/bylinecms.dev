@@ -18,7 +18,9 @@
  *   - [x] dashboard + collection list render
  *   - [x] create document → edit title → save → patch round-trip
  *   - [x] status transition on a saved document
- *   - [ ] each remaining field type (datetime, select, checkbox, relation, richtext)
+ *   - [x] datetime field (sidebar DatePicker) round-trip
+ *   - [x] richtext-in-blocks (add block → type in Lexical) round-trip
+ *   - [ ] remaining field types (select, checkbox, relation)
  *   - [ ] file upload (media collection)
  *   - [ ] content-locale switch + translation save
  *   - [ ] duplicate / restore-version flows
@@ -103,5 +105,70 @@ test.describe('document editor', () => {
     // the transition button carries the workflow verb.
     await page.getByRole('button', { name: 'Request Review' }).click()
     await expect(page.getByText('Needs Review', { exact: false }).first()).toBeVisible()
+  })
+
+  test('datetime field: pick a calendar day → save → reload round-trip', async ({ page }) => {
+    await createDoc(page, `Smoke datetime ${Date.now()}`)
+
+    // `publishedOn` is a required datetime rendered in the sidebar (so it's
+    // always visible — no tab switch needed). Its DatePicker input is
+    // read-only; clicking it opens a calendar popover (portaled to <body>).
+    // Because the field is required it auto-seeds to "now" on mount, so the
+    // round-trip changes it deterministically: selecting a calendar day
+    // re-applies the picker's default 08:00 time regardless of which day, so
+    // the persisted value is fixed no matter when the suite runs.
+    await waitForHydration(page, '#publishedOn')
+    const seeded = await page.locator('#publishedOn').inputValue()
+    await page.locator('#publishedOn').click()
+
+    // Pick the 15th of the displayed month from the calendar grid (the time
+    // column is outside the grid, so the day number is unambiguous there).
+    await page.getByRole('grid').getByText('15', { exact: true }).click()
+    await page.getByRole('button', { name: 'Select', exact: true }).click()
+
+    // Selecting a day applies the 08:00 default time; value is `PP HH:mm`
+    // (e.g. "Jun 15, 2026 08:00"), and must differ from the auto-seeded value.
+    await expect(page.locator('#publishedOn')).toHaveValue(/08:00$/)
+    expect(await page.locator('#publishedOn').inputValue()).not.toBe(seeded)
+
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    await page.reload()
+    await waitForHydration(page, '#publishedOn')
+    await expect(page.locator('#publishedOn')).toHaveValue(/08:00$/)
+  })
+
+  test('richtext-in-blocks: add block → type → save → reload round-trip', async ({ page }) => {
+    await createDoc(page, `Smoke richtext ${Date.now()}`)
+    const body = `Smoke richtext body ${Date.now()}`
+
+    // The blocks `content` field lives behind the "Content" tab.
+    await page.getByRole('tab', { name: 'Content', exact: true }).click()
+
+    // Add a Richtext Block via the blocks picker modal.
+    await page.getByRole('button', { name: 'Add block' }).click()
+    await page.getByText('Richtext Block', { exact: true }).click()
+
+    // The Lexical editor mounts a contenteditable. It's code-split and
+    // compiles on first visit in dev, so wait for it before typing — a
+    // pre-init keystroke is dropped the same way a pre-hydration input fill is.
+    const editor = page.locator('.ContentEditable__root').first()
+    await expect(editor).toBeVisible({ timeout: 30_000 })
+    await editor.click()
+    await page.keyboard.type(body)
+    await expect(editor).toContainText(body)
+
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    // Reload — the active tab resets to the default, so re-open Content and
+    // assert the persisted block re-renders the typed richtext.
+    await page.reload()
+    await waitForHydration(page, '#title')
+    await page.getByRole('tab', { name: 'Content', exact: true }).click()
+    const reloadedEditor = page.locator('.ContentEditable__root').first()
+    await expect(reloadedEditor).toBeVisible({ timeout: 30_000 })
+    await expect(reloadedEditor).toContainText(body)
   })
 })
