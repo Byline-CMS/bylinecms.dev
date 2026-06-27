@@ -60,14 +60,6 @@ A pluggable search seam in core: a `SearchProvider` interface with Postgres FTS 
 
 Extract text and structure from uploaded file attachments (PDF, DOCX, …) to feed search indexing and downstream retrieval. Shape: an extraction-provider interface — `file → { markdown, plainText, metadata }` — so structure-aware, markdown-emitting extractors (Docling-class) and classic extractors (Apache Tika) are interchangeable drivers. Extracted output lands in its own table keyed to the file (never as synthetic `store_*` field data), invalidated on re-upload. Markdown-first output deliberately converges with the markdown-export surface, so documents and attachments share one representation for indexing, chunking, and agents.
 
-### Relation column formatter
-
-List views currently render `target_document_id` as a string for relation fields. A formatter that resolves to the target's `useAsTitle` (with the picker's `displayField` fallback chain) is small, self-contained, and worth doing alongside `hasMany` so the formatter handles "A, B, +3 more" from the start. See [RELATIONSHIPS.md → Phase — relation column formatter](./RELATIONSHIPS.md#phase--relation-column-formatter).
-
-### `admin.itemView` — generalise the `picker` presentation config
-
-`CollectionAdminConfig.picker` (a `ColumnDefinition[]` + formatters, drawn by `PickerCell` / `RelationSummary`) has outgrown its name: it's now the per-collection **item row/tile contract** reused by the relation picker, the `hasMany` relation tiles, and (planned) search result rows — where it doubles as the **projection** (which fields to load per collection) as well as the presentation. **Decided 2026-06-27:** rename it to `admin.itemView` with `picker` kept as a backwards-compatible alias; the shape is unchanged, only the name broadens. Small, additive API-shape change — land it before search Phase 2 leans on it (and ideally note the dual role in the admin-config types/docs). See [docs/05-reading-and-delivery/07-search.md → Rendering heterogeneous results](./docs/05-reading-and-delivery/07-search.md).
-
 ### Bulk "refresh embedded relations" admin command
 
 For richtext fields in snapshot mode (`embedRelationsOnSave: true, populateRelationsOnRead: false`), embedded data drifts when targets change. A bulk command would walk every richtext value in a chosen collection (or installation-wide), re-resolve each relation, and re-embed the cached fields in place — without bumping `documentVersions`. Useful when staleness compounds (e.g. a bulk title rename) and per-document re-saves aren't practical. See [RELATIONSHIPS.md → Phase — bulk refresh denormalised links](./RELATIONSHIPS.md#phase--bulk-refresh-denormalised-links-command).

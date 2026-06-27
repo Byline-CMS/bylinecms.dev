@@ -382,9 +382,11 @@ the markdown-export surface so attachments and documents share one representatio
   Changing a collection's zone membership requires re-tagging its documents — a
   cheap `reindex` (no text re-extraction) — but it needs a trigger.
 - **Relation columns in projected rows.** A picker-projected search row that
-  includes a relation column depends on the deferred **relation column formatter**
-  (resolving a relation target's `useAsTitle`) — so that item becomes a
-  prerequisite once search rows render relation columns.
+  includes a relation column reuses the **relation column formatter** (resolves a
+  relation target's `useAsTitle`), which already ships for list views
+  (`relationColumnFormatter`, `@byline/admin/react`). Search-result rows that
+  include relation columns will need the list read's depth-1 relation populate
+  applied to the hydration step too.
 - **Facets over EAV.** How facetable fields map from the EAV store to the index
   without re-flattening — likely the same `search`-config projection that builds
   `body`, but the cardinality/typing story needs design.
