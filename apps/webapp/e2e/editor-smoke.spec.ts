@@ -11,8 +11,11 @@
  *
  * Scope (per docs/TODO.md → "Admin editor smoke suite"): ~10–15 happy-path
  * scenarios, not coverage. Runs serially against the seeded `byline_dev`
- * database (`pnpm tsx byline/seed.ts`); flows that mutate documents create
- * their own document first so reruns stay clean.
+ * database (`pnpm tsx byline/seed.ts`). All create/mutate flows run against the
+ * `pages` collection — chosen because it exercises every field surface
+ * (text / textArea / select / relation / datetime / blocks→richtext+checkbox)
+ * and keeps the suite's throwaway documents out of the `docs` collection. Each
+ * flow creates its own page first so reruns stay self-contained.
  *
  * Growth plan (one scenario per editor surface):
  *   - [x] dashboard + collection list render
@@ -20,7 +23,9 @@
  *   - [x] status transition on a saved document
  *   - [x] datetime field (sidebar DatePicker) round-trip
  *   - [x] richtext-in-blocks (add block → type in Lexical) round-trip
- *   - [ ] remaining field types (select, checkbox, relation)
+ *   - [x] select field (`area`) round-trip
+ *   - [x] checkbox field (block `constrainedWidth`) round-trip
+ *   - [ ] relation field (`featureImage` picker)
  *   - [ ] file upload (media collection)
  *   - [ ] content-locale switch + translation save
  *   - [ ] duplicate / restore-version flows
@@ -31,12 +36,12 @@ import { expect, test } from '@playwright/test'
 test.describe('admin shell', () => {
   test('dashboard renders the collections overview', async ({ page }) => {
     await page.goto('/admin')
-    await expect(page.getByRole('link', { name: /Documents/ }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /Pages/ }).first()).toBeVisible()
     await expect(page.getByRole('link', { name: /Media/ }).first()).toBeVisible()
   })
 
-  test('docs collection list view renders rows', async ({ page }) => {
-    await page.goto('/admin/collections/docs')
+  test('pages collection list view renders rows', async ({ page }) => {
+    await page.goto('/admin/collections/pages')
     // The seeded dataset guarantees at least one row; the list renders as a table.
     await expect(page.getByRole('table')).toBeVisible()
     await expect(page.getByRole('row').nth(1)).toBeVisible()
@@ -44,9 +49,11 @@ test.describe('admin shell', () => {
 })
 
 test.describe('document editor', () => {
-  // The edit view of a saved document lives at /admin/collections/docs/<uuid>
-  // — match "not /create" so the wait can't be satisfied by the create URL.
-  const editViewUrl = /\/admin\/collections\/docs\/(?!create)[0-9a-f-]{36}/
+  // Smoke flows run against the `pages` collection so they never write into
+  // `docs`. The edit view of a saved page lives at
+  // /admin/collections/pages/<uuid> — match "not /create" so the wait can't be
+  // satisfied by the create URL.
+  const editViewUrl = /\/admin\/collections\/pages\/(?!create)[0-9a-f-]{36}/
 
   /**
    * Wait until React has attached handlers to the element — fills that land
@@ -65,11 +72,13 @@ test.describe('document editor', () => {
     )
   }
 
-  async function createDoc(page: import('@playwright/test').Page, title: string) {
-    await page.goto('/admin/collections/docs/create')
+  async function createPage(page: import('@playwright/test').Page, title: string) {
+    await page.goto('/admin/collections/pages/create')
     await waitForHydration(page, '#title')
     await page.locator('#title').fill(title)
-    // Summary is the other required field on the docs collection.
+    // Summary is the other required text field on the pages collection; `area`
+    // (select) defaults to Root and `publishedOn` (datetime) auto-seeds, so
+    // title + summary are all that's needed to satisfy required-field validation.
     await page.locator('#summary').fill('Created by the editor smoke suite.')
     const save = page.getByRole('button', { name: 'Save', exact: true })
     await expect(save).toBeEnabled()
@@ -85,7 +94,7 @@ test.describe('document editor', () => {
 
   test('create → edit title → save → reload round-trip', async ({ page }) => {
     const title = `Smoke test ${Date.now()}`
-    await createDoc(page, title)
+    await createPage(page, title)
 
     // Edit the title and save (patch-based update path).
     const editedTitle = `${title} (edited)`
@@ -98,17 +107,19 @@ test.describe('document editor', () => {
     await expect(page.locator('#title')).toHaveValue(editedTitle)
   })
 
-  test('status transition: draft → needs review', async ({ page }) => {
-    await createDoc(page, `Smoke status ${Date.now()}`)
+  test('status transition: draft → published', async ({ page }) => {
+    await createPage(page, `Smoke status ${Date.now()}`)
 
-    // The docs workflow is draft → needs_review → published → archived;
-    // the transition button carries the workflow verb.
-    await page.getByRole('button', { name: 'Request Review' }).click()
-    await expect(page.getByText('Needs Review', { exact: false }).first()).toBeVisible()
+    // The pages workflow is draft → published → archived; the primary
+    // transition button from draft carries the "Publish" verb. Exact-match
+    // "Published" so the assertion can't be satisfied by the "Published On"
+    // field label in the sidebar.
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(page.getByText('Published', { exact: true }).first()).toBeVisible()
   })
 
   test('datetime field: pick a calendar day → save → reload round-trip', async ({ page }) => {
-    await createDoc(page, `Smoke datetime ${Date.now()}`)
+    await createPage(page, `Smoke datetime ${Date.now()}`)
 
     // `publishedOn` is a required datetime rendered in the sidebar (so it's
     // always visible — no tab switch needed). Its DatePicker input is
@@ -139,8 +150,64 @@ test.describe('document editor', () => {
     await expect(page.locator('#publishedOn')).toHaveValue(/08:00$/)
   })
 
+  test('select field: change area → save → reload round-trip', async ({ page }) => {
+    await createPage(page, `Smoke select ${Date.now()}`)
+
+    // `area` is a select in the Details tab (the default active tab) that
+    // defaults to "Root". The trigger is a button (#area); the options render
+    // in a portaled listbox as `role="option"`.
+    await waitForHydration(page, '#area')
+    await expect(page.locator('#area')).toContainText('Root')
+    await page.locator('#area').click()
+    await page.getByRole('option', { name: 'Legal', exact: true }).click()
+    await expect(page.locator('#area')).toContainText('Legal')
+
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    await page.reload()
+    await waitForHydration(page, '#area')
+    await expect(page.locator('#area')).toContainText('Legal')
+  })
+
+  test('checkbox field: toggle block constrainedWidth → save → reload round-trip', async ({
+    page,
+  }) => {
+    await createPage(page, `Smoke checkbox ${Date.now()}`)
+
+    // The only checkbox is `constrainedWidth` inside a Richtext Block (default
+    // checked). Add the block from the Content tab; the block's `richText` is
+    // required, so type a minimal body to keep the save valid, then toggle the
+    // checkbox off.
+    await page.getByRole('tab', { name: 'Content', exact: true }).click()
+    await page.getByRole('button', { name: 'Add block' }).click()
+    await page.getByText('Richtext Block', { exact: true }).click()
+
+    const editor = page.locator('.ContentEditable__root').first()
+    await expect(editor).toBeVisible({ timeout: 30_000 })
+    await editor.click()
+    await page.keyboard.type(`Smoke checkbox body ${Date.now()}`)
+
+    const checkbox = page.getByRole('checkbox', { name: 'Constrained Width' })
+    await expect(checkbox).toBeChecked() // schema defaultValue: true
+    await checkbox.click()
+    await expect(checkbox).not.toBeChecked()
+
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    // Reload — the active tab resets to the default, so re-open Content and
+    // assert the persisted block re-renders with the checkbox unchecked.
+    await page.reload()
+    await waitForHydration(page, '#title')
+    await page.getByRole('tab', { name: 'Content', exact: true }).click()
+    const reloaded = page.getByRole('checkbox', { name: 'Constrained Width' })
+    await expect(reloaded).toBeVisible({ timeout: 30_000 })
+    await expect(reloaded).not.toBeChecked()
+  })
+
   test('richtext-in-blocks: add block → type → save → reload round-trip', async ({ page }) => {
-    await createDoc(page, `Smoke richtext ${Date.now()}`)
+    await createPage(page, `Smoke richtext ${Date.now()}`)
     const body = `Smoke richtext body ${Date.now()}`
 
     // The blocks `content` field lives behind the "Content" tab.
