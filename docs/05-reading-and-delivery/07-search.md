@@ -141,6 +141,13 @@ interface SearchDocument {
 }
 ```
 
+`title` is the collection's **identity** value — resolved via `useAsTitle`
+(falling back to the first text field), the same `resolveIdentityField`
+(`packages/core/src/services/populate.ts`) that populate's default projection and
+`RelationSummary` already use. It is never assumed to be a literal `title` field,
+so heterogeneous zone results get a sensible label per collection without
+per-collection special-casing.
+
 `body` is assembled from three feeds, in increasing order of work:
 
 1. **Text fields** — today's `search.fields`, generalised. The per-collection
@@ -273,11 +280,13 @@ const site = await client.search({
   lightweight projection — `collectionPath`, `documentId`, `title`, `path`,
   `score`, and matched-snippet `highlights` — enough to render a plain-text row in
   a long, possibly cross-collection list without hydrating anything. Hydration is
-  **opt-in**: pass `hydrate` (or `populate`) and core batch-reads the hit ids per
-  collection through the normal read path and attaches a shaped `ClientDocument`
-  to each hit. A consumer building a rich results page either requests hydration
-  or takes the ids and hydrates them itself (batched per collection) — see
-  [Rendering heterogeneous results](#rendering-heterogeneous-results).
+  **opt-in**: pass `hydrate` and core batch-reads the hit ids per collection and
+  attaches a shaped `ClientDocument` to each hit — projected to **that collection's
+  picker columns** (the sane default across a heterogeneous zone, where a single
+  `populate` map can't apply — see [Rendering heterogeneous results](#rendering-heterogeneous-results)).
+  A single-collection search, being homogeneous, can instead pass a full `populate`
+  map for relation depth. Either way a consumer can also skip hydration and fetch
+  the ids itself, batched per collection.
 - **Authorization is not bypassable.** The provider returns candidate ids; core
   re-resolves them through the normal read path so `beforeRead` row-scoping and
   published-only rules apply uniformly. The index is a relevance accelerator, not
@@ -309,6 +318,20 @@ upshot:
   tiles, and search results — one definition, three surfaces.
 - The lightweight tier still covers consumers that want a **plain** list (or no UI
   at all): `title` + `highlights` render a text row with zero hydration.
+
+**The picker definition is also the projection.** `populate` is keyed by field
+name and is inherently per-collection — there is no single `populate` map that
+means the same thing across a zone's mixed collections, so it's the wrong tool for
+heterogeneous hydration. The picker columns sidestep this: they already declare
+exactly the fields a row needs (and relation columns carry a `displayField`). So
+hydrating a zone hit means selectively loading *that collection's* picker-column
+fields through the existing field-selection read path
+(`getDocumentsByDocumentIds({ fields })`) and resolving relation columns through
+the [relation column formatter](../04-collections/02-relationships.md) chain. The
+picker config therefore does triple duty for search — **what to fetch**
+(projection), **how to render** (presentation), per collection, with no
+caller-supplied populate. Arbitrary `populate` depth stays available for the
+single-collection (homogeneous) case, where one map is well-defined.
 
 Layering note: this is an **admin / host-UI** concern that sits *above* the core
 search contract. The core `search()` API returns data — rows, ids, and optional
@@ -352,12 +375,15 @@ the markdown-export surface so attachments and documents share one representatio
   labels, a declared default zone, validation that referenced zones exist).
   Changing a collection's zone membership requires re-tagging its documents — a
   cheap `reindex` (no text re-extraction) — but it needs a trigger.
-- **Unifying item-row presentation.** The `picker` config is now reused for
-  relation summary tiles and (proposed) search result rows — it is really a
-  per-collection "item row/tile presentation," not picker-specific. Whether to
-  generalise/rename it (e.g. `admin.itemView`, with `picker` kept as an alias) so
-  its broader role is explicit is a small API-shape question worth settling before
-  search results lean on it.
+- **Unifying item-row presentation (now also projection).** The `picker` config is
+  reused for relation summary tiles and (proposed) search result rows — and for
+  search it's not only presentation but the **projection** (which fields to load
+  per collection). It is really a per-collection "item row/tile" contract, not
+  picker-specific. Two threads: whether to generalise/rename it (e.g.
+  `admin.itemView`, with `picker` kept as an alias) so its broader role is explicit;
+  and that relation columns in a picker-projected search row depend on the deferred
+  **relation column formatter** (resolving a relation target's `useAsTitle`) — so
+  that item becomes a prerequisite once search rows render relation columns.
 - **Facets over EAV.** How facetable fields map from the EAV store to the index
   without re-flattening — likely the same `search`-config projection that builds
   `body`, but the cardinality/typing story needs design.
