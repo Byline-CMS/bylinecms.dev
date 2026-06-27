@@ -38,11 +38,15 @@ The agent-readable surface **shipped** (the full present-state reference is [MAR
 
 Remaining, specified in [MARKDOWN-EXPORT.md → Future phases](./MARKDOWN-EXPORT.md#future-phases): the **docs-corpus round-trip test** (`import(export(import(md))) ≅ import(md)` over `docs/*.md`, comparing Lexical trees — tests the export serializer against production-shaped content; preferred companion: teach `parse-markdown.ts` to also accept GFM alerts, erasing the admonition dialect asymmetry documented there). Deferred with triggers: per-field markdown opt-out, host-package route factories, `llms-full.txt` / MCP consumption.
 
-### `hasMany` relations — query quantifiers (Phase 2)
+### `hasMany` relations — Phase 2 (picker multi-select + query quantifiers)
 
 **v1 shipped:** the `hasMany: true` flag (schema + optional `minItems`/`maxItems`), array-of-relations storage (indexed `store_relation` rows, no migration), array-of-envelopes populate output (`WithPopulatedMany`), and the drag-reorder/add/remove editor widget (`relation-many-field.tsx`). Reference field: `pages` → `gallery`. Storage/populate/widget all unit-, integration-, and e2e-covered. See [docs/04-collections/02-relationships.md → hasMany relations](./docs/04-collections/02-relationships.md).
 
-**Remaining (Phase 2):** the `where` quantifiers `$some` / `$every` / `$none` for filtering queries by a multi-target relation — `packages/core/src/query/parse-where.ts` (`RelationFilter` branch) + `packages/db-postgres/src/modules/storage/build-filter-exists.ts` SQL. Deferred deliberately; reading/populating ordered lists works today.
+Two Phase 2 items, independent of each other:
+
+**Picker multi-select.** v1 reuses the single-select `RelationPicker` unchanged: the `hasMany` widget opens it, takes one pick, appends, and the editor reopens it to add the next (`relation-many-field.tsx` → `handleAdd`). The better UX is checkbox multi-select — pick several rows in one trip and "Add selected." Scope: extend `RelationPicker` (`packages/admin/src/fields/relation/relation-picker.tsx`) with a multi-select mode (selection-set state + an "already-added" filter/disabled state, driven by the caller's current value), and a confirm action that returns an array of selections. Keep the single-select path intact for non-`hasMany` fields — the picker should branch on a `multiple` prop. The widget's `handleAdd` becomes `handleAddMany` (dedup the batch against the current array). Mechanically self-contained; no storage/populate/schema change.
+
+**Query quantifiers.** The `where` quantifiers `$some` / `$every` / `$none` for filtering queries by a multi-target relation — `packages/core/src/query/parse-where.ts` (`RelationFilter` branch) + `packages/db-postgres/src/modules/storage/build-filter-exists.ts` SQL (the indexed `store_relation` rows are the natural `EXISTS` target). Deferred deliberately; reading/populating ordered lists works today.
 
 ### Search-provider interface (design doc first)
 
