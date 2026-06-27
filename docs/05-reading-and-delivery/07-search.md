@@ -333,6 +333,12 @@ picker config therefore does triple duty for search — **what to fetch**
 caller-supplied populate. Arbitrary `populate` depth stays available for the
 single-collection (homogeneous) case, where one map is well-defined.
 
+Because this config is now a per-collection **item contract** — fetch *and* render
+— reused by the relation picker, `hasMany` tiles, and search rows, it is being
+generalised from `CollectionAdminConfig.picker` to **`admin.itemView`**, with
+`picker` kept as a backwards-compatible alias (decided 2026-06-27). The shape is
+unchanged; only the name broadens to match its role.
+
 Layering note: this is an **admin / host-UI** concern that sits *above* the core
 search contract. The core `search()` API returns data — rows, ids, and optional
 shaped documents — never components, so non-UI consumers (MCP, a JSON HTTP
@@ -375,15 +381,10 @@ the markdown-export surface so attachments and documents share one representatio
   labels, a declared default zone, validation that referenced zones exist).
   Changing a collection's zone membership requires re-tagging its documents — a
   cheap `reindex` (no text re-extraction) — but it needs a trigger.
-- **Unifying item-row presentation (now also projection).** The `picker` config is
-  reused for relation summary tiles and (proposed) search result rows — and for
-  search it's not only presentation but the **projection** (which fields to load
-  per collection). It is really a per-collection "item row/tile" contract, not
-  picker-specific. Two threads: whether to generalise/rename it (e.g.
-  `admin.itemView`, with `picker` kept as an alias) so its broader role is explicit;
-  and that relation columns in a picker-projected search row depend on the deferred
-  **relation column formatter** (resolving a relation target's `useAsTitle`) — so
-  that item becomes a prerequisite once search rows render relation columns.
+- **Relation columns in projected rows.** A picker-projected search row that
+  includes a relation column depends on the deferred **relation column formatter**
+  (resolving a relation target's `useAsTitle`) — so that item becomes a
+  prerequisite once search rows render relation columns.
 - **Facets over EAV.** How facetable fields map from the EAV store to the index
   without re-flattening — likely the same `search`-config projection that builds
   `body`, but the cardinality/typing story needs design.
