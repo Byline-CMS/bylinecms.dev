@@ -21,7 +21,7 @@ A relation in Byline is a typed reference from one document to another. Relation
 
 Today's surface is intentionally focused:
 
-- **Single-target relations.** `hasMany` is deferred. One field stores at most one relation.
+- **Single or ordered multi-target.** A field stores one relation by default, or an ordered list with `hasMany: true` (see [hasMany relations](#hasmany-relations)). The `$some` / `$every` / `$none` query quantifiers for filtering by a multi-target relation are the deferred follow-up.
 - **Cross-collection only.** A relation's target lives in some collection's `documentVersions`. There is no in-place "embed".
 - **Read-time population.** Relations are stored as references; population happens on read, in batches, with depth-bounded recursion safety.
 - **Two consumer surfaces.** A typed `RelationField` on a collection schema, *and* document links / inline images embedded inside richtext field values. Both flow through the same envelope and the same `ReadContext`.
@@ -453,10 +453,12 @@ Two consequences worth flagging:
 
 ### The relation field admin widget
 
-Editing a relation field uses two components in `packages/ui/src/fields/relation/`:
+Editing a relation field uses the components in `packages/admin/src/fields/relation/`:
 
-- **`relation-field.tsx`** — the in-form widget. Renders a compact summary card via `RelationSummary` / `RelationDisplay` when set, plus Remove and Change buttons. When empty, renders a "Select…" button.
-- **`relation-picker.tsx`** — the modal that opens on Select / Change. Lists documents from the `targetCollection` via the host's `getCollectionDocuments` server fn, with search and pagination. Single-select for the current `hasMany: false` model.
+- **`relation-field.tsx`** — the single-relation in-form widget. Renders a compact summary card via `RelationSummary` when set, plus Remove and Change buttons. When empty, renders a "Select…" button.
+- **`relation-many-field.tsx`** — the `hasMany` widget. A drag-reorderable list of `RelationSummary` tiles with per-tile remove and an "Add" button that appends through the picker.
+- **`relation-picker.tsx`** — the modal that opens on Select / Change / Add. Lists documents from the `targetCollection` via the host's `getCollectionDocuments` server fn, with search and pagination.
+- **`relation-column-formatter.tsx`** — renders a relation cell in list views as the target's `useAsTitle` (single) or "A, B, +N more" (`hasMany`).
 
 Selection flows through the standard `setFieldValue` → `FieldSetPatch` pipeline — no new patch family. The patch contract is `field.set` with `value = { target_document_id, target_collection_id }`; `field.clear` on Remove. Both already supported by `setFieldValue`.
 
@@ -553,8 +555,6 @@ array shape.
 - **`cascadeDelete` is recorded but not enforced.** The flag round-trips through
   storage; deleting a target does not yet act on it. A deleted target surfaces as
   an unresolved relation envelope (`_resolved: false`) on read.
-- **No relation formatter in list views.** A relation cell renders the target
-  document id rather than its `useAsTitle` value.
 
 ## Code map
 
@@ -571,7 +571,8 @@ array shape.
 | Postgres `RelationFilter` SQL | `packages/db-postgres/src/modules/storage/build-filter-exists.ts` |
 | `store_relation` schema | `packages/db-postgres/src/database/schema/index.ts` |
 | Zod schema for relation | `packages/core/src/schemas/zod/builder.ts` |
-| Relation field admin widget | `packages/ui/src/fields/relation/{relation-field,relation-picker,relation-summary,relation-display}.tsx` |
+| Relation field admin widgets | `packages/admin/src/fields/relation/{relation-field,relation-many-field,relation-picker,relation-summary,relation-display,relation-column-formatter}.tsx` |
+| `itemView` / `picker` resolver | `packages/core/src/config/config.ts` (`resolveItemViewColumns`) |
 | Admin API preview depth selector | `apps/webapp/src/routes/(byline)/admin/collections/$collection/$id/api.tsx` |
 | Admin `getDocument` server fn | `packages/host-tanstack-start/src/server-fns/collections/get.ts` |
 | `linksInEditor` flag | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.linksInEditor`) |
@@ -579,4 +580,4 @@ array shape.
 | Reference relation field | `apps/webapp/byline/collections/news/schema.ts` (`featureImage` field) |
 | Reference list reading populated relations | `apps/webapp/src/modules/news/list.ts` |
 | Reference detail reading populated relations | `apps/webapp/src/modules/news/detail.ts` |
-| Integration tests | `packages/client/tests/integration/client-populate.integration.test.ts` |
+| Integration tests | `packages/client/tests/integration/{client-populate-status,client-multi-relation}.integration.test.ts` |

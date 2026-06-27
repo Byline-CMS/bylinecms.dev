@@ -105,20 +105,20 @@ defineAdmin(News, { columns })
 
 → [Columns and picker](#columns-and-picker)
 
-### 4. Set picker columns
+### 4. Set item-view columns
 
-When this collection appears as the target of a relation picker (e.g. `News.featureImage → Media`), the picker renders one row per result. `picker` columns give that row a tailored layout — typically narrower than the list view. Omit to fall back to `useAsTitle` + `path` on one line.
+When this collection is shown as a single item outside its own list — a relation picker row (e.g. `News.featureImage → Media`), a relation/`hasMany` tile, or a relation list-view cell — `itemView` columns give that row a tailored layout, typically narrower than the list view. Omit to fall back to `useAsTitle` + `path` on one line. (Formerly named `picker`, which still works as a deprecated alias.)
 
 **Edit:** `apps/webapp/byline/collections/<name>/admin.tsx`
 
 ```ts
-const pickerColumns: ColumnDefinition[] = [
+const itemViewColumns: ColumnDefinition[] = [
   { fieldName: 'image', label: 'Preview', formatter: { component: MediaThumbnail } },
   { fieldName: 'title', label: 'Title' },
   { fieldName: 'status', label: 'Status' },
 ]
 
-defineAdmin(Media, { picker: pickerColumns })
+defineAdmin(Media, { itemView: itemViewColumns })
 ```
 
 → [Columns and picker](#columns-and-picker)
