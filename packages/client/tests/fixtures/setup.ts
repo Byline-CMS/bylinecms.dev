@@ -7,7 +7,12 @@
  */
 
 import { createSuperAdminContext, type RequestContext } from '@byline/auth'
-import { type CollectionDefinition, defineServerConfig, type IDbAdapter } from '@byline/core'
+import {
+  type CollectionDefinition,
+  defineServerConfig,
+  type IDbAdapter,
+  type RichTextPopulateFn,
+} from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 
 import { type BylineClient, createBylineClient } from '../../src/index.js'
@@ -30,7 +35,16 @@ export interface MultiCollectionTestContext {
 
 export async function setupMultiCollectionTestClient(
   definitions: CollectionDefinition[],
-  options: { requestContext?: RequestContext | (() => RequestContext) } = {}
+  options: {
+    requestContext?: RequestContext | (() => RequestContext)
+    /**
+     * Optional richtext populate adapter wired into the read pipeline.
+     * Threaded through to `createBylineClient` so `CollectionHandle` reads
+     * walk rich-text leaves whose `populateRelationsOnRead` is effectively
+     * true. Used by the richtext-populate integration test.
+     */
+    richTextPopulate?: RichTextPopulateFn
+  } = {}
 ): Promise<MultiCollectionTestContext> {
   const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
   if (!connectionString) {
@@ -54,7 +68,12 @@ export async function setupMultiCollectionTestClient(
   const requestContext =
     options.requestContext ?? createSuperAdminContext({ id: 'test-super-admin' })
 
-  const client = createBylineClient({ db, collections: definitions, requestContext })
+  const client = createBylineClient({
+    db,
+    collections: definitions,
+    requestContext,
+    richTextPopulate: options.richTextPopulate,
+  })
 
   const collectionIds: Record<string, string> = {}
   for (const def of definitions) {
