@@ -131,6 +131,11 @@
       "import": "./dist/modules/admin-account/components/container.js",
       "require": "./dist/modules/admin-account/components/container.js"
     },
+    "./admin-account/components/theme": {
+      "types": "./dist/modules/admin-account/components/theme.d.ts",
+      "import": "./dist/modules/admin-account/components/theme.js",
+      "require": "./dist/modules/admin-account/components/theme.js"
+    },
     "./admin-account/components/update": {
       "types": "./dist/modules/admin-account/components/update.d.ts",
       "import": "./dist/modules/admin-account/components/update.js",
@@ -276,6 +281,11 @@
         "types": "./dist/modules/admin-account/components/container.d.ts",
         "import": "./dist/modules/admin-account/components/container.js",
         "require": "./dist/modules/admin-account/components/container.js"
+      },
+      "./admin-account/components/theme": {
+        "types": "./dist/modules/admin-account/components/theme.d.ts",
+        "import": "./dist/modules/admin-account/components/theme.js",
+        "require": "./dist/modules/admin-account/components/theme.js"
       },
       "./admin-account/components/update": {
         "types": "./dist/modules/admin-account/components/update.d.ts",

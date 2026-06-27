@@ -70,3 +70,21 @@ export function setThemeMode(mode: ThemeMode): void {
     applyEffectiveTheme(mode)
   }
 }
+
+/**
+ * Re-assert the stored theme on the live document without changing it.
+ *
+ * Byline admin shares the host's theme contract (the `theme` key + the
+ * `.dark`/`.light` class on `<html>`), so the surrounding host owns the
+ * before-first-paint application. But a host theme provider can re-apply
+ * its own (possibly stale, possibly forced) theme on navigation and
+ * clobber the admin user's stored choice. Calling this when the admin
+ * shell mounts re-applies the stored preference from the single source of
+ * truth — `localStorage` — making the admin area self-correcting
+ * regardless of how the host manages theme. No-op on the server.
+ */
+export function applyStoredTheme(): void {
+  if (typeof window === 'undefined') return
+  const mode = getThemeMode()
+  applyEffectiveTheme(mode === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : mode)
+}

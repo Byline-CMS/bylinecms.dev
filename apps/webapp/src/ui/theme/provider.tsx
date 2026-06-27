@@ -74,12 +74,17 @@ export function ThemeProvider({ children, force }: ThemeProviderProps): React.JS
   // but better than showing the wrong theme.
   // biome-ignore lint/correctness/useExhaustiveDependencies: run on pathname changes
   useEffect(() => {
-    const currentTheme = themeSettings?.theme ?? DEFAULT_THEME
-    const source = themeSettings?.source
+    // Re-read the live stored preference rather than trusting the in-memory
+    // snapshot. Another surface in the same document — notably the Byline
+    // admin account theme switch — writes `localStorage['theme']` and flips
+    // the html class directly. Re-applying stale provider state here would
+    // clobber that choice on the next route change. Reading from the single
+    // source of truth (localStorage) keeps us in sync with it.
+    const stored = getThemeApi()
 
     // Only force the theme if the user has not already stored a preference
     // in localStorage.
-    if (force != null && source !== ThemeSource.STORED) {
+    if (force != null && stored.source !== ThemeSource.STORED) {
       setThemeApi(force)
       setPrefersTheme(force)
       setPrefersColorScheme(force)
@@ -88,9 +93,14 @@ export function ThemeProvider({ children, force }: ThemeProviderProps): React.JS
         theme: force,
       })
     } else {
-      // Re-apply the current theme to the document.
-      setPrefersTheme(currentTheme)
-      setPrefersColorScheme(currentTheme)
+      // Re-apply the live stored theme to the document.
+      setPrefersTheme(stored.theme)
+      setPrefersColorScheme(stored.theme)
+      // Keep provider state in sync so `useTheme()` consumers observe the
+      // live value when it was changed outside this provider.
+      if (stored.theme !== themeSettings?.theme || stored.source !== themeSettings?.source) {
+        setThemeSettings(stored)
+      }
     }
   }, [pathname, force, themeSettings]) // Runs on every route change
 

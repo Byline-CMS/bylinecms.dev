@@ -19,8 +19,10 @@
  * route (and the `AdminAppBar`) can read it without an extra fetch.
  */
 
+import { useEffect } from 'react'
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 
+import { applyStoredTheme } from '@byline/admin/admin-account/components/theme'
 import { BylineFieldServicesProvider } from '@byline/admin/react'
 import { BylineAdminServicesProvider } from '@byline/admin/services'
 import { getClientConfig } from '@byline/core'
@@ -84,6 +86,13 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
         i18n.interface.locales,
         i18n.interface.localeDefinitions
       )
+      // Re-assert the admin user's stored theme when the shell mounts.
+      // Byline shares the host's theme contract, but a host theme provider
+      // can clobber the stored choice on navigation; this makes the admin
+      // area self-correcting regardless of how the host manages theme.
+      useEffect(() => {
+        applyStoredTheme()
+      }, [])
       // Cookie + DB write happen in setInterfaceLocaleFn; full reload
       // re-runs beforeLoad so the provider re-renders with the new
       // bundle/locale (no in-place bundle swap needed for PR 1's scope).
