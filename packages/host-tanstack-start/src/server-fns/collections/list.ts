@@ -9,10 +9,14 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import {
+  buildRelationSummaryPopulateMap,
   ERR_NOT_FOUND,
+  getCollectionAdminConfig,
+  getCollectionDefinition,
   getCollectionSchemasForPath,
   getLogger,
   getServerConfig,
+  type PopulateSpec,
   type QueryPredicate,
 } from '@byline/core'
 
@@ -74,6 +78,19 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       ? { [params.order]: params.desc === false ? 'asc' : 'desc' }
       : defaultSort
 
+    // Auto-populate relation columns (depth 1) so the list renders each
+    // target's title (via `relationColumnFormatter`) rather than a raw
+    // document id. Projection follows each target's `itemView` columns +
+    // `useAsTitle` — the same map the edit view uses. Populate only fires for
+    // relation fields actually loaded (i.e. selected as columns), so building
+    // the full map is harmless for collections whose relations aren't shown.
+    const populateMap = buildRelationSummaryPopulateMap(config.definition.fields, (targetPath) => ({
+      def: getCollectionDefinition(targetPath),
+      admin: getCollectionAdminConfig(targetPath),
+    }))
+    const hasRelations = Object.keys(populateMap).length > 0
+    const populate: PopulateSpec | undefined = hasRelations ? populateMap : undefined
+
     const result = await handle.find({
       where: Object.keys(where).length > 0 ? where : undefined,
       sort: sortSpec,
@@ -81,6 +98,8 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       page: params.page,
       pageSize,
       select: params.fields,
+      populate,
+      depth: hasRelations ? 1 : undefined,
       status: 'any',
       // Admin list: show the raw per-locale state (untranslated docs render
       // empty in the active locale's columns) rather than falling back to the
@@ -131,5 +150,15 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
 
     // Validate with schema for runtime type safety and field normalisation.
     const { list } = getCollectionSchemasForPath(path)
+
+    // Skip the per-locale Zod parse when relations were populated — the tree
+    // then carries nested populated documents that don't match the raw
+    // relation-ref shape the list schema expects, and a strict parse would
+    // strip the `_resolved` / `document` envelope keys the relation formatter
+    // reads. Mirrors the edit-route (`get.ts`) populated-tree handling.
+    if (hasRelations) {
+      return serialised as unknown as ReturnType<typeof list.parse>
+    }
+
     return list.parse(serialised)
   })

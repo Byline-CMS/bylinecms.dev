@@ -46,6 +46,15 @@ const listViewColumns: ColumnDefinition[] = [
     className: 'w-[10%]',
   },
   {
+    // Relation column demo — renders the linked Media item's title via the
+    // built-in relation formatter (no explicit formatter needed). The list
+    // read populates relation columns to depth 1.
+    fieldName: 'featureImage',
+    label: 'Feature Image',
+    align: 'left',
+    className: 'w-[15%]',
+  },
+  {
     fieldName: 'status',
     label: 'Status',
     align: 'center',

@@ -209,6 +209,34 @@ test.describe('document editor', () => {
     await expect(page.locator('.byline-field-relation.featureImage')).toContainText(pickedTitle)
   })
 
+  test('relation column: pages list renders the featureImage title', async ({ page }) => {
+    const title = `Smoke relcol ${Date.now()}`
+    await createPage(page, title)
+
+    // Set featureImage to the first media item and capture its title.
+    await waitForHydration(page, '#featureImage')
+    await page.locator('#featureImage').click()
+    const row = page.locator('.byline-field-relation-picker-row-button').first()
+    await expect(row).toBeVisible({ timeout: 30_000 })
+    const mediaTitle = (await row.innerText())
+      .split('\n')
+      .map((s) => s.trim())
+      .find((s) => s.length > 0) as string
+    await row.click()
+    await page.getByRole('button', { name: 'Select', exact: true }).click()
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    // The pages list view should render the linked media's *title* in the
+    // Feature Image column (relation column formatter + depth-1 list populate),
+    // not a raw document id. Filter to this page via the list search so its row
+    // is on the first page regardless of sort.
+    await page.goto(`/admin/collections/pages?query=${encodeURIComponent(title)}`)
+    await expect(page.getByRole('table')).toBeVisible()
+    const pageRow = page.getByRole('row').filter({ hasText: title })
+    await expect(pageRow).toContainText(mediaTitle)
+  })
+
   test('hasMany relation: add gallery items → remove one → save → reload round-trip', async ({
     page,
   }) => {

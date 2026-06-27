@@ -9,6 +9,7 @@
 import { useEffect, useRef } from 'react'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import { applyRelationColumnFormatters } from '@byline/admin/react'
 import type { CollectionDefinition } from '@byline/core'
 import {
   getCollectionAdminConfig,
@@ -118,7 +119,10 @@ export function createCollectionListRoute(path: string) {
       const navigate = useNavigate()
       const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
-      const columns = adminConfig?.columns || []
+      // Apply the built-in relation formatter to any relation column without an
+      // explicit one, so relation cells render the target's title (the list
+      // read populates relation columns to depth 1).
+      const columns = applyRelationColumnFormatters(adminConfig?.columns || [], collectionDef)
       const workflowStatuses = getWorkflowStatuses(collectionDef)
 
       // Ref-guarded so the post-create toast fires exactly once per arrival with
