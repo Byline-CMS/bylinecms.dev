@@ -73,9 +73,17 @@ export const BlocksField = ({
   }, [availableBlocks, selectedBlockName])
 
   useEffect(() => {
-    if (Array.isArray(defaultValue)) {
+    // Prefer the live form-store value over `defaultValue` when seeding the
+    // rendered list. The store lives in FormProvider — above the tab layout —
+    // so it survives this field unmounting/remounting as the editor switches
+    // tabs; `defaultValue` is only the initial seed and is empty in create
+    // mode. Re-seeding from `defaultValue` on remount would drop blocks the
+    // editor had already added on an earlier visit to this tab.
+    const storeValue = getFieldValue(path)
+    const source = Array.isArray(storeValue) ? storeValue : defaultValue
+    if (Array.isArray(source)) {
       setItems(
-        defaultValue.map((item: any) => ({
+        source.map((item: any) => ({
           id:
             item && typeof item === 'object' && '_id' in item
               ? String((item as { _id: string })._id)
@@ -86,7 +94,7 @@ export const BlocksField = ({
     } else {
       setItems([])
     }
-  }, [defaultValue])
+  }, [defaultValue, getFieldValue, path])
 
   const handleDragEnd = ({
     moveFromIndex,

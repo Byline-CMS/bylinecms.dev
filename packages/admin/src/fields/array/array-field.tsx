@@ -47,9 +47,17 @@ export const ArrayField = ({
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
 
   useEffect(() => {
-    if (Array.isArray(defaultValue)) {
+    // Prefer the live form-store value over `defaultValue` when seeding the
+    // rendered list. The store lives in FormProvider — above the tab layout —
+    // so it survives this field unmounting/remounting as the editor switches
+    // tabs; `defaultValue` is only the initial seed and is empty in create
+    // mode. Re-seeding from `defaultValue` on remount would drop items the
+    // editor had already added on an earlier visit to this tab.
+    const storeValue = getFieldValue(path)
+    const source = Array.isArray(storeValue) ? storeValue : defaultValue
+    if (Array.isArray(source)) {
       setItems(
-        defaultValue.map((item: any) => ({
+        source.map((item: any) => ({
           id:
             item && typeof item === 'object' && 'id' in item
               ? String((item as { id: string }).id)
@@ -62,7 +70,7 @@ export const ArrayField = ({
     } else {
       setItems([])
     }
-  }, [defaultValue])
+  }, [defaultValue, getFieldValue, path])
 
   const handleDragEnd = ({
     moveFromIndex,
