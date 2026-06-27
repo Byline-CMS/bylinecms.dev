@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 3.13.3
+
+### Patch Changes
+
+- fixed admin theme switch being clobbered on navigation and blocks/array field items disappearing across tab switches
+- Updated dependencies
+  - @byline/ui@3.13.3
+
 ## 3.13.2
 
 ### Patch Changes

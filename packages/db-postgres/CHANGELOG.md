@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 3.13.3
+
+### Patch Changes
+
+- fixed admin theme switch being clobbered on navigation and blocks/array field items disappearing across tab switches
+- Updated dependencies
+  - @byline/admin@3.13.3
+  - @byline/auth@3.13.3
+  - @byline/core@3.13.3
+
 ## 3.13.2
 
 ### Patch Changes
