@@ -48,9 +48,13 @@ Two Phase 2 items, independent of each other:
 
 **Query quantifiers.** The `where` quantifiers `$some` / `$every` / `$none` for filtering queries by a multi-target relation — `packages/core/src/query/parse-where.ts` (`RelationFilter` branch) + `packages/db-postgres/src/modules/storage/build-filter-exists.ts` SQL (the indexed `store_relation` rows are the natural `EXISTS` target). Deferred deliberately; reading/populating ordered lists works today.
 
-### Search-provider interface (design doc first)
+### Search-provider interface (Phase 2 — implement the seam + FTS driver)
 
-A pluggable search seam in core: a `SearchProvider` interface with Postgres FTS as the built-in driver, so external providers (BM25 rankers, vector / hybrid retrieval) plug in through a sanctioned extension point instead of ad-hoc forks. First deliverable is the design doc (`docs/SEARCH.md`): interface shape, index lifecycle (publish/unpublish hooks, reindex command), what feeds it (richtext plain-text extraction — Phase 5's named trigger "the search/indexing story takes shape" fires here — and the attachment text-extraction pipeline below), and the query surface. Implementation follows once the doc settles.
+A pluggable search seam in core: a `SearchProvider` interface with Postgres FTS as the built-in driver, so external providers (BM25 rankers, vector / hybrid retrieval) plug in through a sanctioned extension point instead of ad-hoc forks.
+
+**Design doc drafted** — [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md). Covers the `SearchProvider` interface, the normalised `SearchDocument`, index lifecycle (driven by `afterCreate`/`afterStatusChange`/`afterUnpublish`/`afterDelete`, published-by-default, + a `reindex` command), the feeds (richtext plain-text extraction via the existing `documentToMarkdown`/`lexicalToMarkdown` — Phase 5's "search/indexing story takes shape" trigger fires here — plus the [attachment text-extraction pipeline](#attachment-text-extraction-pipeline) below), and the query surface. Two framing decisions baked in: (1) the **primary consumer is the Client SDK** — developer-facing site search (`client.search()` / `client.collection(x).search()`) returning shaped `ClientDocument` hits; MCP/admin are secondary consumers of the same surface; (2) **zones** — collections are indexed into named scopes so a query can be collection-scoped (a dedicated publications archive) or zone-scoped across collections (one site search).
+
+**Next (Phase 2):** implement the seam + `@byline/search-postgres` FTS driver + `ServerConfig.search` registration/validation + zone-tagged indexing + lifecycle wiring + `reindex` + the client `search()` methods. Then external drivers (the RAG/vector/hybrid payoff; home for the private BM25 work), then the MCP `search` tool.
 
 ### Attachment text-extraction pipeline
 

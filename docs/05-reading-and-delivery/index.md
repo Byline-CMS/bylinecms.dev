@@ -1,7 +1,7 @@
 ---
 title: "Reading & Delivery"
 path: "reading-and-delivery"
-summary: "How content leaves Byline and reaches its readers — the typed client SDK, the server-function transport surface, future HTTP transports, markdown and llms.txt for agents, an MCP server, and the caching strategy that ties them together."
+summary: "How content leaves Byline and reaches its readers — the typed client SDK, the server-function transport surface, future HTTP transports, markdown and llms.txt for agents, an MCP server, a pluggable search/retrieval seam, and the caching strategy that ties them together."
 ---
 
 # Reading & Delivery
@@ -25,3 +25,7 @@ it efficiently.
   the Model Context Protocol.
 - [Caching](./06-caching.md) — CDN edge caching, invalidation strategies, and the
   optional in-memory data cache.
+- [Search & Retrieval](./07-search.md) — the pluggable `SearchProvider` seam
+  (Postgres full-text search built in, vector / hybrid as external drivers),
+  zone-scoped search spanning collections, and the Client SDK `search()` surface
+  developers build site search on. *(Planned.)*
