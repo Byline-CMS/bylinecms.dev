@@ -16,6 +16,48 @@ substring match described in [Current state](#current-state); everything below i
 the target.
 :::
 
+## Session checkpoint
+
+**Where this stands (last session, on `develop` past `v3.14.0`):** the design below
+is **settled** — this doc is the spec. Phase 1 (the design) is done. The two decided
+prerequisites that the search surface leans on **both shipped this session**, so
+**Phase 2 is unblocked**:
+
+- **`admin.itemView`** (generalised the old `picker` config; `picker` kept as a
+  deprecated alias). Read it via `resolveItemViewColumns(config)` in `@byline/core`.
+  This is the per-collection **projection + presentation** contract that
+  [heterogeneous result rows](#rendering-heterogeneous-results) reuse — what to fetch
+  *and* how to render, per collection.
+- **Relation column formatter** (list views). The list read now **populates relation
+  columns to depth 1** via `buildRelationSummaryPopulateMap`
+  (`packages/core/src/services/relation-projection.ts`) and **skips the per-locale Zod
+  parse when populated** (see `get.ts` / `list.ts`); `relationColumnFormatter`
+  (`@byline/admin/react`) renders the titles. Search-result rows that include relation
+  columns reuse exactly this populate + formatter path.
+
+**Pick up here → Phase 2:** build the `SearchProvider` seam + `@byline/search-postgres`
+FTS driver (item 2 in [Phasing](#phasing)). Concrete first move: add the
+`SearchProvider` interface + `SearchDocument` + `ServerConfig.search` registration and
+`initBylineCore()` validation in `@byline/core` (mirror the
+`fields.richText.{populate,embed}` adapter pattern), then the Postgres FTS driver, then
+wire indexing into the lifecycle hooks and add `client.search()` /
+`client.collection(x).search()`.
+
+**Already in place to reuse (don't rebuild):** `resolveItemViewColumns` (projection),
+`buildRelationSummaryPopulateMap` (depth-1 relation populate), the
+skip-parse-when-populated pattern, the collection lifecycle hooks
+(`afterCreate` / `afterStatusChange` / `afterUnpublish` / `afterDelete`) for index
+maintenance, `lexicalToMarkdown` / `documentToMarkdown` for the rich-text feed, and the
+`current_published_documents` view for published-only indexing.
+
+**Settled decisions (don't relitigate):** Client SDK is the primary consumer; **zones**
+scope collection-vs-cross-collection search; **two-tier results** (lightweight rows +
+opt-in `hydrate`); `title` comes from `useAsTitle`; `admin.itemView` is the projection
+contract. **Still open** (settle in / just before Phase 2): zone definition
+(emergent-from-config vs a registry), facets over EAV, per-locale FTS `regconfig`,
+multi-tenant scoping (rank-in-provider / authorise-in-core), sync-vs-async indexing per
+driver, and `reindex` cost / streaming — see [Open questions](#open-questions).
+
 Companions:
 - [Client SDK](./01-client-sdk.md) — the query surface lands here as a first-class
   `search()` method alongside `find()`; today's `where.query` is its primitive
@@ -358,9 +400,12 @@ the markdown-export surface so attachments and documents share one representatio
 
 ## Phasing
 
+0. **Prerequisites — done.** `admin.itemView` (the projection/presentation contract)
+   and the relation column formatter + depth-1 list populate both shipped (see
+   [Session checkpoint](#session-checkpoint)). Phase 2 builds on them.
 1. **This design doc** — pin the interface, the `SearchDocument`, the lifecycle,
-   and the query surface. ← you are here.
-2. **`SearchProvider` seam + Postgres FTS driver** — the interface in
+   and the query surface. ✅ done.
+2. **`SearchProvider` seam + Postgres FTS driver ← next** — the interface in
    `@byline/core`, `@byline/search-postgres`, `ServerConfig.search` registration +
    `initBylineCore()` validation, zone-tagged indexing + collection/zone query
    scoping, lifecycle-hook wiring, the `reindex` command, and the client
