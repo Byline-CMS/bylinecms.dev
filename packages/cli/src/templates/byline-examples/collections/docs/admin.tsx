@@ -70,12 +70,12 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * picker modal (opened from a `relation` field widget). Omit to fall back to a
    * single-line render of `useAsTitle` + `path`.
    *
-   * Shape matches `ColumnDefinition` so formatters can be reused across list and picker.
+   * Shape matches `ColumnDefinition` so formatters can be reused across list and item view.
    *
    * @example
-   * picker: [{ fieldName: 'title', label: 'Title' }] // or defined above as `pickerViewColumns`
+   * itemView: [{ fieldName: 'title', label: 'Title' }] // or defined above as `pickerViewColumns`
    */
-  // picker: [],
+  // itemView: [],
 
   /**
    * Custom list-view component that completely replaces the default table-based `ListView`
