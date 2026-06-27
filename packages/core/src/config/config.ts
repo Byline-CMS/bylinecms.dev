@@ -4,6 +4,7 @@ import type {
   ClientConfig,
   CollectionAdminConfig,
   CollectionDefinition,
+  ColumnDefinition,
   ServerConfig,
 } from '@/@types/index.js'
 
@@ -63,6 +64,20 @@ export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | 
   if (clientConfig == null) return null
   return clientConfig.admin?.find((admin) => admin.slug === slug) ?? null
 }
+
+/**
+ * Resolve a collection's item-row/tile columns — the per-collection projection
+ * + presentation contract used by the relation picker, relation/`hasMany`
+ * tiles, and (planned) search-result rows.
+ *
+ * Prefers the canonical {@link CollectionAdminConfig.itemView}, falling back to
+ * the deprecated `picker` alias. Always read item-view columns through this
+ * helper rather than touching `config.picker` directly, so the alias keeps
+ * working until it is removed.
+ */
+export const resolveItemViewColumns = (
+  config: CollectionAdminConfig | null | undefined
+): ColumnDefinition[] | undefined => config?.itemView ?? config?.picker
 
 export function defineClientConfig(config: ClientConfig) {
   validateCollections(config.collections)

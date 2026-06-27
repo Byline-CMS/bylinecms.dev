@@ -18,6 +18,7 @@
  * arrive pre-hydrated on first paint — no client-side fetch per relation.
  */
 
+import { resolveItemViewColumns } from '../config/config.js'
 import type {
   CollectionAdminConfig,
   CollectionDefinition,
@@ -34,10 +35,10 @@ import type { PopulateMap } from './populate.js'
  *   - `sourceField.displayField` (explicit per-relation override)
  *   - target's `useAsTitle`
  *   - target's first declared text field (safety fallback)
- *   - every `picker[].fieldName` on the target admin config that maps
- *     to a real schema field (picker columns may reference metadata
- *     like `status` or `updated_at` which ride on the document row
- *     and don't need a projection entry)
+ *   - every item-view column `fieldName` on the target admin config that
+ *     maps to a real schema field (item-view columns may reference metadata
+ *     like `status` or `updated_at` which ride on the document row and don't
+ *     need a projection entry)
  */
 export function resolveRelationProjection(
   sourceField: RelationField,
@@ -49,8 +50,9 @@ export function resolveRelationProjection(
   if (targetDef?.useAsTitle) out.add(targetDef.useAsTitle)
   const firstText = targetDef?.fields.find((f) => f.type === 'text')?.name
   if (firstText) out.add(firstText)
-  if (targetAdmin?.picker) {
-    for (const col of targetAdmin.picker) {
+  const itemViewColumns = resolveItemViewColumns(targetAdmin)
+  if (itemViewColumns) {
+    for (const col of itemViewColumns) {
       const name = String(col.fieldName)
       if (targetDef?.fields.some((f) => f.name === name)) out.add(name)
     }

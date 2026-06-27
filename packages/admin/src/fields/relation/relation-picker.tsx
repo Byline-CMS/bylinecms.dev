@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
-import { getCollectionAdminConfig } from '@byline/core'
+import { getCollectionAdminConfig, resolveItemViewColumns } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, LoaderRing, Modal, Search } from '@byline/ui/react'
 import cx from 'classnames'
@@ -102,7 +102,7 @@ export const RelationPicker = ({
 
   const targetAdminConfig: CollectionAdminConfig | null =
     getCollectionAdminConfig(targetCollectionPath)
-  const pickerColumns = targetAdminConfig?.picker
+  const pickerColumns = resolveItemViewColumns(targetAdminConfig)
 
   // Reset local state each time the modal opens so prior queries don't leak.
   useEffect(() => {

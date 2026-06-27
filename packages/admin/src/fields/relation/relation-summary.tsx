@@ -7,6 +7,7 @@
  */
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import { resolveItemViewColumns } from '@byline/core'
 import cx from 'classnames'
 
 import { PickerCell, resolveFallbackDisplayField, resolveRowLabel } from './relation-display'
@@ -17,7 +18,7 @@ import styles from './relation-summary.module.css'
 //
 // Rendering priority (mirrors RelationPicker so the tile and picker rows
 // look identical):
-//   1. target `CollectionAdminConfig.picker` columns (full fidelity, with
+//   1. target `CollectionAdminConfig.itemView` columns (full fidelity, with
 //      formatters — e.g. MediaThumbnail + title)
 //   2. explicit `displayField` prop (from source schema's RelationField)
 //   3. `CollectionDefinition.useAsTitle`
@@ -62,7 +63,7 @@ export function RelationSummary({
   value,
   cachedRecord,
 }: RelationSummaryProps) {
-  const pickerColumns = targetAdminConfig?.picker
+  const pickerColumns = resolveItemViewColumns(targetAdminConfig)
 
   // Unresolved (deleted target).
   if (value._resolved === false) {

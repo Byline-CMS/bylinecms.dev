@@ -74,5 +74,5 @@ const pickerViewColumns: ColumnDefinition[] = [
 
 export const NewsCategoriesAdmin: CollectionAdminConfig = defineAdmin(NewsCategories, {
   columns: listViewColumns,
-  picker: pickerViewColumns,
+  itemView: pickerViewColumns,
 })

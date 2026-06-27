@@ -54,7 +54,7 @@ export function createCollectionEditRoute(path: string, opts: CollectionEditOpts
       // Auto-populate direct relation fields (depth 1) so the edit form's
       // relation-summary tiles render with target data (category name, media
       // thumbnail, etc.) on first paint. Projection is derived from each
-      // target's `CollectionAdminConfig.picker` columns.
+      // target's `CollectionAdminConfig.itemView` columns.
       const data = await getCollectionDocument(
         params.collection,
         params.id,

@@ -217,15 +217,27 @@ export interface CollectionAdminConfig<T = any> {
   columns?: ColumnDefinition<T>[]
 
   /**
-   * Column definitions for this collection when it appears as the target
-   * of a relation picker (the modal opened from a `relation` field widget).
+   * Column definitions for rendering this collection as a compact **item
+   * row / tile** wherever a single document is shown outside its own list —
+   * the relation picker modal, relation-summary tiles, `hasMany` relation
+   * tiles, and (planned) cross-collection search-result rows.
    *
-   * Shape matches `ColumnDefinition` so formatters like a thumbnail cell or
-   * date formatter can be reused across list and picker. Omit to fall back
-   * to a single-line render of `useAsTitle` + `path`.
+   * It is a per-collection *item contract*: it declares both **what to fetch**
+   * (the projection — which fields hydrate the row, including relation
+   * `displayField`s) and **how to render** (the columns + formatters, e.g. a
+   * thumbnail cell or date formatter). Shape matches `ColumnDefinition` so
+   * formatters are shared with the list view. Omit to fall back to a
+   * single-line render of `useAsTitle` + `path`.
    *
-   * Purely a UI concern — does not affect populate's default projection,
-   * which uses `CollectionDefinition.useAsTitle` server-side.
+   * Resolve it through `resolveItemViewColumns(config)` rather than reading
+   * the field directly, so the deprecated `picker` alias keeps working.
+   */
+  itemView?: ColumnDefinition<T>[]
+
+  /**
+   * @deprecated Renamed to {@link itemView}. Kept as a backwards-compatible
+   * alias — `itemView` wins when both are present. Read both via
+   * `resolveItemViewColumns(config)`. Will be removed in a future major.
    */
   picker?: ColumnDefinition<T>[]
 

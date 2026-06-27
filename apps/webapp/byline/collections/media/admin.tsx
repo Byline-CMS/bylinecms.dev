@@ -97,9 +97,9 @@ export const MediaAdmin: CollectionAdminConfig = defineAdmin(Media, {
    * picker modal (opened from a `relation` field widget). Omit to fall back to a
    * single-line render of `useAsTitle` + `path`.
    *
-   * Shape matches `ColumnDefinition` so formatters can be reused across list and picker.
+   * Shape matches `ColumnDefinition` so formatters can be reused across list and item view.
    */
-  picker: pickerViewColumns,
+  itemView: pickerViewColumns,
 
   /**
    * Custom list-view component that completely replaces the default table-based `ListView`
