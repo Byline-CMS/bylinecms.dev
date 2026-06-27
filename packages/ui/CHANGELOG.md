@@ -1,5 +1,16 @@
 # @byline/ui
 
+## 3.14.0
+
+### Minor Changes
+
+- added hasMany ordered multi-target relations — schema flag, indexed array storage, array-of-envelopes populate, and a drag-reorder/add/remove editor widget
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.14.0
+
 ## 3.13.3
 
 ### Patch Changes
