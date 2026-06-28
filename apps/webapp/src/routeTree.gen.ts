@@ -33,6 +33,7 @@ import { Route as LngFrontendNewsPathRouteImport } from './routes/$lng/_frontend
 import { Route as LngFrontendLegalChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/legal/{$path}[.]md'
 import { Route as LngFrontendLegalPathRouteImport } from './routes/$lng/_frontend/legal/$path'
 import { Route as LngFrontendDocsChar123Char125DotmdRouteImport } from './routes/$lng/_frontend/docs/{$}[.]md'
+import { Route as LngFrontendDocsSearchRouteImport } from './routes/$lng/_frontend/docs/search'
 import { Route as LngFrontendDocsSplatRouteImport } from './routes/$lng/_frontend/docs/$'
 import { Route as LngFrontendAboutChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/about/{$path}[.]md'
 import { Route as LngFrontendAboutPathRouteImport } from './routes/$lng/_frontend/about/$path'
@@ -168,6 +169,11 @@ const LngFrontendDocsChar123Char125DotmdRoute =
     path: '/{$}.md',
     getParentRoute: () => LngFrontendDocsRouteRoute,
   } as any)
+const LngFrontendDocsSearchRoute = LngFrontendDocsSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => LngFrontendDocsRouteRoute,
+} as any)
 const LngFrontendDocsSplatRoute = LngFrontendDocsSplatRouteImport.update({
   id: '/$',
   path: '/$',
@@ -240,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/$lng/about/$path': typeof LngFrontendAboutPathRoute
   '/$lng/about/{$path}.md': typeof LngFrontendAboutChar123pathChar125DotmdRoute
   '/$lng/docs/$': typeof LngFrontendDocsSplatRoute
+  '/$lng/docs/search': typeof LngFrontendDocsSearchRoute
   '/$lng/docs/{$}.md': typeof LngFrontendDocsChar123Char125DotmdRoute
   '/$lng/legal/$path': typeof LngFrontendLegalPathRoute
   '/$lng/legal/{$path}.md': typeof LngFrontendLegalChar123pathChar125DotmdRoute
@@ -272,6 +279,7 @@ export interface FileRoutesByTo {
   '/$lng/about/$path': typeof LngFrontendAboutPathRoute
   '/$lng/about/{$path}.md': typeof LngFrontendAboutChar123pathChar125DotmdRoute
   '/$lng/docs/$': typeof LngFrontendDocsSplatRoute
+  '/$lng/docs/search': typeof LngFrontendDocsSearchRoute
   '/$lng/docs/{$}.md': typeof LngFrontendDocsChar123Char125DotmdRoute
   '/$lng/legal/$path': typeof LngFrontendLegalPathRoute
   '/$lng/legal/{$path}.md': typeof LngFrontendLegalChar123pathChar125DotmdRoute
@@ -309,6 +317,7 @@ export interface FileRoutesById {
   '/$lng/_frontend/about/$path': typeof LngFrontendAboutPathRoute
   '/$lng/_frontend/about/{$path}.md': typeof LngFrontendAboutChar123pathChar125DotmdRoute
   '/$lng/_frontend/docs/$': typeof LngFrontendDocsSplatRoute
+  '/$lng/_frontend/docs/search': typeof LngFrontendDocsSearchRoute
   '/$lng/_frontend/docs/{$}.md': typeof LngFrontendDocsChar123Char125DotmdRoute
   '/$lng/_frontend/legal/$path': typeof LngFrontendLegalPathRoute
   '/$lng/_frontend/legal/{$path}.md': typeof LngFrontendLegalChar123pathChar125DotmdRoute
@@ -346,6 +355,7 @@ export interface FileRouteTypes {
     | '/$lng/about/$path'
     | '/$lng/about/{$path}.md'
     | '/$lng/docs/$'
+    | '/$lng/docs/search'
     | '/$lng/docs/{$}.md'
     | '/$lng/legal/$path'
     | '/$lng/legal/{$path}.md'
@@ -378,6 +388,7 @@ export interface FileRouteTypes {
     | '/$lng/about/$path'
     | '/$lng/about/{$path}.md'
     | '/$lng/docs/$'
+    | '/$lng/docs/search'
     | '/$lng/docs/{$}.md'
     | '/$lng/legal/$path'
     | '/$lng/legal/{$path}.md'
@@ -414,6 +425,7 @@ export interface FileRouteTypes {
     | '/$lng/_frontend/about/$path'
     | '/$lng/_frontend/about/{$path}.md'
     | '/$lng/_frontend/docs/$'
+    | '/$lng/_frontend/docs/search'
     | '/$lng/_frontend/docs/{$}.md'
     | '/$lng/_frontend/legal/$path'
     | '/$lng/_frontend/legal/{$path}.md'
@@ -612,6 +624,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LngFrontendDocsChar123Char125DotmdRouteImport
       parentRoute: typeof LngFrontendDocsRouteRoute
     }
+    '/$lng/_frontend/docs/search': {
+      id: '/$lng/_frontend/docs/search'
+      path: '/search'
+      fullPath: '/$lng/docs/search'
+      preLoaderRoute: typeof LngFrontendDocsSearchRouteImport
+      parentRoute: typeof LngFrontendDocsRouteRoute
+    }
     '/$lng/_frontend/docs/$': {
       id: '/$lng/_frontend/docs/$'
       path: '/$'
@@ -687,12 +706,14 @@ declare module '@tanstack/react-router' {
 
 interface LngFrontendDocsRouteRouteChildren {
   LngFrontendDocsSplatRoute: typeof LngFrontendDocsSplatRoute
+  LngFrontendDocsSearchRoute: typeof LngFrontendDocsSearchRoute
   LngFrontendDocsChar123Char125DotmdRoute: typeof LngFrontendDocsChar123Char125DotmdRoute
   LngFrontendDocsIndexRoute: typeof LngFrontendDocsIndexRoute
 }
 
 const LngFrontendDocsRouteRouteChildren: LngFrontendDocsRouteRouteChildren = {
   LngFrontendDocsSplatRoute: LngFrontendDocsSplatRoute,
+  LngFrontendDocsSearchRoute: LngFrontendDocsSearchRoute,
   LngFrontendDocsChar123Char125DotmdRoute:
     LngFrontendDocsChar123Char125DotmdRoute,
   LngFrontendDocsIndexRoute: LngFrontendDocsIndexRoute,
