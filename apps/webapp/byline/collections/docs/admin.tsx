@@ -8,6 +8,7 @@
 
 import { DateTimeFormatter } from '@byline/admin/react'
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
+import { ReindexButton } from '@byline/host-tanstack-start/admin-shell/collections/reindex-button'
 
 import { SummaryLength } from '~/components/summary-length.js'
 
@@ -90,6 +91,14 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * listView: DocsListView,
    */
   // listView: undefined,
+
+  /**
+   * Header action components for the default list view. `ReindexButton`
+   * rebuilds the docs search index; it self-gates on the
+   * `collections.docs.reindex` ability, so it only appears for actors who
+   * hold it. See docs/05-reading-and-delivery/07-search.md.
+   */
+  listActions: [ReindexButton],
 
   /**
    * Group name for organising this collection in the admin sidebar navigation.

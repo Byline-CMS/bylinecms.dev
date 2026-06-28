@@ -6,11 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 
 import { renderFormatted, StatusBadge } from '@byline/admin/react'
-import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
+import type { ColumnDefinition, ListActionComponentProps, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import type { UseTranslationReturn } from '@byline/i18n/react'
 import { useTranslation } from '@byline/i18n/react'
@@ -158,6 +159,7 @@ export const ListView = ({
   useAsTitle,
   orderable = false,
   onReorder,
+  listActions,
 }: {
   data: AnyCollectionSchemaTypes['ListType']
   columns: ColumnDefinition[]
@@ -167,6 +169,8 @@ export const ListView = ({
   orderable?: boolean
   /** Persists a single-row reorder via the host's reorder server fn. */
   onReorder?: ReorderFn
+  /** Header action components (`CollectionAdminConfig.listActions`). */
+  listActions?: Array<(props: ListActionComponentProps) => React.ReactNode>
 }) => {
   const navigate = useNavigate()
   const router = useRouter()
@@ -316,6 +320,10 @@ export const ListView = ({
             {data.included.collection.labels.plural as string}
           </h1>
           <Stats total={data?.meta.total} />
+          {listActions?.map((Action, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static config order
+            <Action key={i} collectionPath={data.included.collection.path as string} />
+          ))}
           <IconButton
             aria-label={t('collections.list.createAriaLabel')}
             render={

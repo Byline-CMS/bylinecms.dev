@@ -352,6 +352,35 @@ export interface CollectionAdminConfig<T = any> {
    * ```
    */
   listView?: (props: ListViewComponentProps) => any
+
+  /**
+   * Header action components for the **default** list view — rendered in the
+   * list header alongside the Create button. Each receives a
+   * {@link ListActionComponentProps} (`{ collectionPath }`). The reusable
+   * injection point for collection-level admin actions (reindex search,
+   * export, bulk operations, …) without replacing the whole `listView`.
+   *
+   * Ignored when a custom `listView` is provided (that component owns its own
+   * chrome). Components are responsible for their own permission gating.
+   *
+   * @example
+   * ```ts
+   * import { ReindexButton } from '@byline/host-tanstack-start/admin-shell/collections/reindex-button'
+   * // In your CollectionAdminConfig:
+   * listActions: [ReindexButton],
+   * ```
+   */
+  listActions?: Array<(props: ListActionComponentProps) => any>
+}
+
+/**
+ * Props passed to each `CollectionAdminConfig.listActions` component. Kept
+ * minimal and framework-agnostic (`@byline/core` is React-free); components
+ * resolve everything else (server fns, abilities, toasts) from the host.
+ */
+export interface ListActionComponentProps {
+  /** The collection path the list view is showing, e.g. `'docs'`. */
+  collectionPath: string
 }
 
 /**
