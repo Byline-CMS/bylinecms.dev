@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import { renderFormatted, StatusBadge } from '@byline/admin/react'
-import type { ColumnDefinition, WorkflowStatus } from '@byline/core'
+import type { ColumnDefinition, ListActionComponentProps, WorkflowStatus } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import {
   Container,
@@ -124,6 +124,7 @@ export const TreeListView = ({
   collection,
   collectionLabels,
   onMove,
+  listActions,
 }: {
   rows: CollectionTreeRow[]
   columns: ColumnDefinition[]
@@ -133,6 +134,8 @@ export const TreeListView = ({
   collectionLabels: { singular: string; plural: string }
   /** When provided, the placed tree becomes drag-to-reorder / re-parent. */
   onMove?: TreeMoveFn
+  /** Header action components (`CollectionAdminConfig.listActions`). */
+  listActions?: Array<(props: ListActionComponentProps) => React.ReactNode>
 }) => {
   const { t } = useTranslation('byline-admin')
   const router = useRouter()
@@ -267,6 +270,10 @@ export const TreeListView = ({
           <span className={cx('byline-coll-list-stats', styles.stats)}>
             {formatNumber(rows.length, 0)}
           </span>
+          {listActions?.map((Action, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static config order
+            <Action key={i} collectionPath={collection} />
+          ))}
           <IconButton
             aria-label={t('collections.list.createAriaLabel')}
             render={

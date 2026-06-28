@@ -182,6 +182,7 @@ export function createCollectionListRoute(path: string) {
               useAsTitle={collectionDef.useAsTitle}
               collection={collection}
               collectionLabels={data.included.collection.labels}
+              listActions={adminConfig?.listActions}
               onMove={async ({
                 documentId,
                 parentDocumentId,
