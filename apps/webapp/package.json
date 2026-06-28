@@ -43,6 +43,7 @@
     "@byline/host-tanstack-start": "workspace:*",
     "@byline/i18n": "workspace:*",
     "@byline/richtext-lexical": "workspace:*",
+    "@byline/search-postgres": "workspace:*",
     "@byline/storage-local": "workspace:*",
     "@byline/ui": "workspace:*",
     "@formatjs/intl-localematcher": "^0.8.8",

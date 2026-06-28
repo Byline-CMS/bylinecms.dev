@@ -42,8 +42,23 @@ describe('weightClass', () => {
 })
 
 describe('buildIndexRow', () => {
-  it('weights the title into class A', () => {
+  it('does not auto-index the title (display-only; body controls searchability)', () => {
     const row = buildIndexRow(doc())
+    expect(row.weighted.A).toBe('')
+    expect(row.weighted.B).toBe('')
+    expect(row.body).toBe('')
+    // title still rides the row for display.
+    expect(row.title).toBe('Forest Restoration')
+  })
+
+  it('makes the title searchable when listed in body (boosted to A)', () => {
+    const row = buildIndexRow(
+      doc({
+        fields: [
+          { name: 'title', type: 'text', role: 'body', value: 'Forest Restoration', boost: 2 },
+        ],
+      })
+    )
     expect(row.weighted.A).toBe('Forest Restoration')
   })
 
@@ -95,7 +110,7 @@ describe('buildIndexRow', () => {
       })
     )
     expect(row.filters).toEqual({ citationCount: 42, publishedYear: 2026 })
-    expect(row.body).toBe('Forest Restoration')
+    expect(row.body).toBe('')
   })
 
   it('concatenates all weighted text into body for snippets', () => {
@@ -107,7 +122,7 @@ describe('buildIndexRow', () => {
         ],
       })
     )
-    expect(row.body).toBe('Forest Restoration\nBody text.\nEcology')
+    expect(row.body).toBe('Body text.\nEcology')
   })
 })
 

@@ -62,6 +62,9 @@ importers:
       '@byline/richtext-lexical':
         specifier: workspace:*
         version: link:../../packages/richtext-lexical
+      '@byline/search-postgres':
+        specifier: workspace:*
+        version: link:../../packages/search-postgres
       '@byline/storage-local':
         specifier: workspace:*
         version: link:../../packages/storage-local

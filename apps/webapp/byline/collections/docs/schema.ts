@@ -40,7 +40,12 @@ export const Docs = defineCollection({
   // the sidebar tree-placement widget; the import script derives placement
   // from the source directory layout (see byline/scripts/import-docs.ts).
   tree: true,
-  search: { body: ['title'] },
+  // Role-based search config (docs/05-reading-and-delivery/07-search.md):
+  // `title` (boosted — lands in tsvector weight class A) + `summary` feed the
+  // full-text body. `title` is display-only unless listed here, so we list it.
+  // (The `content` blocks field is a deep/nested feed — a follow-up; v1
+  // indexes top-level fields.)
+  search: { body: [{ field: 'title', boost: 2 }, 'summary'] },
   useAsTitle: 'title',
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.

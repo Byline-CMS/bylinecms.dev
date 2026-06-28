@@ -68,6 +68,13 @@ export interface PostgresSearchOptions {
    * (no stemming / stop-words — unstemmed but correct).
    */
   fallbackRegconfig?: string
+  /**
+   * Locale used to choose the query text-search config when a `search()`
+   * call omits `locale`. Set this to the host's default content locale so a
+   * locale-less query matches default-locale documents (otherwise it falls
+   * back to `simple` and won't match locale-stemmed vectors).
+   */
+  defaultLocale?: string
   /** Optional sink for migration progress lines (e.g. the host logger). */
   log?: (message: string) => void
 }
@@ -92,5 +99,5 @@ export function postgresSearch(options: PostgresSearchOptions): SearchProvider {
     })
   }
 
-  return new PostgresSearchProvider(options.pool, regconfig)
+  return new PostgresSearchProvider(options.pool, regconfig, options.defaultLocale)
 }

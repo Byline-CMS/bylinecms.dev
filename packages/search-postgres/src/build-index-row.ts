@@ -59,9 +59,10 @@ export function buildIndexRow(doc: SearchDocument): IndexRow {
   const facets: Record<string, SearchFacetValue[]> = {}
   const filters: Record<string, string | number | boolean> = {}
 
-  // The identity value always carries the most weight.
-  if (doc.title) weighted.A.push(doc.title)
-
+  // `title` is display-only (it rides every hit for the result row); what is
+  // *searchable* — and at what weight — is controlled entirely by the `body`
+  // projection. To make the title searchable, list the identity field in
+  // `search.body` (typically boosted to land in weight class A).
   for (const field of doc.fields) {
     switch (field.role) {
       case 'body': {

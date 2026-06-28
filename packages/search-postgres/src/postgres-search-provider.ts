@@ -40,7 +40,14 @@ export class PostgresSearchProvider implements SearchProvider {
 
   constructor(
     private readonly pool: Pool,
-    private readonly regconfig: RegconfigResolver
+    private readonly regconfig: RegconfigResolver,
+    /**
+     * Locale used to pick the query `regconfig` when a search omits `locale`.
+     * Without it, a locale-less query falls back to `simple` (unstemmed) and
+     * silently fails to match locale-stemmed vectors. Set to the host's
+     * default content locale.
+     */
+    private readonly defaultLocale?: string
   ) {}
 
   async upsert(doc: SearchDocument): Promise<void> {
@@ -109,7 +116,7 @@ export class PostgresSearchProvider implements SearchProvider {
   }
 
   async search(query: SearchQuery): Promise<SearchResults> {
-    const cfg = this.regconfig(query.locale)
+    const cfg = this.regconfig(query.locale ?? this.defaultLocale)
     const limit = query.limit ?? 20
     const offset = query.offset ?? 0
 

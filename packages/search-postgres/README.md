@@ -101,11 +101,15 @@ through the capability flags so consumers light up only what's available.
 
 Search is per-locale. Each document's text is indexed with the Postgres
 `regconfig` mapped from its content locale (`en` → `english`, `fr` → `french`,
-…), falling back to `simple` (unstemmed) for unmapped locales. Extend the map:
+…), falling back to `simple` (unstemmed) for unmapped locales. Pass `locale`
+to `search()` so the query uses the matching `regconfig` (a locale-less query
+falls back to `simple` and won't match locale-stemmed vectors) — or set
+`defaultLocale` so locale-less queries use your default content locale:
 
 ```ts
 postgresSearch({
   pool: db.pool,
+  defaultLocale: 'en',             // regconfig for searches that omit `locale`
   localeRegconfig: { th: 'thai' }, // a custom dictionary you've installed
   fallbackRegconfig: 'simple',
 })

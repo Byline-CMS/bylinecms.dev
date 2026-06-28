@@ -24,7 +24,9 @@ import {
   lexicalEditorEmbedServer,
   lexicalEditorPopulateServer,
   lexicalEditorToMarkdownServer,
+  lexicalEditorToTextServer,
 } from '@byline/richtext-lexical/server'
+import { migrate, postgresSearch } from '@byline/search-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
 // Import collection definitions directly from schema files — NOT the full
@@ -99,6 +101,13 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       ? Number(process.env.BYLINE_DB_POSTGRES_CONNECTION_TIMEOUT_MILLIS)
       : undefined,
   })
+
+  // Ensure the search-index schema before the provider serves any traffic.
+  // The driver owns its schema (numbered SQL in `@byline/search-postgres`);
+  // we apply it deliberately here rather than relying on `autoMigrate` so
+  // startup is deterministic and DDL is an explicit, awaited step. Reuses the
+  // adapter's pool — no second connection. See the package README.
+  await migrate(db.pool, { log: (m) => console.log(m) })
 
   const adminStore = createAdminStore(db.drizzle)
 
@@ -207,8 +216,17 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
         // One-way markdown serializer for the agent-readable export surface
         // (`.md` routes, `llms.txt`). Pure JSON walk — no client needed.
         toMarkdown: lexicalEditorToMarkdownServer(),
+        // Plain-text extractor for search indexing — flattens rich-text to
+        // indexable text for `buildSearchDocument`'s `body` feed. Pure JSON
+        // walk, no client. See docs/05-reading-and-delivery/07-search.md.
+        toText: lexicalEditorToTextServer(),
       },
     },
+    // Built-in Postgres full-text search provider. Reuses the adapter's pool
+    // (no second connection); the search index lives in the same database.
+    // Collections opt in via their role-based `search` config; lifecycle
+    // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
+    search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on
