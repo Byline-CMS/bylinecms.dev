@@ -17,6 +17,7 @@ import type {
   RichTextEmbedFn,
   RichTextPopulateFn,
   RichTextToMarkdownFn,
+  RichTextToTextFn,
 } from './field-types.js'
 import type { SearchProvider } from './search-types.js'
 import type { IStorageProvider } from './storage-types.js'
@@ -316,6 +317,14 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
        * it. Synchronous and read-only — it walks stored editor JSON.
        */
       toMarkdown?: RichTextToMarkdownFn
+      /**
+       * `toText` — plain-text extractor for search indexing. Flattens a
+       * rich-text value to indexable plain text (a recursive text-node
+       * accumulator, no markdown). Consumed by `buildSearchDocument` to feed
+       * a collection's searchable `body`. Required when any collection's
+       * `search.body` includes a `richText` field.
+       */
+      toText?: RichTextToTextFn
     }
   }
   /**

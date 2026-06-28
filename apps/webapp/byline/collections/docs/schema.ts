@@ -40,7 +40,7 @@ export const Docs = defineCollection({
   // the sidebar tree-placement widget; the import script derives placement
   // from the source directory layout (see byline/scripts/import-docs.ts).
   tree: true,
-  search: { fields: ['title'] },
+  search: { body: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.

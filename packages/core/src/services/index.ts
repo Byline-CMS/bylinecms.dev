@@ -11,6 +11,11 @@ export {
 export { normaliseDateFields } from '../utils/normalise-dates.js'
 export { type AssignCounterValuesInput, assignCounterValues } from './assign-counter-values.js'
 export {
+  type BuildSearchDocumentOptions,
+  buildSearchDocument,
+  type SearchSourceDocument,
+} from './build-search-document.js'
+export {
   type CollectionRecord,
   type EnsureCollectionsInput,
   ensureCollections,
@@ -40,6 +45,7 @@ export {
   type PopulateSpec,
   populateDocuments,
   type ReadContext,
+  resolveIdentityField,
   type UnresolvedRelationValue,
 } from './populate.js'
 export {

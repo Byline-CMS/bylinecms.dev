@@ -1001,3 +1001,31 @@ export interface RichTextToMarkdownContext {
  * by contract — output is never re-imported.
  */
 export type RichTextToMarkdownFn = (ctx: RichTextToMarkdownContext) => string
+
+// ---------------------------------------------------------------------------
+// Richtext server adapter — plain-text extraction (read-time, one-way)
+// ---------------------------------------------------------------------------
+
+/**
+ * Context passed to the richtext plain-text extractor for one rich-text
+ * field value. Read-only and synchronous — walks the stored editor JSON
+ * directly (no editor instantiation, no DB reads).
+ */
+export interface RichTextToTextContext {
+  /** The richText field's value (raw editor JSON, possibly stringified). */
+  value: unknown
+  /** Field path within the document — e.g. `'body'` or `'content.0.caption'`. */
+  fieldPath: string
+  /** Collection path the document belongs to. */
+  collectionPath: string
+}
+
+/**
+ * Server-side plain-text extractor contract — flattens a rich-text value to
+ * indexable plain text (a recursive text-node accumulator, no markdown
+ * syntax). Editor adapters export an implementation (e.g. `lexicalToText`
+ * from `@byline/richtext-lexical/server`); installations register one via
+ * `ServerConfig.fields.richText.toText`. Consumed by search indexing
+ * (`buildSearchDocument`) to feed `body`. One-way and lossy by contract.
+ */
+export type RichTextToTextFn = (ctx: RichTextToTextContext) => string

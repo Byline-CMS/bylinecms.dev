@@ -101,7 +101,7 @@ describe('fingerprintCollection', () => {
   it('ignores search / showStats (admin UX only)', async () => {
     const a = await fingerprintCollection(baseCollection())
     const b = baseCollection()
-    b.search = { fields: ['title', 'body.heading'] }
+    b.search = { body: ['title', 'body.heading'] }
     b.showStats = true
     expect(await fingerprintCollection(b)).toBe(a)
   })

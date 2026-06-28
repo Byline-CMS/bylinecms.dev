@@ -787,7 +787,7 @@ function buildBatchSelect(
  * default projection. Prefers `useAsTitle` (server-safe schema-level
  * config), falling back to the first declared text field.
  */
-function resolveIdentityField(def: CollectionDefinition): string | undefined {
+export function resolveIdentityField(def: CollectionDefinition): string | undefined {
   if (def.useAsTitle) return def.useAsTitle
   const firstText = def.fields.find((f) => f.type === 'text')
   return firstText?.name

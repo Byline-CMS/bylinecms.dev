@@ -12,12 +12,15 @@
  * mirroring how `IDbAdapter`, `IStorageProvider`, and the
  * `fields.richText.*` adapters plug into core.
  *
- * Core normalises each document into a flat, provider-agnostic
- * {@link SearchDocument} and hands that to the provider — the provider
- * never sees EAV store rows. A built-in Postgres full-text driver ships
- * as `@byline/search-postgres`; external drivers (BM25 rankers, vector
- * stores, hybrid retrievers) implement the same interface rather than
- * forking the read path.
+ * Core normalises each document into a flat, provider-agnostic,
+ * **type-enriched** {@link SearchDocument} and hands that to the provider —
+ * the provider never sees EAV store rows. The document carries a typed,
+ * role-tagged field projection ({@link SearchField}) so a driver can map
+ * each field onto its own index schema (Postgres store columns + weighted
+ * tsvector, Solr dynamic fields, a vector store's payload, …) without
+ * re-deriving types. A built-in Postgres full-text driver ships as
+ * `@byline/search-postgres`; external drivers implement the same interface
+ * rather than forking the read path.
  *
  * The provider factory (e.g. `postgresSearch({ getClient })`) lives in the
  * driver package, not here — core declares only the interface and its data
@@ -30,10 +33,88 @@
 
 import type { QueryPredicate } from './query-predicate.js'
 
+// ---------------------------------------------------------------------------
+// Collection-config declarations (role-based `CollectionDefinition.search`)
+// ---------------------------------------------------------------------------
+
 /**
- * The flat, provider-agnostic representation of a document that core feeds
- * to a `SearchProvider`. Assembled from the EAV store by core; the provider
- * indexes it without any knowledge of store tables or path notation.
+ * One field declaration in a collection's role-based `search` config — a
+ * field path, or `{ field, boost }` to weight it for scoring providers that
+ * support `capabilities.weighting`. The bare-string shorthand uses the
+ * provider's default weight.
+ */
+export type SearchFieldDecl = string | { field: string; boost?: number }
+
+// ---------------------------------------------------------------------------
+// The type-enriched document projection
+// ---------------------------------------------------------------------------
+
+/**
+ * The index value type of a projected field — schema-derived by core, so a
+ * driver can map the field onto its own schema without re-inspecting the
+ * collection definition (Solr dynamic-field suffixes like `_txt` / `_i` /
+ * `_ss`, Postgres store columns, etc.).
+ */
+export type SearchFieldType =
+  /** Free-text, full-text-tokenised (text / textArea / select label / extracted rich-text). */
+  | 'text'
+  /** Exact-match string, not tokenised (slug, enum value). */
+  | 'keyword'
+  | 'integer'
+  | 'float'
+  | 'boolean'
+  | 'datetime'
+  /** Controlled-vocabulary reference — value is {@link SearchFacetValue}[]. */
+  | 'facet'
+
+/**
+ * What a projected field is *for*, declared by the collection's role-based
+ * `search` config:
+ * - `body` — feeds the full-text searchable content
+ * - `facet` — a controlled-vocabulary reference (term indexed, id aggregated)
+ * - `filter` — a scalar projected for filtering / sorting (not scored)
+ */
+export type SearchFieldRole = 'body' | 'facet' | 'filter'
+
+/**
+ * One controlled-vocabulary facet value: the aggregation key (the target's
+ * `counter` field value — the stable small-int id used by facet URLs and
+ * the aggregator) plus the localized term (the target's `useAsTitle`),
+ * which is folded into the searchable text so a free-text query matches it.
+ */
+export interface SearchFacetValue {
+  id: number | string
+  term: string
+}
+
+/**
+ * A single field in the {@link SearchDocument} projection — a value plus the
+ * type and role a driver needs to index it. `name` is the field path and
+ * the default index field name.
+ */
+export interface SearchField {
+  /** Field path within the document, e.g. `'title'`, `'abstract'`, `'topics'`. */
+  name: string
+  /** Schema-derived index value type. */
+  type: SearchFieldType
+  /** Config-declared role. */
+  role: SearchFieldRole
+  /** Extracted, locale-resolved value. */
+  value: string | number | boolean | SearchFacetValue[] | null
+  /**
+   * Optional relevance weight for scoring providers that support it
+   * (`capabilities.weighting`). Postgres maps it to a `setweight` class,
+   * Solr to a `qf` field boost; providers without weighting ignore it.
+   * Unset means the provider default.
+   */
+  boost?: number
+}
+
+/**
+ * The flat, provider-agnostic, type-enriched representation of a document
+ * that core feeds to a `SearchProvider`. Assembled from the EAV store by
+ * core; the provider indexes it without any knowledge of store tables or
+ * path notation.
  *
  * One `SearchDocument` exists per `(collectionPath, documentId, locale)` —
  * `upsert` is idempotent on that triple.
@@ -60,25 +141,24 @@ export interface SearchDocument {
   /**
    * The collection's identity value — resolved via `useAsTitle`
    * (`resolveIdentityField`), never assumed to be a literal `title` field.
-   * Gives heterogeneous zone results a sensible per-collection label.
+   * Always present for hit display, independent of the `body` projection.
    */
   title: string
   /** The document's URL path, or `null` when the collection has none. */
   path: string | null
   /**
-   * Concatenated indexable text — text fields plus extracted rich-text
-   * plain text (and, in a later phase, attachment-extracted text). This is
-   * what the provider's full-text index is built over.
+   * The typed, role-tagged field projection the driver consumes. Built only
+   * from the fields the collection's `search` config opts into — nothing is
+   * auto-pulled, so unindexed content (editorial notes, etc.) never leaks.
    */
-  body: string
-  /**
-   * Facetable / filterable projection of the document's fields. Shape is
-   * provider-opaque; drivers that support facets read from here.
-   */
-  fields: Record<string, unknown>
+  fields: SearchField[]
   /** ISO-8601 timestamp of the indexed version. */
   updatedAt: string
 }
+
+// ---------------------------------------------------------------------------
+// Query surface
+// ---------------------------------------------------------------------------
 
 /**
  * A search request. Either collection-scoped (`collectionPath`) for
@@ -154,12 +234,17 @@ export interface SearchResults {
   facets?: Record<string, SearchFacetBucket[]>
 }
 
+// ---------------------------------------------------------------------------
+// The provider seam
+// ---------------------------------------------------------------------------
+
 /**
  * What a given driver can actually do. Lets consumers (the admin UI, the
- * MCP tool) light up facets / typo-tolerance / semantic features only where
- * the registered driver supports them, and keeps optional capabilities
- * (e.g. BM25, which depends on a Postgres extension that isn't universally
- * available) honest about a deployment's real reach rather than assumed.
+ * MCP tool) light up facets / typo-tolerance / semantic / weighting features
+ * only where the registered driver supports them, and keeps optional
+ * capabilities (e.g. BM25, which depends on a Postgres extension that isn't
+ * universally available) honest about a deployment's real reach rather than
+ * assumed.
  */
 export interface SearchCapabilities {
   /** Faceted aggregation over indexed fields. */
@@ -174,6 +259,8 @@ export interface SearchCapabilities {
    * `pg_textsearch` where available.
    */
   bm25: boolean
+  /** Per-field relevance weighting (`SearchField.boost`). */
+  weighting: boolean
   /** Matched-snippet highlighting in results. */
   highlights: boolean
 }

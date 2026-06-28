@@ -12,6 +12,7 @@ import type { ReadContext } from './db-types.js'
 import type { FieldSetData, FieldSetDataAllLocales, StoredFileValue } from './field-data-types.js'
 import type { Block, DefaultValue, Field, FileField, ImageField } from './field-types.js'
 import type { QueryPredicate } from './query-predicate.js'
+import type { SearchFieldDecl } from './search-types.js'
 import type { IStorageProvider } from './storage-types.js'
 import type { Prettify } from './type-utils.js'
 
@@ -1034,22 +1035,40 @@ export interface CollectionDefinition {
    */
   hooks?: CollectionHooks | CollectionHooksLoader
   /**
-   * Search configuration for this collection.
+   * Search configuration for this collection — a **role-based** declaration
+   * of what to index. The implementor names fields by the role they play;
+   * core derives each field's type from the schema and assembles the
+   * type-enriched `SearchDocument` (see the `SearchProvider` seam in
+   * `docs/05-reading-and-delivery/07-search.md`). Nothing is auto-pulled, so
+   * unindexed content (editorial notes, internal fields) never leaks into
+   * the index.
    *
-   * `fields` names which `store_text` fields feed the index / the admin
-   * list-view search box. Only `store_text` fields are supported for now.
-   * Falls back to `['title']` when omitted. The shorthand `{ fields: [...] }`
-   * continues to work unchanged.
-   *
-   * `zones` names the search scope(s) this collection belongs to (see the
-   * `SearchProvider` seam — `docs/05-reading-and-delivery/07-search.md`). A
-   * collection can belong to more than one zone (e.g. both a dedicated
-   * `publications` archive search and a general `site` search). When a
-   * collection opts into search without naming zones, it gets a single
-   * implicit zone equal to its collection path, so single-collection search
-   * always works and shared `site`-style zones are opt-in.
+   * - `body` — fields whose text feeds the full-text searchable content.
+   *   Text fields contribute their value; `richText` fields are extracted to
+   *   plain text via the registered `fields.richText.toText` seam. Each entry
+   *   is a field path, or `{ field, boost }` to weight it for scoring
+   *   providers that support `capabilities.weighting`. Drives the admin
+   *   list-view search box (its `store_text` subset). Falls back to the
+   *   identity field (`useAsTitle`) when omitted.
+   * - `facets` — relation field paths to controlled-vocabulary collections.
+   *   Core resolves each target's `counter` field (the stable aggregation id)
+   *   and its `useAsTitle` (the term, folded into searchable text). `{ field,
+   *   boost }` weights the indexed term.
+   * - `filters` — scalar field paths projected for filtering / sorting (not
+   *   scored).
+   * - `zones` — the search scope(s) this collection belongs to. A collection
+   *   can belong to more than one zone (e.g. both a dedicated `publications`
+   *   archive search and a general `site` search). When a collection opts
+   *   into search without naming zones, it gets a single implicit zone equal
+   *   to its collection path, so single-collection search always works and
+   *   shared `site`-style zones are opt-in.
    */
-  search?: { fields?: string[]; zones?: string[] }
+  search?: {
+    body?: SearchFieldDecl[]
+    facets?: SearchFieldDecl[]
+    filters?: string[]
+    zones?: string[]
+  }
   /**
    * The field that represents this document's identity — used anywhere a
    * single-line label for the document is needed: form headings, relation

@@ -21,7 +21,7 @@ export const NewsCategories = defineCollection({
   // `published` and the form shows only Save / Close.
   workflow: SINGLE_STATUS_WORKFLOW,
   showStats: true,
-  search: { fields: ['name'] },
+  search: { body: ['name'] },
   useAsTitle: 'name',
   useAsPath: 'name',
   // Demonstration of `orderable: true` — short, finite, naturally ordered.

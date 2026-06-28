@@ -1810,7 +1810,14 @@ export class DocumentQueries implements IDocumentQueries {
     // Text search across configured search fields via EXISTS on store_text.
     if (query) {
       const definition = await this.getDefinitionForCollection(collection_id)
-      const searchFields = definition.search?.fields ?? ['title']
+      // The admin list-view box matches store_text rows by field name. Derive
+      // the names from the role-based `search.body` declaration (a field path
+      // or `{ field, boost }`); fall back to the identity-ish `title`.
+      const bodyDecls = definition.search?.body ?? []
+      const searchFields =
+        bodyDecls.length > 0
+          ? bodyDecls.map((decl) => (typeof decl === 'string' ? decl : decl.field))
+          : ['title']
       const searchConditions = searchFields.map(
         (fieldName) => sql`(field_name = ${fieldName} AND value ILIKE ${`%${query}%`})`
       )
