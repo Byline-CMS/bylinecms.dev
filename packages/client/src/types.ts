@@ -19,6 +19,7 @@ import type {
   ReadContext,
   ReadMode,
   RichTextPopulateFn,
+  SearchProvider,
   ServerConfig,
   SlugifierFn,
   SortSpec,
@@ -31,6 +32,10 @@ export type {
   FilterOperators,
   PredicateValue,
   QueryPredicate,
+  SearchFacetBucket,
+  SearchHit,
+  SearchProvider,
+  SearchResults,
   SortDirection,
   SortSpec,
 } from '@byline/core'
@@ -65,6 +70,13 @@ export interface BylineClientConfig {
   collections?: CollectionDefinition[]
   /** Optional storage provider — needed for delete file cleanup. */
   storage?: IStorageProvider
+  /**
+   * Optional search provider (`ServerConfig.search`). When present,
+   * `collection(path).search(...)` delegates ranked queries to it. When
+   * omitted (and not provided via the `config` shorthand's `search`), calling
+   * `search()` throws a clear error pointing at provider registration.
+   */
+  search?: SearchProvider
   /**
    * Optional logger. Used by the write path to emit structured events
    * from `document-lifecycle`. When omitted, the client falls back to
@@ -174,6 +186,30 @@ interface PopulateControls {
  */
 interface StatusControls {
   status?: ReadMode
+}
+
+/**
+ * Options for `CollectionHandle.search(...)` — a ranked full-text query
+ * scoped to this collection, delegated to the registered `SearchProvider`.
+ * `collectionPath` is implied by the handle, so callers supply only the
+ * query and optional scoping. `status` defaults to `'published'` (public
+ * readers); pass `'any'` for admin contexts.
+ */
+export interface CollectionSearchOptions {
+  /** Free-text query string. */
+  query: string
+  /** Restrict to a single content locale (defaults to the client default). */
+  locale?: string
+  /** Read mode — `'published'` (default) or `'any'`. */
+  status?: ReadMode
+  /** Structured filters AND-merged with the text query (driver-dependent). */
+  where?: QueryPredicate
+  /** Field names to compute facet buckets for (driver-capability gated). */
+  facets?: string[]
+  /** Max hits to return. */
+  limit?: number
+  /** Offset for pagination. */
+  offset?: number
 }
 
 /**

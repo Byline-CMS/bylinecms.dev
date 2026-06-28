@@ -13,6 +13,7 @@ import type {
   IDbAdapter,
   IStorageProvider,
   RichTextPopulateFn,
+  SearchProvider,
   SlugifierFn,
 } from '@byline/core'
 import { ERR_NOT_FOUND, getLogger } from '@byline/core'
@@ -68,6 +69,7 @@ export class BylineClient {
   readonly defaultLocale: string
   readonly slugifier: SlugifierFn | undefined
   readonly richTextPopulate: RichTextPopulateFn | undefined
+  readonly search: SearchProvider | undefined
 
   /** Cache: collection path → database row id + schema version. */
   private collectionRecordCache = new Map<string, { id: string; version: number }>()
@@ -103,6 +105,7 @@ export class BylineClient {
     this.slugifier = config.slugifier ?? fromConfig?.slugifier
     this.richTextPopulate =
       config.richTextPopulate ?? fromConfig?.fields?.richText?.populate ?? undefined
+    this.search = config.search ?? fromConfig?.search ?? undefined
     this.requestContextSource = config.requestContext
   }
 

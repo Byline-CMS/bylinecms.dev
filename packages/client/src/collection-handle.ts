@@ -19,6 +19,7 @@ import type {
   ReadContext,
   ReadMode,
   RestoreVersionResult,
+  SearchResults,
   UnpublishResult,
   UpdateDocumentResult,
 } from '@byline/core'
@@ -48,6 +49,7 @@ import type { BylineClient } from './client.js'
 import type {
   AuditLogOptions,
   ClientDocument,
+  CollectionSearchOptions,
   CreateOptions,
   FindByIdOptions,
   FindByPathOptions,
@@ -187,6 +189,42 @@ export class CollectionHandle {
       _bypassBeforeRead: options._bypassBeforeRead,
     })
     return result.docs[0] ?? null
+  }
+
+  /**
+   * Ranked full-text search scoped to this collection, delegated to the
+   * registered `SearchProvider` (see `ServerConfig.search`). Returns the
+   * lightweight hit tier — `title`, `path`, `score`, and matched-snippet
+   * `highlights` — enough to render a results list without hydration; fetch
+   * the hit ids via `findById` when a richer item is needed.
+   *
+   * Asserts the collection `read` ability first (same gate as the other
+   * reads), and defaults `status` to `'published'`, so a public viewer only
+   * sees published content — which is also all the index holds, since
+   * indexing is published-only.
+   *
+   * Throws `ERR_VALIDATION` when no provider is registered.
+   */
+  async search(options: CollectionSearchOptions): Promise<SearchResults> {
+    await this.resolveAndAssertRead()
+    const provider = this.client.search
+    if (provider == null) {
+      throw ERR_VALIDATION({
+        message:
+          'No search provider is registered. Register one on ServerConfig.search — ' +
+          'see `@byline/search-postgres` → `postgresSearch()` for the built-in driver.',
+      })
+    }
+    return provider.search({
+      query: options.query,
+      collectionPath: this.definition.path,
+      locale: options.locale ?? this.client.defaultLocale,
+      status: resolveReadMode(options.status),
+      where: options.where,
+      facets: options.facets,
+      limit: options.limit,
+      offset: options.offset,
+    })
   }
 
   /**
