@@ -115,7 +115,15 @@ describe('assertActorCanPerform', () => {
   describe('super-admin', () => {
     it('passes every verb on every collection without explicit abilities', () => {
       const ctx = createSuperAdminContext()
-      const verbs = ['read', 'create', 'update', 'delete', 'publish', 'changeStatus'] as const
+      const verbs = [
+        'read',
+        'create',
+        'update',
+        'delete',
+        'publish',
+        'changeStatus',
+        'reindex',
+      ] as const
       for (const verb of verbs) {
         expect(() => assertActorCanPerform(ctx, 'any-collection', verb)).not.toThrow()
       }

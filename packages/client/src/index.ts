@@ -50,6 +50,7 @@ export type {
   GetSubtreeOptions,
   PlaceTreeNodeOptions,
   PopulatedRelation,
+  ReindexResult,
   SearchFacetBucket,
   SearchHit,
   SearchResults,

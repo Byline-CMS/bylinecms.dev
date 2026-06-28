@@ -13,7 +13,7 @@ import type { CollectionDefinition } from '../@types/index.js'
 /**
  * Auto-register the CRUD + workflow abilities contributed by a collection.
  *
- * Every registered collection contributes exactly six abilities, all in
+ * Every registered collection contributes exactly seven abilities, all in
  * the `collections.<path>` group:
  *
  *   - `collections.<path>.read`          — enumerate / fetch documents
@@ -24,12 +24,15 @@ import type { CollectionDefinition } from '../@types/index.js'
  *                                          `published` status
  *   - `collections.<path>.changeStatus`  — any other workflow transition
  *                                          (draft → custom state, etc.)
+ *   - `collections.<path>.reindex`       — rebuild the collection's search
+ *                                          index (admin maintenance task)
  *
  * Registration is unconditional: every collection in Byline has a workflow
  * (the default `draft → published → archived` one when not explicitly
- * configured), so `publish` and `changeStatus` always apply. Keeping the
- * six-ability contract uniform makes the role editor UI predictable and
- * avoids hidden conditional logic downstream.
+ * configured), so `publish` and `changeStatus` always apply; `reindex` is
+ * likewise uniform (a no-op for collections without a `search` config).
+ * Keeping the seven-ability contract uniform makes the role editor UI
+ * predictable and avoids hidden conditional logic downstream.
  *
  * Called from `initBylineCore()` for each declared collection. See
  * docs/AUTHN-AUTHZ.md.
@@ -79,6 +82,12 @@ export function registerCollectionAbilities(
     group,
     source: 'collection',
   })
+  registry.register({
+    key: `${base}.reindex`,
+    label: `Reindex ${plural} search`,
+    group,
+    source: 'collection',
+  })
 }
 
 /** The ability suffixes that every collection contributes. Exposed for contract tests. */
@@ -89,6 +98,7 @@ export const COLLECTION_ABILITY_VERBS = [
   'delete',
   'publish',
   'changeStatus',
+  'reindex',
 ] as const
 
 export type CollectionAbilityVerb = (typeof COLLECTION_ABILITY_VERBS)[number]

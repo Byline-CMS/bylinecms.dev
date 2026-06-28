@@ -115,6 +115,18 @@ export class PostgresSearchProvider implements SearchProvider {
     }
   }
 
+  async reindex(opts: { collectionPath?: string } = {}): Promise<void> {
+    // Clear the slice so a rebuild drops orphans (rows for deleted documents);
+    // the caller (client.reindex) then re-upserts the live published set.
+    if (opts.collectionPath != null) {
+      await this.pool.query('DELETE FROM byline_search_documents WHERE collection_path = $1', [
+        opts.collectionPath,
+      ])
+    } else {
+      await this.pool.query('TRUNCATE byline_search_documents')
+    }
+  }
+
   async search(query: SearchQuery): Promise<SearchResults> {
     const cfg = this.regconfig(query.locale ?? this.defaultLocale)
     const limit = query.limit ?? 20

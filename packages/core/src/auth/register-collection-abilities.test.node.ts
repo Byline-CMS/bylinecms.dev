@@ -53,6 +53,7 @@ describe('registerCollectionAbilities', () => {
       'collections.pages.delete',
       'collections.pages.publish',
       'collections.pages.changeStatus',
+      'collections.pages.reindex',
     ])
   })
 
@@ -61,7 +62,7 @@ describe('registerCollectionAbilities', () => {
     registerCollectionAbilities(registry, pageCollection())
     const buckets = registry.byGroup()
     expect(buckets.size).toBe(1)
-    expect(buckets.get('collections.pages')?.length).toBe(6)
+    expect(buckets.get('collections.pages')?.length).toBe(7)
   })
 
   it('derives labels from the collection singular/plural labels', () => {
@@ -73,6 +74,7 @@ describe('registerCollectionAbilities', () => {
     expect(registry.get('collections.pages.delete')?.label).toBe('Delete Page')
     expect(registry.get('collections.pages.publish')?.label).toBe('Publish Pages')
     expect(registry.get('collections.pages.changeStatus')?.label).toBe('Change status of Pages')
+    expect(registry.get('collections.pages.reindex')?.label).toBe('Reindex Pages search')
   })
 
   it('tags every ability with source: "collection"', () => {
@@ -83,7 +85,7 @@ describe('registerCollectionAbilities', () => {
     }
   })
 
-  it('registers the same six-ability shape regardless of workflow complexity', () => {
+  it('registers the same seven-ability shape regardless of workflow complexity', () => {
     const registry = new AbilityRegistry()
     registerCollectionAbilities(registry, newsCollection())
     expect(registry.list().map((d) => d.key)).toEqual([
@@ -93,15 +95,16 @@ describe('registerCollectionAbilities', () => {
       'collections.news.delete',
       'collections.news.publish',
       'collections.news.changeStatus',
+      'collections.news.reindex',
     ])
   })
 
-  it('is idempotent — calling twice leaves the registry with the same six entries', () => {
+  it('is idempotent — calling twice leaves the registry with the same seven entries', () => {
     const registry = new AbilityRegistry()
     const collection = pageCollection()
     registerCollectionAbilities(registry, collection)
     registerCollectionAbilities(registry, collection)
-    expect(registry.size).toBe(6)
+    expect(registry.size).toBe(7)
   })
 
   it('keeps multiple collections isolated in distinct groups', () => {
@@ -110,9 +113,9 @@ describe('registerCollectionAbilities', () => {
     registerCollectionAbilities(registry, newsCollection())
     const buckets = registry.byGroup()
     expect(buckets.size).toBe(2)
-    expect(buckets.get('collections.pages')?.length).toBe(6)
-    expect(buckets.get('collections.news')?.length).toBe(6)
-    expect(registry.size).toBe(12)
+    expect(buckets.get('collections.pages')?.length).toBe(7)
+    expect(buckets.get('collections.news')?.length).toBe(7)
+    expect(registry.size).toBe(14)
   })
 })
 
@@ -125,6 +128,7 @@ describe('COLLECTION_ABILITY_VERBS / collectionAbilityKey', () => {
       'delete',
       'publish',
       'changeStatus',
+      'reindex',
     ])
   })
 

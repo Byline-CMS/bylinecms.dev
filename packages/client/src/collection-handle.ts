@@ -27,18 +27,21 @@ import {
   applyAfterRead,
   applyBeforeRead,
   assertActorCanPerform,
+  buildSearchDocument,
   changeDocumentStatus,
   createDocument,
   createReadContext,
   deleteDocument,
   ERR_VALIDATION,
   mergePredicates,
+  type PopulateMap,
   parseSort,
   parseWhere,
   placeTreeNode as placeTreeNodeLifecycle,
   populateDocuments,
   populateRichTextFields,
   removeFromTree as removeFromTreeLifecycle,
+  resolveIdentityField,
   restoreDocumentVersion,
   unpublishDocument,
   updateDocument,
@@ -61,6 +64,7 @@ import type {
   GetSubtreeOptions,
   HistoryOptions,
   PlaceTreeNodeOptions,
+  ReindexResult,
   TreeNode,
   UpdateOptions,
 } from './types.js'
@@ -225,6 +229,143 @@ export class CollectionHandle {
       limit: options.limit,
       offset: options.offset,
     })
+  }
+
+  // -------------------------------------------------------------------------
+  // Search index maintenance
+  //
+  // `indexDocument` / `removeFromIndex` are the canonical per-document sync the
+  // collection lifecycle hooks call; `reindex` is the bulk rebuild (backfill /
+  // config change / driver swap). All are no-ops when the collection doesn't
+  // opt into search or no provider is registered. System operations — reads use
+  // `_bypassBeforeRead` so the index reflects every published document.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Re-sync one document into the search index across every content locale.
+   * Reads the document's *published* view per locale (`onMissingLocale: 'omit'`)
+   * and `upsert`s where present, `remove`s where absent — so publish, unpublish,
+   * draft-over-published, and plain edits all converge on the same idempotent
+   * path. The index always mirrors what a public reader can see.
+   */
+  async indexDocument(documentId: string): Promise<void> {
+    const provider = this.client.search
+    if (provider == null || this.definition.search == null) return
+
+    const populate = this.buildSearchFacetPopulateMap()
+    for (const locale of this.client.contentLocales) {
+      const view = await this.findById(documentId, {
+        locale,
+        status: 'published',
+        onMissingLocale: 'omit',
+        populate,
+        _bypassBeforeRead: true,
+      })
+      if (view == null) {
+        await provider.remove({ collectionPath: this.definition.path, documentId, locale })
+        continue
+      }
+      await provider.upsert(
+        buildSearchDocument(
+          {
+            documentId: view.id,
+            locale,
+            status: view.status,
+            path: view.path,
+            fields: view.fields as Record<string, unknown>,
+            updatedAt: view.updatedAt,
+          },
+          this.definition,
+          {
+            locale,
+            richTextToText: this.client.richTextToText,
+            resolveTargetDefinition: (path) =>
+              this.client.collections.find((c) => c.path === path) ?? null,
+          }
+        )
+      )
+    }
+  }
+
+  /** Remove one document from the search index entirely (all locales). */
+  async removeFromIndex(documentId: string): Promise<void> {
+    const provider = this.client.search
+    if (provider == null) return
+    await provider.remove({ collectionPath: this.definition.path, documentId })
+  }
+
+  /**
+   * Rebuild this collection's entire search index from its published
+   * documents. Clears the existing slice (dropping orphans for deleted docs),
+   * then walks every published document (paginated) and re-indexes it. Used for
+   * first-time backfill, after a `search` config change, or a driver swap.
+   *
+   * Asserts the collection `reindex` ability. No-op (returns zero counts) when
+   * the collection doesn't opt into search or no provider is registered.
+   */
+  async reindex(): Promise<ReindexResult> {
+    const requestContext = await this.client.resolveRequestContext()
+    assertActorCanPerform(requestContext, this.definition.path, 'reindex')
+
+    const provider = this.client.search
+    const result: ReindexResult = { collectionPath: this.definition.path, documents: 0, indexed: 0 }
+    if (provider == null || this.definition.search == null) return result
+
+    // Clear the slice so deleted documents don't leave orphan rows.
+    await provider.reindex?.({ collectionPath: this.definition.path })
+
+    const pageSize = 100
+    let page = 1
+    for (;;) {
+      const batch = await this.find({
+        status: 'published',
+        page,
+        pageSize,
+        _bypassBeforeRead: true,
+      })
+      for (const doc of batch.docs) {
+        await this.indexDocument(doc.id)
+        result.documents++
+      }
+      if (page >= batch.meta.totalPages || batch.docs.length === 0) break
+      page++
+    }
+    // `indexed` mirrors documents × locales present; the provider upserts are
+    // the source of truth, so report the document count walked.
+    result.indexed = result.documents
+    return result
+  }
+
+  /**
+   * Build the populate map for this collection's facet relation fields so each
+   * target arrives with the two fields the assembler needs: its `counter` field
+   * (the aggregation id) and its identity field (`useAsTitle`, the term).
+   * Returns `undefined` when the collection declares no facets.
+   */
+  private buildSearchFacetPopulateMap(): PopulateMap | undefined {
+    const facets = this.definition.search?.facets
+    if (facets == null || facets.length === 0) return undefined
+
+    const map: PopulateMap = {}
+    for (const decl of facets) {
+      const name = typeof decl === 'string' ? decl : decl.field
+      const field = this.definition.fields.find((f) => f.name === name)
+      if (field == null || field.type !== 'relation') continue
+
+      const targetPath = (field as { targetCollection?: string }).targetCollection
+      const targetDef = targetPath
+        ? this.client.collections.find((c) => c.path === targetPath)
+        : undefined
+      const select: string[] = []
+      const idField = targetDef?.fields.find((f) => f.type === 'counter')?.name
+      const termField = targetDef ? resolveIdentityField(targetDef) : undefined
+      if (idField) select.push(idField)
+      if (termField) select.push(termField)
+
+      map[name] = select.length > 0 ? { select } : true
+    }
+
+    return Object.keys(map).length > 0 ? map : undefined
   }
 
   /**

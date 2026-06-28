@@ -19,6 +19,7 @@ import type {
   ReadContext,
   ReadMode,
   RichTextPopulateFn,
+  RichTextToTextFn,
   SearchProvider,
   ServerConfig,
   SlugifierFn,
@@ -77,6 +78,19 @@ export interface BylineClientConfig {
    * `search()` throws a clear error pointing at provider registration.
    */
   search?: SearchProvider
+  /**
+   * Optional richtext plain-text extractor (`ServerConfig.fields.richText.toText`).
+   * Used by the search-indexing methods (`indexDocument` / `reindex`) to feed
+   * a collection's searchable `body` from rich-text fields. When omitted, those
+   * fields are skipped.
+   */
+  richTextToText?: RichTextToTextFn
+  /**
+   * The installation's content locales (`ServerConfig.i18n.content.locales`).
+   * The search-indexing methods iterate them to index one row per
+   * `(document, locale)`. Falls back to `[defaultLocale]` when not provided.
+   */
+  contentLocales?: string[]
   /**
    * Optional logger. Used by the write path to emit structured events
    * from `document-lifecycle`. When omitted, the client falls back to
@@ -210,6 +224,16 @@ export interface CollectionSearchOptions {
   limit?: number
   /** Offset for pagination. */
   offset?: number
+}
+
+/** Outcome of a collection `reindex()` — counts for reporting. */
+export interface ReindexResult {
+  /** Collection that was reindexed. */
+  collectionPath: string
+  /** Number of published documents walked. */
+  documents: number
+  /** Number of `(document, locale)` index rows upserted. */
+  indexed: number
 }
 
 /**

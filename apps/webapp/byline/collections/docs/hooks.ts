@@ -58,18 +58,16 @@
 import { createHash } from 'node:crypto'
 
 import { defineHooks } from '@byline/core'
+import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
 
 import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
-import {
-  removeDocumentFromSearchIndex,
-  syncDocumentToSearchIndex,
-} from '@/lib/search/index-document'
 
-// Search indexing rides the same lifecycle hooks as cache invalidation:
-// `syncDocumentToSearchIndex` re-reads the published view per locale and
-// upserts / removes (so publish, unpublish, draft-over-published, and plain
-// edits all converge on the same idempotent path); delete drops every locale.
-// See docs/05-reading-and-delivery/07-search.md.
+// Search indexing rides the same lifecycle hooks as cache invalidation. The
+// orchestration lives in `@byline/client`: `indexDocument` re-reads the
+// published view per locale and upserts / removes (so publish, unpublish,
+// draft-over-published, and plain edits all converge on the same idempotent
+// path); `removeFromIndex` drops every locale on delete. See
+// docs/05-reading-and-delivery/07-search.md.
 export default defineHooks({
   afterCreate: async ({ data, collectionPath, path, documentId }) => {
     // Example use of a server-only import: derive a content fingerprint with
@@ -80,26 +78,26 @@ export default defineHooks({
       `afterCreate: document ${documentId} created in '${collectionPath}' (content fingerprint ${fingerprint})`
     )
     await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await syncDocumentToSearchIndex({ collectionPath, documentId })
+    await getAdminBylineClient().collection(collectionPath).indexDocument(documentId)
   },
   afterUpdate: async ({ collectionPath, path, documentId, originalData }) => {
     await invalidateDocument(collectionPath, path, {
       prevPath: (originalData as { path?: string } | undefined)?.path,
       list: true,
     })
-    await syncDocumentToSearchIndex({ collectionPath, documentId })
+    await getAdminBylineClient().collection(collectionPath).indexDocument(documentId)
   },
   afterStatusChange: async ({ collectionPath, path, documentId }) => {
     await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await syncDocumentToSearchIndex({ collectionPath, documentId })
+    await getAdminBylineClient().collection(collectionPath).indexDocument(documentId)
   },
   afterUnpublish: async ({ collectionPath, path, documentId }) => {
     await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await syncDocumentToSearchIndex({ collectionPath, documentId })
+    await getAdminBylineClient().collection(collectionPath).indexDocument(documentId)
   },
   afterDelete: async ({ collectionPath, path, documentId }) => {
     await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await removeDocumentFromSearchIndex({ collectionPath, documentId })
+    await getAdminBylineClient().collection(collectionPath).removeFromIndex(documentId)
   },
   // A structural tree change (place / reorder / re-parent / promote-on-delete)
   // ripples across the affected set — every moved node, its descendants, and
