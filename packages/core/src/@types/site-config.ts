@@ -18,6 +18,7 @@ import type {
   RichTextPopulateFn,
   RichTextToMarkdownFn,
 } from './field-types.js'
+import type { SearchProvider } from './search-types.js'
 import type { IStorageProvider } from './storage-types.js'
 
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
@@ -317,4 +318,25 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
       toMarkdown?: RichTextToMarkdownFn
     }
   }
+  /**
+   * Search provider — the `SearchProvider` seam. Registered top-level
+   * beside `db` and `storage`, composed by `initBylineCore()`.
+   *
+   * Drivers ship as separate packages and are constructed via a factory,
+   * mirroring the richText server adapters. The built-in Postgres
+   * full-text driver is `@byline/search-postgres`. When any collection
+   * opts into search (`CollectionDefinition.search`) but no provider is
+   * registered, `initBylineCore()` fails fast.
+   *
+   * @example
+   * ```ts
+   * import { postgresSearch } from '@byline/search-postgres'
+   *
+   * defineServerConfig({
+   *   // ...
+   *   search: postgresSearch({ getClient: getAdminBylineClient }),
+   * })
+   * ```
+   */
+  search?: SearchProvider
 }

@@ -1034,11 +1034,22 @@ export interface CollectionDefinition {
    */
   hooks?: CollectionHooks | CollectionHooksLoader
   /**
-   * Configures which text fields are searched when the admin list view's
-   * search box is used. Only `store_text` fields are supported for now.
-   * Falls back to `{ fields: ['title'] }` when omitted.
+   * Search configuration for this collection.
+   *
+   * `fields` names which `store_text` fields feed the index / the admin
+   * list-view search box. Only `store_text` fields are supported for now.
+   * Falls back to `['title']` when omitted. The shorthand `{ fields: [...] }`
+   * continues to work unchanged.
+   *
+   * `zones` names the search scope(s) this collection belongs to (see the
+   * `SearchProvider` seam — `docs/05-reading-and-delivery/07-search.md`). A
+   * collection can belong to more than one zone (e.g. both a dedicated
+   * `publications` archive search and a general `site` search). When a
+   * collection opts into search without naming zones, it gets a single
+   * implicit zone equal to its collection path, so single-collection search
+   * always works and shared `site`-style zones are opt-in.
    */
-  search?: { fields: string[] }
+  search?: { fields?: string[]; zones?: string[] }
   /**
    * The field that represents this document's identity — used anywhere a
    * single-line label for the document is needed: form headings, relation

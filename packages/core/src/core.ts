@@ -23,6 +23,7 @@ import { type CollectionRecord, ensureCollections } from './services/collection-
 import { discoverCounterGroups } from './services/discover-counter-groups.js'
 import { validateTranslations } from './services/i18n-validator.js'
 import { validateRichTextFieldFlags } from './services/richtext-populate.js'
+import { validateSearchConfig } from './services/validate-search-config.js'
 import type {
   CollectionDefinition,
   IDbAdapter,
@@ -121,6 +122,13 @@ export const initBylineCore = async <TAdminStore = unknown>(
   validateRichTextFieldFlags(composed.collections, {
     populate: config.fields?.richText?.populate != null,
     embed: config.fields?.richText?.embed != null,
+  })
+
+  // Validate search configuration: a collection that opts into search must
+  // have a SearchProvider registered, otherwise indexing / client.search()
+  // would silently no-op. Fail-fast at boot, same posture as richText above.
+  validateSearchConfig(composed.collections, {
+    provider: config.search != null,
   })
 
   // Validate the admin i18n translation registry against the configured
