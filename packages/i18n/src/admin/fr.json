@@ -267,7 +267,7 @@
   "adminPermissions.source.unknown": "inconnu",
   "collections.list.statusFilterAll": "Tous",
   "collections.list.createAriaLabel": "Créer",
-  "collections.list.reindexLabel": "Réindexer la recherche",
+  "collections.list.reindexLabel": "Réindexer",
   "collections.list.reindexPending": "Réindexation…",
   "collections.list.reindexDoneTitle": "Recherche réindexée",
   "collections.list.reindexDoneDescription": "{count} documents indexés.",
