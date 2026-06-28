@@ -1,80 +1,22 @@
 ---
 title: "Search & Retrieval"
 path: "search"
-summary: "A pluggable SearchProvider seam in core — Postgres full-text search built in, BM25 / vector / hybrid as sanctioned external drivers. The primary consumer is the Client SDK: a first-class way for developers to build search into their own sites. Collections are indexed into named zones, so a query can be collection-scoped (a dedicated publications search) or zone-scoped (one site search across collections). Design doc; sets the interface before implementation."
+summary: "A pluggable SearchProvider seam in core with a built-in Postgres full-text driver (@byline/search-postgres). Collections opt in with a role-based search config; core assembles a type-enriched SearchDocument that drivers index. Lifecycle hooks keep the index live, an admin reindex button rebuilds it, and client.collection(x).search() is the developer query surface. BM25 / vector / hybrid drivers and attachment extraction are sanctioned future phases."
 ---
 
 # Search & Retrieval
 
-:::note[Planned]
-This document describes a planned subsystem. It sets out the intended shape of
-the `SearchProvider` seam — its interface, what feeds the index, how the index is
-maintained, and the query surface — so those decisions are settled before the
-first driver is written. Treat it as the design the implementation follows rather
-than a description of shipped code. The **only** search that ships today is the
-substring match described in [Current state](#current-state); everything below is
-the target.
+:::note[Partly shipped]
+The `SearchProvider` seam, the built-in Postgres full-text driver, the
+type-enriched `SearchDocument` + assembler, lifecycle-hook indexing, the
+`reindex` command + admin button, and the single-collection
+`client.collection(x).search()` query surface are **shipped** (Phase 2). Still
+planned: the cross-collection **zone** query entry point, **`hydrate`**
+(two-tier rich results), **structured `where`** filtering and **facet
+aggregation** at query time, **attachment text-extraction** (Phase 3),
+**external drivers** (Phase 4), and the **MCP** tool (Phase 5). Each section
+below marks what is shipped vs planned.
 :::
-
-## Session checkpoint
-
-**Where this stands (last session, on `develop` past `v3.14.0`):** the design below
-is **settled** — this doc is the spec. Phase 1 (the design) is done. The two decided
-prerequisites that the search surface leans on **both shipped this session**, so
-**Phase 2 is unblocked**:
-
-- **`admin.itemView`** (generalised the old `picker` config; `picker` kept as a
-  deprecated alias). Read it via `resolveItemViewColumns(config)` in `@byline/core`.
-  This is the per-collection **projection + presentation** contract that
-  [heterogeneous result rows](#rendering-heterogeneous-results) reuse — what to fetch
-  *and* how to render, per collection.
-- **Relation column formatter** (list views). The list read now **populates relation
-  columns to depth 1** via `buildRelationSummaryPopulateMap`
-  (`packages/core/src/services/relation-projection.ts`) and **skips the per-locale Zod
-  parse when populated** (see `get.ts` / `list.ts`); `relationColumnFormatter`
-  (`@byline/admin/react`) renders the titles. Search-result rows that include relation
-  columns reuse exactly this populate + formatter path.
-
-**Pick up here → Phase 2:** build the `SearchProvider` seam + `@byline/search-postgres`
-FTS driver (item 2 in [Phasing](#phasing)). Concrete first move: add the
-`SearchProvider` interface + `SearchDocument` + `ServerConfig.search` registration and
-`initBylineCore()` validation in `@byline/core` (mirror the
-`fields.richText.{populate,embed}` adapter pattern), then the Postgres FTS driver, then
-wire indexing into the lifecycle hooks and add `client.search()` /
-`client.collection(x).search()`.
-
-**Already in place to reuse (don't rebuild):** `resolveItemViewColumns` (projection),
-`buildRelationSummaryPopulateMap` (depth-1 relation populate), the
-skip-parse-when-populated pattern, the collection lifecycle hooks
-(`afterCreate` / `afterStatusChange` / `afterUnpublish` / `afterDelete`) for index
-maintenance, `lexicalToMarkdown` / `documentToMarkdown` for the rich-text feed, and the
-`current_published_documents` view for published-only indexing.
-
-**Settled decisions (don't relitigate):** Client SDK is the primary consumer; **zones**
-scope collection-vs-cross-collection search; **two-tier results** (lightweight rows +
-opt-in `hydrate`); `title` comes from `useAsTitle`; `admin.itemView` is the projection
-contract. **Still open** (settle in / just before Phase 2): zone definition
-(emergent-from-config vs a registry), facets over EAV, per-locale FTS `regconfig`,
-multi-tenant scoping (rank-in-provider / authorise-in-core), sync-vs-async indexing per
-driver, and `reindex` cost / streaming — see [Open questions](#open-questions).
-
-Companions:
-- [Client SDK](./01-client-sdk.md) — the query surface lands here as a first-class
-  `search()` method alongside `find()`; today's `where.query` is its primitive
-  ancestor.
-- [Markdown Export](./04-markdown-export.md) — `documentToMarkdown` /
-  `lexicalToMarkdown` already turn rich content into agent-readable text. Search
-  reuses that text-extraction work as one of its **feeds** rather than inventing a
-  parallel one.
-- [MCP Server](./05-mcp-server.md) — the headline **consumer**. A semantic /
-  hybrid search tool is what makes an MCP `search` tool worth more than a thin
-  `find()` wrapper. Its own design names "the retrieval layer lands first."
-- [Collections](../04-collections/index.md) — the per-collection `search` config
-  and the lifecycle hooks (`afterCreate` / `afterStatusChange` / …) that maintain
-  the index live here.
-- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) —
-  search results must obey the same `beforeRead` row-scoping and published-only
-  rules as ordinary reads; the provider can't be a side channel around them.
 
 ## Overview
 
@@ -82,27 +24,22 @@ The **primary use case is developer-facing search through the
 [Client SDK](./01-client-sdk.md)** — giving the people who build on Byline a
 first-class way to add search to their own sites with the same typed API they
 already use for `find()` and `populate`. A docs site wants a docs search; a
-publication wants a search over its archive; a marketing site wants one box across
-everything. Adding search should be as easy to wire as a query — `client.search(…)`
-returning shaped `ClientDocument` hits, not a separate system to stand up.
-
-Because real sites scope search differently per collection — a dedicated archive
-search in one place, a shared "everything" search in another — collections are
-indexed into named **[zones](#search-zones)**. A query can target a single
-collection (`client.collection('publications').search(…)`) or a zone that spans
-several (`client.search({ zone: 'site', … })`).
+publication wants a search over its archive; a marketing site wants one box
+across everything. Adding search is as easy to wire as a query —
+`client.collection('docs').search({ query })` returns ranked hits, not a
+separate system to stand up.
 
 The **second consumer is agent retrieval** — RAG and the [MCP server](./05-mcp-server.md).
-Ranked retrieval is the substrate RAG (retrieval-augmented generation) is built on,
-and it is the named burning priority for the project's content-vertical work, where
-BM25 and metadata-ranking plugins already exist privately and need a sanctioned
-extension point instead of forking the read path. Both consumers want the same
-thing, which is why this is one seam rather than two.
+Ranked retrieval is the substrate RAG is built on, and it is the named burning
+priority for the project's content-vertical work, where BM25 and
+metadata-ranking plugins already exist privately and need a sanctioned extension
+point instead of forking the read path. Both consumers want the same thing,
+which is why this is one seam rather than two.
 
-The goal of this subsystem is a **single seam** — `SearchProvider` — with:
+The subsystem is a **single seam** — `SearchProvider` — with:
 
-- a **built-in Postgres full-text driver** so every installation gets ranked
-  search with zero extra infrastructure, and
+- a **built-in Postgres full-text driver** (`@byline/search-postgres`) so every
+  installation gets ranked search with zero extra infrastructure, and
 - a **sanctioned extension point** so external drivers (BM25 rankers, vector
   stores, hybrid retrievers) plug in through one interface rather than ad-hoc
   forks of the query path.
@@ -112,336 +49,398 @@ This mirrors how Byline already treats the database (`IDbAdapter`), storage
 typed interface in `@byline/core`, a default implementation, and registration on
 `ServerConfig` validated at `initBylineCore()`.
 
-## Current state
+## Architecture at a glance
 
-What ships today is deliberately minimal and is **not** the design below:
+The vertical, top to bottom:
 
-- Per collection, `search?: { fields: string[] }`
-  (`CollectionDefinition.search`, `packages/core/src/@types/collection-types.ts`)
-  names which `store_text` fields the admin list-view search box matches.
-  Defaults to `{ fields: ['title'] }`.
-- The match itself is a case-insensitive substring (`value ILIKE '%query%'`) over
-  those `store_text` rows (`packages/db-postgres/src/modules/storage/storage-queries.ts`),
-  surfaced through the client DSL as `where.query`.
+1. **Role-based `search` config** per collection (`CollectionDefinition.search`)
+   — the implementor declares which fields are searchable `body`, which are
+   `facets`, which are `filters`, and the `zones` it belongs to. Core derives
+   each field's *type* from the schema.
+2. **`buildSearchDocument`** (`@byline/core`) assembles a document into a flat,
+   type-enriched `SearchDocument` (a typed `SearchField[]` projection). Rich-text
+   `body` fields are flattened through the `fields.richText.toText` seam.
+3. **`SearchProvider`** (`ServerConfig.search`) indexes `SearchDocument`s and
+   answers queries. The built-in **`@byline/search-postgres`** driver stores a
+   weighted `tsvector`, owns its own schema, and reuses the host's pool.
+4. **Lifecycle hooks** call `client.collection(x).indexDocument(id)` /
+   `removeFromIndex(id)` to keep the index live; **`client.reindex()`** (and the
+   admin **reindex button**) rebuild it.
+5. **`client.collection(x).search()`** is the developer query surface; the docs
+   frontend (drawer modal → `/docs/search?q=` results route) is the worked
+   example.
 
-This has no ranking, no richtext or attachment content, no facets, and no way to
-swap the matcher. It is fine for "find the page titled roughly X" in the admin and
-nothing more. The seam below subsumes it: `where.query` becomes one (FTS-backed)
-capability of a provider rather than a hard-coded `ILIKE`.
+## The `SearchProvider` interface (shipped)
 
-## The `SearchProvider` interface
-
-A provider-agnostic interface in `@byline/core`, registered on `ServerConfig`
-top-level next to `db` and `storage`, and composed by `initBylineCore()`. Shape
-(illustrative — to be pinned during implementation):
+A provider-agnostic interface in `@byline/core`
+(`packages/core/src/@types/search-types.ts`), registered on `ServerConfig`
+top-level next to `db` and `storage`, composed and validated by
+`initBylineCore()`:
 
 ```ts
 interface SearchProvider {
-  /** Add or replace a document in the index. Idempotent on (collection, id, locale). */
+  /** What this driver supports — read by consumers to gate UI / features. */
+  readonly capabilities: SearchCapabilities
+  /** Add or replace a document. Idempotent on (collectionPath, documentId, locale). */
   upsert(doc: SearchDocument): Promise<void>
-  /** Remove a document (all locales) or a single (collection, id, locale). */
+  /** Remove a document — all locales, or one (collectionPath, documentId, locale). */
   remove(ref: { collectionPath: string; documentId: string; locale?: string }): Promise<void>
   /** Execute a query and return ranked hits. */
   search(query: SearchQuery): Promise<SearchResults>
-  /** Drop and rebuild a collection's slice (or the whole index). Backfill / driver swap. */
+  /** Drop a collection's slice (or the whole index) — the clear half of a rebuild. */
   reindex?(opts: { collectionPath?: string }): Promise<void>
 }
 
-type SearchProviderFactory = (deps: { getClient: () => BylineClient }) => SearchProvider
+interface SearchCapabilities {
+  facets: boolean         // facet aggregation buckets
+  typoTolerance: boolean  // pg_trgm-style fuzzy
+  semantic: boolean       // vector / hybrid
+  bm25: boolean           // IDF-aware ranking
+  weighting: boolean      // per-field SearchField.boost
+  highlights: boolean     // matched-snippet highlighting
+}
 ```
 
-- **Registration** follows the established factory pattern
-  (`postgresSearch({ getClient })`, mirroring `lexicalEditorPopulateServer({ getClient })`).
-  `ServerConfig.search?: SearchProvider`; `initBylineCore()` wires it and, when a
-  collection opts into search but no provider is registered, fails fast with a
-  pointer to the built-in driver — the same posture the richText adapters use.
-- **Built-in driver:** `@byline/search-postgres` (working name) implements the
-  interface over a `tsvector` column / GIN index and `websearch_to_tsquery` +
-  `ts_rank`. No new infrastructure; reuses the existing Postgres connection.
-- **External drivers** implement the same four methods. A vector driver embeds
-  `SearchDocument.body` on `upsert` and runs ANN on `search`; a hybrid driver
-  fuses FTS + vector scores. None of them touch the read path — they only
-  implement `SearchProvider`.
+- **Registration** follows the established factory pattern. The built-in driver
+  is `postgresSearch({ pool, … })` — it takes the **host's existing pg pool**
+  (e.g. `db.pool` from `pgAdapter`), not a `getClient`, because the provider is a
+  pure index sink (it never reads source documents). `ServerConfig.search?:
+  SearchProvider`; `initBylineCore()` fails fast when a collection opts into
+  search but no provider is registered (`validateSearchConfig`).
+- **`capabilities`** is the honesty layer: the Postgres floor declares
+  `weighting` + `highlights` only; `facets` / `typoTolerance` / `semantic` /
+  `bm25` are `false` until a richer driver (or capability) lands. Consumers light
+  up features against it rather than assuming.
+- **External drivers** implement the same interface. A vector driver embeds the
+  text on `upsert` and runs ANN on `search`; a hybrid driver fuses scores. None
+  touch the read path. (Planned — Phase 4.)
 
-## What feeds the index — the `SearchDocument`
+## The role-based `search` config (shipped)
 
-The provider never sees EAV rows. Core normalises each document into a flat,
-provider-agnostic `SearchDocument` and hands that over:
+A collection opts into search with a **role-based** declaration
+(`CollectionDefinition.search`). The implementor names fields by the *role* they
+play; core derives each field's *type* from the schema. Nothing is auto-pulled,
+so unindexed content (editorial notes, internal fields) never leaks.
+
+```ts
+search?: {
+  body?: SearchFieldDecl[]    // fields whose text feeds the full-text body
+  facets?: SearchFieldDecl[]  // relation fields → controlled-vocabulary facets
+  filters?: string[]          // scalar fields projected for filtering / sorting
+  zones?: string[]            // search scopes this collection belongs to
+}
+
+// A field path, or { field, boost } to weight it (scoring providers only).
+type SearchFieldDecl = string | { field: string; boost?: number }
+```
+
+- **`body`** — text fields contribute their value; `richText` fields are
+  flattened to plain text via the `fields.richText.toText` seam. `title` is
+  **display-only** unless you list the identity field here (typically boosted, so
+  it lands in the heaviest weight class).
+- **`facets`** — relation field paths to controlled-vocabulary collections. Core
+  resolves each target's `counter` field (the stable aggregation **id**) and its
+  `useAsTitle` (the **term**); the term is folded into the searchable text and
+  the id is kept for aggregation.
+- **`filters`** — scalar field paths, projected as typed values (not scored).
+- **`zones`** — named scopes; defaults to a single implicit zone equal to the
+  collection path when omitted.
+
+The worked example is the `docs` collection:
+`search: { body: [{ field: 'title', boost: 2 }, 'summary'] }`.
+
+> The admin list-view search box reads the `body` field names for its
+> `store_text` `ILIKE` match (`storage-queries.ts`) — a lightweight matcher that
+> predates the provider and still serves the admin; the provider path is the
+> ranked one.
+
+## What feeds the index — the typed `SearchDocument` (shipped)
+
+The provider never sees EAV rows. `buildSearchDocument`
+(`packages/core/src/services/build-search-document.ts`) normalises a
+locale-resolved document into a flat, **type-enriched** `SearchDocument` — a
+typed, role-tagged `SearchField[]` projection a driver maps onto its own index
+(Postgres store columns + weighted `tsvector`, Solr dynamic fields, a vector
+store's payload) without re-inspecting the schema:
 
 ```ts
 interface SearchDocument {
   collectionPath: string
   documentId: string
   locale: string
-  status: string              // for published-only filtering at query time
-  zones: string[]             // search scopes this document belongs to (see Search zones)
-  title: string               // useAsTitle
+  status: string          // for published-only filtering at query time
+  zones: string[]         // resolved scope membership
+  title: string           // useAsTitle — always present for hit display
   path: string | null
-  body: string                // concatenated indexable text (see feeds below)
-  fields: Record<string, unknown>  // facetable / filterable projection
+  fields: SearchField[]   // the typed, role-tagged projection drivers consume
   updatedAt: string
 }
+
+interface SearchField {
+  name: string            // field path; also the default index field name
+  type: SearchFieldType   // schema-derived
+  role: SearchFieldRole   // config-declared: 'body' | 'facet' | 'filter'
+  value: string | number | boolean | SearchFacetValue[] | null
+  boost?: number          // per-field relevance weight (weighting-capable drivers)
+}
+
+type SearchFieldType = 'text' | 'keyword' | 'integer' | 'float' | 'boolean' | 'datetime' | 'facet'
+
+interface SearchFacetValue { id: number | string; term: string }  // counter id + useAsTitle term
 ```
 
-`title` is the collection's **identity** value — resolved via `useAsTitle`
-(falling back to the first text field), the same `resolveIdentityField`
-(`packages/core/src/services/populate.ts`) that populate's default projection and
-`RelationSummary` already use. It is never assumed to be a literal `title` field,
-so heterogeneous zone results get a sensible label per collection without
-per-collection special-casing.
+- **`title`** is the collection's identity value — resolved via `useAsTitle`
+  (falling back to the first text field) through the same `resolveIdentityField`
+  populate uses. It is display-only; searchability comes from the `body` role.
+- **`body` feeds**, in increasing order of work:
+  1. **Text fields** — the configured `body` fields' string values.
+  2. **Rich-text plain text** — `richText` `body` fields flattened via the
+     editor-agnostic **`fields.richText.toText`** seam (`RichTextToTextFn`). The
+     Lexical implementation is `lexicalToText` / `lexicalEditorToTextServer`
+     (`@byline/richtext-lexical/server`) — a recursive text-node accumulator (no
+     markdown). *(Shipped.)*
+  3. **Attachment-extracted text** — from uploaded files, joined in. *(Planned —
+     Phase 3, [Attachment text-extraction](#attachment-text-extraction).)*
+- **Facets** are first-class: a `type: 'facet'` / `role: 'facet'` field whose
+  value is `{ id, term }[]`. The assembler reads the populated relation target's
+  `counter` field (id) and `useAsTitle` (term); the caller must populate the
+  facet relations to depth 1 first (the lifecycle path does this for you).
 
-`body` is assembled from three feeds, in increasing order of work:
+## The Postgres full-text driver (shipped)
 
-1. **Text fields** — today's `search.fields`, generalised. The per-collection
-   `search` config grows from `{ fields }` into a richer shape ([zone](#search-zones)
-   membership, which fields feed `body`, which become facets, per-field boosts)
-   while keeping `{ fields: [...] }` working as the shorthand.
-2. **Rich-text plain text** — rich-text fields are extracted to plain text and
-   concatenated into `body`. The serialiser already exists: `lexicalToMarkdown` /
-   `documentToMarkdown` (`@byline/richtext-lexical/server`,
-   `packages/core/src/services/document-to-markdown.ts`) produce agent-readable
-   text; search consumes a plain-text projection of the same. This is the named
-   trigger for the deferred richtext "editor-side server pipeline" phase — search
-   is the consumer that makes it concrete.
-3. **Attachment-extracted text** — text and structure pulled from uploaded files
-   (PDF, DOCX, …) via the [attachment text-extraction pipeline](#attachment-text-extraction)
-   below, joined into `body` so an upload's contents are searchable, not just its
-   filename.
+`@byline/search-postgres` implements the seam over a single denormalised table,
+`byline_search_documents`, keyed `(collection_path, document_id, locale)`:
 
-Markdown-first extraction is deliberate: documents and attachments converge on one
-text representation that serves indexing, chunking, and agent consumption alike,
-rather than maintaining a separate "search text" pipeline.
+- **Ranking** — a weighted `tsvector` (GIN-indexed) assembled at `upsert` from
+  the typed fields: `body` fields weight A–D by their `boost`, facet **terms**
+  weight C, all `setweight`-combined. Queried with `websearch_to_tsquery` +
+  `ts_rank`. Highlights via `ts_headline` (`capabilities.highlights`).
+- **Scoping** — `zones text[]` (GIN) for zone membership, `collection_path` +
+  `status` for collection / published scoping, `facets` and `filters` as `jsonb`
+  for future aggregation / filtering.
+- **Per-locale language** — one row per `(document, locale)`; each indexed with
+  the Postgres `regconfig` mapped from its content locale (`en` → `english`, …),
+  falling back to `simple`. A `defaultLocale` factory option sets the `regconfig`
+  for locale-less queries (otherwise they fall back to `simple` and miss
+  locale-stemmed vectors). Extend the map via `localeRegconfig`.
+- **Capabilities** — `weighting` + `highlights` today. The facet *data* is
+  indexed, but facet *aggregation*, structured `where` filtering, fuzzy matching,
+  BM25 ranking, and semantic retrieval are flagged `false` (follow-ups).
+- **Schema ownership** — the driver **owns its schema**: numbered SQL files in
+  `migrations/` are the source of truth, applied by `migrate(pool)` (tracked in
+  its own `byline_search_migrations` table) or an opt-in `autoMigrate` at boot.
+  It is *not* part of the host's Drizzle migration stream — a future
+  `@byline/search-mysql` ships its own. Install paths: run the SQL by hand,
+  `migrate(pool)` as a deploy step (recommended), or `autoMigrate` (dev). See the
+  package README.
 
-## Search zones
+## Index lifecycle (shipped)
 
-A **zone** is a named search scope. Collections declare which zone(s) they belong
-to in their `search` config; a query then targets either a single collection or a
-zone that spans collections. This is what lets one installation offer, say, a
-dedicated archive search over a large publications collection *and* a general site
-search that sweeps several collections — without those being two separate systems.
+Indexing is **published-only** and **event-driven**, hung off the same
+collection lifecycle hooks that drive L1 cache invalidation. The orchestration
+lives in **`@byline/client`** (the provider is a sink; it can't read source
+documents). A collection's `hooks.ts` calls:
 
-```ts
-// collection schema (search config)
-search: { zones: ['site', 'publications'], fields: ['title', 'body'] }
-```
-
-- A collection can belong to **more than one** zone — e.g. an `articles`
-  collection feeds both a dedicated `publications` archive search and the general
-  `site` search, while `legal` pages sit only in `site`.
-- A zone is **cross-collection**: `client.search({ zone: 'site' })` returns
-  heterogeneous hits drawn from every collection indexed into `site`, ranked
-  together. Each hit carries its `collectionPath` so the consumer can route and
-  render per type.
-- A **single-collection** search (`client.collection('publications').search(…)`)
-  is the natural scope when results are homogeneous — a dedicated archive box.
-- Zones are also the natural unit a driver can **specialise**: a large
-  `publications` archive might map to its own vector index while the rest of the
-  site uses FTS. v1 treats a zone as a logical filter on one index
-  (`zones @> ARRAY[$zone]` in the Postgres driver); the interface leaves room for
-  per-zone provider routing later without a contract change.
-
-`SearchDocument.zones` is the resolved membership for a document, derived from its
-collection's config at index time. Default when a collection opts into search
-without naming zones: a single implicit zone equal to the collection path — so
-single-collection search always works and shared `site`-style zones are opt-in.
-
-## Index lifecycle
-
-Indexing is **published-by-default** and **event-driven**, hung off the same
-collection lifecycle hooks that already drive L1 cache invalidation
-(`packages/core/src/@types/collection-types.ts`):
-
-| Event | Index action |
+| Hook | Action |
 |---|---|
-| `afterCreate` / `afterUpdate` | `upsert` if the resulting version is published (else no-op; drafts stay out of the public index) |
-| `afterStatusChange` | publish → `upsert`; unpublish/archive → `remove` |
-| `afterUnpublish` | `remove` |
-| `afterDelete` | `remove` (all locales) |
+| `afterCreate` / `afterUpdate` / `afterStatusChange` / `afterUnpublish` | `client.collection(p).indexDocument(id)` |
+| `afterDelete` | `client.collection(p).removeFromIndex(id)` |
 
-Decisions to settle in implementation:
+`indexDocument` is a **re-sync by read**: for each content locale it reads the
+document's *published* view (`status: 'published'`, `onMissingLocale: 'omit'`,
+`_bypassBeforeRead`) and `upsert`s where present, `remove`s where absent. This
+one path handles publish, unpublish, draft-over-published, and plain edits
+uniformly and idempotently — the index always mirrors what a public reader can
+see. `removeFromIndex` drops all locales. The `docs` collection wires this as the
+worked example (`apps/webapp/byline/collections/docs/hooks.ts`).
 
-- **Sync vs async.** v1 indexes synchronously inside the lifecycle transaction's
-  `afterX` hook for the Postgres driver (same DB, same transaction — no
-  consistency gap). External drivers (network calls to a vector store) want an
-  async outbox / queue so a slow index write can't fail or stall a publish. The
-  interface is the same; the *wiring* differs by driver. Design the hook layer so
-  a provider can declare "index inline" vs "enqueue."
-- **`reindex` command.** An admin/CLI command that rebuilds a collection's slice
-  (or the whole index) — needed for first-time backfill of existing content, for
-  swapping drivers, and after a `search` config change. Walks published documents
-  via `@byline/client` with `_bypassBeforeRead`.
-- **Status-aware parity.** Indexing only published versions mirrors the
-  `current_published_documents` read model (see [Client SDK → status-aware reads](./01-client-sdk.md)).
-  A "search drafts too" mode is a later opt-in, kept out of the default public
-  index.
+**Indexing is synchronous** inside the `afterX` hook (same Postgres, no
+consistency gap). An async outbox/queue for network-backed drivers (a slow vector
+write must not stall a publish) is deferred — the interface is unchanged, only
+the wiring differs by driver.
+
+### Rebuild — `reindex` + the admin button (shipped)
+
+`client.collection(x).reindex()` rebuilds a collection's whole index slice:
+`provider.reindex({ collectionPath })` clears the slice (dropping orphans for
+deleted docs), then it walks every published document (paginated) and
+re-indexes it. It asserts the **`collections.<path>.reindex`** ability — a
+uniform 7th collection verb auto-registered for every collection.
+
+Needed for first-time **backfill** (content published before indexing existed),
+after a `search` config change, or a driver swap. Reachable three ways:
+
+- **`client.collection(x).reindex()`** in a script / CLI (the engine).
+- The **admin reindex button** — a `CollectionAdminConfig.listActions` component
+  (`ReindexButton`, `@byline/host-tanstack-start/admin-shell/collections`),
+  rendered in the list header (default *and* tree list views), self-gated on the
+  ability, calling the `reindexCollection` server fn. `listActions` is a reusable
+  header-actions slot (the Payload `beforeList`/`afterList` analog).
+- Directly via `provider.reindex()` (clear only) for tooling.
+
+Synchronous today (fine for small/medium collections). A large corpus wants this
+backgrounded with progress — see [Open questions](#open-questions).
 
 ## The query surface
 
-This is the headline. Search is a first-class `@byline/client` method, parallel to
-`find()` — the surface a developer reaches for to put a search box on their site.
-Two entry points, by scope:
+Search is a first-class `@byline/client` method, parallel to `find()`.
+
+### Single-collection search (shipped)
 
 ```ts
-// Single collection — homogeneous results (a dedicated docs / archive box)
-const docs = await client.collection('docs').search({
+const results = await client.collection('docs').search({
   query: 'fractional indexing',
-  where,                 // structured filters AND-merged with the text query
-  facets: ['area'],      // optional facet buckets
-  populate,              // hits come back as shaped ClientDocuments, optionally populated
-  limit, offset,
+  locale,                // defaults to the client default
   status: 'published',   // defaults to published; 'any' for admin
-})
-
-// A zone spanning collections — heterogeneous results (one site-wide search box)
-const site = await client.search({
-  zone: 'site',
-  query: 'fractional indexing',
-  hydrate: true,         // opt in to shaped ClientDocuments for a rich page; omit for plain rows
+  where,                 // accepted; not yet applied by the Postgres driver
+  facets,                // accepted; aggregation not yet implemented
   limit, offset,
 })
 
-// results: {
-//   hits: Array<{
-//     collectionPath: string
-//     documentId: string
-//     title: string
-//     path: string | null
-//     score: number
-//     highlights?: …             // matched snippets — enough for a plain-text row
-//     document?: ClientDocument  // present only when `hydrate` / `populate` is requested
-//   }>,
-//   facets?, total,
+// SearchResults:
+// {
+//   hits: Array<{ collectionPath, documentId, locale, title, path, score, highlights? }>,
+//   total,
+//   facets?,
 // }
 ```
 
-- **A site search page is a single call.** `client.search({ zone })` (or
-  `client.collection(x).search(…)`) returns ranked, shaped documents — the
-  developer renders the hits, no indexing plumbing in their app. That ease is the
-  whole point of the seam.
-- **Two-tier results: rows now, rich items on demand.** Every hit always carries a
-  lightweight projection — `collectionPath`, `documentId`, `title`, `path`,
-  `score`, and matched-snippet `highlights` — enough to render a plain-text row in
-  a long, possibly cross-collection list without hydrating anything. Hydration is
-  **opt-in**: pass `hydrate` and core batch-reads the hit ids per collection and
-  attaches a shaped `ClientDocument` to each hit — projected to **that collection's
-  picker columns** (the sane default across a heterogeneous zone, where a single
-  `populate` map can't apply — see [Rendering heterogeneous results](#rendering-heterogeneous-results)).
-  A single-collection search, being homogeneous, can instead pass a full `populate`
-  map for relation depth. Either way a consumer can also skip hydration and fetch
-  the ids itself, batched per collection.
-- **Authorization is not bypassable.** The provider returns candidate ids; core
-  re-resolves them through the normal read path so `beforeRead` row-scoping and
-  published-only rules apply uniformly. The index is a relevance accelerator, not
-  an access-control bypass. (For external drivers that can't see scoping, the
-  safe default is "rank in the provider, authorise in core.")
-- **The admin list-view box** upgrades from `ILIKE` to `provider.search()` for
-  free once a provider is registered; `where.query` routes through the same path.
-- **MCP** exposes the same surface as a `search` tool — the retrieval verb that
-  makes the MCP surface more than `find()`-over-a-wire. Secondary to the SDK, and
-  built on it.
+`CollectionHandle.search()` asserts the collection `read` ability, scopes to the
+collection + `published` by default, and delegates to `provider.search()`. It
+returns the **lightweight hit tier** — `title`, `path`, `score`, and
+matched-snippet `highlights` — enough to render a results list without
+hydration. Fetch hit ids via `findById` when a richer item is needed.
+
+The docs frontend is the worked example: a drawer-modal search box →
+`/<lng>/docs/search?q=` SSR results route → `client.collection('docs').search()`
+→ hits rendered with canonical hierarchical URLs (resolved via the cached nav
+tree) and safely-rendered `ts_headline` snippets.
+
+### Planned (not yet shipped)
+
+- **Zone (cross-collection) search** — `client.search({ zone: 'site', … })`
+  returning heterogeneous hits ranked together. Zones are already *stored* on the
+  `SearchDocument` and the provider's `search` accepts a `zone` filter (`zones @>
+  ARRAY[$zone]`), but the top-level `client.search({ zone })` entry point isn't
+  built yet.
+- **`hydrate` (two-tier rich results)** — opt in and core batch-reads the hit ids
+  per collection and attaches a shaped `ClientDocument`, projected to that
+  collection's `admin.itemView` columns (see [Rendering heterogeneous
+  results](#rendering-heterogeneous-results)).
+- **Structured `where` filtering** and **facet aggregation** at query time — the
+  options are accepted in the API, but the Postgres driver does not yet apply
+  `where` or compute facet buckets (`capabilities.facets === false`).
+- **Row-level authorization on search.** Today `search()` asserts the *collection*
+  `read` ability but does **not** re-resolve hit ids through the `beforeRead`
+  row-scoping pipeline. The published-only index is safe for public readers (the
+  docs case), but a row-scoped collection's search would not yet enforce
+  per-row visibility. The intended posture is "rank in the provider, authorise in
+  core" (re-resolve candidate ids through the normal read path) — a tracked
+  follow-up, not yet wired.
+- **MCP** exposes the same surface as a `search` tool (Phase 5).
+
+## Search zones (partly shipped)
+
+A **zone** is a named search scope. Collections declare zone membership in their
+`search` config; `SearchDocument.zones` is the resolved set (default: a single
+implicit zone equal to the collection path). The Postgres driver filters on it
+(`zones @> ARRAY[$zone]`), so the *storage and provider* side is shipped. The
+*cross-collection client entry point* (`client.search({ zone })`, heterogeneous
+ranked hits) is the planned half above.
 
 ## Rendering heterogeneous results
 
-A zone (cross-collection) results page faces a problem Byline **already solves**:
-*render an item of collection X as a row or tile.* That is exactly what the
-relation picker does — and the proposal is to reuse the same machinery.
+*Planned.* A zone (cross-collection) results page faces a problem Byline already solves:
+*render an item of collection X as a row or tile* — exactly what the relation
+picker does. The plan is to reuse **`admin.itemView`** (the generalised `picker`
+config): map each hit's `collectionPath` to that collection's item-view
+presentation and render the hydrated item through it, so heterogeneous result
+rows come "for free" from config the host already wrote for relations. The
+`itemView` config does triple duty — *what to fetch* (projection) and *how to
+render* (presentation), per collection — reused by the relation picker, `hasMany`
+tiles, and (eventually) search rows.
 
-Each collection's `CollectionAdminConfig.picker` already declares its row/tile
-columns and formatters (thumbnail, title, date, …), drawn by `PickerCell` /
-`RelationSummary` — the same components the relation picker and the `hasMany`
-relation tiles use. A search results page maps each hit's `collectionPath` to that
-collection's picker presentation and renders the hydrated item through it. The
-upshot:
-
-- **Heterogeneous result rows come "for free"** from config the host already wrote
-  for relations — a publications hit renders in its publication style, a docs hit
-  in its docs style, in one mixed list.
-- **Item-row presentation stays consistent** across the relation picker, `hasMany`
-  tiles, and search results — one definition, three surfaces.
-- The lightweight tier still covers consumers that want a **plain** list (or no UI
-  at all): `title` + `highlights` render a text row with zero hydration.
-
-**The picker definition is also the projection.** `populate` is keyed by field
-name and is inherently per-collection — there is no single `populate` map that
-means the same thing across a zone's mixed collections, so it's the wrong tool for
-heterogeneous hydration. The picker columns sidestep this: they already declare
-exactly the fields a row needs (and relation columns carry a `displayField`). So
-hydrating a zone hit means selectively loading *that collection's* picker-column
-fields through the existing field-selection read path
-(`getDocumentsByDocumentIds({ fields })`) and resolving relation columns through
-the [relation column formatter](../04-collections/02-relationships.md) chain. The
-picker config therefore does triple duty for search — **what to fetch**
-(projection), **how to render** (presentation), per collection, with no
-caller-supplied populate. Arbitrary `populate` depth stays available for the
-single-collection (homogeneous) case, where one map is well-defined.
-
-Because this config is now a per-collection **item contract** — fetch *and* render
-— reused by the relation picker, `hasMany` tiles, and search rows, it is being
-generalised from `CollectionAdminConfig.picker` to **`admin.itemView`**, with
-`picker` kept as a backwards-compatible alias (decided 2026-06-27). The shape is
-unchanged; only the name broadens to match its role.
-
-Layering note: this is an **admin / host-UI** concern that sits *above* the core
-search contract. The core `search()` API returns data — rows, ids, and optional
-shaped documents — never components, so non-UI consumers (MCP, a JSON HTTP
-endpoint) are unaffected. The picker-presentation reuse is how the admin (and host
-apps that adopt the same config) turn those rows into a rich page.
+This is an **admin / host-UI** concern above the core contract: `search()`
+returns data (rows, ids, optional shaped documents), never components, so non-UI
+consumers (MCP, a JSON endpoint) are unaffected. *(The `admin.itemView`
+projection and relation-column formatter already ship; wiring them into search
+hydration is the remaining work.)*
 
 ## Attachment text-extraction
 
-A sibling pipeline that feeds the index (and downstream retrieval) from uploaded
-files. Shape: an **extraction-provider interface** — `file → { markdown, plainText, metadata }`
-— so structure-aware, markdown-emitting extractors (Docling-class) and classic
-extractors (Apache Tika) are interchangeable drivers, exactly as `SearchProvider`
-makes rankers interchangeable. Extracted output lands in its **own table keyed to
-the file** (never as synthetic `store_*` field data), invalidated on re-upload,
-and is joined into the `SearchDocument.body`. Markdown-first output converges with
-the markdown-export surface so attachments and documents share one representation.
+*Planned — Phase 3.* A sibling pipeline that feeds the index (and downstream retrieval) from uploaded
+files: an **extraction-provider interface** — `file → { markdown, plainText,
+metadata }` — so structure-aware, markdown-emitting extractors (Docling-class)
+and classic extractors (Apache Tika) are interchangeable drivers, exactly as
+`SearchProvider` makes rankers interchangeable. Extracted output lands in its own
+table keyed to the file (never as synthetic `store_*` data), invalidated on
+re-upload, and joined into the searchable `body`. The full landscape, tiered
+strategy (fast / local-ML / VLM), page-level routing, and licensing analysis live
+in the [search & extraction strategy brief](../byline-search-extraction-strategy.md).
 
 ## Phasing
 
-0. **Prerequisites — done.** `admin.itemView` (the projection/presentation contract)
-   and the relation column formatter + depth-1 list populate both shipped (see
-   [Session checkpoint](#session-checkpoint)). Phase 2 builds on them.
-1. **This design doc** — pin the interface, the `SearchDocument`, the lifecycle,
-   and the query surface. ✅ done.
-2. **`SearchProvider` seam + Postgres FTS driver ← next** — the interface in
-   `@byline/core`, `@byline/search-postgres`, `ServerConfig.search` registration +
-   `initBylineCore()` validation, zone-tagged indexing + collection/zone query
-   scoping, lifecycle-hook wiring, the `reindex` command, and the client
-   `search()` / `collection().search()` methods. Feeds: text fields + rich-text
-   plain text. This is the first shippable slice and already beats the current
-   `ILIKE` — and is the surface developers build site search on.
+0. **Prerequisites — done.** `admin.itemView` + the relation column formatter +
+   depth-1 list populate.
+1. **Design** — ✅ done (this doc, now a present-state reference).
+2. **`SearchProvider` seam + Postgres FTS driver — ✅ shipped.** The interface +
+   typed `SearchDocument` + assembler + `richTextToText` seam in `@byline/core`;
+   `@byline/search-postgres` (weighted `tsvector`, owns its schema);
+   `ServerConfig.search` registration + boot validation; role-based `search`
+   config; lifecycle-hook indexing; `reindex` + the `collections.<path>.reindex`
+   ability + admin button; `client.collection(x).search()`; the docs frontend
+   results route. **Deferred within Phase 2:** the cross-collection `zone` query,
+   `hydrate`, structured `where` filtering, facet aggregation, row-level
+   authorization on search, and async/outbox indexing.
 3. **Attachment text-extraction** — the extraction-provider interface + a first
-   driver, its own table, and the join into `body`.
+   driver, its own table, and the join into `body`. *(Planned.)*
 4. **External drivers** — a vector and/or hybrid driver against the same seam
    (the RAG payoff; the home for the private BM25 / metadata-ranking work).
-5. **MCP `search` tool** — wire the query surface into the MCP server once the
-   seam and a driver exist.
+   *(Planned.)*
+5. **MCP `search` tool** — wire the query surface into the MCP server. *(Planned.)*
 
 ## Open questions
 
-- **Zone definition & re-tagging.** Whether zones stay purely emergent from
-  per-collection `search.zones` (simplest) or get a lightweight registry (display
-  labels, a declared default zone, validation that referenced zones exist).
-  Changing a collection's zone membership requires re-tagging its documents — a
-  cheap `reindex` (no text re-extraction) — but it needs a trigger.
-- **Relation columns in projected rows.** A picker-projected search row that
-  includes a relation column reuses the **relation column formatter** (resolves a
-  relation target's `useAsTitle`), which already ships for list views
-  (`relationColumnFormatter`, `@byline/admin/react`). Search-result rows that
-  include relation columns will need the list read's depth-1 relation populate
-  applied to the hydration step too.
-- **Facets over EAV.** How facetable fields map from the EAV store to the index
-  without re-flattening — likely the same `search`-config projection that builds
-  `body`, but the cardinality/typing story needs design.
-- **Per-locale indexing.** One `SearchDocument` per (document, locale); query-time
-  locale scoping. Confirm the FTS `regconfig` (language) is chosen per content
-  locale.
-- **Multi-tenant scoping at scale.** "Rank in provider, authorise in core" is
-  correct but can over-fetch when scoping is highly selective; whether providers
-  should accept a scoping predicate (the `beforeRead` `QueryPredicate`) is a
-  driver-capability question.
-- **Reindex cost.** Backfilling a large installation through the client read path
-  needs batching / throttling; whether `reindex` streams or runs as a background
-  job.
+- **Resolved — per-locale indexing / `regconfig`.** Shipped: one `SearchDocument`
+  per `(document, locale)`, indexed with a per-locale `regconfig`, plus a
+  `defaultLocale` for locale-less queries.
+- **Resolved — sync indexing for the Postgres driver.** Shipped inline in the
+  lifecycle hook. Async/outbox for network-backed drivers remains.
+- **Partly resolved — facets over EAV.** The `{ id, term }` projection is built
+  and indexed (term searchable, id stored). Facet *aggregation queries* and the
+  cardinality/typing story are still open (`capabilities.facets === false`).
+- **Row-level authorization on search.** "Rank in provider, authorise in core"
+  (re-resolve hit ids through `beforeRead`) is the intended posture but is **not
+  yet wired** — `search()` asserts only the collection `read` ability. Safe for
+  the published-only public case; required before row-scoped collections expose
+  search.
+- **Zone definition & re-tagging.** Whether zones stay emergent from
+  per-collection `search.zones` or get a lightweight registry (display labels, a
+  declared default, validation). Re-tagging on a membership change is a cheap
+  `reindex` (no text re-extraction) but needs a trigger. The cross-collection
+  query entry point is also still to build.
+- **Structured `where` at query time.** The API accepts `where`; compiling it
+  against the `jsonb` `filters` / store is unbuilt.
+- **Reindex cost / streaming.** Backfilling a large installation runs through the
+  client read path synchronously today; a large corpus wants batching/throttling
+  and a background job with progress (the admin button is synchronous).
+- **Multi-tenant scoping at scale.** Whether providers should accept a scoping
+  predicate (the `beforeRead` `QueryPredicate`) to avoid over-fetch when scoping
+  is highly selective — a driver-capability question.
+
+## Companions
+
+- [Client SDK](./01-client-sdk.md) — `search()` lands here alongside `find()`;
+  the legacy `where.query` `ILIKE` is its primitive ancestor.
+- [Markdown Export](./04-markdown-export.md) — `lexicalToText` is the search
+  sibling of `lexicalToMarkdown` / `documentToMarkdown`; both flatten rich
+  content for non-HTML consumers.
+- [MCP Server](./05-mcp-server.md) — the headline future consumer (Phase 5).
+- [Collections](../04-collections/index.md) — the role-based `search` config and
+  the lifecycle hooks that maintain the index.
+- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) —
+  the `collections.<path>.reindex` ability and the (planned) `beforeRead`
+  row-scoping that search must honour.
+- [Search & extraction strategy brief](../byline-search-extraction-strategy.md) —
+  forward-looking landscape + tiered strategy for Phases 3–4 (attachment
+  extraction, external drivers).
