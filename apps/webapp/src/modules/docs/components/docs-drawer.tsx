@@ -32,6 +32,7 @@ import { useSwipeable } from 'react-swipeable'
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
 import styles from './docs-drawer.module.css'
 import { useDocsMenu } from './docs-provider.js'
+import { DocsSearchTrigger } from './docs-search-trigger.js'
 import type { Locale } from '@/i18n/i18n-config'
 import type { DocNavNode } from '@/modules/docs/nav'
 
@@ -177,6 +178,9 @@ export function DocsDrawer({ nodes, lng }: DocsDrawerProps): React.JSX.Element |
       {...handlers}
     >
       <nav className={cx('byline-docs-drawer docs-drawer', styles.nav)}>
+        <div className={cx('byline-docs-drawer-header', styles.header)}>
+          <DocsSearchTrigger lng={lng} />
+        </div>
         <ul>
           {nodes.map((node) => (
             <NavItem

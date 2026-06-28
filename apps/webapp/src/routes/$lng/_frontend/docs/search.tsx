@@ -70,6 +70,11 @@ function RouteComponent() {
     })
   }
 
+  // Clearing the field returns to the docs table of contents (the index).
+  const onClear = (): void => {
+    navigate({ to: '/$lng/docs', params: lngParam(lng) })
+  }
+
   return (
     <>
       <BreadcrumbsClient
@@ -91,6 +96,7 @@ function RouteComponent() {
             ariaLabelForSearch={t('docsSearchPlaceholder')}
             onSearch={runSearch}
             onEnter={runSearch}
+            onClear={onClear}
             className="mb-8 max-w-xl"
           />
 
