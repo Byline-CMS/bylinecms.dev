@@ -1,0 +1,82 @@
+{
+  "name": "@byline/search-postgres",
+  "private": false,
+  "license": "MPL-2.0",
+  "version": "3.14.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "description": "Byline CMS built-in Postgres full-text search provider",
+  "keywords": [
+    "cms",
+    "headless cms",
+    "content management",
+    "search",
+    "postgres",
+    "full-text search"
+  ],
+  "homepage": "https://github.com/Byline-CMS/bylinecms.dev",
+  "bugs": {
+    "url": "https://github.com/Byline-CMS/bylinecms.dev/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
+    "directory": "packages/search-postgres"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "index": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "chokidar 'src/**/*' -c 'npm-run-all build'",
+    "build": "tsc -p tsconfig.json && tsc-alias",
+    "clean": "node scripts/clean.js node_modules dist build .turbo",
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "test": "vitest run --mode=node",
+    "test:watch": "vitest --mode=node",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "dependencies": {
+    "@byline/core": "workspace:*",
+    "npm-run-all": "^4.1.5"
+  },
+  "peerDependencies": {
+    "pg": "^8.21.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.15",
+    "@types/node": "^25.9.1",
+    "@types/pg": "^8.20.0",
+    "chokidar": "^5.0.0",
+    "chokidar-cli": "^3.0.0",
+    "pg": "^8.21.0",
+    "tsc-alias": "^1.8.17",
+    "tsx": "^4.22.3",
+    "typescript": "6.0.3",
+    "vitest": "^4.1.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.js"
+      },
+      "./package.json": "./package.json"
+    }
+  }
+}
