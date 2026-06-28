@@ -269,7 +269,7 @@
   "collections.list.createAriaLabel": "Neu erstellen",
   "collections.list.reindexLabel": "Neu indexieren",
   "collections.list.reindexPending": "Wird neu indexiert…",
-  "collections.list.reindexDoneTitle": "Suche neu indexiert",
+  "collections.list.reindexDoneTitle": "Sammlung neu indexiert",
   "collections.list.reindexDoneDescription": "{count} Dokumente indexiert.",
   "collections.list.reindexFailedTitle": "Neuindizierung fehlgeschlagen",
   "collections.list.searchPlaceholder": "Suchen",

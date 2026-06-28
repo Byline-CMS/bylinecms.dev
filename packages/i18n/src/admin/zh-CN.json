@@ -269,7 +269,7 @@
   "collections.list.createAriaLabel": "新建",
   "collections.list.reindexLabel": "重新索引",
   "collections.list.reindexPending": "正在重新索引…",
-  "collections.list.reindexDoneTitle": "搜索已重新索引",
+  "collections.list.reindexDoneTitle": "集合已重新索引",
   "collections.list.reindexDoneDescription": "已索引 {count} 个文档。",
   "collections.list.reindexFailedTitle": "重新索引失败",
   "collections.list.searchPlaceholder": "搜索",

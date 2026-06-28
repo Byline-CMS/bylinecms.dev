@@ -269,7 +269,7 @@
   "collections.list.createAriaLabel": "Créer",
   "collections.list.reindexLabel": "Réindexer",
   "collections.list.reindexPending": "Réindexation…",
-  "collections.list.reindexDoneTitle": "Recherche réindexée",
+  "collections.list.reindexDoneTitle": "Collection réindexée",
   "collections.list.reindexDoneDescription": "{count} documents indexés.",
   "collections.list.reindexFailedTitle": "Échec de la réindexation",
   "collections.list.searchPlaceholder": "Rechercher",

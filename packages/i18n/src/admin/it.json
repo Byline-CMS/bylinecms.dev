@@ -269,7 +269,7 @@
   "collections.list.createAriaLabel": "Crea nuovo",
   "collections.list.reindexLabel": "Reindicizza",
   "collections.list.reindexPending": "Reindicizzazione…",
-  "collections.list.reindexDoneTitle": "Ricerca reindicizzata",
+  "collections.list.reindexDoneTitle": "Raccolta reindicizzata",
   "collections.list.reindexDoneDescription": "{count} documenti indicizzati.",
   "collections.list.reindexFailedTitle": "Reindicizzazione non riuscita",
   "collections.list.searchPlaceholder": "Cerca",

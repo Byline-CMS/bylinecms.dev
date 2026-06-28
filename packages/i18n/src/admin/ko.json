@@ -269,7 +269,7 @@
   "collections.list.createAriaLabel": "새로 만들기",
   "collections.list.reindexLabel": "재색인",
   "collections.list.reindexPending": "재색인 중…",
-  "collections.list.reindexDoneTitle": "검색 재색인 완료",
+  "collections.list.reindexDoneTitle": "컬렉션 재색인 완료",
   "collections.list.reindexDoneDescription": "{count}개 문서가 색인되었습니다.",
   "collections.list.reindexFailedTitle": "재색인 실패",
   "collections.list.searchPlaceholder": "검색",
