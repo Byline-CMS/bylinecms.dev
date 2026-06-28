@@ -44,6 +44,7 @@ import type {
   RichTextPopulateContext,
   RichTextPopulateFn,
   RichTextToMarkdownFn,
+  RichTextToTextFn,
 } from '@byline/core'
 
 import { inlineImageVisitor } from './field/extensions/inline-image/populate'
@@ -57,6 +58,7 @@ import { type LexicalNodeVisitor, runLexicalPopulate } from './field/lexical-pop
 // their CSS imports; the `/server` subpath stays React-free.
 // ---------------------------------------------------------------------------
 export { defaultEditorConfig } from './field/config/default'
+export { lexicalToText } from './field/lexical-to-text'
 export {
   type LexicalToMarkdownOptions,
   type LexicalToMarkdownResult,
@@ -64,6 +66,7 @@ export {
   lexicalToMarkdown,
 } from './field/markdown/lexical-to-markdown'
 
+import { lexicalToText } from './field/lexical-to-text'
 import {
   type LexicalToMarkdownOptions,
   lexicalToMarkdown,
@@ -145,6 +148,17 @@ export function lexicalEditorToMarkdownServer(
   options: LexicalToMarkdownOptions = {}
 ): RichTextToMarkdownFn {
   return (ctx) => lexicalToMarkdown(ctx.value, options).markdown
+}
+
+/**
+ * Plain-text extractor for search indexing, shaped for
+ * `ServerConfig.fields.richText.toText`. Pure and synchronous — flattens
+ * the stored editor JSON to indexable plain text via `lexicalToText` (a
+ * recursive text-node accumulator, no markdown). Consumed by core's
+ * `buildSearchDocument` to feed a collection's searchable `body`.
+ */
+export function lexicalEditorToTextServer(): RichTextToTextFn {
+  return (ctx) => lexicalToText(ctx.value)
 }
 
 export function lexicalEditorEmbedServer(options: LexicalServerOptions): RichTextEmbedFn {
