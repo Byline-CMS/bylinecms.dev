@@ -24,7 +24,9 @@ import {
   lexicalEditorEmbedServer,
   lexicalEditorPopulateServer,
   lexicalEditorToMarkdownServer,
+  lexicalEditorToTextServer,
 } from '@byline/richtext-lexical/server'
+import { migrate, postgresSearch } from '@byline/search-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
 // Import collection definitions directly from schema files — NOT the full
@@ -102,6 +104,15 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     //   ? Number(process.env.BYLINE_DB_POSTGRES_CONNECTION_TIMEOUT_MILLIS)
     //   : undefined,
   })
+
+  // Ensure the search-index schema before the provider serves any traffic.
+  // `@byline/search-postgres` owns its schema (numbered SQL inside the
+  // package) and applies it via `migrate(pool)` — it is NOT part of the
+  // host's Drizzle migration stream. We run it deliberately here, rather
+  // than relying on the driver's `autoMigrate` option, so startup DDL is an
+  // explicit, awaited step. Reuses the adapter's pool — no second
+  // connection. See docs/05-reading-and-delivery/07-search.md.
+  await migrate(db.pool, { log: (m) => console.log(m) })
 
   const adminStore = createAdminStore(db.drizzle)
 
@@ -211,8 +222,21 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
         // surface (`.md` content routes, `llms.txt`). Pure JSON walk — no
         // client needed. Remove if you don't expose the markdown surface.
         toMarkdown: lexicalEditorToMarkdownServer(),
+        // Plain-text extractor for search indexing — flattens rich-text
+        // `body` fields to indexable text for `buildSearchDocument`. Pure
+        // JSON walk, no client. Required by any collection that lists a
+        // richText field in its `search.body`. See
+        // docs/05-reading-and-delivery/07-search.md.
+        toText: lexicalEditorToTextServer(),
       },
     },
+    // Built-in Postgres full-text search provider. Reuses the adapter's pool
+    // (no second connection); the search index lives in the same database.
+    // Collections opt in via their `search` config (see
+    // collections/docs/schema.ts) and keep the index live via lifecycle
+    // hooks (see collections/docs/hooks.ts). Remove this registration if no
+    // collection declares a `search` config.
+    search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on

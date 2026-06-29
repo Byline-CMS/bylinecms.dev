@@ -41,90 +41,29 @@ export const Docs = defineCollection({
   // placement from the source directory layout (see
   // byline/scripts/import-docs.ts --tree).
   tree: true,
-  search: { fields: ['title'] },
+  // Collection search config (docs/05-reading-and-delivery/07-search.md).
+  // Each key names the part a field plays in the index: `body` fields feed
+  // the full-text search vector (`title` is display-only unless listed here,
+  // so we include it and boost it into the heaviest weight class); `facets`,
+  // `filters`, and `zones` round out the surface. Opting in here is what
+  // makes the lifecycle hooks in ./hooks.ts index this collection — and it
+  // requires a `search` provider registered in byline/server.config.ts.
+  search: { body: [{ field: 'title', boost: 2 }, 'summary'] },
   useAsTitle: 'title',
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true, // See type definition for details.
-  // All hooks can be a single function or an array of functions.
-  // If an array is provided, the functions will be executed in sequence.
-  hooks: {
-    beforeCreate: async ({ data, collectionPath }) => {
-      // Example: beforeCreate hook
-      console.log(
-        `beforeCreate: Creating a new document in collection ${collectionPath} with data:`,
-        data
-      )
-    },
-    afterCreate: async ({ data, collectionPath, documentId, documentVersionId }) => {
-      // Example: log the creation of a new document.
-      console.log(
-        `afterCreate: Document created with ID ${documentId} and version ID ${documentVersionId} in collection ${collectionPath}`
-      )
-    },
-    beforeUpdate: async ({ data, originalData, collectionPath }) => {
-      // Example: prevent a document from being published if it doesn't have a title.
-      console.log(
-        `beforeUpdate: Updating a document in collection ${collectionPath} with data:`,
-        data
-      )
-    },
-    afterUpdate: async ({ data, originalData, collectionPath, documentId, documentVersionId }) => {
-      // Example: log the update of a document.
-      console.log(
-        `afterUpdate: Document with ID ${documentId} and version ID ${documentVersionId} in collection ${collectionPath} was updated`
-      )
-    },
-    beforeStatusChange: async ({
-      documentId,
-      documentVersionId,
-      collectionPath,
-      previousStatus,
-      nextStatus,
-    }) => {
-      console.log(
-        `beforeStatusChange: Changing status of document in collection ${collectionPath} from ${previousStatus} to ${nextStatus} with document ID ${documentId} and version ID ${documentVersionId}`
-      )
-    },
-    afterStatusChange: async ({
-      documentId,
-      documentVersionId,
-      collectionPath,
-      previousStatus,
-      nextStatus,
-    }) => {
-      console.log(
-        `afterStatusChange: Status of document in collection ${collectionPath} changed from ${previousStatus} to ${nextStatus} with document ID ${documentId} and version ID ${documentVersionId}`
-      )
-    },
-    beforeUnpublish: async ({ documentId, collectionPath }) => {
-      console.log(
-        `beforeUnpublish: Unpublishing document in collection ${collectionPath} with document ID ${documentId}.`
-      )
-    },
-    afterUnpublish: async ({ documentId, collectionPath }) => {
-      console.log(
-        `afterUnpublish: Document in collection ${collectionPath} with document ID ${documentId} unpublished.`
-      )
-    },
-    beforeDelete: async ({ documentId, collectionPath }) => {
-      console.log(
-        `beforeDelete: Deleting document in collection ${collectionPath} with document ID ${documentId}.`
-      )
-    },
-    afterDelete: async ({ documentId, collectionPath }) => {
-      console.log(
-        `afterDelete: Document in collection ${collectionPath} with document ID ${documentId} deleted.`
-      )
-    },
-    // Fires on any structural tree change (place / reorder / re-parent /
-    // promote-on-delete) for a `tree: true` collection. The payload carries the
-    // affected set; a docs site typically invalidates its nav / breadcrumb /
-    // prev-next caches here.
-    afterTreeChange: async ({ collectionPath }) => {
-      console.log(`afterTreeChange: tree structure changed in collection ${collectionPath}.`)
-    },
-  },
+  // Collection lifecycle hooks. Hook *bodies* only ever run server-side, but
+  // a collection *schema* is isomorphic — Byline bundles it into the browser
+  // admin too (the admin reads field config from it), so anything the schema
+  // *statically imports* ships to the client. Search indexing needs a
+  // server-only import (`getSystemBylineClient` from
+  // `@byline/host-tanstack-start`), which would crash the browser bundle if
+  // imported here. The **loader form** — a thunk that dynamically imports a
+  // sibling module — keeps `./hooks.ts` and its entire import graph out of
+  // the client bundle while running exactly like inline hooks on the server.
+  // See ./hooks.ts for the worked example and the full explanation.
+  hooks: () => import('./hooks.js'),
   fields: [
     {
       name: 'title',

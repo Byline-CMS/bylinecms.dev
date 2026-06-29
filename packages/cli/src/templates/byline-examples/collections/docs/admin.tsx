@@ -6,8 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 import { DateTimeFormatter } from '@byline/admin/react'
+import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
+import { ReindexButton } from '@byline/host-tanstack-start/admin-shell/collections/reindex-button'
 
 import { SummaryLength } from '~/components/summary-length.js'
 
@@ -88,6 +89,16 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * listView: DocsListView,
    */
   // listView: undefined,
+
+  /**
+   * Header action components for the default list view — a reusable slot in
+   * the list header (the Payload `beforeList`/`afterList` analog). `ReindexButton`
+   * rebuilds this collection's search index; it self-gates on the
+   * `collections.docs.reindex` ability, so it only appears for actors who
+   * hold it. Drop this (and the `search` config in schema.ts) if you don't
+   * want search on this collection. See docs/05-reading-and-delivery/07-search.md.
+   */
+  listActions: [ReindexButton],
 
   /**
    * Group name for organising this collection in the admin sidebar navigation.

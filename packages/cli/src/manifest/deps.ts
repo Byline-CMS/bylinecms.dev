@@ -101,6 +101,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'Lexical-backed richtext field + server populate',
   },
   {
+    name: '@byline/search-postgres',
+    version: BYLINE_VERSION,
+    group: 'byline',
+    note: 'built-in Postgres full-text search provider; registered in byline/server.config.ts, drives collections/docs indexing hooks',
+  },
+  {
     name: '@byline/storage-local',
     version: BYLINE_VERSION,
     group: 'byline',
