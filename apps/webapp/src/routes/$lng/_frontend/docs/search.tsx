@@ -17,9 +17,9 @@
  */
 
 import type React from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 
-import { Container, Search, Section } from '@byline/ui/react'
+import { Container, Section } from '@byline/ui/react'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
