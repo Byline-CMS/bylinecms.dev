@@ -224,7 +224,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     },
     // Built-in Postgres full-text search provider. Reuses the adapter's pool
     // (no second connection); the search index lives in the same database.
-    // Collections opt in via their role-based `search` config; lifecycle
+    // Collections opt in via their `search` config; lifecycle
     // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
     search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
   })
