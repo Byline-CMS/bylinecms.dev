@@ -42,7 +42,7 @@ defineServerConfig({
 })
 ```
 
-A collection opts into indexing through its role-based `search` config
+A collection opts into indexing through its `search` config
 (`{ body, facets, filters, zones }`); `initBylineCore()` fails fast if a
 collection opts in but no provider is registered.
 
