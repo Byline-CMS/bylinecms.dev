@@ -178,9 +178,9 @@ the forward-looking landscape for the unbuilt phases is `docs/byline-search-extr
   `SearchField[]` projection), `SearchQuery` / `SearchResults`, and `SearchCapabilities`
   live in `packages/core/src/@types/search-types.ts`. The provider is a pure index
   **sink** — it never reads source documents.
-- **Role-based config**: `CollectionDefinition.search = { body?, facets?, filters?, zones? }`
+- **Collection search config**: `CollectionDefinition.search = { body?, facets?, filters?, zones? }`
   (`SearchFieldDecl = string | { field, boost? }`). The implementor names fields by
-  role; core derives each field's type from the schema. Nothing auto-pulled.
+  the part they play; core derives each field's type from the schema. Nothing auto-pulled.
 - **Assembler**: `buildSearchDocument()` (`packages/core/src/services/build-search-document.ts`)
   normalises a locale-resolved document into a `SearchDocument`. `title` is display-only
   (searchability comes from `body`); `richText` body fields flatten via the editor-agnostic

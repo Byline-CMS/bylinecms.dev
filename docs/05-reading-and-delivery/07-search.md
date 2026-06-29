@@ -1,7 +1,7 @@
 ---
 title: "Search & Retrieval"
 path: "search"
-summary: "A pluggable SearchProvider seam in core with a built-in Postgres full-text driver (@byline/search-postgres). Collections opt in with a role-based search config; core assembles a type-enriched SearchDocument that drivers index. Lifecycle hooks keep the index live, an admin reindex button rebuilds it, and client.collection(x).search() is the developer query surface. BM25 / vector / hybrid drivers and attachment extraction are sanctioned future phases."
+summary: "A pluggable SearchProvider seam in core with a built-in Postgres full-text driver (@byline/search-postgres). Collections opt in with a search config; core assembles a type-enriched SearchDocument that drivers index. Lifecycle hooks keep the index live, an admin reindex button rebuilds it, and client.collection(x).search() is the developer query surface. BM25 / vector / hybrid drivers and attachment extraction are sanctioned future phases."
 ---
 
 # Search & Retrieval
@@ -53,7 +53,7 @@ typed interface in `@byline/core`, a default implementation, and registration on
 
 The vertical, top to bottom:
 
-1. **Role-based `search` config** per collection (`CollectionDefinition.search`)
+1. **The `search` config** per collection (`CollectionDefinition.search`)
    — the implementor declares which fields are searchable `body`, which are
    `facets`, which are `filters`, and the `zones` it belongs to. Core derives
    each field's *type* from the schema.
@@ -115,11 +115,11 @@ interface SearchCapabilities {
   text on `upsert` and runs ANN on `search`; a hybrid driver fuses scores. None
   touch the read path. (Planned — Phase 4.)
 
-## The role-based `search` config (shipped)
+## The collection search config (shipped)
 
-A collection opts into search with a **role-based** declaration
-(`CollectionDefinition.search`). The implementor names fields by the *role* they
-play; core derives each field's *type* from the schema. Nothing is auto-pulled,
+A collection opts into search with a `search` block on its
+`CollectionDefinition`. Each key names the part a field plays in the index;
+core derives each field's *type* from the schema. Nothing is auto-pulled,
 so unindexed content (editorial notes, internal fields) never leaks.
 
 ```ts
@@ -311,6 +311,30 @@ returns the **lightweight hit tier** — `title`, `path`, `score`, and
 matched-snippet `highlights` — enough to render a results list without
 hydration. Fetch hit ids via `findById` when a richer item is needed.
 
+:::warning[Search does not yet honour `beforeRead` row-scoping]
+`search()` enforces only the **collection-level** `read` ability. It does **not**
+run hits back through the [`beforeRead` row-scoping](../06-auth-and-security/01-authn-authz.md)
+pipeline, because it ranks straight from the provider index rather than going
+through the normal read path where the `QueryPredicate` is applied. A collection
+that relies on `beforeRead` to hide rows from an actor (owner-only drafts,
+multi-tenant isolation, department visibility, …) would **leak those rows
+through search**.
+
+**Why this is safe today:** the index is **published-only** and the sole
+collection wired to search is `docs`, which is fully public — there is no
+row-scoping predicate to violate. The published-status floor is the only thing
+the current implementation relies on for safety.
+
+**Before exposing search on a row-scoped collection**, the row-auth follow-up
+must land. The intended posture is *"rank in the provider, authorise in core"* —
+re-resolve the candidate hit ids through the normal read path so `beforeRead`
+applies, dropping any the actor may not see. Note the paging interaction: because
+that filter runs **after** ranking, offset paging and the `total` count become
+approximate unless the `QueryPredicate` is instead pushed down into the provider
+(which requires the scoping columns to be indexed — a driver capability). See
+[Open questions](#open-questions).
+:::
+
 The docs frontend is the worked example: a drawer-modal search box →
 `/<lng>/docs/search?q=` SSR results route → `client.collection('docs').search()`
 → hits rendered with canonical hierarchical URLs (resolved via the cached nav
@@ -386,8 +410,8 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
 2. **`SearchProvider` seam + Postgres FTS driver — ✅ shipped.** The interface +
    typed `SearchDocument` + assembler + `richTextToText` seam in `@byline/core`;
    `@byline/search-postgres` (weighted `tsvector`, owns its schema);
-   `ServerConfig.search` registration + boot validation; role-based `search`
-   config; lifecycle-hook indexing; `reindex` + the `collections.<path>.reindex`
+   `ServerConfig.search` registration + boot validation; the collection
+   `search` config; lifecycle-hook indexing; `reindex` + the `collections.<path>.reindex`
    ability + admin button; `client.collection(x).search()`; the docs frontend
    results route. **Deferred within Phase 2:** the cross-collection `zone` query,
    `hydrate`, structured `where` filtering, facet aggregation, row-level
@@ -413,7 +437,13 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
   (re-resolve hit ids through `beforeRead`) is the intended posture but is **not
   yet wired** — `search()` asserts only the collection `read` ability. Safe for
   the published-only public case; required before row-scoped collections expose
-  search.
+  search. **Paging interaction:** because core-side re-auth filters *after*
+  ranking, offset paging and the `total` count go approximate (short pages,
+  inflated totals, offset drift as the filter removes a different count per page).
+  The exact-paging alternative is to push the `QueryPredicate` down into the
+  provider (see *Multi-tenant scoping at scale* below) — which only works if the
+  scoping columns are indexed. The two notes are the same trade seen from the
+  auth side and the driver side.
 - **Zone definition & re-tagging.** Whether zones stay emergent from
   per-collection `search.zones` or get a lightweight registry (display labels, a
   declared default, validation). Re-tagging on a membership change is a cheap
@@ -436,7 +466,7 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
   sibling of `lexicalToMarkdown` / `documentToMarkdown`; both flatten rich
   content for non-HTML consumers.
 - [MCP Server](./05-mcp-server.md) — the headline future consumer (Phase 5).
-- [Collections](../04-collections/index.md) — the role-based `search` config and
+- [Collections](../04-collections/index.md) — the collection `search` config and
   the lifecycle hooks that maintain the index.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) —
   the `collections.<path>.reindex` ability and the (planned) `beforeRead`
