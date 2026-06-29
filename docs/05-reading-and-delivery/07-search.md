@@ -137,7 +137,15 @@ type SearchFieldDecl = string | { field: string; boost?: number }
 - **`body`** — text fields contribute their value; `richText` fields are
   flattened to plain text via the `fields.richText.toText` seam. `title` is
   **display-only** unless you list the identity field here (typically boosted, so
-  it lands in the heaviest weight class).
+  it lands in the heaviest weight class). A `body` entry may also name a
+  **container** field (`blocks` / `array` / `group`): `buildSearchDocument` walks
+  it recursively and flattens every nested `richText` and text (`text` /
+  `textArea`) leaf into the searchable body. Nested non-text leaves (`select`,
+  `relation`, numbers, booleans, dates, files) are skipped, so block
+  *configuration* never pollutes the index — the same "content, not
+  configuration" rule the markdown assembler follows. This is what gets the prose
+  out of a block-based body field (e.g. the docs collection's `content`) and into
+  the index.
 - **`facets`** — relation field paths to controlled-vocabulary collections. Core
   resolves each target's `counter` field (the stable aggregation **id**) and its
   `useAsTitle` (the **term**); the term is folded into the searchable text and
@@ -147,7 +155,9 @@ type SearchFieldDecl = string | { field: string; boost?: number }
   collection path when omitted.
 
 The worked example is the `docs` collection:
-`search: { body: [{ field: 'title', boost: 2 }, 'summary'] }`.
+`search: { body: [{ field: 'title', boost: 2 }, 'summary', 'content'] }` —
+`content` is a `blocks` field, so its nested RichTextBlock prose (and PhotoBlock
+alt text + caption) is walked and folded into the body.
 
 > The admin list-view search box reads the `body` field names for its
 > `store_text` `ILIKE` match (`storage-queries.ts`) — a lightweight matcher that

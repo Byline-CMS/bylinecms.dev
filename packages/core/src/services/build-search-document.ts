@@ -26,20 +26,31 @@
  * in a document whose `facets` relation fields are already populated (depth
  * 1) with the target's identity + counter fields.
  *
- * v1 scope: `search.{body,facets,filters}` name **top-level** fields. Deep
- * paths into blocks / arrays are a follow-up.
+ * `search.{facets,filters}` name **top-level** fields. `search.body` may name
+ * a top-level field of any kind: scalar / `richText` leaves index directly,
+ * and container fields (`blocks` / `array` / `group`) are walked recursively —
+ * every nested `richText` and text (`text` / `textArea`) leaf is flattened and
+ * concatenated into one searchable body string. Nested non-text leaves
+ * (`select`, `relation`, numbers, booleans, dates, files) are skipped so block
+ * configuration never pollutes the index — the same "content, not
+ * configuration" rule the markdown assembler follows.
  */
 
-import { resolveIdentityField } from './populate.js'
-import type {
-  CollectionDefinition,
-  RichTextToTextFn,
-  SearchDocument,
-  SearchFacetValue,
-  SearchField,
-  SearchFieldDecl,
-  SearchFieldType,
+import {
+  type CollectionDefinition,
+  type Field,
+  type FieldSet,
+  isArrayField,
+  isBlocksField,
+  isGroupField,
+  type RichTextToTextFn,
+  type SearchDocument,
+  type SearchFacetValue,
+  type SearchField,
+  type SearchFieldDecl,
+  type SearchFieldType,
 } from '../@types/index.js'
+import { resolveIdentityField } from './populate.js'
 
 /** A locale-resolved document fed to the assembler — one locale's view. */
 export interface SearchSourceDocument {
@@ -102,21 +113,7 @@ export function buildSearchDocument(
     const field = definition.fields.find((f) => f.name === name)
     if (field == null) continue
 
-    let value: string | null
-    if (field.type === 'richText') {
-      value = options.richTextToText
-        ? nonEmpty(
-            options.richTextToText({
-              value: resolveLocalized(fieldsData[name], locale),
-              fieldPath: name,
-              collectionPath: definition.path,
-            })
-          )
-        : null
-    } else {
-      value = stringValue(resolveLocalized(fieldsData[name], locale))
-    }
-
+    const value = collectBodyText(field, fieldsData[name], definition.path, locale, options)
     if (value != null) {
       fields.push(withBoost({ name, type: 'text', role: 'body', value }, decl))
     }
@@ -177,6 +174,117 @@ function declName(decl: SearchFieldDecl): string {
 function withBoost(field: SearchField, decl: SearchFieldDecl): SearchField {
   const boost = typeof decl === 'string' ? undefined : decl.boost
   return boost != null ? { ...field, boost } : field
+}
+
+/** Text-bearing scalar leaves collected when walking into a container field. */
+const TEXT_LEAF_TYPES = new Set(['text', 'textArea'])
+
+/**
+ * Resolve a single `search.body` field to its searchable text. A scalar /
+ * `richText` leaf indexes directly (preserving the original top-level
+ * behaviour); a container (`group` / `array` / `blocks`) is walked
+ * recursively, flattening every nested text leaf into one string.
+ */
+function collectBodyText(
+  field: Field,
+  rawValue: unknown,
+  collectionPath: string,
+  locale: string | undefined,
+  options: BuildSearchDocumentOptions
+): string | null {
+  const value = resolveLocalized(rawValue, locale)
+
+  if (isGroupField(field) || isArrayField(field) || isBlocksField(field)) {
+    return collectContainerText(field, value, collectionPath, locale, options)
+  }
+
+  return collectLeafText(field, value, collectionPath, options, /* permissive */ true)
+}
+
+/** Walk a container field, concatenating the text of its nested leaves. */
+function collectContainerText(
+  field: Field,
+  value: unknown,
+  collectionPath: string,
+  locale: string | undefined,
+  options: BuildSearchDocumentOptions
+): string | null {
+  if (isGroupField(field)) {
+    return collectFieldSetText(field.fields, asRecord(value), collectionPath, locale, options)
+  }
+
+  if (isArrayField(field)) {
+    if (!Array.isArray(value)) return null
+    return joinTexts(
+      value.map((item) =>
+        collectFieldSetText(field.fields, asRecord(item), collectionPath, locale, options)
+      )
+    )
+  }
+
+  // blocks: resolve each item's block definition by `_type`, then walk it.
+  if (!isBlocksField(field) || !Array.isArray(value)) return null
+  const parts: (string | null)[] = []
+  for (const item of value) {
+    const record = asRecord(item)
+    const block = field.blocks.find((b) => b.blockType === record._type)
+    if (block == null) continue
+    parts.push(collectFieldSetText(block.fields, record, collectionPath, locale, options))
+  }
+  return joinTexts(parts)
+}
+
+/** Collect text from every text-bearing leaf in a field set (one container level). */
+function collectFieldSetText(
+  fields: FieldSet,
+  data: Record<string, any>,
+  collectionPath: string,
+  locale: string | undefined,
+  options: BuildSearchDocumentOptions
+): string | null {
+  const parts: (string | null)[] = []
+  for (const field of fields) {
+    const value = resolveLocalized(data?.[field.name], locale)
+    if (isGroupField(field) || isArrayField(field) || isBlocksField(field)) {
+      parts.push(collectContainerText(field, value, collectionPath, locale, options))
+    } else {
+      // Nested leaves: only text-bearing types contribute — skip configuration
+      // (select, relation, numbers, booleans, dates, files).
+      parts.push(collectLeafText(field, value, collectionPath, options, /* permissive */ false))
+    }
+  }
+  return joinTexts(parts)
+}
+
+/**
+ * Extract text from a single leaf field. `richText` flows through the `toText`
+ * seam. For other scalars, `permissive` distinguishes a field the implementor
+ * named directly in `search.body` (index any scalar value, as before) from a
+ * leaf reached by walking into a container (restricted to text/textArea so
+ * block configuration values never leak into the index).
+ */
+function collectLeafText(
+  field: Field,
+  value: unknown,
+  collectionPath: string,
+  options: BuildSearchDocumentOptions,
+  permissive: boolean
+): string | null {
+  if (field.type === 'richText') {
+    return options.richTextToText
+      ? nonEmpty(options.richTextToText({ value, fieldPath: field.name, collectionPath }))
+      : null
+  }
+  if (permissive || TEXT_LEAF_TYPES.has(field.type)) {
+    return stringValue(value)
+  }
+  return null
+}
+
+/** Join non-empty text parts with newlines, or null when there is nothing. */
+function joinTexts(parts: (string | null | undefined)[]): string | null {
+  const filtered = parts.filter((p): p is string => p != null && p.length > 0)
+  return filtered.length > 0 ? filtered.join('\n') : null
 }
 
 /** A populated single relation or array of relations → array of envelopes. */

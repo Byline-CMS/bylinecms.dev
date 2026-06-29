@@ -43,9 +43,10 @@ export const Docs = defineCollection({
   // Collection search config (docs/05-reading-and-delivery/07-search.md):
   // `title` (boosted — lands in tsvector weight class A) + `summary` feed the
   // full-text body. `title` is display-only unless listed here, so we list it.
-  // (The `content` blocks field is a deep/nested feed — a follow-up; v1
-  // indexes top-level fields.)
-  search: { body: [{ field: 'title', boost: 2 }, 'summary'] },
+  // `content` is a `blocks` field — buildSearchDocument walks it recursively,
+  // flattening every nested richText/text leaf (RichTextBlock prose, PhotoBlock
+  // alt + caption) into the searchable body.
+  search: { body: [{ field: 'title', boost: 2 }, 'summary', 'content'] },
   useAsTitle: 'title',
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.

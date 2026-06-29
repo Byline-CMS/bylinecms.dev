@@ -184,3 +184,122 @@ describe('buildSearchDocument', () => {
     expect(out.title).toBe('Restauration')
   })
 })
+
+// A collection whose prose lives inside a `blocks` field (the docs shape):
+// RichTextBlock (richText + a checkbox toggle) and PhotoBlock (text alt +
+// richText caption + a select + a relation). Mirrors the real-world case where
+// the searchable body is nested, not top-level.
+const blocksCollection: CollectionDefinition = {
+  path: 'articles',
+  labels: { singular: 'Article', plural: 'Articles' },
+  useAsTitle: 'title',
+  fields: [
+    { name: 'title', label: 'Title', type: 'text', localized: true },
+    {
+      name: 'content',
+      label: 'Content',
+      type: 'blocks',
+      blocks: [
+        {
+          blockType: 'richTextBlock',
+          label: 'Richtext Block',
+          fields: [
+            { name: 'richText', label: 'Richtext', type: 'richText', localized: true },
+            { name: 'constrainedWidth', label: 'Constrained', type: 'checkbox' },
+          ],
+        },
+        {
+          blockType: 'photoBlock',
+          label: 'Photo Block',
+          fields: [
+            {
+              name: 'display',
+              label: 'Display',
+              type: 'select',
+              options: [
+                { label: 'Default', value: 'default' },
+                { label: 'Wide', value: 'wide' },
+              ],
+            },
+            { name: 'photo', label: 'Photo', type: 'relation', targetCollection: 'media' },
+            { name: 'alt', label: 'Alt', type: 'text' },
+            { name: 'caption', label: 'Caption', type: 'richText', localized: true },
+          ],
+        },
+      ],
+    },
+  ],
+  search: { body: [{ field: 'title', boost: 2 }, 'content'] },
+}
+
+describe('buildSearchDocument — container (blocks) body', () => {
+  function blockSource() {
+    return {
+      documentId: 'art-1',
+      locale: 'en',
+      status: 'published',
+      path: 'forests',
+      fields: {
+        title: 'Forests',
+        content: [
+          {
+            _type: 'richTextBlock',
+            _id: 'b1',
+            richText: { text: 'None of this is certain. But it reflects what we observed.' },
+            constrainedWidth: true,
+          },
+          {
+            _type: 'photoBlock',
+            _id: 'b2',
+            display: 'wide',
+            photo: { _resolved: true, document: { fields: { title: 'A tree' } } },
+            alt: 'A tall redwood',
+            caption: { text: 'Old growth in the valley.' },
+          },
+        ],
+      },
+    }
+  }
+
+  const doc = buildSearchDocument(blockSource(), blocksCollection, { richTextToText })
+
+  it('walks the blocks field and flattens nested richText + text leaves', () => {
+    const content = fieldByName(doc.fields, 'content')
+    expect(content).toMatchObject({ name: 'content', type: 'text', role: 'body' })
+    const value = content?.value as string
+    expect(value).toContain('it reflects what we observed')
+    expect(value).toContain('A tall redwood')
+    expect(value).toContain('Old growth in the valley.')
+  })
+
+  it('skips nested non-text leaves (select, relation, checkbox) — no config noise', () => {
+    const value = fieldByName(doc.fields, 'content')?.value as string
+    expect(value).not.toContain('wide') // select
+    expect(value).not.toContain('A tree') // relation target title
+    expect(value).not.toContain('true') // checkbox
+  })
+
+  it('preserves top-level scalar body fields alongside the container', () => {
+    expect(fieldByName(doc.fields, 'title')).toMatchObject({ value: 'Forests', boost: 2 })
+  })
+
+  it('omits the container body field entirely when no toText seam is registered', () => {
+    // With no richText extractor, the only text-bearing leaves left are the
+    // PhotoBlock `alt` text.
+    const out = buildSearchDocument(blockSource(), blocksCollection)
+    const value = fieldByName(out.fields, 'content')?.value as string
+    expect(value).toBe('A tall redwood')
+  })
+
+  it('produces no content field when a block field set has no text', () => {
+    const empty = {
+      ...blockSource(),
+      fields: {
+        title: 'Forests',
+        content: [{ _type: 'photoBlock', _id: 'b3', display: 'wide' }],
+      },
+    }
+    const out = buildSearchDocument(empty, blocksCollection, { richTextToText })
+    expect(fieldByName(out.fields, 'content')).toBeUndefined()
+  })
+})
