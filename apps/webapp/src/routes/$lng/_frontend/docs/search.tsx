@@ -60,20 +60,6 @@ export const Route = createFileRoute('/$lng/_frontend/docs/search')({
 function RouteComponent() {
   const { result, lng, q } = Route.useLoaderData()
   const { t } = useTranslations('frontend')
-  const navigate = useNavigate()
-
-  const runSearch = (value: string) => {
-    navigate({
-      to: '/$lng/docs/search',
-      params: lngParam(lng),
-      search: { q: value.trim() || undefined },
-    })
-  }
-
-  // Clearing the field returns to the docs table of contents (the index).
-  const onClear = (): void => {
-    navigate({ to: '/$lng/docs', params: lngParam(lng) })
-  }
 
   return (
     <>
@@ -85,20 +71,9 @@ function RouteComponent() {
       />
       <Section className="pb-12">
         <Container>
-          <div className="prose mb-6">
+          <div className="prose mb-0">
             <h1 className="mb-4">{t('docsSearchHeading')}</h1>
           </div>
-
-          <Search
-            key={q}
-            defaultValue={q}
-            placeHolderText={t('docsSearchPlaceholder')}
-            ariaLabelForSearch={t('docsSearchPlaceholder')}
-            onSearch={runSearch}
-            onEnter={runSearch}
-            onClear={onClear}
-            className="mb-8 max-w-xl"
-          />
 
           {q.length === 0 ? null : result.hits.length === 0 ? (
             <p className="muted">
@@ -106,7 +81,7 @@ function RouteComponent() {
             </p>
           ) : (
             <>
-              <p className="muted mb-6">
+              <p className="muted mb-4">
                 {result.total} {t('docsSearchResultsFor')} “{q}”
               </p>
               <ul className="not-prose flex flex-col gap-6">
@@ -115,12 +90,12 @@ function RouteComponent() {
                     <Link
                       to="/$lng/docs/$"
                       params={{ ...lngParam(lng), _splat: hit.chain.join('/') }}
-                      className="text-lg font-semibold hover:underline"
+                      className="text-[1.3rem] hover:underline"
                     >
                       {hit.title}
                     </Link>
                     {hit.snippet != null && (
-                      <p className="muted mt-1 text-sm">
+                      <p className="muted mt-1 text-gray-500 dark:text-gray-300">
                         <Highlighted snippet={hit.snippet} />
                       </p>
                     )}

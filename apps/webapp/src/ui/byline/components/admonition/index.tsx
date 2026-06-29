@@ -39,7 +39,7 @@ export function AdmonitionSerializer({
   // to the neighbour's margin for true separation; the alert's own margins are
   // zeroed (`my-0`) so the wrapper is the single source of the gap.
   return (
-    <div className="not-prose py-3">
+    <div className="not-prose pt-6 pb-8">
       <Alert title={node.title} intent={intent} close={false} className="not-prose my-0">
         {node?.children != null ? (
           serialize({ nodes: node.children, lng, options })

@@ -29,13 +29,15 @@
     }
 
     /* Default (light mode) */
-    ::selection {
+    ::selection,
+    mark {
       background-color: var(--theme-600);
       color: white;
     }
 
     /* Dark mode — .dark/[data-theme="dark"] is typically on <html>, outside scope */
     .dark ::selection,
+    .dark mark,
     [data-theme="dark"] ::selection {
       background-color: var(--theme-200);
       color: var(--gray-900);
