@@ -178,7 +178,7 @@ export function DocsDrawer({ nodes, lng }: DocsDrawerProps): React.JSX.Element |
       {...handlers}
     >
       <div className={cx('byline-docs-drawer-header', styles.header)}>
-        <DocsSearchTrigger lng={lng} />
+        <DocsSearchTrigger lng={lng} onNavigate={closeDrawer} />
       </div>
       <nav className={cx('byline-docs-drawer docs-drawer', styles.nav)}>
         <ul>

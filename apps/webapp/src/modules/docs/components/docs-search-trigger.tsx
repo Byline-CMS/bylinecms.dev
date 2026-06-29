@@ -17,7 +17,13 @@ import { useTranslations } from '@/i18n/client/translations-provider'
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'
 import type { Locale } from '@/i18n/i18n-config'
 
-export function DocsSearchTrigger({ lng }: { lng: Locale }): React.JSX.Element {
+export function DocsSearchTrigger({
+  lng,
+  onNavigate,
+}: {
+  lng: Locale
+  onNavigate?: () => void
+}): React.JSX.Element {
   const navigate = useNavigate()
   const { t } = useTranslations('frontend')
 
@@ -25,11 +31,13 @@ export function DocsSearchTrigger({ lng }: { lng: Locale }): React.JSX.Element {
     const q = value.trim()
     if (q.length === 0) return
     navigate({ to: '/$lng/docs/search', params: lngParam(lng), search: { q } })
+    onNavigate?.()
   }
 
   // Clearing the field returns to the docs table of contents (the index).
   const onClear = (): void => {
     navigate({ to: '/$lng/docs', params: lngParam(lng) })
+    onNavigate?.()
   }
 
   return (
