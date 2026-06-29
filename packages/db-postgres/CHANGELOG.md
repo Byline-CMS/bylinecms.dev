@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 3.15.1
+
+### Patch Changes
+
+- fixed `@byline/search-postgres` `migrate()` crashing under a bundled production server (Nitro) by embedding its SQL — it previously read the `.sql` files relative to `import.meta.url`, which a bundle breaks (ENOENT on boot)
+- Updated dependencies
+  - @byline/admin@3.15.1
+  - @byline/auth@3.15.1
+  - @byline/core@3.15.1
+
 ## 3.15.0
 
 ### Minor Changes
