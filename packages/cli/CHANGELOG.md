@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 3.15.2
+
+### Patch Changes
+
+- fixed **`@byline/core`** `buildSearchDocument` so `search.body` entries that name a container field (`blocks` / `array` / `group`) are walked recursively, indexing nested richtext/text leaves — block-based prose was previously absent from the search index
+
 ## 3.15.1
 
 ### Patch Changes
