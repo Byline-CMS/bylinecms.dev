@@ -7,22 +7,22 @@
  */
 
 /**
- * Migration runner — the driver owns its schema. Applies the numbered SQL
- * files in `../migrations` that haven't run yet, recording each in its own
+ * Migration runner — the driver owns its schema. Applies the numbered
+ * migrations that haven't run yet, recording each in its own
  * `byline_search_migrations` bookkeeping table (separate from the host's
- * migration stream). Idempotent and transactional per file.
+ * migration stream). Idempotent and transactional per migration.
  *
- * The numbered `.sql` files are the source of truth: ops can apply them by
- * hand (`psql -f migrations/0001_init.sql`) in locked-down environments, or
- * call `migrate(pool)` / enable `autoMigrate` for convenience.
+ * The SQL is embedded (`./migrations-data`) so the runner is **bundle-safe** —
+ * a production server bundle (Nitro / rollup) inlines this package and rewrites
+ * `import.meta.url`, which would break reading the `.sql` files from disk at
+ * runtime. The numbered `.sql` files remain the source of truth and still ship
+ * for the by-hand path (`psql -f migrations/0001_init.sql`) in locked-down
+ * environments; `migrate(pool)` / `autoMigrate` are the convenience paths.
  */
-
-import { readdirSync, readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 
 import type { Pool } from 'pg'
 
-const MIGRATIONS_DIR = fileURLToPath(new URL('../migrations', import.meta.url))
+import { MIGRATIONS } from './migrations-data.js'
 
 export interface MigrateOptions {
   /** Optional sink for progress lines (e.g. the host logger). */
@@ -32,12 +32,6 @@ export interface MigrateOptions {
 export interface MigrateResult {
   /** Versions applied during this run (empty when already up to date). */
   applied: number[]
-}
-
-interface MigrationFile {
-  version: number
-  name: string
-  sql: string
 }
 
 /**
@@ -87,16 +81,7 @@ export async function migrate(pool: Pool, options: MigrateOptions = {}): Promise
   return { applied }
 }
 
-/** Read + parse the numbered `.sql` files, sorted by version ascending. */
-function loadMigrations(): MigrationFile[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
-    .map((name) => {
-      const version = Number.parseInt(name.split('_')[0] ?? '', 10)
-      if (!Number.isInteger(version)) {
-        throw new Error(`[search-postgres] migration file '${name}' has no leading version number`)
-      }
-      return { version, name, sql: readFileSync(`${MIGRATIONS_DIR}/${name}`, 'utf8') }
-    })
-    .sort((a, b) => a.version - b.version)
+/** The embedded migrations, sorted by version ascending. */
+function loadMigrations(): typeof MIGRATIONS {
+  return [...MIGRATIONS].sort((a, b) => a.version - b.version)
 }

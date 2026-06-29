@@ -107,7 +107,14 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   // we apply it deliberately here rather than relying on `autoMigrate` so
   // startup is deterministic and DDL is an explicit, awaited step. Reuses the
   // adapter's pool — no second connection. See the package README.
-  await migrate(db.pool, { log: (m) => console.log(m) })
+  //
+  // Wrapped defensively: a migration failure degrades search but must not take
+  // down the whole app at boot — log loudly and continue.
+  try {
+    await migrate(db.pool, { log: (m) => console.log(m) })
+  } catch (err) {
+    console.error('[search-postgres] migrate failed — search may be unavailable:', err)
+  }
 
   const adminStore = createAdminStore(db.drizzle)
 

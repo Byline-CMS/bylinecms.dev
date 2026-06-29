@@ -112,7 +112,16 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   // than relying on the driver's `autoMigrate` option, so startup DDL is an
   // explicit, awaited step. Reuses the adapter's pool — no second
   // connection. See docs/05-reading-and-delivery/07-search.md.
-  await migrate(db.pool, { log: (m) => console.log(m) })
+  //
+  // Wrapped defensively: a migration failure degrades search but must not
+  // take down the whole app at boot. We log loudly and continue. (For
+  // locked-down Postgres where the app role can't run DDL, drop this call and
+  // apply `migrations/0001_init.sql` by hand as a deploy step instead.)
+  try {
+    await migrate(db.pool, { log: (m) => console.log(m) })
+  } catch (err) {
+    console.error('[search-postgres] migrate failed — search may be unavailable:', err)
+  }
 
   const adminStore = createAdminStore(db.drizzle)
 
