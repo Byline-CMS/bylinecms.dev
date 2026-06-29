@@ -58,7 +58,7 @@
 import { createHash } from 'node:crypto'
 
 import { defineHooks } from '@byline/core'
-import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
+import { getSystemBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
 
 import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
 
@@ -78,26 +78,26 @@ export default defineHooks({
       `afterCreate: document ${documentId} created in '${collectionPath}' (content fingerprint ${fingerprint})`
     )
     await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await getAdminBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
   },
   afterUpdate: async ({ collectionPath, path, documentId, originalData }) => {
     await invalidateDocument(collectionPath, path, {
       prevPath: (originalData as { path?: string } | undefined)?.path,
       list: true,
     })
-    await getAdminBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
   },
   afterStatusChange: async ({ collectionPath, path, documentId }) => {
     await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await getAdminBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
   },
   afterUnpublish: async ({ collectionPath, path, documentId }) => {
     await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await getAdminBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
   },
   afterDelete: async ({ collectionPath, path, documentId }) => {
     await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await getAdminBylineClient().collection(collectionPath).removeFromIndex(documentId)
+    await getSystemBylineClient().collection(collectionPath).removeFromIndex(documentId)
   },
   // A structural tree change (place / reorder / re-parent / promote-on-delete)
   // ripples across the affected set — every moved node, its descendants, and

@@ -254,6 +254,18 @@ uniformly and idempotently — the index always mirrors what a public reader can
 see. `removeFromIndex` drops all locales. The `docs` collection wires this as the
 worked example (`apps/webapp/byline/collections/docs/hooks.ts`).
 
+:::warning[Index from a system client, not the request-scoped one]
+Resolve the indexing client with `getSystemBylineClient()` (super-admin context,
+no session cookies) — **not** `getAdminBylineClient()`. The request-scoped admin
+client reads the session cookie via the TanStack Start server runtime, so calling
+it from a lifecycle hook couples that hook to a live HTTP request and throws
+`No StartEvent found in AsyncLocalStorage` from every out-of-band write path:
+import scripts, seeds, migrations, the CLI, and tests. Indexing is background
+maintenance — it reads the published view and `_bypassBeforeRead` — so the
+system context is both correct and runtime-agnostic. (Both helpers live in
+`@byline/host-tanstack-start/integrations/byline-client`.)
+:::
+
 **Indexing is synchronous** inside the `afterX` hook (same Postgres, no
 consistency gap). An async outbox/queue for network-backed drivers (a slow vector
 write must not stall a publish) is deferred — the interface is unchanged, only

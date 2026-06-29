@@ -19,6 +19,7 @@
  * adapter wiring.
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import { type BylineClient, createBylineClient } from '@byline/client'
 import { getServerConfig } from '@byline/core'
 
@@ -37,4 +38,29 @@ export function getAdminBylineClient(): BylineClient {
     requestContext: getAdminRequestContext,
   })
   return cachedClient
+}
+
+let cachedSystemClient: BylineClient | undefined
+
+/**
+ * A `BylineClient` bound to an explicit super-admin context — for
+ * **system / background** work that is not scoped to an HTTP request:
+ * lifecycle-hook search indexing, maintenance scripts, seeds, migrations.
+ *
+ * Unlike {@link getAdminBylineClient}, this does **not** read session
+ * cookies, so it works outside the TanStack Start server runtime (a bare
+ * `tsx` script, a seed, a test). Reaching for the request-scoped client in
+ * a lifecycle hook couples that hook to the live server and throws
+ * `No StartEvent found in AsyncLocalStorage` from any out-of-band write
+ * path. Indexing is maintenance, not a user action — it reads the published
+ * view and bypasses `beforeRead` — so the super-admin context is both
+ * correct and runtime-agnostic. The context is auditable by its stable id.
+ */
+export function getSystemBylineClient(): BylineClient {
+  if (cachedSystemClient) return cachedSystemClient
+  cachedSystemClient = createBylineClient({
+    config: getServerConfig(),
+    requestContext: createSuperAdminContext({ id: 'byline-system-client' }),
+  })
+  return cachedSystemClient
 }
