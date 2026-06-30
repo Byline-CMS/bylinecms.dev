@@ -76,11 +76,13 @@ export const Input = <_C extends React.ElementType = 'input'>({
           required={required}
           autoComplete={autoComplete}
           placeholder={placeHolder}
-          aria-labelledby={`label-for-${id}`}
+          aria-labelledby={label != null ? `label-for-${id}` : undefined}
           aria-invalid={error}
           aria-required={required}
           aria-errormessage={errorText}
-          aria-describedby={error ? `error-for-${id}` : undefined}
+          aria-describedby={
+            error ? `error-for-${id}` : helpText.length > 0 ? `help-for-${id}` : undefined
+          }
           className={cx(
             'byline-input',
             `byline-input-${variant}`,
@@ -108,7 +110,7 @@ export const Input = <_C extends React.ElementType = 'input'>({
       {error ? (
         <ErrorText id={`error-for-${id}`} size={inputSize} text={errorText ?? helpText} />
       ) : (
-        helpText?.length > 0 && <HelpText size={inputSize} text={helpText} />
+        helpText?.length > 0 && <HelpText id={`help-for-${id}`} size={inputSize} text={helpText} />
       )}
     </div>
   )

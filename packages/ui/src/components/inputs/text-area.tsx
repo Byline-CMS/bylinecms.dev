@@ -54,11 +54,13 @@ export const TextArea = function TextArea({
         rows={rows}
         autoComplete={autoComplete}
         placeholder={placeHolder}
-        aria-labelledby={`label-for-${id}`}
+        aria-labelledby={label != null ? `label-for-${id}` : undefined}
         aria-invalid={error}
         aria-required={required}
         aria-errormessage={errorText}
-        aria-describedby={error ? `error-for-${id}` : undefined}
+        aria-describedby={
+          error ? `error-for-${id}` : helpText.length > 0 ? `help-for-${id}` : undefined
+        }
         className={cx(
           'byline-text-area',
           `byline-text-area-${variant}`,
@@ -76,7 +78,7 @@ export const TextArea = function TextArea({
       {error ? (
         <ErrorText id={`error-for-${id}`} text={errorText ?? helpText} />
       ) : (
-        helpText?.length > 0 && <HelpText text={helpText} />
+        helpText?.length > 0 && <HelpText id={`help-for-${id}`} text={helpText} />
       )}
     </div>
   )
