@@ -20,7 +20,14 @@ export function Label({ className, id, htmlFor, label, required }: LabelProps): 
       className={cx('label', styles.label, className)}
     >
       {label}
-      {required && <span className={styles.required}>&nbsp;*</span>}
+      {/* a11y: the input carries aria-required, so the visual asterisk is
+          decorative — hide it from the accessible name (it would otherwise be
+          read as part of the label via aria-labelledby). */}
+      {required && (
+        <span aria-hidden="true" className={styles.required}>
+          &nbsp;*
+        </span>
+      )}
     </label>
   )
 }

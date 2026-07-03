@@ -15,6 +15,7 @@ export interface SearchProps extends React.InputHTMLAttributes<HTMLInputElement>
   inputClassName?: ClassName
   intent?: Intent
   className?: ClassName
+  ariaLabel?: string
   ariaLabelForSearch?: string
   ariaLabelForClear?: string
   onClear?: () => void
@@ -52,8 +53,9 @@ export function Search({
   onSearch,
   validatorFn,
   placeHolderText = 'Search',
-  ariaLabelForSearch = 'search',
-  ariaLabelForClear = 'clear',
+  ariaLabel,
+  ariaLabelForSearch = 'Search',
+  ariaLabelForClear = 'Clear search',
   ...rest
 }: SearchProps): React.JSX.Element {
   const [search, setSearch] = useState<null | string>(null)
@@ -144,18 +146,17 @@ export function Search({
         id="search"
         defaultValue={search ?? ''}
         name="search"
+        aria-label={ariaLabel ?? placeHolderText}
         placeHolder={placeHolderText}
         disabled={false}
         error={false}
         startAdornment={
           <InputAdornment position="start">
             <IconButton
-              role="button"
               intent="noeffect"
               variant="text"
-              style={{ outline: 'none' }}
               ripple={false}
-              arial-label={ariaLabelForSearch}
+              aria-label={ariaLabelForSearch}
               size="xs"
               onClick={() => {
                 handleSearch()
@@ -168,11 +169,9 @@ export function Search({
         endAdornment={
           <InputAdornment position="end">
             <IconButton
-              role="button"
               intent="noeffect"
-              style={{ outline: 'none' }}
               variant="text"
-              arial-label={ariaLabelForClear}
+              aria-label={ariaLabelForClear}
               size="xs"
               onClick={() => {
                 handleClear()
