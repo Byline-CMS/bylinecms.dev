@@ -1,5 +1,18 @@
 # @infonomic/ai
 
+## 3.16.0
+
+### Minor Changes
+
+- added cross-collection zone search + hydrate (`client.search({ zone })`) and row-level authorization on search; added `hasMany` multi-select relation picker and `$some` / `$every` / `$none` query quantifiers
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.16.0
+  - @byline/richtext-lexical@3.16.0
+  - @byline/ui@3.16.0
+
 ## 3.15.2
 
 ### Patch Changes

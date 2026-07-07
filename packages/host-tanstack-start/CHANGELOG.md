@@ -1,5 +1,22 @@
 # @byline/host-tanstack-start
 
+## 3.16.0
+
+### Minor Changes
+
+- added cross-collection zone search + hydrate (`client.search({ zone })`) and row-level authorization on search; added `hasMany` multi-select relation picker and `$some` / `$every` / `$none` query quantifiers
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@3.16.0
+  - @byline/ai@3.16.0
+  - @byline/auth@3.16.0
+  - @byline/client@3.16.0
+  - @byline/core@3.16.0
+  - @byline/i18n@3.16.0
+  - @byline/ui@3.16.0
+
 ## 3.15.2
 
 ### Patch Changes
