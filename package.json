@@ -18,6 +18,7 @@
     "storybook": "turbo run storybook",
     "dev": "turbo run dev",
     "lint": "turbo run lint --continue",
+    "knip": "knip --no-config-hints",
     "typecheck": "turbo run typecheck --continue",
     "test": "turbo run test",
     "test:integration": "turbo run test:integration --concurrency=1",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
     "@changesets/cli": "^2.31.0",
+    "knip": "^6.24.0",
     "lint-staged": "^17.0.5",
     "simple-git-hooks": "^2.13.1"
   },

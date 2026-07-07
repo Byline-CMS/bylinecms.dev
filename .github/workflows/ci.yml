@@ -30,6 +30,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      # Dead-code guard: fails on unused production dependencies; unused
+      # files and devDependencies surface as warnings only (see knip.json).
+      - run: pnpm knip
 
   test-suite:
     if: "!startsWith(github.event.head_commit.message, 'chore(release):')"

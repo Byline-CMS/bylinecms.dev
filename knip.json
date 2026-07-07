@@ -1,0 +1,56 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.js"],
+      "project": ["scripts/**"]
+    },
+    "apps/webapp": {
+      "entry": [
+        "src/server.ts",
+        "src/client.tsx",
+        "src/router.tsx",
+        "src/routes/**/*.{ts,tsx}",
+        "byline/*.{ts,tsx}",
+        "byline/seeds/**/*.ts",
+        "byline/scripts/**/*.ts",
+        "byline/collections/**/index.ts",
+        "byline/collections/**/hooks.ts",
+        "e2e/**/*.ts"
+      ],
+      "project": ["src/**", "byline/**", "e2e/**"]
+    },
+    "packages/cli": {
+      "entry": ["src/cli.ts"],
+      "project": ["src/**"],
+      "ignore": ["src/templates/**"]
+    },
+    "packages/db-postgres": {
+      "entry": [
+        "src/*.ts",
+        "src/database/seeds/index.ts",
+        "src/database/migrate.ts",
+        "src/**/tests/**/*.ts",
+        "drizzle.config.ts"
+      ],
+      "project": ["src/**"]
+    },
+    "packages/*": {
+      "entry": ["src/*.{ts,tsx}", "src/**/*.test.*.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
+      "project": ["src/**"]
+    }
+  },
+  "ignoreDependencies": ["npm-run-all", "chokidar"],
+  "rules": {
+    "files": "warn",
+    "devDependencies": "warn",
+    "exports": "off",
+    "types": "off",
+    "duplicates": "off",
+    "enumMembers": "off",
+    "classMembers": "off",
+    "binaries": "off",
+    "unlisted": "off",
+    "unresolved": "off"
+  }
+}
