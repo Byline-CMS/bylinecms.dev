@@ -32,7 +32,7 @@ import cx from 'classnames'
 
 import { useFieldError, useFieldValue, useFormContext } from '../../forms/form-context'
 import styles from './relation-field.module.css'
-import { RelationPicker } from './relation-picker'
+import { RelationPicker, type RelationPickerSelection } from './relation-picker'
 import { RelationSummary } from './relation-summary'
 
 // A single stored item. On the edit path the loader's populate pass attaches
@@ -147,24 +147,29 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
     return Array.isArray(defaultValue) ? (defaultValue as IncomingRelationValue[]) : []
   }
 
-  const handleAdd = (selection: {
-    targetDocumentId: string
-    targetCollectionId: string
-    record?: Record<string, any>
-  }) => {
+  const handleAddMany = (selections: RelationPickerSelection[]) => {
     setPickerOpen(false)
     const current = currentArray()
-    // Dedup — a target may appear at most once.
-    if (current.some((v) => v.targetDocumentId === selection.targetDocumentId)) return
-    if (selection.record) {
-      setPickedRecords((prev) => ({ ...prev, [selection.targetDocumentId]: selection.record! }))
+    // Dedup the batch against the current array — a target may appear at most
+    // once. The picker already disables already-added rows, so this is a
+    // belt-and-braces guard for stale state (e.g. a concurrent remove).
+    const existing = new Set(current.map((v) => v.targetDocumentId))
+    const additions = selections.filter((s) => !existing.has(s.targetDocumentId))
+    if (additions.length === 0) return
+    const records = additions.filter((s) => s.record != null)
+    if (records.length > 0) {
+      setPickedRecords((prev) => {
+        const next = { ...prev }
+        for (const s of records) next[s.targetDocumentId] = s.record!
+        return next
+      })
     }
     setFieldValue(fieldPath, [
       ...current,
-      {
-        targetDocumentId: selection.targetDocumentId,
-        targetCollectionId: selection.targetCollectionId,
-      },
+      ...additions.map((s) => ({
+        targetDocumentId: s.targetDocumentId,
+        targetCollectionId: s.targetCollectionId,
+      })),
     ])
   }
 
@@ -260,11 +265,13 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
           </div>
 
           <RelationPicker
+            multiple
             targetCollectionPath={field.targetCollection}
             targetDefinition={targetDef}
             displayField={field.displayField}
             isOpen={pickerOpen}
-            onSelect={handleAdd}
+            excludeIds={items.map((v) => v.targetDocumentId)}
+            onSelectMany={handleAddMany}
             onDismiss={() => setPickerOpen(false)}
           />
         </>

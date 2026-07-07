@@ -244,27 +244,39 @@ test.describe('document editor', () => {
     await createPage(page, `Smoke gallery ${Date.now()}`)
 
     // `gallery` is a hasMany relation (→ media) in the Details tab. Its empty
-    // state renders an add button (#gallery); each pick appends a tile.
+    // state renders an add button (#gallery); the picker opens in multi-select
+    // mode — toggle several rows in one trip and confirm with "Add selected".
     await waitForHydration(page, '#gallery')
+    await page.locator('#gallery').click()
 
-    const addMedia = async (rowIndex: number): Promise<string> => {
-      await page.locator('#gallery').click()
+    const rowTitle = async (rowIndex: number): Promise<string> => {
       const row = page.locator('.byline-field-relation-picker-row-button').nth(rowIndex)
       await expect(row).toBeVisible({ timeout: 30_000 })
-      const title = (await row.innerText())
+      return (await row.innerText())
         .split('\n')
         .map((s) => s.trim())
         .find((s) => s.length > 0) as string
-      await row.click()
-      await page.getByRole('button', { name: 'Select', exact: true }).click()
-      return title
     }
 
-    // Add two distinct media items → two tiles.
-    await addMedia(0)
-    const secondTitle = await addMedia(1)
+    // Toggle two rows (aria-pressed reflects the check state), then confirm —
+    // the button carries the live selection count.
+    const firstTitle = await rowTitle(0)
+    const secondTitle = await rowTitle(1)
+    const rows = page.locator('.byline-field-relation-picker-row-button')
+    await rows.nth(0).click()
+    await expect(rows.nth(0)).toHaveAttribute('aria-pressed', 'true')
+    await rows.nth(1).click()
+    await page.getByRole('button', { name: 'Add selected (2)', exact: true }).click()
+
     const tiles = page.locator('.byline-field-relation-many-tile')
     await expect(tiles).toHaveCount(2)
+    await expect(page.locator('.byline-field-relation.gallery')).toContainText(firstTitle)
+
+    // Reopen the picker — both added targets must render as disabled
+    // "already added" rows; dismiss without changing the selection.
+    await page.locator('#gallery').click()
+    await expect(page.locator('.byline-field-relation-picker-row-added')).toHaveCount(2)
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click()
 
     // Remove the first tile; the second (secondTitle) remains.
     await tiles.first().getByRole('button', { name: 'Remove Media Item' }).click()

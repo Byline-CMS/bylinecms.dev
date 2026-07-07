@@ -463,6 +463,8 @@
   "fields.relation.picker.searchPlaceholder": "搜索",
   "fields.relation.picker.empty": "未找到文档",
   "fields.relation.picker.loadFailed": "加载文档失败",
+  "fields.relation.picker.addSelected": "添加所选（{count}）",
+  "fields.relation.picker.alreadyAdded": "已添加",
   "fields.file.empty": "未选择文件",
   "fields.file.downloadAriaLabel": "下载文件",
   "fields.file.removeAriaLabel": "移除文件",

@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig, resolveItemViewColumns } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Button, LoaderRing, Modal, Search } from '@byline/ui/react'
+import { Button, CheckIcon, LoaderRing, Modal, Search } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { useBylineFieldServices } from '../field-services-context'
@@ -39,7 +39,21 @@ import styles from './relation-picker.module.css'
  *
  * Paths 2–4 render a single-line label (primary) + `path` (secondary).
  */
-interface RelationPickerProps {
+/**
+ * One confirmed pick. `record` is the raw document the picker row rendered —
+ * the caller can use it to show the selected value in its own tile without a
+ * refetch. The fields available on `record` are whatever `resolveSelectFields`
+ * asked the listing endpoint for (picker columns + `useAsTitle` +
+ * `displayField`), so any display surface downstream of the picker that also
+ * renders from those same columns will find the data it needs.
+ */
+export interface RelationPickerSelection {
+  targetDocumentId: string
+  targetCollectionId: string
+  record?: Record<string, any>
+}
+
+interface RelationPickerBaseProps {
   /** The target collection path (e.g. `'media'`). */
   targetCollectionPath: string
   /** The target collection definition (used for labels + displayField fallback). */
@@ -58,24 +72,37 @@ interface RelationPickerProps {
   extraSelectFields?: string[]
   /** Modal open/close state. */
   isOpen: boolean
-  /**
-   * Called with the picked selection when the user confirms.
-   *
-   * `record` is the raw document the picker row rendered — the caller can
-   * use it to show the selected value in its own tile without a refetch.
-   * The fields available on `record` are whatever `resolveSelectFields`
-   * asked the listing endpoint for (picker columns + `useAsTitle` +
-   * `displayField`), so any display surface downstream of the picker that
-   * also renders from those same columns will find the data it needs.
-   */
-  onSelect: (selection: {
-    targetDocumentId: string
-    targetCollectionId: string
-    record?: Record<string, any>
-  }) => void
   /** Called when the user dismisses the modal. */
   onDismiss: () => void
 }
+
+interface RelationPickerSingleProps extends RelationPickerBaseProps {
+  /** Single-select (default): clicking a row selects it; confirm returns one pick. */
+  multiple?: false
+  /** Called with the picked selection when the user confirms. */
+  onSelect: (selection: RelationPickerSelection) => void
+  onSelectMany?: never
+  excludeIds?: never
+}
+
+interface RelationPickerMultiProps extends RelationPickerBaseProps {
+  /**
+   * Multi-select mode (`hasMany` widgets): rows toggle a check state and the
+   * confirm action returns every selection in pick order — several picks in
+   * one trip instead of reopening the modal per item.
+   */
+  multiple: true
+  /** Called with the full selection set (pick order) when the user confirms. */
+  onSelectMany: (selections: RelationPickerSelection[]) => void
+  onSelect?: never
+  /**
+   * Target ids already present on the caller's value. Rendered as disabled
+   * "already added" rows so the same target can't be picked twice.
+   */
+  excludeIds?: string[]
+}
+
+type RelationPickerProps = RelationPickerSingleProps | RelationPickerMultiProps
 
 const PAGE_SIZE = 15
 
@@ -85,13 +112,22 @@ export const RelationPicker = ({
   displayField,
   extraSelectFields,
   isOpen,
+  multiple = false,
+  excludeIds,
   onSelect,
+  onSelectMany,
   onDismiss,
 }: RelationPickerProps) => {
   const [query, setQuery] = useState<string>('')
   const [page, setPage] = useState<number>(1)
   const { t } = useTranslation('byline-admin')
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
+  // Multi-select state. A Map keyed by target id preserves pick order (the
+  // confirmed batch appends in that order) and carries each row's record so
+  // picks survive page/search changes that swap out `documents`.
+  const [selectedMap, setSelectedMap] = useState<Map<string, Record<string, any> | undefined>>(
+    () => new Map()
+  )
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [documents, setDocuments] = useState<any[]>([])
@@ -110,6 +146,7 @@ export const RelationPicker = ({
       setQuery('')
       setPage(1)
       setSelectedDocumentId(null)
+      setSelectedMap(new Map())
       setError(null)
     }
   }, [isOpen])
@@ -174,7 +211,7 @@ export const RelationPicker = ({
     null
 
   const handleSelect = useCallback(() => {
-    if (!selectedDocumentId || !collectionId) return
+    if (!selectedDocumentId || !collectionId || !onSelect) return
     const record = documents.find((d) => d?.id === selectedDocumentId)
     onSelect({
       targetDocumentId: selectedDocumentId,
@@ -182,6 +219,30 @@ export const RelationPicker = ({
       record,
     })
   }, [selectedDocumentId, collectionId, documents, onSelect])
+
+  const handleSelectMany = useCallback(() => {
+    if (selectedMap.size === 0 || !collectionId || !onSelectMany) return
+    onSelectMany(
+      Array.from(selectedMap, ([targetDocumentId, record]) => ({
+        targetDocumentId,
+        targetCollectionId: collectionId,
+        record,
+      }))
+    )
+  }, [selectedMap, collectionId, onSelectMany])
+
+  const toggleSelected = useCallback((doc: Record<string, any>) => {
+    const id = doc.id as string
+    setSelectedMap((prev) => {
+      const next = new Map(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.set(id, doc)
+      }
+      return next
+    })
+  }, [])
 
   const title = t('fields.relation.selectPickerTitle', {
     label: targetDefinition?.labels.singular ?? targetCollectionPath,
@@ -228,21 +289,55 @@ export const RelationPicker = ({
                 <ul className={cx('byline-field-relation-picker-rows', styles.rows)}>
                   {documents.map((doc) => {
                     const id = doc.id as string
-                    const selected = selectedDocumentId === id
+                    const selected = multiple ? selectedMap.has(id) : selectedDocumentId === id
+                    const excluded = multiple && (excludeIds?.includes(id) ?? false)
                     return (
                       <li key={id}>
                         <button
                           type="button"
+                          disabled={excluded}
+                          aria-pressed={multiple ? selected : undefined}
+                          title={excluded ? t('fields.relation.picker.alreadyAdded') : undefined}
                           className={cx(
                             'byline-field-relation-picker-row-button',
                             styles['row-button'],
+                            multiple && [
+                              'byline-field-relation-picker-row-multi',
+                              styles['row-multi'],
+                            ],
                             selected && [
                               'byline-field-relation-picker-row-selected',
                               styles['row-selected'],
+                            ],
+                            excluded && [
+                              'byline-field-relation-picker-row-added',
+                              styles['row-added'],
                             ]
                           )}
-                          onClick={() => setSelectedDocumentId(id)}
+                          onClick={() => {
+                            if (excluded) return
+                            if (multiple) {
+                              toggleSelected(doc)
+                            } else {
+                              setSelectedDocumentId(id)
+                            }
+                          }}
                         >
+                          {multiple && (
+                            <span
+                              aria-hidden="true"
+                              className={cx(
+                                'byline-field-relation-picker-check',
+                                styles.check,
+                                (selected || excluded) && [
+                                  'byline-field-relation-picker-check-checked',
+                                  styles['check-checked'],
+                                ]
+                              )}
+                            >
+                              {(selected || excluded) && <CheckIcon width="12px" height="12px" />}
+                            </span>
+                          )}
                           {pickerColumns && pickerColumns.length > 0 ? (
                             <div
                               className={cx(
@@ -280,6 +375,16 @@ export const RelationPicker = ({
                                 </span>
                               )}
                             </div>
+                          )}
+                          {excluded && (
+                            <span
+                              className={cx(
+                                'byline-field-relation-picker-added-hint',
+                                styles['added-hint']
+                              )}
+                            >
+                              {t('fields.relation.picker.alreadyAdded')}
+                            </span>
                           )}
                         </button>
                       </li>
@@ -331,10 +436,12 @@ export const RelationPicker = ({
             className={cx('byline-field-relation-picker-action', styles.action)}
             intent="primary"
             type="button"
-            disabled={!selectedDocumentId}
-            onClick={handleSelect}
+            disabled={multiple ? selectedMap.size === 0 : !selectedDocumentId}
+            onClick={multiple ? handleSelectMany : handleSelect}
           >
-            {t('common.actions.select')}
+            {multiple
+              ? t('fields.relation.picker.addSelected', { count: selectedMap.size })
+              : t('common.actions.select')}
           </Button>
         </Modal.Actions>
       </Modal.Container>

@@ -463,6 +463,8 @@
   "fields.relation.picker.searchPlaceholder": "Cerca",
   "fields.relation.picker.empty": "Nessun documento trovato",
   "fields.relation.picker.loadFailed": "Impossibile caricare i documenti",
+  "fields.relation.picker.addSelected": "Aggiungi selezionati ({count})",
+  "fields.relation.picker.alreadyAdded": "Già aggiunto",
   "fields.file.empty": "Nessun file selezionato",
   "fields.file.downloadAriaLabel": "Scarica file",
   "fields.file.removeAriaLabel": "Rimuovi file",

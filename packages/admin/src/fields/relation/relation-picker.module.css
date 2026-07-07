@@ -108,6 +108,55 @@
   border-left: 2px solid var(--primary-200);
 }
 
+/* Multi-select mode: rows lay out check indicator + content + trailing hint. */
+.row-multi,
+:global(.byline-field-relation-picker-row-multi) {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.check,
+:global(.byline-field-relation-picker-check) {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--gray-400);
+  border-radius: 4px;
+  color: transparent;
+}
+
+.check-checked,
+:global(.byline-field-relation-picker-check-checked) {
+  background-color: var(--primary-200);
+  border-color: var(--primary-200);
+  color: #fff;
+}
+
+/* Already-added rows: inert, dimmed, no hover affordance. */
+.row-added,
+:global(.byline-field-relation-picker-row-added) {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.row-added:hover,
+:global(.byline-field-relation-picker-row-added):hover {
+  background-color: transparent;
+}
+
+.added-hint,
+:global(.byline-field-relation-picker-added-hint) {
+  margin-left: auto;
+  flex: none;
+  color: var(--gray-500);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
 .row-cells,
 :global(.byline-field-relation-picker-row-cells) {
   display: flex;

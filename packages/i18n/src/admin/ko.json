@@ -463,6 +463,8 @@
   "fields.relation.picker.searchPlaceholder": "검색",
   "fields.relation.picker.empty": "문서를 찾을 수 없습니다",
   "fields.relation.picker.loadFailed": "문서를 불러오지 못했습니다",
+  "fields.relation.picker.addSelected": "선택 항목 추가 ({count})",
+  "fields.relation.picker.alreadyAdded": "이미 추가됨",
   "fields.file.empty": "선택된 파일 없음",
   "fields.file.downloadAriaLabel": "파일 다운로드",
   "fields.file.removeAriaLabel": "파일 제거",
