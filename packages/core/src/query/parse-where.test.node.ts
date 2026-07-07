@@ -33,6 +33,14 @@ const testCollection = defineCollection({
       targetCollection: 'test-categories',
       optional: true,
     },
+    {
+      name: 'tags',
+      type: 'relation',
+      label: 'Tags',
+      targetCollection: 'test-categories',
+      hasMany: true,
+      optional: true,
+    },
   ],
 })
 
@@ -818,5 +826,110 @@ describe('mergePredicates', () => {
     expect(parsed.filters).toHaveLength(2)
     expect(parsed.filters[0]).toMatchObject({ kind: 'field', fieldName: 'featured' })
     expect(parsed.filters[1]).toMatchObject({ kind: 'field', fieldName: 'title' })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// parseWhere — relation quantifiers ($some / $every / $none)
+// ---------------------------------------------------------------------------
+
+describe('parseWhere — relation quantifiers', () => {
+  it('emits a $some RelationFilter with hasMany flag for a hasMany field', async () => {
+    const result = await parseWhere({ tags: { $some: { slug: 'news' } } }, testCollection, ctx)
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toEqual({
+      kind: 'relation',
+      fieldName: 'tags',
+      targetCollectionId: 'id-test-categories',
+      hasMany: true,
+      nested: [
+        {
+          kind: 'field',
+          fieldName: 'slug',
+          storeType: 'text',
+          valueColumn: 'value',
+          operator: '$eq',
+          value: 'news',
+        },
+      ],
+    })
+  })
+
+  it('treats a plain sub-where on a hasMany field as implicit $some', async () => {
+    const result = await parseWhere({ tags: { slug: 'news' } }, testCollection, ctx)
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toMatchObject({
+      kind: 'relation',
+      fieldName: 'tags',
+      hasMany: true,
+    })
+    // Default quantifier is omitted from the wire shape.
+    expect(result.filters[0]).not.toHaveProperty('quantifier')
+  })
+
+  it('emits an $every RelationFilter', async () => {
+    const result = await parseWhere(
+      { tags: { $every: { status: 'published' } } },
+      testCollection,
+      ctx
+    )
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toEqual({
+      kind: 'relation',
+      fieldName: 'tags',
+      targetCollectionId: 'id-test-categories',
+      hasMany: true,
+      quantifier: 'every',
+      nested: [{ kind: 'docColumn', column: 'status', operator: '$eq', value: 'published' }],
+    })
+  })
+
+  it('emits a $none RelationFilter with empty nested for `$none: {}`', async () => {
+    const result = await parseWhere({ tags: { $none: {} } }, testCollection, ctx)
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toEqual({
+      kind: 'relation',
+      fieldName: 'tags',
+      targetCollectionId: 'id-test-categories',
+      hasMany: true,
+      quantifier: 'none',
+      nested: [],
+    })
+  })
+
+  it('ANDs multiple quantifier keys on one field into separate filters', async () => {
+    const result = await parseWhere(
+      { tags: { $some: { slug: 'a' }, $none: { slug: 'b' } } },
+      testCollection,
+      ctx
+    )
+    expect(result.filters).toHaveLength(2)
+    expect(result.filters[0]).toMatchObject({ kind: 'relation', fieldName: 'tags', hasMany: true })
+    expect(result.filters[0]).not.toHaveProperty('quantifier')
+    expect(result.filters[1]).toMatchObject({
+      kind: 'relation',
+      fieldName: 'tags',
+      quantifier: 'none',
+    })
+  })
+
+  it('supports quantifiers on single (non-hasMany) relation fields without the hasMany flag', async () => {
+    const result = await parseWhere(
+      { category: { $none: { slug: 'hidden' } } },
+      testCollection,
+      ctx
+    )
+    expect(result.filters).toHaveLength(1)
+    expect(result.filters[0]).toMatchObject({
+      kind: 'relation',
+      fieldName: 'category',
+      quantifier: 'none',
+    })
+    expect(result.filters[0]).not.toHaveProperty('hasMany')
+  })
+
+  it('skips quantifier objects when ctx is not provided', async () => {
+    const result = await parseWhere({ tags: { $some: { slug: 'news' } } }, testCollection)
+    expect(result.filters).toHaveLength(0)
   })
 })

@@ -369,12 +369,19 @@ async function parseWhereInternal(
     const field = definition.fields.find((f) => f.name === key)
     if (!field) continue // Unknown field — skip silently
 
-    // Relation field with a plain-object sub-clause → cross-collection filter.
-    // A "plain object with no $-prefixed top-level keys" is unambiguously a
-    // nested where; anything else (bare value, operator object) stays in the
-    // ordinary field-filter path below and matches the relation's
+    // Relation field with a quantifier object (`$some` / `$every` / `$none`)
+    // or a plain-object sub-clause → cross-collection filter(s).
+    //
+    //   - `{ gallery: { $some: { … } } }` — explicit quantifier(s) over the
+    //     relation's target set; multiple quantifier keys AND together.
+    //   - `{ category: { path: 'news' } }` — a plain object with no
+    //     $-prefixed top-level keys is unambiguously a nested where,
+    //     shorthand for `$some`.
+    //
+    // Anything else (bare value, operator object) stays in the ordinary
+    // field-filter path below and matches the relation's
     // target_document_id column directly.
-    if (field.type === 'relation' && isPlainSubWhere(rawValue)) {
+    if (field.type === 'relation' && (isQuantifierObject(rawValue) || isPlainSubWhere(rawValue))) {
       if (!ctx) {
         // No way to resolve the target without a ParseContext. Direct
         // callers of `parseWhere` (tests, tooling) can legitimately hit
@@ -382,7 +389,7 @@ async function parseWhereInternal(
         continue
       }
 
-      const relation = field as { targetCollection?: string }
+      const relation = field as { targetCollection?: string; hasMany?: boolean }
       const targetPath = relation.targetCollection
       if (!targetPath) {
         ctx.logger?.debug(
@@ -402,22 +409,39 @@ async function parseWhereInternal(
       }
 
       const targetCollectionId = await ctx.resolveCollectionId(targetPath)
-      const nested = await parseWhereInternal(rawValue as WhereClause, targetDef, ctx, {
-        isNested: true,
-        inCombinator: false,
-      })
 
-      // Splice nested filters straight in. The nested parse runs with
-      // `isNested: true`, which promotes `status` / `path` into
-      // `DocumentColumnFilter` entries the adapter resolves against the
-      // target version's columns (`td${depth}.status` / `td${depth}.path`)
-      // via the inner relation scope. `query` is dropped one level up.
-      result.filters.push({
-        kind: 'relation',
-        fieldName: key,
-        targetCollectionId,
-        nested: nested.filters,
-      } satisfies RelationFilter)
+      // Normalise both forms to a list of (quantifier, sub-where) pairs —
+      // the plain sub-where is shorthand for a single `$some`.
+      const quantified: Array<{ quantifier: 'some' | 'every' | 'none'; sub: WhereClause }> =
+        isQuantifierObject(rawValue)
+          ? Object.entries(rawValue).map(([qKey, sub]) => ({
+              quantifier: qKey.slice(1) as 'some' | 'every' | 'none',
+              sub: sub as WhereClause,
+            }))
+          : [{ quantifier: 'some', sub: rawValue as WhereClause }]
+
+      for (const { quantifier, sub } of quantified) {
+        const nested = await parseWhereInternal(sub, targetDef, ctx, {
+          isNested: true,
+          inCombinator: false,
+        })
+
+        // Splice nested filters straight in. The nested parse runs with
+        // `isNested: true`, which promotes `status` / `path` into
+        // `DocumentColumnFilter` entries the adapter resolves against the
+        // target version's columns (`td${depth}.status` / `td${depth}.path`)
+        // via the inner relation scope. `query` is dropped one level up.
+        // `hasMany: false` / `quantifier: 'some'` are the adapter defaults —
+        // omit them so the plain single-relation filter shape is unchanged.
+        result.filters.push({
+          kind: 'relation',
+          fieldName: key,
+          targetCollectionId,
+          nested: nested.filters,
+          ...(relation.hasMany === true ? { hasMany: true } : {}),
+          ...(quantifier === 'some' ? {} : { quantifier }),
+        } satisfies RelationFilter)
+      }
       continue
     }
 
@@ -502,6 +526,33 @@ interface NormalisedOperator {
  * than a comparison value.
  */
 const COMBINATOR_KEYS = new Set(['$and', '$or'])
+
+/**
+ * Relation quantifier keys (`{ gallery: { $some: { … } } }`). Only
+ * meaningful on relation fields; each key's value is a nested sub-where
+ * evaluated against the relation's targets.
+ */
+const QUANTIFIER_KEYS = new Set(['$some', '$every', '$none'])
+
+/**
+ * A quantifier object is a non-null, non-array object whose keys are *all*
+ * quantifier keys (`$some` / `$every` / `$none`), each carrying a nested
+ * sub-where object (empty allowed — `$none: {}` means "no targets at all").
+ * Mixing quantifier keys with field names or operators is not a recognised
+ * shape and falls through to the ordinary operator path (which rejects it).
+ */
+function isQuantifierObject(raw: unknown): raw is Record<string, Record<string, unknown>> {
+  if (raw === null || typeof raw !== 'object') return false
+  if (Array.isArray(raw)) return false
+  const keys = Object.keys(raw as Record<string, unknown>)
+  if (keys.length === 0) return false
+  for (const k of keys) {
+    if (!QUANTIFIER_KEYS.has(k)) return false
+    const v = (raw as Record<string, unknown>)[k]
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) return false
+  }
+  return true
+}
 
 /**
  * A "plain sub-where" is a non-null, non-array object whose top-level keys

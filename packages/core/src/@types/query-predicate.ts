@@ -24,10 +24,33 @@ export interface FilterOperators {
 }
 
 /**
+ * Quantifiers usable on a relation field's predicate value — the multi-target
+ * (`hasMany`) analogue of a nested sub-where. Each key carries a nested
+ * `QueryPredicate` evaluated against the relation's *targets*:
+ *
+ *   - `$some`  — at least one target matches (a bare nested sub-where on a
+ *     relation field is shorthand for this).
+ *   - `$every` — no target fails the predicate. Vacuously true when the
+ *     document has no targets on the field (Prisma-style semantics).
+ *   - `$none`  — no target matches. `$none: {}` matches documents with no
+ *     (resolving) targets at all.
+ *
+ * Multiple quantifier keys on one field AND together. Also valid on single
+ * relations (a set of ≤ 1). Targets that don't resolve in the selected read
+ * view (deleted, or unpublished under published-mode reads) are ignored.
+ */
+export interface RelationQuantifiers {
+  $some?: QueryPredicate
+  $every?: QueryPredicate
+  $none?: QueryPredicate
+}
+
+/**
  * The value side of a predicate entry. Either a bare value (interpreted as
  * `$eq`), an operator object, a nested `QueryPredicate` (for cross-collection
- * relation filters or combinator children), or an array of `QueryPredicate`
- * (the value side of `$and` / `$or`).
+ * relation filters or combinator children), a `RelationQuantifiers` object
+ * (relation fields only), or an array of `QueryPredicate` (the value side of
+ * `$and` / `$or`).
  */
 export type PredicateValue =
   | string
@@ -35,6 +58,7 @@ export type PredicateValue =
   | boolean
   | null
   | FilterOperators
+  | RelationQuantifiers
   | QueryPredicate
   | QueryPredicate[]
 

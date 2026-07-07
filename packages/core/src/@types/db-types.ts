@@ -148,6 +148,28 @@ export interface RelationFilter {
   targetCollectionId: string
   /** Filters applied to the target document. Recursive. */
   nested: DocumentFilter[]
+  /**
+   * Whether the source field is a multi-target (`hasMany`) relation. hasMany
+   * items are stored as indexed `store_relation` rows (`<field>.0`,
+   * `<field>.1`, …), so the adapter matches `field_name` by prefix instead
+   * of exact equality. Set at parse time from the field definition.
+   */
+  hasMany?: boolean
+  /**
+   * Quantifier over the relation's target set, for `hasMany` relations
+   * (single relations are a set of ≤ 1 and compose the same way):
+   *
+   *   - `'some'` (default) — at least one target satisfies `nested`.
+   *   - `'every'` — no target fails `nested`. Vacuously true when the
+   *     document has no (resolving) targets on the field.
+   *   - `'none'` — no target satisfies `nested`. With empty `nested`,
+   *     matches documents that have no resolving targets at all.
+   *
+   * Targets that do not resolve in the selected read view (deleted, or
+   * unpublished under `readMode: 'published'`) are ignored by all three —
+   * the same visibility rule populate applies.
+   */
+  quantifier?: 'some' | 'every' | 'none'
 }
 
 /**

@@ -179,3 +179,109 @@ describe('hasMany relations populate as an ordered array of envelopes', () => {
     expect(authors[1]?.document).toBeUndefined()
   })
 })
+
+// ---------------------------------------------------------------------------
+// hasMany query quantifiers — $some / $every / $none
+// ---------------------------------------------------------------------------
+//
+// Runs after the populate describe above, so `personB` ("Grace Hopper") has
+// been deleted and the original article resolves only `personA`. These tests
+// create their own people/articles and assert by id-set, so that state is
+// accounted for rather than assumed away.
+
+describe('hasMany query quantifiers', () => {
+  let alan: string
+  let katherine: string
+  let draftPerson: string
+  let artBoth: string // authors: [Alan, Katherine] — both published
+  let artMixed: string // authors: [Alan, draftPerson] — draft target unresolvable in published reads
+  let artNone: string // authors: []
+
+  beforeAll(async () => {
+    const people = ctx.client.collection(peopleDefinition.path)
+    const a = await people.create({ name: 'Alan Turing' })
+    const k = await people.create({ name: 'Katherine Johnson' })
+    const d = await people.create({ name: 'Draft Person' })
+    alan = a.documentId
+    katherine = k.documentId
+    draftPerson = d.documentId
+    await people.changeStatus(alan, 'published')
+    await people.changeStatus(katherine, 'published')
+    // draftPerson stays draft — invisible to published-mode target resolution.
+
+    const articles = ctx.client.collection(articlesDefinition.path)
+    const ref = (id: string) => ({
+      targetDocumentId: id,
+      targetCollectionId: ctx.peopleCollectionId,
+    })
+    const both = await articles.create({
+      title: 'Quant Both',
+      authors: [ref(alan), ref(katherine)],
+    })
+    const mixed = await articles.create({
+      title: 'Quant Mixed',
+      authors: [ref(alan), ref(draftPerson)],
+    })
+    const none = await articles.create({ title: 'Quant None', authors: [] })
+    artBoth = both.documentId
+    artMixed = mixed.documentId
+    artNone = none.documentId
+    await articles.changeStatus(artBoth, 'published')
+    await articles.changeStatus(artMixed, 'published')
+    await articles.changeStatus(artNone, 'published')
+  }, 30_000)
+
+  const findIds = async (where: Record<string, unknown>): Promise<Set<string>> => {
+    const result = await ctx.client.collection(articlesDefinition.path).find({ where })
+    return new Set(result.docs.map((d) => d.id))
+  }
+
+  it('$some matches documents with at least one satisfying target', async () => {
+    const ids = await findIds({ authors: { $some: { name: 'Alan Turing' } } })
+    expect(ids.has(artBoth)).toBe(true)
+    expect(ids.has(artMixed)).toBe(true)
+    expect(ids.has(artNone)).toBe(false)
+    expect(ids.has(articleId)).toBe(false)
+  })
+
+  it('a plain sub-where on a hasMany field behaves as implicit $some', async () => {
+    const ids = await findIds({ authors: { name: 'Katherine Johnson' } })
+    expect(ids.has(artBoth)).toBe(true)
+    expect(ids.has(artMixed)).toBe(false)
+    expect(ids.has(artNone)).toBe(false)
+  })
+
+  it('$none: {} matches documents with no resolving targets at all', async () => {
+    const ids = await findIds({ authors: { $none: {} } })
+    expect(ids.has(artNone)).toBe(true)
+    expect(ids.has(artBoth)).toBe(false)
+    expect(ids.has(artMixed)).toBe(false)
+    // The original article still resolves personA ("Ada Lovelace").
+    expect(ids.has(articleId)).toBe(false)
+  })
+
+  it('$every ignores unresolvable targets and is vacuously true for empty sets', async () => {
+    const ids = await findIds({ authors: { $every: { name: { $contains: 'Turing' } } } })
+    // artMixed: Alan passes; the draft target does not resolve in published
+    // mode and is ignored — every resolving target passes.
+    expect(ids.has(artMixed)).toBe(true)
+    // artBoth: Katherine fails the predicate.
+    expect(ids.has(artBoth)).toBe(false)
+    // artNone: no targets → vacuously true (Prisma-style semantics).
+    expect(ids.has(artNone)).toBe(true)
+    // Original article: Ada fails.
+    expect(ids.has(articleId)).toBe(false)
+  })
+
+  it('multiple quantifier keys AND together', async () => {
+    const ids = await findIds({
+      authors: {
+        $some: { name: { $contains: 'Alan' } },
+        $none: { name: { $contains: 'Katherine' } },
+      },
+    })
+    expect(ids.has(artMixed)).toBe(true)
+    expect(ids.has(artBoth)).toBe(false)
+    expect(ids.has(artNone)).toBe(false)
+  })
+})

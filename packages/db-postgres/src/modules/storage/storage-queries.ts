@@ -2063,10 +2063,26 @@ export class DocumentQueries implements IDocumentQueries {
    * the outer read is in published mode), then recurses each nested
    * filter against the target version's own `td.id`.
    *
-   * With no nested filters this reduces to "source has any relation row
-   * at all on this field pointing at a target that resolves in the
-   * selected view" — useful as a base case but more typically the
-   * nested list carries a predicate.
+   * `hasMany` relations store one row per item at an indexed field name
+   * (`<field>.0`, `<field>.1`, …), so the field match switches to a prefix
+   * `LIKE`; single relations match the exact name.
+   *
+   * The `quantifier` selects the set semantics over the relation's
+   * (resolving) targets:
+   *
+   *   - `'some'` (default): `EXISTS (… AND nested…)` — at least one target
+   *     matches. With no nested filters this reduces to "has any resolving
+   *     target on this field".
+   *   - `'none'`: `NOT` of the `'some'` form — no target matches. With no
+   *     nested filters: "has no resolving targets at all".
+   *   - `'every'`: `NOT EXISTS (… AND NOT (nested…))` — no target *fails*
+   *     the nested predicate. Vacuously true for documents with no
+   *     resolving targets (Prisma-style). With no nested filters there is
+   *     nothing to fail: compile to TRUE.
+   *
+   * Rows whose target doesn't resolve in the selected view (deleted, or
+   * unpublished in published mode) drop out of the JOIN in all three
+   * forms — the same visibility rule populate applies.
    */
   private buildRelationExists(
     filter: RelationFilter,
@@ -2103,19 +2119,46 @@ export class DocumentQueries implements IDocumentQueries {
       this.buildFilterExists(nested, locale, innerScope, readMode, depth + 1)
     )
 
-    const nestedAnd =
-      nestedConditions.length > 0 ? sql` AND ${sql.join(nestedConditions, sql` AND `)}` : sql``
+    const quantifier = filter.quantifier ?? 'some'
 
-    return sql`EXISTS (
+    // `every` with nothing to fail is vacuously true for every document —
+    // short-circuit rather than emitting `NOT (TRUE)` noise.
+    if (quantifier === 'every' && nestedConditions.length === 0) {
+      return sql`TRUE`
+    }
+
+    // 'some'/'none' assert the nested conjunction on a matching row;
+    // 'every' asserts the *negated* conjunction (a failing row) and wraps
+    // the whole scan in NOT.
+    const nestedAnd =
+      nestedConditions.length === 0
+        ? sql``
+        : quantifier === 'every'
+          ? sql` AND NOT (${sql.join(nestedConditions, sql` AND `)})`
+          : sql` AND ${sql.join(nestedConditions, sql` AND `)}`
+
+    // hasMany rows are stored at indexed paths (`gallery.0`, `gallery.1`, …)
+    // where `field_name` is the *index segment* ('0', '1', …) and
+    // `parent_path` is the field name — so multi-target rows match on
+    // `parent_path` exactly, single-target rows on `field_name`. (A where
+    // clause only addresses top-level fields, so `parent_path` needs no
+    // prefix handling.)
+    const fieldMatch = filter.hasMany
+      ? sql`${rAlias}.parent_path = ${filter.fieldName}`
+      : sql`${rAlias}.field_name = ${filter.fieldName}`
+
+    const existsSql = sql`EXISTS (
       SELECT 1 FROM byline_store_relation ${rAlias}
       JOIN ${targetView} ${tdAlias}
         ON ${tdAlias}.document_id = ${rAlias}.target_document_id
        AND ${tdAlias}.collection_id = ${rAlias}.target_collection_id
       WHERE ${rAlias}.document_version_id = ${outerScope.docVersionId}
-        AND ${rAlias}.field_name = ${filter.fieldName}
+        AND ${fieldMatch}
         AND ${rAlias}.target_collection_id = ${filter.targetCollectionId}
         AND (${rAlias}.locale = ${locale} OR ${rAlias}.locale = 'all')${nestedAnd}
     )`
+
+    return quantifier === 'some' ? existsSql : sql`NOT ${existsSql}`
   }
 
   /**
