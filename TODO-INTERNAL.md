@@ -20,9 +20,9 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ## Now
 
-### Admin editor smoke suite — remaining scenarios
+### `hasMany` relations — Phase 2
 
-The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./docs/09-testing.md#editor-smoke-suite-playwright)): auth setup through the real sign-in form, dashboard/list rendering, create → edit → save round-trip, and a workflow status transition. Remaining scenarios from the growth checklist in `apps/webapp/e2e/editor-smoke.spec.ts`: each remaining field type (datetime, select, checkbox, relation, richtext), file upload (media collection), content-locale switch + translation save, duplicate / restore-version flows. Scope stays ~10–15 happy-path scenarios, not coverage. Completes **before `hasMany`** (which is heavily an admin-UI feature: multi-relation picker, list rendering).
+Promoted from Next now that the editor smoke suite is complete (the suite was explicitly sequenced before this work — the full growth checklist in `apps/webapp/e2e/editor-smoke.spec.ts` shipped 2026-07-07: every field type, file upload, content-locale switch + translation save, duplicate, and restore-version). See the full Phase 2 spec below under Next → "`hasMany` relations — Phase 2".
 
 ---
 
