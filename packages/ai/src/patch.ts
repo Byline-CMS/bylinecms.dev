@@ -6,7 +6,6 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { extractTextNodesFromLexicalState, setAtPath } from './lexical-text-edits'
 import {
   patchDoc as patchAnthropicDoc,
   patchDocStreaming as patchAnthropicDocStreaming,
@@ -19,6 +18,7 @@ import {
   patchDoc as patchOpenAIDoc,
   patchDocStreaming as patchOpenAIDocStreaming,
 } from './models/openai/patch'
+import { extractTextNodesFromLexicalState, setAtPath } from './utils/lexical-text-edits'
 import type { Provider } from './@types'
 
 export interface PatchOptions {

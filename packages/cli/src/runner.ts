@@ -1,7 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-
-import { execa } from 'execa'
+import { existsSync, readFileSync } from 'node:fs'
 
 import { renderDiff } from './ui/diff.js'
 import type { Context } from './context.js'
@@ -96,14 +93,4 @@ async function decideApply(phase: Phase, ctx: Context): Promise<boolean> {
 
 function readIfExists(path: string): string {
   return existsSync(path) ? readFileSync(path, 'utf8') : ''
-}
-
-export async function executePlan(plan: Plan, ctx: Context): Promise<void> {
-  for (const w of plan.writes) {
-    mkdirSync(dirname(w.path), { recursive: true })
-    writeFileSync(w.path, w.contents, 'utf8')
-  }
-  for (const c of plan.commands) {
-    await execa(c.command, c.args, { cwd: c.cwd ?? ctx.cwd, stdio: 'inherit' })
-  }
 }

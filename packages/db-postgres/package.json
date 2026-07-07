@@ -75,8 +75,7 @@
     "drizzle-orm": "^0.45.2",
     "npm-run-all": "^4.1.5",
     "pg": "^8.21.0",
-    "uuid": "^14.0.0",
-    "zod": "^4.4.3"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
