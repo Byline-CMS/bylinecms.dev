@@ -53,6 +53,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.15",
     "@byline/db-postgres": "workspace:*",
+    "@byline/search-postgres": "^3.15.2",
     "@types/node": "^25.9.1",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",

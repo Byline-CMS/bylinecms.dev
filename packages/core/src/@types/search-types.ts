@@ -225,7 +225,14 @@ export interface SearchFacetBucket {
 /** The result envelope returned by `SearchProvider.search`. */
 export interface SearchResults {
   hits: SearchHit[]
-  /** Total matches across all pages (not just the returned `hits`). */
+  /**
+   * Total matches across all pages (not just the returned `hits`).
+   *
+   * This is the *provider's* count. When the querying collection applies
+   * `beforeRead` row scoping, unauthorized hits are dropped **after**
+   * ranking (see `CollectionHandle.search`), so `total` — like facet
+   * counts — is approximate under scoping and exact without it.
+   */
   total: number
   /**
    * Facet buckets keyed by field name, when `facets` was requested and the

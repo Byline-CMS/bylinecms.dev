@@ -207,10 +207,25 @@ export class CollectionHandle {
    * sees published content — which is also all the index holds, since
    * indexing is published-only.
    *
+   * **Row-level authorization** — "rank in the provider, authorise in core":
+   * when the collection configures a `beforeRead` hook, the provider's
+   * candidate hits are re-resolved through the normal read path (the same
+   * predicate merge + SQL compile every other read uses) and hits whose
+   * document doesn't survive the scoping are dropped. Collections without a
+   * hook skip the second query entirely. Two consequences to be aware of:
+   *
+   *   - `total` (and facet counts) remain the provider's pre-authorization
+   *     numbers — approximate under row scoping, exact without it.
+   *   - a page of hits can come back shorter than `limit` when candidates
+   *     are dropped; paginate on `offset`, not on received length.
+   *
+   * `_bypassBeforeRead: true` is the same system-operation escape hatch the
+   * read methods take.
+   *
    * Throws `ERR_VALIDATION` when no provider is registered.
    */
   async search(options: CollectionSearchOptions): Promise<SearchResults> {
-    await this.resolveAndAssertRead()
+    const requestContext = await this.resolveAndAssertRead()
     const provider = this.client.search
     if (provider == null) {
       throw ERR_VALIDATION({
@@ -219,7 +234,7 @@ export class CollectionHandle {
           'see `@byline/search-postgres` → `postgresSearch()` for the built-in driver.',
       })
     }
-    return provider.search({
+    const results = await provider.search({
       query: options.query,
       collectionPath: this.definition.path,
       locale: options.locale ?? this.client.defaultLocale,
@@ -229,6 +244,40 @@ export class CollectionHandle {
       limit: options.limit,
       offset: options.offset,
     })
+
+    // Row-level authorization. Resolve the beforeRead predicate once (cached
+    // on the ReadContext); `null` means no scoping — the published-only index
+    // is already safe and the common case pays no second query.
+    const readCtx = createReadContext()
+    const hookPredicate = await this.resolveBeforeReadPredicate(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
+    if (hookPredicate == null || results.hits.length === 0) {
+      return results
+    }
+
+    // Re-resolve the candidate ids through `find` — it re-applies the same
+    // hook predicate (cache hit via the shared ReadContext) AND-merged with
+    // the id set, compiled through the ordinary read machinery. Projection
+    // is trimmed to the identity field; the page is sized to the candidate
+    // set so nothing is cut by pagination.
+    const candidateIds = results.hits.map((h) => h.documentId)
+    const authorized = await this.find({
+      where: { id: { $in: candidateIds } },
+      select: this.definition.useAsTitle != null ? [this.definition.useAsTitle] : undefined,
+      locale: options.locale,
+      status: options.status,
+      page: 1,
+      pageSize: candidateIds.length,
+      _readContext: readCtx,
+    })
+    const allowed = new Set(authorized.docs.map((d) => d.id))
+    return {
+      ...results,
+      hits: results.hits.filter((h) => allowed.has(h.documentId)),
+    }
   }
 
   // -------------------------------------------------------------------------

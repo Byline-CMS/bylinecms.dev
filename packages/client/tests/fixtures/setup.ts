@@ -12,6 +12,7 @@ import {
   defineServerConfig,
   type IDbAdapter,
   type RichTextPopulateFn,
+  type SearchProvider,
 } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 
@@ -44,6 +45,14 @@ export async function setupMultiCollectionTestClient(
      * true. Used by the richtext-populate integration test.
      */
     richTextPopulate?: RichTextPopulateFn
+    /**
+     * Optional search provider factory (e.g. `(db) => postgresSearch({
+     * pool: db.pool })`) wired onto the client so `CollectionHandle.search`
+     * / `indexDocument` resolve. A factory because the provider reuses the
+     * adapter's pg pool, which doesn't exist until `pgAdapter()` runs here.
+     * Used by the search-auth integration test.
+     */
+    search?: (db: IDbAdapter) => SearchProvider
   } = {}
 ): Promise<MultiCollectionTestContext> {
   const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
@@ -73,6 +82,7 @@ export async function setupMultiCollectionTestClient(
     collections: definitions,
     requestContext,
     richTextPopulate: options.richTextPopulate,
+    search: options.search?.(db),
   })
 
   const collectionIds: Record<string, string> = {}

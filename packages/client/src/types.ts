@@ -208,8 +208,12 @@ interface StatusControls {
  * `collectionPath` is implied by the handle, so callers supply only the
  * query and optional scoping. `status` defaults to `'published'` (public
  * readers); pass `'any'` for admin contexts.
+ *
+ * When the collection configures a `beforeRead` hook, hits are re-resolved
+ * through the row-scoping pipeline before being returned; `_bypassBeforeRead`
+ * is the same system-operation escape hatch the read methods take.
  */
-export interface CollectionSearchOptions {
+export interface CollectionSearchOptions extends BeforeReadControls {
   /** Free-text query string. */
   query: string
   /** Restrict to a single content locale (defaults to the client default). */
