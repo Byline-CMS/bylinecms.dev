@@ -17,7 +17,7 @@ import { type ActorLabelMap, resolveActorLabels } from '../collections/actors.js
 import type { AuditLogEntryDto } from '../collections/audit.js'
 
 // ---------------------------------------------------------------------------
-// System-wide activity report (docs/AUDIT.md — Workstream 4)
+// System-wide activity report (docs/06-auth-and-security/02-auditability.md — Workstream 4)
 // ---------------------------------------------------------------------------
 
 /** Filters for the activity feed. `from` / `to` are ISO strings over the wire. */

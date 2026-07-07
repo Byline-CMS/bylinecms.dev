@@ -38,7 +38,7 @@
  * The upshot: **inside this file you may statically import anything
  * server-only.** The `node:crypto` import below is the demonstration — that
  * same import at the top of `schema.ts` would crash the dev server; here it
- * is safe. See docs/COLLECTIONS.md → "Hooks must not statically import
+ * is safe. See docs/04-collections/index.md → "Hooks must not statically import
  * server-only code".
  */
 

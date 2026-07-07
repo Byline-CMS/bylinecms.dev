@@ -62,7 +62,7 @@ export type UploadFieldFn = (
   createDocument?: boolean
 ) => Promise<UploadedFileResult>
 
-// --- Document tree (the `tree: true` primitive — docs/DOCUMENT-TREE.md) -----
+// --- Document tree (the `tree: true` primitive — docs/04-collections/03-document-trees.md) -----
 
 /** One hydrated ancestor in a document's breadcrumb trail (root-first). */
 export interface TreeAncestor {

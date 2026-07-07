@@ -21,7 +21,7 @@
  *     to 1; bumped by write paths when needed).
  *   - snake_case column names matching the rest of the Byline schema.
  *
- * See docs/AUTHN-AUTHZ.md for the full data model and present-state
+ * See docs/06-auth-and-security/01-authn-authz.md for the full data model and present-state
  * reference.
  */
 

@@ -128,7 +128,7 @@ export interface AdminUsersRepository {
   getById(id: string): Promise<AdminUserRow | null>
   /**
    * Bulk lookup for audit actor-label resolution (the `actors`
-   * map on admin document reads — see docs/AUDIT.md, Workstream 1). Ids
+   * map on admin document reads — see docs/06-auth-and-security/02-auditability.md, Workstream 1). Ids
    * with no matching row are simply absent from the result; callers
    * render a tombstone label for them.
    */

@@ -8,7 +8,7 @@
 
 /**
  * Integration tests for request-scoped transaction propagation
- * (`withTransaction` / DBManager / TXManager — see docs/TRANSACTIONS.md).
+ * (`withTransaction` / DBManager / TXManager — see docs/03-architecture/03-transactions.md).
  *
  * Proves the load-bearing guarantee the audit log depends on: multiple
  * `commands.*` calls wrapped in one `withTransaction` commit or roll back

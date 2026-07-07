@@ -54,7 +54,7 @@ export type NamespaceTranslations = Readonly<Record<MessageKey, string>>
  * files, published as standalone npm packages, and round-tripped
  * through any translation tool. Authoring-time metadata
  * (descriptions, plural hints, deprecation markers) is a deferred
- * Phase 4 surface; see `docs/I18N.md`.
+ * Phase 4 surface; see `docs/07-internationalization/index.md`.
  */
 export type TranslationBundle = Readonly<{
   [locale: LocaleCode]: Readonly<{

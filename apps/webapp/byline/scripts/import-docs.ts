@@ -60,7 +60,7 @@
  *                 number directories/files with `NN-` prefixes to curate the
  *                 TOC — prefixes never reach the slug (paths come from
  *                 frontmatter). The `docs` collection must be `tree: true`.
- *                 See docs/DOCUMENT-TREE.md.
+ *                 See docs/04-collections/03-document-trees.md.
  */
 
 import '../load-env.js'
@@ -366,7 +366,7 @@ async function processFile(
       // Advertise the imported locale (editorial available-locales set), merged
       // with whatever is already advertised so a later-locale re-import doesn't
       // clobber an earlier one. The public set is still gated by the version
-      // completeness ledger (intersection). See docs/I18N.md.
+      // completeness ledger (intersection). See docs/07-internationalization/index.md.
       availableLocales: [...new Set([...(existing.availableLocales ?? []), locale])],
     })
     await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus)

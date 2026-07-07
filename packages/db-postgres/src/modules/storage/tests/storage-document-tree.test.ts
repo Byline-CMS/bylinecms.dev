@@ -12,7 +12,7 @@
  * `getTreeParent` (reads).
  * These back the `tree: true` document-tree primitive: a document-grain,
  * unversioned single-parent ordered hierarchy stored in
- * `byline_document_relationships`. See docs/DOCUMENT-TREE.md.
+ * `byline_document_relationships`. See docs/04-collections/03-document-trees.md.
  *
  * Invariants asserted here:
  *   - place / reorder / re-parent are upserts that keep one row per document

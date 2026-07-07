@@ -9,7 +9,7 @@
 /**
  * `documentToMarkdown` — the document-grain markdown assembler for the
  * agent-readable export surface (`.md` routes, `llms.txt`). See
- * docs/TODO.md → "Markdown export".
+ * TODO-INTERNAL.md → "Markdown export".
  *
  * A page is a composite (text, richtext, blocks, arrays, relations); this
  * walks the collection's schema and the locale-resolved field data in

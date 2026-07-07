@@ -47,7 +47,7 @@ export function shapeDocument<F = Record<string, any>>(
   // `created_by` / `event_type`).
   // `created_by` is NULL on rows written before audit wiring or by
   // internal tooling without a request context — omitted here, rendered as
-  // "unknown" by consumers. See docs/AUDIT.md — Workstream 1.
+  // "unknown" by consumers. See docs/06-auth-and-security/02-auditability.md — Workstream 1.
   if (typeof raw.created_by === 'string') {
     shaped.createdBy = raw.created_by as string
   }
@@ -59,7 +59,7 @@ export function shapeDocument<F = Record<string, any>>(
   // Storage raw keys already match the surface names (passthrough) —
   // `availableLocales` is the editorial advertised set (document-grain,
   // stored), `_availableVersionLocales` is the structural ledger fact
-  // (version-grain, computed). See docs/I18N.md.
+  // (version-grain, computed). See docs/07-internationalization/index.md.
   if (Array.isArray(raw.availableLocales)) {
     shaped.availableLocales = raw.availableLocales as string[]
   }

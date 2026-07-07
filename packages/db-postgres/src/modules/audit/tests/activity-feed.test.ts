@@ -7,7 +7,7 @@
  */
 
 /**
- * Integration tests for the system-wide activity feed (docs/AUDIT.md — W4):
+ * Integration tests for the system-wide activity feed (docs/06-auth-and-security/02-auditability.md — W4):
  * `audit.findAuditLog`, the read-time UNION of the version stream (content
  * saves → `document.created` / `document.updated`) and the audit log
  * (everything else). Exercises both sources, the cross-source `occurred_at`

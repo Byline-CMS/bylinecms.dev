@@ -16,7 +16,7 @@ import { assertAdminActor, requireAdminActor } from './assert-admin-actor.js'
  * contract (validate → authorise → invoke → shape) into a single
  * declaration.
  *
- * Implements Phase 1 of `docs/CORE-COMPOSITION.md`. Today's scope is
+ * Implements Phase 1 of `docs/03-architecture/02-core-composition.md`. Today's scope is
  * `@byline/admin`-internal: it gates against admin actor identity using
  * the existing `assertAdminActor` / `requireAdminActor` helpers, which
  * inherit the super-admin bypass from `AdminAuth.assertAbility`.

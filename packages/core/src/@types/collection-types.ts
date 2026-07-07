@@ -543,7 +543,7 @@ export interface DeleteContext {
 
 /**
  * Context passed to the `afterTreeChange` hook — the structural-change
- * invalidation event for `tree: true` collections (docs/DOCUMENT-TREE.md).
+ * invalidation event for `tree: true` collections (docs/04-collections/03-document-trees.md).
  *
  * Tree mutations are document-grain and **unversioned**, so the normal
  * version-write invalidation (`afterCreate` / `afterUpdate` / `afterStatusChange`)
@@ -764,7 +764,7 @@ export async function resolveUploadHooks(
  * by populate. A hook that performs its own reads should thread this
  * context back in via `client.collection(...).findById(id, { _readContext:
  * readContext })` so the visited set and read budget are preserved —
- * essential to foreclose the A→B→A loop (see `docs/RELATIONSHIPS.md`).
+ * essential to foreclose the A→B→A loop (see `docs/04-collections/02-relationships.md`).
  */
 export interface AfterReadContext {
   /** The raw reconstructed document. Mutate in place — changes persist. */
@@ -798,7 +798,7 @@ export interface AfterReadContext {
  *   - `collectionPath` — the collection being queried (useful when the
  *     same hook function is reused across collections).
  *
- * See `docs/AUTHN-AUTHZ.md` for the strategic rationale; the Quick
+ * See `docs/06-auth-and-security/01-authn-authz.md` for the strategic rationale; the Quick
  * Reference there carries six worked recipes.
  */
 export interface BeforeReadContext {
@@ -901,7 +901,7 @@ export interface CollectionHooks {
    * (`removeFromTree`), or the promote-children-to-root that accompanies a
    * delete. Tree writes mint no document version, so this is the only
    * invalidation signal for them. Fires once per write with the full affected
-   * set ({@link TreeChangeContext}). See docs/DOCUMENT-TREE.md.
+   * set ({@link TreeChangeContext}). See docs/04-collections/03-document-trees.md.
    */
   afterTreeChange?: CollectionHookSlot<TreeChangeContext>
 
@@ -912,7 +912,7 @@ export interface CollectionHooks {
    * that the query layer ANDs onto the caller's `where` to enforce
    * read-side row scoping (multi-tenant, owner-only-drafts, soft-delete
    * hide, etc). Returning `void` applies no scoping. Multiple functions
-   * combine with implicit AND. See `docs/AUTHN-AUTHZ.md` (Read-side
+   * combine with implicit AND. See `docs/06-auth-and-security/01-authn-authz.md` (Read-side
    * scoping + Quick Reference recipes).
    */
   beforeRead?: BeforeReadHookSlot
@@ -1110,7 +1110,7 @@ export interface CollectionDefinition {
    * collection has at least one `localized` field, so the validator rejects
    * `advertiseLocales: true` on a collection with none.
    *
-   * See `docs/I18N.md`.
+   * See `docs/07-internationalization/index.md`.
    */
   advertiseLocales?: boolean
 
@@ -1201,7 +1201,7 @@ export interface CollectionDefinition {
    * touch no user fields. Do **not** also declare a `parent` relation field; the
    * tree owns structure (a topic that genuinely belongs in two places is a
    * cross-link relation field, never a second tree edge). See
-   * docs/DOCUMENT-TREE.md.
+   * docs/04-collections/03-document-trees.md.
    */
   tree?: boolean
   /**

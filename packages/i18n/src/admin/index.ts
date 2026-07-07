@@ -48,7 +48,7 @@ const ko: NamespaceTranslations = koJson
  * Map of every bundled locale → its `byline-admin` namespace
  * translations. Static `import` statements above mean a consumer's
  * bundler sees a fixed-size set at build time. Today's locales bundle
- * eagerly; lazy loading is the [Phase 3](../../docs/I18N.md#phase-3--lazy-locale-loading)
+ * eagerly; lazy loading is the [Phase 3](../../docs/07-internationalization/index.md#phase-3--lazy-locale-loading)
  * migration once locale count grows past ~5.
  */
 const BUNDLES: Readonly<Record<LocaleCode, NamespaceTranslations>> = {

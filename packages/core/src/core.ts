@@ -59,7 +59,7 @@ export interface BylineCore<TAdminStore = unknown> {
    * during server bootstrap and before any admin UI renders.
    *
    * Consumed at runtime by `AdminAuth.assertAbility()` and at design
-   * time by the admin role-editor UI. See docs/AUTHN-AUTHZ.md.
+   * time by the admin role-editor UI. See docs/06-auth-and-security/01-authn-authz.md.
    */
   abilities: AbilityRegistry
   /** Convenience wrapper around `abilities.register()`. */
@@ -188,7 +188,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // and is a no-op (zero rows) once every document is stamped. Self-heals
   // in-place upgrades without a manual maintenance step. The write path stamps
   // new documents directly, so steady-state boots touch nothing. See
-  // docs/I18N.md.
+  // docs/07-internationalization/index.md.
   if (typeof composed.db.backfillSourceLocales === 'function') {
     const { rowsUpdated } = await composed.db.backfillSourceLocales()
     if (rowsUpdated > 0) {

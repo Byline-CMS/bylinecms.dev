@@ -32,7 +32,7 @@ const searchSchema = z.object({
   order: z.string().optional(),
   desc: z.coerce.boolean().optional(),
   locale: z.string().optional(),
-  // Which sub-view of the history page is active (docs/AUDIT.md — Workstream
+  // Which sub-view of the history page is active (docs/06-auth-and-security/02-auditability.md — Workstream
   // 3). 'versions' is the content version stream; 'document' is the
   // document-grain audit log. Absent → 'versions'.
   tab: z.enum(['versions', 'document']).optional(),

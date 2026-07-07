@@ -10,7 +10,7 @@
  * Contract tests for the one-way Lexical → markdown export serializer.
  * The expected strings below ARE the format contract — agents build on
  * this shape, so a change here is a consumer-visible format change and
- * should be deliberate (see docs/TODO.md → "The output is a contract
+ * should be deliberate (see TODO-INTERNAL.md → "The output is a contract
  * surface").
  */
 

@@ -61,7 +61,7 @@ export const getCollectionDocumentHistory = createServerFn({ method: 'GET' })
     const serialised = serialise(result)
     const { history } = getCollectionSchemasForPath(path)
 
-    // Acting-user labels for the audit strip (docs/AUDIT.md — W1).
+    // Acting-user labels for the audit strip (docs/06-auth-and-security/02-auditability.md — W1).
     // Resolved here, in the admin realm, from the page's raw `createdBy`
     // ids; the UI joins by id. Deleted users are absent from the map.
     const actors: ActorLabelMap = await resolveActorLabels(result.docs.map((d) => d.createdBy))

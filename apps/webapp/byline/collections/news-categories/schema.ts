@@ -27,11 +27,11 @@ export const NewsCategories = defineCollection({
   // Demonstration of `orderable: true` — short, finite, naturally ordered.
   // Editors can drag rows in the list view to set a canonical order; the
   // value persists on `byline_documents.order_key` without bumping the
-  // document version. See docs/COLLECTIONS.md (Orderable collections).
+  // document version. See docs/04-collections/index.md (Orderable collections).
   orderable: true,
   // Server-only lifecycle hooks (L1 cache invalidation), loaded via dynamic
   // import so their server-only graph never enters the client bundle. See
-  // ./hooks.ts and docs/COLLECTIONS.md.
+  // ./hooks.ts and docs/04-collections/index.md.
   hooks: () => import('./hooks.js'),
   fields: [
     { name: 'name', label: 'Name', type: 'text', localized: true },

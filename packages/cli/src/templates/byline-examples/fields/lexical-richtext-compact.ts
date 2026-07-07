@@ -23,7 +23,7 @@
  * To AI-enable the resulting field, pair this with `aiRichTextAdmin()`
  * on the admin side — see `lexical-richtext-ai.tsx`.
  *
- * See `docs/FIELDS.md` for the full schema-vs-admin model.
+ * See `docs/04-collections/01-fields.md` for the full schema-vs-admin model.
  */
 
 import type { RichTextField } from '@byline/core'

@@ -12,7 +12,7 @@
  * collection's `fields` array in `<collection>/schema.ts`. Pure data;
  * safe to import from any schema file.
  *
- * See `docs/FIELDS.md` for the schema-vs-admin model.
+ * See `docs/04-collections/01-fields.md` for the schema-vs-admin model.
  */
 
 import { defineField, type FieldData } from '@byline/core'

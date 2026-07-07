@@ -33,7 +33,7 @@ export interface UpdateDocumentSystemFieldsResult {
  * version. This service backs the admin path / available-locales widgets'
  * direct-write Save (the `direct-write` and `both` dirty-reason cases). The
  * public *advertised* set remains the intersection of `availableLocales` with
- * the resolved version's completeness ledger. See docs/I18N.md.
+ * the resolved version's completeness ledger. See docs/07-internationalization/index.md.
  *
  * Flow:
  *   1. `assertActorCanPerform('update')` — same auth gate as content writes.
@@ -48,7 +48,7 @@ export interface UpdateDocumentSystemFieldsResult {
  * No content hooks fire — these are not content writes. Accountability for
  * these mutations is the document-grain audit log: each field that actually
  * changes records a `document.path.changed` / `document.locales.changed` row
- * atomically with the write (docs/AUDIT.md — Workstream 2).
+ * atomically with the write (docs/06-auth-and-security/02-auditability.md — Workstream 2).
  *
  * @throws {BylineError} ERR_NOT_FOUND if the document does not exist.
  * @throws {BylineError} ERR_PATH_CONFLICT if the path is already in use.
@@ -117,7 +117,7 @@ export async function updateDocumentSystemFields(
       // Both document-grain writes and their audit rows commit atomically.
       // These fields are non-versioned, so the version stream never records
       // them — the audit log is their only accountability home. One audit row
-      // per field that actually changed (docs/AUDIT.md).
+      // per field that actually changed (docs/06-auth-and-security/02-auditability.md).
       const currentPath = originalData.path as string | undefined
       const currentLocales = (originalData.availableLocales as string[] | undefined) ?? []
       const availableLocalesWritten = params.availableLocales !== undefined

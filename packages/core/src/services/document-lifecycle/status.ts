@@ -120,7 +120,7 @@ export async function changeDocumentStatus(
       // 4–5. Mutate status in-place + auto-archive, atomically with the audit
       //      record. Status mutates the version row rather than minting a new
       //      version, so the version stream never captures *who* changed it —
-      //      the audit log is its only accountability home (docs/AUDIT.md).
+      //      the audit log is its only accountability home (docs/06-auth-and-security/02-auditability.md).
       const audit = requireAuditCapability(db)
       const actor = auditActor(ctx)
       await audit.withTransaction(async () => {

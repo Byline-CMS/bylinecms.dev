@@ -63,7 +63,7 @@ export async function createDocument(
      * sidebar widget). Document-grain and sticky like `path`: passed straight
      * to the storage primitive, which replaces the document's rows wholesale.
      * `undefined` writes nothing (a new document starts with an empty set —
-     * the safe opt-in default); `[]` clears it. See docs/I18N.md.
+     * the safe opt-in default); `[]` clears it. See docs/07-internationalization/index.md.
      */
     availableLocales?: string[]
   }
@@ -139,7 +139,7 @@ export async function createDocument(
       // command directly — no `update` re-assertion, no separate tree event
       // (afterCreate covers invalidation). Post-version and best-effort: a
       // failure leaves the document created-but-unplaced and is logged, not
-      // thrown. See docs/DOCUMENT-TREE.md.
+      // thrown. See docs/04-collections/03-document-trees.md.
       if (definition.tree === true) {
         try {
           await appendTreeRoot(ctx, documentId)

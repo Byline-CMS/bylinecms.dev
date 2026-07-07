@@ -37,7 +37,7 @@ export const News = defineCollection({
   linksInEditor: true, // See type definition for details.
   // Server-only lifecycle hooks (L1 cache invalidation), loaded via dynamic
   // import so their server-only graph never enters the client bundle. See
-  // ./hooks.ts and docs/COLLECTIONS.md.
+  // ./hooks.ts and docs/04-collections/index.md.
   hooks: () => import('./hooks.js'),
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },

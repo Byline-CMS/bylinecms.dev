@@ -20,13 +20,9 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ## Now
 
-### Richtext populate integration test
-
-Deferred from the round that landed the populate primitive. The CI integration-test pipeline now runs the suite on every PR (see [TESTING.md](./TESTING.md)) so this can land at any time. Shape: seed a doc with rich-text-in-blocks, mutate the source target, re-read, assert the embedded envelope refreshes when `populateRelationsOnRead: true` and stays stale when `false`. Pattern: existing `packages/client/tests/integration/client-populate.integration.test.ts`. See [RICHTEXT.md → Relations — embed and populate](./RICHTEXT.md#relations--embed-and-populate) for the populate primitive itself.
-
 ### Admin editor smoke suite — remaining scenarios
 
-The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./TESTING.md#editor-smoke-suite-playwright)): auth setup through the real sign-in form, dashboard/list rendering, create → edit → save round-trip, and a workflow status transition. Remaining scenarios from the growth checklist in `apps/webapp/e2e/editor-smoke.spec.ts`: each remaining field type (datetime, select, checkbox, relation, richtext), file upload (media collection), content-locale switch + translation save, duplicate / restore-version flows. Scope stays ~10–15 happy-path scenarios, not coverage. Completes **before `hasMany`** (which is heavily an admin-UI feature: multi-relation picker, list rendering).
+The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./docs/09-testing.md#editor-smoke-suite-playwright)): auth setup through the real sign-in form, dashboard/list rendering, create → edit → save round-trip, and a workflow status transition. Remaining scenarios from the growth checklist in `apps/webapp/e2e/editor-smoke.spec.ts`: each remaining field type (datetime, select, checkbox, relation, richtext), file upload (media collection), content-locale switch + translation save, duplicate / restore-version flows. Scope stays ~10–15 happy-path scenarios, not coverage. Completes **before `hasMany`** (which is heavily an admin-UI feature: multi-relation picker, list rendering).
 
 ---
 
@@ -34,9 +30,9 @@ The Playwright harness shipped (see [TESTING.md → Editor smoke suite](./TESTIN
 
 ### Markdown export — remaining polish
 
-The agent-readable surface **shipped** (the full present-state reference is [MARKDOWN-EXPORT.md](./MARKDOWN-EXPORT.md)): `lexicalToMarkdown`, `documentToMarkdown`, the `fields.richText.toMarkdown` seam, `.md` routes per content locale for docs/news/pages, `llms.txt` over a shared published-URL index with the sitemap, and all three advertisement channels (`.md` URLs, head `rel=alternate` links, strict `Accept: text/markdown` 302 negotiation).
+The agent-readable surface **shipped** (the full present-state reference is [MARKDOWN-EXPORT.md](./docs/05-reading-and-delivery/04-markdown-export.md)): `lexicalToMarkdown`, `documentToMarkdown`, the `fields.richText.toMarkdown` seam, `.md` routes per content locale for docs/news/pages, `llms.txt` over a shared published-URL index with the sitemap, and all three advertisement channels (`.md` URLs, head `rel=alternate` links, strict `Accept: text/markdown` 302 negotiation).
 
-Remaining, specified in [MARKDOWN-EXPORT.md → Future phases](./MARKDOWN-EXPORT.md#future-phases): the **docs-corpus round-trip test** (`import(export(import(md))) ≅ import(md)` over `docs/*.md`, comparing Lexical trees — tests the export serializer against production-shaped content; preferred companion: teach `parse-markdown.ts` to also accept GFM alerts, erasing the admonition dialect asymmetry documented there). Deferred with triggers: per-field markdown opt-out, host-package route factories, `llms-full.txt` / MCP consumption.
+Remaining, specified in [MARKDOWN-EXPORT.md → Future phases](./docs/05-reading-and-delivery/04-markdown-export.md#future-phases): the **docs-corpus round-trip test** (`import(export(import(md))) ≅ import(md)` over `docs/*.md`, comparing Lexical trees — tests the export serializer against production-shaped content; preferred companion: teach `parse-markdown.ts` to also accept GFM alerts, erasing the admonition dialect asymmetry documented there). Deferred with triggers: per-field markdown opt-out, host-package route factories, `llms-full.txt` / MCP consumption.
 
 ### `hasMany` relations — Phase 2 (picker multi-select + query quantifiers)
 
@@ -48,13 +44,18 @@ Two Phase 2 items, independent of each other:
 
 **Query quantifiers.** The `where` quantifiers `$some` / `$every` / `$none` for filtering queries by a multi-target relation — `packages/core/src/query/parse-where.ts` (`RelationFilter` branch) + `packages/db-postgres/src/modules/storage/build-filter-exists.ts` SQL (the indexed `store_relation` rows are the natural `EXISTS` target). Deferred deliberately; reading/populating ordered lists works today.
 
-### Search-provider interface (Phase 2 — implement the seam + FTS driver)
+### Search — remaining phases (row-level auth, zone query, hydrate)
 
-A pluggable search seam in core: a `SearchProvider` interface with Postgres FTS as the built-in driver, so external providers (BM25 rankers, vector / hybrid retrieval) plug in through a sanctioned extension point instead of ad-hoc forks.
+Phase 2 **shipped**: the `SearchProvider` seam, the `@byline/search-postgres` FTS driver, `ServerConfig.search` registration/validation, lifecycle-hook indexing + `reindex` (ability-gated, admin button), and `client.collection(x).search()` with the docs frontend as the worked example. Present-state reference: [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md).
 
-**Design doc drafted** — [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md). Covers the `SearchProvider` interface, the normalised `SearchDocument`, index lifecycle (driven by `afterCreate`/`afterStatusChange`/`afterUnpublish`/`afterDelete`, published-by-default, + a `reindex` command), the feeds (richtext plain-text extraction via the existing `documentToMarkdown`/`lexicalToMarkdown` — Phase 5's "search/indexing story takes shape" trigger fires here — plus the [attachment text-extraction pipeline](#attachment-text-extraction-pipeline) below), and the query surface. Two framing decisions baked in: (1) the **primary consumer is the Client SDK** — developer-facing site search (`client.search()` / `client.collection(x).search()`) returning shaped `ClientDocument` hits; MCP/admin are secondary consumers of the same surface; (2) **zones** — collections are indexed into named scopes so a query can be collection-scoped (a dedicated publications archive) or zone-scoped across collections (one site search).
+Remaining, specified in [07-search.md → Planned (not yet shipped)](./docs/05-reading-and-delivery/07-search.md#planned-not-yet-shipped), in priority order:
 
-**Next (Phase 2):** implement the seam + `@byline/search-postgres` FTS driver + `ServerConfig.search` registration/validation + zone-tagged indexing + lifecycle wiring + `reindex` + the client `search()` methods. Then external drivers (the RAG/vector/hybrid payoff; home for the private BM25 work), then the MCP `search` tool.
+1. **Row-level authorization on search** — `search()` asserts the collection `read` ability but does not re-resolve hit ids through the `beforeRead` row-scoping pipeline. Safe today only because the index is published-only; a row-scoped collection that enables search would leak hits. Posture: "rank in the provider, authorise in core" (re-resolve candidate ids through the normal read path). Do this before any row-scoped collection turns search on.
+2. **Zone (cross-collection) query** — `client.search({ zone })` returning heterogeneous ranked hits. Storage + provider side already shipped (`zones @> ARRAY[$zone]`); only the top-level client entry point and the heterogeneous results rendering remain. Prerequisite surface for the RAG/hybrid retrieval track and the private BM25 driver.
+3. **`hydrate` (two-tier rich results)** — batch-read hit ids per collection, attach a shaped `ClientDocument` projected to `admin.itemView` columns.
+4. **Structured `where` filtering + facet aggregation** — options accepted in the API; the Postgres driver doesn't yet apply them (`capabilities.facets === false`).
+
+Then external drivers (the RAG/vector/hybrid payoff; home for the private BM25 work), then the MCP `search` tool.
 
 ### Attachment text-extraction pipeline
 
@@ -62,23 +63,23 @@ Extract text and structure from uploaded file attachments (PDF, DOCX, …) to fe
 
 ### Bulk "refresh embedded relations" admin command
 
-For richtext fields in snapshot mode (`embedRelationsOnSave: true, populateRelationsOnRead: false`), embedded data drifts when targets change. A bulk command would walk every richtext value in a chosen collection (or installation-wide), re-resolve each relation, and re-embed the cached fields in place — without bumping `documentVersions`. Useful when staleness compounds (e.g. a bulk title rename) and per-document re-saves aren't practical. See [RELATIONSHIPS.md → Phase — bulk refresh denormalised links](./RELATIONSHIPS.md#phase--bulk-refresh-denormalised-links-command).
+For richtext fields in snapshot mode (`embedRelationsOnSave: true, populateRelationsOnRead: false`), embedded data drifts when targets change. A bulk command would walk every richtext value in a chosen collection (or installation-wide), re-resolve each relation, and re-embed the cached fields in place — without bumping `documentVersions`. Useful when staleness compounds (e.g. a bulk title rename) and per-document re-saves aren't practical. See [RELATIONSHIPS.md → Phase — bulk refresh denormalised links](./docs/04-collections/02-relationships.md#phase--bulk-refresh-denormalised-links-command).
 
 ### Cascade-delete acted on
 
-The `cascade_delete` flag round-trips today but isn't enforced. Future write-path pass walks relations to deleted targets and applies the policy: `true` → hard-delete the referencing rows; `false` → leave in place (`_resolved: false` on read); `'restrict'` → refuse the delete with `ERR_REFERENTIAL_INTEGRITY`. Shares design surface with the integrity-scanning track. See [RELATIONSHIPS.md → Phase — cascade-delete acted on](./RELATIONSHIPS.md#phase--cascade-delete-acted-on).
+The `cascade_delete` flag round-trips today but isn't enforced. Future write-path pass walks relations to deleted targets and applies the policy: `true` → hard-delete the referencing rows; `false` → leave in place (`_resolved: false` on read); `'restrict'` → refuse the delete with `ERR_REFERENTIAL_INTEGRITY`. Shares design surface with the integrity-scanning track. See [RELATIONSHIPS.md → Phase — cascade-delete acted on](./docs/04-collections/02-relationships.md#phase--cascade-delete-acted-on).
 
 ### Cross-document link integrity job
 
-Periodic admin command that scans richtext fields and `store_relation` rows for links to deleted or unresolvable targets, then surfaces them in a "broken links" admin view. Reuses populate's missing-target detection (`_resolved: false`) but materialises the result as a triage list. See [RELATIONSHIPS.md → Phase — cross-document link integrity job](./RELATIONSHIPS.md#phase--cross-document-link-integrity-job).
+Periodic admin command that scans richtext fields and `store_relation` rows for links to deleted or unresolvable targets, then surfaces them in a "broken links" admin view. Reuses populate's missing-target detection (`_resolved: false`) but materialises the result as a triage list. See [RELATIONSHIPS.md → Phase — cross-document link integrity job](./docs/04-collections/02-relationships.md#phase--cross-document-link-integrity-job).
 
 ### Historical config snapshots — `collection_versions` history table
 
-COLLECTIONS versioning Phase 2 — the smallest useful follow-up to the schema-version recording that already ships. One row per version-bump carrying the snapshot of `CollectionDefinition` at that version. Unblocks Phase 3 (fetch-by-version) and is the prerequisite for any future read-time forward-migration work. See [COLLECTIONS.md → Phase 2 — historical config snapshots](./COLLECTIONS.md#phase-2--historical-config-snapshots).
+COLLECTIONS versioning Phase 2 — the smallest useful follow-up to the schema-version recording that already ships. One row per version-bump carrying the snapshot of `CollectionDefinition` at that version. Unblocks Phase 3 (fetch-by-version) and is the prerequisite for any future read-time forward-migration work. See [COLLECTIONS.md → Phase 2 — historical config snapshots](./docs/04-collections/index.md#phase-2--historical-config-snapshots).
 
 ### Native MCP server
 
-Sequenced after the markdown / `llms.txt` surface and the search-provider seam: the agent-readable representation and the retrieval layer land first, then the protocol surface that exposes them. See [MCP.md](./MCP.md).
+Sequenced after the markdown / `llms.txt` surface and the search-provider seam: the agent-readable representation and the retrieval layer land first, then the protocol surface that exposes them. See [MCP.md](./docs/05-reading-and-delivery/05-mcp-server.md).
 
 ### Block config analogue — per-block `schema` / `admin` split
 
@@ -94,7 +95,7 @@ The Byline client config (`defineClientConfig`) is registered from **two** point
 
 **Groundwork shipped (richtext side):** the `@byline/richtext-lexical/config` subpath + lazy `AiLexicalExtension` mean referencing the **editor runtime** no longer pulls it. **The blocker is now the admin side, not richtext:** collection admin configs hold live references to presentation slots (`DateTimeFormatter`, `MediaListView`, …) from `@byline/admin/react` — a deliberately indivisible single-Context-identity barrel — so eager registration would drag the whole admin document-editor surface into public bundles.
 
-The eager single point **is** possible without breaking slot components' context access (defer *when* slot code loads, not *where* it renders), but the cost/benefit is poor today (reworks the slot authoring API + adds Suspense plumbing to remove two correct import statements). **Deferred until a concrete driver makes eager-light config necessary.** Full root-cause analysis, the three viable mechanisms, and the "is it even possible given slot components need context?" answer live in **[CLIENT-CONFIG-REGISTRATION.md](./CLIENT-CONFIG-REGISTRATION.md)**.
+The eager single point **is** possible without breaking slot components' context access (defer *when* slot code loads, not *where* it renders), but the cost/benefit is poor today (reworks the slot authoring API + adds Suspense plumbing to remove two correct import statements). **Deferred until a concrete driver makes eager-light config necessary.** Full root-cause analysis, the three viable mechanisms, and the "is it even possible given slot components need context?" answer live in **[CLIENT-CONFIG-REGISTRATION.md](./docs/08-admin-ui/02-client-config-registration.md)**.
 
 ### Admin route splat handler — host-owned admin route resolution
 
@@ -121,7 +122,7 @@ Cost framing today is a 4-place tax per new admin area: package factory + webapp
 
 ### Lazy admin-locale loading — async bundle map past the ~5-locale threshold
 
-`@byline/i18n/admin` ships every bundled locale via static `import enJson from './en.json'` statements, so the bundler inlines a fixed-size set and **all** of them land in the initial admin JS payload. The design always named ~5 locales as the point where lazy loading earns its complexity (see [I18N.md → Bundling and code-splitting](./I18N.md#bundling-and-code-splitting) and the `Remaining work` bullet). **That threshold is now crossed:** as of 2026-06-14 the admin ships **7** interface locales (`en`, `fr`, `es`, `de`, `it`, `zh-CN`, `ko`) — so this is no longer hypothetical, it's a live (if low-severity) payload-weight item.
+`@byline/i18n/admin` ships every bundled locale via static `import enJson from './en.json'` statements, so the bundler inlines a fixed-size set and **all** of them land in the initial admin JS payload. The design always named ~5 locales as the point where lazy loading earns its complexity (see [I18N.md → Bundling and code-splitting](./docs/07-internationalization/02-admin-translations.md#bundling-and-code-splitting) and the `Remaining work` bullet). **That threshold is now crossed:** as of 2026-06-14 the admin ships **7** interface locales (`en`, `fr`, `es`, `de`, `it`, `zh-CN`, `ko`) — so this is no longer hypothetical, it's a live (if low-severity) payload-weight item.
 
 Severity is genuinely low today: the `byline-admin` bundle is ~5 kB gzipped per locale (flat key→string JSON), so 7 locales is roughly ~35 kB of admin-only JS — real but small, and it never touches the public bundle (the admin graph is already code-split out via the `_byline` lazy route). The cost grows linearly: every locale added, and every plugin/custom-field/extension namespace that fans out across those locales (e.g. the `webapp-media-admin` bundle), adds its slice to the eager payload.
 
@@ -135,45 +136,45 @@ Each entry names the trigger that would move it into Next. No work happens until
 
 ### Build-time `server-only` poison for collection hooks
 
-**Shipped (the isolation half):** `@byline/core` now accepts a first-class lazy-loader form of `hooks` — `hooks: () => import('./x.hooks')`, resolved once and memoized via `resolveHooks` across every lifecycle and read site. Because the schema reaches the hooks only through `import()`, the hooks module's server-only graph is structurally absent from the client bundle. See [COLLECTIONS.md → Hooks must not statically import server-only code](./COLLECTIONS.md#hooks-must-not-statically-import-server-only-code).
+**Shipped (the isolation half):** `@byline/core` now accepts a first-class lazy-loader form of `hooks` — `hooks: () => import('./x.hooks')`, resolved once and memoized via `resolveHooks` across every lifecycle and read site. Because the schema reaches the hooks only through `import()`, the hooks module's server-only graph is structurally absent from the client bundle. See [COLLECTIONS.md → Hooks must not statically import server-only code](./docs/04-collections/index.md#hooks-must-not-statically-import-server-only-code).
 
 **Trigger (the guardrail half, still deferred):** someone bypasses the loader (static-imports a `*.hooks` module into a schema) and ships dead weight or a runtime throw without noticing. Add a `@byline/core/server-only` subpath — the React/Next pattern: a browser-conditional export that fails the build — that authors `import` at the top of a `*.hooks` file, so a hooks module pulled into the client build fails loudly instead of silently. Verify-first: confirm the webapp's **Vite client build** actually honors the poisoned export condition before promising it (if it silently resolves, the guard doesn't guard). Lives in `@byline/core` (`bylinecms.dev`), not this app.
 
 ### Stable HTTP API transport
 
-**Trigger:** first non-admin client arrives (mobile, desktop, third-party). Today every read/write goes through TanStack Start server fns inside the admin webapp; no stable HTTP shape is published. Designed across the full surface area at that point, not just one verb. See [ROUTING-API.md](./ROUTING-API.md) and the deferral note in `CLAUDE.md`.
+**Trigger:** first non-admin client arrives (mobile, desktop, third-party). Today every read/write goes through TanStack Start server fns inside the admin webapp; no stable HTTP shape is published. Designed across the full surface area at that point, not just one verb. See [ROUTING-API.md](./docs/05-reading-and-delivery/02-routing-and-api.md) and the deferral note in `CLAUDE.md`.
 
 ### Per-locale paths (translated slugs)
 
-**Trigger:** a real consumer needs translated slugs as a CMS concern (not just locale-prefixed routing in the frontend). The structural answer is on file: a new `document_paths` table keyed by `(collection_id, locale, path)`, not extending the existing column or pushing `path` into the EAV. See [DOCUMENT-PATHS.md → Phase — per-locale paths](./DOCUMENT-PATHS.md#phase--per-locale-paths-the-larger-one).
+**Trigger:** a real consumer needs translated slugs as a CMS concern (not just locale-prefixed routing in the frontend). The structural answer is on file: a new `document_paths` table keyed by `(collection_id, locale, path)`, not extending the existing column or pushing `path` into the EAV. See [DOCUMENT-PATHS.md → Phase — per-locale paths](./docs/04-collections/04-document-paths.md#phase--per-locale-paths-the-larger-one).
 
 ### Per-collection slugifier override
 
-**Trigger:** a real need (e.g. media collection that wants to preserve filename extensions). The plumbing point is well-defined: `useAsPath: { source, formatter }` taking precedence over `ServerConfig.slugifier`. See [DOCUMENT-PATHS.md → Phase — per-collection slugifier override](./DOCUMENT-PATHS.md#phase--per-collection-slugifier-override).
+**Trigger:** a real need (e.g. media collection that wants to preserve filename extensions). The plumbing point is well-defined: `useAsPath: { source, formatter }` taking precedence over `ServerConfig.slugifier`. See [DOCUMENT-PATHS.md → Phase — per-collection slugifier override](./docs/04-collections/04-document-paths.md#phase--per-collection-slugifier-override).
 
 ### Editor lifecycle hooks for richtext (Phase 3b)
 
-**Trigger:** a second editor implementation arrives (`@byline/richtext-tiptap`, `@byline/richtext-md`) **and** it can't achieve correct round-trip behaviour through the existing `FieldHooks` and collection hooks alone. Adapter-level `beforeChange` / `afterChange` / `beforeRead` / `serialize` / `deserialize` is genuinely editor-specific and best designed against two concrete shapes rather than one. See [RICHTEXT.md → Phase 3b](./RICHTEXT.md#phase-3b--user-land-editor-lifecycle-hooks-deferred).
+**Trigger:** a second editor implementation arrives (`@byline/richtext-tiptap`, `@byline/richtext-md`) **and** it can't achieve correct round-trip behaviour through the existing `FieldHooks` and collection hooks alone. Adapter-level `beforeChange` / `afterChange` / `beforeRead` / `serialize` / `deserialize` is genuinely editor-specific and best designed against two concrete shapes rather than one. See [RICHTEXT.md → Phase 3b](./docs/04-collections/06-rich-text.md#phase-3b--user-land-editor-lifecycle-hooks-deferred).
 
 ### Feature-graph configuration for richtext (Phase 4)
 
-**Trigger:** at least two editor packages have a *compatible* feature surface that cannot be expressed as plain editor-specific props. Until then, `RichTextField.editorConfig: unknown` plus per-package config types is the right shape. See [RICHTEXT.md → Phase 4](./RICHTEXT.md#phase-4--feature-graph-configuration-only-if-phase-23-demand-it).
+**Trigger:** at least two editor packages have a *compatible* feature surface that cannot be expressed as plain editor-specific props. Until then, `RichTextField.editorConfig: unknown` plus per-package config types is the right shape. See [RICHTEXT.md → Phase 4](./docs/04-collections/06-rich-text.md#phase-4--feature-graph-configuration-only-if-phase-23-demand-it).
 
 ### Editor-side server pipeline — search / excerpt / plain text (richtext Phase 5)
 
-**Trigger:** the search / indexing story takes shape. Independent of the adapter contract; could ship at any point but slots most naturally next to a search consumer. See [RICHTEXT.md → Phase 5](./RICHTEXT.md#phase-5--editor-side-server-pipeline-search-excerpt-plain-text).
+**Trigger:** the search / indexing story takes shape. Independent of the adapter contract; could ship at any point but slots most naturally next to a search consumer. See [RICHTEXT.md → Phase 5](./docs/04-collections/06-rich-text.md#phase-5--editor-side-server-pipeline-search-excerpt-plain-text).
 
 ### Per-collection / per-field editor selection (richtext Phase 6)
 
-**Trigger:** a real product ask for editor variance per collection or per field (e.g. markdown editor in a docs collection alongside Lexical in a marketing collection). Mechanically easy; the product question is the harder half. See [RICHTEXT.md → Phase 6](./RICHTEXT.md#phase-6--per-collection--per-field-editor-selection).
+**Trigger:** a real product ask for editor variance per collection or per field (e.g. markdown editor in a docs collection alongside Lexical in a marketing collection). Mechanically easy; the product question is the harder half. See [RICHTEXT.md → Phase 6](./docs/04-collections/06-rich-text.md#phase-6--per-collection--per-field-editor-selection).
 
 ### Collection-versioning Phases 3–5
 
-**Trigger:** something needs to render an old document against its original schema, or CI needs strict version pinning. Phase 3 (fetch by version) is the smallest read-side piece that unblocks anything interesting; Phase 4 (in-memory forward-migration) is the load-bearing one; Phase 5 (`strictCollectionVersions: true`) is a CI ergonomics flag. Each is independently shippable once Phase 2 lands. See [COLLECTIONS.md → Future phases](./COLLECTIONS.md#future-phases-versioning-phases-25).
+**Trigger:** something needs to render an old document against its original schema, or CI needs strict version pinning. Phase 3 (fetch by version) is the smallest read-side piece that unblocks anything interesting; Phase 4 (in-memory forward-migration) is the load-bearing one; Phase 5 (`strictCollectionVersions: true`) is a CI ergonomics flag. Each is independently shippable once Phase 2 lands. See [COLLECTIONS.md → Future phases](./docs/04-collections/index.md#future-phases-versioning-phases-25).
 
 ### CORE-COMPOSITION Phases 2–5
 
-**Trigger:** the per-line repetition cost in admin commands becomes the bottleneck (Phase 1 — the `createCommand` wrapper — has shipped). Phase 2 = module-level registry factories. Phase 3 = compose registries in `initBylineCore()` + expose a command tree on `BylineCore`. Phase 4 = typed request-context builders per actor realm. Phase 5 = `loadConfig()` single env-parsing boundary. Phases 4 and 5 are independent of 2/3. See [CORE-COMPOSITION.md → Future phases of work](./CORE-COMPOSITION.md#future-phases-of-work).
+**Trigger:** the per-line repetition cost in admin commands becomes the bottleneck (Phase 1 — the `createCommand` wrapper — has shipped). Phase 2 = module-level registry factories. Phase 3 = compose registries in `initBylineCore()` + expose a command tree on `BylineCore`. Phase 4 = typed request-context builders per actor realm. Phase 5 = `loadConfig()` single env-parsing boundary. Phases 4 and 5 are independent of 2/3. See [CORE-COMPOSITION.md → Future phases of work](./docs/03-architecture/02-core-composition.md#future-phases-of-work).
 
 ### `UserAuth` (end-user authentication) and adjacent deferred surfaces
 
@@ -188,8 +189,8 @@ Specifically:
 - **UI-editable conditional rules (CASL-style)** — currently expressed via collection hooks; a UI for role-editable rules is the deferred bit.
 - **Site-settings storage and editor** — orthogonal to auth; bundled here because it surfaces with similar UI/runtime concerns.
 
-See [AUTHN-AUTHZ.md → Explicitly deferred](./AUTHN-AUTHZ.md#explicitly-deferred).
+See [AUTHN-AUTHZ.md → Explicitly deferred](./docs/06-auth-and-security/01-authn-authz.md#explicitly-deferred).
 
 ### Stable HTTP transport for `path`
 
-**Trigger:** the broader stable HTTP API transport (see above). The widget already posts `path` as a top-level field through server fns; once the HTTP boundary lands, `path` falls out of the same wire-shape pass. Trivial work; flagged here so it isn't forgotten. See [DOCUMENT-PATHS.md → Phase — stable HTTP transport for path](./DOCUMENT-PATHS.md#phase--stable-http-transport-for-path).
+**Trigger:** the broader stable HTTP API transport (see above). The widget already posts `path` as a top-level field through server fns; once the HTTP boundary lands, `path` falls out of the same wire-shape pass. Trivial work; flagged here so it isn't forgotten. See [DOCUMENT-PATHS.md → Phase — stable HTTP transport for path](./docs/04-collections/04-document-paths.md#phase--stable-http-transport-for-path).

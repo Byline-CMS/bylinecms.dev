@@ -61,7 +61,7 @@ function createMockDb() {
   const getDocumentById = vi.fn().mockResolvedValue(null)
   const getCurrentVersionMetadata = vi.fn().mockResolvedValue(null)
   const getCurrentPath = vi.fn().mockResolvedValue('current-path')
-  // Audit capability (docs/AUDIT.md — W2). `withTransaction` is a passthrough
+  // Audit capability (docs/06-auth-and-security/02-auditability.md — W2). `withTransaction` is a passthrough
   // in unit tests (runs the unit of work immediately, no real tx); `append`
   // records the calls so write-point tests can assert the audit rows emitted.
   const auditAppend = vi.fn().mockResolvedValue({ id: 'audit-1' })
@@ -205,7 +205,7 @@ describe('Document lifecycle service', () => {
         locale: 'en',
       })
 
-      // Audit contract (docs/AUDIT.md — W1): every version row
+      // Audit contract (docs/06-auth-and-security/02-auditability.md — W1): every version row
       // records the actor that created it.
       expect(createDocumentVersion.mock.calls[0]?.[0].createdBy).toBe(TEST_ACTOR_ID)
     })
@@ -889,7 +889,7 @@ describe('Document lifecycle service', () => {
 
       await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
 
-      // The mutation + audit row run inside one withTransaction (docs/AUDIT.md).
+      // The mutation + audit row run inside one withTransaction (docs/06-auth-and-security/02-auditability.md).
       expect(withTransaction).toHaveBeenCalledOnce()
       expect(auditAppend).toHaveBeenCalledWith(
         expect.objectContaining({

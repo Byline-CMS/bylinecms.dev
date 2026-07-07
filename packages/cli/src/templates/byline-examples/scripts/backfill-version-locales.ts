@@ -18,7 +18,7 @@
  *
  *   cd apps/webapp && pnpm tsx byline/scripts/backfill-version-locales.ts
  *
- * See docs/I18N.md.
+ * See docs/07-internationalization/index.md.
  */
 
 import '../load-env.js'

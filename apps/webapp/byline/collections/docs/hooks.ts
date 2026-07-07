@@ -37,7 +37,7 @@
  * upshot: **inside this file we may statically import server-only modules
  * directly** — both the cache runtime and `node:crypto` below are the
  * affordance in action; placing either import at the top of `schema.ts`
- * would crash the dev server. See docs/COLLECTIONS.md → "Hooks must not
+ * would crash the dev server. See docs/04-collections/index.md → "Hooks must not
  * statically import server-only code" and docs/DATA-CACHE-DESIGN.md.
  *
  * ──────────────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ export default defineHooks({
   // both sibling lists have new breadcrumbs / hierarchical canonical URLs. Trees
   // are small and restructures are infrequent, so the coarse collection-wide
   // sweep (detail + list + sitemap) is the pragmatic correct choice over
-  // resolving the affected ids to paths. See docs/DOCUMENT-TREE.md →
+  // resolving the affected ids to paths. See docs/04-collections/03-document-trees.md →
   // "Invalidation contract".
   afterTreeChange: ({ collectionPath }) => invalidateCollection(collectionPath),
 })

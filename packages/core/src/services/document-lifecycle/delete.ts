@@ -115,9 +115,9 @@ export async function deleteDocument(
       // 3. Soft-delete all versions, atomically with the audit record. A
       //    whole-document delete mints no new version, so the version stream
       //    never records it — the audit log is the only place a deletion is
-      //    accountable (docs/AUDIT.md). Storage-file cleanup (step 4) is a
+      //    accountable (docs/06-auth-and-security/02-auditability.md). Storage-file cleanup (step 4) is a
       //    DB↔external side-effect and stays OUTSIDE the transaction — it is
-      //    post-commit, best-effort compensation (docs/TRANSACTIONS.md).
+      //    post-commit, best-effort compensation (docs/03-architecture/03-transactions.md).
       const audit = requireAuditCapability(db)
       const actor = auditActor(ctx)
       let deletedVersionCount = 0
@@ -152,7 +152,7 @@ export async function deleteDocument(
       //    structural-change invalidation event. Post-commit and best-effort,
       //    like file cleanup: a failure here leaves the soft-delete intact
       //    (status-at-edge already hides the deleted node's subtree from
-      //    reads) and is logged rather than thrown. See docs/DOCUMENT-TREE.md.
+      //    reads) and is logged rather than thrown. See docs/04-collections/03-document-trees.md.
       if (definition.tree === true) {
         try {
           await promoteChildrenAndRemove(ctx, { documentId: params.documentId })

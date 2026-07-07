@@ -12,7 +12,7 @@
  * `withLogContext`). The full design — the service-owned `withTransaction`
  * boundary, the DB↔DB vs DB↔external distinction, the incremental-adoption
  * caveat, and the serverless db-contract-seam decisions — lives in
- * `docs/TRANSACTIONS.md`. This machinery is deliberately adapter-internal:
+ * `docs/03-architecture/03-transactions.md`. This machinery is deliberately adapter-internal:
  * transactions are driver-specific, so `@byline/core` only declares the
  * `withTransaction` capability on `IDbAdapter`, never the implementation.
  */
@@ -79,7 +79,7 @@ export class TXManagerImpl implements TXManager {
       // `tx` is Drizzle's PgTransaction; it carries the full query-builder
       // surface every command uses. The cast bridges the one structural gap
       // to NodePgDatabase — the transaction lacks `$client`, which no command
-      // touches. See docs/TRANSACTIONS.md.
+      // touches. See docs/03-architecture/03-transactions.md.
       transactionALS.run(tx as unknown as DBExecutor, fn)
     )
   }

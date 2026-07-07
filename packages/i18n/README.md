@@ -4,7 +4,7 @@ Admin interface i18n primitives for Byline CMS — a translation registry, an IC
 
 This package is the *interface* axis of i18n (what language the admin UI renders in). The *content* axis (what languages your documents publish in) is a separate concern handled by `i18n.content` on the existing `BaseConfig`. The two are deliberately independent.
 
-For the full design — registration model, plugin extensibility surface, per-user persistence, future phases — see [`docs/I18N.md`](../../docs/I18N.md) at the repo root.
+For the full design — registration model, plugin extensibility surface, per-user persistence, future phases — see [`docs/07-internationalization/index.md`](../../docs/07-internationalization/index.md) at the repo root.
 
 ## Install
 
@@ -156,7 +156,7 @@ Tier order: `preferred → cookie → acceptLanguage → defaultLocale`. Every s
 
 ## What's *not* here (yet)
 
-- **Lazy locale loading.** Locales currently bundle eagerly. With more than ~5 locales, switching to async loaders earns its complexity; see Phase 3 in [`docs/I18N.md`](../../docs/I18N.md).
+- **Lazy locale loading.** Locales currently bundle eagerly. With more than ~5 locales, switching to async loaders earns its complexity; see Phase 3 in [`docs/07-internationalization/index.md`](../../docs/07-internationalization/index.md).
 - **Authoring-time metadata** (per-key descriptions, plural hints, deprecation markers). Phase 4.
 - **RTL admin layout.** Phase 5. Need a community-translated RTL locale first to surface the real list of CSS breakages.
 - **Inline translation editing** (CMS-as-translation-tool). Deliberately out of scope.

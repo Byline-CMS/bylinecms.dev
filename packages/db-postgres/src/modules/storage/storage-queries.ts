@@ -49,7 +49,7 @@ type DatabaseConnection = NodePgDatabase<typeof schema>
 // `pathProjection`), so the in-memory Document shape continues to carry it.
 // `source_locale` (the per-document content-locale anchor) rides alongside so
 // the locale-aware read paths re-base the fallback floor onto it rather than
-// the mutable global default. See docs/I18N.md.
+// the mutable global default. See docs/07-internationalization/index.md.
 type Document = Omit<typeof documentVersions.$inferSelect, 'doc'> & {
   path: string | null
   source_locale: string | null
@@ -192,7 +192,7 @@ export class DocumentQueries implements IDocumentQueries {
    * document, or any document read after the global default is switched, falls
    * back to the locale it was actually authored in) — otherwise the configured
    * global default, which is correct for not-yet-anchored rows and for
-   * row-less lookups (findByPath). See docs/I18N.md.
+   * row-less lookups (findByPath). See docs/07-internationalization/index.md.
    */
   private buildLocaleChain(
     requestedLocale: string | undefined,
@@ -274,7 +274,7 @@ export class DocumentQueries implements IDocumentQueries {
    * `availableLocales` — the deliberate
    * counterpart to the version-grain `_availableVersionLocales` ledger fact;
    * the public advertised set is their intersection. One indexed query per
-   * call. See docs/I18N.md.
+   * call. See docs/07-internationalization/index.md.
    */
   private async getAdvertisedLocalesByDocument(
     documentIds: string[]

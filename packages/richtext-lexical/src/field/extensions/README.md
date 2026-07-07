@@ -2,7 +2,7 @@
 
 Every built-in feature of the Lexical adapter — and every supported way for a third party to extend it — lives in this directory as a Lexical `defineExtension(...)` co-located with its node class(es), modal, decorator, and (where relevant) populate visitor.
 
-This README is a navigation aid only. The full reference and authoring contract lives in the project's [`docs/RICHTEXT.md`](../../../../../docs/RICHTEXT.md) — start with the **Extensibility** section.
+This README is a navigation aid only. The full reference and authoring contract lives in the project's [`docs/04-collections/06-rich-text.md`](../../../../../docs/04-collections/06-rich-text.md) — start with the **Extensibility** section.
 
 ## What's where
 
@@ -25,7 +25,7 @@ This README is a navigation aid only. The full reference and authoring contract 
 
 1. Create a directory next to these.
 2. Implement your `defineExtension(...)` (and any nodes / decorators).
-3. To contribute a toolbar item or a floating UI, declare a peer dependency against `BylineToolbarExtension` / `BylineFloatingUIExtension` — see the worked recipes in `docs/RICHTEXT.md`.
+3. To contribute a toolbar item or a floating UI, declare a peer dependency against `BylineToolbarExtension` / `BylineFloatingUIExtension` — see the worked recipes in `docs/04-collections/06-rich-text.md`.
 4. Either register your extension at site level via `lexicalEditor((c) => c.extensions.add(MyExtension))`, or — if it's a built-in being shipped by this package — append it to `defaultExtensionsArray()` in `field/config/default-extensions.ts`.
 
 You should never need to touch `field/editor.tsx` to add a feature.

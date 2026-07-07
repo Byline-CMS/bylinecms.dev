@@ -7,7 +7,7 @@
  */
 
 /**
- * Playwright config for the admin editor smoke suite (see docs/TESTING.md →
+ * Playwright config for the admin editor smoke suite (see docs/09-testing.md →
  * "Editor smoke suite"). Browser-level happy paths over the document editor —
  * the regression net for the under-unit-tested surfaces (`@byline/admin`
  * forms/fields, host-adapter server fns, richtext) and for Lexical /

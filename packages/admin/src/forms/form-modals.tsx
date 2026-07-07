@@ -54,7 +54,7 @@ export const UnsavedChangesModal = ({ onClose }: { onClose: () => void }) => {
  * Confirms an immediate, non-versioned write of the document-grain system
  * fields (path / advertised locales) — which does NOT reset workflow status.
  * When content is also dirty, the copy reassures that content edits still
- * follow the normal revision + publish workflow. See docs/I18N.md.
+ * follow the normal revision + publish workflow. See docs/07-internationalization/index.md.
  */
 export const SystemFieldsConfirmModal = ({
   contentDirty,

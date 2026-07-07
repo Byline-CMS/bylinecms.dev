@@ -157,7 +157,7 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     //   `availableLocales`          — the stored editorial set → initialises the
     //                                 form-context slot / the checked state.
     //   `_availableVersionLocales`  — the ledger fact → drives each row's intent.
-    // See docs/I18N.md.
+    // See docs/07-internationalization/index.md.
     const availableLocales = (serialised as Record<string, any>).availableLocales as
       | string[]
       | undefined

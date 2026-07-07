@@ -7,7 +7,7 @@
  */
 
 /**
- * Append-only audit-log writes (docs/AUDIT.md — Workstream 2). A deliberately
+ * Append-only audit-log writes (docs/06-auth-and-security/02-auditability.md — Workstream 2). A deliberately
  * dumb command: it inserts one row and knows nothing about *which* changes
  * warrant an audit entry — that policy lives in the lifecycle services, which
  * wrap the mutation + this append in `withTransaction` so they commit

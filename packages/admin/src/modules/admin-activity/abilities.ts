@@ -9,7 +9,7 @@
 import type { AbilityRegistry } from '@byline/auth'
 
 /**
- * Ability keys for the admin-activity module (docs/AUDIT.md — Workstream 4).
+ * Ability keys for the admin-activity module (docs/06-auth-and-security/02-auditability.md — Workstream 4).
  *
  * `read` gates the system-wide activity area — the `/admin/activity` report
  * over the version-stream + audit-log union. It is deliberately a **separate**

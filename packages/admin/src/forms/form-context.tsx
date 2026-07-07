@@ -64,7 +64,7 @@ const sameLocaleSet = (a: string[], b: string[]): boolean => {
  * Save button. `content` mints a new version (normal workflow). `direct-write`
  * is an immediate, non-versioned write of the document-grain system fields
  * (path / advertised locales) that does NOT reset workflow status. `both` does
- * each through its own write path. See docs/I18N.md.
+ * each through its own write path. See docs/07-internationalization/index.md.
  */
 export type DirtyReason = 'none' | 'content' | 'direct-write' | 'both'
 
@@ -103,7 +103,7 @@ interface FormContextType {
   /**
    * Partition the current dirty state into content vs. system-field (path /
    * advertised-locales) writes so the Save button can branch. See
-   * docs/I18N.md.
+   * docs/07-internationalization/index.md.
    */
   getDirtyBreakdown: () => DirtyBreakdown
   subscribeField: (name: string, listener: FieldListener) => () => void
@@ -349,7 +349,7 @@ export const FormProvider = ({
   // button can route each piece correctly: content → versioned write; the
   // document-grain system fields (path / advertised locales) → immediate,
   // non-versioned direct write that leaves workflow status untouched.
-  // See docs/I18N.md.
+  // See docs/07-internationalization/index.md.
   const getDirtyBreakdown = useCallback((): DirtyBreakdown => {
     const keys = dirtyFields.current
     const pathDirty = keys.has(SYSTEM_PATH_DIRTY_KEY)

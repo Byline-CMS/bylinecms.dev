@@ -7,7 +7,7 @@
  */
 
 /**
- * Admin-activity server fns (docs/AUDIT.md — Workstream 4) — the
+ * Admin-activity server fns (docs/06-auth-and-security/02-auditability.md — Workstream 4) — the
  * system-wide activity report. Reads the adapter's audit queries directly
  * (cross-collection, includes admin-realm rows) behind the
  * `admin.activity.read` gate, rather than routing through a per-document

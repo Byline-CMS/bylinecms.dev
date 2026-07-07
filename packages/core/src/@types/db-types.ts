@@ -42,7 +42,7 @@ export type ReadMode = 'any' | 'published'
  * safe default for internal/direct reads); `@byline/client` defaults it to
  * `'fallback'` for application reads. Availability follows path-coverage against
  * the default content locale; a document with no localized content is available
- * in every locale. See `docs/I18N.md`.
+ * in every locale. See `docs/07-internationalization/index.md`.
  */
 export type MissingLocalePolicy = 'empty' | 'fallback' | 'omit'
 
@@ -229,7 +229,7 @@ export interface IDbAdapter {
     documents: IDocumentCommands
     counters: ICounterCommands
     /**
-     * Append-only audit-log writes (docs/AUDIT.md — Workstream 2). Optional
+     * Append-only audit-log writes (docs/06-auth-and-security/02-auditability.md — Workstream 2). Optional
      * capability, paired with `withTransaction`: a consumer that records audit
      * entries asserts both are present and throws otherwise (it must never
      * silently skip the audit row). Adapters that model the audit log
@@ -240,14 +240,14 @@ export interface IDbAdapter {
   queries: {
     collections: ICollectionQueries
     documents: IDocumentQueries
-    /** Audit-log reads — per-document history, system-wide report. See docs/AUDIT.md. */
+    /** Audit-log reads — per-document history, system-wide report. See docs/06-auth-and-security/02-auditability.md. */
     audit?: IAuditQueries
   }
   /**
    * Optional capability: run `fn` inside a single database transaction so the
    * writes it performs commit or roll back atomically. The adapter propagates
    * the transaction to every `commands.*` call made within `fn` (see
-   * docs/TRANSACTIONS.md — AsyncLocalStorage propagation), so a service can
+   * docs/03-architecture/03-transactions.md — AsyncLocalStorage propagation), so a service can
    * compose multiple commands into one unit of work without threading a
    * transaction handle through their signatures.
    *
@@ -257,7 +257,7 @@ export interface IDbAdapter {
    * method** (or implement it to throw); a consumer that requires atomicity
    * (e.g. the audit log) MUST assert its presence and throw — never silently
    * run non-atomically, which would defeat the very guarantee it provides. See
-   * docs/TRANSACTIONS.md ("Serverless / HTTP-gateway databases — the contract
+   * docs/03-architecture/03-transactions.md ("Serverless / HTTP-gateway databases — the contract
    * seam").
    */
   withTransaction?: <T>(fn: () => Promise<T>) => Promise<T>
@@ -268,19 +268,19 @@ export interface IDbAdapter {
    * boot by `initBylineCore` so in-place upgrades self-heal without a manual
    * step or a migrate-ordering constraint — a no-op (zero rows) once every
    * document is stamped. Optional so adapters that don't model `source_locale`
-   * need not implement it. See docs/I18N.md.
+   * need not implement it. See docs/07-internationalization/index.md.
    */
   backfillSourceLocales?: () => Promise<{ rowsUpdated: number }>
 }
 
 // ---------------------------------------------------------------------------
-// Audit log (docs/AUDIT.md — Workstream 2)
+// Audit log (docs/06-auth-and-security/02-auditability.md — Workstream 2)
 // ---------------------------------------------------------------------------
 
 /**
  * The realm of the actor that performed an audited change. `'admin'` for
  * admin-user actions, `'user'` reserved for the end-user realm, `'system'`
- * for deliberate internal-tooling writes. See docs/AUDIT.md.
+ * for deliberate internal-tooling writes. See docs/06-auth-and-security/02-auditability.md.
  */
 export type AuditActorRealm = 'admin' | 'user' | 'system'
 
@@ -324,7 +324,7 @@ export interface AuditLogPage {
 
 /**
  * Append-only audit-log writes. The companion read interface is
- * `IAuditQueries`. See docs/AUDIT.md — Workstream 2.
+ * `IAuditQueries`. See docs/06-auth-and-security/02-auditability.md — Workstream 2.
  */
 export interface IAuditCommands {
   /**
@@ -336,7 +336,7 @@ export interface IAuditCommands {
   append(input: AuditLogAppendInput): Promise<{ id: string }>
 }
 
-/** Audit-log reads. See docs/AUDIT.md — Workstreams 3 & 4. */
+/** Audit-log reads. See docs/06-auth-and-security/02-auditability.md — Workstreams 3 & 4. */
 export interface IAuditQueries {
   /**
    * The audit history for one document, newest first, paged. Backs the
@@ -351,7 +351,7 @@ export interface IAuditQueries {
   }): Promise<AuditLogPage>
 
   /**
-   * The system-wide activity feed (docs/AUDIT.md — Workstream 4), newest
+   * The system-wide activity feed (docs/06-auth-and-security/02-auditability.md — Workstream 4), newest
    * first, paged and filterable. A read-time **union** of two disjoint event
    * sources, normalised onto the `AuditLogEntry` shape:
    *
@@ -392,7 +392,7 @@ export interface IAuditQueries {
 /**
  * Adapter capability for the shared-pool counter mechanism backing the
  * `counter` field type. See `packages/core/src/@types/field-types.ts`
- * (CounterField) for the field-level contract and `docs/COLLECTIONS.md`
+ * (CounterField) for the field-level contract and `docs/04-collections/index.md`
  * (Counter fields) for the conceptual overview.
  *
  * Both methods are keyed by the developer-facing `groupName` (the value
@@ -487,7 +487,7 @@ export interface IDocumentCommands {
      * editorial advertised-locale set. `undefined` leaves the existing set
      * untouched (sticky across versions, like `path`); `[]` clears it. The
      * locale values are the advertised content locales themselves, not the
-     * write locale. See `docs/I18N.md`.
+     * write locale. See `docs/07-internationalization/index.md`.
      */
     availableLocales?: string[]
     locale?: string
@@ -505,7 +505,7 @@ export interface IDocumentCommands {
      * Only set on the initial create (when `documentId` is undefined) for
      * collections with `orderable: true`. Ignored on subsequent versions of
      * an existing document — order is admin metadata on the logical document,
-     * not per-version content. See docs/COLLECTIONS.md (Orderable collections).
+     * not per-version content. See docs/04-collections/index.md (Orderable collections).
      */
     orderKey?: string
   }): Promise<{ document: any; fieldCount: number }>
@@ -517,7 +517,7 @@ export interface IDocumentCommands {
    * the change is immediate and applies across every version. Backs the admin
    * path widget's direct-write Save. The unique constraint on
    * `(collection_id, locale, path)` may surface as `ERR_PATH_CONFLICT` from the
-   * lifecycle layer. See `docs/I18N.md`.
+   * lifecycle layer. See `docs/07-internationalization/index.md`.
    */
   updateDocumentPath(params: {
     documentId: string
@@ -532,7 +532,7 @@ export interface IDocumentCommands {
    * wholesale **without** minting a new version or touching workflow status —
    * the change is immediate and applies across every version. `[]` clears it.
    * Backs the admin available-locales widget's direct-write Save. See
-   * `docs/I18N.md`.
+   * `docs/07-internationalization/index.md`.
    */
   setDocumentAvailableLocales(params: {
     documentId: string
@@ -585,7 +585,7 @@ export interface IDocumentCommands {
     documentId: string
     locale: string
     status?: string
-    /** Acting user id for the version audit trail (`created_by`). See docs/AUDIT.md. */
+    /** Acting user id for the version audit trail (`created_by`). See docs/06-auth-and-security/02-auditability.md. */
     createdBy?: string
   }): Promise<{ newVersionId: string; previousVersionId: string } | null>
 
@@ -624,7 +624,7 @@ export interface IDocumentCommands {
    * **before** (its right neighbour). Either may be null — `{}` appends as the
    * only/last child, `beforeDocumentId` alone appends after it, `afterDocumentId`
    * alone prepends before it. Both are resolved within the *target* parent
-   * group. See docs/DOCUMENT-TREE.md.
+   * group. See docs/04-collections/03-document-trees.md.
    */
   placeTreeNode(params: {
     collectionId: string
@@ -638,7 +638,7 @@ export interface IDocumentCommands {
    * Remove a document's edge row, returning it to the *unplaced* state (in the
    * collection, but not in the tree). Distinct from document deletion — the
    * document and its content are untouched. No-op when the node is already
-   * unplaced. See docs/DOCUMENT-TREE.md.
+   * unplaced. See docs/04-collections/03-document-trees.md.
    */
   removeFromTree(params: { documentId: string }): Promise<void>
 }
@@ -667,7 +667,7 @@ export interface IDocumentQueries {
     /**
      * Request-scoped auth context. Adapters thread it through to
      * `assertActorCanPerform` for ability assertion and to `beforeRead`
-     * hooks for query scoping. See docs/AUTHN-AUTHZ.md.
+     * hooks for query scoping. See docs/06-auth-and-security/01-authn-authz.md.
      */
     requestContext?: RequestContext
     /**
@@ -720,7 +720,7 @@ export interface IDocumentQueries {
    *
    * Source-locale only: this resolves the single canonical slug, which is the
    * only path row a document has today. When per-locale paths land (see
-   * docs/DOCUMENT-PATHS.md → "Phase — per-locale paths"), the write-side hook
+   * docs/04-collections/04-document-paths.md → "Phase — per-locale paths"), the write-side hook
    * contexts that consume this must be enriched to carry the locale each path
    * was derived under (or the full `locale → path` set) — a single canonical
    * `path` is no longer sufficient for per-localised-URL cache/CDN purges.
@@ -942,7 +942,7 @@ export interface IDocumentQueries {
    * parent, increasing toward the root). Empty for a root or unplaced node.
    *
    * Backs breadcrumbs and the read-time hierarchical-URL canonicalization
-   * (docs/DOCUMENT-TREE.md). Depth-bounded as a backstop against pathological
+   * (docs/04-collections/03-document-trees.md). Depth-bounded as a backstop against pathological
    * key state even though the write-path cycle guard prevents true cycles.
    *
    * **Status-at-edge.** `readMode: 'published'` joins
@@ -965,7 +965,7 @@ export interface IDocumentQueries {
    * `order_key`. `parentDocumentId: null` returns the collection's root nodes.
    * Scoped to `collectionId` so root reads (which have no parent to scope by)
    * stay within the collection. One level only — the recursive subtree read is
-   * a separate query. See docs/DOCUMENT-TREE.md.
+   * a separate query. See docs/04-collections/03-document-trees.md.
    */
   getTreeChildren(params: {
     collectionId: string
@@ -974,7 +974,7 @@ export interface IDocumentQueries {
 
   /**
    * Resolve a single node's placement state in the tree, distinguishing the
-   * three tri-states (docs/DOCUMENT-TREE.md → "Node placement"):
+   * three tri-states (docs/04-collections/03-document-trees.md → "Node placement"):
    *
    *   - **Unplaced** (no edge row) → `{ placed: false, parentDocumentId: null }`
    *   - **Root** (edge row, null parent) → `{ placed: true,  parentDocumentId: null }`
@@ -1004,7 +1004,7 @@ export interface IDocumentQueries {
    * `byline_current_published_documents` and drops any node without a current
    * published version; because the walk only recurses through *included*
    * nodes, an unpublished node's entire subtree is omitted — the spine is
-   * broken and descendants are not promoted (see docs/DOCUMENT-TREE.md).
+   * broken and descendants are not promoted (see docs/04-collections/03-document-trees.md).
    * `readMode: 'any'` (the default) includes every current, non-deleted node.
    * Depth-bounded by `maxDepth` as a backstop.
    *

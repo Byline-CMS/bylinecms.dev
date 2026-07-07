@@ -33,7 +33,7 @@ export const Docs = defineCollection({
     customStatuses: [{ name: 'needs_review', label: 'Needs Review', verb: 'Request Review' }],
   }),
   showStats: true,
-  // Document tree (docs/DOCUMENT-TREE.md): the docs collection is a
+  // Document tree (docs/04-collections/03-document-trees.md): the docs collection is a
   // single-parent ordered hierarchy. Mutually exclusive with `orderable` —
   // the tree owns ordering (per-parent, on the edge), so `order_key` on
   // `byline_documents` is inert here. Sibling order and nesting are edited via
@@ -58,7 +58,7 @@ export const Docs = defineCollection({
   // them only through `import()`, `./hooks.ts` and its entire import graph
   // stay out of the client bundle, leaving that file free to import any
   // server-only code (Node built-ins, DB clients, caches, secrets). See
-  // `./hooks.ts` for the full explanation, and docs/COLLECTIONS.md →
+  // `./hooks.ts` for the full explanation, and docs/04-collections/index.md →
   // "Hooks must not statically import server-only code".
   //
   // (Hooks that only touch isomorphic code may still be declared inline as

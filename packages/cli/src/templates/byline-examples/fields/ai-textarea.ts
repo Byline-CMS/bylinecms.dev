@@ -12,7 +12,7 @@
  * schema field's name. Pairs with a plain `{ type: 'textArea' }` entry
  * on the schema side; this file owns the React (label icon + AI panel).
  *
- * See `docs/FIELDS.md` for the schema-vs-admin model.
+ * See `docs/04-collections/01-fields.md` for the schema-vs-admin model.
  */
 
 import type { FieldAdminConfig, FieldComponentSlots } from '@byline/core'

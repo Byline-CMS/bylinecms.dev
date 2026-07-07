@@ -10,7 +10,7 @@
 
 /**
  * Docs navigation drawer. `docs` is a `tree: true` collection, so the nav is
- * the document tree (docs/DOCUMENT-TREE.md): parents are collapsible with an
+ * the document tree (docs/04-collections/03-document-trees.md): parents are collapsible with an
  * animated caret, children are indented and expand/collapse with a smooth
  * height transition. Links are **direct hierarchical URLs** (each node's full
  * `chain`), so no canonical 301 hop. The branch containing the active document

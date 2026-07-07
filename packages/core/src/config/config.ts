@@ -146,7 +146,7 @@ export function getServerConfig(): ServerConfig {
  * config-driven at the read source. The payoff is canonical downstream
  * ordering (display switcher, hreflang `alternates`, sitemap) regardless of
  * the order a document declared its locales in. Read-time projection only;
- * nothing persisted changes. See docs/I18N.md.
+ * nothing persisted changes. See docs/07-internationalization/index.md.
  */
 export function orderByContentLocale(codes: string[]): string[] {
   const content = getServerConfigInstance()?.i18n?.content

@@ -43,7 +43,7 @@ import { createdAt, timestamps } from './common.js'
  *
  * Captured here (rather than only in a hand-written migration) so future
  * regenerations from this schema reproduce the COLLATE clause cleanly.
- * See migration `0003_order_key_byte_collation.sql` and `docs/COLLECTIONS.md` (Orderable collections).
+ * See migration `0003_order_key_byte_collation.sql` and `docs/04-collections/index.md` (Orderable collections).
  */
 const varcharByteSorted = customType<{
   data: string
@@ -91,7 +91,7 @@ export const documents = pgTable(
     //
     // Uses `varcharByteSorted` (COLLATE "C") so DB ordering matches JS string
     // comparison — the fractional-index algorithm requires this. See
-    // `varcharByteSorted` above and docs/COLLECTIONS.md (Orderable collections).
+    // `varcharByteSorted` above and docs/04-collections/index.md (Orderable collections).
     order_key: varcharByteSorted('order_key', { length: 128 }),
     // The content locale this document was first authored in — its per-document
     // data anchor. Set once at creation (= the global default content locale at
@@ -166,7 +166,7 @@ export const documentVersions = pgTable(
 // installation's default content locale; per-locale UI is a future phase
 // that adds rows for additional locales without reshaping the schema.
 // History is intentionally not preserved here — path rows are updated in
-// place. See `docs/DOCUMENT-PATHS.md` § "Path uniqueness".
+// place. See `docs/04-collections/04-document-paths.md` § "Path uniqueness".
 export const documentPaths = pgTable(
   'byline_document_paths',
   {
@@ -204,7 +204,7 @@ export const documentPaths = pgTable(
 // carries forward across edits and survives restore. Surfaced on reads as
 // `availableLocales`; the public advertised set is the intersection with the
 // ledger's `_availableVersionLocales`. Replaced wholesale on write (the lifecycle
-// deletes then re-inserts the set), never appended. See docs/I18N.md.
+// deletes then re-inserts the set), never appended. See docs/07-internationalization/index.md.
 export const documentAvailableLocales = pgTable(
   'byline_document_available_locales',
   {
@@ -233,7 +233,7 @@ export const documentAvailableLocales = pgTable(
 // identically in any locale). Computed status-blind at write time and frozen
 // on the immutable version, so restore / point-in-time reads stay consistent.
 // Drives `localeFallback: 'strict'` reads via an indexed EXISTS gate without
-// scanning the store_* tables. See docs/I18N.md.
+// scanning the store_* tables. See docs/07-internationalization/index.md.
 export const documentVersionLocales = pgTable(
   'byline_document_version_locales',
   {
@@ -245,7 +245,7 @@ export const documentVersionLocales = pgTable(
   (table) => [primaryKey({ columns: [table.document_version_id, table.locale] })]
 )
 
-// Document Tree — single-parent ordered adjacency. See docs/DOCUMENT-TREE.md.
+// Document Tree — single-parent ordered adjacency. See docs/04-collections/03-document-trees.md.
 //
 // A document-grain, unversioned hierarchy primitive for `tree: true`
 // collections (self-referential, single collection). Rows reference the logical
@@ -288,7 +288,7 @@ export const documentRelationships = pgTable(
 // `path` is intentionally NOT projected here. Path resolution is locale-
 // aware and lives in the storage adapter's read functions, which join
 // `byline_document_paths` with the requested locale + default-locale
-// fallback. See docs/DOCUMENT-PATHS.md.
+// fallback. See docs/04-collections/04-document-paths.md.
 export const currentDocumentsView = pgView('byline_current_documents').as((qb) => {
   const sq = qb.$with('sq').as(
     qb
@@ -335,7 +335,7 @@ export const currentDocumentsView = pgView('byline_current_documents').as((qb) =
       // read paths (`buildLocaleChain` / `pathProjection` / field-fallback)
       // re-base onto the per-document source rather than the mutable global
       // default — a primary-key join, already present for `order_key`.
-      // See docs/I18N.md.
+      // See docs/07-internationalization/index.md.
       source_locale: documents.source_locale,
     })
     .from(sq)
@@ -719,7 +719,7 @@ export const documentRelationshipsRelations = relations(documentRelationships, (
 }))
 
 // Document-tree edges on the logical document. The tree read path itself is a
-// recursive CTE (see docs/DOCUMENT-TREE.md), not the Drizzle query builder —
+// recursive CTE (see docs/04-collections/03-document-trees.md), not the Drizzle query builder —
 // these relations exist for completeness / ad-hoc joins.
 export const documentTreeRelations = relations(documents, ({ many }) => ({
   // The membership edge where this document is the child — its placement in the
@@ -832,7 +832,7 @@ export const jsonStoreRelations = relations(jsonStore, ({ one }) => ({
 // fit without a second migration. Append-only and deliberately **FK-free**: an
 // audit row is an immutable historical fact that must outlive the document,
 // collection, or actor it references — a `document.deleted` row cannot be
-// allowed to cascade-delete itself. See docs/AUDIT.md — Workstream 2.
+// allowed to cascade-delete itself. See docs/06-auth-and-security/02-auditability.md — Workstream 2.
 export const auditLog = pgTable(
   'byline_audit_log',
   {

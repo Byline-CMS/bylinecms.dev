@@ -22,7 +22,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // Document-grain system fields (`path`, `availableLocales`) are deliberately
 // NOT handled here: they are written through their own non-versioned path
 // (`updateCollectionDocumentSystemFields` below) so that editing them does not
-// mint a new version or reset workflow status. See docs/I18N.md.
+// mint a new version or reset workflow status. See docs/07-internationalization/index.md.
 // ---------------------------------------------------------------------------
 
 export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POST' })

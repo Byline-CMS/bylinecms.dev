@@ -45,7 +45,7 @@ export interface AuditLogEntryDto {
 }
 
 // ---------------------------------------------------------------------------
-// Get document-grain audit log (docs/AUDIT.md — Workstream 3)
+// Get document-grain audit log (docs/06-auth-and-security/02-auditability.md — Workstream 3)
 // ---------------------------------------------------------------------------
 
 export const getCollectionDocumentAuditLog = createServerFn({ method: 'GET' })
@@ -69,7 +69,7 @@ export const getCollectionDocumentAuditLog = createServerFn({ method: 'GET' })
       pageSize: params?.page_size,
     })
 
-    // Acting-user labels for the audit list (docs/AUDIT.md — W3). Resolved
+    // Acting-user labels for the audit list (docs/06-auth-and-security/02-auditability.md — W3). Resolved
     // here, in the admin realm, from each entry's raw `actorId`; the UI joins
     // by id. System/tooling rows (NULL actorId) and deleted users are absent
     // from the map — the UI renders the corresponding tombstone label.

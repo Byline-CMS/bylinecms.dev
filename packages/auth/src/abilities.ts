@@ -26,7 +26,7 @@
  * collection registrar in `@byline/core`. Future plugins (media,
  * uploads, settings) contribute their own groups.
  *
- * See docs/AUTHN-AUTHZ.md.
+ * See docs/06-auth-and-security/01-authn-authz.md.
  */
 
 /**

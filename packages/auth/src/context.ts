@@ -19,7 +19,7 @@ import { type Actor, AdminAuth } from './actor.js'
  * Service-layer enforcement is live: `assertActorCanPerform` runs at
  * every `document-lifecycle` write entry and on `@byline/client` reads;
  * `assertAdminActor` runs inside every admin-management `*Command`.
- * See docs/AUTHN-AUTHZ.md for the present-state reference.
+ * See docs/06-auth-and-security/01-authn-authz.md for the present-state reference.
  *
  * `RequestContext` is intentionally independent of the existing
  * `ReadContext` (populate / `afterRead` recursion guard) for now. Merging

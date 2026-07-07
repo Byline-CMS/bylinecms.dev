@@ -11,7 +11,7 @@ import type { AbilityRegistry } from '@byline/auth'
 /**
  * Ability keys for the admin-permissions module.
  *
- * `read` gates the inspector view (see docs/AUTHN-AUTHZ.md).
+ * `read` gates the inspector view (see docs/06-auth-and-security/01-authn-authz.md).
  * `update` will gate the per-role ability editor mounted on the
  * admin-roles role detail page — declared here so the role editor can
  * assert against it once that surface lands. The per-role editor shares

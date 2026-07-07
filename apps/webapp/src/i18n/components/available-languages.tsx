@@ -30,7 +30,7 @@ const languageMap: LanguageMap = Object.fromEntries(
  *
  * Renders nothing unless the document advertises more than one locale — a
  * single advertised locale needs no switcher, and a locale-agnostic document
- * (empty advertised set) shows no affordance at all. See docs/I18N.md.
+ * (empty advertised set) shows no affordance at all. See docs/07-internationalization/index.md.
  */
 export function AvailableLanguages({
   advertisedLocales,

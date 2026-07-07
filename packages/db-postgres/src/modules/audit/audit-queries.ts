@@ -7,7 +7,7 @@
  */
 
 /**
- * Audit-log reads (docs/AUDIT.md — Workstreams 3 & 4). Reads run on the pool
+ * Audit-log reads (docs/06-auth-and-security/02-auditability.md — Workstreams 3 & 4). Reads run on the pool
  * directly — they never need to join an audit write's transaction — so this
  * takes the raw connection rather than the `DBManager`. Access scoping is the
  * caller's responsibility (the document's own read gate); these queries do no

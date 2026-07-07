@@ -247,7 +247,7 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
     id: z.uuid(),
     versionId: z.uuid().optional(),
     path: z.string().optional(),
-    // The document's content source-locale anchor (see docs/I18N.md).
+    // The document's content source-locale anchor (see docs/07-internationalization/index.md).
     // Carried through list/get responses so the admin can badge it; Zod would
     // otherwise strip it as an undeclared key.
     sourceLocale: z.string().optional(),
@@ -255,7 +255,7 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
     hasPublishedVersion: z.boolean().optional(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
-    // Version audit metadata — acting user + action (see docs/AUDIT.md — Workstream 1).
+    // Version audit metadata — acting user + action (see docs/06-auth-and-security/02-auditability.md — Workstream 1).
     // Declared so list/get/history responses carry them through the
     // server-fn parse; Zod would otherwise strip them as undeclared keys.
     createdBy: z.uuid().optional(),

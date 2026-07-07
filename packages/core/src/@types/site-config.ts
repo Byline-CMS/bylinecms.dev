@@ -70,7 +70,7 @@ export interface BaseConfig {
        * its path locale, and the completeness ledger — so changing this value
        * is safe for existing data: they keep reading against the locale they
        * were authored in. New documents created after the change anchor to the
-       * new value. See docs/I18N.md.
+       * new value. See docs/07-internationalization/index.md.
        *
        * (Switching this on a live system still needs the one-time
        * `backfillSourceLocales()` maintenance step to have stamped any rows
@@ -106,7 +106,7 @@ export interface BaseConfig {
      *
      * Optional at the type level so `BaseConfig` stays loose for tests
      * and seed scripts; required at runtime via `validateTranslations`
-     * whenever `interface.locales` is non-empty. See `docs/I18N.md` for
+     * whenever `interface.locales` is non-empty. See `docs/07-internationalization/index.md` for
      * the design.
      *
      * The shape is declared inline (rather than imported from

@@ -8,7 +8,7 @@
 
 /**
  * Pure projection helpers for the drag-to-reorder / re-parent tree list
- * (docs/DOCUMENT-TREE.md, phase 2). Adapted from the dnd-kit "sortable tree"
+ * (docs/04-collections/03-document-trees.md, phase 2). Adapted from the dnd-kit "sortable tree"
  * pattern: a pre-order flattened list where the drag's **horizontal** offset
  * projects a target depth, clamped to what the neighbouring rows allow, and the
  * target parent + sibling neighbours are resolved from that depth.

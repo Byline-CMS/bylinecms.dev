@@ -12,7 +12,7 @@
  *
  * Eager form (current): every locale is parsed once at module init and
  * shipped in both the SSR and client bundles. Right answer for a host
- * webapp with a handful of locales — see `docs/I18N.md` for the same
+ * webapp with a handful of locales — see `docs/07-internationalization/index.md` for the same
  * tradeoff in `@byline/i18n`.
  *
  * Lazy form (if locale count or per-locale size grows past ~5): swap the

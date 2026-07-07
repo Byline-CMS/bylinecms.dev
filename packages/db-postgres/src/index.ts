@@ -48,7 +48,7 @@ export interface PgAdapter extends IDbAdapter {
    * existed, so `localeFallback: 'strict'` reads can see pre-existing
    * documents. Idempotent; uses the configured default content locale. Kept
    * off the core `IDbAdapter` contract (no service depends on it) — see
-   * docs/I18N.md.
+   * docs/07-internationalization/index.md.
    */
   backfillVersionLocales(): Promise<{ rowsInserted: number }>
   /**
@@ -57,7 +57,7 @@ export interface PgAdapter extends IDbAdapter {
    * default content locale (the anchor they were implicitly authored against).
    * Idempotent; run automatically at boot by `initBylineCore` (also exposed on
    * the core `IDbAdapter` contract as an optional method) — see
-   * docs/I18N.md.
+   * docs/07-internationalization/index.md.
    */
   backfillSourceLocales(): Promise<{ rowsUpdated: number }>
   /**
@@ -66,7 +66,7 @@ export interface PgAdapter extends IDbAdapter {
    * unless the document is complete in the target. Writes a new immutable
    * version. `dryRun` reports the would-be outcome without writing. Off the
    * core `IDbAdapter` contract (maintenance/admin operation) — see
-   * docs/I18N.md.
+   * docs/07-internationalization/index.md.
    */
   reAnchorDocument(params: {
     documentId: string
@@ -104,7 +104,7 @@ export const pgAdapter = ({
    * for documents whose `source_locale` is not yet backfilled. Per-document
    * reads and writes otherwise re-base onto each document's own `source_locale`
    * (carried on the current-documents views), so changing this value does not
-   * re-interpret existing data. See docs/I18N.md.
+   * re-interpret existing data. See docs/07-internationalization/index.md.
    */
   defaultContentLocale: string
   /**
@@ -134,7 +134,7 @@ export const pgAdapter = ({
 
   const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema })
 
-  // Request-scoped transaction propagation (docs/TRANSACTIONS.md). The command
+  // Request-scoped transaction propagation (docs/03-architecture/03-transactions.md). The command
   // builders run on the DBManager — each `this.db` access resolves to the
   // ambient transaction when a `withTransaction` boundary is open, else the
   // pool. Queries and counters stay on the raw `db` for now (reads don't need

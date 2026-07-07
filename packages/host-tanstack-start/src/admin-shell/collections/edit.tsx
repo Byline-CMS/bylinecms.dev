@@ -410,7 +410,7 @@ export const EditView = ({
       // Document-grain system fields write first via their own non-versioned
       // path — so a path conflict surfaces before we mint a content version,
       // and these immediate writes never reset workflow status. See
-      // docs/I18N.md.
+      // docs/07-internationalization/index.md.
       if (pathDirty || availableLocalesDirty) {
         await updateCollectionDocumentSystemFields({
           data: {

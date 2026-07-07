@@ -15,7 +15,7 @@
  * `docs` is a `tree: true` collection, so the read is **splat-shaped**: the
  * loader passes the full path after `/docs/` and the server resolves the leaf,
  * derives the ancestor chain, and returns the canonical chain so the route can
- * 301 non-canonical (or 404 unreachable) URLs. See docs/DOCUMENT-TREE.md.
+ * 301 non-canonical (or 404 unreachable) URLs. See docs/04-collections/03-document-trees.md.
  */
 
 import { createServerFn } from '@tanstack/react-start'

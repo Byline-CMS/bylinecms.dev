@@ -7,7 +7,7 @@
  */
 
 /**
- * Integration tests for the audit-log storage layer (docs/AUDIT.md — W2):
+ * Integration tests for the audit-log storage layer (docs/06-auth-and-security/02-auditability.md — W2):
  * `audit.append` (write) + `audit.getDocumentAuditLog` (read), and the
  * load-bearing property that an `append` issued inside `withTransaction`
  * commits or rolls back **with** the transaction it is part of.

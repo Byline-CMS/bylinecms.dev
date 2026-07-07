@@ -47,7 +47,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * (the seeds/migrations escape hatch) — both yield `undefined` → NULL
  * `created_by`, which the history strip renders as "unknown". Real
  * `AdminAuth` / `UserAuth` actors always carry UUID ids, so their attribution
- * is unaffected. See docs/AUDIT.md — Workstream 1.
+ * is unaffected. See docs/06-auth-and-security/02-auditability.md — Workstream 1.
  */
 export function actorId(ctx: DocumentLifecycleContext): string | undefined {
   const id = ctx.requestContext?.actor?.id
@@ -157,7 +157,7 @@ export async function appendTreeRoot(
  *
  * No-op for non-tree collections. Best-effort and post-version: a failure leaves
  * the document saved-but-unplaced and is logged, never thrown. See
- * docs/DOCUMENT-TREE.md.
+ * docs/04-collections/03-document-trees.md.
  */
 export async function selfHealTreePlacement(
   ctx: DocumentLifecycleContext,
@@ -253,7 +253,7 @@ export function resolvePathForUpdate(args: {
     // skip the write (existing path row stays as-is — sticky). The path row
     // lives under the document's source_locale (its anchor), not the mutable
     // global default — so this stays correct after the global default is
-    // switched. See docs/I18N.md.
+    // switched. See docs/07-internationalization/index.md.
     return explicitPath ?? undefined
   }
   // Non-source-locale (translation) write: reject any path change with a warn

@@ -16,7 +16,7 @@ import styles from './document-history.module.css'
  * One serialised audit-log entry as it reaches the admin UI. Mirrors
  * `@byline/client`'s `AuditLogEntry` but with `occurredAt` as an ISO string —
  * the value crosses the TanStack server-fn boundary through `serialise()`,
- * which turns Dates into strings (docs/AUDIT.md — Workstream 3).
+ * which turns Dates into strings (docs/06-auth-and-security/02-auditability.md — Workstream 3).
  */
 export interface AuditLogEntryView {
   id: string
@@ -62,7 +62,7 @@ function formatAuditValue(value: unknown): string {
 }
 
 /**
- * Document-grain audit log for a single document (docs/AUDIT.md — Workstream
+ * Document-grain audit log for a single document (docs/06-auth-and-security/02-auditability.md — Workstream
  * 3, "Document history" tab): a chronological, newest-first list of the
  * non-versioned changes the version stream does not record — path /
  * available-locales writes, in-place status transitions, and the deletion

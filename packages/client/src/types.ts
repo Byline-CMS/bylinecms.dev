@@ -255,7 +255,7 @@ export interface ReindexResult {
  *     in every locale.
  *
  * Availability is the version-grain ledger described in
- * `docs/I18N.md`. Relationship population always behaves
+ * `docs/07-internationalization/index.md`. Relationship population always behaves
  * as `'fallback'` so a populated tree never has holes.
  */
 interface MissingLocaleControls {
@@ -352,7 +352,7 @@ export interface HistoryOptions extends BeforeReadControls {
 
 /**
  * Options for `CollectionHandle.auditLog(documentId, options)`. The
- * document-grain audit log (docs/AUDIT.md — Workstream 3) records the
+ * document-grain audit log (docs/06-auth-and-security/02-auditability.md — Workstream 3) records the
  * non-versioned changes the immutable version stream does not capture an
  * actor for: system-field writes (path, available-locales), in-place status
  * transitions, and the deletion event. Entries are newest-first and paged;
@@ -400,7 +400,7 @@ export interface CreateOptions {
    * The editorial advertised-locale set, stored document-grain in
    * `byline_document_available_locales`. When omitted, a new document starts
    * with an empty set; an explicit array (empty included) is stored verbatim.
-   * Surfaced on reads as `availableLocales`. See `docs/I18N.md`.
+   * Surfaced on reads as `availableLocales`. See `docs/07-internationalization/index.md`.
    */
   availableLocales?: string[]
 }
@@ -417,13 +417,13 @@ export interface UpdateOptions {
    * The editorial advertised-locale set. When omitted, the existing set
    * carries forward unchanged (sticky — document-grain, like `path`); an
    * explicit array (empty included) replaces it wholesale. Surfaced on reads
-   * as `availableLocales`. See `docs/I18N.md`.
+   * as `availableLocales`. See `docs/07-internationalization/index.md`.
    */
   availableLocales?: string[]
 }
 
 // ---------------------------------------------------------------------------
-// Document-tree options (the `tree: true` primitive — docs/DOCUMENT-TREE.md)
+// Document-tree options (the `tree: true` primitive — docs/04-collections/03-document-trees.md)
 // ---------------------------------------------------------------------------
 
 /**
@@ -565,7 +565,7 @@ export interface ClientDocument<F = Record<string, any>> {
    * yardstick). Stable, document-grain. Surfaced so consumers / the admin can
    * indicate a document whose primary language differs from the system default.
    * Present on `find` / `findById` / `findByPath`. See
-   * `docs/I18N.md`.
+   * `docs/07-internationalization/index.md`.
    */
   sourceLocale?: string
   /** When this version was created. */
@@ -578,7 +578,7 @@ export interface ClientDocument<F = Record<string, any>> {
    * the creator of the current version is also "who last updated the
    * document". Absent on rows written before audit wiring or by
    * internal tooling without a request context. Raw id only — display-name
-   * resolution is an admin-realm concern (see docs/AUDIT.md — Workstream 1).
+   * resolution is an admin-realm concern (see docs/06-auth-and-security/02-auditability.md — Workstream 1).
    */
   createdBy?: string
   /**
@@ -606,7 +606,7 @@ export interface ClientDocument<F = Record<string, any>> {
    * `_availableVersionLocales` fact below; the public advertised set is their
    * intersection (`availableLocales ∩ _availableVersionLocales`), which the
    * host composes for hreflang / sitemap / "Also available in…" menus.
-   * Present on `find` / `findById` / `findByPath`. See `docs/I18N.md`.
+   * Present on `find` / `findById` / `findByPath`. See `docs/07-internationalization/index.md`.
    */
   availableLocales?: string[]
   /**
@@ -616,7 +616,7 @@ export interface ClientDocument<F = Record<string, any>> {
    * Present on `find` / `findById` / `findByPath` (absent on version/history
    * reads); the published-available set on a normal (published) read. The
    * structural fact reconciled against the editorial `availableLocales` above.
-   * See `docs/I18N.md`.
+   * See `docs/07-internationalization/index.md`.
    */
   _availableVersionLocales?: string[]
   /**

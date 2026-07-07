@@ -28,7 +28,7 @@
  * place (`assertActorCanPerform`, `assertAdminActor`).
  *
  * Ability keys are flat dotted strings (e.g. `collections.pages.publish`,
- * `media.manage`). See docs/AUTHN-AUTHZ.md for the rationale and the
+ * `media.manage`). See docs/06-auth-and-security/01-authn-authz.md for the rationale and the
  * registry that mints them.
  */
 

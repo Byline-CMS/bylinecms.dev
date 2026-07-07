@@ -9,7 +9,7 @@
 /**
  * Editor smoke suite — browser-level happy paths over the document editor.
  *
- * Scope (per docs/TODO.md → "Admin editor smoke suite"): ~10–15 happy-path
+ * Scope (per TODO-INTERNAL.md → "Admin editor smoke suite"): ~10–15 happy-path
  * scenarios, not coverage. Runs serially against the seeded `byline_dev`
  * database (`pnpm tsx byline/seed.ts`). All create/mutate flows run against the
  * `pages` collection — chosen because it exercises every field surface

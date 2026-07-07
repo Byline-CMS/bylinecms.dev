@@ -120,7 +120,7 @@ export const Media = defineCollection({
         // — a thunk that dynamically imports a sibling module — so
         // `./hooks.ts` and its server-only imports (here `node:crypto` /
         // `node:path`, in a real app a storage SDK or `sharp`) stay out of
-        // the client bundle. See `./hooks.ts` and docs/COLLECTIONS.md →
+        // the client bundle. See `./hooks.ts` and docs/04-collections/index.md →
         // "Hooks must not statically import server-only code".
         hooks: () => import('./hooks.js'),
       },

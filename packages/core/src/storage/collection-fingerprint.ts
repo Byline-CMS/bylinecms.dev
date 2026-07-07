@@ -19,7 +19,7 @@ import type {
   WorkflowConfig,
 } from '../@types/index.js'
 
-// Reasoning: see `docs/COLLECTIONS.md` (Versioning section). The fingerprint is
+// Reasoning: see `docs/04-collections/index.md` (Versioning section). The fingerprint is
 // intentionally narrow — it's a hash of the data shape that matters for
 // read-back migration, NOT of every field in the definition.
 // Cosmetic changes (labels, admin metadata, search config) must not churn

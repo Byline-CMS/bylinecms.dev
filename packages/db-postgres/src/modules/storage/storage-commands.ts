@@ -43,7 +43,7 @@ type TxConnection = Parameters<Parameters<DatabaseConnection['transaction']>[0]>
  * Depth backstop for the document-tree recursive walks (cycle guard, ancestor
  * walk). The write-path cycle guard prevents true cycles, so this only bounds
  * recursion against pre-existing pathological state — far deeper than any real
- * documentation hierarchy. See docs/DOCUMENT-TREE.md.
+ * documentation hierarchy. See docs/04-collections/03-document-trees.md.
  */
 const TREE_MAX_DEPTH = 10_000
 
@@ -83,7 +83,7 @@ export class CollectionCommands implements ICollectionCommands {
    * The executor for this call — the ambient transaction when a
    * `withTransaction` boundary is open, otherwise the pool. Resolved per
    * access so every `this.db.*` below transparently joins an enclosing
-   * transaction with no call-site change. See docs/TRANSACTIONS.md.
+   * transaction with no call-site change. See docs/03-architecture/03-transactions.md.
    */
   private get db(): DatabaseConnection {
     return this.dbManager.get()
@@ -141,7 +141,7 @@ export class DocumentCommands implements IDocumentCommands {
    * The executor for this call — the ambient transaction when a
    * `withTransaction` boundary is open, otherwise the pool. Resolved per
    * access so every `this.db.*` below transparently joins an enclosing
-   * transaction with no call-site change. See docs/TRANSACTIONS.md.
+   * transaction with no call-site change. See docs/03-architecture/03-transactions.md.
    */
   private get db(): DatabaseConnection {
     return this.dbManager.get()
@@ -175,7 +175,7 @@ export class DocumentCommands implements IDocumentCommands {
      * `undefined` leaves the existing set untouched (sticky across versions,
      * like `path`); an empty array clears it (advertise nothing). The locale
      * values are the advertised content locales themselves, not the default
-     * locale. See docs/I18N.md.
+     * locale. See docs/07-internationalization/index.md.
      */
     availableLocales?: string[]
     locale?: string
@@ -196,7 +196,7 @@ export class DocumentCommands implements IDocumentCommands {
       // source locale rather than the mutable global default. NULL (a row not
       // yet touched by `backfillSourceLocales`) falls back to the configured
       // default — the value it was implicitly authored against.
-      // See docs/I18N.md.
+      // See docs/07-internationalization/index.md.
       let sourceLocale: string
       if (documentId == null) {
         documentId = uuidv7()
@@ -404,7 +404,7 @@ export class DocumentCommands implements IDocumentCommands {
       // accounts for the per-locale carry-forward in step 5 — not just the
       // freshly-flattened locale. A version with no localized content at all
       // records a single `'all'` sentinel (it renders identically in any
-      // locale). Status-blind by design — see docs/I18N.md.
+      // locale). Status-blind by design — see docs/07-internationalization/index.md.
       await this.writeVersionLocaleLedger(tx, documentVersion.id, sourceLocale)
 
       return {
@@ -457,7 +457,7 @@ export class DocumentCommands implements IDocumentCommands {
    * empty array clears the set (advertise nothing). Shared by
    * `createDocumentVersion` (step 2b, create write path) and the standalone
    * `setDocumentAvailableLocales` command (the non-versioned admin
-   * available-locales widget write). See docs/I18N.md.
+   * available-locales widget write). See docs/07-internationalization/index.md.
    */
   private async writeDocumentAvailableLocales(
     tx: TxConnection,
@@ -516,7 +516,7 @@ export class DocumentCommands implements IDocumentCommands {
    * **without** minting a new document version or touching workflow status. The
    * change is immediate and applies across every version of the document; the
    * public advertised set remains the intersection with the resolved version's
-   * completeness ledger. See docs/I18N.md.
+   * completeness ledger. See docs/07-internationalization/index.md.
    */
   async setDocumentAvailableLocales(params: {
     documentId: string
@@ -542,7 +542,7 @@ export class DocumentCommands implements IDocumentCommands {
    * so callers must have written them first. Shared by the create write path
    * (step 6) and `reAnchorDocument` (which recomputes against the new source).
    * Assumes the version has no ledger rows yet (a freshly-inserted version).
-   * See docs/I18N.md.
+   * See docs/07-internationalization/index.md.
    */
   private async writeVersionLocaleLedger(
     tx: TxConnection,
@@ -747,7 +747,7 @@ export class DocumentCommands implements IDocumentCommands {
    * identities preserved), and computes that version's ledger against the new
    * source. `dryRun` performs only the eligibility check and reports the
    * outcome that *would* result, writing nothing. See
-   * docs/I18N.md.
+   * docs/07-internationalization/index.md.
    */
   async reAnchorDocument(params: {
     documentId: string
@@ -846,7 +846,7 @@ export class DocumentCommands implements IDocumentCommands {
    * "client switched the default content locale, move every fully-translated
    * document onto it" operation; the `skipped-incomplete` results double as the
    * outstanding-translation backlog. `dryRun` reports what would happen without
-   * writing. See docs/I18N.md.
+   * writing. See docs/07-internationalization/index.md.
    */
   async reAnchorDocuments(params: {
     targetLocale: string
@@ -913,7 +913,7 @@ export class DocumentCommands implements IDocumentCommands {
    * a version's computed locale set never changes. Returns the number of
    * `(version, locale)` rows inserted.
    *
-   * See docs/I18N.md.
+   * See docs/07-internationalization/index.md.
    */
   async backfillVersionLocales(): Promise<{ rowsInserted: number }> {
     const result = await this.db.execute(sql`
@@ -973,7 +973,7 @@ export class DocumentCommands implements IDocumentCommands {
    *
    * Returns the number of document rows stamped.
    *
-   * See docs/I18N.md.
+   * See docs/07-internationalization/index.md.
    */
   async backfillSourceLocales(): Promise<{ rowsUpdated: number }> {
     const result = await this.db

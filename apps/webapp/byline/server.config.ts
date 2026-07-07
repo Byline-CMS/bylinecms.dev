@@ -191,7 +191,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       // Server-side richtext adapter — refreshes embedded relation
       // envelopes (link `{ title, path }`, inline-image `{ title, altText,
       // image, sizes }`) on every read, gated per-field by
-      // `populateRelationsOnRead`. See docs/RICHTEXT.md for the full design.
+      // `populateRelationsOnRead`. See docs/04-collections/06-rich-text.md for the full design.
       //
       // `getClient` returns a `BylineClient` — the SDK over the storage
       // primitives that the populate visitors use to batch-fetch target

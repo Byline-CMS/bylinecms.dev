@@ -27,7 +27,7 @@ export interface SourceLocaleBadgeProps {
  * NOTE: currently rendered for *every* document so the anchor is visible during
  * development. The intended end state is to show it only when `locale` differs
  * from the system's current default content locale (a normal single-default
- * install then shows nothing). See docs/I18N.md.
+ * install then shows nothing). See docs/07-internationalization/index.md.
  *
  * Stable override handle: `.byline-source-locale-badge`.
  */

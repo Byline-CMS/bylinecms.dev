@@ -80,7 +80,7 @@ export interface DocumentLifecycleContext {
    * — `assertActorCanPerform` runs at every lifecycle entry and rejects
    * a missing context.
    *
-   * See docs/AUTHN-AUTHZ.md.
+   * See docs/06-auth-and-security/01-authn-authz.md.
    */
   requestContext?: RequestContext
 }

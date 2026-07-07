@@ -23,7 +23,7 @@
  * Admin bundles (`adminTranslations(...)`, the English bundle) live
  * at `@byline/i18n/admin`.
  *
- * See `docs/I18N.md` for the architecture.
+ * See `docs/07-internationalization/index.md` for the architecture.
  */
 
 export { createFormatter } from './formatter.js'

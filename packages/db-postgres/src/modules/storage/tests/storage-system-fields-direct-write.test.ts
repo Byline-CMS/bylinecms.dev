@@ -12,7 +12,7 @@
  * path / available-locales widgets' direct-write Save and must write the
  * document-grain row **without** minting a new document version or touching
  * workflow status (the whole point of decoupling them from the version
- * workflow). See docs/I18N.md.
+ * workflow). See docs/07-internationalization/index.md.
  *
  * The invariants asserted here:
  *   - the write surfaces on the next read (advertised set / path), AND

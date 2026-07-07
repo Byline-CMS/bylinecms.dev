@@ -8,7 +8,7 @@
 
 /**
  * Document-tree lifecycle service — the unversioned structural mutations for
- * `tree: true` collections (docs/DOCUMENT-TREE.md). Wraps the storage adapter's
+ * `tree: true` collections (docs/04-collections/03-document-trees.md). Wraps the storage adapter's
  * tree commands so that, like the versioned lifecycle services, they enforce the
  * actor ability and fire a collection hook. Tree writes mint no document version
  * and touch no user fields, so the `afterTreeChange` hook is the *only*

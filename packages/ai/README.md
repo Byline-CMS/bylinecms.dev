@@ -62,8 +62,8 @@ models a provider currently exposes.
 
 For the full architecture overview, the richtext/AI integration, and getting
 started instructions, see the main repository:
-<https://github.com/Byline-CMS/bylinecms.dev>. Relevant docs: `docs/RICHTEXT.md`,
-`docs/FIELDS.md`, and `docs/MCP.md`.
+<https://github.com/Byline-CMS/bylinecms.dev>. Relevant docs: `docs/04-collections/06-rich-text.md`,
+`docs/04-collections/01-fields.md`, and `docs/05-reading-and-delivery/05-mcp-server.md`.
 
 ## License
 

@@ -14,7 +14,7 @@
  * hatch all need to behave correctly when the SQL actually runs.
  *
  * Doubles as a worked example for the recipes in
- * `docs/AUTHN-AUTHZ.md` — Recipe 1 (owner-only drafts) is wired
+ * `docs/06-auth-and-security/01-authn-authz.md` — Recipe 1 (owner-only drafts) is wired
  * on the `posts` collection here, Recipe 2 (multi-tenant scoping)
  * on `authors`. Each scenario below demonstrates one of the recipe
  * patterns end-to-end.
@@ -392,7 +392,7 @@ describe('beforeRead — audit-log access gate', () => {
     setActor('alice')
     // bob's draft is row-scoped away from alice — the gate (findById) returns
     // null, so the audit log is empty rather than leaking change metadata,
-    // mirroring the history gate exactly (docs/AUDIT.md — W2 authorization).
+    // mirroring the history gate exactly (docs/06-auth-and-security/02-auditability.md — W2 authorization).
     const result = await ctx.client.collection(postsDefinition.path).auditLog(bobDraftId)
     expect(result.entries).toEqual([])
   })

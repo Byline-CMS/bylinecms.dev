@@ -9,7 +9,7 @@
  */
 
 /**
- * Read-only abilities inspector — see docs/AUTHN-AUTHZ.md.
+ * Read-only abilities inspector — see docs/06-auth-and-security/01-authn-authz.md.
  *
  * Top level: a collapsible group per ability source (collections.docs,
  * admin.users, etc.), each containing the abilities that group

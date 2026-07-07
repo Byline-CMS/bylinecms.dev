@@ -39,7 +39,7 @@ export const Pages = defineCollection({
   linksInEditor: true,
   // Server-only lifecycle hooks (L1 cache invalidation), loaded via dynamic
   // import so their server-only graph never enters the client bundle. See
-  // ./hooks.ts and docs/COLLECTIONS.md.
+  // ./hooks.ts and docs/04-collections/index.md.
   hooks: () => import('./hooks.js'),
   /**
    * Pages live at the site root (no `/pages/` prefix) and may be nested
@@ -85,7 +85,7 @@ export const Pages = defineCollection({
       optional: true,
     },
     // hasMany relation demo — an ordered list of Media references rendered as
-    // drag-reorderable summary tiles in the editor. See docs/RELATIONSHIPS.md.
+    // drag-reorderable summary tiles in the editor. See docs/04-collections/02-relationships.md.
     {
       name: 'gallery',
       label: 'Gallery',

@@ -697,7 +697,7 @@ export class CollectionHandle {
   }
 
   /**
-   * Fetch the document-grain audit log for a single document (docs/AUDIT.md —
+   * Fetch the document-grain audit log for a single document (docs/06-auth-and-security/02-auditability.md —
    * Workstream 3): the non-versioned system-field writes (path,
    * available-locales), in-place status transitions, and the deletion event
    * the immutable version stream deliberately does not record an actor for.
@@ -768,7 +768,7 @@ export class CollectionHandle {
   }
 
   // -------------------------------------------------------------------------
-  // Document tree (the `tree: true` primitive — docs/DOCUMENT-TREE.md)
+  // Document tree (the `tree: true` primitive — docs/04-collections/03-document-trees.md)
   //
   // A document-grain, unversioned single-parent ordered hierarchy. Reads/writes
   // here go through the storage adapter's dedicated tree commands, NOT the
