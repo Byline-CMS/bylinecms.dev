@@ -210,7 +210,9 @@
     --stroke-noeffect-hover: oklch(from var(--gray-500) calc(l * 0.75) c h);
     --stroke-noeffect-disabled: oklch(from var(--gray-500) calc(l * 1.5) calc(c * 0.8) h);
 
-    --ring-noeffect: var(--gray-200);
+    /* a11y: gray-200 (#C0C0C0) is only 1.8:1 on white; gray-500 (#666666) is
+       5.78:1, clearing the WCAG 1.4.11 / 2.4.7 3:1 non-text contrast minimum. */
+    --ring-noeffect: var(--gray-500);
 
     --gradient-noeffect-start: var(--gray-100);
     --gradient-noeffect-end: var(--gray-200);
@@ -637,7 +639,9 @@
     --stroke-noeffect-hover: oklch(from var(--gray-500) calc(l * 1.2) c h);
     --stroke-noeffect-disabled: oklch(from var(--gray-500) calc(l * 0.8) calc(c * 0.8) h);
 
-    --ring-noeffect: var(--gray-900);
+    /* a11y: a dark ring (gray-900) is ~1.1:1 on the dark canvas — effectively
+       invisible. A light ring (gray-200) gives 5.5–10:1 on dark surfaces. */
+    --ring-noeffect: var(--gray-200);
 
     --gradient-noeffect-start: var(--gray-700);
     --gradient-noeffect-end: var(--gray-800);
@@ -1051,7 +1055,9 @@
     --stroke-noeffect-hover: oklch(from var(--gray-500) calc(l * 0.75) c h);
     --stroke-noeffect-disabled: oklch(from var(--gray-500) calc(l * 1.5) calc(c * 0.8) h);
 
-    --ring-noeffect: var(--gray-200);
+    /* a11y: gray-200 (#C0C0C0) is only 1.8:1 on white; gray-500 (#666666) is
+       5.78:1, clearing the WCAG 1.4.11 / 2.4.7 3:1 non-text contrast minimum. */
+    --ring-noeffect: var(--gray-500);
 
     --gradient-noeffect-start: var(--gray-100);
     --gradient-noeffect-end: var(--gray-200);

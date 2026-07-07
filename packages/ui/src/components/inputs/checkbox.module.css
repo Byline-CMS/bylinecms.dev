@@ -46,6 +46,14 @@
     outline-color: var(--ring-color);
   }
 
+  /* a11y (WCAG 2.4.7): show a focus ring on keyboard focus regardless of
+     checked state. The intent-level ring color is always defined, whereas
+     --ring-color is only set on [data-checked], so use it directly here. */
+  .checkbox:focus-visible,
+  :global(.byline-checkbox):focus-visible {
+    outline-color: var(--checkbox-variant-outline-ring-color);
+  }
+
   .checkbox[data-disabled],
   :global(.byline-checkbox)[data-disabled] {
     pointer-events: none;
