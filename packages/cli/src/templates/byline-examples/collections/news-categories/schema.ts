@@ -21,13 +21,13 @@ export const NewsCategories = defineCollection({
   // `published` and the form shows only Save / Close.
   workflow: SINGLE_STATUS_WORKFLOW,
   showStats: true,
-  search: { fields: ['name'] },
+  search: { body: ['name'] },
   useAsTitle: 'name',
   useAsPath: 'name',
   // Demonstration of `orderable: true` — short, finite, naturally ordered.
   // Editors can drag rows in the list view to set a canonical order; the
   // value persists on `byline_documents.order_key` without bumping the
-  // document version. See docs/COLLECTIONS.md (Orderable collections).
+  // document version. See docs/04-collections/index.md (Orderable collections).
   orderable: true,
   fields: [
     { name: 'name', label: 'Name', type: 'text', localized: true },

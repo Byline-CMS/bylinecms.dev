@@ -32,7 +32,7 @@ export const Pages = defineCollection({
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   showStats: true,
-  search: { fields: ['title'] },
+  search: { body: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.

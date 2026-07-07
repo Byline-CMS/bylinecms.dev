@@ -50,7 +50,7 @@ export const Media = defineCollection({
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   showStats: true,
-  search: { fields: ['title', 'caption'] },
+  search: { body: ['title', 'caption'] },
   fields: [
     {
       name: 'image',

@@ -33,7 +33,7 @@ export const Docs = defineCollection({
     customStatuses: [{ name: 'needs_review', label: 'Needs Review', verb: 'Request Review' }],
   }),
   showStats: true,
-  // Document tree (docs/DOCUMENT-TREE.md): the docs collection is a
+  // Document tree (docs/04-collections/03-document-trees.md): the docs collection is a
   // single-parent ordered hierarchy. Mutually exclusive with `orderable` —
   // the tree owns ordering (per-parent, on the edge), so `order_key` on
   // `byline_documents` is inert here. Sibling order and nesting are edited via
@@ -48,7 +48,10 @@ export const Docs = defineCollection({
   // `filters`, and `zones` round out the surface. Opting in here is what
   // makes the lifecycle hooks in ./hooks.ts index this collection — and it
   // requires a `search` provider registered in byline/server.config.ts.
-  search: { body: [{ field: 'title', boost: 2 }, 'summary'] },
+  // `content` is a container (blocks) field: naming it walks every text-bearing
+  // child (richtext body, image alt + caption) into the searchable body —
+  // omit it and document bodies are silently absent from the index.
+  search: { body: [{ field: 'title', boost: 2 }, 'summary', 'content'] },
   useAsTitle: 'title',
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
