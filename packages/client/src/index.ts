@@ -38,6 +38,7 @@ export type {
   AuditLogOptions,
   BylineClientConfig,
   ClientDocument,
+  ClientSearchResults,
   CollectionSearchOptions,
   CreateOptions,
   FilterOperators,
@@ -48,6 +49,7 @@ export type {
   FindResult,
   GetAncestorsOptions,
   GetSubtreeOptions,
+  HydratedSearchHit,
   PlaceTreeNodeOptions,
   PopulatedRelation,
   ReindexResult,
@@ -62,4 +64,5 @@ export type {
   WhereValue,
   WithPopulated,
   WithPopulatedMany,
+  ZoneSearchOptions,
 } from './types.js'

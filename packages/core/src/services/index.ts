@@ -13,6 +13,7 @@ export { type AssignCounterValuesInput, assignCounterValues } from './assign-cou
 export {
   type BuildSearchDocumentOptions,
   buildSearchDocument,
+  resolveSearchZones,
   type SearchSourceDocument,
 } from './build-search-document.js'
 export {

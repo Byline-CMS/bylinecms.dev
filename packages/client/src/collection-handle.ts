@@ -19,7 +19,6 @@ import type {
   ReadContext,
   ReadMode,
   RestoreVersionResult,
-  SearchResults,
   UnpublishResult,
   UpdateDocumentResult,
 } from '@byline/core'
@@ -48,10 +47,12 @@ import {
 } from '@byline/core'
 
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
+import { finalizeSearchHits } from './search.js'
 import type { BylineClient } from './client.js'
 import type {
   AuditLogOptions,
   ClientDocument,
+  ClientSearchResults,
   CollectionSearchOptions,
   CreateOptions,
   FindByIdOptions,
@@ -212,7 +213,10 @@ export class CollectionHandle {
    * candidate hits are re-resolved through the normal read path (the same
    * predicate merge + SQL compile every other read uses) and hits whose
    * document doesn't survive the scoping are dropped. Collections without a
-   * hook skip the second query entirely. Two consequences to be aware of:
+   * hook skip the second query entirely. `hydrate: true` batch-reads the
+   * hits into shaped `ClientDocument`s in the same query (authorisation
+   * comes free) and attaches them as `hit.document`. Two consequences to be
+   * aware of:
    *
    *   - `total` (and facet counts) remain the provider's pre-authorization
    *     numbers — approximate under row scoping, exact without it.
@@ -224,9 +228,9 @@ export class CollectionHandle {
    *
    * Throws `ERR_VALIDATION` when no provider is registered.
    */
-  async search(options: CollectionSearchOptions): Promise<SearchResults> {
+  async search(options: CollectionSearchOptions): Promise<ClientSearchResults> {
     const requestContext = await this.resolveAndAssertRead()
-    const provider = this.client.search
+    const provider = this.client.searchProvider
     if (provider == null) {
       throw ERR_VALIDATION({
         message:
@@ -245,39 +249,19 @@ export class CollectionHandle {
       offset: options.offset,
     })
 
-    // Row-level authorization. Resolve the beforeRead predicate once (cached
-    // on the ReadContext); `null` means no scoping — the published-only index
-    // is already safe and the common case pays no second query.
-    const readCtx = createReadContext()
-    const hookPredicate = await this.resolveBeforeReadPredicate(
+    // Row-level authorization (+ optional hydration) — the shared finishing
+    // pipeline the zone entry point uses too. Collections without a
+    // beforeRead predicate and no hydrate request pass through untouched.
+    const hits = await finalizeSearchHits({
+      client: this.client,
       requestContext,
-      readCtx,
-      options._bypassBeforeRead
-    )
-    if (hookPredicate == null || results.hits.length === 0) {
-      return results
-    }
-
-    // Re-resolve the candidate ids through `find` — it re-applies the same
-    // hook predicate (cache hit via the shared ReadContext) AND-merged with
-    // the id set, compiled through the ordinary read machinery. Projection
-    // is trimmed to the identity field; the page is sized to the candidate
-    // set so nothing is cut by pagination.
-    const candidateIds = results.hits.map((h) => h.documentId)
-    const authorized = await this.find({
-      where: { id: { $in: candidateIds } },
-      select: this.definition.useAsTitle != null ? [this.definition.useAsTitle] : undefined,
+      hits: results.hits,
       locale: options.locale,
       status: options.status,
-      page: 1,
-      pageSize: candidateIds.length,
-      _readContext: readCtx,
+      hydrate: options.hydrate,
+      bypassBeforeRead: options._bypassBeforeRead,
     })
-    const allowed = new Set(authorized.docs.map((d) => d.id))
-    return {
-      ...results,
-      hits: results.hits.filter((h) => allowed.has(h.documentId)),
-    }
+    return { hits, total: results.total, facets: results.facets }
   }
 
   // -------------------------------------------------------------------------
@@ -298,7 +282,7 @@ export class CollectionHandle {
    * path. The index always mirrors what a public reader can see.
    */
   async indexDocument(documentId: string): Promise<void> {
-    const provider = this.client.search
+    const provider = this.client.searchProvider
     if (provider == null || this.definition.search == null) return
 
     const populate = this.buildSearchFacetPopulateMap()
@@ -338,7 +322,7 @@ export class CollectionHandle {
 
   /** Remove one document from the search index entirely (all locales). */
   async removeFromIndex(documentId: string): Promise<void> {
-    const provider = this.client.search
+    const provider = this.client.searchProvider
     if (provider == null) return
     await provider.remove({ collectionPath: this.definition.path, documentId })
   }
@@ -356,7 +340,7 @@ export class CollectionHandle {
     const requestContext = await this.client.resolveRequestContext()
     assertActorCanPerform(requestContext, this.definition.path, 'reindex')
 
-    const provider = this.client.search
+    const provider = this.client.searchProvider
     const result: ReindexResult = { collectionPath: this.definition.path, documents: 0, indexed: 0 }
     if (provider == null || this.definition.search == null) return result
 

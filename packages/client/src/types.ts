@@ -20,6 +20,8 @@ import type {
   ReadMode,
   RichTextPopulateFn,
   RichTextToTextFn,
+  SearchFacetBucket,
+  SearchHit,
   SearchProvider,
   ServerConfig,
   SlugifierFn,
@@ -228,6 +230,60 @@ export interface CollectionSearchOptions extends BeforeReadControls {
   limit?: number
   /** Offset for pagination. */
   offset?: number
+  /**
+   * Attach a shaped `ClientDocument` to each hit (`hit.document`), batch-read
+   * through the normal read path — the two-tier results model's rich tier.
+   * Projection is the collection's `admin.itemView` columns when that config
+   * is registered in the runtime, otherwise the full field set. Hits whose
+   * document no longer resolves (stale index entry, or dropped by `beforeRead`
+   * row scoping) are removed.
+   */
+  hydrate?: boolean
+}
+
+/**
+ * Options for `client.search(...)` — the cross-collection (zone) entry
+ * point. Every collection indexed into `zone` participates; hits come back
+ * heterogeneous, ranked together, each carrying its `collectionPath`.
+ * Collections the actor cannot `read` are excluded from the results (the
+ * call only throws when the actor can read none of the zone's members).
+ */
+export interface ZoneSearchOptions extends BeforeReadControls {
+  /** Free-text query string. */
+  query: string
+  /** The zone (named cross-collection scope) to search. */
+  zone: string
+  /** Restrict to a single content locale (defaults to the client default). */
+  locale?: string
+  /** Read mode — `'published'` (default) or `'any'`. */
+  status?: ReadMode
+  /** Structured filters AND-merged with the text query (driver-dependent). */
+  where?: QueryPredicate
+  /** Field names to compute facet buckets for (driver-capability gated). */
+  facets?: string[]
+  /** Max hits to return. */
+  limit?: number
+  /** Offset for pagination. */
+  offset?: number
+  /** Attach a shaped `ClientDocument` per hit — see `CollectionSearchOptions.hydrate`. */
+  hydrate?: boolean
+}
+
+/** A search hit, optionally carrying its hydrated document (`hydrate: true`). */
+export interface HydratedSearchHit extends SearchHit {
+  document?: ClientDocument<Record<string, any>>
+}
+
+/**
+ * The client-side search result envelope — `SearchResults` with the hits
+ * widened to carry an optional hydrated document. `total` (and facet
+ * counts) are the provider's pre-authorization numbers: approximate when
+ * row scoping or hydration drops hits, exact otherwise.
+ */
+export interface ClientSearchResults {
+  hits: HydratedSearchHit[]
+  total: number
+  facets?: Record<string, SearchFacetBucket[]>
 }
 
 /** Outcome of a collection `reindex()` — counts for reporting. */

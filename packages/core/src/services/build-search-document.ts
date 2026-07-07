@@ -91,6 +91,20 @@ export interface BuildSearchDocumentOptions {
  * Assemble one type-enriched `SearchDocument` from a locale-resolved
  * document and its collection's role-based `search` config.
  */
+/**
+ * Resolve the zone set a collection indexes into, or `null` when the
+ * collection doesn't opt into search at all. A collection with a `search`
+ * config but no explicit `zones` belongs to a single implicit zone equal to
+ * its own path. Shared by the assembler (below) and the client's
+ * cross-collection `search({ zone })` membership check so the two can't
+ * drift.
+ */
+export function resolveSearchZones(definition: CollectionDefinition): string[] | null {
+  const search = definition.search
+  if (search == null) return null
+  return search.zones != null && search.zones.length > 0 ? search.zones : [definition.path]
+}
+
 export function buildSearchDocument(
   doc: SearchSourceDocument,
   definition: CollectionDefinition,
@@ -103,7 +117,7 @@ export function buildSearchDocument(
   const title =
     stringValue(resolveLocalized(fieldsData[resolveIdentityField(definition) ?? ''], locale)) ?? ''
 
-  const zones = search.zones != null && search.zones.length > 0 ? search.zones : [definition.path]
+  const zones = resolveSearchZones(definition) ?? [definition.path]
 
   const fields: SearchField[] = []
 

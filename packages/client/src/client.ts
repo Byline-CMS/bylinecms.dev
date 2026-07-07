@@ -20,7 +20,8 @@ import type {
 import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { CollectionHandle } from './collection-handle.js'
-import type { BylineClientConfig } from './types.js'
+import { zoneSearch } from './search.js'
+import type { BylineClientConfig, ClientSearchResults, ZoneSearchOptions } from './types.js'
 
 /**
  * Resolve a logger for the client in priority order:
@@ -70,7 +71,12 @@ export class BylineClient {
   readonly defaultLocale: string
   readonly slugifier: SlugifierFn | undefined
   readonly richTextPopulate: RichTextPopulateFn | undefined
-  readonly search: SearchProvider | undefined
+  /**
+   * The registered `SearchProvider` (`ServerConfig.search`), if any.
+   * Renamed from `search` when the cross-collection `search()` *method*
+   * landed — the method is the query surface, this is the driver.
+   */
+  readonly searchProvider: SearchProvider | undefined
   readonly richTextToText: RichTextToTextFn | undefined
   readonly contentLocales: string[]
 
@@ -108,7 +114,7 @@ export class BylineClient {
     this.slugifier = config.slugifier ?? fromConfig?.slugifier
     this.richTextPopulate =
       config.richTextPopulate ?? fromConfig?.fields?.richText?.populate ?? undefined
-    this.search = config.search ?? fromConfig?.search ?? undefined
+    this.searchProvider = config.search ?? fromConfig?.search ?? undefined
     this.richTextToText = config.richTextToText ?? fromConfig?.fields?.richText?.toText ?? undefined
     this.contentLocales = config.contentLocales ??
       fromConfig?.i18n?.content?.locales ?? [this.defaultLocale]
@@ -134,6 +140,18 @@ export class BylineClient {
       return await source()
     }
     return source
+  }
+
+  /**
+   * Cross-collection (zone) search — heterogeneous hits ranked together
+   * across every collection indexed into the named zone. Collections the
+   * actor cannot `read` are excluded; `beforeRead` row scoping applies per
+   * collection; `hydrate: true` attaches a shaped `ClientDocument` per hit.
+   * For homogeneous, single-collection search use
+   * `client.collection(path).search()`.
+   */
+  async search(options: ZoneSearchOptions): Promise<ClientSearchResults> {
+    return zoneSearch(this, options)
   }
 
   /**
