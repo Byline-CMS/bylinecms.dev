@@ -333,29 +333,33 @@ returns the **lightweight hit tier** — `title`, `path`, `score`, and
 matched-snippet `highlights` — enough to render a results list without
 hydration. Fetch hit ids via `findById` when a richer item is needed.
 
-:::warning[Search does not yet honour `beforeRead` row-scoping]
-`search()` enforces only the **collection-level** `read` ability. It does **not**
-run hits back through the [`beforeRead` row-scoping](../06-auth-and-security/01-authn-authz.md)
-pipeline, because it ranks straight from the provider index rather than going
-through the normal read path where the `QueryPredicate` is applied. A collection
-that relies on `beforeRead` to hide rows from an actor (owner-only drafts,
-multi-tenant isolation, department visibility, …) would **leak those rows
-through search**.
+### Row-level authorization — "rank in the provider, authorise in core"
 
-**Why this is safe today:** the index is **published-only** and the sole
-collection wired to search is `docs`, which is fully public — there is no
-row-scoping predicate to violate. The published-status floor is the only thing
-the current implementation relies on for safety.
+When the collection configures a [`beforeRead` row-scoping](../06-auth-and-security/01-authn-authz.md)
+hook, `search()` re-resolves the provider's candidate hits through the **normal
+read path**: the hook predicate is resolved once (cached on the request's
+`ReadContext`), AND-merged with an `id: { $in: candidateIds }` filter, and
+compiled through the same SQL machinery every other read uses. Hits whose
+document doesn't survive the scoping are dropped before the results are
+returned, so owner-only drafts, multi-tenant isolation, department visibility
+and the other `beforeRead` recipes hold on search exactly as they do on
+`find()`. Collections without a hook (the public docs case) skip the second
+query entirely — the published-only index is already safe there and pays no
+extra cost.
 
-**Before exposing search on a row-scoped collection**, the row-auth follow-up
-must land. The intended posture is *"rank in the provider, authorise in core"* —
-re-resolve the candidate hit ids through the normal read path so `beforeRead`
-applies, dropping any the actor may not see. Note the paging interaction: because
-that filter runs **after** ranking, offset paging and the `total` count become
-approximate unless the `QueryPredicate` is instead pushed down into the provider
-(which requires the scoping columns to be indexed — a driver capability). See
-[Open questions](#open-questions).
-:::
+Two documented approximations follow from filtering **after** ranking:
+
+- `total` (and facet counts) remain the **provider's pre-authorization**
+  numbers — approximate under row scoping, exact without it.
+- A page of hits can come back **shorter than `limit`** when candidates are
+  dropped; paginate on `offset`, not on received length. Exact paging under
+  scoping means pushing the `QueryPredicate` down into the provider — a
+  driver-capability follow-up (see [Open questions](#open-questions)).
+
+`_bypassBeforeRead: true` on the search options is the same system-operation
+escape hatch the read methods take (admin tooling, migrations); the
+integration coverage lives in
+`packages/client/tests/integration/client-search-auth.integration.test.ts`.
 
 The docs frontend is the worked example: a drawer-modal search box →
 `/<lng>/docs/search?q=` SSR results route → `client.collection('docs').search()`
@@ -376,13 +380,6 @@ tree) and safely-rendered `ts_headline` snippets.
 - **Structured `where` filtering** and **facet aggregation** at query time — the
   options are accepted in the API, but the Postgres driver does not yet apply
   `where` or compute facet buckets (`capabilities.facets === false`).
-- **Row-level authorization on search.** Today `search()` asserts the *collection*
-  `read` ability but does **not** re-resolve hit ids through the `beforeRead`
-  row-scoping pipeline. The published-only index is safe for public readers (the
-  docs case), but a row-scoped collection's search would not yet enforce
-  per-row visibility. The intended posture is "rank in the provider, authorise in
-  core" (re-resolve candidate ids through the normal read path) — a tracked
-  follow-up, not yet wired.
 - **MCP** exposes the same surface as a `search` tool (Phase 5).
 
 ## Search zones (partly shipped)
@@ -455,17 +452,16 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
 - **Partly resolved — facets over EAV.** The `{ id, term }` projection is built
   and indexed (term searchable, id stored). Facet *aggregation queries* and the
   cardinality/typing story are still open (`capabilities.facets === false`).
-- **Row-level authorization on search.** "Rank in provider, authorise in core"
-  (re-resolve hit ids through `beforeRead`) is the intended posture but is **not
-  yet wired** — `search()` asserts only the collection `read` ability. Safe for
-  the published-only public case; required before row-scoped collections expose
-  search. **Paging interaction:** because core-side re-auth filters *after*
-  ranking, offset paging and the `total` count go approximate (short pages,
-  inflated totals, offset drift as the filter removes a different count per page).
-  The exact-paging alternative is to push the `QueryPredicate` down into the
-  provider (see *Multi-tenant scoping at scale* below) — which only works if the
-  scoping columns are indexed. The two notes are the same trade seen from the
-  auth side and the driver side.
+- **Resolved — row-level authorization on search.** "Rank in provider,
+  authorise in core" shipped: `search()` re-resolves candidate hit ids through
+  the normal read path when the collection has a `beforeRead` hook (see
+  [Row-level authorization](#row-level-authorization--rank-in-the-provider-authorise-in-core)).
+  **Still open — exact paging under scoping:** because core-side re-auth
+  filters *after* ranking, offset paging and `total` go approximate (short
+  pages, inflated totals, offset drift). The exact-paging alternative is to
+  push the `QueryPredicate` down into the provider (see *Multi-tenant scoping
+  at scale* below) — which only works if the scoping columns are indexed. The
+  two notes are the same trade seen from the auth side and the driver side.
 - **Zone definition & re-tagging.** Whether zones stay emergent from
   per-collection `search.zones` or get a lightweight registry (display labels, a
   declared default, validation). Re-tagging on a membership change is a cheap
@@ -491,8 +487,8 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
 - [Collections](../04-collections/index.md) — the collection `search` config and
   the lifecycle hooks that maintain the index.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) —
-  the `collections.<path>.reindex` ability and the (planned) `beforeRead`
-  row-scoping that search must honour.
+  the `collections.<path>.reindex` ability and the `beforeRead`
+  row-scoping that search honours.
 - [Search & extraction strategy brief](../byline-search-extraction-strategy.md) —
   forward-looking landscape + tiered strategy for Phases 3–4 (attachment
   extraction, external drivers).

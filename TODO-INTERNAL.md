@@ -20,9 +20,9 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ## Now
 
-### Search — row-level authorization
+### Search — zone (cross-collection) query + hydrate
 
-Promoted from the search remaining-phases list (below) now that `hasMany` Phase 2 has shipped (2026-07-07: picker multi-select + `$some` / `$every` / `$none` query quantifiers — see [docs/04-collections/02-relationships.md → Query quantifiers](./docs/04-collections/02-relationships.md#query-quantifiers)). `search()` asserts the collection `read` ability but does not re-resolve hit ids through the `beforeRead` row-scoping pipeline. Safe today only because the index is published-only; a row-scoped collection that enables search would leak hits. Posture: "rank in the provider, authorise in core" (re-resolve candidate ids through the normal read path). Do this before any row-scoped collection turns search on.
+Promoted from the search remaining-phases list (below); row-level authorization shipped 2026-07-07 ("rank in the provider, authorise in core" — `search()` re-resolves candidate ids through the normal read path when a `beforeRead` hook is configured; see [07-search.md → Row-level authorization](./docs/05-reading-and-delivery/07-search.md#row-level-authorization--rank-in-the-provider-authorise-in-core)). Zone query is the prerequisite surface for the RAG/hybrid retrieval track and the sanctioned home for the private BM25 driver: `client.search({ zone })` returning heterogeneous ranked hits (storage + provider side already shipped — `zones @> ARRAY[$zone]`), plus `hydrate` (batch-read hit ids per collection, attach a shaped `ClientDocument` projected to `admin.itemView` columns) and the heterogeneous results rendering story.
 
 ---
 
@@ -34,15 +34,14 @@ The agent-readable surface **shipped** (the full present-state reference is [MAR
 
 Remaining, specified in [MARKDOWN-EXPORT.md → Future phases](./docs/05-reading-and-delivery/04-markdown-export.md#future-phases): the **docs-corpus round-trip test** (`import(export(import(md))) ≅ import(md)` over `docs/*.md`, comparing Lexical trees — tests the export serializer against production-shaped content; preferred companion: teach `parse-markdown.ts` to also accept GFM alerts, erasing the admonition dialect asymmetry documented there). Deferred with triggers: per-field markdown opt-out, host-package route factories, `llms-full.txt` / MCP consumption.
 
-### Search — remaining phases (zone query, hydrate, where/facets)
+### Search — remaining phases (where/facets, exact paging under scoping)
 
-Phase 2 **shipped**: the `SearchProvider` seam, the `@byline/search-postgres` FTS driver, `ServerConfig.search` registration/validation, lifecycle-hook indexing + `reindex` (ability-gated, admin button), and `client.collection(x).search()` with the docs frontend as the worked example. Present-state reference: [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md). Row-level authorization is promoted to **Now** (above).
+Phase 2 **shipped**: the `SearchProvider` seam, the `@byline/search-postgres` FTS driver, `ServerConfig.search` registration/validation, lifecycle-hook indexing + `reindex` (ability-gated, admin button), `client.collection(x).search()` with the docs frontend as the worked example, and row-level authorization (2026-07-07). Present-state reference: [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md). Zone query + hydrate are promoted to **Now** (above).
 
-Remaining, specified in [07-search.md → Planned (not yet shipped)](./docs/05-reading-and-delivery/07-search.md#planned-not-yet-shipped), in priority order:
+Remaining, specified in [07-search.md → Planned (not yet shipped)](./docs/05-reading-and-delivery/07-search.md#planned-not-yet-shipped):
 
-1. **Zone (cross-collection) query** — `client.search({ zone })` returning heterogeneous ranked hits. Storage + provider side already shipped (`zones @> ARRAY[$zone]`); only the top-level client entry point and the heterogeneous results rendering remain. Prerequisite surface for the RAG/hybrid retrieval track and the private BM25 driver.
-2. **`hydrate` (two-tier rich results)** — batch-read hit ids per collection, attach a shaped `ClientDocument` projected to `admin.itemView` columns.
-3. **Structured `where` filtering + facet aggregation** — options accepted in the API; the Postgres driver doesn't yet apply them (`capabilities.facets === false`).
+1. **Structured `where` filtering + facet aggregation** — options accepted in the API; the Postgres driver doesn't yet apply them (`capabilities.facets === false`).
+2. **Exact paging under row scoping** — core-side re-auth filters after ranking, so `total` / offset paging are approximate on scoped collections; the exact alternative pushes the `QueryPredicate` down into the provider (driver capability, needs indexed scoping columns).
 
 Then external drivers (the RAG/vector/hybrid payoff; home for the private BM25 work), then the MCP `search` tool.
 
