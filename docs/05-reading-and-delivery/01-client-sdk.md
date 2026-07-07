@@ -271,7 +271,24 @@ Every write resolves the client's configured `requestContext` and runs `assertAc
 
 → [Write surface](#write-surface)
 
-### 10. A standalone script
+### 10. Search
+
+Ranked full-text search, when a `SearchProvider` is registered (`ServerConfig.search`). Two entry points sharing one finishing pipeline — collection-scoped (homogeneous) and zone-scoped (heterogeneous, ranked together across every collection indexed into the zone):
+
+```ts
+// Collection-scoped
+const { hits } = await client.collection('docs').search({ query: 'installation' })
+
+// Zone-scoped (cross-collection) + hydrate — each hit carries collectionPath,
+// and hydrate attaches a shaped ClientDocument as hit.document
+const results = await client.search({ zone: 'site', query: 'launch', hydrate: true })
+```
+
+Both assert the collection `read` ability (zone search excludes collections the actor can't read), honour `beforeRead` row scoping by re-resolving candidate ids through the normal read path, and default to `status: 'published'`. `hydrate: true` batch-reads hits into shaped documents (projected to `admin.itemView` columns when registered) and drops stale index entries. `total` stays the provider's pre-authorization count — approximate under scoping.
+
+→ [Search](./07-search.md) for the full surface (indexing, reindex, zones, the provider seam).
+
+### 11. A standalone script
 
 Build a client, then read and write — no host application or `initBylineCore()` required. A minimal end-to-end run (connect → read → create → update → publish → read back):
 

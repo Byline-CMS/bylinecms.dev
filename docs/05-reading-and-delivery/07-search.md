@@ -366,48 +366,74 @@ The docs frontend is the worked example: a drawer-modal search box →
 → hits rendered with canonical hierarchical URLs (resolved via the cached nav
 tree) and safely-rendered `ts_headline` snippets.
 
+### Zone (cross-collection) search — `client.search({ zone })`
+
+The second query entry point, for heterogeneous hits ranked together across
+every collection indexed into a named zone:
+
+```ts
+const results = await client.search({ zone: 'site', query: 'launch', hydrate: true })
+// results.hits: HydratedSearchHit[] — each carries collectionPath (+ document with hydrate)
+```
+
+Zone **membership** is resolved from the runtime collection definitions with
+the same rule the indexing assembler applies (`resolveSearchZones`:
+`search.zones`, defaulting to the collection's own path), so the query scope
+and the index contents can't drift. Per-member **read abilities** apply:
+collections the actor cannot `read` are excluded from the results, and the
+ability error surfaces only when the actor can read *none* of the zone's
+members. An unknown zone throws `ERR_VALIDATION`. `beforeRead` row scoping
+applies per collection exactly as on the single-collection entry point.
+
+### `hydrate` — two-tier rich results
+
+Both entry points take `hydrate: true`: core batch-reads each collection's hit
+ids through the normal read path and attaches a shaped `ClientDocument` as
+`hit.document`. Projection is the collection's `admin.itemView` columns when
+that config is registered in the calling runtime, otherwise the full field
+set. Because the batch-read *is* an ordinary scoped read, authorisation comes
+free in the same query — and hits whose document no longer resolves (a stale
+index entry after an unindexed delete, or a row dropped by scoping) are
+removed. Both entry points share one finishing pipeline
+(`packages/client/src/search.ts` → `finalizeSearchHits`); integration
+coverage: `client-zone-search.integration.test.ts`.
+
 ### Planned (not yet shipped)
 
-- **Zone (cross-collection) search** — `client.search({ zone: 'site', … })`
-  returning heterogeneous hits ranked together. Zones are already *stored* on the
-  `SearchDocument` and the provider's `search` accepts a `zone` filter (`zones @>
-  ARRAY[$zone]`), but the top-level `client.search({ zone })` entry point isn't
-  built yet.
-- **`hydrate` (two-tier rich results)** — opt in and core batch-reads the hit ids
-  per collection and attaches a shaped `ClientDocument`, projected to that
-  collection's `admin.itemView` columns (see [Rendering heterogeneous
-  results](#rendering-heterogeneous-results)).
 - **Structured `where` filtering** and **facet aggregation** at query time — the
   options are accepted in the API, but the Postgres driver does not yet apply
   `where` or compute facet buckets (`capabilities.facets === false`).
 - **MCP** exposes the same surface as a `search` tool (Phase 5).
 
-## Search zones (partly shipped)
+## Search zones
 
 A **zone** is a named search scope. Collections declare zone membership in their
 `search` config; `SearchDocument.zones` is the resolved set (default: a single
-implicit zone equal to the collection path). The Postgres driver filters on it
-(`zones @> ARRAY[$zone]`), so the *storage and provider* side is shipped. The
-*cross-collection client entry point* (`client.search({ zone })`, heterogeneous
-ranked hits) is the planned half above.
+implicit zone equal to the collection path — `resolveSearchZones` in
+`@byline/core`). The Postgres driver filters on it (`zones @> ARRAY[$zone]`),
+and the cross-collection client entry point (`client.search({ zone })`,
+heterogeneous ranked hits) queries it — see above.
 
 ## Rendering heterogeneous results
 
-*Planned.* A zone (cross-collection) results page faces a problem Byline already solves:
+A zone (cross-collection) results page faces a problem Byline already solves:
 *render an item of collection X as a row or tile* — exactly what the relation
-picker does. The plan is to reuse **`admin.itemView`** (the generalised `picker`
+picker does. The approach reuses **`admin.itemView`** (the generalised `picker`
 config): map each hit's `collectionPath` to that collection's item-view
 presentation and render the hydrated item through it, so heterogeneous result
 rows come "for free" from config the host already wrote for relations. The
 `itemView` config does triple duty — *what to fetch* (projection) and *how to
 render* (presentation), per collection — reused by the relation picker, `hasMany`
-tiles, and (eventually) search rows.
+tiles, and search rows.
 
-This is an **admin / host-UI** concern above the core contract: `search()`
-returns data (rows, ids, optional shaped documents), never components, so non-UI
-consumers (MCP, a JSON endpoint) are unaffected. *(The `admin.itemView`
-projection and relation-column formatter already ship; wiring them into search
-hydration is the remaining work.)*
+The **data half is shipped**: `hydrate: true` projects each hit's document to
+its collection's `itemView` columns when the admin config is registered in the
+calling runtime (see [`hydrate`](#hydrate--two-tier-rich-results)). The
+**presentation half** — a host-UI component that dispatches each hydrated hit
+to its collection's item-view renderer — is an admin / host-UI concern above
+the core contract: `search()` returns data (rows, ids, optional shaped
+documents), never components, so non-UI consumers (MCP, a JSON endpoint) are
+unaffected.
 
 ## Attachment text-extraction
 
@@ -465,8 +491,9 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
 - **Zone definition & re-tagging.** Whether zones stay emergent from
   per-collection `search.zones` or get a lightweight registry (display labels, a
   declared default, validation). Re-tagging on a membership change is a cheap
-  `reindex` (no text re-extraction) but needs a trigger. The cross-collection
-  query entry point is also still to build.
+  `reindex` (no text re-extraction) but needs a trigger. (The cross-collection
+  query entry point shipped — membership resolves from the runtime definitions
+  via `resolveSearchZones`.)
 - **Structured `where` at query time.** The API accepts `where`; compiling it
   against the `jsonb` `filters` / store is unbuilt.
 - **Reindex cost / streaming.** Backfilling a large installation runs through the

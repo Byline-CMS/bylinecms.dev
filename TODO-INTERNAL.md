@@ -20,9 +20,9 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ## Now
 
-### Search — zone (cross-collection) query + hydrate
+### Attachment text-extraction pipeline (search Phase 3)
 
-Promoted from the search remaining-phases list (below); row-level authorization shipped 2026-07-07 ("rank in the provider, authorise in core" — `search()` re-resolves candidate ids through the normal read path when a `beforeRead` hook is configured; see [07-search.md → Row-level authorization](./docs/05-reading-and-delivery/07-search.md#row-level-authorization--rank-in-the-provider-authorise-in-core)). Zone query is the prerequisite surface for the RAG/hybrid retrieval track and the sanctioned home for the private BM25 driver: `client.search({ zone })` returning heterogeneous ranked hits (storage + provider side already shipped — `zones @> ARRAY[$zone]`), plus `hydrate` (batch-read hit ids per collection, attach a shaped `ClientDocument` projected to `admin.itemView` columns) and the heterogeneous results rendering story.
+Promoted now that the search query surface is complete: zone (cross-collection) query + `hydrate` shipped 2026-07-07 (`client.search({ zone })` — heterogeneous ranked hits, per-collection ability filtering + `beforeRead` row scoping, `hydrate` batch-reads into shaped `ClientDocument`s and drops stale index entries; see [07-search.md → Zone search](./docs/05-reading-and-delivery/07-search.md#zone-cross-collection-search--clientsearch-zone-)). This is the next piece of the RAG/retrieval track: an extraction-provider interface — `file → { markdown, plainText, metadata }` — so structure-aware, markdown-emitting extractors (Docling-class) and classic extractors (Apache Tika) are interchangeable drivers. Extracted output lands in its own table keyed to the file (never as synthetic `store_*` field data), invalidated on re-upload, joined into the searchable `body`. Markdown-first output deliberately converges with the markdown-export surface, so documents and attachments share one representation for indexing, chunking, and agents. Full landscape + tiered strategy: [byline-search-extraction-strategy.md](./docs/byline-search-extraction-strategy.md).
 
 ---
 
@@ -36,7 +36,7 @@ Remaining, specified in [MARKDOWN-EXPORT.md → Future phases](./docs/05-reading
 
 ### Search — remaining phases (where/facets, exact paging under scoping)
 
-Phase 2 **shipped**: the `SearchProvider` seam, the `@byline/search-postgres` FTS driver, `ServerConfig.search` registration/validation, lifecycle-hook indexing + `reindex` (ability-gated, admin button), `client.collection(x).search()` with the docs frontend as the worked example, and row-level authorization (2026-07-07). Present-state reference: [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md). Zone query + hydrate are promoted to **Now** (above).
+Phase 2 **shipped**: the `SearchProvider` seam, the `@byline/search-postgres` FTS driver, `ServerConfig.search` registration/validation, lifecycle-hook indexing + `reindex` (ability-gated, admin button), `client.collection(x).search()` with the docs frontend as the worked example, row-level authorization, and the cross-collection `client.search({ zone })` + `hydrate` (all 2026-07-07). Present-state reference: [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md). Attachment extraction (Phase 3) is promoted to **Now** (above).
 
 Remaining, specified in [07-search.md → Planned (not yet shipped)](./docs/05-reading-and-delivery/07-search.md#planned-not-yet-shipped):
 
@@ -44,10 +44,6 @@ Remaining, specified in [07-search.md → Planned (not yet shipped)](./docs/05-r
 2. **Exact paging under row scoping** — core-side re-auth filters after ranking, so `total` / offset paging are approximate on scoped collections; the exact alternative pushes the `QueryPredicate` down into the provider (driver capability, needs indexed scoping columns).
 
 Then external drivers (the RAG/vector/hybrid payoff; home for the private BM25 work), then the MCP `search` tool.
-
-### Attachment text-extraction pipeline
-
-Extract text and structure from uploaded file attachments (PDF, DOCX, …) to feed search indexing and downstream retrieval. Shape: an extraction-provider interface — `file → { markdown, plainText, metadata }` — so structure-aware, markdown-emitting extractors (Docling-class) and classic extractors (Apache Tika) are interchangeable drivers. Extracted output lands in its own table keyed to the file (never as synthetic `store_*` field data), invalidated on re-upload. Markdown-first output deliberately converges with the markdown-export surface, so documents and attachments share one representation for indexing, chunking, and agents.
 
 ### Bulk "refresh embedded relations" admin command
 
