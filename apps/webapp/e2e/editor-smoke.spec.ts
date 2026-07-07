@@ -27,9 +27,10 @@
  *   - [x] checkbox field (block `constrainedWidth`) round-trip
  *   - [x] relation field (`featureImage` picker) round-trip
  *   - [x] hasMany relation (`gallery` tiles: add / remove) round-trip
- *   - [ ] file upload (media collection) — parked
- *   - [ ] content-locale switch + translation save — parked
- *   - [ ] duplicate / restore-version flows — parked
+ *   - [x] file upload (media collection)
+ *   - [x] content-locale switch + translation save
+ *   - [x] duplicate flow
+ *   - [x] restore-version flow
  */
 
 import { expect, test } from '@playwright/test'
@@ -346,5 +347,139 @@ test.describe('document editor', () => {
     const reloadedEditor = page.locator('.ContentEditable__root').first()
     await expect(reloadedEditor).toBeVisible({ timeout: 30_000 })
     await expect(reloadedEditor).toContainText(body)
+  })
+
+  test('file upload: create media item → save → reload shows persisted image', async ({ page }) => {
+    const title = `Smoke upload ${Date.now()}`
+    await page.goto('/admin/collections/media/create')
+    await waitForHydration(page, '#title')
+
+    // Uploads are deferred: selecting a file stages a pending upload in the
+    // form context (blob-URL preview immediately); Save executes the upload,
+    // the server runs the Sharp variant pipeline, then creates the document.
+    // The native input is hidden behind the drop zone — setInputFiles works on
+    // hidden inputs. A 1×1 PNG buffer keeps the suite fixture-free.
+    const pngBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    await page.locator('.byline-field-image-upload-input').setInputFiles({
+      name: 'smoke-upload.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(pngBase64, 'base64'),
+    })
+
+    // Staging replaces the drop zone with the preview tile (blob URL).
+    await expect(page.locator('.byline-field-image-preview')).toBeVisible()
+
+    await page.locator('#title').fill(title)
+    await page.locator('#altText').fill('Editor smoke suite upload')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+
+    // A successful create navigates to the media edit view.
+    await page.waitForURL(/\/admin\/collections\/media\/(?!create)[0-9a-f-]{36}/, {
+      timeout: 60_000,
+    })
+    await page.waitForURL((url) => !url.searchParams.has('action'))
+
+    // Reload — the persisted document must render the stored image (thumbnail
+    // variant or original storageUrl), not the staged blob preview.
+    await page.reload()
+    await waitForHydration(page, '#title')
+    await expect(page.locator('#title')).toHaveValue(title)
+    const persisted = page.locator('.byline-field-image-preview')
+    await expect(persisted).toBeVisible()
+    const src = await persisted.getAttribute('src')
+    expect(src).not.toMatch(/^blob:/)
+  })
+
+  test('content locale: switch to Français → save translation → both locales persist', async ({
+    page,
+  }) => {
+    const title = `Smoke locale ${Date.now()}`
+    await createPage(page, title)
+
+    // The content-locale switcher is the #contentLocale select in the view
+    // menu (form header slot). Switching navigates with ?locale=fr, the
+    // loader re-fetches, and the form remounts keyed on the new locale.
+    await waitForHydration(page, '#contentLocale')
+    await page.locator('#contentLocale').click()
+    await page.getByRole('option', { name: 'Français', exact: true }).click()
+    await page.waitForURL((url) => url.searchParams.get('locale') === 'fr')
+
+    // Wait for the *remounted* fr form, not just the URL: the en form's
+    // hydrated #title satisfies a bare hydration wait, and a fill landing
+    // there is silently lost (or saved under en). The untranslated fr form
+    // renders localized fields empty — that state only exists post-remount.
+    await expect(page.locator('#title')).toHaveValue('', { timeout: 30_000 })
+
+    // Type the French title; summary is required and also empty on the
+    // untranslated form, so fill it too to keep the save valid.
+    const frTitle = `${title} (français)`
+    await page.locator('#title').fill(frTitle)
+    await page.locator('#summary').fill('Créé par la suite de tests smoke.')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    // Reload on fr — the translation must persist.
+    await page.reload()
+    await waitForHydration(page, '#title')
+    await expect(page.locator('#title')).toHaveValue(frTitle)
+
+    // Switch back to English — the original title must be untouched.
+    await page.locator('#contentLocale').click()
+    await page.getByRole('option', { name: 'English', exact: true }).click()
+    await page.waitForURL((url) => url.searchParams.get('locale') === 'en')
+    await waitForHydration(page, '#title')
+    await expect(page.locator('#title')).toHaveValue(title)
+  })
+
+  test('duplicate: actions menu → confirm → lands on the copy', async ({ page }) => {
+    const title = `Smoke duplicate ${Date.now()}`
+    await createPage(page, title)
+    const sourceUrl = page.url()
+
+    // The document-actions dropdown trigger is the ellipsis icon button in
+    // the form status bar (no accessible name — locate via the icon class).
+    await page.locator('button:has(.byline-form-actions-icon)').click()
+    await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+
+    // Confirm modal — the primary action repeats the "Duplicate" label; the
+    // menu portal has closed by now so the match is unambiguous.
+    await expect(page.getByText('Duplicate Document', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Duplicate', exact: true }).click()
+
+    // Success navigates to the copy's edit view: a different document id
+    // carrying the " (copy)"-suffixed title.
+    await page.waitForURL((url) => editViewUrl.test(url.href) && url.href !== sourceUrl)
+    await waitForHydration(page, '#title')
+    await expect(page.locator('#title')).toHaveValue(`${title} (copy)`)
+  })
+
+  test('restore version: history → restore older version → title reverts', async ({ page }) => {
+    const originalTitle = `Smoke restore ${Date.now()}`
+    await createPage(page, originalTitle)
+    const documentUrl = page.url().replace(/\?.*$/, '')
+
+    // Mint a second version so history has a non-current row to restore.
+    await page.locator('#title').fill(`${originalTitle} (edited)`)
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Successfully updated', { exact: false }).first()).toBeVisible()
+
+    // The versions tab of the history view renders a Restore button on every
+    // non-current version — with exactly two versions there is exactly one.
+    // The table arrives server-rendered, so wait for React to attach the
+    // button's click handler before clicking (a pre-hydration click lands on
+    // inert markup and the modal never opens).
+    await page.goto(`${documentUrl}/history`)
+    const restore = page.getByRole('button', { name: 'Restore', exact: true })
+    await expect(restore).toBeVisible({ timeout: 30_000 })
+    await waitForHydration(page, '.byline-coll-history-restore-cell button')
+    await restore.click()
+
+    // Confirm modal — restoring creates a new draft version with the old
+    // content and navigates back to the edit view.
+    await page.getByRole('button', { name: 'Restore as Draft', exact: true }).click()
+    await page.waitForURL(editViewUrl)
+    await waitForHydration(page, '#title')
+    await expect(page.locator('#title')).toHaveValue(originalTitle)
   })
 })
