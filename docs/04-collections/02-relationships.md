@@ -21,7 +21,7 @@ A relation in Byline is a typed reference from one document to another. Relation
 
 Today's surface is intentionally focused:
 
-- **Single or ordered multi-target.** A field stores one relation by default, or an ordered list with `hasMany: true` (see [hasMany relations](#hasmany-relations)). The `$some` / `$every` / `$none` query quantifiers for filtering by a multi-target relation are the deferred follow-up.
+- **Single or ordered multi-target.** A field stores one relation by default, or an ordered list with `hasMany: true` (see [hasMany relations](#hasmany-relations)). Queries filter by a multi-target relation with the `$some` / `$every` / `$none` quantifiers (see [Query quantifiers](#query-quantifiers)).
 - **Cross-collection only.** A relation's target lives in some collection's `documentVersions`. There is no in-place "embed".
 - **Read-time population.** Relations are stored as references; population happens on read, in batches, with depth-bounded recursion safety.
 - **Two consumer surfaces.** A typed `RelationField` on a collection schema, *and* document links / inline images embedded inside richtext field values. Both flow through the same envelope and the same `ReadContext`.
@@ -542,16 +542,55 @@ The editor renders a drag-reorderable list of summary tiles (the same
 `RelationSummary` the single field uses) with a per-tile remove and an "Add"
 button that appends through the standard picker (`packages/admin/src/fields/relation/relation-many-field.tsx`).
 Items are identified by `targetDocumentId` (a target may appear at most once);
-each edit writes the whole array back as a coalesced `field.set` patch. See
+each edit writes the whole array back as a coalesced `field.set` patch. The
+picker opens in **multi-select mode** for `hasMany` fields: rows toggle a check
+state, already-added targets render as disabled "already added" rows, and the
+confirm action ("Add selected (n)") appends the whole batch in pick order —
+several picks in one trip. See
 `apps/webapp/byline/collections/pages/schema.ts` (`gallery`) for a reference field.
 Use `WithPopulatedMany<F, K, Target>` (`@byline/client`) to type the populated
 array shape.
 
+### Query quantifiers
+
+A `where` clause filters by a multi-target relation with quantifiers over the
+relation's target set:
+
+```ts
+// At least one author matches (a plain nested sub-where is shorthand for $some):
+{ authors: { $some: { name: 'Alan Turing' } } }
+{ authors: { name: 'Alan Turing' } }            // same thing
+
+// No target fails the predicate (vacuously true for documents with no targets):
+{ authors: { $every: { status: 'published' } } }
+
+// No target matches; with an empty sub-where: "has no targets at all":
+{ authors: { $none: { name: { $contains: 'Draft' } } } }
+{ authors: { $none: {} } }
+```
+
+Multiple quantifier keys on one field AND together. The nested sub-where is the
+same language as any relation sub-clause (field predicates, `status` / `path`
+reserved keys, `$and` / `$or`, further relation hops). Semantics notes:
+
+- **Unresolvable targets are ignored.** A target that doesn't resolve in the
+  selected read view (deleted, or unpublished under `status: 'published'`
+  reads) drops out of all three quantifiers — the same visibility rule
+  populate applies.
+- **`$every` is vacuously true** for a document with no (resolving) targets,
+  matching Prisma's `every` semantics. Compose with `$some: {}` ("has at
+  least one target") when emptiness should exclude.
+- Quantifiers also work on **single** relation fields (a set of ≤ 1) — e.g.
+  `{ category: { $none: {} } }` matches documents with no category.
+
+Compilation: the parser emits a `RelationFilter` carrying `quantifier` +
+`hasMany`; the adapter compiles `$some` to the existing relation `EXISTS`,
+`$none` to `NOT EXISTS`, and `$every` to `NOT EXISTS (… AND NOT (nested))` —
+a failing-row scan. hasMany rows match on `parent_path` (items are stored at
+indexed paths where `field_name` is the index segment).
+
 ## Current limitations
 
-- **No `where` quantifiers for `hasMany` yet.** Filtering a query by a
-  multi-target relation (`$some` / `$every` / `$none`) is the deferred
-  fast-follow; reading and populating ordered lists works today.
 - **`cascadeDelete` is recorded but not enforced.** The flag round-trips through
   storage; deleting a target does not yet act on it. A deleted target surfaces as
   an unresolved relation envelope (`_resolved: false`) on read.
@@ -568,7 +607,7 @@ array shape.
 | `ReadContext` + `createReadContext` | `packages/core/src/services/populate.ts` |
 | Field-type → store-table mapping | `packages/core/src/storage/field-store-map.ts` |
 | Relation `WhereClause` compilation | `packages/core/src/query/parse-where.ts` (`RelationFilter` branch) |
-| Postgres `RelationFilter` SQL | `packages/db-postgres/src/modules/storage/build-filter-exists.ts` |
+| Postgres `RelationFilter` SQL | `packages/db-postgres/src/modules/storage/storage-queries.ts` (`buildRelationExists`) |
 | `store_relation` schema | `packages/db-postgres/src/database/schema/index.ts` |
 | Zod schema for relation | `packages/core/src/schemas/zod/builder.ts` |
 | Relation field admin widgets | `packages/admin/src/fields/relation/{relation-field,relation-many-field,relation-picker,relation-summary,relation-display,relation-column-formatter}.tsx` |

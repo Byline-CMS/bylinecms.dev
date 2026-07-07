@@ -20,9 +20,9 @@ Items are pruned as they ship. Trigger-conditional items stay until the trigger 
 
 ## Now
 
-### `hasMany` relations — Phase 2
+### Search — row-level authorization
 
-Promoted from Next now that the editor smoke suite is complete (the suite was explicitly sequenced before this work — the full growth checklist in `apps/webapp/e2e/editor-smoke.spec.ts` shipped 2026-07-07: every field type, file upload, content-locale switch + translation save, duplicate, and restore-version). See the full Phase 2 spec below under Next → "`hasMany` relations — Phase 2".
+Promoted from the search remaining-phases list (below) now that `hasMany` Phase 2 has shipped (2026-07-07: picker multi-select + `$some` / `$every` / `$none` query quantifiers — see [docs/04-collections/02-relationships.md → Query quantifiers](./docs/04-collections/02-relationships.md#query-quantifiers)). `search()` asserts the collection `read` ability but does not re-resolve hit ids through the `beforeRead` row-scoping pipeline. Safe today only because the index is published-only; a row-scoped collection that enables search would leak hits. Posture: "rank in the provider, authorise in core" (re-resolve candidate ids through the normal read path). Do this before any row-scoped collection turns search on.
 
 ---
 
@@ -34,26 +34,15 @@ The agent-readable surface **shipped** (the full present-state reference is [MAR
 
 Remaining, specified in [MARKDOWN-EXPORT.md → Future phases](./docs/05-reading-and-delivery/04-markdown-export.md#future-phases): the **docs-corpus round-trip test** (`import(export(import(md))) ≅ import(md)` over `docs/*.md`, comparing Lexical trees — tests the export serializer against production-shaped content; preferred companion: teach `parse-markdown.ts` to also accept GFM alerts, erasing the admonition dialect asymmetry documented there). Deferred with triggers: per-field markdown opt-out, host-package route factories, `llms-full.txt` / MCP consumption.
 
-### `hasMany` relations — Phase 2 (picker multi-select + query quantifiers)
+### Search — remaining phases (zone query, hydrate, where/facets)
 
-**v1 shipped:** the `hasMany: true` flag (schema + optional `minItems`/`maxItems`), array-of-relations storage (indexed `store_relation` rows, no migration), array-of-envelopes populate output (`WithPopulatedMany`), and the drag-reorder/add/remove editor widget (`relation-many-field.tsx`). Reference field: `pages` → `gallery`. Storage/populate/widget all unit-, integration-, and e2e-covered. See [docs/04-collections/02-relationships.md → hasMany relations](./docs/04-collections/02-relationships.md).
-
-Two Phase 2 items, independent of each other:
-
-**Picker multi-select.** v1 reuses the single-select `RelationPicker` unchanged: the `hasMany` widget opens it, takes one pick, appends, and the editor reopens it to add the next (`relation-many-field.tsx` → `handleAdd`). The better UX is checkbox multi-select — pick several rows in one trip and "Add selected." Scope: extend `RelationPicker` (`packages/admin/src/fields/relation/relation-picker.tsx`) with a multi-select mode (selection-set state + an "already-added" filter/disabled state, driven by the caller's current value), and a confirm action that returns an array of selections. Keep the single-select path intact for non-`hasMany` fields — the picker should branch on a `multiple` prop. The widget's `handleAdd` becomes `handleAddMany` (dedup the batch against the current array). Mechanically self-contained; no storage/populate/schema change.
-
-**Query quantifiers.** The `where` quantifiers `$some` / `$every` / `$none` for filtering queries by a multi-target relation — `packages/core/src/query/parse-where.ts` (`RelationFilter` branch) + `packages/db-postgres/src/modules/storage/build-filter-exists.ts` SQL (the indexed `store_relation` rows are the natural `EXISTS` target). Deferred deliberately; reading/populating ordered lists works today.
-
-### Search — remaining phases (row-level auth, zone query, hydrate)
-
-Phase 2 **shipped**: the `SearchProvider` seam, the `@byline/search-postgres` FTS driver, `ServerConfig.search` registration/validation, lifecycle-hook indexing + `reindex` (ability-gated, admin button), and `client.collection(x).search()` with the docs frontend as the worked example. Present-state reference: [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md).
+Phase 2 **shipped**: the `SearchProvider` seam, the `@byline/search-postgres` FTS driver, `ServerConfig.search` registration/validation, lifecycle-hook indexing + `reindex` (ability-gated, admin button), and `client.collection(x).search()` with the docs frontend as the worked example. Present-state reference: [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md). Row-level authorization is promoted to **Now** (above).
 
 Remaining, specified in [07-search.md → Planned (not yet shipped)](./docs/05-reading-and-delivery/07-search.md#planned-not-yet-shipped), in priority order:
 
-1. **Row-level authorization on search** — `search()` asserts the collection `read` ability but does not re-resolve hit ids through the `beforeRead` row-scoping pipeline. Safe today only because the index is published-only; a row-scoped collection that enables search would leak hits. Posture: "rank in the provider, authorise in core" (re-resolve candidate ids through the normal read path). Do this before any row-scoped collection turns search on.
-2. **Zone (cross-collection) query** — `client.search({ zone })` returning heterogeneous ranked hits. Storage + provider side already shipped (`zones @> ARRAY[$zone]`); only the top-level client entry point and the heterogeneous results rendering remain. Prerequisite surface for the RAG/hybrid retrieval track and the private BM25 driver.
-3. **`hydrate` (two-tier rich results)** — batch-read hit ids per collection, attach a shaped `ClientDocument` projected to `admin.itemView` columns.
-4. **Structured `where` filtering + facet aggregation** — options accepted in the API; the Postgres driver doesn't yet apply them (`capabilities.facets === false`).
+1. **Zone (cross-collection) query** — `client.search({ zone })` returning heterogeneous ranked hits. Storage + provider side already shipped (`zones @> ARRAY[$zone]`); only the top-level client entry point and the heterogeneous results rendering remain. Prerequisite surface for the RAG/hybrid retrieval track and the private BM25 driver.
+2. **`hydrate` (two-tier rich results)** — batch-read hit ids per collection, attach a shaped `ClientDocument` projected to `admin.itemView` columns.
+3. **Structured `where` filtering + facet aggregation** — options accepted in the API; the Postgres driver doesn't yet apply them (`capabilities.facets === false`).
 
 Then external drivers (the RAG/vector/hybrid payoff; home for the private BM25 work), then the MCP `search` tool.
 

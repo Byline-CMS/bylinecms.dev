@@ -142,7 +142,20 @@ where: { category: { parent: { path: 'editorial' } } }
 
 `path` is locale-resolved against the target's `byline_document_paths` row; `status` resolves to `document_versions.status` on the relation hop. A target collection that declares a `path` or `status` *field* won't see those clauses resolve as field filters — rename the field (e.g. to `slug`) if it ever bites.
 
-→ [Filtering](#filtering)
+Multi-target (`hasMany`) relations take the `$some` / `$every` / `$none` quantifiers over the target set (a plain sub-where is shorthand for `$some`; also valid on single relations):
+
+```ts
+// At least one author named Alan Turing
+where: { authors: { $some: { name: 'Alan Turing' } } }
+
+// Every (resolving) author is published; vacuously true with no authors
+where: { authors: { $every: { status: 'published' } } }
+
+// No authors at all
+where: { authors: { $none: {} } }
+```
+
+→ [Filtering](#filtering) · [Relationships § Query quantifiers](../04-collections/02-relationships.md#query-quantifiers)
 
 ### 5. Sort and pagination
 
