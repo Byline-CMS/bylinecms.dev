@@ -33,6 +33,12 @@ interface GroupFieldProps {
   defaultValue: any
   path: string
   /**
+   * Collection path forwarded to upload-capable child fields (`file` / `image`),
+   * which need it to reach the `/upload` endpoint. Without it those fields fall
+   * back to their empty placeholder and never render an upload widget.
+   */
+  collectionPath?: string
+  /**
    * Active content locale, forwarded to child fields so localized widgets
    * nested inside the group (e.g. a `localized` richText) can render their
    * locale badge.
@@ -40,7 +46,13 @@ interface GroupFieldProps {
   contentLocale?: string
 }
 
-export const GroupField = ({ field, defaultValue, path, contentLocale }: GroupFieldProps) => {
+export const GroupField = ({
+  field,
+  defaultValue,
+  path,
+  collectionPath,
+  contentLocale,
+}: GroupFieldProps) => {
   const fieldError = useFieldError(field.name)
   // Default value for a group field is a plain object: { rating: 5, comment: '...' }
   // Normalize to a plain object if not already one.
@@ -80,6 +92,7 @@ export const GroupField = ({ field, defaultValue, path, contentLocale }: GroupFi
               defaultValue={groupData[innerField.name]}
               basePath={path}
               disableSorting={true}
+              collectionPath={collectionPath}
               contentLocale={contentLocale}
             />
           )
