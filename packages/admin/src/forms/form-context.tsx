@@ -476,6 +476,12 @@ export const FormProvider = ({
       const data = getFieldValues()
 
       for (const field of fields) {
+        // Condition-hidden fields are exempt from client-side validation — a
+        // field the editor cannot currently see must not block submit. Only
+        // top-level fields flow through this walk, and a root-level field's
+        // sibling scope is the form data itself (see FieldCondition).
+        if (field.condition && !field.condition(data, data)) continue
+
         const value = getFieldValue(field.name)
 
         // Required field validation
@@ -583,6 +589,10 @@ export const FormProvider = ({
         const fns = normalizeHooks(field.hooks?.beforeValidate)
         if (fns.length === 0) continue
 
+        // Condition-hidden fields skip submit-time hooks, mirroring their
+        // exemption from validateForm below.
+        if (field.condition && !field.condition(data, data)) continue
+
         const path = field.name
         const value = getFieldValue(path)
 
@@ -593,6 +603,7 @@ export const FormProvider = ({
           path,
           field,
           operation: 'submit',
+          setFieldValue,
         }
 
         try {

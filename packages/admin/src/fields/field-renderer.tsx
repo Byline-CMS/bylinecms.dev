@@ -17,6 +17,7 @@ import type {
 import { getClientConfig } from '@byline/core'
 import cx from 'classnames'
 
+import { useFormContext } from '../forms/form-context'
 import { ArrayField } from './array/array-field'
 import { BlocksField } from './blocks/blocks-field'
 import { CheckboxField } from './checkbox/checkbox-field'
@@ -33,6 +34,7 @@ import { SelectField } from './select/select-field'
 import { TextField } from './text/text-field'
 import { TextAreaField } from './text-area/text-area-field'
 import { useFieldChangeHandler } from './use-field-change-handler'
+import { useFieldCondition } from './use-field-condition'
 
 // ---------------------------------------------------------------------------
 // FieldRenderer — the main field type switch. Delegates to the appropriate
@@ -69,7 +71,7 @@ interface FieldRendererProps {
 
 export const FieldRenderer = ({
   field,
-  defaultValue,
+  defaultValue: initialDefault,
   basePath,
   disableSorting,
   hideLabel,
@@ -82,6 +84,20 @@ export const FieldRenderer = ({
   const htmlId = path.replace(/[[\].]/g, '-')
 
   const handleChange = useFieldChangeHandler(field, path)
+  const { getFieldValue } = useFormContext()
+
+  // Conditional visibility (BaseField.condition) — re-evaluated on every form
+  // edit; the field unmounts while its condition is false.
+  const visible = useFieldCondition(field, basePath)
+
+  // Conditional fields unmount while hidden, so on re-show the uncontrolled
+  // widget must be re-seeded from the live form store (which survives the
+  // unmount) rather than the initial document data — otherwise an edit made
+  // before hiding would be visually reverted while the store (and the patch
+  // stream) still carried it. `undefined` means the path was never written,
+  // in which case the initial default stands.
+  const storedValue = field.condition ? getFieldValue(path) : undefined
+  const defaultValue = storedValue !== undefined ? storedValue : initialDefault
 
   // When a locale is active and the field is localised, inject a badge into
   // the field label so the editor knows they are editing locale-specific content.
@@ -89,6 +105,10 @@ export const FieldRenderer = ({
 
   const badge =
     isLocalised && contentLocale && !hideLabel ? <LocaleBadge locale={contentLocale} /> : null
+
+  // All hooks have run by this point, so a conditional bail-out is safe.
+  // Hiding retains the field's stored value — no clearing patch is emitted.
+  if (!visible) return null
 
   /**
    * Render the underlying field widget. If the field is localised, we wrap it

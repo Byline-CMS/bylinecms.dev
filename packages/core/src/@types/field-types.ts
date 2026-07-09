@@ -106,6 +106,22 @@ export interface FieldHookContext {
    * derived value at submit time while showing advisory errors on change.
    */
   operation: 'change' | 'submit'
+
+  /**
+   * Write **another** field's value in the form store.
+   *
+   * This is a raw write: the target field's own hooks do NOT run (which
+   * forecloses hook recursion), but the write is otherwise a normal form
+   * edit — it emits a `field.set` patch (so it persists on save), marks the
+   * form dirty, and store-subscribed widgets re-render immediately.
+   *
+   * Use for cross-field behaviour such as mutual exclusivity across array
+   * items (a checkbox that unchecks its siblings) or clearing a dependent
+   * field when its driver changes. Paths use the same dot + bracket
+   * notation as `FieldHookContext.path`, e.g.
+   * `files[1].filesGroup.generateThumbnail`.
+   */
+  setFieldValue: (path: string, value: any) => void
 }
 
 /**
@@ -212,6 +228,25 @@ type FieldValidateFn = (value: any, data: Record<string, any>) => string | undef
 // const fieldValidateFnSchema = z.custom<FieldValidateFn>((val) => typeof val === 'function')
 
 // ---------------------------------------------------------------------------
+// Conditional field visibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Visibility predicate for a field — see {@link BaseField.condition}.
+ *
+ * @param data - The full live form data (the document's field values).
+ * @param siblingData - The field's immediate scope: the enclosing group /
+ *   array item's values. For a field at `files[2].filesGroup.thumbnailPage`
+ *   this is the item's `filesGroup` object, so conditions inside array items
+ *   observe their own item, not the document root. For root-level fields
+ *   `siblingData` is the same object as `data`.
+ */
+export type FieldCondition = (
+  data: Record<string, any>,
+  siblingData: Record<string, any>
+) => boolean
+
+// ---------------------------------------------------------------------------
 // Base (common) properties for field definitions
 // ---------------------------------------------------------------------------
 
@@ -258,6 +293,24 @@ interface BaseField {
    * @see FieldHooks
    */
   hooks?: FieldHooks
+
+  /**
+   * Optional visibility condition. When provided, the admin form renders
+   * this field only while the function returns `true`. Receives the full
+   * live form data plus the field's sibling scope (the enclosing group /
+   * array item), and is re-evaluated on every form edit — so a field can
+   * appear and disappear in response to its neighbours, e.g.
+   *
+   *     condition: (_data, siblingData) => Boolean(siblingData.generateThumbnail)
+   *
+   * Like `readOnly`, this is a **rendering hint only** — it is not enforced
+   * server-side. While hidden, the field's stored value is retained (no
+   * clearing write is emitted) and the field is exempt from client-side
+   * validation. Server-side schema validation knows nothing about
+   * conditions, so pair conditionally-hidden required fields with
+   * `optional: true` or a `defaultValue`.
+   */
+  condition?: FieldCondition
 
   /**
    * Optional submit-time validator. Called by `validateForm()` for every field
