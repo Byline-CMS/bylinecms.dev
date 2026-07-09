@@ -8,6 +8,7 @@
 
 import path from 'node:path'
 
+import type { FitEnum, ResizeOptions } from 'sharp'
 // Sharp ships its own types; no @types/sharp needed.
 import sharp from 'sharp'
 
@@ -162,10 +163,10 @@ export async function generateImageVariants(
     try {
       let pipeline = sharp(sourceBuffer)
 
-      const resizeOptions: sharp.ResizeOptions = {
+      const resizeOptions: ResizeOptions = {
         width: size.width,
         height: size.height,
-        fit: (size.fit as sharp.FitEnum[keyof sharp.FitEnum]) ?? 'cover',
+        fit: (size.fit as FitEnum[keyof FitEnum]) ?? 'cover',
         withoutEnlargement: true,
       }
 

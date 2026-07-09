@@ -2,7 +2,7 @@ packages:
   - "packages/*"
   - "apps/*"
   - "benchmarks/storage"
-minimumReleaseAge: 1440
+minimumReleaseAge: 0
 minimumReleaseAgeExclude:
   - "@infonomic/*"
   - "@byline/*"
@@ -20,7 +20,3 @@ allowBuilds:
 allowedDeprecatedVersions:
   abab: "2"
   domexception: "4"
-overrides:
-  typescript: $typescript
-  react: 19.2.5
-  react-dom: 19.2.5

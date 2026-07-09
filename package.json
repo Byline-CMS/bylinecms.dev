@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.2.2",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "clean": "pnpm -r run clean && node scripts/clean node_modules .turbo",
     "db:init": "TURBO_UI=true turbo run db:init",
@@ -34,15 +34,15 @@
     "*.{js,jsx,mjs,cjs,ts,tsx,json,jsonc}": "biome check --write --no-errors-on-unmatched --diagnostic-level=error"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.15",
+    "@biomejs/biome": "2.5.2",
     "@changesets/cli": "^2.31.0",
-    "knip": "^6.24.0",
-    "lint-staged": "^17.0.5",
+    "knip": "^6.25.0",
+    "lint-staged": "^17.0.8",
     "simple-git-hooks": "^2.13.1"
   },
   "dependencies": {
-    "turbo": "^2.9.14",
-    "typescript": "6.0.3"
+    "turbo": "^2.10.4",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=20.9.0"

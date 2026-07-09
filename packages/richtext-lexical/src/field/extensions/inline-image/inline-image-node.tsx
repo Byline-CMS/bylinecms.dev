@@ -19,6 +19,7 @@ import type {
   LexicalEditor,
   LexicalNode,
   NodeKey,
+  SerializedLexicalNode,
 } from 'lexical'
 import { $applyNodeReplacement, createEditor, DecoratorNode } from 'lexical'
 
@@ -75,7 +76,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
     )
   }
 
-  static importJSON(serializedNode: SerializedInlineImageNode): InlineImageNode {
+  static importJSON(serializedNode: SerializedLexicalNode): InlineImageNode {
     const {
       src,
       position,
@@ -88,7 +89,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
       targetCollectionId,
       targetCollectionPath,
       document,
-    } = serializedNode
+    } = serializedNode as SerializedInlineImageNode
     const node = $createInlineImageNode({
       targetDocumentId,
       targetCollectionId,
