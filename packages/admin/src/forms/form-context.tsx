@@ -308,10 +308,11 @@ export const FormProvider = ({
       // for patches that don't correspond to a specific field.set.
       dirtyFields.current.add('__patch__')
       notifyMetaListeners()
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.debug('FormContext.appendPatch', { patch, dirtyCount: dirtyFields.current.size })
-      }
+      // Dev-time patch tracing — uncomment when debugging the patch stream.
+      // if (process.env.NODE_ENV !== 'production') {
+      //   // eslint-disable-next-line no-console
+      //   console.debug('FormContext.appendPatch', { patch, dirtyCount: dirtyFields.current.size })
+      // }
     },
     [notifyMetaListeners]
   )
