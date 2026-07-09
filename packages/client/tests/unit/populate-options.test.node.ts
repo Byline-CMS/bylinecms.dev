@@ -104,6 +104,7 @@ function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
       counters: {
         ensureCounterGroup: vi.fn(),
         nextCounterValue: vi.fn(),
+        nextScopedCounterValue: vi.fn(),
       },
     },
     queries: {

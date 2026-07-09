@@ -25,6 +25,7 @@ function makeCounters(start = 1) {
         calls.push(group)
         return next++
       }),
+      nextScopedCounterValue: vi.fn(),
     },
     calls,
   }

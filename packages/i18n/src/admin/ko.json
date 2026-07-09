@@ -466,6 +466,7 @@
   "fields.relation.picker.addSelected": "선택 항목 추가 ({count})",
   "fields.relation.picker.alreadyAdded": "이미 추가됨",
   "fields.file.empty": "선택된 파일 없음",
+  "fields.upload.requireSavedDocument": "여기에 파일을 업로드하려면 먼저 이 문서를 저장해야 합니다.",
   "fields.file.downloadAriaLabel": "파일 다운로드",
   "fields.file.removeAriaLabel": "파일 제거",
   "fields.file.openInNewTabAriaLabel": "새 탭에서 {filename} 열기",

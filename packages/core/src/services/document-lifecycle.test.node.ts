@@ -89,6 +89,7 @@ function createMockDb() {
       counters: {
         ensureCounterGroup: vi.fn() as any,
         nextCounterValue: vi.fn() as any,
+        nextScopedCounterValue: vi.fn() as any,
       },
       audit: { append: auditAppend },
     },

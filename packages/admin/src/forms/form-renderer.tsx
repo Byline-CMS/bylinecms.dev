@@ -387,6 +387,16 @@ const FormContent = ({
             uploadField,
             ({ fieldPath, status }) => {
               setFieldUploading(fieldPath, status === 'uploading')
+            },
+            {
+              // Document context for server-side upload hooks: the persisted
+              // document id (edit mode only) plus any `upload.context` form
+              // values declared on the schema field. See UploadConfig.context
+              // in @byline/core.
+              documentId:
+                mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : undefined,
+              fields,
+              getFormValues: getFieldValues,
             }
           )
 
@@ -765,6 +775,7 @@ export const FormRenderer = ({
     <FormProvider
       key={`${initialLocale ?? 'default'}-${initialData?.versionId ?? ''}`}
       initialData={initialData}
+      documentId={mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : null}
     >
       <FormContent
         mode={mode}

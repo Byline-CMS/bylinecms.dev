@@ -78,6 +78,7 @@ function createMockDb() {
       counters: {
         ensureCounterGroup: vi.fn(),
         nextCounterValue: vi.fn(),
+        nextScopedCounterValue: vi.fn(),
       },
     },
     queries: {
@@ -291,6 +292,110 @@ describe('uploadField service', () => {
       expect.any(Buffer),
       expect.objectContaining({ filename: 'PUB-42-tenant-hero.png' })
     )
+  })
+
+  it('beforeStore { storagePath } threads targetStoragePath verbatim and derives the filename from its basename', async () => {
+    const definition = withFieldUpload(uploadCollection, 'image', (f) => {
+      f.upload.hooks = {
+        beforeStore: () => ({ storagePath: 'publications/forru-0000447-0001-en.png' }),
+      }
+    })
+
+    const { ctx, upload } = buildCtx({ definition })
+
+    const result = await uploadField(ctx, {
+      buffer: Buffer.from('png'),
+      originalFilename: 'hero.png',
+      mimeType: 'image/png',
+      fileSize: 3,
+      shouldCreateDocument: false,
+    })
+
+    // Explicit key is handed to the provider verbatim — no UUID prefix,
+    // no collection-derived key.
+    expect(upload).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      expect.objectContaining({
+        targetStoragePath: 'publications/forru-0000447-0001-en.png',
+        filename: 'forru-0000447-0001-en.png',
+      })
+    )
+    // Stored filename follows the explicit key's basename.
+    expect(result.storedFile.filename).toBe('forru-0000447-0001-en.png')
+  })
+
+  it('beforeStore { storagePath, filename } honours both; a leading slash is stripped from the key', async () => {
+    const definition = withFieldUpload(uploadCollection, 'image', (f) => {
+      f.upload.hooks = {
+        beforeStore: () => ({
+          storagePath: '/publications/forru-0000447-0002-en.png',
+          filename: 'display-name.png',
+        }),
+      }
+    })
+
+    const { ctx, upload } = buildCtx({ definition })
+
+    const result = await uploadField(ctx, {
+      buffer: Buffer.from('png'),
+      originalFilename: 'hero.png',
+      mimeType: 'image/png',
+      fileSize: 3,
+      shouldCreateDocument: false,
+    })
+
+    expect(upload).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      expect.objectContaining({
+        targetStoragePath: 'publications/forru-0000447-0002-en.png',
+        filename: 'display-name.png',
+      })
+    )
+    expect(result.storedFile.filename).toBe('display-name.png')
+  })
+
+  it('folds storagePath through a chain — later hooks see ctx.storagePath and may override it', async () => {
+    const secondHook = vi.fn(({ storagePath }: any) => ({
+      storagePath: storagePath.replace('-draft', ''),
+    }))
+    const definition = withFieldUpload(uploadCollection, 'image', (f) => {
+      f.upload.hooks = {
+        beforeStore: [() => ({ storagePath: 'publications/report-draft.png' }), secondHook],
+      }
+    })
+
+    const { ctx, upload } = buildCtx({ definition })
+
+    await uploadField(ctx, {
+      buffer: Buffer.from('png'),
+      originalFilename: 'hero.png',
+      mimeType: 'image/png',
+      fileSize: 3,
+      shouldCreateDocument: false,
+    })
+
+    expect(secondHook).toHaveBeenCalledWith(
+      expect.objectContaining({ storagePath: 'publications/report-draft.png' })
+    )
+    expect(upload).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      expect.objectContaining({ targetStoragePath: 'publications/report.png' })
+    )
+  })
+
+  it('no storagePath override → storage.upload receives no targetStoragePath', async () => {
+    const { ctx, upload } = buildCtx()
+
+    await uploadField(ctx, {
+      buffer: Buffer.from('png'),
+      originalFilename: 'hero.png',
+      mimeType: 'image/png',
+      fileSize: 3,
+      shouldCreateDocument: false,
+    })
+
+    const options = upload.mock.calls[0]?.[1]
+    expect(options).not.toHaveProperty('targetStoragePath')
   })
 
   it('beforeStore { error } short-circuits — no storage write, no variants, no afterStore', async () => {

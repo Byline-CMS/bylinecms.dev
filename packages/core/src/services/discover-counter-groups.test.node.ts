@@ -46,6 +46,7 @@ function makeAdapter(options?: {
       counters: {
         ensureCounterGroup,
         nextCounterValue: vi.fn(fail) as any,
+        nextScopedCounterValue: vi.fn(fail) as any,
       },
     },
     queries: {

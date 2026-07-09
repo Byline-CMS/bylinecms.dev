@@ -112,6 +112,29 @@ export class CounterCommands implements ICounterCommands {
     }
     return typeof row.value === 'number' ? row.value : Number(row.value)
   }
+
+  async nextScopedCounterValue(scopeName: string): Promise<number> {
+    if (!scopeName || typeof scopeName !== 'string') {
+      throw new Error(`nextScopedCounterValue: scopeName must be a non-empty string`)
+    }
+
+    // Fast path: the scope has been used before — its registry row and
+    // sequence already exist, so this is exactly a nextCounterValue call.
+    const rows = await this.db
+      .select({ sequence_name: counterGroups.sequence_name })
+      .from(counterGroups)
+      .where(eq(counterGroups.group_name, scopeName))
+      .limit(1)
+
+    if (rows.length === 0) {
+      // First allocation for this scope: self-register (idempotent — a
+      // concurrent racer leaves exactly one sequence + registry row, and
+      // both callers draw distinct values from the same sequence).
+      await this.ensureCounterGroup(scopeName)
+    }
+
+    return this.nextCounterValue(scopeName)
+  }
 }
 
 export function createCounterCommands(db: DatabaseConnection): ICounterCommands {

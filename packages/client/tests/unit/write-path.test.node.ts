@@ -93,6 +93,7 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
       counters: {
         ensureCounterGroup: vi.fn(),
         nextCounterValue: vi.fn(),
+        nextScopedCounterValue: vi.fn(),
       },
       audit: { append: auditAppend },
     },

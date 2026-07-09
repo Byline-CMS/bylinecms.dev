@@ -83,6 +83,13 @@ const SYSTEM_PATH_DIRTY_KEY = '__systemPath__'
 const SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY = '__systemAvailableLocales__'
 
 interface FormContextType {
+  /**
+   * The persisted document id when the form edits an existing document,
+   * `null` while the document is unsaved (create mode). Upload widgets use
+   * this to honour `upload.requireSavedDocument` (see `UploadConfig` in
+   * `@byline/core`).
+   */
+  documentId: string | null
   setFieldValue: (name: string, value: any) => void
   setFieldStore: (name: string, value: any) => void
   getFieldValue: (name: string) => any
@@ -150,9 +157,15 @@ export const useFormContext = () => {
 export const FormProvider = ({
   children,
   initialData = {},
+  documentId = null,
 }: {
   children: React.ReactNode
   initialData?: Record<string, any>
+  /**
+   * The persisted document id (edit mode); `null` while unsaved. Exposed on
+   * the context for upload widgets honouring `upload.requireSavedDocument`.
+   */
+  documentId?: string | null
 }) => {
   const fieldValues = useRef<Record<string, any>>(
     JSON.parse(JSON.stringify(initialData?.fields ?? initialData))
@@ -640,6 +653,7 @@ export const FormProvider = ({
   return (
     <FormContext.Provider
       value={{
+        documentId,
         setFieldValue,
         setFieldStore,
         getFieldValue,
