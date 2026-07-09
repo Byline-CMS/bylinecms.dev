@@ -1,5 +1,19 @@
 # @byline/admin
 
+## 3.19.0
+
+### Minor Changes
+
+- added full hook control over upload storage keys, upload context, and storage move/exists, plus scoped counters and a save-first upload gate
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.19.0
+  - @byline/core@3.19.0
+  - @byline/i18n@3.19.0
+  - @byline/ui@3.19.0
+
 ## 3.18.0
 
 ### Minor Changes

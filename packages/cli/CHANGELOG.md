@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 3.19.0
+
+### Minor Changes
+
+- added full hook control over upload storage keys, upload context, and storage move/exists, plus scoped counters and a save-first upload gate
+
 ## 3.18.0
 
 ## 3.17.1
