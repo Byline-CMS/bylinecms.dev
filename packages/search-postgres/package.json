@@ -2,7 +2,7 @@
   "name": "@byline/search-postgres",
   "private": false,
   "license": "MPL-2.0",
-  "version": "3.17.0",
+  "version": "3.17.1",
   "engines": {
     "node": ">=20.9.0"
   },

@@ -1,5 +1,16 @@
 # @byline/admin
 
+## 3.17.1
+
+### Patch Changes
+
+- fixed upload fields nested in group/array/blocks — recursive upload-field discovery, upload transport resolution, and storage cleanup on delete
+- Updated dependencies
+  - @byline/auth@3.17.1
+  - @byline/core@3.17.1
+  - @byline/i18n@3.17.1
+  - @byline/ui@3.17.1
+
 ## 3.17.0
 
 ### Minor Changes
