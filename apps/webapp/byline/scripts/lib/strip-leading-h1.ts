@@ -23,7 +23,7 @@ import { toString as mdastToString } from 'mdast-util-to-string'
 
 export function stripLeadingH1IfMatches(root: Root, title: string): Root {
   const first = root.children[0]
-  if (!first || first.type !== 'heading' || first.depth !== 1) return root
+  if (first?.type !== 'heading' || first.depth !== 1) return root
   const headingText = mdastToString(first).trim().toLowerCase()
   const wanted = title.trim().toLowerCase()
   if (headingText !== wanted) return root

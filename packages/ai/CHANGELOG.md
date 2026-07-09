@@ -1,5 +1,14 @@
 # @infonomic/ai
 
+## 3.18.0
+
+### Patch Changes
+
+- Updated dependencies [43d3d97]
+  - @byline/core@3.18.0
+  - @byline/richtext-lexical@3.18.0
+  - @byline/ui@3.18.0
+
 ## 3.17.1
 
 ### Patch Changes
@@ -729,6 +738,7 @@
 ### Minor Changes
 
 - Highlights
+
   - Counter field type — new allocator-assigned counter field that draws values from a shared group pool, perfect for cross-collection facet IDs (e.g.
     /library?t=1&t=4&t=9). Backed by Postgres sequences, registered automatically at boot, immutable after assignment, with structural validation
     banning counters inside array/blocks.
@@ -741,6 +751,7 @@
     row-constructor that Postgres rejected. Empty arrays short-circuit safely.
 
   CLI updates
+
   - Bundled migration template updated to the new single migration.
   - AI example wiring (@byline/ai) now ships out of the box on the news collection (title / summary / content). Six new AI files + the
     LexicalRichTextAi editor pattern + ai-plugin-text plugin demo. Five markdown-ingestion dev-deps added so byline/scripts/import-docs.ts runs cleanly

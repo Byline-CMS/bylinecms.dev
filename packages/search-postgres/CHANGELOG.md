@@ -1,5 +1,12 @@
 # @byline/search-postgres
 
+## 3.18.0
+
+### Patch Changes
+
+- Updated dependencies [43d3d97]
+  - @byline/core@3.18.0
+
 ## 3.17.1
 
 ### Patch Changes

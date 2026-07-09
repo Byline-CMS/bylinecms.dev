@@ -82,7 +82,7 @@ export function resolveFieldForPath(
   if (segments.length === 0) return null
 
   const [first, ...rest] = segments
-  if (!first || first.kind !== 'field') return null
+  if (first?.kind !== 'field') return null
 
   let current: Field | undefined = definition.fields.find((f) => f.name === first.key)
   if (!current) return null
