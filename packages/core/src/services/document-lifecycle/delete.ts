@@ -10,7 +10,8 @@ import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
-import { getUploadFields } from '../../utils/storage-utils.js'
+import { hasUploadField, isUploadField } from '../../utils/storage-utils.js'
+import { walkFieldTree } from '../walk-field-tree.js'
 import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
 import { invokeHook } from './internals.js'
 import { promoteChildrenAndRemove } from './tree.js'
@@ -61,8 +62,7 @@ export async function deleteDocument(
       //    AND a storage provider, fetch with reconstruct: true so we
       //    can read the stored file paths (and persisted variant paths)
       //    from the field values before the DB rows are deleted.
-      const uploadFieldNames = getUploadFields(definition).map((f) => f.name)
-      const isUploadCollection = uploadFieldNames.length > 0 && ctx.storage != null
+      const isUploadCollection = hasUploadField(definition) && ctx.storage != null
       const latest = await db.queries.documents.getDocumentById({
         collection_id: ctx.collectionId,
         document_id: params.documentId,
@@ -77,20 +77,25 @@ export async function deleteDocument(
       }
 
       // Collect storage paths for every upload-capable field on the doc:
-      // the original file plus every persisted variant. Reading the
+      // the original file plus every persisted variant. The schema/data
+      // walk descends into `group` / `array` / `blocks`, so upload fields
+      // nested in repeating structures are cleaned up too. Reading the
       // variants from the field value (rather than re-deriving from
       // `upload.sizes`) keeps cleanup correct even when the size set
       // changes between upload and delete.
       const storagePathsToDelete: string[] = []
       if (isUploadCollection) {
-        for (const fieldName of uploadFieldNames) {
-          const fieldValue = (latest as Record<string, any>)?.fields?.[fieldName]
+        const data = (latest as Record<string, any>)?.fields
+        for (const leaf of walkFieldTree(definition.fields, data)) {
+          if (!isUploadField(leaf.field)) continue
+          const fieldValue = leaf.value
           if (!fieldValue || typeof fieldValue !== 'object') continue
-          if (typeof fieldValue.storagePath === 'string') {
-            storagePathsToDelete.push(fieldValue.storagePath)
+          const stored = fieldValue as Record<string, any>
+          if (typeof stored.storagePath === 'string') {
+            storagePathsToDelete.push(stored.storagePath)
           }
-          if (Array.isArray(fieldValue.variants)) {
-            for (const variant of fieldValue.variants) {
+          if (Array.isArray(stored.variants)) {
+            for (const variant of stored.variants) {
               if (variant && typeof variant.storagePath === 'string') {
                 storagePathsToDelete.push(variant.storagePath)
               }

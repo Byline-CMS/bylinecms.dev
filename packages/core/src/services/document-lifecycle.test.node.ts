@@ -1188,6 +1188,61 @@ describe('Document lifecycle service', () => {
         })
       )
     })
+
+    it('cleans up stored files for upload fields at any nesting depth', async () => {
+      const { db, getDocumentById } = createMockDb()
+      const upload = { mimeTypes: ['application/pdf'], maxFileSize: 1024 }
+      const definition: CollectionDefinition = {
+        ...minimalCollection,
+        fields: [
+          { name: 'cover', label: 'Cover', type: 'image', upload },
+          {
+            name: 'files',
+            label: 'Files',
+            type: 'array',
+            fields: [
+              {
+                name: 'filesGroup',
+                type: 'group',
+                fields: [{ name: 'publicationFile', label: 'File', type: 'file', upload }],
+              },
+            ],
+          },
+        ],
+      }
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'doc-to-delete',
+        fields: {
+          cover: {
+            storagePath: 'covers/original.jpg',
+            variants: [{ storagePath: 'covers/thumb.avif' }],
+          },
+          files: [
+            { filesGroup: { publicationFile: { storagePath: 'files/a.pdf' } } },
+            { filesGroup: { publicationFile: null } },
+            { filesGroup: { publicationFile: { storagePath: 'files/b.pdf' } } },
+          ],
+        },
+      })
+      const storageDelete = vi.fn().mockResolvedValue(undefined)
+      const ctx = {
+        ...buildCtx(db, definition),
+        storage: { delete: storageDelete } as any,
+      }
+
+      await deleteDocument(ctx, { documentId: 'doc-1' })
+
+      // reconstruct: true because the collection is upload-capable
+      expect(getDocumentById).toHaveBeenCalledWith(expect.objectContaining({ reconstruct: true }))
+      expect(storageDelete.mock.calls.map((c) => c[0])).toEqual([
+        'covers/original.jpg',
+        'covers/thumb.avif',
+        'files/a.pdf',
+        'files/b.pdf',
+      ])
+    })
   })
 
   // -----------------------------------------------------------------------

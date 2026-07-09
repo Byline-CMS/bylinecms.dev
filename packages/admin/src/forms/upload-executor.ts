@@ -97,10 +97,10 @@ export async function executeUploads(
 /**
  * Extract the leaf field name from a `fieldPath`. Top-level upload
  * fields (`'image'`, `'avatar'`) pass through unchanged; nested paths
- * (`'profile.avatar'`) reduce to their last segment, since the
- * server-side resolver matches against top-level field names today.
- * Nested upload fields would need a richer transport selector when
- * they land — the host resolver is the natural place to extend.
+ * (`'files[0].filesGroup.publicationFile'`) reduce to their last
+ * segment. The server-side resolver walks the schema recursively and
+ * matches upload fields by leaf name at any nesting depth, so leaf
+ * names must be unique among a collection's upload-capable fields.
  */
 function uploadFieldName(fieldPath: string): string {
   const dot = fieldPath.lastIndexOf('.')
