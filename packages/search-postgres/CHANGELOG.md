@@ -1,5 +1,13 @@
 # @byline/search-postgres
 
+## 3.16.1
+
+### Patch Changes
+
+- fixed nested file/image uploads not rendering in array and group fields by threading `collectionPath` through
+- Updated dependencies
+  - @byline/core@3.16.1
+
 ## 3.16.0
 
 ### Minor Changes

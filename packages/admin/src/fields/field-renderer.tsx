@@ -274,6 +274,7 @@ export const FieldRenderer = ({
             }
             defaultValue={defaultValue}
             path={path}
+            collectionPath={collectionPath}
             contentLocale={contentLocale}
           />
         )
@@ -295,6 +296,7 @@ export const FieldRenderer = ({
             defaultValue={defaultValue}
             path={path}
             disableSorting={disableSorting}
+            collectionPath={collectionPath}
             contentLocale={contentLocale}
           />
         )
