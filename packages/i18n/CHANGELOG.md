@@ -1,5 +1,16 @@
 # @byline/i18n
 
+## 3.17.0
+
+### Minor Changes
+
+- added conditional field visibility (`condition` on schema fields) and cross-field writes via the field-hook context's `setFieldValue`
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/ui@3.17.0
+
 ## 3.16.1
 
 ### Patch Changes
