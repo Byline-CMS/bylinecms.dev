@@ -33,6 +33,14 @@ const USE_AS_PATH_SOURCE_TYPES = new Set<FieldType>([
   'date',
   'datetime',
   'time',
+  // Numeric identity fields. `derivePath` stringifies the value before
+  // slugifying, so an integer or an allocator-assigned `counter` becomes a
+  // clean numeric slug (e.g. `1`, `42`). A replacement slugifier can branch
+  // on `collectionPath` to reshape it further — e.g. zero-padding a serial
+  // number to a fixed width. `float` / `decimal` are deliberately excluded:
+  // their string form carries a `.` which does not belong in a path segment.
+  'integer',
+  'counter',
 ])
 
 /**
@@ -72,7 +80,8 @@ function walkFields(fields: readonly Field[], visit: (field: Field) => void): vo
  *    into derived paths via `useAsPath`.
  *  - When `useAsPath` is set, the referenced field must exist at the
  *    top level of the collection and be of a type the slugifier can
- *    sensibly consume (text-like or date-like).
+ *    sensibly consume (text-like, date-like, or a numeric identity
+ *    field — `integer` / `counter`).
  *  - No field may be named `availableLocales`; collections opt into the
  *    editorial available-locales control via `advertiseLocales: true`.
  *  - When `advertiseLocales` is `true`, the collection must have at least

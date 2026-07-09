@@ -106,6 +106,10 @@ export function getClientConfig(): ClientConfig {
       routes: serverConfig.routes,
       collections: serverConfig.collections,
       admin: [],
+      // Carry the slugifier through the SSR fallback so a form rendered
+      // server-side derives the same path preview as the hydrated client
+      // (both configs are meant to register the same function).
+      slugifier: serverConfig.slugifier,
     } as ClientConfig
   }
   throw new Error(

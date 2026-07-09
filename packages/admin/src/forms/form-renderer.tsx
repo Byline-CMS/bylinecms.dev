@@ -18,6 +18,7 @@ import type {
   TabSetDefinition,
   WorkflowStatus,
 } from '@byline/core'
+import { getClientConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton } from '@byline/ui/react'
@@ -240,6 +241,19 @@ const FormContent = ({
     useState<SystemFieldsSubmitPayload | null>(null)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
   const { uploadField } = useBylineFieldServices()
+
+  // Path-widget wiring. The live preview must use the installation's
+  // client-side slugifier (same function as `ServerConfig.slugifier`) so it
+  // agrees with the persisted path. And when the `useAsPath` source is a
+  // server-assigned `counter` or a read-only field, its value can't be
+  // reproduced or changed through the form, so the widget suppresses its
+  // source-derived preview and "Regenerate" affordance.
+  const pathSlugifier = getClientConfig().slugifier
+  const pathSourceLocked = useMemo(() => {
+    if (!useAsPath) return false
+    const source = fields.find((f) => f.name === useAsPath)
+    return source != null && (source.type === 'counter' || source.readOnly === true)
+  }, [useAsPath, fields])
 
   // Sync contentLocale when the route re-fetches with a different locale.
   useEffect(() => {
@@ -672,6 +686,8 @@ const FormContent = ({
               defaultLocale={defaultLocale}
               activeLocale={contentLocale}
               mode={mode}
+              slugifier={pathSlugifier}
+              sourceLocked={pathSourceLocked}
             />
           )}
           {tree && mode === 'edit' && typeof initialData?.id === 'string' && (

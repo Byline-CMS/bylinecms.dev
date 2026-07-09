@@ -102,6 +102,30 @@ describe('validateCollections', () => {
     expect(() => validateCollections([collection])).not.toThrow()
   })
 
+  it('accepts useAsPath pointing at a counter field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'serialNumber', label: 'Serial Number', type: 'counter', group: 'serials' },
+      ],
+      useAsPath: 'serialNumber',
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('accepts useAsPath pointing at an integer field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'issue', label: 'Issue', type: 'integer' },
+      ],
+      useAsPath: 'issue',
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
   // useAsPath deliberately resolves against top-level fields only. A
   // nested source (inside a group, array, or block) isn't addressable
   // in the derivation cascade — path is a singular identity anchor, not
