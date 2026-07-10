@@ -1,5 +1,16 @@
 # @byline/admin
 
+## 3.20.2
+
+### Patch Changes
+
+- added a rounded frame + below-frame help text to **`@byline/admin`** relation fields, and fixed **`@byline/richtext-lexical`** settings forwarding resurrecting a removed InlineImageExtension
+- Updated dependencies
+  - @byline/auth@3.20.2
+  - @byline/core@3.20.2
+  - @byline/i18n@3.20.2
+  - @byline/ui@3.20.2
+
 ## 3.20.1
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @byline/db-postgres
 
+## 3.20.2
+
+### Patch Changes
+
+- added a rounded frame + below-frame help text to **`@byline/admin`** relation fields, and fixed **`@byline/richtext-lexical`** settings forwarding resurrecting a removed InlineImageExtension
+- Updated dependencies
+  - @byline/admin@3.20.2
+  - @byline/auth@3.20.2
+  - @byline/core@3.20.2
+
 ## 3.20.1
 
 ### Patch Changes
