@@ -184,6 +184,101 @@ describe('applyPatches', () => {
     expect(moved.reviews.map((r) => r._id)).toEqual(['c', 'a', 'b'])
   })
 
+  it('array.remove removes an item by stable _id', () => {
+    const original = {
+      reviews: [
+        { _id: 'a', rating: 3 },
+        { _id: 'b', rating: 4 },
+        { _id: 'c', rating: 5 },
+      ],
+    }
+
+    const { doc, errors } = applyPatches(DocsDefinition, original, [
+      { kind: 'array.remove', path: 'reviews', itemId: 'b' },
+    ])
+
+    expect(errors).toHaveLength(0)
+    const result = doc as { reviews: { _id: string }[] }
+    expect(result.reviews.map((r) => r._id)).toEqual(['a', 'c'])
+  })
+
+  it('array.remove falls back to a positional index for items without stable ids', () => {
+    // Regression: an admin session can add an item (no _id yet) and remove
+    // it in the same save; the remove patch carries the item's index. This
+    // previously no-opped silently and the "removed" item reappeared.
+    const original = {
+      reviews: [{ rating: 3 }, { rating: 4 }, { rating: 5 }],
+    }
+
+    const { doc, errors } = applyPatches(DocsDefinition, original, [
+      { kind: 'array.remove', path: 'reviews', itemId: '1' },
+    ])
+
+    expect(errors).toHaveLength(0)
+    const result = doc as { reviews: { rating: number }[] }
+    expect(result.reviews.map((r) => r.rating)).toEqual([3, 5])
+  })
+
+  it('array.remove of a missing itemId is an idempotent no-op', () => {
+    const original = {
+      reviews: [{ _id: 'a', rating: 3 }],
+    }
+
+    const { doc, errors } = applyPatches(DocsDefinition, original, [
+      { kind: 'array.remove', path: 'reviews', itemId: 'gone' },
+    ])
+
+    expect(errors).toHaveLength(0)
+    expect((doc as { reviews: unknown[] }).reviews).toHaveLength(1)
+  })
+
+  it('does NOT misread a digit-prefixed uuid as an index (strict integer fallback)', () => {
+    // Number.parseInt('3f2a…') === 3 — a real-but-absent _id starting with
+    // digits must not resolve to a positional index and hit the wrong item.
+    const original = {
+      reviews: [
+        { _id: 'a', rating: 1 },
+        { _id: 'b', rating: 2 },
+        { _id: 'c', rating: 3 },
+        { _id: 'd', rating: 4 },
+      ],
+    }
+
+    const removeResult = applyPatches(DocsDefinition, original, [
+      { kind: 'array.remove', path: 'reviews', itemId: '3f2a09c1-dead-beef-0000-000000000000' },
+    ])
+    expect(removeResult.errors).toHaveLength(0)
+    // Nothing removed — in particular NOT the item at index 3.
+    expect((removeResult.doc as { reviews: unknown[] }).reviews).toHaveLength(4)
+
+    const moveResult = applyPatches(DocsDefinition, original, [
+      {
+        kind: 'array.move',
+        path: 'reviews',
+        itemId: '3f2a09c1-dead-beef-0000-000000000000',
+        toIndex: 0,
+      },
+    ])
+    // array.move keeps its throw-on-missing contract.
+    expect(moveResult.errors).toHaveLength(1)
+    expect(moveResult.errors[0]?.message).toContain('not found')
+  })
+
+  it('array.insert followed by array.remove of the same _id within one patch batch', () => {
+    // Mirrors the admin flow after the fix: add assigns _id client-side, so
+    // add-then-remove in a single editing session round-trips cleanly.
+    const original = { reviews: [{ _id: 'a', rating: 3 }] }
+
+    const { doc, errors } = applyPatches(DocsDefinition, original, [
+      { kind: 'array.insert', path: 'reviews', index: 1, item: { _id: 'new-1', rating: 5 } },
+      { kind: 'array.remove', path: 'reviews', itemId: 'new-1' },
+    ])
+
+    expect(errors).toHaveLength(0)
+    const result = doc as { reviews: { _id: string }[] }
+    expect(result.reviews.map((r) => r._id)).toEqual(['a'])
+  })
+
   it('supports block.add and block.updateField on content blocks', () => {
     const original = {
       content: [],
