@@ -9,12 +9,14 @@ summary: "A pluggable SearchProvider seam in core with a built-in Postgres full-
 :::note[Partly shipped]
 The `SearchProvider` seam, the built-in Postgres full-text driver, the
 type-enriched `SearchDocument` + assembler, lifecycle-hook indexing, the
-`reindex` command + admin button, and the single-collection
-`client.collection(x).search()` query surface are **shipped** (Phase 2). Still
-planned: the cross-collection **zone** query entry point, **`hydrate`**
-(two-tier rich results), **structured `where`** filtering and **facet
-aggregation** at query time, **attachment text-extraction** (Phase 3),
-**external drivers** (Phase 4), and the **MCP** tool (Phase 5). Each section
+`reindex` command + admin button, the single-collection
+`client.collection(x).search()` query surface, the cross-collection **zone**
+entry point, **`hydrate`** (two-tier rich results), and **row-level
+authorization** on search are **shipped** (Phase 2). Still planned:
+**structured `where`** filtering and **facet aggregation** at query time,
+**driver-specific query extensions** (the typed escape hatch),
+**attachment text-extraction** (Phase 3), **external drivers** (Phase 4),
+and the **MCP** tool (Phase 5). Each section
 below marks what is shipped vs planned.
 :::
 
@@ -109,8 +111,10 @@ interface SearchCapabilities {
   search but no provider is registered (`validateSearchConfig`).
 - **`capabilities`** is the honesty layer: the Postgres floor declares
   `weighting` + `highlights` only; `facets` / `typoTolerance` / `semantic` /
-  `bm25` are `false` until a richer driver (or capability) lands. Consumers light
-  up features against it rather than assuming.
+  `bm25` are `false` until a richer driver (or capability) lands. Consumers
+  light up features against it rather than assuming — which also makes driver
+  degradation *deliberate*: a UI can hide facet chips when the registered
+  driver can't aggregate, instead of silently returning less.
 - **External drivers** implement the same interface. A vector driver embeds the
   text on `upsert` and runs ANN on `search`; a hybrid driver fuses scores. None
   touch the read path. (Planned — Phase 4.)
@@ -243,6 +247,55 @@ interface SearchFacetValue { id: number | string; term: string }  // counter id 
   `@byline/search-mysql` ships its own. Install paths: run the SQL by hand,
   `migrate(pool)` as a deploy step (recommended), or `autoMigrate` (dev). See the
   package README.
+
+## Mapping the seam to Solr (design study)
+
+Solr is the sharpest available test of the seam's portability claim — an
+engine with its own schema model (dynamic fields), its own query language
+(eDisMax), and no SQL — so it is worth walking the full mapping. The
+conclusions double as a checklist for any external driver (Phase 4):
+
+- **The projection suffices.** `SearchField.type` / `role` map directly onto
+  Solr dynamic fields — `body` text → `*_txts_{lang}` (per-language
+  analyzers), facet ids → `{name}_tim` (multivalued int), filters → `_i` /
+  `_f` / `_b` / `_dt` / `_s` — with no re-inspection of collection schemas.
+  The type enrichment in `SearchDocument` exists precisely so this table can
+  be written once per driver.
+- **Weight classes travel.** Solr removed index-time boosts in 7.x, so
+  `SearchField.boost` is realised the same way the Postgres driver maps
+  boosts to `setweight` classes: bucket body text into four per-class
+  catch-all fields at index time (`body_a_txts_{lang}` … `body_d_…`) and
+  carry a fixed eDisMax `qf` (`^8 ^4 ^2 ^1`) on every query.
+  `capabilities.weighting` holds without the driver needing collection
+  config at query time — the bucketing convention *is* the contract, and it
+  generalises: `setweight` classes and `qf`-boosted catch-alls are the same
+  idea on different engines.
+- **Facet aggregation is reachable at the seam.** The projected `counter` ids
+  aggregate via the JSON Facet API over `{name}_tim`; buckets come back as
+  stable ids in the shared `SearchFacetBucket` shape. A Solr driver declares
+  `capabilities.facets: true` (and `bm25: true` — Lucene's default
+  similarity) — the first entries of the capabilities matrix the Postgres
+  floor leaves `false`.
+- **Document grain.** One Solr document per
+  `(collectionPath, documentId, locale)`, with the triple as the Solr id —
+  the seam's idempotent `upsert` key. Hand-rolled Solr integrations often
+  index one document per source doc with locale-suffixed fields side by
+  side; the per-locale grain is what the seam's contract implies, and
+  locale-scoped queries filter on the locale field instead. Per-locale
+  analyzers ride a locale → language-suffix resolver mirroring the Postgres
+  driver's `localeRegconfig`.
+- **Schema ownership without `migrate()`.** The index schema is the
+  deployment's Solr configset (dynamic fields), applied by provisioning the
+  core. The "driver owns its schema" rule is about *responsibility*, not
+  about SQL migrations — a driver whose engine has no DDL simply documents
+  and ships its schema artifact instead.
+- **What the mapping can't reach yet.** Attachment text (classic Solr Cell /
+  Tika extract-handler territory) waits for Phase 3's extraction providers;
+  structured `where` needs the predicate pushdown; and Solr's
+  engine-specific power (boost functions, suggesters, facet pivots) is the
+  motivating case for
+  [driver-specific query options](#driver-specific-query-options--the-typed-escape-hatch)
+  below.
 
 ## Index lifecycle (shipped)
 
@@ -398,11 +451,97 @@ removed. Both entry points share one finishing pipeline
 (`packages/client/src/search.ts` → `finalizeSearchHits`); integration
 coverage: `client-zone-search.integration.test.ts`.
 
+### Driver-specific query options — the typed escape hatch
+
+*Planned — design settled; needs the one-field core change plus a client
+pass-through test.*
+
+Every adapter seam creates lowest-common-denominator pressure: provider-
+specific power (Solr boost functions, spellcheck / suggesters, facet pivots,
+MLT; a vector driver's ANN parameters) doesn't fit `SearchQuery`, and if the
+seam offers no sanctioned outlet, call sites reach around it. The failure
+mode is well-worn in hand-rolled CMS + search-engine integrations: a frontend
+that queries the engine directly — to get per-request field routing
+(`title:` / `author:` prefix searches) or a recency sort — ends up
+re-encoding the index schema in frontend string constants (field lists that
+must track fields *and* locales), hand-rolling the id → document hydration
+read, and usually losing ranked order along the way. Three copies of
+knowledge the seam exists to keep in one place.
+
+The escape hatch keeps that power **inside the pipeline**, via declaration
+merging. Core declares an empty, provider-agnostic slot — and that is the
+whole core change; core never interprets it:
+
+```ts
+// @byline/core
+export interface SearchDriverExtensions {}
+
+interface SearchQuery {
+  // …
+  /**
+   * Driver-specific extensions, namespaced by driver key. Core and the
+   * client pass this through verbatim. Must stay JSON-serializable —
+   * queries travel over the REST transport and (later) MCP.
+   */
+  driver?: SearchDriverExtensions
+}
+```
+
+Each driver package augments the slot under its own key, so merely depending
+on the driver lights up its options in the host's editor:
+
+```ts
+// a Solr driver package (illustrative)
+export interface SolrQueryOptions {
+  fields?: string[]      // restrict scoring to specific body fields
+  boostFunction?: string // additive bf, e.g. recency decay
+  sort?: string          // override relevance order (browse views)
+}
+
+declare module '@byline/core' {
+  interface SearchDriverExtensions {
+    solr?: SolrQueryOptions
+  }
+}
+```
+
+```ts
+// host call site
+client.collection('publications').search({
+  query,
+  driver: { solr: { fields: ['title'] } },
+})
+```
+
+Namespacing is the degradation story: a driver ignores keys it doesn't own,
+so a query carrying `driver.solr` runs unmodified on the Postgres driver —
+the search loses its tuning, not its correctness. The client's only job is to
+forward `driver` verbatim through both entry points, pinned by a test so the
+pass-through is a contract rather than an accident.
+
+Two boundary rules keep the hatch from rotting into the legacy reach-around:
+
+- **Promote before you extend.** An option a second driver would plausibly
+  want is generic — it belongs on `SearchQuery` proper (capability-gated
+  where not universal), not in the bag. Field-scoped search and sort
+  overrides are already promotion candidates. The smell test: *would a future
+  vector driver want this too?*
+- **Never bypass the pipeline.** The hatch rides *inside* the query, so every
+  search — however tuned — still exits through `finalizeSearchHits`
+  (authorization, stale-hit dropping, hydration). Exporting the concrete
+  provider for direct index calls is fine for admin diagnostics and tooling,
+  but it is not a sanctioned read path — per-call-site bypass is exactly how
+  the duplication described above takes hold.
+
 ### Planned (not yet shipped)
 
 - **Structured `where` filtering** and **facet aggregation** at query time — the
   options are accepted in the API, but the Postgres driver does not yet apply
-  `where` or compute facet buckets (`capabilities.facets === false`).
+  `where` or compute facet buckets (`capabilities.facets === false`; the
+  [Solr design study](#mapping-the-seam-to-solr-design-study) shows the
+  aggregation path at the seam).
+- **Driver-specific query extensions** — the `SearchQuery.driver` slot
+  ([the typed escape hatch](#driver-specific-query-options--the-typed-escape-hatch) above).
 - **MCP** exposes the same surface as a `search` tool (Phase 5).
 
 ## Search zones
@@ -458,14 +597,19 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
    `ServerConfig.search` registration + boot validation; the collection
    `search` config; lifecycle-hook indexing; `reindex` + the `collections.<path>.reindex`
    ability + admin button; `client.collection(x).search()`; the docs frontend
-   results route. **Deferred within Phase 2:** the cross-collection `zone` query,
-   `hydrate`, structured `where` filtering, facet aggregation, row-level
-   authorization on search, and async/outbox indexing.
+   results route; the cross-collection `zone` query + `hydrate`
+   (`finalizeSearchHits`); row-level authorization on search. **Deferred
+   within Phase 2:** structured `where` filtering, facet aggregation (Postgres
+   driver), the `SearchQuery.driver` extension slot, and async/outbox
+   indexing.
 3. **Attachment text-extraction** — the extraction-provider interface + a first
    driver, its own table, and the join into `body`. *(Planned.)*
 4. **External drivers** — a vector and/or hybrid driver against the same seam
    (the RAG payoff; the home for the private BM25 / metadata-ranking work).
-   *(Planned.)*
+   *(Planned — the
+   [Solr design study](#mapping-the-seam-to-solr-design-study) walks the
+   seam mapping end-to-end, including facet aggregation, as the template for
+   any external driver.)*
 5. **MCP `search` tool** — wire the query surface into the MCP server. *(Planned.)*
 
 ## Open questions
@@ -476,8 +620,20 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
 - **Resolved — sync indexing for the Postgres driver.** Shipped inline in the
   lifecycle hook. Async/outbox for network-backed drivers remains.
 - **Partly resolved — facets over EAV.** The `{ id, term }` projection is built
-  and indexed (term searchable, id stored). Facet *aggregation queries* and the
-  cardinality/typing story are still open (`capabilities.facets === false`).
+  and indexed (term searchable, id stored). Facet *aggregation queries* remain
+  open for the Postgres driver (`capabilities.facets === false`) — but the
+  [Solr design study](#mapping-the-seam-to-solr-design-study) shows the
+  aggregation path at the seam (JSON Facet API over the projected `counter`
+  ids returning the shared `SearchFacetBucket` shape), so what's left is
+  Postgres-side implementation, not design.
+- **Settled in design — driver-specific query extensions.** The
+  declaration-merged `SearchQuery.driver` slot (see
+  [the typed escape hatch](#driver-specific-query-options--the-typed-escape-hatch)):
+  core declares the empty `SearchDriverExtensions` interface + one optional
+  field, the client forwards it verbatim (pinned by test), drivers augment it
+  namespaced by key. Open governance question: when to *promote* an option
+  from a driver bag to `SearchQuery` proper — field-scoped search and sort
+  overrides are the first candidates.
 - **Resolved — row-level authorization on search.** "Rank in provider,
   authorise in core" shipped: `search()` re-resolves candidate hit ids through
   the normal read path when the collection has a `beforeRead` hook (see
