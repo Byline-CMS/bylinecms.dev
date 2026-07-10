@@ -580,11 +580,77 @@ unaffected.
 files: an **extraction-provider interface** — `file → { markdown, plainText,
 metadata }` — so structure-aware, markdown-emitting extractors (Docling-class)
 and classic extractors (Apache Tika) are interchangeable drivers, exactly as
-`SearchProvider` makes rankers interchangeable. Extracted output lands in its own
-table keyed to the file (never as synthetic `store_*` data), invalidated on
-re-upload, and joined into the searchable `body`. The full landscape, tiered
-strategy (fast / local-ML / VLM), page-level routing, and licensing analysis live
-in the [search & extraction strategy brief](../byline-search-extraction-strategy.md).
+`SearchProvider` makes rankers interchangeable. Implementations are thin HTTP
+clients against extraction services (a Tika server, docling-serve, a hosted
+VLM endpoint). The full landscape, tiered strategy (fast / local-ML / VLM),
+page-level routing, and licensing analysis live in the
+[search & extraction strategy brief](../byline-search-extraction-strategy.md).
+
+### A sibling seam, not a search-driver sub-module
+
+The tempting shape — extractors configured *inside* each search provider,
+invoked during indexing — is wrong, because it couples three things that
+want different lifecycles:
+
+- **Extraction is expensive and cacheable; indexing is cheap and
+  re-runnable.** The index lifecycle leans on `upsert` being safe to repeat —
+  `reindex` re-reads everything. Extraction inside a driver's upsert path
+  means every rebuild re-extracts every file; tolerable for Tika at small
+  scale, prohibitive when an extractor costs seconds-to-minutes and real
+  money per document. Hand-rolled CMS + Solr integrations commonly do
+  exactly this (Solr Cell's `extractOnly=true` used as an inline extraction
+  service, output merged into the update, re-extracted on every reindex,
+  failures swallowed mid-indexing) — the pattern to design away from. Solr
+  Cell being provider-internal is a property of *one possible extractor*,
+  not a reason to shape the architecture around it.
+- **The N×M problem.** Extractor config inside providers means every driver
+  (Postgres, Solr, a future vector/hybrid) re-integrates it. But extracted
+  text, once it exists, is *just another body field* — it enters through
+  `SearchDocument` like any text field does. One extraction pipeline; every
+  driver consumes it with **zero changes**.
+- **Search is not the only consumer.** `markdown` output feeds RAG, the
+  [markdown export surface](./04-markdown-export.md), and MCP; `plainText`
+  feeds the index. Extraction locked inside a search driver strands the
+  markdown half.
+
+### Persistence and lifecycle
+
+- **Extracted output lands in its own table** keyed to the file — content
+  hash + extractor id/version, never as synthetic `store_*` data — so a
+  re-upload invalidates it and an extractor upgrade can selectively
+  re-extract. The same schema-ownership pattern as
+  `byline_search_documents`.
+- **Extraction runs asynchronously off the upload lifecycle** — a publish
+  must never block on a VLM. On completion it triggers the owning document's
+  `indexDocument` re-sync (the same one path that already handles
+  publish/unpublish/edit). This trigger is the same machinery the deferred
+  async/outbox indexing wants — design them together.
+- **A backfill command** (the `reindex` analog) extracts an existing corpus.
+- **Language routing**: the extraction record carries a detected or declared
+  language, so the assembler can fold the text into the matching locale's
+  `SearchDocument` — attachments in different languages land in the right
+  per-locale index entries.
+
+### The extractor router is a composition of the seam
+
+Tiered routing — born-digital text documents through a fast classic
+extractor, scanned or chart/table-heavy documents through a structure-aware
+one — is not special machinery: a **router is itself an
+`ExtractionProvider`** that delegates. Routing signals: mime type, PDF
+text-layer presence (the born-digital test), page count / image density,
+per-collection config, cost budget. A cheap refinement the seam enables:
+**escalation** — run the fast extractor first, score the output (text-density
+heuristics), and escalate to the structure-aware tier only when the cheap
+pass looks like a scan. No search driver ever knows any of it happened.
+
+### The join into the index
+
+The join point is `buildSearchDocument` — the already-documented third
+`body` feed. Upload fields named in the collection's `search` config
+contribute their files' persisted `plainText` as low-weight body fields
+(the lightest weight class is the natural home, so attachment matches never
+outrank title/summary matches). Search drivers are unchanged by
+construction — which is the proof the seam boundary is drawn correctly.
 
 ## Phasing
 
@@ -602,8 +668,11 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
    within Phase 2:** structured `where` filtering, facet aggregation (Postgres
    driver), the `SearchQuery.driver` extension slot, and async/outbox
    indexing.
-3. **Attachment text-extraction** — the extraction-provider interface + a first
-   driver, its own table, and the join into `body`. *(Planned.)*
+3. **Attachment text-extraction** — the extraction-provider interface + a
+   first classic (Tika-class) driver, the extraction table, the async
+   completion → `indexDocument` trigger, and the join into `body`. The
+   extractor router + a structure-aware (Docling-class) driver follow as
+   pure configuration — no new machinery. *(Planned.)*
 4. **External drivers** — a vector and/or hybrid driver against the same seam
    (the RAG payoff; the home for the private BM25 / metadata-ranking work).
    *(Planned — the
@@ -618,7 +687,9 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
   per `(document, locale)`, indexed with a per-locale `regconfig`, plus a
   `defaultLocale` for locale-less queries.
 - **Resolved — sync indexing for the Postgres driver.** Shipped inline in the
-  lifecycle hook. Async/outbox for network-backed drivers remains.
+  lifecycle hook. Async/outbox for network-backed drivers remains — and the
+  attachment-extraction completion trigger (Phase 3) wants the same
+  machinery, so the two should be designed together.
 - **Partly resolved — facets over EAV.** The `{ id, term }` projection is built
   and indexed (term searchable, id stored). Facet *aggregation queries* remain
   open for the Postgres driver (`capabilities.facets === false`) — but the
