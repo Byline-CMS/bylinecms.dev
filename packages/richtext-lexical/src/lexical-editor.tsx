@@ -71,9 +71,11 @@ function loadEditorBundle(): Promise<EditorBundle> {
 /**
  * Returns a `RichTextEditorComponent` with editor settings baked in. Use
  * this at the registration site in your admin config when you want to
- * customise the editor across the whole installation; per-field
- * overrides via `RichTextField.editorConfig` continue to take precedence
- * at render time.
+ * customise the editor across the whole installation. Per-field overrides
+ * via `RichTextField.editorConfig` are MERGED over the baked config at
+ * render time (settings win per-key, most specific first) — but the baked
+ * `extensions` graph survives, since schema-side configs cannot carry
+ * extension references. See `resolveEditorConfig`.
  *
  * The returned component is lazy: the editor module graph (RichTextField
  * + every built-in extension + the Lexical core) is dynamically imported

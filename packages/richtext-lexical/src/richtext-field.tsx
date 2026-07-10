@@ -15,6 +15,7 @@ import cx from 'classnames'
 
 import { defaultEditorConfig } from './field/config/default'
 import { defaultExtensionsList } from './field/config/default-extensions'
+import { resolveEditorConfig } from './field/config/resolve-editor-config'
 import { EditorField } from './field/editor-field'
 import styles from './richtext-field.module.css'
 import type { EditorConfig } from './field/config/types'
@@ -70,18 +71,20 @@ export const RichTextField = ({
 
   const fieldId = instanceKey ? `${field.name}-${instanceKey}` : field.name
 
-  // Resolve the editor config with field-level priority:
-  //   1. `field.editorConfig` — set on the schema field itself (most specific).
-  //   2. `editorConfig` prop  — baked in at registration via `lexicalEditor()`.
-  //   3. `defaultEditorConfig` — package default.
-  // The schema-level value is typed as `unknown` at the `@byline/core` boundary,
-  // so the cast lives here where the Lexical config shape is known.
-  const resolved: EditorConfig =
-    (field.editorConfig as EditorConfig | undefined) ?? editorConfig ?? defaultEditorConfig
-  // Schema-side configs and the server-safe `defaultEditorConfig` carry no
-  // `extensions` field — extension references aren't JSON-safe. Materialise
-  // the package's client-only default list when one isn't already present so
-  // every render has a complete graph to feed `EditorContext`.
+  // Resolve the editor config by MERGING the schema field's `editorConfig`
+  // (settings-only, most specific) over the registered editor's config
+  // (baked via `lexicalEditor()`, the only layer that can carry an
+  // `extensions` graph) — see `resolveEditorConfig` for the full rationale.
+  // The schema-level value is typed as `unknown` at the `@byline/core`
+  // boundary, so the cast lives here where the Lexical config shape is known.
+  const resolved: EditorConfig = resolveEditorConfig(
+    field.editorConfig as EditorConfig | undefined,
+    editorConfig ?? defaultEditorConfig
+  )
+  // The server-safe `defaultEditorConfig` carries no `extensions` field —
+  // extension references aren't JSON-safe. Materialise the package's
+  // client-only default list when one isn't already present so every render
+  // has a complete graph to feed `EditorContext`.
   const baseEditorConfig: EditorConfig =
     resolved.extensions != null ? resolved : { ...resolved, extensions: defaultExtensionsList() }
 
