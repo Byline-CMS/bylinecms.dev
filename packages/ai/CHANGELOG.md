@@ -1,5 +1,19 @@
 # @infonomic/ai
 
+## 3.20.0
+
+### Minor Changes
+
+- added virtual fields — hooks-visible computed values that are never persisted to storage
+  fixed array item removal silently no-opping so removed items reappeared on save
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@3.20.0
+  - @byline/richtext-lexical@3.20.0
+  - @byline/ui@3.20.0
+
 ## 3.19.0
 
 ### Minor Changes

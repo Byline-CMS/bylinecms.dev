@@ -1,5 +1,12 @@
 # @byline/cli
 
+## 3.20.0
+
+### Minor Changes
+
+- added virtual fields — hooks-visible computed values that are never persisted to storage
+  fixed array item removal silently no-opping so removed items reappeared on save
+
 ## 3.19.0
 
 ### Minor Changes
