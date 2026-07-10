@@ -72,6 +72,124 @@ function walkFields(fields: readonly Field[], visit: (field: Field) => void): vo
 }
 
 /**
+ * Path-aware variant of `walkFields` — visits every field with its dotted
+ * schema path (e.g. `files.filesGroup.generateThumbnail`) so validation
+ * errors can point at the exact declaration site.
+ */
+function walkFieldsWithPath(
+  fields: readonly Field[],
+  visit: (field: Field, fieldPath: string) => void,
+  prefix = ''
+): void {
+  for (const field of fields) {
+    const fieldPath = prefix === '' ? field.name : `${prefix}.${field.name}`
+    visit(field, fieldPath)
+    if (field.type === 'group' || field.type === 'array') {
+      walkFieldsWithPath(field.fields, visit, fieldPath)
+    } else if (field.type === 'blocks') {
+      for (const block of field.blocks) {
+        walkFieldsWithPath(block.fields, visit, fieldPath)
+      }
+    }
+  }
+}
+
+/**
+ * Top-level field names a collection's `search` config references (body +
+ * facets + filters). Used to reject `virtual` on searchable fields —
+ * search indexing reads persisted values, which virtual fields never have.
+ */
+function searchReferencedFieldNames(collection: CollectionDefinition): Set<string> {
+  const names = new Set<string>()
+  const search = collection.search
+  if (search == null) return names
+  for (const decl of search.body ?? []) {
+    names.add(typeof decl === 'string' ? decl : decl.field)
+  }
+  for (const decl of search.facets ?? []) {
+    names.add(typeof decl === 'string' ? decl : decl.field)
+  }
+  for (const name of search.filters ?? []) {
+    names.add(name)
+  }
+  return names
+}
+
+/**
+ * Enforce the `virtual` field constraints for one collection. See
+ * `BaseField.virtual` in field-types.ts for the contract these rules back:
+ *
+ *   - virtual ⇒ `optional: true` OR a `defaultValue` — the value is absent
+ *     on every read, so a required virtual field could never validate on a
+ *     subsequent save.
+ *   - `counter` fields cannot be virtual (allocator-assigned, and the
+ *     lifecycle layer must be able to carry the value forward).
+ *   - Upload-capable `file` / `image` fields cannot be virtual — their
+ *     stored bytes are a side effect that "not persisting" can't undo.
+ *   - Fields referenced by `useAsTitle` / `useAsPath` / `search` cannot be
+ *     virtual — those subsystems read persisted values.
+ */
+function validateVirtualFields(collection: CollectionDefinition): void {
+  const searchNames = searchReferencedFieldNames(collection)
+
+  walkFieldsWithPath(collection.fields, (field, fieldPath) => {
+    if (field.virtual !== true) return
+
+    const hasDefault = 'defaultValue' in field && field.defaultValue !== undefined
+    if (field.optional !== true && !hasDefault) {
+      throw new Error(
+        `Collection "${collection.path}" declares virtual field "${fieldPath}" without ` +
+          '`optional: true` or a `defaultValue`. Virtual values are never persisted, so the ' +
+          'field is absent on every read — a required virtual field could never validate on a ' +
+          'subsequent save.'
+      )
+    }
+
+    if (field.type === 'counter') {
+      throw new Error(
+        `Collection "${collection.path}" declares virtual counter field "${fieldPath}". ` +
+          'Counter values are allocator-assigned and carried forward across versions — they ' +
+          'cannot be virtual.'
+      )
+    }
+
+    if ((field.type === 'file' || field.type === 'image') && field.upload != null) {
+      throw new Error(
+        `Collection "${collection.path}" declares virtual upload field "${fieldPath}". ` +
+          'Upload fields write bytes to storage as a side effect, which "not persisting" the ' +
+          'field value cannot undo — remove `virtual` or the `upload` block.'
+      )
+    }
+
+    // Collection-level directives read persisted values; a virtual source
+    // would resolve to nothing on every read. These only apply to top-level
+    // fields (nested paths never match a directive's field name).
+    const isTopLevel = !fieldPath.includes('.')
+    if (isTopLevel) {
+      if (collection.useAsTitle === field.name) {
+        throw new Error(
+          `Collection "${collection.path}" sets \`useAsTitle: '${field.name}'\` but that field ` +
+            'is virtual — titles are read from persisted values.'
+        )
+      }
+      if (collection.useAsPath === field.name) {
+        throw new Error(
+          `Collection "${collection.path}" sets \`useAsPath: '${field.name}'\` but that field ` +
+            'is virtual — paths are derived from persisted values.'
+        )
+      }
+      if (searchNames.has(field.name)) {
+        throw new Error(
+          `Collection "${collection.path}" references virtual field "${field.name}" in its ` +
+            '`search` config — search indexing reads persisted values, which virtual fields ' +
+            'never have.'
+        )
+      }
+    }
+  })
+}
+
+/**
  * Validate every collection in a configuration.
  *
  * Enforced rules:
@@ -90,6 +208,9 @@ function walkFields(fields: readonly Field[], visit: (field: Field) => void): vo
  *  - A collection may not set both `tree: true` and `orderable: true`. A
  *    document-tree owns ordering per-parent on the tree edge, so
  *    `byline_documents.order_key` is inert for it.
+ *  - `virtual` fields must satisfy the constraints in
+ *    {@link validateVirtualFields} (optional-or-default, no counters, no
+ *    upload fields, not referenced by useAsTitle / useAsPath / search).
  *
  * Throws a plain `Error` (not a `BylineError`) because configuration
  * validation runs at startup, before the logger and error registry are
@@ -133,5 +254,7 @@ export function validateCollections(collections: readonly CollectionDefinition[]
         `Collection "${collection.path}" sets both \`tree: true\` and \`orderable: true\`. A document-tree collection owns ordering on the tree edge (per-parent), so \`byline_documents.order_key\` is inert — set only \`tree: true\`.`
       )
     }
+
+    validateVirtualFields(collection)
   }
 }

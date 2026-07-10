@@ -360,3 +360,100 @@ describe('reserved field-name tolerance on restore', () => {
     expect(warnings, 'a reserved-name orphan must not be treated as an unknown field').toEqual([])
   })
 })
+
+describe('virtual fields', () => {
+  // Mirrors the publications shape that motivated `virtual`: a per-item
+  // "generate thumbnail" checkbox + page number inside an array group,
+  // plus a top-level virtual scalar. Virtual values must flow through the
+  // write pipeline (hooks see them) but emit NO store rows — reads
+  // reconstruct them as absent, so the next editing session starts clean.
+  const VirtualCollectionConfig = defineCollection({
+    path: 'virtual-docs',
+    labels: { singular: 'Virtual Doc', plural: 'Virtual Docs' },
+    fields: [
+      { name: 'title', type: 'text' },
+      { name: 'regenerateAll', type: 'checkbox', virtual: true, optional: true },
+      {
+        name: 'files',
+        type: 'array',
+        fields: [
+          {
+            name: 'filesGroup',
+            type: 'group',
+            fields: [
+              { name: 'label', type: 'text' },
+              { name: 'generateThumbnail', type: 'checkbox', virtual: true, optional: true },
+              { name: 'thumbnailPage', type: 'integer', virtual: true, defaultValue: 1 },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'scratch',
+        type: 'group',
+        virtual: true,
+        optional: true,
+        fields: [{ name: 'note', type: 'text', optional: true }],
+      },
+    ],
+  })
+
+  const virtualDocument = {
+    title: 'Publication-ish',
+    regenerateAll: true,
+    files: [
+      {
+        _id: 'item-1',
+        filesGroup: { label: 'English PDF', generateThumbnail: true, thumbnailPage: 3 },
+      },
+      {
+        _id: 'item-2',
+        filesGroup: { label: 'Thai PDF', generateThumbnail: false, thumbnailPage: 1 },
+      },
+    ],
+    scratch: { note: 'never stored' },
+  }
+
+  it('emits no store rows for virtual fields at any nesting depth', () => {
+    const flattened = flattenFieldSetData(
+      VirtualCollectionConfig.fields,
+      virtualDocument as any,
+      'all'
+    )
+
+    const paths = flattened.map((row) => row.field_path.join('.'))
+    // Persisted values survive…
+    expect(paths).toContain('title')
+    expect(paths).toContain('files.0.filesGroup.label')
+    expect(paths).toContain('files.1.filesGroup.label')
+    // …virtual leaves do not (top-level, nested in array group)…
+    expect(paths.some((p) => p.includes('regenerateAll'))).toBe(false)
+    expect(paths.some((p) => p.includes('generateThumbnail'))).toBe(false)
+    expect(paths.some((p) => p.includes('thumbnailPage'))).toBe(false)
+    // …and a virtual structure field omits its whole subtree.
+    expect(paths.some((p) => p.startsWith('scratch'))).toBe(false)
+  })
+
+  it('round-trip reconstruction leaves virtual fields structurally absent', () => {
+    const flattened = flattenFieldSetData(
+      VirtualCollectionConfig.fields,
+      virtualDocument as any,
+      'all'
+    )
+    const { data: restored, warnings } = restoreFieldSetData(
+      VirtualCollectionConfig.fields,
+      flattened
+    )
+
+    expect(warnings).toEqual([])
+    expect(restored.title).toBe('Publication-ish')
+    expect(restored.regenerateAll).toBeUndefined()
+    expect(restored.scratch).toBeUndefined()
+
+    const items = restored.files as Array<{ filesGroup: Record<string, unknown> }>
+    expect(items).toHaveLength(2)
+    expect(items[0]?.filesGroup.label).toBe('English PDF')
+    expect(items[0]?.filesGroup.generateThumbnail).toBeUndefined()
+    expect(items[0]?.filesGroup.thumbnailPage).toBeUndefined()
+  })
+})

@@ -80,6 +80,18 @@ function* flattenFieldDataGen(
   locale: string,
   field_path: string[]
 ): Generator<FlattenedFieldValue> {
+  // Virtual fields are never persisted. The value participated in the write
+  // pipeline (patches applied it, lifecycle hooks saw and could act on it),
+  // but no store_* row is written, so reads reconstruct the field as absent
+  // and the next editing session starts clean. This is the single
+  // enforcement point for the `virtual` contract — every nesting level
+  // (top-level, group children, array items, block fields) funnels through
+  // this function, and a virtual structure field omits its whole subtree.
+  // See `BaseField.virtual` in @byline/core.
+  if (field.virtual === true) {
+    return
+  }
+
   // Treat `null` the same as `undefined` — a removed/cleared field emits no
   // storage rows for the new version, so reads reconstruct as absent. Without
   // this guard, downstream value extractors (relation, file/image, group,

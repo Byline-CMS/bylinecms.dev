@@ -313,6 +313,47 @@ interface BaseField {
   condition?: FieldCondition
 
   /**
+   * When `true`, the field is **virtual**: its value participates in the
+   * editing session and the write pipeline, but is **never persisted** and
+   * therefore never read back.
+   *
+   * Lifecycle of a virtual value:
+   *
+   *   1. The admin renders and edits the field normally; its value travels
+   *      with the save (as `field.set` patches / document data) like any
+   *      other field.
+   *   2. Every lifecycle hook sees it — `beforeCreate` / `beforeUpdate`
+   *      (and the `after*` counterparts) receive the in-flight `data` with
+   *      virtual values present, so hooks can act on them (the canonical
+   *      use case: a "generate thumbnail" checkbox that triggers cover
+   *      generation during the save).
+   *   3. The storage layer's flatten step skips virtual fields wholesale —
+   *      no `store_*` row is ever written. This is the single enforcement
+   *      point; adapters implementing `IDbAdapter` MUST honour it (see
+   *      `@byline/db-postgres` → storage-flatten).
+   *   4. Reads reconstruct from stored rows, so the value is structurally
+   *      absent afterwards: the next editing session starts with the field
+   *      empty / at its `defaultValue`, and saves that don't touch it can
+   *      never re-trigger whatever side effect it drives.
+   *
+   * Applies at any nesting depth — a virtual field inside an `array` item
+   * `group` (e.g. `files[].filesGroup.generateThumbnail`) is skipped per
+   * item. Setting `virtual` on a structure field (`group` / `array` /
+   * `blocks`) omits the entire subtree.
+   *
+   * Constraints (enforced at boot by `validateCollections`):
+   *   - A virtual field must be `optional: true` **or** declare a
+   *     `defaultValue` — the value is absent on every read, so a required
+   *     virtual field could never validate on a subsequent save.
+   *   - `counter` fields cannot be virtual (allocator-owned).
+   *   - Upload-capable `file` / `image` fields cannot be virtual (their
+   *     stored bytes are a side effect that "not persisting" can't undo).
+   *   - Fields referenced by `useAsTitle` / `useAsPath` / `search` cannot
+   *     be virtual (those subsystems read persisted values).
+   */
+  virtual?: boolean
+
+  /**
    * Optional submit-time validator. Called by `validateForm()` for every field
    * type — including structure fields (group, array, blocks).
    *
