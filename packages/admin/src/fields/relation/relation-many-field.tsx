@@ -22,6 +22,7 @@ import {
   DraggableSortable,
   ErrorText,
   GripperVerticalIcon,
+  HelpText,
   IconButton,
   Label,
   moveItem,
@@ -201,10 +202,6 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
           required={!field.optional}
         />
       </div>
-      {field.helpText && (
-        <div className={cx('byline-field-relation-help', styles.help)}>{field.helpText}</div>
-      )}
-
       {isUnknown ? (
         <div className={cx('byline-field-relation-error-tile', styles['error-tile'])}>
           <span>
@@ -219,50 +216,57 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
         </div>
       ) : (
         <>
-          {items.length === 0 ? (
-            <p className={cx('byline-field-relation-many-empty', styles['many-empty'])}>
-              {t('fields.relation.manyEmpty', { label: targetDef.labels.plural })}
-            </p>
-          ) : (
-            <DraggableSortable
-              ids={items.map((v) => v.targetDocumentId)}
-              onDragEnd={handleDragEnd}
-              className={cx('byline-field-relation-many', styles.many)}
-            >
-              {items.map((value) => (
-                <RelationManyTile
-                  key={value.targetDocumentId}
-                  id={value.targetDocumentId}
-                  onRemove={() => handleRemove(value.targetDocumentId)}
-                  removeAriaLabel={t('fields.relation.removeAriaLabel', { label: targetLabel })}
-                >
-                  <RelationSummary
-                    targetDefinition={targetDef}
-                    targetAdminConfig={targetAdminConfig}
-                    displayField={field.displayField}
-                    value={value}
-                    cachedRecord={pickedRecords[value.targetDocumentId] ?? null}
-                  />
-                </RelationManyTile>
-              ))}
-            </DraggableSortable>
-          )}
+          {/* Rounded frame below the label wrapping the interactive
+              body (tile list and add button) — see `.frame` in the CSS
+              module. */}
+          <div className={cx('byline-field-relation-frame', styles.frame)}>
+            {items.length === 0 ? (
+              <p className={cx('byline-field-relation-many-empty', styles['many-empty'])}>
+                {t('fields.relation.manyEmpty', { label: targetDef.labels.plural })}
+              </p>
+            ) : (
+              <DraggableSortable
+                ids={items.map((v) => v.targetDocumentId)}
+                onDragEnd={handleDragEnd}
+                className={cx('byline-field-relation-many', styles.many)}
+              >
+                {items.map((value) => (
+                  <RelationManyTile
+                    key={value.targetDocumentId}
+                    id={value.targetDocumentId}
+                    onRemove={() => handleRemove(value.targetDocumentId)}
+                    removeAriaLabel={t('fields.relation.removeAriaLabel', { label: targetLabel })}
+                  >
+                    <RelationSummary
+                      targetDefinition={targetDef}
+                      targetAdminConfig={targetAdminConfig}
+                      displayField={field.displayField}
+                      value={value}
+                      cachedRecord={pickedRecords[value.targetDocumentId] ?? null}
+                    />
+                  </RelationManyTile>
+                ))}
+              </DraggableSortable>
+            )}
+
+            <div className={cx('byline-field-relation-many-add', styles['many-add'])}>
+              <Button
+                id={htmlId}
+                size="xs"
+                variant="outlined"
+                intent="noeffect"
+                type="button"
+                onClick={() => setPickerOpen(true)}
+              >
+                <PlusIcon width="14px" height="14px" />
+                {t('fields.relation.addButton', { label: targetLabel })}
+              </Button>
+            </div>
+          </div>
+
+          {field.helpText != null && <HelpText text={field.helpText} />}
 
           {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
-
-          <div className={cx('byline-field-relation-many-add', styles['many-add'])}>
-            <Button
-              id={htmlId}
-              size="xs"
-              variant="outlined"
-              intent="noeffect"
-              type="button"
-              onClick={() => setPickerOpen(true)}
-            >
-              <PlusIcon width="14px" height="14px" />
-              {t('fields.relation.addButton', { label: targetLabel })}
-            </Button>
-          </div>
 
           <RelationPicker
             multiple

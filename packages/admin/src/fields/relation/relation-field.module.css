@@ -4,12 +4,16 @@
  * Override handles:
  *   .byline-field-relation               — outer wrapper
  *   .byline-field-relation-header        — label row
- *   .byline-field-relation-help          — help text below the label
+ *   .byline-field-relation-frame         — rounded border around the interactive body
  *   .byline-field-relation-error-tile    — wrapper shown when target collection is unknown
  *   .byline-field-relation-error-text    — secondary error message below the title
  *   .byline-field-relation-tile          — bordered selected-value + actions container
  *   .byline-field-relation-actions       — top-right icon-button group (edit + remove)
  *   .byline-field-relation-mono          — monospace `<code>` for field/collection names
+ *
+ * Help text renders BELOW the frame via the ui-kit `HelpText` component
+ * (mirroring composite inputs like the partial-date widget), so there is no
+ * relation-specific help class.
  */
 
 .header,
@@ -18,13 +22,6 @@
   align-items: baseline;
   gap: var(--spacing-8);
   margin-bottom: 0.25rem;
-}
-
-.help,
-:global(.byline-field-relation-help) {
-  margin-bottom: 0.25rem;
-  color: var(--gray-400);
-  font-size: var(--font-size-xs);
 }
 
 .error-tile,
@@ -161,4 +158,37 @@
 :global(.byline-field-relation-many-add) {
   display: flex;
   margin-top: 0.25rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Frame — rounded border around the field's interactive body (tiles and/or
+ * buttons), rendered BELOW the label / help text, mirroring the framing
+ * convention of composite inputs like the partial-date widget. Bordered with
+ * `--field-border`, the same theme-aware token the Input / Select widgets
+ * use, so it matches them and flips automatically between light and dark.
+ *
+ * Override handle:
+ *   .byline-field-relation-frame — the framing box
+ * --------------------------------------------------------------------------- */
+
+.frame,
+:global(.byline-field-relation-frame) {
+  margin-top: 0.25rem;
+  border: var(--border-width-thin) var(--border-style-solid) var(--field-border);
+  border-radius: var(--border-radius-md, 6px);
+  padding: 0.5rem;
+}
+
+/* The frame now supplies the label → content separation, so zero the legacy
+   top margins on children rendered inside it. */
+.frame > .tile,
+.frame > .many,
+:global(.byline-field-relation-frame > .byline-field-relation-tile),
+:global(.byline-field-relation-frame > .byline-field-relation-many) {
+  margin-top: 0;
+}
+
+.frame > .many-empty,
+:global(.byline-field-relation-frame > .byline-field-relation-many-empty) {
+  margin-top: 0;
 }
