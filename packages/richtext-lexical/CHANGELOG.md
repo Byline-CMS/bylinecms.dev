@@ -1,5 +1,16 @@
 # @byline/richtext-lexical
 
+## 3.20.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** merging field-level `editorConfig` over the registered editor config
+- Updated dependencies
+  - @byline/admin@3.20.1
+  - @byline/client@3.20.1
+  - @byline/core@3.20.1
+  - @byline/ui@3.20.1
+
 ## 3.20.0
 
 ### Minor Changes

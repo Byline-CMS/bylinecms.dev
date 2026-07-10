@@ -1,5 +1,13 @@
 # @byline/core
 
+## 3.20.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** merging field-level `editorConfig` over the registered editor config
+- Updated dependencies
+  - @byline/auth@3.20.1
+
 ## 3.20.0
 
 ### Minor Changes

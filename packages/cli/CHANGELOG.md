@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 3.20.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** merging field-level `editorConfig` over the registered editor config
+
 ## 3.20.0
 
 ### Minor Changes
