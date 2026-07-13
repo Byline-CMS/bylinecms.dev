@@ -77,6 +77,15 @@ export const NewsAdmin: CollectionAdminConfig = defineAdmin(News, {
   columns: listViewColumns,
 
   /**
+   * Default sort for the list view when the URL carries no explicit
+   * `order`/`desc` search params — an explicit param (a clicked column
+   * header, a shared link) always wins. `field` is a top-level schema
+   * field or a document column (`createdAt` / `updatedAt` / `path`);
+   * boot-validated, and not allowed on `orderable: true` collections.
+   */
+  defaultSort: { field: 'publishedOn', direction: 'desc' },
+
+  /**
    * Column definitions used when this collection appears as the target of a relation
    * picker modal (opened from a `relation` field widget). Omit to fall back to a
    * single-line render of `useAsTitle` + `path`.

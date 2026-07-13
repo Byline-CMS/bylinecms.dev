@@ -69,11 +69,27 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
     if (params.status) where.status = params.status
     if (params.query) where.query = params.query
 
-    // Default sort for `orderable: true` collections is the fractional
-    // `order_key` ascending. Caller's explicit `params.order` always wins
-    // so the admin can re-sort by other columns without surprise.
+    // Sort precedence: the caller's explicit `params.order` always wins (a
+    // shared link opens exactly as sent) → `orderable: true` collections
+    // default to the fractional `order_key` ascending → the admin config's
+    // `defaultSort` (boot-validated; mutually exclusive with `orderable`) →
+    // the storage fallback (`created_at desc`). `configuredSort` is also
+    // echoed through `meta.order`/`meta.desc` below so the list header can
+    // render the effective sort indicator on a params-less landing.
+    const adminConfig = getCollectionAdminConfig(path)
+    const configuredSort =
+      !params.order && config.definition.orderable !== true && adminConfig?.defaultSort != null
+        ? {
+            order: String(adminConfig.defaultSort.field),
+            desc: adminConfig.defaultSort.direction === 'desc',
+          }
+        : undefined
     const defaultSort: Record<string, 'asc' | 'desc'> | undefined =
-      config.definition.orderable === true ? { order_key: 'asc' } : undefined
+      config.definition.orderable === true
+        ? { order_key: 'asc' }
+        : configuredSort != null
+          ? { [configuredSort.order]: configuredSort.desc ? 'desc' : 'asc' }
+          : undefined
     const sortSpec: Record<string, 'asc' | 'desc'> | undefined = params.order
       ? { [params.order]: params.desc === false ? 'asc' : 'desc' }
       : defaultSort
@@ -131,8 +147,12 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       docs,
       meta: {
         ...result.meta,
-        order: params.order,
-        desc: params.desc,
+        // The *effective* sort: explicit params, or the configured
+        // `defaultSort` when it filled in. The list header renders its
+        // sort indicator from this, so a params-less landing still shows
+        // which column ordered the rows.
+        order: params.order ?? configuredSort?.order,
+        desc: params.desc ?? configuredSort?.desc,
       },
       included: {
         collection: {

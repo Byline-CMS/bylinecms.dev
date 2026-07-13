@@ -60,6 +60,23 @@ export interface ColumnDefinition<T = any> {
   formatter?: ColumnFormatter<T>
 }
 
+/**
+ * Default sort for a collection's list view, applied when the URL carries
+ * no explicit `order`/`desc` search params. An explicit param always wins
+ * (a shared link opens exactly as sent).
+ *
+ * `field` is a top-level schema field name (e.g. `'publicationDate'`) or a
+ * document-level column (`'createdAt'`, `'updatedAt'`, `'path'`). Validated
+ * at boot by `validateAdminConfigs`. Not allowed on `orderable: true`
+ * collections — manual ordering already owns their default sort
+ * (`order_key asc`).
+ */
+export interface ListDefaultSort<T = any> {
+  field: keyof T | 'createdAt' | 'updatedAt' | 'path'
+  /** Defaults to `'asc'`. */
+  direction?: 'asc' | 'desc'
+}
+
 // ---------------------------------------------------------------------------
 // Layout primitives
 //
@@ -215,6 +232,22 @@ export interface CollectionAdminConfig<T = any> {
 
   /** Column definitions for the collection list view. */
   columns?: ColumnDefinition<T>[]
+
+  /**
+   * Default sort for the list view when the URL carries no explicit
+   * `order`/`desc` search params — e.g. a publications library that should
+   * open newest-publication-first:
+   *
+   * ```ts
+   * defaultSort: { field: 'publicationDate', direction: 'desc' },
+   * ```
+   *
+   * Precedence: explicit URL params → this default → `created_at desc`.
+   * Boot-validated: `field` must be a top-level schema field or a document
+   * column (`createdAt` / `updatedAt` / `path`), and the option is rejected
+   * on `orderable: true` collections (manual ordering owns their default).
+   */
+  defaultSort?: ListDefaultSort<T>
 
   /**
    * Column definitions for rendering this collection as a compact **item
