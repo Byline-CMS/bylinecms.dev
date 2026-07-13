@@ -1,5 +1,11 @@
 # @byline/ui
 
+## 3.20.3
+
+### Patch Changes
+
+- added configurable `defaultSort` for collection list views in **`@byline/admin`** and default padding for combo-button items in **`@byline/ui`**
+
 ## 3.20.2
 
 ### Patch Changes
