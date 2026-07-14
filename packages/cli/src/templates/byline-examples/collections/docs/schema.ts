@@ -41,13 +41,22 @@ export const Docs = defineCollection({
   // placement from the source directory layout (see
   // byline/scripts/import-docs.ts --tree).
   tree: true,
-  // Collection search config (docs/05-reading-and-delivery/07-search.md).
-  // Each key names the part a field plays in the index: `body` fields feed
-  // the full-text search vector (`title` is display-only unless listed here,
-  // so we include it and boost it into the heaviest weight class); `facets`,
-  // `filters`, and `zones` round out the surface. Opting in here is what
-  // makes the lifecycle hooks in ./hooks.ts index this collection — and it
-  // requires a `search` provider registered in byline/server.config.ts.
+  // Admin list-view quick-search. The collection list route's search box
+  // matches these top-level text-store fields with substring queries (ILIKE, in
+  // the Postgres adapter) against `store_text` — a lightweight "find the row I
+  // mean" affordance that needs no indexing and no lifecycle hooks. Falls back
+  // to `useAsTitle` when omitted; declared explicitly here for guidance.
+  listSearch: ['title'],
+  // Search-*provider* config (docs/05-reading-and-delivery/07-search.md) —
+  // distinct from `listSearch` above. Each key names the part a field plays in
+  // the index: `body` fields feed the full-text search vector (`title` is
+  // display-only unless listed here, so we include it and boost it into the
+  // heaviest weight class); `facets`, `filters`, and `zones` round out the
+  // surface. This drives the pluggable SearchProvider (full-text search in
+  // @byline/search-postgres) and requires a `search` provider registered in
+  // byline/server.config.ts. Unlike `listSearch`, `search` is inert on its own
+  // — opting in here is what makes the index / reindex / deindex lifecycle
+  // hooks in ./hooks.ts keep this collection's provider index in sync.
   // `content` is a container (blocks) field: naming it walks every text-bearing
   // child (richtext body, image alt + caption) into the searchable body —
   // omit it and document bodies are silently absent from the index.
