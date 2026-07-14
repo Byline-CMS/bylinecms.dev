@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { fieldTypeToStore } from '../storage/field-store-map.js'
 import type { CollectionDefinition, Field, FieldType } from '../@types/index.js'
 
 /**
@@ -25,6 +26,18 @@ const RESERVED_FIELD_HINTS: Readonly<Record<string, string>> = {
   path: "Use `useAsPath: '<sourceField>'` on the collection definition instead.",
   availableLocales: 'Use `advertiseLocales: true` on the collection definition instead.',
 }
+
+/**
+ * Field types `listSearch` may name — the types persisted to the text
+ * store, since the admin list-view search box is an `ILIKE` over
+ * `store_text`. Derived from the canonical field→store mapping so the two
+ * can't drift.
+ */
+const LIST_SEARCH_SOURCE_TYPES: ReadonlySet<string> = new Set(
+  Object.entries(fieldTypeToStore)
+    .filter(([, mapping]) => mapping?.storeType === 'text')
+    .map(([type]) => type)
+)
 
 const USE_AS_PATH_SOURCE_TYPES = new Set<FieldType>([
   'text',
@@ -208,6 +221,9 @@ function validateVirtualFields(collection: CollectionDefinition): void {
  *  - A collection may not set both `tree: true` and `orderable: true`. A
  *    document-tree owns ordering per-parent on the tree edge, so
  *    `byline_documents.order_key` is inert for it.
+ *  - Each `listSearch` entry must name an existing top-level field whose
+ *    type is persisted to the text store (the admin list-view search box
+ *    is an `ILIKE` over `store_text`), and the field may not be virtual.
  *  - `virtual` fields must satisfy the constraints in
  *    {@link validateVirtualFields} (optional-or-default, no counters, no
  *    upload fields, not referenced by useAsTitle / useAsPath / search).
@@ -239,6 +255,27 @@ export function validateCollections(collections: readonly CollectionDefinition[]
       if (!USE_AS_PATH_SOURCE_TYPES.has(source.type)) {
         throw new Error(
           `Collection "${collection.path}" sets \`useAsPath: '${collection.useAsPath}'\` but field "${collection.useAsPath}" has type "${source.type}". Supported source types: ${[...USE_AS_PATH_SOURCE_TYPES].join(', ')}.`
+        )
+      }
+    }
+
+    for (const name of collection.listSearch ?? []) {
+      const source = collection.fields.find(
+        (f): f is Extract<Field, { name: string }> => 'name' in f && f.name === name
+      )
+      if (source == null) {
+        throw new Error(
+          `Collection "${collection.path}" names '${name}' in \`listSearch\` but no top-level field with that name exists.`
+        )
+      }
+      if (!LIST_SEARCH_SOURCE_TYPES.has(source.type)) {
+        throw new Error(
+          `Collection "${collection.path}" names '${name}' in \`listSearch\` but field "${name}" has type "${source.type}". The list-view search box matches text-store fields only (${[...LIST_SEARCH_SOURCE_TYPES].join(', ')}).`
+        )
+      }
+      if (source.virtual === true) {
+        throw new Error(
+          `Collection "${collection.path}" names virtual field '${name}' in \`listSearch\` — list-view search reads persisted values, which virtual fields never have.`
         )
       }
     }

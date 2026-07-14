@@ -453,4 +453,52 @@ describe('validateCollections', () => {
     }
     expect(() => validateCollections([collection])).not.toThrow()
   })
+
+  it('accepts listSearch naming text-store fields', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      listSearch: ['title', 'summary', 'kind'],
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'summary', label: 'Summary', type: 'textArea' },
+        {
+          name: 'kind',
+          label: 'Kind',
+          type: 'select',
+          options: [{ label: 'A', value: 'a' }],
+        },
+      ],
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('rejects a listSearch entry referencing a missing field', () => {
+    expect(() => validateCollections([{ ...baseCollection, listSearch: ['nonexistent'] }])).toThrow(
+      /listSearch.*no top-level field/s
+    )
+  })
+
+  it('rejects a listSearch entry referencing a non-text-store field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      listSearch: ['count'],
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'count', label: 'Count', type: 'integer' },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/text-store fields only/)
+  })
+
+  it('rejects a listSearch entry referencing a virtual field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      listSearch: ['ephemeral'],
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'ephemeral', label: 'Ephemeral', type: 'text', virtual: true, optional: true },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/listSearch.*virtual/s)
+  })
 })

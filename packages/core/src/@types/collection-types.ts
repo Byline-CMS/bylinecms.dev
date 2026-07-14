@@ -1130,9 +1130,7 @@ export interface CollectionDefinition {
    *   Text fields contribute their value; `richText` fields are extracted to
    *   plain text via the registered `fields.richText.toText` seam. Each entry
    *   is a field path, or `{ field, boost }` to weight it for scoring
-   *   providers that support `capabilities.weighting`. Drives the admin
-   *   list-view search box (its `store_text` subset). Falls back to the
-   *   identity field (`useAsTitle`) when omitted.
+   *   providers that support `capabilities.weighting`.
    * - `facets` — relation field paths to controlled-vocabulary collections.
    *   Core resolves each target's `counter` field (the stable aggregation id)
    *   and its `useAsTitle` (the term, folded into searchable text). `{ field,
@@ -1152,6 +1150,27 @@ export interface CollectionDefinition {
     filters?: string[]
     zones?: string[]
   }
+  /**
+   * Admin list-view quick-search fields — the top-level text-store field
+   * names (`text` / `textArea` / `select`) the list route's search box
+   * matches with substring (`ILIKE`) queries against `store_text`.
+   *
+   * Deliberately separate from `search`, which configures provider indexing
+   * for site search: the two answer different questions ("find the row I
+   * mean" vs. "rank relevant published content") and need not name the same
+   * fields — a collection with a six-field weighted `search.body` typically
+   * wants only its identity field (plus maybe a serial/code field) here.
+   * Declaring one without the other is equally valid: `listSearch` with no
+   * `search` keeps the list box working on an unindexed collection.
+   *
+   * Falls back to the identity field (`useAsTitle`, else the first declared
+   * text field) when omitted — most collections need no declaration.
+   *
+   * Lives on the schema (not admin config) for the same reason as
+   * `useAsTitle`: the query layer (`findDocuments` in the db adapter)
+   * resolves it server-side from the `CollectionDefinition`.
+   */
+  listSearch?: string[]
   /**
    * The field that represents this document's identity — used anywhere a
    * single-line label for the document is needed: form headings, relation
