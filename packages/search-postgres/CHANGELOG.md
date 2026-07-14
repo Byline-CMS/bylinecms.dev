@@ -1,5 +1,13 @@
 # @byline/search-postgres
 
+## 3.20.4
+
+### Patch Changes
+
+- added `listSearch` schema key, decoupling admin list-view search from `search.body`
+- Updated dependencies
+  - @byline/core@3.20.4
+
 ## 3.20.3
 
 ### Patch Changes

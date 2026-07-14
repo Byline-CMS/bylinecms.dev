@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 3.20.4
+
+### Patch Changes
+
+- added `listSearch` schema key, decoupling admin list-view search from `search.body`
+
 ## 3.20.3
 
 ### Patch Changes
