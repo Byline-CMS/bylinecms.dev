@@ -26,8 +26,8 @@ import type {
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 
 /**
- * News field shape with `category` and `featureImage` re-typed for populate.
- * Schema-derived `NewsFields` types those slots as the unpopulated wire
+ * Generated news field shape with `category` and `featureImage` re-typed for populate.
+ * `NewsFields` types those slots as the unpopulated wire
  * shape (`RelatedDocumentValue`); `WithPopulated` overlays the populated
  * envelope so dot-notation through `.document.fields.x` is fully checked.
  */

@@ -127,8 +127,8 @@ export const News = defineCollection({
 })
 
 /**
- * Field data shape inferred directly from the schema. Use this as the
- * generic to typed read calls — `client.collection('news').find<NewsFields>()`
- * — so dot-notation on `doc.fields` is fully checked.
+ * Schema-local inferred field shape. Application reads should use the canonical
+ * generated `NewsFields` from `byline/generated/collection-types.ts`; configured
+ * client handles infer that type for ordinary reads without a generic.
  */
 export type NewsFields = CollectionFieldData<typeof News>

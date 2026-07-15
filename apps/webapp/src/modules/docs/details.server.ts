@@ -13,8 +13,8 @@
  *
  * Reads through the shared *viewer* `BylineClient` so unpublished versions stay
  * invisible for ordinary visitors but become visible to admins who have toggled
- * preview mode (cookie + valid admin session). Populates `featureImage` so the
- * page renders without a follow-up request.
+ * preview mode (cookie + valid admin session). Populates `featureImage` and
+ * photo-block `photo` relations so the page renders without follow-up requests.
  *
  * `docs` is a `tree: true` collection: the read leaf-resolves the splat,
  * derives the ancestor chain, and (for non-preview reads) enforces an unbroken

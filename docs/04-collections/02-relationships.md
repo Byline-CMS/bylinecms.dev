@@ -215,18 +215,20 @@ Link metadata (`relationship_type`, `cascade_delete`) survives population — it
 
 ### 9. Type populated relations with `WithPopulated`
 
-Schema-derived field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). `WithPopulated<Fields, 'name', TargetFields>` overlays the populated envelope so `result.fields.<name>?.document?.fields.<field>` is fully typed.
+Generated collection field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). `WithPopulated<Fields, 'name', TargetFields>` overlays the populated envelope so `result.fields.<name>?.document?.fields.<field>` is fully typed.
 
 **Edit:** the server-fn that calls populate.
 
 ```ts
 import type { WithPopulated } from '@byline/client'
-import type { MediaFields } from '~/collections/media/schema.js'
-import type { NewsFields } from '~/collections/news/schema.js'
-import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
+import type {
+  MediaFields,
+  NewsCategoriesFields,
+  NewsFields,
+} from '~/generated/collection-types.js'
 
 type NewsListFields = WithPopulated<
-  WithPopulated<NewsFields, 'category', NewsCategoryFields>,
+  WithPopulated<NewsFields, 'category', NewsCategoriesFields>,
   'featureImage',
   MediaFields
 >

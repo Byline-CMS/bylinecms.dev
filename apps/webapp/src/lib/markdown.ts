@@ -23,7 +23,7 @@
 import { documentToMarkdown, getCollectionDefinition, getServerConfig } from '@byline/core'
 
 import { getPublicBylineClient } from '~/client.server'
-import type { CollectionFieldsByPath as BylineCollections } from '~/generated/collection-types.js'
+import type { CollectionPath } from '~/generated/collection-types.js'
 
 import { getPublicConfig } from '@/config'
 import { isRoutableLocale } from '@/i18n/i18n-config'
@@ -53,7 +53,7 @@ function publicUrlFor(collectionPath: string, documentPath: string): string[] | 
 }
 
 export interface GetDocumentMarkdownOptions {
-  collection: keyof BylineCollections & string
+  collection: CollectionPath
   lng: string
   path: string
   /** Relation populate map for the read (mirrors the HTML details loader). */

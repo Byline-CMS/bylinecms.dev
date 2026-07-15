@@ -18,7 +18,6 @@
  */
 
 import { getViewerBylineClient, isPreviewActive } from '~/client.server'
-import type { NewsCategoriesFields as NewsCategoryFields } from '~/generated/collection-types.js'
 
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { NewsCategoriesListInput, NewsCategoriesListResult } from './categories'
@@ -34,7 +33,7 @@ export async function getNewsCategories({
     tags: [tags.collection('news-categories'), tags.list('news-categories')],
     preview,
     fn: () =>
-      client.collection('news-categories').find<NewsCategoryFields>({
+      client.collection('news-categories').find({
         sort: { name: 'asc' },
         pageSize: 200,
         locale: lng,

@@ -77,26 +77,26 @@ export default defineHooks({
     console.log(
       `afterCreate: document ${documentId} created in '${collectionPath}' (content fingerprint ${fingerprint})`
     )
-    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
+    await invalidateDocument('docs', path, { list: true, sitemap: true })
     await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
-  afterUpdate: async ({ collectionPath, path, documentId, originalData }) => {
-    await invalidateDocument(collectionPath, path, {
+  afterUpdate: async ({ path, documentId, originalData }) => {
+    await invalidateDocument('docs', path, {
       prevPath: (originalData as { path?: string } | undefined)?.path,
       list: true,
     })
     await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
-  afterStatusChange: async ({ collectionPath, path, documentId }) => {
-    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
+  afterStatusChange: async ({ path, documentId }) => {
+    await invalidateDocument('docs', path, { list: true, sitemap: true })
     await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
-  afterUnpublish: async ({ collectionPath, path, documentId }) => {
-    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
+  afterUnpublish: async ({ path, documentId }) => {
+    await invalidateDocument('docs', path, { list: true, sitemap: true })
     await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
-  afterDelete: async ({ collectionPath, path, documentId }) => {
-    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
+  afterDelete: async ({ path, documentId }) => {
+    await invalidateDocument('docs', path, { list: true, sitemap: true })
     await getSystemBylineClient().collection('docs').removeFromIndex(documentId)
   },
   // A structural tree change (place / reorder / re-parent / promote-on-delete)
@@ -106,5 +106,5 @@ export default defineHooks({
   // sweep (detail + list + sitemap) is the pragmatic correct choice over
   // resolving the affected ids to paths. See docs/04-collections/03-document-trees.md →
   // "Invalidation contract".
-  afterTreeChange: ({ collectionPath }) => invalidateCollection(collectionPath),
+  afterTreeChange: () => invalidateCollection('docs'),
 })

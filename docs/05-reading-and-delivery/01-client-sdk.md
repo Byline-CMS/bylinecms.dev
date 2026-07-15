@@ -210,16 +210,18 @@ The default projection includes the target's `useAsTitle` field implicitly, so l
 
 ### 7. Type a populated relation with `WithPopulated`
 
-Schema-derived field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). `WithPopulated<Fields, 'name', TargetFields>` overlays the populated envelope so `result.fields.name?.document?.fields.<field>` is fully typed.
+Generated collection field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). `WithPopulated<Fields, 'name', TargetFields>` overlays the populated envelope so `result.fields.name?.document?.fields.<field>` is fully typed.
 
 ```ts
 import type { WithPopulated } from '@byline/client'
-import type { NewsFields } from './collections/news/schema.js'
-import type { NewsCategoryFields } from './collections/news-categories/schema.js'
-import type { MediaFields } from './collections/media/schema.js'
+import type {
+  MediaFields,
+  NewsCategoriesFields,
+  NewsFields,
+} from './byline/generated/collection-types.js'
 
 type NewsListFields = WithPopulated<
-  WithPopulated<NewsFields, 'category', NewsCategoryFields>,
+  WithPopulated<NewsFields, 'category', NewsCategoriesFields>,
   'featureImage',
   MediaFields
 >
@@ -526,18 +528,23 @@ The default projection includes the target's `useAsTitle` field implicitly, so w
 
 ### Typing populated relations
 
-Schema-derived field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). To get full type checking on `doc.fields.<relation>?.document?.fields.<field>`, overlay each populated relation with `WithPopulated`:
+Generated collection field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). To get full type checking on `doc.fields.<relation>?.document?.fields.<field>`, overlay each populated relation with `WithPopulated`:
 
 ```ts
 import type { WithPopulated } from '@byline/client'
+import type {
+  MediaFields,
+  NewsCategoriesFields,
+  NewsFields,
+} from './byline/generated/collection-types.js'
 
 type NewsListFields = WithPopulated<
-  WithPopulated<NewsFields, 'category', NewsCategoryFields>,
+  WithPopulated<NewsFields, 'category', NewsCategoriesFields>,
   'featureImage',
   MediaFields
 >
 
-// Use as the generic:
+// The operation-specific overlay is the generic; ordinary reads infer generated fields.
 await client.collection('news').find<NewsListFields>({ populate: { category: '*', featureImage: '*' } })
 ```
 
