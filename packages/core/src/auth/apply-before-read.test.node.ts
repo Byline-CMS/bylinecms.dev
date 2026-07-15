@@ -17,6 +17,7 @@ import {
 } from '../@types/collection-types.js'
 import { createReadContext } from '../services/populate.js'
 import { applyBeforeRead, compileBeforeReadFilters } from './apply-before-read.js'
+import { resolveReadContextRoot } from './read-context-scope.js'
 
 const baseCollection = (hook?: BeforeReadHookFn | BeforeReadHookFn[]): CollectionDefinition =>
   defineCollection({
@@ -257,6 +258,24 @@ describe('applyBeforeRead', () => {
     expect(readContext.visited).toContain('posts:nested')
     expect(readContext.readCount).toBe(1)
     expect(readContext.maxReads).toBe(3)
+  })
+
+  it('resolves scoped hook contexts to their logical root', async () => {
+    const readContext = createReadContext()
+    let scopedContext: Parameters<BeforeReadHookFn>[0]['readContext'] | undefined
+    const hook: BeforeReadHookFn = ({ readContext: scoped }) => {
+      scopedContext = scoped
+    }
+
+    await applyBeforeRead({
+      definition: baseCollection(hook),
+      requestContext: createRequestContext(),
+      readContext,
+    })
+
+    if (!scopedContext) throw new Error('beforeRead did not receive a scoped ReadContext')
+    expect(resolveReadContextRoot(scopedContext)).toBe(readContext)
+    expect(resolveReadContextRoot(readContext)).toBe(readContext)
   })
 
   it('supports an async hook', async () => {

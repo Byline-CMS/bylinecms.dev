@@ -674,6 +674,63 @@ describe('afterRead — A→B→A safety', () => {
     expect(getDocumentById).toHaveBeenCalledTimes(4)
   })
 
+  it('keeps the afterRead recursion guard when beforeRead threads a scoped context', async () => {
+    let observedSensitive: unknown = 'not-returned'
+    let cycleError: unknown
+    const postsHook = vi.fn(async (ctx: any) => {
+      await client.collection('authors').findById('a1', { _readContext: ctx.readContext })
+      delete ctx.doc.fields.secret
+    })
+    const authors: CollectionDefinition = {
+      ...authorsCollection(),
+      hooks: {
+        beforeRead: async ({ readContext: scoped }) => {
+          try {
+            const activeA = await client
+              .collection('posts')
+              .findById('p1', { _readContext: scoped })
+            observedSensitive = activeA?.fields.secret
+          } catch (error) {
+            cycleError = error
+            throw error
+          }
+        },
+      },
+    }
+    const { db, getDocumentById } = makeAdapter()
+    getDocumentById.mockImplementation(async (params: any) => {
+      if (params.document_id === 'p1') {
+        return rawDoc('posts', 'p1', { title: 'T', secret: 'sensitive' })
+      }
+      if (params.document_id === 'a1') return rawDoc('authors', 'a1', { name: 'Nora' })
+      return null
+    })
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [postsCollection(postsHook), authors],
+    })
+    const readContext = createReadContext()
+
+    await expect(
+      client.collection('posts').findById('p1', { _readContext: readContext })
+    ).rejects.toMatchObject({
+      code: ErrorCodes.READ_RECURSION,
+    })
+
+    expect(observedSensitive).toBe('not-returned')
+    expect(cycleError).toMatchObject({
+      message: "afterRead recursion blocked for active version 'ver:p1'",
+      details: {
+        collectionPath: 'posts',
+        documentId: 'p1',
+        documentVersionId: 'ver:p1',
+      },
+    })
+    expect(postsHook).toHaveBeenCalledOnce()
+    expect(getDocumentById).toHaveBeenCalledTimes(2)
+  })
+
   it('does not mark a materialized object complete when a hook throws', async () => {
     let attempts = 0
     const hook = vi.fn((ctx: any) => {

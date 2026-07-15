@@ -23,6 +23,7 @@
  */
 
 import { normalizeCollectionHook, resolveHooks } from '../@types/index.js'
+import { resolveReadContextRoot } from '../auth/read-context-scope.js'
 import { ERR_READ_RECURSION } from '../lib/errors.js'
 import type {
   AfterReadContext,
@@ -113,9 +114,10 @@ interface AfterReadState {
 const afterReadStates = new WeakMap<ReadContext, AfterReadState>()
 
 function getAfterReadState(readContext: ReadContext): AfterReadState {
-  const existing = afterReadStates.get(readContext)
+  const root = resolveReadContextRoot(readContext)
+  const existing = afterReadStates.get(root)
   if (existing) return existing
   const state: AfterReadState = { active: new Set(), processed: new WeakSet() }
-  afterReadStates.set(readContext, state)
+  afterReadStates.set(root, state)
   return state
 }

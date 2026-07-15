@@ -9,6 +9,7 @@
 import { AdminAuth, createRequestContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
+import { applyBeforeRead } from '../auth/apply-before-read.js'
 import { createReadContext, populateDocuments } from './populate.js'
 import {
   collectRichTextLeaves,
@@ -17,7 +18,13 @@ import {
   resolvePopulateOnRead,
   validateRichTextFieldFlags,
 } from './richtext-populate.js'
-import type { CollectionDefinition, FieldSet, IDbAdapter, RichTextField } from '../@types/index.js'
+import type {
+  CollectionDefinition,
+  FieldSet,
+  IDbAdapter,
+  ReadContext,
+  RichTextField,
+} from '../@types/index.js'
 
 // ---------------------------------------------------------------------------
 // Fixture — a synthetic collection that exercises every nesting type the
@@ -498,6 +505,81 @@ describe('createRichTextDocumentReader', () => {
     expect(afterRead).toHaveBeenCalledWith(expect.objectContaining({ requestContext, readContext }))
     expect(readContext.readCount).toBe(1)
     expect(readContext.visited).toContain('media-id:m1')
+  })
+
+  it('shares active reader state with a beforeRead-scoped context', async () => {
+    const recursiveTarget: CollectionDefinition = {
+      ...target,
+      fields: [
+        ...target.fields,
+        {
+          name: 'body',
+          type: 'richText',
+          label: 'Body',
+          populateRelationsOnRead: true,
+        },
+      ],
+      hooks: undefined,
+    }
+    let scopedContext: ReadContext | undefined
+    const gate: CollectionDefinition = {
+      path: 'gate',
+      labels: { singular: 'Gate', plural: 'Gates' },
+      fields: [],
+      hooks: {
+        beforeRead: ({ readContext }) => {
+          scopedContext = readContext
+        },
+      },
+    }
+    const requestContext = createRequestContext({
+      actor: new AdminAuth({ id: 'reader', abilities: ['collections.media.read'] }),
+      readMode: 'published',
+    })
+    const readContext = createReadContext()
+    await applyBeforeRead({ definition: gate, requestContext, readContext })
+
+    const { db, getDocumentsByDocumentIds } = dbMock()
+    getDocumentsByDocumentIds.mockImplementation(async () => [
+      {
+        document_version_id: 'v1',
+        document_id: 'm1',
+        fields: { title: 'Media', tenant: 'alice', body: {} },
+      },
+    ])
+
+    let nestedResult: Record<string, any>[] | undefined
+    let reentered = false
+    let nestedRead: ReturnType<typeof createRichTextDocumentReader>
+    const richTextPopulate = vi.fn(async () => {
+      if (reentered) return
+      reentered = true
+      nestedResult = await nestedRead({ collectionPath: 'media', documentIds: ['m1'] })
+    })
+    if (!scopedContext) throw new Error('beforeRead did not receive a scoped ReadContext')
+    nestedRead = createRichTextDocumentReader({
+      db,
+      collections: [recursiveTarget],
+      requestContext,
+      readContext: scopedContext,
+      readMode: 'published',
+      richTextPopulate,
+    })
+    const outerRead = createRichTextDocumentReader({
+      db,
+      collections: [recursiveTarget],
+      requestContext,
+      readContext,
+      readMode: 'published',
+      richTextPopulate,
+    })
+
+    const result = await outerRead({ collectionPath: 'media', documentIds: ['m1'] })
+
+    expect(result).toHaveLength(1)
+    expect(nestedResult).toEqual([])
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledOnce()
+    expect(richTextPopulate).toHaveBeenCalledOnce()
   })
 
   it('reuses a later batch target completed recursively instead of processing stale batch data', async () => {

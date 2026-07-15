@@ -39,6 +39,7 @@ import {
 } from '../@types/field-types.js'
 import { bindReadContextAuthority, compileBeforeReadFilters } from '../auth/apply-before-read.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
+import { resolveReadContextRoot } from '../auth/read-context-scope.js'
 import { ERR_READ_BUDGET_EXCEEDED, ERR_VALIDATION } from '../lib/errors.js'
 import { applyAfterRead } from './document-read.js'
 import { walkFieldTree } from './walk-field-tree.js'
@@ -339,10 +340,11 @@ interface RichTextReaderState {
 const richTextReaderStates = new WeakMap<ReadContext, RichTextReaderState>()
 
 function getRichTextReaderState(readContext: ReadContext): RichTextReaderState {
-  const existing = richTextReaderStates.get(readContext)
+  const root = resolveReadContextRoot(readContext)
+  const existing = richTextReaderStates.get(root)
   if (existing) return existing
   const state: RichTextReaderState = { active: new Set(), cache: new Map() }
-  richTextReaderStates.set(readContext, state)
+  richTextReaderStates.set(root, state)
   return state
 }
 

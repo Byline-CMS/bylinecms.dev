@@ -16,6 +16,7 @@ import {
 } from '../@types/collection-types.js'
 import { ERR_READ_RECURSION, ERR_VALIDATION } from '../lib/errors.js'
 import { type ParseContext, parsePredicateFilters } from '../query/parse-where.js'
+import { createHookReadContext, getReadContextScope } from './read-context-scope.js'
 import type { DocumentFilter, ReadContext } from '../@types/db-types.js'
 import type { QueryPredicate } from '../@types/query-predicate.js'
 
@@ -37,13 +38,7 @@ interface BeforeReadCacheEntry {
   compiledFilters?: Promise<DocumentFilter[] | undefined>
 }
 
-interface ReadContextScope {
-  root: ReadContext
-  ancestry: readonly BeforeReadCacheEntry[]
-}
-
 const readSecurityStates = new WeakMap<ReadContext, ReadSecurityState>()
-const readContextScopes = new WeakMap<ReadContext, ReadContextScope>()
 
 /**
  * Resolve the per-collection `beforeRead` hook predicate for the current
@@ -207,44 +202,6 @@ function getBeforeReadCacheEntry(
     definitionState.modes.set(mode, entry)
   }
   return entry
-}
-
-function getReadContextScope(readContext: ReadContext): ReadContextScope {
-  return readContextScopes.get(readContext) ?? { root: readContext, ancestry: [] }
-}
-
-/**
- * Carry hook ancestry by object identity, not by a forgeable public property.
- * All mutable read-budget state still delegates to the logical root context.
- */
-function createHookReadContext(parent: ReadContextScope, entry: BeforeReadCacheEntry): ReadContext {
-  const root = parent.root
-  const scoped = {} as ReadContext
-  Object.defineProperties(scoped, {
-    visited: { enumerable: true, get: () => root.visited, set: (value) => (root.visited = value) },
-    beforeReadCache: {
-      enumerable: true,
-      get: () => root.beforeReadCache,
-      set: (value) => (root.beforeReadCache = value),
-    },
-    readCount: {
-      enumerable: true,
-      get: () => root.readCount,
-      set: (value) => (root.readCount = value),
-    },
-    maxReads: {
-      enumerable: true,
-      get: () => root.maxReads,
-      set: (value) => (root.maxReads = value),
-    },
-    maxDepth: {
-      enumerable: true,
-      get: () => root.maxDepth,
-      set: (value) => (root.maxDepth = value),
-    },
-  })
-  readContextScopes.set(scoped, { root, ancestry: [...parent.ancestry, entry] })
-  return scoped
 }
 
 /**
