@@ -9,12 +9,15 @@ summary: "A pluggable SearchProvider seam with built-in Postgres full-text searc
 :::note[Partly shipped]
 The `SearchProvider` seam, the built-in Postgres full-text driver, the
 type-enriched `SearchDocument` + assembler, lifecycle-hook indexing, the
-`reindex` command + admin button, single-collection and cross-collection
-**zone** queries, **`hydrate`** results, and post-ranking row authorization are
-**shipped** (Phase 2). Still planned: provider-side structured `where`
-filtering and facet aggregation, attachment text-extraction (Phase 3), external
-drivers (Phase 4), and the MCP tool (Phase 5). Each section below marks what is
-shipped vs planned.
+`reindex` command + admin button, the single-collection
+`client.collection(x).search()` query surface, the cross-collection **zone**
+entry point, **`hydrate`** (two-tier rich results), and **row-level
+authorization** on search are **shipped** (Phase 2). Still planned:
+**structured `where`** filtering and **facet aggregation** at query time,
+**driver-specific query extensions** (the typed escape hatch),
+**attachment text-extraction** (Phase 3), **external drivers** (Phase 4),
+and the **MCP** tool (Phase 5). Each section
+below marks what is shipped vs planned.
 :::
 
 ## Overview
@@ -109,8 +112,10 @@ interface SearchCapabilities {
   search but no provider is registered (`validateSearchConfig`).
 - **`capabilities`** is the honesty layer: the Postgres floor declares
   `weighting` + `highlights` only; `facets` / `typoTolerance` / `semantic` /
-  `bm25` are `false` until a richer driver (or capability) lands. Consumers light
-  up features against it rather than assuming.
+  `bm25` are `false` until a richer driver (or capability) lands. Consumers
+  light up features against it rather than assuming — which also makes driver
+  degradation *deliberate*: a UI can hide facet chips when the registered
+  driver can't aggregate, instead of silently returning less.
 - **External drivers** implement the same interface. A vector driver embeds the
   text on `upsert` and runs ANN on `search`; a hybrid driver fuses scores. None
   touch the read path. (Planned — Phase 4.)
@@ -247,6 +252,55 @@ interface SearchFacetValue { id: number | string; term: string }  // counter id 
   `@byline/search-mysql` ships its own. Install paths: run the SQL by hand,
   `migrate(pool)` as a deploy step (recommended), or `autoMigrate` (dev). See the
   package README.
+
+## Mapping the seam to Solr (design study)
+
+Solr is the sharpest available test of the seam's portability claim — an
+engine with its own schema model (dynamic fields), its own query language
+(eDisMax), and no SQL — so it is worth walking the full mapping. The
+conclusions double as a checklist for any external driver (Phase 4):
+
+- **The projection suffices.** `SearchField.type` / `role` map directly onto
+  Solr dynamic fields — `body` text → `*_txts_{lang}` (per-language
+  analyzers), facet ids → `{name}_tim` (multivalued int), filters → `_i` /
+  `_f` / `_b` / `_dt` / `_s` — with no re-inspection of collection schemas.
+  The type enrichment in `SearchDocument` exists precisely so this table can
+  be written once per driver.
+- **Weight classes travel.** Solr removed index-time boosts in 7.x, so
+  `SearchField.boost` is realised the same way the Postgres driver maps
+  boosts to `setweight` classes: bucket body text into four per-class
+  catch-all fields at index time (`body_a_txts_{lang}` … `body_d_…`) and
+  carry a fixed eDisMax `qf` (`^8 ^4 ^2 ^1`) on every query.
+  `capabilities.weighting` holds without the driver needing collection
+  config at query time — the bucketing convention *is* the contract, and it
+  generalises: `setweight` classes and `qf`-boosted catch-alls are the same
+  idea on different engines.
+- **Facet aggregation is reachable at the seam.** The projected `counter` ids
+  aggregate via the JSON Facet API over `{name}_tim`; buckets come back as
+  stable ids in the shared `SearchFacetBucket` shape. A Solr driver declares
+  `capabilities.facets: true` (and `bm25: true` — Lucene's default
+  similarity) — the first entries of the capabilities matrix the Postgres
+  floor leaves `false`.
+- **Document grain.** One Solr document per
+  `(collectionPath, documentId, locale)`, with the triple as the Solr id —
+  the seam's idempotent `upsert` key. Hand-rolled Solr integrations often
+  index one document per source doc with locale-suffixed fields side by
+  side; the per-locale grain is what the seam's contract implies, and
+  locale-scoped queries filter on the locale field instead. Per-locale
+  analyzers ride a locale → language-suffix resolver mirroring the Postgres
+  driver's `localeRegconfig`.
+- **Schema ownership without `migrate()`.** The index schema is the
+  deployment's Solr configset (dynamic fields), applied by provisioning the
+  core. The "driver owns its schema" rule is about *responsibility*, not
+  about SQL migrations — a driver whose engine has no DDL simply documents
+  and ships its schema artifact instead.
+- **What the mapping can't reach yet.** Attachment text (classic Solr Cell /
+  Tika extract-handler territory) waits for Phase 3's extraction providers;
+  structured `where` needs the predicate pushdown; and Solr's
+  engine-specific power (boost functions, suggesters, facet pivots) is the
+  motivating case for
+  [driver-specific query options](#driver-specific-query-options--the-typed-escape-hatch)
+  below.
 
 ## Index lifecycle (shipped)
 
@@ -440,11 +494,97 @@ request context before attachment, so its mutations/redactions are visible in
 (`packages/client/src/search.ts` → `finalizeSearchHits`); integration
 coverage: `client-zone-search.integration.test.ts`.
 
+### Driver-specific query options — the typed escape hatch
+
+*Planned — design settled; needs the one-field core change plus a client
+pass-through test.*
+
+Every adapter seam creates lowest-common-denominator pressure: provider-
+specific power (Solr boost functions, spellcheck / suggesters, facet pivots,
+MLT; a vector driver's ANN parameters) doesn't fit `SearchQuery`, and if the
+seam offers no sanctioned outlet, call sites reach around it. The failure
+mode is well-worn in hand-rolled CMS + search-engine integrations: a frontend
+that queries the engine directly — to get per-request field routing
+(`title:` / `author:` prefix searches) or a recency sort — ends up
+re-encoding the index schema in frontend string constants (field lists that
+must track fields *and* locales), hand-rolling the id → document hydration
+read, and usually losing ranked order along the way. Three copies of
+knowledge the seam exists to keep in one place.
+
+The escape hatch keeps that power **inside the pipeline**, via declaration
+merging. Core declares an empty, provider-agnostic slot — and that is the
+whole core change; core never interprets it:
+
+```ts
+// @byline/core
+export interface SearchDriverExtensions {}
+
+interface SearchQuery {
+  // …
+  /**
+   * Driver-specific extensions, namespaced by driver key. Core and the
+   * client pass this through verbatim. Must stay JSON-serializable —
+   * queries travel over the REST transport and (later) MCP.
+   */
+  driver?: SearchDriverExtensions
+}
+```
+
+Each driver package augments the slot under its own key, so merely depending
+on the driver lights up its options in the host's editor:
+
+```ts
+// a Solr driver package (illustrative)
+export interface SolrQueryOptions {
+  fields?: string[]      // restrict scoring to specific body fields
+  boostFunction?: string // additive bf, e.g. recency decay
+  sort?: string          // override relevance order (browse views)
+}
+
+declare module '@byline/core' {
+  interface SearchDriverExtensions {
+    solr?: SolrQueryOptions
+  }
+}
+```
+
+```ts
+// host call site
+client.collection('publications').search({
+  query,
+  driver: { solr: { fields: ['title'] } },
+})
+```
+
+Namespacing is the degradation story: a driver ignores keys it doesn't own,
+so a query carrying `driver.solr` runs unmodified on the Postgres driver —
+the search loses its tuning, not its correctness. The client's only job is to
+forward `driver` verbatim through both entry points, pinned by a test so the
+pass-through is a contract rather than an accident.
+
+Two boundary rules keep the hatch from rotting into the legacy reach-around:
+
+- **Promote before you extend.** An option a second driver would plausibly
+  want is generic — it belongs on `SearchQuery` proper (capability-gated
+  where not universal), not in the bag. Field-scoped search and sort
+  overrides are already promotion candidates. The smell test: *would a future
+  vector driver want this too?*
+- **Never bypass the pipeline.** The hatch rides *inside* the query, so every
+  search — however tuned — still exits through `finalizeSearchHits`
+  (authorization, stale-hit dropping, hydration). Exporting the concrete
+  provider for direct index calls is fine for admin diagnostics and tooling,
+  but it is not a sanctioned read path — per-call-site bypass is exactly how
+  the duplication described above takes hold.
+
 ### Planned (not yet shipped)
 
 - **Structured `where` filtering** and **facet aggregation** at query time — the
   options are accepted in the API, but the Postgres driver does not yet apply
-  `where` or compute facet buckets (`capabilities.facets === false`).
+  `where` or compute facet buckets (`capabilities.facets === false`; the
+  [Solr design study](#mapping-the-seam-to-solr-design-study) shows the
+  aggregation path at the seam).
+- **Driver-specific query extensions** — the `SearchQuery.driver` slot
+  ([the typed escape hatch](#driver-specific-query-options--the-typed-escape-hatch) above).
 - **MCP** exposes the same surface as a `search` tool (Phase 5).
 
 ## Search zones
@@ -483,11 +623,77 @@ unaffected.
 files: an **extraction-provider interface** — `file → { markdown, plainText,
 metadata }` — so structure-aware, markdown-emitting extractors (Docling-class)
 and classic extractors (Apache Tika) are interchangeable drivers, exactly as
-`SearchProvider` makes rankers interchangeable. Extracted output lands in its own
-table keyed to the file (never as synthetic `store_*` data), invalidated on
-re-upload, and joined into the searchable `body`. The full landscape, tiered
-strategy (fast / local-ML / VLM), page-level routing, and licensing analysis live
-in the [search & extraction strategy brief](../byline-search-extraction-strategy.md).
+`SearchProvider` makes rankers interchangeable. Implementations are thin HTTP
+clients against extraction services (a Tika server, docling-serve, a hosted
+VLM endpoint). The full landscape, tiered strategy (fast / local-ML / VLM),
+page-level routing, and licensing analysis live in the
+[search & extraction strategy brief](../byline-search-extraction-strategy.md).
+
+### A sibling seam, not a search-driver sub-module
+
+The tempting shape — extractors configured *inside* each search provider,
+invoked during indexing — is wrong, because it couples three things that
+want different lifecycles:
+
+- **Extraction is expensive and cacheable; indexing is cheap and
+  re-runnable.** The index lifecycle leans on `upsert` being safe to repeat —
+  `reindex` re-reads everything. Extraction inside a driver's upsert path
+  means every rebuild re-extracts every file; tolerable for Tika at small
+  scale, prohibitive when an extractor costs seconds-to-minutes and real
+  money per document. Hand-rolled CMS + Solr integrations commonly do
+  exactly this (Solr Cell's `extractOnly=true` used as an inline extraction
+  service, output merged into the update, re-extracted on every reindex,
+  failures swallowed mid-indexing) — the pattern to design away from. Solr
+  Cell being provider-internal is a property of *one possible extractor*,
+  not a reason to shape the architecture around it.
+- **The N×M problem.** Extractor config inside providers means every driver
+  (Postgres, Solr, a future vector/hybrid) re-integrates it. But extracted
+  text, once it exists, is *just another body field* — it enters through
+  `SearchDocument` like any text field does. One extraction pipeline; every
+  driver consumes it with **zero changes**.
+- **Search is not the only consumer.** `markdown` output feeds RAG, the
+  [markdown export surface](./04-markdown-export.md), and MCP; `plainText`
+  feeds the index. Extraction locked inside a search driver strands the
+  markdown half.
+
+### Persistence and lifecycle
+
+- **Extracted output lands in its own table** keyed to the file — content
+  hash + extractor id/version, never as synthetic `store_*` data — so a
+  re-upload invalidates it and an extractor upgrade can selectively
+  re-extract. The same schema-ownership pattern as
+  `byline_search_documents`.
+- **Extraction runs asynchronously off the upload lifecycle** — a publish
+  must never block on a VLM. On completion it triggers the owning document's
+  `indexDocument` re-sync (the same one path that already handles
+  publish/unpublish/edit). This trigger is the same machinery the deferred
+  async/outbox indexing wants — design them together.
+- **A backfill command** (the `reindex` analog) extracts an existing corpus.
+- **Language routing**: the extraction record carries a detected or declared
+  language, so the assembler can fold the text into the matching locale's
+  `SearchDocument` — attachments in different languages land in the right
+  per-locale index entries.
+
+### The extractor router is a composition of the seam
+
+Tiered routing — born-digital text documents through a fast classic
+extractor, scanned or chart/table-heavy documents through a structure-aware
+one — is not special machinery: a **router is itself an
+`ExtractionProvider`** that delegates. Routing signals: mime type, PDF
+text-layer presence (the born-digital test), page count / image density,
+per-collection config, cost budget. A cheap refinement the seam enables:
+**escalation** — run the fast extractor first, score the output (text-density
+heuristics), and escalate to the structure-aware tier only when the cheap
+pass looks like a scan. No search driver ever knows any of it happened.
+
+### The join into the index
+
+The join point is `buildSearchDocument` — the already-documented third
+`body` feed. Upload fields named in the collection's `search` config
+contribute their files' persisted `plainText` as low-weight body fields
+(the lightest weight class is the natural home, so attachment matches never
+outrank title/summary matches). Search drivers are unchanged by
+construction — which is the proof the seam boundary is drawn correctly.
 
 ## Phasing
 
@@ -500,14 +706,30 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
    `ServerConfig.search` registration + boot validation; the collection
    `search` config; lifecycle-hook indexing; `reindex` + the `collections.<path>.reindex`
    ability + admin button; `client.collection(x).search()`; the docs frontend
+<<<<<<< HEAD
    results route; cross-collection `zone` search, `hydrate`, and strict
    post-ranking row authorization. **Deferred within Phase 2:** provider-side
    structured `where` filtering, facet aggregation, and async/outbox indexing.
 3. **Attachment text-extraction** — the extraction-provider interface + a first
    driver, its own table, and the join into `body`. *(Planned.)*
+=======
+   results route; the cross-collection `zone` query + `hydrate`
+   (`finalizeSearchHits`); row-level authorization on search. **Deferred
+   within Phase 2:** structured `where` filtering, facet aggregation (Postgres
+   driver), the `SearchQuery.driver` extension slot, and async/outbox
+   indexing.
+3. **Attachment text-extraction** — the extraction-provider interface + a
+   first classic (Tika-class) driver, the extraction table, the async
+   completion → `indexDocument` trigger, and the join into `body`. The
+   extractor router + a structure-aware (Docling-class) driver follow as
+   pure configuration — no new machinery. *(Planned.)*
+>>>>>>> c8ac22ddd85dff0ff313e20f3f0db43aaa251648
 4. **External drivers** — a vector and/or hybrid driver against the same seam
    (the RAG payoff; the home for the private BM25 / metadata-ranking work).
-   *(Planned.)*
+   *(Planned — the
+   [Solr design study](#mapping-the-seam-to-solr-design-study) walks the
+   seam mapping end-to-end, including facet aggregation, as the template for
+   any external driver.)*
 5. **MCP `search` tool** — wire the query surface into the MCP server. *(Planned.)*
 
 ## Open questions
@@ -515,11 +737,30 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
 - **Resolved — per-locale indexing / `regconfig`.** Shipped: one `SearchDocument`
   per `(document, locale)`, indexed with a per-locale `regconfig`, plus a
   `defaultLocale` for locale-less queries.
+<<<<<<< HEAD
 - **Resolved — awaited indexing for the Postgres driver.** Shipped inline in the
   post-commit lifecycle hook. Async/durable outbox support remains open.
+=======
+- **Resolved — sync indexing for the Postgres driver.** Shipped inline in the
+  lifecycle hook. Async/outbox for network-backed drivers remains — and the
+  attachment-extraction completion trigger (Phase 3) wants the same
+  machinery, so the two should be designed together.
+>>>>>>> c8ac22ddd85dff0ff313e20f3f0db43aaa251648
 - **Partly resolved — facets over EAV.** The `{ id, term }` projection is built
-  and indexed (term searchable, id stored). Facet *aggregation queries* and the
-  cardinality/typing story are still open (`capabilities.facets === false`).
+  and indexed (term searchable, id stored). Facet *aggregation queries* remain
+  open for the Postgres driver (`capabilities.facets === false`) — but the
+  [Solr design study](#mapping-the-seam-to-solr-design-study) shows the
+  aggregation path at the seam (JSON Facet API over the projected `counter`
+  ids returning the shared `SearchFacetBucket` shape), so what's left is
+  Postgres-side implementation, not design.
+- **Settled in design — driver-specific query extensions.** The
+  declaration-merged `SearchQuery.driver` slot (see
+  [the typed escape hatch](#driver-specific-query-options--the-typed-escape-hatch)):
+  core declares the empty `SearchDriverExtensions` interface + one optional
+  field, the client forwards it verbatim (pinned by test), drivers augment it
+  namespaced by key. Open governance question: when to *promote* an option
+  from a driver bag to `SearchQuery` proper — field-scoped search and sort
+  overrides are the first candidates.
 - **Resolved — row-level authorization on search.** "Rank in provider,
   authorise in core" shipped: `search()` strict-validates and re-resolves
   candidate hit ids through the normal read path when a collection has a
