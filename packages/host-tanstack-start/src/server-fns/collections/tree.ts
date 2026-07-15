@@ -16,7 +16,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { ERR_NOT_FOUND, getLogger } from '@byline/core'
+import { createReadContext, ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { getAdminBylineClient } from '../../integrations/byline-client.js'
@@ -160,10 +160,18 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
       }).log(getLogger())
     }
     const handle = getAdminBylineClient().collection(path)
+    // Shared deliberately across the structural and unplaced reads: the
+    // beforeRead predicate cache is per-ReadContext, so sharing gives both
+    // halves one predicate snapshot — a time-dependent predicate (embargo
+    // cutoff) evaluated twice could otherwise disagree between the placed
+    // forest and the unplaced list. The request-memoized context factory
+    // keeps this sharing safe (one request authority per request).
+    const readContext = createReadContext()
 
     const forest = await handle.getSubtree({
       status: 'any',
       locale: data.locale,
+      _readContext: readContext,
     })
     const rows: CollectionTreeRow[] = []
     const placed = new Set<string>()
@@ -189,7 +197,7 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
 
     // Surface documents not yet in the tree (e.g. freshly created) so they
     // remain reachable. Trees are small by design, so a single wide read is fine.
-    const unplaced = await getAdminUnplacedTreeDocuments(handle, placed, data.locale)
+    const unplaced = await getAdminUnplacedTreeDocuments(handle, placed, readContext, data.locale)
     for (const doc of unplaced) {
       rows.push({
         id: doc.id,
