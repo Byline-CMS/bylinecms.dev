@@ -36,6 +36,13 @@ export {
   validateTranslations,
 } from './i18n-validator.js'
 export {
+  type CanonicalNumericFieldType,
+  type CanonicalNumericValue,
+  isCanonicalNumericValue,
+  normalizeNumericFields,
+  normalizeNumericValue,
+} from './normalize-numeric-fields.js'
+export {
   type CycleRelationValue,
   createReadContext,
   type PopulatedRelationValue,

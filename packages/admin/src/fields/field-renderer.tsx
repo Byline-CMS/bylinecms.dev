@@ -195,6 +195,8 @@ export const FieldRenderer = ({
           />
         )
       case 'integer':
+      case 'float':
+      case 'decimal':
         return (
           <NumericalField
             field={hideLabel ? { ...field, label: undefined } : field}
