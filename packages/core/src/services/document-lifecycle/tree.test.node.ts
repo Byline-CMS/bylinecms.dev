@@ -324,7 +324,7 @@ describe('document-tree lifecycle audit contract', () => {
           promoteChildrenAndRemoveFromTree: undefined,
         },
       },
-    }
+    } as unknown as IDbAdapter
     expect(() =>
       validateTreeAuditCapability([{ ...harness.ctx.definition, tree: false }], unsupported)
     ).not.toThrow()
@@ -537,6 +537,8 @@ describe('document-tree lifecycle audit contract', () => {
 
     await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).resolves.toEqual({
       deletedVersionCount: 1,
+      outcome: 'committed',
+      sideEffectFailures: [],
     })
 
     expect(harness.deleted()).toBe(true)
@@ -588,9 +590,13 @@ describe('document-tree lifecycle audit contract', () => {
       afterDelete,
     })
 
-    await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).rejects.toThrow(
-      'hook failed'
-    )
+    await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).resolves.toEqual({
+      deletedVersionCount: 1,
+      outcome: 'committed-with-side-effect-failures',
+      sideEffectFailures: [
+        { phase: 'afterTreeChange', message: 'hook failed', code: 'ERR_UNHANDLED' },
+      ],
+    })
 
     expect(harness.deleted()).toBe(true)
     expect(harness.placement('deleted')).toBeUndefined()
@@ -600,16 +606,18 @@ describe('document-tree lifecycle audit contract', () => {
     expect(afterDelete).toHaveBeenCalledOnce()
     expect(harness.ctx.logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ documentId: 'deleted' }),
-      'post-commit delete hooks failed'
+      'post-commit delete side effects failed'
     )
   })
 
-  it('attempts and aggregates both failing delete hook families after commit', async () => {
+  it('attempts and serializes both failing delete hook families after commit', async () => {
+    const treeError = Object.assign(new Error('tree hook failed'), { code: 'ERR_TREE_HOOK' })
+    const deleteError = new Error('delete hook failed')
     const afterTreeChange = vi.fn(async () => {
-      throw new Error('tree hook failed')
+      throw treeError
     })
     const afterDelete = vi.fn(async () => {
-      throw new Error('delete hook failed')
+      throw deleteError
     })
     const harness = createHarness({
       initial: { deleted: { parentDocumentId: null, orderKey: 'deleted-key' } },
@@ -617,16 +625,63 @@ describe('document-tree lifecycle audit contract', () => {
       afterDelete,
     })
 
-    await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).rejects.toMatchObject({
-      name: 'AggregateError',
-      errors: [
-        expect.objectContaining({ message: 'tree hook failed' }),
-        expect.objectContaining({ message: 'delete hook failed' }),
+    const result = await deleteDocument(harness.ctx, { documentId: 'deleted' })
+
+    expect(result).toEqual({
+      deletedVersionCount: 1,
+      outcome: 'committed-with-side-effect-failures',
+      sideEffectFailures: [
+        { phase: 'afterTreeChange', message: 'tree hook failed', code: 'ERR_TREE_HOOK' },
+        { phase: 'afterDelete', message: 'delete hook failed', code: 'ERR_UNHANDLED' },
       ],
     })
+    expect(JSON.parse(JSON.stringify(result))).toEqual(result)
 
     expect(afterTreeChange).toHaveBeenCalledOnce()
     expect(afterDelete).toHaveBeenCalledOnce()
+    expect(harness.ctx.logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ err: treeError, documentId: 'deleted' }),
+      'afterTreeChange hook failed after document delete'
+    )
+    expect(harness.ctx.logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ err: deleteError, documentId: 'deleted' }),
+      'afterDelete hook failed after document delete'
+    )
+    expect(harness.deleted()).toBe(true)
+  })
+
+  it('returns a committed fallback when a hostile error and logger both throw', async () => {
+    const hostileError = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('hostile getter')
+        },
+      }
+    )
+    const harness = createHarness({
+      initial: { deleted: { parentDocumentId: null, orderKey: 'deleted-key' } },
+      afterDelete: async () => {
+        throw hostileError
+      },
+    })
+    const loggerError = vi.fn(() => {
+      throw new Error('logger failed')
+    })
+    harness.ctx.logger.error = loggerError
+
+    await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).resolves.toEqual({
+      deletedVersionCount: 1,
+      outcome: 'committed-with-side-effect-failures',
+      sideEffectFailures: [
+        {
+          phase: 'afterDelete',
+          message: 'Unknown side-effect failure',
+          code: 'ERR_UNHANDLED',
+        },
+      ],
+    })
+    expect(loggerError).toHaveBeenCalledTimes(2)
     expect(harness.deleted()).toBe(true)
   })
 
@@ -700,7 +755,11 @@ describe('document-tree lifecycle audit contract', () => {
 
     await expect(
       placeTreeNode(harness.ctx, { documentId: 'node', parentDocumentId: null })
-    ).rejects.toThrow('hook failed')
+    ).rejects.toMatchObject({
+      name: 'BylineError',
+      code: 'ERR_TREE_HOOK_COMMITTED',
+      message: expect.stringContaining('hook failed'),
+    })
 
     expect(harness.placement('node')).toEqual({ parentDocumentId: null, orderKey: 'key-1' })
     expect(harness.auditRows()).toHaveLength(1)
@@ -724,7 +783,7 @@ describe('document-tree lifecycle audit contract', () => {
         audit: undefined,
       },
       withTransaction: undefined,
-    }
+    } as unknown as IDbAdapter
 
     await expect(
       createDocument(harness.ctx, { data: { title: 'Created' }, locale: 'en' })

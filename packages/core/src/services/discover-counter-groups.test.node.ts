@@ -42,12 +42,23 @@ function makeAdapter(options?: {
         setOrderKey: vi.fn(fail) as any,
         placeTreeNode: vi.fn(fail) as any,
         removeFromTree: vi.fn(fail) as any,
+        promoteChildrenAndRemoveFromTree: vi.fn(async () => ({
+          removed: {
+            changed: false,
+            before: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+            after: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+            beforeSiblingDocumentIds: [],
+            beforeSubtreeDocumentIds: [],
+          },
+          promoted: [],
+        })),
       },
       counters: {
         ensureCounterGroup,
         nextCounterValue: vi.fn(fail) as any,
         nextScopedCounterValue: vi.fn(fail) as any,
       },
+      audit: { append: vi.fn(async () => ({ id: 'audit-1' })) },
     },
     queries: {
       collections: {
@@ -56,6 +67,7 @@ function makeAdapter(options?: {
         getCollectionById: vi.fn(fail),
       },
       documents: {
+        getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(fail),
         getCurrentVersionMetadata: vi.fn(fail) as any,
         getCurrentPath: vi.fn(fail) as any,
@@ -76,7 +88,18 @@ function makeAdapter(options?: {
         getTreeParent: vi.fn(fail) as any,
         getTreeSubtree: vi.fn(fail) as any,
       },
+      audit: {
+        getDocumentAuditLog: vi.fn(async () => ({
+          entries: [],
+          meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+        })),
+        findAuditLog: vi.fn(async () => ({
+          entries: [],
+          meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+        })),
+      },
     },
+    withTransaction: async <T>(fn: () => Promise<T>) => fn(),
   }
   return { db, ensureCounterGroup }
 }

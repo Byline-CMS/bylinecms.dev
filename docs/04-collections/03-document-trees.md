@@ -41,7 +41,9 @@ Turning on `tree: true` enables four things: the tree storage and its commands,
 the authoring widget and tree list view in the admin, the hierarchical read path,
 and the `afterTreeChange` invalidation event. A tree collection also requires an
 adapter that can lock, mutate, reconcile deletion, and append audit rows
-atomically; core rejects an unsupported adapter at startup. A tree collection
+atomically. These are mandatory parts of the canonical 4.x `IDbAdapter`, not
+optional capabilities; the startup audit/delete-reconciliation check remains as
+a runtime guard for untyped JavaScript adapters. A tree collection
 owns its own ordering, so it cannot also be `orderable: true` — that combination
 is rejected at config validation. You do **not** add a `parent` relation field;
 the tree owns the parent edge.
@@ -95,6 +97,15 @@ Admin mutation requests enable no-op reconciliation by default, so retrying an
 already-committed drop can re-run a failed post-commit invalidation hook. Direct
 SDK callers opt into that behavior with `reconcile: true`.
 
+The tree list runs moves as a **single-flight** across pointer and keyboard
+input. While one mutation plus its canonical router refresh is in flight, drag
+handles are disabled and a second move is suppressed. The admin refreshes loader
+data after both success and failure; a rejected mutation restores the prior
+optimistic state, stale-tree conflicts get their own toast, and refresh failure
+is reported separately. A successful mutation followed by refresh failure is
+not misreported as a mutation failure: the optimistic state remains and the
+admin shows a refresh warning.
+
 The document editor also carries a **tree-placement widget** in its sidebar
 (directly alongside the path widget). It uses the collection's own relation
 picker to choose a parent, with a "Move to top level" action and, for an unplaced
@@ -104,8 +115,8 @@ just like editing the path.
 ## Reading a tree
 
 The tree is not stored in the relation store, so it has its own read path rather
-than flowing through relationship population. The primitives are exposed on the
-`@byline/client` collection handle and mirror the storage commands:
+than flowing through relationship population. The public primitives are exposed
+on the `@byline/client` collection handle:
 
 | Method | Purpose |
 |---|---|
@@ -114,6 +125,57 @@ than flowing through relationship population. The primitives are exposed on the
 | `getTreeParent(documentId, { status, locale, … })` | Distinguish *unplaced* from *root* from *child*, without leaking a hidden parent id. |
 | `placeTreeNode(documentId, { parentDocumentId, beforeDocumentId, afterDocumentId, reconcile })` | Place, reorder, or re-parent a node — they differ only in whether the parent changes. |
 | `removeFromTree(documentId, { reconcile })` | Remove a node's edge so it becomes unplaced (distinct from deleting the document). |
+
+### Authoritative mutation contracts
+
+The adapter and lifecycle/SDK layers intentionally return different shapes. The
+canonical adapter signatures are:
+
+```ts
+placeTreeNode({
+  collectionId,
+  documentId,
+  parentDocumentId,
+  beforeDocumentId?,
+  afterDocumentId?,
+  ifUnplaced?,
+}): Promise<TreeMutationResult>
+
+removeFromTree({
+  collectionId,
+  documentId,
+  includeSubtree?,
+}): Promise<TreeMutationResult>
+
+promoteChildrenAndRemoveFromTree({
+  collectionId,
+  documentId,
+}): Promise<TreeDeleteMutationResult>
+```
+
+`TreeMutationResult` is `{ changed, before, after,
+beforeSiblingDocumentIds, beforeSubtreeDocumentIds }`; each placement snapshot
+is `{ placed, parentDocumentId, orderKey, index }`. Delete reconciliation returns
+`{ removed: TreeMutationResult, promoted: Array<{ documentId, before, after }> }`.
+These locked snapshots drive audit rows and post-commit invalidation fan-out.
+
+The lifecycle and collection handle deliberately narrow those internals:
+`CollectionHandle.placeTreeNode(documentId, options)` resolves to
+`{ orderKey: string }`, while `CollectionHandle.removeFromTree(documentId,
+options)` resolves to `void`. `ifUnplaced` and `includeSubtree` are internal
+adapter controls, not SDK options.
+
+Neighbour ids are assertions about one exact target gap, not loose ordering
+hints. `beforeDocumentId` is the left neighbour and must still be last when no
+right neighbour is supplied; `afterDocumentId` is the right neighbour and must
+still be first when no left neighbour is supplied; when both are supplied they
+must still be adjacent. A neighbour that moved to another parent, a changed edge
+boundary, or a concurrent writer that already occupied the asserted gap yields
+`ERR_CONFLICT`. The moving document and target parent must also still have a
+current, non-deleted version; a stale or soft-deleted endpoint yields the same
+`ERR_CONFLICT`. Structural misuse such as identical neighbour ids, self-parenting,
+cross-collection endpoints, or a cycle remains validation/not-found behavior,
+not a stale-write conflict.
 
 Subtree reads run a depth-bounded recursive query and return the nodes in
 table-of-contents (pre-order) order. The **prev/next spine** is a depth-first
@@ -271,9 +333,24 @@ action per promoted child and a removal action when an existing edge is removed
 or children are promoted; those rows share the soft-delete transaction. An
 already-unplaced leaf records only `document.deleted`.
 
+Direct storage soft deletion uses the same lock order as tree mutation:
+collection row first, then document/version state. This makes a direct
+`softDeleteDocument` serialize with endpoint liveness validation and avoids the
+document-first/collection-second inversion that would deadlock lifecycle
+deletion. Application writes should still use the lifecycle service so deletion
+also reconciles edges and writes audit rows.
+
 Automatic root placement on create/update is the exception described above: its
 placement + audit are atomic, but the preceding version write is already
 committed and a runtime placement failure is best-effort.
+
+For deletion, the database boundary includes the soft delete, direct-child
+promotion, edge removal, and every delete/tree audit row. Once that transaction
+commits, the delete is committed even if storage cleanup or post-commit tree and
+delete hooks fail. The lifecycle returns
+`outcome: 'committed-with-side-effect-failures'` instead of rejecting for those
+failures; the host exposes only sanitized phase/code data, and the admin still
+navigates to the collection list with a warning toast.
 
 ## Invalidation
 
@@ -292,12 +369,65 @@ hook failure; it still writes and audits nothing. The tree event has no separate
 reconciliation flag, so consumers must be idempotent. Admin tree mutations
 default this option to true; SDK callers opt in explicitly.
 
-A hook failure rejects the call after tree and audit data have committed. On a
-tree document delete, `afterTreeChange` and `afterDelete` are each attempted so
-one failure cannot suppress the other; multiple failures are reported together.
+For explicit place/remove operations, a hook failure rejects the call after tree
+and audit data have committed, enabling the no-op reconciliation retry above.
+The rejection is a coded `BylineError` with
+`code: 'ERR_TREE_HOOK_COMMITTED'`; the SDK rejection contract is unchanged, but
+hosts can distinguish committed structure from a rolled-back mutation. The
+TanStack host preserves core `BylineError` codes across server-function
+serialization. Its admin tree keeps the optimistic move, shows a warning rather
+than a structural-failure toast, and refreshes canonical rows. If that refresh
+also fails, it retains the optimistic rows until a later loader result or manual
+reload; ordinary mutation failures still roll back immediately. A
+tree document delete is different: `afterTreeChange` and `afterDelete` are each
+attempted so one failure cannot suppress the other, but failures resolve as the
+committed-with-side-effect-failures outcome rather than rejecting. There is no
+durable retry/outbox yet.
 Cache/ISR and markdown consumers can subscribe here. Search reindexing is needed
 only if a provider stores tree-derived hierarchy — the reference docs app stores
 the flat leaf path and invalidates its tree-derived cache without reindexing.
+
+## Recovering the docs tree from markdown
+
+The repository importer can restore content and then reapply the folder/index
+hierarchy in one run:
+
+```sh
+pnpm tsx apps/webapp/byline/scripts/import-docs.ts 'docs/**/*.md' --force --tree
+```
+
+`--force` recovers a soft-deleted document that still owns an imported path
+without exposing its previous published versions. It temporarily stages only
+the latest tombstoned version under a non-published status, runs the normal
+update and requested status transitions, then re-tombstones that staging row.
+The document id, path row, historical version rows and statuses, and audit rows
+are preserved.
+If the update or any ordinary post-commit hook/status step reports failure, a
+compensating write re-tombstones every version, including a replacement version
+that committed before an after-hook failed, then the configured `afterDelete`
+hooks reconcile search and cache state. Compensation or reconciliation failures
+are aggregated with the original error and remain fatal.
+
+Recovery takes a path-scoped Postgres advisory lock, which serializes competing
+`--force` import processes for the same path. Ordinary lifecycle writers do not
+take that maintenance lock. Run forced recovery without concurrent editorial
+writes to the recovered documents; without a durable operation id on version
+rows, compensation cannot distinguish its replacement from a version committed
+concurrently by an editor.
+
+`--tree` then places successful imports in deterministic source-file order using
+the folder plus `index.md` / `index.markdown` convention.
+Tree placement failures are collected and summarized, then propagated as an
+`AggregateError`; the CLI exits nonzero rather than reporting a successful
+recovery with a partial tree.
+
+The command has an explicit **imported-batch/no-prune boundary**; it is not a
+database-wide mirror. Only documents successfully imported in that invocation
+participate. A source parent outside the batch is not resolved from the database,
+so its imported child is treated as a root, and existing documents/edges absent
+from the batch are never removed, unplaced, or pruned. Include the complete
+intended markdown tree when using this command as a structural recovery
+operation.
 
 ## Choosing a hierarchy model
 

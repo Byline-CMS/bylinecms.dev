@@ -1,4 +1,3 @@
-import { resolveRoutes } from '@byline/core'
 import { Container, Section } from '@byline/ui/react'
 
 import { routes } from '~/public'
@@ -21,7 +20,7 @@ export function HeroTagline() {
           {t('heroTagline')}
         </p>
         <p className="m-0 mb-6 text-center underline flex gap-4 items-center justify-center">
-          <LangLink to={resolveRoutes(routes).admin}>{t('heroAdminDashboard')}</LangLink>
+          <LangLink to={routes.admin}>{t('heroAdminDashboard')}</LangLink>
           <LangLink to="/news">{t('navNews')}</LangLink>
         </p>
       </Container>

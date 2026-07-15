@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createServerOnlyFn } from '@tanstack/react-start'
+
 import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
@@ -14,6 +16,8 @@ import { RichTextBlock } from '~/blocks/richtext-block'
 import { publishedOnField } from '~/fields/published-on-field'
 
 // ---- Schema (server-safe, no UI concerns) ----
+
+const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
 
 export const Pages = defineCollection({
   path: 'pages',
@@ -50,10 +54,10 @@ export const Pages = defineCollection({
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true,
-  // Server-only lifecycle hooks (L1 cache invalidation), loaded via dynamic
-  // import so their server-only graph never enters the client bundle. See
-  // ./hooks.ts and docs/04-collections/index.md.
-  hooks: () => import('./hooks.js'),
+  // Server-only lifecycle hooks (L1 cache invalidation). The TanStack wrapper
+  // removes the loader body and its import graph from the client build.
+  // See ./hooks.ts and docs/04-collections/index.md.
+  hooks: loadHooks,
   /**
    * Pages live at the site root (no `/pages/` prefix) and may be nested
    * under an `area` segment. Same composition rule used by the admin

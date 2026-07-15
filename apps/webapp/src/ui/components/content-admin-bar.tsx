@@ -28,7 +28,7 @@ export type ContentAdminBarProps = {
   user: CurrentAdminUser | null
   /**
    * Admin URL prefix (e.g. `/admin`). The host should resolve this from
-   * the configured `routes.admin` via `resolveRoutes()` and thread it
+   * the resolved configured `routes.admin` and thread it
    * down — there is no default here on purpose, so a non-default admin
    * mount point can never silently 404 the bar's links.
    */

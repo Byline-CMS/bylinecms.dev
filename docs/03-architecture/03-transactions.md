@@ -16,6 +16,12 @@ the locked snapshots used by non-versioned system-field writes, and document
 tree mutations. Each audited write-point wraps its mutation and `audit.append`
 in one transaction so the change and its audit row commit together.
 
+In the canonical 4.x `IDbAdapter`, this is required rather than optional. The
+same intentional breaking contract also requires `commands.audit`,
+`queries.audit`, the transaction-scoped
+`getDocumentSystemFieldsForUpdate` lock/read, and
+`promoteChildrenAndRemoveFromTree` for delete-time tree reconciliation.
+
 ## The problem
 
 Before this capability, every `db.commands.*` mutation owned its own
@@ -90,9 +96,12 @@ transaction-agnostic — correct whether called standalone (their statements run
 on the pool) or inside a `withTransaction` (they join the ambient tx).
 
 Collection `after*` hooks are deliberately outside this boundary. They run only
-after commit: a hook failure rejects the lifecycle call, but cannot roll back
-the mutation or its audit row. Side-effect consumers must therefore be
-idempotent and use the reconciliation paths described for
+after commit and cannot roll back the mutation or its audit row. Most lifecycle
+operations still reject when such a hook fails so the caller can reconcile.
+Delete is deliberately different: storage cleanup, `afterTreeChange`, and
+`afterDelete` are all attempted independently and failures return a committed
+result rather than rejecting the already-complete delete. Side-effect consumers
+must therefore be idempotent and use the reconciliation paths described for
 [system fields](../04-collections/04-document-paths.md#server-transport) and
 [document trees](../04-collections/03-document-trees.md#invalidation) where
 available.
@@ -148,6 +157,15 @@ A sharp line, because conflating the two leads to a wrong design:
   side* of uploads atomic and tidier; the file↔DB boundary still needs
   compensation. "Transactions fix uploads" is **not** a promise this makes.
 
+Document deletion makes that line visible in its return type. The soft delete,
+delete audit row, child promotion, edge removal, and tree audit rows either all
+commit or all roll back. After commit, storage cleanup and the tree/delete hooks
+cannot change that result. `deleteDocument` therefore resolves with either
+`{ outcome: 'committed', sideEffectFailures: [] }` or
+`{ outcome: 'committed-with-side-effect-failures', sideEffectFailures: [...] }`;
+it does not reject for those post-commit failures. A durable retry queue/outbox
+for the reported side effects remains deferred.
+
 ## Serverless / HTTP-gateway databases — the contract seam
 
 `AsyncLocalStorage` is **transport-agnostic** — it propagates whatever value
@@ -175,17 +193,20 @@ future adapter has a clear target:
    `DBManager` / `TXManager` are adapter internals. Core stays
    transport-agnostic — consistent with guard rail 3 in
    [Core Composition](./02-core-composition.md#architectural-guard-rails).
-2. **`withTransaction` is an adapter capability on the contract.** Services
-   depend on `IDbAdapter.withTransaction(fn)`, not on Postgres specifically,
-   so a future Fastify/serverless adapter has an explicit method to satisfy
-   or reject.
-3. **Non-support must be loud, never silent.** An adapter that cannot provide
-   interactive transactions must **throw** on audited lifecycle writes (or fail
-   a boot-time capability check), *not* degrade to running `fn` without
-   atomicity. System-field writes additionally require a transaction-scoped
-   lock/read capability. If any configured collection has `tree: true`, core
-   validates the complete locked tree mutation + delete-reconciliation
-   capability at startup.
+2. **`withTransaction` is mandatory on `IDbAdapter`.** Services depend on
+   `IDbAdapter.withTransaction(fn)`, not on Postgres specifically. A future
+   HTTP-only adapter must supply equivalent atomic semantics or cannot implement
+   the canonical 4.x interface; pretending that `fn` is transactional is not an
+   accepted degradation.
+3. **The complete accountability surface is mandatory.** `commands.audit`,
+   `queries.audit`, `getDocumentSystemFieldsForUpdate`, and
+   `promoteChildrenAndRemoveFromTree` are required alongside
+   `withTransaction`. Runtime structural checks remain for untyped JavaScript
+   adapters: audited/system-field writes throw `ERR_AUDIT_UNSUPPORTED` when a
+   required function is absent, tree audit/delete reconciliation support is
+   checked at boot when any collection has `tree: true`, and the system activity
+   transport guards a missing audit-query object. These are guards against an
+   invalid runtime adapter, not feature negotiation.
 4. **Emulation is YAGNI.** A command-buffer / outbox that batches statements
    to flush as one HTTP request at "commit" is conceivable for HTTP-batch
    drivers — but it isn't worth designing until a second, genuinely
@@ -198,7 +219,7 @@ future adapter has a clear target:
 | Concern | Location |
 |---|---|
 | `DBManager` / `TXManager` (ALS propagation) | `packages/db-postgres/src/lib/db-manager.ts` |
-| `withTransaction` capability (optional) on the contract | `packages/core/src/@types/db-types.ts` (`IDbAdapter.withTransaction?`) |
+| Canonical transaction/audit/lock/tree contract | `packages/core/src/@types/db-types.ts` (`IDbAdapter`) |
 | Command-builder executor getter (`private get db()`) | `packages/db-postgres/src/modules/storage/storage-commands.ts` (`CollectionCommands`, `DocumentCommands`) |
 | Transaction-scoped system-field lock/snapshot | `packages/db-postgres/src/modules/storage/storage-queries.ts` (`getDocumentSystemFieldsForUpdate`) |
 | Manager construction + `withTransaction` wiring | `packages/db-postgres/src/index.ts` (`pgAdapter`) |

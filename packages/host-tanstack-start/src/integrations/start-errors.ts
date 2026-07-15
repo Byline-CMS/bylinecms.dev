@@ -44,6 +44,7 @@ const CODED_ERROR_NAMES = new Set([
   'AdminRolesError',
   'AdminUsersError',
   'AuthError',
+  'BylineError',
 ])
 
 export interface BylineCodedErrorPayload {

@@ -6,10 +6,14 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createServerOnlyFn } from '@tanstack/react-start'
+
 import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
 // ---- Schema (server-safe, no UI concerns) ----
+
+const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
 
 /**
  * Media — the reference upload collection.
@@ -128,14 +132,10 @@ export const Media = defineCollection({
             quality: 55,
           },
         ],
-        // Upload hooks run server-side only, but this schema is isomorphic
-        // (also bundled into the browser admin). Declared via the loader form
-        // — a thunk that dynamically imports a sibling module — so
-        // `./hooks.ts` and its server-only imports (here `node:crypto` /
-        // `node:path`, in a real app a storage SDK or `sharp`) stay out of
-        // the client bundle. See `./hooks.ts` and docs/04-collections/index.md →
-        // "Hooks must not statically import server-only code".
-        hooks: () => import('./hooks.js'),
+        // Upload hooks run server-side only, but this schema is isomorphic.
+        // TanStack's server-only wrapper strips the dynamic loader body and its
+        // `node:crypto` / `node:path` graph from the browser build.
+        hooks: loadHooks,
       },
     },
     // Descriptive metadata fields.

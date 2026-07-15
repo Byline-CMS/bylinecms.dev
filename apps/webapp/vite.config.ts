@@ -9,6 +9,8 @@ import { nitro } from 'nitro/vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { defineConfig, type Plugin, type PluginOption } from 'vite'
 
+import { clientHookBuildBoundary } from './byline/collections/client-hook-build-boundary.js'
+
 // Browser-only stub for `node:async_hooks`. @byline/core's logger module does
 // `await import('node:async_hooks')` at top level and falls back to a no-op
 // store on failure — but Vite's externalized-Node-builtin shim warns on every
@@ -186,6 +188,7 @@ const config = defineConfig({
         }) as PluginOption)
       : null,
     browserAsyncHooksAlias(),
+    clientHookBuildBoundary(),
     devMarkdownPassthrough(),
     devtools(),
     nitro({

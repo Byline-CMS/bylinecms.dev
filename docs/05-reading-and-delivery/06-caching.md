@@ -280,22 +280,22 @@ hooks: {
 (`path` on the ordinary write contexts is real, not aspirational — it is
 populated by the lifecycle from `byline_document_paths`.)
 
-The reference app's direct-write policy is more precise: a path change starts
-old + current detail-tag, list, sitemap, and search reconciliation together; an advertised-locale-only change clears detail/alternate,
-list data where present, and sitemap data but does not reindex search. A no-op
-path reconciliation uses the coarse collection tag,
-because an earlier failed hook may have completed only part of its work. Tree
-changes likewise use a coarse docs-collection sweep.
+The reference app's direct-write policy is more precise and app-owned. `apps/webapp/byline/collections/create-public-lifecycle-hooks.ts` exports `createPublicLifecycleHooks`, the server-only factory used by the dynamically loaded Docs, News, and Pages hook modules. Its typed `collectionPath` + `listBearing` options assemble cache invalidation and search reconciliation for create, update, system-field change, status change, unpublish, and delete; `invalidateTree` adds the coarse collection sweep needed by Docs. This keeps policy out of core while avoiding three subtly different copies.
+
+Within that factory, a path change starts old + current detail-tag, list, sitemap, and search reconciliation together; an advertised-locale-only change clears detail/alternate, list data where present, and sitemap data but does not reindex search. A no-op path reconciliation uses the coarse collection tag, because an earlier failed hook may have completed only part of its work. Tree changes likewise use a coarse docs-collection sweep.
 
 All these hooks run after commit. If invalidation throws, the write and audit
 remain committed. Hook arrays are sequential and fail-fast, so do not put
 independent cache/CDN/search effects in separate entries when each must get an
-attempt. The reference app starts search and local tag invalidations together,
-waits with `Promise.allSettled`, and throws one `AggregateError` after every
-awaited effect has settled; its per-document cache helper does the same for local
-detail, old-path, list, and sitemap tags. Optional cross-instance cache fan-out
-is deliberately fire-and-forget: failures are logged and do not join that
-aggregate. This is app-owned reliability policy, not an automatic core
+attempt. The reference factory delegates each event to `runSideEffects`, which
+starts search and local tag invalidations together, waits with
+`Promise.allSettled`, and throws one `AggregateError` after every awaited effect
+has settled; its per-document cache helper does the same for local detail,
+old-path, list, and sitemap tags. On delete, such an `afterDelete` failure is
+reported by the lifecycle result as a committed side-effect failure rather than
+undoing or rejecting the committed soft-delete. Optional cross-instance cache
+fan-out is deliberately fire-and-forget: failures are logged and do not join
+that aggregate. This is app-owned reliability policy, not an automatic core
 transaction or durable retry queue.
 
 ## Instance and clustering considerations

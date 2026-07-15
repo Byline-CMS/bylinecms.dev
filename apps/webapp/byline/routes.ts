@@ -8,16 +8,17 @@
 
 /**
  * Client-safe URL paths for admin, sign-in, and the future public API.
- * `resolveRoutes()` applies defaults and canonicalizes every consumer.
+ * Resolve once at this client-safe configuration boundary so consumers only
+ * read canonical paths.
  */
 
-import type { RoutesConfig } from '@byline/core'
+import { resolveRoutes } from '@byline/core'
 
-export const routes: Partial<RoutesConfig> = {
+export const routes = resolveRoutes({
   admin: '/admin',
   api: '/api',
   signIn: '/sign-in',
-}
+})
 
 /**
  * Fallback used by both server and admin entry points when no

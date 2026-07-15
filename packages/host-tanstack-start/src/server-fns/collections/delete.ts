@@ -14,6 +14,7 @@ import { deleteDocument as deleteDocumentService } from '@byline/core/services'
 
 import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { toDeleteDocumentResponse } from './delete-outcome.js'
 
 // ---------------------------------------------------------------------------
 // Delete document (soft-delete — marks all versions as deleted)
@@ -58,5 +59,5 @@ export const deleteDocument = createServerFn({ method: 'POST' })
     }
 
     const result = await deleteDocumentService(ctx, { documentId: id })
-    return { status: 'ok' as const, deletedVersionCount: result.deletedVersionCount }
+    return toDeleteDocumentResponse(result)
   })

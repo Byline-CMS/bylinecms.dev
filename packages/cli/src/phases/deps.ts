@@ -318,6 +318,9 @@ export function validateDependencyPlan(
       }
       continue
     }
+    if (precondition.type !== 'value') {
+      return { valid: false, reason: 'dependency plan has an unsupported precondition' }
+    }
     const current =
       precondition.key === 'package-manager'
         ? ctx.pm

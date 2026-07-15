@@ -22,6 +22,9 @@ describe('normalizeRootRelativeRedirect', () => {
     '/%2F%2Fevil.test',
     '/cms/%5cevil.test',
     '/cms/%2e/account',
+    '/cms/../account',
+    '/cms/./account',
+    '/cms\u0085account',
   ])('rejects %j', (value) => {
     expect(normalizeRootRelativeRedirect(value)).toBeUndefined()
   })

@@ -10,6 +10,7 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
+import { ERR_TREE_HOOK_COMMITTED } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import {
   AUDIT_ACTIONS,
@@ -90,6 +91,23 @@ async function fireTreeChange(
   })
 }
 
+/** Preserve rejection semantics while exposing that tree data already committed. */
+async function runCommittedTreeHook(
+  event: { change: TreeChangeContext['change']; documentId: string },
+  callback: () => Promise<void>
+): Promise<void> {
+  try {
+    await callback()
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause)
+    throw ERR_TREE_HOOK_COMMITTED({
+      message: `tree mutation committed but afterTreeChange failed: ${message}`,
+      cause,
+      details: event,
+    })
+  }
+}
+
 function placementAction(before: TreePlacementState, parentDocumentId: string | null): string {
   if (!before.placed) return AUDIT_ACTIONS.treePlaced
   if (before.parentDocumentId !== parentDocumentId) return AUDIT_ACTIONS.treeReparented
@@ -157,30 +175,37 @@ export async function placeTreeNode(
       if (orderKey == null) throw new Error('placed tree mutation did not return an order key')
       if (!mutation.changed) {
         if (wantsEvent && params.reconcile === true) {
-          await fireTreeChange(ctx, ctx.definition, {
-            change: 'place',
-            documentId: params.documentId,
-            affectedDocumentIds: await wholeTreeIds(ctx),
-          })
+          await runCommittedTreeHook(
+            { change: 'place', documentId: params.documentId },
+            async () => {
+              await fireTreeChange(ctx, ctx.definition, {
+                change: 'place',
+                documentId: params.documentId,
+                affectedDocumentIds: await wholeTreeIds(ctx),
+              })
+            }
+          )
         }
         return { orderKey }
       }
 
       if (wantsEvent) {
-        const [subtree, newSiblings] = await Promise.all([
-          subtreeIds(ctx, params.documentId),
-          childIds(ctx, params.parentDocumentId),
-        ])
-        await fireTreeChange(ctx, ctx.definition, {
-          change: 'place',
-          documentId: params.documentId,
-          affectedDocumentIds: [
-            ...subtree,
-            ...(mutation.before.parentDocumentId ? [mutation.before.parentDocumentId] : []),
-            ...(params.parentDocumentId ? [params.parentDocumentId] : []),
-            ...mutation.beforeSiblingDocumentIds,
-            ...newSiblings,
-          ],
+        await runCommittedTreeHook({ change: 'place', documentId: params.documentId }, async () => {
+          const [subtree, newSiblings] = await Promise.all([
+            subtreeIds(ctx, params.documentId),
+            childIds(ctx, params.parentDocumentId),
+          ])
+          await fireTreeChange(ctx, ctx.definition, {
+            change: 'place',
+            documentId: params.documentId,
+            affectedDocumentIds: [
+              ...subtree,
+              ...(mutation.before.parentDocumentId ? [mutation.before.parentDocumentId] : []),
+              ...(params.parentDocumentId ? [params.parentDocumentId] : []),
+              ...mutation.beforeSiblingDocumentIds,
+              ...newSiblings,
+            ],
+          })
         })
       }
       return { orderKey }
@@ -244,27 +269,37 @@ export async function removeFromTree(
       })
 
       if (!mutation || !wantsEvent) return
-      if (!mutation.changed) {
+      const committedMutation = mutation
+      if (!committedMutation.changed) {
         if (params.reconcile === true) {
-          await fireTreeChange(ctx, ctx.definition, {
-            change: 'remove',
-            documentId: params.documentId,
-            affectedDocumentIds: [
-              ...(await wholeTreeIds(ctx)),
-              ...mutation.beforeSubtreeDocumentIds,
-            ],
-          })
+          await runCommittedTreeHook(
+            { change: 'remove', documentId: params.documentId },
+            async () => {
+              await fireTreeChange(ctx, ctx.definition, {
+                change: 'remove',
+                documentId: params.documentId,
+                affectedDocumentIds: [
+                  ...(await wholeTreeIds(ctx)),
+                  ...committedMutation.beforeSubtreeDocumentIds,
+                ],
+              })
+            }
+          )
         }
         return
       }
-      await fireTreeChange(ctx, ctx.definition, {
-        change: 'remove',
-        documentId: params.documentId,
-        affectedDocumentIds: [
-          ...mutation.beforeSubtreeDocumentIds,
-          ...(mutation.before.parentDocumentId ? [mutation.before.parentDocumentId] : []),
-          ...mutation.beforeSiblingDocumentIds,
-        ],
+      await runCommittedTreeHook({ change: 'remove', documentId: params.documentId }, async () => {
+        await fireTreeChange(ctx, ctx.definition, {
+          change: 'remove',
+          documentId: params.documentId,
+          affectedDocumentIds: [
+            ...committedMutation.beforeSubtreeDocumentIds,
+            ...(committedMutation.before.parentDocumentId
+              ? [committedMutation.before.parentDocumentId]
+              : []),
+            ...committedMutation.beforeSiblingDocumentIds,
+          ],
+        })
       })
     }
   )

@@ -14,7 +14,7 @@ import type {
   TreeMutationResult,
   TreePlacementState,
 } from '@byline/core'
-import { ERR_NOT_FOUND, ERR_VALIDATION, generateKeyBetween } from '@byline/core'
+import { ERR_CONFLICT, ERR_NOT_FOUND, ERR_VALIDATION, generateKeyBetween } from '@byline/core'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
@@ -22,6 +22,7 @@ import { v7 as uuidv7 } from 'uuid'
 import {
   booleanStore,
   collections,
+  currentDocumentsView,
   datetimeStore,
   documentAvailableLocales,
   documentPaths,
@@ -1046,14 +1047,30 @@ export class DocumentCommands implements IDocumentCommands {
    * Returns the number of version rows marked as deleted.
    */
   async softDeleteDocument(params: { document_id: string }): Promise<number> {
-    const result = await this.db
-      .update(documentVersions)
-      .set({
-        is_deleted: true,
-        updated_at: new Date(),
-      })
-      .where(eq(documentVersions.document_id, params.document_id))
-    return (result as any).rowCount ?? 0
+    return this.db.transaction(async (tx) => {
+      // Tree placement takes this same collection lock before inspecting any
+      // endpoint state. Taking it before document/version locks makes direct
+      // soft deletion serialize with placement without reversing the normal
+      // lifecycle delete's lock order.
+      const collectionId = await this.lockDocumentCollection(tx, params.document_id)
+      if (collectionId == null) return 0
+
+      const [document] = await tx
+        .select({ id: documents.id })
+        .from(documents)
+        .where(eq(documents.id, params.document_id))
+        .for('update')
+      if (document == null) return 0
+
+      const result = await tx
+        .update(documentVersions)
+        .set({
+          is_deleted: true,
+          updated_at: new Date(),
+        })
+        .where(eq(documentVersions.document_id, params.document_id))
+      return (result as any).rowCount ?? 0
+    })
   }
 
   /**
@@ -1081,6 +1098,21 @@ export class DocumentCommands implements IDocumentCommands {
     if (locked.rows.length === 0) {
       throw ERR_NOT_FOUND({ message: 'collection not found', details: { collectionId } })
     }
+  }
+
+  /** Resolve a document's collection while locking only the collection row. */
+  private async lockDocumentCollection(
+    tx: TxConnection,
+    documentId: string
+  ): Promise<string | null> {
+    const locked = await tx.execute(sql`
+      SELECT c.id AS collection_id
+      FROM byline_collections c
+      JOIN byline_documents d ON d.collection_id = c.id
+      WHERE d.id = ${documentId}::uuid
+      FOR UPDATE OF c
+    `)
+    return (locked.rows[0]?.collection_id as string | undefined) ?? null
   }
 
   /** Read one ordered sibling group on the already collection-locked transaction. */
@@ -1195,14 +1227,28 @@ export class DocumentCommands implements IDocumentCommands {
         details: { documentId },
       })
     }
+    if (beforeDocumentId === documentId || afterDocumentId === documentId) {
+      throw ERR_VALIDATION({
+        message: 'a document cannot be its own tree neighbour',
+        details: { documentId },
+      })
+    }
+    if (beforeDocumentId != null && beforeDocumentId === afterDocumentId) {
+      throw ERR_VALIDATION({
+        message: 'beforeDocumentId and afterDocumentId must identify different tree neighbours',
+        details: { documentId, beforeDocumentId, afterDocumentId },
+      })
+    }
 
     return await this.db.transaction(async (tx) => {
       // One collection-row lock serializes all edge and sibling-key changes in
       // the tree, so the returned before state and no-op decision cannot race.
       await this.lockTreeCollection(tx, collectionId)
 
-      // Same-collection guard — both endpoints must live in `collectionId`.
-      const ids = parentDocumentId ? [documentId, parentDocumentId] : [documentId]
+      // Same-collection guard — every supplied endpoint must live in `collectionId`.
+      const ids = [documentId, parentDocumentId, beforeDocumentId, afterDocumentId].filter(
+        (id): id is string => id != null
+      )
       const docRows = await tx
         .select({ id: documents.id, collection_id: documents.collection_id })
         .from(documents)
@@ -1232,7 +1278,60 @@ export class DocumentCommands implements IDocumentCommands {
             details: { parentDocumentId, collectionId },
           })
         }
+      }
 
+      const neighbours = [
+        { role: 'beforeDocumentId', id: beforeDocumentId },
+        { role: 'afterDocumentId', id: afterDocumentId },
+      ] as const
+      for (const neighbour of neighbours) {
+        if (neighbour.id == null) continue
+        if (collectionById.get(neighbour.id) == null) {
+          throw ERR_NOT_FOUND({
+            message: 'tree neighbour document not found',
+            details: { documentId, [neighbour.role]: neighbour.id },
+          })
+        }
+        if (collectionById.get(neighbour.id) !== collectionId) {
+          throw ERR_VALIDATION({
+            message: 'tree neighbour is in a different collection',
+            details: { documentId, collectionId, [neighbour.role]: neighbour.id },
+          })
+        }
+      }
+
+      const liveRows = await tx
+        .select({ id: currentDocumentsView.document_id })
+        .from(currentDocumentsView)
+        .where(
+          and(
+            eq(currentDocumentsView.collection_id, collectionId),
+            inArray(currentDocumentsView.document_id, ids)
+          )
+        )
+      const liveIds = new Set(liveRows.map((row) => row.id))
+      if (!liveIds.has(documentId)) {
+        throw ERR_CONFLICT({
+          message: 'tree placement is stale: document no longer has a current version',
+          details: { documentId, collectionId },
+        })
+      }
+      if (parentDocumentId != null && !liveIds.has(parentDocumentId)) {
+        throw ERR_CONFLICT({
+          message: 'tree placement is stale: parent no longer has a current version',
+          details: { documentId, parentDocumentId, collectionId },
+        })
+      }
+      for (const neighbour of neighbours) {
+        if (neighbour.id != null && !liveIds.has(neighbour.id)) {
+          throw ERR_CONFLICT({
+            message: `tree placement is stale: ${neighbour.role} no longer has a current version`,
+            details: { documentId, collectionId, [neighbour.role]: neighbour.id },
+          })
+        }
+      }
+
+      if (parentDocumentId != null) {
         // Cycle guard — reject when `documentId` is the new parent itself or
         // any of its ancestors (which would put the node below its own
         // subtree). Walk upward from `parentDocumentId`; depth-bounded.
@@ -1271,13 +1370,6 @@ export class DocumentCommands implements IDocumentCommands {
           : await this.treeGroup(tx, collectionId, parentDocumentId)
       ).filter((row) => row.documentId !== documentId)
 
-      if (beforeDocumentId === documentId || afterDocumentId === documentId) {
-        throw ERR_VALIDATION({
-          message: 'a document cannot be its own tree neighbour',
-          details: { documentId },
-        })
-      }
-
       const leftIndex = beforeDocumentId
         ? targetGroup.findIndex((row) => row.documentId === beforeDocumentId)
         : -1
@@ -1285,23 +1377,37 @@ export class DocumentCommands implements IDocumentCommands {
         ? targetGroup.findIndex((row) => row.documentId === afterDocumentId)
         : -1
       if (beforeDocumentId && leftIndex < 0) {
-        throw ERR_VALIDATION({
-          message: 'beforeDocumentId is not in the target tree sibling group',
+        throw ERR_CONFLICT({
+          message:
+            'tree placement is stale: beforeDocumentId is no longer in the target sibling group',
           details: { documentId, parentDocumentId, beforeDocumentId },
         })
       }
       if (afterDocumentId && rightIndex < 0) {
-        throw ERR_VALIDATION({
-          message: 'afterDocumentId is not in the target tree sibling group',
+        throw ERR_CONFLICT({
+          message:
+            'tree placement is stale: afterDocumentId is no longer in the target sibling group',
           details: { documentId, parentDocumentId, afterDocumentId },
+        })
+      }
+      if (afterDocumentId && beforeDocumentId == null && rightIndex !== 0) {
+        throw ERR_CONFLICT({
+          message: 'tree placement is stale: right neighbour is no longer first',
+          details: { documentId, parentDocumentId, afterDocumentId },
+        })
+      }
+      if (beforeDocumentId && afterDocumentId == null && leftIndex !== targetGroup.length - 1) {
+        throw ERR_CONFLICT({
+          message: 'tree placement is stale: left neighbour is no longer last',
+          details: { documentId, parentDocumentId, beforeDocumentId },
         })
       }
 
       let insertionIndex: number
       if (beforeDocumentId && afterDocumentId) {
         if (leftIndex + 1 !== rightIndex) {
-          throw ERR_VALIDATION({
-            message: 'tree neighbours must be adjacent in the target sibling group',
+          throw ERR_CONFLICT({
+            message: 'tree placement is stale: target neighbours are no longer adjacent',
             details: { documentId, parentDocumentId, beforeDocumentId, afterDocumentId },
           })
         }

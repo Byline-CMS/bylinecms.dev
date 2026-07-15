@@ -21,17 +21,15 @@
 import type { RequestContext } from '@byline/auth'
 import type { ReadContext, ReadMode, SearchHit } from '@byline/core'
 import {
-  applyBeforeRead,
   assertActorCanPerform,
   createReadContext,
   ERR_VALIDATION,
   getCollectionAdminConfig,
-  parsePredicateFilters,
   resolveItemViewColumns,
   resolveSearchZones,
 } from '@byline/core'
 
-import { resolveReadRequestContext } from './read-context.js'
+import { resolveReadRequestContext, resolveReadSecurityFilters } from './read-context.js'
 import type { BylineClient } from './client.js'
 import type {
   ClientDocument,
@@ -144,8 +142,13 @@ export async function finalizeSearchHits(
       continue
     }
 
-    const predicate = await applyBeforeRead({ definition, requestContext, readContext: readCtx })
-    if (predicate == null) {
+    const securityFilters = await resolveReadSecurityFilters(
+      client,
+      definition,
+      requestContext,
+      readCtx
+    )
+    if (securityFilters == null) {
       allowedByCollection.set(collectionPath, null)
       continue
     }
@@ -248,22 +251,13 @@ export async function zoneSearch(
   if (!options._bypassBeforeRead) {
     for (const member of members) {
       if (!readable.has(member.path)) continue
-      const predicate = await applyBeforeRead({
-        definition: member,
-        requestContext,
-        readContext: readCtx,
-      })
-      if (predicate == null) continue
-      await parsePredicateFilters(
-        predicate,
+      const securityFilters = await resolveReadSecurityFilters(
+        client,
         member,
-        {
-          collections: client.collections,
-          resolveCollectionId: (path) => client.resolveCollectionId(path),
-          logger: client.logger,
-        },
-        { strict: true }
+        requestContext,
+        readCtx
       )
+      if (securityFilters == null) continue
       aggregateRestricted = true
     }
   }

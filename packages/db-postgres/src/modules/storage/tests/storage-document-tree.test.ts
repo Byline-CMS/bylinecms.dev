@@ -23,13 +23,19 @@
  *   - removeFromTree returns a node to the unplaced state.
  */
 
-import type { CollectionDefinition } from '@byline/core'
+import { type CollectionDefinition, ErrorCodes } from '@byline/core'
+import { sql } from 'drizzle-orm'
+import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
+import type { DBManagerImpl, TXManagerImpl } from '../../../lib/db-manager.js'
 
 let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
 let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
+let dbManager: DBManagerImpl
+let txManager: TXManagerImpl
+let pool: Pool
 
 const timestamp = Date.now()
 
@@ -78,6 +84,9 @@ describe('document-tree commands', () => {
     const testDB = setupTestDB([TreeCollectionConfig, OtherCollectionConfig])
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
+    dbManager = testDB.dbManager
+    txManager = testDB.txManager
+    pool = testDB.pool
 
     const tree = await commandBuilders.collections.create(
       TreeCollectionConfig.path,
@@ -186,6 +195,321 @@ describe('document-tree commands', () => {
     })
     expect(childIds(kids)).toEqual([y, x])
     expect(kids.length, 'no duplicate row from upsert').toBe(2)
+  })
+
+  it('rejects a stale target neighbour group as a conflict', async () => {
+    const parentA = await createDoc(treeCollection.id, TreeCollectionConfig, 'Conflict Parent A')
+    const parentB = await createDoc(treeCollection.id, TreeCollectionConfig, 'Conflict Parent B')
+    const neighbour = await createDoc(treeCollection.id, TreeCollectionConfig, 'Conflict Neighbour')
+    const node = await createDoc(treeCollection.id, TreeCollectionConfig, 'Conflict Node')
+
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: neighbour,
+      parentDocumentId: parentA,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: neighbour,
+      parentDocumentId: parentB,
+    })
+
+    await expect(
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId: node,
+        parentDocumentId: parentA,
+        beforeDocumentId: neighbour,
+      })
+    ).rejects.toMatchObject({ code: ErrorCodes.CONFLICT })
+  })
+
+  it('allows only one concurrent placement into the same asserted sibling gap', async () => {
+    const parent = await createDoc(treeCollection.id, TreeCollectionConfig, 'Gap Parent')
+    const left = await createDoc(treeCollection.id, TreeCollectionConfig, 'Gap Left')
+    const right = await createDoc(treeCollection.id, TreeCollectionConfig, 'Gap Right')
+    const first = await createDoc(treeCollection.id, TreeCollectionConfig, 'Gap First')
+    const second = await createDoc(treeCollection.id, TreeCollectionConfig, 'Gap Second')
+
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: left,
+      parentDocumentId: parent,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: right,
+      parentDocumentId: parent,
+      beforeDocumentId: left,
+    })
+
+    const placeInSameGap = (documentId: string) =>
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId,
+        parentDocumentId: parent,
+        beforeDocumentId: left,
+        afterDocumentId: right,
+      })
+    const results = await Promise.allSettled([placeInSameGap(first), placeInSameGap(second)])
+
+    const fulfilled = results.filter((result) => result.status === 'fulfilled')
+    const rejected = results.filter((result) => result.status === 'rejected')
+    expect(fulfilled).toHaveLength(1)
+    expect(rejected).toHaveLength(1)
+    expect(rejected[0]).toMatchObject({
+      reason: { code: ErrorCodes.CONFLICT },
+    })
+
+    const winner = results[0]?.status === 'fulfilled' ? first : second
+    const loser = winner === first ? second : first
+    expect(
+      childIds(
+        await queryBuilders.documents.getTreeChildren({
+          collectionId: treeCollection.id,
+          parentDocumentId: parent,
+        })
+      )
+    ).toEqual([left, winner, right])
+    expect(await queryBuilders.documents.getTreeParent({ document_id: loser })).toEqual({
+      placed: false,
+      parentDocumentId: null,
+    })
+  })
+
+  it('allows only one concurrent placement before an asserted first sibling', async () => {
+    const parent = await createDoc(treeCollection.id, TreeCollectionConfig, 'First Gap Parent')
+    const right = await createDoc(treeCollection.id, TreeCollectionConfig, 'First Gap Right')
+    const first = await createDoc(treeCollection.id, TreeCollectionConfig, 'First Gap First')
+    const second = await createDoc(treeCollection.id, TreeCollectionConfig, 'First Gap Second')
+
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: right,
+      parentDocumentId: parent,
+    })
+
+    const placeFirst = (documentId: string) =>
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId,
+        parentDocumentId: parent,
+        afterDocumentId: right,
+      })
+    const results = await Promise.allSettled([placeFirst(first), placeFirst(second)])
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toMatchObject([
+      { reason: { code: ErrorCodes.CONFLICT } },
+    ])
+    const winner = results[0]?.status === 'fulfilled' ? first : second
+    expect(
+      childIds(
+        await queryBuilders.documents.getTreeChildren({
+          collectionId: treeCollection.id,
+          parentDocumentId: parent,
+        })
+      )
+    ).toEqual([winner, right])
+  })
+
+  it('allows only one concurrent placement after an asserted last sibling', async () => {
+    const parent = await createDoc(treeCollection.id, TreeCollectionConfig, 'Last Gap Parent')
+    const left = await createDoc(treeCollection.id, TreeCollectionConfig, 'Last Gap Left')
+    const first = await createDoc(treeCollection.id, TreeCollectionConfig, 'Last Gap First')
+    const second = await createDoc(treeCollection.id, TreeCollectionConfig, 'Last Gap Second')
+
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: left,
+      parentDocumentId: parent,
+    })
+
+    const placeLast = (documentId: string) =>
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId,
+        parentDocumentId: parent,
+        beforeDocumentId: left,
+      })
+    const results = await Promise.allSettled([placeLast(first), placeLast(second)])
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toMatchObject([
+      { reason: { code: ErrorCodes.CONFLICT } },
+    ])
+    const winner = results[0]?.status === 'fulfilled' ? first : second
+    expect(
+      childIds(
+        await queryBuilders.documents.getTreeChildren({
+          collectionId: treeCollection.id,
+          parentDocumentId: parent,
+        })
+      )
+    ).toEqual([left, winner])
+  })
+
+  it('rejects placement when the moving node was deleted after the placement snapshot', async () => {
+    const node = await createDoc(treeCollection.id, TreeCollectionConfig, 'Deleted Moving Node')
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: node,
+      parentDocumentId: null,
+    })
+    await commandBuilders.documents.softDeleteDocument({ document_id: node })
+
+    await expect(
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId: node,
+        parentDocumentId: null,
+      })
+    ).rejects.toMatchObject({ code: ErrorCodes.CONFLICT })
+  })
+
+  it('serializes direct soft deletion before endpoint validation', async () => {
+    const node = await createDoc(treeCollection.id, TreeCollectionConfig, 'Concurrent Delete Node')
+    let releaseVersionLock: (() => void) | undefined
+    let versionLocked: (() => void) | undefined
+    const holdVersionLock = new Promise<void>((resolve) => {
+      releaseVersionLock = resolve
+    })
+    const hasVersionLock = new Promise<void>((resolve) => {
+      versionLocked = resolve
+    })
+
+    // Hold the version row so softDeleteDocument pauses only after taking the
+    // collection lock. A concurrent placement must then wait and validate the
+    // committed deleted state rather than slipping through the gap.
+    const blocker = txManager.withTransaction(async () => {
+      await dbManager.get().execute(sql`
+        SELECT id FROM byline_document_versions
+        WHERE document_id = ${node}::uuid
+        FOR UPDATE
+      `)
+      versionLocked?.()
+      await holdVersionLock
+    })
+    await hasVersionLock
+
+    const deleting = commandBuilders.documents.softDeleteDocument({ document_id: node })
+
+    const waitForDeleteCollectionLock = async (): Promise<void> => {
+      for (let attempt = 0; attempt < 100; attempt++) {
+        try {
+          await pool.query(
+            'SELECT id FROM byline_collections WHERE id = $1::uuid FOR UPDATE NOWAIT',
+            [treeCollection.id]
+          )
+        } catch (error) {
+          if ((error as { code?: string }).code === '55P03') return
+          throw error
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5))
+      }
+      throw new Error('soft delete did not acquire the collection lock')
+    }
+    await waitForDeleteCollectionLock()
+
+    let placementSettled = false
+    const placement = commandBuilders.documents
+      .placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId: node,
+        parentDocumentId: null,
+      })
+      .then(
+        (value) => {
+          placementSettled = true
+          return { value }
+        },
+        (error: unknown) => {
+          placementSettled = true
+          return { error }
+        }
+      )
+
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    expect(placementSettled, 'placement waits behind direct soft deletion').toBe(false)
+
+    releaseVersionLock?.()
+    await blocker
+    await expect(deleting).resolves.toBeGreaterThan(0)
+    const placementResult = await placement
+    expect(placementResult).toMatchObject({ error: { code: ErrorCodes.CONFLICT } })
+  })
+
+  it('rejects placement when the target parent was deleted after the placement snapshot', async () => {
+    const parent = await createDoc(treeCollection.id, TreeCollectionConfig, 'Deleted Target Parent')
+    const node = await createDoc(treeCollection.id, TreeCollectionConfig, 'Deleted Parent Node')
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: parent,
+      parentDocumentId: null,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: node,
+      parentDocumentId: null,
+      beforeDocumentId: parent,
+    })
+    await commandBuilders.documents.softDeleteDocument({ document_id: parent })
+
+    await expect(
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId: node,
+        parentDocumentId: parent,
+      })
+    ).rejects.toMatchObject({ code: ErrorCodes.CONFLICT })
+  })
+
+  it('rejects a deleted target neighbour as a stale conflict', async () => {
+    const parent = await createDoc(
+      treeCollection.id,
+      TreeCollectionConfig,
+      'Deleted Neighbour Parent'
+    )
+    const neighbour = await createDoc(
+      treeCollection.id,
+      TreeCollectionConfig,
+      'Deleted Target Neighbour'
+    )
+    const node = await createDoc(treeCollection.id, TreeCollectionConfig, 'Deleted Neighbour Node')
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: neighbour,
+      parentDocumentId: parent,
+    })
+    await commandBuilders.documents.softDeleteDocument({ document_id: neighbour })
+
+    await expect(
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId: node,
+        parentDocumentId: parent,
+        beforeDocumentId: neighbour,
+      })
+    ).rejects.toMatchObject({ code: ErrorCodes.CONFLICT })
+  })
+
+  it('rejects a cross-collection neighbour as structural validation', async () => {
+    const parent = await createDoc(
+      treeCollection.id,
+      TreeCollectionConfig,
+      'Foreign Neighbour Parent'
+    )
+    const node = await createDoc(treeCollection.id, TreeCollectionConfig, 'Foreign Neighbour Node')
+    const foreign = await createDoc(otherCollection.id, OtherCollectionConfig, 'Foreign Neighbour')
+
+    await expect(
+      commandBuilders.documents.placeTreeNode({
+        collectionId: treeCollection.id,
+        documentId: node,
+        parentDocumentId: parent,
+        afterDocumentId: foreign,
+      })
+    ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
   })
 
   it('re-parents atomically and updates ancestors', async () => {

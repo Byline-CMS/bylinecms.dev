@@ -23,32 +23,50 @@ If you need to read or write Byline content from your own code today (a public f
 ## Byline-owned host route mounts
 
 Hosts configure Byline-owned URL paths through `BaseConfig.routes`. Inputs are
-partial; consumers should call `resolveRoutes()` to obtain the canonical shape:
+partial. `defineClientConfig()` and `defineServerConfig()` resolve and validate
+them when configuration is registered, before replacing the registered config:
 
 ```ts
-import { resolveRoutes, type RoutesConfig } from '@byline/core'
+import {
+  defineClientConfig,
+  type ClientConfig,
+  type RoutesConfigInput,
+} from '@byline/core'
 
-const routes: Partial<RoutesConfig> = {
-  admin: '/cms',
-  api: '/api',
+const routes: RoutesConfigInput = {
+  admin: '/internal/cms',
+  api: '/services/content',
   signIn: '/staff/login',
 }
 
-const resolved = resolveRoutes(routes)
+export function registerClientConfig(config: ClientConfig) {
+  const registered = defineClientConfig({ ...config, routes })
+  return registered.routes // frozen canonical { admin, api, signIn }
+}
 ```
 
 | Key | Default | Contract |
 |---|---|---|
-| `admin` | `/admin` | Exactly one path segment. |
-| `api` | `/api` | Exactly one path segment; reserved for a future public API. |
+| `admin` | `/admin` | One or more segments; mounts the admin route tree. |
+| `api` | `/api` | One or more segments; reserved for a future public API. |
 | `signIn` | `/sign-in` | One or more segments, outside the admin and API trees. |
 
 Resolution trims surrounding whitespace, adds the leading slash, removes
 duplicate and trailing slashes, and uses defaults for blank or omitted values.
 Query strings, hashes, percent-encoded paths, colons, backslashes, embedded
-whitespace, control characters, and `.` / `..` segments are rejected. Admin and API must differ, and sign-in may not equal or
-sit below either tree. The CLI applies additional lowercase filesystem-name and
-reserved-route checks because its answers become TanStack route filenames.
+whitespace, control characters, and `.` / `..` segments are rejected. Admin and
+API trees may not overlap in either direction, and the configured sign-in path
+must be outside both trees. Core supports safe multi-segment admin and API paths;
+the CLI additionally requires every generated filename segment to match
+`[a-z][a-z0-9-]*` and applies locale, system-route, and TanStack filename checks.
+
+The resolved `RoutesConfig` properties are `readonly`, and the resolved object is
+frozen. Registration therefore takes a snapshot that cannot be changed by
+mutating the input or the exposed route object. Route helpers and request/render
+consumers read these already-resolved values; they do not defer route-config
+normalization or validation until a render or request. A standalone client-safe
+facade can call `resolveRoutes()` once at module registration, as the generated
+`byline/routes.ts` does, and pass that resolved object to both configs.
 
 :::warning[Config does not register file routes]
 Changing `routes.admin` or `routes.signIn` does not move TanStack route files. The
@@ -66,12 +84,26 @@ The TanStack host exports configuration-aware helpers from
 - `isRoutePathWithin(...)` and `isAdminRoutePathActive(...)` perform
   segment-delimited active-route checks.
 - `getSignInRoutePath()` resolves the sign-in destination.
+- `resolveAdminCallbackPath(...)` accepts a safe post-auth callback only when
+  its pathname remains inside the configured admin subtree.
+- `resolveAdminSignInRedirect(...)` applies that restriction and otherwise
+  falls back to the configured admin dashboard.
 
 The built-in shell uses these for menus, breadcrumbs, sort/pager navigation,
 create/edit/history links, post-delete navigation, route context, and sign-out.
 Custom admin components should use the same helpers rather than concatenate
 `/admin`. Public host code should instead import the client-safe route data from
-its `byline/public.ts` facade and pass it to `resolveRoutes()`.
+its `byline/public.ts` facade; the generated facade already exposes resolved,
+frozen route data.
+
+The callback helpers build on `normalizeRootRelativeRedirect()` from
+`@byline/core`, the shared framework-independent primitive used at redirect
+sinks. It accepts only same-origin, root-relative destinations, canonicalizes
+safe query/hash text through the URL parser, and rejects absolute or
+protocol-relative URLs, backslashes, unsafe control code points, encoded path
+data, and `.` / `..` traversal segments. The TanStack host then adds the stricter
+admin-subtree check: a valid root-relative public path is still not a valid admin
+post-sign-in callback.
 
 `routes.api` is currently a reservation used for collision checks and host locale
 rewriting. Setting it does **not** mount an HTTP API; the no-public-API boundary
@@ -275,12 +307,13 @@ If Byline is later hosted behind a dedicated API server (e.g. a Fastify applicat
 
 | Concern                                  | Location                                                                  |
 |------------------------------------------|---------------------------------------------------------------------------|
-| Admin UI routes                          | `apps/webapp/src/routes/_byline/<configured-admin-segment>/` (the repository example uses `admin`) |
+| Admin UI routes                          | `apps/webapp/src/routes/_byline/<configured-admin-path>/` (the repository example uses `admin`) |
 | Document server fns (current transport)  | `packages/host-tanstack-start/src/server-fns/collections/`                |
 | Auth server fns                          | `packages/host-tanstack-start/src/server-fns/auth/`                       |
 | Admin-management server fns              | `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/` |
 | Auth context resolver                    | `packages/host-tanstack-start/src/auth/auth-context.ts` (`getAdminRequestContext`) |
 | Route config / canonicalization           | `packages/core/src/config/routes.ts`                                      |
+| Shared root-relative redirect validation  | `packages/core/src/utils/root-relative-redirect.ts`                       |
 | Admin and sign-in path helpers            | `packages/host-tanstack-start/src/routes/{admin-path,sign-in-path}.ts`     |
 | App-owned client-safe route data           | `apps/webapp/byline/routes.ts`, re-exported by `byline/public.ts`          |
 | Document write services                  | `packages/core/src/services/document-lifecycle/` (per-operation modules)  |

@@ -14,23 +14,45 @@ import {
   type CollectionDefinition,
   resolveHooks,
 } from '../@types/collection-types.js'
-import type { ReadContext } from '../@types/db-types.js'
+import { ERR_READ_RECURSION, ERR_VALIDATION } from '../lib/errors.js'
+import { type ParseContext, parsePredicateFilters } from '../query/parse-where.js'
+import type { DocumentFilter, ReadContext } from '../@types/db-types.js'
 import type { QueryPredicate } from '../@types/query-predicate.js'
+
+interface ReadSecurityState {
+  authorityToken: string
+  domains: WeakMap<object, DomainSecurityState>
+}
+
+interface DomainSecurityState {
+  definitions: WeakMap<CollectionDefinition, DefinitionSecurityState>
+}
+
+interface DefinitionSecurityState {
+  modes: Map<string, BeforeReadCacheEntry>
+}
+
+interface BeforeReadCacheEntry {
+  predicate?: Promise<QueryPredicate | null>
+  compiledFilters?: Promise<DocumentFilter[] | undefined>
+}
+
+interface ReadContextScope {
+  root: ReadContext
+  ancestry: readonly BeforeReadCacheEntry[]
+}
+
+const readSecurityStates = new WeakMap<ReadContext, ReadSecurityState>()
+const readContextScopes = new WeakMap<ReadContext, ReadContextScope>()
 
 /**
  * Resolve the per-collection `beforeRead` hook predicate for the current
  * request, with caching across populate fanout.
  *
- * Behaviour:
- *   - Cache hit on `readContext.beforeReadCache` (keyed by collection path
- *     and effective read mode) returns the cached value immediately. The
- *     actor is invariant for the lifetime of one `ReadContext`, while nested
- *     reads may deliberately select a different mode.
- *   - Each configured hook function runs in declaration order. Predicates
- *     returned by multiple hooks are combined with implicit AND. Hooks
- *     that return `void` / `undefined` are skipped.
- *   - The result is stored in the cache (including `null` for "ran with
- *     no scoping") so subsequent batches in the same request reuse it.
+ * Each configured hook function runs in declaration order. Predicates from
+ * multiple hooks are combined with implicit AND. Results are cached in
+ * module-private state bound to one request authority; caller-owned
+ * `ReadContext` properties are never consulted for authorization.
  *
  * Returns `null` when no hook is configured, or every hook returned
  * void. Callers (`CollectionHandle`, `populateDocuments`) treat `null`
@@ -40,45 +62,206 @@ export async function applyBeforeRead(params: {
   definition: CollectionDefinition
   requestContext: RequestContext
   readContext: ReadContext
+  /** Stable adapter/client identity. Defaults to the definition for direct callers. */
+  securityDomain?: object
 }): Promise<QueryPredicate | null> {
-  const { definition, requestContext, readContext } = params
+  const { definition, requestContext, readContext, securityDomain = definition } = params
   const collectionPath = definition.path
-  const cacheKey = `${collectionPath}:${requestContext.readMode ?? 'any'}`
+  const scope = getReadContextScope(readContext)
+  const entry = getBeforeReadCacheEntry(scope.root, requestContext, securityDomain, definition)
 
-  if (readContext.beforeReadCache.has(cacheKey)) {
-    return readContext.beforeReadCache.get(cacheKey) ?? null
+  if (scope.ancestry.includes(entry)) {
+    throw ERR_READ_RECURSION({
+      message: `beforeRead recursion blocked for collection '${collectionPath}'`,
+      details: { collectionPath, readMode: requestContext.readMode ?? 'any' },
+    })
   }
 
-  const resolved = await resolveHooks(definition)
-  const hooks = normalizeBeforeReadHook(resolved?.beforeRead)
-  if (hooks.length === 0) {
-    readContext.beforeReadCache.set(cacheKey, null)
-    return null
+  if (entry.predicate) return entry.predicate
+
+  const pending = (async () => {
+    const resolved = await resolveHooks(definition)
+    const hooks = normalizeBeforeReadHook(resolved?.beforeRead)
+    if (hooks.length === 0) return null
+
+    const predicates: QueryPredicate[] = []
+    for (const hook of hooks) {
+      const result = await hook({
+        collectionPath,
+        requestContext,
+        readContext: createHookReadContext(scope, entry),
+      })
+      if (result != null) predicates.push(result)
+    }
+
+    if (predicates.length === 0) return null
+    if (predicates.length === 1) return predicates[0] ?? null
+    return { $and: predicates }
+  })()
+
+  entry.predicate = pending
+  return pending
+}
+
+/**
+ * Resolve and strictly compile the security predicate once per logical read.
+ * Promise caching also prevents concurrent populate branches from compiling
+ * the same predicate or resolving its relation collection ids more than once.
+ */
+export async function compileBeforeReadFilters(params: {
+  definition: CollectionDefinition
+  requestContext: RequestContext
+  readContext: ReadContext
+  parseContext: ParseContext
+  /** Stable identity shared by every fanout path using this adapter/client. */
+  securityDomain: object
+}): Promise<DocumentFilter[] | undefined> {
+  const { definition, requestContext, readContext, parseContext, securityDomain } = params
+  const scope = getReadContextScope(readContext)
+  const entry = getBeforeReadCacheEntry(scope.root, requestContext, securityDomain, definition)
+
+  if (scope.ancestry.includes(entry)) {
+    throw ERR_READ_RECURSION({
+      message: `beforeRead recursion blocked for collection '${definition.path}'`,
+      details: {
+        collectionPath: definition.path,
+        readMode: requestContext.readMode ?? 'any',
+      },
+    })
   }
 
-  const predicates: QueryPredicate[] = []
-  for (const hook of hooks) {
-    const result = await hook({
-      collectionPath,
+  if (entry.compiledFilters) return entry.compiledFilters
+
+  const compiled = (async () => {
+    const predicate = await applyBeforeRead({
+      definition,
       requestContext,
       readContext,
+      securityDomain,
     })
-    if (result != null) {
-      predicates.push(result)
+    if (predicate == null) return undefined
+    const filters = await parsePredicateFilters(predicate, definition, parseContext, {
+      strict: true,
+    })
+    return filters.length > 0 ? filters : undefined
+  })()
+  entry.compiledFilters = compiled
+  return compiled
+}
+
+/** Bind a logical read to one immutable request authority. */
+export function bindReadContextAuthority(
+  readContext: ReadContext,
+  requestContext: RequestContext
+): void {
+  getReadSecurityState(readContext, requestContext)
+}
+
+function getReadSecurityState(
+  readContext: ReadContext,
+  requestContext: RequestContext
+): ReadSecurityState {
+  const root = getReadContextScope(readContext).root
+  const authorityToken = requestAuthorityToken(requestContext)
+  const existing = readSecurityStates.get(root)
+  if (existing) {
+    if (existing.authorityToken !== authorityToken) {
+      throw ERR_VALIDATION({
+        message: 'ReadContext cannot be reused across request authorities',
+      })
     }
+    return existing
   }
 
-  let combined: QueryPredicate | null
-  if (predicates.length === 0) {
-    combined = null
-  } else if (predicates.length === 1) {
-    combined = predicates[0] ?? null
-  } else {
-    combined = { $and: predicates }
+  const state: ReadSecurityState = {
+    authorityToken,
+    domains: new WeakMap(),
+  }
+  readSecurityStates.set(root, state)
+  return state
+}
+
+function getBeforeReadCacheEntry(
+  readContext: ReadContext,
+  requestContext: RequestContext,
+  securityDomain: object,
+  definition: CollectionDefinition
+): BeforeReadCacheEntry {
+  const state = getReadSecurityState(readContext, requestContext)
+  let domain = state.domains.get(securityDomain)
+  if (!domain) {
+    domain = { definitions: new WeakMap() }
+    state.domains.set(securityDomain, domain)
   }
 
-  readContext.beforeReadCache.set(cacheKey, combined)
-  return combined
+  let definitionState = domain.definitions.get(definition)
+  if (!definitionState) {
+    definitionState = { modes: new Map() }
+    domain.definitions.set(definition, definitionState)
+  }
+
+  const mode = requestContext.readMode ?? 'any'
+  let entry = definitionState.modes.get(mode)
+  if (!entry) {
+    entry = {}
+    definitionState.modes.set(mode, entry)
+  }
+  return entry
+}
+
+function getReadContextScope(readContext: ReadContext): ReadContextScope {
+  return readContextScopes.get(readContext) ?? { root: readContext, ancestry: [] }
+}
+
+/**
+ * Carry hook ancestry by object identity, not by a forgeable public property.
+ * All mutable read-budget state still delegates to the logical root context.
+ */
+function createHookReadContext(parent: ReadContextScope, entry: BeforeReadCacheEntry): ReadContext {
+  const root = parent.root
+  const scoped = {} as ReadContext
+  Object.defineProperties(scoped, {
+    visited: { enumerable: true, get: () => root.visited, set: (value) => (root.visited = value) },
+    beforeReadCache: {
+      enumerable: true,
+      get: () => root.beforeReadCache,
+      set: (value) => (root.beforeReadCache = value),
+    },
+    readCount: {
+      enumerable: true,
+      get: () => root.readCount,
+      set: (value) => (root.readCount = value),
+    },
+    maxReads: {
+      enumerable: true,
+      get: () => root.maxReads,
+      set: (value) => (root.maxReads = value),
+    },
+    maxDepth: {
+      enumerable: true,
+      get: () => root.maxDepth,
+      set: (value) => (root.maxDepth = value),
+    },
+  })
+  readContextScopes.set(scoped, { root, ancestry: [...parent.ancestry, entry] })
+  return scoped
+}
+
+function requestAuthorityToken(requestContext: RequestContext): string {
+  const actor = requestContext.actor
+  if (actor == null) {
+    return JSON.stringify([requestContext.requestId, requestContext.locale ?? null, 'anonymous'])
+  }
+  const realm = 'isSuperAdmin' in actor ? 'admin' : 'user'
+  const isSuperAdmin = 'isSuperAdmin' in actor ? actor.isSuperAdmin : false
+  return JSON.stringify([
+    requestContext.requestId,
+    requestContext.locale ?? null,
+    realm,
+    actor.id,
+    isSuperAdmin,
+    Array.from(actor.abilities).sort(),
+  ])
 }
 
 /** Normalise a `beforeRead` slot (single function or array) into a flat array. */

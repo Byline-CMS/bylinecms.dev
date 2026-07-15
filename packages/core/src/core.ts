@@ -16,7 +16,12 @@ import { type AbilityDescriptor, AbilityRegistry, type SessionProvider } from '@
 import type { Logger as PinoLogger } from 'pino'
 
 import { registerCollectionAbilities } from './auth/register-collection-abilities.js'
-import { defineBylineCore, defineServerConfig, getBylineCoreUnsafe } from './config/config.js'
+import {
+  defineBylineCore,
+  getBylineCoreUnsafe,
+  registerServerConfig,
+  resolveServerConfig,
+} from './config/config.js'
 import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logger.js'
 import { Registry } from './lib/registry.js'
 import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
@@ -29,11 +34,12 @@ import type {
   CollectionDefinition,
   IDbAdapter,
   IStorageProvider,
+  ResolvedServerConfig,
   ServerConfig,
 } from './@types/index.js'
 
 export interface BylineCore<TAdminStore = unknown> {
-  config: ServerConfig<TAdminStore>
+  config: ResolvedServerConfig<TAdminStore>
   collections: readonly CollectionDefinition[]
   db: IDbAdapter
   storage: IStorageProvider | undefined
@@ -107,11 +113,12 @@ export const initBylineCore = async <TAdminStore = unknown>(
     const { pino } = await import('pino')
     pinoLogger = pino({ level: 'info' })
   }
+  const resolvedConfig = resolveServerConfig(config)
   const registry = new Registry()
-    .addValue('config', config)
-    .addValue('collections', config.collections)
-    .addValue('db', config.db)
-    .addValue('storage', config.storage)
+    .addValue('config', resolvedConfig)
+    .addValue('collections', resolvedConfig.collections)
+    .addValue('db', resolvedConfig.db)
+    .addValue('storage', resolvedConfig.storage)
     .addFactory('logger', createBylineLogger)
 
   const composed = registry.compose({ pinoLogger })
@@ -121,15 +128,15 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // (both flags off) and missing-adapter cases at boot rather than at
   // request time.
   validateRichTextFieldFlags(composed.collections, {
-    populate: config.fields?.richText?.populate != null,
-    embed: config.fields?.richText?.embed != null,
+    populate: resolvedConfig.fields?.richText?.populate != null,
+    embed: resolvedConfig.fields?.richText?.embed != null,
   })
 
   // Validate search configuration: a collection that opts into search must
   // have a SearchProvider registered, otherwise indexing / client.search()
   // would silently no-op. Fail-fast at boot, same posture as richText above.
   validateSearchConfig(composed.collections, {
-    provider: config.search != null,
+    provider: resolvedConfig.search != null,
   })
 
   // Tree edges are unversioned metadata and may only run on adapters that can
@@ -145,9 +152,9 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // validator takes the assembled shape so locale config and bundle
   // travel together.
   const i18nValidation = validateTranslations({
-    defaultLocale: config.i18n.interface.defaultLocale,
-    locales: config.i18n.interface.locales,
-    translations: config.i18n.translations,
+    defaultLocale: resolvedConfig.i18n.interface.defaultLocale,
+    locales: resolvedConfig.i18n.interface.locales,
+    translations: resolvedConfig.i18n.translations,
   })
   for (const warning of i18nValidation.warnings) {
     composed.logger.warn(
@@ -159,10 +166,6 @@ export const initBylineCore = async <TAdminStore = unknown>(
       `[i18n] '${warning.locale}.${warning.namespace}' is missing ${warning.missingKeys.length} key(s) relative to the other locales`
     )
   }
-
-  // Backward compat: populate globalThis singletons
-  defineServerConfig(config)
-  defineLogger(composed.logger)
 
   // Reconcile collection definitions with the database: insert new rows,
   // bump schema versions when the fingerprint has drifted, and build the
@@ -238,6 +241,11 @@ export const initBylineCore = async <TAdminStore = unknown>(
     sessionProvider: composed.config.sessionProvider,
     adminStore: composed.config.adminStore,
   }
+
+  // Commit globals only after the replacement core has fully initialized. A
+  // failed reinitialization leaves the prior config, logger, and core intact.
+  registerServerConfig(resolvedConfig)
+  defineLogger(composed.logger)
 
   // Register on the global singleton so server-side packages
   // (`@byline/host-tanstack-start/server-fns/*`, future hosts) can read

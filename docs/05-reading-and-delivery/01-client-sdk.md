@@ -132,7 +132,7 @@ where: {
 }
 ```
 
-`status` and `path` are document metadata, not field filters — they resolve to direct outer-scope column comparisons (`document_versions.status` and a `byline_document_paths` projection) and compose correctly inside combinators or nested relation hops.
+`status` and `path` are document metadata, not field filters — they resolve to direct outer-scope comparisons (`document_versions.status` and a `byline_document_paths` projection) and compose correctly inside combinators or nested relation hops. Caller `where` and strict `beforeRead` filters compile separately before their adapter filters are ANDed, so security-only metadata operators cannot be lost through the caller's top-level scalar channels.
 
 → [Filtering](#filtering)
 
@@ -277,10 +277,15 @@ await client.collection('news').update(
 
 await client.collection('news').changeStatus(created.documentId, 'published')
 
-await client.collection('news').delete(created.documentId)
+const deleted = await client.collection('news').delete(created.documentId)
+if (deleted.outcome === 'committed-with-side-effect-failures') {
+  console.warn('Delete committed, but follow-up work needs reconciliation', deleted.sideEffectFailures)
+}
 ```
 
 Every write resolves the client's configured `requestContext` and runs `assertActorCanPerform('collections.<path>.<verb>')`. `actor: null` is rejected on writes.
+
+`delete` returns a discriminated committed result rather than using rejection for post-commit failures. `outcome: 'committed'` carries an empty `sideEffectFailures`; `outcome: 'committed-with-side-effect-failures'` carries one or more failures from `storageCleanup`, `afterTreeChange`, or `afterDelete`. Authorization, existence lookup, `beforeDelete`, and the transactional soft-delete + audit + tree reconciliation are pre-commit: any failure there rejects and no committed result is returned. Once that transaction commits, storage cleanup and both hook families get independent attempts; their failures cannot turn the committed delete into a rejected promise.
 
 → [Write surface](#write-surface)
 
@@ -492,9 +497,9 @@ where: { category: { status: 'draft' } }           // target version's `document
 where: { category: { parent: { path: 'news' } } }  // 2-hop, doc-column at depth 2
 ```
 
-The compiler emits `EXISTS` subqueries against the typed `store_*` tables for field filters, and depth-scoped nested `EXISTS` joins through `store_relation` for relation sub-wheres. All filter predicates respect the read mode — published-mode reads use `current_published_documents` even at the inner side of a relation join.
+The compiler emits `EXISTS` subqueries against the typed `store_*` tables for field filters, and depth-scoped nested `EXISTS` joins through `store_relation` for relation sub-wheres. All filter predicates respect the read mode — published-mode reads use `current_published_documents` even at the inner side of a relation join. Caller filters use this ordinary parser; `beforeRead` predicates use a separate strict pass, and the resulting adapter filters are appended with implicit AND.
 
-Document-level reserved keys (`status`, `path`) inside a nested sub-clause are document metadata, not field filters — same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `status` resolves to `document_versions.status` on the relation hop's target row; `path` resolves through a `byline_document_paths` subquery against the hop's `document_id` (locale-resolved through the request's fallback chain, ending at that document's source locale). `query` (text search) is not supported inside a nested sub-clause and is silently dropped with a debug log.
+Document-level reserved keys (`status`, `path`) inside a nested sub-clause are document metadata, not field filters — same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `status` resolves to `document_versions.status` on the relation hop's target row; `path` resolves through a `byline_document_paths` subquery against the hop's `document_id` (locale-resolved through the request's fallback chain, ending at that document's source locale). In strict `beforeRead` predicates, top-level `status` supports `$eq` / `$ne` / `$in` / `$nin`, while `path` additionally supports `$contains`; these compile as document-column filters on every read shape. `query` (text search) is not supported inside a nested caller sub-clause and is silently dropped with a debug log; strict security predicates reject it.
 
 ### Sorting
 
@@ -623,6 +628,8 @@ client.collection('news').unpublish(id)
 
 Each method delegates to the corresponding `document-lifecycle` service. The handle resolves the collection id once, builds a `DocumentLifecycleContext`, and invokes the service — collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes.
 
+**Delete has an explicit commit contract.** `delete(id)` resolves to `{ deletedVersionCount, outcome, sideEffectFailures }`. The transaction atomically soft-deletes all versions, appends audit data, and reconciles tree edges when applicable. Ability/existence checks, `beforeDelete`, and transaction failures reject before commit. After commit, file/variant cleanup (`storageCleanup`), tree invalidation (`afterTreeChange`), and delete consumers (`afterDelete`) each run independently. If any fail, the SDK still resolves with `outcome: 'committed-with-side-effect-failures'`; otherwise it resolves with `outcome: 'committed'`. Callers must not retry the delete merely because a post-commit side effect failed.
+
 **Patches stay admin-internal.** The `update` method accepts whole-document `data`, plus an optional `patches` array for the admin form's reordering / block-insertion flow. Public consumers should use whole-document writes; the patch families (`field.*`, `array.*`, `block.*`) are tied to UI intent and not part of the supported public surface.
 
 **Logger resolution.** `BylineClient` resolves a `BylineLogger` in priority order: explicit `config.logger` → `getLogger()` if `initBylineCore()` has registered one → silent no-op. Migration scripts and tests work without setup.
@@ -663,7 +670,7 @@ The same `_bypassBeforeRead: true` escape hatch on read options is available for
 
 Two collection-level hooks fire automatically through the SDK:
 
-- **`beforeRead`** — contributes a `QueryPredicate` that is AND-merged into adapter reads. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. Security predicates use strict parsing: invalid or unsupported clauses fail closed instead of disappearing. See [Authentication & Authorization § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) (the Quick Reference there carries six worked recipes).
+- **`beforeRead`** — contributes a `QueryPredicate` whose strict adapter filters are ANDed with, but compiled separately from, caller `where`. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. The strict result compiles once per logical `ReadContext` + client security domain + collection definition + effective mode in private authority-bound state; invalid or unsupported clauses fail closed instead of disappearing. The deprecated caller-owned `beforeReadCache` property is ignored, reuse under another request id, locale, or actor authority rejects, and cyclic hook reads fail with `ERR_READ_RECURSION`. See [Authentication & Authorization § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) (the Quick Reference there carries six worked recipes).
 - **`afterRead`** — runs on every returned materialisation, including historical versions, tree nodes, relation targets, and richtext targets, with the authenticated `RequestContext`. Mutations to `doc.fields` propagate into the shaped response; recursive access to a version still being processed fails closed.
 
 Hooks share the operation's `ReadContext` with relation and richtext population. Custom hooks must thread `_readContext` through nested SDK reads; richtext adapters must use the framework-provided secure target reader rather than direct adapter access.

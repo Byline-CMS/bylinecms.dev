@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('~/public', () => ({
   contentLocales: [],
-  routes: { admin: 'cms/', signIn: '/staff/login/' },
+  routes: { admin: '/cms', api: '/api', signIn: '/staff/login' },
 }))
 
 import { isLocalizablePath, localeInputRewrite, localeOutputRewrite } from './locale-rewrite'

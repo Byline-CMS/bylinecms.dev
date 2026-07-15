@@ -575,7 +575,7 @@ export default defineHooks({
 })
 ```
 
-(`before*` hooks may mutate `data` in place by contract. If the hooks module imports server-only code, declare it via the loader form — `hooks: () => import('./hooks.js')` — see [Collections](./index.md) → "Hooks must not statically import server-only code".)
+(`before*` hooks may mutate `data` in place by contract. If the hooks module imports server-only code, wrap its loader with TanStack Start's `createServerOnlyFn(() => import('./hooks.js'))`; see [Collections](./index.md) → "Hooks must not statically import server-only code".)
 
 ---
 

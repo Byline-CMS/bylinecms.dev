@@ -88,7 +88,7 @@ export interface TreeAuditCapability extends AuditCapability {
 export function requireAuditCapability(db: IDbAdapter): AuditCapability {
   const withTransaction = db.withTransaction
   const audit = db.commands.audit
-  if (withTransaction == null || audit == null) {
+  if (typeof withTransaction !== 'function' || typeof audit?.append !== 'function') {
     throw ERR_AUDIT_UNSUPPORTED({
       message: 'audited write requires a db adapter with withTransaction + commands.audit support',
     })
@@ -108,7 +108,7 @@ export function requireTreeAuditCapability(db: IDbAdapter): TreeAuditCapability 
   const audit = requireAuditCapability(db)
   const documents = db.commands.documents
   const promoteChildrenAndRemove = documents.promoteChildrenAndRemoveFromTree
-  if (promoteChildrenAndRemove == null) {
+  if (typeof promoteChildrenAndRemove !== 'function') {
     throw ERR_AUDIT_UNSUPPORTED({
       message:
         'tree-enabled writes require an adapter with locked tree mutation and delete-reconciliation support',

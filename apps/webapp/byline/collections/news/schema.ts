@@ -6,12 +6,16 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { createServerOnlyFn } from '@tanstack/react-start'
+
 import type { AfterStoreContext, BeforeStoreContext, CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { publishedOnField } from '~/fields/published-on-field.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
+
+const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
 
 export const News = defineCollection({
   path: 'news',
@@ -48,10 +52,10 @@ export const News = defineCollection({
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true, // See type definition for details.
-  // Server-only lifecycle hooks (L1 cache invalidation), loaded via dynamic
-  // import so their server-only graph never enters the client bundle. See
-  // ./hooks.ts and docs/04-collections/index.md.
-  hooks: () => import('./hooks.js'),
+  // Server-only lifecycle hooks (L1 cache invalidation). The TanStack wrapper
+  // removes the loader body and its import graph from the client build.
+  // See ./hooks.ts and docs/04-collections/index.md.
+  hooks: loadHooks,
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {

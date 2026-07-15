@@ -6,18 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { getClientConfig, resolveRoutes } from '@byline/core'
-
-function hasControlCharacter(value: string): boolean {
-  return Array.from(value).some((character) => {
-    const code = character.charCodeAt(0)
-    return code <= 31 || code === 127
-  })
-}
+import { getClientConfig, normalizeRootRelativeRedirect } from '@byline/core'
 
 /** Build an admin URL or parameterized TanStack route from client-safe config. */
 export function getAdminRoutePath(...segments: ReadonlyArray<string | number>): string {
-  const configuredBase = resolveRoutes(getClientConfig().routes).admin
+  const configuredBase = getClientConfig().routes.admin
   const normalizedBase = configuredBase.replace(/^\/+|\/+$/g, '')
   const base = normalizedBase ? `/${normalizedBase}` : '/'
   const suffix = segments
@@ -48,19 +41,10 @@ export function isRoutePathWithin(pathname: string, target: string): boolean {
  * inside the configured admin mount.
  */
 export function resolveAdminCallbackPath(value: unknown): string | undefined {
-  if (typeof value !== 'string' || value.length === 0 || value !== value.trim()) return undefined
-  if (!value.startsWith('/') || value.startsWith('//')) return undefined
-  if (value.includes('\\') || hasControlCharacter(value)) return undefined
-  if (value.split(/[?#]/, 1)[0]?.includes('%')) return undefined
-
-  let url: URL
-  try {
-    url = new URL(value, 'https://byline.invalid')
-  } catch {
-    return undefined
-  }
-
-  if (url.origin !== 'https://byline.invalid') return undefined
+  if (typeof value !== 'string') return undefined
+  const normalized = normalizeRootRelativeRedirect(value)
+  if (!normalized) return undefined
+  const url = new URL(normalized, 'https://byline.invalid')
   if (!isRoutePathWithin(url.pathname, getAdminRoutePath())) return undefined
   return `${url.pathname}${url.search}${url.hash}`
 }

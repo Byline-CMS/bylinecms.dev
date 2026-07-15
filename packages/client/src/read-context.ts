@@ -5,11 +5,21 @@
  */
 
 import type { RequestContext } from '@byline/auth'
-import type { ReadContext, ReadMode } from '@byline/core'
+import type { CollectionDefinition, DocumentFilter, ReadContext, ReadMode } from '@byline/core'
+import { bindReadContextAuthority, compileBeforeReadFilters } from '@byline/core'
 
 import type { BylineClient } from './client.js'
 
-const requestContexts = new WeakMap<ReadContext, RequestContext>()
+const readSecurityDomains = new WeakMap<BylineClient<any>, object>()
+
+export function getReadSecurityDomain(client: BylineClient<any>): object {
+  let domain = readSecurityDomains.get(client)
+  if (!domain) {
+    domain = {}
+    readSecurityDomains.set(client, domain)
+  }
+  return domain
+}
 
 export async function resolveReadRequestContext(
   client: BylineClient<any>,
@@ -17,8 +27,29 @@ export async function resolveReadRequestContext(
   readMode: ReadMode,
   supplied?: RequestContext
 ): Promise<RequestContext> {
-  const base =
-    requestContexts.get(readContext) ?? supplied ?? (await client.resolveRequestContext())
-  if (!requestContexts.has(readContext)) requestContexts.set(readContext, base)
+  const candidate = supplied ?? (await client.resolveRequestContext())
+  const base = Object.freeze({ ...candidate })
+  bindReadContextAuthority(readContext, base)
   return { ...base, readMode }
+}
+
+export function resolveReadSecurityFilters(
+  client: BylineClient<any>,
+  definition: CollectionDefinition,
+  requestContext: RequestContext,
+  readContext: ReadContext,
+  bypass?: true
+): Promise<DocumentFilter[] | undefined> {
+  if (bypass) return Promise.resolve(undefined)
+  return compileBeforeReadFilters({
+    definition,
+    requestContext,
+    readContext,
+    securityDomain: getReadSecurityDomain(client),
+    parseContext: {
+      collections: client.collections,
+      resolveCollectionId: (path) => client.resolveCollectionId(path),
+      logger: client.logger,
+    },
+  })
 }

@@ -290,13 +290,16 @@ system context is both correct and runtime-agnostic. (Both helpers live in
 :::
 
 **Indexing is awaited** inside the post-commit hook, but is not part of the
-source DB transaction. A provider/hook failure therefore rejects the call after
-content/system/tree data may already have committed, leaving a stale index until
-reconciliation. System-field and tree no-op retries have explicit reconciliation
-options; delete has no equivalent retry-by-delete path. The reference app at
-least attempts search and cache effects independently and aggregates failures,
-but a durable outbox/queue (also needed so a slow network driver does not stall a
-publish) remains deferred.
+source DB transaction. On create/update/status/system-field/tree operations, a
+provider/hook failure therefore rejects the call after source data may already
+have committed, leaving a stale index until reconciliation. System-field and
+tree no-op retries have explicit reconciliation options. Delete is the exception:
+the committed DB/audit result is not rejected by `afterDelete` search/cache
+failure; the lifecycle returns `committed-with-side-effect-failures`, the host
+sanitizes the reported phase/code, and the admin navigates away with a warning.
+There is no retry-by-delete path. The reference app attempts search and cache
+effects independently and aggregates failures, but a durable outbox/queue (also
+needed so a slow network driver does not stall a publish) remains deferred.
 
 ### Rebuild — `reindex` + the admin button (shipped)
 
@@ -361,9 +364,14 @@ Use `hydrate: true` when the returned result must carry an actor-redacted
 
 When the collection configures a [`beforeRead` row-scoping](../06-auth-and-security/01-authn-authz.md)
 hook, `search()` re-resolves the provider's candidate hits through the **normal
-read path**: the hook predicate is resolved once (cached on the request's
-`ReadContext`), AND-merged with an `id: { $in: candidateIds }` filter, and
-compiled through the same SQL machinery every other read uses. Hits whose
+read path**: the hook predicate and its strict compiled filters are promise-cached
+once per collection/read mode in module-private state bound to the request
+authority, then combined with the `id: { $in: candidateIds }` filters compiled
+from the caller query. Concurrent search/hydration/populate branches therefore
+share one in-flight security compilation, including relation-id resolution.
+Caller-preseeded `ReadContext.beforeReadCache` data is ignored, and reusing a
+`ReadContext` under a different actor authority fails with `ERR_VALIDATION`.
+Hits whose
 document doesn't survive the scoping are dropped before the results are
 returned, so owner-only drafts, multi-tenant isolation, department visibility
 and the other `beforeRead` recipes hold on search exactly as they do on

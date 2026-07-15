@@ -46,10 +46,11 @@
  *                 deleted-filtering `current_documents` view) returns nothing —
  *                 a re-import then hits `ERR_PATH_CONFLICT` on create. With
  *                 `--force`, when no live document is found at the path, the
- *                 importer revives the soft-deleted occupier in place (clearing
- *                 `is_deleted` across its versions, preserving the document id,
- *                 audit trail and path row) and then runs the normal update +
- *                 republish flow against it. No-op for genuinely new paths.
+ *                 importer stages only its latest version as non-published,
+ *                 runs the normal update + requested status flow, then
+ *                 re-tombstones the staging row. Any failure compensates by
+ *                 re-tombstoning every version. The document id, path, version
+ *                 rows, and audit history remain in place. No-op for new paths.
  *   --tree        After importing, build the document tree from the source
  *                 directory layout (the "folder + index.md" convention). A flat
  *                 `D/leaf.md` nests under `D/index.md`; a `D/index.md` (a node
@@ -68,14 +69,24 @@ import '../server.config.js'
 
 import { readFileSync } from 'node:fs'
 import { glob } from 'node:fs/promises'
-import { basename, dirname, join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
 import { createSuperAdminContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
-import { getBylineCore, getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
+import {
+  getBylineCore,
+  getCollectionDefinition,
+  getServerConfig,
+  normalizeCollectionHook,
+  resolveHooks,
+  slugify,
+} from '@byline/core'
 import type { PgAdapter } from '@byline/db-postgres'
 
 import { type DocFrontmatter, parseDocFile } from './lib/frontmatter.js'
+import { exitImportDocsWithFailure } from './lib/import-docs-cli.js'
+import { replaceDeletedDocumentAtPath } from './lib/import-docs-force.js'
+import { placeTreeFromDirectories } from './lib/import-docs-tree.js'
 import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexical.js'
 import { parseBodyToMdast } from './lib/parse-markdown.js'
 import { type DocLinkRewriteWarning, rewriteDocLinks } from './lib/rewrite-doc-links.js'
@@ -160,44 +171,6 @@ async function resolveFeatureImage(
   })
   if (!doc) return null
   return { targetCollectionId: mediaCollectionId, targetDocumentId: doc.id }
-}
-
-/**
- * Revive a soft-deleted document that still owns `path` (locale-scoped) so a
- * re-import can overwrite it in place. Returns the revived document id, or
- * `null` when no document occupies the path (a genuinely new import).
- *
- * Soft-delete sets `is_deleted = true` on every version but leaves the
- * `byline_document_paths` row intact, so the path lookup still resolves to the
- * deleted document. We clear the tombstone across all of its versions, which
- * makes the latest version current again via the `current_documents` view —
- * the caller then re-`findByPath`s and runs the normal update + republish path.
- *
- * Reaches the live pg pool through the configured adapter (`PgAdapter` exposes
- * `pool` for exactly this housekeeping use) rather than opening a second
- * connection. Only invoked under `--force`.
- */
-async function reviveDeletedDocumentAtPath(
-  adapter: PgAdapter,
-  collectionId: string,
-  locale: string,
-  path: string
-): Promise<string | null> {
-  const found = await adapter.pool.query<{ document_id: string }>(
-    `SELECT document_id FROM byline_document_paths
-       WHERE collection_id = $1 AND locale = $2 AND path = $3
-       LIMIT 1`,
-    [collectionId, locale, path]
-  )
-  const documentId = found.rows[0]?.document_id
-  if (!documentId) return null
-  await adapter.pool.query(
-    `UPDATE byline_document_versions
-        SET is_deleted = false
-      WHERE document_id = $1 AND is_deleted = true`,
-    [documentId]
-  )
-  return documentId
 }
 
 interface BuildPayloadArgs {
@@ -330,47 +303,71 @@ async function processFile(
   // afterwards; `create` accepts an initial status directly.
   const desiredStatus = parsed.frontmatter.status ?? DEFAULT_IMPORT_STATUS
   const definition = getCollectionDefinition(DOCS_COLLECTION)
+  if (definition == null) {
+    throw new Error(`import-docs: collection '${DOCS_COLLECTION}' is not registered`)
+  }
   const workflowStatuses = definition?.workflow?.statuses ?? []
   const defaultStatus = workflowStatuses[0]?.name ?? 'draft'
 
-  let existing = await handle.findByPath(docPath, {
+  const existing = await handle.findByPath(docPath, {
     locale,
     status: 'any',
     _bypassBeforeRead: true,
   })
 
-  // --force: no live document at this path, but the path may still be reserved
-  // by a soft-deleted document. Revive it in place, then re-read so the update
-  // branch below overwrites + republishes it (preserving the document id and
-  // audit trail) rather than failing with ERR_PATH_CONFLICT on create.
-  if (!existing && flags.force) {
-    const collectionId = await client.resolveCollectionId(DOCS_COLLECTION)
-    const revivedId = await reviveDeletedDocumentAtPath(adapter, collectionId, locale, docPath)
-    if (revivedId) {
-      console.log(`  ↻ revived  soft-deleted doc at '${docPath}' (locale=${locale})`)
-      existing = await handle.findByPath(docPath, {
-        locale,
-        status: 'any',
-        _bypassBeforeRead: true,
-      })
-    }
-  }
-
-  if (existing) {
+  const updateExisting = async (document: NonNullable<typeof existing>): Promise<ProcessResult> => {
     // Don't clobber publishedOn if Byline already has one.
-    if (existing.fields?.publishedOn) {
+    if (document.fields?.publishedOn) {
       delete payload.publishedOn
     }
-    const result = await handle.update(existing.id, payload, {
+    const result = await handle.update(document.id, payload, {
       locale,
       // Advertise the imported locale (editorial available-locales set), merged
       // with whatever is already advertised so a later-locale re-import doesn't
       // clobber an earlier one. The public set is still gated by the version
       // completeness ledger (intersection). See docs/07-internationalization/index.md.
-      availableLocales: [...new Set([...(existing.availableLocales ?? []), locale])],
+      availableLocales: [...new Set([...(document.availableLocales ?? []), locale])],
     })
     await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus)
     return { filePath, action: 'updated', documentId: result.documentId, path: docPath }
+  }
+
+  // --force: no live document at this path, but the path may still be reserved
+  // by a soft-deleted document. Stage only its latest version as non-published,
+  // overwrite it through the normal lifecycle, then re-tombstone the staging
+  // row. Any failure re-tombstones every version, including a replacement that
+  // committed before an after-hook reported failure.
+  if (!existing && flags.force) {
+    const collectionId = await client.resolveCollectionId(DOCS_COLLECTION)
+    const recovered = await replaceDeletedDocumentAtPath(
+      adapter.pool,
+      { collectionId, locale, path: docPath },
+      async (documentId) => {
+        console.log(`  ↻ staged   soft-deleted doc at '${docPath}' (locale=${locale})`)
+        const staged = await handle.findByPath(docPath, {
+          locale,
+          status: 'any',
+          _bypassBeforeRead: true,
+        })
+        if (staged == null || staged.id !== documentId) {
+          throw new Error(`staged soft-deleted document could not be re-read at '${docPath}'`)
+        }
+        return updateExisting(staged)
+      },
+      async (documentId) => {
+        const hooks = await resolveHooks(definition)
+        for (const hook of normalizeCollectionHook(hooks?.afterDelete)) {
+          await hook({ documentId, collectionPath: DOCS_COLLECTION, path: docPath })
+        }
+      }
+    )
+    if (recovered != null) {
+      return recovered.value
+    }
+  }
+
+  if (existing) {
+    return updateExisting(existing)
   }
 
   const result = await handle.create(payload, {
@@ -382,73 +379,6 @@ async function processFile(
     availableLocales: [locale],
   })
   return { filePath, action: 'created', documentId: result.documentId, path: docPath }
-}
-
-/**
- * Resolve the source file of a node's parent under the "folder + index.md"
- * convention: a flat `D/leaf.md` is a child of `D/index.md`; a `D/index.md` (a
- * node that owns a folder) is a child of the grandparent's index,
- * `dirname(D)/index.md`. The returned path may not exist (e.g. the docs root
- * has no `index.md`); the caller treats a miss as "this node is a root".
- */
-function parentIndexFile(filePath: string): string {
-  const dir = dirname(filePath)
-  const base = basename(filePath)
-  const isIndex = base === 'index.md' || base === 'index.markdown'
-  return join(isIndex ? dirname(dir) : dir, 'index.md')
-}
-
-/**
- * Build the document tree from the source directory layout, after every file
- * has been imported (so all parent documents exist). A node's parent is the
- * `index.md` resolved by {@link parentIndexFile}; a node whose parent index is
- * not in the batch is a root. Structure is filesystem-derived (not name-matched
- * to paths), so directory names are free and `NN-` prefixes only affect order.
- *
- * Siblings are appended after the previous sibling in their group so they get
- * distinct, monotonically-increasing per-parent keys (placing with no
- * neighbours would mint the same first key for every sibling). Files are
- * processed in sorted order, so prefix order carries straight through.
- */
-async function placeTreeFromDirectories(
-  handle: CollectionHandle,
-  results: ProcessResult[]
-): Promise<void> {
-  const placeable = results.filter(
-    (r): r is ProcessResult & { documentId: string } => r.documentId != null
-  )
-  // Index nodes by source file so a child resolves its parent's `index.md`
-  // structurally (by path on disk), not by matching directory names to slugs.
-  const idByFile = new Map(placeable.map((r) => [r.filePath, r.documentId]))
-
-  const ROOT_GROUP = '__root__'
-  const lastSiblingByGroup = new Map<string, string>()
-
-  let rooted = 0
-  let placed = 0
-  let failed = 0
-  for (const r of placeable) {
-    const parentId = idByFile.get(parentIndexFile(r.filePath))
-    const parentDocumentId = parentId != null && parentId !== r.documentId ? parentId : null
-    const groupKey = parentDocumentId ?? ROOT_GROUP
-    const beforeDocumentId = lastSiblingByGroup.get(groupKey) ?? null
-    try {
-      await handle.placeTreeNode(r.documentId, { parentDocumentId, beforeDocumentId })
-      lastSiblingByGroup.set(groupKey, r.documentId)
-      if (parentDocumentId != null) {
-        placed += 1
-        console.log(`  ↳ placed   ${r.path}  under  ${basename(dirname(r.filePath))}`)
-      } else {
-        rooted += 1
-      }
-    } catch (err) {
-      failed += 1
-      console.error(`  ✗ tree     ${r.path}: ${err instanceof Error ? err.message : err}`)
-    }
-  }
-  console.log(
-    `import-docs: tree — ${rooted} root(s), ${placed} child placement(s), ${failed} failed.`
-  )
 }
 
 async function run(): Promise<void> {
@@ -511,7 +441,8 @@ async function run(): Promise<void> {
 }
 
 run().catch((err) => {
-  console.error('import-docs: fatal error')
-  console.error(err)
-  process.exit(1)
+  exitImportDocsWithFailure(err, {
+    error: (value) => console.error(value),
+    exit: (code) => process.exit(code),
+  })
 })

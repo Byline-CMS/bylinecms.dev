@@ -36,8 +36,6 @@
  * un-rewritten request is visible.
  */
 
-import { resolveRoutes } from '@byline/core'
-
 import { routes } from '~/public'
 
 import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
@@ -51,12 +49,7 @@ import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
  *   - `_build`            → TanStack Start build assets (default base)
  *   - `uploads`           → local storage provider (served in `server.ts`)
  */
-const resolvedRoutes = resolveRoutes(routes)
-const NON_LOCALIZED_ROUTE_PATHS = [
-  resolvedRoutes.admin,
-  resolvedRoutes.api,
-  resolvedRoutes.signIn,
-] as const
+const NON_LOCALIZED_ROUTE_PATHS = [routes.admin, routes.api, routes.signIn] as const
 
 export const NON_LOCALIZED_SEGMENTS: ReadonlySet<string> = new Set([
   '_serverFn',

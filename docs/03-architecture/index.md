@@ -182,9 +182,11 @@ other server-side consumer. It is analogous to Django's `Model.__str__`.
 
 The split pays off in several ways:
 
-- Schema definitions are truly server-only — plain data, with no import-map
-  strings, admin blocks, or client components near them. They are trivially
-  serializable, testable, and publishable as an API contract.
+- Schema definitions are server-safe and UI-free, but isomorphic: the server and
+  browser admin consume the same plain data. Server lifecycle loaders therefore
+  need the host framework's server-only boundary, while admin blocks and client
+  components stay in admin config. The schema remains serializable, testable,
+  and publishable as an API contract.
 - Admin config can use real JSX and real imports, because it is explicitly a
   client (or RSC) module — no string indirection.
 - The schema can be consumed by other frontends (mobile, CLI tools, external

@@ -11,9 +11,9 @@
  */
 
 import type * as React from 'react'
-import { type Dispatch, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type Dispatch, useCallback, useEffect, useRef, useState } from 'react'
 
-import { getClientConfig, resolveRoutes } from '@byline/core'
+import { getClientConfig } from '@byline/core'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $findMatchingParent, mergeRegister } from '@lexical/utils'
 import {
@@ -70,7 +70,7 @@ function FloatingLinkEditor({
   })
   const [linkModalData, setLinkModalData] = useState<LinkData | undefined>(undefined)
   const [modalOpen, setModalOpen] = useState(false)
-  const adminRoute = useMemo(() => resolveRoutes(getClientConfig().routes).admin, [])
+  const adminRoute = getClientConfig().routes.admin
 
   const $updateLinkEditor = useCallback(() => {
     const selection = $getSelection()

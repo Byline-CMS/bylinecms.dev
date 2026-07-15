@@ -95,6 +95,16 @@ function createMockDb() {
         setOrderKey: vi.fn() as any,
         placeTreeNode: vi.fn() as any,
         removeFromTree: vi.fn() as any,
+        promoteChildrenAndRemoveFromTree: vi.fn(async () => ({
+          removed: {
+            changed: false,
+            before: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+            after: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+            beforeSiblingDocumentIds: [],
+            beforeSubtreeDocumentIds: [],
+          },
+          promoted: [],
+        })),
       },
       counters: {
         ensureCounterGroup: vi.fn() as any,
@@ -131,6 +141,16 @@ function createMockDb() {
         getTreeChildren: vi.fn() as any,
         getTreeParent: vi.fn() as any,
         getTreeSubtree: vi.fn() as any,
+      },
+      audit: {
+        getDocumentAuditLog: vi.fn(async () => ({
+          entries: [],
+          meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+        })),
+        findAuditLog: vi.fn(async () => ({
+          entries: [],
+          meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+        })),
       },
     },
   }
@@ -1313,6 +1333,28 @@ describe('Document lifecycle service', () => {
       )
     })
 
+    it('rejects a beforeDelete failure without soft-deleting the document', async () => {
+      const beforeDelete = vi.fn(async () => {
+        throw new Error('pre-commit hook failed')
+      })
+      const afterDelete = vi.fn()
+      const { db, getDocumentById, softDeleteDocument } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'doc-to-delete',
+        fields: {},
+      })
+      const definition = { ...minimalCollection, hooks: { beforeDelete, afterDelete } }
+
+      await expect(
+        deleteDocument(buildCtx(db, definition), { documentId: 'doc-1' })
+      ).rejects.toThrow('pre-commit hook failed')
+
+      expect(softDeleteDocument).not.toHaveBeenCalled()
+      expect(afterDelete).not.toHaveBeenCalled()
+    })
+
     it('cleans up stored files for upload fields at any nesting depth', async () => {
       const { db, getDocumentById } = createMockDb()
       const upload = { mimeTypes: ['application/pdf'], maxFileSize: 1024 }
@@ -1366,6 +1408,75 @@ describe('Document lifecycle service', () => {
         'files/a.pdf',
         'files/b.pdf',
       ])
+    })
+
+    it('classifies storage failures without paths and continues every cleanup attempt', async () => {
+      const { db, getDocumentById } = createMockDb()
+      const upload = { mimeTypes: ['application/pdf'], maxFileSize: 1024 }
+      const definition: CollectionDefinition = {
+        ...minimalCollection,
+        fields: [{ name: 'file', label: 'File', type: 'file', upload }],
+      }
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'doc-to-delete',
+        fields: {
+          file: {
+            storagePath: 'private/original.pdf',
+            variants: [
+              { storagePath: 'private/preview.pdf' },
+              { storagePath: 'private/thumbnail.pdf' },
+            ],
+          },
+        },
+      })
+      const storageDelete = vi.fn(async (storagePath: string) => {
+        if (storagePath === 'private/original.pdf') {
+          throw Object.assign(new Error('storage unavailable'), { code: ErrorCodes.STORAGE })
+        }
+        if (storagePath === 'private/thumbnail.pdf') throw new Error('cleanup failed')
+      })
+      const ctx = {
+        ...buildCtx(db, definition),
+        storage: { delete: storageDelete } as any,
+        logger: { ...noopLogger, error: vi.fn() },
+      }
+
+      const result = await deleteDocument(ctx, { documentId: 'doc-1' })
+
+      expect(storageDelete.mock.calls.map((call) => call[0])).toEqual([
+        'private/original.pdf',
+        'private/preview.pdf',
+        'private/thumbnail.pdf',
+      ])
+      expect(result).toEqual({
+        deletedVersionCount: 1,
+        outcome: 'committed-with-side-effect-failures',
+        sideEffectFailures: [
+          {
+            phase: 'storageCleanup',
+            message: 'storage unavailable',
+            code: 'ERR_STORAGE',
+          },
+          { phase: 'storageCleanup', message: 'cleanup failed', code: 'ERR_UNHANDLED' },
+        ],
+      })
+      expect(JSON.stringify(result)).not.toContain('private/')
+      expect(ctx.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: 'doc-1',
+          storagePath: 'private/original.pdf',
+        }),
+        'failed to delete storage file'
+      )
+      expect(ctx.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: 'doc-1',
+          storagePath: 'private/thumbnail.pdf',
+        }),
+        'failed to delete storage file'
+      )
     })
   })
 

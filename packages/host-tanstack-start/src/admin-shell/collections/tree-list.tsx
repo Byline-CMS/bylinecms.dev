@@ -7,7 +7,7 @@
  */
 
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import { renderFormatted, StatusBadge } from '@byline/admin/react'
@@ -42,6 +42,11 @@ import {
 import cx from 'classnames'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
+import {
+  createAdminTreeMoveController,
+  getAdminTreeMoveUiEffects,
+  shouldSyncAdminTreeRows,
+} from '../../server-fns/collections/tree-mutation.js'
 import { Link } from '../chrome/loose-router.js'
 import { TableHeadingCellSortable } from '../chrome/th-sortable.js'
 import { formatNumber } from '../chrome/utils.js'
@@ -60,7 +65,6 @@ export type TreeMoveFn = (params: {
   afterDocumentId: string | null
 }) => Promise<unknown>
 
-// biome-ignore lint/suspicious/noExplicitAny: tree rows carry heterogeneous fields
 function getColumnValue(row: CollectionTreeRow, fieldName: string): any {
   if (row.fields && fieldName in row.fields) return row.fields[fieldName]
   return (row as Record<string, any>)[fieldName]
@@ -74,19 +78,20 @@ function getColumnValue(row: CollectionTreeRow, fieldName: string): any {
  */
 function SortableTreeRow({
   id,
-  depth,
   dragging,
+  disabled,
   dragHandleLabel,
   children,
 }: {
   id: string
-  depth: number
   dragging: boolean
+  disabled: boolean
   dragHandleLabel: string
   children: React.ReactNode
 }) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id,
+    disabled,
   })
   const style: React.CSSProperties = {
     transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined,
@@ -104,6 +109,7 @@ function SortableTreeRow({
       <td className={cx('byline-tree-list-drag-cell', styles.dragCell)}>
         <button
           type="button"
+          disabled={disabled}
           className={cx('byline-tree-list-drag-handle', styles.dragHandle)}
           aria-label={dragHandleLabel}
           {...attributes}
@@ -150,8 +156,12 @@ export const TreeListView = ({
   // back). Mirrors the flat-list reorder pattern.
   const [localPlaced, setLocalPlaced] = useState(() => rows.filter((r) => !r.unplaced))
   const [isMoving, setIsMoving] = useState(false)
+  const [moveController] = useState(() => createAdminTreeMoveController())
+  const preserveOptimisticForRows = useRef<CollectionTreeRow[] | null>(null)
   useEffect(() => {
-    if (!isMoving) setLocalPlaced(rows.filter((r) => !r.unplaced))
+    if (!shouldSyncAdminTreeRows(rows, preserveOptimisticForRows.current, isMoving)) return
+    preserveOptimisticForRows.current = null
+    setLocalPlaced(rows.filter((r) => !r.unplaced))
   }, [rows, isMoving])
 
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -175,11 +185,17 @@ export const TreeListView = ({
     setOffsetLeft(0)
   }
 
-  const handleDragStart = ({ active }: DragStartEvent) => setActiveId(String(active.id))
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    if (!moveController.isMoving()) setActiveId(String(active.id))
+  }
   const handleDragMove = ({ delta }: DragMoveEvent) => setOffsetLeft(delta.x)
   const handleDragOver = ({ over }: DragOverEvent) => setOverId(over ? String(over.id) : null)
 
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+    if (moveController.isMoving()) {
+      resetDnd()
+      return
+    }
     const proj =
       over != null
         ? getTreeProjection(localPlaced, String(active.id), String(over.id), offsetLeft, INDENT)
@@ -198,24 +214,60 @@ export const TreeListView = ({
 
     setLocalPlaced(next)
     setIsMoving(true)
-    try {
-      await onMove({
-        documentId,
-        parentDocumentId: proj.parentId,
-        beforeDocumentId: proj.beforeId,
-        afterDocumentId: proj.afterId,
-      })
-      await router.invalidate()
-    } catch {
+    const outcome = await moveController.execute(
+      () =>
+        onMove({
+          documentId,
+          parentDocumentId: proj.parentId,
+          beforeDocumentId: proj.beforeId,
+          afterDocumentId: proj.afterId,
+        }),
+      () => router.invalidate()
+    )
+
+    if (outcome.status === 'suppressed') {
       setLocalPlaced(current)
+      setIsMoving(moveController.isMoving())
+      return
+    }
+
+    const effects = getAdminTreeMoveUiEffects(outcome)
+    if (effects.rollback) setLocalPlaced(current)
+
+    if (effects.structuralFailure != null) {
+      const conflict = effects.structuralFailure === 'conflict'
       toastManager.add({
-        title: t('collections.list.reorderFailedToast'),
-        description: t('collections.list.reorderFailedDescription'),
+        title: t(
+          conflict ? 'collections.list.treeConflictToast' : 'collections.list.reorderFailedToast'
+        ),
+        description: t(
+          conflict
+            ? 'collections.list.treeConflictDescription'
+            : 'collections.list.reorderFailedDescription'
+        ),
         data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
       })
-    } finally {
-      setIsMoving(false)
     }
+
+    if (effects.committedHookWarning) {
+      toastManager.add({
+        title: t('collections.list.treeHookFailedToast'),
+        description: t('collections.list.treeHookFailedDescription'),
+        data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+      })
+    }
+
+    if (effects.refreshWarning) {
+      toastManager.add({
+        title: t('collections.list.treeRefreshFailedToast'),
+        description: t('collections.list.treeRefreshFailedDescription'),
+        data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+      })
+    }
+
+    if (effects.preserveOptimistic) preserveOptimisticForRows.current = rows
+
+    setIsMoving(false)
   }
 
   const renderCells = (row: CollectionTreeRow, depth: number) =>
@@ -327,8 +379,8 @@ export const TreeListView = ({
                       <SortableTreeRow
                         key={row.id}
                         id={row.id}
-                        depth={depth}
                         dragging={row.id === activeId}
+                        disabled={isMoving}
                         dragHandleLabel={t('collections.list.dragHandleAriaLabel')}
                       >
                         {renderCells(row, depth)}

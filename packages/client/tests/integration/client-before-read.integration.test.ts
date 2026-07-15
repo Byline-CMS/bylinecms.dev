@@ -351,8 +351,8 @@ describe('beforeRead — populate fanout cache', () => {
       populate: '*',
     })
     // Source collection: posts. Target collection: authors. Each hook
-    // should fire exactly once per request — caching on
-    // `readContext.beforeReadCache` is what guarantees this regardless
+    // should fire exactly once per request — private authority-bound caching
+    // guarantees this regardless
     // of how many posts the find returns.
     const postsCalls = hookInvocations.filter((i) => i.collectionPath === postsDefinition.path)
     const authorsCalls = hookInvocations.filter((i) => i.collectionPath === authorsDefinition.path)

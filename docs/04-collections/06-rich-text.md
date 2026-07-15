@@ -281,7 +281,7 @@ fields: [
 
 ### 11. Register the richtext server adapters
 
-Two opt-in lines at boot, both produced from the same Lexical visitor pipeline. `lexicalEditorEmbedServer()` runs on every richtext write to refresh embedded envelopes ahead of persistence. `lexicalEditorPopulateServer()` runs on every read whose field opted into populate. Target documents are supplied through core's secure reader, which enforces the target collection ability, strict `beforeRead` scope, effective read mode, and `afterRead` redaction. `initBylineCore()` fail-fasts at boot when either adapter is missing for a field that requires it.
+Two opt-in lines at boot, both produced from the same Lexical visitor pipeline. `lexicalEditorEmbedServer()` runs on every richtext write to refresh embedded envelopes ahead of persistence. `lexicalEditorPopulateServer()` runs on every read whose field opted into populate. Target documents are supplied through core's secure reader, which enforces the target collection ability, strict `beforeRead` scope, effective read mode, and `afterRead` redaction. Strict target filters compile separately from caller filters and once per logical `ReadContext` + target collection + mode in private, authority-bound state. `initBylineCore()` fail-fasts at boot when either adapter is missing for a field that requires it.
 
 **Edit:** `apps/webapp/byline/server.config.ts`
 
@@ -663,7 +663,18 @@ lexicalEditorEmbedServer({
 | Inside `blocks` (PhotoBlock caption) | `content.0.caption` |
 | Inside `blocks` (RichTextBlock body) | `content.1.richText` |
 
-**Co-existence with relation-field populate.** Relation fields and richtext targets participate in the same guarded read operation. Both enforce target abilities, `beforeRead`, inherited source view, read budget, and `afterRead`; cross-surface recursion fails closed instead of exposing an incompletely redacted target. The shipped Lexical visitors get this behavior by using the supplied `readDocuments` function.
+**Generated exhaustive public rendering.** The reference app derives its renderable block union from both generated collection field types, rather than maintaining a hand-written list:
+
+```ts
+type ContentBlockOf<Fields extends { content?: unknown }> =
+  NonNullable<Fields['content']> extends Array<infer Block> ? Block : never
+
+type ContentBlock = ContentBlockOf<DocsFields> | ContentBlockOf<PagesFields>
+```
+
+The photo-population overlay distributes across that generated Docs + Pages union, preserving collection-specific block members. `RenderBlocks` then uses an exhaustive `switch (block._type)` for every known generated member; its default passes to a `never` reporter. The default still matters for persisted data authored under an older or newer schema: an unknown runtime `_type` is explicitly logged and omitted, while subsequent known blocks continue rendering. It is never sent to a convenient fallback component and misrendered as rich text. The same implementation is kept in the CLI UI template.
+
+**Co-existence with relation-field populate.** Relation fields and richtext targets participate in the same guarded read operation. Both enforce target abilities, inherited source view, read budget, and `afterRead`; both reuse strict `beforeRead` filters compiled once per collection + mode within the authority-bound logical context. Cross-surface recursion or reuse across authorities fails closed instead of exposing an incompletely redacted target. The shipped Lexical visitors get this behavior by using the supplied `readDocuments` function.
 
 **Why a flat envelope.** The persisted node attributes flatten the relation envelope directly (`targetDocumentId`, `targetCollectionId`, `targetCollectionPath`, `document?`). This matches the `RelationField` value shape; freshness is selected explicitly through the save-time embed and read-time populate flags.
 

@@ -24,15 +24,16 @@
  * fatal in `dev` (`Module "node:dns" has been externalized for browser
  * compatibility`).
  *
- * The schema avoids that by referencing these hooks through a **dynamic
- * import** instead of an inline object:
+ * The schema avoids that by putting the dynamic import inside TanStack Start's
+ * **server-only function** instead of using an inline object or plain import:
  *
  *     // schema.ts
- *     hooks: () => import('./hooks.js')
+ *     const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
+ *     // ...
+ *     hooks: loadHooks
  *
- * Because the schema reaches this module only through `import()`, this file —
- * and its entire transitive import graph — is **structurally absent** from
- * the client bundle. `@byline/core` resolves the loader once on the server
+ * The transform removes the callback body and its transitive import graph from
+ * the client bundle. `@byline/core` resolves the real loader once on the server
  * (memoized) and calls these hooks exactly as it would inline ones. The
  * upshot: **inside this file we may statically import server-only modules
  * directly** — both the cache runtime and `node:crypto` below are the
@@ -57,11 +58,7 @@
 
 import { createHash } from 'node:crypto'
 
-import { defineHooks } from '@byline/core'
-
-import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
-import { getSystemBylineClient } from '../../client.server.js'
-import { runSideEffects } from '../run-side-effects.js'
+import { createPublicLifecycleHooks } from '../create-public-lifecycle-hooks.js'
 
 // Search indexing rides the same lifecycle hooks as cache invalidation. The
 // orchestration lives in `@byline/client`: `indexDocument` re-reads the
@@ -69,76 +66,16 @@ import { runSideEffects } from '../run-side-effects.js'
 // draft-over-published, and plain edits all converge on the same idempotent
 // path); `removeFromIndex` drops every locale on delete. See
 // docs/05-reading-and-delivery/07-search.md.
-export default defineHooks({
-  afterCreate: async ({ data, collectionPath, path, documentId }) => {
+export default createPublicLifecycleHooks({
+  collectionPath: 'docs',
+  listBearing: true,
+  onCreate: ({ data, collectionPath, documentId }) => {
     // Example use of a server-only import: derive a content fingerprint with
     // Node's crypto module — only safe here because this module never
     // reaches the client bundle (see the affordance note above).
     const fingerprint = createHash('sha256').update(JSON.stringify(data)).digest('hex').slice(0, 12)
     console.log(
       `afterCreate: document ${documentId} created in '${collectionPath}' (content fingerprint ${fingerprint})`
-    )
-    await runSideEffects(
-      'docs afterCreate',
-      () => invalidateDocument('docs', path, { list: true, sitemap: true }),
-      () => getSystemBylineClient().collection('docs').indexDocument(documentId)
-    )
-  },
-  afterUpdate: async ({ path, documentId, originalData }) => {
-    await runSideEffects(
-      'docs afterUpdate',
-      () =>
-        invalidateDocument('docs', path, {
-          prevPath: (originalData as { path?: string } | undefined)?.path,
-          list: true,
-        }),
-      () => getSystemBylineClient().collection('docs').indexDocument(documentId)
-    )
-  },
-  afterSystemFieldsChange: async ({
-    documentId,
-    previousPath,
-    currentPath,
-    requested,
-    reconciliation,
-  }) => {
-    const invalidate = () =>
-      reconciliation && requested.path
-        ? invalidateCollection('docs')
-        : currentPath != null
-          ? invalidateDocument('docs', currentPath, {
-              prevPath: previousPath,
-              list: true,
-              sitemap: true,
-            })
-          : undefined
-    await runSideEffects(
-      'docs afterSystemFieldsChange',
-      invalidate,
-      ...(requested.path
-        ? [() => getSystemBylineClient().collection('docs').indexDocument(documentId)]
-        : [])
-    )
-  },
-  afterStatusChange: async ({ path, documentId }) => {
-    await runSideEffects(
-      'docs afterStatusChange',
-      () => invalidateDocument('docs', path, { list: true, sitemap: true }),
-      () => getSystemBylineClient().collection('docs').indexDocument(documentId)
-    )
-  },
-  afterUnpublish: async ({ path, documentId }) => {
-    await runSideEffects(
-      'docs afterUnpublish',
-      () => invalidateDocument('docs', path, { list: true, sitemap: true }),
-      () => getSystemBylineClient().collection('docs').indexDocument(documentId)
-    )
-  },
-  afterDelete: async ({ path, documentId }) => {
-    await runSideEffects(
-      'docs afterDelete',
-      () => getSystemBylineClient().collection('docs').removeFromIndex(documentId),
-      () => invalidateDocument('docs', path, { list: true, sitemap: true })
     )
   },
   // A structural tree change (place / reorder / re-parent / promote-on-delete)
@@ -148,5 +85,5 @@ export default defineHooks({
   // sweep (detail + list + sitemap) is the pragmatic correct choice over
   // resolving the affected ids to paths. See docs/04-collections/03-document-trees.md →
   // "Invalidation contract".
-  afterTreeChange: () => invalidateCollection('docs'),
+  invalidateTree: true,
 })

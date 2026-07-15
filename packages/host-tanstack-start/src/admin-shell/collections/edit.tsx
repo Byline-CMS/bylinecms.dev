@@ -21,6 +21,7 @@ import {
   deleteDocument,
   deleteDocumentLocale,
   duplicateCollectionDocument,
+  hasDeleteSideEffectFailures,
   unpublishDocument,
   updateCollectionDocumentSystemFields,
   updateCollectionDocumentWithPatches,
@@ -348,14 +349,19 @@ export const EditView = ({
 
   const handleDelete = async () => {
     try {
-      await deleteDocument({ data: { collection: path, id: String(initialData.id) } })
-      const description = t('collections.edit.deletedDescription', { label: singular })
+      const result = await deleteDocument({
+        data: { collection: path, id: String(initialData.id) },
+      })
+      const hasSideEffectFailures = hasDeleteSideEffectFailures(result)
+      const description = hasSideEffectFailures
+        ? t('collections.edit.deletedWithWarningsDescription', { label: singular })
+        : t('collections.edit.deletedDescription', { label: singular })
       toastManager.add({
         title: t('collections.edit.deleteTitle', { label: singular }),
         description,
         data: {
-          intent: 'success',
-          iconType: 'success',
+          intent: hasSideEffectFailures ? 'warning' : 'success',
+          iconType: hasSideEffectFailures ? 'warning' : 'success',
           icon: true,
           close: true,
         },

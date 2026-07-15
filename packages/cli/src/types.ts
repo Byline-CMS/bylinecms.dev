@@ -42,8 +42,15 @@ export interface Plan {
   preconditions?: PlanPrecondition[]
 }
 
+export interface TreeSnapshotEntry {
+  path: string
+  type: 'directory' | 'file' | 'other'
+  contents?: string
+}
+
 export type PlanPrecondition =
   | { type: 'file'; path: string; contents: string | null }
+  | { type: 'tree'; path: string; entries: TreeSnapshotEntry[] }
   | { type: 'value'; key: string; value: string }
 
 export interface PhaseResult {

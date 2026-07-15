@@ -407,7 +407,11 @@ describe('CollectionHandle.delete', () => {
 
     expect(getDocumentById).toHaveBeenCalled()
     expect(softDeleteDocument).toHaveBeenCalledWith({ document_id: 'doc:1' })
-    expect(result).toEqual({ deletedVersionCount: 3 })
+    expect(result).toEqual({
+      deletedVersionCount: 3,
+      outcome: 'committed',
+      sideEffectFailures: [],
+    })
   })
 
   it('throws ERR_NOT_FOUND when the document does not exist', async () => {
@@ -422,6 +426,27 @@ describe('CollectionHandle.delete', () => {
       /document not found/
     )
     expect(softDeleteDocument).not.toHaveBeenCalled()
+  })
+
+  it('propagates a committed side-effect warning', async () => {
+    const afterDelete = vi.fn(async () => {
+      throw Object.assign(new Error('search unavailable'), { code: 'ERR_SEARCH' })
+    })
+    const collection: CollectionDefinition = {
+      ...postsCollection,
+      hooks: { afterDelete },
+    }
+    const { db } = makeAdapter()
+    const client = createBylineClient({ db, requestContext: superAdmin, collections: [collection] })
+
+    await expect(client.collection('posts').delete('doc:1')).resolves.toEqual({
+      deletedVersionCount: 3,
+      outcome: 'committed-with-side-effect-failures',
+      sideEffectFailures: [
+        { phase: 'afterDelete', message: 'search unavailable', code: 'ERR_SEARCH' },
+      ],
+    })
+    expect(afterDelete).toHaveBeenCalledOnce()
   })
 })
 

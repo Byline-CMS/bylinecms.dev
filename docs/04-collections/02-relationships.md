@@ -250,7 +250,7 @@ The wrapper is purely at the type level — a matching `populate: { … }` at th
 
 ### 10. Status awareness through populate
 
-Populate honours the same `readMode` rule as direct reads. A public reader (`@byline/client`, defaulting to `readMode: 'published'`) sees populated targets through `current_published_documents` — a draft over a previously-published target *does not* leak through populate. Before adapter access, each target collection also passes its own `read` ability gate and strict `beforeRead` predicate. A row-hidden target becomes `_resolved: false`; lacking the target collection ability rejects the operation. Admin code paths use `readMode: 'any'` and see the latest visible version regardless of status.
+Populate honours the same `readMode` rule as direct reads. A public reader (`@byline/client`, defaulting to `readMode: 'published'`) sees populated targets through `current_published_documents` — a draft over a previously-published target *does not* leak through populate. Before adapter access, each target collection also passes its own `read` ability gate and strict `beforeRead` predicate. That security predicate compiles separately from caller filters and only once per logical `ReadContext` + target collection + effective mode. A row-hidden target becomes `_resolved: false`; lacking the target collection ability rejects the operation. Admin code paths use `readMode: 'any'` and see the latest visible version regardless of status.
 
 **Edit:** the server-fn (the status / preview gate is per call).
 
@@ -386,7 +386,7 @@ Mutates `documents` in place. `find*` results are freshly-shaped copies, so this
 
 1. **Walk** each document's `fields` against its `CollectionDefinition`, recursing through `group` / `array` / `blocks` to collect every relation leaf that matches the populate map.
 2. **Group** the collected leaves by `target_collection_id`.
-3. **Authorize and batch fetch** each target collection on authenticated SDK paths: assert its collection `read` ability, compile its strict `beforeRead` predicate, then call `IDocumentQueries.getDocumentsByDocumentIds()` with that scope — *one DB round-trip per target collection per depth level*. Selective field loading projects only the fields the populate map asked for, plus the target collection's `useAsTitle` field (falling back to its first text field).
+3. **Authorize and batch fetch** each target collection on authenticated SDK paths: assert its collection `read` ability, reuse or compile its strict `beforeRead` filters, then call `IDocumentQueries.getDocumentsByDocumentIds()` with that scope — *one DB round-trip per target collection per depth level*. Strict filters are private, authority-bound state keyed by logical `ReadContext`, target collection, and effective mode; caller-owned cache properties are not trusted. Selective field loading projects only the fields the populate map asked for, plus the target collection's `useAsTitle` field (falling back to its first text field).
 4. **Replace** each leaf in place with the populated, unresolved, or cycle-marked envelope.
 5. **Recurse** to the next depth if `depth > 1`, using the populate map's nested `populate: { ... }` as the next level's spec.
 
@@ -421,11 +421,12 @@ Populate honours the same `readMode` rule as direct reads. When a public reader 
 
 A populate walk that ignored the rest of the operation would cycle as soon as `afterRead` performed nested reads. Byline therefore threads one **operation-scoped `ReadContext`** through direct reads, relation and richtext population, and hook re-entry.
 
-Its public contract provides a depth clamp and read budget, plus the state needed to suppress relation cycles. Three safety rules follow:
+Its public contract provides a depth clamp and read budget, plus the state needed to suppress relation cycles. Read authorization state is private: the deprecated `beforeReadCache` property is ignored, and reusing one logical context with another authority throws instead of sharing scope. Four safety rules follow:
 
 1. **Populate cycles become stubs.** A target already reached on the active walk becomes `_cycle: true` instead of recursing.
 2. **The target-read budget is hard.** Materialising more than `maxReads` relation and richtext targets (default 500) throws `ERR_READ_BUDGET_EXCEEDED`; top-level result rows and tree hydration do not consume this counter. Requested populate depth is clamped by `maxDepth` (default 8).
 3. **Redaction fails closed on recursion.** Every returned materialisation passes through `afterRead`. If a hook re-enters a version that is still being processed, the read throws `ERR_READ_RECURSION` rather than returning a partially redacted object.
+4. **Security compilation is shared, not caller-controlled.** The target collection's strict filters compile once per logical context + collection + mode and are reused across concurrent fan-out.
 
 Top-level SDK reads create the context. Hooks that issue nested reads must pass the received context back as `_readContext`; relation and richtext target readers do this automatically. This keeps the actor, effective read mode, `beforeRead` scope, and recursion limits coherent across the whole operation.
 
@@ -438,6 +439,7 @@ The compiler in `packages/core/src/query/parse-where.ts` recognises nested-objec
 Two consequences worth flagging:
 
 - **`readMode` propagates through the filter predicate.** A public-reader query for `where: { author: { id: 'X' } }` only matches when there is a *published* version of the author — no draft leaks at the target side either.
+- **Reserved metadata operators keep their meaning.** `status` and `path` clauses, including supported operator objects, compile as document-column filters at the correct relation depth. The same rule applies when those clauses come from strict `beforeRead` security predicates.
 - **A relation filter is not target population.** It constrains the source query but does not independently invoke the target collection's `beforeRead` hook. If the existence or fields of a related row are themselves sensitive, express that restriction in the source collection's `beforeRead` predicate rather than relying on the target hook.
 - **Nested-object DSL was chosen over Payload-style dot notation** (`'author.id': 'X'`). Dot notation collides with Byline's internal EAV path notation and doesn't absorb the future `hasMany` quantifiers (`some`, `every`, `none`).
 

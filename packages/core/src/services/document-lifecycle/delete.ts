@@ -8,7 +8,7 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_NOT_FOUND } from '../../lib/errors.js'
+import { ERR_NOT_FOUND, ErrorCodes } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { hasUploadField, isUploadField } from '../../utils/storage-utils.js'
 import { walkFieldTree } from '../walk-field-tree.js'
@@ -23,8 +23,64 @@ import { firePromoteTreeChange, reconcileTreeOnDeleteInTransaction } from './tre
 import type { TreeDeleteMutationResult } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
-export interface DeleteDocumentResult {
+export type DeleteDocumentOutcome = 'committed' | 'committed-with-side-effect-failures'
+
+export type DeleteDocumentSideEffectPhase = 'storageCleanup' | 'afterTreeChange' | 'afterDelete'
+
+export interface DeleteDocumentSideEffectFailure {
+  phase: DeleteDocumentSideEffectPhase
+  message: string
+  code: string
+}
+
+export interface DeleteDocumentCommittedResult {
   deletedVersionCount: number
+  outcome: 'committed'
+  sideEffectFailures: []
+}
+
+export interface DeleteDocumentCommittedWithSideEffectFailuresResult {
+  deletedVersionCount: number
+  outcome: 'committed-with-side-effect-failures'
+  sideEffectFailures: [DeleteDocumentSideEffectFailure, ...DeleteDocumentSideEffectFailure[]]
+}
+
+export type DeleteDocumentResult =
+  | DeleteDocumentCommittedResult
+  | DeleteDocumentCommittedWithSideEffectFailuresResult
+
+function readErrorString(error: unknown, property: 'message' | 'code'): string | undefined {
+  try {
+    if ((typeof error !== 'object' || error === null) && typeof error !== 'function') {
+      return undefined
+    }
+    const value = Reflect.get(error, property)
+    return typeof value === 'string' ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function serializeSideEffectFailure(
+  phase: DeleteDocumentSideEffectPhase,
+  error: unknown
+): DeleteDocumentSideEffectFailure {
+  try {
+    return {
+      phase,
+      message:
+        typeof error === 'string'
+          ? error
+          : (readErrorString(error, 'message') ?? 'Unknown side-effect failure'),
+      code: readErrorString(error, 'code') ?? ErrorCodes.UNHANDLED,
+    }
+  } catch {
+    return {
+      phase,
+      message: 'Unknown side-effect failure',
+      code: ErrorCodes.UNHANDLED,
+    }
+  }
 }
 
 /**
@@ -68,7 +124,8 @@ export async function deleteDocument(
       //    AND a storage provider, fetch with reconstruct: true so we
       //    can read the stored file paths (and persisted variant paths)
       //    from the field values before the DB rows are deleted.
-      const isUploadCollection = hasUploadField(definition) && ctx.storage != null
+      const storage = ctx.storage
+      const isUploadCollection = hasUploadField(definition) && storage != null
       const latest = await db.queries.documents.getDocumentById({
         collection_id: ctx.collectionId,
         document_id: params.documentId,
@@ -153,13 +210,26 @@ export async function deleteDocument(
         }
       })
 
-      // 4. Clean up storage files. Non-fatal: logs errors but does not throw.
-      if (ctx.storage && storagePathsToDelete.length > 0) {
+      // Everything below is post-commit. Each operation and the logger get an
+      // independent attempt; none can turn the committed delete into a rejection.
+      const sideEffectFailures: DeleteDocumentSideEffectFailure[] = []
+
+      // 4. Clean up every storage file. Returned failures omit paths, while
+      // internal logs retain the target needed for operational reconciliation.
+      if (storage && storagePathsToDelete.length > 0) {
         for (const storagePath of storagePathsToDelete) {
           try {
-            await ctx.storage.delete(storagePath)
-          } catch (err: unknown) {
-            logger.error({ err, storagePath }, 'failed to delete storage file')
+            await storage.delete(storagePath)
+          } catch (error: unknown) {
+            sideEffectFailures.push(serializeSideEffectFailure('storageCleanup', error))
+            try {
+              logger.error(
+                { err: error, documentId: params.documentId, storagePath },
+                'failed to delete storage file'
+              )
+            } catch {
+              // Diagnostic logging must not interrupt the remaining cleanup attempts.
+            }
           }
         }
       }
@@ -167,33 +237,56 @@ export async function deleteDocument(
       // 5-6. Both post-commit hook families get an independent attempt. A tree
       // invalidation failure must not prevent afterDelete consumers (search,
       // cache removal) from running, or vice versa.
-      const postCommitErrors: Array<{ phase: 'afterTreeChange' | 'afterDelete'; error: unknown }> =
-        []
       try {
         if (treeResult != null) {
           await firePromoteTreeChange(ctx, params.documentId, treeResult)
         }
       } catch (error: unknown) {
-        postCommitErrors.push({ phase: 'afterTreeChange', error })
+        sideEffectFailures.push(serializeSideEffectFailure('afterTreeChange', error))
+        try {
+          logger.error(
+            { err: error, documentId: params.documentId },
+            'afterTreeChange hook failed after document delete'
+          )
+        } catch {
+          // Diagnostic logging must not affect the committed result.
+        }
       }
       try {
         await invokeHook(hooks?.afterDelete, hookCtx)
       } catch (error: unknown) {
-        postCommitErrors.push({ phase: 'afterDelete', error })
-      }
-      if (postCommitErrors.length > 0) {
-        logger.error(
-          { documentId: params.documentId, errors: postCommitErrors },
-          'post-commit delete hooks failed'
-        )
-        if (postCommitErrors.length === 1) throw postCommitErrors[0]?.error
-        throw new AggregateError(
-          postCommitErrors.map((entry) => entry.error),
-          'multiple post-commit delete hooks failed'
-        )
+        sideEffectFailures.push(serializeSideEffectFailure('afterDelete', error))
+        try {
+          logger.error(
+            { err: error, documentId: params.documentId },
+            'afterDelete hook failed after document delete'
+          )
+        } catch {
+          // Diagnostic logging must not affect the committed result.
+        }
       }
 
-      return { deletedVersionCount }
+      const [firstFailure, ...remainingFailures] = sideEffectFailures
+      if (firstFailure != null) {
+        try {
+          logger.error(
+            {
+              documentId: params.documentId,
+              sideEffectFailures: [firstFailure, ...remainingFailures],
+            },
+            'post-commit delete side effects failed'
+          )
+        } catch {
+          // A reporting failure cannot change the already-committed outcome.
+        }
+        return {
+          deletedVersionCount,
+          outcome: 'committed-with-side-effect-failures',
+          sideEffectFailures: [firstFailure, ...remainingFailures],
+        }
+      }
+
+      return { deletedVersionCount, outcome: 'committed', sideEffectFailures: [] }
     }
   )
 }

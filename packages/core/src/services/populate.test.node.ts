@@ -172,12 +172,23 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         setOrderKey: vi.fn(),
         placeTreeNode: vi.fn(),
         removeFromTree: vi.fn(),
+        promoteChildrenAndRemoveFromTree: vi.fn(async () => ({
+          removed: {
+            changed: false,
+            before: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+            after: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+            beforeSiblingDocumentIds: [],
+            beforeSubtreeDocumentIds: [],
+          },
+          promoted: [],
+        })),
       },
       counters: {
         ensureCounterGroup: vi.fn(),
         nextCounterValue: vi.fn(),
         nextScopedCounterValue: vi.fn(),
       },
+      audit: { append: vi.fn(async () => ({ id: 'audit-1' })) },
     },
     queries: {
       collections: {
@@ -186,6 +197,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         getCollectionById,
       },
       documents: {
+        getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(),
         getCurrentVersionMetadata: vi.fn(),
         getCurrentPath: vi.fn(),
@@ -206,7 +218,18 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         getTreeParent: vi.fn(),
         getTreeSubtree: vi.fn(),
       },
+      audit: {
+        getDocumentAuditLog: vi.fn(async () => ({
+          entries: [],
+          meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+        })),
+        findAuditLog: vi.fn(async () => ({
+          entries: [],
+          meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+        })),
+      },
     },
+    withTransaction: async <T>(fn: () => Promise<T>) => fn(),
   } satisfies IDbAdapter
 
   return { db, getDocumentsByDocumentIds, getCollectionById }

@@ -132,10 +132,9 @@
 
 import { createRequestContext, type RequestContext } from '@byline/auth'
 
-import { applyBeforeRead } from '../auth/apply-before-read.js'
+import { compileBeforeReadFilters } from '../auth/apply-before-read.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_READ_BUDGET_EXCEEDED } from '../lib/errors.js'
-import { parsePredicateFilters } from '../query/parse-where.js'
 import { applyAfterRead } from './document-read.js'
 import { createRichTextDocumentReader, populateRichTextFields } from './richtext-populate.js'
 import { walkFieldTree } from './walk-field-tree.js'
@@ -172,7 +171,6 @@ const DEFAULT_MAX_DEPTH = 8
 export function createReadContext(overrides?: Partial<ReadContext>): ReadContext {
   return {
     visited: overrides?.visited ?? new Set(),
-    beforeReadCache: overrides?.beforeReadCache ?? new Map(),
     readCount: overrides?.readCount ?? 0,
     maxReads: overrides?.maxReads ?? DEFAULT_MAX_READS,
     maxDepth: overrides?.maxDepth ?? DEFAULT_MAX_DEPTH,
@@ -250,7 +248,7 @@ export interface PopulateOptions {
   /**
    * Request-scoped auth context. Required when any target collection in the
    * walk has a `beforeRead` hook configured. Each target's hook is invoked
-   * (and cached on `readContext.beforeReadCache`) before its batch fetch,
+   * (and cached in private authority-bound state) before its batch fetch,
    * and the resulting predicate is ANDed onto the fetch's WHERE. When
    * omitted — most synthetic / test call paths — `beforeRead` hooks are
    * skipped entirely; the production read paths all forward this through
@@ -259,6 +257,8 @@ export interface PopulateOptions {
    * lacks identity state.
    */
   requestContext?: RequestContext
+  /** Private cache domain shared by every read path in one client instance. */
+  securityDomain?: object
   /**
    * Skip `beforeRead` hook resolution on every target collection. The
    * top-level read's `_bypassBeforeRead` flag rides through to populate
@@ -289,6 +289,7 @@ export interface PopulateOptions {
  */
 export async function populateDocuments(opts: PopulateOptions): Promise<void> {
   const ctx = opts.readContext ?? createReadContext()
+  const securityDomain = opts.securityDomain ?? opts.db
   const operationRequestContext =
     opts.requestContext ??
     createRequestContext({ readMode: opts.readMode ?? 'any', locale: opts.locale })
@@ -395,8 +396,8 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
       )
 
       // Resolve the target collection's `beforeRead` predicate, if any.
-      // The cache on `ctx.beforeReadCache` ensures each (collectionPath,
-      // actor) tuple only runs through the hook once per request, even
+      // Private authority-bound state ensures each collection/mode tuple only
+      // runs through the hook once per request, even
       // across populate fanout where the same target collection may be
       // visited from multiple sources.
       const targetFilters = await resolveBeforeReadFiltersForTarget({
@@ -406,6 +407,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
         readContext: ctx,
         bypassBeforeRead: opts.bypassBeforeRead,
         db: opts.db,
+        securityDomain,
       })
 
       let fetched: any[] = []
@@ -510,6 +512,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
                 locale: opts.locale,
                 bypassBeforeRead: opts.bypassBeforeRead,
                 richTextPopulate: opts.richTextPopulate,
+                securityDomain,
               }),
             })
           }
@@ -623,21 +626,25 @@ async function resolveBeforeReadFiltersForTarget(params: {
   readContext: ReadContext
   bypassBeforeRead: true | undefined
   db: IDbAdapter
+  securityDomain: object
 }): Promise<DocumentFilter[] | undefined> {
-  const { targetDef, collections, requestContext, readContext, bypassBeforeRead, db } = params
+  const {
+    targetDef,
+    collections,
+    requestContext,
+    readContext,
+    bypassBeforeRead,
+    db,
+    securityDomain,
+  } = params
   if (!targetDef || !requestContext || bypassBeforeRead) return undefined
 
-  const predicate = await applyBeforeRead({
+  return compileBeforeReadFilters({
     definition: targetDef,
     requestContext,
     readContext,
-  })
-  if (predicate == null) return undefined
-
-  const filters = await parsePredicateFilters(
-    predicate,
-    targetDef,
-    {
+    securityDomain,
+    parseContext: {
       collections,
       resolveCollectionId: async (path) => {
         // Match the target collection by path against the loaded collection
@@ -652,9 +659,7 @@ async function resolveBeforeReadFiltersForTarget(params: {
         return row?.id ?? ''
       },
     },
-    { strict: true }
-  )
-  return filters.length > 0 ? filters : undefined
+  })
 }
 
 /**

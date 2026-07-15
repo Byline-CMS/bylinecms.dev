@@ -87,6 +87,7 @@ export class BylineError extends Error {
     }
 
     this.code = code
+    this.name = 'BylineError'
     this.details = details
     this.logExtra = logExtra
     this.logLevel = logLevel
@@ -163,6 +164,7 @@ export const ErrorCodes = {
   READ_RECURSION: 'ERR_READ_RECURSION',
   PATH_CONFLICT: 'ERR_PATH_CONFLICT',
   AUDIT_UNSUPPORTED: 'ERR_AUDIT_UNSUPPORTED',
+  TREE_HOOK_COMMITTED: 'ERR_TREE_HOOK_COMMITTED',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -196,3 +198,9 @@ export const ERR_PATH_CONFLICT = createErrorType(ErrorCodes.PATH_CONFLICT, 'warn
  * docs/03-architecture/03-transactions.md and docs/06-auth-and-security/02-auditability.md.
  */
 export const ERR_AUDIT_UNSUPPORTED = createErrorType(ErrorCodes.AUDIT_UNSUPPORTED)
+/**
+ * A tree mutation and its audit row committed, but its post-commit
+ * `afterTreeChange` work failed. Callers still receive a rejection so they can
+ * reconcile, while transports can distinguish it from a rolled-back mutation.
+ */
+export const ERR_TREE_HOOK_COMMITTED = createErrorType(ErrorCodes.TREE_HOOK_COMMITTED, 'warn')

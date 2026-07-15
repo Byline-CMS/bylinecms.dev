@@ -37,7 +37,14 @@ export { updateDocument, updateDocumentWithPatches } from './update.js'
 export type { DocumentLifecycleContext } from './context.js'
 export type { CopyToLocaleResult } from './copy-to-locale.js'
 export type { CreateDocumentResult } from './create.js'
-export type { DeleteDocumentResult } from './delete.js'
+export type {
+  DeleteDocumentCommittedResult,
+  DeleteDocumentCommittedWithSideEffectFailuresResult,
+  DeleteDocumentOutcome,
+  DeleteDocumentResult,
+  DeleteDocumentSideEffectFailure,
+  DeleteDocumentSideEffectPhase,
+} from './delete.js'
 export type { DeleteLocaleResult } from './delete-locale.js'
 export type { DuplicateDocumentResult } from './duplicate.js'
 export type { RestoreVersionResult } from './restore.js'

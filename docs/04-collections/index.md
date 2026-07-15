@@ -555,7 +555,7 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 | Document tree | `afterTreeChange` |
 | Read | `beforeRead` (row-scoping predicate), `afterRead` (per-materialization mutation) |
 
-**`beforeRead`** is the row-scoping hook. It returns a `QueryPredicate` that is ANDed with caller filters and cached per collection + effective read mode for one `ReadContext`. Security predicates compile in strict mode: unsupported fields/operators or malformed values throw rather than being weakened or dropped. Coverage is end-to-end — ordinary reads and counts, every immutable row in `history()` / `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document/image targets all apply the target collection's ability and predicate. `auditLog()` is the deliberate exception described in [Auditability](../06-auth-and-security/02-auditability.md): it gates the document-grain log through the current document rather than applying a predicate to each audit row. See [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) for the full reference and worked recipes.
+**`beforeRead`** is the row-scoping hook. It returns a `QueryPredicate` that is ANDed with caller filters, but the two inputs compile separately: caller `where` uses the ordinary query parser, while the hook predicate uses the strict security compiler. The strict result compiles once per logical `ReadContext` + collection + effective read mode in private, authority-bound state; concurrent populate branches share that result. Unsupported fields/operators or malformed values throw rather than being weakened or dropped, and top-level `status` / `path` operators are emitted as document-column filters consistently across list, detail, populate, count, history, and tree reads. The deprecated caller-owned `ReadContext.beforeReadCache` is ignored, and attempting to reuse a logical read across authorities fails closed. Coverage is end-to-end — ordinary reads and counts, every immutable row in `history()` / `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document/image targets all apply the target collection's ability and predicate. `auditLog()` is the deliberate exception described in [Auditability](../06-auth-and-security/02-auditability.md): it gates the document-grain log through the current document rather than applying a predicate to each audit row. See [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) for the full reference and worked recipes.
 
 **`afterRead`** runs after populate on each fresh raw document materialization and receives mutable `ctx.doc`, the operation's immutable actor-aware `requestContext` (including effective `readMode`), and the shared `readContext`. The same object is processed only once, but a freshly materialized object may run again even for the same version. If a nested hook read reaches a version whose hook is still active, core fails closed with `ERR_READ_RECURSION` rather than returning a partially redacted object. Thread `ctx.readContext` into nested reads so budgets, predicate caching, and active-recursion guards remain effective.
 
@@ -567,17 +567,27 @@ Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's 
 
 Hooks are the one place a schema reaches server-only behaviour, and — because the schema is [isomorphic](#the-schema--admin-split) — they are also the one place server-only code can leak into the **client** bundle. The hook *bodies* never execute in the browser, but they are referenced from a client-bundled module, so the bundler keeps whatever they **statically import** at the top of the schema file. That pulls the entire transitive graph of those imports into the client.
 
-The failure is asymmetric, which makes it easy to miss: **production** tree-shakes the unused hook bodies, so the leaked graph often disappears and the build looks clean; **dev** (Vite) does not tree-shake, so the module is evaluated in the browser, and a Node built-in anywhere in that graph throws at runtime — `Module "node:…" has been externalized for browser compatibility.`
+The failure is easy to miss: a plain dynamic import still becomes a browser
+chunk in production, while dev may additionally evaluate Node built-ins through
+Vite's browser-external shim. Neither environment makes an unguarded dynamic
+hook loader a server boundary.
 
 **The rule:** a hook may *call* server-only code, but the schema file must never *statically import* it.
 
-**Recommended fix — the loader form of `hooks`.** `hooks` accepts a thunk that dynamically imports the hooks module: `hooks: () => import('./docs.hooks.js')`. Because the schema reaches the hooks only through `import()`, the hooks module — and its entire transitive server-only graph — is *structurally absent* from the client bundle. No per-import discipline, no SSR guards in app code; the isolation is by construction.
+**Recommended fix — a server-only loader.** `hooks` accepts a loader, but the
+dynamic import must live inside TanStack Start's `createServerOnlyFn`. The Start
+transform replaces the client body with a throwing stub and removes the dynamic
+import plus its transitive graph from the browser build.
 
 ```ts
 // docs.schema.ts — isomorphic, client-safe by construction
+import { createServerOnlyFn } from '@tanstack/react-start'
+
+const loadHooks = createServerOnlyFn(() => import('./docs.hooks.js'))
+
 export const Docs = defineCollection({
   // …declarative field config…
-  hooks: () => import('./docs.hooks.js'),
+  hooks: loadHooks,
 })
 ```
 
@@ -593,7 +603,7 @@ export default defineHooks({
 
 The loader is resolved once and memoized (keyed on the loader's identity), so the dynamic `import()` runs at most once per process regardless of how many documents flow through it. `defineHooks(...)` is optional — it mirrors `defineCollection` / `defineBlock` as a named factory; `export default { … } satisfies CollectionHooks` is equivalent. The hooks module's `default` export (or a bare returned object) is used. The inline form (`hooks: { … }`) stays valid for hooks whose bodies only touch isomorphic / declarative code.
 
-**Field upload hooks (`field.upload.hooks`) take the same loader form.** `beforeStore` / `afterStore` are declared on an `upload`-capable field *inside the schema*, so they have identical client-bundle exposure — and are the most likely hooks to reach for server-only code (storage SDKs, `sharp`, AV scanners). Declare them the same way: `upload: { …, hooks: () => import('./media.hooks.js') }`, with the sibling module `export default { … } satisfies UploadHooks`. (Note: **field-level** validation hooks like `beforeValidate` are a different case — they can legitimately run client-side, so they are not server-only and are not deferred this way.)
+**Field upload hooks (`field.upload.hooks`) use the same server-only loader.** `beforeStore` / `afterStore` are declared on an `upload`-capable field *inside the schema*, so they have identical client-bundle exposure — and are the most likely hooks to reach for server-only code (storage SDKs, `sharp`, AV scanners). Declare `const loadUploadHooks = createServerOnlyFn(() => import('./media.hooks.js'))`, then use `upload: { …, hooks: loadUploadHooks }`; the sibling module exports `default { … } satisfies UploadHooks`. (Note: **field-level** validation hooks like `beforeValidate` are a different case — they can legitimately run client-side, so they are not server-only and are not deferred this way.)
 
 **Alternative — keep hooks inline behind a client-safe, SSR-gated shim.** When you'd rather keep hook bodies in the schema file, defer the server-only call behind a shim the schema imports by name — the shim's only static import is `import type`, and the real module loads behind an SSR guard, so it never enters the schema's static graph:
 
@@ -612,7 +622,10 @@ export async function invalidateDocument(path: string, opts?: InvalidateDocument
 import { invalidateDocument } from '@/cache/invalidate-deferred'
 ```
 
-Either way, verify in **dev, not just `build`** — `build` tree-shaking masks the leak. If a server-only dependency appears in the client module graph, it is a schema-authoring bug, not a bundler-config problem.
+Verify both dev and production output. The reference app also fails its client
+build when any collection hook implementation or shared lifecycle module appears
+in a generated client chunk. If a server-only dependency appears in the client
+module graph, it is a schema-authoring bug, not a bundler-config problem.
 
 ### Orderable collections
 

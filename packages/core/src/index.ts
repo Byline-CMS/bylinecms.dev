@@ -19,9 +19,11 @@ export * from './@types/index.js'
 export {
   applyBeforeRead,
   assertActorCanPerform,
+  bindReadContextAuthority,
   COLLECTION_ABILITY_VERBS,
   type CollectionAbilityVerb,
   collectionAbilityKey,
+  compileBeforeReadFilters,
   registerCollectionAbilities,
 } from './auth/index.js'
 export {
@@ -42,11 +44,13 @@ export * from './defaults/default-values.js'
 export {
   BylineError,
   ERR_AUDIT_UNSUPPORTED,
+  ERR_CONFLICT,
   ERR_DATABASE,
   ERR_NOT_FOUND,
   ERR_READ_BUDGET_EXCEEDED,
   ERR_READ_RECURSION,
   ERR_STORAGE,
+  ERR_TREE_HOOK_COMMITTED,
   ERR_UNHANDLED,
   ERR_VALIDATION,
   ErrorCodes,
@@ -72,6 +76,7 @@ export {
 export { getCollectionSchemasForPath } from './schemas/zod/cache.js'
 export * from './services/index.js'
 export * from './storage/index.js'
+export { normalizeRootRelativeRedirect } from './utils/root-relative-redirect.js'
 export {
   formatTextValue,
   looksLikeISODate,

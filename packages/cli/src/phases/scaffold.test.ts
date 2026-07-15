@@ -57,7 +57,25 @@ describe('scaffold planning', () => {
     expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain("'/mine'")
   })
 
-  it('defers an exact pre-signIn config migration and completes it in routes', async () => {
+  it('counts matching user-owned routes as aligned without claiming write ownership', async () => {
+    const ctx = fixture({ examples: false, adminPath: '/cms', signInPath: '/staff/login' })
+    const path = ctx.resolve('byline/routes.ts')
+    const source = `
+      const values = { admin: '/cms', signIn: '/staff/login' } as const
+      export const routes = { api: '/rpc', ...values } satisfies Record<string, string>
+      // user-owned
+    `
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(path, source)
+
+    const plan = buildScaffoldPlan(ctx)
+    expect(plan.writes.some((write) => write.path === path)).toBe(false)
+    expect(plan.notes.join('\n')).not.toContain('manual — existing routes.ts')
+    expect((await scaffoldPhase.apply(plan, ctx)).state).toBe('done')
+    expect(readFileSync(path, 'utf8')).toBe(source)
+  })
+
+  it('defers the literal previous-release config migration and completes it in routes', async () => {
     const ctx = fixture({
       examples: false,
       importDocs: false,
@@ -66,30 +84,14 @@ describe('scaffold planning', () => {
     })
     const configPath = ctx.resolve('byline/routes.ts')
     mkdirSync(ctx.resolve('byline'), { recursive: true })
-    const canonical = readFileSync(`${ctx.templatesDir()}/byline/routes.ts`, 'utf8')
-    writeFileSync(
-      configPath,
-      canonical
-        .replace(
-          `/**
- * Client-safe URL paths for admin, sign-in, and the future public API.
- * \`resolveRoutes()\` applies defaults and canonicalizes every consumer.
- */`,
-          `/**
- * URL segments for admin and (future) public API routes. Defaults of
- * \`/admin\` and \`/api\` are applied automatically by \`resolveRoutes()\` —
- * keys only need to be set here when overriding either default.
- */`
-        )
-        .replace(/^\s*signIn:.*\n/m, '')
-    )
+    writeFileSync(configPath, previousReleaseRoutesSource())
 
     const scaffold = buildScaffoldPlan(ctx)
     expect(scaffold.writes.some((write) => write.path === configPath)).toBe(false)
     expect(scaffold.notes.join('\n')).toContain('deferred atomically to the routes phase')
     expect((await scaffoldPhase.apply(scaffold, ctx)).state).toBe('done')
     expect(await scaffoldPhase.detect(ctx)).toBe('done')
-    expect(readFileSync(configPath, 'utf8')).not.toContain('signIn:')
+    expect(readFileSync(configPath, 'utf8')).toContain("signIn: '/sign-in'")
 
     expect((await routesPhase.apply(buildRoutesPlan(ctx), ctx)).state).toBe('done')
     expect(readFileSync(configPath, 'utf8')).toContain("signIn: '/staff/login'")
@@ -173,3 +175,35 @@ describe('scaffold planning', () => {
     expect(await scaffoldPhase.detect(ctx)).toBe('done')
   })
 })
+
+function previousReleaseRoutesSource(): string {
+  return `/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/**
+ * Client-safe URL paths for admin, sign-in, and the future public API.
+ * \`resolveRoutes()\` applies defaults and canonicalizes every consumer.
+ */
+
+import type { RoutesConfig } from '@byline/core'
+
+export const routes: Partial<RoutesConfig> = {
+  admin: '/admin',
+  api: '/api',
+  signIn: '/sign-in',
+}
+
+/**
+ * Fallback used by both server and admin entry points when no
+ * \`VITE_SERVER_URL\` env var is set. Each entry resolves the env var
+ * itself (Vite's \`import.meta.env\` on the client, Node's \`process.env\`
+ * on the server) and falls back to this literal.
+ */
+export const DEFAULT_SERVER_URL = 'http://localhost:5173/'
+`
+}

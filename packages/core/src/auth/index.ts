@@ -6,7 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-export { applyBeforeRead } from './apply-before-read.js'
+export {
+  applyBeforeRead,
+  bindReadContextAuthority,
+  compileBeforeReadFilters,
+} from './apply-before-read.js'
 export { assertActorCanPerform } from './assert-actor-can-perform.js'
 export {
   COLLECTION_ABILITY_VERBS,

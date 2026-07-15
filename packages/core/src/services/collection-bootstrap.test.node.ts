@@ -29,10 +29,19 @@ function baseCollection(): CollectionDefinition {
 
 // Build a minimal IDbAdapter. We only wire the methods `ensureCollections`
 // actually calls; the others throw if touched so we catch accidental usage.
+interface CollectionRow {
+  id: string
+  version: number
+  schema_hash: string | null
+}
+
 function createMockDb(options: {
-  existingRow?: { id: string; version: number; schema_hash: string | null } | null
+  existingRow?: CollectionRow | null
+  getCollectionByPath?: (path: string) => Promise<CollectionRow | null>
 }) {
-  const getCollectionByPath = vi.fn().mockResolvedValue(options.existingRow ?? null)
+  const getCollectionByPath = vi.fn(
+    options.getCollectionByPath ?? (async () => options.existingRow ?? null)
+  )
   const create = vi
     .fn()
     .mockImplementation(async (_path: string, _config: CollectionDefinition, _opts: any) => [
@@ -58,12 +67,23 @@ function createMockDb(options: {
         setOrderKey: vi.fn(fail) as any,
         placeTreeNode: vi.fn(fail) as any,
         removeFromTree: vi.fn(fail) as any,
+        promoteChildrenAndRemoveFromTree: vi.fn(async () => ({
+          removed: {
+            changed: false,
+            before: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+            after: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+            beforeSiblingDocumentIds: [],
+            beforeSubtreeDocumentIds: [],
+          },
+          promoted: [],
+        })),
       },
       counters: {
         ensureCounterGroup: vi.fn(fail) as any,
         nextCounterValue: vi.fn(fail) as any,
         nextScopedCounterValue: vi.fn(fail) as any,
       },
+      audit: { append: vi.fn(async () => ({ id: 'audit-1' })) },
     },
     queries: {
       collections: {
@@ -72,6 +92,7 @@ function createMockDb(options: {
         getCollectionById: vi.fn(fail),
       },
       documents: {
+        getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(fail),
         getCurrentVersionMetadata: vi.fn(fail) as any,
         getCurrentPath: vi.fn(fail) as any,
@@ -92,7 +113,18 @@ function createMockDb(options: {
         getTreeParent: vi.fn(fail) as any,
         getTreeSubtree: vi.fn(fail) as any,
       },
+      audit: {
+        getDocumentAuditLog: vi.fn(async () => ({
+          entries: [],
+          meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+        })),
+        findAuditLog: vi.fn(async () => ({
+          entries: [],
+          meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
+        })),
+      },
     },
+    withTransaction: async <T>(fn: () => Promise<T>) => fn(),
   }
 
   return { db, create, update, getCollectionByPath }
@@ -214,63 +246,12 @@ describe('ensureCollections', () => {
 
     const hashA = await fingerprintCollection(a)
     // For `a` the DB matches; for `b` it does not exist yet.
-    const getCollectionByPath = vi.fn(async (path: string) => {
-      if (path === 'news') return { id: 'col-news', version: 2, schema_hash: hashA }
-      return null
+    const { db, create, update } = createMockDb({
+      getCollectionByPath: async (path) => {
+        if (path === 'news') return { id: 'col-news', version: 2, schema_hash: hashA }
+        return null
+      },
     })
-    const create = vi.fn().mockResolvedValue([{ id: 'col-pages' }])
-    const update = vi.fn()
-
-    const db: IDbAdapter = {
-      commands: {
-        collections: { create, update, delete: vi.fn() },
-        documents: {
-          createDocumentVersion: vi.fn() as any,
-          updateDocumentPath: vi.fn() as any,
-          setDocumentAvailableLocales: vi.fn() as any,
-          setDocumentStatus: vi.fn(),
-          archivePublishedVersions: vi.fn() as any,
-          softDeleteDocument: vi.fn() as any,
-          deleteDocumentLocale: vi.fn() as any,
-          setOrderKey: vi.fn() as any,
-          placeTreeNode: vi.fn() as any,
-          removeFromTree: vi.fn() as any,
-        },
-        counters: {
-          ensureCounterGroup: vi.fn() as any,
-          nextCounterValue: vi.fn() as any,
-          nextScopedCounterValue: vi.fn() as any,
-        },
-      },
-      queries: {
-        collections: {
-          getAllCollections: vi.fn(),
-          getCollectionByPath,
-          getCollectionById: vi.fn(),
-        },
-        documents: {
-          getDocumentById: vi.fn(),
-          getCurrentVersionMetadata: vi.fn() as any,
-          getCurrentPath: vi.fn() as any,
-          getDocumentByPath: vi.fn(),
-          getDocumentByVersion: vi.fn(),
-          getDocumentsByVersionIds: vi.fn(),
-          getDocumentsByDocumentIds: vi.fn(),
-          getDocumentHistory: vi.fn(),
-          getPublishedVersion: vi.fn(),
-          getPublishedDocumentIds: vi.fn(),
-          getDocumentCountsByStatus: vi.fn(),
-          findDocuments: vi.fn(),
-          getLastOrderKey: vi.fn() as any,
-          getNeighborOrderKeys: vi.fn() as any,
-          getCanonicalDocumentOrder: vi.fn() as any,
-          getTreeAncestors: vi.fn() as any,
-          getTreeChildren: vi.fn() as any,
-          getTreeParent: vi.fn() as any,
-          getTreeSubtree: vi.fn() as any,
-        },
-      },
-    }
 
     const records = await ensureCollections({ definitions: [a, b], db })
 

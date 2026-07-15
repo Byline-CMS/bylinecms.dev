@@ -65,17 +65,10 @@ export interface ReadContext {
    */
   visited: Set<string>
   /**
-   * Per-request memoisation of `beforeRead` hook results, keyed by
-   * `collectionPath:readMode`. Populate fans out across many source documents and
-   * many target-collection batches; without a cache, an async hook
-   * (e.g. resolving the actor's tenant id) would re-run on every batch.
-   * The actor is invariant for the lifetime of one `ReadContext`; the mode
-   * is part of the key because nested reads may select another mode. `null`
-   * records "hook ran and returned
-   * void" (i.e. no scoping applies); absence records "hook has not been
-   * run yet for this collection".
+   * @deprecated Ignored. `beforeRead` authorization state is module-private
+   * and authority-bound; this optional slot remains only for source compatibility.
    */
-  beforeReadCache: Map<string, QueryPredicate | null>
+  beforeReadCache?: Map<string, QueryPredicate | null>
   /** Monotonic count of document materialisations; compared against `maxReads`. */
   readCount: number
   /** Hard ceiling on materialisations per request. Default 500. */
@@ -243,39 +236,28 @@ export interface IDbAdapter {
     collections: ICollectionCommands
     documents: IDocumentCommands
     counters: ICounterCommands
-    /**
-     * Append-only audit-log writes (docs/06-auth-and-security/02-auditability.md — Workstream 2). Optional
-     * capability, paired with `withTransaction`: a consumer that records audit
-     * entries asserts both are present and throws otherwise (it must never
-     * silently skip the audit row). Adapters that model the audit log
-     * implement it; others omit it.
-     */
-    audit?: IAuditCommands
+    /** Append-only audit-log writes, committed atomically via `withTransaction`. */
+    audit: IAuditCommands
   }
   queries: {
     collections: ICollectionQueries
     documents: IDocumentQueries
-    /** Audit-log reads — per-document history, system-wide report. See docs/06-auth-and-security/02-auditability.md. */
-    audit?: IAuditQueries
+    /** Audit-log reads — per-document history, system-wide report. */
+    audit: IAuditQueries
   }
   /**
-   * Optional capability: run `fn` inside a single database transaction so the
+   * Run `fn` inside a single database transaction so the
    * writes it performs commit or roll back atomically. The adapter propagates
    * the transaction to every `commands.*` call made within `fn` (see
    * docs/03-architecture/03-transactions.md — AsyncLocalStorage propagation), so a service can
    * compose multiple commands into one unit of work without threading a
    * transaction handle through their signatures.
    *
-   * **Loud-failure contract.** Optional because not every adapter can provide
-   * interactive transactions — a pure HTTP-gateway serverless driver (Neon
-   * HTTP, Cloudflare D1, …) cannot. An adapter that cannot **must omit this
-   * method** (or implement it to throw); a consumer that requires atomicity
-   * (e.g. the audit log) MUST assert its presence and throw — never silently
-   * run non-atomically, which would defeat the very guarantee it provides. See
-   * docs/03-architecture/03-transactions.md ("Serverless / HTTP-gateway databases — the contract
-   * seam").
+   * Canonical adapters must provide interactive transactions because audited
+   * lifecycle mutations cannot safely degrade to non-atomic writes. Runtime
+   * lifecycle guards remain in place for untyped JavaScript adapters.
    */
-  withTransaction?: <T>(fn: () => Promise<T>) => Promise<T>
+  withTransaction: <T>(fn: () => Promise<T>) => Promise<T>
   /**
    * Optional maintenance: stamp `source_locale` (the per-document content
    * anchor) on documents created before the column existed, setting NULL rows
@@ -726,10 +708,10 @@ export interface IDocumentCommands {
   /**
    * Atomically promote a node's direct children to roots and remove its edge,
    * returning locked before/after states for parent and child audit rows. This
-   * optional capability is mandatory for adapters serving `tree: true`
-   * collections and is validated at bootstrap.
+   * capability is required by the canonical adapter contract and is also
+   * validated at runtime for untyped JavaScript adapters.
    */
-  promoteChildrenAndRemoveFromTree?(params: {
+  promoteChildrenAndRemoveFromTree(params: {
     collectionId: string
     documentId: string
   }): Promise<TreeDeleteMutationResult>
@@ -745,10 +727,10 @@ export interface IDocumentQueries {
   /**
    * Lock a logical document as the transaction mutex for its non-versioned
    * system fields, then return their authoritative current values. Must be
-   * called inside `IDbAdapter.withTransaction`; adapters that support audited
-   * system-field writes implement this optional capability.
+   * called inside `IDbAdapter.withTransaction`. Canonical adapters must support
+   * this locked read so system-field audit rows use an authoritative snapshot.
    */
-  getDocumentSystemFieldsForUpdate?(params: {
+  getDocumentSystemFieldsForUpdate(params: {
     collection_id: string
     document_id: string
   }): Promise<{

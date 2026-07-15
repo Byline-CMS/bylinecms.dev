@@ -56,10 +56,10 @@ never visible in the address bar. An isomorphic URL-rewrite pair
 both the SSR request-parse and client navigation:
 
 - **`input`** prepends the default locale to a bare frontend path so the matcher
-  always sees a locale segment. It resolves the client-safe route config and
-  skips the configured admin, API, and sign-in paths (including their
-  segment-delimited descendants), plus fixed `_serverFn`, `_build`, and
-  `uploads` trees and static assets.
+  always sees a locale segment. It reads the client-safe route config resolved
+  at its module boundary and skips the configured admin, API, and sign-in paths
+  (including their segment-delimited descendants), plus fixed `_serverFn`,
+  `_build`, and `uploads` trees and static assets.
 - **`output`** strips *only* a leading default-locale segment → clean URLs for
   `en`. The load-bearing invariant is **de-DEFAULT, never de-LOCALIZE**:
   non-default interface *and* content locales (`fr`, `zh-CN`, …) stay visible,
@@ -135,22 +135,32 @@ server configuration. Public code therefore cannot accidentally drag the admin
 translation graph (`@byline/i18n/admin` and its Lexical-adjacent module tree) into
 the public client bundle.
 
-The same facade owns host route decisions. Public code resolves it without
+The same facade owns host route decisions. `byline/routes.ts` calls
+`resolveRoutes()` once at that client-safe configuration boundary, and
+`byline/public.ts` re-exports the resulting frozen, readonly route object without
 loading the admin config:
 
 ```ts
-import { resolveRoutes } from '@byline/core'
 import { routes } from '~/public'
 
-const { admin, api, signIn } = resolveRoutes(routes)
+const { admin, api, signIn } = routes
 ```
 
+The same resolved object is passed to the client and server configs, whose
+registration also validates and snapshots route input. Locale rewriting and
+server negotiation therefore consume canonical paths directly; route validation
+is not deferred until a rewrite, render, or request.
+
 `locale-rewrite.ts` uses these canonical paths rather than reserving `/admin` and
-`/sign-in` forever. With `{ admin: '/cms', signIn: '/staff/login' }`, `/cms/...`
-and `/staff/login/...` remain locale-less, `/staff/profile` remains localizable,
-and `/admin` is an ordinary frontend path. The same `isLocalizablePath()`
-predicate is reused by router input rewriting, server locale negotiation,
-markdown negotiation, and locale-aware links, so all four surfaces agree.
+`/sign-in` forever. Multi-segment trees are matched safely at segment
+boundaries. With admin at `/internal/cms`, API at `/services/content`, and
+sign-in at `/staff/login`, those paths and their descendants remain locale-less,
+`/internal/cms-old`, `/staff/profile`, and `/services/contentful` remain
+localizable, and `/admin` is an ordinary frontend path. The configured sign-in
+path is validated outside both the admin and API trees before registration. The
+same `isLocalizablePath()` predicate is reused by router input rewriting, server
+locale negotiation, markdown negotiation, and locale-aware links, so all four
+surfaces agree.
 
 ```ts
 // apps/webapp/byline/locales.ts (re-exported by byline/public.ts)

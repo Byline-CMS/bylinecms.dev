@@ -1,3 +1,4 @@
+import { resolveRoutes } from './routes.js'
 import { validateAdminConfigs } from './validate-admin-configs.js'
 import { validateCollections } from './validate-collections.js'
 import type {
@@ -5,6 +6,8 @@ import type {
   CollectionAdminConfig,
   CollectionDefinition,
   ColumnDefinition,
+  ResolvedClientConfig,
+  ResolvedServerConfig,
   ServerConfig,
 } from '@/@types/index.js'
 
@@ -20,17 +23,17 @@ const BYLINE_SERVER_CONFIG = Symbol.for('__byline_server_config__')
 const BYLINE_CLIENT_CONFIG = Symbol.for('__byline_client_config__')
 const BYLINE_CORE = Symbol.for('__byline_core__')
 
-function getServerConfigInstance(): ServerConfig | null {
+function getServerConfigInstance(): ResolvedServerConfig | null {
   return (globalThis as any)[BYLINE_SERVER_CONFIG] ?? null
 }
-function setServerConfigInstance(config: ServerConfig) {
+function setServerConfigInstance(config: ResolvedServerConfig) {
   ;(globalThis as any)[BYLINE_SERVER_CONFIG] = config
 }
 
-function getClientConfigInstance(): ClientConfig | null {
+function getClientConfigInstance(): ResolvedClientConfig | null {
   return (globalThis as any)[BYLINE_CLIENT_CONFIG] ?? null
 }
-function setClientConfigInstance(config: ClientConfig) {
+function setClientConfigInstance(config: ResolvedClientConfig) {
   ;(globalThis as any)[BYLINE_CLIENT_CONFIG] = config
 }
 
@@ -79,18 +82,37 @@ export const resolveItemViewColumns = (
   config: CollectionAdminConfig | null | undefined
 ): ColumnDefinition[] | undefined => config?.itemView ?? config?.picker
 
-export function defineClientConfig(config: ClientConfig) {
+export function defineClientConfig(config: ClientConfig): ResolvedClientConfig {
   validateCollections(config.collections)
   validateAdminConfigs(config.admin, config.collections)
-  setClientConfigInstance(config)
+  const resolved = { ...config, routes: resolveRoutes(config.routes) }
+  setClientConfigInstance(resolved)
+  return resolved
 }
 
-export function defineServerConfig(config: ServerConfig) {
+export function defineServerConfig<TAdminStore = unknown>(
+  config: ServerConfig<TAdminStore>
+): ResolvedServerConfig<TAdminStore> {
+  return registerServerConfig(resolveServerConfig(config))
+}
+
+/** Resolve and validate server config without replacing the registered singleton. */
+export function resolveServerConfig<TAdminStore = unknown>(
+  config: ServerConfig<TAdminStore>
+): ResolvedServerConfig<TAdminStore> {
   validateCollections(config.collections)
-  setServerConfigInstance(config)
+  return { ...config, routes: resolveRoutes(config.routes) }
 }
 
-export function getClientConfig(): ClientConfig {
+/** Internal commit step used after initialization has completed successfully. */
+export function registerServerConfig<TAdminStore = unknown>(
+  config: ResolvedServerConfig<TAdminStore>
+): ResolvedServerConfig<TAdminStore> {
+  setServerConfigInstance(config)
+  return config
+}
+
+export function getClientConfig(): ResolvedClientConfig {
   const clientConfig = getClientConfigInstance()
   if (clientConfig != null) {
     return clientConfig
@@ -110,14 +132,14 @@ export function getClientConfig(): ClientConfig {
       // server-side derives the same path preview as the hydrated client
       // (both configs are meant to register the same function).
       slugifier: serverConfig.slugifier,
-    } as ClientConfig
+    }
   }
   throw new Error(
     'Byline has not been configured yet. Please call defineClientConfig in byline.config.ts first.'
   )
 }
 
-export function getServerConfig(): ServerConfig {
+export function getServerConfig(): ResolvedServerConfig {
   if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
     throw new Error('getServerConfig cannot be called on the client.')
   }

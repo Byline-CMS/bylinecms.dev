@@ -24,15 +24,15 @@
  * pull that graph into the browser (silent in `build`, a `node:* externalized`
  * crash in `dev`).
  *
- * The schema sidesteps that by referencing these hooks through a dynamic
- * import rather than an inline object:
+ * The schema sidesteps that by putting the dynamic import inside TanStack
+ * Start's server-only function rather than using an inline object:
  *
  *     // schema.ts → the image field's upload block
- *     upload: { …, hooks: () => import('./hooks.js') }
+ *     const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
+ *     upload: { …, hooks: loadHooks }
  *
- * Because the schema reaches this module only through `import()`, this file
- * and its entire import graph are structurally absent from the client bundle.
- * `@byline/core` resolves the loader once on the server (memoized) and runs
+ * The transform removes the loader body and this file's import graph from the
+ * client bundle. `@byline/core` resolves it once on the server and runs
  * these hooks exactly as it would inline ones.
  *
  * The upshot: **inside this file you may statically import anything

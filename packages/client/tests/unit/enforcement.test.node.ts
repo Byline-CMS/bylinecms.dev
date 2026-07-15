@@ -24,6 +24,7 @@ import {
   createSuperAdminContext,
 } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import { createReadContext } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
@@ -300,6 +301,184 @@ describe('CollectionHandle enforcement', () => {
       await client.collection('posts').find()
       expect(call).toBe(2)
     })
+
+    it('rejects a shared ReadContext when the factory authority changes', async () => {
+      const contexts = [
+        createRequestContext({
+          actor: new AdminAuth({ id: 'alice', abilities: ['collections.posts.read'] }),
+        }),
+        createRequestContext({
+          actor: new AdminAuth({ id: 'bob', abilities: ['collections.posts.read'] }),
+        }),
+      ]
+      let current = 0
+      const db = mockDb()
+      const hook = vi.fn(({ requestContext }) => ({ title: requestContext.actor?.id }))
+      const client = createBylineClient({
+        db,
+        collections: [{ ...postsCollection, hooks: { beforeRead: hook } }],
+        requestContext: () => {
+          const context = contexts[current]
+          if (context == null) throw new Error('missing test request context')
+          return context
+        },
+      })
+      const readContext = createReadContext()
+
+      await client.collection('posts').find({ _readContext: readContext })
+      current = 1
+      await expect(client.collection('posts').find({ _readContext: readContext })).rejects.toThrow(
+        'cannot be reused across request authorities'
+      )
+      expect(hook).toHaveBeenCalledOnce()
+      expect(db.queries.documents.findDocuments).toHaveBeenCalledOnce()
+    })
+
+    it('does not reuse same-path security filters across clients and definitions', async () => {
+      const db = mockDb()
+      const context = createRequestContext({
+        actor: new AdminAuth({ id: 'reader', abilities: ['collections.posts.read'] }),
+      })
+      const hookA = vi.fn(() => ({ title: 'allowed-a' }))
+      const hookB = vi.fn(() => ({ title: 'allowed-b' }))
+      const definitionA: CollectionDefinition = {
+        ...postsCollection,
+        hooks: { beforeRead: hookA },
+      }
+      const definitionB: CollectionDefinition = {
+        ...postsCollection,
+        hooks: { beforeRead: hookB },
+      }
+      const clientA = createBylineClient({
+        db,
+        collections: [definitionA],
+        requestContext: context,
+      })
+      const clientB = createBylineClient({
+        db,
+        collections: [definitionB],
+        requestContext: context,
+      })
+      const readContext = createReadContext()
+
+      await clientA.collection('posts').find({ _readContext: readContext })
+      await clientB.collection('posts').find({ _readContext: readContext })
+
+      expect(hookA).toHaveBeenCalledOnce()
+      expect(hookB).toHaveBeenCalledOnce()
+      expect(db.queries.documents.findDocuments).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          filters: [expect.objectContaining({ fieldName: 'title', value: 'allowed-a' })],
+        })
+      )
+      expect(db.queries.documents.findDocuments).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          filters: [expect.objectContaining({ fieldName: 'title', value: 'allowed-b' })],
+        })
+      )
+    })
+
+    it('does not reuse compiled filters across clients sharing the exact db and definitions', async () => {
+      const db = mockDb()
+      const getCollectionByPath = vi.mocked(db.queries.collections.getCollectionByPath)
+      let categoryId = 'categories-a'
+      getCollectionByPath.mockImplementation(async (path) => ({
+        id: path === 'categories' ? categoryId : 'posts-id',
+        path,
+        version: 1,
+      }))
+      const hook = vi.fn(() => ({ category: { title: 'Allowed' } }))
+      const definition: CollectionDefinition = {
+        ...postsCollection,
+        fields: [
+          ...postsCollection.fields,
+          {
+            name: 'category',
+            type: 'relation',
+            label: 'Category',
+            targetCollection: 'categories',
+          },
+        ],
+        hooks: { beforeRead: hook },
+      }
+      const categories: CollectionDefinition = {
+        path: 'categories',
+        labels: { singular: 'Category', plural: 'Categories' },
+        fields: [{ name: 'title', type: 'text', label: 'Title' }],
+      }
+      const collections = [definition, categories] as const
+      const context = createRequestContext({
+        actor: new AdminAuth({ id: 'reader', abilities: ['collections.posts.read'] }),
+      })
+      const clientA = createBylineClient({ db, collections, requestContext: context })
+      const clientB = createBylineClient({ db, collections, requestContext: context })
+      const readContext = createReadContext()
+
+      await clientA.resolveCollectionId('categories')
+      categoryId = 'categories-b'
+      await clientB.resolveCollectionId('categories')
+      await clientA.collection('posts').find({ _readContext: readContext })
+      await clientB.collection('posts').find({ _readContext: readContext })
+
+      const findDocuments = vi.mocked(db.queries.documents.findDocuments)
+      expect(findDocuments.mock.calls[0]?.[0].filters).toEqual([
+        expect.objectContaining({ kind: 'relation', targetCollectionId: 'categories-a' }),
+      ])
+      expect(findDocuments.mock.calls[1]?.[0].filters).toEqual([
+        expect.objectContaining({ kind: 'relation', targetCollectionId: 'categories-b' }),
+      ])
+      expect(hook).toHaveBeenCalledTimes(2)
+    })
+
+    it.each([
+      [
+        'requestId',
+        createRequestContext({
+          actor: new AdminAuth({ id: 'reader', abilities: ['collections.posts.read'] }),
+          requestId: 'request-a',
+          locale: 'en',
+        }),
+        createRequestContext({
+          actor: new AdminAuth({ id: 'reader', abilities: ['collections.posts.read'] }),
+          requestId: 'request-b',
+          locale: 'en',
+        }),
+      ],
+      [
+        'locale',
+        createRequestContext({
+          actor: new AdminAuth({ id: 'reader', abilities: ['collections.posts.read'] }),
+          requestId: 'shared-request',
+          locale: 'en',
+        }),
+        createRequestContext({
+          actor: new AdminAuth({ id: 'reader', abilities: ['collections.posts.read'] }),
+          requestId: 'shared-request',
+          locale: 'fr',
+        }),
+      ],
+    ])('rejects shared ReadContext reuse when %s changes', async (_field, first, second) => {
+      let current = first
+      const db = mockDb()
+      const hook = vi.fn(({ requestContext }) => ({ title: requestContext.locale }))
+      const client = createBylineClient({
+        db,
+        collections: [{ ...postsCollection, hooks: { beforeRead: hook } }],
+        requestContext: () => current,
+      })
+      const readContext = createReadContext()
+
+      await client.collection('posts').find({ _readContext: readContext })
+      current = second
+      await expect(client.collection('posts').find({ _readContext: readContext })).rejects.toThrow(
+        'cannot be reused across request authorities'
+      )
+
+      expect(hook).toHaveBeenCalledOnce()
+      expect(db.queries.documents.findDocuments).toHaveBeenCalledOnce()
+    })
   })
 
   describe('historical version scoping', () => {
@@ -364,7 +543,110 @@ describe('CollectionHandle enforcement', () => {
       })
 
       await expect(client.collection('posts').find()).rejects.toThrow(message)
+      expect(db.queries.collections.getCollectionByPath).not.toHaveBeenCalled()
       expect(db.queries.documents.findDocuments).not.toHaveBeenCalled()
+    })
+
+    it('rejects a malformed predicate before invoking the search provider', async () => {
+      const db = mockDb()
+      const providerSearch = vi.fn().mockResolvedValue({ hits: [], total: 0 })
+      const scoped: CollectionDefinition = {
+        ...postsCollection,
+        hooks: { beforeRead: () => ({ typoedOwner: 'alice' }) },
+      }
+      const client = createBylineClient({
+        db,
+        collections: [scoped],
+        requestContext: createSuperAdminContext(),
+        search: {
+          capabilities: {},
+          upsert: vi.fn(),
+          remove: vi.fn(),
+          search: providerSearch,
+        } as any,
+      })
+
+      await expect(client.collection('posts').search({ query: 'hidden' })).rejects.toThrow(
+        'unknown field'
+      )
+      expect(db.queries.collections.getCollectionByPath).not.toHaveBeenCalled()
+      expect(providerSearch).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['status $in', { status: { $in: ['published'] } }, 'status', '$in', ['published']],
+      ['path $nin', { path: { $nin: ['private'] } }, 'path', '$nin', ['private']],
+    ])('appends top-level %s security filters identically with and without caller where', async (_name, predicate, column, operator, value) => {
+      for (const where of [undefined, { unknownCallerField: 'kept-permissive' }]) {
+        const db = mockDb()
+        const scoped: CollectionDefinition = {
+          ...postsCollection,
+          hooks: { beforeRead: () => predicate },
+        }
+        const client = createBylineClient({
+          db,
+          collections: [scoped],
+          requestContext: createSuperAdminContext(),
+        })
+
+        await client.collection('posts').find({ where })
+
+        expect(db.queries.documents.findDocuments).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: [{ kind: 'docColumn', column, operator, value }],
+            status: undefined,
+            pathFilter: undefined,
+          })
+        )
+      }
+    })
+
+    it('reuses one strict compilation and collection-id resolution during search finishing', async () => {
+      const db = mockDb()
+      const hook = vi.fn(() => ({ parent: { title: 'Root' } }))
+      const scoped: CollectionDefinition = {
+        ...postsCollection,
+        fields: [
+          ...postsCollection.fields,
+          {
+            name: 'parent',
+            type: 'relation',
+            label: 'Parent',
+            targetCollection: 'posts',
+          },
+        ],
+        hooks: { beforeRead: hook },
+      }
+      const providerSearch = vi.fn().mockResolvedValue({
+        hits: [
+          {
+            collectionPath: 'posts',
+            documentId: 'p1',
+            locale: 'en',
+            title: 'Post',
+            path: 'post',
+            score: 1,
+          },
+        ],
+        total: 1,
+      })
+      const client = createBylineClient({
+        db,
+        collections: [scoped],
+        requestContext: createSuperAdminContext(),
+        search: {
+          capabilities: {},
+          upsert: vi.fn(),
+          remove: vi.fn(),
+          search: providerSearch,
+        } as any,
+      })
+
+      await client.collection('posts').search({ query: 'post' })
+
+      expect(hook).toHaveBeenCalledOnce()
+      expect(db.queries.collections.getCollectionByPath).toHaveBeenCalledOnce()
+      expect(db.queries.documents.findDocuments).toHaveBeenCalledOnce()
     })
 
     it('suppresses provider totals and facets when row scoping applies', async () => {

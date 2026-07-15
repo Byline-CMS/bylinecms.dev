@@ -386,10 +386,12 @@ interface RequestContext {
 ```
 
 `RequestContext` and `ReadContext` are separate objects. The client binds one
-authenticated request context to a logical read operation, then gives hooks an
+authenticated request authority to a logical read operation, then gives hooks an
 operation-scoped request-context clone carrying the effective `readMode`.
 Populate, richtext target reads, `beforeRead`, `afterRead`, and ability checks
-therefore share one actor and mode without mutating the configured context.
+therefore share one actor without mutating the configured context. Reusing that
+logical `ReadContext` with another authority fails closed rather than inheriting
+scope compiled for the first caller.
 
 Three classes of caller construct `RequestContext`:
 
@@ -534,9 +536,11 @@ beforeRead?: (ctx: {
 }) => QueryPredicate | void | Promise<QueryPredicate | void>
 ```
 
-The hook runs for collection reads and for target collections reached through relation or richtext population. It receives the actor and read context and returns a `QueryPredicate`. The predicate is compiled into the same `EXISTS` / `LEFT JOIN LATERAL` SQL the client's existing `where` parser already emits, then **AND**ed onto whatever the caller passed in `where`. Callers never see the scope — it is invisible, query-level, and applies even when no `where` was specified. Returning `void` (or `undefined`) means "no scoping for this actor" — typically the admin / superuser path.
+The hook runs for collection reads and for target collections reached through relation or richtext population. It receives the actor and read context and returns a `QueryPredicate`. Caller `where` and hook security predicates compile separately: caller input uses the ordinary parser, while the hook uses strict validation and compiles wholly to adapter `DocumentFilter`s. Those two filter lists are then **AND**ed. Callers never see the scope — it is invisible, query-level, and applies even when no `where` was specified. Returning `void` (or `undefined`) means "no scoping for this actor" — typically the admin / superuser path.
 
-The predicate language is the security-checked subset of `WhereClause`: scalar equality, `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` / `$contains` / `$in` / `$nin`, relation sub-clauses and quantifiers, and `$and` / `$or` combinators. Field names resolve through `field-store-map`. Reserved `id`, `status`, and `path` keys compile as document-column filters at the correct relation depth.
+The predicate language is the security-checked subset of `WhereClause`: scalar equality, `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` / `$contains` / `$in` / `$nin`, relation sub-clauses and quantifiers, and `$and` / `$or` combinators. Field names resolve through `field-store-map`. Reserved `id`, `status`, and `path` keys compile as document-column filters at the correct relation depth. For top-level security clauses, `status` accepts `$eq` / `$ne` / `$in` / `$nin`; `path` accepts those plus `$contains`. Because strict security compilation no longer passes through caller-only top-level scalar handling, these operators are enforced consistently on list, detail, populate, count, history, version, and tree reads.
+
+The strict result is compiled once per logical `ReadContext` + client security domain + collection definition + effective read mode and held in private state bound to that request authority. The authority includes request id, locale, actor realm/id, super-admin state, and abilities; changing any of them fails closed. Promise sharing prevents concurrent populate/richtext branches from rerunning hooks or relation-id resolution, while same-collection and cyclic hook reads fail with `ERR_READ_RECURSION` instead of awaiting their own compilation. `ReadContext.beforeReadCache` remains only as a deprecated source-compatibility property: caller values are ignored and cannot seed authorization.
 
 Wired into:
 
@@ -545,7 +549,8 @@ Wired into:
 
 **Composition rules:**
 
-- **Hook predicate AND user `where`.** The compiler merges them with implicit AND. A user passing `where: { status: 'draft' }` against Recipe 1 (owner-only drafts) sees only their own drafts — both clauses apply.
+- **Hook predicate AND user `where`.** The adapter applies the separately compiled filter lists with implicit AND. A user passing `where: { status: 'draft' }` against Recipe 1 (owner-only drafts) sees only their own drafts — both clauses apply.
+- **Compilation stays separate.** Permissive caller parsing cannot weaken, drop, or pre-seed strict hook filters; only the final adapter filter lists are combined.
 - **`void` means "no scoping".** Use it for the superuser / unconditional-read branch. Do not return an empty object `{}`; strict security-predicate parsing rejects it.
 - **Deny with an empty set, not an invalid UUID or an exception.** When the actor cannot read anything in a collection, return `{ id: { $in: [] } }`. It compiles to an always-false predicate without asking Postgres to cast a sentinel string to UUID; throwing would collapse list endpoints instead of producing the natural empty result.
 - **Security predicates are strict and fail closed.** Unknown fields or operators, empty predicates/combinators, unsupported `query`, unresolved relation targets, and malformed reserved-column operands raise a validation error instead of being silently discarded. The deliberate exception is a relation quantifier such as `$none: {}`, whose empty nested clause means "no resolving targets."

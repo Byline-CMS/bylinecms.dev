@@ -2,7 +2,11 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 import { applyPlannedWrites } from '../lib/planned-writes.js'
-import { recognizeGeneratedRoutesSource, validateRoutePaths } from '../lib/route-config.js'
+import {
+  recognizeGeneratedRoutesSource,
+  routesSourceAligned,
+  validateRoutePaths,
+} from '../lib/route-config.js'
 import { normalizeTemplateSource, toPosixTemplatePath } from '../lib/template-path.js'
 import type { Context } from '../context.js'
 import type { FileWrite, Phase, Plan } from '../types.js'
@@ -103,12 +107,14 @@ export function buildScaffoldPlan(ctx: Context): Plan {
       entry.rel === 'routes.ts' &&
       normalizeTemplateSource(current) !== normalizeTemplateSource(expected)
     ) {
-      if (recognizeGeneratedRoutesSource(current, entry.contents)) {
-        notes.push(`${path}: generated route migration deferred atomically to the routes phase`)
-      } else {
-        notes.push(
-          `${path}: manual — existing routes.ts is user-owned and does not match a generated predecessor`
-        )
+      if (!routesSourceAligned(current, ctx, routes.value)) {
+        if (recognizeGeneratedRoutesSource(current, entry.contents)) {
+          notes.push(`${path}: generated route migration deferred atomically to the routes phase`)
+        } else {
+          notes.push(
+            `${path}: manual — existing routes.ts is user-owned and does not match a generated predecessor`
+          )
+        }
       }
     }
     skipped++
@@ -157,7 +163,10 @@ function inspectScaffold(ctx: Context): { complete: boolean; manualNotes: string
         normalizeTemplateSource(readFileSync(path, 'utf8')) !== normalizeTemplateSource(expected)
       ) {
         const current = readFileSync(path, 'utf8')
-        if (!recognizeGeneratedRoutesSource(current, routeEntry.contents)) {
+        if (
+          !routesSourceAligned(current, ctx, routes.value) &&
+          !recognizeGeneratedRoutesSource(current, routeEntry.contents)
+        ) {
           manualNotes.push(
             `${path}: manual update required so routes.admin and routes.signIn match ${routes.value.adminPath} and ${routes.value.signInPath}`
           )

@@ -37,10 +37,9 @@ import {
   type RichTextPopulateFn,
   type RichTextReadDocumentsFn,
 } from '../@types/field-types.js'
-import { applyBeforeRead } from '../auth/apply-before-read.js'
+import { bindReadContextAuthority, compileBeforeReadFilters } from '../auth/apply-before-read.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_READ_BUDGET_EXCEEDED, ERR_VALIDATION } from '../lib/errors.js'
-import { parsePredicateFilters } from '../query/parse-where.js'
 import { applyAfterRead } from './document-read.js'
 import { walkFieldTree } from './walk-field-tree.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
@@ -158,6 +157,8 @@ export function createRichTextDocumentReader(options: {
   readMode: ReadMode
   locale?: string
   bypassBeforeRead?: true
+  /** Private cache domain shared with the originating client read. */
+  securityDomain?: object
   /** Adapter reused recursively for rich-text fields on target documents. */
   richTextPopulate?: RichTextPopulateFn
 }): RichTextReadDocumentsFn {
@@ -171,9 +172,11 @@ export function createRichTextDocumentReader(options: {
     bypassBeforeRead,
     richTextPopulate,
   } = options
+  const securityDomain = options.securityDomain ?? db
   const state = getRichTextReaderState(readContext)
 
   const read: RichTextReadDocumentsFn = async ({ collectionPath, documentIds, fields }) => {
+    bindReadContextAuthority(readContext, requestContext)
     if (documentIds.length === 0) return []
     const definition = collections.find((candidate) => candidate.path === collectionPath)
     if (definition == null) {
@@ -184,31 +187,30 @@ export function createRichTextDocumentReader(options: {
     }
 
     assertActorCanPerform(requestContext, collectionPath, 'read')
+
+    let filters: DocumentFilter[] | undefined
+    if (!bypassBeforeRead) {
+      filters = await compileBeforeReadFilters({
+        definition,
+        requestContext,
+        readContext,
+        securityDomain,
+        parseContext: {
+          collections,
+          resolveCollectionId: async (path) => {
+            const row = await db.queries.collections.getCollectionByPath(path)
+            return row?.id ?? ''
+          },
+        },
+      })
+    }
+
     const collection = await db.queries.collections.getCollectionByPath(collectionPath)
     if (collection?.id == null) {
       throw ERR_VALIDATION({
         message: `richtext target collection '${collectionPath}' is not available`,
         details: { collectionPath },
       })
-    }
-
-    let filters: DocumentFilter[] | undefined
-    if (!bypassBeforeRead) {
-      const predicate = await applyBeforeRead({ definition, requestContext, readContext })
-      if (predicate != null) {
-        filters = await parsePredicateFilters(
-          predicate,
-          definition,
-          {
-            collections,
-            resolveCollectionId: async (path) => {
-              const row = await db.queries.collections.getCollectionByPath(path)
-              return row?.id ?? ''
-            },
-          },
-          { strict: true }
-        )
-      }
     }
 
     const collectionId = collection.id as string

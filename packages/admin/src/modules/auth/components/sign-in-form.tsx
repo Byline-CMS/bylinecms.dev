@@ -25,13 +25,13 @@
 
 import { type FormEvent, useState } from 'react'
 
-import { getClientConfig, resolveRoutes } from '@byline/core'
+import { getClientConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Card, Input, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
-import { resolveSignInFormRedirect } from '../safe-redirect.js'
+import { normalizeRootRelativeRedirect, resolveSignInFormRedirect } from '../safe-redirect.js'
 import styles from './sign-in-form.module.css'
 
 export interface SignInFormProps {
@@ -63,24 +63,26 @@ export function SignInForm({ redirectTo, callbackUrl, homeUrl }: SignInFormProps
       return
     }
 
+    const destination = resolveSignInFormRedirect(
+      redirectTo,
+      callbackUrl,
+      getClientConfig().routes.admin
+    )
+
     setPending(true)
     setError(null)
     try {
       await adminSignIn({ data: { email: email.trim(), password } })
-      // Full-page navigation — the admin layout needs to re-run its
-      // `beforeLoad` guard against the freshly-set session cookies.
-      window.location.assign(
-        resolveSignInFormRedirect(
-          redirectTo,
-          callbackUrl,
-          () => resolveRoutes(getClientConfig().routes).admin
-        )
-      )
     } catch (err) {
       console.warn('sign-in failed', err)
       setError(t('auth.signIn.errors.invalidCredentials'))
       setPending(false)
+      return
     }
+
+    // Keep navigation outside the credential error boundary. A browser-level
+    // navigation failure must not relabel a successful sign-in as bad credentials.
+    window.location.assign(normalizeRootRelativeRedirect(destination) ?? '/')
   }
 
   return (

@@ -103,14 +103,13 @@ export async function updateDocumentSystemFields(
       const requestedLocales =
         params.availableLocales === undefined ? undefined : [...new Set(params.availableLocales)]
       const audit = requireAuditCapability(db)
-      const lockSystemFields = db.queries.documents.getDocumentSystemFieldsForUpdate?.bind(
-        db.queries.documents
-      )
-      if (lockSystemFields == null) {
+      const getDocumentSystemFieldsForUpdate = db.queries.documents.getDocumentSystemFieldsForUpdate
+      if (typeof getDocumentSystemFieldsForUpdate !== 'function') {
         throw ERR_AUDIT_UNSUPPORTED({
           message: 'audited system-field writes require a transaction-scoped lock/read capability',
         })
       }
+      const lockSystemFields = getDocumentSystemFieldsForUpdate.bind(db.queries.documents)
       const actor = auditActor(ctx)
 
       // The logical document row is the mutex for both document-grain fields.

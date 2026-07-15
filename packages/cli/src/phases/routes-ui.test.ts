@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -88,9 +96,81 @@ describe('routes planning', () => {
     expect(await routesPhase.detect(ctx)).toBe('done')
   })
 
+  it('installs a multi-segment admin tree with matching files, IDs, and config', async () => {
+    const ctx = fixture({ adminPath: '/internal/cms' })
+    const plan = buildRoutesPlan(ctx)
+    const adminRoute = ctx.resolve('src/routes/_byline/internal/cms/route.tsx')
+    const adminWrite = plan.writes.find((write) => write.path === adminRoute)
+
+    expect(adminWrite?.contents).toContain("'/_byline/internal/cms'")
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('done')
+    expect(existsSync(adminRoute)).toBe(true)
+    expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain(
+      "admin: '/internal/cms'"
+    )
+    expect(await routesPhase.detect(ctx)).toBe('done')
+  })
+
+  it.each([
+    'directory',
+    'dangling symlink',
+  ] as const)('blocks all route writes when an expected target is a %s', async (kind) => {
+    const ctx = fixture({ adminPath: '/admin' })
+    const routePath = ctx.resolve('src/routes/_byline/admin/route.tsx')
+    mkdirSync(ctx.resolve('src/routes/_byline/admin'), { recursive: true })
+    if (kind === 'directory') mkdirSync(routePath)
+    else symlinkSync(ctx.resolve('outside/missing-route.tsx'), routePath)
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('not a regular file')
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect(existsSync(ctx.resolve('byline/routes.ts'))).toBe(false)
+  })
+
+  it('accepts safe shared-prefix sibling admin, API, and sign-in trees', () => {
+    const ctx = fixture({ adminPath: '/internal/cms', signInPath: '/internal/login' })
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(
+      ctx.resolve('byline/routes.ts'),
+      `export const routes = {
+        admin: '/internal/cms',
+        api: '/internal/api',
+        signIn: '/internal/login',
+      } as const
+      `
+    )
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.notes.join('\n')).not.toMatch(/invalid .* path/)
+    expect(
+      plan.writes.some((write) => write.path.endsWith('src/routes/_byline/internal/cms/route.tsx'))
+    ).toBe(true)
+  })
+
+  it.each([
+    '/bad/%api',
+    '/internal/../api',
+    '/internal api',
+    '/internal/route',
+  ])('fails closed for invalid configured API path %s', (api) => {
+    const ctx = fixture({ adminPath: '/cms' })
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(
+      ctx.resolve('byline/routes.ts'),
+      `export const routes = { admin: '/cms', api: '${api}', signIn: '/sign-in' }\n`
+    )
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('invalid API path')
+  })
+
   it('normalizes backslash route paths before renaming', () => {
-    expect(renameAdminSegment('admin\\users\\index.tsx', 'cms')).toBe('cms/users/index.tsx')
-    expect(renameAdminSegment('sign-in.tsx', 'cms')).toBe('sign-in.tsx')
+    expect(renameAdminSegment('admin\\users\\index.tsx', ['internal', 'cms'])).toBe(
+      'internal/cms/users/index.tsx'
+    )
+    expect(renameAdminSegment('sign-in.tsx', ['internal', 'cms'])).toBe('sign-in.tsx')
   })
 
   it('canonicalizes leading and trailing slashes before writing runtime config', async () => {
@@ -161,6 +241,103 @@ describe('routes planning', () => {
     expect(buildRoutesPlan(signInCtx).notes.join('\n')).toContain('conflicts')
   })
 
+  it('ignores comments, unrelated values, and interface locale definitions', () => {
+    const ctx = fixture({ adminPath: '/cms' })
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(
+      ctx.resolve('byline/routes.ts'),
+      `
+        // api: '/cms'
+        const unrelated = { api: '/cms', defaultLocale: 'cms' }
+        export const routes = {
+          admin: '/cms',
+          api: '/rpc',
+          signIn: '/sign-in',
+          unrelated: doNotExecute(),
+        }
+      `
+    )
+    writeFileSync(
+      ctx.resolve('byline/locales.ts'),
+      `
+        export const interfaceLocales = [{ code: 'cms', label: 'Ignored' }]
+        export const contentLocales = [{ code: 'en', label: translateAtRuntime() }] as const
+      `
+    )
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.notes.join('\n')).not.toContain('conflicts')
+    expect(plan.writes.some((write) => write.path === ctx.resolve('byline/routes.ts'))).toBe(false)
+  })
+
+  it('resolves safe constants, wrappers, and the recognized core resolveRoutes call', () => {
+    const ctx = fixture({ adminPath: '/cms', signInPath: '/staff/login' })
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(
+      ctx.resolve('byline/routes.ts'),
+      `
+        import { resolveRoutes } from '@byline/core'
+        const admin = '/cms'
+        const base = ({ admin, api: '/rpc' } as const)
+        const signIn = '/staff/login' as const
+        export const routes = resolveRoutes(
+          ({ ...base, signIn } as const) satisfies Record<string, string>
+        )
+      `
+    )
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes.length).toBeGreaterThan(0)
+    expect(plan.writes.some((write) => write.path === ctx.resolve('byline/routes.ts'))).toBe(false)
+    expect(plan.notes.join('\n')).not.toContain('manual')
+  })
+
+  it.each([
+    "import { routes } from './shared.js'; export { routes }",
+    "const key = 'admin'; export const routes = { [key]: '/cms', signIn: '/sign-in' }",
+  ])('fails closed without route writes for unknown relevant config', (source) => {
+    const ctx = fixture({ adminPath: '/cms' })
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(ctx.resolve('byline/routes.ts'), source)
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('cannot safely resolve route configuration')
+  })
+
+  it('fails closed when public locale config depends on imported values', () => {
+    const ctx = fixture({ adminPath: '/cms' })
+    mkdirSync(ctx.resolve('src/i18n'), { recursive: true })
+    writeFileSync(
+      ctx.resolve('src/i18n/i18n-config.ts'),
+      `
+        import { locales } from './shared.js'
+        export const i18nConfig = { locales, defaultLocale: 'en' }
+      `
+    )
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('cannot safely resolve route configuration')
+  })
+
+  it('reserves statically resolved public locales and their default', () => {
+    const ctx = fixture({ adminPath: '/it' })
+    mkdirSync(ctx.resolve('src/i18n'), { recursive: true })
+    writeFileSync(
+      ctx.resolve('src/i18n/i18n-config.ts'),
+      `
+        const locales = ['en', ...(['fr'] as const)] as const
+        const defaults = { defaultLocale: 'it' } as const
+        export const i18nConfig = ({ locales, ...defaults } as const) satisfies object
+      `
+    )
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('conflicts')
+  })
+
   it.each([
     ['/cms', '/cms/login'],
     ['/cms', '/api/login'],
@@ -190,15 +367,14 @@ describe('routes planning', () => {
     expect(existsSync(nextPath)).toBe(true)
   })
 
-  it('atomically migrates the exact pre-signIn generated config and default route', async () => {
+  it('atomically migrates the literal previous-release config and default route', async () => {
     const ctx = fixture({ signInPath: '/staff/login' })
     const configPath = ctx.resolve('byline/routes.ts')
     const oldPath = ctx.resolve('src/routes/_byline/sign-in.tsx')
     const nextPath = ctx.resolve('src/routes/_byline/staff/login.tsx')
     mkdirSync(ctx.resolve('byline'), { recursive: true })
     mkdirSync(ctx.resolve('src/routes/_byline'), { recursive: true })
-    const canonicalConfig = readFileSync(`${ctx.templatesDir()}/byline-examples/routes.ts`, 'utf8')
-    writeFileSync(configPath, preSignInRoutesSource(canonicalConfig))
+    writeFileSync(configPath, previousReleaseRoutesSource())
     writeFileSync(oldPath, readFileSync(`${ctx.templatesDir()}/routes/_byline/sign-in.tsx`, 'utf8'))
 
     const plan = buildRoutesPlan(ctx)
@@ -233,6 +409,162 @@ describe('routes planning', () => {
     expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain(
       "signIn: '/staff/login'"
     )
+  })
+
+  it('atomically migrates and removes a recognized generated admin tree', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const oldRoute = ctx.resolve('src/routes/_byline/admin/route.tsx')
+    const nextRoute = ctx.resolve('src/routes/_byline/internal/cms/route.tsx')
+    ctx.state.patchAnswers({ adminPath: '/internal/cms' })
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toContainEqual(expect.objectContaining({ path: oldRoute, mode: 'delete' }))
+    expect(plan.writes).toContainEqual(expect.objectContaining({ path: nextRoute, mode: 'create' }))
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('done')
+    expect(existsSync(oldRoute)).toBe(false)
+    expect(existsSync(nextRoute)).toBe(true)
+    expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain(
+      "admin: '/internal/cms'"
+    )
+  })
+
+  it('atomically migrates a generated admin tree into a nested descendant', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const oldRoute = ctx.resolve('src/routes/_byline/admin/route.tsx')
+    const nextRoute = ctx.resolve('src/routes/_byline/admin/cms/route.tsx')
+    ctx.state.patchAnswers({ adminPath: '/admin/cms' })
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toContainEqual(expect.objectContaining({ path: oldRoute, mode: 'delete' }))
+    expect(plan.writes).toContainEqual(expect.objectContaining({ path: nextRoute, mode: 'create' }))
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('done')
+    expect(existsSync(oldRoute)).toBe(false)
+    expect(existsSync(nextRoute)).toBe(true)
+  })
+
+  it('blocks every migration write when a destination is not a regular file', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const configPath = ctx.resolve('byline/routes.ts')
+    const oldRoute = ctx.resolve('src/routes/_byline/admin/route.tsx')
+    const nextRoute = ctx.resolve('src/routes/_byline/internal/cms/route.tsx')
+    mkdirSync(nextRoute, { recursive: true })
+    ctx.state.patchAnswers({ adminPath: '/internal/cms' })
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('not a regular file')
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect(existsSync(oldRoute)).toBe(true)
+    expect(readFileSync(configPath, 'utf8')).toContain("admin: '/admin'")
+  })
+
+  it('migrates through a generated child-route collision in both directions', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const collidingPath = ctx.resolve('src/routes/_byline/admin/users/index.tsx')
+
+    ctx.state.patchAnswers({ adminPath: '/admin/users' })
+    const descendantPlan = buildRoutesPlan(ctx)
+    expect(descendantPlan.notes.join('\n')).not.toContain('user-owned')
+    expect(descendantPlan.writes).toContainEqual(
+      expect.objectContaining({ path: collidingPath, mode: 'patch' })
+    )
+    expect((await routesPhase.apply(descendantPlan, ctx)).state).toBe('done')
+    expect(readFileSync(collidingPath, 'utf8')).toContain('createAdminDashboardRoute')
+
+    ctx.state.patchAnswers({ adminPath: '/admin' })
+    const ancestorPlan = buildRoutesPlan(ctx)
+    expect(ancestorPlan.notes.join('\n')).not.toContain('user-owned')
+    expect(ancestorPlan.writes).toContainEqual(
+      expect.objectContaining({ path: collidingPath, mode: 'patch' })
+    )
+    expect((await routesPhase.apply(ancestorPlan, ctx)).state).toBe('done')
+    expect(readFileSync(collidingPath, 'utf8')).toContain('createAdminUsersListRoute')
+  })
+
+  it('blocks every admin migration write when an old tree file is user-owned', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const configPath = ctx.resolve('byline/routes.ts')
+    const oldRoute = ctx.resolve('src/routes/_byline/admin/route.tsx')
+    const nextRoute = ctx.resolve('src/routes/_byline/internal/cms/route.tsx')
+    writeFileSync(oldRoute, `${readFileSync(oldRoute, 'utf8')}\n// user-owned\n`)
+    ctx.state.patchAnswers({ adminPath: '/internal/cms' })
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('user-owned')
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect(existsSync(oldRoute)).toBe(true)
+    expect(existsSync(nextRoute)).toBe(false)
+    expect(readFileSync(configPath, 'utf8')).toContain("admin: '/admin'")
+  })
+
+  it('applies no part of a stale generated admin-tree migration plan', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const configPath = ctx.resolve('byline/routes.ts')
+    const oldRoute = ctx.resolve('src/routes/_byline/admin/route.tsx')
+    const nextRoute = ctx.resolve('src/routes/_byline/internal/cms/route.tsx')
+    ctx.state.patchAnswers({ adminPath: '/internal/cms' })
+    const plan = buildRoutesPlan(ctx)
+    writeFileSync(oldRoute, `${readFileSync(oldRoute, 'utf8')}\n// concurrent edit\n`)
+
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect(existsSync(oldRoute)).toBe(true)
+    expect(existsSync(nextRoute)).toBe(false)
+    expect(readFileSync(configPath, 'utf8')).toContain("admin: '/admin'")
+  })
+
+  it('applies no part of a migration when the old tree gains a file after preview', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const configPath = ctx.resolve('byline/routes.ts')
+    const oldRoute = ctx.resolve('src/routes/_byline/admin/route.tsx')
+    const nextRoute = ctx.resolve('src/routes/_byline/internal/cms/route.tsx')
+    ctx.state.patchAnswers({ adminPath: '/internal/cms' })
+    const plan = buildRoutesPlan(ctx)
+    const lateRoute = ctx.resolve('src/routes/_byline/admin/custom.tsx')
+    writeFileSync(lateRoute, 'export const Route = userRoute()\n')
+
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect(existsSync(oldRoute)).toBe(true)
+    expect(existsSync(nextRoute)).toBe(false)
+    expect(readFileSync(configPath, 'utf8')).toContain("admin: '/admin'")
+    expect(readFileSync(lateRoute, 'utf8')).toContain('userRoute')
+  })
+
+  it('revalidates an absent old admin tree before applying a migration', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const oldRoot = ctx.resolve('src/routes/_byline/admin')
+    rmSync(oldRoot, { recursive: true })
+    ctx.state.patchAnswers({ adminPath: '/internal/cms' })
+    const plan = buildRoutesPlan(ctx)
+    const lateRoute = ctx.resolve('src/routes/_byline/admin/custom.tsx')
+    mkdirSync(oldRoot, { recursive: true })
+    writeFileSync(lateRoute, 'export const Route = userRoute()\n')
+
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect(existsSync(ctx.resolve('src/routes/_byline/internal/cms/route.tsx'))).toBe(false)
+    expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain("admin: '/admin'")
+    expect(readFileSync(lateRoute, 'utf8')).toContain('userRoute')
+  })
+
+  it('detects a stale generated admin tree after config migration', async () => {
+    const ctx = fixture({ adminPath: '/admin' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    const oldRoute = ctx.resolve('src/routes/_byline/admin/route.tsx')
+    const oldSource = readFileSync(oldRoute, 'utf8')
+    ctx.state.patchAnswers({ adminPath: '/internal/cms' })
+    await routesPhase.apply(buildRoutesPlan(ctx), ctx)
+    mkdirSync(ctx.resolve('src/routes/_byline/admin'), { recursive: true })
+    writeFileSync(oldRoute, oldSource)
+
+    expect(await routesPhase.detect(ctx)).toBe('pending')
   })
 
   it('migrates successfully when the generated destination already exists unchanged', async () => {
@@ -382,6 +714,74 @@ describe('routes planning', () => {
     expect(plan.notes.join('\n')).toContain('manual')
   })
 
+  it('does not synthesize provenance from the current template with signIn removed', () => {
+    const ctx = fixture({ signInPath: '/staff/login' })
+    const path = ctx.resolve('byline/routes.ts')
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    const canonical = readFileSync(`${ctx.templatesDir()}/byline-examples/routes.ts`, 'utf8')
+    writeFileSync(path, canonical.replace(/^\s*signIn:.*\n/m, ''))
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('user-owned routes.ts')
+  })
+
+  it('treats matching user-owned config as aligned without modifying it', async () => {
+    const ctx = fixture({ adminPath: '/cms', signInPath: '/staff/login' })
+    const path = ctx.resolve('byline/routes.ts')
+    const source = `
+      const admin = '/cms' as const
+      export const routes = {
+        api: '/rpc',
+        admin,
+        signIn: '/staff/login',
+      } as const
+      // user-owned
+    `
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(path, source)
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes.some((write) => write.path === path)).toBe(false)
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('done')
+    expect(readFileSync(path, 'utf8')).toBe(source)
+    expect(await routesPhase.detect(ctx)).toBe('done')
+  })
+
+  it('applies no route writes when aligned user config changes after preview', async () => {
+    const ctx = fixture({ adminPath: '/cms' })
+    const path = ctx.resolve('byline/routes.ts')
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(
+      path,
+      "export const routes = { admin: '/cms', api: '/rpc', signIn: '/sign-in' }\n"
+    )
+    const plan = buildRoutesPlan(ctx)
+    writeFileSync(
+      path,
+      "export const routes = { admin: '/mine', api: '/rpc', signIn: '/sign-in' }\n"
+    )
+
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect(existsSync(ctx.resolve('src/routes/_byline/cms/route.tsx'))).toBe(false)
+    expect(readFileSync(path, 'utf8')).toContain("admin: '/mine'")
+  })
+
+  it('preserves mismatched user-owned config and blocks every route write', async () => {
+    const ctx = fixture({ adminPath: '/cms', signInPath: '/staff/login' })
+    const path = ctx.resolve('byline/routes.ts')
+    const source = "export const routes = { admin: '/mine', api: '/rpc', signIn: '/login' }\n"
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(path, source)
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('user-owned routes.ts')
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect(readFileSync(path, 'utf8')).toBe(source)
+    expect(existsSync(ctx.resolve('src/routes/_byline/cms/route.tsx'))).toBe(false)
+  })
+
   it('generates every admin surface under the custom filesystem route ID', () => {
     const ctx = fixture({ adminPath: '/cms' })
     const plan = buildRoutesPlan(ctx)
@@ -432,25 +832,67 @@ describe('routes planning', () => {
     writeFileSync(path, "export const routes = getMyRoutes('/private')\n")
     const plan = buildRoutesPlan(ctx)
     expect(plan.notes.join('\n')).toContain('manual')
-    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('blocked')
     expect(readFileSync(path, 'utf8')).toContain('getMyRoutes')
+  })
+
+  it.each([
+    'missing',
+    'corrupt',
+    'wrong-shape',
+  ])('blocks all route writes when canonical routes template is %s', (state) => {
+    const ctx = fixture({ adminPath: '/internal/cms' })
+    const sourceTemplates = ctx.templatesDir()
+    const copiedTemplates = ctx.resolve('test-templates')
+    cpSync(sourceTemplates, copiedTemplates, { recursive: true })
+    Object.defineProperty(ctx, 'templatesDir', { value: () => copiedTemplates })
+    const canonical = `${copiedTemplates}/byline-examples/routes.ts`
+    if (state === 'missing') rmSync(canonical)
+    else if (state === 'corrupt')
+      writeFileSync(canonical, "export const routes = { admin: '/admin'\n")
+    else {
+      writeFileSync(
+        canonical,
+        "export const routes = { admin: '/admin', api: '/api', signIn: '/sign-in' }\n"
+      )
+    }
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toEqual([])
+    expect(plan.notes.join('\n')).toContain('canonical routes.ts template')
   })
 })
 
-function preSignInRoutesSource(canonical: string): string {
-  return canonical
-    .replace(
-      `/**
+function previousReleaseRoutesSource(): string {
+  return `/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/**
  * Client-safe URL paths for admin, sign-in, and the future public API.
  * \`resolveRoutes()\` applies defaults and canonicalizes every consumer.
- */`,
-      `/**
- * URL segments for admin and (future) public API routes. Defaults of
- * \`/admin\` and \`/api\` are applied automatically by \`resolveRoutes()\` —
- * keys only need to be set here when overriding either default.
- */`
-    )
-    .replace(/^\s*signIn:.*\n/m, '')
+ */
+
+import type { RoutesConfig } from '@byline/core'
+
+export const routes: Partial<RoutesConfig> = {
+  admin: '/admin',
+  api: '/api',
+  signIn: '/sign-in',
+}
+
+/**
+ * Fallback used by both server and admin entry points when no
+ * \`VITE_SERVER_URL\` env var is set. Each entry resolves the env var
+ * itself (Vite's \`import.meta.env\` on the client, Node's \`process.env\`
+ * on the server) and falls back to this literal.
+ */
+export const DEFAULT_SERVER_URL = 'http://localhost:5173/'
+`
 }
 
 describe('UI planning', () => {

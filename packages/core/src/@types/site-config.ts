@@ -25,14 +25,20 @@ import type { IStorageProvider } from './storage-types.js'
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
 
 /**
- * Client-safe URL paths for Byline-owned routes. Admin and API must each be a
- * single path segment; sign-in may be nested. Values are optional on the input
- * side — callers typically read the resolved shape via `resolveRoutes()`.
+ * Resolved client-safe URL paths for Byline-owned routes. All paths may contain
+ * multiple segments when their route trees remain separate.
  */
 export interface RoutesConfig {
-  admin: string
-  api: string
-  signIn: string
+  readonly admin: string
+  readonly api: string
+  readonly signIn: string
+}
+
+/** Partial route values accepted at configuration boundaries. */
+export interface RoutesConfigInput {
+  admin?: string
+  api?: string
+  signIn?: string
 }
 
 /**
@@ -118,11 +124,10 @@ export interface BaseConfig {
   }
   collections: readonly CollectionDefinition[]
   /**
-   * Client-safe admin, API, and sign-in route paths. They default to `/admin`,
-   * `/api`, and `/sign-in` respectively. Consumers should read these via
-   * `resolveRoutes()` so defaults and canonicalization are always applied.
+   * Client-safe admin, API, and sign-in route input. Registration applies
+   * defaults and canonicalization before exposing the config to consumers.
    */
-  routes?: Partial<RoutesConfig>
+  routes?: RoutesConfigInput
 }
 
 /**
@@ -190,6 +195,9 @@ export interface ClientConfig extends BaseConfig {
     richText?: { editor: RichTextEditorComponent }
   }
 }
+
+/** Client config returned after boundary validation and canonicalization. */
+export type ResolvedClientConfig = Omit<ClientConfig, 'routes'> & { routes: RoutesConfig }
 
 /**
  * Server-side configuration. Extends BaseConfig with database and storage
@@ -371,3 +379,9 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    */
   search?: SearchProvider
 }
+
+/** Server config returned after boundary validation and canonicalization. */
+export type ResolvedServerConfig<TAdminStore = unknown> = Omit<
+  ServerConfig<TAdminStore>,
+  'routes'
+> & { routes: RoutesConfig }

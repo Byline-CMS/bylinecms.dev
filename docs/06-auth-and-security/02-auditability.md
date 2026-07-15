@@ -186,7 +186,38 @@ DB↔external distinction — is specified in
 **[Transactions](../03-architecture/03-transactions.md)**.
 
 Collection after-hooks are outside the transaction. A hook failure rejects the
-call after data and audit have committed; it never creates an unaudited rollback.
+call after data and audit have committed for ordinary audited writes; it never
+creates an unaudited rollback. Delete is the exception: storage cleanup,
+`afterTreeChange`, and `afterDelete` failures are returned as a committed outcome
+instead of rejecting the completed delete.
+
+Explicit tree place/remove keeps the ordinary SDK rejection contract but marks
+this particular post-commit case with `ERR_TREE_HOOK_COMMITTED`. The TanStack
+serialization adapter preserves every core `BylineError` name/code/message, so
+admin code does not infer commit state from localized or wrapped error text. It
+can retain a committed optimistic move and warn about failed follow-up work,
+while pre-commit conflict/validation/database failures continue to roll the UI
+back. This transport distinction changes presentation and reconciliation only;
+the audit transaction boundary remains the source of truth.
+
+### Adapter contract and runtime guards
+
+Auditability is mandatory in the canonical 4.x `IDbAdapter`. This intentional
+breaking change requires `withTransaction`, `commands.audit`, `queries.audit`,
+the transaction-scoped `getDocumentSystemFieldsForUpdate` lock/read, and
+`promoteChildrenAndRemoveFromTree` for delete-time tree reconciliation. These are
+not optional capabilities for typed adapters.
+
+Defensive structural checks remain because plain JavaScript can supply an object
+without satisfying TypeScript. `requireAuditCapability` checks
+`withTransaction` and `commands.audit.append` at every audited write;
+system-field writes separately check their lock/read function; and a tree-enabled
+configuration checks delete reconciliation at startup and again on tree writes.
+Missing write-side support throws `ERR_AUDIT_UNSUPPORTED` instead of creating a
+gap. Audit reads are also guarded: the system activity endpoint throws
+`ERR_AUDIT_UNSUPPORTED` for a missing `queries.audit`, while the collection SDK's
+gated `auditLog()` defensively returns an empty page. This is invalid-adapter
+containment, not optional feature behavior.
 
 ### Write points
 
@@ -215,7 +246,14 @@ recording a gap — plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthet
   one change that otherwise erases its own history). For a tree document the
   same transaction also records one reparent action per promoted direct child
   and a removal action when an edge is removed or children are promoted. The
-  storage-file cleanup stays outside it (DB↔external).
+  storage-file cleanup stays outside it (DB↔external). After commit, storage
+  cleanup, `afterTreeChange`, and `afterDelete` are attempted independently;
+  failures no longer reject and instead produce
+  `outcome: 'committed-with-side-effect-failures'` with serializable phase,
+  message, and code entries. The host strips messages and allowlists public
+  phase/code values before returning the result. The admin navigates to the
+  collection list and shows a warning rather than presenting the committed
+  delete as failed. Durable retry/outbox handling remains deferred.
 
 These guarantees apply to the dedicated audited services. The SDK's
 whole-document `update(..., { path, availableLocales })` passes those values

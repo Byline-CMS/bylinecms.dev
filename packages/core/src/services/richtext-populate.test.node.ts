@@ -9,7 +9,7 @@
 import { AdminAuth, createRequestContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createReadContext } from './populate.js'
+import { createReadContext, populateDocuments } from './populate.js'
 import {
   collectRichTextLeaves,
   createRichTextDocumentReader,
@@ -203,6 +203,209 @@ describe('createRichTextDocumentReader', () => {
         filters: [expect.objectContaining({ kind: 'field', fieldName: 'tenant', value: 'alice' })],
       })
     )
+  })
+
+  it('reuses compiled security filters across relation and rich-text target population', async () => {
+    const source: CollectionDefinition = {
+      path: 'posts',
+      labels: { singular: 'Post', plural: 'Posts' },
+      fields: [
+        {
+          name: 'media',
+          type: 'relation',
+          label: 'Media',
+          targetCollection: 'media',
+        },
+      ],
+    }
+    const { db, getDocumentsByDocumentIds } = dbMock()
+    const readContext = createReadContext()
+    const securityDomain = {}
+    const requestContext = createRequestContext({
+      actor: new AdminAuth({
+        id: 'reader',
+        abilities: ['collections.posts.read', 'collections.media.read'],
+      }),
+      readMode: 'published',
+    })
+
+    await populateDocuments({
+      db,
+      collections: [source, target],
+      collectionId: 'posts',
+      documents: [
+        {
+          document_id: 'p1',
+          fields: {
+            media: { targetCollectionId: 'media', targetDocumentId: 'm1' },
+          },
+        },
+      ],
+      populate: true,
+      requestContext,
+      readContext,
+      readMode: 'published',
+      securityDomain,
+    })
+    const relationFilters = getDocumentsByDocumentIds.mock.calls[0]?.[0].filters
+
+    const read = createRichTextDocumentReader({
+      db,
+      collections: [source, target],
+      requestContext,
+      readContext,
+      readMode: 'published',
+      securityDomain,
+    })
+    await read({ collectionPath: 'media', documentIds: ['m2'] })
+
+    expect(getDocumentsByDocumentIds.mock.calls[1]?.[0].filters).toBe(relationFilters)
+  })
+
+  it('rejects relation populate reuse under another actor before adapter access', async () => {
+    const scopedTarget: CollectionDefinition = {
+      ...target,
+      hooks: {
+        beforeRead: ({ requestContext }) => ({ tenant: requestContext.actor?.id }),
+      },
+    }
+    const source: CollectionDefinition = {
+      path: 'posts',
+      labels: { singular: 'Post', plural: 'Posts' },
+      fields: [
+        {
+          name: 'media',
+          type: 'relation',
+          label: 'Media',
+          targetCollection: 'media',
+        },
+      ],
+    }
+    const { db, getCollectionByPath, getDocumentsByDocumentIds } = dbMock()
+    const readContext = createReadContext()
+    const requestId = 'shared-request'
+    const contextFor = (id: string) =>
+      createRequestContext({
+        actor: new AdminAuth({ id, abilities: ['collections.media.read'] }),
+        requestId,
+        readMode: 'published',
+      })
+    const populateFor = (id: string, requestContext: ReturnType<typeof contextFor>) =>
+      populateDocuments({
+        db,
+        collections: [source, scopedTarget],
+        collectionId: 'posts',
+        documents: [
+          {
+            document_id: `p-${id}`,
+            fields: {
+              media: { targetCollectionId: 'media', targetDocumentId: `m-${id}` },
+            },
+          },
+        ],
+        populate: true,
+        requestContext,
+        readContext,
+        readMode: 'published',
+      })
+
+    await populateFor('alice', contextFor('alice'))
+    await expect(populateFor('bob', contextFor('bob'))).rejects.toThrow(
+      'cannot be reused across request authorities'
+    )
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledOnce()
+    expect(getCollectionByPath).not.toHaveBeenCalled()
+  })
+
+  it('rejects rich-text reader reuse under another actor before adapter access', async () => {
+    const scopedTarget: CollectionDefinition = {
+      ...target,
+      hooks: {
+        beforeRead: ({ requestContext }) => ({ tenant: requestContext.actor?.id }),
+      },
+    }
+    const { db, getCollectionByPath, getDocumentsByDocumentIds } = dbMock()
+    const readContext = createReadContext()
+    const requestId = 'shared-request'
+    const readerFor = (id: string) =>
+      createRichTextDocumentReader({
+        db,
+        collections: [scopedTarget],
+        requestContext: createRequestContext({
+          actor: new AdminAuth({ id, abilities: ['collections.media.read'] }),
+          requestId,
+          readMode: 'published',
+        }),
+        readContext,
+        readMode: 'published',
+      })
+
+    await readerFor('alice')({ collectionPath: 'media', documentIds: ['m1'] })
+    await expect(
+      readerFor('bob')({ collectionPath: 'media', documentIds: ['m2'] })
+    ).rejects.toThrow('cannot be reused across request authorities')
+    expect(getCollectionByPath).toHaveBeenCalledOnce()
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledOnce()
+  })
+
+  it('rejects malformed relation and rich-text predicates before adapter access', async () => {
+    const malformedTarget: CollectionDefinition = {
+      ...target,
+      hooks: { beforeRead: () => ({ typoedTenant: 'alice' }) },
+    }
+    const source: CollectionDefinition = {
+      path: 'posts',
+      labels: { singular: 'Post', plural: 'Posts' },
+      fields: [
+        {
+          name: 'media',
+          type: 'relation',
+          label: 'Media',
+          targetCollection: 'media',
+        },
+      ],
+    }
+    const requestContext = createRequestContext({
+      actor: new AdminAuth({ id: 'reader', abilities: ['collections.media.read'] }),
+      readMode: 'published',
+    })
+
+    const relationDb = dbMock()
+    await expect(
+      populateDocuments({
+        db: relationDb.db,
+        collections: [source, malformedTarget],
+        collectionId: 'posts',
+        documents: [
+          {
+            document_id: 'p1',
+            fields: {
+              media: { targetCollectionId: 'media', targetDocumentId: 'm1' },
+            },
+          },
+        ],
+        populate: true,
+        requestContext,
+        readContext: createReadContext(),
+        readMode: 'published',
+      })
+    ).rejects.toThrow('unknown field')
+    expect(relationDb.getCollectionByPath).not.toHaveBeenCalled()
+    expect(relationDb.getDocumentsByDocumentIds).not.toHaveBeenCalled()
+
+    const richTextDb = dbMock()
+    const read = createRichTextDocumentReader({
+      db: richTextDb.db,
+      collections: [malformedTarget],
+      requestContext,
+      readContext: createReadContext(),
+      readMode: 'published',
+    })
+    await expect(read({ collectionPath: 'media', documentIds: ['m1'] })).rejects.toThrow(
+      'unknown field'
+    )
+    expect(richTextDb.getCollectionByPath).not.toHaveBeenCalled()
+    expect(richTextDb.getDocumentsByDocumentIds).not.toHaveBeenCalled()
   })
 
   it('runs target rich-text population and actor-aware afterRead once per materialization', async () => {

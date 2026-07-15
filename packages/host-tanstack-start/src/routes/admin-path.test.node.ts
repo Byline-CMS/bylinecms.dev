@@ -51,6 +51,19 @@ describe('getAdminRoutePath', () => {
     expect(getAdminRoutePath('users')).toBe('/cms/users')
   })
 
+  it('preserves a configured multi-segment admin mount', () => {
+    registerRoutes('/internal/cms/')
+    expect(getAdminRoutePath('users')).toBe('/internal/cms/users')
+  })
+
+  it('accepts callbacks inside a configured multi-segment admin mount', () => {
+    registerRoutes('/internal/cms/')
+    expect(resolveAdminCallbackPath('/internal/cms/users?status=active#results')).toBe(
+      '/internal/cms/users?status=active#results'
+    )
+    expect(resolveAdminCallbackPath('/internal/cms-old/users')).toBeUndefined()
+  })
+
   it('matches dashboard, collection, and trailing-slash paths', () => {
     expect(isAdminRoutePathActive('/cms')).toBe(true)
     expect(isAdminRoutePathActive('/cms/')).toBe(true)
@@ -88,6 +101,9 @@ describe('getAdminRoutePath', () => {
     '/cms/%2e/account',
     '/cms/%252e%252e/account',
     '/cms/%5c%5cevil.test',
+    '/cms/../account',
+    '/cms/./account',
+    '/cms\u0085account',
   ])('rejects an unsafe or non-admin callback %j', (callback) => {
     expect(resolveAdminCallbackPath(callback)).toBeUndefined()
   })

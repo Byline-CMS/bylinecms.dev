@@ -40,9 +40,9 @@ admin-presentation-barrel coupling described below — see the
 side-effect. That config does **two structurally different jobs**:
 
 1. **Config *data* — React-free, lightweight.** Collection definitions, field
-   types, column metadata (field name, label, sortable), routes, the i18n
-   bundles. This is the part `getClientConfig()` consumers read at the loader
-   phase.
+   types, column metadata (field name, label, sortable), resolved routes, the
+   i18n bundles. This is the part `getClientConfig()` consumers read at the
+   loader phase.
 2. **Config *component bindings* — live React references.** The slots that hold
    actual components:
    - `fields.<type>.editor` — a `RichTextEditorComponent` (the richtext field).
@@ -100,12 +100,23 @@ not a fix.
 
 Public frontend code does not participate in this registration. It imports plain
 locale and route data through `byline/public.ts`; that facade re-exports the
-`routes` object, whose `admin`, `api`, and `signIn` properties public code
-canonicalizes with `resolveRoutes(routes)` without loading the admin config. Likewise, document route
-modules only declare their route factory; the factory reads content-locale config
-through `getClientConfig()` during its loader/component lifecycle, after the
-parent `beforeLoad` or lazy-module registration has run. Route construction
-therefore does not create an eager import path into `byline/i18n.ts`.
+`routes` object, whose `admin`, `api`, and `signIn` properties were already
+resolved and frozen by `byline/routes.ts` without loading the admin config.
+Likewise, document route modules only declare their route factory; the factory
+reads content-locale config through `getClientConfig()` during its
+loader/component lifecycle, after the parent `beforeLoad` or lazy-module
+registration has run. Route construction therefore does not create an eager
+import path into `byline/i18n.ts`.
+
+Route resolution itself is not part of this loader/hydration timing problem.
+`defineClientConfig()` resolves and validates partial route input during config
+registration and exposes a `ResolvedClientConfig` whose `routes` properties are
+readonly and whose route object is frozen. `defineServerConfig()` applies the
+same boundary. Safe multi-segment admin and API trees are supported, the two
+trees may not overlap, and the configured sign-in path must remain outside both.
+Invalid route config fails registration rather than being discovered during an
+admin render or request; downstream route helpers only read the canonical
+registered values.
 
 ## Root cause — why the config graph isn't light
 

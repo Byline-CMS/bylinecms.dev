@@ -10,14 +10,13 @@
  * fetches live in one place.
  */
 
-import { resolveRoutes } from '@byline/core'
 import {
   type CurrentAdminUser,
   getCurrentAdminUserSoft,
 } from '@byline/host-tanstack-start/server-fns/auth'
 import { getPreviewStateFn } from '@byline/host-tanstack-start/server-fns/preview'
 
-import { routes as bylineRoutes } from '~/public'
+import { routes } from '~/public'
 
 export interface FrontendLayoutData {
   adminUser: CurrentAdminUser | null
@@ -31,6 +30,6 @@ export async function loadFrontendLayoutData(): Promise<FrontendLayoutData> {
     getCurrentAdminUserSoft(),
     getPreviewStateFn(),
   ])
-  const { admin: adminPath } = resolveRoutes(bylineRoutes)
+  const { admin: adminPath } = routes
   return { adminUser, adminPath, preview: previewState.preview }
 }

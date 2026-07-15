@@ -127,11 +127,31 @@ Three rules hold the line across the codebase:
    consumes them via interface; it never wires concrete dependencies (Drizzle
    pools, argon2, S3 clients) directly. This is what keeps "swap the adapter" a
    single-file change in `byline/server.config.ts`. Transactions live behind this
-   boundary too: the request-scoped `withTransaction` capability is an *adapter*
-   concern — the machinery sits in `@byline/db-postgres`, core only declares the
-   optional `IDbAdapter.withTransaction` capability, and a non-transactional
-   (e.g. HTTP-gateway serverless) adapter must reject it loudly rather than
-   degrade silently. See [Transactions](./03-transactions.md).
+   boundary too: the machinery sits in `@byline/db-postgres`, while core declares
+   the mandatory contract and owns the lifecycle transaction boundaries. See
+   [Transactions](./03-transactions.md).
+
+### The canonical 4.x database contract
+
+The 4.x `IDbAdapter` contract intentionally breaks adapters written against the
+older optional-capability shape. A conforming adapter must implement
+`withTransaction`, `commands.audit`, `queries.audit`,
+`queries.documents.getDocumentSystemFieldsForUpdate`, and
+`commands.documents.promoteChildrenAndRemoveFromTree`, in addition to the
+ordinary tree placement/removal commands. Auditability, authoritative locked
+system-field snapshots, and delete-time tree reconciliation are baseline storage
+semantics, not collection-specific extras that a typed adapter may omit.
+
+Core still checks these methods structurally at the lifecycle boundaries because
+plain JavaScript adapters can bypass TypeScript. Missing transaction/audit support
+or the system-field lock fails the attempted audited write with
+`ERR_AUDIT_UNSUPPORTED`; tree-enabled configurations validate tree
+audit/delete-reconciliation support at startup and tree writes check it again.
+Audit-query transports also retain defensive runtime guards: the system activity
+endpoint throws `ERR_AUDIT_UNSUPPORTED`, while the collection SDK's gated
+`auditLog()` returns an empty page if an untyped adapter supplies no
+`queries.audit`. Those guards are failure containment for invalid runtime objects,
+not an optional adapter contract.
 
 ## Code map
 
