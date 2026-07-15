@@ -1,5 +1,12 @@
 # @byline/auth
 
+## 4.0.0
+
+### Major Changes
+
+- introduced a host-agnostic `ServerConfig.hooks` registry (server-only lifecycle/upload hooks leave portable schemas) and hardened read-authorization, tree, delete, and routing boundaries
+  made the mandatory `IDbAdapter` transaction/audit contract, resolved `routes.signIn`, and request-stable `RequestContext` factories the v4 baseline
+
 ## 3.21.0
 
 ### Minor Changes

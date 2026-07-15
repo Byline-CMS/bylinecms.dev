@@ -2,7 +2,7 @@
   "name": "@byline/storage-local",
   "private": false,
   "license": "MPL-2.0",
-  "version": "3.21.0",
+  "version": "4.0.0",
   "engines": {
     "node": ">=20.9.0"
   },

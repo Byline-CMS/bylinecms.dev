@@ -1,5 +1,23 @@
 # @byline/host-tanstack-start
 
+## 4.0.0
+
+### Major Changes
+
+- introduced a host-agnostic `ServerConfig.hooks` registry (server-only lifecycle/upload hooks leave portable schemas) and hardened read-authorization, tree, delete, and routing boundaries
+  made the mandatory `IDbAdapter` transaction/audit contract, resolved `routes.signIn`, and request-stable `RequestContext` factories the v4 baseline
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@4.0.0
+  - @byline/ai@4.0.0
+  - @byline/auth@4.0.0
+  - @byline/client@4.0.0
+  - @byline/core@4.0.0
+  - @byline/i18n@4.0.0
+  - @byline/ui@4.0.0
+
 ## 3.21.0
 
 ### Minor Changes
