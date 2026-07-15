@@ -59,10 +59,11 @@ import {
   getCollectionDefinition,
   getServerConfig,
   getWorkflowStatuses,
-  type StoredFileValue,
 } from '@byline/core'
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 import { uploadField as coreUploadField } from '@byline/core/services'
+
+import type { CollectionFieldsByPath, MediaFields } from '../generated/collection-types.js'
 
 const COLLECTION_PATH = 'media'
 const FIELD_NAME = 'image'
@@ -92,7 +93,7 @@ async function run(): Promise<void> {
   }
 
   const requestContext = createSuperAdminContext({ id: 'regenerate-media-script' })
-  const client = createBylineClient({ config, requestContext })
+  const client = createBylineClient<CollectionFieldsByPath>({ config, requestContext })
 
   const { id: collectionId, version: collectionVersion } =
     await client.resolveCollectionRecord(COLLECTION_PATH)
@@ -108,7 +109,7 @@ async function run(): Promise<void> {
     id: string
     path: string
     status: string
-    fields: Record<string, any>
+    fields: MediaFields
   }[] = []
   const pageSize = 100
   for (let page = 1; ; page++) {
@@ -123,7 +124,7 @@ async function run(): Promise<void> {
         id: d.id,
         path: d.path,
         status: d.status,
-        fields: d.fields as Record<string, any>,
+        fields: d.fields,
       })
     }
     if (result.docs.length < pageSize) break
@@ -154,7 +155,7 @@ async function run(): Promise<void> {
   let skipped = 0
 
   for (const doc of allDocs) {
-    const image = doc.fields[FIELD_NAME] as StoredFileValue | undefined | null
+    const image = doc.fields[FIELD_NAME]
     if (image == null || !image.storagePath) {
       console.log(`  - skip ${doc.id} (${doc.path}) — no image value`)
       skipped += 1

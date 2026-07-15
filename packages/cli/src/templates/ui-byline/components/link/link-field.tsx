@@ -84,14 +84,15 @@ function getHref(args: LinkFieldAttributes): string {
   }
 
   const hrefIsLocal = ['tel:', 'mailto:', '/'].some((prefix) => href.startsWith(prefix))
-  if (!hrefIsLocal) {
+  // Relative custom hrefs are valid but cannot be passed to URL without a base.
+  if (!hrefIsLocal && /^[a-z][a-z\d+.-]*:/i.test(href)) {
     try {
       const objectURL = new URL(href)
       if (objectURL.origin === publicWebsiteUrl) {
         href = objectURL.href.replace(publicWebsiteUrl, '')
       }
     } catch (e) {
-      console.error(`Failed to format url: ${href}`, e) // eslint-disable-line no-console
+      console.error(`Failed to format url: ${href}`, e)
     }
   }
 

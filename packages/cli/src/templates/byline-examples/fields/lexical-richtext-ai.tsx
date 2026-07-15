@@ -13,7 +13,7 @@
  *   - `LexicalRichTextAi` — a `RichTextEditorComponent` that registers
  *     the AI assistant by adding `AiLexicalExtension` to the editor's
  *     extension graph. Register globally in
- *     `apps/webapp/byline/admin.config.ts` under
+ *     `byline/admin.config.ts` under
  *     `fields.richText.editor` to AI-enable every richtext field.
  *   - `aiRichTextAdmin()` — a `FieldAdminConfig` factory. Drop into a
  *     collection's `fields` map in `<collection>/admin.tsx` to opt one
@@ -38,7 +38,7 @@ import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/confi
  * drawer via `ReactExtension.decorators` — no `featureAfterEditor`, no
  * React-context registry hop.
  *
- * **Global** opt-in — register in `apps/webapp/byline/admin.config.ts`:
+ * **Global** opt-in — register in `byline/admin.config.ts`:
  *
  * ```ts
  * fields: {
@@ -77,7 +77,7 @@ export const LexicalRichTextAi = lexicalEditor((c) => {
  *
  * @example
  * ```ts
- * // apps/webapp/byline/collections/news/admin.tsx
+ * // byline/collections/news/admin.tsx
  * import { aiRichTextAdmin } from '../../fields/lexical-richtext-ai.js'
  *
  * fields: {

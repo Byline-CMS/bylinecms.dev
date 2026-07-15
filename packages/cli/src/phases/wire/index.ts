@@ -3,7 +3,7 @@ import { wireServerUploads } from './server-uploads.js'
 import { wireStartTs } from './start-ts.js'
 import { wireTsconfig } from './tsconfig.js'
 import { wireViteConfig } from './vite-config.js'
-import type { Phase, PhaseResult, PhaseState } from '../../types.js'
+import type { FileWrite, Phase, PhaseResult, PhaseState } from '../../types.js'
 import type { SubEdit, SubEditResult } from './shared.js'
 
 // Order matters: `wireServerTs` injects the side-effect import for
@@ -25,23 +25,26 @@ export const wirePhase: Phase = {
   defaultMode: 'confirm',
 
   async detect(ctx) {
-    if (ctx.state.isComplete('wire')) return 'done'
-    return 'pending'
+    const results = await Promise.all(SUB_EDITS.map((sub) => sub.preview(ctx)))
+    if (results.some((result) => result.status === 'blocked')) return 'blocked'
+    return results.every((result) => result.status === 'skipped') ? 'done' : 'pending'
   },
 
   async plan(ctx) {
     const notes: string[] = []
+    const writes: FileWrite[] = []
     for (const sub of SUB_EDITS) {
       const r = await sub.preview(ctx)
       notes.push(formatNote(sub.key, r))
+      if (r.writes) writes.push(...r.writes)
     }
-    return { writes: [], commands: [], notes }
+    return { writes, commands: [], notes }
   },
 
-  async apply(_plan, ctx): Promise<PhaseResult> {
+  async apply(plan, ctx): Promise<PhaseResult> {
     const results: { key: string; result: SubEditResult }[] = []
     for (const sub of SUB_EDITS) {
-      const r = await sub.apply(ctx)
+      const r = await sub.apply(ctx, plan.writes)
       results.push({ key: sub.key, result: r })
       ctx.state.setWireSubEdit(sub.key, persistableStatus(r.status))
 

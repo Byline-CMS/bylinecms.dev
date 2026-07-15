@@ -1,32 +1,33 @@
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { applyPlannedWrites } from '../../lib/planned-writes.js'
 import type { Context } from '../../context.js'
+import type { FileWrite } from '../../types.js'
 import type { SubEdit, SubEditResult } from './shared.js'
 
 const REL = 'vite.config.ts'
 const TEMPLATE_REL = 'host/vite.config.ts'
+const PREDECESSOR_HASHES = new Set([
+  '55625734b4e2a9eac6d05f3447e2535b0a7d3480cc8111f467a5e11539abf1cf',
+  'b114092dfccf35e93c9d6310a6cda7e500f85552e0152592a0d31d859726e41f',
+  'fb54b24c1bbf8dbb4f4f731f6189962b1f2b39cfa820bd122055e01c2031ad16',
+])
 
 export const wireViteConfig: SubEdit = {
   key: 'vite-config',
   title: `Verify ${REL} matches the canonical Byline-on-TanStack-Start config`,
   async preview(ctx) {
-    return run(ctx, true)
+    return inspect(ctx)
   },
-  async apply(ctx) {
-    return run(ctx, false)
+  async apply(ctx, plannedWrites = []) {
+    return apply(ctx, plannedWrites)
   },
 }
 
-async function run(ctx: Context, _dryRun: boolean): Promise<SubEditResult> {
+function inspect(ctx: Context): SubEditResult {
   const path = ctx.resolve(REL)
-  if (!existsSync(path)) {
-    return {
-      status: 'blocked',
-      message: `${REL} not found — host phase should have caught this`,
-    }
-  }
-
   const canonicalPath = join(ctx.templatesDir(), TEMPLATE_REL)
   if (!existsSync(canonicalPath)) {
     return {
@@ -35,31 +36,79 @@ async function run(ctx: Context, _dryRun: boolean): Promise<SubEditResult> {
     }
   }
 
-  const userText = readFileSync(path, 'utf8')
   const canonical = readFileSync(canonicalPath, 'utf8')
+  if (!existsSync(path)) {
+    return {
+      status: 'done',
+      message: `${REL}: will create canonical Byline config`,
+      writes: [{ path, contents: canonical, mode: 'create' }],
+    }
+  }
+
+  const userText = readFileSync(path, 'utf8')
   if (normalize(userText) === normalize(canonical)) {
     return { status: 'skipped', message: `${REL}: already matches the canonical Byline config` }
   }
 
-  if (_dryRun) {
+  const backupPath = ctx.resolve('vite.config.bak')
+  if (PREDECESSOR_HASHES.has(hashConfig(userText)) && !existsSync(backupPath)) {
     return {
-      status: 'manual',
-      message: `${REL}: differs from canonical — apply will back up existing file to vite.config.bak and replace it`,
-      snippet: canonical,
+      status: 'done',
+      message: `${REL}: recognized canonical predecessor; will back up and replace it`,
+      writes: [
+        { path: backupPath, contents: userText, mode: 'create' },
+        { path, contents: canonical, mode: 'patch', before: userText },
+      ],
     }
   }
 
-  // Back up the user's existing config then install the canonical template.
+  return {
+    status: 'manual',
+    message: `${REL}: divergent user config was left untouched; merge the canonical requirements manually`,
+    snippet: canonical,
+  }
+}
+
+function apply(ctx: Context, plannedWrites: readonly FileWrite[]): SubEditResult {
+  const path = ctx.resolve(REL)
   const backupPath = ctx.resolve('vite.config.bak')
-  copyFileSync(path, backupPath)
-  writeFileSync(path, canonical, 'utf8')
+  const writes = plannedWrites.filter((write) => write.path === path || write.path === backupPath)
+  if (writes.length === 0) {
+    const current = inspect(ctx)
+    if (!current.writes?.length) return current
+    return {
+      status: 'manual',
+      message: `${REL}: planned write is missing; re-run the wire phase`,
+      snippet: readCanonical(ctx),
+    }
+  }
+
+  const result = applyPlannedWrites(writes)
+  if (result.conflicts.length > 0) {
+    return {
+      status: 'manual',
+      message: `${REL}: changed after preview and was left untouched`,
+      snippet: readCanonical(ctx),
+    }
+  }
   return {
     status: 'done',
-    message: `${REL}: existing file backed up to vite.config.bak and replaced with the canonical Byline vite.config.ts config`,
+    message: writes.some((write) => write.path === backupPath)
+      ? `${REL}: canonical predecessor backed up and replaced`
+      : `${REL}: created canonical Byline config`,
   }
+}
+
+function readCanonical(ctx: Context): string | undefined {
+  const path = join(ctx.templatesDir(), TEMPLATE_REL)
+  return existsSync(path) ? readFileSync(path, 'utf8') : undefined
 }
 
 function normalize(text: string): string {
   // Trailing whitespace + final newline differences shouldn't trigger manual.
   return text.replace(/\s+$/g, '').replace(/\r\n/g, '\n')
+}
+
+function hashConfig(text: string): string {
+  return createHash('sha256').update(normalize(text)).digest('hex')
 }

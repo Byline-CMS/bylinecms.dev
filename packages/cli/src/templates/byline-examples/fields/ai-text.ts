@@ -27,7 +27,7 @@ import { AiFieldPanel } from './ai-widgets/ai-field-panel.js'
  *
  * @example
  * ```ts
- * // apps/webapp/byline/collections/news/admin.tsx
+ * // byline/collections/news/admin.tsx
  * fields: {
  *   title: aiTextFieldAdmin(),
  * }

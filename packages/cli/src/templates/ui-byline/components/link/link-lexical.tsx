@@ -7,8 +7,6 @@ import cx from 'classnames'
 import { LangLink } from '@/ui/byline/components/link/lang-link'
 import type { Locale } from '@/ui/byline/types/i18n'
 
-// import { getPublicWebsiteUrl } from '@/utils/utils.framework.ts'
-
 interface BaseLinkAttributes {
   newTab?: boolean
   nofollow?: boolean
@@ -134,13 +132,16 @@ function getHref(args: LinkAttributes): string {
   }
 
   if (!isLocalHref(href)) {
-    try {
-      const objectURL = new URL(href)
-      if (objectURL.origin === publicWebsiteUrl) {
-        href = objectURL.href.replace(publicWebsiteUrl, '')
+    // Relative custom hrefs are valid but cannot be passed to URL without a base.
+    if (/^[a-z][a-z\d+.-]*:/i.test(href)) {
+      try {
+        const objectURL = new URL(href)
+        if (objectURL.origin === publicWebsiteUrl) {
+          href = objectURL.href.replace(publicWebsiteUrl, '')
+        }
+      } catch (e) {
+        console.error(`Failed to format url: ${href}`, e)
       }
-    } catch (e) {
-      console.error(`Failed to format url: ${href}`, e) // eslint-disable-line no-console
     }
   }
 

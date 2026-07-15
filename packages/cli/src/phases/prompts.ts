@@ -7,6 +7,7 @@ import type { Phase } from '../types.js'
  * user declined.
  *
  * Currently asks:
+ *  - `adminPath`: the single URL segment used by route files and runtime config
  *  - `examples`: include the example collections/blocks/fields overlay
  *  - `importDocs`: include the markdown → Byline import example script
  *    (`byline/scripts/import-docs.ts` plus `scripts/lib/*`) and its
@@ -26,6 +27,8 @@ export const promptsPhase: Phase = {
   async plan(ctx) {
     const a = ctx.state.get().answers
     const notes: string[] = []
+    if (a.adminPath === undefined) notes.push('will ask: admin URL path?')
+    else notes.push(`admin path: ${a.adminPath} (already answered)`)
     if (a.examples === undefined) notes.push('will ask: include example collections/blocks/fields?')
     else notes.push(`examples: ${a.examples ? 'yes' : 'no'} (already answered)`)
 
@@ -42,6 +45,17 @@ export const promptsPhase: Phase = {
   async apply(_plan, ctx) {
     const current = ctx.state.get().answers
 
+    let adminPath = current.adminPath
+    if (adminPath === undefined) {
+      adminPath = await ctx.prompter.text({
+        message: 'Where should the admin UI be mounted?',
+        defaultValue: '/admin',
+        placeholder: '/admin',
+      })
+      adminPath = adminPath.startsWith('/') ? adminPath : `/${adminPath}`
+      ctx.state.patchAnswers({ adminPath })
+    }
+
     let examples = current.examples
     if (examples === undefined) {
       examples = await ctx.prompter.confirm({
@@ -57,7 +71,7 @@ export const promptsPhase: Phase = {
     } else if (importDocs === undefined) {
       importDocs = await ctx.prompter.confirm({
         message:
-          'Include the optional markdown → Byline import example script? Adds 5 devDependencies (gray-matter, unified, remark-parse, remark-gfm, @types/mdast) used only by byline/scripts/import-docs.ts. The other example script (regenerate-media.ts) has no extra dependencies and is included with examples regardless.',
+          'Include the optional markdown → Byline import example script? Adds 6 devDependencies (gray-matter, unified, remark-parse, remark-gfm, mdast-util-to-string, @types/mdast) used only by byline/scripts/import-docs.ts. Copied helper tests are excluded so the host does not need Vitest.',
         defaultValue: false,
       })
     }

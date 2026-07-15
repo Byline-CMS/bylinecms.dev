@@ -14,8 +14,8 @@
  * `route.lazy.tsx` covers component render and initial hydration. Keeping
  * both imports behind `_byline/*` keeps the admin graph off public routes.
  *
- * In TanStack Start with Vite 6 the server entry (`src/server.ts`) and
- * the SSR rendering context run in separate Vite environments, so
+ * In TanStack Start the server entry (`src/server.ts`) and the SSR rendering
+ * context run in separate Vite environments, so
  * importing this file from `src/server.ts` would NOT propagate the
  * registration into the SSR render module graph.
  */
@@ -29,8 +29,8 @@ import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
 // commented `richText` block below for the exact shape.
 // import { lexicalEditor } from '@byline/richtext-lexical'
 
-import { collections } from './collections/index.js'
 import { DocsAdmin } from './collections/docs/admin.js'
+import { collections } from './collections/index.js'
 import { MediaAdmin } from './collections/media/admin.js'
 import { NewsAdmin } from './collections/news/admin.js'
 import { NewsCategoriesAdmin } from './collections/news-categories/admin.js'
@@ -60,19 +60,14 @@ export const config: ClientConfig = {
     // mutations are local to this call. Per-field `editorConfig`
     // continues to take precedence over whatever is baked in here.
     //
-    // import {
-    //   lexicalEditor,
-    //   AdmonitionExtension,
-    //   CodeHighlightExtension,
-    //   TableExtension,
-    // } from '@byline/richtext-lexical'
+    // import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/config'
     //
     // richText: {
     //   editor: lexicalEditor((c) => {
     //     c.extensions
-    //       .remove(TableExtension)
-    //       .remove(CodeHighlightExtension)
-    //       .remove(AdmonitionExtension)
+    //       .remove(builtInExtensions.Table)
+    //       .remove(builtInExtensions.CodeHighlight)
+    //       .remove(builtInExtensions.Admonition)
     //     c.settings.placeholderText = 'Start writing...'
     //     return c
     //   }),

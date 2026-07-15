@@ -10,14 +10,16 @@ interface CodeProps extends CodeIntrinsicProps {
   className?: string
   title?: string
   code: string
-  language?: string
+  language?: string | null
 }
 
-export function Code({ code, className, language = 'jsx' }: CodeProps): React.JSX.Element {
+export function Code({ code, className, language }: CodeProps): React.JSX.Element {
+  // Prism calls `.toLowerCase()` on this value, so null and empty legacy values need a fallback.
+  const resolvedLanguage = language != null && language.length > 0 ? language : 'typescript'
   return (
-    <Highlight theme={themes.oneDark} code={code} language={language}>
+    <Highlight theme={themes.oneDark} code={code} language={resolvedLanguage}>
       {({ tokens, getLineProps, getTokenProps }) => (
-        <div className="code scroller group overflow-y-auto rounded border border-theme-600 relative">
+        <div className="code scroller group overflow-y-auto rounded border border-theme-600 relative mb-4">
           <CopyButton
             variant="outlined"
             intent="primary"

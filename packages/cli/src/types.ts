@@ -39,7 +39,12 @@ export interface Plan {
   writes: FileWrite[]
   commands: ShellCommand[]
   notes: string[]
+  preconditions?: PlanPrecondition[]
 }
+
+export type PlanPrecondition =
+  | { type: 'file'; path: string; contents: string | null }
+  | { type: 'value'; key: string; value: string }
 
 export interface PhaseResult {
   state: PhaseState

@@ -163,8 +163,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     }),
     // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace
     // the `localStorageProvider` block above with the call below and add
-    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env.local`
-    // (see `apps/webapp/.env.local.example`).
+    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env.local`.
     //
     // On AWS with an IAM role / instance profile, omit `accessKeyId` and
     // `secretAccessKey` so the SDK resolves credentials via its default
@@ -204,7 +203,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       //
       // We pass `getAdminBylineClient` (not the public client) because
       // admin server fns are the only call sites that read documents in
-      // the admin webapp today — the populate phase inherits whichever
+      // the admin host today — the populate phase inherits whichever
       // actor the request resolved. A future public-facing host would
       // register its own client whose `requestContext` factory resolves
       // an end-user actor instead. See `@byline/host-tanstack-start/

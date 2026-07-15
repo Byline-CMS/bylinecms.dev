@@ -9,14 +9,15 @@ cd <your-tanstack-start-app>
 npx @byline/cli init
 ```
 
-The installer is a step-by-step wizard. For each phase that mutates files, it prints a unified diff and waits for your confirmation before writing — you can apply the change, skip it, or copy a snippet to make the change yourself.
+The installer is a step-by-step wizard. It prints unified diffs for planned file writes. Confirm-mode phases wait before writing; safe auto phases apply directly unless `--dry-run` is set.
 
 ```sh
-byline init                    Run the wizard, resuming from the last completed phase.
+byline init                    Run the wizard, re-detecting current installation state.
 byline init --only db-init     Re-run a single phase.
 byline init --from wire        Resume from a specific phase.
 byline init --apply            Skip the per-phase confirmation prompt (still prints diffs).
 byline init --dry-run          Show every change but write nothing.
+byline init --force --apply -y Re-detect and safely upgrade an older scaffold noninteractively.
 byline doctor                  Inspect the current app and report what's wired.
 ```
 
@@ -24,7 +25,7 @@ See `byline init --help` for the full flag list.
 
 ### Generated collection types
 
-`byline init` commits `byline/generated/collection-types.ts` and adds two application scripts:
+`byline init` creates `byline/generated/collection-types.ts` and adds two application scripts:
 
 ```sh
 pnpm byline:generate        # regenerate after changing collection or block schemas
@@ -35,6 +36,31 @@ The application script evaluates `byline/collections/index.ts`; it does not load
 `server.config.ts`. That collection tuple remains the runtime registry, while the generated module
 is its deterministic, standalone TypeScript projection for typed clients and frontend code. Keep
 the artifact committed and run the check in CI.
+
+### Upgrading older scaffolds
+
+The v3.21 installer checks dependency ranges and required files instead of trusting old completed
+phase flags. Run `byline init --force --apply -y` to apply safe upgrades. Missing files and
+recognized canonical predecessors can be installed, while divergent user-owned scaffold, route,
+Vite, Turbo, and CI configuration is left untouched with an explicit manual instruction.
+
+Registry-backed `@byline/*` dependencies must declare a range wholly within major 3, starting at
+3.21.0 or newer. Local `workspace:*`, `workspace:^`, and `workspace:~` links are never replaced;
+their linked package version must resolve locally and satisfy the same range, otherwise installation
+is blocked with a manual compatibility instruction. Resolution uses included workspace package
+manifests, not `node_modules` registry copies. Older, future-major, or unbounded registry ranges are
+planned as upgrades to `^3.21.0`.
+
+In a monorepo, run the CLI from the application directory. App files remain under that directory,
+while pnpm settings, Turbo configuration, CI checks, and package-manager lockfile operations use the
+nearest workspace root whose declared package patterns include the application. An app excluded by
+those patterns remains standalone and cannot mutate the outer workspace configuration.
+When the owning workspace declares a package manager through its workspace file, root
+`packageManager`, or lockfile, the installer requires that manager and rejects conflicting `--pm`
+or previously selected choices before planning dependency writes.
+For a package.json-only workspace with no manager metadata, noninteractive runs must pass `--pm`.
+Choosing pnpm creates `pnpm-workspace.yaml` with the existing workspace package patterns and
+required `allowBuilds` entries together; npm, Yarn, and Bun continue using package.json workspaces.
 
 ### Already-wired apps (post-manual-config)
 

@@ -1,5 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 
+import {
+  type DependencyCompatibility,
+  evaluateDependencyCompatibility,
+} from '../lib/dependency-version.js'
 import { DEP_SPECS, type DepSpec } from '../manifest/deps.js'
 import { ENV_FILE_PATHS, ENV_SPECS, type EnvFile, type EnvKey } from '../manifest/env.js'
 import type { Context } from '../context.js'
@@ -22,17 +26,28 @@ export type SetupCheckResult = 'proceed' | 'aborted'
  * "I don't want to type defaults," not "I don't care if my env is broken."
  */
 export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
-  const missingDeps = findMissingBylineDeps(ctx)
-  if (missingDeps === null) {
+  const dependencyIssues = findBylineDependencyIssues(ctx)
+  if (dependencyIssues === null) {
     ctx.logger.error('package.json not found or unreadable — run `byline init` first')
     return 'aborted'
   }
-  if (missingDeps.length > 0) {
-    ctx.logger.error('core @byline/* packages are not installed in this app:')
-    for (const spec of missingDeps) {
-      ctx.logger.raw(`    - ${spec.name}@${spec.version}`)
+  if (dependencyIssues.length > 0) {
+    ctx.logger.error('core @byline/* packages are missing or declare an incompatible range:')
+    for (const issue of dependencyIssues) {
+      ctx.logger.raw(
+        `    - ${issue.spec.name}@${issue.declared ?? issue.spec.version} — ${issue.compatibility?.reason ?? 'not declared'}`
+      )
     }
-    ctx.logger.info(`install them with: ${installHint(ctx)}`)
+    if (dependencyIssues.some((issue) => issue.compatibility?.preserveDeclared !== true)) {
+      ctx.logger.info(
+        `install registry-backed packages with: ${installHint(ctx, dependencyIssues)}`
+      )
+    }
+    if (dependencyIssues.some((issue) => issue.compatibility?.preserveDeclared === true)) {
+      ctx.logger.info(
+        'workspace links were preserved; update or link the local @byline package to a supported 3.21.x+ version'
+      )
+    }
     ctx.logger.info('or run the full wizard: byline init')
     return 'aborted'
   }
@@ -71,7 +86,17 @@ export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
   return 'proceed'
 }
 
-function findMissingBylineDeps(ctx: Context): DepSpec[] | null {
+export function findMissingBylineDeps(ctx: Context): DepSpec[] | null {
+  return findBylineDependencyIssues(ctx)?.map((issue) => issue.spec) ?? null
+}
+
+export interface BylineDependencyIssue {
+  spec: DepSpec
+  declared?: string
+  compatibility?: DependencyCompatibility
+}
+
+export function findBylineDependencyIssues(ctx: Context): BylineDependencyIssue[] | null {
   const pkgPath = ctx.resolve('package.json')
   if (!existsSync(pkgPath)) return null
   let pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
@@ -80,11 +105,21 @@ function findMissingBylineDeps(ctx: Context): DepSpec[] | null {
   } catch {
     return null
   }
-  const declared = new Set([
-    ...Object.keys(pkg.dependencies ?? {}),
-    ...Object.keys(pkg.devDependencies ?? {}),
-  ])
-  return DEP_SPECS.filter((s) => s.group === 'byline' && !declared.has(s.name))
+  const declared = { ...(pkg.devDependencies ?? {}), ...(pkg.dependencies ?? {}) }
+  const issues: BylineDependencyIssue[] = []
+  for (const spec of DEP_SPECS) {
+    if (spec.group !== 'byline') continue
+    const declaredVersion = declared[spec.name]
+    if (declaredVersion === undefined) {
+      issues.push({ spec })
+      continue
+    }
+    const compatibility = evaluateDependencyCompatibility(ctx, spec, declaredVersion)
+    if (compatibility.status !== 'compatible') {
+      issues.push({ spec, declared: declaredVersion, compatibility })
+    }
+  }
+  return issues
 }
 
 function findMissingEnvKeys(ctx: Context): EnvKey[] {
@@ -122,15 +157,19 @@ function parseEnvKeys(contents: string): Set<string> {
   return keys
 }
 
-function installHint(ctx: Context): string {
+function installHint(ctx: Context, issues: readonly BylineDependencyIssue[]): string {
+  const packages = issues
+    .filter((issue) => issue.compatibility?.preserveDeclared !== true)
+    .map((issue) => `${issue.spec.name}@${issue.spec.version}`)
+    .join(' ')
   switch (ctx.pm) {
     case 'pnpm':
-      return 'pnpm add @byline/admin @byline/auth @byline/client @byline/core @byline/db-postgres @byline/host-tanstack-start @byline/richtext-lexical @byline/storage-local @byline/ui'
+      return `pnpm add ${packages}`
     case 'yarn':
-      return 'yarn add @byline/admin @byline/auth @byline/client @byline/core @byline/db-postgres @byline/host-tanstack-start @byline/richtext-lexical @byline/storage-local @byline/ui'
+      return `yarn add ${packages}`
     case 'bun':
-      return 'bun add @byline/admin @byline/auth @byline/client @byline/core @byline/db-postgres @byline/host-tanstack-start @byline/richtext-lexical @byline/storage-local @byline/ui'
+      return `bun add ${packages}`
     case 'npm':
-      return 'npm install @byline/admin @byline/auth @byline/client @byline/core @byline/db-postgres @byline/host-tanstack-start @byline/richtext-lexical @byline/storage-local @byline/ui'
+      return `npm install ${packages}`
   }
 }

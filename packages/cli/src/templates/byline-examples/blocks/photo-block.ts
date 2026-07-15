@@ -53,7 +53,8 @@ export type PhotoBlockFields = BlockFieldData<typeof PhotoBlock>
 
 /**
  * Full block instance shape (`_id`, `_type` + fields) as it appears
- * inside a document tree. Use this as the prop type for the photo
- * block renderer.
+ * inside a document tree. This alias is useful for schema-local helpers;
+ * app-facing renderers should import `PhotoBlockData` from
+ * `byline/generated/collection-types.ts` and overlay populated relations.
  */
 export type PhotoBlockData = BlockData<typeof PhotoBlock>

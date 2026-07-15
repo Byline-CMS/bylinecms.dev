@@ -24,8 +24,7 @@
  * Both call `defineClientConfig` idempotently.
  *
  * If you also want to use the Byline UI components on your public site,
- * import the same stylesheets from your front-end's pathless layout
- * instead (e.g. `_front-end/route.tsx`).
+ * import the same stylesheets from your public layout route as well.
  */
 
 import { createLazyFileRoute, Outlet } from '@tanstack/react-router'

@@ -1,106 +1,86 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative } from 'node:path'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 
+import { applyPlannedWrites } from '../lib/planned-writes.js'
+import { toPosixTemplatePath } from '../lib/template-path.js'
 import type { Context } from '../context.js'
-import type { Phase } from '../types.js'
+import type { FileWrite, Phase, Plan } from '../types.js'
 
 const TEMPLATE_DIR = 'ui-byline'
 const TARGET_DIR = 'src/ui/byline'
-
-interface CopyEntry {
-  fromAbs: string
-  toAbs: string
-  status: 'create' | 'skip-already-exists'
-}
+const EXAMPLE_ONLY_PATHS = ['blocks/', 'render-blocks.tsx', 'types/content.ts'] as const
 
 export const uiPhase: Phase = {
   id: 'ui',
-  title: 'UI — copy serialization components into src/ui/byline/',
+  title: 'UI — copy portable serialization components into src/ui/byline/',
   defaultMode: 'auto',
 
   async detect(ctx) {
-    if (ctx.state.isComplete('ui')) return 'done'
-    return 'pending'
+    const expected = expectedUiWrites(ctx)
+    if (expected.length === 0) return 'pending'
+    return expected.every((write) => existsSync(write.path)) ? 'done' : 'pending'
   },
 
   async plan(ctx) {
-    const entries = collectEntries(ctx)
-    const created = entries.filter((e) => e.status === 'create').length
-    const skipped = entries.filter((e) => e.status === 'skip-already-exists').length
-    const notes: string[] = [
-      `target: ${ctx.resolve(TARGET_DIR)}/`,
-      `${created} file(s) to create, ${skipped} already-existing skipped`,
-    ]
-    if (entries.length === 0) notes.push('(no template files — was the cli built with templates?)')
-    return { writes: [], commands: [], notes }
+    return buildUiPlan(ctx)
   },
 
-  async apply(_plan, ctx) {
-    const entries = collectEntries(ctx)
-    if (entries.length === 0) {
-      ctx.logger.error('no template files found — was the cli built with templates copied to dist?')
+  async apply(plan, ctx) {
+    if (expectedUiWrites(ctx).length === 0) {
+      ctx.logger.error('no UI templates found — was the CLI built with templates?')
       return { state: 'blocked' }
     }
-
-    let written = 0
-    let skipped = 0
-    for (const entry of entries) {
-      if (entry.status === 'skip-already-exists') {
-        skipped++
-        continue
-      }
-      mkdirSync(dirname(entry.toAbs), { recursive: true })
-      writeFileSync(entry.toAbs, readFileSync(entry.fromAbs, 'utf8'), 'utf8')
-      written++
+    const result = applyPlannedWrites(plan.writes)
+    if (result.written.length > 0) ctx.logger.success(`wrote ${result.written.length} UI file(s)`)
+    if (result.conflicts.length > 0) {
+      ctx.logger.warn('UI files changed after preview and were left untouched')
+      return { state: 'partial' }
     }
-
-    ctx.logger.success(`wrote ${written} file(s) under ${ctx.resolve(TARGET_DIR)}/`)
-    if (skipped > 0) {
-      ctx.logger.info(
-        `${skipped} file(s) already existed and were left untouched — re-running ui is non-destructive`
-      )
-    }
-
-    ctx.prompter.note(
-      [
-        'src/ui/byline/types/i18n.ts        — `Locale = string` stub. Replace with your',
-        '                                       narrower locale union if you have one.',
-        'src/ui/byline/components/link/     — `LangLink` is a single-locale pass-through.',
-        '  lang-link.tsx                      Replace if you use a multi-locale strategy.',
-        'src/ui/byline/render-blocks.tsx    — Sample renderer wired to the example PhotoBlock /',
-        '                                       RichTextBlock schemas. Adapt to your own block',
-        '                                       definitions, or delete if not using examples.',
-        '',
-        'Reference implementations live in https://github.com/Byline-CMS/bylinecms.dev',
-      ].join('\n'),
-      'UI: customisation pointers'
-    )
     return { state: 'done' }
   },
 }
 
-function collectEntries(ctx: Context): CopyEntry[] {
+export function buildUiPlan(ctx: Context): Plan {
+  const expected = expectedUiWrites(ctx)
+  const writes = expected.filter((write) => !existsSync(write.path))
+  const examples = ctx.state.get().answers.examples ?? true
+  const notes = [
+    `target: ${ctx.resolve(TARGET_DIR)}/`,
+    `example block renderers: ${examples ? 'included' : 'excluded'}`,
+    `${writes.length} file(s) to create, ${expected.length - writes.length} existing preserved`,
+  ]
+  if (expected.length === 0)
+    notes.push('no template files found — was the CLI built with templates?')
+  return { writes, commands: [], notes }
+}
+
+function expectedUiWrites(ctx: Context): FileWrite[] {
   const templateRoot = join(ctx.templatesDir(), TEMPLATE_DIR)
   if (!existsSync(templateRoot)) return []
-  const targetRoot = ctx.resolve(TARGET_DIR)
+  const examples = ctx.state.get().answers.examples ?? true
+  return walkFiles(templateRoot)
+    .map((abs) => ({ abs, rel: toPosixTemplatePath(relative(templateRoot, abs)) }))
+    .filter(({ rel }) => examples || !isExampleOnlyUiPath(rel))
+    .map(({ abs, rel }) => ({
+      path: ctx.resolve(TARGET_DIR, rel),
+      contents: portableUiSource(readFileSync(abs, 'utf8')),
+      mode: 'create' as const,
+    }))
+}
 
-  const entries: CopyEntry[] = []
-  for (const abs of walkFiles(templateRoot)) {
-    const rel = relative(templateRoot, abs)
-    const toAbs = join(targetRoot, rel)
-    entries.push({
-      fromAbs: abs,
-      toAbs,
-      status: existsSync(toAbs) ? 'skip-already-exists' : 'create',
-    })
-  }
-  return entries
+export function isExampleOnlyUiPath(relativePath: string): boolean {
+  const rel = toPosixTemplatePath(relativePath)
+  return EXAMPLE_ONLY_PATHS.some((path) => rel.startsWith(path))
+}
+
+function portableUiSource(source: string): string {
+  return source.replaceAll('@/i18n/i18n-config', '@/ui/byline/types/i18n')
 }
 
 function walkFiles(root: string): string[] {
   const out: string[] = []
   function walk(dir: string) {
-    for (const name of readdirSync(dir)) {
+    for (const name of readdirSync(dir).sort()) {
       const abs = join(dir, name)
       const st = statSync(abs)
       if (st.isDirectory()) walk(abs)
