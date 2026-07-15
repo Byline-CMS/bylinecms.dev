@@ -56,5 +56,6 @@
 
   .combo-button-options-item,
   :global(.byline-combo-button-options-item) {
+    padding: 0 4px;
   }
 }

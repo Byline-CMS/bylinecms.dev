@@ -1,5 +1,157 @@
 # @byline/admin
 
+## 3.21.0
+
+### Minor Changes
+
+- added **`@byline/client`** collection-type inference and a **`@byline/core`** deterministic type emitter for generating application collection types
+  fixed hasMany relation, decimal, and file-size field-data types and canonicalized numeric writes across **`@byline/core`** / **`@byline/db-postgres`**
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.21.0
+  - @byline/core@3.21.0
+  - @byline/i18n@3.21.0
+  - @byline/ui@3.21.0
+
+## 3.20.4
+
+### Patch Changes
+
+- added `listSearch` schema key, decoupling admin list-view search from `search.body`
+- Updated dependencies
+  - @byline/auth@3.20.4
+  - @byline/core@3.20.4
+  - @byline/i18n@3.20.4
+  - @byline/ui@3.20.4
+
+## 3.20.3
+
+### Patch Changes
+
+- added configurable `defaultSort` for collection list views in **`@byline/admin`** and default padding for combo-button items in **`@byline/ui`**
+- Updated dependencies
+  - @byline/auth@3.20.3
+  - @byline/core@3.20.3
+  - @byline/i18n@3.20.3
+  - @byline/ui@3.20.3
+
+## 3.20.2
+
+### Patch Changes
+
+- added a rounded frame + below-frame help text to **`@byline/admin`** relation fields, and fixed **`@byline/richtext-lexical`** settings forwarding resurrecting a removed InlineImageExtension
+- Updated dependencies
+  - @byline/auth@3.20.2
+  - @byline/core@3.20.2
+  - @byline/i18n@3.20.2
+  - @byline/ui@3.20.2
+
+## 3.20.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** merging field-level `editorConfig` over the registered editor config
+- Updated dependencies
+  - @byline/auth@3.20.1
+  - @byline/core@3.20.1
+  - @byline/i18n@3.20.1
+  - @byline/ui@3.20.1
+
+## 3.20.0
+
+### Minor Changes
+
+- added virtual fields — hooks-visible computed values that are never persisted to storage
+  fixed array item removal silently no-opping so removed items reappeared on save
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.20.0
+  - @byline/core@3.20.0
+  - @byline/i18n@3.20.0
+  - @byline/ui@3.20.0
+
+## 3.19.0
+
+### Minor Changes
+
+- added full hook control over upload storage keys, upload context, and storage move/exists, plus scoped counters and a save-first upload gate
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.19.0
+  - @byline/core@3.19.0
+  - @byline/i18n@3.19.0
+  - @byline/ui@3.19.0
+
+## 3.18.0
+
+### Minor Changes
+
+- 43d3d97: `useAsPath` now accepts `integer` and `counter` source fields, and the admin
+  path-widget honours a replacement slugifier.
+
+  - **core:** allowed `integer` and `counter` fields as a collection's `useAsPath`
+    source. `derivePath` already stringifies the source value before slugifying,
+    so a numeric identity field (e.g. an allocator-assigned `counter` serial
+    number) yields a clean numeric slug, and a replacement installation slugifier
+    can branch on `collectionPath` to reshape it — for example zero-padding a
+    serial to a fixed width. `float` / `decimal` remain excluded because their
+    string form carries a `.`, which does not belong in a path segment.
+
+  - **core:** added `ClientConfig.slugifier` (the client-side twin of
+    `ServerConfig.slugifier`), and carried the slugifier through the
+    `getClientConfig()` SSR fallback so a server-rendered form derives the same
+    path preview as the hydrated client.
+
+  - **admin:** the path-widget's live preview now uses the installation slugifier
+    resolved from `getClientConfig()` (previously it always used the built-in
+    `slugify`, so a custom slugifier's preview disagreed with what the server
+    persisted — and "Regenerate" could overwrite a correct path). It also
+    suppresses the source-derived preview and the "Regenerate" affordance when the
+    `useAsPath` source is a server-assigned `counter` or a read-only field, whose
+    value cannot be reproduced or changed through the form.
+
+  Additive and backward-compatible; installations that keep the default slugifier
+  need not set `ClientConfig.slugifier`.
+
+### Patch Changes
+
+- Updated dependencies [43d3d97]
+  - @byline/core@3.18.0
+  - @byline/auth@3.18.0
+  - @byline/i18n@3.18.0
+  - @byline/ui@3.18.0
+
+## 3.17.1
+
+### Patch Changes
+
+- fixed upload fields nested in group/array/blocks — recursive upload-field discovery, upload transport resolution, and storage cleanup on delete
+- Updated dependencies
+  - @byline/auth@3.17.1
+  - @byline/core@3.17.1
+  - @byline/i18n@3.17.1
+  - @byline/ui@3.17.1
+
+## 3.17.0
+
+### Minor Changes
+
+- added conditional field visibility (`condition` on schema fields) and cross-field writes via the field-hook context's `setFieldValue`
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@3.17.0
+  - @byline/core@3.17.0
+  - @byline/i18n@3.17.0
+  - @byline/ui@3.17.0
+
 ## 3.16.1
 
 ### Patch Changes

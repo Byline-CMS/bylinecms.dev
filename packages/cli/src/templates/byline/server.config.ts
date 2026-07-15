@@ -14,8 +14,7 @@
  * read it back with `getBylineCore<AdminStore>()`.
  *
  * This is the minimal scaffold: no example collections registered. Add
- * collection schemas to the `collections` array as you create them under
- * `byline/collections/<name>/schema.ts`.
+ * collection schemas to the shared tuple in `byline/collections/index.ts`.
  */
 
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
@@ -23,7 +22,6 @@ import { JwtSessionProvider } from '@byline/admin/auth'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
-import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
 import {
   lexicalEditorEmbedServer,
   lexicalEditorPopulateServer,
@@ -31,12 +29,12 @@ import {
 } from '@byline/richtext-lexical/server'
 import { localStorageProvider } from '@byline/storage-local'
 
+import { getAdminBylineClient } from './client.server.js'
+import { collections } from './collections/index.js'
 import { i18n } from './i18n.js'
 import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
 const serverURL = process.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
-
-const collections: Parameters<typeof pgAdapter>[0]['collections'] = []
 
 // HMR-safe singleton. Vite's program reload re-evaluates this module
 // without disposing the previous module's resources — every reload

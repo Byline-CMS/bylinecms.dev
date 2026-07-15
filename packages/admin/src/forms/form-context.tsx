@@ -83,6 +83,13 @@ const SYSTEM_PATH_DIRTY_KEY = '__systemPath__'
 const SYSTEM_AVAILABLE_LOCALES_DIRTY_KEY = '__systemAvailableLocales__'
 
 interface FormContextType {
+  /**
+   * The persisted document id when the form edits an existing document,
+   * `null` while the document is unsaved (create mode). Upload widgets use
+   * this to honour `upload.requireSavedDocument` (see `UploadConfig` in
+   * `@byline/core`).
+   */
+  documentId: string | null
   setFieldValue: (name: string, value: any) => void
   setFieldStore: (name: string, value: any) => void
   getFieldValue: (name: string) => any
@@ -150,9 +157,15 @@ export const useFormContext = () => {
 export const FormProvider = ({
   children,
   initialData = {},
+  documentId = null,
 }: {
   children: React.ReactNode
   initialData?: Record<string, any>
+  /**
+   * The persisted document id (edit mode); `null` while unsaved. Exposed on
+   * the context for upload widgets honouring `upload.requireSavedDocument`.
+   */
+  documentId?: string | null
 }) => {
   const fieldValues = useRef<Record<string, any>>(
     JSON.parse(JSON.stringify(initialData?.fields ?? initialData))
@@ -308,10 +321,11 @@ export const FormProvider = ({
       // for patches that don't correspond to a specific field.set.
       dirtyFields.current.add('__patch__')
       notifyMetaListeners()
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.debug('FormContext.appendPatch', { patch, dirtyCount: dirtyFields.current.size })
-      }
+      // Dev-time patch tracing — uncomment when debugging the patch stream.
+      // if (process.env.NODE_ENV !== 'production') {
+      //   // eslint-disable-next-line no-console
+      //   console.debug('FormContext.appendPatch', { patch, dirtyCount: dirtyFields.current.size })
+      // }
     },
     [notifyMetaListeners]
   )
@@ -476,6 +490,12 @@ export const FormProvider = ({
       const data = getFieldValues()
 
       for (const field of fields) {
+        // Condition-hidden fields are exempt from client-side validation — a
+        // field the editor cannot currently see must not block submit. Only
+        // top-level fields flow through this walk, and a root-level field's
+        // sibling scope is the form data itself (see FieldCondition).
+        if (field.condition && !field.condition(data, data)) continue
+
         const value = getFieldValue(field.name)
 
         // Required field validation
@@ -583,6 +603,10 @@ export const FormProvider = ({
         const fns = normalizeHooks(field.hooks?.beforeValidate)
         if (fns.length === 0) continue
 
+        // Condition-hidden fields skip submit-time hooks, mirroring their
+        // exemption from validateForm below.
+        if (field.condition && !field.condition(data, data)) continue
+
         const path = field.name
         const value = getFieldValue(path)
 
@@ -593,6 +617,7 @@ export const FormProvider = ({
           path,
           field,
           operation: 'submit',
+          setFieldValue,
         }
 
         try {
@@ -628,6 +653,7 @@ export const FormProvider = ({
   return (
     <FormContext.Provider
       value={{
+        documentId,
         setFieldValue,
         setFieldStore,
         getFieldValue,

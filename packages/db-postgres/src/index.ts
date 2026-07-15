@@ -95,7 +95,7 @@ export const pgAdapter = ({
   connectionTimeoutMillis = 30000,
 }: {
   connectionString: string
-  collections: CollectionDefinition[]
+  collections: readonly CollectionDefinition[]
   /**
    * The installation's default content locale, sourced from
    * `ServerConfig.i18n.content.defaultLocale`. Used by the storage layer as

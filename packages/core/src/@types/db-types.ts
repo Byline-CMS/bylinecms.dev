@@ -450,6 +450,33 @@ export interface ICounterCommands {
    * and deletes. The facet-URL use case does not require gapless IDs.
    */
   nextCounterValue(groupName: string): Promise<number>
+
+  /**
+   * Atomically allocate the next value from a **runtime-scoped** counter
+   * group, self-registering the group on first use.
+   *
+   * The schema-declared counter mechanism above is deliberately static:
+   * groups come from `CounterField.group` strings, are discovered and
+   * registered once at boot, and `nextCounterValue` throws for anything
+   * unregistered — that honesty catches configuration bugs. But some
+   * sequences are keyed on *data* that only exists at runtime — e.g. a
+   * per-document sub-sequence like "files attached to publication X",
+   * where each value must be unique and never reused within that scope
+   * (`publications:<documentId>:files` → 1, 2, 3, …). Those scopes cannot
+   * be known at boot, so this method performs an idempotent
+   * ensure-then-allocate instead of throwing on the first use.
+   *
+   * Semantics are otherwise identical to `nextCounterValue`: values are
+   * monotonic per scope and never reused (a Postgres SEQUENCE per scope
+   * in the Postgres adapter); gaps are expected on rolled-back or
+   * abandoned work.
+   *
+   * Callers own the scope-name namespace. Use a stable, collision-proof
+   * convention — `'<collectionPath>:<documentId>:<purpose>'` is
+   * recommended — and never derive scope names from mutable data
+   * (renaming a scope starts a fresh sequence at 1).
+   */
+  nextScopedCounterValue(scopeName: string): Promise<number>
 }
 
 export interface ICollectionCommands {

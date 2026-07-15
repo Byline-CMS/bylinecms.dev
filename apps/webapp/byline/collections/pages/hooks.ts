@@ -22,16 +22,12 @@ import { defineHooks } from '@byline/core'
 import { invalidateDocument } from '@/lib/cache/with-cache'
 
 export default defineHooks({
-  afterCreate: ({ collectionPath, path }) =>
-    invalidateDocument(collectionPath, path, { sitemap: true }),
-  afterUpdate: ({ collectionPath, path, originalData }) =>
-    invalidateDocument(collectionPath, path, {
+  afterCreate: ({ path }) => invalidateDocument('pages', path, { sitemap: true }),
+  afterUpdate: ({ path, originalData }) =>
+    invalidateDocument('pages', path, {
       prevPath: (originalData as { path?: string } | undefined)?.path,
     }),
-  afterStatusChange: ({ collectionPath, path }) =>
-    invalidateDocument(collectionPath, path, { sitemap: true }),
-  afterUnpublish: ({ collectionPath, path }) =>
-    invalidateDocument(collectionPath, path, { sitemap: true }),
-  afterDelete: ({ collectionPath, path }) =>
-    invalidateDocument(collectionPath, path, { sitemap: true }),
+  afterStatusChange: ({ path }) => invalidateDocument('pages', path, { sitemap: true }),
+  afterUnpublish: ({ path }) => invalidateDocument('pages', path, { sitemap: true }),
+  afterDelete: ({ path }) => invalidateDocument('pages', path, { sitemap: true }),
 })

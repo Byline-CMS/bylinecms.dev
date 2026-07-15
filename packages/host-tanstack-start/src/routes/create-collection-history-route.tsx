@@ -24,7 +24,7 @@ import {
   getCollectionDocumentAuditLog,
   getCollectionDocumentHistory,
 } from '../server-fns/collections/index.js'
-import type { ContentLocaleOption } from '../admin-shell/collections/view-menu.js'
+import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -43,12 +43,7 @@ const searchSchema = z.object({
 // than wiring a second, tab-specific pager into the shared history route.
 const AUDIT_LOG_PAGE_SIZE = 100
 
-interface CollectionHistoryOpts {
-  contentLocales: ReadonlyArray<ContentLocaleOption>
-  defaultContentLocale: string
-}
-
-export function createCollectionHistoryRoute(path: string, opts: CollectionHistoryOpts) {
+export function createCollectionHistoryRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
     validateSearch: searchSchema,
@@ -118,6 +113,7 @@ export function createCollectionHistoryRoute(path: string, opts: CollectionHisto
       const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
       const { t } = useTranslation('byline-admin')
+      const { contentLocales, defaultContentLocale } = getContentLocaleRouteConfig()
 
       return (
         <>
@@ -142,8 +138,8 @@ export function createCollectionHistoryRoute(path: string, opts: CollectionHisto
             data={history}
             auditLog={auditLog}
             currentDocument={currentDocument as Record<string, unknown> | null}
-            contentLocales={opts.contentLocales}
-            defaultContentLocale={opts.defaultContentLocale}
+            contentLocales={contentLocales}
+            defaultContentLocale={defaultContentLocale}
           />
         </>
       )

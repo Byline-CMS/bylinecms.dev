@@ -10,7 +10,9 @@ import path from 'node:path'
 import { Readable } from 'node:stream'
 
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
+  HeadObjectCommand,
   type ObjectCannedACL,
   S3Client,
   type S3ClientConfig,
@@ -281,6 +283,57 @@ class S3StorageProvider implements IStorageProvider {
         Key: storagePath,
       })
     )
+  }
+
+  async move(fromPath: string, toPath: string): Promise<StoredFileLocation> {
+    // S3 has no native rename — copy to the new key, then delete the
+    // original. CopyObject throws NoSuchKey when the source is missing,
+    // satisfying the interface's "throws if the source does not exist".
+    // The default MetadataDirective (COPY) carries the source object's
+    // Content-Type, Cache-Control, and user metadata to the new key —
+    // exactly what a rename should do. ACLs are not copied by S3, so
+    // re-apply the configured canned ACL when one is set.
+    // Note: CopySource must be URL-encoded (keys may contain characters
+    // that are significant in the `<bucket>/<key>` source string).
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        CopySource: encodeURIComponent(`${this.bucket}/${fromPath}`),
+        Key: toPath,
+        ...(this.acl ? { ACL: this.acl } : {}),
+      })
+    )
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: fromPath,
+      })
+    )
+
+    return {
+      storageProvider: this.providerName,
+      storagePath: toPath,
+      storageUrl: this.getUrl(toPath),
+    }
+  }
+
+  async exists(storagePath: string): Promise<boolean> {
+    try {
+      await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: storagePath,
+        })
+      )
+      return true
+    } catch (err: unknown) {
+      const name = (err as { name?: string }).name
+      const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+      if (name === 'NotFound' || name === 'NoSuchKey' || status === 404) {
+        return false
+      }
+      throw err
+    }
   }
 
   getUrl(storagePath: string): string {

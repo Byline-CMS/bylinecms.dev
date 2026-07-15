@@ -62,6 +62,7 @@ function createMockDb(options: {
       counters: {
         ensureCounterGroup: vi.fn(fail) as any,
         nextCounterValue: vi.fn(fail) as any,
+        nextScopedCounterValue: vi.fn(fail) as any,
       },
     },
     queries: {
@@ -238,6 +239,7 @@ describe('ensureCollections', () => {
         counters: {
           ensureCounterGroup: vi.fn() as any,
           nextCounterValue: vi.fn() as any,
+          nextScopedCounterValue: vi.fn() as any,
         },
       },
       queries: {

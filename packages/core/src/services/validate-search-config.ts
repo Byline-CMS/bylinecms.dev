@@ -29,7 +29,7 @@ export interface SearchProviderPresence {
  * `ServerConfig.search` unset and pass cleanly.
  */
 export function validateSearchConfig(
-  collections: CollectionDefinition[],
+  collections: readonly CollectionDefinition[],
   adapters: SearchProviderPresence
 ): void {
   if (adapters.provider) return

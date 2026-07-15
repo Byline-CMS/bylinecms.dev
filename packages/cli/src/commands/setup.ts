@@ -47,7 +47,7 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
     yes: opts.yes ?? false,
     reset: opts.reset ?? false,
     resetConfirmed: opts.resetIMeanIt ?? false,
-    pm: opts.pm,
+    pm: opts.pm ?? state.get().answers.pm,
     cliFlags: { ...opts } as Record<string, string | boolean | undefined>,
     logger,
     prompter,

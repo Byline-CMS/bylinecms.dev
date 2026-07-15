@@ -80,6 +80,23 @@ export const ArrayField = ({
     }
   }, [defaultValue, getFieldValue, path])
 
+  /**
+   * Stable patch identity for an array item. Persisted items carry `_id`
+   * (the array-item identity from `store_meta`) — that is what the server's
+   * patch engine matches on (`applyArrayPatch`: `item._id === patch.itemId`),
+   * so it MUST be preferred here. `id` is accepted as a legacy/seed-data
+   * alias. Items added this session have neither (the storage layer assigns
+   * `_id` at write time), so fall back to the item's current index — the
+   * patch engine resolves a pure-integer itemId as an index fallback.
+   */
+  const patchItemId = (item: unknown, index: number): string => {
+    if (item && typeof item === 'object') {
+      if ('_id' in item) return String((item as { _id: string })._id)
+      if ('id' in item) return String((item as { id: string }).id)
+    }
+    return String(index)
+  }
+
   const handleDragEnd = ({
     moveFromIndex,
     moveToIndex,
@@ -96,15 +113,11 @@ export const ArrayField = ({
       if (clampedFrom === clampedTo) return
 
       const item = currentArray[clampedFrom]
-      const itemId =
-        item && typeof item === 'object' && 'id' in item
-          ? String((item as { id: string }).id)
-          : String(clampedFrom)
 
       appendPatch({
         kind: 'array.move',
         path: path,
-        itemId,
+        itemId: patchItemId(item, clampedFrom),
         toIndex: clampedTo,
       })
     }
@@ -116,8 +129,12 @@ export const ArrayField = ({
 
     const newId = crypto.randomUUID()
 
-    // Build a new item with default values for ALL child fields
-    const newItem: Record<string, any> = {}
+    // Build a new item with default values for ALL child fields.
+    // Assign the stable `_id` client-side — exactly like BlocksField's
+    // handleAddItem — so the item is patch-addressable (move / remove by
+    // `_id`) within the same editing session, before any server write has
+    // assigned identity. The storage layer persists `_id` via store_meta.
+    const newItem: Record<string, any> = { _id: newId }
     for (const childField of childFields) {
       if (childField.type === 'group' && childField.fields && childField.fields.length > 0) {
         // Group child — build a nested object with defaults for each inner field
@@ -158,17 +175,13 @@ export const ArrayField = ({
     if (!Array.isArray(currentArray) || index < 0 || index >= currentArray.length) return
 
     const item = currentArray[index]
-    const itemId =
-      item && typeof item === 'object' && 'id' in item
-        ? String((item as { id: string }).id)
-        : String(index)
 
     setItems((prev) => prev.filter((_, i) => i !== index))
 
     appendPatch({
       kind: 'array.remove',
       path: path,
-      itemId,
+      itemId: patchItemId(item, index),
     })
 
     const newArrayValue = [...currentArray]

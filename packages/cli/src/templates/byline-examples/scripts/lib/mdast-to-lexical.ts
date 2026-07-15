@@ -11,7 +11,7 @@
  *
  * Pure, headless-editor-free conversion. The output JSON is shaped to
  * match what the runtime serializer in
- * `apps/webapp/src/ui/byline/components/richtext-lexical/serialize`
+ * `src/ui/byline/components/richtext-lexical/serialize`
  * expects to render (heading.tag, list.tag + list.listType, code
  * children of type 'code-highlight' interspersed with 'linebreak',
  * link.attributes, etc.).
@@ -47,7 +47,7 @@ import type {
 import type { AdmonitionDirective } from './parse-markdown.js'
 
 // Lexical inline format bits — kept in sync with
-// apps/webapp/src/ui/byline/components/richtext-lexical/serialize/richtext-node-formats.ts
+// src/ui/byline/components/richtext-lexical/serialize/richtext-node-formats.ts
 const IS_BOLD = 1
 const IS_ITALIC = 1 << 1
 const IS_STRIKETHROUGH = 1 << 2

@@ -126,6 +126,7 @@ describe('02 Field Types', () => {
     })
 
     console.log('Retrieved document:', document)
+    expect(document?.fields.attachment.fileSize).toBe(102400)
   })
 
   it('should return only requested fields with selective field loading', async () => {

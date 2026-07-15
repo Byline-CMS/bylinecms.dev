@@ -84,16 +84,17 @@ function parseUploadFormData(data: FormData): UploadDocumentInput {
  * wins; otherwise default to the unique upload-capable field. Throws
  * `ERR_VALIDATION` when the request is ambiguous.
  *
- * Walks `definition.fields` only (not nested `group` / `array` /
- * `blocks`) — top-level upload fields are the supported case for the
- * transport today. Nested-field uploads remain available via the core
- * service when wired into a custom transport.
+ * Candidates come from `getUploadFields`, which recurses into `group` /
+ * `array` / `blocks` — upload fields nested in repeating structures are
+ * addressed by their leaf field name. Note the ambiguity fallback counts
+ * nested fields too: a collection whose only extra upload field is
+ * nested still requires an explicit `field` selector.
  */
-function resolveUploadFieldName(
+function resolveUploadField(
   definition: CollectionDefinition,
   collectionPath: string,
   requested: string | null
-): string {
+): ImageField | FileField {
   const candidates = getUploadFields(definition)
 
   if (requested) {
@@ -110,10 +111,10 @@ function resolveUploadFieldName(
         },
       })
     }
-    return match.name
+    return match
   }
 
-  if (candidates.length === 1) return candidates[0].name
+  if (candidates.length === 1) return candidates[0]
 
   if (candidates.length === 0) {
     throw ERR_VALIDATION({
@@ -167,19 +168,12 @@ export const uploadCollectionField = createServerFn({ method: 'POST' })
         }
 
         const serverConfig = getServerConfig()
-        const resolvedFieldName = resolveUploadFieldName(
-          config.definition,
-          collectionPath,
-          fieldName
-        )
-        const targetField = config.definition.fields.find((f) => f.name === resolvedFieldName) as
-          | ImageField
-          | FileField
+        const targetField = resolveUploadField(config.definition, collectionPath, fieldName)
         // Per-field storage routing falls through to the site-wide default.
         const storage = targetField.upload?.storage ?? serverConfig.storage
         if (!storage) {
           throw new Error(
-            `No storage provider configured for field '${resolvedFieldName}' on collection ` +
+            `No storage provider configured for field '${targetField.name}' on collection ` +
               `'${collectionPath}'. Set either field.upload.storage or the site-wide ` +
               'ServerConfig.storage.'
           )
@@ -199,7 +193,7 @@ export const uploadCollectionField = createServerFn({ method: 'POST' })
           collectionId: config.collection.id,
           collectionVersion: config.collection.version,
           collectionPath,
-          fieldName: resolvedFieldName,
+          fieldName: targetField.name,
           storage,
           logger,
           defaultLocale: serverConfig.i18n.content.defaultLocale,

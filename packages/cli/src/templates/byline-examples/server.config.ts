@@ -19,7 +19,6 @@ import { JwtSessionProvider } from '@byline/admin/auth'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
-import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
 import {
   lexicalEditorEmbedServer,
   lexicalEditorPopulateServer,
@@ -29,21 +28,12 @@ import {
 import { migrate, postgresSearch } from '@byline/search-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
-// Import collection definitions directly from schema files — NOT the full
-// admin config or index barrels. The admin config / index files pull in
-// admin UI configs (React components, CSS modules) that are not loadable
-// outside Vite (e.g. when running seeds via tsx).
-import { Docs } from './collections/docs/schema.js'
-import { Media } from './collections/media/schema.js'
-import { News } from './collections/news/schema.js'
-import { NewsCategories } from './collections/news-categories/schema.js'
-import { Pages } from './collections/pages/schema.js'
+import { getAdminBylineClient } from './client.server.js'
+import { collections } from './collections/index.js'
 import { i18n } from './i18n.js'
 import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
 const serverURL = process.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
-
-const collections = [Docs, News, Pages, Media, NewsCategories]
 
 // HMR-safe singleton. Vite's program reload re-evaluates this module
 // without disposing the previous module's resources — every reload
@@ -173,8 +163,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     }),
     // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace
     // the `localStorageProvider` block above with the call below and add
-    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env.local`
-    // (see `apps/webapp/.env.local.example`).
+    // the corresponding `BYLINE_STORAGE_S3_*` entries to your `.env.local`.
     //
     // On AWS with an IAM role / instance profile, omit `accessKeyId` and
     // `secretAccessKey` so the SDK resolves credentials via its default
@@ -214,7 +203,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       //
       // We pass `getAdminBylineClient` (not the public client) because
       // admin server fns are the only call sites that read documents in
-      // the admin webapp today — the populate phase inherits whichever
+      // the admin host today — the populate phase inherits whichever
       // actor the request resolved. A future public-facing host would
       // register its own client whose `requestContext` factory resolves
       // an end-user actor instead. See `@byline/host-tanstack-start/

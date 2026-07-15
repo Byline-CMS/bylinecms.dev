@@ -127,7 +127,8 @@ export interface UnifiedFieldValue {
   filename: string | null
   original_filename: string | null
   mime_type: string | null
-  file_size: number | null
+  // BIGINT values returned through the raw UNION query arrive as strings.
+  file_size: number | string | null
   storage_provider: string | null
   storage_path: string | null
   storage_url: string | null

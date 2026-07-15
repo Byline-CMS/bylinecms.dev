@@ -1,7 +1,7 @@
 ---
 title: "Fields API"
 path: "fields"
-summary: "The Fields API: built-in types, optional, localized, validation, hooks, the schema-vs-admin split, and how to build reusable field helpers like publishedOnField."
+summary: "The Fields API: built-in types, optional, localized, validation, hooks, conditional visibility, cross-field writes, the schema-vs-admin split, and how to build reusable field helpers like publishedOnField."
 ---
 
 # Fields API
@@ -243,6 +243,54 @@ fields: {
 
 → [Mixing both layers](#mixing-both-layers)
 
+### 11. Show a field conditionally (`condition`)
+
+Schema-side. When `condition` is present, the admin form renders the field only while the function returns `true` — re-evaluated on every form edit. `siblingData` is the field's immediate scope (the enclosing group / array item), so conditions inside array items observe their own item.
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+fields: [
+  { name: 'hasExpiry', label: 'Has Expiry', type: 'checkbox' },
+  {
+    name: 'expiresOn',
+    label: 'Expires On',
+    type: 'datetime',
+    optional: true,
+    condition: (_data, siblingData) => Boolean(siblingData.hasExpiry),
+  },
+]
+```
+
+→ [Conditional visibility](#conditional-visibility-condition)
+
+### 12. Write across fields from a field hook (`setFieldValue`)
+
+Schema-side. Field hooks receive `ctx.setFieldValue(path, value)` for cross-field behaviour — mutual exclusivity, clearing a dependent field when its driver changes. It's a raw store write: the target field's own hooks do not run, but the write emits a normal `field.set` patch, so it persists on save.
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+{
+  name: 'featured',
+  type: 'checkbox',
+  hooks: {
+    beforeChange: ({ value, path, data, setFieldValue }) => {
+      if (value !== true) return
+      // Checking this item unchecks every other item's `featured`.
+      const ownIndex = path.match(/^items\[(\d+)\]/)?.[1]
+      ;(data.items ?? []).forEach((item: any, index: number) => {
+        if (String(index) !== ownIndex && item?.featured === true) {
+          setFieldValue(`items[${index}].featured`, false)
+        }
+      })
+    },
+  },
+}
+```
+
+→ [Field hooks and cross-field writes](#field-hooks-and-cross-field-writes)
+
 ---
 
 ## Architecture
@@ -251,8 +299,8 @@ fields: {
 
 A field lives in two places at once:
 
-- **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data: field names, types, validation, defaults, schema-level adapter config (`editorConfig`, `embedRelationsOnSave`, `localized`, …). **Must be tsx-loadable** — the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
-- **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: per-field slot components, the per-field editor swap, columns, layout, preview URL. React is allowed here. Pulled in by `admin.config.ts`, which is side-effect-imported from `__root.tsx` so the registration covers both SSR and client module graphs.
+- **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data plus plain functions over data: field names, types, validation, defaults, schema-level adapter config (`editorConfig`, `embedRelationsOnSave`, `localized`, …), and the editor-behaviour hints that are functions of form data (`validate`, `condition`, client-side `hooks`). **Must be tsx-loadable** — the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
+- **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: per-field slot components, the per-field editor swap, columns, layout, preview URL. React is allowed here. Pulled in by `admin.config.ts`, which the `_byline` route registers from `beforeLoad` for child loaders and from `route.lazy.tsx` for component render and hydration.
 
 The schema declares what the field *is*; the admin declares how it *renders*. The two cooperate at render time — schema declares `richText` and the admin attaches the editor component — and never collide because they target different layers of the pipeline.
 
@@ -404,6 +452,131 @@ fields: {
 
 At render time the field-renderer resolves the editor component admin-side first (the AI wrapper wins over the global registration), and that component reads `field.editorConfig` from the schema (the compact preset). The result is an AI-enabled editor running the compact toolbar — no special wiring required. The same applies across helper kinds — a schema-side `publishedOnField()` and a future `publishedOnAdmin()` would coexist the same way.
 
+### Conditional visibility (`condition`)
+
+Every field accepts an optional visibility predicate:
+
+```ts
+condition?: (data: Record<string, any>, siblingData: Record<string, any>) => boolean
+```
+
+When present, the admin form renders the field only while the function returns `true`. The predicate is re-evaluated on every form edit (the same meta-subscribe loop that drives tab-level `condition` functions), and the field only re-renders when the boolean actually flips — a stable condition costs one function call per edit.
+
+**The two arguments.** `data` is the full live form data. `siblingData` is the field's *immediate scope* — the enclosing group or array item's values. For a field at `files[2].filesGroup.thumbnailPage`, `siblingData` is that item's `filesGroup` object, so a condition inside an array item observes its own item, not the document root (and not item 0). For root-level fields, `siblingData` is the same object as `data`. This scoping is what lets one field definition drive per-item behaviour across an entire array.
+
+**A rendering hint, not enforcement.** `condition` sits in the same family as `readOnly`: schema-side properties that shape the editing experience without any server-side effect. Consequences worth knowing:
+
+- **The hidden field's stored value is retained.** Hiding emits no clearing write; re-showing the field restores its last value (the widget re-seeds from the live form store, so an edit made before hiding is not visually reverted).
+- **Condition-hidden fields are exempt from client-side validation** — a field the editor cannot see must not block submit. Submit-time `beforeValidate` hooks are likewise skipped while hidden.
+- **Server-side schema validation knows nothing about conditions.** A required conditional field must still arrive with a value, so pair conditionally-hidden required fields with `optional: true` or a `defaultValue`.
+
+Conditions are plain functions over form data, so they are safe in the isomorphic schema — the same rule as inline field hooks (no server-only imports).
+
+Tab-level conditions are the admin-side sibling of this feature: `TabDefinition.condition(data)` on a `CollectionAdminConfig` shows/hides an entire tab. Field-level `condition` lives on the schema because it sits on the field it controls at any nesting depth — including fields inside groups, array items, and blocks, which the admin config's top-level `fields{}` map cannot address.
+
+### Field hooks and cross-field writes
+
+Fields accept two **client-side** hooks that run in the admin form while editing (distinct from collection lifecycle hooks, which run server-side — see [Collections](./index.md)):
+
+```ts
+hooks: {
+  beforeValidate?: FieldBeforeValidateFn | FieldBeforeValidateFn[]
+  beforeChange?: FieldBeforeChangeFn | FieldBeforeChangeFn[]
+}
+```
+
+- **`beforeValidate`** is advisory: the value is always committed; returning `{ error }` displays a per-field error without blocking typing. Also runs once at submit time, before form validation.
+- **`beforeChange`** runs before the value is committed and a patch is emitted. Returning `{ value }` substitutes the committed value (trim, slug); returning `{ error }` blocks the change entirely.
+
+Both receive a `FieldHookContext`:
+
+```ts
+{
+  value: any                      // the incoming value
+  previousValue: any
+  data: Record<string, any>       // full live form data
+  path: string                    // e.g. 'files[2].filesGroup.generateThumbnail'
+  field: Field                    // the field definition
+  operation: 'change' | 'submit'
+  setFieldValue: (path: string, value: any) => void  // cross-field write
+}
+```
+
+**`setFieldValue` semantics.** It writes *another* field's value in the form store. It is a **raw** write — the target field's own hooks do not run, which forecloses hook recursion — but it is otherwise a normal form edit: it emits a `field.set` patch (so the write persists on save), marks the form dirty, and store-subscribed widgets re-render immediately. Paths use the same dot + bracket notation as `ctx.path`.
+
+**Worked example — mutual exclusivity across array items.** A collection carries a `files` array where each item can request a generated thumbnail, but only *one* file may be the thumbnail source. Checking one item's box must uncheck the others. `ctx.path` carries the item's index, so the hook knows which item it is:
+
+```ts
+// schema.ts — inside the files array's item group
+{
+  name: 'generateThumbnail',
+  label: 'Generate Thumbnail',
+  type: 'checkbox',
+  hooks: {
+    // Only one file may be the thumbnail source: checking this box
+    // unchecks every other item's checkbox. The unchecks are normal
+    // field.set patches, so they persist on save.
+    beforeChange: ({ value, path, data, setFieldValue }) => {
+      if (value !== true) return
+      const ownIndex = path.match(/^files\[(\d+)\]/)?.[1]
+      const items: any[] = Array.isArray(data.files) ? data.files : []
+      items.forEach((item, index) => {
+        if (String(index) !== ownIndex && item?.filesGroup?.generateThumbnail === true) {
+          setFieldValue(`files[${index}].filesGroup.generateThumbnail`, false)
+        }
+      })
+    },
+  },
+},
+{
+  name: 'thumbnailPage',
+  type: 'integer',
+  defaultValue: 1,
+  // Rendered only while this item's checkbox is checked — `siblingData`
+  // is this array item's scope, so each item follows its own checkbox.
+  condition: (_data, siblingData) => Boolean(siblingData.generateThumbnail),
+  helpText: 'Choose a page number from the PDF file to use as the thumbnail.',
+},
+```
+
+The radio-group behaviour composes from the two features: checking a box unchecks its siblings (persisted patches) → each write re-evaluates conditions → the old item's `thumbnailPage` hides and the new item's appears.
+
+**Server-side backstop.** Client hooks are UI-only: API writes, seeds, and pre-existing documents can still arrive with several boxes checked. If the invariant matters beyond the editor, normalise it in the collection's server-side `beforeCreate` / `beforeUpdate` hooks. Prefer the item that was *not* checked in the previous version (the newly checked one); match items across versions by their stable `_id` (read-only use — never write `_id` yourself):
+
+```ts
+// hooks.ts (collection lifecycle hooks — server-side)
+const enforceSingleThumbnailSource = (
+  data: Record<string, any>,
+  originalData?: Record<string, any>
+): void => {
+  const items: any[] = Array.isArray(data.files) ? data.files : []
+  const checked = items.filter((item) => item?.filesGroup?.generateThumbnail === true)
+  if (checked.length <= 1) return
+
+  const previousItems: any[] = Array.isArray(originalData?.files) ? originalData.files : []
+  const previouslyCheckedIds = new Set(
+    previousItems
+      .filter((item) => item?.filesGroup?.generateThumbnail === true)
+      .map((item) => item?._id)
+      .filter(Boolean)
+  )
+
+  const winner =
+    checked.find((item) => item?._id && !previouslyCheckedIds.has(item._id)) ?? checked[0]
+
+  for (const item of checked) {
+    if (item !== winner) item.filesGroup.generateThumbnail = false
+  }
+}
+
+export default defineHooks({
+  beforeCreate: ({ data }) => enforceSingleThumbnailSource(data),
+  beforeUpdate: ({ data, originalData }) => enforceSingleThumbnailSource(data, originalData),
+})
+```
+
+(`before*` hooks may mutate `data` in place by contract. If the hooks module imports server-only code, declare it via the loader form — `hooks: () => import('./hooks.js')` — see [Collections](./index.md) → "Hooks must not statically import server-only code".)
+
 ---
 
 ## Common pitfalls
@@ -428,6 +601,14 @@ The fix is always the same: find or create a data-only subpath of the package (`
 
 `aiTextFieldAdmin()` / `aiTextAreaFieldAdmin()` attach `Label` and `afterField` slots — both React. They go in `admin.tsx`, not `schema.ts`. The schema entry stays a plain `{ name, type: 'text' }`.
 
+### Hiding a required field without a default
+
+A `condition` only hides the widget — server-side validation still expects the value. A required field that is hidden on first save (its condition starts `false`) arrives empty and fails the server's schema validation, even though the client skipped it. Give conditional required fields `optional: true` or a `defaultValue`.
+
+### Expecting `condition` to prune data
+
+Hiding a field does not clear it. The stored value rides along in every save while hidden (that's deliberate — re-showing restores it, and toggling a checkbox doesn't destroy a carefully chosen sibling value). If downstream code must not see the value while the condition is off, gate on the driving field server-side (e.g. ignore `thumbnailPage` when `generateThumbnail` is false) — don't assume absence.
+
 ---
 
 ## Code map
@@ -435,6 +616,11 @@ The fix is always the same: find or create a data-only subpath of the package (`
 | Concern | Location |
 |---|---|
 | `FieldComponentSlots` + slot prop interfaces | `packages/core/src/@types/field-types.ts` |
+| `FieldCondition` + `BaseField.condition` | `packages/core/src/@types/field-types.ts` |
+| `FieldHooks` + `FieldHookContext` (incl. `setFieldValue`) | `packages/core/src/@types/field-types.ts` |
+| Condition evaluation (meta-subscribe loop) | `packages/admin/src/fields/use-field-condition.ts` |
+| Field-hook pipeline (change-time) | `packages/admin/src/fields/use-field-change-handler.ts` |
+| Field-hook pipeline (submit-time) + validation exemption | `packages/admin/src/forms/form-context.tsx` |
 | `FieldAdminConfig` (per-field admin shape) | `packages/core/src/@types/admin-types.ts` |
 | `CollectionAdminConfig` (collection-level admin shape) | `packages/core/src/@types/admin-types.ts` |
 | `RichTextEditorComponent` (per-field richtext override type) | `packages/core/src/@types/field-types.ts` |

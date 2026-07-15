@@ -23,11 +23,13 @@
  */
 
 import type { TreeNode } from '@byline/client'
-import { getPublicBylineClient } from '@byline/host-tanstack-start/integrations/byline-public-client'
 
-import type { DocFields } from '~/collections/docs/schema.js'
-import type { NewsFields } from '~/collections/news/schema.js'
-import type { PageFields } from '~/collections/pages/schema.js'
+import { getPublicBylineClient } from '~/client.server'
+import type {
+  DocsFields as DocFields,
+  NewsFields,
+  PagesFields as PageFields,
+} from '~/generated/collection-types.js'
 
 import { advertisedLocalesFor } from '@/lib/alternates'
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
@@ -48,6 +50,10 @@ export interface PublishedIndexEntry {
   advertisedLocales?: string[] | null
 }
 
+type DocsIndexFields = Pick<DocFields, 'title' | 'summary' | 'publishedOn'>
+type NewsIndexFields = Pick<NewsFields, 'title' | 'summary' | 'publishedOn'>
+type PagesIndexFields = Pick<PageFields, 'title' | 'summary' | 'area' | 'publishedOn'>
+
 const AREA_PREFIX: Record<string, string[]> = {
   about: ['about'],
   legal: ['legal'],
@@ -67,13 +73,13 @@ export async function getDocsIndex(): Promise<PublishedIndexEntry[]> {
       // applies status-at-edge, so a published doc hidden behind an unpublished
       // ancestor is omitted — its hierarchical URL would 404, exactly matching
       // the public splat route.
-      const forest = await client.collection('docs').getSubtree<DocFields>({
+      const forest = await client.collection('docs').getSubtree<DocsIndexFields>({
         select: ['title', 'summary', 'publishedOn'],
         status: 'published',
       })
 
       const entries: PublishedIndexEntry[] = []
-      const walk = (node: TreeNode<DocFields>, parentChain: string[]): void => {
+      const walk = (node: TreeNode<DocsIndexFields>, parentChain: string[]): void => {
         const doc = node.document
         const chain = [...parentChain, doc.path]
         entries.push({
@@ -98,7 +104,7 @@ export async function getNewsIndex(): Promise<PublishedIndexEntry[]> {
     ttl: INDEX_TTL_MS,
     fn: async () => {
       const client = getPublicBylineClient()
-      const result = await client.collection('news').find<NewsFields>({
+      const result = await client.collection('news').find<NewsIndexFields>({
         select: ['title', 'summary', 'publishedOn'],
         status: 'published',
         sort: { publishedOn: 'desc' },
@@ -122,7 +128,7 @@ export async function getPagesIndex(): Promise<PublishedIndexEntry[]> {
     ttl: INDEX_TTL_MS,
     fn: async () => {
       const client = getPublicBylineClient()
-      const result = await client.collection('pages').find<PageFields>({
+      const result = await client.collection('pages').find<PagesIndexFields>({
         select: ['title', 'summary', 'area', 'publishedOn'],
         status: 'published',
         pageSize: 10_000,

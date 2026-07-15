@@ -1,17 +1,13 @@
 /**
  * Locale-aware Link STUB.
  *
- * The reference webapp ships a real `LangLink` that injects an optional
- * `{-$lng}` path parameter onto TanStack Router's `<Link>` so that the
- * current locale survives client-side navigation. This stub is a thin
- * pass-through — it accepts the `lng` prop but does NOT prefix URLs.
+ * This stub is a thin pass-through: it accepts the `lng` prop but does not
+ * prefix URLs. A localized app can replace the body with a wrapper that
+ * injects its locale path parameter into TanStack Router's `<Link>`.
  *
  * If your app is single-locale, this is fine as-is.
  *
- * If you have a multi-locale strategy, replace the body with your own
- * Link wrapper. The reference implementation lives at
- *   apps/webapp/src/i18n/components/lang-link.tsx
- * in https://github.com/Byline-CMS/bylinecms.dev.
+ * If you have a multi-locale strategy, replace the body with your own Link wrapper.
  */
 
 import type React from 'react'

@@ -2,7 +2,7 @@
   "name": "@byline/core",
   "private": false,
   "license": "MPL-2.0",
-  "version": "3.16.1",
+  "version": "3.21.0",
   "engines": {
     "node": ">=20.9.0"
   },
@@ -40,6 +40,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js"
+    },
+    "./codegen": {
+      "types": "./dist/codegen/index.d.ts",
+      "import": "./dist/codegen/index.js",
+      "require": "./dist/codegen/index.js"
     },
     "./zod-schemas": {
       "types": "./dist/schemas/zod/index.d.ts",
@@ -85,19 +90,19 @@
     "@byline/auth": "workspace:*",
     "dotenv": "^17.4.2",
     "pino": "^10.3.1",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.15",
-    "@types/node": "^25.9.1",
+    "@biomejs/biome": "2.5.2",
+    "@types/node": "^26.1.0",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",
     "npm-run-all": "^4.1.5",
-    "tsc-alias": "^1.8.17",
-    "tsx": "^4.22.3",
-    "typescript": "6.0.3",
-    "vitest": "^4.1.7"
+    "tsc-alias": "^1.9.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

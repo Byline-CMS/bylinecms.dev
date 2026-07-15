@@ -207,6 +207,14 @@ export const ListView = ({
     !searchParams.order && !searchParams.desc && !searchParams.query && !searchParams.status
   const dragEnabled = orderable && isCanonicalView && !!onReorder
 
+  // The *effective* sort for the header indicators: explicit URL params win;
+  // otherwise the server echoes a configured `defaultSort` (admin config)
+  // through `meta.order`/`meta.desc`, so a params-less landing still shows
+  // which column ordered the rows. (Orderable collections never set
+  // `meta.order` — their default is the drag order, indicated separately.)
+  const activeOrder = searchParams.order ?? data?.meta.order
+  const activeDesc = searchParams.order != null ? searchParams.desc : data?.meta.desc
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -418,6 +426,8 @@ export const ListView = ({
                             scope="col"
                             align={column.align}
                             className={column.className}
+                            activeOrder={activeOrder}
+                            activeDesc={activeDesc}
                           />
                         )
                       })}
@@ -496,6 +506,8 @@ export const ListView = ({
                         scope="col"
                         align={column.align}
                         className={column.className}
+                        activeOrder={activeOrder}
+                        activeDesc={activeDesc}
                       />
                     )
                   })}

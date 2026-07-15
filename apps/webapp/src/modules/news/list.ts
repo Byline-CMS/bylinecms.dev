@@ -17,15 +17,17 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type { FindResult, WithPopulated } from '@byline/client'
 
-import type { MediaFields } from '~/collections/media/schema.js'
-import type { NewsFields } from '~/collections/news/schema.js'
-import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
+import type {
+  MediaFields,
+  NewsCategoriesFields as NewsCategoryFields,
+  NewsFields,
+} from '~/generated/collection-types.js'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 
 /**
- * News field shape with `category` and `featureImage` re-typed for populate.
- * Schema-derived `NewsFields` types those slots as the unpopulated wire
+ * Generated news field shape with `category` and `featureImage` re-typed for populate.
+ * `NewsFields` types those slots as the unpopulated wire
  * shape (`RelatedDocumentValue`); `WithPopulated` overlays the populated
  * envelope so dot-notation through `.document.fields.x` is fully checked.
  */

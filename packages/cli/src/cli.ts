@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module'
+
 import { Command } from 'commander'
 
 import { runDoctor } from './commands/doctor.js'
@@ -8,17 +10,19 @@ import { PHASE_IDS } from './phases/index.js'
 import type { PackageManager, PhaseId } from './types.js'
 
 const PACKAGE_MANAGERS: PackageManager[] = ['pnpm', 'npm', 'yarn', 'bun']
+const require = createRequire(import.meta.url)
+const packageVersion = (require('../package.json') as { version: string }).version
 
 const program = new Command()
 
 program
   .name('byline')
   .description('Guided installer for Byline CMS into a TanStack Start application')
-  .version('0.1.0')
+  .version(packageVersion)
 
 program
   .command('init')
-  .description('Run the guided installer (resumes from the last completed phase)')
+  .description('Run the guided installer (re-detects current installation state)')
   .option('--from <phase>', `start from phase (${PHASE_IDS.join('|')})`)
   .option('--to <phase>', 'stop after phase')
   .option('--only <phase>', 'run a single phase')
@@ -27,6 +31,7 @@ program
   .option('-y, --yes', 'assume yes to non-write prompts')
   .option('--reset', 'destructive: drop existing database in db-init')
   .option('--i-mean-it', 'second confirmation required by --reset')
+  .option('--force', 're-run phases even when detection reports them complete')
   .option('--pm <pm>', `force package manager: ${PACKAGE_MANAGERS.join('|')}`)
   .option('-q, --quiet', 'suppress decorative output')
   .option('--no-color', 'disable color output')
@@ -45,6 +50,7 @@ program
       yes: opts.yes as boolean | undefined,
       reset: opts.reset as boolean | undefined,
       resetIMeanIt: opts.iMeanIt as boolean | undefined,
+      force: opts.force as boolean | undefined,
       pm: opts.pm as PackageManager | undefined,
       quiet: opts.quiet as boolean | undefined,
       noColor: opts.color === false,

@@ -58,9 +58,9 @@
 import { createHash } from 'node:crypto'
 
 import { defineHooks } from '@byline/core'
-import { getSystemBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
 
 import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
+import { getSystemBylineClient } from '../../client.server.js'
 
 // Search indexing rides the same lifecycle hooks as cache invalidation. The
 // orchestration lives in `@byline/client`: `indexDocument` re-reads the
@@ -77,27 +77,27 @@ export default defineHooks({
     console.log(
       `afterCreate: document ${documentId} created in '${collectionPath}' (content fingerprint ${fingerprint})`
     )
-    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
+    await invalidateDocument('docs', path, { list: true, sitemap: true })
+    await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
-  afterUpdate: async ({ collectionPath, path, documentId, originalData }) => {
-    await invalidateDocument(collectionPath, path, {
+  afterUpdate: async ({ path, documentId, originalData }) => {
+    await invalidateDocument('docs', path, {
       prevPath: (originalData as { path?: string } | undefined)?.path,
       list: true,
     })
-    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
-  afterStatusChange: async ({ collectionPath, path, documentId }) => {
-    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
+  afterStatusChange: async ({ path, documentId }) => {
+    await invalidateDocument('docs', path, { list: true, sitemap: true })
+    await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
-  afterUnpublish: async ({ collectionPath, path, documentId }) => {
-    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
+  afterUnpublish: async ({ path, documentId }) => {
+    await invalidateDocument('docs', path, { list: true, sitemap: true })
+    await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
-  afterDelete: async ({ collectionPath, path, documentId }) => {
-    await invalidateDocument(collectionPath, path, { list: true, sitemap: true })
-    await getSystemBylineClient().collection(collectionPath).removeFromIndex(documentId)
+  afterDelete: async ({ path, documentId }) => {
+    await invalidateDocument('docs', path, { list: true, sitemap: true })
+    await getSystemBylineClient().collection('docs').removeFromIndex(documentId)
   },
   // A structural tree change (place / reorder / re-parent / promote-on-delete)
   // ripples across the affected set — every moved node, its descendants, and
@@ -106,5 +106,5 @@ export default defineHooks({
   // sweep (detail + list + sitemap) is the pragmatic correct choice over
   // resolving the affected ids to paths. See docs/04-collections/03-document-trees.md →
   // "Invalidation contract".
-  afterTreeChange: ({ collectionPath }) => invalidateCollection(collectionPath),
+  afterTreeChange: () => invalidateCollection('docs'),
 })

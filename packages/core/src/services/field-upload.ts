@@ -186,23 +186,41 @@ function normalizeUploadHook<T>(hook: T | T[] | undefined): T[] {
 }
 
 /**
+ * Resolved output of the `beforeStore` chain.
+ */
+interface BeforeStoreChainResult {
+  /** The effective stored filename after all overrides. */
+  filename: string
+  /**
+   * Explicit storage key set via `{ storagePath }`, written verbatim
+   * through `UploadFileOptions.targetStoragePath`. `undefined` → the
+   * storage provider derives the key from `filename` + `collection`.
+   */
+  storagePath?: string
+}
+
+/**
  * Run the `beforeStore` chain. Each function receives the previous
- * function's filename override (fold). A function may:
+ * function's filename / storage-path overrides (fold). A function may:
  *
  *   - return a string or `{ filename }` to substitute a new filename;
+ *   - return `{ storagePath }` to take full control of the storage key
+ *     (bypasses provider key derivation — no UUID prefix). When set
+ *     without `filename`, the filename defaults to the path's basename;
  *   - return `{ error }` to short-circuit with `ERR_VALIDATION`;
- *   - return `void` / `undefined` to leave the filename unchanged.
+ *   - return `void` / `undefined` to leave current values unchanged.
  *
- * Returns the resolved filename.
+ * Returns the resolved filename and optional storage path.
  */
 async function runBeforeStoreChain(
   hooks: BeforeStoreHookFn[],
   ctx: BeforeStoreContext,
   logger: BylineLogger
-): Promise<string> {
+): Promise<BeforeStoreChainResult> {
   let effective = ctx.filename
+  let effectiveStoragePath: string | undefined
   for (const fn of hooks) {
-    const result = await fn({ ...ctx, filename: effective })
+    const result = await fn({ ...ctx, filename: effective, storagePath: effectiveStoragePath })
     if (result == null) continue
     if (typeof result === 'string') {
       const trimmed = result.trim()
@@ -219,13 +237,36 @@ async function runBeforeStoreChain(
           runBeforeStoreChain
         ).log(logger)
       }
+      let filenameOverridden = false
       if ('filename' in result && typeof result.filename === 'string') {
         const trimmed = result.filename.trim()
-        if (trimmed) effective = trimmed
+        if (trimmed) {
+          effective = trimmed
+          filenameOverridden = true
+        }
+      }
+      if ('storagePath' in result && typeof result.storagePath === 'string') {
+        // Normalise: POSIX-style, no leading slash (matches the
+        // UploadFileOptions.targetStoragePath contract).
+        const trimmed = result.storagePath.trim().replace(/^\/+/, '')
+        if (trimmed) {
+          effectiveStoragePath = trimmed
+          // Keep the stored filename in sync with the explicit key
+          // unless the hook also set filename itself.
+          if (!filenameOverridden) {
+            effective = posixBasename(trimmed)
+          }
+        }
       }
     }
   }
-  return effective
+  return { filename: effective, storagePath: effectiveStoragePath }
+}
+
+/** Last path segment of a POSIX-style storage path. */
+function posixBasename(storagePath: string): string {
+  const idx = storagePath.lastIndexOf('/')
+  return idx === -1 ? storagePath : storagePath.slice(idx + 1)
 }
 
 export async function uploadField(
@@ -329,27 +370,33 @@ export async function uploadField(
       // graphs out of the client bundle; the inline form returns as-is.
       const uploadHooks = await resolveUploadHooks(upload.hooks)
       const beforeStoreHooks = normalizeUploadHook<BeforeStoreHookFn>(uploadHooks?.beforeStore)
-      const effectiveFilename = await runBeforeStoreChain(
-        beforeStoreHooks,
-        {
-          fieldName,
-          field,
-          filename: sanitised,
-          mimeType,
-          fileSize,
-          fields,
-          collectionPath,
-          requestContext: ctx.requestContext ?? {
-            actor: null,
-            requestId: '',
-            readMode: 'any',
+      const { filename: effectiveFilename, storagePath: effectiveStoragePath } =
+        await runBeforeStoreChain(
+          beforeStoreHooks,
+          {
+            fieldName,
+            field,
+            filename: sanitised,
+            mimeType,
+            fileSize,
+            fields,
+            collectionPath,
+            requestContext: ctx.requestContext ?? {
+              actor: null,
+              requestId: '',
+              readMode: 'any',
+            },
+            storage,
           },
-        },
-        logger
-      )
+          logger
+        )
 
       // -- Storage write. Filename is the post-hook value, so generated
-      //    variants automatically inherit the new prefix.
+      //    variants automatically inherit the new prefix. An explicit
+      //    `storagePath` from the chain is threaded through as
+      //    `targetStoragePath`, which providers write verbatim (no UUID
+      //    prefix / key derivation) — variants still derive sibling paths
+      //    from the resulting `storedFile.storagePath`.
       let storedFile: StoredFileLocation
       try {
         storedFile = await storage.upload(buffer, {
@@ -357,6 +404,7 @@ export async function uploadField(
           mimeType,
           size: fileSize,
           collection: collectionPath,
+          ...(effectiveStoragePath !== undefined && { targetStoragePath: effectiveStoragePath }),
         })
       } catch (err: unknown) {
         throw ERR_STORAGE(
@@ -441,6 +489,7 @@ export async function uploadField(
               requestId: '',
               readMode: 'any',
             },
+            storage,
           }
           await fn(afterCtx)
         } catch (err: unknown) {

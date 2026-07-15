@@ -14,6 +14,7 @@ import { normaliseDateFields } from '../../utils/normalise-dates.js'
 import { slugify } from '../../utils/slugify.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
+import { normalizeNumericFields } from '../normalize-numeric-fields.js'
 import {
   actorId,
   appendTreeRoot,
@@ -39,8 +40,8 @@ export interface CreateDocumentResult {
  *   1. Default-locale enforcement: reject if `params.locale` is anything
  *      other than the configured default content locale (a brand-new
  *      document's canonical `path` lives in the default locale).
- *   2. `normaliseDateFields(data)`
- *   3. `hooks.beforeCreate({ data, collectionPath })`
+ *   2. Normalize date and numeric fields
+ *   3. `hooks.beforeCreate({ data, collectionPath })`, then normalize numerics again
  *   4. Resolve `path` — explicit `params.path` → derive via `useAsPath`
  *      → UUID fallback.
  *   5. `db.commands.documents.createDocumentVersion(...)` (action = 'create')
@@ -85,8 +86,10 @@ export async function createDocument(
       }
 
       normaliseDateFields(data)
+      normalizeNumericFields(definition.fields, data)
 
       await invokeHook(hooks?.beforeCreate, { data, collectionPath })
+      normalizeNumericFields(definition.fields, data)
 
       // Allocate counter-field values after beforeCreate so user-land hooks
       // can run their own logic on the raw payload, but before the flatten/

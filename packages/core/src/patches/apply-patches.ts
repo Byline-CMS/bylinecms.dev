@@ -82,7 +82,7 @@ export function resolveFieldForPath(
   if (segments.length === 0) return null
 
   const [first, ...rest] = segments
-  if (!first || first.kind !== 'field') return null
+  if (first?.kind !== 'field') return null
 
   let current: Field | undefined = definition.fields.find((f) => f.name === first.key)
   if (!current) return null
@@ -263,6 +263,27 @@ function resolveArrayAtPath(doc: any, path: PatchPath): any[] {
   return parent[key]
 }
 
+/**
+ * Resolve an `itemId` to an array index: stable `_id` match first, then —
+ * only when `itemId` is a *pure* integer string — an index fallback for
+ * items that have no stable id yet (e.g. added client-side by an older
+ * admin that did not assign `_id` at add time). The strict `^\d+$` test
+ * matters: `Number.parseInt` accepts leading digits, so a real-but-absent
+ * uuid like `'3f2a…'` would otherwise silently resolve to index 3 and the
+ * patch would hit the wrong item.
+ *
+ * Returns -1 when the item cannot be located either way.
+ */
+function resolveItemIndex(array: any[], itemId: string): number {
+  const byId = array.findIndex((item) => item && item._id === itemId)
+  if (byId !== -1) return byId
+  if (/^\d+$/.test(itemId)) {
+    const index = Number.parseInt(itemId, 10)
+    if (index >= 0 && index < array.length) return index
+  }
+  return -1
+}
+
 function applyArrayPatch(doc: any, patch: ArrayPatch, definition: CollectionDefinition) {
   const array = resolveArrayAtPath(doc, patch.path)
 
@@ -270,12 +291,9 @@ function applyArrayPatch(doc: any, patch: ArrayPatch, definition: CollectionDefi
     const index = patch.index ?? array.length
     array.splice(index, 0, patch.item)
   } else if (patch.kind === 'array.move') {
-    const currentIndex = array.findIndex((item) => item && item._id === patch.itemId)
+    const index = resolveItemIndex(array, patch.itemId)
 
-    // Fallback for arrays without stable ids: treat itemId as an index
-    const index = currentIndex === -1 ? Number.parseInt(patch.itemId, 10) : currentIndex
-
-    if (!Number.isFinite(index) || index < 0 || index >= array.length) {
+    if (index === -1) {
       throw new Error(`array.move: item with idOrIndex=${patch.itemId} not found`)
     }
 
@@ -283,8 +301,13 @@ function applyArrayPatch(doc: any, patch: ArrayPatch, definition: CollectionDefi
     const toIndex = patch.toIndex ?? array.length
     array.splice(toIndex, 0, moved)
   } else if (patch.kind === 'array.remove') {
-    const index = array.findIndex((item) => item && item._id === patch.itemId)
+    const index = resolveItemIndex(array, patch.itemId)
     if (index === -1) {
+      // Removal is idempotent — an item that is already gone stays gone.
+      // (Historically this branch also swallowed a client bug where the
+      // admin sent a positional id for `_id`-carrying items; the admin now
+      // sends `_id` and the index fallback above covers id-less items, so
+      // reaching here should be rare.)
       return
     }
     array.splice(index, 1)

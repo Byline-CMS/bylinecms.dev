@@ -17,6 +17,7 @@ export async function runDoctor(): Promise<void> {
     yes: true,
     reset: false,
     resetConfirmed: false,
+    pm: state.get().answers.pm,
     cliFlags: {},
     logger,
     prompter,

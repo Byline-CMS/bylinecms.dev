@@ -466,6 +466,7 @@
   "fields.relation.picker.addSelected": "添加所选（{count}）",
   "fields.relation.picker.alreadyAdded": "已添加",
   "fields.file.empty": "未选择文件",
+  "fields.upload.requireSavedDocument": "必须先保存此文档，然后才能在此上传文件。",
   "fields.file.downloadAriaLabel": "下载文件",
   "fields.file.removeAriaLabel": "移除文件",
   "fields.file.openInNewTabAriaLabel": "在新标签页中打开 {filename}",

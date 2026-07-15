@@ -104,7 +104,7 @@ const complexProductDocument = {
       ],
     },
   },
-  price: 299.99,
+  price: '299.99',
   inStock: true,
   releaseDate: new Date('2024-01-15T10:00:00Z'),
   images: [

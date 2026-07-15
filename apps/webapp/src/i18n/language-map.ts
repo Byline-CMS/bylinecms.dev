@@ -7,9 +7,9 @@ export type LanguageMap = Record<string, { nativeName: string }>
 // different set. Keep in sync with `i18nConfig.locales` (`src/i18n/i18n-config.ts`).
 //
 // The *content* locale labels (which languages a document can be published
-// in) are NOT defined here — they are owned by Byline (`byline/locales.ts`
-// → contentLocales) and consumed directly by available-languages.tsx, so
-// there is no parallel map to drift.
+// in) are NOT defined here — `i18n-config.ts` derives and exports them from
+// Byline's client-safe `byline/public.ts` barrel, so there is no parallel map
+// to drift.
 export const interfaceLanguageMap: LanguageMap = {
   en: { nativeName: 'English' },
   fr: { nativeName: 'Français' },

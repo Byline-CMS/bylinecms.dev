@@ -13,7 +13,7 @@ import type {
   StoredFileValue,
   ValueField,
 } from '@byline/core'
-import { ERR_DATABASE, getLogger } from '@byline/core'
+import { ERR_DATABASE, getLogger, isCanonicalNumericValue } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
 import type { FlattenedFieldValue } from './@types.js'
@@ -80,6 +80,18 @@ function* flattenFieldDataGen(
   locale: string,
   field_path: string[]
 ): Generator<FlattenedFieldValue> {
+  // Virtual fields are never persisted. The value participated in the write
+  // pipeline (patches applied it, lifecycle hooks saw and could act on it),
+  // but no store_* row is written, so reads reconstruct the field as absent
+  // and the next editing session starts clean. This is the single
+  // enforcement point for the `virtual` contract — every nesting level
+  // (top-level, group children, array items, block fields) funnels through
+  // this function, and a virtual structure field omits its whole subtree.
+  // See `BaseField.virtual` in @byline/core.
+  if (field.virtual === true) {
+    return
+  }
+
   // Treat `null` the same as `undefined` — a removed/cleared field emits no
   // storage rows for the new version, so reads reconstruct as absent. Without
   // this guard, downstream value extractors (relation, file/image, group,
@@ -212,6 +224,7 @@ const flattenValueFieldData = (
       }
 
     case 'float':
+      assertCanonicalNumericValue(field_type, value, field_path)
       return {
         locale,
         field_path,
@@ -221,7 +234,7 @@ const flattenValueFieldData = (
       }
 
     case 'integer':
-    case 'counter':
+      assertCanonicalNumericValue(field_type, value, field_path)
       return {
         locale,
         field_path,
@@ -230,7 +243,20 @@ const flattenValueFieldData = (
         value_integer: value as number,
       }
 
+    case 'counter':
+      if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
+        throwNonCanonicalNumericValue(field_type, value, field_path)
+      }
+      return {
+        locale,
+        field_path,
+        field_type: 'numeric',
+        number_type: 'integer',
+        value_integer: value,
+      }
+
     case 'decimal':
+      assertCanonicalNumericValue(field_type, value, field_path)
       return {
         locale,
         field_path,
@@ -336,4 +362,25 @@ const flattenValueFieldData = (
         details: { fieldType: field_type },
       }).log(getLogger())
   }
+}
+
+function assertCanonicalNumericValue(
+  fieldType: 'integer' | 'float' | 'decimal',
+  value: unknown,
+  fieldPath: string[]
+): asserts value is number | string {
+  if (!isCanonicalNumericValue(fieldType, value)) {
+    throwNonCanonicalNumericValue(fieldType, value, fieldPath)
+  }
+}
+
+function throwNonCanonicalNumericValue(
+  fieldType: 'integer' | 'float' | 'decimal' | 'counter',
+  value: unknown,
+  fieldPath: string[]
+): never {
+  throw ERR_DATABASE({
+    message: `non-canonical ${fieldType} value reached storage at '${fieldPath.join('.')}'`,
+    details: { path: fieldPath.join('.'), fieldType, value },
+  })
 }

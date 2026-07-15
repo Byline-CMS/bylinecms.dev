@@ -142,6 +142,52 @@ export interface UploadConfig {
    * @see UploadHooks
    */
   hooks?: UploadHooks | UploadHooksLoader
+  /**
+   * Form-value paths the admin upload executor resolves at submit time and
+   * posts alongside the file, so server-side `beforeStore` / `afterStore`
+   * hooks receive document context in `ctx.fields` (always strings —
+   * multipart form values arrive untyped).
+   *
+   * Paths use filesystem-style resolution relative to the upload field's
+   * containing scope. For a field at `files[2].filesGroup.publicationFile`:
+   *
+   *   - `'language'` (bare / `./`) → sibling: `files[2].filesGroup.language`
+   *   - `'../label'` → one level up: `files[2].label`
+   *   - `'/serialNumber'` → document root: `serialNumber`
+   *
+   * Each resolved value is posted under the path's **leaf name** (`language`,
+   * `serialNumber`); when two context paths share a leaf name the later
+   * declaration wins. Serialisation: strings pass through; numbers/booleans
+   * are stringified; relation envelopes post their `targetDocumentId`
+   * (hasMany: comma-joined); `null`/`undefined` values are omitted; anything
+   * else is JSON-stringified.
+   *
+   * Independent of `context`, the executor always posts `documentId` (edit
+   * mode only — absent while the document is unsaved) and `fieldPath` (the
+   * full form path of the upload field, e.g.
+   * `files[2].filesGroup.publicationFile`).
+   *
+   * Hooks must treat all of these as **client-supplied claims** and re-verify
+   * anything security- or integrity-relevant server-side (e.g. fetch the
+   * document by `documentId` rather than trusting a posted serial).
+   */
+  context?: string[]
+  /**
+   * When `true`, the admin renders a "save this document first" notice in
+   * place of the upload widget until the document has been persisted (i.e.
+   * the form is in edit mode with a document id). Existing stored values
+   * still render normally — only the *upload* affordance is gated.
+   *
+   * Use this when server-side upload hooks depend on state that exists only
+   * after the first save — allocator-assigned `counter` fields, the document
+   * id itself — e.g. a `beforeStore` hook that derives the storage key from
+   * the document's serial number.
+   *
+   * Admin-side UX only: API callers can still upload without a document.
+   * Enforce the invariant server-side in a `beforeStore` hook (reject with
+   * `{ error }` when the required context is missing).
+   */
+  requireSavedDocument?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -590,7 +636,19 @@ export interface TreeChangeContext {
  *
  *   - Rename the file by returning a string or `{ filename }`. The
  *     override is threaded into `storage.upload(...)`, so generated
- *     image variants automatically inherit the new prefix.
+ *     image variants automatically inherit the new prefix. The storage
+ *     provider still derives the final key (e.g. local storage prefixes
+ *     `<collection>/<uuid>-` for collision avoidance).
+ *   - Take **full control of the storage key** by returning
+ *     `{ storagePath }` — a fully-qualified, POSIX-style path (no
+ *     leading slash) that is threaded into `storage.upload(...)` as
+ *     `targetStoragePath` and written **verbatim**: no UUID prefix, no
+ *     collection namespace, no provider rewriting. The hook assumes
+ *     responsibility for sanitisation and collision avoidance (see
+ *     `UploadFileOptions.targetStoragePath`). Generated image variants
+ *     derive their sibling paths from the custom original. When
+ *     `storagePath` is returned without `filename`, the stored
+ *     `filename` defaults to the path's basename.
  *   - Reject the upload by returning `{ error }`. Surfaces as
  *     `ERR_VALIDATION` with the supplied message; no file is written,
  *     no variants are generated, no document is created, no later
@@ -599,7 +657,8 @@ export interface TreeChangeContext {
  *
  * When configured as an array, hooks fold: each function receives the
  * filename returned by the previous function (or the original sanitised
- * filename if the previous returned `void`).
+ * filename if the previous returned `void`), and `ctx.storagePath`
+ * carries the most recent explicit storage-path override (if any).
  */
 export interface BeforeStoreContext {
   /** Name of the image/file field receiving this upload. */
@@ -608,6 +667,12 @@ export interface BeforeStoreContext {
   field: ImageField | FileField
   /** Sanitised default filename. Hooks may override. */
   filename: string
+  /**
+   * Explicit storage-path override set by an earlier hook in the chain
+   * (via `{ storagePath }`), if any. `undefined` means the storage
+   * provider will derive the key itself from `filename` + `collection`.
+   */
+  storagePath?: string
   mimeType: string
   fileSize: number
   /**
@@ -620,21 +685,34 @@ export interface BeforeStoreContext {
   collectionPath: string
   /** Authenticated request context. `actor.id`, `actor.tenantId`, etc. for prefixing. */
   requestContext: RequestContext
+  /**
+   * The storage provider this upload will be written to (the field's
+   * `upload.storage` or the site-wide default). Lets hooks feature-detect
+   * and use the optional provider capabilities — e.g. `storage.exists?.(key)`
+   * to collision-check an explicit `{ storagePath }` before claiming it.
+   */
+  storage: IStorageProvider
 }
 
 /**
  * Result returned by a `beforeStore` hook.
  *
  *   - `string`            → override filename (shorthand).
- *   - `{ filename }`      → override filename (object form).
+ *   - `{ filename }`      → override filename (object form). The storage
+ *                           provider still derives the final key.
+ *   - `{ storagePath }`   → take full control of the storage key: written
+ *                           verbatim via `UploadFileOptions.targetStoragePath`
+ *                           (no UUID prefix / provider rewriting). May be
+ *                           combined with `filename`; without it, the stored
+ *                           filename defaults to the path's basename.
  *   - `{ error }`         → reject the upload; surfaces as
  *                           `ERR_VALIDATION`. Short-circuits the chain.
  *   - `void` / undefined  → keep current defaults.
  */
 export type BeforeStoreResult =
   | string
-  | { filename?: string; error?: undefined }
-  | { error: string; filename?: undefined }
+  | { filename?: string; storagePath?: string; error?: undefined }
+  | { error: string; filename?: undefined; storagePath?: undefined }
   | void
 
 /**
@@ -668,6 +746,11 @@ export interface AfterStoreContext {
   fields: Record<string, string>
   collectionPath: string
   requestContext: RequestContext
+  /**
+   * The storage provider the file was written to. See
+   * {@link BeforeStoreContext.storage}.
+   */
+  storage: IStorageProvider
 }
 
 /** An `afterStore` hook function. Async-capable. */
@@ -1047,9 +1130,7 @@ export interface CollectionDefinition {
    *   Text fields contribute their value; `richText` fields are extracted to
    *   plain text via the registered `fields.richText.toText` seam. Each entry
    *   is a field path, or `{ field, boost }` to weight it for scoring
-   *   providers that support `capabilities.weighting`. Drives the admin
-   *   list-view search box (its `store_text` subset). Falls back to the
-   *   identity field (`useAsTitle`) when omitted.
+   *   providers that support `capabilities.weighting`.
    * - `facets` — relation field paths to controlled-vocabulary collections.
    *   Core resolves each target's `counter` field (the stable aggregation id)
    *   and its `useAsTitle` (the term, folded into searchable text). `{ field,
@@ -1069,6 +1150,27 @@ export interface CollectionDefinition {
     filters?: string[]
     zones?: string[]
   }
+  /**
+   * Admin list-view quick-search fields — the top-level text-store field
+   * names (`text` / `textArea` / `select`) the list route's search box
+   * matches with substring (`ILIKE`) queries against `store_text`.
+   *
+   * Deliberately separate from `search`, which configures provider indexing
+   * for site search: the two answer different questions ("find the row I
+   * mean" vs. "rank relevant published content") and need not name the same
+   * fields — a collection with a six-field weighted `search.body` typically
+   * wants only its identity field (plus maybe a serial/code field) here.
+   * Declaring one without the other is equally valid: `listSearch` with no
+   * `search` keeps the list box working on an unindexed collection.
+   *
+   * Falls back to the identity field (`useAsTitle`, else the first declared
+   * text field) when omitted — most collections need no declaration.
+   *
+   * Lives on the schema (not admin config) for the same reason as
+   * `useAsTitle`: the query layer (`findDocuments` in the db adapter)
+   * resolves it server-side from the `CollectionDefinition`.
+   */
+  listSearch?: string[]
   /**
    * The field that represents this document's identity — used anywhere a
    * single-line label for the document is needed: form headings, relation
@@ -1231,6 +1333,14 @@ export type CollectionFieldData<C extends CollectionDefinition> = FieldSetData<C
 export type CollectionFieldDataAllLocales<C extends CollectionDefinition> = FieldSetDataAllLocales<
   C['fields']
 >
+
+/** Broad collection registry used when an application has not supplied its schema types. */
+export type CollectionRegistry = Record<string, Record<string, any>>
+
+/** Infer a path-to-fields registry from a shared readonly collection-definition tuple. */
+export type InferCollectionRegistry<TCollections extends readonly CollectionDefinition[]> = {
+  [TCollection in TCollections[number] as TCollection['path']]: CollectionFieldData<TCollection>
+}
 
 // ---------------------------------------------------------------------------
 // Block helpers — mirrors of defineCollection / CollectionFieldData / etc.

@@ -43,7 +43,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export interface FinalizeSearchHitsParams {
-  client: BylineClient
+  client: BylineClient<any>
   requestContext: RequestContext
   hits: SearchHit[]
   locale?: string
@@ -195,7 +195,7 @@ export async function finalizeSearchHits(
  * ability error only when the actor can read none of the members.
  */
 export async function zoneSearch(
-  client: BylineClient,
+  client: BylineClient<any>,
   options: ZoneSearchOptions
 ): Promise<ClientSearchResults> {
   const provider = client.searchProvider

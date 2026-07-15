@@ -28,12 +28,14 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type { ClientDocument, WithPopulated } from '@byline/client'
 
-import type { MediaFields } from '~/collections/media/schema.js'
-import type { PageFields } from '~/collections/pages/schema.js'
+import type { MediaFields, PagesFields as PageFields } from '~/generated/collection-types.js'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
+import type { WithPopulatedPhotoBlockContent } from '@/lib/content-types'
 
-export type PageDetailsFields = WithPopulated<PageFields, 'featureImage', MediaFields>
+export type PageDetailsFields = WithPopulatedPhotoBlockContent<
+  WithPopulated<PageFields, 'featureImage', MediaFields>
+>
 
 export type PageDetailsResult = ClientDocument<PageDetailsFields> | null
 

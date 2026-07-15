@@ -110,4 +110,27 @@ export interface IStorageProvider {
    * signing logic here.
    */
   getUrl(storagePath: string): string
+
+  /**
+   * Move (re-key) a previously stored file from one `storage_path` to
+   * another, returning the new location metadata. The destination path is
+   * written verbatim — same contract as `UploadFileOptions.targetStoragePath`
+   * (POSIX-style, no leading slash; the caller owns sanitisation and
+   * collision avoidance). Throws if the source does not exist.
+   *
+   * **Optional capability** — both first-party providers (`storage-local`,
+   * `storage-s3`) implement it, but custom providers may not. Callers must
+   * feature-detect (`if (storage.move) …`) before relying on it.
+   */
+  move?(fromPath: string, toPath: string): Promise<StoredFileLocation>
+
+  /**
+   * Report whether a file exists at the given `storage_path`. Useful for
+   * collision checks when callers (e.g. `beforeStore` hooks assigning
+   * explicit storage keys via `{ storagePath }`) need to guarantee a key
+   * is free before claiming it.
+   *
+   * **Optional capability** — see `move`.
+   */
+  exists?(storagePath: string): Promise<boolean>
 }

@@ -128,39 +128,39 @@ construction.
 ### The single reach into Byline
 
 The host frontend needs to know Byline's content-locale set, and it gets it from
-**one** place: `apps/webapp/byline/locales.ts`. That file is a dependency-free
-leaf module — plain data, **zero** `@byline/*` imports — precisely so the public
-frontend can import the locale arrays without dragging the admin translation
-graph (`@byline/i18n/admin` and its Lexical-adjacent module tree) into the public
-client bundle.
+**one** explicit boundary: `apps/webapp/byline/public.ts`. That client-safe barrel
+re-exports the dependency-free locale definitions and route data, but no admin or
+server configuration. Public code therefore cannot accidentally drag the admin
+translation graph (`@byline/i18n/admin` and its Lexical-adjacent module tree) into
+the public client bundle.
 
 ```ts
-// apps/webapp/byline/locales.ts
+// apps/webapp/byline/locales.ts (re-exported by byline/public.ts)
 export const interfaceLocales = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
-]
+] as const satisfies readonly LocaleDefinition[]
 
 export const contentLocales = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
   { code: 'es', label: 'Español' },
   { code: 'de', label: 'Deutsch' },
-] as const
+] as const satisfies readonly LocaleDefinition[]
 ```
 
 `byline/i18n.ts` consumes these to assemble the `defineServerConfig` /
 `defineClientConfig` payload; the public frontend's `src/i18n/i18n-config.ts`
-imports `contentLocales` directly to build its `routableLocales`. The host
+imports `contentLocales` through `~/public` to build its `routableLocales` and
+label map. The host
 authors the display labels here once (`Français`, not CLDR's lowercase
 `français`), and the server-side consumers (sitemap / `getMeta`) read the same
 set via `getServerConfig().i18n.content.localeDefinitions` — one source of truth,
 no parallel map.
 
 :::tip[Why not call Byline's config getters from the public client bundle?]
-`getServerConfig()` / `getPublicConfig()` pull in the admin graph and are
-server-only. The leaf `locales.ts` is the deliberate, bundle-safe seam — import
-*it*, not `byline/i18n.ts`, from public client code.
+Runtime config getters are not the public client boundary. Import from
+`byline/public.ts`, not `byline/i18n.ts`, in public client code.
 :::
 
 ### Reference implementation files
@@ -186,4 +186,3 @@ intersection `availableLocales ∩ _availableVersionLocales` (see
 `resolveAlternates(...)` turns it into `{ canonical, alternates, xDefaultPath }`,
 the single resolver that `hreflang` meta — and a `sitemap.xml` — both derive
 from, so the two can never drift.
-

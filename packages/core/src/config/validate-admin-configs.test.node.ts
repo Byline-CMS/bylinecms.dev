@@ -234,6 +234,54 @@ describe('validateAdminConfigs', () => {
     )
   })
 
+  // Rule 7 — defaultSort sanity.
+  it('accepts a defaultSort on a schema field', () => {
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      defaultSort: { field: 'title', direction: 'desc' },
+    }
+    expect(() => validateAdminConfigs([admin], [collection])).not.toThrow()
+  })
+
+  it('accepts a defaultSort on a document column', () => {
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      defaultSort: { field: 'updatedAt' },
+    }
+    expect(() => validateAdminConfigs([admin], [collection])).not.toThrow()
+  })
+
+  it('rejects a defaultSort field that resolves to nothing', () => {
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      defaultSort: { field: 'nonexistent' },
+    }
+    expect(() => validateAdminConfigs([admin], [collection])).toThrow(
+      /defaultSort\.field "nonexistent"/
+    )
+  })
+
+  it('rejects a defaultSort direction outside asc/desc', () => {
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      defaultSort: { field: 'title', direction: 'sideways' as 'asc' },
+    }
+    expect(() => validateAdminConfigs([admin], [collection])).toThrow(
+      /defaultSort\.direction must be 'asc' or 'desc'/
+    )
+  })
+
+  it('rejects a defaultSort on an orderable collection', () => {
+    const orderableCollection: CollectionDefinition = { ...collection, orderable: true }
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      defaultSort: { field: 'title' },
+    }
+    expect(() => validateAdminConfigs([admin], [orderableCollection])).toThrow(
+      /not allowed on an orderable collection/
+    )
+  })
+
   // Layout omitted — bookkeeping skipped, primitive declarations still checked.
   it('skips placement bookkeeping when layout is omitted', () => {
     const admin: CollectionAdminConfig = {

@@ -102,6 +102,30 @@ describe('validateCollections', () => {
     expect(() => validateCollections([collection])).not.toThrow()
   })
 
+  it('accepts useAsPath pointing at a counter field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'serialNumber', label: 'Serial Number', type: 'counter', group: 'serials' },
+      ],
+      useAsPath: 'serialNumber',
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('accepts useAsPath pointing at an integer field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'issue', label: 'Issue', type: 'integer' },
+      ],
+      useAsPath: 'issue',
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
   // useAsPath deliberately resolves against top-level fields only. A
   // nested source (inside a group, array, or block) isn't addressable
   // in the derivation cascade — path is a singular identity anchor, not
@@ -264,5 +288,217 @@ describe('validateCollections', () => {
       orderable: true,
     }
     expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  // -------------------------------------------------------------------------
+  // Virtual fields
+  // -------------------------------------------------------------------------
+
+  it('accepts an optional virtual field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'regenerate',
+          label: 'Regenerate',
+          type: 'checkbox',
+          virtual: true,
+          optional: true,
+        },
+      ],
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('accepts a virtual field with a defaultValue', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'page', label: 'Page', type: 'integer', virtual: true, defaultValue: 1 },
+      ],
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('rejects a required virtual field with no defaultValue', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'regenerate', label: 'Regenerate', type: 'checkbox', virtual: true },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(
+      /virtual field "regenerate".*optional.*defaultValue/s
+    )
+  })
+
+  it('rejects a required virtual field nested in an array group — error names the full path', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'files',
+          label: 'Files',
+          type: 'array',
+          fields: [
+            {
+              name: 'filesGroup',
+              type: 'group',
+              fields: [
+                { name: 'generateThumbnail', label: 'Generate', type: 'checkbox', virtual: true },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/files\.filesGroup\.generateThumbnail/)
+  })
+
+  it('rejects a virtual counter field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'serial',
+          label: 'Serial',
+          type: 'counter',
+          group: 'serials',
+          virtual: true,
+          optional: true,
+        },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/virtual counter field/)
+  })
+
+  it('rejects a virtual upload-capable file field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'attachment',
+          label: 'Attachment',
+          type: 'file',
+          virtual: true,
+          optional: true,
+          upload: { mimeTypes: ['application/pdf'] },
+        },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/virtual upload field/)
+  })
+
+  it('accepts a virtual file field WITHOUT an upload block', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'scratchFile', label: 'Scratch', type: 'file', virtual: true, optional: true },
+      ],
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('rejects useAsTitle pointing at a virtual field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      useAsTitle: 'ephemeral',
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'ephemeral', label: 'Ephemeral', type: 'text', virtual: true, optional: true },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/useAsTitle.*virtual/s)
+  })
+
+  it('rejects useAsPath pointing at a virtual field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      useAsPath: 'ephemeral',
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'ephemeral', label: 'Ephemeral', type: 'text', virtual: true, optional: true },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/useAsPath.*virtual/s)
+  })
+
+  it('rejects a search body entry referencing a virtual field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      search: { body: ['title', 'ephemeral'] },
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'ephemeral', label: 'Ephemeral', type: 'text', virtual: true, optional: true },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/search/)
+  })
+
+  it('accepts a virtual field that search does not reference', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      search: { body: ['title'] },
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'ephemeral', label: 'Ephemeral', type: 'text', virtual: true, optional: true },
+      ],
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('accepts listSearch naming text-store fields', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      listSearch: ['title', 'summary', 'kind'],
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'summary', label: 'Summary', type: 'textArea' },
+        {
+          name: 'kind',
+          label: 'Kind',
+          type: 'select',
+          options: [{ label: 'A', value: 'a' }],
+        },
+      ],
+    }
+    expect(() => validateCollections([collection])).not.toThrow()
+  })
+
+  it('rejects a listSearch entry referencing a missing field', () => {
+    expect(() => validateCollections([{ ...baseCollection, listSearch: ['nonexistent'] }])).toThrow(
+      /listSearch.*no top-level field/s
+    )
+  })
+
+  it('rejects a listSearch entry referencing a non-text-store field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      listSearch: ['count'],
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'count', label: 'Count', type: 'integer' },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/text-store fields only/)
+  })
+
+  it('rejects a listSearch entry referencing a virtual field', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      listSearch: ['ephemeral'],
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'ephemeral', label: 'Ephemeral', type: 'text', virtual: true, optional: true },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(/listSearch.*virtual/s)
   })
 })

@@ -193,7 +193,7 @@ export interface RichTextAdapterPresence {
  * posture; the alternative is a silent broken renderer at request time.
  */
 export function validateRichTextFieldFlags(
-  collections: CollectionDefinition[],
+  collections: readonly CollectionDefinition[],
   adapters: RichTextAdapterPresence
 ): void {
   const errors: string[] = []

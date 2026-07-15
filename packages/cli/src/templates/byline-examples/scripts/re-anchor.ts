@@ -16,9 +16,9 @@
  * listed — that list is the outstanding-translation backlog. Re-run as
  * translation progresses; it is idempotent (each doc is its own transaction).
  *
- *   cd apps/webapp && pnpm tsx byline/scripts/re-anchor.ts --to fr
- *   cd apps/webapp && pnpm tsx byline/scripts/re-anchor.ts --to fr --collection pages
- *   cd apps/webapp && pnpm tsx byline/scripts/re-anchor.ts --to fr --dry-run
+ *   pnpm tsx byline/scripts/re-anchor.ts --to fr
+ *   pnpm tsx byline/scripts/re-anchor.ts --to fr --collection pages
+ *   pnpm tsx byline/scripts/re-anchor.ts --to fr --dry-run
  *
  * See docs/07-internationalization/index.md.
  */

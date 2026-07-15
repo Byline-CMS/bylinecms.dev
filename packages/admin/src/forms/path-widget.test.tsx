@@ -105,6 +105,9 @@ describe('PathWidget', () => {
     props: Partial<{
       useAsPath: string | undefined
       mode: 'create' | 'edit'
+      activeLocale: string
+      slugifier: (value: string, ctx: { locale: string; collectionPath: string }) => string
+      sourceLocked: boolean
     }> = {}
   ) => {
     act(() => {
@@ -113,7 +116,10 @@ describe('PathWidget', () => {
           useAsPath={props.useAsPath ?? 'title'}
           collectionPath="pages"
           defaultLocale="en"
+          activeLocale={props.activeLocale ?? 'en'}
           mode={props.mode ?? 'create'}
+          slugifier={props.slugifier}
+          sourceLocked={props.sourceLocked}
         />
       )
     })
@@ -212,6 +218,33 @@ describe('PathWidget', () => {
   it('does not render the Regenerate button when there is no useAsPath', () => {
     setFixture({ systemPath: 'whatever', sourceValue: '' })
     render({ mode: 'edit', useAsPath: undefined })
+    expect(container.querySelector('button')).toBeNull()
+  })
+
+  it('derives the preview with the provided slugifier instead of the default', () => {
+    // A custom slugifier that zero-pads a numeric serial to 7 digits — the
+    // shape used when a `counter` field feeds the path.
+    const padSerial = (value: string) => value.padStart(7, '0')
+    setFixture({ systemPath: null, sourceValue: 1 })
+    render({ mode: 'create', slugifier: padSerial })
+
+    const input = getInput()
+    // Default slugify would yield "1"; the custom slugifier yields "0000001".
+    expect(input.getAttribute('placeholder')).toBe('Will be saved as "0000001"')
+  })
+
+  it('suppresses the create-mode placeholder preview when the source is locked', () => {
+    setFixture({ systemPath: null, sourceValue: 1 })
+    render({ mode: 'create', sourceLocked: true })
+    expect(getInput().getAttribute('placeholder')).toBeNull()
+  })
+
+  it('suppresses the Regenerate button when the source is locked', () => {
+    // Persisted path differs from what a naive re-derivation would produce,
+    // which would normally surface Regenerate — but a locked (server-assigned)
+    // source can't be regenerated from the form, so it must stay hidden.
+    setFixture({ systemPath: '0000001', sourceValue: 1 })
+    render({ mode: 'edit', sourceLocked: true })
     expect(container.querySelector('button')).toBeNull()
   })
 })

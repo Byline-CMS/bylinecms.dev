@@ -17,11 +17,11 @@
  * config from it. Anything the schema *statically imports* therefore ships to
  * the client. Hook *bodies*, however, only ever run server-side.
  *
- * Search indexing is the canonical reason this matters: it imports
- * `getSystemBylineClient` from `@byline/host-tanstack-start`, a server-only
- * module. Importing that from the schema would drag server code into the
- * browser bundle (fatal in dev). The schema avoids it by referencing these
- * hooks through a **dynamic import** instead of an inline object:
+ * Search indexing is the canonical reason this matters: it imports the
+ * server-only app client boundary from `byline/client.server.ts`. Importing
+ * that from the schema would drag server code into the browser bundle (fatal
+ * in dev). The schema avoids it by referencing these hooks through a
+ * **dynamic import** instead of an inline object:
  *
  *     // schema.ts
  *     hooks: () => import('./hooks.js')
@@ -52,7 +52,7 @@
  */
 
 import { defineHooks } from '@byline/core'
-import { getSystemBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
+import { getSystemBylineClient } from '../../client.server.js'
 
 export default defineHooks({
   beforeCreate: async ({ data, collectionPath }) => {
@@ -62,7 +62,7 @@ export default defineHooks({
     console.log(
       `afterCreate: document ${documentId} (version ${documentVersionId}) created in '${collectionPath}'`
     )
-    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
   beforeUpdate: async ({ data, collectionPath }) => {
     console.log(`beforeUpdate: updating a document in '${collectionPath}'`, data)
@@ -71,7 +71,7 @@ export default defineHooks({
     console.log(
       `afterUpdate: document ${documentId} (version ${documentVersionId}) in '${collectionPath}' updated`
     )
-    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
   beforeStatusChange: async ({ documentId, collectionPath, previousStatus, nextStatus }) => {
     console.log(
@@ -85,21 +85,21 @@ export default defineHooks({
     console.log(
       `afterStatusChange: ${documentId} in '${collectionPath}' ${previousStatus} → ${nextStatus}`
     )
-    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
   beforeUnpublish: async ({ documentId, collectionPath }) => {
     console.log(`beforeUnpublish: unpublishing ${documentId} in '${collectionPath}'`)
   },
   afterUnpublish: async ({ documentId, collectionPath }) => {
     console.log(`afterUnpublish: ${documentId} in '${collectionPath}' unpublished`)
-    await getSystemBylineClient().collection(collectionPath).indexDocument(documentId)
+    await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
   beforeDelete: async ({ documentId, collectionPath }) => {
     console.log(`beforeDelete: deleting ${documentId} in '${collectionPath}'`)
   },
   afterDelete: async ({ documentId, collectionPath }) => {
     console.log(`afterDelete: ${documentId} in '${collectionPath}' deleted`)
-    await getSystemBylineClient().collection(collectionPath).removeFromIndex(documentId)
+    await getSystemBylineClient().collection('docs').removeFromIndex(documentId)
   },
   // Fires on any structural tree change (place / reorder / re-parent /
   // promote-on-delete) for a `tree: true` collection. The payload carries the

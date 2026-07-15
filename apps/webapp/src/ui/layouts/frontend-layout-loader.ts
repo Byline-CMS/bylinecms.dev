@@ -17,7 +17,7 @@ import {
 } from '@byline/host-tanstack-start/server-fns/auth'
 import { getPreviewStateFn } from '@byline/host-tanstack-start/server-fns/preview'
 
-import { routes as bylineRoutes } from '~/routes'
+import { routes as bylineRoutes } from '~/public'
 
 export interface FrontendLayoutData {
   adminUser: CurrentAdminUser | null

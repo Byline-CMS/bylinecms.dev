@@ -53,6 +53,7 @@ function mockDb(): IDbAdapter {
       counters: {
         ensureCounterGroup: vi.fn(),
         nextCounterValue: vi.fn(),
+        nextScopedCounterValue: vi.fn(),
       },
     },
     queries: {

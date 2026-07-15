@@ -14,6 +14,7 @@ import { applyPatches } from '../../patches/index.js'
 import { normaliseDateFields } from '../../utils/normalise-dates.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
+import { normalizeNumericFields } from '../normalize-numeric-fields.js'
 import {
   actorId,
   applyRichTextEmbed,
@@ -45,8 +46,8 @@ export interface UpdateDocumentWithPatchesResult {
  *
  * Flow:
  *   1. Fetch current document via `getDocumentById({ reconstruct: true })`
- *   2. `normaliseDateFields(data)`
- *   3. `hooks.beforeUpdate({ data, originalData, collectionPath })`
+ *   2. Normalize date and numeric fields
+ *   3. `hooks.beforeUpdate({ data, originalData, collectionPath })`, then normalize numerics again
  *   4. `db.commands.documents.createDocumentVersion(...)` (action = 'update')
  *   5. `hooks.afterUpdate({ data, originalData, collectionPath, documentId, documentVersionId })`
  */
@@ -92,8 +93,10 @@ export async function updateDocument(
       const originalData: Record<string, any> = (latest as Record<string, any>) ?? {}
 
       normaliseDateFields(data)
+      normalizeNumericFields(definition.fields, data)
 
       await invokeHook(hooks?.beforeUpdate, { data, originalData, collectionPath })
+      normalizeNumericFields(definition.fields, data)
 
       // Counter fields are immutable: carry their values forward from the
       // previous version rather than trusting whatever (or nothing) the
@@ -173,8 +176,8 @@ export async function updateDocument(
  *   1. Fetch current document via `getDocumentById({ reconstruct: true })`
  *   2. Optimistic concurrency check on `documentVersionId`
  *   3. `applyPatches(definition, originalData, patches)` → `nextData`
- *   4. `normaliseDateFields(nextData)`
- *   5. `hooks.beforeUpdate({ data: nextData, originalData, collectionPath })`
+ *   4. Normalize date and numeric fields
+ *   5. `hooks.beforeUpdate({ data: nextData, originalData, collectionPath })`, then normalize numerics again
  *   6. `db.commands.documents.createDocumentVersion(...)` (action = 'update')
  *   7. `hooks.afterUpdate({ data: nextData, originalData, collectionPath, documentId, documentVersionId })`
  *
@@ -260,9 +263,11 @@ export async function updateDocumentWithPatches(
 
       // 4. Normalise dates.
       normaliseDateFields(nextData)
+      normalizeNumericFields(definition.fields, nextData)
 
       // 5. beforeUpdate hook.
       await invokeHook(hooks?.beforeUpdate, { data: nextData, originalData, collectionPath })
+      normalizeNumericFields(definition.fields, nextData)
 
       // 5b. Carry counter values forward from the previous version (or
       // lazy-allocate if the previous version is missing a value). See

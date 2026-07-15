@@ -8,13 +8,14 @@
 
 /**
  * Registers Byline's client-side config (collection admin UI configs,
- * field editors, i18n, routes) in the current module graph. Imported as
- * a side-effect from `src/routes/_byline/route.lazy.tsx` so registration
- * fires only when a `_byline/*` URL matches — keeping the Lexical
- * editor module graph out of public-route bundles entirely.
+ * field editors, i18n, routes) in the current module graph. The `_byline`
+ * route registers it from two complementary points: a dynamic import in
+ * `route.tsx` covers child loaders, while the side-effect import in
+ * `route.lazy.tsx` covers component render and initial hydration. Keeping
+ * both imports behind `_byline/*` keeps the admin graph off public routes.
  *
- * In TanStack Start with Vite 6 the server entry (`src/server.ts`) and
- * the SSR rendering context run in separate Vite environments, so
+ * In TanStack Start the server entry (`src/server.ts`) and the SSR rendering
+ * context run in separate Vite environments, so
  * importing this file from `src/server.ts` would NOT propagate the
  * registration into the SSR render module graph.
  */
@@ -28,11 +29,12 @@ import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
 // commented `richText` block below for the exact shape.
 // import { lexicalEditor } from '@byline/richtext-lexical'
 
-import { Docs, DocsAdmin } from './collections/docs/index.js'
-import { Media, MediaAdmin } from './collections/media/index.js'
-import { News, NewsAdmin } from './collections/news/index.js'
-import { NewsCategories, NewsCategoriesAdmin } from './collections/news-categories/index.js'
-import { Pages, PagesAdmin } from './collections/pages/index.js'
+import { DocsAdmin } from './collections/docs/admin.js'
+import { collections } from './collections/index.js'
+import { MediaAdmin } from './collections/media/admin.js'
+import { NewsAdmin } from './collections/news/admin.js'
+import { NewsCategoriesAdmin } from './collections/news-categories/admin.js'
+import { PagesAdmin } from './collections/pages/admin.js'
 import { i18n } from './i18n.js'
 import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
@@ -42,7 +44,7 @@ export const config: ClientConfig = {
   serverURL,
   i18n,
   routes,
-  collections: [Docs, News, Pages, Media, NewsCategories],
+  collections,
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   fields: {
     // Default registration — every `type: 'richText'` field gets the full
@@ -58,19 +60,14 @@ export const config: ClientConfig = {
     // mutations are local to this call. Per-field `editorConfig`
     // continues to take precedence over whatever is baked in here.
     //
-    // import {
-    //   lexicalEditor,
-    //   AdmonitionExtension,
-    //   CodeHighlightExtension,
-    //   TableExtension,
-    // } from '@byline/richtext-lexical'
+    // import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/config'
     //
     // richText: {
     //   editor: lexicalEditor((c) => {
     //     c.extensions
-    //       .remove(TableExtension)
-    //       .remove(CodeHighlightExtension)
-    //       .remove(AdmonitionExtension)
+    //       .remove(builtInExtensions.Table)
+    //       .remove(builtInExtensions.CodeHighlight)
+    //       .remove(builtInExtensions.Admonition)
     //     c.settings.placeholderText = 'Start writing...'
     //     return c
     //   }),

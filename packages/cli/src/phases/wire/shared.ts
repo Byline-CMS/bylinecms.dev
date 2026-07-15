@@ -1,4 +1,5 @@
 import type { Context } from '../../context.js'
+import type { FileWrite } from '../../types.js'
 
 /**
  * Outcome of a single wire sub-edit.
@@ -22,6 +23,8 @@ export interface SubEditResult {
   message: string
   /** Set on `manual` to print the exact text the user should paste. */
   snippet?: string
+  /** Concrete safe writes surfaced during preview for the parent phase plan. */
+  writes?: FileWrite[]
 }
 
 export interface SubEdit {
@@ -32,5 +35,5 @@ export interface SubEdit {
   /** Idempotent dry-check — no side effects. */
   preview(ctx: Context): Promise<SubEditResult>
   /** Make the edit. May write files. */
-  apply(ctx: Context): Promise<SubEditResult>
+  apply(ctx: Context, plannedWrites?: readonly FileWrite[]): Promise<SubEditResult>
 }

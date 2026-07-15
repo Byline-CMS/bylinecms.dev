@@ -17,9 +17,11 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type { ClientDocument, WithPopulated } from '@byline/client'
 
-import type { MediaFields } from '~/collections/media/schema.js'
-import type { NewsFields } from '~/collections/news/schema.js'
-import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
+import type {
+  MediaFields,
+  NewsCategoriesFields as NewsCategoryFields,
+  NewsFields,
+} from '~/generated/collection-types.js'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 

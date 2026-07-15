@@ -12,11 +12,6 @@
 // pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md --verbose
 // pnpm tsx byline/scripts/import-docs.ts '../../docs/*.md' --dry-run --verbose
 // pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md
-//
-// Run tests...
-//
-// pnpm vitest run --mode=node byline/scripts/lib/
-
 /**
  * Import markdown files into the `docs` collection.
  *
@@ -59,7 +54,7 @@ import { glob } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 
 import { createSuperAdminContext } from '@byline/auth'
-import { type CollectionHandle, createBylineClient } from '@byline/client'
+import { type BylineClient, type CollectionHandle, createBylineClient } from '@byline/client'
 import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
 
 import { type DocFrontmatter, parseDocFile } from './lib/frontmatter.js'
@@ -67,11 +62,15 @@ import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexic
 import { parseBodyToMdast } from './lib/parse-markdown.js'
 import { type DocLinkRewriteWarning, rewriteDocLinks } from './lib/rewrite-doc-links.js'
 import { stripLeadingH1IfMatches } from './lib/strip-leading-h1.js'
+import type { CollectionFieldsByPath, DocsFields } from '../generated/collection-types.js'
 
 const DOCS_COLLECTION = 'docs'
 const MEDIA_COLLECTION = 'media'
 const DOCS_URL_PREFIX = '/docs'
 const DEFAULT_IMPORT_STATUS = 'published'
+
+type AppBylineClient = BylineClient<CollectionFieldsByPath>
+type DocsHandle = CollectionHandle<DocsFields>
 
 interface Flags {
   dryRun: boolean
@@ -135,7 +134,7 @@ interface ResolvedFeatureImage {
 }
 
 async function resolveFeatureImage(
-  client: ReturnType<typeof createBylineClient>,
+  client: AppBylineClient,
   path: string
 ): Promise<ResolvedFeatureImage | null> {
   const mediaCollectionId = await client.resolveCollectionId(MEDIA_COLLECTION)
@@ -186,7 +185,7 @@ function derivePath(frontmatter: DocFrontmatter, locale: string): string {
  * workflow doesn't include the target or when already at/past it.
  */
 async function walkToStatus(
-  handle: CollectionHandle,
+  handle: DocsHandle,
   documentId: string,
   workflowStatuses: readonly { name: string }[],
   currentStatus: string,
@@ -230,8 +229,8 @@ function buildSourcePathMap(files: string[], defaultLocale: string): Map<string,
 
 async function processFile(
   filePath: string,
-  client: ReturnType<typeof createBylineClient>,
-  handle: CollectionHandle,
+  client: AppBylineClient,
+  handle: DocsHandle,
   flags: Flags,
   pathMap: Map<string, string>
 ): Promise<ProcessResult> {
@@ -340,7 +339,7 @@ function parentIndexFile(filePath: string): string {
  * processed in sorted order, so prefix order carries straight through.
  */
 async function placeTreeFromDirectories(
-  handle: CollectionHandle,
+  handle: DocsHandle,
   results: ProcessResult[]
 ): Promise<void> {
   const placeable = results.filter(
@@ -392,7 +391,7 @@ async function run(): Promise<void> {
 
   const config = getServerConfig()
   const requestContext = createSuperAdminContext({ id: 'import-docs-script' })
-  const client = createBylineClient({ config, requestContext })
+  const client = createBylineClient<CollectionFieldsByPath>({ config, requestContext })
   const handle = client.collection(DOCS_COLLECTION)
 
   // Pre-pass: map each source file to the path its imported doc will

@@ -106,6 +106,22 @@ export interface FieldHookContext {
    * derived value at submit time while showing advisory errors on change.
    */
   operation: 'change' | 'submit'
+
+  /**
+   * Write **another** field's value in the form store.
+   *
+   * This is a raw write: the target field's own hooks do NOT run (which
+   * forecloses hook recursion), but the write is otherwise a normal form
+   * edit — it emits a `field.set` patch (so it persists on save), marks the
+   * form dirty, and store-subscribed widgets re-render immediately.
+   *
+   * Use for cross-field behaviour such as mutual exclusivity across array
+   * items (a checkbox that unchecks its siblings) or clearing a dependent
+   * field when its driver changes. Paths use the same dot + bracket
+   * notation as `FieldHookContext.path`, e.g.
+   * `files[1].filesGroup.generateThumbnail`.
+   */
+  setFieldValue: (path: string, value: any) => void
 }
 
 /**
@@ -212,6 +228,25 @@ type FieldValidateFn = (value: any, data: Record<string, any>) => string | undef
 // const fieldValidateFnSchema = z.custom<FieldValidateFn>((val) => typeof val === 'function')
 
 // ---------------------------------------------------------------------------
+// Conditional field visibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Visibility predicate for a field — see {@link BaseField.condition}.
+ *
+ * @param data - The full live form data (the document's field values).
+ * @param siblingData - The field's immediate scope: the enclosing group /
+ *   array item's values. For a field at `files[2].filesGroup.thumbnailPage`
+ *   this is the item's `filesGroup` object, so conditions inside array items
+ *   observe their own item, not the document root. For root-level fields
+ *   `siblingData` is the same object as `data`.
+ */
+export type FieldCondition = (
+  data: Record<string, any>,
+  siblingData: Record<string, any>
+) => boolean
+
+// ---------------------------------------------------------------------------
 // Base (common) properties for field definitions
 // ---------------------------------------------------------------------------
 
@@ -258,6 +293,65 @@ interface BaseField {
    * @see FieldHooks
    */
   hooks?: FieldHooks
+
+  /**
+   * Optional visibility condition. When provided, the admin form renders
+   * this field only while the function returns `true`. Receives the full
+   * live form data plus the field's sibling scope (the enclosing group /
+   * array item), and is re-evaluated on every form edit — so a field can
+   * appear and disappear in response to its neighbours, e.g.
+   *
+   *     condition: (_data, siblingData) => Boolean(siblingData.generateThumbnail)
+   *
+   * Like `readOnly`, this is a **rendering hint only** — it is not enforced
+   * server-side. While hidden, the field's stored value is retained (no
+   * clearing write is emitted) and the field is exempt from client-side
+   * validation. Server-side schema validation knows nothing about
+   * conditions, so pair conditionally-hidden required fields with
+   * `optional: true` or a `defaultValue`.
+   */
+  condition?: FieldCondition
+
+  /**
+   * When `true`, the field is **virtual**: its value participates in the
+   * editing session and the write pipeline, but is **never persisted** and
+   * therefore never read back.
+   *
+   * Lifecycle of a virtual value:
+   *
+   *   1. The admin renders and edits the field normally; its value travels
+   *      with the save (as `field.set` patches / document data) like any
+   *      other field.
+   *   2. Every lifecycle hook sees it — `beforeCreate` / `beforeUpdate`
+   *      (and the `after*` counterparts) receive the in-flight `data` with
+   *      virtual values present, so hooks can act on them (the canonical
+   *      use case: a "generate thumbnail" checkbox that triggers cover
+   *      generation during the save).
+   *   3. The storage layer's flatten step skips virtual fields wholesale —
+   *      no `store_*` row is ever written. This is the single enforcement
+   *      point; adapters implementing `IDbAdapter` MUST honour it (see
+   *      `@byline/db-postgres` → storage-flatten).
+   *   4. Reads reconstruct from stored rows, so the value is structurally
+   *      absent afterwards: the next editing session starts with the field
+   *      empty / at its `defaultValue`, and saves that don't touch it can
+   *      never re-trigger whatever side effect it drives.
+   *
+   * Applies at any nesting depth — a virtual field inside an `array` item
+   * `group` (e.g. `files[].filesGroup.generateThumbnail`) is skipped per
+   * item. Setting `virtual` on a structure field (`group` / `array` /
+   * `blocks`) omits the entire subtree.
+   *
+   * Constraints (enforced at boot by `validateCollections`):
+   *   - A virtual field must be `optional: true` **or** declare a
+   *     `defaultValue` — the value is absent on every read, so a required
+   *     virtual field could never validate on a subsequent save.
+   *   - `counter` fields cannot be virtual (allocator-owned).
+   *   - Upload-capable `file` / `image` fields cannot be virtual (their
+   *     stored bytes are a side effect that "not persisting" can't undo).
+   *   - Fields referenced by `useAsTitle` / `useAsPath` / `search` cannot
+   *     be virtual (those subsystems read persisted values).
+   */
+  virtual?: boolean
 
   /**
    * Optional submit-time validator. Called by `validateForm()` for every field

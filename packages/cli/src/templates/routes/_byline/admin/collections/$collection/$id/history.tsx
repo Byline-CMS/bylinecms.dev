@@ -8,12 +8,6 @@
 
 import { createCollectionHistoryRoute } from '@byline/host-tanstack-start/routes'
 
-import { contentLocales, i18n } from '~/i18n'
-
 export const Route = createCollectionHistoryRoute(
-  '/_byline/admin/collections/$collection/$id/history',
-  {
-    contentLocales,
-    defaultContentLocale: i18n.content.defaultLocale,
-  }
+  '/_byline/admin/collections/$collection/$id/history'
 )

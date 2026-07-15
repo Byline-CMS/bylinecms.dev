@@ -8,10 +8,11 @@
 
 /**
  * Registers Byline's client-side config (collection admin UI configs,
- * field editors, i18n, routes) in the current module graph. Imported as
- * a side-effect from `src/routes/__root.tsx` — that module runs in both
- * the SSR render and client module graphs, so a single import there
- * covers both contexts.
+ * field editors, i18n, routes) in the current module graph. The `_byline`
+ * route registers it from two complementary points: a dynamic import in
+ * `route.tsx` covers child loaders, while the side-effect import in
+ * `route.lazy.tsx` covers component render and initial hydration. Keeping
+ * both imports behind `_byline/*` keeps the admin graph off public routes.
  *
  * In TanStack Start with Vite 6 the server entry (`src/server.ts`) and
  * the SSR rendering context run in separate Vite environments, so
@@ -22,11 +23,12 @@
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
 
-import { Docs, DocsAdmin } from './collections/docs/index.js'
-import { Media, MediaAdmin } from './collections/media/index.js'
-import { News, NewsAdmin } from './collections/news/index.js'
-import { NewsCategories, NewsCategoriesAdmin } from './collections/news-categories/index.js'
-import { Pages, PagesAdmin } from './collections/pages/index.js'
+import { DocsAdmin } from './collections/docs/admin.js'
+import { collections } from './collections/index.js'
+import { MediaAdmin } from './collections/media/admin.js'
+import { NewsAdmin } from './collections/news/admin.js'
+import { NewsCategoriesAdmin } from './collections/news-categories/admin.js'
+import { PagesAdmin } from './collections/pages/admin.js'
 import { LexicalRichTextAi } from './fields/lexical-richtext-ai.js'
 import { i18n } from './i18n.js'
 import { DEFAULT_SERVER_URL, routes } from './routes.js'
@@ -37,7 +39,7 @@ export const config: ClientConfig = {
   serverURL,
   i18n,
   routes,
-  collections: [Docs, News, Pages, Media, NewsCategories],
+  collections,
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   fields: {
     // Site-wide registration of the AI-enabled editor on every richtext

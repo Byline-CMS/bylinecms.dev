@@ -163,10 +163,14 @@ The worked example is the `docs` collection:
 `content` is a `blocks` field, so its nested RichTextBlock prose (and PhotoBlock
 alt text + caption) is walked and folded into the body.
 
-> The admin list-view search box reads the `body` field names for its
-> `store_text` `ILIKE` match (`storage-queries.ts`) — a lightweight matcher that
-> predates the provider and still serves the admin; the provider path is the
-> ranked one.
+> The admin list-view search box is a separate, deliberately lightweight
+> concern: a `store_text` `ILIKE` match (`storage-queries.ts`) over the
+> schema-level `listSearch` field names, falling back to the collection's
+> identity field (`useAsTitle`, else its first text field) when omitted. It no
+> longer reads `search.body` — `search` configures provider indexing only, so a
+> collection can opt out of the index without losing list-view search, and a
+> heavily-weighted `body` declaration doesn't drag six `ILIKE` clauses into the
+> admin's per-keystroke query.
 
 ## What feeds the index — the typed `SearchDocument` (shipped)
 

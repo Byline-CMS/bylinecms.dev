@@ -98,6 +98,13 @@ is only *awkward*: two entry points for one logical registration. There is **no
 correctness bug** here; the eager single point is an elegance/maintenance goal,
 not a fix.
 
+Public frontend code does not participate in this registration. It imports plain
+locale and route data through `byline/public.ts`. Likewise, document route modules
+only declare their route factory; the factory reads content-locale config through
+`getClientConfig()` during its loader/component lifecycle, after the parent
+`beforeLoad` or lazy-module registration has run. Route construction therefore
+does not create an eager import path into `byline/i18n.ts`.
+
 ## Root cause — why the config graph isn't light
 
 Two layers, only one of which is solved:
@@ -237,9 +244,9 @@ That trade is poor today. **Recommendation: keep the dual registration; defer
 the eager single point until a concrete driver makes eager-light config
 genuinely *necessary*** rather than merely tidier. Candidate drivers:
 
-- A non-admin/public or SSR surface needs `getClientConfig()` data (routes,
-  collection metadata, i18n) eagerly — at which point eager-light registration
-  stops being elegance and becomes a requirement.
+- A non-admin/public or SSR surface needs client-config data that cannot be
+  represented by the plain `byline/public.ts` boundary — at which point
+  eager-light registration stops being elegance and becomes a requirement.
 - The loader/hydration registration ever proves flaky in practice (it has not).
 - The slot/formatter API is being reworked anyway for another reason, making
   the deferral change marginal.

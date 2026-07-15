@@ -30,6 +30,17 @@ What this gives consumers in trusted runtimes:
 
 What it does *not* do: speak HTTP, run in browsers, or hide the trust boundary. `actor: null` is allowed only for `read` with `readMode: 'published'`; everything else needs a real `RequestContext`.
 
+### Application type generation
+
+The application owns two related collection surfaces:
+
+- `byline/collections/index.ts` exports `collections`, the evaluated runtime registry used by core and the client.
+- `byline/generated/collection-types.ts` is the committed, deterministic type projection emitted from that tuple by `@byline/core/codegen`.
+
+Run `pnpm byline:generate` after changing a collection, field, or block schema. `pnpm byline:generate:check` performs no writes and fails when the artifact is missing or stale; CI runs this before lint and typecheck. The runner imports the collection tuple directly and deliberately does not import `server.config.ts`.
+
+Typed clients use the generated `CollectionFieldsByPath` map as their registry provenance. A hand-authored compile contract maps `CollectionFieldData` and `CollectionFieldDataAllLocales` over `typeof collections` and requires exact key and value equality with both generated maps, so emitter or schema drift also fails application typecheck.
+
 ---
 
 ## Quick reference
@@ -199,16 +210,18 @@ The default projection includes the target's `useAsTitle` field implicitly, so l
 
 ### 7. Type a populated relation with `WithPopulated`
 
-Schema-derived field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). `WithPopulated<Fields, 'name', TargetFields>` overlays the populated envelope so `result.fields.name?.document?.fields.<field>` is fully typed.
+Generated collection field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). `WithPopulated<Fields, 'name', TargetFields>` overlays the populated envelope so `result.fields.name?.document?.fields.<field>` is fully typed.
 
 ```ts
 import type { WithPopulated } from '@byline/client'
-import type { NewsFields } from './collections/news/schema.js'
-import type { NewsCategoryFields } from './collections/news-categories/schema.js'
-import type { MediaFields } from './collections/media/schema.js'
+import type {
+  MediaFields,
+  NewsCategoriesFields,
+  NewsFields,
+} from './byline/generated/collection-types.js'
 
 type NewsListFields = WithPopulated<
-  WithPopulated<NewsFields, 'category', NewsCategoryFields>,
+  WithPopulated<NewsFields, 'category', NewsCategoriesFields>,
   'featureImage',
   MediaFields
 >
@@ -515,18 +528,23 @@ The default projection includes the target's `useAsTitle` field implicitly, so w
 
 ### Typing populated relations
 
-Schema-derived field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). To get full type checking on `doc.fields.<relation>?.document?.fields.<field>`, overlay each populated relation with `WithPopulated`:
+Generated collection field types treat relation slots as the unpopulated wire shape (`RelatedDocumentValue`). To get full type checking on `doc.fields.<relation>?.document?.fields.<field>`, overlay each populated relation with `WithPopulated`:
 
 ```ts
 import type { WithPopulated } from '@byline/client'
+import type {
+  MediaFields,
+  NewsCategoriesFields,
+  NewsFields,
+} from './byline/generated/collection-types.js'
 
 type NewsListFields = WithPopulated<
-  WithPopulated<NewsFields, 'category', NewsCategoryFields>,
+  WithPopulated<NewsFields, 'category', NewsCategoriesFields>,
   'featureImage',
   MediaFields
 >
 
-// Use as the generic:
+// The operation-specific overlay is the generic; ordinary reads infer generated fields.
 await client.collection('news').find<NewsListFields>({ populate: { category: '*', featureImage: '*' } })
 ```
 

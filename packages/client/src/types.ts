@@ -70,7 +70,7 @@ export interface BylineClientConfig {
   /** The database adapter (e.g. from @byline/db-postgres). Required when `config` is omitted. */
   db?: IDbAdapter
   /** All registered collection definitions. Required when `config` is omitted. */
-  collections?: CollectionDefinition[]
+  collections?: readonly CollectionDefinition[]
   /** Optional storage provider — needed for delete file cleanup. */
   storage?: IStorageProvider
   /**
@@ -713,16 +713,18 @@ export interface PopulatedRelation<T> {
 }
 
 /**
- * Re-type one key of a schema-inferred fields type as a populated relation.
+ * Re-type one key of a generated fields type as a populated relation.
  * Use to overlay populate's per-call enrichment on top of the unpopulated
- * shape that `CollectionFieldData<typeof X>` derives from the schema.
+ * shape emitted for the configured collection.
  *
  * Homomorphic mapped form preserves the optionality of the underlying key —
  * an optional relation field stays optional after populate is layered on.
  *
  * ```ts
+ * import type { MediaFields, NewsCategoriesFields, NewsFields } from './byline/generated/collection-types.js'
+ *
  * type NewsPopulated = WithPopulated<
- *   WithPopulated<NewsFields, 'category', NewsCategoryFields>,
+ *   WithPopulated<NewsFields, 'category', NewsCategoriesFields>,
  *   'featureImage', MediaFields
  * >
  * client.collection('news').find<NewsPopulated>({ populate: { category: '*', featureImage: '*' } })

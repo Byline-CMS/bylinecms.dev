@@ -46,14 +46,14 @@ export const PhotoBlock = defineBlock({
 })
 
 /**
- * Field-only data shape for the photo block — useful for forms or
- * block-internal helpers.
+ * Schema-local field-only data shape for forms or block helpers. Application
+ * consumers should use the canonical generated block type.
  */
 export type PhotoBlockFields = BlockFieldData<typeof PhotoBlock>
 
 /**
- * Full block instance shape (`_id`, `_type` + fields) as it appears
- * inside a document tree. Use this as the prop type for the photo
- * block renderer.
+ * Schema-local full block instance shape (`_id`, `_type` + fields). Application
+ * renderers should use generated `PhotoBlockData` and operation-specific
+ * populate overlays.
  */
 export type PhotoBlockData = BlockData<typeof PhotoBlock>

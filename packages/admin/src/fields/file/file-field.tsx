@@ -79,7 +79,7 @@ export const FileField = ({
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<StoredFileValue | null | undefined>(fieldPath)
   const isUploading = useIsFieldUploading(fieldPath)
-  const { removePendingUpload } = useFormContext()
+  const { removePendingUpload, documentId } = useFormContext()
 
   const handleChange = useFieldChangeHandler(field, fieldPath)
 
@@ -101,6 +101,12 @@ export const FileField = ({
   }
 
   const showUploadWidget = incomingValue == null || isOldPlaceholder(incomingValue)
+
+  // `upload.requireSavedDocument` gate: until the document is persisted,
+  // render a "save first" notice in place of the upload zone. Server-side
+  // upload hooks that depend on save-time state (counters, document id)
+  // rely on this; existing stored values still render normally below.
+  const uploadGated = field.upload?.requireSavedDocument === true && documentId == null
 
   const handleRemove = () => {
     if (isPending) {
@@ -131,7 +137,15 @@ export const FileField = ({
       </div>
 
       {showUploadWidget ? (
-        collectionPath ? (
+        uploadGated ? (
+          <div
+            className={cx('byline-field-file-empty', styles.empty)}
+            role="note"
+            data-testid="upload-require-saved-document"
+          >
+            {t('fields.upload.requireSavedDocument')}
+          </div>
+        ) : collectionPath ? (
           <FileUploadField
             field={field}
             collectionPath={collectionPath}

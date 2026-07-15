@@ -1,4 +1,4 @@
-'use clients'
+'use client'
 
 import type React from 'react'
 
@@ -28,13 +28,16 @@ export function AdmonitionSerializer({
   options: SerializeOptions
 }): React.JSX.Element {
   const intent = intentMap[node.admonitionType as keyof typeof intentMap]
+  // Admonitions are ElementNodes, so their body is stored directly in children.
   return (
-    <Alert title={node.title} intent={intent} close={false} className="rounded-none">
-      {node?.content?.editorState?.root?.children != null ? (
-        serialize({ nodes: node?.content?.editorState?.root?.children, lng, options })
-      ) : (
-        <span>Content not found for admonition.</span>
-      )}
-    </Alert>
+    <div className="not-prose pt-6 pb-8">
+      <Alert title={node.title} intent={intent} close={false} className="not-prose my-0">
+        {node.children != null ? (
+          serialize({ nodes: node.children, lng, options })
+        ) : (
+          <span>Content not found for admonition.</span>
+        )}
+      </Alert>
+    </div>
   )
 }

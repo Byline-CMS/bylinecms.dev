@@ -16,7 +16,15 @@ import type {
 } from '@byline/core'
 import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Button, CloseIcon, EditIcon, ErrorText, IconButton, Label } from '@byline/ui/react'
+import {
+  Button,
+  CloseIcon,
+  EditIcon,
+  ErrorText,
+  HelpText,
+  IconButton,
+  Label,
+} from '@byline/ui/react'
 import cx from 'classnames'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
@@ -130,10 +138,6 @@ export const RelationField = ({
           required={!field.optional}
         />
       </div>
-      {field.helpText && (
-        <div className={cx('byline-field-relation-help', styles.help)}>{field.helpText}</div>
-      )}
-
       {isUnknown ? (
         <div className={cx('byline-field-relation-error-tile', styles['error-tile'])}>
           <span>
@@ -146,53 +150,61 @@ export const RelationField = ({
             {t('fields.relation.unknownHint')}
           </span>
         </div>
-      ) : incomingValue ? (
-        <div className={cx('byline-field-relation-tile', styles.tile)}>
-          <RelationSummary
-            targetDefinition={targetDef}
-            targetAdminConfig={targetAdminConfig}
-            displayField={field.displayField}
-            value={incomingValue}
-            cachedRecord={cachedRecord}
-          />
-          <div className={cx('byline-field-relation-actions', styles.actions)}>
-            <IconButton
+      ) : (
+        // Rounded frame below the label wrapping the interactive body
+        // (selected tile or select button) — see `.frame` in the CSS module.
+        <div className={cx('byline-field-relation-frame', styles.frame)}>
+          {incomingValue ? (
+            <div className={cx('byline-field-relation-tile', styles.tile)}>
+              <RelationSummary
+                targetDefinition={targetDef}
+                targetAdminConfig={targetAdminConfig}
+                displayField={field.displayField}
+                value={incomingValue}
+                cachedRecord={cachedRecord}
+              />
+              <div className={cx('byline-field-relation-actions', styles.actions)}>
+                <IconButton
+                  id={htmlId}
+                  type="button"
+                  intent="noeffect"
+                  size="xs"
+                  aria-label={t('fields.relation.changeAriaLabel', {
+                    label: targetDef.labels.singular,
+                  })}
+                  onClick={() => setPickerOpen(true)}
+                >
+                  <EditIcon width="15px" height="15px" />
+                </IconButton>
+                <IconButton
+                  type="button"
+                  intent="noeffect"
+                  size="xs"
+                  aria-label={t('fields.relation.removeAriaLabel', {
+                    label: targetDef.labels.singular,
+                  })}
+                  onClick={handleRemove}
+                >
+                  <CloseIcon width="15px" height="15px" />
+                </IconButton>
+              </div>
+            </div>
+          ) : (
+            <Button
               id={htmlId}
-              type="button"
-              intent="noeffect"
               size="xs"
-              aria-label={t('fields.relation.changeAriaLabel', {
-                label: targetDef.labels.singular,
-              })}
+              variant="outlined"
+              intent="noeffect"
+              type="button"
               onClick={() => setPickerOpen(true)}
             >
-              <EditIcon width="15px" height="15px" />
-            </IconButton>
-            <IconButton
-              type="button"
-              intent="noeffect"
-              size="xs"
-              aria-label={t('fields.relation.removeAriaLabel', {
-                label: targetDef.labels.singular,
-              })}
-              onClick={handleRemove}
-            >
-              <CloseIcon width="15px" height="15px" />
-            </IconButton>
-          </div>
+              {t('fields.relation.selectButton', { label: targetDef.labels.singular })}
+            </Button>
+          )}
         </div>
-      ) : (
-        <Button
-          id={htmlId}
-          size="xs"
-          variant="outlined"
-          intent="noeffect"
-          type="button"
-          onClick={() => setPickerOpen(true)}
-        >
-          {t('fields.relation.selectButton', { label: targetDef.labels.singular })}
-        </Button>
       )}
+
+      {field.helpText != null && <HelpText text={field.helpText} />}
 
       {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
 

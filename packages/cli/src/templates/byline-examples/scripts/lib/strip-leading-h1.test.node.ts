@@ -33,10 +33,6 @@ describe('stripLeadingH1IfMatches', () => {
   })
 
   test('match flattens inline formatting in the H1', () => {
-    // mdast-util-to-string drops backticks / emphasis markers from the
-    // H1's inline structure. Frontmatter titles are plain prose, so a
-    // body H1 of '# Client SDK (`@byline/client`)' compares equal to a
-    // frontmatter title of 'Client SDK (@byline/client)'.
     const root = parse('# Client SDK (`@byline/client`)\n\nbody')
     const out = stripLeadingH1IfMatches(root, 'Client SDK (@byline/client)')
     expect(out.children).toHaveLength(1)

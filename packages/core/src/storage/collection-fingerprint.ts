@@ -40,6 +40,9 @@ type CanonicalField = {
   options?: { value: string }[]
   targetCollection?: string
   displayField?: string
+  hasMany?: true
+  minItems?: number
+  maxItems?: number
   mode?: string
   group?: string
   validation?: Record<string, unknown>
@@ -77,6 +80,9 @@ function canonicalField(field: Field): CanonicalField {
     case 'relation':
       base.targetCollection = field.targetCollection
       if (field.displayField !== undefined) base.displayField = field.displayField
+      if (field.hasMany === true) base.hasMany = true
+      if (field.minItems !== undefined) base.minItems = field.minItems
+      if (field.maxItems !== undefined) base.maxItems = field.maxItems
       return base
 
     case 'datetime':

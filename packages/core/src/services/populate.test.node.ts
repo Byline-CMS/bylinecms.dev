@@ -176,6 +176,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
       counters: {
         ensureCounterGroup: vi.fn(),
         nextCounterValue: vi.fn(),
+        nextScopedCounterValue: vi.fn(),
       },
     },
     queries: {

@@ -466,6 +466,7 @@
   "fields.relation.picker.addSelected": "Añadir seleccionados ({count})",
   "fields.relation.picker.alreadyAdded": "Ya añadido",
   "fields.file.empty": "Ningún archivo seleccionado",
+  "fields.upload.requireSavedDocument": "Debes guardar este documento antes de poder subir archivos aquí.",
   "fields.file.downloadAriaLabel": "Descargar archivo",
   "fields.file.removeAriaLabel": "Quitar archivo",
   "fields.file.openInNewTabAriaLabel": "Abrir {filename} en una pestaña nueva",

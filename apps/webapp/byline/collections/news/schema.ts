@@ -30,6 +30,19 @@ export const News = defineCollection({
     archived: { label: 'Archived', verb: 'Archive' },
   }),
   showStats: true,
+  // Admin list-view quick-search. The collection list route's search box
+  // matches these top-level text-store fields with substring queries (ILIKE, in
+  // the Postgres adapter) against `store_text` — a lightweight "find the row I
+  // mean" affordance that needs no indexing and no lifecycle hooks. Falls back
+  // to `useAsTitle` when omitted; declared explicitly here for guidance.
+  listSearch: ['title'],
+  // Search-*provider* config (docs/05-reading-and-delivery/07-search.md) —
+  // distinct from `listSearch` above. This drives the pluggable SearchProvider
+  // (full-text search in @byline/search-postgres) and offers richer options:
+  // per-field weighting/`boost`, `facets`, `filters`, and `zones`. Unlike
+  // `listSearch`, `search` is inert on its own — it MUST be paired with index /
+  // reindex / deindex document-lifecycle hooks that keep the provider index in
+  // sync on create / update / publish / delete (see this collection's hooks).
   search: { body: ['title'] },
   useAsTitle: 'title',
   useAsPath: 'title',
@@ -114,8 +127,8 @@ export const News = defineCollection({
 })
 
 /**
- * Field data shape inferred directly from the schema. Use this as the
- * generic to typed read calls — `client.collection('news').find<NewsFields>()`
- * — so dot-notation on `doc.fields` is fully checked.
+ * Schema-local inferred field shape. Application reads should use the canonical
+ * generated `NewsFields` from `byline/generated/collection-types.ts`; configured
+ * client handles infer that type for ordinary reads without a generic.
  */
 export type NewsFields = CollectionFieldData<typeof News>

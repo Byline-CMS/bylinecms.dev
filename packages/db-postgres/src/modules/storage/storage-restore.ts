@@ -447,7 +447,7 @@ export const extractFlattenedFieldValue = (
         filename: unifiedValue.filename as string,
         original_filename: unifiedValue.original_filename as string,
         mime_type: unifiedValue.mime_type as string,
-        file_size: unifiedValue.file_size as number,
+        file_size: Number(unifiedValue.file_size),
         storage_provider: unifiedValue.storage_provider as string,
         storage_path: unifiedValue.storage_path as string,
         storage_url: orUndefined(unifiedValue.storage_url),

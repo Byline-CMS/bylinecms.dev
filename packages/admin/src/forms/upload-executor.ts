@@ -14,8 +14,9 @@
  * but only uploaded when the user clicks Save.
  */
 
-import type { StoredFileValue } from '@byline/core'
+import type { Field, StoredFileValue, UploadConfig } from '@byline/core'
 
+import { get as getNestedValue } from './nested-path'
 import type { UploadFieldFn } from '../fields/field-services-types'
 import type { PendingUpload } from './form-context'
 
@@ -38,31 +39,50 @@ export interface ExecuteUploadsResult {
 }
 
 /**
+ * Optional document context threaded from the form renderer so upload
+ * requests carry the state that server-side `beforeStore` / `afterStore`
+ * hooks need (see `UploadConfig.context` in `@byline/core`).
+ */
+export interface UploadExecutionContext {
+  /**
+   * The persisted document id (edit mode). Posted as `documentId` on every
+   * upload request; omitted while the document is unsaved (create mode).
+   */
+  documentId?: string
+  /**
+   * The collection's schema fields — used to locate each upload field's
+   * `upload.context` declaration by walking the pending upload's field path.
+   */
+  fields?: readonly Field[]
+  /**
+   * Snapshot accessor for the live form values, resolved lazily per upload
+   * so context reflects the state at the moment the request is built.
+   */
+  getFormValues?: () => Record<string, any>
+}
+
+/**
  * Execute all pending uploads sequentially.
  * Returns a result object with successful uploads and any errors.
  *
  * @param pendingUploads - Map of field path to PendingUpload
  * @param uploadField - Host-provided upload transport (resolved via
  *                         `useBylineFieldServices()` in the calling React tree)
+ * @param executionContext - Optional document/form context appended to each
+ *                         upload request (documentId, `upload.context` values)
  * @returns Promise resolving to ExecuteUploadsResult
  */
 export async function executeUploads(
   pendingUploads: Map<string, PendingUpload>,
-  uploadField: UploadFieldFn
+  uploadField: UploadFieldFn,
+  executionContext?: UploadExecutionContext
 ): Promise<ExecuteUploadsResult> {
   const results: UploadResult[] = []
   const successful = new Map<string, StoredFileValue>()
   const errors = new Map<string, string>()
 
   for (const [fieldPath, upload] of pendingUploads.entries()) {
-    const formData = new FormData()
-    formData.append('file', upload.file)
-    // Tell the server which upload-capable field this file belongs to.
-    // With per-field upload config a collection can have multiple
-    // image/file fields, each with its own constraints; the server's
-    // unique-default fallback covers the single-field case but rejects
-    // multi-field collections without an explicit selector.
-    formData.append('field', uploadFieldName(fieldPath))
+    const formData = buildUploadFormData(fieldPath, upload, executionContext)
 
     try {
       // Pass createDocument=false — we're uploading for an embedded field,
@@ -95,16 +115,192 @@ export async function executeUploads(
 }
 
 /**
+ * Compose the multipart body for one pending upload.
+ *
+ * Beyond the file itself, the request carries:
+ *   - `field`     — leaf name of the upload-capable field (server-side
+ *                   resolver matches upload fields by leaf name at any
+ *                   nesting depth, so leaf names must be unique among a
+ *                   collection's upload-capable fields).
+ *   - `fieldPath` — the full form path (e.g.
+ *                   `files[2].filesGroup.publicationFile`), so hooks can
+ *                   distinguish array items.
+ *   - `documentId` — the persisted document id (edit mode only).
+ *   - one entry per resolved `upload.context` path (see
+ *     `UploadConfig.context` in `@byline/core` for path semantics and
+ *     serialisation rules).
+ */
+function buildUploadFormData(
+  fieldPath: string,
+  upload: PendingUpload,
+  executionContext?: UploadExecutionContext
+): FormData {
+  const formData = new FormData()
+  formData.append('file', upload.file)
+  // Tell the server which upload-capable field this file belongs to.
+  // With per-field upload config a collection can have multiple
+  // image/file fields, each with its own constraints; the server's
+  // unique-default fallback covers the single-field case but rejects
+  // multi-field collections without an explicit selector.
+  formData.append('field', uploadFieldName(fieldPath))
+  formData.append('fieldPath', fieldPath)
+
+  if (executionContext?.documentId) {
+    formData.append('documentId', executionContext.documentId)
+  }
+
+  const contextPaths =
+    executionContext?.fields != null
+      ? findUploadFieldByPath(executionContext.fields, fieldPath)?.context
+      : undefined
+
+  if (contextPaths && contextPaths.length > 0 && executionContext?.getFormValues) {
+    const formValues = executionContext.getFormValues()
+    for (const contextPath of contextPaths) {
+      const resolvedPath = resolveContextPath(fieldPath, contextPath)
+      if (resolvedPath === undefined) continue
+      const value = resolvedPath === '' ? formValues : getNestedValue(formValues, resolvedPath)
+      const serialized = serializeContextValue(value)
+      if (serialized === undefined) continue
+      formData.append(leafName(contextPath), serialized)
+    }
+  }
+
+  return formData
+}
+
+/**
  * Extract the leaf field name from a `fieldPath`. Top-level upload
  * fields (`'image'`, `'avatar'`) pass through unchanged; nested paths
- * (`'profile.avatar'`) reduce to their last segment, since the
- * server-side resolver matches against top-level field names today.
- * Nested upload fields would need a richer transport selector when
- * they land — the host resolver is the natural place to extend.
+ * (`'files[0].filesGroup.publicationFile'`) reduce to their last
+ * segment. The server-side resolver walks the schema recursively and
+ * matches upload fields by leaf name at any nesting depth, so leaf
+ * names must be unique among a collection's upload-capable fields.
  */
 function uploadFieldName(fieldPath: string): string {
   const dot = fieldPath.lastIndexOf('.')
   return dot === -1 ? fieldPath : fieldPath.slice(dot + 1)
+}
+
+/** Leaf segment of a context path: `'../a.b'` → `'b'`, `'/x'` → `'x'`. */
+function leafName(contextPath: string): string {
+  const segments = contextPath.split('/').pop() ?? contextPath
+  const dot = segments.lastIndexOf('.')
+  return dot === -1 ? segments : segments.slice(dot + 1)
+}
+
+/**
+ * Resolve an `upload.context` path declaration against the upload field's
+ * position in the form, filesystem-style. The upload field is treated as a
+ * "file" living in the directory formed by its containing scope:
+ *
+ *   fieldPath `files[2].filesGroup.publicationFile` → scope
+ *   `['files[2]', 'filesGroup']`
+ *
+ *   - `'language'` / `'./language'` → `files[2].filesGroup.language`
+ *   - `'../label'`                  → `files[2].label`
+ *   - `'/serialNumber'`             → `serialNumber` (document root)
+ *
+ * Returns the dotted form path to read, `''` for the form root itself, or
+ * `undefined` when `../` climbs past the root (declaration bug — the value
+ * is skipped rather than mis-resolved).
+ */
+function resolveContextPath(fieldPath: string, contextPath: string): string | undefined {
+  // Root-absolute: strip the slash, done.
+  if (contextPath.startsWith('/')) {
+    return contextPath.slice(1)
+  }
+
+  // Scope = the upload field's containing segments (dot-split keeps array
+  // indices attached to their segment: `files[2]` stays one hop).
+  const scope = fieldPath.split('.')
+  scope.pop() // drop the upload field's own leaf segment
+
+  const parts = contextPath.split('/')
+  const leaf = parts.pop() ?? ''
+  for (const part of parts) {
+    if (part === '.' || part === '') continue
+    if (part === '..') {
+      if (scope.length === 0) return undefined
+      scope.pop()
+      continue
+    }
+    // A directory-style intermediate segment (`a/b`) descends.
+    scope.push(part)
+  }
+
+  return scope.length === 0 ? leaf : `${scope.join('.')}${leaf ? `.${leaf}` : ''}`
+}
+
+/**
+ * Serialise a resolved form value for the multipart `fields` bag.
+ * See `UploadConfig.context` for the contract.
+ */
+function serializeContextValue(value: unknown): string | undefined {
+  if (value == null) return undefined
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  // Relation envelope → its target document id.
+  if (isRelationEnvelope(value)) return value.targetDocumentId
+  // hasMany relation → comma-joined ids.
+  if (Array.isArray(value) && value.length > 0 && value.every(isRelationEnvelope)) {
+    return value.map((v) => v.targetDocumentId).join(',')
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return undefined
+  }
+}
+
+function isRelationEnvelope(value: unknown): value is { targetDocumentId: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { targetDocumentId?: unknown }).targetDocumentId === 'string'
+  )
+}
+
+/**
+ * Locate the upload-capable `image | file` schema field addressed by a form
+ * field path, walking `group` / `array` / `blocks` structures. Array indices
+ * in the path (`files[2]`) map onto the schema's repeating field (`files`);
+ * blocks are matched by trying each block's field set (block-type info is
+ * not encoded in the path, so the first block containing the remaining path
+ * wins — upload leaf names must be unique among a collection's
+ * upload-capable fields anyway, per the server-side resolver's contract).
+ */
+function findUploadFieldByPath(
+  fields: readonly Field[],
+  fieldPath: string
+): UploadConfig | undefined {
+  const segments = fieldPath.split('.').map((s) => s.replace(/\[\d+\]$/, ''))
+
+  let currentFields: readonly Field[] = fields
+  for (let i = 0; i < segments.length; i++) {
+    const name = segments[i]
+    const isLeaf = i === segments.length - 1
+    const field = currentFields.find((f) => f.name === name)
+    if (!field) return undefined
+
+    if (isLeaf) {
+      return field.type === 'image' || field.type === 'file' ? field.upload : undefined
+    }
+
+    if (field.type === 'group' || field.type === 'array') {
+      currentFields = field.fields
+      continue
+    }
+    if (field.type === 'blocks') {
+      const remaining = segments[i + 1]
+      const block = field.blocks.find((b) => b.fields.some((f) => f.name === remaining))
+      if (!block) return undefined
+      currentFields = block.fields
+      continue
+    }
+    return undefined
+  }
+  return undefined
 }
 
 /**
@@ -124,7 +320,8 @@ export type UploadProgressCallback = (info: {
 export async function executeUploadsWithProgress(
   pendingUploads: Map<string, PendingUpload>,
   uploadField: UploadFieldFn,
-  onProgress?: UploadProgressCallback
+  onProgress?: UploadProgressCallback,
+  executionContext?: UploadExecutionContext
 ): Promise<ExecuteUploadsResult> {
   const results: UploadResult[] = []
   const successful = new Map<string, StoredFileValue>()
@@ -145,9 +342,7 @@ export async function executeUploadsWithProgress(
       status: 'uploading',
     })
 
-    const formData = new FormData()
-    formData.append('file', upload.file)
-    formData.append('field', uploadFieldName(fieldPath))
+    const formData = buildUploadFormData(fieldPath, upload, executionContext)
 
     try {
       const result = await uploadField(upload.collectionPath, formData, false)

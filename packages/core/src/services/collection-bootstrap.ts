@@ -23,7 +23,7 @@ export interface CollectionRecord {
 }
 
 export interface EnsureCollectionsInput {
-  definitions: CollectionDefinition[]
+  definitions: readonly CollectionDefinition[]
   db: IDbAdapter
   logger?: BylineLogger
 }

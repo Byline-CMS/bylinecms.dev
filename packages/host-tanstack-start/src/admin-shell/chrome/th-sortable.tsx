@@ -27,6 +27,16 @@ export interface TableHeadingCellSortableProps extends TableHeadingCellProps {
   desc?: boolean
   align?: 'left' | 'center' | 'right'
   className?: string
+  /**
+   * The *effective* sort column/direction — URL params when present, else
+   * the collection's configured `defaultSort` (surfaced via the list
+   * response's `meta.order`/`meta.desc`). When provided, these drive the
+   * sort indicator instead of reading the URL directly, so a params-less
+   * landing still shows which column ordered the rows. Omit for the legacy
+   * URL-only behaviour.
+   */
+  activeOrder?: string
+  activeDesc?: boolean
 }
 
 export function TableHeadingCellSortable({
@@ -36,6 +46,8 @@ export function TableHeadingCellSortable({
   sortable = false,
   align = 'left',
   className,
+  activeOrder,
+  activeDesc,
   ...rest
 }: TableHeadingCellSortableProps & {
   ref?: React.RefObject<HTMLTableCellElement>
@@ -61,15 +73,21 @@ export function TableHeadingCellSortable({
 
   useEffect(() => {
     if (fieldName != null) {
-      const order = (location.search as Record<string, unknown>).order
-      const d = (location.search as Record<string, unknown>).desc as boolean | undefined
+      // Prefer the effective sort passed down by the list view (which folds
+      // in a configured `defaultSort`); fall back to reading the URL.
+      const order =
+        activeOrder !== undefined ? activeOrder : (location.search as Record<string, unknown>).order
+      const d =
+        activeOrder !== undefined
+          ? activeDesc
+          : ((location.search as Record<string, unknown>).desc as boolean | undefined)
       if (order === fieldName) {
         setDesc(d ?? false)
       } else {
         setDesc(null)
       }
     }
-  }, [fieldName, location.search])
+  }, [fieldName, location.search, activeOrder, activeDesc])
 
   const alignClasses = cx({
     'byline-th-align-left': align === 'left',

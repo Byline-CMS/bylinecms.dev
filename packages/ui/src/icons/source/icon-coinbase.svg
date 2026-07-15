@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<svg version="1.2"
+<svg role="presentation" version="1.2"
   xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 1024 1024" overflow="visible" xml:space="preserve">
   <path fill="#0052FF" d="M512,0L512,0c282.8,0,512,229.2,512,512l0,0c0,282.8-229.2,512-512,512l0,0C229.2,1024,0,794.8,0,512l0,0
 	C0,229.2,229.2,0,512,0z"/>

@@ -53,6 +53,10 @@ export function useFieldChangeHandler(field: Field, path: string) {
         path,
         field,
         operation: 'change',
+        // Raw store write for cross-field behaviour (e.g. mutual exclusivity
+        // across array items). Deliberately does not run the target field's
+        // own hooks — see FieldHookContext.setFieldValue.
+        setFieldValue,
       }
 
       clearFieldError(path)

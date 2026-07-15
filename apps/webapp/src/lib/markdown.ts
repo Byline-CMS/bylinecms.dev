@@ -21,7 +21,9 @@
  */
 
 import { documentToMarkdown, getCollectionDefinition, getServerConfig } from '@byline/core'
-import { getPublicBylineClient } from '@byline/host-tanstack-start/integrations/byline-public-client'
+
+import { getPublicBylineClient } from '~/client.server'
+import type { CollectionPath } from '~/generated/collection-types.js'
 
 import { getPublicConfig } from '@/config'
 import { isRoutableLocale } from '@/i18n/i18n-config'
@@ -51,7 +53,7 @@ function publicUrlFor(collectionPath: string, documentPath: string): string[] | 
 }
 
 export interface GetDocumentMarkdownOptions {
-  collection: string
+  collection: CollectionPath
   lng: string
   path: string
   /** Relation populate map for the read (mirrors the HTML details loader). */

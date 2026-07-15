@@ -37,6 +37,8 @@
  * drift. See docs/DATA-CACHE-DESIGN.md.
  */
 
+import type { CollectionPath } from '~/generated/collection-types.js'
+
 import { getServerConfig } from '@/config'
 import { getCache, invalidateTag } from './index'
 
@@ -70,14 +72,14 @@ const PUBLISHED = 'published'
  */
 export const tags = {
   /** Coarse: every cached read of the collection. Big hammer for embeds/bulk. */
-  collection: (collectionPath: string): string => `cms::${collectionPath}`,
+  collection: (collectionPath: CollectionPath): string => `cms::${collectionPath}`,
   /** One document's details page, across all locales. */
-  details: (collectionPath: string, path: string): string =>
+  details: (collectionPath: CollectionPath, path: string): string =>
     `cms::${collectionPath}::details::${path}`,
   /** The collection's list reads (any filter/pagination). */
-  list: (collectionPath: string): string => `cms::${collectionPath}::list`,
+  list: (collectionPath: CollectionPath): string => `cms::${collectionPath}::list`,
   /** The collection's sitemap read. */
-  sitemap: (collectionPath: string): string => `cms::${collectionPath}::sitemap`,
+  sitemap: (collectionPath: CollectionPath): string => `cms::${collectionPath}::sitemap`,
 }
 
 /** A query parameter that participates in a list cache key (filter, page, etc.). */
@@ -102,11 +104,12 @@ export const cacheKeys = {
    * `params` carries the filter / pagination inputs that change the result
    * (e.g. `{ category, page, pageSize }`). Omit for a plain unfiltered list.
    */
-  list: (collectionPath: string, locale: string | undefined, params?: ListParams): string =>
+  list: (collectionPath: CollectionPath, locale: string | undefined, params?: ListParams): string =>
     `cms::${collectionPath}::list::${locale ?? 'default'}${serializeParams(params)}::${PUBLISHED}`,
-  details: (collectionPath: string, path: string, locale: string | undefined): string =>
+  details: (collectionPath: CollectionPath, path: string, locale: string | undefined): string =>
     `cms::${collectionPath}::details::${path}::${locale ?? 'default'}::${PUBLISHED}`,
-  sitemap: (collectionPath: string): string => `cms::${collectionPath}::sitemap::${PUBLISHED}`,
+  sitemap: (collectionPath: CollectionPath): string =>
+    `cms::${collectionPath}::sitemap::${PUBLISHED}`,
 }
 
 export interface WithCacheOptions<T> {
@@ -173,7 +176,7 @@ export interface InvalidateDocumentOptions {
  * to the old collection-wide sweep — other documents' cached details survive.
  */
 export async function invalidateDocument(
-  collectionPath: string,
+  collectionPath: CollectionPath,
   path: string,
   options: InvalidateDocumentOptions = {}
 ): Promise<void> {
@@ -190,6 +193,6 @@ export async function invalidateDocument(
  * cross-collection embed invalidation (e.g. a news-category edit clearing all
  * news reads), not a collection's own per-document edits.
  */
-export async function invalidateCollection(collectionPath: string): Promise<void> {
+export async function invalidateCollection(collectionPath: CollectionPath): Promise<void> {
   await invalidateTag(tags.collection(collectionPath))
 }

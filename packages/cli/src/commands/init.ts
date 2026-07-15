@@ -15,6 +15,7 @@ export interface InitOptions {
   yes?: boolean
   reset?: boolean
   resetIMeanIt?: boolean
+  force?: boolean
   pm?: PackageManager
   quiet?: boolean
   noColor?: boolean
@@ -33,6 +34,7 @@ export async function runInit(opts: InitOptions): Promise<void> {
     yes: opts.yes ?? false,
     reset: opts.reset ?? false,
     resetConfirmed: opts.resetIMeanIt ?? false,
+    pm: opts.pm ?? state.get().answers.pm,
     cliFlags: { ...opts } as Record<string, string | boolean | undefined>,
     logger,
     prompter,
@@ -75,7 +77,7 @@ export async function runInit(opts: InitOptions): Promise<void> {
     // this one's output (db answers, env values, scaffolded files, etc.)
     // and would either fail confusingly or silently misbehave. `partial`
     // is a soft warning (wire's manual sub-edits) — keep going on that.
-    if (state_ === 'blocked') {
+    if (shouldHaltInit(state_)) {
       logger.info(`re-run with: byline init --from ${phase.id}`)
       state.flush()
       prompter.outro('installation halted — fix the issue above and re-run')
@@ -87,21 +89,18 @@ export async function runInit(opts: InitOptions): Promise<void> {
   prompter.outro('Byline installation complete — see byline doctor for status')
 }
 
-function pickPhases(opts: InitOptions, completed: PhaseId[]) {
+export function shouldHaltInit(state: Awaited<ReturnType<typeof runPhase>>): boolean {
+  return state === 'blocked'
+}
+
+function pickPhases(opts: InitOptions, _completed: PhaseId[]) {
   if (opts.only) {
     const p = findPhase(opts.only)
     return p ? [p] : []
   }
   if (opts.from) return phasesBetween(opts.from, opts.to)
   if (opts.to) return phasesBetween(undefined, opts.to)
-  const lastCompleted = completed[completed.length - 1]
-  if (!lastCompleted) return PHASES
-  const next = nextPhaseAfter(lastCompleted)
-  return next ? phasesFrom(next) : PHASES
-}
-
-function nextPhaseAfter(id: PhaseId): PhaseId | undefined {
-  const idx = PHASES.findIndex((p) => p.id === id)
-  if (idx === -1 || idx >= PHASES.length - 1) return undefined
-  return PHASES[idx + 1]?.id
+  // Always re-detect every phase. Structural detection is cheap and prevents
+  // old completion flags from hiding artifacts introduced by a newer CLI.
+  return PHASES
 }

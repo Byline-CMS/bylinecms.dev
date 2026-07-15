@@ -10,6 +10,7 @@
 
 import { useCallback, useMemo } from 'react'
 
+import type { SlugifierFn } from '@byline/core'
 import { slugify } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Input, Label } from '@byline/ui/react'
@@ -47,6 +48,23 @@ export interface PathWidgetProps {
   activeLocale: string
   /** `'create'` shows the live derived preview as placeholder text. */
   mode: 'create' | 'edit'
+  /**
+   * Installation slugifier used to derive the live preview. Must match the
+   * server-side `ServerConfig.slugifier` so the preview agrees with what is
+   * persisted. Defaults to the built-in `slugify` when omitted — callers
+   * that keep the default slugifier need not pass this.
+   */
+  slugifier?: SlugifierFn
+  /**
+   * When `true`, the `useAsPath` source field's value is not editable through
+   * this form (e.g. it is an allocator-assigned `counter`, or an otherwise
+   * read-only field). Its value is either server-assigned — and so not
+   * reproducible client-side — or simply cannot change, which means the
+   * source-derived live preview and the "Regenerate" affordance are
+   * meaningless. When set, the widget suppresses both and just shows the
+   * persisted path. Defaults to `false`.
+   */
+  sourceLocked?: boolean
 }
 
 /**
@@ -71,11 +89,19 @@ export const PathWidget = ({
   defaultLocale,
   activeLocale,
   mode,
+  slugifier,
+  sourceLocked = false,
 }: PathWidgetProps) => {
   const { setSystemPath } = useFormContext()
   const { t } = useTranslation('byline-admin')
   const systemPath = useSystemPath()
   const sourceValue = useFieldValue<unknown>(useAsPath ?? '')
+
+  // The installation slugifier, or the built-in default. Server-side path
+  // derivation uses `ServerConfig.slugifier`; this must be the same function
+  // (registered via `ClientConfig.slugifier`) or the preview will disagree
+  // with what the server persists.
+  const runSlugify = slugifier ?? slugify
 
   // Phase 1: paths are written/edited only under the default content
   // locale. When editing a translation, the widget locks down — the
@@ -87,11 +113,13 @@ export const PathWidget = ({
   // field value if no override were set. Used as placeholder in create
   // mode and as the target of the "Regenerate" action.
   const livePreview = useMemo(() => {
-    if (!useAsPath) return ''
+    // A locked source (server-assigned counter / read-only field) can't be
+    // previewed or regenerated from the form — suppress the derivation.
+    if (!useAsPath || sourceLocked) return ''
     const asString = coerceToString(sourceValue)
     if (asString.length === 0) return ''
-    return slugify(asString, { locale: defaultLocale, collectionPath })
-  }, [useAsPath, sourceValue, defaultLocale, collectionPath])
+    return runSlugify(asString, { locale: defaultLocale, collectionPath })
+  }, [useAsPath, sourceLocked, sourceValue, defaultLocale, collectionPath, runSlugify])
 
   const inputValue = systemPath ?? ''
 
@@ -115,8 +143,8 @@ export const PathWidget = ({
   // field-hook advisory behaviour).
   const formatted = useMemo(() => {
     if (inputValue.length === 0) return ''
-    return slugify(inputValue, { locale: defaultLocale, collectionPath })
-  }, [inputValue, defaultLocale, collectionPath])
+    return runSlugify(inputValue, { locale: defaultLocale, collectionPath })
+  }, [inputValue, defaultLocale, collectionPath, runSlugify])
 
   const validationHint =
     inputValue.length > 0 && formatted !== inputValue

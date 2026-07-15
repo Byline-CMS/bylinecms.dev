@@ -26,6 +26,11 @@ import type { CollectionAdminConfig, CollectionDefinition } from '../@types/inde
  *     schema field names; groups exclude tabSets and nested groups.
  *  6. `fields` map sanity — every key in `admin.fields` matches a top-level
  *     schema field name.
+ *  7. `defaultSort` sanity — `field` resolves to a top-level schema field
+ *     or a document-level column (`createdAt` / `updatedAt` / `path`), the
+ *     direction (when given) is `asc` | `desc`, and the option is rejected
+ *     on `orderable: true` collections (manual ordering owns their default
+ *     sort and the drag-to-reorder canonical-view check assumes it).
  *
  * Throws a plain `Error` (not a `BylineError`) because configuration
  * validation runs at startup, before the logger and error registry are
@@ -70,6 +75,31 @@ function validateOne(
   const topLevelFieldNames = new Set<string>()
   for (const field of collection.fields) {
     if ('name' in field) topLevelFieldNames.add(field.name)
+  }
+
+  // Rule 7 — defaultSort sanity. The list read applies this spec verbatim
+  // (host list server fn → parseSort), so a bad field name would silently
+  // fall back to `created_at desc` at request time — fail loudly at boot
+  // instead.
+  if (admin.defaultSort != null) {
+    const { field, direction } = admin.defaultSort
+    const documentColumns = new Set(['createdAt', 'updatedAt', 'path'])
+    if (collection.orderable === true) {
+      fail(
+        `defaultSort is not allowed on an orderable collection — manual ordering owns the default sort (order_key asc).`
+      )
+    }
+    if (typeof field !== 'string' || field.length === 0) {
+      fail(`defaultSort.field must be a non-empty string.`)
+    }
+    if (!topLevelFieldNames.has(field as string) && !documentColumns.has(field as string)) {
+      fail(
+        `defaultSort.field "${String(field)}" is not a top-level schema field or a document column (createdAt, updatedAt, path).`
+      )
+    }
+    if (direction != null && direction !== 'asc' && direction !== 'desc') {
+      fail(`defaultSort.direction must be 'asc' or 'desc' (got "${String(direction)}").`)
+    }
   }
 
   // Build primitive lookup tables.

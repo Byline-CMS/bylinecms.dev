@@ -1,5 +1,63 @@
 # @byline/ui
 
+## 3.21.0
+
+### Minor Changes
+
+- added **`@byline/client`** collection-type inference and a **`@byline/core`** deterministic type emitter for generating application collection types
+  fixed hasMany relation, decimal, and file-size field-data types and canonicalized numeric writes across **`@byline/core`** / **`@byline/db-postgres`**
+
+## 3.20.4
+
+### Patch Changes
+
+- added `listSearch` schema key, decoupling admin list-view search from `search.body`
+
+## 3.20.3
+
+### Patch Changes
+
+- added configurable `defaultSort` for collection list views in **`@byline/admin`** and default padding for combo-button items in **`@byline/ui`**
+
+## 3.20.2
+
+### Patch Changes
+
+- added a rounded frame + below-frame help text to **`@byline/admin`** relation fields, and fixed **`@byline/richtext-lexical`** settings forwarding resurrecting a removed InlineImageExtension
+
+## 3.20.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** merging field-level `editorConfig` over the registered editor config
+
+## 3.20.0
+
+### Minor Changes
+
+- added virtual fields — hooks-visible computed values that are never persisted to storage
+  fixed array item removal silently no-opping so removed items reappeared on save
+
+## 3.19.0
+
+### Minor Changes
+
+- added full hook control over upload storage keys, upload context, and storage move/exists, plus scoped counters and a save-first upload gate
+
+## 3.18.0
+
+## 3.17.1
+
+### Patch Changes
+
+- fixed upload fields nested in group/array/blocks — recursive upload-field discovery, upload transport resolution, and storage cleanup on delete
+
+## 3.17.0
+
+### Minor Changes
+
+- added conditional field visibility (`condition` on schema fields) and cross-field writes via the field-hook context's `setFieldValue`
+
 ## 3.16.1
 
 ### Patch Changes

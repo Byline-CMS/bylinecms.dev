@@ -1,6 +1,7 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { findWorkspaceRoot } from './lib/workspace-root.js'
 import type { Prompter } from './prompts.js'
 import type { StateStore } from './state.js'
 import type { PackageManager } from './types.js'
@@ -27,6 +28,7 @@ export interface Secrets {
 
 export class Context {
   readonly cwd: string
+  readonly workspaceRoot: string
   readonly apply: boolean
   readonly dryRun: boolean
   readonly yes: boolean
@@ -41,6 +43,7 @@ export class Context {
 
   constructor(opts: ContextOptions) {
     this.cwd = opts.cwd
+    this.workspaceRoot = findWorkspaceRoot(opts.cwd)
     this.apply = opts.apply
     this.dryRun = opts.dryRun
     this.yes = opts.yes
@@ -55,6 +58,10 @@ export class Context {
 
   resolve(...parts: string[]): string {
     return resolve(this.cwd, ...parts)
+  }
+
+  resolveWorkspace(...parts: string[]): string {
+    return resolve(this.workspaceRoot, ...parts)
   }
 
   templatesDir(): string {

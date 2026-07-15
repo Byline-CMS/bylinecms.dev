@@ -16,7 +16,7 @@ import { z } from 'zod'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { ApiView } from '../admin-shell/collections/api.js'
 import { getCollectionDocument } from '../server-fns/collections/index.js'
-import type { ContentLocaleOption } from '../admin-shell/collections/view-menu.js'
+import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
@@ -28,12 +28,7 @@ const searchSchema = z.object({
   depth: z.coerce.number().int().min(0).max(3).optional(),
 })
 
-interface CollectionApiOpts {
-  contentLocales: ReadonlyArray<ContentLocaleOption>
-  defaultContentLocale: string
-}
-
-export function createCollectionApiRoute(path: string, opts: CollectionApiOpts) {
+export function createCollectionApiRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
     validateSearch: searchSchema,
@@ -56,7 +51,8 @@ export function createCollectionApiRoute(path: string, opts: CollectionApiOpts) 
       // 'all' is now always explicit in the URL when the user picks it.
       // No locale param means the user hasn't made a selection yet — default
       // to the content default locale (same as History and Edit behaviours).
-      const resolvedLocale = deps.locale ?? opts.defaultContentLocale
+      const { defaultContentLocale } = getContentLocaleRouteConfig()
+      const resolvedLocale = deps.locale ?? defaultContentLocale
       const data = await getCollectionDocument(
         params.collection,
         params.id,
@@ -79,6 +75,7 @@ export function createCollectionApiRoute(path: string, opts: CollectionApiOpts) 
       const { locale, depth } = Route.useSearch() as z.infer<typeof searchSchema>
       const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
       const { t } = useTranslation('byline-admin')
+      const { contentLocales, defaultContentLocale } = getContentLocaleRouteConfig()
 
       return (
         <>
@@ -101,8 +98,8 @@ export function createCollectionApiRoute(path: string, opts: CollectionApiOpts) 
             initialData={data}
             locale={locale}
             depth={depth}
-            contentLocales={opts.contentLocales}
-            defaultContentLocale={opts.defaultContentLocale}
+            contentLocales={contentLocales}
+            defaultContentLocale={defaultContentLocale}
           />
         </>
       )

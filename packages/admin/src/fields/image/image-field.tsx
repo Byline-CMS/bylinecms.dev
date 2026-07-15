@@ -61,7 +61,7 @@ export const ImageField = ({
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<StoredFileValue | null | undefined>(fieldPath)
   const isUploading = useIsFieldUploading(fieldPath)
-  const { removePendingUpload } = useFormContext()
+  const { removePendingUpload, documentId } = useFormContext()
   const { t } = useTranslation('byline-admin')
 
   // Re-use the standard field change handler so patches are emitted correctly.
@@ -86,6 +86,12 @@ export const ImageField = ({
 
   // Show upload widget only if no value or old placeholder
   const showUploadWidget = incomingValue == null || isOldPlaceholder(incomingValue)
+
+  // `upload.requireSavedDocument` gate: until the document is persisted,
+  // render a "save first" notice in place of the upload zone. Server-side
+  // upload hooks that depend on save-time state (counters, document id)
+  // rely on this; existing stored values still render normally below.
+  const uploadGated = field.upload?.requireSavedDocument === true && documentId == null
 
   // Prefer the generated thumbnail variant for the preview tile. SVGs and
   // other bypass types have no variants — fall back to the original.
@@ -122,7 +128,15 @@ export const ImageField = ({
       </div>
 
       {showUploadWidget ? (
-        collectionPath ? (
+        uploadGated ? (
+          <div
+            className={cx('byline-field-image-empty', styles.empty)}
+            role="note"
+            data-testid="upload-require-saved-document"
+          >
+            {t('fields.upload.requireSavedDocument')}
+          </div>
+        ) : collectionPath ? (
           <ImageUploadField
             field={field}
             collectionPath={collectionPath}

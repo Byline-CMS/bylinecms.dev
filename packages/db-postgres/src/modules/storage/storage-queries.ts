@@ -25,7 +25,13 @@ import type {
 // constructs query/command classes before initBylineCore() wires up the Pino
 // logger. A future refactor could inject the logger at construction time by
 // either deferring adapter construction or accepting a lazy logger parameter.
-import { ERR_DATABASE, ERR_NOT_FOUND, getLogger, orderByContentLocale } from '@byline/core'
+import {
+  ERR_DATABASE,
+  ERR_NOT_FOUND,
+  getLogger,
+  orderByContentLocale,
+  resolveIdentityField,
+} from '@byline/core'
 import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
@@ -122,13 +128,13 @@ export class CollectionQueries implements ICollectionQueries {
  */
 export class DocumentQueries implements IDocumentQueries {
   private db: DatabaseConnection
-  private collections: CollectionDefinition[]
+  private collections: readonly CollectionDefinition[]
   private defaultContentLocale: string
   private collectionPathCache = new Map<string, string>()
 
   constructor(
     db: DatabaseConnection,
-    collections: CollectionDefinition[],
+    collections: readonly CollectionDefinition[],
     defaultContentLocale: string
   ) {
     this.db = db
@@ -1807,17 +1813,18 @@ export class DocumentQueries implements IDocumentQueries {
       )
     }
 
-    // Text search across configured search fields via EXISTS on store_text.
+    // Admin list-view quick search via EXISTS on store_text.
     if (query) {
       const definition = await this.getDefinitionForCollection(collection_id)
-      // The admin list-view box matches store_text rows by field name. Derive
-      // the names from the role-based `search.body` declaration (a field path
-      // or `{ field, boost }`); fall back to the identity-ish `title`.
-      const bodyDecls = definition.search?.body ?? []
+      // The list-view box matches store_text rows by field name, from the
+      // schema-level `listSearch` declaration; fall back to the collection's
+      // identity field (`useAsTitle`, else its first text field).
+      // Deliberately independent of the `search` (provider / site-search
+      // indexing) config — see `CollectionDefinition.listSearch`.
       const searchFields =
-        bodyDecls.length > 0
-          ? bodyDecls.map((decl) => (typeof decl === 'string' ? decl : decl.field))
-          : ['title']
+        definition.listSearch != null && definition.listSearch.length > 0
+          ? definition.listSearch
+          : [resolveIdentityField(definition) ?? 'title']
       const searchConditions = searchFields.map(
         (fieldName) => sql`(field_name = ${fieldName} AND value ILIKE ${`%${query}%`})`
       )
@@ -2344,7 +2351,7 @@ export class DocumentQueries implements IDocumentQueries {
 
 export function createQueryBuilders(
   db: DatabaseConnection,
-  collections: CollectionDefinition[],
+  collections: readonly CollectionDefinition[],
   defaultContentLocale: string
 ) {
   return {

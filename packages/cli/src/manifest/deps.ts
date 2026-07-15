@@ -42,7 +42,7 @@ export interface DepSpec {
 // floor would let pnpm resolve the latest 2.x against these 3.x templates, so
 // we floor at the current major. Bump the minor when a template starts using an
 // API that landed in a later 3.x release.
-export const BYLINE_VERSION = '^3.0.0'
+export const BYLINE_VERSION = '^3.21.0'
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------
@@ -111,6 +111,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     version: BYLINE_VERSION,
     group: 'byline',
     note: 'local-filesystem storage provider (default)',
+  },
+  {
+    name: '@byline/storage-s3',
+    version: BYLINE_VERSION,
+    group: 'byline',
+    note: 'S3 storage provider imported by the scaffolded server config',
   },
   {
     name: '@byline/ui',
@@ -210,5 +216,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     group: 'dev',
     optional: 'importDocs',
     note: 'TypeScript types for mdast nodes; consumed as type-only by byline/scripts/lib/mdast-to-lexical.ts',
+  },
+  {
+    name: 'mdast-util-to-string',
+    version: '^4.0.0',
+    group: 'dev',
+    optional: 'importDocs',
+    note: 'extracts heading text in the optional markdown import helpers',
   },
 ] as const

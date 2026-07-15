@@ -116,7 +116,7 @@ export interface BaseConfig {
      */
     translations?: TranslationBundleShape
   }
-  collections: CollectionDefinition[]
+  collections: readonly CollectionDefinition[]
   /**
    * URL segments for admin and API routes. Both keys default to `/admin`
    * and `/api` respectively — installations only set this when they want
@@ -147,6 +147,24 @@ export type TranslationBundleShape = Readonly<{
 export interface ClientConfig extends BaseConfig {
   /** Admin UI configuration for collections (client-side only). */
   admin?: CollectionAdminConfig[]
+  /**
+   * Installation-wide slugifier — the **client-side** copy, used by the
+   * admin path-widget to render the live `path` preview (create-mode
+   * placeholder and the "Regenerate" target) as the editor types.
+   *
+   * Must be the *same* pure, synchronous function registered on
+   * `ServerConfig.slugifier`: the server derivation is authoritative, and a
+   * divergent client copy would show a preview that disagrees with what is
+   * persisted (and could let "Regenerate" overwrite a correct path). Falls
+   * back to the default `slugify` from `@byline/core` when not set — so
+   * installations that keep the default slugifier need not set this at all.
+   *
+   * Lives on `ClientConfig` rather than `BaseConfig` because it is a function
+   * (not serialisable), and `BaseConfig` is contractually serialisable.
+   *
+   * @see ServerConfig.slugifier
+   */
+  slugifier?: SlugifierFn
   /**
    * Site-wide field-level UI defaults. Currently surfaces the richtext
    * editor adapter slot — additional field-level defaults (custom
@@ -216,6 +234,11 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * Falls back to the default `slugify` from `@byline/core` when not set.
    * Must be pure and synchronous — it runs server-side at write time and
    * client-side for live form preview, and the two must agree on output.
+   *
+   * This is the **server-side** copy (the authoritative one — its output is
+   * what gets persisted). For the admin path-widget's live preview to match,
+   * register the *same* function on `ClientConfig.slugifier` via
+   * `defineClientConfig`. See {@link ClientConfig.slugifier}.
    */
   slugifier?: SlugifierFn
   /**

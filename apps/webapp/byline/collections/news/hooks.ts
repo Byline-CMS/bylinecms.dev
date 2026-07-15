@@ -25,17 +25,13 @@ import { defineHooks } from '@byline/core'
 import { invalidateDocument } from '@/lib/cache/with-cache'
 
 export default defineHooks({
-  afterCreate: ({ collectionPath, path }) =>
-    invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
-  afterUpdate: ({ collectionPath, path, originalData }) =>
-    invalidateDocument(collectionPath, path, {
+  afterCreate: ({ path }) => invalidateDocument('news', path, { list: true, sitemap: true }),
+  afterUpdate: ({ path, originalData }) =>
+    invalidateDocument('news', path, {
       prevPath: (originalData as { path?: string } | undefined)?.path,
       list: true,
     }),
-  afterStatusChange: ({ collectionPath, path }) =>
-    invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
-  afterUnpublish: ({ collectionPath, path }) =>
-    invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
-  afterDelete: ({ collectionPath, path }) =>
-    invalidateDocument(collectionPath, path, { list: true, sitemap: true }),
+  afterStatusChange: ({ path }) => invalidateDocument('news', path, { list: true, sitemap: true }),
+  afterUnpublish: ({ path }) => invalidateDocument('news', path, { list: true, sitemap: true }),
+  afterDelete: ({ path }) => invalidateDocument('news', path, { list: true, sitemap: true }),
 })

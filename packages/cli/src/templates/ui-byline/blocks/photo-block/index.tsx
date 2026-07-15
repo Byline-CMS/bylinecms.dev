@@ -5,16 +5,14 @@ import type React from 'react'
 import { Container, FadeInLift } from '@byline/ui/react'
 import cx from 'classnames'
 
-import type { PhotoBlockData } from '~/blocks/photo-block'
-import type { MediaFields } from '~/collections/media/schema'
-
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
+import type { PopulatedPhotoBlockData } from '@/ui/byline/types/content'
 import type { Locale } from '@/ui/byline/types/i18n'
 
 interface Props {
   id: string
-  block: PhotoBlockData
+  block: PopulatedPhotoBlockData
   lng: Locale
   constrainedLayout?: boolean
   className?: string
@@ -29,27 +27,26 @@ export function PhotoBlock({
 }: Props): React.JSX.Element | null {
   const { photo, alt, caption, display } = block
 
-  // The `photo` relation must be populated (`populate: { photo: '*' }`) for
-  // the front-end to render an image. When populated, the value is a
-  // `PopulatedRelationValue` envelope — `{ ...rel, _resolved: true,
-  // document: <MediaFields> }`. Bail out if the relation is missing or
-  // unpopulated.
-  if (photo == null || (photo as { _resolved?: boolean })._resolved !== true) {
-    return null
-  }
-  const media = (photo as unknown as { document: MediaFields }).document
+  // Missing, unresolved, and cycle-suppressed relations have no document.
+  const media = photo?.document?.fields
+  if (media == null) return null
 
   const Comp = display === 'full_width' ? 'div' : Container
 
-  // TODO: caption is a Lexical richText field — type properly once the
-  // Lexical node shape is modelled in @byline/core.
-  const captionDoc = caption as Record<string, any> | undefined
+  const captionRoot =
+    caption != null && !Array.isArray(caption) && typeof caption === 'object'
+      ? caption.root
+      : undefined
+  const captionChildren =
+    captionRoot != null && !Array.isArray(captionRoot) && typeof captionRoot === 'object'
+      ? captionRoot.children
+      : undefined
 
   return (
     <Comp
       id={id}
       className={cx(
-        'px-0 pt-4',
+        'px-0',
         {
           'lg:max-w-[920px] xl:max-w-[920px] 2xl:max-w-[920px] mx-auto': display === 'default',
         },
@@ -65,12 +62,10 @@ export function PhotoBlock({
           className="photo-block"
           imgClassName="photo-block--photo"
         />
-        {captionDoc != null && (
-          <Container
-            className={cx('bg-white dark:bg-canvas-900 py-2', { 'px-0': constrainedLayout })}
-          >
-            <div className="photo-block--caption">
-              <LexicalRichText lng={lng} nodes={captionDoc?.root?.children} />
+        {captionChildren != null && (
+          <Container className={cx('py-2', { 'px-0': constrainedLayout })}>
+            <div className="photo-block--caption [&_p]:m-0 muted text-[1rem]">
+              <LexicalRichText lng={lng} nodes={captionChildren} />
             </div>
           </Container>
         )}

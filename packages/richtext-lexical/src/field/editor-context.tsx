@@ -80,14 +80,19 @@ export function EditorContext(props: {
     const extensionsList = editorConfig.extensions ?? defaultExtensionsList()
 
     // Forward the inline-image upload collection from the settings facade
-    // onto the InlineImageExtension's typed config, but only when the
-    // user hasn't already configured the extension explicitly.
-    const dependencies = extensionsList
-      .clone()
-      .configure(InlineImageExtension, {
+    // onto the InlineImageExtension's typed config — but ONLY when the
+    // extension is actually present. `configure()` has upsert semantics
+    // (absent → added), so an ungated call here silently resurrected
+    // InlineImageExtension on every editor build for registrations that
+    // had deliberately removed it via
+    // `lexicalEditor((c) => c.extensions.remove(builtInExtensions.InlineImage))`.
+    const configured = extensionsList.clone()
+    if (configured.has(InlineImageExtension)) {
+      configured.configure(InlineImageExtension, {
         collection: editorConfig.settings.inlineImageUploadCollection,
       })
-      .toArray()
+    }
+    const dependencies = configured.toArray()
 
     return defineExtension({
       name: '[root]',

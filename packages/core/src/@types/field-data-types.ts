@@ -14,8 +14,10 @@ import type {
   GroupField,
   LocalizedField,
   OptionalField,
+  RelationField,
   SelectField,
 } from './field-types.js'
+import type { RelatedDocumentValue } from './relation-types.js'
 import type { Prettify, ValueUnion } from './type-utils.js'
 
 /**
@@ -83,6 +85,10 @@ type BlocksFieldData<T extends BlocksField> = Array<
   >
 >
 
+type RelationFieldData<T extends RelationField> = T extends { hasMany: true }
+  ? RelatedDocumentValue[]
+  : RelatedDocumentValue
+
 // The data type corresponding to the given Field definition, without
 // considering the 'optional' modifier.
 type BaseFieldData<T extends Field> = T extends ArrayField
@@ -93,7 +99,9 @@ type BaseFieldData<T extends Field> = T extends ArrayField
       ? FieldSetData<T['fields']>
       : T extends SelectField
         ? T['options'][number]['value']
-        : BaseFieldDataTypes[T['type']]
+        : T extends RelationField
+          ? RelationFieldData<T>
+          : BaseFieldDataTypes[T['type']]
 
 // The data type corresponding to the given Field definition, taking into
 // account the 'optional' modifier.
@@ -139,7 +147,9 @@ type BaseFieldDataAllLocales<T extends Field> = T extends ArrayField
       ? FieldSetDataAllLocales<T['fields']>
       : T extends SelectField
         ? T['options'][number]['value']
-        : BaseFieldDataTypes[T['type']]
+        : T extends RelationField
+          ? RelationFieldData<T>
+          : BaseFieldDataTypes[T['type']]
 
 type LocalizedFieldDataAllLocales<T extends Field> = T extends LocalizedField
   ? PerLocale<BaseFieldDataAllLocales<T>>
@@ -219,7 +229,7 @@ export interface PendingStoredFileValue {
   filename: string
   originalFilename: string
   mimeType: string
-  fileSize: string
+  fileSize: number
   storageProvider: 'pending'
   storagePath: ''
   storageUrl: string // blob URL for local preview
@@ -253,7 +263,7 @@ export function createPendingStoredFileValue(
     filename: file.name,
     originalFilename: file.name,
     mimeType: file.type,
-    fileSize: String(file.size),
+    fileSize: file.size,
     storageProvider: 'pending',
     storagePath: '',
     storageUrl: previewUrl,
@@ -264,15 +274,4 @@ export function createPendingStoredFileValue(
     processingStatus: 'pending',
     thumbnailGenerated: false,
   }
-}
-
-// ---------------------------------------------------------------------------
-//  Data type for relation fields / related documents
-// ---------------------------------------------------------------------------
-
-export interface RelatedDocumentValue {
-  targetDocumentId: string
-  targetCollectionId: string
-  relationshipType?: string
-  cascadeDelete?: boolean
 }

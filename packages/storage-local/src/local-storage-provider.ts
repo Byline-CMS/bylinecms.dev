@@ -130,6 +130,43 @@ class LocalStorageProvider implements IStorageProvider {
     }
   }
 
+  async move(fromPath: string, toPath: string): Promise<StoredFileLocation> {
+    const fromAbsolute = path.join(this.uploadDir, fromPath)
+    const toAbsolute = path.join(this.uploadDir, toPath)
+
+    // Ensure the target directory exists.
+    fs.mkdirSync(path.dirname(toAbsolute), { recursive: true })
+
+    try {
+      await fs.promises.rename(fromAbsolute, toAbsolute)
+    } catch (err: unknown) {
+      // `rename` fails with EXDEV when uploadDir spans filesystems (e.g. a
+      // mounted volume boundary). Fall back to copy + unlink.
+      if ((err as NodeJS.ErrnoException).code === 'EXDEV') {
+        await fs.promises.copyFile(fromAbsolute, toAbsolute)
+        await fs.promises.unlink(fromAbsolute)
+      } else {
+        throw err
+      }
+    }
+
+    return {
+      storageProvider: this.providerName,
+      storagePath: toPath,
+      storageUrl: this.getUrl(toPath),
+    }
+  }
+
+  async exists(storagePath: string): Promise<boolean> {
+    const absolutePath = path.join(this.uploadDir, storagePath)
+    try {
+      await fs.promises.access(absolutePath, fs.constants.F_OK)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   getUrl(storagePath: string): string {
     return `${this.baseUrl}/${storagePath}`
   }

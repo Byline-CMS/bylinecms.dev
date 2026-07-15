@@ -16,7 +16,7 @@
  * Idempotent — safe to re-run. Uses the installation's configured default
  * content locale (resolved from byline/i18n.ts via the server config).
  *
- *   cd apps/webapp && pnpm tsx byline/scripts/backfill-version-locales.ts
+ *   pnpm tsx byline/scripts/backfill-version-locales.ts
  *
  * See docs/07-internationalization/index.md.
  */

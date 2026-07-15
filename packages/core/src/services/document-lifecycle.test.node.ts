@@ -49,6 +49,15 @@ const minimalCollection: CollectionDefinition = {
   },
 }
 
+const numericCollection: CollectionDefinition = {
+  ...minimalCollection,
+  fields: [
+    { name: 'quantity', type: 'integer' },
+    { name: 'score', type: 'float' },
+    { name: 'price', type: 'decimal' },
+  ],
+}
+
 /** Build a mock IDbAdapter. Returns the adapter plus individual mock fns. */
 function createMockDb() {
   const createDocumentVersion = vi.fn().mockResolvedValue({
@@ -89,6 +98,7 @@ function createMockDb() {
       counters: {
         ensureCounterGroup: vi.fn() as any,
         nextCounterValue: vi.fn() as any,
+        nextScopedCounterValue: vi.fn() as any,
       },
       audit: { append: auditAppend },
     },
@@ -297,6 +307,26 @@ describe('Document lifecycle service', () => {
       expect(persistedData.title).toBe('Mutated')
     })
 
+    it('normalizes numeric values before and after beforeCreate', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const beforeCreate = vi.fn(({ data }) => {
+        expect(data).toMatchObject({ quantity: 2, score: 1.5, price: '10.00' })
+        data.quantity = '3'
+        data.price = 12.5
+      })
+      const definition = { ...numericCollection, hooks: { beforeCreate } }
+
+      await createDocument(buildCtx(db, definition), {
+        data: { quantity: '2', score: '1.5', price: ' 10.00 ' },
+      })
+
+      expect(createDocumentVersion.mock.calls[0]?.[0].documentData).toMatchObject({
+        quantity: 3,
+        score: 1.5,
+        price: '12.5',
+      })
+    })
+
     it('derives path from useAsPath source field via the slugifier', async () => {
       const { db, createDocumentVersion } = createMockDb()
       const definition: CollectionDefinition = { ...minimalCollection, useAsPath: 'title' }
@@ -481,6 +511,27 @@ describe('Document lifecycle service', () => {
       )
 
       expect(createDocumentVersion).toHaveBeenCalledOnce()
+    })
+
+    it('normalizes numeric values before and after beforeUpdate', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({ fields: { quantity: 1, score: 1, price: '1.0' } })
+      const beforeUpdate = vi.fn(({ data }) => {
+        expect(data.score).toBe(25)
+        data.score = '3.5'
+      })
+      const definition = { ...numericCollection, hooks: { beforeUpdate } }
+
+      await updateDocument(buildCtx(db, definition), {
+        documentId: 'doc-1',
+        data: { quantity: '2', score: '2.5e1', price: 4.25 },
+      })
+
+      expect(createDocumentVersion.mock.calls[0]?.[0].documentData).toEqual({
+        quantity: 2,
+        score: 3.5,
+        price: '4.25',
+      })
     })
 
     it('afterUpdate receives documentId and documentVersionId', async () => {
@@ -848,6 +899,32 @@ describe('Document lifecycle service', () => {
         })
       )
     })
+
+    it('normalizes patched and hook-produced numeric values before persistence', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        fields: { quantity: 1, score: 1, price: '1.00' },
+      })
+      const beforeUpdate = vi.fn(({ data }) => {
+        expect(data.quantity).toBe(7)
+        data.price = ' 8.500 '
+      })
+      const definition = { ...numericCollection, hooks: { beforeUpdate } }
+
+      await updateDocumentWithPatches(buildCtx(db, definition), {
+        documentId: 'doc-1',
+        patches: [
+          { kind: 'field.set', path: 'quantity', value: '7.0' },
+          { kind: 'field.set', path: 'score', value: '2.75' },
+        ],
+      })
+
+      expect(createDocumentVersion.mock.calls[0]?.[0].documentData).toEqual({
+        quantity: 7,
+        score: 2.75,
+        price: '8.500',
+      })
+    })
   })
 
   // -----------------------------------------------------------------------
@@ -1187,6 +1264,61 @@ describe('Document lifecycle service', () => {
           action: 'document.deleted',
         })
       )
+    })
+
+    it('cleans up stored files for upload fields at any nesting depth', async () => {
+      const { db, getDocumentById } = createMockDb()
+      const upload = { mimeTypes: ['application/pdf'], maxFileSize: 1024 }
+      const definition: CollectionDefinition = {
+        ...minimalCollection,
+        fields: [
+          { name: 'cover', label: 'Cover', type: 'image', upload },
+          {
+            name: 'files',
+            label: 'Files',
+            type: 'array',
+            fields: [
+              {
+                name: 'filesGroup',
+                type: 'group',
+                fields: [{ name: 'publicationFile', label: 'File', type: 'file', upload }],
+              },
+            ],
+          },
+        ],
+      }
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'doc-to-delete',
+        fields: {
+          cover: {
+            storagePath: 'covers/original.jpg',
+            variants: [{ storagePath: 'covers/thumb.avif' }],
+          },
+          files: [
+            { filesGroup: { publicationFile: { storagePath: 'files/a.pdf' } } },
+            { filesGroup: { publicationFile: null } },
+            { filesGroup: { publicationFile: { storagePath: 'files/b.pdf' } } },
+          ],
+        },
+      })
+      const storageDelete = vi.fn().mockResolvedValue(undefined)
+      const ctx = {
+        ...buildCtx(db, definition),
+        storage: { delete: storageDelete } as any,
+      }
+
+      await deleteDocument(ctx, { documentId: 'doc-1' })
+
+      // reconstruct: true because the collection is upload-capable
+      expect(getDocumentById).toHaveBeenCalledWith(expect.objectContaining({ reconstruct: true }))
+      expect(storageDelete.mock.calls.map((c) => c[0])).toEqual([
+        'covers/original.jpg',
+        'covers/thumb.avif',
+        'files/a.pdf',
+        'files/b.pdf',
+      ])
     })
   })
 

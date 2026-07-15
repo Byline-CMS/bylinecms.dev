@@ -12,9 +12,9 @@
  * translation bundle.
  *
  * The locale arrays themselves live in `./locales.ts`, a dependency-free leaf
- * module, so the public frontend can import them without pulling in the admin
- * translation graph this file depends on. Re-exported here for back-compat
- * with existing `~/i18n` importers.
+ * module exposed to public frontend code by `./public.ts`, without pulling in
+ * the admin translation graph this file depends on. Re-exported here for
+ * back-compat with existing `~/i18n` importers.
  *
  * `interface` locales govern the CMS admin UI language.
  * `content` locales govern the languages a document can be published in.

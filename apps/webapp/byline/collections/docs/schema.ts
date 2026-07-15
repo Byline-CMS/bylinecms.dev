@@ -40,12 +40,24 @@ export const Docs = defineCollection({
   // the sidebar tree-placement widget; the import script derives placement
   // from the source directory layout (see byline/scripts/import-docs.ts).
   tree: true,
-  // Collection search config (docs/05-reading-and-delivery/07-search.md):
-  // `title` (boosted — lands in tsvector weight class A) + `summary` feed the
-  // full-text body. `title` is display-only unless listed here, so we list it.
-  // `content` is a `blocks` field — buildSearchDocument walks it recursively,
-  // flattening every nested richText/text leaf (RichTextBlock prose, PhotoBlock
-  // alt + caption) into the searchable body.
+  // Admin list-view quick-search. The collection list route's search box
+  // matches these top-level text-store fields with substring queries (ILIKE, in
+  // the Postgres adapter) against `store_text` — a lightweight "find the row I
+  // mean" affordance that needs no indexing and no lifecycle hooks. Falls back
+  // to `useAsTitle` when omitted; declared explicitly here for guidance.
+  listSearch: ['title'],
+  // Search-*provider* config (docs/05-reading-and-delivery/07-search.md) —
+  // distinct from `listSearch` above. This drives the pluggable SearchProvider
+  // (full-text search in @byline/search-postgres) and offers richer options:
+  // per-field weighting/`boost`, `facets`, `filters`, and `zones`. Unlike
+  // `listSearch`, `search` is inert on its own — it MUST be paired with index /
+  // reindex / deindex document-lifecycle hooks that keep the provider index in
+  // sync on create / update / publish / delete (see this collection's hooks).
+  // Here: `title` (boosted — lands in tsvector weight class A) + `summary` feed
+  // the full-text body. `title` is display-only unless listed here, so we list
+  // it. `content` is a `blocks` field — buildSearchDocument walks it
+  // recursively, flattening every nested richText/text leaf (RichTextBlock
+  // prose, PhotoBlock alt + caption) into the searchable body.
   search: { body: [{ field: 'title', boost: 2 }, 'summary', 'content'] },
   useAsTitle: 'title',
   useAsPath: 'title',

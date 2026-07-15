@@ -24,16 +24,16 @@ import { defineHooks } from '@byline/core'
 import { invalidateCollection } from '@/lib/cache/with-cache'
 
 export default defineHooks({
-  afterCreate: async ({ collectionPath }) => {
-    await invalidateCollection(collectionPath)
+  afterCreate: async () => {
+    await invalidateCollection('news-categories')
     await invalidateCollection('news')
   },
-  afterUpdate: async ({ collectionPath }) => {
-    await invalidateCollection(collectionPath)
+  afterUpdate: async () => {
+    await invalidateCollection('news-categories')
     await invalidateCollection('news')
   },
-  afterDelete: async ({ collectionPath }) => {
-    await invalidateCollection(collectionPath)
+  afterDelete: async () => {
+    await invalidateCollection('news-categories')
     await invalidateCollection('news')
   },
 })

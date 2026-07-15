@@ -8,9 +8,4 @@
 
 import { createCollectionApiRoute } from '@byline/host-tanstack-start/routes'
 
-import { contentLocales, i18n } from '~/i18n'
-
-export const Route = createCollectionApiRoute('/_byline/admin/collections/$collection/$id/api', {
-  contentLocales,
-  defaultContentLocale: i18n.content.defaultLocale,
-})
+export const Route = createCollectionApiRoute('/_byline/admin/collections/$collection/$id/api')

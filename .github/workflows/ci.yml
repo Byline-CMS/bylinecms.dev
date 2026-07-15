@@ -28,6 +28,7 @@ jobs:
           cache: "pnpm"
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm byline:generate:check
       - run: pnpm lint
       - run: pnpm typecheck
       # Dead-code guard: fails on unused production dependencies; unused
