@@ -58,6 +58,10 @@ yarn-error.log*
 postgres/data
 postgres/backups
 
+# pnpm's project-local store fallback (created when the global store
+# isn't writable, e.g. sandboxed agent shells) — machine-local cache
+.pnpm-store/
+
 # Claude Code local/personal config
 .claude/settings.local.json
 .claude/.mcp.local.json
