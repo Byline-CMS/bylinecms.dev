@@ -16,7 +16,7 @@
  * Two invariants, encoded here and pinned by `locale-rewrite.test.ts`:
  *
  *   1. `input` prepends the default locale ONLY for genuine localized
- *      frontend paths. The admin tree (`_byline` → `/admin`, `/sign-in`),
+ *      frontend paths. The configured admin and sign-in routes,
  *      TanStack server functions (`/_serverFn`), build assets (`/_build`),
  *      uploads, and static files must pass through untouched — they are
  *      locale-less siblings of the `$lng` frontend tree and would 404 if
@@ -36,27 +36,32 @@
  * un-rewritten request is visible.
  */
 
+import { resolveRoutes } from '@byline/core'
+
+import { routes } from '~/public'
+
 import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
 
 /**
- * Top-level URL segments that are NOT part of the localized frontend tree
- * and must never receive a locale prefix:
- *   - `admin` / `sign-in` → the `_byline` admin tree (locale-less siblings)
+ * Fixed top-level URL segments that are NOT part of the localized frontend
+ * tree and must never receive a locale prefix. Configured admin, API, and
+ * sign-in paths are handled separately above this set so nested paths can be
+ * matched precisely:
  *   - `_serverFn`         → TanStack Start server functions (default base)
  *   - `_build`            → TanStack Start build assets (default base)
  *   - `uploads`           → local storage provider (served in `server.ts`)
- *   - `api`               → reserved/defensive for a future raw HTTP boundary
- *
- * Adding a new top-level locale-less route (a new `_byline` child, say)
- * means adding its first segment here.
  */
+const resolvedRoutes = resolveRoutes(routes)
+const NON_LOCALIZED_ROUTE_PATHS = [
+  resolvedRoutes.admin,
+  resolvedRoutes.api,
+  resolvedRoutes.signIn,
+] as const
+
 export const NON_LOCALIZED_SEGMENTS: ReadonlySet<string> = new Set([
-  'admin',
-  'sign-in',
   '_serverFn',
   '_build',
   'uploads',
-  'api',
 ])
 
 /**
@@ -77,6 +82,13 @@ function looksLikeAsset(pathname: string): boolean {
 export function isLocalizablePath(pathname: string): boolean {
   const first = pathname.split('/')[1] ?? ''
   if (first === '') return true // '/' → localized home
+  if (
+    NON_LOCALIZED_ROUTE_PATHS.some(
+      (routePath) => pathname === routePath || pathname.startsWith(`${routePath}/`)
+    )
+  ) {
+    return false
+  }
   if (NON_LOCALIZED_SEGMENTS.has(first)) return false
   // `.md` is the one extension that IS content, not an asset: the markdown
   // representation of a document lives at its canonical URL + `.md` and is

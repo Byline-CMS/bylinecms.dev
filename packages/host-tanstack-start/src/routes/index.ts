@@ -6,6 +6,16 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+export {
+  getAdminRouteId,
+  getAdminRoutePath,
+  isAdminRoutePathActive,
+  isRoutePathWithin,
+  resolveAdminCallbackPath,
+  resolveAdminSignInRedirect,
+} from './admin-path.js'
+export { configureSignInRoutePath, getSignInRoutePath } from './sign-in-path.js'
+
 /**
  * Route factories for the Byline admin UI on TanStack Start.
  *
@@ -14,6 +24,7 @@
  * `createFileRoute(path)({...})`. The host's route file collapses to:
  *
  *   import { createCollectionListRoute } from '@byline/host-tanstack-start/routes'
+ *   // Default admin mount example:
  *   export const Route = createCollectionListRoute('/_byline/admin/collections/$collection/')
  *
  * Routes that need host-specific data (i18n bridge component, content

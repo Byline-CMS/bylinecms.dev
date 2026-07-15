@@ -73,6 +73,18 @@ export default defineHooks({
     )
     await getSystemBylineClient().collection('docs').indexDocument(documentId)
   },
+  // Path and advertised-locale edits are immediate document-grain writes, not
+  // content updates. Re-index their published view through this dedicated event.
+  afterSystemFieldsChange: async ({ documentId, collectionPath, requested, changed }) => {
+    console.log(
+      `afterSystemFieldsChange: ${documentId} in '${collectionPath}' changed`,
+      changed
+    )
+    // Advertised locales affect alternates/sitemaps, not indexed content.
+    if (requested.path) {
+      await getSystemBylineClient().collection('docs').indexDocument(documentId)
+    }
+  },
   beforeStatusChange: async ({ documentId, collectionPath, previousStatus, nextStatus }) => {
     console.log(
       `beforeStatusChange: ${documentId} in '${collectionPath}' ${previousStatus} → ${nextStatus}`

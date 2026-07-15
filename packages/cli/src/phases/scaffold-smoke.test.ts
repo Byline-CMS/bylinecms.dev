@@ -31,7 +31,7 @@ describe('temporary host scaffold smoke contracts', () => {
     { examples: false, importDocs: false },
     { examples: true, importDocs: true },
   ])('assembles a locally resolvable $examples/$importDocs inventory', async (answers) => {
-    const ctx = createTestContext({ ...answers, adminPath: '/admin' })
+    const ctx = createTestContext({ ...answers, adminPath: '/admin', signInPath: '/sign-in' })
     contexts.push(ctx)
     writeFileSync(ctx.resolve('package.json'), '{"name":"smoke","scripts":{}}\n')
 
@@ -65,6 +65,27 @@ describe('temporary host scaffold smoke contracts', () => {
     )
     expect(inventory.includes('src/ui/byline/render-blocks.tsx')).toBe(answers.examples)
     if (!answers.examples) expect(generatedImports).toEqual([])
+  })
+
+  it('assembles a custom nested sign-in route fixture with matching config and route ID', async () => {
+    const ctx = createTestContext({
+      examples: false,
+      importDocs: false,
+      adminPath: '/cms',
+      signInPath: '/staff/login',
+    })
+    contexts.push(ctx)
+    writeFileSync(ctx.resolve('package.json'), '{"name":"smoke","scripts":{}}\n')
+
+    await scaffoldPhase.apply(buildScaffoldPlan(ctx), ctx)
+    expect((await routesPhase.apply(buildRoutesPlan(ctx), ctx)).state).toBe('done')
+
+    const routePath = ctx.resolve('src/routes/_byline/staff/login.tsx')
+    expect(existsSync(routePath)).toBe(true)
+    expect(readFileSync(routePath, 'utf8')).toContain("createSignInRoute('/_byline/staff/login')")
+    expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain(
+      "signIn: '/staff/login'"
+    )
   })
 })
 

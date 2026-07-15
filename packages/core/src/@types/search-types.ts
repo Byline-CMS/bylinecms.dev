@@ -228,10 +228,9 @@ export interface SearchResults {
   /**
    * Total matches across all pages (not just the returned `hits`).
    *
-   * This is the *provider's* count. When the querying collection applies
-   * `beforeRead` row scoping, unauthorized hits are dropped **after**
-   * ranking (see `CollectionHandle.search`), so `total` — like facet
-   * counts — is approximate under scoping and exact without it.
+   * This is the provider-level count. Client authorization layers must not
+   * expose it when collections or rows are removed after ranking; they return
+   * a conservative authorized page count instead.
    */
   total: number
   /**

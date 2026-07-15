@@ -18,6 +18,7 @@ import { useTranslation } from '@byline/i18n/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { CreateView } from '../admin-shell/collections/create.js'
+import { getAdminRoutePath } from './admin-path.js'
 
 export function createCollectionCreateRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
@@ -49,11 +50,14 @@ export function createCollectionCreateRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: '/admin' },
-              { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              {
+                label: collectionDef.labels.plural,
+                href: getAdminRoutePath('collections', collection),
+              },
               {
                 label: t('collections.breadcrumbs.create'),
-                href: `/admin/collections/${collection}/create`,
+                href: getAdminRoutePath('collections', collection, 'create'),
               },
             ]}
           />

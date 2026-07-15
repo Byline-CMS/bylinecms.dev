@@ -9,7 +9,7 @@
 /**
  * Sign-in page route factory.
  *
- * Lives outside the `/admin` subtree so the authenticated-admin layout
+ * Lives outside the configured admin subtree so the authenticated-admin layout
  * (and its `beforeLoad` guard) does not apply. Preserves a `callbackUrl`
  * query param so sign-ins triggered by the admin guard redirect back to
  * the originally-requested path.
@@ -21,6 +21,7 @@ import type { LocaleCode } from '@byline/i18n'
 
 import { SignInPage } from '../admin-shell/chrome/sign-in-page.js'
 import { getActiveLocaleFn } from '../server-fns/i18n/index.js'
+import { resolveAdminCallbackPath, resolveAdminSignInRedirect } from './admin-path.js'
 
 interface SignInSearch {
   callbackUrl?: string
@@ -30,7 +31,7 @@ export function createSignInRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
     validateSearch: (search: Record<string, unknown>): SignInSearch => {
-      const callbackUrl = typeof search.callbackUrl === 'string' ? search.callbackUrl : undefined
+      const callbackUrl = resolveAdminCallbackPath(search.callbackUrl)
       return { callbackUrl }
     },
     beforeLoad: async () => {
@@ -45,7 +46,12 @@ export function createSignInRoute(path: string) {
     component: function SignInRouteComponent() {
       const { callbackUrl } = Route.useSearch() as SignInSearch
       const { activeLocale } = Route.useRouteContext() as { activeLocale: LocaleCode }
-      return <SignInPage callbackUrl={callbackUrl} activeLocale={activeLocale} />
+      return (
+        <SignInPage
+          redirectTo={resolveAdminSignInRedirect(callbackUrl)}
+          activeLocale={activeLocale}
+        />
+      )
     },
   })
   return Route

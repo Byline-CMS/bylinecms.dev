@@ -12,6 +12,7 @@ import type React from 'react'
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
+import { isAdminRoutePathActive } from '../../routes/admin-path.js'
 import { useMediaQuery } from './use-media-query.js'
 
 interface AdminMenuContextType {
@@ -37,7 +38,7 @@ interface AdminMenuProviderProps {
  * deliberate open stays open.
  */
 function isWideRoute(pathname: string): boolean {
-  return pathname.startsWith('/admin/collections')
+  return isAdminRoutePathActive(pathname, 'collections')
 }
 
 export function AdminMenuProvider({ children }: AdminMenuProviderProps): React.JSX.Element {

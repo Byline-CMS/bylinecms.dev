@@ -26,6 +26,7 @@ import {
 } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRouteId, getAdminRoutePath } from '../../routes/admin-path.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'
 import { RouterPager } from '../chrome/router-pager.js'
 import { TableHeadingCellSortable } from '../chrome/th-sortable.js'
@@ -139,8 +140,8 @@ export const HistoryView = ({
   defaultContentLocale: string
 }) => {
   const { id, collection } = useParams({
-    from: '/_byline/admin/collections/$collection/$id/history',
-  })
+    from: getAdminRouteId('collections', '$collection', '$id', 'history') as never,
+  }) as { id: string; collection: string }
   const navigate = useNavigate()
   const { getCollectionDocumentVersion } = useBylineAdminServices()
   const { t } = useTranslation('byline-admin')
@@ -181,7 +182,7 @@ export const HistoryView = ({
       delete params.tab
     }
     navigate({
-      to: '/admin/collections/$collection/$id/history' as never,
+      to: getAdminRoutePath('collections', '$collection', '$id', 'history'),
       params: { collection, id } as never,
       search: params,
     })
@@ -193,7 +194,7 @@ export const HistoryView = ({
     delete params.page
     params.page_size = Number.parseInt(value, 10)
     navigate({
-      to: '/admin/collections/$collection/$id/history' as never,
+      to: getAdminRoutePath('collections', '$collection', '$id', 'history'),
       params: { collection, id } as never,
       search: params,
     })
@@ -382,7 +383,7 @@ export const HistoryView = ({
                                     </button>
                                   ) : (
                                     <Link
-                                      to={'/admin/collections/$collection/$id' as never}
+                                      to={getAdminRoutePath('collections', '$collection', '$id')}
                                       params={{
                                         collection,
                                         id: document.id,

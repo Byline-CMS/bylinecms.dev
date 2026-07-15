@@ -156,12 +156,10 @@ export interface BylineClientConfig {
  * documents; `depth` caps the traversal (default 1 when populate is set,
  * 0 otherwise). Clamped to the request's internal `ReadContext.maxDepth`.
  */
-interface PopulateControls {
-  populate?: PopulateSpec
-  depth?: number
+interface ReadContextControls {
   /**
    * Escape hatch for read-side hook re-entry. Carries the visited set,
-   * depth clamp, and `afterReadFired` set across nested reads so the
+   * depth clamp, and `afterRead` recursion/object state across nested reads so the
    * A→B→A recursion guard stays intact.
    *
    * Threading rules:
@@ -181,6 +179,11 @@ interface PopulateControls {
    * @internal
    */
   _readContext?: ReadContext
+}
+
+interface PopulateControls extends ReadContextControls {
+  populate?: PopulateSpec
+  depth?: number
 }
 
 /**
@@ -276,9 +279,9 @@ export interface HydratedSearchHit extends SearchHit {
 
 /**
  * The client-side search result envelope — `SearchResults` with the hits
- * widened to carry an optional hydrated document. `total` (and facet
- * counts) are the provider's pre-authorization numbers: approximate when
- * row scoping or hydration drops hits, exact otherwise.
+ * widened to carry an optional hydrated document. When authorization removes
+ * collections or applies row predicates, `total` is conservatively reduced to
+ * the authorized hits in this page and facets are omitted.
  */
 export interface ClientSearchResults {
   hits: HydratedSearchHit[]
@@ -397,8 +400,8 @@ export interface FindByPathOptions<F = Record<string, any>>
 /**
  * Options for `CollectionHandle.history(documentId, options)`. The history
  * endpoint is paginated; `order` / `desc` mirror the storage adapter's
- * version-row sort axes. `_bypassBeforeRead` skips the `findById` access
- * gate for admin tooling.
+ * version-row sort axes. `_bypassBeforeRead` skips per-version row scoping
+ * for admin tooling.
  */
 export interface HistoryOptions extends BeforeReadControls {
   locale?: string
@@ -428,12 +431,13 @@ export interface AuditLogOptions extends BeforeReadControls {
 }
 
 /**
- * Options for `CollectionHandle.findByVersion(versionId, options)`. No
- * `BeforeReadControls` — `findByVersion` is a low-level pass-through
- * intended for admin diff views; row-level scoping is the caller's
- * responsibility (typically by gating with a prior `findById` call).
+ * Options for `CollectionHandle.findByVersion(versionId, options)`. Historical
+ * reads are collection-bound and apply the same `beforeRead` predicate as
+ * current reads.
  */
-export interface FindByVersionOptions<F = Record<string, any>> {
+export interface FindByVersionOptions<F = Record<string, any>>
+  extends BeforeReadControls,
+    ReadContextControls {
   select?: (keyof F & string)[] | string[]
   locale?: string
 }
@@ -504,6 +508,14 @@ export interface PlaceTreeNodeOptions {
   beforeDocumentId?: string | null
   /** Right neighbour — the node lands immediately before it. */
   afterDocumentId?: string | null
+  /** Re-run `afterTreeChange` when this exact placement is already current. */
+  reconcile?: boolean
+}
+
+/** Options for an idempotent tree removal or post-commit hook retry. */
+export interface RemoveFromTreeOptions {
+  /** Re-run `afterTreeChange` when the document is already unplaced. */
+  reconcile?: boolean
 }
 
 /**
@@ -513,8 +525,13 @@ export interface PlaceTreeNodeOptions {
  * at (and including) that node. `depth` bounds the descent (0-based; the root is
  * depth 0). `status` follows the usual published/any selector — in `'published'`
  * mode an unpublished node hides its entire subtree (the spine breaks).
+ * `beforeRead`-hidden nodes use the same edge semantics. `_bypassBeforeRead`
+ * is reserved for internal tooling.
  */
-export interface GetSubtreeOptions<F = Record<string, any>> extends StatusControls {
+export interface GetSubtreeOptions<F = Record<string, any>>
+  extends StatusControls,
+    BeforeReadControls,
+    ReadContextControls {
   rootDocumentId?: string | null
   depth?: number
   /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
@@ -527,13 +544,37 @@ export interface GetSubtreeOptions<F = Record<string, any>> extends StatusContro
  * Options for `CollectionHandle.getAncestors(documentId, options)`. Walks the
  * node's ancestor chain upward, returning the ancestors **root-first** (the
  * breadcrumb trail, excluding the node itself). In `'published'` mode only
- * ancestors with a published version are returned.
+ * ancestors with a published version are returned. The walk also stops at the
+ * first ancestor excluded by `beforeRead`.
  */
-export interface GetAncestorsOptions<F = Record<string, any>> extends StatusControls {
+export interface GetAncestorsOptions<F = Record<string, any>>
+  extends StatusControls,
+    BeforeReadControls,
+    ReadContextControls {
   /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
   locale?: string
   /** Return only these fields on each ancestor. Omit for all fields. */
   select?: (keyof F & string)[] | string[]
+}
+
+/**
+ * Options for `CollectionHandle.getTreeParent(documentId, options)`. A hidden
+ * queried node is indistinguishable from an unplaced node. When only the parent
+ * is hidden, placement remains true but its id is redacted to `null`.
+ */
+export interface GetTreeParentOptions
+  extends StatusControls,
+    BeforeReadControls,
+    ReadContextControls {
+  /** Locale used to evaluate localized `beforeRead` field predicates. */
+  locale?: string
+}
+
+export interface TreeParentResult {
+  placed: boolean
+  parentDocumentId: string | null
+  /** Distinguishes a true root/unplaced node from a hidden parent id. */
+  parentVisibility: 'none' | 'visible' | 'redacted'
 }
 
 /**

@@ -13,6 +13,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { AdminRolesListView } from '../admin-shell/admin-roles/list.js'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { type AdminRoleListResponse, listAdminRoles } from '../server-fns/admin-roles/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 
 export function createAdminRolesListRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
@@ -28,8 +29,8 @@ export function createAdminRolesListRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: '/admin' },
-              { label: t('chrome.menu.adminRoles'), href: '/admin/roles' },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              { label: t('chrome.menu.adminRoles'), href: getAdminRoutePath('roles') },
             ]}
           />
           <AdminRolesListView data={data} />

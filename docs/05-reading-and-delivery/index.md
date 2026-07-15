@@ -27,5 +27,5 @@ it efficiently.
   optional in-memory data cache.
 - [Search & Retrieval](./07-search.md) — the pluggable `SearchProvider` seam
   (Postgres full-text search built in, vector / hybrid as external drivers),
-  zone-scoped search spanning collections, and the Client SDK `search()` surface
-  developers build site search on. *(Planned.)*
+  shipped collection/zone search, hydration, and post-ranking authorization,
+  exposed through the Client SDK surfaces developers build site search on.

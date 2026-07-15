@@ -1,7 +1,12 @@
 import * as p from '@clack/prompts'
 
 export interface Prompter {
-  text(opts: { message: string; placeholder?: string; defaultValue?: string }): Promise<string>
+  text(opts: {
+    message: string
+    placeholder?: string
+    defaultValue?: string
+    validate?: (value: string) => string | undefined
+  }): Promise<string>
   /**
    * Password prompt. The optional `validate` callback returns an error string
    * to keep the prompt re-prompting the same field, or `undefined` when the
@@ -28,9 +33,14 @@ export function createPrompter(opts: { yes?: boolean } = {}): Prompter {
   const yes = opts.yes === true
 
   return {
-    async text({ message, placeholder, defaultValue }) {
+    async text({ message, placeholder, defaultValue, validate }) {
       if (yes && defaultValue !== undefined) return defaultValue
-      const v = await p.text({ message, placeholder, defaultValue })
+      const v = await p.text({
+        message,
+        placeholder,
+        defaultValue,
+        validate: validate ? (value: string | undefined) => validate(value ?? '') : undefined,
+      })
       if (p.isCancel(v)) cancel('cancelled')
       return v as string
     },

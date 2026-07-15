@@ -24,6 +24,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { type AdminRoleResponse, deleteAdminRole } from '../../server-fns/admin-roles/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import styles from './delete.module.css'
@@ -52,7 +53,7 @@ export function DeleteRole({ role, onClose }: DeleteRoleProps) {
       // forced to re-fetch — without this, TanStack Router can serve
       // the cached pre-delete list.
       await router.invalidate()
-      navigate({ to: '/admin/roles' as never })
+      navigate({ to: getAdminRoutePath('roles') })
     } catch (err) {
       const code = getErrorCode(err)
       if (code === 'admin.roles.versionConflict') {

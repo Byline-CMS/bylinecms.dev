@@ -8,7 +8,10 @@
 
 // import { z } from 'zod/v4'
 
+import type { RequestContext } from '@byline/auth'
+
 import type { UploadConfig } from './collection-types.js'
+import type { ReadMode } from './db-types.js'
 import type { MaybePromise, NonEmptyArray } from './type-utils.js'
 
 // ---------------------------------------------------------------------------
@@ -994,7 +997,7 @@ export type RichTextEditorComponent = SlotComponent<RichTextEditorProps>
  * Context passed to the richtext populate function for one rich-text field
  * value. Mirrors the shape consumed by the relation-field populate
  * primitive — `readContext` is the same request-scoped context, so the
- * visited set / read budget / `afterReadFired` machinery covers rich-text
+ * visited set / read budget / `afterRead` recursion machinery covers rich-text
  * fan-out automatically and any nested reads the adapter performs.
  *
  * The adapter mutates `value` in place — typically by walking the editor's
@@ -1015,7 +1018,27 @@ export interface RichTextPopulateContext {
    * read they perform via `_readContext`.
    */
   readContext: import('./db-types.js').ReadContext
+  /** Authenticated context cloned for this operation's effective read mode. */
+  requestContext: RequestContext
+  /** Effective source-view selector inherited from the containing read. */
+  readMode: ReadMode
+  /**
+   * Framework-owned secure target reader. Editor adapters must use this
+   * instead of direct adapter access so target abilities and `beforeRead`
+   * predicates are enforced uniformly.
+   */
+  readDocuments: RichTextReadDocumentsFn
 }
+
+export interface RichTextReadDocumentsInput {
+  collectionPath: string
+  documentIds: string[]
+  fields?: string[]
+}
+
+export type RichTextReadDocumentsFn = (
+  input: RichTextReadDocumentsInput
+) => Promise<Array<Record<string, any>>>
 
 /**
  * Server-side populate function contract. Editor adapters export an
@@ -1057,6 +1080,12 @@ export interface RichTextEmbedContext {
    * budget machinery with the rest of the framework.
    */
   readContext: import('./db-types.js').ReadContext
+  /** Authenticated write-operation context used for target read checks. */
+  requestContext: RequestContext
+  /** Embed refreshes resolve the public/published target view. */
+  readMode: ReadMode
+  /** Framework-owned ability- and beforeRead-aware target reader. */
+  readDocuments: RichTextReadDocumentsFn
 }
 
 /**

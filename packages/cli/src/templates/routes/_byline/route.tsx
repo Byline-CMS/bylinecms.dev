@@ -9,7 +9,7 @@
 /**
  * Pathless route definition for everything Byline-rendered (the admin
  * shell and the sign-in page). The `_byline` prefix doesn't contribute
- * to URL paths — `/_byline/admin/...` resolves to `/admin/...` and
+ * to URL paths — by default, `/_byline/admin/...` resolves to `/admin/...` and
  * `/_byline/sign-in` resolves to `/sign-in`.
  *
  * This file is intentionally light. The router needs the route definition

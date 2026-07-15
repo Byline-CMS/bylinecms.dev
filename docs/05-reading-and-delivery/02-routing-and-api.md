@@ -20,6 +20,63 @@ This is deliberate. Byline avoids evolving ad-hoc HTTP endpoints one operation a
 
 If you need to read or write Byline content from your own code today (a public frontend, a script, a seed), the supported door is the in-process [Client SDK](./01-client-sdk.md), not an HTTP endpoint.
 
+## Byline-owned host route mounts
+
+Hosts configure Byline-owned URL paths through `BaseConfig.routes`. Inputs are
+partial; consumers should call `resolveRoutes()` to obtain the canonical shape:
+
+```ts
+import { resolveRoutes, type RoutesConfig } from '@byline/core'
+
+const routes: Partial<RoutesConfig> = {
+  admin: '/cms',
+  api: '/api',
+  signIn: '/staff/login',
+}
+
+const resolved = resolveRoutes(routes)
+```
+
+| Key | Default | Contract |
+|---|---|---|
+| `admin` | `/admin` | Exactly one path segment. |
+| `api` | `/api` | Exactly one path segment; reserved for a future public API. |
+| `signIn` | `/sign-in` | One or more segments, outside the admin and API trees. |
+
+Resolution trims surrounding whitespace, adds the leading slash, removes
+duplicate and trailing slashes, and uses defaults for blank or omitted values.
+Query strings, hashes, percent-encoded paths, colons, backslashes, embedded
+whitespace, control characters, and `.` / `..` segments are rejected. Admin and API must differ, and sign-in may not equal or
+sit below either tree. The CLI applies additional lowercase filesystem-name and
+reserved-route checks because its answers become TanStack route filenames.
+
+:::warning[Config does not register file routes]
+Changing `routes.admin` or `routes.signIn` does not move TanStack route files. The
+filesystem location and each route factory's `createFileRoute` ID must match the
+configured mount. The CLI keeps `byline/routes.ts`, `src/routes/_byline/...`, and
+the factory IDs aligned; TanStack regenerates `src/routeTree.gen.ts`, which must
+not be edited by hand.
+:::
+
+The TanStack host exports configuration-aware helpers from
+`@byline/host-tanstack-start/routes`:
+
+- `getAdminRoutePath(...)` builds dashboard and child URLs.
+- `getAdminRouteId(...)` builds matching `/_byline/...` route IDs.
+- `isRoutePathWithin(...)` and `isAdminRoutePathActive(...)` perform
+  segment-delimited active-route checks.
+- `getSignInRoutePath()` resolves the sign-in destination.
+
+The built-in shell uses these for menus, breadcrumbs, sort/pager navigation,
+create/edit/history links, post-delete navigation, route context, and sign-out.
+Custom admin components should use the same helpers rather than concatenate
+`/admin`. Public host code should instead import the client-safe route data from
+its `byline/public.ts` facade and pass it to `resolveRoutes()`.
+
+`routes.api` is currently a reservation used for collision checks and host locale
+rewriting. Setting it does **not** mount an HTTP API; the no-public-API boundary
+described below remains unchanged.
+
 The architecture is four layers, top to bottom:
 
 ```
@@ -46,7 +103,7 @@ The architecture is four layers, top to bottom:
 │     - field-upload.ts       (validate / store / hooks / variants)│
 │     - document-read.ts      (afterRead orchestration)            │
 │     - populate.ts           (relation expansion)                 │
-│   packages/admin/src/admin-{users,roles,permissions}/commands.ts │
+│   packages/admin/src/modules/admin-{users,roles,permissions,account}/commands.ts │
 │   packages/client/src/                                           │
 │     - CollectionHandle (used by admin server fns and external    │
 │       readers; routes through document-lifecycle for writes)     │
@@ -94,14 +151,14 @@ Per-collection document operations against the universal storage layer. All of t
 
 ### `admin-users/`, `admin-roles/`, `admin-permissions/`, `admin-account/`
 
-Administrative management of the auth subsystem. Each handler delegates to the matching `*Command` in `@byline/admin/admin-{users,roles,permissions}` and is gated by `assertAdminActor` inside the command — so the transport wrappers themselves carry no policy.
+Administrative management of the auth subsystem. Each handler delegates to the matching command in `packages/admin/src/modules/admin-{users,roles,permissions,account}/commands.ts` and is gated by `assertAdminActor` inside the command — so the transport wrappers themselves carry no policy.
 
 | Area                | Files                                                                                       |
 |---------------------|---------------------------------------------------------------------------------------------|
 | `admin-users/`      | `create`, `update`, `delete`, `enable`, `disable`, `get`, `list`, `set-password`, `set-user-roles`, `get-user-roles` |
 | `admin-roles/`      | `create`, `update`, `delete`, `get`, `list`, `reorder`                                      |
-| `admin-permissions/`| `list`, `assign`, `revoke`, `who-has-ability`                                               |
-| `admin-account/`    | `update-account` (the current actor's own profile)                                          |
+| `admin-permissions/`| `list-registered`, `get-role-abilities`, `set-role-abilities`, `who-has`                    |
+| `admin-account/`    | `get`, `update`, `change-password`                                                         |
 
 (See `packages/host-tanstack-start/src/server-fns/admin-*/` for the canonical file list.)
 
@@ -218,14 +275,17 @@ If Byline is later hosted behind a dedicated API server (e.g. a Fastify applicat
 
 | Concern                                  | Location                                                                  |
 |------------------------------------------|---------------------------------------------------------------------------|
-| Admin UI routes                          | `apps/webapp/src/routes/_byline/`                                         |
+| Admin UI routes                          | `apps/webapp/src/routes/_byline/<configured-admin-segment>/` (the repository example uses `admin`) |
 | Document server fns (current transport)  | `packages/host-tanstack-start/src/server-fns/collections/`                |
 | Auth server fns                          | `packages/host-tanstack-start/src/server-fns/auth/`                       |
 | Admin-management server fns              | `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/` |
 | Auth context resolver                    | `packages/host-tanstack-start/src/auth/auth-context.ts` (`getAdminRequestContext`) |
+| Route config / canonicalization           | `packages/core/src/config/routes.ts`                                      |
+| Admin and sign-in path helpers            | `packages/host-tanstack-start/src/routes/{admin-path,sign-in-path}.ts`     |
+| App-owned client-safe route data           | `apps/webapp/byline/routes.ts`, re-exported by `byline/public.ts`          |
 | Document write services                  | `packages/core/src/services/document-lifecycle/` (per-operation modules)  |
 | Field-level upload service               | `packages/core/src/services/field-upload.ts`                              |
 | Document read services + hooks           | `packages/core/src/services/document-read.ts` + `populate.ts`             |
 | Auth gates                               | `packages/core/src/auth/assert-actor-can-perform.ts`, `packages/admin/src/lib/assert-admin-actor.ts` |
-| Admin-management commands                | `packages/admin/src/admin-{users,roles,permissions}/commands.ts`          |
+| Admin-management commands                | `packages/admin/src/modules/admin-{users,roles,permissions,account}/commands.ts` |
 | In-process client (used by admin reads)  | `packages/client/src/` + `packages/host-tanstack-start/src/integrations/byline-client.ts` |

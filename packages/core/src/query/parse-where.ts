@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { ERR_VALIDATION } from '../lib/errors.js'
 import { fieldTypeToStore } from '../storage/field-store-map.js'
 import type {
   CombinatorFilter,
@@ -143,6 +144,207 @@ export async function parseWhere(
   ctx?: ParseContext
 ): Promise<ParsedWhere> {
   return parseWhereInternal(where, definition, ctx, { isNested: false, inCombinator: false })
+}
+
+/**
+ * Compile a predicate wholly to adapter `DocumentFilter`s. Unlike
+ * `parseWhere`, top-level `status` and `path` are emitted as document-column
+ * filters rather than scalar list-query options. This is the form used by
+ * `beforeRead` on detail, populate, count, and tree reads.
+ */
+export async function parsePredicateFilters(
+  where: QueryPredicate | undefined,
+  definition: CollectionDefinition,
+  ctx?: ParseContext,
+  options: { strict?: boolean } = {}
+): Promise<DocumentFilter[]> {
+  if (options.strict) {
+    await validateSecurityPredicate(where, definition, ctx)
+  }
+  const parsed = await parseWhereInternal(where, definition, ctx, {
+    isNested: false,
+    inCombinator: true,
+  })
+  return parsed.filters
+}
+
+const FILTER_OPERATORS = new Set([
+  '$eq',
+  '$ne',
+  '$gt',
+  '$gte',
+  '$lt',
+  '$lte',
+  '$contains',
+  '$in',
+  '$nin',
+])
+
+const DOCUMENT_COLUMN_OPERATORS: Record<'status' | 'path' | 'id', ReadonlySet<string>> = {
+  status: new Set(['$eq', '$ne', '$in', '$nin']),
+  path: new Set(['$eq', '$ne', '$contains', '$in', '$nin']),
+  id: new Set(['$eq', '$ne', '$in', '$nin']),
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Fail-closed validation used only for security predicates from hooks. */
+async function validateSecurityPredicate(
+  predicate: QueryPredicate | undefined,
+  definition: CollectionDefinition,
+  ctx: ParseContext | undefined,
+  allowEmpty = false
+): Promise<void> {
+  if (predicate == null || typeof predicate !== 'object' || Array.isArray(predicate)) {
+    throw invalidSecurityPredicate(definition.path, 'predicate must be an object')
+  }
+  const entries = Object.entries(predicate).filter(([, value]) => value !== undefined)
+  if (entries.length === 0 && !allowEmpty) {
+    throw invalidSecurityPredicate(definition.path, 'predicate must contain at least one clause')
+  }
+
+  for (const [key, value] of entries) {
+    if (key === '$and' || key === '$or') {
+      if (!Array.isArray(value) || value.length === 0) {
+        throw invalidSecurityPredicate(definition.path, `${key} must be a non-empty array`)
+      }
+      for (const child of value) {
+        await validateSecurityPredicate(child as QueryPredicate, definition, ctx)
+      }
+      continue
+    }
+    if (key === 'query') {
+      throw invalidSecurityPredicate(
+        definition.path,
+        '`query` is not supported in beforeRead security predicates'
+      )
+    }
+    if (key === 'status' || key === 'path' || key === 'id') {
+      validateDocumentColumnPredicate(value, definition.path, key)
+      continue
+    }
+
+    const field = definition.fields.find((candidate) => candidate.name === key)
+    if (field == null) {
+      throw invalidSecurityPredicate(definition.path, `unknown field '${key}'`)
+    }
+
+    if (field.type === 'relation' && (isQuantifierObject(value) || isPlainSubWhere(value))) {
+      const targetPath = (field as { targetCollection?: string }).targetCollection
+      const target = targetPath
+        ? ctx?.collections.find((candidate) => candidate.path === targetPath)
+        : null
+      if (target == null) {
+        throw invalidSecurityPredicate(
+          definition.path,
+          `cannot resolve target collection for relation field '${key}'`
+        )
+      }
+      if (isQuantifierObject(value)) {
+        for (const [quantifier, nested] of Object.entries(value)) {
+          await validateSecurityPredicate(
+            nested as QueryPredicate,
+            target,
+            ctx,
+            quantifier === '$none'
+          )
+        }
+      } else {
+        await validateSecurityPredicate(value as QueryPredicate, target, ctx)
+      }
+      continue
+    }
+
+    if (fieldTypeToStore[field.type] == null) {
+      throw invalidSecurityPredicate(
+        definition.path,
+        `field '${key}' cannot be used as a predicate`
+      )
+    }
+    validateSecurityOperator(value, definition.path, key)
+  }
+}
+
+function validateDocumentColumnPredicate(
+  value: unknown,
+  collectionPath: string,
+  column: 'status' | 'path' | 'id'
+): void {
+  validateSecurityOperator(value, collectionPath, column)
+  const parsed = normaliseToOperator(value as WhereValue)
+  if (parsed == null || !DOCUMENT_COLUMN_OPERATORS[column].has(parsed.operator)) {
+    throw invalidSecurityPredicate(
+      collectionPath,
+      `operator '${parsed?.operator ?? 'unknown'}' is not supported for '${column}'`
+    )
+  }
+
+  const values = Array.isArray(parsed.value) ? parsed.value : [parsed.value]
+  if ((parsed.operator === '$in' || parsed.operator === '$nin') && !Array.isArray(parsed.value)) {
+    throw invalidSecurityPredicate(
+      collectionPath,
+      `${parsed.operator} for '${column}' requires an array`
+    )
+  }
+  if (parsed.operator !== '$in' && parsed.operator !== '$nin' && Array.isArray(parsed.value)) {
+    throw invalidSecurityPredicate(
+      collectionPath,
+      `${parsed.operator} for '${column}' requires a string`
+    )
+  }
+  if (values.some((item) => typeof item !== 'string')) {
+    throw invalidSecurityPredicate(
+      collectionPath,
+      `predicate for '${column}' requires string values`
+    )
+  }
+  if (column === 'id' && values.some((item) => !UUID_RE.test(item as string))) {
+    throw invalidSecurityPredicate(
+      collectionPath,
+      `predicate for 'id' requires UUID values; use { id: { $in: [] } } to deny all rows`
+    )
+  }
+}
+
+function validateSecurityOperator(value: unknown, collectionPath: string, fieldName: string): void {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw invalidSecurityPredicate(collectionPath, `invalid predicate for '${fieldName}'`)
+  }
+  const entries = Object.entries(value)
+  if (entries.length !== 1 || !FILTER_OPERATORS.has(entries[0]?.[0] ?? '')) {
+    throw invalidSecurityPredicate(
+      collectionPath,
+      `predicate for '${fieldName}' must contain exactly one supported operator`
+    )
+  }
+  const [operator, operand] = entries[0] ?? []
+  if ((operator === '$in' || operator === '$nin') && !Array.isArray(operand)) {
+    throw invalidSecurityPredicate(
+      collectionPath,
+      `${operator} for '${fieldName}' requires an array`
+    )
+  }
+  if (operator === '$contains' && typeof operand !== 'string') {
+    throw invalidSecurityPredicate(collectionPath, `$contains for '${fieldName}' requires a string`)
+  }
+  if (operand === undefined) {
+    throw invalidSecurityPredicate(collectionPath, `operator for '${fieldName}' requires a value`)
+  }
+}
+
+function invalidSecurityPredicate(collectionPath: string, reason: string) {
+  return ERR_VALIDATION({
+    message: `invalid beforeRead predicate for '${collectionPath}': ${reason}`,
+    details: { collectionPath, reason },
+  })
 }
 
 /**
@@ -289,7 +491,7 @@ async function parseWhereInternal(
             kind: 'docColumn',
             column: 'status',
             operator: parsed.operator,
-            value: parsed.value === null ? null : String(parsed.value),
+            value: stringifyDocumentColumnValue(parsed.value),
           } satisfies DocumentColumnFilter)
         }
         continue
@@ -329,7 +531,7 @@ async function parseWhereInternal(
             kind: 'docColumn',
             column: 'path',
             operator: parsed.operator,
-            value: parsed.value === null ? null : String(parsed.value),
+            value: stringifyDocumentColumnValue(parsed.value),
           } satisfies DocumentColumnFilter)
         }
         continue
@@ -601,6 +803,13 @@ function normaliseToOperator(raw: WhereValue): NormalisedOperator | undefined {
     operator: op as FieldFilterOperator,
     value: val as NormalisedOperator['value'],
   }
+}
+
+function stringifyDocumentColumnValue(
+  value: NormalisedOperator['value']
+): NormalisedOperator['value'] {
+  if (value === null) return null
+  return Array.isArray(value) ? value.map(String) : String(value)
 }
 
 /** Exported for testing. */

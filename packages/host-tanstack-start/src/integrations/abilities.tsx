@@ -38,15 +38,25 @@
 import type React from 'react'
 import { useRouteContext } from '@tanstack/react-router'
 
-/** Route id of the admin shell — the layout route that owns `user` on context. */
-const ADMIN_ROUTE_ID = '/_byline/admin' as const
+import { getAdminRouteId } from '../routes/admin-path.js'
+
+interface AbilityRouteContext {
+  user: {
+    is_super_admin: boolean
+    abilities: string[]
+  }
+}
+
+function useAbilityRouteContext(): AbilityRouteContext {
+  return useRouteContext({ from: getAdminRouteId() as never }) as AbilityRouteContext
+}
 
 /**
  * `true` when the current admin holds the given ability (or is a
  * super-admin). Cosmetic — see file-level docstring.
  */
 export function useAbility(ability: string): boolean {
-  const { user } = useRouteContext({ from: ADMIN_ROUTE_ID })
+  const { user } = useAbilityRouteContext()
   if (user.is_super_admin) return true
   return user.abilities.includes(ability)
 }
@@ -62,7 +72,7 @@ export function useAbilities(): {
   hasAny: (abilities: readonly string[]) => boolean
   isSuperAdmin: boolean
 } {
-  const { user } = useRouteContext({ from: ADMIN_ROUTE_ID })
+  const { user } = useAbilityRouteContext()
   const has = (ability: string): boolean => user.is_super_admin || user.abilities.includes(ability)
   const hasAny = (abilities: readonly string[]): boolean =>
     user.is_super_admin || abilities.some((key) => user.abilities.includes(key))

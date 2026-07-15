@@ -23,8 +23,8 @@ import {
   invokeHook,
   resolvePathForUpdate,
   rethrowPathConflict,
-  selfHealTreePlacement,
 } from './internals.js'
+import { selfHealTreePlacement } from './tree.js'
 import type { DocumentPatch } from '../../patches/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 

@@ -56,9 +56,10 @@ never visible in the address bar. An isomorphic URL-rewrite pair
 both the SSR request-parse and client navigation:
 
 - **`input`** prepends the default locale to a bare frontend path so the matcher
-  always sees a locale segment — skipping non-localized siblings (`_byline`'s
-  `admin` / `sign-in`, plus `_serverFn`, `_build`, `uploads`, `api`) and static
-  assets.
+  always sees a locale segment. It resolves the client-safe route config and
+  skips the configured admin, API, and sign-in paths (including their
+  segment-delimited descendants), plus fixed `_serverFn`, `_build`, and
+  `uploads` trees and static assets.
 - **`output`** strips *only* a leading default-locale segment → clean URLs for
   `en`. The load-bearing invariant is **de-DEFAULT, never de-LOCALIZE**:
   non-default interface *and* content locales (`fr`, `zh-CN`, …) stay visible,
@@ -134,6 +135,23 @@ server configuration. Public code therefore cannot accidentally drag the admin
 translation graph (`@byline/i18n/admin` and its Lexical-adjacent module tree) into
 the public client bundle.
 
+The same facade owns host route decisions. Public code resolves it without
+loading the admin config:
+
+```ts
+import { resolveRoutes } from '@byline/core'
+import { routes } from '~/public'
+
+const { admin, api, signIn } = resolveRoutes(routes)
+```
+
+`locale-rewrite.ts` uses these canonical paths rather than reserving `/admin` and
+`/sign-in` forever. With `{ admin: '/cms', signIn: '/staff/login' }`, `/cms/...`
+and `/staff/login/...` remain locale-less, `/staff/profile` remains localizable,
+and `/admin` is an ordinary frontend path. The same `isLocalizablePath()`
+predicate is reused by router input rewriting, server locale negotiation,
+markdown negotiation, and locale-aware links, so all four surfaces agree.
+
 ```ts
 // apps/webapp/byline/locales.ts (re-exported by byline/public.ts)
 export const interfaceLocales = [
@@ -170,7 +188,8 @@ A worked TanStack-Start host, all under `apps/webapp/`:
 | Concern | Location |
 |---|---|
 | Routable-locale config, `isInterfaceLocale` / `isRoutableLocale`, `toInterfaceLocale` | `src/i18n/i18n-config.ts` |
-| Isomorphic locale URL rewrite (clean default-locale URLs; de-DEFAULT-never-de-LOCALIZE) | `src/i18n/locale-rewrite.ts` (wired in `src/router.tsx`) + `locale-rewrite.test.ts` |
+| Client-safe route data used by public host code | `byline/routes.ts`, re-exported by `byline/public.ts` |
+| Isomorphic locale URL rewrite (clean default-locale URLs; configured route exclusions) | `src/i18n/locale-rewrite.ts` (wired in `src/router.tsx`) + `locale-rewrite.test.ts` + `locale-rewrite-custom-admin.test.ts` |
 | Server-entry negotiation + `/en/…` canonicalisation (non-sticky for content locales) | `src/i18n/server-locale-redirect.ts` (called from `src/server.ts`) |
 | Two-axis locale hooks (`useLocale` = content/path, `useInterfaceLocale` = deterministic chrome) | `src/i18n/hooks/use-locale-navigation.ts` |
 | Locale-aware navigation (cookie only on interface switch) | `src/i18n/hooks/use-locale-navigation.ts` |

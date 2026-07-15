@@ -281,7 +281,7 @@ fields: [
 
 ### 11. Register the richtext server adapters
 
-Two opt-in lines at boot, both produced from the same Lexical visitor pipeline. `lexicalEditorEmbedServer()` runs on every richtext write to refresh embedded envelopes ahead of persistence. `lexicalEditorPopulateServer()` runs on every read whose field opted into populate. `initBylineCore()` fail-fasts at boot when either adapter is missing for a field that requires it.
+Two opt-in lines at boot, both produced from the same Lexical visitor pipeline. `lexicalEditorEmbedServer()` runs on every richtext write to refresh embedded envelopes ahead of persistence. `lexicalEditorPopulateServer()` runs on every read whose field opted into populate. Target documents are supplied through core's secure reader, which enforces the target collection ability, strict `beforeRead` scope, effective read mode, and `afterRead` redaction. `initBylineCore()` fail-fasts at boot when either adapter is missing for a field that requires it.
 
 **Edit:** `apps/webapp/byline/server.config.ts`
 
@@ -342,8 +342,8 @@ Six things compose the present surface:
 
 1. **The render-component contract** — `RichTextEditorComponent` in `@byline/core`.
 2. **The client-side slot** — `ClientConfig.fields.richText.editor`. Registered once in `apps/webapp/byline/admin.config.ts`.
-3. **The server-side embed contract** — `RichTextEmbedFn` in `@byline/core`. Pure, framework-agnostic. Runs on every richtext write to refresh embedded relation envelopes ahead of persistence.
-4. **The server-side populate contract** — `RichTextPopulateFn` in `@byline/core`. Mirror of the embed contract; runs on the read path for fields that opted into populate.
+3. **The server-side embed contract** — `RichTextEmbedFn` in `@byline/core`. Framework-agnostic. Runs on every richtext write to refresh embedded relation envelopes ahead of persistence.
+4. **The server-side populate contract** — `RichTextPopulateFn` in `@byline/core`. Mirror of the embed contract; runs on the read path for fields that opted into populate. Both receive the authenticated operation context, effective read mode, and a framework-owned `readDocuments` function; adapters must use that reader for targets instead of accessing storage directly.
 5. **The server-side slots** — `ServerConfig.fields.richText.{ embed, populate }`. Registered once in `apps/webapp/byline/server.config.ts`. The bootstrap validator fail-fasts when either is missing for a field that requires it.
 6. **An opaque per-field config slot** — `RichTextField.editorConfig?: unknown`. Each editor adapter owns its own config shape; `@byline/core` does not interpret it.
 
@@ -382,7 +382,7 @@ export interface ServerConfig<TAdminStore = unknown> {
 
 `@byline/richtext-lexical` exports both `RichTextField` (component matching `RichTextEditorComponent` directly) and `lexicalEditor()` (a registration factory that bakes settings + extensions in via a closure). Either form satisfies the slot. Alternative editor packages (`@byline/richtext-tiptap`, `@byline/richtext-md`, …) only need a component matching `RichTextEditorComponent`.
 
-**Renderer dispatch.** `packages/ui/src/fields/field-renderer.tsx` reads the configured editor at render time and throws if none is registered. The throw is the failure mode by design — a `richText` field with no editor is unusable, and loud first-render feedback beats a silent textarea fallback.
+**Renderer dispatch.** `packages/admin/src/fields/field-renderer.tsx` reads the configured editor at render time and throws if none is registered. The throw is the failure mode by design — a `richText` field with no editor is unusable, and loud first-render feedback beats a silent textarea fallback.
 
 **Per-field override precedence.** `FieldComponentSlots.Field` overrides win over the site-wide default. `FieldAdminConfig.editor` (recipe 8) is the typed convenience for "this field needs a different editor entirely."
 
@@ -484,10 +484,10 @@ The link and inline-image nodes are the editor's two relation-bearing node types
 
 | Phase | What it does | Field flag | Default |
 |---|---|---|---|
-| **Embed** | On every save, a write-time walker refreshes embedded `{ title, path, … }` envelopes against the live target documents before the row is persisted. Marks links as `_resolved: false` when the target has been deleted. | `embedRelationsOnSave` | `true` |
+| **Embed** | On every save, a write-time walker refreshes embedded `{ title, path, … }` envelopes against targets visible in the operation before the row is persisted. Marks links as `_resolved: false` when a target cannot be resolved. | `embedRelationsOnSave` | `true` |
 | **Populate** | On every read, the framework refreshes embedded data by calling the registered server adapter. | `populateRelationsOnRead` | `!embedRelationsOnSave` |
 
-The modal-time picker writes a tentative `{ title, path }` envelope so the in-editor display has a label immediately, but it is **not** the authoritative shape — the server walker rewrites it (or marks it unresolved) on save.
+The modal-time picker writes a tentative `{ title, path }` envelope so the in-editor display has a label immediately, but it is **not** the authoritative shape — the server walker rewrites it (or marks it unresolved) on save. Both save-time refresh and read-time population resolve targets in the originating actor's context. The framework asserts the target collection's `read` ability, applies its strict `beforeRead` predicate, runs `afterRead`, and preserves the inherited read mode; embed refreshes deliberately use the published view.
 
 **Four meaningful states:**
 
@@ -522,13 +522,13 @@ This is the single source of truth for how a document addresses publicly. `Colle
 |---|---|---|
 | **Found** | Target resolved; `buildDocumentPath` (or generic fallback) returned a string | `title` ← `target.fields[useAsTitle]`; `path` ← canonical leading-slash path; any prior `_resolved` flag cleared |
 | **A — hook threw** | `buildDocumentPath` raised | Log at `info`; leave `document.path` and `_resolved` untouched. Renderer's fallback chain copes |
-| **B — target missing** | Batch fetch did not return the target id (deleted between picker and save) | Log at `warn`; delete `title` / `path`; set `_resolved: false`. Persisted state preserved so editor can re-link |
+| **B — target unresolved** | Batch fetch did not return the target id (deleted, unpublished in the selected view, or hidden by row scope) | Log at `warn`; delete `title` / `path`; set `_resolved: false`. Persisted relation identity remains so the editor can re-link |
 
 Branch C — DB unreachable or transport-level failures — bubbles up to `embedRichTextFields`, which catches per-leaf and logs at `error`. The persisted state for that leaf stays as the editor submitted it; the rest of the document continues.
 
 **What the embed envelope carries:**
 
-- **Internal link** — `{ title?, path?, _resolved?: false }`. `title` from the target's `useAsTitle` field; `path` either canonical-with-leading-slash (set by the walker) or a bare slug (picker-time only, healed on next save). `_resolved: false` marks a deleted target.
+- **Internal link** — `{ title?, path?, _resolved?: false }`. `title` from the target's `useAsTitle` field; `path` either canonical-with-leading-slash (set by the walker) or a bare slug (picker-time only, healed on next save). `_resolved: false` means the target was not resolvable or visible in that operation.
 - **Inline image** — `{ title, altText, image, sizes }`. `image` is the source media's `StoredFileValue`; `sizes` is `deriveImageSizes(image.variants)` flattened into a renderer-friendly `{ name, url, width, height, format }[]`. Top-level `src` / `width` / `height` / `altText` are also persisted on the inline-image node — Lexical needs them to render in the admin editor, and they remain a usable fallback when populate hasn't run.
 
 **Persisted shapes.** Two slightly different on-disk layouts, same envelope:
@@ -586,7 +586,7 @@ The two layouts differ for historical / Lexical-mechanics reasons (the link node
 3. `document.path` is a bare slug + `targetCollectionPath` present → generic compose `/${targetCollectionPath}/${path}`.
 4. Neither — strip wrapper, render children.
 
-Step 2 is the happy path post-walker. Step 3 is heal-on-write fallback for legacy nodes and picker-time-but-not-yet-walked sessions. Step 1 is the explicit deleted-target signal. Step 4 is the safety net. No two-slot ambiguity, no data migration required when adopting the new pipeline — every next save normalises the field.
+Step 2 is the happy path post-walker. Step 3 is heal-on-write fallback for legacy nodes and picker-time-but-not-yet-walked sessions. Step 1 is the explicit unresolved-target signal (deleted, unpublished in the selected view, or row-hidden). Step 4 is the safety net. No two-slot ambiguity, no data migration required when adopting the new pipeline — every next save normalises the field.
 
 ### Server-side embed and populate
 
@@ -595,7 +595,7 @@ Same Lexical visitor pipeline, two trigger points. The package ships two distinc
 - **`lexicalEditorEmbedServer({ getClient })`** — produces a `RichTextEmbedFn`. The framework invokes it during `document-lifecycle` write paths (`createDocument`, `updateDocument`, `updateDocumentWithPatches`, `restoreDocumentVersion`, `duplicateDocument`, `copyToLocale`) for every richtext leaf whose effective `embedRelationsOnSave` is `true`.
 - **`lexicalEditorPopulateServer({ getClient })`** — produces a `RichTextPopulateFn`. The framework invokes it during the read pipeline for every richtext leaf whose effective `populateRelationsOnRead` is `true`.
 
-**Why this wiring lives in the host, not as a default.** Recipe 11 looks like ceremony but isn't — it's the only file in the codebase that imports all three load-bearing pieces. `@byline/core` deliberately doesn't depend on `@byline/richtext-lexical` (a hard dep would privilege Lexical and defeat [Phase 2](#phase-2--a-second-editor-package)); the richtext package can't construct its own `BylineClient` because the client carries the host's `RequestContext` resolver, the actor model, and the read pipeline; and validation only fires once `initBylineCore()` sees both the registered adapters and the collection set. The host is the meeting point. With default field flags (`embedRelationsOnSave: true`), `validateRichTextFieldFlags` will throw at boot if either adapter is absent — so for any project with a richtext field, the two lines are effectively required, not opt-in. The `getClient` is a getter rather than a value because `getAdminBylineClient()` reads the server-config singleton that's only populated *after* `initBylineCore()` returns; deferring resolution to call-time means registration order doesn't matter.
+**Why this wiring lives in the host, not as a default.** Recipe 11 looks like ceremony but isn't. `@byline/core` deliberately does not depend on `@byline/richtext-lexical` (a hard dependency would privilege Lexical and defeat [Phase 2](#phase-2--a-second-editor-package)); validation can run only after `initBylineCore()` sees the registered adapters and collection set. The host is therefore the composition point. With default field flags (`embedRelationsOnSave: true`), `validateRichTextFieldFlags` throws at boot if either required adapter is absent. Core, not the editor package, owns target authorization and supplies each adapter invocation with the secure `readDocuments` capability.
 
 **Where each phase fits in the lifecycle:**
 
@@ -612,7 +612,7 @@ Read path:   findDocuments (DB) → reconstruct
               → applyAfterRead
 ```
 
-Both adapters share the same context shape (`value`, `fieldPath`, `collectionPath`, `readContext`); the embed path spins up a fresh `ReadContext` per save so visited-set / read-budget / `afterReadFired` machinery covers the walker's own fetches and any nested reads it performs.
+Both adapters share the same context shape: `value`, `fieldPath`, `collectionPath`, `readContext`, `requestContext`, `readMode`, and `readDocuments`. The embed path starts a guarded read operation per save and resolves targets through the published view using the writing actor.
 
 ```ts
 // packages/core/src/@types/field-types.ts
@@ -621,21 +621,24 @@ export interface RichTextEmbedContext {
   fieldPath: string               // 'body', 'content.0.caption', 'meta.summary', …
   collectionPath: string
   readContext: ReadContext
+  requestContext: RequestContext
+  readMode: ReadMode
+  readDocuments: RichTextReadDocumentsFn
 }
 export type RichTextEmbedFn = (ctx: RichTextEmbedContext) => Promise<void>
 // RichTextPopulateContext / RichTextPopulateFn mirror this exactly.
 ```
 
-`readContext` is the same request-scoped context the relation populate primitive uses. Adapters that perform their own reads must thread it through (`client.collection(...).find({ _readContext: readContext })`) — the shipped visitors do.
+`readContext` is the same operation context the relation populate primitive uses. Adapter visitors must request target documents through `readDocuments`; direct DB access or an independently constructed client would bypass the target collection's ability, `beforeRead`, read-mode, and `afterRead` contracts.
 
 **What the factories actually do.** Each composes every Lexical plugin's visitor into a single function. The package ships two visitors today — one per relation-bearing node type, shared between the two trigger points:
 
-| Visitor | File | On `apply()` (target found) | On `applyMissing()` (target deleted) |
+| Visitor | File | On `apply()` (target found) | On `applyMissing()` (target unresolved) |
 |---|---|---|---|
 | `linkVisitor` | `extensions/link/populate.ts` | Refreshes `attributes.document.title` from `useAsTitle`, composes `attributes.document.path` via `buildDocumentPath` (or generic fallback), clears any stale `_resolved` | Deletes `title` / `path`, sets `_resolved: false` |
 | `inlineImageVisitor` | `extensions/inline-image/populate.ts` | Refreshes `node.document` with `{ title, altText, image, sizes }` | No-op (no explicit miss handler — node keeps its picker-time envelope) |
 
-Both visitors are pure / framework-agnostic — no React, no DOM, no Lexical runtime. They live next to the plugin's UI code so each plugin's write-time embed and read-time populate stay in lockstep, but only the visitor module is reachable from the package's `server` entry. The shared driver (`runLexicalPopulate`) walks the value's Lexical tree once per call and dispatches across every visitor in a single pass. Pending hydrations are batched per source collection — one `find({ where: { id: { $in: ids } } })` per collection in parallel.
+Both visitors are pure / framework-agnostic — no React, no DOM, no Lexical runtime. They live next to the plugin's UI code so each plugin's write-time embed and read-time populate stay in lockstep, but only the visitor module is reachable from the package's `server` entry. The shared driver (`runLexicalPopulate`) walks the value's Lexical tree once per call and dispatches across every visitor in a single pass. Pending target ids are batched per source collection and handed to core's secure reader.
 
 **Multi-locale write caveat.** `restoreDocumentVersion` and `duplicateDocument` write with `locale: 'all'`, producing a multi-locale `{ <locale>: lexicalJson }` shape per localized richtext leaf. The Lexical adapter's `getLexicalRoot` can't parse that map as a single tree, so the embed walker silently no-ops for localized rich-text leaves on those paths. Non-localized leaves still refresh. The persisted state carries whatever the source had, and the renderer's fallback chain copes. Tracked as a deliberate future refinement (per-locale walking).
 
@@ -660,9 +663,9 @@ lexicalEditorEmbedServer({
 | Inside `blocks` (PhotoBlock caption) | `content.0.caption` |
 | Inside `blocks` (RichTextBlock body) | `content.1.richText` |
 
-**Co-existence with relation-field populate.** When a `RelationField` on the same collection points at the same target document a richtext node references, both flow through the same `ReadContext`. The visited set collapses the two targets into **one** materialisation; A→B→A cycles between richtext links and relation fields hit the same cycle marker (renderers see `_resolved: false` or `_cycle: true` instead of recursing). Automatic as long as the populate function threads `readContext` through to its `client.collection(...).find({ _readContext })` calls — both Lexical factories and the shipped visitors do.
+**Co-existence with relation-field populate.** Relation fields and richtext targets participate in the same guarded read operation. Both enforce target abilities, `beforeRead`, inherited source view, read budget, and `afterRead`; cross-surface recursion fails closed instead of exposing an incompletely redacted target. The shipped Lexical visitors get this behavior by using the supplied `readDocuments` function.
 
-**Why a flat envelope, not a `cached` wrapper.** The persisted node attributes flatten the relation envelope directly (`targetDocumentId`, `targetCollectionId`, `targetCollectionPath`, `document?`). This matches the `RelationField` value shape verbatim — same information, one fewer layer of nesting than an earlier `{ cached: { ... } }` design. A `cachedAt` ISO marker was considered for staleness windows but dropped; the on-save embed walker refreshes the values every time the document is touched, and the per-read populate option exists for fields that prefer always-fresh over snapshot.
+**Why a flat envelope.** The persisted node attributes flatten the relation envelope directly (`targetDocumentId`, `targetCollectionId`, `targetCollectionPath`, `document?`). This matches the `RelationField` value shape; freshness is selected explicitly through the save-time embed and read-time populate flags.
 
 ### Worked example — the AI plugin end-to-end
 
@@ -703,11 +706,13 @@ No `featureAfterEditor` injection, no React-context registry hop — the extensi
 |---|---|
 | `RichTextEditorProps` / `RichTextEditorComponent` contract | `packages/core/src/@types/field-types.ts` |
 | `RichTextPopulateFn` / `RichTextPopulateContext` contract | `packages/core/src/@types/field-types.ts` |
+| Secure `RichTextReadDocumentsFn` contract | `packages/core/src/@types/field-types.ts` |
+| Secure target-reader implementation | `packages/core/src/services/richtext-populate.ts` (`createRichTextDocumentReader`) |
 | `RichTextField.editorConfig` opaque slot | `packages/core/src/@types/field-types.ts` |
 | `embedRelationsOnSave` / `populateRelationsOnRead` flags | `packages/core/src/@types/field-types.ts` |
 | `ClientConfig.fields.richText.editor` slot | `packages/core/src/@types/site-config.ts` |
 | `ServerConfig.fields.richText.populate` slot | `packages/core/src/@types/site-config.ts` |
-| Renderer dispatch | `packages/ui/src/fields/field-renderer.tsx` (`case 'richText'`) |
+| Renderer dispatch | `packages/admin/src/fields/field-renderer.tsx` (`case 'richText'`) |
 | Lexical editor package — UI entry | `packages/richtext-lexical/src/index.ts` |
 | Lexical editor package — server entry | `packages/richtext-lexical/src/server.ts` |
 | `lexicalEditor()` registration factory | `packages/richtext-lexical/src/lexical-editor.tsx` |

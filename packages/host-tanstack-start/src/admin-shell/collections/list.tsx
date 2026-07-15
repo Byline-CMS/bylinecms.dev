@@ -43,6 +43,7 @@ import {
 } from '@dnd-kit/sortable'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'
 import { RouterPager } from '../chrome/router-pager.js'
 import { SortAscendingIcon } from '../chrome/sort-icons.js'
@@ -274,7 +275,7 @@ export const ListView = ({
       delete params.page
       params.query = query
       navigate({
-        to: '/admin/collections/$collection' as never,
+        to: getAdminRoutePath('collections', '$collection'),
         params: { collection: data.included.collection.path },
         search: params,
       })
@@ -286,7 +287,7 @@ export const ListView = ({
     delete params.page
     delete params.query
     navigate({
-      to: '/admin/collections/$collection' as never,
+      to: getAdminRoutePath('collections', '$collection'),
       params: { collection: data.included.collection.path },
       search: params,
     })
@@ -302,7 +303,7 @@ export const ListView = ({
       params.status = value
     }
     navigate({
-      to: '/admin/collections/$collection' as never,
+      to: getAdminRoutePath('collections', '$collection'),
       params: { collection: data.included.collection.path },
       search: params,
     })
@@ -314,7 +315,7 @@ export const ListView = ({
     delete params.page
     params.page_size = Number.parseInt(value, 10)
     navigate({
-      to: '/admin/collections/$collection' as never,
+      to: getAdminRoutePath('collections', '$collection'),
       params: { collection: data.included.collection.path },
       search: params,
     })
@@ -336,7 +337,7 @@ export const ListView = ({
             aria-label={t('collections.list.createAriaLabel')}
             render={
               <Link
-                to={'/admin/collections/$collection/create' as never}
+                to={getAdminRoutePath('collections', '$collection', 'create')}
                 params={{ collection: data.included.collection.path }}
               />
             }
@@ -454,7 +455,7 @@ export const ListView = ({
                           >
                             {useAsTitle && column.fieldName === useAsTitle ? (
                               <Link
-                                to={'/admin/collections/$collection/$id' as never}
+                                to={getAdminRoutePath('collections', '$collection', '$id')}
                                 params={{
                                   collection: data.included.collection.path,
                                   id: document.id,
@@ -530,7 +531,7 @@ export const ListView = ({
                         >
                           {useAsTitle && column.fieldName === useAsTitle ? (
                             <Link
-                              to={'/admin/collections/$collection/$id' as never}
+                              to={getAdminRoutePath('collections', '$collection', '$id')}
                               params={{
                                 collection: data.included.collection.path,
                                 id: document.id,

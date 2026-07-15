@@ -180,12 +180,19 @@ export async function invalidateDocument(
   path: string,
   options: InvalidateDocumentOptions = {}
 ): Promise<void> {
-  await invalidateTag(tags.details(collectionPath, path))
+  const invalidations = [invalidateTag(tags.details(collectionPath, path))]
   if (options.prevPath != null && options.prevPath !== path) {
-    await invalidateTag(tags.details(collectionPath, options.prevPath))
+    invalidations.push(invalidateTag(tags.details(collectionPath, options.prevPath)))
   }
-  if (options.list === true) await invalidateTag(tags.list(collectionPath))
-  if (options.sitemap === true) await invalidateTag(tags.sitemap(collectionPath))
+  if (options.list === true) invalidations.push(invalidateTag(tags.list(collectionPath)))
+  if (options.sitemap === true) invalidations.push(invalidateTag(tags.sitemap(collectionPath)))
+
+  const failures = (await Promise.allSettled(invalidations))
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason)
+  if (failures.length > 0) {
+    throw new AggregateError(failures, `failed to invalidate ${failures.length} cache surface(s)`)
+  }
 }
 
 /**

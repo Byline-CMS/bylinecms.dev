@@ -13,6 +13,7 @@
  * found) live in `@byline/richtext-lexical` and have their own suite.
  */
 
+import { createSuperAdminContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
 import { embedRichTextFields } from './richtext-embed.js'
@@ -32,6 +33,11 @@ const noopLogger: BylineLogger = {
 }
 
 const fakeReadContext = {} as ReadContext
+const authOptions = {
+  requestContext: createSuperAdminContext(),
+  readMode: 'published' as const,
+  readDocuments: vi.fn(),
+}
 
 const richTextValue = (label: string) => ({
   root: { type: 'root', children: [], _label: label },
@@ -67,10 +73,18 @@ describe('embedRichTextFields', () => {
       data,
       embed,
       readContext: fakeReadContext,
+      ...authOptions,
       logger: noopLogger,
     })
 
     expect(embed).toHaveBeenCalledTimes(3)
+    expect(embed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestContext: authOptions.requestContext,
+        readMode: 'published',
+        readDocuments: authOptions.readDocuments,
+      })
+    )
     const paths = (embed as ReturnType<typeof vi.fn>).mock.calls.map(
       (call) => (call[0] as { fieldPath: string }).fieldPath
     )
@@ -99,6 +113,7 @@ describe('embedRichTextFields', () => {
       data,
       embed,
       readContext: fakeReadContext,
+      ...authOptions,
       logger: noopLogger,
     })
 
@@ -136,6 +151,7 @@ describe('embedRichTextFields', () => {
         data,
         embed,
         readContext: fakeReadContext,
+        ...authOptions,
         logger,
       })
     ).resolves.toBeUndefined()
@@ -170,6 +186,7 @@ describe('embedRichTextFields', () => {
       data,
       embed,
       readContext: fakeReadContext,
+      ...authOptions,
       logger: noopLogger,
     })
 

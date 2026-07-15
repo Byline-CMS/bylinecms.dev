@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { ActivitySystemView } from '../admin-shell/admin-activity/list.js'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { getSystemActivityLog } from '../server-fns/admin-activity/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 import type { SystemActivityResponse } from '../server-fns/admin-activity/index.js'
 
 const searchSchema = z.object({
@@ -62,8 +63,8 @@ export function createAdminActivityRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: '/admin' },
-              { label: t('activity.title'), href: '/admin/activity' },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              { label: t('activity.title'), href: getAdminRoutePath('activity') },
             ]}
           />
           <ActivitySystemView data={data} />

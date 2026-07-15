@@ -197,6 +197,8 @@ const getDocumentByVersionFn = createServerFn({ method: 'GET' })
       }).log(logger)
     }
 
+    // The client binds the historical row to `path` and applies its beforeRead
+    // predicate; unknown and cross-collection version ids both resolve null.
     const document = await getAdminBylineClient()
       .collection(path)
       .findByVersion(versionId, { locale: resolvedLocale })

@@ -43,18 +43,17 @@ import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
 import { getActiveLocaleFn, setInterfaceLocaleFn } from '../server-fns/i18n/index.js'
+import { getSignInRoutePath } from './sign-in-path.js'
 
 interface AdminLayoutOpts {
-  /** Path users are redirected to when unauthenticated. Defaults to `/sign-in`. */
+  /** @deprecated Configure `routes.signIn`; an override must resolve to the same path. */
   signInPath?: string
 }
 
 export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {}) {
-  const signInPath = opts.signInPath ?? '/sign-in'
-
-  // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
     beforeLoad: async ({ location }: { location: { href: string } }) => {
+      const signInPath = getSignInRoutePath(opts.signInPath)
       try {
         const user = await getCurrentAdminUser()
         // Resolve the active interface locale once on the server so SSR

@@ -15,6 +15,7 @@ import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, useToastManager } from '@byline/ui/react'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import {
   copyDocumentToLocale,
   deleteDocument,
@@ -73,7 +74,7 @@ export const EditView = ({
 
   const handleLocaleChange = (newLocale: string) => {
     navigate({
-      to: '/admin/collections/$collection/$id' as never,
+      to: getAdminRoutePath('collections', '$collection', '$id'),
       params: { collection: path, id: String(initialData.id) },
       search: { locale: newLocale },
     })
@@ -98,7 +99,7 @@ export const EditView = ({
       setEditState({ status: 'success', message: description })
       // Refresh the page to reflect the new status.
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: (prev: Record<string, unknown>) => ({ ...prev }),
       })
@@ -149,7 +150,7 @@ export const EditView = ({
       })
       setEditState({ status: 'success', message: description })
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: (prev: Record<string, unknown>) => ({ ...prev }),
       })
@@ -196,7 +197,7 @@ export const EditView = ({
       })
       // Navigate to the new document's edit view.
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: result.documentId },
       })
     } catch (err) {
@@ -270,7 +271,7 @@ export const EditView = ({
       // Switch the form to the target locale so the editor sees the
       // copied content immediately.
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: { locale: targetLocale },
       })
@@ -322,7 +323,7 @@ export const EditView = ({
       // The deleted locale may be the one being viewed — land on the default
       // locale (which always survives) so the loader re-fetches a valid view.
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: { locale: defaultContentLocale },
       })
@@ -362,7 +363,7 @@ export const EditView = ({
       setEditState({ status: 'success', message: description })
       // Navigate back to the collection list after deletion.
       navigate({
-        to: '/admin/collections/$collection' as never,
+        to: getAdminRoutePath('collections', '$collection'),
         params: { collection: path },
       })
     } catch (err) {
@@ -457,7 +458,7 @@ export const EditView = ({
       // The new version will have a fresh version ID, draft status, and
       // updated publishedVersion metadata.
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: (prev: Record<string, unknown>) => ({ ...prev }),
       })
@@ -524,7 +525,7 @@ export const EditView = ({
           workflowStatuses={workflowStatuses}
           onCancel={() =>
             navigate({
-              to: '/admin/collections/$collection' as never,
+              to: getAdminRoutePath('collections', '$collection'),
               params: { collection: path },
             })
           }

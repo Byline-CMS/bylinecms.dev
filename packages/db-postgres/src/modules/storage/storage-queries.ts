@@ -48,6 +48,7 @@ import {
   metaStore,
 } from '../../database/schema/index.js'
 import type * as schema from '../../database/schema/index.js'
+import type { DBManager } from '../../lib/db-manager.js'
 
 type DatabaseConnection = NodePgDatabase<typeof schema>
 // `path` was dropped from documentVersions in favour of byline_document_paths;
@@ -128,6 +129,7 @@ export class CollectionQueries implements ICollectionQueries {
  */
 export class DocumentQueries implements IDocumentQueries {
   private db: DatabaseConnection
+  private transactionDb: DBManager
   private collections: readonly CollectionDefinition[]
   private defaultContentLocale: string
   private collectionPathCache = new Map<string, string>()
@@ -135,11 +137,67 @@ export class DocumentQueries implements IDocumentQueries {
   constructor(
     db: DatabaseConnection,
     collections: readonly CollectionDefinition[],
-    defaultContentLocale: string
+    defaultContentLocale: string,
+    transactionDb: DBManager = { get: () => db }
   ) {
     this.db = db
+    this.transactionDb = transactionDb
     this.collections = collections
     this.defaultContentLocale = defaultContentLocale
+  }
+
+  /**
+   * Lock the logical document row before reading its document-grain system
+   * fields. Every audited system-field writer takes this same parent-row lock,
+   * so path and advertised-locale snapshots serialize without locking a
+   * variable set of child rows.
+   */
+  async getDocumentSystemFieldsForUpdate({
+    collection_id,
+    document_id,
+  }: {
+    collection_id: string
+    document_id: string
+  }): Promise<{
+    source_locale: string
+    path: string | null
+    availableLocales: string[]
+  } | null> {
+    const executor = this.transactionDb.get()
+    const [document] = await executor
+      .select({ source_locale: documents.source_locale })
+      .from(documents)
+      .where(and(eq(documents.collection_id, collection_id), eq(documents.id, document_id)))
+      .for('update')
+
+    if (document == null) return null
+
+    const [pathRow] = await executor
+      .select({ path: documentPaths.path })
+      .from(documentPaths)
+      .where(
+        and(
+          eq(documentPaths.collection_id, collection_id),
+          eq(documentPaths.document_id, document_id),
+          eq(documentPaths.locale, document.source_locale)
+        )
+      )
+      .limit(1)
+    const localeRows = await executor
+      .select({ locale: documentAvailableLocales.locale })
+      .from(documentAvailableLocales)
+      .where(
+        and(
+          eq(documentAvailableLocales.collection_id, collection_id),
+          eq(documentAvailableLocales.document_id, document_id)
+        )
+      )
+
+    return {
+      source_locale: document.source_locale,
+      path: pathRow?.path ?? null,
+      availableLocales: localeRows.map((row) => row.locale).sort(),
+    }
   }
 
   /**
@@ -913,22 +971,35 @@ export class DocumentQueries implements IDocumentQueries {
   async getDocumentByVersion({
     document_version_id,
     locale = 'all',
+    collection_id,
+    filters,
   }: {
     document_version_id: string
     locale?: string
-  }): Promise<any> {
+    collection_id?: string
+    filters?: DocumentFilter[]
+  }): Promise<any | null> {
     const projectionLocale = locale === 'all' ? undefined : locale
+    const filterLocale = projectionLocale ?? this.defaultContentLocale
+    const conditions: SQL[] = [eq(documentVersions.id, document_version_id)]
+    if (collection_id) conditions.push(eq(documentVersions.collection_id, collection_id))
+    if (filters?.length) {
+      const scope: OuterScope = {
+        docVersionId: sql`${documentVersions.id}`,
+        documentId: sql`${documentVersions.document_id}`,
+        status: sql`${documentVersions.status}`,
+        path: this.pathProjection(sql`${documentVersions.document_id}`, filterLocale),
+      }
+      for (const filter of filters) {
+        conditions.push(this.buildFilterExists(filter, filterLocale, scope, 'any', 0))
+      }
+    }
     const [document] = await this.db
       .select(this.documentVersionsProjection(projectionLocale))
       .from(documentVersions)
-      .where(eq(documentVersions.id, document_version_id))
+      .where(and(...conditions))
 
-    if (document == null) {
-      throw ERR_NOT_FOUND({
-        message: `no current version found for document ${document_version_id}`,
-        details: { documentVersionId: document_version_id },
-      }).log(getLogger())
-    }
+    if (document == null) return null
 
     const unifiedFieldValues = await this.getAllFieldValues(
       document.id,
@@ -1077,6 +1148,7 @@ export class DocumentQueries implements IDocumentQueries {
     page_size = 20,
     order = 'updated_at',
     desc = true,
+    filters,
   }: {
     collection_id: string
     document_id: string
@@ -1086,6 +1158,7 @@ export class DocumentQueries implements IDocumentQueries {
     order?: string
     desc?: boolean
     query?: string
+    filters?: DocumentFilter[]
   }): Promise<{
     documents: any[]
     meta: {
@@ -1108,17 +1181,29 @@ export class DocumentQueries implements IDocumentQueries {
       }).log(getLogger())
     }
 
+    const filterLocale = locale === 'all' ? this.defaultContentLocale : locale
+    const conditions: SQL[] = [
+      eq(documentVersions.collection_id, collection_id),
+      eq(documentVersions.document_id, document_id),
+    ]
+    if (filters?.length) {
+      const scope: OuterScope = {
+        docVersionId: sql`${documentVersions.id}`,
+        documentId: sql`${documentVersions.document_id}`,
+        status: sql`${documentVersions.status}`,
+        path: this.pathProjection(sql`${documentVersions.document_id}`, filterLocale),
+      }
+      for (const filter of filters) {
+        conditions.push(this.buildFilterExists(filter, filterLocale, scope, 'any', 0))
+      }
+    }
+
     const totalResult: { count: number }[] = await this.db
       .select({
         count: sql<number>`count(*)`,
       })
       .from(documentVersions)
-      .where(
-        and(
-          eq(documentVersions.collection_id, collection_id),
-          eq(documentVersions.document_id, document_id)
-        )
-      )
+      .where(and(...conditions))
 
     const total = Number(totalResult[0]?.count) || 0
     const total_pages = Math.ceil(total / page_size)
@@ -1133,12 +1218,7 @@ export class DocumentQueries implements IDocumentQueries {
     const result: Document[] = await this.db
       .select(this.documentVersionsProjection(projectionLocale))
       .from(documentVersions)
-      .where(
-        and(
-          eq(documentVersions.collection_id, collection_id),
-          eq(documentVersions.document_id, document_id)
-        )
-      )
+      .where(and(...conditions))
       .orderBy(sql`${orderColumn} ${orderFunc}`)
       .limit(page_size)
       .offset(offset)
@@ -1331,33 +1411,50 @@ export class DocumentQueries implements IDocumentQueries {
     document_id,
     maxDepth = 10_000,
     readMode = 'any',
+    locale = this.defaultContentLocale,
+    filters,
   }: {
     document_id: string
     maxDepth?: number
     readMode?: ReadMode
+    locale?: string
+    filters?: DocumentFilter[]
   }): Promise<Array<{ document_id: string; depth: number }>> {
-    // Published mode gates every hop on the ancestor having a current published
-    // version; `any` mode imposes no such gate (raw edge walk).
-    const publishedGate = (parentColumn: string) =>
-      readMode === 'published'
-        ? sql`AND EXISTS (
-            SELECT 1 FROM byline_current_published_documents v
-            WHERE v.document_id = ${sql.raw(parentColumn)}
-          )`
-        : sql``
+    const childGate = this.buildTreeVisibility(
+      sql`child_document_id`,
+      filters,
+      locale,
+      readMode,
+      'cv0'
+    )
+    const anchorParentGate = this.buildTreeVisibility(
+      sql`parent_document_id`,
+      filters,
+      locale,
+      readMode,
+      'pv0'
+    )
+    const recursiveParentGate = this.buildTreeVisibility(
+      sql`r.parent_document_id`,
+      filters,
+      locale,
+      readMode,
+      'pv1'
+    )
 
     const { rows } = await this.db.execute(sql`
       WITH RECURSIVE ancestors AS (
         SELECT parent_document_id AS ancestor_id, child_document_id AS node_id, 1 AS depth
         FROM byline_document_relationships
         WHERE child_document_id = ${document_id}::uuid AND parent_document_id IS NOT NULL
-        ${publishedGate('parent_document_id')}
+          AND ${childGate}
+          AND ${anchorParentGate}
         UNION ALL
         SELECT r.parent_document_id, r.child_document_id, a.depth + 1
         FROM byline_document_relationships r
         JOIN ancestors a ON r.child_document_id = a.ancestor_id
         WHERE r.parent_document_id IS NOT NULL AND a.depth < ${maxDepth}
-        ${publishedGate('r.parent_document_id')}
+          AND ${recursiveParentGate}
       )
       SELECT ancestor_id AS document_id, depth FROM ancestors ORDER BY depth DESC
     `)
@@ -1411,17 +1508,43 @@ export class DocumentQueries implements IDocumentQueries {
    */
   async getTreeParent({
     document_id,
+    readMode = 'any',
+    locale = this.defaultContentLocale,
+    filters,
   }: {
     document_id: string
-  }): Promise<{ placed: boolean; parentDocumentId: string | null }> {
-    const rows = await this.db
-      .select({ parent_document_id: documentRelationships.parent_document_id })
-      .from(documentRelationships)
-      .where(eq(documentRelationships.child_document_id, document_id))
-      .limit(1)
+    readMode?: ReadMode
+    locale?: string
+    filters?: DocumentFilter[]
+  }): Promise<{ placed: boolean; parentDocumentId: string | null; parentRedacted?: true }> {
+    const childGate = this.buildTreeVisibility(
+      sql`r.child_document_id`,
+      filters,
+      locale,
+      readMode,
+      'cv0'
+    )
+    const parentGate = this.buildTreeVisibility(
+      sql`r.parent_document_id`,
+      filters,
+      locale,
+      readMode,
+      'pv0'
+    )
+    const { rows } = await this.db.execute(sql`
+      SELECT r.parent_document_id,
+             CASE WHEN r.parent_document_id IS NULL THEN TRUE ELSE ${parentGate} END AS parent_visible
+      FROM byline_document_relationships r
+      WHERE r.child_document_id = ${document_id}::uuid
+        AND ${childGate}
+      LIMIT 1
+    `)
     const row = rows[0]
     if (row == null) return { placed: false, parentDocumentId: null }
-    return { placed: true, parentDocumentId: row.parent_document_id ?? null }
+    if (!row.parent_visible) {
+      return { placed: true, parentDocumentId: null, parentRedacted: true }
+    }
+    return { placed: true, parentDocumentId: (row.parent_document_id as string | null) ?? null }
   }
 
   /**
@@ -1440,11 +1563,15 @@ export class DocumentQueries implements IDocumentQueries {
     rootDocumentId = null,
     maxDepth = 10_000,
     readMode = 'any',
+    locale = this.defaultContentLocale,
+    filters,
   }: {
     collectionId: string
     rootDocumentId?: string | null
     maxDepth?: number
     readMode?: ReadMode
+    locale?: string
+    filters?: DocumentFilter[]
   }): Promise<
     Array<{
       document_id: string
@@ -1453,12 +1580,24 @@ export class DocumentQueries implements IDocumentQueries {
       order_key: string
     }>
   > {
-    const statusView =
-      readMode === 'published' ? 'byline_current_published_documents' : 'byline_current_documents'
     const rootCondition =
       rootDocumentId == null
         ? sql`r.parent_document_id IS NULL`
         : sql`r.child_document_id = ${rootDocumentId}::uuid`
+    const anchorGate = this.buildTreeVisibility(
+      sql`r.child_document_id`,
+      filters,
+      locale,
+      readMode,
+      'sv0'
+    )
+    const childGate = this.buildTreeVisibility(
+      sql`r.child_document_id`,
+      filters,
+      locale,
+      readMode,
+      'sv1'
+    )
 
     const { rows } = await this.db.execute(sql`
       WITH RECURSIVE subtree AS (
@@ -1468,20 +1607,18 @@ export class DocumentQueries implements IDocumentQueries {
         JOIN byline_documents d ON d.id = r.child_document_id
         WHERE d.collection_id = ${collectionId}::uuid
           AND ${rootCondition}
-          AND EXISTS (
-            SELECT 1 FROM ${sql.raw(statusView)} v WHERE v.document_id = r.child_document_id
-          )
+          AND ${anchorGate}
         UNION ALL
         SELECT r.child_document_id, r.parent_document_id, r.order_key,
                s.depth + 1, s.path || '/' || r.order_key
         FROM byline_document_relationships r
         JOIN subtree s ON r.parent_document_id = s.child_document_id
         WHERE s.depth + 1 <= ${maxDepth}
-          AND EXISTS (
-            SELECT 1 FROM ${sql.raw(statusView)} v WHERE v.document_id = r.child_document_id
-          )
+          AND ${childGate}
       )
-      SELECT child_document_id AS document_id, parent_document_id, depth, order_key
+      SELECT child_document_id AS document_id,
+             CASE WHEN depth = 0 THEN NULL ELSE parent_document_id END AS parent_document_id,
+             depth, order_key
       FROM subtree
       ORDER BY path COLLATE "C"
     `)
@@ -1960,6 +2097,35 @@ export class DocumentQueries implements IDocumentQueries {
     return { documents, total }
   }
 
+  /** Compile status and `beforeRead` visibility for one tree edge endpoint. */
+  private buildTreeVisibility(
+    documentId: SQL,
+    filters: DocumentFilter[] | undefined,
+    locale: string,
+    readMode: ReadMode,
+    aliasName: string
+  ): SQL {
+    const view =
+      readMode === 'published'
+        ? sql.raw('byline_current_published_documents')
+        : sql.raw('byline_current_documents')
+    const alias = sql.raw(aliasName)
+    const scope: OuterScope = {
+      docVersionId: sql`${alias}.id`,
+      documentId: sql`${alias}.document_id`,
+      status: sql`${alias}.status`,
+      path: this.pathProjection(sql`${alias}.document_id`, locale, sql`${alias}.source_locale`),
+    }
+    const filterSql = (filters ?? []).map((filter) =>
+      this.buildFilterExists(filter, locale, scope, readMode, 0)
+    )
+    const filterClause = filterSql.length > 0 ? sql` AND ${sql.join(filterSql, sql` AND `)}` : sql``
+    return sql`EXISTS (
+      SELECT 1 FROM ${view} ${alias}
+      WHERE ${alias}.document_id = ${documentId}${filterClause}
+    )`
+  }
+
   /**
    * Build an EXISTS subquery for a single DocumentFilter. Dispatches on
    * `kind` — field filters emit a direct EXISTS against the field's EAV
@@ -2352,10 +2518,11 @@ export class DocumentQueries implements IDocumentQueries {
 export function createQueryBuilders(
   db: DatabaseConnection,
   collections: readonly CollectionDefinition[],
-  defaultContentLocale: string
+  defaultContentLocale: string,
+  transactionDb?: DBManager
 ) {
   return {
     collections: new CollectionQueries(db),
-    documents: new DocumentQueries(db, collections, defaultContentLocale),
+    documents: new DocumentQueries(db, collections, defaultContentLocale, transactionDb),
   }
 }

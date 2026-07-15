@@ -40,26 +40,32 @@ pattern:
   A render-only React component, registered via `lexicalEditor()` from
   `@byline/richtext-lexical`.
 - **Server side, write path** — `ServerConfig.fields.richText.embed: RichTextEmbedFn`.
-  A pure function called once per rich-text leaf the write path discovers in an
-  outgoing document, registered via `lexicalEditorEmbedServer()` from
-  `@byline/richtext-lexical/server`.
+  A framework-agnostic function called once per rich-text leaf the write path
+  discovers in an outgoing document, registered via `lexicalEditorEmbedServer()`
+  from `@byline/richtext-lexical/server`.
 - **Server side, read path** — `ServerConfig.fields.richText.populate: RichTextPopulateFn`.
   The mirror of the embed function; called once per rich-text leaf the read
   pipeline discovers in a returned document, registered via
   `lexicalEditorPopulateServer()`.
 
-Two consequences shape any future field-level adapter:
+Three consequences shape any future field-level adapter:
 
 1. **The subpath split is the right shape.** An adapter package with both client
    and server pieces ships two entry points so consumers of one don't bundle the
    other. `@byline/richtext-lexical` (UI) and `@byline/richtext-lexical/server`
    are the reference example.
-2. **The framework owns the walker.** Field-level server adapters receive context
-   per leaf (`{ value, fieldPath, collectionPath, readContext }`) — they don't
-   walk the document tree themselves. `collectRichTextLeaves`
-   (`packages/core/src/services/richtext-populate.ts`) is the per-field-type
-   walker; a future adapter gets its own walker but slots into the same place in
-   the read pipeline (between relation populate and user-land `afterRead`).
+2. **The framework owns the walker and target reader.** Field-level server
+   adapters receive context per leaf (`value`, `fieldPath`, `collectionPath`,
+   `readContext`, `requestContext`, `readMode`, and `readDocuments`) — they do
+   not walk the containing document or fetch target documents directly.
+   `collectRichTextLeaves` and `createRichTextDocumentReader`
+   (`packages/core/src/services/richtext-populate.ts`) keep adapters inside the
+   same read pipeline as ordinary SDK reads.
+3. **Security travels with the capability.** `readDocuments` asserts the target
+   collection's `read` ability, applies its strict `beforeRead` predicate, uses
+   the operation's effective source view, and runs target `afterRead` hooks. An editor adapter
+   must use that capability rather than direct `IDbAdapter` access; otherwise it
+   would create a second, weaker read boundary.
 
 ## `createCommand` — a uniform command shape
 
@@ -138,5 +144,8 @@ Three rules hold the line across the codebase:
 | `AdminStore` aggregate               | `packages/admin/src/store.ts`                                           |
 | `assertAdminActor` enforcement       | `packages/admin/src/lib/assert-admin-actor.ts`                          |
 | `assertActorCanPerform` enforcement  | `packages/core/src/auth/assert-actor-can-perform.ts`                    |
+| Strict `beforeRead` compilation       | `packages/core/src/query/parse-where.ts` (`parsePredicateFilters`)         |
+| Richtext secure target reader         | `packages/core/src/services/richtext-populate.ts`                          |
+| Richtext adapter context contracts    | `packages/core/src/@types/field-types.ts`                                  |
 | `AbilityRegistry`                    | `packages/auth/src/abilities.ts`                                        |
 | Admin request-context resolver       | `packages/host-tanstack-start/src/auth/auth-context.ts` (`getAdminRequestContext`) |

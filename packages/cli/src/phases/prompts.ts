@@ -1,3 +1,4 @@
+import { DEFAULT_SIGN_IN_PATH, validateRoutePaths } from '../lib/route-config.js'
 import type { Phase } from '../types.js'
 
 /**
@@ -8,6 +9,7 @@ import type { Phase } from '../types.js'
  *
  * Currently asks:
  *  - `adminPath`: the single URL segment used by route files and runtime config
+ *  - `signInPath`: the URL path used by the public sign-in route
  *  - `examples`: include the example collections/blocks/fields overlay
  *  - `importDocs`: include the markdown → Byline import example script
  *    (`byline/scripts/import-docs.ts` plus `scripts/lib/*`) and its
@@ -21,7 +23,12 @@ export const promptsPhase: Phase = {
   defaultMode: 'auto',
 
   async detect(ctx) {
-    return ctx.state.isComplete('prompts') ? 'done' : 'pending'
+    const answers = ctx.state.get().answers
+    return ctx.state.isComplete('prompts') &&
+      answers.adminPath !== undefined &&
+      answers.signInPath !== undefined
+      ? 'done'
+      : 'pending'
   },
 
   async plan(ctx) {
@@ -29,6 +36,8 @@ export const promptsPhase: Phase = {
     const notes: string[] = []
     if (a.adminPath === undefined) notes.push('will ask: admin URL path?')
     else notes.push(`admin path: ${a.adminPath} (already answered)`)
+    if (a.signInPath === undefined) notes.push('will ask: sign-in URL path?')
+    else notes.push(`sign-in path: ${a.signInPath} (already answered)`)
     if (a.examples === undefined) notes.push('will ask: include example collections/blocks/fields?')
     else notes.push(`examples: ${a.examples ? 'yes' : 'no'} (already answered)`)
 
@@ -51,10 +60,35 @@ export const promptsPhase: Phase = {
         message: 'Where should the admin UI be mounted?',
         defaultValue: '/admin',
         placeholder: '/admin',
+        validate: (value) => {
+          const result = validateRoutePaths(ctx, value, current.signInPath ?? DEFAULT_SIGN_IN_PATH)
+          return result.ok ? undefined : result.error
+        },
       })
-      adminPath = adminPath.startsWith('/') ? adminPath : `/${adminPath}`
-      ctx.state.patchAnswers({ adminPath })
     }
+
+    let signInPath = current.signInPath
+    if (signInPath === undefined) {
+      signInPath = await ctx.prompter.text({
+        message: 'Where should the sign-in page be mounted?',
+        defaultValue: DEFAULT_SIGN_IN_PATH,
+        placeholder: DEFAULT_SIGN_IN_PATH,
+        validate: (value) => {
+          const result = validateRoutePaths(ctx, adminPath, value)
+          return result.ok ? undefined : result.error
+        },
+      })
+    }
+
+    const routes = validateRoutePaths(ctx, adminPath, signInPath)
+    if (!routes.ok) {
+      ctx.logger.error(routes.error)
+      return { state: 'blocked' }
+    }
+    ctx.state.patchAnswers({
+      adminPath: routes.value.adminPath,
+      signInPath: routes.value.signInPath,
+    })
 
     let examples = current.examples
     if (examples === undefined) {

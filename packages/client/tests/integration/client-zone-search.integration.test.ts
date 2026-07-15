@@ -191,6 +191,8 @@ describe('zone (cross-collection) search', () => {
     expect(ids.has(articleTwo)).toBe(true)
     expect(ids.has(noteAlice)).toBe(true)
     expect(ids.has(noteBob)).toBe(false)
+    expect(results.total).toBe(results.hits.length)
+    expect(results.facets).toBeUndefined()
   })
 
   it('excludes collections the actor cannot read; errors only when none are readable', async () => {
@@ -199,6 +201,8 @@ describe('zone (cross-collection) search', () => {
     const paths = new Set(results.hits.map((h) => h.collectionPath))
     expect(paths.has(articlesPath)).toBe(true)
     expect(paths.has(notesPath)).toBe(false)
+    expect(results.total).toBe(results.hits.length)
+    expect(results.facets).toBeUndefined()
 
     setLimitedActor('nobody', [])
     await expect(ctx.client.search({ query: 'zonal', zone })).rejects.toMatchObject({

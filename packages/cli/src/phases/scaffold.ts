@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 import { applyPlannedWrites } from '../lib/planned-writes.js'
+import { recognizeGeneratedRoutesSource, validateRoutePaths } from '../lib/route-config.js'
 import { normalizeTemplateSource, toPosixTemplatePath } from '../lib/template-path.js'
 import type { Context } from '../context.js'
 import type { FileWrite, Phase, Plan } from '../types.js'
@@ -35,6 +36,15 @@ export const scaffoldPhase: Phase = {
 
   async apply(plan, ctx) {
     const answers = ctx.state.get().answers
+    const routes = validateRoutePaths(ctx, answers.adminPath, answers.signInPath)
+    if (!routes.ok) {
+      ctx.logger.error(routes.error)
+      return { state: 'blocked' }
+    }
+    ctx.state.patchAnswers({
+      adminPath: routes.value.adminPath,
+      signInPath: routes.value.signInPath,
+    })
     const entries = collectTemplateEntries(
       ctx,
       answers.examples ?? true,
@@ -62,6 +72,8 @@ export const scaffoldPhase: Phase = {
 
 export function buildScaffoldPlan(ctx: Context): Plan {
   const answers = ctx.state.get().answers
+  const routes = validateRoutePaths(ctx, answers.adminPath, answers.signInPath)
+  if (!routes.ok) return { writes: [], commands: [], notes: [routes.error] }
   const examples = answers.examples ?? true
   const importDocs = examples && (answers.importDocs ?? false)
   const entries = collectTemplateEntries(ctx, examples, importDocs)
@@ -75,7 +87,12 @@ export function buildScaffoldPlan(ctx: Context): Plan {
 
   for (const entry of entries) {
     const path = ctx.resolve(TARGET_DIR, entry.rel)
-    const expected = transformTemplate(entry.rel, entry.contents, answers.adminPath ?? '/admin')
+    const expected = transformTemplate(
+      entry.rel,
+      entry.contents,
+      routes.value.adminPath,
+      routes.value.signInPath
+    )
     if (!existsSync(path)) {
       writes.push({ path, contents: expected, mode: 'create' })
       continue
@@ -86,14 +103,13 @@ export function buildScaffoldPlan(ctx: Context): Plan {
       entry.rel === 'routes.ts' &&
       normalizeTemplateSource(current) !== normalizeTemplateSource(expected)
     ) {
-      const canonical = transformTemplate(entry.rel, entry.contents, '/admin')
-      if (normalizeTemplateSource(current) === normalizeTemplateSource(canonical)) {
-        writes.push({ path, contents: expected, mode: 'patch', before: current })
-        continue
+      if (recognizeGeneratedRoutesSource(current, entry.contents)) {
+        notes.push(`${path}: generated route migration deferred atomically to the routes phase`)
+      } else {
+        notes.push(
+          `${path}: manual — existing routes.ts is user-owned and does not match a generated predecessor`
+        )
       }
-      notes.push(
-        `${path}: manual — existing routes.ts is user-owned and does not match the canonical predecessor`
-      )
     }
     skipped++
   }
@@ -116,6 +132,8 @@ export function buildScaffoldPlan(ctx: Context): Plan {
 
 function inspectScaffold(ctx: Context): { complete: boolean; manualNotes: string[] } {
   const answers = ctx.state.get().answers
+  const routes = validateRoutePaths(ctx, answers.adminPath, answers.signInPath)
+  if (!routes.ok) return { complete: false, manualNotes: [routes.error] }
   const entries = collectTemplateEntries(
     ctx,
     answers.examples ?? true,
@@ -132,14 +150,18 @@ function inspectScaffold(ctx: Context): { complete: boolean; manualNotes: string
       const expected = transformTemplate(
         routeEntry.rel,
         routeEntry.contents,
-        answers.adminPath ?? '/admin'
+        routes.value.adminPath,
+        routes.value.signInPath
       )
       if (
         normalizeTemplateSource(readFileSync(path, 'utf8')) !== normalizeTemplateSource(expected)
       ) {
-        manualNotes.push(
-          `${path}: manual update required so routes.admin matches ${answers.adminPath ?? '/admin'}`
-        )
+        const current = readFileSync(path, 'utf8')
+        if (!recognizeGeneratedRoutesSource(current, routeEntry.contents)) {
+          manualNotes.push(
+            `${path}: manual update required so routes.admin and routes.signIn match ${routes.value.adminPath} and ${routes.value.signInPath}`
+          )
+        }
       }
     }
   }
@@ -201,9 +223,16 @@ export function shouldIncludeExampleTemplate(relativePath: string, importDocs: b
   return rel !== 'scripts/import-docs.ts' && !rel.startsWith('scripts/lib/')
 }
 
-function transformTemplate(rel: string, contents: string, adminPath: string): string {
-  if (toPosixTemplatePath(rel) !== 'routes.ts' || adminPath === '/admin') return contents
-  return contents.replace(/(admin\s*:\s*['"])\/admin(['"])/, `$1${adminPath}$2`)
+function transformTemplate(
+  rel: string,
+  contents: string,
+  adminPath: string,
+  signInPath: string
+): string {
+  if (toPosixTemplatePath(rel) !== 'routes.ts') return contents
+  return contents
+    .replace(/(admin\s*:\s*['"])[^'"]+(['"])/, `$1${adminPath}$2`)
+    .replace(/(signIn\s*:\s*['"])[^'"]+(['"])/, `$1${signInPath}$2`)
 }
 
 function planGenerationScripts(ctx: Context): { write?: FileWrite; notes: string[] } {

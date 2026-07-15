@@ -14,6 +14,7 @@ import { Container, Section } from '@byline/ui/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { type AccountResponse, getAccount } from '../server-fns/admin-account/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 
 function displayNameFor(account: {
   given_name: string | null
@@ -43,8 +44,8 @@ export function createAdminAccountRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: '/admin' },
-              { label: t('chrome.account'), href: '/admin/account' },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              { label: t('chrome.account'), href: getAdminRoutePath('account') },
             ]}
           />
           <Section className="pb-2">

@@ -130,13 +130,14 @@
  *     added).
  */
 
-import type { RequestContext } from '@byline/auth'
+import { createRequestContext, type RequestContext } from '@byline/auth'
 
 import { applyBeforeRead } from '../auth/apply-before-read.js'
+import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_READ_BUDGET_EXCEEDED } from '../lib/errors.js'
-import { parseWhere } from '../query/parse-where.js'
+import { parsePredicateFilters } from '../query/parse-where.js'
 import { applyAfterRead } from './document-read.js'
-import { populateRichTextFields } from './richtext-populate.js'
+import { createRichTextDocumentReader, populateRichTextFields } from './richtext-populate.js'
 import { walkFieldTree } from './walk-field-tree.js'
 import type {
   CollectionDefinition,
@@ -171,7 +172,6 @@ const DEFAULT_MAX_DEPTH = 8
 export function createReadContext(overrides?: Partial<ReadContext>): ReadContext {
   return {
     visited: overrides?.visited ?? new Set(),
-    afterReadFired: overrides?.afterReadFired ?? new Set(),
     beforeReadCache: overrides?.beforeReadCache ?? new Map(),
     readCount: overrides?.readCount ?? 0,
     maxReads: overrides?.maxReads ?? DEFAULT_MAX_READS,
@@ -254,7 +254,9 @@ export interface PopulateOptions {
    * and the resulting predicate is ANDed onto the fetch's WHERE. When
    * omitted — most synthetic / test call paths — `beforeRead` hooks are
    * skipped entirely; the production read paths all forward this through
-   * from `CollectionHandle`.
+   * from `CollectionHandle`. Low-level synthetic calls still receive an
+   * anonymous operation context in `afterRead`, so the hook contract never
+   * lacks identity state.
    */
   requestContext?: RequestContext
   /**
@@ -287,6 +289,9 @@ export interface PopulateOptions {
  */
 export async function populateDocuments(opts: PopulateOptions): Promise<void> {
   const ctx = opts.readContext ?? createReadContext()
+  const operationRequestContext =
+    opts.requestContext ??
+    createRequestContext({ readMode: opts.readMode ?? 'any', locale: opts.locale })
   const populate = opts.populate
   const requestedDepth = opts.depth ?? (populate !== undefined ? 1 : 0)
   const maxDepth = Math.max(0, Math.min(requestedDepth, ctx.maxDepth))
@@ -371,6 +376,13 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
       )
       const selectList = buildBatchSelect(leaves, targetDef)
 
+      // Production reads always carry an operation-scoped context. Assert the
+      // target collection before any adapter access; unresolved target schemas
+      // remain unresolved rather than bypassing the collection gate.
+      if (opts.requestContext && targetDef) {
+        assertActorCanPerform(opts.requestContext, targetDef.path, 'read')
+      }
+
       // Only fetch IDs we haven't materialised earlier in this request.
       const idsToFetch = Array.from(
         new Set(
@@ -397,7 +409,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
       })
 
       let fetched: any[] = []
-      if (idsToFetch.length > 0) {
+      if (idsToFetch.length > 0 && targetDef) {
         fetched = await opts.db.queries.documents.getDocumentsByDocumentIds({
           collection_id: targetCollectionId,
           document_ids: idsToFetch,
@@ -480,16 +492,37 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
           // so hook authors observe fully-populated rich-text content. The
           // gate (per-field `populateRelationsOnRead`) lives inside the
           // service; passing the function unconditionally is correct.
-          if (opts.richTextPopulate) {
+          if (opts.richTextPopulate && opts.requestContext) {
             await populateRichTextFields({
               fields: targetDef.fields,
               collectionPath: targetDef.path,
               documents: [d],
               populate: opts.richTextPopulate,
               readContext: ctx,
+              requestContext: opts.requestContext,
+              readMode: opts.readMode ?? 'any',
+              readDocuments: createRichTextDocumentReader({
+                db: opts.db,
+                collections: opts.collections,
+                requestContext: opts.requestContext,
+                readContext: ctx,
+                readMode: opts.readMode ?? 'any',
+                locale: opts.locale,
+                bypassBeforeRead: opts.bypassBeforeRead,
+                richTextPopulate: opts.richTextPopulate,
+              }),
             })
           }
-          await applyAfterRead({ doc: d, definition: targetDef, readContext: ctx })
+          await applyAfterRead({
+            doc: d,
+            definition: targetDef,
+            readContext: ctx,
+            requestContext: operationRequestContext,
+            locale: opts.locale,
+            readMode: opts.readMode,
+            projection: selectList,
+            materialization: 'relation-target',
+          })
         }
 
         if (!targetDef || queuedForNext.has(key)) continue
@@ -601,22 +634,27 @@ async function resolveBeforeReadFiltersForTarget(params: {
   })
   if (predicate == null) return undefined
 
-  const parsed = await parseWhere(predicate, targetDef, {
-    collections,
-    resolveCollectionId: async (path) => {
-      // Match the target collection by path against the loaded collection
-      // list first (cheap, in-memory); fall back to a DB lookup for cases
-      // where a hook references a collection not loaded into the same
-      // populate context. This mirrors `CollectionHandle`'s parser ctx.
-      const local = collections.find((c) => c.path === path) as
-        | (CollectionDefinition & { id?: string })
-        | undefined
-      if (local?.id) return local.id
-      const row = await db.queries.collections.getCollectionByPath(path)
-      return row?.id ?? ''
+  const filters = await parsePredicateFilters(
+    predicate,
+    targetDef,
+    {
+      collections,
+      resolveCollectionId: async (path) => {
+        // Match the target collection by path against the loaded collection
+        // list first (cheap, in-memory); fall back to a DB lookup for cases
+        // where a hook references a collection not loaded into the same
+        // populate context. This mirrors `CollectionHandle`'s parser ctx.
+        const local = collections.find((c) => c.path === path) as
+          | (CollectionDefinition & { id?: string })
+          | undefined
+        if (local?.id) return local.id
+        const row = await db.queries.collections.getCollectionByPath(path)
+        return row?.id ?? ''
+      },
     },
-  })
-  return parsed.filters.length > 0 ? parsed.filters : undefined
+    { strict: true }
+  )
+  return filters.length > 0 ? filters : undefined
 }
 
 /**

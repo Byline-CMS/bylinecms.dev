@@ -18,7 +18,14 @@
 
 import { ERR_AUDIT_UNSUPPORTED } from '../../lib/errors.js'
 import { actorId } from './internals.js'
-import type { AuditActorRealm, AuditLogAppendInput, IDbAdapter } from '../../@types/index.js'
+import type {
+  AuditActorRealm,
+  AuditLogAppendInput,
+  CollectionDefinition,
+  IDbAdapter,
+  TreeDeleteMutationResult,
+  TreeMutationResult,
+} from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 /** Namespaced audit actions for document-grain changes. */
@@ -27,6 +34,10 @@ export const AUDIT_ACTIONS = {
   localesChanged: 'document.locales.changed',
   statusChanged: 'document.status.changed',
   deleted: 'document.deleted',
+  treePlaced: 'document.tree.placed',
+  treeReparented: 'document.tree.reparented',
+  treeReordered: 'document.tree.reordered',
+  treeRemoved: 'document.tree.removed',
 } as const
 
 /**
@@ -53,6 +64,20 @@ export interface AuditCapability {
   append: (input: AuditLogAppendInput) => Promise<{ id: string }>
 }
 
+/** Auditing plus the locked mutation primitives required by document trees. */
+export interface TreeAuditCapability extends AuditCapability {
+  place: (
+    input: Parameters<IDbAdapter['commands']['documents']['placeTreeNode']>[0]
+  ) => Promise<TreeMutationResult>
+  remove: (
+    input: Parameters<IDbAdapter['commands']['documents']['removeFromTree']>[0]
+  ) => Promise<TreeMutationResult>
+  promoteAndRemove: (input: {
+    collectionId: string
+    documentId: string
+  }) => Promise<TreeDeleteMutationResult>
+}
+
 /**
  * Assert the adapter can record an audited write atomically — it must provide
  * **both** `withTransaction` and `commands.audit`. Returns a non-null
@@ -72,6 +97,38 @@ export function requireAuditCapability(db: IDbAdapter): AuditCapability {
     withTransaction: (fn) => withTransaction(fn),
     append: (input) => audit.append(input),
   }
+}
+
+/**
+ * Require the complete audited-tree capability. Called at bootstrap and before
+ * create so a tree collection can never silently strand a document merely
+ * because its adapter lacks atomic audit/reconciliation support.
+ */
+export function requireTreeAuditCapability(db: IDbAdapter): TreeAuditCapability {
+  const audit = requireAuditCapability(db)
+  const documents = db.commands.documents
+  const promoteChildrenAndRemove = documents.promoteChildrenAndRemoveFromTree
+  if (promoteChildrenAndRemove == null) {
+    throw ERR_AUDIT_UNSUPPORTED({
+      message:
+        'tree-enabled writes require an adapter with locked tree mutation and delete-reconciliation support',
+    })
+  }
+  return {
+    ...audit,
+    place: (input) => documents.placeTreeNode(input),
+    remove: (input) => documents.removeFromTree(input),
+    promoteAndRemove: (input) => promoteChildrenAndRemove.call(documents, input),
+  }
+}
+
+/** Fail fast during server bootstrap when any tree collection lacks support. */
+export function validateTreeAuditCapability(
+  definitions: readonly CollectionDefinition[],
+  db: IDbAdapter
+): void {
+  if (!definitions.some((definition) => definition.tree === true)) return
+  requireTreeAuditCapability(db)
 }
 
 /** Order-insensitive equality for the advertised-locale set. */

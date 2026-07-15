@@ -6,38 +6,38 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-/**
- * Document-tree lifecycle service — the unversioned structural mutations for
- * `tree: true` collections (docs/04-collections/03-document-trees.md). Wraps the storage adapter's
- * tree commands so that, like the versioned lifecycle services, they enforce the
- * actor ability and fire a collection hook. Tree writes mint no document version
- * and touch no user fields, so the `afterTreeChange` hook is the *only*
- * invalidation signal for them.
- *
- * The hook payload is the **affected set** — not a single node — because one
- * structural change ripples: the moved node, its descendants (breadcrumb trails
- * changed), the old and new parents, and both sibling lists. Computed with a few
- * cheap tree reads around the write and emitted as one batched event.
- */
+/** Atomic, audited lifecycle orchestration for document-tree mutations. */
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { withLogContext } from '../../lib/logger.js'
+import {
+  AUDIT_ACTIONS,
+  auditActor,
+  requireTreeAuditCapability,
+  type TreeAuditCapability,
+} from './audit.js'
 import { invokeHook } from './internals.js'
-import type { CollectionDefinition, TreeChangeContext } from '../../@types/index.js'
+import type {
+  CollectionDefinition,
+  TreeChangeContext,
+  TreeDeleteMutationResult,
+  TreeMutationResult,
+  TreePlacementState,
+} from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
-/** Immediate parent of a node, or `null` when it is a root or unplaced. */
-async function immediateParentId(
-  ctx: DocumentLifecycleContext,
+interface PlaceParams {
   documentId: string
-): Promise<string | null> {
-  const ancestors = await ctx.db.queries.documents.getTreeAncestors({ document_id: documentId })
-  // `getTreeAncestors` is root-first, so the last entry (depth 1) is the parent.
-  return ancestors.length > 0 ? (ancestors[ancestors.length - 1]?.document_id ?? null) : null
+  parentDocumentId: string | null
+  beforeDocumentId?: string | null
+  afterDocumentId?: string | null
+  ifUnplaced?: boolean
+  /** Re-fire the post-commit hook when the requested placement is already current. */
+  reconcile?: boolean
 }
 
-/** Document ids of a node and all its descendants (status-agnostic). */
+/** Document ids of a node and descendants, read only for registered hooks. */
 async function subtreeIds(
   ctx: DocumentLifecycleContext,
   rootDocumentId: string
@@ -47,10 +47,20 @@ async function subtreeIds(
     rootDocumentId,
     readMode: 'any',
   })
-  return rows.map((r) => r.document_id)
+  return rows.map((row) => row.document_id)
 }
 
-/** Document ids of a parent's immediate children (`null` = the collection roots). */
+/** Coarse collection-wide affected set for explicit no-op reconciliation. */
+async function wholeTreeIds(ctx: DocumentLifecycleContext): Promise<string[]> {
+  const rows = await ctx.db.queries.documents.getTreeSubtree({
+    collectionId: ctx.collectionId,
+    rootDocumentId: null,
+    readMode: 'any',
+  })
+  return rows.map((row) => row.document_id)
+}
+
+/** Document ids of one sibling group, read only for registered hooks. */
 async function childIds(
   ctx: DocumentLifecycleContext,
   parentDocumentId: string | null
@@ -59,10 +69,10 @@ async function childIds(
     collectionId: ctx.collectionId,
     parentDocumentId,
   })
-  return rows.map((r) => r.document_id)
+  return rows.map((row) => row.document_id)
 }
 
-/** Resolve and fire the `afterTreeChange` hook with a de-duplicated affected set. */
+/** Invoke `afterTreeChange` after the transaction has committed. */
 async function fireTreeChange(
   ctx: DocumentLifecycleContext,
   definition: CollectionDefinition,
@@ -80,122 +90,263 @@ async function fireTreeChange(
   })
 }
 
-/**
- * Place or move a node within the collection's tree (place / reorder /
- * re-parent — one upsert). Asserts the `update` ability, performs the storage
- * write, then fires `afterTreeChange` with the affected set. The affected-set
- * reads are skipped entirely when the collection declares no `afterTreeChange`
- * hook, so the event machinery adds no overhead to collections that don't
- * consume it.
- */
+function placementAction(before: TreePlacementState, parentDocumentId: string | null): string {
+  if (!before.placed) return AUDIT_ACTIONS.treePlaced
+  if (before.parentDocumentId !== parentDocumentId) return AUDIT_ACTIONS.treeReparented
+  return AUDIT_ACTIONS.treeReordered
+}
+
+/** Append one locked place/reparent/reorder result to the audit log. */
+async function appendPlacementAudit(
+  ctx: DocumentLifecycleContext,
+  capability: TreeAuditCapability,
+  params: PlaceParams,
+  mutation: TreeMutationResult
+): Promise<void> {
+  const actor = auditActor(ctx)
+  await capability.append({
+    documentId: params.documentId,
+    collectionId: ctx.collectionId,
+    actorId: actor.actorId,
+    actorRealm: actor.actorRealm,
+    action: placementAction(mutation.before, params.parentDocumentId),
+    field: 'tree',
+    before: mutation.before,
+    after: {
+      ...mutation.after,
+      beforeDocumentId: params.beforeDocumentId ?? null,
+      afterDocumentId: params.afterDocumentId ?? null,
+    },
+  })
+}
+
+/** Locked storage inspection/mutation and audit append in one transaction. */
+async function auditedPlace(
+  ctx: DocumentLifecycleContext,
+  params: PlaceParams
+): Promise<TreeMutationResult> {
+  const capability = requireTreeAuditCapability(ctx.db)
+  let mutation: TreeMutationResult | undefined
+  await capability.withTransaction(async () => {
+    mutation = await capability.place({
+      collectionId: ctx.collectionId,
+      documentId: params.documentId,
+      parentDocumentId: params.parentDocumentId,
+      beforeDocumentId: params.beforeDocumentId ?? null,
+      afterDocumentId: params.afterDocumentId ?? null,
+      ifUnplaced: params.ifUnplaced,
+    })
+    if (mutation.changed) await appendPlacementAudit(ctx, capability, params, mutation)
+  })
+  return mutation as TreeMutationResult
+}
+
+/** Place, re-parent, or reorder a node; explicit no-op retries may reconcile hooks. */
 export async function placeTreeNode(
   ctx: DocumentLifecycleContext,
-  params: {
-    documentId: string
-    parentDocumentId: string | null
-    beforeDocumentId?: string | null
-    afterDocumentId?: string | null
-  }
+  params: PlaceParams
 ): Promise<{ orderKey: string }> {
   return withLogContext(
     { domain: 'services', module: 'tree', function: 'placeTreeNode' },
     async () => {
-      const { db, definition, collectionPath } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
-
-      const hooks = await resolveHooks(definition)
+      assertActorCanPerform(ctx.requestContext, ctx.collectionPath, 'update')
+      const hooks = await resolveHooks(ctx.definition)
       const wantsEvent = hooks?.afterTreeChange != null
+      const mutation = await auditedPlace(ctx, params)
+      const orderKey = mutation.after.orderKey
+      if (orderKey == null) throw new Error('placed tree mutation did not return an order key')
+      if (!mutation.changed) {
+        if (wantsEvent && params.reconcile === true) {
+          await fireTreeChange(ctx, ctx.definition, {
+            change: 'place',
+            documentId: params.documentId,
+            affectedDocumentIds: await wholeTreeIds(ctx),
+          })
+        }
+        return { orderKey }
+      }
 
-      // Affected-before: the moved node's old parent, its subtree (descendants
-      // travel with it), and its old sibling group.
-      const before = wantsEvent
-        ? {
-            oldParentId: await immediateParentId(ctx, params.documentId),
-            subtree: await subtreeIds(ctx, params.documentId),
-          }
-        : null
-      const oldSiblings = before ? await childIds(ctx, before.oldParentId) : []
-
-      const result = await db.commands.documents.placeTreeNode({
-        collectionId: ctx.collectionId,
-        documentId: params.documentId,
-        parentDocumentId: params.parentDocumentId,
-        beforeDocumentId: params.beforeDocumentId ?? null,
-        afterDocumentId: params.afterDocumentId ?? null,
-      })
-
-      if (before) {
-        const newSiblings = await childIds(ctx, params.parentDocumentId)
-        await fireTreeChange(ctx, definition, {
+      if (wantsEvent) {
+        const [subtree, newSiblings] = await Promise.all([
+          subtreeIds(ctx, params.documentId),
+          childIds(ctx, params.parentDocumentId),
+        ])
+        await fireTreeChange(ctx, ctx.definition, {
           change: 'place',
           documentId: params.documentId,
           affectedDocumentIds: [
-            params.documentId,
-            ...before.subtree,
-            ...(before.oldParentId ? [before.oldParentId] : []),
+            ...subtree,
+            ...(mutation.before.parentDocumentId ? [mutation.before.parentDocumentId] : []),
             ...(params.parentDocumentId ? [params.parentDocumentId] : []),
-            ...oldSiblings,
+            ...mutation.beforeSiblingDocumentIds,
             ...newSiblings,
           ],
         })
       }
-
-      return result
+      return { orderKey }
     }
   )
 }
 
-/**
- * Remove a node from the tree (back to the *unplaced* state). Asserts `update`,
- * performs the storage delete, then fires `afterTreeChange`. Distinct from
- * deleting the document.
- */
+/** Best-effort create/self-heal primitive that never moves an already-placed node. */
+export async function appendTreeRoot(
+  ctx: DocumentLifecycleContext,
+  documentId: string
+): Promise<void> {
+  await auditedPlace(ctx, { documentId, parentDocumentId: null, ifUnplaced: true })
+}
+
+/** Best-effort post-version repair; locked `ifUnplaced` closes the check/write race. */
+export async function selfHealTreePlacement(
+  ctx: DocumentLifecycleContext,
+  documentId: string
+): Promise<void> {
+  if (ctx.definition.tree !== true) return
+  try {
+    await appendTreeRoot(ctx, documentId)
+  } catch (err: unknown) {
+    ctx.logger.error({ err, documentId }, 'failed to self-heal tree placement on update')
+  }
+}
+
+/** Remove a node to the unplaced state; an already-unplaced node is a true no-op. */
 export async function removeFromTree(
   ctx: DocumentLifecycleContext,
-  params: { documentId: string }
+  params: { documentId: string; reconcile?: boolean }
 ): Promise<void> {
   return withLogContext(
     { domain: 'services', module: 'tree', function: 'removeFromTree' },
     async () => {
-      const { db, definition, collectionPath } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
-
-      const hooks = await resolveHooks(definition)
+      assertActorCanPerform(ctx.requestContext, ctx.collectionPath, 'update')
+      const hooks = await resolveHooks(ctx.definition)
       const wantsEvent = hooks?.afterTreeChange != null
+      const capability = requireTreeAuditCapability(ctx.db)
+      const actor = auditActor(ctx)
+      let mutation: TreeMutationResult | undefined
 
-      const oldParentId = wantsEvent ? await immediateParentId(ctx, params.documentId) : null
-      const subtree = wantsEvent ? await subtreeIds(ctx, params.documentId) : []
-      const oldSiblings = wantsEvent ? await childIds(ctx, oldParentId) : []
-
-      await db.commands.documents.removeFromTree({ documentId: params.documentId })
-
-      if (wantsEvent) {
-        await fireTreeChange(ctx, definition, {
-          change: 'remove',
+      await capability.withTransaction(async () => {
+        mutation = await capability.remove({
+          collectionId: ctx.collectionId,
           documentId: params.documentId,
-          affectedDocumentIds: [
-            params.documentId,
-            ...subtree,
-            ...(oldParentId ? [oldParentId] : []),
-            ...oldSiblings,
-          ],
+          includeSubtree: wantsEvent,
         })
+        if (!mutation.changed) return
+        await capability.append({
+          documentId: params.documentId,
+          collectionId: ctx.collectionId,
+          actorId: actor.actorId,
+          actorRealm: actor.actorRealm,
+          action: AUDIT_ACTIONS.treeRemoved,
+          field: 'tree',
+          before: { ...mutation.before, mode: 'remove' },
+          after: { ...mutation.after, mode: 'remove' },
+        })
+      })
+
+      if (!mutation || !wantsEvent) return
+      if (!mutation.changed) {
+        if (params.reconcile === true) {
+          await fireTreeChange(ctx, ctx.definition, {
+            change: 'remove',
+            documentId: params.documentId,
+            affectedDocumentIds: [
+              ...(await wholeTreeIds(ctx)),
+              ...mutation.beforeSubtreeDocumentIds,
+            ],
+          })
+        }
+        return
       }
+      await fireTreeChange(ctx, ctx.definition, {
+        change: 'remove',
+        documentId: params.documentId,
+        affectedDocumentIds: [
+          ...mutation.beforeSubtreeDocumentIds,
+          ...(mutation.before.parentDocumentId ? [mutation.before.parentDocumentId] : []),
+          ...mutation.beforeSiblingDocumentIds,
+        ],
+      })
     }
   )
 }
 
 /**
- * Promote a soft-deleted node's children to root and remove the node from the
- * tree — the application-level equivalent of the table's `parent → set null`
- * (promote) and `child → cascade` (leave) foreign keys, which only fire on a
- * *hard* row delete. Byline deletes are soft (the document row survives), so the
- * tree must be reconciled here. Fires one `afterTreeChange` (`promote-on-delete`)
- * covering the deleted node, the promoted children, and their subtrees.
- *
- * Best-effort and idempotent: a node with no children or no edge row is a no-op.
- * Called by the document delete lifecycle for `tree: true` collections.
+ * Reconcile delete-time edges and append parent plus child-specific audit rows.
+ * The caller owns the transaction; delete uses this beside soft-delete/audit.
  */
+export async function reconcileTreeOnDeleteInTransaction(
+  ctx: DocumentLifecycleContext,
+  documentId: string,
+  capability: TreeAuditCapability
+): Promise<TreeDeleteMutationResult> {
+  const result = await capability.promoteAndRemove({
+    collectionId: ctx.collectionId,
+    documentId,
+  })
+  const actor = auditActor(ctx)
+
+  for (const child of result.promoted) {
+    await capability.append({
+      documentId: child.documentId,
+      collectionId: ctx.collectionId,
+      actorId: actor.actorId,
+      actorRealm: actor.actorRealm,
+      action: AUDIT_ACTIONS.treeReparented,
+      field: 'tree',
+      before: { ...child.before, mode: 'promoteOnDelete', removedParentDocumentId: documentId },
+      after: { ...child.after, mode: 'promoteOnDelete', removedParentDocumentId: documentId },
+    })
+  }
+
+  if (result.removed.changed || result.promoted.length > 0) {
+    await capability.append({
+      documentId,
+      collectionId: ctx.collectionId,
+      actorId: actor.actorId,
+      actorRealm: actor.actorRealm,
+      action: AUDIT_ACTIONS.treeRemoved,
+      field: 'tree',
+      before: {
+        ...result.removed.before,
+        mode: 'promoteChildren',
+        children: result.promoted.length,
+      },
+      after: {
+        ...result.removed.after,
+        mode: 'promoteChildren',
+        promotedDocumentIds: result.promoted.map((child) => child.documentId),
+      },
+    })
+  }
+  return result
+}
+
+/** Fire the promotion invalidation after its transaction commits. */
+export async function firePromoteTreeChange(
+  ctx: DocumentLifecycleContext,
+  documentId: string,
+  result: TreeDeleteMutationResult
+): Promise<void> {
+  const hooks = await resolveHooks(ctx.definition)
+  if (hooks?.afterTreeChange == null || (!result.removed.changed && result.promoted.length === 0)) {
+    return
+  }
+  const affected = new Set<string>([
+    documentId,
+    ...result.removed.beforeSiblingDocumentIds,
+    ...(result.removed.before.parentDocumentId ? [result.removed.before.parentDocumentId] : []),
+  ])
+  for (const child of result.promoted) {
+    for (const id of await subtreeIds(ctx, child.documentId)) affected.add(id)
+  }
+  await fireTreeChange(ctx, ctx.definition, {
+    change: 'promote-on-delete',
+    documentId,
+    affectedDocumentIds: affected,
+  })
+}
+
+/** Standalone audited reconciliation used by internal tooling and tests. */
 export async function promoteChildrenAndRemove(
   ctx: DocumentLifecycleContext,
   params: { documentId: string }
@@ -203,43 +354,12 @@ export async function promoteChildrenAndRemove(
   return withLogContext(
     { domain: 'services', module: 'tree', function: 'promoteChildrenAndRemove' },
     async () => {
-      const { db, definition } = ctx
-
-      // Capture the affected set before mutating: the node, its (direct)
-      // children, and each child's subtree (their breadcrumbs all change as
-      // they promote to root).
-      const hooks = await resolveHooks(definition)
-      const wantsEvent = hooks?.afterTreeChange != null
-
-      const children = await childIds(ctx, params.documentId)
-      const affected = new Set<string>([params.documentId])
-      if (wantsEvent) {
-        for (const childId of children) {
-          for (const id of await subtreeIds(ctx, childId)) affected.add(id)
-        }
-      }
-
-      // Promote each child to root. `placeTreeNode` with no neighbours mints a
-      // fresh root-group key, so promoted orphans no longer carry a stale
-      // per-parent key.
-      for (const childId of children) {
-        await db.commands.documents.placeTreeNode({
-          collectionId: ctx.collectionId,
-          documentId: childId,
-          parentDocumentId: null,
-        })
-      }
-
-      // The deleted node leaves the tree.
-      await db.commands.documents.removeFromTree({ documentId: params.documentId })
-
-      if (wantsEvent) {
-        await fireTreeChange(ctx, definition, {
-          change: 'promote-on-delete',
-          documentId: params.documentId,
-          affectedDocumentIds: affected,
-        })
-      }
+      const capability = requireTreeAuditCapability(ctx.db)
+      let result: TreeDeleteMutationResult | undefined
+      await capability.withTransaction(async () => {
+        result = await reconcileTreeOnDeleteInTransaction(ctx, params.documentId, capability)
+      })
+      await firePromoteTreeChange(ctx, params.documentId, result as TreeDeleteMutationResult)
     }
   )
 }

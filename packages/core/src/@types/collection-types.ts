@@ -527,6 +527,33 @@ export interface AfterUpdateContext {
 }
 
 /**
+ * Context passed to `afterSystemFieldsChange` after a non-versioned document
+ * path and/or advertised-locale change commits successfully.
+ *
+ * Both snapshots are included so cache and search consumers can remove stale
+ * paths and reconcile locale-specific output without re-reading the old state.
+ */
+export interface SystemFieldsChangeContext {
+  documentId: string
+  collectionPath: string
+  /** Fields explicitly supplied by the caller, including a no-op retry. */
+  requested: {
+    path: boolean
+    availableLocales: boolean
+  }
+  changed: {
+    path: boolean
+    availableLocales: boolean
+  }
+  /** True when a no-op request deliberately re-runs post-commit reconciliation. */
+  reconciliation: boolean
+  previousPath?: string
+  currentPath?: string
+  previousAvailableLocales: string[]
+  currentAvailableLocales: string[]
+}
+
+/**
  * Context passed to `beforeStatusChange` / `afterStatusChange` hooks.
  *
  * `path` is the document's canonical (source-locale) routing path — present
@@ -833,12 +860,15 @@ export async function resolveUploadHooks(
  *   - `find`, `findOne`, `findById`, `findByPath` on `CollectionHandle`
  *     (once per returned source document)
  *   - Each populated relation target across every depth level
+ *   - Rich-text targets, tree/search hydration, and historical versions
  *
  * The hook receives the **raw storage shape** (`{document_version_id,
  * document_id, path, status, created_at, updated_at, fields, …}`), not
  * the camelCase `ClientDocument` — afterRead runs *before* the client's
  * response shaping pass so mutations to `fields` propagate cleanly.
  * Mutations persist in place; there is no return value.
+ * `requestContext` is the immutable operation-scoped identity and effective
+ * read mode, enabling actor-dependent field redaction on every path.
  *
  * Fires **after** populate on the source document, so hooks can observe
  * (and mutate) the fully populated tree.
@@ -853,6 +883,8 @@ export interface AfterReadContext {
   /** The raw reconstructed document. Mutate in place — changes persist. */
   doc: Record<string, any>
   collectionPath: string
+  /** Authenticated identity cloned for this operation's effective read mode. */
+  requestContext: RequestContext
   /** Thread this into any nested reads the hook performs. */
   readContext: ReadContext
 }
@@ -867,10 +899,10 @@ export interface AfterReadContext {
  * emits, then ANDs onto whatever the caller passed in `where`.
  *
  * Returning `undefined` (or simply `void`) means "no scoping" — typically
- * the superuser / unconditional-read branch. Use a sentinel predicate that
- * yields no rows (e.g. `{ id: '__none__' }`) when the actor cannot read
- * anything; do not throw, because callers expect empty list results rather
- * than collapsed endpoints.
+ * the superuser / unconditional-read branch. Return `{ id: { $in: [] } }`
+ * when the actor cannot read anything; it compiles to an always-false SQL
+ * predicate without passing an invalid UUID to Postgres. Do not throw, because
+ * callers expect empty list results rather than collapsed endpoints.
  *
  * The hook receives:
  *   - `requestContext` — the authenticated request, including `actor`. The
@@ -958,6 +990,15 @@ export interface CollectionHooks {
   beforeUpdate?: CollectionHookSlot<BeforeUpdateContext>
   /** Runs after an existing document is updated. */
   afterUpdate?: CollectionHookSlot<AfterUpdateContext>
+
+  // -- Non-versioned document system fields ---------------------------------
+  /**
+   * Runs after an actual path and/or advertised-locale change commits, or for
+   * an explicit no-op reconciliation retry. A failure rejects the lifecycle
+   * call but cannot roll back the already-committed system-field write/audit;
+   * retry with reconciliation enabled to run post-commit side effects again.
+   */
+  afterSystemFieldsChange?: CollectionHookSlot<SystemFieldsChangeContext>
 
   // -- Workflow status change -----------------------------------------------
   /** Runs before a document's workflow status is changed. */

@@ -455,9 +455,12 @@ The `data` shape mirrors the standard paginated API envelope (`AnyCollectionSche
 **Worked example — `MediaListView`** (in `apps/webapp/byline/collections/media/components/media-list-view.tsx`). The Media collection ships a card-grid replacement for the table:
 
 ```tsx
-import { useNavigate, useRouterState } from '@tanstack/react-router'
+import { useRouterState } from '@tanstack/react-router'
 import type { ListViewComponentProps, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { Link, useNavigate } from '@byline/host-tanstack-start/admin-shell/chrome/loose-router'
+import { RouterPager } from '@byline/host-tanstack-start/admin-shell/chrome/router-pager'
+import { getAdminRoutePath } from '@byline/host-tanstack-start/routes/admin-path'
 
 export function MediaListView({
   data,
@@ -474,7 +477,7 @@ export function MediaListView({
     delete params.page                    // reset to first page on new search
     params.query = query
     navigate({
-      to: '/admin/collections/$collection',
+      to: getAdminRoutePath('collections', '$collection'),
       params: { collection: collectionPath },
       search: params,
     })
@@ -488,9 +491,17 @@ export function MediaListView({
         <Search onSearch={handleOnSearch} onClear={handleOnClear} />
         <RouterPager page={data.meta.page} count={data.meta.totalPages} />
         <div className={styles.grid}>
-          {data.docs.map((doc) => (/* …card UI… */))}
+          {data.docs.map((doc) => (
+            <Link
+              key={doc.id}
+              to={getAdminRoutePath('collections', '$collection', '$id')}
+              params={{ collection: collectionPath, id: doc.id }}
+            >
+              {/* …card UI… */}
+            </Link>
+          ))}
         </div>
-        <RouterPager smoothScrollToTop page={data.meta.page} count={data.meta.totalPages} />
+        <RouterPager page={data.meta.page} count={data.meta.totalPages} />
       </Container>
     </Section>
   )
@@ -501,7 +512,8 @@ export function MediaListView({
 
 - **URL is the source of truth for search / order / page.** The view reads the current values from `useRouterState().location.search`, and changes write back via `useNavigate({ search })`. No local state for these — refreshes and shareable links work for free.
 - **Reset `page` on any other change.** A new search or new ordering should land on page 1; carrying over `?page=4` to a new query yields confused empty pages.
-- **Pagination via `RouterPager`** from `@byline/host-tanstack-start/admin-shell/chrome/router-pager`. It writes `?page=…` and (optionally) smooth-scrolls back to the top — matching the default list view's behaviour.
+- **Use the host wrappers for navigation.** Import `Link` / `useNavigate` from `admin-shell/chrome/loose-router` and build destinations with `getAdminRoutePath(...)`; never hard-code `/admin`, because the admin base path is configurable.
+- **Pagination via `RouterPager`** from `@byline/host-tanstack-start/admin-shell/chrome/router-pager`. It writes the `page` search parameter using the same control as the default list view.
 - **`columns` definitions are still importable** even when `listView` is set; they aren't *applied* automatically (that's the default `ListView`'s job), but a custom view can opt in — for example to render a togglable grid/table view from the same column schema.
 
 Register the view on the admin config:
@@ -536,14 +548,18 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 |---|---|
 | Create | `beforeCreate`, `afterCreate` |
 | Update | `beforeUpdate`, `afterUpdate` |
+| Non-versioned path / advertised locales | `afterSystemFieldsChange` |
 | Delete | `beforeDelete`, `afterDelete` |
 | Status change | `beforeStatusChange`, `afterStatusChange` |
 | Unpublish | `beforeUnpublish`, `afterUnpublish` |
-| Read | `beforeRead` (row-scoping predicate), `afterRead` (per-document mutation) |
+| Document tree | `afterTreeChange` |
+| Read | `beforeRead` (row-scoping predicate), `afterRead` (per-materialization mutation) |
 
-**`beforeRead`** is the row-scoping hook. It runs once per `findDocuments` call (and once per populate batch, per target collection), **before** any DB work, and returns a `QueryPredicate` that the query layer ANDs onto the caller's `where`. Use it for multi-tenant scoping, owner-only-drafts, soft-delete hide, etc. See [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) for the full reference, and the Quick Reference there for six worked recipes.
+**`beforeRead`** is the row-scoping hook. It returns a `QueryPredicate` that is ANDed with caller filters and cached per collection + effective read mode for one `ReadContext`. Security predicates compile in strict mode: unsupported fields/operators or malformed values throw rather than being weakened or dropped. Coverage is end-to-end — ordinary reads and counts, every immutable row in `history()` / `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document/image targets all apply the target collection's ability and predicate. `auditLog()` is the deliberate exception described in [Auditability](../06-auth-and-security/02-auditability.md): it gates the document-grain log through the current document rather than applying a predicate to each audit row. See [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) for the full reference and worked recipes.
 
-**`afterRead`** runs once per materialised document on every read path that flows through `@byline/client` or `populateDocuments`. Can mutate `ctx.doc.fields` in place; mutations propagate through the response. Fires after populate on the source document, so hooks see the fully populated tree. Hooks that perform their own reads should thread `ctx.readContext` through to preserve the visited set and read budget (A→B→A safety).
+**`afterRead`** runs after populate on each fresh raw document materialization and receives mutable `ctx.doc`, the operation's immutable actor-aware `requestContext` (including effective `readMode`), and the shared `readContext`. The same object is processed only once, but a freshly materialized object may run again even for the same version. If a nested hook read reaches a version whose hook is still active, core fails closed with `ERR_READ_RECURSION` rather than returning a partially redacted object. Thread `ctx.readContext` into nested reads so budgets, predicate caching, and active-recursion guards remain effective.
+
+`afterSystemFieldsChange` and `afterTreeChange` run **after** their audited transaction commits. The system-field context distinguishes requested intent from fields that actually changed and carries locked previous/current path and advertised-locale snapshots. Actual changes fire once; exact no-ops normally write, audit, and emit nothing. Callers may opt into no-op reconciliation to re-run failed side effects without another mutation or audit row (`SystemFieldsChangeContext.reconciliation` identifies that case; tree consumers must simply be idempotent). Hook arrays remain sequential and fail-fast, so a hook that must attempt several independent cache/search/webhook effects should settle and aggregate those effects itself.
 
 Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's `upload` block — not on the collection — because they are field-scoped and field-aware. A collection with multiple image/file fields runs each field's pipeline independently.
 
@@ -689,7 +705,7 @@ If either becomes load-bearing for an external consumer, the fix lives in `parse
 | Postgres schema (columns + views) | `packages/db-postgres/src/database/schema/index.ts` |
 | `collections.create/update` adapter | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | Baseline migration | `packages/db-postgres/src/database/migrations/0000_hard_madame_hydra.sql` |
-| Default `ListView` (table-based) | `packages/host-tanstack-start/src/admin-shell/views/list-view/` |
+| Default `ListView` (table-based) | `packages/host-tanstack-start/src/admin-shell/collections/list.tsx` |
 | `RouterPager` (URL-driven pagination) | `packages/host-tanstack-start/src/admin-shell/chrome/router-pager.tsx` |
 | Reference custom list view | `apps/webapp/byline/collections/media/components/media-list-view.tsx` |
 | Reference comprehensive schema | `apps/webapp/byline/collections/news/schema.ts` |

@@ -134,6 +134,35 @@ describe('applyBeforeRead', () => {
     expect(callCount).toBe(2)
   })
 
+  it('caches independently by effective read mode', async () => {
+    const modes: Array<string | undefined> = []
+    const hook: BeforeReadHookFn = ({ requestContext }) => {
+      modes.push(requestContext.readMode)
+      return { status: requestContext.readMode === 'published' ? 'published' : 'draft' }
+    }
+    const definition = baseCollection(hook)
+    const readContext = createReadContext()
+    const base = createRequestContext()
+
+    await applyBeforeRead({
+      definition,
+      requestContext: { ...base, readMode: 'published' },
+      readContext,
+    })
+    await applyBeforeRead({
+      definition,
+      requestContext: { ...base, readMode: 'any' },
+      readContext,
+    })
+    await applyBeforeRead({
+      definition,
+      requestContext: { ...base, readMode: 'published' },
+      readContext,
+    })
+
+    expect(modes).toEqual(['published', 'any'])
+  })
+
   it('passes collectionPath, requestContext, and readContext through to the hook', async () => {
     let received: unknown
     const hook: BeforeReadHookFn = (ctx) => {

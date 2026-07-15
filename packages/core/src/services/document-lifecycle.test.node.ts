@@ -68,6 +68,7 @@ function createMockDb() {
   const archivePublishedVersions = vi.fn().mockResolvedValue(0)
   const softDeleteDocument = vi.fn().mockResolvedValue(1)
   const getDocumentById = vi.fn().mockResolvedValue(null)
+  const getDocumentSystemFieldsForUpdate = vi.fn().mockResolvedValue(null)
   const getCurrentVersionMetadata = vi.fn().mockResolvedValue(null)
   const getCurrentPath = vi.fn().mockResolvedValue('current-path')
   // Audit capability (docs/06-auth-and-security/02-auditability.md — W2). `withTransaction` is a passthrough
@@ -110,6 +111,7 @@ function createMockDb() {
         getCollectionById: vi.fn(),
       },
       documents: {
+        getDocumentSystemFieldsForUpdate,
         getDocumentById,
         getCurrentVersionMetadata,
         getCurrentPath,
@@ -140,6 +142,7 @@ function createMockDb() {
     archivePublishedVersions,
     softDeleteDocument,
     getDocumentById,
+    getDocumentSystemFieldsForUpdate,
     getCurrentVersionMetadata,
     getCurrentPath,
     auditAppend,
@@ -1132,6 +1135,50 @@ describe('Document lifecycle service', () => {
       expect(archivePublishedVersions).toHaveBeenCalledWith({ document_id: 'doc-1' })
     })
 
+    it('records an atomic published to archived status audit when versions change', async () => {
+      const { db, archivePublishedVersions, auditAppend, withTransaction } = createMockDb()
+      archivePublishedVersions.mockResolvedValue(2)
+
+      await unpublishDocument(buildCtx(db), { documentId: 'doc-1' })
+
+      expect(withTransaction).toHaveBeenCalledOnce()
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: 'doc-1',
+          collectionId: 'col-1',
+          actorId: TEST_ACTOR_ID,
+          actorRealm: 'admin',
+          action: 'document.status.changed',
+          field: 'status',
+          before: 'published',
+          after: 'archived',
+        })
+      )
+    })
+
+    it('does not record an audit row when no published version changes', async () => {
+      const { db, archivePublishedVersions, auditAppend } = createMockDb()
+      archivePublishedVersions.mockResolvedValue(0)
+
+      await unpublishDocument(buildCtx(db), { documentId: 'doc-1' })
+
+      expect(auditAppend).not.toHaveBeenCalled()
+    })
+
+    it('does not run afterUnpublish when the atomic audit unit fails', async () => {
+      const afterUnpublish = vi.fn()
+      const { db, archivePublishedVersions, auditAppend } = createMockDb()
+      archivePublishedVersions.mockResolvedValue(1)
+      auditAppend.mockRejectedValue(new Error('audit failed'))
+
+      await expect(
+        unpublishDocument(buildCtx(db, { ...minimalCollection, hooks: { afterUnpublish } }), {
+          documentId: 'doc-1',
+        })
+      ).rejects.toThrow('audit failed')
+      expect(afterUnpublish).not.toHaveBeenCalled()
+    })
+
     it('invokes beforeUnpublish and afterUnpublish hooks', async () => {
       const callOrder: string[] = []
       const hooks = {
@@ -1326,26 +1373,32 @@ describe('Document lifecycle service', () => {
   // updateDocumentSystemFields (audited, non-versioned)
   // -----------------------------------------------------------------------
   describe('updateDocumentSystemFields', () => {
-    function setupDoc(getDocumentById: any, overrides?: Record<string, any>) {
-      getDocumentById.mockResolvedValue({
-        document_version_id: 'ver-1',
-        document_id: 'doc-1',
+    function setupDoc(getDocumentSystemFieldsForUpdate: any, overrides?: Record<string, any>) {
+      getDocumentSystemFieldsForUpdate.mockResolvedValue({
         path: 'old-slug',
         source_locale: 'en',
         availableLocales: ['en'],
-        fields: {},
         ...overrides,
       })
     }
 
     it('records document.path.changed when the path actually changes', async () => {
-      const { db, getDocumentById, auditAppend, withTransaction } = createMockDb()
-      setupDoc(getDocumentById)
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend, withTransaction } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
       const ctx = buildCtx(db)
 
-      await updateDocumentSystemFields(ctx, { documentId: 'doc-1', path: 'new-slug' })
+      const result = await updateDocumentSystemFields(ctx, {
+        documentId: 'doc-1',
+        path: 'new-slug',
+      })
 
       expect(withTransaction).toHaveBeenCalledOnce()
+      expect(result).toMatchObject({
+        changed: true,
+        pathChanged: true,
+        availableLocalesChanged: false,
+        path: 'new-slug',
+      })
       expect(auditAppend).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'document.path.changed',
@@ -1356,32 +1409,257 @@ describe('Document lifecycle service', () => {
       )
     })
 
-    it('records no audit row when the path is unchanged', async () => {
-      const { db, getDocumentById, auditAppend } = createMockDb()
-      setupDoc(getDocumentById)
-      const ctx = buildCtx(db)
+    it('does not write, audit, or fire the hook when the path is unchanged', async () => {
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend, withTransaction } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
+      const afterSystemFieldsChange = vi.fn()
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange },
+      })
 
-      await updateDocumentSystemFields(ctx, { documentId: 'doc-1', path: 'old-slug' })
+      const result = await updateDocumentSystemFields(ctx, {
+        documentId: 'doc-1',
+        path: 'old-slug',
+      })
 
+      expect(result).toMatchObject({ changed: false, pathChanged: false })
+      expect(db.commands.documents.updateDocumentPath).not.toHaveBeenCalled()
+      expect(withTransaction).toHaveBeenCalledOnce()
       expect(auditAppend).not.toHaveBeenCalled()
+      expect(afterSystemFieldsChange).not.toHaveBeenCalled()
     })
 
     it('records document.locales.changed with before/after sets', async () => {
-      const { db, getDocumentById, auditAppend } = createMockDb()
-      setupDoc(getDocumentById)
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
       const ctx = buildCtx(db)
 
-      await updateDocumentSystemFields(ctx, {
+      const result = await updateDocumentSystemFields(ctx, {
         documentId: 'doc-1',
         availableLocales: ['en', 'fr'],
       })
 
+      expect(result).toMatchObject({
+        changed: true,
+        pathChanged: false,
+        availableLocalesChanged: true,
+        availableLocalesWritten: true,
+      })
       expect(auditAppend).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'document.locales.changed',
           field: 'availableLocales',
           before: ['en'],
           after: ['en', 'fr'],
+        })
+      )
+    })
+
+    it('treats reordered and duplicated locale values as a no-op set', async () => {
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend, withTransaction } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate, { availableLocales: ['en', 'fr'] })
+      const afterSystemFieldsChange = vi.fn()
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange },
+      })
+
+      const result = await updateDocumentSystemFields(ctx, {
+        documentId: 'doc-1',
+        availableLocales: ['fr', 'en', 'fr'],
+      })
+
+      expect(result).toMatchObject({ changed: false, availableLocalesChanged: false })
+      expect(db.commands.documents.setDocumentAvailableLocales).not.toHaveBeenCalled()
+      expect(withTransaction).toHaveBeenCalledOnce()
+      expect(auditAppend).not.toHaveBeenCalled()
+      expect(afterSystemFieldsChange).not.toHaveBeenCalled()
+    })
+
+    it('fires ordered hooks after commit with previous and current field snapshots', async () => {
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend, withTransaction } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
+      const order: string[] = []
+      ;(db.commands.documents.updateDocumentPath as any).mockImplementation(async () => {
+        order.push('path-write')
+      })
+      ;(db.commands.documents.setDocumentAvailableLocales as any).mockImplementation(async () => {
+        order.push('locales-write')
+      })
+      auditAppend.mockImplementation(async () => {
+        order.push('audit')
+        return { id: 'audit-1' }
+      })
+      withTransaction.mockImplementation(async (fn) => {
+        order.push('transaction:start')
+        const value = await fn()
+        order.push('transaction:commit')
+        return value
+      })
+      const firstHook = vi.fn(async () => {
+        order.push('hook:first')
+      })
+      const secondHook = vi.fn(async () => {
+        order.push('hook:second')
+      })
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange: [firstHook, secondHook] },
+      })
+
+      await updateDocumentSystemFields(ctx, {
+        documentId: 'doc-1',
+        path: 'new-slug',
+        availableLocales: ['fr', 'en', 'fr'],
+      })
+
+      expect(order).toEqual([
+        'transaction:start',
+        'path-write',
+        'audit',
+        'locales-write',
+        'audit',
+        'transaction:commit',
+        'hook:first',
+        'hook:second',
+      ])
+      expect(firstHook).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        collectionPath: 'articles',
+        requested: { path: true, availableLocales: true },
+        changed: { path: true, availableLocales: true },
+        reconciliation: false,
+        previousPath: 'old-slug',
+        currentPath: 'new-slug',
+        previousAvailableLocales: ['en'],
+        currentAvailableLocales: ['fr', 'en'],
+      })
+    })
+
+    it('does not fire side-effect hooks when the audited transaction fails', async () => {
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
+      const afterSystemFieldsChange = vi.fn()
+      auditAppend.mockRejectedValue(new Error('audit failed'))
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange },
+      })
+
+      await expect(
+        updateDocumentSystemFields(ctx, { documentId: 'doc-1', path: 'new-slug' })
+      ).rejects.toThrow('audit failed')
+
+      expect(db.commands.documents.updateDocumentPath).toHaveBeenCalledOnce()
+      expect(afterSystemFieldsChange).not.toHaveBeenCalled()
+    })
+
+    it('propagates an after-hook failure without folding it into the committed transaction', async () => {
+      const { db, getDocumentSystemFieldsForUpdate, withTransaction } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
+      let committed = false
+      withTransaction.mockImplementation(async (fn) => {
+        const value = await fn()
+        committed = true
+        return value
+      })
+      const afterSystemFieldsChange = vi.fn(async () => {
+        expect(committed).toBe(true)
+        throw new Error('cache unavailable')
+      })
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange },
+      })
+
+      await expect(
+        updateDocumentSystemFields(ctx, { documentId: 'doc-1', availableLocales: ['en', 'fr'] })
+      ).rejects.toThrow('cache unavailable')
+
+      expect(committed).toBe(true)
+      expect(db.commands.documents.setDocumentAvailableLocales).toHaveBeenCalledOnce()
+      expect(afterSystemFieldsChange).toHaveBeenCalledOnce()
+    })
+
+    it('re-runs reconciliation on an explicit no-op retry after a committed hook failure', async () => {
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
+      const afterSystemFieldsChange = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('search unavailable'))
+        .mockResolvedValue(undefined)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange },
+      })
+
+      await expect(
+        updateDocumentSystemFields(ctx, { documentId: 'doc-1', path: 'new-slug' })
+      ).rejects.toThrow('search unavailable')
+
+      setupDoc(getDocumentSystemFieldsForUpdate, { path: 'new-slug' })
+      const retry = await updateDocumentSystemFields(ctx, {
+        documentId: 'doc-1',
+        path: 'new-slug',
+        reconcile: true,
+      })
+
+      expect(retry).toMatchObject({ changed: false, reconciliation: true })
+      expect(db.commands.documents.updateDocumentPath).toHaveBeenCalledOnce()
+      expect(auditAppend).toHaveBeenCalledOnce()
+      expect(afterSystemFieldsChange).toHaveBeenCalledTimes(2)
+      expect(afterSystemFieldsChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          requested: { path: true, availableLocales: false },
+          changed: { path: false, availableLocales: false },
+          reconciliation: true,
+          previousPath: 'new-slug',
+          currentPath: 'new-slug',
+        })
+      )
+    })
+
+    it('uses the locked transaction snapshot for audit and invalidation payloads', async () => {
+      const { db, getDocumentById, getDocumentSystemFieldsForUpdate, auditAppend } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        path: 'stale-path',
+        source_locale: 'en',
+        availableLocales: ['en'],
+      })
+      setupDoc(getDocumentSystemFieldsForUpdate, {
+        path: 'concurrent-path',
+        availableLocales: ['en', 'fr'],
+      })
+      const afterSystemFieldsChange = vi.fn()
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange },
+      })
+
+      await updateDocumentSystemFields(ctx, {
+        documentId: 'doc-1',
+        path: 'final-path',
+        availableLocales: ['de'],
+      })
+
+      expect(getDocumentById).not.toHaveBeenCalled()
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({ field: 'path', before: 'concurrent-path', after: 'final-path' })
+      )
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          field: 'availableLocales',
+          before: ['en', 'fr'],
+          after: ['de'],
+        })
+      )
+      expect(afterSystemFieldsChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          previousPath: 'concurrent-path',
+          currentPath: 'final-path',
+          previousAvailableLocales: ['en', 'fr'],
+          currentAvailableLocales: ['de'],
         })
       )
     })

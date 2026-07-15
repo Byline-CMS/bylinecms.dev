@@ -27,6 +27,11 @@ import cx from 'classnames'
 import { useSwipeable } from 'react-swipeable'
 
 import { useAbilities } from '../../integrations/abilities.jsx'
+import {
+  getAdminRoutePath,
+  isAdminRoutePathActive,
+  isRoutePathWithin,
+} from '../../routes/admin-path.js'
 import styles from './admin-menu-drawer.module.css'
 import { useAdminMenu } from './admin-menu-provider.jsx'
 import { Link } from './loose-router.js'
@@ -35,8 +40,8 @@ import { PreviewToggle } from './preview-toggle.jsx'
 const isActive = (currentPath: string, linkHref: string): boolean => {
   // Root admin highlights only on exact match so it doesn't stay lit on
   // every admin subpath.
-  if (linkHref === '/admin') return currentPath === '/admin'
-  return currentPath.startsWith(linkHref)
+  if (linkHref === getAdminRoutePath()) return isAdminRoutePathActive(currentPath)
+  return isRoutePathWithin(currentPath, linkHref)
 }
 
 interface MenuItemProps {
@@ -119,7 +124,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
       <nav className={cx('byline-admin-menu-drawer admin-menu-drawer', styles.nav)}>
         <ul>
           <MenuItem
-            to="/admin"
+            to={getAdminRoutePath()}
             label={t('chrome.menu.dashboard')}
             icon={<HomeIcon width="20px" height="20px" />}
             pathname={pathname}
@@ -130,7 +135,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
               <li className="menu-separator" />
               {canReadUsers && (
                 <MenuItem
-                  to="/admin/users"
+                  to={getAdminRoutePath('users')}
                   label={t('chrome.menu.adminUsers')}
                   icon={<UsersIcon width="20px" height="20px" />}
                   pathname={pathname}
@@ -139,7 +144,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
               )}
               {canReadRoles && (
                 <MenuItem
-                  to="/admin/roles"
+                  to={getAdminRoutePath('roles')}
                   label={t('chrome.menu.adminRoles')}
                   icon={<RolesIcon width="20px" height="20px" />}
                   pathname={pathname}
@@ -148,7 +153,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
               )}
               {canReadPermissions && (
                 <MenuItem
-                  to="/admin/permissions"
+                  to={getAdminRoutePath('permissions')}
                   label={t('chrome.menu.permissions')}
                   icon={<SettingsSlidersIcon width="20px" height="20px" />}
                   pathname={pathname}
@@ -157,7 +162,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
               )}
               {canReadActivity && (
                 <MenuItem
-                  to="/admin/activity"
+                  to={getAdminRoutePath('activity')}
                   label={t('chrome.menu.activity')}
                   icon={<ActivityIcon width="20px" height="20px" />}
                   pathname={pathname}
@@ -169,7 +174,7 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
           <li className="menu-separator" />
           <PreviewToggle compact={compact} />
           <MenuItem
-            to="/admin/account"
+            to={getAdminRoutePath('account')}
             label={t('chrome.account')}
             icon={<UserIcon />}
             pathname={pathname}

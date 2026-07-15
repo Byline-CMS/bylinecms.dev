@@ -442,7 +442,10 @@ describe('document-tree commands', () => {
       )
     ).toEqual([c])
 
-    await commandBuilders.documents.removeFromTree({ documentId: c })
+    await commandBuilders.documents.removeFromTree({
+      collectionId: treeCollection.id,
+      documentId: c,
+    })
 
     expect(
       await queryBuilders.documents.getTreeChildren({
@@ -454,8 +457,11 @@ describe('document-tree commands', () => {
 
     // Idempotent — removing an already-unplaced node is a no-op.
     await expect(
-      commandBuilders.documents.removeFromTree({ documentId: c })
-    ).resolves.toBeUndefined()
+      commandBuilders.documents.removeFromTree({
+        collectionId: treeCollection.id,
+        documentId: c,
+      })
+    ).resolves.toMatchObject({ changed: false })
   })
 
   it('getTreeSubtree returns a pre-order depth-first walk with 0-based depth', async () => {
@@ -545,5 +551,68 @@ describe('document-tree commands', () => {
       readMode: 'published',
     })
     expect(published.map((n) => n.document_id)).toEqual([pa, pb])
+  })
+
+  it('applies compiled row filters at every tree edge and redacts hidden parents', async () => {
+    // Visible root ─ hidden parent ─ visible leaf
+    //              └ visible sibling
+    const root = await createDoc(treeCollection.id, TreeCollectionConfig, 'Scoped Visible Root')
+    const hidden = await createDoc(treeCollection.id, TreeCollectionConfig, 'Scoped Hidden Parent')
+    const leaf = await createDoc(treeCollection.id, TreeCollectionConfig, 'Scoped Visible Leaf')
+    const sibling = await createDoc(
+      treeCollection.id,
+      TreeCollectionConfig,
+      'Scoped Visible Sibling'
+    )
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: root,
+      parentDocumentId: null,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: hidden,
+      parentDocumentId: root,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: leaf,
+      parentDocumentId: hidden,
+    })
+    await commandBuilders.documents.placeTreeNode({
+      collectionId: treeCollection.id,
+      documentId: sibling,
+      parentDocumentId: root,
+      beforeDocumentId: hidden,
+    })
+
+    const filters = [
+      {
+        kind: 'field' as const,
+        fieldName: 'title',
+        storeType: 'text',
+        valueColumn: 'value',
+        operator: '$contains' as const,
+        value: 'Visible',
+      },
+    ]
+    const subtree = await queryBuilders.documents.getTreeSubtree({
+      collectionId: treeCollection.id,
+      rootDocumentId: root,
+      filters,
+    })
+    expect(subtree.map((node) => node.document_id)).toEqual([root, sibling])
+    expect(await queryBuilders.documents.getTreeAncestors({ document_id: leaf, filters })).toEqual(
+      []
+    )
+    expect(await queryBuilders.documents.getTreeParent({ document_id: hidden, filters })).toEqual({
+      placed: false,
+      parentDocumentId: null,
+    })
+    expect(await queryBuilders.documents.getTreeParent({ document_id: leaf, filters })).toEqual({
+      placed: true,
+      parentDocumentId: null,
+      parentRedacted: true,
+    })
   })
 })

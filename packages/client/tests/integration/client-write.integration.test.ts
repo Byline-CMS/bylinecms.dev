@@ -242,6 +242,16 @@ describe('client.collection().unpublish()', () => {
     // `any` to still find it in the archived state.
     const after = await handle.findById(documentId, any)
     expect(after?.status).toBe('archived')
+
+    const audit = await handle.auditLog(documentId)
+    expect(
+      audit.entries.some(
+        (entry) =>
+          entry.action === 'document.status.changed' &&
+          entry.before === 'published' &&
+          entry.after === 'archived'
+      )
+    ).toBe(true)
   })
 })
 

@@ -15,7 +15,7 @@
  * component only lays out the content + action row — the modal header
  * and dismiss button are already drawn by the container.
  *
- * On success we navigate away to `/admin/users`; the record that hosts
+ * On success we navigate back to the configured admin users list; the record that hosts
  * this view no longer exists. The `onSuccess` callback on `PanelProps`
  * is unused here because `delete` produces no updated user.
  */
@@ -27,6 +27,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { type AdminUserResponse, deleteAdminUser } from '../../server-fns/admin-users/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import styles from './delete.module.css'
@@ -62,7 +63,7 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
       // forced to re-fetch — without this, TanStack Router can serve
       // the cached pre-delete list.
       await router.invalidate()
-      navigate({ to: '/admin/users' as never })
+      navigate({ to: getAdminRoutePath('users') })
     } catch (err) {
       const code = getErrorCode(err)
       if (code === 'admin.users.selfDeleteForbidden') {

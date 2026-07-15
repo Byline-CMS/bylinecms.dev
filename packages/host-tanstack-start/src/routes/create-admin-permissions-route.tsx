@@ -16,6 +16,7 @@ import {
   type ListRegisteredAbilitiesResponse,
   listRegisteredAbilities,
 } from '../server-fns/admin-permissions/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 
 export function createAdminPermissionsRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
@@ -31,8 +32,8 @@ export function createAdminPermissionsRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: '/admin' },
-              { label: t('chrome.menu.permissions'), href: '/admin/permissions' },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              { label: t('chrome.menu.permissions'), href: getAdminRoutePath('permissions') },
             ]}
           />
           <AbilitiesInspector data={data} />

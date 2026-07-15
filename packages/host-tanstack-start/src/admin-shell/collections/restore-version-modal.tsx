@@ -24,6 +24,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { restoreDocumentVersion } from '../../server-fns/collections/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import styles from './restore-version-modal.module.css'
@@ -62,7 +63,7 @@ export function RestoreVersionModal({
       onClose()
       await router.invalidate()
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection, id: documentId },
       })
     } catch (err) {

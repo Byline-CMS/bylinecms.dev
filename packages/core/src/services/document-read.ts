@@ -23,11 +23,13 @@
  */
 
 import { normalizeCollectionHook, resolveHooks } from '../@types/index.js'
+import { ERR_READ_RECURSION } from '../lib/errors.js'
 import type {
   AfterReadContext,
   CollectionDefinition,
   CollectionHookSlot,
   ReadContext,
+  ReadMode,
 } from '../@types/index.js'
 
 async function invokeHook<Ctx>(hook: CollectionHookSlot<Ctx> | undefined, ctx: Ctx): Promise<void> {
@@ -40,19 +42,27 @@ async function invokeHook<Ctx>(hook: CollectionHookSlot<Ctx> | undefined, ctx: C
 /**
  * Fire the `afterRead` hook for one reconstructed document.
  *
- * No-op when the collection has no hook. No-op when the document has
- * already been through `afterRead` in this `ReadContext` — enforces the
- * "once per document per logical request" rule that forecloses the
- * A→B→A infinite loop when hooks perform their own reads.
+ * No-op when the collection has no hook, when this exact materialized object
+ * completed the hook already. An active logical version fails closed with
+ * `ERR_READ_RECURSION`: even the same object may be only partially processed,
+ * so returning it cannot be proven safe. Fresh raw objects are always redacted
+ * once the active call completes. Failed hooks do not mark the object complete,
+ * and active state is cleared in `finally` so a later retry can proceed.
  *
  * The hook receives the raw storage-shape document (mutable) and the
- * shared `ReadContext` so it can thread the same context through any
+ * operation's authenticated context plus the shared `ReadContext`, so it can
+ * redact by actor and thread the same context through any
  * nested `client.collection(...).findById(id, { _readContext })` calls.
  */
 export async function applyAfterRead(params: {
   doc: Record<string, any>
   definition: CollectionDefinition
   readContext: ReadContext
+  requestContext: import('@byline/auth').RequestContext
+  locale?: string
+  readMode?: ReadMode
+  projection?: readonly string[]
+  materialization?: string
 }): Promise<void> {
   const resolved = await resolveHooks(params.definition)
   const hook = resolved?.afterRead
@@ -60,14 +70,52 @@ export async function applyAfterRead(params: {
   const docId = params.doc?.document_id
   if (typeof docId !== 'string') return
 
-  const key = `${params.definition.path}:${docId}`
-  if (params.readContext.afterReadFired.has(key)) return
-  params.readContext.afterReadFired.add(key)
+  const versionId =
+    typeof params.doc?.document_version_id === 'string'
+      ? params.doc.document_version_id
+      : `document:${docId}`
+  const state = getAfterReadState(params.readContext)
+  if (state.processed.has(params.doc)) return
+  // ReadContext already scopes the operation; keeping identity out of this key
+  // prevents a nested caller from evading the guard with another context clone.
+  const activeKey = `${params.definition.path}:${versionId}`
+  if (state.active.has(activeKey)) {
+    throw ERR_READ_RECURSION({
+      message: `afterRead recursion blocked for active version '${versionId}'`,
+      details: {
+        collectionPath: params.definition.path,
+        documentId: docId,
+        documentVersionId: versionId,
+      },
+    })
+  }
 
   const ctx: AfterReadContext = {
     doc: params.doc,
     collectionPath: params.definition.path,
+    requestContext: params.requestContext,
     readContext: params.readContext,
   }
-  await invokeHook(hook, ctx)
+  state.active.add(activeKey)
+  try {
+    await invokeHook(hook, ctx)
+    state.processed.add(params.doc)
+  } finally {
+    state.active.delete(activeKey)
+  }
+}
+
+interface AfterReadState {
+  active: Set<string>
+  processed: WeakSet<object>
+}
+
+const afterReadStates = new WeakMap<ReadContext, AfterReadState>()
+
+function getAfterReadState(readContext: ReadContext): AfterReadState {
+  const existing = afterReadStates.get(readContext)
+  if (existing) return existing
+  const state: AfterReadState = { active: new Set(), processed: new WeakSet() }
+  afterReadStates.set(readContext, state)
+  return state
 }

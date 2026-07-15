@@ -25,7 +25,7 @@ export type DbStrategy = 'existing' | 'docker'
 export interface FileWrite {
   path: string
   contents: string
-  mode?: 'create' | 'overwrite' | 'patch'
+  mode?: 'create' | 'overwrite' | 'patch' | 'delete'
   before?: string
 }
 
@@ -67,6 +67,7 @@ export interface Answers {
   dbName?: string
   dbUser?: string
   adminPath?: string
+  signInPath?: string
   uiDir?: string
   examples?: boolean
   importDocs?: boolean

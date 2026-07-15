@@ -61,6 +61,7 @@ import { defineHooks } from '@byline/core'
 
 import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
 import { getSystemBylineClient } from '../../client.server.js'
+import { runSideEffects } from '../run-side-effects.js'
 
 // Search indexing rides the same lifecycle hooks as cache invalidation. The
 // orchestration lives in `@byline/client`: `indexDocument` re-reads the
@@ -77,27 +78,68 @@ export default defineHooks({
     console.log(
       `afterCreate: document ${documentId} created in '${collectionPath}' (content fingerprint ${fingerprint})`
     )
-    await invalidateDocument('docs', path, { list: true, sitemap: true })
-    await getSystemBylineClient().collection('docs').indexDocument(documentId)
+    await runSideEffects(
+      'docs afterCreate',
+      () => invalidateDocument('docs', path, { list: true, sitemap: true }),
+      () => getSystemBylineClient().collection('docs').indexDocument(documentId)
+    )
   },
   afterUpdate: async ({ path, documentId, originalData }) => {
-    await invalidateDocument('docs', path, {
-      prevPath: (originalData as { path?: string } | undefined)?.path,
-      list: true,
-    })
-    await getSystemBylineClient().collection('docs').indexDocument(documentId)
+    await runSideEffects(
+      'docs afterUpdate',
+      () =>
+        invalidateDocument('docs', path, {
+          prevPath: (originalData as { path?: string } | undefined)?.path,
+          list: true,
+        }),
+      () => getSystemBylineClient().collection('docs').indexDocument(documentId)
+    )
+  },
+  afterSystemFieldsChange: async ({
+    documentId,
+    previousPath,
+    currentPath,
+    requested,
+    reconciliation,
+  }) => {
+    const invalidate = () =>
+      reconciliation && requested.path
+        ? invalidateCollection('docs')
+        : currentPath != null
+          ? invalidateDocument('docs', currentPath, {
+              prevPath: previousPath,
+              list: true,
+              sitemap: true,
+            })
+          : undefined
+    await runSideEffects(
+      'docs afterSystemFieldsChange',
+      invalidate,
+      ...(requested.path
+        ? [() => getSystemBylineClient().collection('docs').indexDocument(documentId)]
+        : [])
+    )
   },
   afterStatusChange: async ({ path, documentId }) => {
-    await invalidateDocument('docs', path, { list: true, sitemap: true })
-    await getSystemBylineClient().collection('docs').indexDocument(documentId)
+    await runSideEffects(
+      'docs afterStatusChange',
+      () => invalidateDocument('docs', path, { list: true, sitemap: true }),
+      () => getSystemBylineClient().collection('docs').indexDocument(documentId)
+    )
   },
   afterUnpublish: async ({ path, documentId }) => {
-    await invalidateDocument('docs', path, { list: true, sitemap: true })
-    await getSystemBylineClient().collection('docs').indexDocument(documentId)
+    await runSideEffects(
+      'docs afterUnpublish',
+      () => invalidateDocument('docs', path, { list: true, sitemap: true }),
+      () => getSystemBylineClient().collection('docs').indexDocument(documentId)
+    )
   },
   afterDelete: async ({ path, documentId }) => {
-    await invalidateDocument('docs', path, { list: true, sitemap: true })
-    await getSystemBylineClient().collection('docs').removeFromIndex(documentId)
+    await runSideEffects(
+      'docs afterDelete',
+      () => getSystemBylineClient().collection('docs').removeFromIndex(documentId),
+      () => invalidateDocument('docs', path, { list: true, sitemap: true })
+    )
   },
   // A structural tree change (place / reorder / re-parent / promote-on-delete)
   // ripples across the affected set — every moved node, its descendants, and

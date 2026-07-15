@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { defineCollection, defineWorkflow } from '../@types/collection-types.js'
-import { mergePredicates, parseSort, parseWhere } from './parse-where.js'
+import { mergePredicates, parsePredicateFilters, parseSort, parseWhere } from './parse-where.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
 
 const testCollection = defineCollection({
@@ -788,6 +788,83 @@ describe('parseWhere — `id` reserved key', () => {
     expect(result.pathFilter).toBeUndefined()
     expect(result.query).toBeUndefined()
     expect(result.filters).toHaveLength(1)
+  })
+})
+
+describe('parsePredicateFilters', () => {
+  const idA = '018f4f7c-6a2b-7d91-8f21-111111111111'
+  const idB = '018f4f7c-6a2b-7d91-8f21-222222222222'
+
+  it('keeps top-level status and path inside the adapter filter list', async () => {
+    const filters = await parsePredicateFilters(
+      { status: 'published', path: { $contains: 'docs' }, featured: true },
+      testCollection
+    )
+    expect(filters).toEqual([
+      { kind: 'docColumn', column: 'status', operator: '$eq', value: 'published' },
+      { kind: 'docColumn', column: 'path', operator: '$contains', value: 'docs' },
+      expect.objectContaining({ kind: 'field', fieldName: 'featured' }),
+    ])
+  })
+
+  it.each([
+    [{ typoedTenant: 't-1' }, 'unknown field'],
+    [{ query: 'secret' }, 'not supported'],
+    [{ $or: [] }, 'non-empty array'],
+    [{ $or: [{ typoedTenant: 't-1' }] }, 'unknown field'],
+    [{ title: { $wat: 'x' } }, 'supported operator'],
+    [{ status: { $contains: 'pub' } }, 'not supported'],
+    [{ status: { $in: 'published' } }, 'requires an array'],
+    [{ status: { $in: ['published', 1] } }, 'requires string values'],
+    [{ path: { $gt: '/private' } }, 'not supported'],
+    [{ path: { $in: ['/a', 1] } }, 'requires string values'],
+    [{ id: '__none__' }, 'requires UUID values'],
+    [{ id: { $eq: [idA] } }, 'requires a string'],
+    [{ id: { $in: ['not-a-uuid'] } }, 'requires UUID values'],
+  ])('rejects invalid security predicate %o', async (predicate, message) => {
+    await expect(
+      parsePredicateFilters(predicate as never, testCollection, ctx, { strict: true })
+    ).rejects.toThrow(message)
+  })
+
+  it('preserves status, path, and id arrays in strict predicates', async () => {
+    const filters = await parsePredicateFilters(
+      {
+        status: { $in: ['draft', 'published'] },
+        path: { $nin: ['/private', '/internal'] },
+        id: { $in: [idA, idB] },
+      },
+      testCollection,
+      ctx,
+      { strict: true }
+    )
+    expect(filters).toEqual([
+      {
+        kind: 'docColumn',
+        column: 'status',
+        operator: '$in',
+        value: ['draft', 'published'],
+      },
+      {
+        kind: 'docColumn',
+        column: 'path',
+        operator: '$nin',
+        value: ['/private', '/internal'],
+      },
+      { kind: 'docColumn', column: 'id', operator: '$in', value: [idA, idB] },
+    ])
+  })
+
+  it('compiles an empty id set as a safe always-false document filter', async () => {
+    await expect(
+      parsePredicateFilters({ id: { $in: [] } }, testCollection, ctx, { strict: true })
+    ).resolves.toEqual([{ kind: 'docColumn', column: 'id', operator: '$in', value: [] }])
+  })
+
+  it('keeps caller-query compilation permissive for unknown fields', async () => {
+    await expect(parseWhere({ typoedTenant: 't-1' }, testCollection)).resolves.toEqual({
+      filters: [],
+    })
   })
 })
 

@@ -40,9 +40,16 @@
  * handles stale embedded paths.
  */
 
+import type { RequestContext } from '@byline/auth'
+
 import { collectRichTextLeaves } from './richtext-populate.js'
-import type { FieldSet, RichTextEmbedFn, RichTextField } from '../@types/field-types.js'
-import type { ReadContext } from '../@types/index.js'
+import type {
+  FieldSet,
+  RichTextEmbedFn,
+  RichTextField,
+  RichTextReadDocumentsFn,
+} from '../@types/field-types.js'
+import type { ReadContext, ReadMode } from '../@types/index.js'
 import type { BylineLogger } from '../lib/logger.js'
 
 /**
@@ -72,6 +79,9 @@ export interface EmbedRichTextFieldsOptions {
    * visited-set / read-budget machinery as the rest of the framework.
    */
   readContext: ReadContext
+  requestContext: RequestContext
+  readMode: ReadMode
+  readDocuments: RichTextReadDocumentsFn
   /** Structured logger — used for branch-C per-leaf error reporting. */
   logger: BylineLogger
 }
@@ -86,7 +96,17 @@ export interface EmbedRichTextFieldsOptions {
  * downstream proceeds. Document-level errors propagate.
  */
 export async function embedRichTextFields(options: EmbedRichTextFieldsOptions): Promise<void> {
-  const { fields, collectionPath, data, embed, readContext, logger } = options
+  const {
+    fields,
+    collectionPath,
+    data,
+    embed,
+    readContext,
+    requestContext,
+    readMode,
+    readDocuments,
+    logger,
+  } = options
   for (const leaf of collectRichTextLeaves(fields, data)) {
     if (!resolveEmbedOnSave(leaf.field)) continue
     try {
@@ -95,6 +115,9 @@ export async function embedRichTextFields(options: EmbedRichTextFieldsOptions): 
         fieldPath: leaf.fieldPath,
         collectionPath,
         readContext,
+        requestContext,
+        readMode,
+        readDocuments,
       })
     } catch (err) {
       logger.error(

@@ -15,9 +15,9 @@ import { slugify } from '../../utils/slugify.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import { normalizeNumericFields } from '../normalize-numeric-fields.js'
+import { requireTreeAuditCapability } from './audit.js'
 import {
   actorId,
-  appendTreeRoot,
   applyRichTextEmbed,
   derivePath,
   extractDocumentId,
@@ -26,6 +26,7 @@ import {
   maybeAppendOrderKey,
   rethrowPathConflict,
 } from './internals.js'
+import { appendTreeRoot } from './tree.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface CreateDocumentResult {
@@ -74,6 +75,9 @@ export async function createDocument(
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
+      // Reject unsupported tree adapters before hooks, counters, or persistence
+      // can create a document that cannot be placed and audited safely.
+      if (definition.tree === true) requireTreeAuditCapability(db)
       const slugifier = ctx.slugifier ?? slugify
       const hooks = await resolveHooks(definition)
       const data = params.data
@@ -138,11 +142,12 @@ export async function createDocument(
       // `tree: true` collections place every document in the tree by default:
       // a new document is appended as a root (a top-level nav entry) so it is
       // never stranded in the "unplaced" limbo. This is a system step of create
-      // (the actor already passed the `create` ability), so it calls the storage
-      // command directly — no `update` re-assertion, no separate tree event
-      // (afterCreate covers invalidation). Post-version and best-effort: a
-      // failure leaves the document created-but-unplaced and is logged, not
-      // thrown. See docs/04-collections/03-document-trees.md.
+      // (the actor already passed the `create` ability), so it uses the internal
+      // placement primitive without an `update` re-assertion or separate tree
+      // event (afterCreate covers invalidation). Placement + audit are atomic.
+      // Post-version and best-effort: a runtime audit/storage failure leaves the
+      // document created-but-unplaced and is logged. Missing capability was
+      // rejected before persistence above.
       if (definition.tree === true) {
         try {
           await appendTreeRoot(ctx, documentId)

@@ -25,14 +25,14 @@ import type { IStorageProvider } from './storage-types.js'
 export type DbAdapterFn = (args: { connectionString: string }) => IDbAdapter
 
 /**
- * URL path segments for the admin and (future) public API routes.
- * Both values are optional on the input side — callers typically read the
- * resolved shape via `resolveRoutes()` which fills in `'/admin'` and `'/api'`
- * defaults.
+ * Client-safe URL paths for Byline-owned routes. Admin and API must each be a
+ * single path segment; sign-in may be nested. Values are optional on the input
+ * side — callers typically read the resolved shape via `resolveRoutes()`.
  */
 export interface RoutesConfig {
   admin: string
   api: string
+  signIn: string
 }
 
 /**
@@ -118,10 +118,9 @@ export interface BaseConfig {
   }
   collections: readonly CollectionDefinition[]
   /**
-   * URL segments for admin and API routes. Both keys default to `/admin`
-   * and `/api` respectively — installations only set this when they want
-   * to mount the admin or API at a non-default path. Consumers should
-   * read these via `resolveRoutes()` so the defaults are always applied.
+   * Client-safe admin, API, and sign-in route paths. They default to `/admin`,
+   * `/api`, and `/sign-in` respectively. Consumers should read these via
+   * `resolveRoutes()` so defaults and canonicalization are always applied.
    */
   routes?: Partial<RoutesConfig>
 }

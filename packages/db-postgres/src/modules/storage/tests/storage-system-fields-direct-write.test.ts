@@ -24,9 +24,11 @@ import type { CollectionDefinition } from '@byline/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
+import type { TXManagerImpl } from '../../../lib/db-manager.js'
 
 let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
 let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
+let txManager: TXManagerImpl
 
 const timestamp = Date.now()
 
@@ -59,6 +61,7 @@ describe('non-versioned system-field commands (direct write)', () => {
     const testDB = setupTestDB([DirectWriteCollectionConfig])
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
+    txManager = testDB.txManager
 
     const result = await commandBuilders.collections.create(
       DirectWriteCollectionConfig.path,
@@ -197,5 +200,68 @@ describe('non-versioned system-field commands (direct write)', () => {
         path: 'collision-taken',
       })
     ).rejects.toThrow()
+  })
+
+  it('serializes locked snapshots so a concurrent writer sees the intermediate path', async () => {
+    const created = await commandBuilders.documents.createDocumentVersion({
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: DirectWriteCollectionConfig,
+      action: 'create',
+      documentData: { title: 'Concurrent path' },
+      path: 'concurrent-before',
+      availableLocales: ['en'],
+      locale: 'all',
+      status: 'published',
+    })
+    const documentId = created.document.document_id
+    let releaseFirst: (() => void) | undefined
+    let firstLocked: (() => void) | undefined
+    const holdFirst = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const firstHasLock = new Promise<void>((resolve) => {
+      firstLocked = resolve
+    })
+
+    let firstSnapshot:
+      | Awaited<ReturnType<typeof queryBuilders.documents.getDocumentSystemFieldsForUpdate>>
+      | undefined
+    let secondSnapshot:
+      | Awaited<ReturnType<typeof queryBuilders.documents.getDocumentSystemFieldsForUpdate>>
+      | undefined
+    let secondAcquired = false
+    const first = txManager.withTransaction(async () => {
+      firstSnapshot = await queryBuilders.documents.getDocumentSystemFieldsForUpdate({
+        collection_id: testCollection.id,
+        document_id: documentId,
+      })
+      firstLocked?.()
+      await holdFirst
+      await commandBuilders.documents.updateDocumentPath({
+        documentId,
+        collectionId: testCollection.id,
+        locale: 'en',
+        path: 'concurrent-middle',
+      })
+    })
+
+    await firstHasLock
+    const second = txManager.withTransaction(async () => {
+      secondSnapshot = await queryBuilders.documents.getDocumentSystemFieldsForUpdate({
+        collection_id: testCollection.id,
+        document_id: documentId,
+      })
+      secondAcquired = true
+    })
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    const secondWasBlocked = !secondAcquired
+    releaseFirst?.()
+    await Promise.all([first, second])
+
+    expect(secondWasBlocked, 'second transaction waits for the logical-document lock').toBe(true)
+    expect(firstSnapshot?.path).toBe('concurrent-before')
+    expect(firstSnapshot?.availableLocales).toEqual(['en'])
+    expect(secondSnapshot?.path).toBe('concurrent-middle')
   })
 })

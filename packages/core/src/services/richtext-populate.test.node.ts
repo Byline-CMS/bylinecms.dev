@@ -6,14 +6,18 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { describe, expect, it } from 'vitest'
+import { AdminAuth, createRequestContext } from '@byline/auth'
+import { describe, expect, it, vi } from 'vitest'
 
+import { createReadContext } from './populate.js'
 import {
   collectRichTextLeaves,
+  createRichTextDocumentReader,
+  populateRichTextFields,
   resolvePopulateOnRead,
   validateRichTextFieldFlags,
 } from './richtext-populate.js'
-import type { CollectionDefinition, FieldSet, RichTextField } from '../@types/index.js'
+import type { CollectionDefinition, FieldSet, IDbAdapter, RichTextField } from '../@types/index.js'
 
 // ---------------------------------------------------------------------------
 // Fixture — a synthetic collection that exercises every nesting type the
@@ -127,6 +131,263 @@ describe('collectRichTextLeaves', () => {
     }
     const out = Array.from(collectRichTextLeaves(fields, dataWithoutType))
     expect(out).toEqual([])
+  })
+})
+
+describe('createRichTextDocumentReader', () => {
+  const target: CollectionDefinition = {
+    path: 'media',
+    labels: { singular: 'Media', plural: 'Media' },
+    fields: [
+      { name: 'title', type: 'text', label: 'Title' },
+      { name: 'tenant', type: 'text', label: 'Tenant' },
+    ],
+    hooks: { beforeRead: () => ({ tenant: 'alice' }) },
+  }
+
+  function dbMock() {
+    const getCollectionByPath = vi.fn().mockResolvedValue({ id: 'media-id', path: 'media' })
+    const getDocumentsByDocumentIds = vi.fn().mockResolvedValue([])
+    return {
+      db: {
+        queries: {
+          collections: { getCollectionByPath },
+          documents: { getDocumentsByDocumentIds },
+        },
+      } as unknown as IDbAdapter,
+      getCollectionByPath,
+      getDocumentsByDocumentIds,
+    }
+  }
+
+  it('asserts target ability before adapter access', async () => {
+    const { db, getCollectionByPath, getDocumentsByDocumentIds } = dbMock()
+    const read = createRichTextDocumentReader({
+      db,
+      collections: [target],
+      requestContext: createRequestContext({
+        actor: new AdminAuth({ id: 'denied', abilities: ['collections.posts.read'] }),
+        readMode: 'published',
+      }),
+      readContext: createReadContext(),
+      readMode: 'published',
+    })
+
+    await expect(read({ collectionPath: 'media', documentIds: ['m1'] })).rejects.toMatchObject({
+      code: 'ERR_FORBIDDEN',
+    })
+    expect(getCollectionByPath).not.toHaveBeenCalled()
+    expect(getDocumentsByDocumentIds).not.toHaveBeenCalled()
+  })
+
+  it('applies target beforeRead filters to the batch', async () => {
+    const { db, getDocumentsByDocumentIds } = dbMock()
+    const read = createRichTextDocumentReader({
+      db,
+      collections: [target],
+      requestContext: createRequestContext({
+        actor: new AdminAuth({ id: 'reader', abilities: ['collections.media.read'] }),
+        readMode: 'published',
+      }),
+      readContext: createReadContext(),
+      readMode: 'published',
+    })
+
+    await read({ collectionPath: 'media', documentIds: ['m1'] })
+
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection_id: 'media-id',
+        document_ids: ['m1'],
+        readMode: 'published',
+        filters: [expect.objectContaining({ kind: 'field', fieldName: 'tenant', value: 'alice' })],
+      })
+    )
+  })
+
+  it('runs target rich-text population and actor-aware afterRead once per materialization', async () => {
+    const afterRead = vi.fn((ctx: any) => {
+      if (ctx.requestContext.actor?.id === 'reader') delete ctx.doc.fields.secret
+    })
+    const recursiveTarget: CollectionDefinition = {
+      ...target,
+      fields: [
+        ...target.fields,
+        {
+          name: 'body',
+          type: 'richText',
+          label: 'Body',
+          populateRelationsOnRead: true,
+        },
+        { name: 'secret', type: 'text', label: 'Secret' },
+      ],
+      hooks: { ...target.hooks, afterRead },
+    }
+    const doc = {
+      document_version_id: 'v1',
+      document_id: 'm1',
+      fields: { title: 'Media', tenant: 'alice', body: {}, secret: 'hidden' },
+    }
+    const { db, getDocumentsByDocumentIds } = dbMock()
+    getDocumentsByDocumentIds.mockResolvedValue([doc])
+    const readContext = createReadContext()
+    const nestedResults: unknown[] = []
+    const richTextPopulate = vi.fn(async (ctx: any) => {
+      nestedResults.push(await ctx.readDocuments({ collectionPath: 'media', documentIds: ['m1'] }))
+      ctx.value.refreshed = true
+    })
+    const requestContext = createRequestContext({
+      actor: new AdminAuth({ id: 'reader', abilities: ['collections.media.read'] }),
+      readMode: 'published',
+    })
+    const read = createRichTextDocumentReader({
+      db,
+      collections: [recursiveTarget],
+      requestContext,
+      readContext,
+      readMode: 'published',
+      richTextPopulate,
+    })
+
+    const first = await read({ collectionPath: 'media', documentIds: ['m1'] })
+    const second = await read({ collectionPath: 'media', documentIds: ['m1'] })
+
+    expect(first[0]?.fields.body.refreshed).toBe(true)
+    expect(first[0]?.fields).not.toHaveProperty('secret')
+    expect(second[0]).toBe(first[0])
+    expect(nestedResults).toEqual([[]])
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(1)
+    expect(richTextPopulate).toHaveBeenCalledTimes(1)
+    expect(afterRead).toHaveBeenCalledWith(expect.objectContaining({ requestContext, readContext }))
+    expect(readContext.readCount).toBe(1)
+    expect(readContext.visited).toContain('media-id:m1')
+  })
+
+  it('reuses a later batch target completed recursively instead of processing stale batch data', async () => {
+    const afterRead = vi.fn((ctx: any) => {
+      delete ctx.doc.fields.secret
+      ctx.doc.fields.redacted = true
+    })
+    const batchTarget: CollectionDefinition = {
+      ...target,
+      fields: [
+        ...target.fields,
+        {
+          name: 'body',
+          type: 'richText',
+          label: 'Body',
+          populateRelationsOnRead: true,
+        },
+        { name: 'secret', type: 'text', label: 'Secret' },
+      ],
+      hooks: { ...target.hooks, afterRead },
+    }
+    const outerA = {
+      document_version_id: 'v1',
+      document_id: 'm1',
+      fields: { title: 'A', tenant: 'alice', body: { link: 'm2' }, secret: 'a' },
+    }
+    const staleOuterB = {
+      document_version_id: 'v2',
+      document_id: 'm2',
+      fields: { title: 'stale B', tenant: 'alice', body: {}, secret: 'stale' },
+    }
+    const recursiveB = {
+      document_version_id: 'v2',
+      document_id: 'm2',
+      fields: { title: 'fresh B', tenant: 'alice', body: {}, secret: 'hidden' },
+    }
+    const { db, getDocumentsByDocumentIds } = dbMock()
+    getDocumentsByDocumentIds.mockImplementation(async ({ document_ids }) =>
+      document_ids.length === 2 ? [outerA, staleOuterB] : [recursiveB]
+    )
+    const richTextPopulate = vi.fn(async (ctx: any) => {
+      if (typeof ctx.value.link !== 'string') return
+      const linked = await ctx.readDocuments({
+        collectionPath: 'media',
+        documentIds: [ctx.value.link],
+      })
+      ctx.value.linkedTitle = linked[0]?.fields.title
+    })
+    const readContext = createReadContext()
+    const read = createRichTextDocumentReader({
+      db,
+      collections: [batchTarget],
+      requestContext: createRequestContext({
+        actor: new AdminAuth({ id: 'reader', abilities: ['collections.media.read'] }),
+        readMode: 'published',
+      }),
+      readContext,
+      readMode: 'published',
+      richTextPopulate,
+    })
+
+    const result = await read({ collectionPath: 'media', documentIds: ['m1', 'm2'] })
+
+    expect(result[0]?.fields.body.linkedTitle).toBe('fresh B')
+    expect(result[1]).toBe(recursiveB)
+    expect(result[1]).not.toBe(staleOuterB)
+    expect(result[1]?.fields).toMatchObject({ title: 'fresh B', redacted: true })
+    expect(result[1]?.fields).not.toHaveProperty('secret')
+    expect(getDocumentsByDocumentIds).toHaveBeenCalledTimes(2)
+    expect(richTextPopulate).toHaveBeenCalledTimes(2)
+    expect(afterRead).toHaveBeenCalledTimes(2)
+    expect(readContext.readCount).toBe(2)
+  })
+
+  it('enforces the shared read budget before returning target documents', async () => {
+    const { db, getDocumentsByDocumentIds } = dbMock()
+    getDocumentsByDocumentIds.mockResolvedValue([
+      { document_version_id: 'v1', document_id: 'm1', fields: { title: 'Media' } },
+    ])
+    const read = createRichTextDocumentReader({
+      db,
+      collections: [target],
+      requestContext: createRequestContext({
+        actor: new AdminAuth({ id: 'reader', abilities: ['collections.media.read'] }),
+        readMode: 'published',
+      }),
+      readContext: createReadContext({ maxReads: 0 }),
+      readMode: 'published',
+    })
+
+    await expect(read({ collectionPath: 'media', documentIds: ['m1'] })).rejects.toMatchObject({
+      code: 'ERR_READ_BUDGET_EXCEEDED',
+    })
+  })
+})
+
+describe('populateRichTextFields auth context', () => {
+  it('passes the operation context and secure reader to the adapter', async () => {
+    const requestContext = createRequestContext({
+      actor: new AdminAuth({ id: 'reader', abilities: ['collections.posts.read'] }),
+      readMode: 'published',
+    })
+    const readContext = createReadContext()
+    const readDocuments = vi.fn()
+    const populate = vi.fn()
+
+    await populateRichTextFields({
+      fields: [
+        {
+          name: 'body',
+          type: 'richText',
+          label: 'Body',
+          populateRelationsOnRead: true,
+        },
+      ],
+      collectionPath: 'posts',
+      documents: [{ fields: { body: richTextValue('body') } }],
+      populate,
+      readContext,
+      requestContext,
+      readMode: 'published',
+      readDocuments,
+    })
+
+    expect(populate).toHaveBeenCalledWith(
+      expect.objectContaining({ requestContext, readContext, readMode: 'published', readDocuments })
+    )
   })
 })
 

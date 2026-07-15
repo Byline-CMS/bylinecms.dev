@@ -6,18 +6,25 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_NOT_FOUND } from '../../lib/errors.js'
+import { ERR_AUDIT_UNSUPPORTED, ERR_NOT_FOUND } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { AUDIT_ACTIONS, auditActor, requireAuditCapability, sameLocaleSet } from './audit.js'
-import { resolvePathForUpdate, rethrowPathConflict } from './internals.js'
+import { invokeHook, resolvePathForUpdate, rethrowPathConflict } from './internals.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface UpdateDocumentSystemFieldsResult {
   documentId: string
   /** The path actually written, or `undefined` when no path write occurred. */
   path?: string
-  /** Whether the advertised-locale set was rewritten this call. */
+  /** Whether either system field actually changed. */
+  changed: boolean
+  /** Whether a no-op request emitted the reconciliation hook. */
+  reconciliation: boolean
+  pathChanged: boolean
+  availableLocalesChanged: boolean
+  /** Whether the advertised-locale set was actually rewritten this call. */
   availableLocalesWritten: boolean
 }
 
@@ -37,7 +44,8 @@ export interface UpdateDocumentSystemFieldsResult {
  *
  * Flow:
  *   1. `assertActorCanPerform('update')` — same auth gate as content writes.
- *   2. Fetch the document to resolve its `source_locale` anchor + current path.
+ *   2. Inside the audit transaction, lock the logical document and read its
+ *      authoritative source locale, path, and advertised locales.
  *   3. Path (when supplied): `resolvePathForUpdate` enforces the source-locale
  *      rule (translation-locale path edits are dropped with a warn); a real
  *      change is written via `updateDocumentPath`, mapping the unique-constraint
@@ -45,10 +53,14 @@ export interface UpdateDocumentSystemFieldsResult {
  *   4. `availableLocales` (when supplied): rewritten wholesale via
  *      `setDocumentAvailableLocales`.
  *
- * No content hooks fire — these are not content writes. Accountability for
- * these mutations is the document-grain audit log: each field that actually
- * changes records a `document.path.changed` / `document.locales.changed` row
- * atomically with the write (docs/06-auth-and-security/02-auditability.md — Workstream 2).
+ * Content hooks do not fire because these are not content writes. Actual
+ * changes emit `afterSystemFieldsChange` after the audited write commits. A
+ * caller can pass `reconcile: true` to emit the same hook for a no-op retry
+ * after an earlier post-commit hook failure. Hook failures reject the call but
+ * never roll back the already-committed write/audit.
+ * Accountability for these mutations is the document-grain audit log: each
+ * changed field records a `document.path.changed` /
+ * `document.locales.changed` row atomically with the write.
  *
  * @throws {BylineError} ERR_NOT_FOUND if the document does not exist.
  * @throws {BylineError} ERR_PATH_CONFLICT if the path is already in use.
@@ -71,61 +83,68 @@ export async function updateDocumentSystemFields(
      * included — replaces the set wholesale.
      */
     availableLocales?: string[]
+    /** Re-run `afterSystemFieldsChange` when requested values are already current. */
+    reconcile?: boolean
   }
 ): Promise<UpdateDocumentSystemFieldsResult> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'updateDocumentSystemFields' },
     async () => {
-      const { db, collectionId, collectionPath, defaultLocale } = ctx
+      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
 
       const requestLocale = params.locale ?? defaultLocale
-
-      // Resolve the document's source-locale anchor + current path. Both feed
-      // the path source-locale guard below; the fetch also asserts existence.
-      const latest = await db.queries.documents.getDocumentById({
-        collection_id: collectionId,
-        document_id: params.documentId,
-        locale: requestLocale,
-        reconstruct: true,
-      })
-
-      if (latest == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found',
-          details: { documentId: params.documentId },
-        }).log(ctx.logger)
-      }
-
-      const originalData = latest as Record<string, any>
-      const sourceLocale = (originalData.source_locale as string | undefined) ?? defaultLocale
-
-      // Path: honour the same source-locale-only rule the versioned write
-      // uses. `resolvePathForUpdate` returns `undefined` to mean "skip the
-      // write" (null/empty override, or a translation-locale save).
       const explicitPath =
         typeof params.path === 'string' && params.path.length > 0 ? params.path : null
-      const pathForCommand = resolvePathForUpdate({
-        explicitPath,
-        currentPath: originalData.path as string | undefined,
-        requestLocale,
-        sourceLocale,
-        documentId: params.documentId,
-        logger: ctx.logger,
-      })
-
-      // Both document-grain writes and their audit rows commit atomically.
-      // These fields are non-versioned, so the version stream never records
-      // them — the audit log is their only accountability home. One audit row
-      // per field that actually changed (docs/06-auth-and-security/02-auditability.md).
-      const currentPath = originalData.path as string | undefined
-      const currentLocales = (originalData.availableLocales as string[] | undefined) ?? []
-      const availableLocalesWritten = params.availableLocales !== undefined
-
+      const requested = {
+        path: explicitPath !== null,
+        availableLocales: params.availableLocales !== undefined,
+      }
+      const requestedLocales =
+        params.availableLocales === undefined ? undefined : [...new Set(params.availableLocales)]
       const audit = requireAuditCapability(db)
+      const lockSystemFields = db.queries.documents.getDocumentSystemFieldsForUpdate?.bind(
+        db.queries.documents
+      )
+      if (lockSystemFields == null) {
+        throw ERR_AUDIT_UNSUPPORTED({
+          message: 'audited system-field writes require a transaction-scoped lock/read capability',
+        })
+      }
       const actor = auditActor(ctx)
-      await audit.withTransaction(async () => {
-        if (pathForCommand !== undefined) {
+
+      // The logical document row is the mutex for both document-grain fields.
+      // Reading after that lock prevents concurrent writers from auditing a
+      // stale before value or omitting an intermediate old path from the event.
+      const outcome = await audit.withTransaction(async () => {
+        const snapshot = await lockSystemFields({
+          collection_id: collectionId,
+          document_id: params.documentId,
+        })
+        if (snapshot == null) {
+          throw ERR_NOT_FOUND({
+            message: 'document not found',
+            details: { documentId: params.documentId },
+          }).log(ctx.logger)
+        }
+
+        const sourceLocale = snapshot.source_locale ?? defaultLocale
+        const currentPath = snapshot.path ?? undefined
+        const currentLocales = snapshot.availableLocales
+        const nextLocales = requestedLocales ?? currentLocales
+        const pathForCommand = resolvePathForUpdate({
+          explicitPath,
+          currentPath,
+          requestLocale,
+          sourceLocale,
+          documentId: params.documentId,
+          logger: ctx.logger,
+        })
+        const pathChanged = pathForCommand !== undefined && pathForCommand !== currentPath
+        const availableLocalesChanged =
+          requestedLocales !== undefined && !sameLocaleSet(currentLocales, nextLocales)
+
+        if (pathChanged) {
           await db.commands.documents
             .updateDocumentPath({
               documentId: params.documentId,
@@ -133,47 +152,76 @@ export async function updateDocumentSystemFields(
               locale: sourceLocale,
               path: pathForCommand,
             })
-            .catch((err: unknown) => rethrowPathConflict(err, pathForCommand, defaultLocale))
-          if (pathForCommand !== currentPath) {
-            await audit.append({
-              documentId: params.documentId,
-              collectionId,
-              actorId: actor.actorId,
-              actorRealm: actor.actorRealm,
-              action: AUDIT_ACTIONS.pathChanged,
-              field: 'path',
-              before: currentPath ?? null,
-              after: pathForCommand,
-            })
-          }
+            .catch((err: unknown) => rethrowPathConflict(err, pathForCommand, sourceLocale))
+          await audit.append({
+            documentId: params.documentId,
+            collectionId,
+            actorId: actor.actorId,
+            actorRealm: actor.actorRealm,
+            action: AUDIT_ACTIONS.pathChanged,
+            field: 'path',
+            before: currentPath ?? null,
+            after: pathForCommand,
+          })
         }
 
-        // Advertised locales: rewrite the document-grain set wholesale.
-        if (params.availableLocales !== undefined) {
+        if (availableLocalesChanged) {
           await db.commands.documents.setDocumentAvailableLocales({
             documentId: params.documentId,
             collectionId,
-            availableLocales: params.availableLocales,
+            availableLocales: nextLocales,
           })
-          if (!sameLocaleSet(currentLocales, params.availableLocales)) {
-            await audit.append({
-              documentId: params.documentId,
-              collectionId,
-              actorId: actor.actorId,
-              actorRealm: actor.actorRealm,
-              action: AUDIT_ACTIONS.localesChanged,
-              field: 'availableLocales',
-              before: currentLocales,
-              after: params.availableLocales,
-            })
-          }
+          await audit.append({
+            documentId: params.documentId,
+            collectionId,
+            actorId: actor.actorId,
+            actorRealm: actor.actorRealm,
+            action: AUDIT_ACTIONS.localesChanged,
+            field: 'availableLocales',
+            before: currentLocales,
+            after: nextLocales,
+          })
+        }
+
+        return {
+          pathForCommand,
+          pathChanged,
+          availableLocalesChanged,
+          previousPath: currentPath,
+          currentPath: pathChanged ? pathForCommand : currentPath,
+          previousAvailableLocales: [...currentLocales],
+          currentAvailableLocales: [...nextLocales],
         }
       })
 
+      const changed = outcome.pathChanged || outcome.availableLocalesChanged
+      const reconciliation = !changed && params.reconcile === true
+      if (changed || reconciliation) {
+        const hooks = await resolveHooks(definition)
+        await invokeHook(hooks?.afterSystemFieldsChange, {
+          documentId: params.documentId,
+          collectionPath,
+          requested,
+          changed: {
+            path: outcome.pathChanged,
+            availableLocales: outcome.availableLocalesChanged,
+          },
+          reconciliation,
+          previousPath: outcome.previousPath,
+          currentPath: outcome.currentPath,
+          previousAvailableLocales: outcome.previousAvailableLocales,
+          currentAvailableLocales: outcome.currentAvailableLocales,
+        })
+      }
+
       return {
         documentId: params.documentId,
-        path: pathForCommand,
-        availableLocalesWritten,
+        path: outcome.pathChanged ? outcome.pathForCommand : undefined,
+        changed,
+        reconciliation,
+        pathChanged: outcome.pathChanged,
+        availableLocalesChanged: outcome.availableLocalesChanged,
+        availableLocalesWritten: outcome.availableLocalesChanged,
       }
     }
   )

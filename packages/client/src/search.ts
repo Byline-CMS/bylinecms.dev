@@ -26,10 +26,12 @@ import {
   createReadContext,
   ERR_VALIDATION,
   getCollectionAdminConfig,
+  parsePredicateFilters,
   resolveItemViewColumns,
   resolveSearchZones,
 } from '@byline/core'
 
+import { resolveReadRequestContext } from './read-context.js'
 import type { BylineClient } from './client.js'
 import type {
   ClientDocument,
@@ -221,7 +223,9 @@ export async function zoneSearch(
 
   // Per-member read gate: exclude collections the actor can't read; only
   // when *none* are readable does the ability error surface.
-  const requestContext = await client.resolveRequestContext()
+  const readMode: ReadMode = options.status ?? 'published'
+  const readCtx = createReadContext()
+  const requestContext = await resolveReadRequestContext(client, readCtx, readMode)
   const readable = new Set<string>()
   let firstAbilityError: unknown
   for (const member of members) {
@@ -240,11 +244,35 @@ export async function zoneSearch(
     throw firstAbilityError
   }
 
+  let aggregateRestricted = readable.size !== members.length
+  if (!options._bypassBeforeRead) {
+    for (const member of members) {
+      if (!readable.has(member.path)) continue
+      const predicate = await applyBeforeRead({
+        definition: member,
+        requestContext,
+        readContext: readCtx,
+      })
+      if (predicate == null) continue
+      await parsePredicateFilters(
+        predicate,
+        member,
+        {
+          collections: client.collections,
+          resolveCollectionId: (path) => client.resolveCollectionId(path),
+          logger: client.logger,
+        },
+        { strict: true }
+      )
+      aggregateRestricted = true
+    }
+  }
+
   const results = await provider.search({
     query: options.query,
     zone: options.zone,
     locale: options.locale ?? client.defaultLocale,
-    status: options.status === 'any' ? 'any' : 'published',
+    status: readMode,
     where: options.where,
     facets: options.facets,
     limit: options.limit,
@@ -261,7 +289,10 @@ export async function zoneSearch(
     status: options.status,
     hydrate: options.hydrate,
     bypassBeforeRead: options._bypassBeforeRead,
+    readContext: readCtx,
   })
 
-  return { hits, total: results.total, facets: results.facets }
+  return aggregateRestricted
+    ? { hits, total: hits.length }
+    : { hits, total: results.total, facets: results.facets }
 }

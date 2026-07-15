@@ -30,10 +30,12 @@ import {
   changeDocumentStatus,
   createDocument,
   createReadContext,
+  createRichTextDocumentReader,
   deleteDocument,
   ERR_VALIDATION,
   mergePredicates,
   type PopulateMap,
+  parsePredicateFilters,
   parseSort,
   parseWhere,
   placeTreeNode as placeTreeNodeLifecycle,
@@ -46,6 +48,7 @@ import {
   updateDocument,
 } from '@byline/core'
 
+import { resolveReadRequestContext } from './read-context.js'
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
 import { finalizeSearchHits } from './search.js'
 import type { BylineClient } from './client.js'
@@ -63,10 +66,13 @@ import type {
   FindResult,
   GetAncestorsOptions,
   GetSubtreeOptions,
+  GetTreeParentOptions,
   HistoryOptions,
   PlaceTreeNodeOptions,
   ReindexResult,
+  RemoveFromTreeOptions,
   TreeNode,
+  TreeParentResult,
   UpdateOptions,
 } from './types.js'
 
@@ -95,7 +101,9 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * (LATERAL JOINs).
    */
   async find<F = TFields>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
-    const requestContext = await this.resolveAndAssertRead()
+    const readMode = resolveReadMode(options.status)
+    const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const {
       where,
@@ -105,9 +113,6 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       page = 1,
       pageSize = 20,
     } = options
-    const readMode = resolveReadMode(options.status)
-    const readCtx = options._readContext ?? createReadContext()
-
     const hookPredicate = await this.resolveBeforeReadPredicate(
       requestContext,
       readCtx,
@@ -150,17 +155,16 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       }
     )
 
-    // Richtext populate runs *after* relation populate (so populated relation
-    // targets are already attached) and *before* afterRead (so user-land
-    // hooks observe the refreshed rich-text content).
-    await this.richTextPopulateSources(result.documents, readCtx)
-
-    // Fire afterRead for each source document AFTER populate so the hook
-    // sees the fully populated tree. Targets were already fired inside
-    // populate. applyAfterRead deduplicates via readCtx.afterReadFired.
-    for (const d of result.documents) {
-      await applyAfterRead({ doc: d, definition: this.definition, readContext: readCtx })
-    }
+    await this.finishReadDocuments(
+      result.documents,
+      readCtx,
+      requestContext,
+      locale,
+      readMode,
+      options._bypassBeforeRead,
+      select as string[] | undefined,
+      readMaterialization(options.populate, options.depth)
+    )
 
     return {
       docs: result.documents.map((d) => this.shapeWithPopulated<F>(d)),
@@ -216,8 +220,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * comes free) and attaches them as `hit.document`. Two consequences to be
    * aware of:
    *
-   *   - `total` (and facet counts) remain the provider's pre-authorization
-   *     numbers — approximate under row scoping, exact without it.
+   *   - under row scoping, `total` is the authorized hit count for this page
+   *     and facets are omitted rather than leaking provider-wide aggregates.
    *   - a page of hits can come back shorter than `limit` when candidates
    *     are dropped; paginate on `offset`, not on received length.
    *
@@ -227,7 +231,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Throws `ERR_VALIDATION` when no provider is registered.
    */
   async search(options: CollectionSearchOptions): Promise<ClientSearchResults> {
-    const requestContext = await this.resolveAndAssertRead()
+    const readMode = resolveReadMode(options.status)
+    const readCtx = createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const aggregateRestricted =
+      !options._bypassBeforeRead &&
+      (await this.resolveBeforeReadPredicate(requestContext, readCtx, undefined)) != null
     const provider = this.client.searchProvider
     if (provider == null) {
       throw ERR_VALIDATION({
@@ -240,7 +249,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       query: options.query,
       collectionPath: this.definition.path,
       locale: options.locale ?? this.client.defaultLocale,
-      status: resolveReadMode(options.status),
+      status: readMode,
       where: options.where,
       facets: options.facets,
       limit: options.limit,
@@ -258,8 +267,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       status: options.status,
       hydrate: options.hydrate,
       bypassBeforeRead: options._bypassBeforeRead,
+      readContext: readCtx,
     })
-    return { hits, total: results.total, facets: results.facets }
+    return aggregateRestricted
+      ? { hits, total: hits.length }
+      : { hits, total: results.total, facets: results.facets }
   }
 
   // -------------------------------------------------------------------------
@@ -406,11 +418,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     documentId: string,
     options: FindByIdOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
-    const requestContext = await this.resolveAndAssertRead()
-    const collectionId = await this.client.resolveCollectionId(this.definition.path)
-    const { locale = this.client.defaultLocale } = options
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const { locale = this.client.defaultLocale } = options
 
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
@@ -449,13 +461,16 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       }
     )
 
-    await this.richTextPopulateSources([raw as Record<string, any>], readCtx)
-
-    await applyAfterRead({
-      doc: raw as Record<string, any>,
-      definition: this.definition,
-      readContext: readCtx,
-    })
+    await this.finishReadDocuments(
+      [raw as Record<string, any>],
+      readCtx,
+      requestContext,
+      locale,
+      readMode,
+      options._bypassBeforeRead,
+      options.select as string[] | undefined,
+      readMaterialization(options.populate, options.depth)
+    )
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
@@ -469,11 +484,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     path: string,
     options: FindByPathOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
-    const requestContext = await this.resolveAndAssertRead()
-    const collectionId = await this.client.resolveCollectionId(this.definition.path)
-    const { locale = this.client.defaultLocale } = options
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const { locale = this.client.defaultLocale } = options
 
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
@@ -509,13 +524,16 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       }
     )
 
-    await this.richTextPopulateSources([raw as Record<string, any>], readCtx)
-
-    await applyAfterRead({
-      doc: raw as Record<string, any>,
-      definition: this.definition,
-      readContext: readCtx,
-    })
+    await this.finishReadDocuments(
+      [raw as Record<string, any>],
+      readCtx,
+      requestContext,
+      locale,
+      readMode,
+      options._bypassBeforeRead,
+      options.select as string[] | undefined,
+      readMaterialization(options.populate, options.depth)
+    )
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
@@ -623,8 +641,10 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   }
 
   /**
-   * Count documents visible to the current actor, optionally filtered by
-   * status.
+   * Sum the current-version workflow status buckets visible to the actor,
+   * optionally selecting one exact status. This is an editorial status-count
+   * API, not an ordinary published-view document count; it therefore
+   * authorizes as `readMode: 'any'` and rejects anonymous callers.
    *
    * Applies the collection's `beforeRead` predicate so the count reflects
    * only the rows the actor can see (multi-tenant scoping, owner-only
@@ -643,17 +663,19 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
 
   /**
    * Per-status document counts for this collection. Used by admin status
-   * bars / dashboards. Applies `beforeRead` so per-status counts reflect
+   * bars / dashboards. This always reads current versions across statuses,
+   * authorizes as `readMode: 'any'`, and applies `beforeRead` so counts reflect
    * only the actor's visible rows.
    */
   async countByStatus(
     options: { _bypassBeforeRead?: true } = {}
   ): Promise<Array<{ status: string; count: number }>> {
-    const requestContext = await this.resolveAndAssertRead()
+    const readCtx = createReadContext()
+    const requestContext = await this.resolveAndAssertRead('any', readCtx)
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
-      createReadContext(),
+      readCtx,
       options._bypassBeforeRead
     )
     return this.client.db.queries.documents.getDocumentCountsByStatus({
@@ -664,9 +686,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
 
   /**
    * Fetch the version history for a single document. Applies `beforeRead`
-   * as an access gate via `findById` — if the actor can't see the
-   * document at all, history returns an empty result rather than
-   * leaking version metadata.
+   * independently to every immutable version before pagination and counting,
+   * so ownership changes cannot expose hidden version content or metadata.
    *
    * Each version in the response is a shaped `ClientDocument`. Pagination
    * mirrors the storage adapter's `{ documents, meta }` shape, then is
@@ -676,35 +697,18 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     documentId: string,
     options: HistoryOptions = {}
   ): Promise<FindResult<F>> {
-    const _requestContext = await this.resolveAndAssertRead()
-    const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead('any', readCtx)
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const locale = options.locale ?? this.client.defaultLocale
     const page = options.page ?? 1
     const pageSize = options.pageSize ?? 20
 
-    // Access gate. `findById` runs `beforeRead`; a `null` here means either
-    // the document does not exist or the actor's predicate excludes it. In
-    // both cases an empty history is the correct response.
-    //
-    // `status: 'any'` so the gate asks "can the actor see *any* version of
-    // this document?" rather than the client's default "is there a
-    // published version they can see?". A draft-only document with the
-    // owning actor should still surface history; using the published-only
-    // default would gate them out incorrectly.
-    if (!options._bypassBeforeRead) {
-      const accessible = await this.findById(documentId, {
-        locale,
-        status: 'any',
-        _readContext: readCtx,
-      })
-      if (accessible == null) {
-        return {
-          docs: [],
-          meta: { total: 0, page, pageSize, totalPages: 0 },
-        }
-      }
-    }
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
 
     const result = await this.client.db.queries.documents.getDocumentHistory({
       collection_id: collectionId,
@@ -714,7 +718,19 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       page_size: pageSize,
       order: options.order,
       desc: options.desc,
+      filters,
     })
+
+    await this.finishReadDocuments(
+      result.documents,
+      readCtx,
+      requestContext,
+      locale,
+      'any',
+      options._bypassBeforeRead,
+      undefined,
+      'historical-version'
+    )
 
     return {
       docs: result.documents.map((d) => this.shapeWithPopulated<F>(d)),
@@ -733,9 +749,9 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * available-locales), in-place status transitions, and the deletion event
    * the immutable version stream deliberately does not record an actor for.
    *
-   * Applies `beforeRead` as an access gate via `findById` — exactly as
-   * `history()` does — so an actor who cannot see the document at all gets an
-   * empty log rather than leaking change metadata. Entries are newest-first.
+   * Applies `beforeRead` as a current-document access gate via `findById`, so
+   * an actor who cannot see the document at all gets an empty log rather than
+   * leaking change metadata. Entries are newest-first.
    * Actor *ids* are returned raw; resolving them to display labels is an
    * admin-realm concern handled above the SDK.
    *
@@ -743,8 +759,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * (`queries.audit` absent) — the same graceful shape as a gated-out read.
    */
   async auditLog(documentId: string, options: AuditLogOptions = {}): Promise<AuditLogPage> {
-    await this.resolveAndAssertRead()
     const readCtx = options._readContext ?? createReadContext()
+    await this.resolveAndAssertRead('any', readCtx)
     const locale = options.locale ?? this.client.defaultLocale
     const page = options.page ?? 1
     const pageSize = options.pageSize ?? 20
@@ -777,24 +793,44 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Fetch a specific version of a document by its `documentVersionId`.
    * Used by admin diff views.
    *
-   * Pass-through to `getDocumentByVersion`; access enforcement falls back
-   * to the collection-level `read` ability (asserted at the top of every
-   * read entry point). Row-level `beforeRead` does **not** apply here —
-   * version-by-id is a history-viewing primitive and the caller is
-   * expected to have already passed an access check on the parent
-   * document. Use `history()` instead if you want the access gate.
+   * The adapter query is constrained to this handle's collection and applies
+   * the collection's strict `beforeRead` predicate directly to the historical
+   * version. Unknown, cross-collection, and row-scoped version ids all return
+   * `null` without revealing ownership.
    */
   async findByVersion<F = TFields>(
     versionId: string,
     options: FindByVersionOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
-    await this.resolveAndAssertRead()
+    const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead('any', readCtx)
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
     const locale = options.locale ?? this.client.defaultLocale
     const raw = await this.client.db.queries.documents.getDocumentByVersion({
       document_version_id: versionId,
       locale,
+      collection_id: collectionId,
+      filters,
     })
     if (raw == null) return null
+    if (options.select?.length) {
+      trimFields(raw as Record<string, any>, options.select as string[])
+    }
+    await this.finishReadDocuments(
+      [raw as Record<string, any>],
+      readCtx,
+      requestContext,
+      locale,
+      'any',
+      options._bypassBeforeRead,
+      options.select as string[] | undefined,
+      'historical-version'
+    )
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
 
@@ -827,6 +863,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       parentDocumentId: options.parentDocumentId,
       beforeDocumentId: options.beforeDocumentId ?? null,
       afterDocumentId: options.afterDocumentId ?? null,
+      reconcile: options.reconcile,
     })
   }
 
@@ -835,10 +872,10 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * in the collection, but not in any table of contents). Distinct from
    * deleting the document. No-op when already unplaced.
    */
-  async removeFromTree(documentId: string): Promise<void> {
+  async removeFromTree(documentId: string, options: RemoveFromTreeOptions = {}): Promise<void> {
     this.assertTreeCollection()
     const ctx = await this.buildLifecycleContext()
-    await removeFromTreeLifecycle(ctx, { documentId })
+    await removeFromTreeLifecycle(ctx, { documentId, reconcile: options.reconcile })
   }
 
   /**
@@ -847,20 +884,29 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * from the collection roots; a value returns the subtree rooted at (and
    * including) that node. Children are ordered per-parent. `status` defaults to
    * `'published'` (the client default) — an unpublished node hides its whole
-   * subtree in that mode.
+   * subtree in that mode. `beforeRead` visibility follows the same edge rule:
+   * a hidden node and its descendants are omitted, never promoted.
    */
   async getSubtree<F = TFields>(options: GetSubtreeOptions<F> = {}): Promise<TreeNode<F>[]> {
     this.assertTreeCollection()
-    await this.resolveAndAssertRead()
+    const readMode = resolveReadMode(options.status)
+    const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const locale = options.locale ?? this.client.defaultLocale
-    const readMode = resolveReadMode(options.status)
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
 
     const structure = await this.client.db.queries.documents.getTreeSubtree({
       collectionId,
       rootDocumentId: options.rootDocumentId ?? null,
       maxDepth: options.depth,
       readMode,
+      locale,
+      filters,
     })
     if (structure.length === 0) return []
 
@@ -869,12 +915,17 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       structure.map((n) => n.document_id),
       locale,
       readMode,
-      options.select as string[] | undefined
+      options.select as string[] | undefined,
+      filters,
+      readCtx,
+      requestContext,
+      options._bypassBeforeRead
     )
 
     // Assemble the nested forest. Rows arrive pre-order, so a parent is always
     // materialised before its children; a row whose parent is not in the result
     // set (null parent, or the requested root's own parent) is a top-level node.
+    const structuralIds = new Set(structure.map((row) => row.document_id))
     const nodeById = new Map<string, TreeNode<F>>()
     const roots: TreeNode<F>[] = []
     for (const row of structure) {
@@ -884,8 +935,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       nodeById.set(row.document_id, node)
       const parent =
         row.parent_document_id != null ? nodeById.get(row.parent_document_id) : undefined
-      if (parent) parent.children.push(node)
-      else roots.push(node)
+      if (parent) {
+        parent.children.push(node)
+      } else if (row.parent_document_id == null || !structuralIds.has(row.parent_document_id)) {
+        roots.push(node)
+      }
     }
     return roots
   }
@@ -896,21 +950,30 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * to `ClientDocument`s. In `'published'` mode (the client default) the walk
    * applies status-at-edge: it stops at the first unpublished ancestor (a
    * truncated chain), so a broken spine surfaces as a short chain the caller can
-   * detect rather than a silently-compacted one.
+   * detect rather than a silently-compacted one. A `beforeRead`-hidden ancestor
+   * breaks the edge identically.
    */
   async getAncestors<F = TFields>(
     documentId: string,
     options: GetAncestorsOptions<F> = {}
   ): Promise<ClientDocument<F>[]> {
     this.assertTreeCollection()
-    await this.resolveAndAssertRead()
+    const readMode = resolveReadMode(options.status)
+    const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const locale = options.locale ?? this.client.defaultLocale
-    const readMode = resolveReadMode(options.status)
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
 
     const ancestors = await this.client.db.queries.documents.getTreeAncestors({
       document_id: documentId,
       readMode,
+      locale,
+      filters,
     })
     if (ancestors.length === 0) return []
 
@@ -920,10 +983,23 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       ids,
       locale,
       readMode,
-      options.select as string[] | undefined
+      options.select as string[] | undefined,
+      filters,
+      readCtx,
+      requestContext,
+      options._bypassBeforeRead
     )
-    // Preserve root-first order; drop ancestors not visible in this read mode.
-    return ids.map((id) => shapedById.get(id)).filter((d): d is ClientDocument<F> => d != null)
+    // A hydration-time miss truncates the edge rather than compacting past a
+    // newly-hidden ancestor.
+    const visible: ClientDocument<F>[] = []
+    for (let i = ids.length - 1; i >= 0; i--) {
+      const id = ids[i]
+      if (id == null) break
+      const document = shapedById.get(id)
+      if (document == null) break
+      visible.unshift(document)
+    }
+    return visible
   }
 
   /**
@@ -931,14 +1007,38 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * `getAncestors` cannot express (it returns `[]` for both a root and an
    * unplaced node). Returns `{ placed, parentDocumentId }`: `placed: false` is
    * *unplaced* (no edge row), `placed: true` with a null parent is a *root*, and
-   * a non-null parent is a *child*. Structure-only — no document hydration.
+   * a non-null parent is a *child*. A hidden queried node reports unplaced; a
+   * visible child of a hidden parent remains placed but the parent id is
+   * redacted to null. Structure-only — no document hydration.
    */
   async getTreeParent(
-    documentId: string
-  ): Promise<{ placed: boolean; parentDocumentId: string | null }> {
+    documentId: string,
+    options: GetTreeParentOptions = {}
+  ): Promise<TreeParentResult> {
     this.assertTreeCollection()
-    await this.resolveAndAssertRead()
-    return this.client.db.queries.documents.getTreeParent({ document_id: documentId })
+    const readMode = resolveReadMode(options.status)
+    const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
+    const result = await this.client.db.queries.documents.getTreeParent({
+      document_id: documentId,
+      readMode,
+      locale: options.locale ?? this.client.defaultLocale,
+      filters,
+    })
+    return {
+      placed: result.placed,
+      parentDocumentId: result.parentDocumentId,
+      parentVisibility: result.parentRedacted
+        ? 'redacted'
+        : result.parentDocumentId != null
+          ? 'visible'
+          : 'none',
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -975,8 +1075,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Returns the resolved context so callers can thread `readMode` and
    * other per-request state into the adapter without re-resolving.
    */
-  private async resolveAndAssertRead(): Promise<RequestContext> {
-    const requestContext = await this.client.resolveRequestContext()
+  private async resolveAndAssertRead(
+    readMode: ReadMode,
+    readContext: ReadContext
+  ): Promise<RequestContext> {
+    const requestContext = await resolveReadRequestContext(this.client, readContext, readMode)
     assertActorCanPerform(requestContext, this.definition.path, 'read')
     return requestContext
   }
@@ -1000,8 +1103,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Batch-hydrate a set of tree node document ids into shaped
    * `ClientDocument`s, keyed by document id. Reuses the populate batch read
    * (`getDocumentsByDocumentIds`) under the requested `readMode` — the tree's
-   * own status-at-edge filtering already happened structurally, so a node
-   * absent here in `'published'` mode simply has no published version. Fires
+   * own status/beforeRead edge filtering already happened structurally, and the
+   * same filters are applied again to close the structure/hydration race. Fires
    * `afterRead` per node (deduped within one shared `ReadContext`) to stay
    * consistent with the other client read paths.
    */
@@ -1010,7 +1113,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     documentIds: string[],
     locale: string,
     readMode: ReadMode,
-    select: string[] | undefined
+    select: string[] | undefined,
+    filters: DocumentFilter[] | undefined,
+    readContext: ReadContext,
+    requestContext: RequestContext,
+    bypassBeforeRead: true | undefined
   ): Promise<Map<string, ClientDocument<F>>> {
     const shapedById = new Map<string, ClientDocument<F>>()
     if (documentIds.length === 0) return shapedById
@@ -1021,12 +1128,22 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       locale,
       readMode,
       fields: select,
+      filters,
     })
 
-    const readContext = createReadContext()
+    await this.finishReadDocuments(
+      rawDocs as Array<Record<string, any>>,
+      readContext,
+      requestContext,
+      locale,
+      readMode,
+      bypassBeforeRead,
+      select,
+      'tree'
+    )
+
     for (const raw of rawDocs) {
       const doc = raw as Record<string, any>
-      await applyAfterRead({ doc, definition: this.definition, readContext })
       shapedById.set(doc.document_id as string, this.shapeWithPopulated<F>(doc))
     }
     return shapedById
@@ -1082,7 +1199,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    */
   private async richTextPopulateSources(
     rawDocs: Record<string, any>[],
-    readContext: ReadContext
+    readContext: ReadContext,
+    requestContext: RequestContext,
+    locale: string,
+    readMode: ReadMode,
+    bypassBeforeRead: true | undefined
   ): Promise<void> {
     const populate = this.client.richTextPopulate
     if (!populate || rawDocs.length === 0) return
@@ -1092,7 +1213,54 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       documents: rawDocs,
       populate,
       readContext,
+      requestContext,
+      readMode,
+      readDocuments: createRichTextDocumentReader({
+        db: this.client.db,
+        collections: this.client.collections,
+        requestContext,
+        readContext,
+        readMode,
+        locale,
+        bypassBeforeRead,
+        richTextPopulate: populate,
+      }),
     })
+  }
+
+  /** Complete the common post-reconstruction pipeline in security order. */
+  private async finishReadDocuments(
+    rawDocs: Record<string, any>[],
+    readContext: ReadContext,
+    requestContext: RequestContext,
+    locale: string,
+    readMode: ReadMode,
+    bypassBeforeRead: true | undefined,
+    projection: string[] | undefined,
+    materialization: string
+  ): Promise<void> {
+    // Rich-text targets must be authorised and refreshed before user hooks see
+    // the document, regardless of which read entry point materialised it.
+    await this.richTextPopulateSources(
+      rawDocs,
+      readContext,
+      requestContext,
+      locale,
+      readMode,
+      bypassBeforeRead
+    )
+    for (const doc of rawDocs) {
+      await applyAfterRead({
+        doc,
+        definition: this.definition,
+        readContext,
+        requestContext,
+        locale,
+        readMode,
+        projection,
+        materialization,
+      })
+    }
   }
 
   /**
@@ -1106,11 +1274,24 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     bypass: true | undefined
   ) {
     if (bypass) return null
-    return applyBeforeRead({
+    const predicate = await applyBeforeRead({
       definition: this.definition,
       requestContext,
       readContext,
     })
+    if (predicate != null) {
+      await parsePredicateFilters(
+        predicate,
+        this.definition,
+        {
+          collections: this.client.collections,
+          resolveCollectionId: (path) => this.client.resolveCollectionId(path),
+          logger: this.client.logger,
+        },
+        { strict: true }
+      )
+    }
+    return predicate
   }
 
   /**
@@ -1126,12 +1307,17 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   ): Promise<DocumentFilter[] | undefined> {
     const predicate = await this.resolveBeforeReadPredicate(requestContext, readContext, bypass)
     if (predicate == null) return undefined
-    const parsed = await parseWhere(predicate, this.definition, {
-      collections: this.client.collections,
-      resolveCollectionId: (path) => this.client.resolveCollectionId(path),
-      logger: this.client.logger,
-    })
-    return parsed.filters.length > 0 ? parsed.filters : undefined
+    const filters = await parsePredicateFilters(
+      predicate,
+      this.definition,
+      {
+        collections: this.client.collections,
+        resolveCollectionId: (path) => this.client.resolveCollectionId(path),
+        logger: this.client.logger,
+      },
+      { strict: true }
+    )
+    return filters.length > 0 ? filters : undefined
   }
 
   /**
@@ -1158,6 +1344,14 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
  */
 function resolveReadMode(status: ReadMode | undefined): ReadMode {
   return status ?? 'published'
+}
+
+function readMaterialization(
+  populate: PopulateSpec | undefined,
+  depth: number | undefined
+): string {
+  if (populate === undefined) return 'document'
+  return `populate:${depth ?? 1}:${typeof populate === 'object' ? JSON.stringify(populate) : populate}`
 }
 
 /** Mutate `raw.fields` to retain only the entries matching `select`. */

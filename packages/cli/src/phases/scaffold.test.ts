@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createTestContext } from '../test-helpers.js'
+import { buildRoutesPlan, routesPhase } from './routes.js'
 import { buildScaffoldPlan, scaffoldPhase, shouldIncludeExampleTemplate } from './scaffold.js'
 import type { Context } from '../context.js'
 
@@ -40,11 +41,12 @@ describe('scaffold planning', () => {
     for (const write of plan.writes) expect(readFileSync(write.path, 'utf8')).toBe(write.contents)
   })
 
-  it('creates a custom runtime admin route and never overwrites a divergent routes.ts', async () => {
-    const ctx = fixture({ examples: false, adminPath: '/cms' })
+  it('creates custom runtime routes and never overwrites a divergent routes.ts', async () => {
+    const ctx = fixture({ examples: false, adminPath: '/cms', signInPath: '/staff/login' })
     const initial = buildScaffoldPlan(ctx)
     const routesWrite = initial.writes.find((write) => write.path.endsWith('byline/routes.ts'))
     expect(routesWrite?.contents).toContain("admin: '/cms'")
+    expect(routesWrite?.contents).toContain("signIn: '/staff/login'")
     await scaffoldPhase.apply(initial, ctx)
 
     writeFileSync(ctx.resolve('byline/routes.ts'), "export const routes = { admin: '/mine' }\n")
@@ -53,6 +55,46 @@ describe('scaffold planning', () => {
     expect(rerun.notes.join('\n')).toContain('manual')
     expect((await scaffoldPhase.apply(rerun, ctx)).state).toBe('partial')
     expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain("'/mine'")
+  })
+
+  it('defers an exact pre-signIn config migration and completes it in routes', async () => {
+    const ctx = fixture({
+      examples: false,
+      importDocs: false,
+      adminPath: '/admin',
+      signInPath: '/staff/login',
+    })
+    const configPath = ctx.resolve('byline/routes.ts')
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    const canonical = readFileSync(`${ctx.templatesDir()}/byline/routes.ts`, 'utf8')
+    writeFileSync(
+      configPath,
+      canonical
+        .replace(
+          `/**
+ * Client-safe URL paths for admin, sign-in, and the future public API.
+ * \`resolveRoutes()\` applies defaults and canonicalizes every consumer.
+ */`,
+          `/**
+ * URL segments for admin and (future) public API routes. Defaults of
+ * \`/admin\` and \`/api\` are applied automatically by \`resolveRoutes()\` —
+ * keys only need to be set here when overriding either default.
+ */`
+        )
+        .replace(/^\s*signIn:.*\n/m, '')
+    )
+
+    const scaffold = buildScaffoldPlan(ctx)
+    expect(scaffold.writes.some((write) => write.path === configPath)).toBe(false)
+    expect(scaffold.notes.join('\n')).toContain('deferred atomically to the routes phase')
+    expect((await scaffoldPhase.apply(scaffold, ctx)).state).toBe('done')
+    expect(await scaffoldPhase.detect(ctx)).toBe('done')
+    expect(readFileSync(configPath, 'utf8')).not.toContain('signIn:')
+
+    expect((await routesPhase.apply(buildRoutesPlan(ctx), ctx)).state).toBe('done')
+    expect(readFileSync(configPath, 'utf8')).toContain("signIn: '/staff/login'")
+    expect(await routesPhase.detect(ctx)).toBe('done')
+    expect(await scaffoldPhase.detect(ctx)).toBe('done')
   })
 
   it('excludes import helper tests while including the optional helper implementation', () => {

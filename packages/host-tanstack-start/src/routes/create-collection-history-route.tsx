@@ -24,6 +24,7 @@ import {
   getCollectionDocumentAuditLog,
   getCollectionDocumentHistory,
 } from '../server-fns/collections/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 
 const searchSchema = z.object({
@@ -119,15 +120,18 @@ export function createCollectionHistoryRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: `/admin` },
-              { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              {
+                label: collectionDef.labels.plural,
+                href: getAdminRoutePath('collections', collection),
+              },
               {
                 label: t('common.actions.edit'),
-                href: `/admin/collections/${collection}/${Route.useParams().id}`,
+                href: getAdminRoutePath('collections', collection, Route.useParams().id),
               },
               {
                 label: t('collections.breadcrumbs.history'),
-                href: `/admin/collections/${collection}/${Route.useParams().id}/history`,
+                href: getAdminRoutePath('collections', collection, Route.useParams().id, 'history'),
               },
             ]}
           />

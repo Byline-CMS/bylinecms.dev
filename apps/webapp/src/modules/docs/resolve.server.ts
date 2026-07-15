@@ -86,8 +86,11 @@ export async function resolveDocTreeBySplat<F = Record<string, any>>(
   // unpublished ancestor truncated the spine — unreachable in published mode.
   if (enforceSpine) {
     const topId = ancestors.at(0)?.id ?? doc.id
-    const { placed, parentDocumentId } = await handle.getTreeParent(topId)
-    if (placed && parentDocumentId != null) return null
+    const { placed, parentDocumentId, parentVisibility } = await handle.getTreeParent(topId, {
+      status,
+      locale,
+    })
+    if (parentVisibility === 'redacted' || (placed && parentDocumentId != null)) return null
   }
 
   const ancestorLinks: DocAncestorLink[] = ancestors.map((a) => ({

@@ -19,6 +19,7 @@ import {
   getAdminUser,
   getUserRoles,
 } from '../server-fns/admin-users/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 
 interface LoaderData {
   user: AdminUserResponse
@@ -79,9 +80,12 @@ export function createAdminUserEditRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: '/admin' },
-              { label: t('chrome.menu.adminUsers'), href: '/admin/users' },
-              { label: t('adminUsers.breadcrumbDetail'), href: `/admin/users/${user.id}` },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              { label: t('chrome.menu.adminUsers'), href: getAdminRoutePath('users') },
+              {
+                label: t('adminUsers.breadcrumbDetail'),
+                href: getAdminRoutePath('users', user.id),
+              },
             ]}
           />
           <Section className="py-5 pb-2">

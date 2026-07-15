@@ -64,7 +64,7 @@ function previewPlan(phase: Phase, plan: Plan, ctx: Context): void {
   for (const note of plan.notes) ctx.logger.raw(`    • ${note}`)
   for (const w of plan.writes) {
     const before = w.before ?? readIfExists(w.path)
-    const label = before ? 'modify' : 'create'
+    const label = w.mode === 'delete' ? 'delete' : before ? 'modify' : 'create'
     ctx.logger.raw(`    ${label}  ${w.path}`)
     if (before !== w.contents) {
       ctx.logger.raw(renderDiff(w.path, before, w.contents))

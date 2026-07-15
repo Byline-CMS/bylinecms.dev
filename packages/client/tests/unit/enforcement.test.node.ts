@@ -35,6 +35,8 @@ import { createBylineClient } from '../../src/index.js'
 const postsCollection: CollectionDefinition = {
   path: 'posts',
   labels: { singular: 'Post', plural: 'Posts' },
+  tree: true,
+  search: { body: ['title'], zones: ['posts'] },
   fields: [{ name: 'title', type: 'text', label: 'Title' }],
 }
 
@@ -70,6 +72,9 @@ function mockDb(): IDbAdapter {
         getPublishedVersion: vi.fn().mockResolvedValue(null),
         getPublishedDocumentIds: vi.fn().mockResolvedValue(new Set()),
         getDocumentCountsByStatus: vi.fn().mockResolvedValue([]),
+        getTreeSubtree: vi.fn().mockResolvedValue([]),
+        getTreeAncestors: vi.fn().mockResolvedValue([]),
+        getTreeParent: vi.fn().mockResolvedValue({ placed: false, parentDocumentId: null }),
       },
     },
   } as unknown as IDbAdapter
@@ -153,18 +158,124 @@ describe('CollectionHandle enforcement', () => {
       expect(result.docs).toEqual([])
     })
 
-    it('rejects read when readMode is not "published"', async () => {
+    it('uses the operation default instead of a stale context readMode', async () => {
+      const source = createRequestContext({ actor: null, readMode: 'any' })
       const client = createBylineClient({
         db: mockDb(),
         collections: [postsCollection],
-        requestContext: createRequestContext({ actor: null, readMode: 'any' }),
+        requestContext: source,
       })
-      try {
-        await client.collection('posts').find()
-        expect.fail('expected ERR_UNAUTHENTICATED')
-      } catch (err) {
-        expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
+      await expect(client.collection('posts').find()).resolves.toMatchObject({ docs: [] })
+      expect(source.readMode).toBe('any')
+    })
+
+    it.each([
+      [
+        'find',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').find({ status: 'any' }),
+      ],
+      [
+        'findOne',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').findOne({ status: 'any' }),
+      ],
+      [
+        'findById',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').findById('doc-1', { status: 'any' }),
+      ],
+      [
+        'findByPath',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').findByPath('doc-1', { status: 'any' }),
+      ],
+      [
+        'collection search',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').search({ query: 'x', status: 'any' }),
+      ],
+      [
+        'zone search',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.search({ query: 'x', zone: 'posts', status: 'any' }),
+      ],
+      [
+        'subtree',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').getSubtree({ status: 'any' }),
+      ],
+      [
+        'ancestors',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').getAncestors('doc-1', { status: 'any' }),
+      ],
+      [
+        'tree parent',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').getTreeParent('doc-1', { status: 'any' }),
+      ],
+      [
+        'history',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').history('doc-1'),
+      ],
+      [
+        'version',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').findByVersion('version-1'),
+      ],
+      [
+        'audit log',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').auditLog('doc-1'),
+      ],
+      [
+        'counts',
+        (client: ReturnType<typeof createBylineClient>) =>
+          client.collection('posts').countByStatus(),
+      ],
+    ])('rejects effective any-mode on %s', async (_name, read) => {
+      const client = createBylineClient({
+        db: mockDb(),
+        collections: [postsCollection],
+        requestContext: createRequestContext({ actor: null, readMode: 'published' }),
+        search: {
+          capabilities: {},
+          upsert: vi.fn(),
+          remove: vi.fn(),
+          search: vi.fn().mockResolvedValue({ hits: [], total: 0 }),
+        } as any,
+      })
+
+      await expect(read(client)).rejects.toMatchObject({ code: AuthErrorCodes.UNAUTHENTICATED })
+    })
+
+    it('passes the operation-effective read mode to beforeRead without mutating the source context', async () => {
+      const source = createRequestContext({
+        actor: new AdminAuth({ id: 'reader', abilities: ['collections.scoped.read'] }),
+        readMode: 'published',
+      })
+      const observed: Array<string | undefined> = []
+      const scoped: CollectionDefinition = {
+        ...postsCollection,
+        path: 'scoped',
+        hooks: {
+          beforeRead: ({ requestContext }) => {
+            observed.push(requestContext.readMode)
+          },
+        },
       }
+      const client = createBylineClient({
+        db: mockDb(),
+        collections: [scoped],
+        requestContext: source,
+      })
+
+      await client.collection('scoped').find({ status: 'any' })
+
+      expect(observed).toEqual(['any'])
+      expect(source.readMode).toBe('published')
     })
   })
 
@@ -181,12 +292,116 @@ describe('CollectionHandle enforcement', () => {
         requestContext: () => {
           const next = contexts[call] ?? contexts[0]
           call += 1
-          return next!
+          if (next == null) throw new Error('missing test request context')
+          return next
         },
       })
       await client.collection('posts').find()
       await client.collection('posts').find()
       expect(call).toBe(2)
+    })
+  })
+
+  describe('historical version scoping', () => {
+    it('binds version reads to the handle collection and beforeRead predicate', async () => {
+      const db = mockDb()
+      const getDocumentByVersion = vi.mocked(db.queries.documents.getDocumentByVersion)
+      getDocumentByVersion.mockImplementation(async (params) => {
+        if (params.document_version_id !== 'own-version' || params.collection_id !== 'col-1') {
+          return null
+        }
+        return {
+          document_version_id: 'own-version',
+          document_id: 'doc-1',
+          collection_id: 'col-1',
+          path: 'doc-1',
+          status: 'draft',
+          created_at: new Date('2026-01-01'),
+          updated_at: new Date('2026-01-01'),
+          fields: { title: 'Own', owner: 'alice' },
+        }
+      })
+      const scoped: CollectionDefinition = {
+        ...postsCollection,
+        fields: [...postsCollection.fields, { name: 'owner', type: 'text', label: 'Owner' }],
+        hooks: { beforeRead: () => ({ owner: 'alice' }) },
+      }
+      const client = createBylineClient({
+        db,
+        collections: [scoped],
+        requestContext: createSuperAdminContext(),
+      })
+
+      await expect(client.collection('posts').findByVersion('unknown')).resolves.toBeNull()
+      await expect(client.collection('posts').findByVersion('foreign-version')).resolves.toBeNull()
+      await expect(client.collection('posts').findByVersion('own-version')).resolves.toMatchObject({
+        id: 'doc-1',
+      })
+      expect(getDocumentByVersion).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          collection_id: 'col-1',
+          filters: [expect.objectContaining({ kind: 'field', fieldName: 'owner', value: 'alice' })],
+        })
+      )
+    })
+  })
+
+  describe('beforeRead predicates fail closed', () => {
+    it.each([
+      [{ typoedOwner: 'alice' }, 'unknown field'],
+      [{ query: 'secret' }, 'not supported'],
+      [{ $or: [] }, 'non-empty array'],
+    ])('rejects invalid hook predicate %o', async (predicate, message) => {
+      const db = mockDb()
+      const scoped: CollectionDefinition = {
+        ...postsCollection,
+        hooks: { beforeRead: () => predicate },
+      }
+      const client = createBylineClient({
+        db,
+        collections: [scoped],
+        requestContext: createSuperAdminContext(),
+      })
+
+      await expect(client.collection('posts').find()).rejects.toThrow(message)
+      expect(db.queries.documents.findDocuments).not.toHaveBeenCalled()
+    })
+
+    it('suppresses provider totals and facets when row scoping applies', async () => {
+      const scoped: CollectionDefinition = {
+        ...postsCollection,
+        fields: [...postsCollection.fields, { name: 'owner', type: 'text', label: 'Owner' }],
+        hooks: { beforeRead: () => ({ owner: 'alice' }) },
+      }
+      const client = createBylineClient({
+        db: mockDb(),
+        collections: [scoped],
+        requestContext: createSuperAdminContext(),
+        search: {
+          capabilities: {},
+          upsert: vi.fn(),
+          remove: vi.fn(),
+          search: vi.fn().mockResolvedValue({
+            hits: [
+              {
+                collectionPath: 'posts',
+                documentId: 'hidden',
+                locale: 'en',
+                title: 'Hidden',
+                path: 'hidden',
+                score: 1,
+              },
+            ],
+            total: 99,
+            facets: { owner: [{ value: 'alice', count: 99 }] },
+          }),
+        } as any,
+      })
+
+      await expect(client.collection('posts').search({ query: 'hidden' })).resolves.toEqual({
+        hits: [],
+        total: 0,
+      })
     })
   })
 

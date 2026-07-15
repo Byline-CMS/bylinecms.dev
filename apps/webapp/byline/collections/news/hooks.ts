@@ -22,16 +22,73 @@
 
 import { defineHooks } from '@byline/core'
 
-import { invalidateDocument } from '@/lib/cache/with-cache'
+import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
+import { getSystemBylineClient } from '../../client.server.js'
+import { runSideEffects } from '../run-side-effects.js'
 
 export default defineHooks({
-  afterCreate: ({ path }) => invalidateDocument('news', path, { list: true, sitemap: true }),
-  afterUpdate: ({ path, originalData }) =>
-    invalidateDocument('news', path, {
-      prevPath: (originalData as { path?: string } | undefined)?.path,
-      list: true,
-    }),
-  afterStatusChange: ({ path }) => invalidateDocument('news', path, { list: true, sitemap: true }),
-  afterUnpublish: ({ path }) => invalidateDocument('news', path, { list: true, sitemap: true }),
-  afterDelete: ({ path }) => invalidateDocument('news', path, { list: true, sitemap: true }),
+  afterCreate: async ({ path, documentId }) => {
+    await runSideEffects(
+      'news afterCreate',
+      () => invalidateDocument('news', path, { list: true, sitemap: true }),
+      () => getSystemBylineClient().collection('news').indexDocument(documentId)
+    )
+  },
+  afterUpdate: async ({ path, originalData, documentId }) => {
+    await runSideEffects(
+      'news afterUpdate',
+      () =>
+        invalidateDocument('news', path, {
+          prevPath: (originalData as { path?: string } | undefined)?.path,
+          list: true,
+        }),
+      () => getSystemBylineClient().collection('news').indexDocument(documentId)
+    )
+  },
+  afterSystemFieldsChange: async ({
+    documentId,
+    previousPath,
+    currentPath,
+    requested,
+    reconciliation,
+  }) => {
+    const invalidate = () =>
+      reconciliation && requested.path
+        ? invalidateCollection('news')
+        : currentPath != null
+          ? invalidateDocument('news', currentPath, {
+              prevPath: previousPath,
+              list: true,
+              sitemap: true,
+            })
+          : undefined
+    await runSideEffects(
+      'news afterSystemFieldsChange',
+      invalidate,
+      ...(requested.path
+        ? [() => getSystemBylineClient().collection('news').indexDocument(documentId)]
+        : [])
+    )
+  },
+  afterStatusChange: async ({ path, documentId }) => {
+    await runSideEffects(
+      'news afterStatusChange',
+      () => invalidateDocument('news', path, { list: true, sitemap: true }),
+      () => getSystemBylineClient().collection('news').indexDocument(documentId)
+    )
+  },
+  afterUnpublish: async ({ path, documentId }) => {
+    await runSideEffects(
+      'news afterUnpublish',
+      () => invalidateDocument('news', path, { list: true, sitemap: true }),
+      () => getSystemBylineClient().collection('news').indexDocument(documentId)
+    )
+  },
+  afterDelete: async ({ path, documentId }) => {
+    await runSideEffects(
+      'news afterDelete',
+      () => getSystemBylineClient().collection('news').removeFromIndex(documentId),
+      () => invalidateDocument('news', path, { list: true, sitemap: true })
+    )
+  },
 })

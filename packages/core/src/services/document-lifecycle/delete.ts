@@ -12,9 +12,15 @@ import { ERR_NOT_FOUND } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { hasUploadField, isUploadField } from '../../utils/storage-utils.js'
 import { walkFieldTree } from '../walk-field-tree.js'
-import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
+import {
+  AUDIT_ACTIONS,
+  auditActor,
+  requireAuditCapability,
+  requireTreeAuditCapability,
+} from './audit.js'
 import { invokeHook } from './internals.js'
-import { promoteChildrenAndRemove } from './tree.js'
+import { firePromoteTreeChange, reconcileTreeOnDeleteInTransaction } from './tree.js'
+import type { TreeDeleteMutationResult } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface DeleteDocumentResult {
@@ -117,15 +123,20 @@ export async function deleteDocument(
       // 2. beforeDelete hook.
       await invokeHook(hooks?.beforeDelete, hookCtx)
 
-      // 3. Soft-delete all versions, atomically with the audit record. A
+      // 3. Soft-delete all versions atomically with the document audit and,
+      //    for tree collections, locked child promotion/removal plus every
+      //    parent/child tree audit row. Any failure rolls the entire delete
+      //    back, so soft-deleted documents cannot leak live edges.
       //    whole-document delete mints no new version, so the version stream
       //    never records it — the audit log is the only place a deletion is
       //    accountable (docs/06-auth-and-security/02-auditability.md). Storage-file cleanup (step 4) is a
       //    DB↔external side-effect and stays OUTSIDE the transaction — it is
       //    post-commit, best-effort compensation (docs/03-architecture/03-transactions.md).
-      const audit = requireAuditCapability(db)
+      const treeAudit = definition.tree === true ? requireTreeAuditCapability(db) : undefined
+      const audit = treeAudit ?? requireAuditCapability(db)
       const actor = auditActor(ctx)
       let deletedVersionCount = 0
+      let treeResult: TreeDeleteMutationResult | undefined
       await audit.withTransaction(async () => {
         deletedVersionCount = await db.commands.documents.softDeleteDocument({
           document_id: params.documentId,
@@ -137,6 +148,9 @@ export async function deleteDocument(
           actorRealm: actor.actorRealm,
           action: AUDIT_ACTIONS.deleted,
         })
+        if (treeAudit != null) {
+          treeResult = await reconcileTreeOnDeleteInTransaction(ctx, params.documentId, treeAudit)
+        }
       })
 
       // 4. Clean up storage files. Non-fatal: logs errors but does not throw.
@@ -150,27 +164,34 @@ export async function deleteDocument(
         }
       }
 
-      // 5. Reconcile the document tree for `tree: true` collections. Byline
-      //    deletes are soft (the document row survives), so the table's
-      //    promote/cascade foreign keys never fire — promote the node's
-      //    children to root and remove its edge here instead, firing the
-      //    structural-change invalidation event. Post-commit and best-effort,
-      //    like file cleanup: a failure here leaves the soft-delete intact
-      //    (status-at-edge already hides the deleted node's subtree from
-      //    reads) and is logged rather than thrown. See docs/04-collections/03-document-trees.md.
-      if (definition.tree === true) {
-        try {
-          await promoteChildrenAndRemove(ctx, { documentId: params.documentId })
-        } catch (err: unknown) {
-          logger.error(
-            { err, documentId: params.documentId },
-            'failed to reconcile document tree on delete'
-          )
+      // 5-6. Both post-commit hook families get an independent attempt. A tree
+      // invalidation failure must not prevent afterDelete consumers (search,
+      // cache removal) from running, or vice versa.
+      const postCommitErrors: Array<{ phase: 'afterTreeChange' | 'afterDelete'; error: unknown }> =
+        []
+      try {
+        if (treeResult != null) {
+          await firePromoteTreeChange(ctx, params.documentId, treeResult)
         }
+      } catch (error: unknown) {
+        postCommitErrors.push({ phase: 'afterTreeChange', error })
       }
-
-      // 6. afterDelete hook.
-      await invokeHook(hooks?.afterDelete, hookCtx)
+      try {
+        await invokeHook(hooks?.afterDelete, hookCtx)
+      } catch (error: unknown) {
+        postCommitErrors.push({ phase: 'afterDelete', error })
+      }
+      if (postCommitErrors.length > 0) {
+        logger.error(
+          { documentId: params.documentId, errors: postCommitErrors },
+          'post-commit delete hooks failed'
+        )
+        if (postCommitErrors.length === 1) throw postCommitErrors[0]?.error
+        throw new AggregateError(
+          postCommitErrors.map((entry) => entry.error),
+          'multiple post-commit delete hooks failed'
+        )
+      }
 
       return { deletedVersionCount }
     }

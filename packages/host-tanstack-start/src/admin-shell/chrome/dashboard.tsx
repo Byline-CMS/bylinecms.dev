@@ -12,6 +12,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Card, Container, Section } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import styles from './dashboard.module.css'
 import { Link } from './loose-router.js'
 import type { CollectionStatusCount } from '../../server-fns/collections/index.js'
@@ -42,7 +43,7 @@ function StatTile({
   const modifier = tileModifier(ws.name)
   return (
     <Link
-      to={'/admin/collections/$collection' as never}
+      to={getAdminRoutePath('collections', '$collection')}
       params={{ collection: collectionPath }}
       search={{ status: ws.name }}
       className={cx('byline-dashboard-stat-tile', styles.statTile, modifier.global, modifier.local)}
@@ -77,7 +78,7 @@ export function AdminDashboard({ statsMap }: AdminDashboardProps) {
             return (
               <Card key={collection.path}>
                 <Link
-                  to={'/admin/collections/$collection' as never}
+                  to={getAdminRoutePath('collections', '$collection')}
                   params={{ collection: collection.path }}
                   className={cx('byline-dashboard-card-link', styles.cardLink)}
                 >
@@ -114,7 +115,7 @@ export function AdminDashboard({ statsMap }: AdminDashboardProps) {
                     </div>
                   ) : (
                     <Link
-                      to={'/admin/collections/$collection' as never}
+                      to={getAdminRoutePath('collections', '$collection')}
                       params={{ collection: collection.path }}
                       className={cx('byline-dashboard-empty-link', styles.emptyLink)}
                     >

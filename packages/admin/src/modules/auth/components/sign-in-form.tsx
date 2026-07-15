@@ -12,8 +12,8 @@
  * Admin sign-in form.
  *
  * Client component — collects email + password, calls the `adminSignIn`
- * server fn, and on success navigates to the caller-supplied
- * `callbackUrl` (or `/admin`). On failure renders a generic "Invalid
+ * server fn, and on success navigates to a safe caller-supplied destination.
+ * On failure renders a generic "Invalid
  * credentials" alert; the provider equalises timing between
  * unknown-email and wrong-password so the UI doesn't distinguish the two.
  *
@@ -25,15 +25,19 @@
 
 import { type FormEvent, useState } from 'react'
 
+import { getClientConfig, resolveRoutes } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Card, Input, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'classnames'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
+import { resolveSignInFormRedirect } from '../safe-redirect.js'
 import styles from './sign-in-form.module.css'
 
-interface SignInFormProps {
-  /** Destination after successful sign-in. Defaults to `/admin`. */
+export interface SignInFormProps {
+  /** Host-validated root-relative destination after successful sign-in. */
+  redirectTo?: string
+  /** @deprecated Use `redirectTo`. */
   callbackUrl?: string
   /**
    * Optional plain "Home" link rendered on the left of the action row.
@@ -43,7 +47,7 @@ interface SignInFormProps {
   homeUrl?: string
 }
 
-export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
+export function SignInForm({ redirectTo, callbackUrl, homeUrl }: SignInFormProps) {
   const { adminSignIn } = useBylineAdminServices()
   const { t } = useTranslation('byline-admin')
   const [email, setEmail] = useState('')
@@ -63,10 +67,15 @@ export function SignInForm({ callbackUrl, homeUrl }: SignInFormProps) {
     setError(null)
     try {
       await adminSignIn({ data: { email: email.trim(), password } })
-      const target = callbackUrl && callbackUrl.length > 0 ? callbackUrl : '/admin'
       // Full-page navigation — the admin layout needs to re-run its
       // `beforeLoad` guard against the freshly-set session cookies.
-      window.location.assign(target)
+      window.location.assign(
+        resolveSignInFormRedirect(
+          redirectTo,
+          callbackUrl,
+          () => resolveRoutes(getClientConfig().routes).admin
+        )
+      )
     } catch (err) {
       console.warn('sign-in failed', err)
       setError(t('auth.signIn.errors.invalidCredentials'))

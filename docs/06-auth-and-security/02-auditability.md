@@ -126,8 +126,8 @@ concern that should be structurally present, not opt-in per collection.
 ## The document-level audit log
 
 Records the changes the version stream deliberately does not: non-versioned
-document-level writes (`path`, `availableLocales`), in-place status
-transitions, deletions, and — reserved — admin-module actions.
+document-level writes (`path`, `availableLocales`), explicit in-place status
+transitions, tree mutations, deletions, and — reserved — admin-module actions.
 
 ### Table
 
@@ -147,8 +147,10 @@ byline_audit_log
 
 **One generic table, not a document-scoped one.** `document_id` is nullable
 and `action` is namespaced — `document.path.changed`, `document.locales.changed`,
-`document.status.changed`, `document.deleted` today; `admin.user.created`,
-`admin.role.updated`, … reserved — so the system activity area and any future
+`document.status.changed`, `document.deleted`, and
+`document.tree.{placed,reparented,reordered,removed}` today;
+`admin.user.created`, `admin.role.updated`, … reserved — so the system activity
+area and any future
 admin-module auditing land in the same table without a second migration.
 `actor_realm` is `'admin' | 'user' | 'system'` (`'system'` for non-UUID
 synthetic / tooling actors). Deliberately **FK-free** — an audit row outlives
@@ -159,7 +161,11 @@ cascade-delete itself). Indexes on `(document_id, id)`, `(actor_id, id)`,
 **The version stream stays the record for content.** Content saves are
 **never** double-written into the audit log — the activity area unions the two
 sources at read time. The audit log records only what the version stream
-cannot.
+cannot. Tree actions are first-class filter values; a tree-document delete that
+promotes children or removes an existing edge can therefore appear as a delete,
+child reparent event(s), and parent tree removal. Each promoted child's own
+document history records its move to root. Deleting an already-unplaced leaf
+records only the deletion action.
 
 ### Atomicity (the load-bearing property)
 
@@ -171,9 +177,16 @@ afterwards.
 
 This rides on the request-scoped `withTransaction` boundary owned by the
 service layer (the audit write is a peer command in the same transaction; the
-storage adapter never learns the word "audit"). That mechanism — its
-AsyncLocalStorage propagation and the DB↔DB vs DB↔external distinction — is
-specified in **[Transactions](../03-architecture/03-transactions.md)**.
+storage adapter never learns the word "audit"). System-field writes take their
+authoritative before snapshot under the same lock. Tree placement/removal does
+the same for structural state; deleting a tree document includes soft deletion,
+direct-child promotion, edge removal, and every parent/child audit row in one
+unit. That mechanism — its AsyncLocalStorage propagation and the DB↔DB vs
+DB↔external distinction — is specified in
+**[Transactions](../03-architecture/03-transactions.md)**.
+
+Collection after-hooks are outside the transaction. A hook failure rejects the
+call after data and audit have committed; it never creates an unaudited rollback.
 
 ### Write points
 
@@ -187,11 +200,28 @@ recording a gap — plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthet
 
 - `updateDocumentSystemFields` (`document-lifecycle/system-fields.ts`) — path
   and availableLocales changes, **one row per field that actually changed**
-  (before/after; a same-value save records nothing).
-- `changeStatus` (`document-lifecycle/status.ts`) — every transition, from→to.
+  from the locked before/after snapshot. Same-value and reordered/duplicated
+  locale-set requests record nothing. `afterSystemFieldsChange` runs after
+  commit; explicit no-op reconciliation re-runs it without another audit row.
+- `changeStatus` / `unpublishDocument` (`document-lifecycle/status.ts`) — every
+  explicit transition, from→to. Unpublish appends one logical
+  published-to-archived row when at least one published version changed; a no-op
+  unpublish appends nothing.
+- `placeTreeNode` / `removeFromTree` (`document-lifecycle/tree.ts`) — one of
+  `document.tree.placed`, `.reparented`, `.reordered`, or `.removed`, with
+  placement snapshots (`placed`, parent, order key, sibling index). Exact
+  no-ops write and audit nothing, including reconciliation-only retries.
 - `deleteDocument` (`document-lifecycle/delete.ts`) — the deletion event (the
-  one change that otherwise erases its own history); the soft-delete is in the
-  transaction, the storage-file cleanup stays outside it (DB↔external).
+  one change that otherwise erases its own history). For a tree document the
+  same transaction also records one reparent action per promoted direct child
+  and a removal action when an edge is removed or children are promoted. The
+  storage-file cleanup stays outside it (DB↔external).
+
+These guarantees apply to the dedicated audited services. The SDK's
+whole-document `update(..., { path, availableLocales })` passes those values
+through version creation and does not append `document.path.changed` or
+`document.locales.changed`; use the direct system-field service when those audit
+events are required.
 
 ### Read surface
 
@@ -202,19 +232,30 @@ recording a gap — plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthet
   (`server-fns/collections/audit.ts`) → the document-history tab.
 - `findAuditLog({ … })` — the system-wide activity union (see below).
 
-### Authorization — transitive per document, gated system-wide
+### Authorization — three deliberately different read shapes
 
-Two distinct read scopes, deliberately not transitive between each other:
-
-- **Per-document audit history** inherits the document's own read gate.
-  `getDocumentAuditLog` resolves the document through the actor's read pipeline
-  first (inheriting the `collections.<path>.read` ability **and** `beforeRead`
-  row-scoping), then fetches audit rows scoped `WHERE document_id = X` — exactly
-  as version `history` gates via `findById`. An actor who cannot see the
-  document gets an empty log rather than leaked change metadata.
+- **Version history (`history`) is authorized per immutable version.** The
+  collection ability is checked first, then the strict `beforeRead` predicate is
+  applied independently to every historical row before count and pagination.
+  Ownership changes therefore cannot expose an older version's content or
+  metadata merely because the current document is visible.
+- **`findByVersion(versionId)` is collection-bound and version-scoped.** Its
+  query constrains the version id to the current collection handle and applies
+  the strict predicate directly to that historical version. Unknown,
+  cross-collection, and hidden ids all return `null` without revealing which
+  case occurred.
+- **The document-grain audit log (`auditLog`) uses a current-document gate.** It
+  first performs `findById(documentId, { status: 'any' })`, inheriting the
+  collection ability and current document's `beforeRead` result, then fetches
+  audit rows by document id. It does not reinterpret each audit row's old
+  `before` snapshot as a historical document. A gated-out document returns an
+  empty log rather than leaked metadata.
 - **The system-wide activity area** is *not* reachable transitively from any
   collection ability — it sits behind the separate `admin.activity.read`
   ability. Admin-realm events (`document_id NULL`) appear only there.
+
+`_bypassBeforeRead` on the SDK history/audit options is reserved for trusted
+system/admin tooling. It skips row scoping, not the collection read-ability gate.
 
 ## The document-history view
 
@@ -227,10 +268,15 @@ pure render concern read from the URL, so switching tabs never refetches.
    the audit strip. Default tab.
 2. **Document history** — a chronological list of audit-log entries for this
    document: when, action, actor, from → to. No diff viewer; before/after
-   render inline (arrays comma-join, the deletion event shows an em-dash).
-   Empty state explains that content edits live on the first tab. The client
-   `auditLog()` gate mirrors `history()` (`findById` with `status: 'any'`; an
-   excluded document yields an empty log). Acting-user ids resolve to labels
+   render inline (arrays comma-join, structural object snapshots render as
+   compact JSON, and the deletion event shows an em-dash). Tree placement,
+   movement, reorder, and removal actions have translated labels.
+   Empty state explains that content edits live on the first tab. Unlike
+   per-version `history()` scoping, `auditLog()` uses one current-document
+   `findById(..., { status: 'any' })` gate; an excluded document yields an empty
+   log. After soft deletion the current-document view also makes this tab empty;
+   the deletion event remains visible in system activity or trusted
+   `_bypassBeforeRead` tooling. Acting-user ids resolve to labels
    admin-side (`resolveActorLabels`: system/tooling → "system"; deleted →
    "former user").
 
@@ -241,12 +287,13 @@ the `byline-admin` bundle (EN/FR): `collections.history.tabs.*` and
 
 ## The system activity area
 
-A top-level admin area at `/admin/activity` — the installation-wide
-who-did-what feed.
+A top-level admin area at `getAdminRoutePath('activity')` (default
+`/admin/activity`) — the installation-wide who-did-what feed.
 
 - **Route**: `createAdminActivityRoute` factory in
   `@byline/host-tanstack-start/routes` (physical route at
-  `apps/webapp/src/routes/_byline/admin/activity/index.tsx`); an **Activity**
+  `apps/webapp/src/routes/_byline/<configured-admin-segment>/activity/index.tsx`);
+  an **Activity**
   menu item (`ActivityIcon`) in the admin-management section of the menu
   drawer, shown when the actor holds `admin.activity.read`.
 - **The report** is a filterable, paged feed over the **read-time union** of
@@ -283,12 +330,13 @@ who-did-what feed.
 | History view + audit strip | `packages/host-tanstack-start/src/admin-shell/collections/history.tsx` |
 | Tabs primitive | `packages/admin/src/presentation/tabs.tsx` |
 | Audit table schema | `packages/db-postgres/src/database/schema/index.ts` (folded into the squashed `0000` baseline; existing-site script `packages/db-postgres/sql/0003_add-audit-log.sql`) |
-| Audit write points | `packages/core/src/services/document-lifecycle/{system-fields,status,delete}.ts` + shared `audit.ts` |
+| Audit write points | `packages/core/src/services/document-lifecycle/{system-fields,status,tree,delete}.ts` + shared `audit.ts` |
+| Locked tree mutation/delete primitives | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | Audit queries (`getDocumentAuditLog`, `findAuditLog`) | `packages/db-postgres/src/modules/audit/audit-queries.ts` (contract: `packages/core/src/@types/db-types.ts` `IAuditQueries`) |
 | Audit read (gated client) | `packages/client/src/collection-handle.ts` → `auditLog()` |
 | Per-document audit host server fn | `packages/host-tanstack-start/src/server-fns/collections/audit.ts` (`getCollectionDocumentAuditLog`) |
 | Document-history tab UI | `packages/host-tanstack-start/src/admin-shell/collections/document-history.tsx` |
 | System activity server fn | `packages/host-tanstack-start/src/server-fns/admin-activity/get.ts` (`getSystemActivityLog`) |
 | Activity route factory + feed UI | `packages/host-tanstack-start/src/routes/create-admin-activity-route.tsx` + `admin-shell/admin-activity/list.tsx` |
-| Activity menu item | `packages/host-tanstack-start/src/admin-shell/chrome/menu-drawer.tsx` |
+| Activity menu item | `packages/host-tanstack-start/src/admin-shell/chrome/admin-menu-drawer.tsx` |
 | `admin.activity.read` ability | `packages/admin/src/modules/admin-activity/abilities.ts` |

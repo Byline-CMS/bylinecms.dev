@@ -127,7 +127,7 @@ export const Profiles = defineCollection({
 })
 ```
 
-The auto-mounted upload endpoint resolves the field by name. Disambiguation rules live in [The transport endpoint](#the-transport-endpoint).
+The upload server function resolves the field by name. Disambiguation rules live in [The transport server function](#the-transport-server-function).
 
 → [Files vs images](#files-vs-images)
 
@@ -214,7 +214,7 @@ Multi-function chains stack with fold semantics — each function sees the previ
 
 ### 6. Audit / notify on success via `afterStore`
 
-`afterStore` runs after the storage write and variant generation, with the persisted `StoredFileValue` in hand. Failures are logged via `logger.error` but do **not** roll back the storage write — consistent with `afterCreate` / `afterUpdate`.
+`afterStore` runs after the storage write and variant generation, with the persisted `StoredFileValue` in hand. It is specifically best-effort: failures are logged via `logger.error`, do not roll back the storage write, and do not reject the upload.
 
 **Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
 
@@ -306,27 +306,29 @@ const featureImage = result.docs[0]?.fields.featureImage?.document?.fields.image
 
 → [Reading uploaded files](#reading-uploaded-files)
 
-### 10. Call the upload endpoint directly
+### 10. Call the upload server function directly
 
-For non-form callers (CLI imports, scripted ingest, eventual drag-into-list-view shortcuts), the auto-mounted endpoint accepts FormData. Pass `createDocument: 'true'` to skip the two-round-trip dance — bytes and document write happen in one shot, with storage rollback on failure.
+For non-form callers (scripted ingest or eventual drag-into-list-view shortcuts),
+call the TanStack host's server-function wrapper. Passing `true` stores the bytes
+and creates the document in one operation, with storage rollback on failure.
 
 ```ts
+import { uploadField } from '@byline/host-tanstack-start/server-fns/collections'
+
 const form = new FormData()
 form.append('file', file)
-form.append('collection', 'media')
-form.append('field', 'image')          // required when collection has >1 upload field
-form.append('createDocument', 'true')  // single-shot path
+form.append('field', 'image') // required when the collection has >1 upload field
 
-const response = await fetch('/admin/api/media/upload', {
-  method: 'POST',
-  body: form,
-  credentials: 'include',
-})
+const result = await uploadField('media', form, true)
 ```
 
-For in-form uploads the admin shell handles this automatically via `executeUploads` and posts with `createDocument: 'false'` so the document save is a separate round-trip carrying the `StoredFileValue` in `data`.
+The wrapper adds `collection` and `createDocument` to the payload and returns an
+`UploadFieldResult`, not an HTTP `Response`. For in-form uploads the admin shell
+handles this automatically via `executeUploads` and calls the same transport with
+`createDocument: false`, so document save is a separate round-trip carrying the
+`StoredFileValue` in `data`.
 
-→ [The transport endpoint](#the-transport-endpoint)
+→ [The transport server function](#the-transport-server-function)
 
 ### 11. Use SVG safely
 
@@ -350,9 +352,11 @@ mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xm
 interface UploadConfig {
   mimeTypes?: string[]                // e.g. ['image/jpeg', 'image/png', 'image/*', '*/*']
   maxFileSize?: number                // bytes
-  sizes?: ImageSize[]                 // Sharp variants — image fields only
+  sizes?: ImageSize[]                 // Sharp variants for image MIME uploads
   storage?: IStorageProvider          // overrides ServerConfig.storage for this field
-  hooks?: UploadHooks
+  hooks?: UploadHooks | UploadHooksLoader
+  context?: string[]                  // form-value paths posted to upload hooks
+  requireSavedDocument?: boolean      // admin UX gate until edit mode
 }
 
 interface ImageSize {
@@ -370,7 +374,18 @@ interface UploadHooks {
 }
 ```
 
-The same shape works on a `FileField` for non-image uploads — `sizes` is simply ignored, and `imageProcessor.generateVariants` is skipped at runtime.
+Image processing is gated by the uploaded MIME type, configured `sizes`, bypass
+status, and processor availability — not by whether the schema field is named
+`image` or `file`. A `FileField` that accepts an image MIME can therefore generate
+variants; non-image files and bypass types such as SVG skip them.
+
+`context` tells the admin executor which sibling, ancestor, or root form values
+to serialize into the hooks' string-valued `ctx.fields`. It always also posts the
+full `fieldPath` and, in edit mode, `documentId`; hooks must treat these as
+client-supplied claims. `requireSavedDocument` hides the admin upload affordance
+until a document id exists, but API callers must still be rejected in
+`beforeStore` when that invariant matters. A lazy `hooks: () => import(...)`
+keeps server-only hook dependencies out of browser bundles.
 
 The reference Media schema in `apps/webapp/byline/collections/media/schema.ts` carries every knob set deliberately (avif variants, 20 MB cap, common image mimetypes including SVG) and is the canonical worked example.
 
@@ -386,7 +401,7 @@ The diagram below traces what happens when a user picks an image in the Media ad
 │ BROWSER                                                                      │
 │                                                                              │
 │  1. User picks / drops a file in the Image field                             │
-│     packages/ui/src/fields/image/image-upload-field.tsx                      │
+│     packages/admin/src/fields/image/image-upload-field.tsx                   │
 │       - validates type starts with 'image/'                                  │
 │       - URL.createObjectURL(file)  →  blob: preview URL                      │
 │       - createPendingStoredFileValue(file, previewUrl, dimensions)           │
@@ -397,10 +412,10 @@ The diagram below traces what happens when a user picks an image in the Media ad
 │  2. User edits title / altText / caption / credit                            │
 │                                                                              │
 │  3. User clicks Save                                                         │
-│     packages/ui/src/forms/form-renderer.tsx → handleSubmit()                 │
+│     packages/admin/src/forms/form-renderer.tsx → handleSubmit()              │
 │       a. runFieldHooks + validateForm                                        │
 │       b. getPendingUploads() — non-empty → executeUploads(...)               │
-│            packages/ui/src/forms/upload-executor.ts                          │
+│            packages/admin/src/forms/upload-executor.ts                       │
 │              for each pending upload:                                        │
 │                FormData { file, field: 'image' }                             │
 │                uploadField(collectionPath, formData, false)                  │
@@ -416,11 +431,12 @@ The diagram below traces what happens when a user picks an image in the Media ad
 │      .validator(parseUploadFormData)                                    │
 │      .handler(...)                                                           │
 │        - ensureCollection(collectionPath)                                    │
-│        - resolveUploadFieldName(definition, 'image')   ← per-field selector  │
+│        - resolveUploadField(definition, collectionPath, 'image')             │
 │        - storage = field.upload.storage ?? serverConfig.storage              │
 │        - buffer = await file.arrayBuffer()                                   │
-│        - imageProcessor = { extractMeta, isBypassMimeType,                   │
-│                             generateVariants } from @byline/storage-local    │
+│        - imageProcessor = { extractMeta: extractImageMeta,                   │
+│                             isBypassMimeType, generateVariants: wrapper }     │
+│          from @byline/core/image                                             │
 │        - requestContext = await getAdminRequestContext()                     │
 │        - calls coreUploadField(ctx, { ..., shouldCreateDocument: false })    │
 │                                ▼                                             │
@@ -471,11 +487,11 @@ The diagram below traces what happens when a user picks an image in the Media ad
 Both are handled. The code is symmetric on `'image' | 'file'`:
 
 - `findUploadField` matches `field.type === 'image' || field.type === 'file'`.
-- `getUploadFields` / `resolveUploadFieldName` in the host server fn treat them the same.
-- Image-only steps (`extractMeta`, `generateVariants`) are gated by `mimeType.startsWith('image/')` and `imageProcessor?.generateVariants` — `file` fields just skip them and persist the raw `StoredFileValue`.
+- `getUploadFields` / `resolveUploadField` in the host server fn treat them the same.
+- Metadata extraction is attempted for every upload; the built-in helper returns no image metadata for ordinary files and uses a lightweight parser for SVG. Variant generation alone is gated by image MIME, bypass status, configured sizes, and processor availability. Image MIME uploads through either field type can receive variants.
 - The UI ships both `ImageUploadField` and `FileField`; both register through the same `addPendingUpload` → `executeUploads` → `uploadField` transport.
 
-**SVG bypass.** The storage-local image processor exports `isBypassMimeType(mimeType)` which returns `true` for `image/svg+xml`. The processor skips meta extraction and variant generation for those; the persisted `StoredFileValue.variants` is absent. `ResponsiveImage` (`apps/webapp/src/ui/byline/components/responsive-image/`) detects the SVG case and falls through to the raw `<img src>` — see QR recipe 11.
+**SVG bypass.** `@byline/core/image` exports `isBypassMimeType(mimeType)`, which returns `true` for `image/svg+xml`. SVG skips Sharp variant generation but retains dimensions/format when its lightweight metadata parser can resolve them; `StoredFileValue.variants` is absent. `ResponsiveImage` (`apps/webapp/src/ui/byline/components/responsive-image/`) detects the SVG case and falls through to the raw `<img src>` — see QR recipe 11.
 
 ### How uploaded files are stored
 
@@ -566,15 +582,15 @@ A jsonb column rather than a sidecar `byline_store_file_variants` table because 
 
 This is the single source of truth — the upload service does not return a separate top-level variants list. Public clients reading via `@byline/client` see `result.fields.image.variants` and can build a `<picture>` / `srcset` without a second round-trip. When the field is reached via a relation, `populateDocuments` carries the same envelope on the populated relation value.
 
-### The transport endpoint
+### The transport server function
 
-The upload route is auto-mounted as a TanStack Start server function at:
+Uploads currently travel through a TanStack Start server function. Its generated
+wire URL is a TanStack implementation detail, not a Byline-owned HTTP endpoint,
+and it is not mounted beneath `routes.admin` or `routes.api`. Call the exported
+`uploadField(collection, formData, createDocument)` wrapper or use the injected
+`UploadFieldFn` rather than constructing a URL.
 
-```
-POST /admin/api/<collection-path>/upload
-```
-
-It accepts FormData with:
+The underlying handler accepts FormData with:
 
 | key              | required | meaning                                                             |
 |------------------|----------|---------------------------------------------------------------------|
@@ -584,14 +600,17 @@ It accepts FormData with:
 | `createDocument` | no       | `'false'` skips the document-creation step; defaults to `'true'`    |
 | any other key    | no       | string form values forwarded as `fields` to the upload service / hooks |
 
-Field resolution (`resolveUploadFieldName` in `packages/host-tanstack-start/src/server-fns/collections/upload.ts`):
+Field resolution (`resolveUploadField` in `packages/host-tanstack-start/src/server-fns/collections/upload.ts`):
 
 - Explicit `field` wins — the field must exist and be `image | file`, otherwise `ERR_VALIDATION`.
 - Absent `field` + exactly one upload-capable field → that field is used.
 - Absent `field` + zero upload-capable fields → `ERR_VALIDATION`.
 - Absent `field` + multiple upload-capable fields → `ERR_VALIDATION` listing the candidates.
 
-The endpoint always operates on a **single field at a time**. Multi-file forms upload sequentially; the orchestration is the client's problem, not the transport's. `executeUploads` (`packages/ui/src/forms/upload-executor.ts`) is the in-form orchestrator.
+The server function always operates on a **single field at a time**. Multi-file
+forms upload sequentially; the orchestration is the client's problem, not the
+transport's. `executeUploads`
+(`packages/admin/src/forms/upload-executor.ts`) is the in-form orchestrator.
 
 :::note[Stable HTTP boundary]
 The current transport is internal to the TanStack Start app. A stable, framework-agnostic HTTP upload boundary is intentionally deferred until the first non-admin client (mobile, desktop, third-party) lands and forces the transport surface to be designed across the full read / write / upload surface, not just uploads. See [Routing & API](../05-reading-and-delivery/02-routing-and-api.md).
@@ -621,16 +640,18 @@ interface BeforeStoreContext {
   fieldName: string                      // which field is being uploaded to
   field: ImageField | FileField          // full field definition
   filename: string                       // sanitised default; hook may override
+  storagePath?: string                   // override from an earlier hook
   mimeType: string
   fileSize: number
   fields: Record<string, string>         // OTHER form values from the same submission
   collectionPath: string
   requestContext: RequestContext         // for actor.id, tenant prefixes, etc.
+  storage: IStorageProvider              // resolved provider for this upload
 }
 
 type BeforeStoreResult =
   | string                               // override filename
-  | { filename?: string }                // override filename (object form)
+  | { filename?: string; storagePath?: string } // override name and/or full key
   | { error: string }                    // reject the upload — surfaces as ERR_VALIDATION
   | void                                 // keep defaults
 
@@ -639,7 +660,7 @@ type BeforeStoreHookFn = (
 ) => BeforeStoreResult | Promise<BeforeStoreResult>
 ```
 
-Multi-function chains stack with **fold semantics** — see Quick Reference recipe 5 for a worked three-step chain. Returning a string (or `{ filename }`) substitutes the new filename for the next function's `ctx.filename`. Returning `void` keeps the current filename. Returning `{ error }` short-circuits with `ERR_VALIDATION` — no file is written, no variants generated, no later hook runs, no document is created. The override threads through to `storage.upload(...)`, so generated variant filenames (`<basename>-<variantName>.<ext>`) automatically inherit the new prefix.
+Multi-function chains stack with **fold semantics** — see Quick Reference recipe 5 for a worked three-step chain. Returning a string (or `{ filename }`) substitutes the new filename for the next function's `ctx.filename`. Returning `{ storagePath }` takes full control of the POSIX storage key: core trims it and removes leading slashes, then passes it as `targetStoragePath` without the normal UUID or collection prefix; later hooks receive the normalized value on `ctx.storagePath`. The hook is responsible for sanitization beyond that normalization and for collision avoidance (it can inspect optional provider capabilities through `ctx.storage`). Returning `void` keeps the current values. Returning `{ error }` short-circuits with `ERR_VALIDATION` — no file is written, no variants generated, no later hook runs, no document is created. Filename and path overrides thread through to generated variant sibling paths.
 
 **`afterStore` signature:**
 
@@ -651,6 +672,7 @@ interface AfterStoreContext {
   fields: Record<string, string>
   collectionPath: string
   requestContext: RequestContext
+  storage: IStorageProvider
 }
 
 type AfterStoreHookFn = (
@@ -658,7 +680,8 @@ type AfterStoreHookFn = (
 ) => void | Promise<void>
 ```
 
-`afterStore` runs every function in declaration order. Failures are logged via `logger.error` but do **not** roll back the storage write, consistent with how `afterCreate` / `afterUpdate` behave — hooks run *outside* the storage transaction.
+`afterStore` runs every function in declaration order. Failures are logged via
+`logger.error` and do **not** roll back the storage write or reject the upload.
 
 **Why `beforeStore` / `afterStore` and not `beforeUpload` / `afterUpload`.** The names bracket the *storage provider's write step*, not the client→server transmission. By the time the hook fires, the bytes have already crossed the network. `beforeStore` / `afterStore` is unambiguous, leaves /tmp / streaming / buffering mechanics to the framework, and composes cleanly with the storage provider naming (`storage-local`, `storage-s3`). This deliberately diverges from a more common `beforeUpload` / `afterUpload` convention. Hooks for non-upload field types — when they eventually arrive — will live under a separate `field.serverHooks` slot rather than colliding with this contract or with the existing client-side `field.hooks`.
 
@@ -727,16 +750,16 @@ For non-image uploads, `variants` is absent and `imageWidth` / `imageHeight` / `
 |---|---|
 | Field-level upload service | `packages/core/src/services/field-upload.ts` |
 | Storage provider interface | `packages/core/src/@types/storage-types.ts` |
-| `BeforeStoreContext` / `AfterStoreContext` types | `packages/core/src/@types/field-types.ts` |
+| `BeforeStoreContext` / `AfterStoreContext` types | `packages/core/src/@types/collection-types.ts` |
 | Local storage provider | `packages/storage-local/src/local-storage-provider.ts` |
 | S3 storage provider | `packages/storage-s3/src/` |
-| Image processor (Sharp) | `packages/storage-local/src/image-processor.ts` (`extractImageMeta`, `generateImageVariants`, `isBypassMimeType`) |
+| Image processor (Sharp) | `packages/core/src/image/image-processor.ts` (`extractImageMeta`, `generateImageVariants`, `isBypassMimeType`) |
 | Persistence (`store_file`) | `packages/db-postgres/src/database/schema/index.ts` + `modules/storage/` |
 | TanStack server fn (transport) | `packages/host-tanstack-start/src/server-fns/collections/upload.ts` |
 | Host integration adapter | `packages/host-tanstack-start/src/integrations/byline-field-services.ts` |
-| In-form upload orchestrator | `packages/ui/src/forms/upload-executor.ts` |
-| Image upload widget | `packages/ui/src/fields/image/image-upload-field.tsx` |
-| File upload widget | `packages/ui/src/fields/file/file-field.tsx` |
+| In-form upload orchestrator | `packages/admin/src/forms/upload-executor.ts` |
+| Image upload widget | `packages/admin/src/fields/image/image-upload-field.tsx` |
+| File upload widget | `packages/admin/src/fields/file/file-field.tsx` |
 | Reference Media schema | `apps/webapp/byline/collections/media/schema.ts` |
 | Reference responsive `<picture>` | `apps/webapp/src/ui/byline/components/responsive-image/index.tsx` |
 | Reference single-variant lookup | `apps/webapp/byline/collections/media/components/media-thumbnail.tsx` |

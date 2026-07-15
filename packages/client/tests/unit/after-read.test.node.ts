@@ -8,7 +8,7 @@
 
 import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
-import { createReadContext } from '@byline/core'
+import { createReadContext, ErrorCodes } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
@@ -64,6 +64,13 @@ function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
   const findDocuments = vi.fn(async () => ({ documents: [], total: 0 }))
   const getDocumentById = vi.fn(async () => null)
   const getDocumentByPath = vi.fn(async () => null)
+  const getDocumentByVersion = vi.fn(async () => null)
+  const getDocumentHistory = vi.fn(async () => ({
+    documents: [],
+    meta: { total: 0, page: 1, page_size: 20, total_pages: 0, order: 'updated_at', desc: true },
+  }))
+  const getTreeSubtree = vi.fn(async () => [])
+  const getTreeAncestors = vi.fn(async () => [])
   const getDocumentsByDocumentIds = vi.fn(
     async (params: { collection_id: string; document_ids: string[] }) => {
       const bucket = fetchMap[params.collection_id] ?? {}
@@ -96,19 +103,31 @@ function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
         getDocumentById,
         getCurrentVersionMetadata: vi.fn(),
         getDocumentByPath,
-        getDocumentByVersion: vi.fn(),
+        getDocumentByVersion,
         getDocumentsByVersionIds: vi.fn(),
         getDocumentsByDocumentIds,
-        getDocumentHistory: vi.fn(),
+        getDocumentHistory,
         getPublishedVersion: vi.fn(),
         getPublishedDocumentIds: vi.fn(),
         getDocumentCountsByStatus: vi.fn(),
         findDocuments,
+        getTreeSubtree,
+        getTreeAncestors,
+        getTreeParent: vi.fn(async () => ({ placed: false, parentDocumentId: null })),
       },
     },
   } satisfies IDbAdapter
 
-  return { db, findDocuments, getDocumentById, getDocumentByPath, getDocumentsByDocumentIds }
+  return {
+    db,
+    findDocuments,
+    getDocumentById,
+    getDocumentByPath,
+    getDocumentByVersion,
+    getDocumentHistory,
+    getDocumentsByDocumentIds,
+    getTreeSubtree,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +254,33 @@ describe('afterRead — mutation', () => {
 
     expect(doc?.fields).not.toHaveProperty('title')
   })
+
+  it('receives the operation-scoped actor for ordinary reads', async () => {
+    const requestContext = createSuperAdminContext({ id: 'ordinary-reader' })
+    const hook = vi.fn((ctx: any) => {
+      if (ctx.requestContext.actor?.id !== 'ordinary-reader') delete ctx.doc.fields.secret
+    })
+    const { db, getDocumentById } = makeAdapter()
+    getDocumentById.mockResolvedValueOnce(rawDoc('posts', 'p1', { secret: 'visible' }))
+
+    const doc = await createBylineClient({
+      db,
+      requestContext,
+      collections: [postsCollection(hook), authorsCollection()],
+    })
+      .collection('posts')
+      .findById('p1')
+
+    expect(doc?.fields.secret).toBe('visible')
+    expect(hook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestContext: expect.objectContaining({
+          requestId: requestContext.requestId,
+          readMode: 'published',
+        }),
+      })
+    )
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -305,6 +351,175 @@ describe('afterRead — populate interaction', () => {
     expect(observedAuthor?._resolved).toBe(true)
     expect(observedAuthor?.document?.document_id).toBe('a1')
   })
+
+  it('passes the actor to populated-target redaction', async () => {
+    const authorsHook = vi.fn((ctx: any) => {
+      if (ctx.requestContext.actor?.id !== 'allowed') delete ctx.doc.fields.privateName
+    })
+    const authorDoc = rawDoc('authors', 'a1', { name: 'Nora', privateName: 'private' })
+    const { db, findDocuments } = makeAdapter({ authors: { a1: authorDoc } })
+    findDocuments.mockResolvedValueOnce({
+      documents: [
+        rawDoc('posts', 'p1', {
+          title: 'T',
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
+        }),
+      ],
+      total: 1,
+    })
+
+    const result = await createBylineClient({
+      db,
+      requestContext: createSuperAdminContext({ id: 'denied' }),
+      collections: [postsCollection(), authorsCollection(authorsHook)],
+    })
+      .collection('posts')
+      .find({ populate: { author: true } })
+
+    expect((result.docs[0]?.fields.author as any).document.fields).not.toHaveProperty('privateName')
+    expect(authorsHook.mock.calls[0]?.[0].requestContext.actor.id).toBe('denied')
+  })
+})
+
+describe('afterRead — materialization paths', () => {
+  const actorRedaction = vi.fn((ctx: any) => {
+    if (ctx.requestContext.actor?.id === 'limited') delete ctx.doc.fields.secret
+  })
+
+  it('redacts historical versions and runs rich-text population first', async () => {
+    let hookSawRefreshed = false
+    const hook = vi.fn((ctx: any) => {
+      hookSawRefreshed = ctx.doc.fields.body?.refreshed === true
+      actorRedaction(ctx)
+    })
+    const posts: CollectionDefinition = {
+      ...postsCollection(hook),
+      fields: [
+        { name: 'title', type: 'text', label: 'Title' },
+        {
+          name: 'body',
+          type: 'richText',
+          label: 'Body',
+          populateRelationsOnRead: true,
+        },
+        { name: 'secret', type: 'text', label: 'Secret' },
+      ],
+    }
+    const historical = rawDoc('posts', 'p1', {
+      title: 'Old',
+      body: { root: { children: [] } },
+      secret: 'hidden',
+    })
+    const { db, getDocumentHistory } = makeAdapter()
+    getDocumentHistory.mockResolvedValueOnce({
+      documents: [historical],
+      meta: { total: 1, page: 1, page_size: 20, total_pages: 1, order: 'updated_at', desc: true },
+    })
+    const richTextPopulate = vi.fn(async ({ value }: any) => {
+      value.refreshed = true
+    })
+
+    const result = await createBylineClient({
+      db,
+      requestContext: createSuperAdminContext({ id: 'limited' }),
+      collections: [posts],
+      richTextPopulate,
+    })
+      .collection('posts')
+      .history('p1')
+
+    expect(result.docs[0]?.fields).not.toHaveProperty('secret')
+    expect(result.docs[0]?.fields.body.refreshed).toBe(true)
+    expect(hookSawRefreshed).toBe(true)
+    expect(getDocumentHistory).toHaveBeenCalledWith(expect.objectContaining({ filters: undefined }))
+  })
+
+  it('redacts tree hydration after rich-text population', async () => {
+    let hookSawRefreshed = false
+    const hook = vi.fn((ctx: any) => {
+      hookSawRefreshed = ctx.doc.fields.body?.refreshed === true
+      actorRedaction(ctx)
+    })
+    const posts: CollectionDefinition = {
+      ...postsCollection(hook),
+      tree: true,
+      fields: [
+        { name: 'title', type: 'text', label: 'Title' },
+        {
+          name: 'body',
+          type: 'richText',
+          label: 'Body',
+          populateRelationsOnRead: true,
+        },
+        { name: 'secret', type: 'text', label: 'Secret' },
+      ],
+    }
+    const treeDoc = rawDoc('posts', 'p1', {
+      title: 'Tree',
+      body: { root: { children: [] } },
+      secret: 'hidden',
+    })
+    const { db, getTreeSubtree } = makeAdapter({ posts: { p1: treeDoc } })
+    getTreeSubtree.mockResolvedValueOnce([
+      { document_id: 'p1', parent_document_id: null, depth: 0, order_key: 'a' },
+    ])
+
+    const result = await createBylineClient({
+      db,
+      requestContext: createSuperAdminContext({ id: 'limited' }),
+      collections: [posts],
+      richTextPopulate: vi.fn(async ({ value }: any) => {
+        value.refreshed = true
+      }),
+    })
+      .collection('posts')
+      .getSubtree()
+
+    expect(result[0]?.document.fields).not.toHaveProperty('secret')
+    expect(result[0]?.document.fields.body.refreshed).toBe(true)
+    expect(hookSawRefreshed).toBe(true)
+  })
+
+  it('redacts hydrated search documents for the operation actor', async () => {
+    const posts: CollectionDefinition = {
+      ...postsCollection(actorRedaction),
+      search: { body: ['title'] },
+      fields: [
+        { name: 'title', type: 'text', label: 'Title' },
+        { name: 'secret', type: 'text', label: 'Secret' },
+      ],
+    }
+    const { db, findDocuments } = makeAdapter()
+    findDocuments.mockResolvedValueOnce({
+      documents: [rawDoc('posts', 'p1', { title: 'Hit', secret: 'hidden' })],
+      total: 1,
+    })
+    const search = vi.fn().mockResolvedValue({
+      hits: [
+        {
+          collectionPath: 'posts',
+          documentId: 'p1',
+          locale: 'en',
+          title: 'Hit',
+          path: 'hit',
+          score: 1,
+        },
+      ],
+      total: 1,
+    })
+
+    const result = await createBylineClient({
+      db,
+      requestContext: createSuperAdminContext({ id: 'limited' }),
+      collections: [posts],
+      search: { capabilities: {}, upsert: vi.fn(), remove: vi.fn(), search } as any,
+    })
+      .collection('posts')
+      .search({ query: 'hit', hydrate: true })
+
+    expect(result.hits[0]?.document?.fields).not.toHaveProperty('secret')
+    expect(actorRedaction.mock.calls.at(-1)?.[0].requestContext.actor.id).toBe('limited')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -312,7 +527,7 @@ describe('afterRead — populate interaction', () => {
 // ---------------------------------------------------------------------------
 
 describe('afterRead — A→B→A safety', () => {
-  it('fires at most once per doc per ReadContext across nested reads', async () => {
+  it('processes the same materialized object only once per ReadContext', async () => {
     const postsHook = vi.fn()
     const posts = postsCollection(postsHook)
     const authors = authorsCollection()
@@ -326,8 +541,6 @@ describe('afterRead — A→B→A safety', () => {
     })
     const ctx = createReadContext()
 
-    // Two separate top-level calls sharing the same ReadContext — mimics
-    // a hook re-entering the client API with { _readContext: ctx }.
     await client.collection('posts').findById('p1', { _readContext: ctx })
     await client.collection('posts').findById('p1', { _readContext: ctx })
 
@@ -352,46 +565,139 @@ describe('afterRead — A→B→A safety', () => {
     expect(postsHook).toHaveBeenCalledTimes(2)
   })
 
-  it('A re-reads B from inside its own hook without re-firing A', async () => {
-    let authorsHook: any
-    const posts = postsCollection(async (ctx: any) => {
-      // Hook on A performs its own read of B, threading the context.
-      const b = await client
-        .collection('authors')
-        .findById(ctx.doc.fields.author.targetDocumentId, { _readContext: ctx.readContext })
-      ctx.doc.fields.authorName = b?.fields.name
+  it('reruns redaction for fresh raw objects with identical read metadata', async () => {
+    const postsHook = vi.fn((ctx: any) => delete ctx.doc.fields.secret)
+    const { db, getDocumentById } = makeAdapter()
+    getDocumentById.mockImplementation(async () =>
+      rawDoc('posts', 'p1', { title: 'A', secret: 'hidden' })
+    )
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [postsCollection(postsHook), authorsCollection()],
+    })
+    const ctx = createReadContext()
+
+    const first = await client.collection('posts').findById('p1', { _readContext: ctx })
+    const second = await client.collection('posts').findById('p1', { _readContext: ctx })
+
+    expect(postsHook).toHaveBeenCalledTimes(2)
+    expect(first?.fields).not.toHaveProperty('secret')
+    expect(second?.fields).not.toHaveProperty('secret')
+  })
+
+  it('does not reprocess one object when later reads use different metadata', async () => {
+    const postsHook = vi.fn()
+    const posts = postsCollection(postsHook)
+    const authors = authorsCollection()
+    const { db, getDocumentById } = makeAdapter()
+    getDocumentById.mockResolvedValue(rawDoc('posts', 'p1', { title: 'A', author: null }))
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [posts, authors],
+    })
+    const ctx = createReadContext()
+
+    await client.collection('posts').findById('p1', { _readContext: ctx })
+    await client.collection('posts').findById('p1', {
+      _readContext: ctx,
+      status: 'any',
+      locale: 'fr',
+      select: ['title'],
+      populate: true,
     })
 
-    const authorsHookFn = vi.fn()
-    const authors = authorsCollection(authorsHookFn)
-    authorsHook = authorsHookFn
+    expect(postsHook).toHaveBeenCalledTimes(1)
+  })
 
-    const authorDoc = rawDoc('authors', 'a1', { name: 'Nora' })
+  it('fails closed on A→B→A without exposing A and recovers after cleanup', async () => {
+    let recurse = true
+    let observedSensitive: unknown = 'not-returned'
+    let cycleError: unknown
+    const postsHook = vi.fn(async (ctx: any) => {
+      if (recurse) {
+        await client.collection('authors').findById('a1', { _readContext: ctx.readContext })
+      }
+      delete ctx.doc.fields.secret
+    })
+    const authorsHook = vi.fn(async (ctx: any) => {
+      if (!recurse) return
+      try {
+        const activeA = await client
+          .collection('posts')
+          .findById('p1', { _readContext: ctx.readContext })
+        observedSensitive = activeA?.fields.secret
+      } catch (error) {
+        cycleError = error
+        throw error
+      }
+    })
     const { db, getDocumentById } = makeAdapter()
-    // Two fetches: first for p1, then for a1 from inside the hook.
     getDocumentById.mockImplementation(async (p: any) => {
       if (p.document_id === 'p1') {
-        return rawDoc('posts', 'p1', {
-          title: 'T',
-          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
-        })
+        return rawDoc('posts', 'p1', { title: 'T', secret: 'sensitive' })
       }
-      if (p.document_id === 'a1') {
-        return authorDoc
-      }
+      if (p.document_id === 'a1') return rawDoc('authors', 'a1', { name: 'Nora' })
       return null
     })
 
     const client = createBylineClient({
       db,
       requestContext: superAdmin,
-      collections: [posts, authors],
+      collections: [postsCollection(postsHook), authorsCollection(authorsHook)],
     })
-    const result = await client.collection('posts').findById('p1')
+    const readContext = createReadContext()
 
-    expect(result?.fields.authorName).toBe('Nora')
-    // authors hook fired once (for the nested read).
+    await expect(
+      client.collection('posts').findById('p1', { _readContext: readContext })
+    ).rejects.toMatchObject({
+      code: ErrorCodes.READ_RECURSION,
+      details: {
+        collectionPath: 'posts',
+        documentId: 'p1',
+        documentVersionId: 'ver:p1',
+      },
+    })
+
+    expect(observedSensitive).toBe('not-returned')
+    expect(cycleError).toMatchObject({ code: ErrorCodes.READ_RECURSION })
+
+    // Every active key is removed by the unwinding finally blocks. Reusing the
+    // same ReadContext after disabling recursion must run and redact normally.
+    recurse = false
+    const recovered = await client.collection('posts').findById('p1', { _readContext: readContext })
+
+    expect(recovered?.fields).not.toHaveProperty('secret')
+    expect(postsHook).toHaveBeenCalledTimes(2)
     expect(authorsHook).toHaveBeenCalledTimes(1)
+    expect(getDocumentById).toHaveBeenCalledTimes(4)
+  })
+
+  it('does not mark a materialized object complete when a hook throws', async () => {
+    let attempts = 0
+    const hook = vi.fn((ctx: any) => {
+      attempts++
+      if (attempts === 1) throw new Error('redaction failed')
+      delete ctx.doc.fields.secret
+    })
+    const shared = rawDoc('posts', 'p1', { title: 'A', secret: 'hidden' })
+    const { db, getDocumentById } = makeAdapter()
+    getDocumentById.mockResolvedValue(shared)
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: [postsCollection(hook), authorsCollection()],
+    })
+    const ctx = createReadContext()
+
+    await expect(client.collection('posts').findById('p1', { _readContext: ctx })).rejects.toThrow(
+      'redaction failed'
+    )
+    const retried = await client.collection('posts').findById('p1', { _readContext: ctx })
+
+    expect(hook).toHaveBeenCalledTimes(2)
+    expect(retried?.fields).not.toHaveProperty('secret')
   })
 })
 

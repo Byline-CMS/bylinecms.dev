@@ -99,11 +99,11 @@ const home = await client.collection('pages').findByPath('home')
 // First match (skips the count query)
 const featured = await client.collection('news').findOne({ where: { featured: true } })
 
-// Count — same status / locale / beforeRead machinery as find()
+// Editorial count — current versions across workflow statuses; authenticated only
 const total = await client.collection('news').count()
 ```
 
-`findById` / `findByPath` / `findOne` return `ClientDocument<F> | null`. `find` returns `{ docs, meta }`. `count` returns `number`.
+`findById` / `findByPath` / `findOne` return `ClientDocument<F> | null`. `find` returns `{ docs, meta }`. `count` returns `number`, but unlike ordinary reads it is an editorial current-version status count: it authorizes as `'any'` and rejects anonymous callers.
 
 → [Read surface](#read-surface)
 
@@ -297,7 +297,7 @@ const { hits } = await client.collection('docs').search({ query: 'installation' 
 const results = await client.search({ zone: 'site', query: 'launch', hydrate: true })
 ```
 
-Both assert the collection `read` ability (zone search excludes collections the actor can't read), honour `beforeRead` row scoping by re-resolving candidate ids through the normal read path, and default to `status: 'published'`. `hydrate: true` batch-reads hits into shaped documents (projected to `admin.itemView` columns when registered) and drops stale index entries. `total` stays the provider's pre-authorization count — approximate under scoping.
+Both assert the collection `read` ability (zone search excludes collections the actor can't read), honour `beforeRead` row scoping by re-resolving candidate ids through the normal read path, and default to `status: 'published'`. `hydrate: true` batch-reads hits into shaped documents (projected to `admin.itemView` columns when registered) and drops stale index entries. When authorization removes collections or rows, `total` is conservatively the authorized hit count on the returned page and facets are omitted rather than leaking provider-wide aggregates.
 
 → [Search](./07-search.md) for the full surface (indexing, reindex, zones, the provider seam).
 
@@ -427,7 +427,7 @@ Run it with `pnpm tsx byline/scripts/regenerate-media.ts` (the script imports `b
 │   - document-lifecycle/    (create / update / delete / status)   │
 │   - document-read.ts       (afterRead orchestration)             │
 │   - populate.ts            (relation expansion)                  │
-│   - apply-before-read.ts   (predicate compilation + cache)       │
+│   - apply-before-read.ts   (security predicate application)      │
 └─────────────────────────┬────────────────────────────────────────┘
                           ▼
 ┌──────────────────────────────────────────────────────────────────┐
@@ -457,18 +457,18 @@ const client = createBylineClient({
 
 `createBylineClient` is the standalone constructor. In an `initBylineCore()` setup the SDK can resolve its logger automatically through the registry; in scripts and tests it falls back to a silent no-op so callers don't have to wire `initBylineCore()` just to seed data.
 
-The host adapter (`@byline/host-tanstack-start`) ships three module-scoped singletons over `getServerConfig()`: `getPublicBylineClient()`, `getViewerBylineClient()`, `getAdminBylineClient()` — see Quick Reference recipe 11. Each holds its own `collectionRecordCache` (so the path → `{ id, version }` lookup is amortised across the process lifetime) and serves fresh per-request `RequestContext` values via the SDK's per-call factory pattern.
+The host adapter (`@byline/host-tanstack-start`) ships three module-scoped clients over `getServerConfig()`: `getPublicBylineClient()`, `getViewerBylineClient()`, and `getAdminBylineClient()`. Each serves a fresh per-request `RequestContext` through the SDK's per-call factory pattern.
 
 ### Read surface
 
-Five top-level read methods, each returning camelCase-shaped `ClientDocument<F>` results:
+Five basic read methods with camelCase-shaped document results:
 
 ```ts
-client.collection('news').find({ where, sort, page, pageSize, fields, populate, depth, status, locale })
+client.collection('news').find({ where, sort, page, pageSize, select, populate, depth, status, locale })
 client.collection('news').findOne(opts)
 client.collection('news').findById(id, opts)
 client.collection('news').findByPath(path, opts)
-client.collection('news').count({ where, status, locale })
+client.collection('news').count({ status })
 ```
 
 ### Filtering
@@ -494,7 +494,7 @@ where: { category: { parent: { path: 'news' } } }  // 2-hop, doc-column at depth
 
 The compiler emits `EXISTS` subqueries against the typed `store_*` tables for field filters, and depth-scoped nested `EXISTS` joins through `store_relation` for relation sub-wheres. All filter predicates respect the read mode — published-mode reads use `current_published_documents` even at the inner side of a relation join.
 
-Document-level reserved keys (`status`, `path`) inside a nested sub-clause are document metadata, not field filters — same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `status` resolves to `document_versions.status` on the relation hop's target row; `path` resolves through a `byline_document_paths` subquery against the hop's `document_id` (locale-resolved via the request's `[requested, default]` priority chain). `query` (text search) is not supported inside a nested sub-clause and is silently dropped with a debug log.
+Document-level reserved keys (`status`, `path`) inside a nested sub-clause are document metadata, not field filters — same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `status` resolves to `document_versions.status` on the relation hop's target row; `path` resolves through a `byline_document_paths` subquery against the hop's `document_id` (locale-resolved through the request's fallback chain, ending at that document's source locale). `query` (text search) is not supported inside a nested sub-clause and is silently dropped with a debug log.
 
 ### Sorting
 
@@ -524,7 +524,7 @@ populate: { heroImage: true, author: { populate: { dept: true } } }
 depth: 2                                                    // default 1 when populate present
 ```
 
-The default projection includes the target's `useAsTitle` field implicitly, so widgets that render link labels keep working even if the caller's `select` didn't ask for it. See [Relationships § Populate](../04-collections/02-relationships.md#populate).
+The default projection includes the target's `useAsTitle` field implicitly, so widgets that render link labels keep working even if the caller's `select` didn't ask for it. Before each target fetch, populate asserts the target collection's `read` ability and applies its strict `beforeRead` predicate; row-hidden targets become unresolved relation values, while a missing target-collection ability rejects the read. See [Relationships § Populate](../04-collections/02-relationships.md#populate).
 
 ### Typing populated relations
 
@@ -557,7 +557,7 @@ status: 'published'             // default in @byline/client
 status: 'any'                   // admin / system code paths
 ```
 
-In `'published'` mode every read — including populate of relation targets and `findByPath` resolution — hits `current_published_documents`. A document with a newer unpublished draft over a previously-published version keeps returning the published content; the new draft becomes visible only once it's itself published.
+In `'published'` mode every ordinary read — including relation and richtext target population and `findByPath` resolution — hits `current_published_documents`. A document with a newer unpublished draft over a previously-published version keeps returning the published content; the new draft becomes visible only once it's itself published.
 
 `status` selects the **source view**, not an exact-status filter. `where.status` is a literal column filter and composes orthogonally:
 
@@ -565,6 +565,8 @@ In `'published'` mode every read — including populate of relation targets and 
 // "Show me draft rows under the latest version, regardless of publish state"
 client.collection('news').find({ status: 'any', where: { status: 'draft' } })
 ```
+
+Editorial metadata reads are intentionally stricter: `count` / `countByStatus`, `history`, `findByVersion`, and audit-log access gates authorize as `'any'`, so anonymous callers cannot use their aggregates or metadata as a side channel. History applies `beforeRead` to each immutable version before pagination and totals; `findByVersion` is collection-bound and applies the predicate to that exact version. Document-tree reads apply the predicate structurally: a hidden node breaks its subtree or ancestor edge rather than promoting descendants, and hidden parent ids are redacted.
 
 ### Preview mode (admin draft viewing on the public host)
 
@@ -627,7 +629,7 @@ Each method delegates to the corresponding `document-lifecycle` service. The han
 
 ### Auth, `RequestContext`, and the trust boundary
 
-Every read and write path runs `assertActorCanPerform` (for documents) or `assertActorCanPerform` plus the field-upload `create` gate (for uploads) before touching storage. The SDK resolves the `RequestContext` from the client's configured `requestContext` (static value or factory) on every call — there is no per-call context argument on the public methods. Standalone consumers configure it at construction:
+Every SDK read and write path runs `assertActorCanPerform` (for documents) or `assertActorCanPerform` plus the field-upload `create` gate (for uploads) before touching storage. This includes search, editorial counts and history, document-tree reads, relation targets, and richtext targets. The SDK resolves the `RequestContext` from the client's configured `requestContext` (static value or factory) on every call — there is no per-call context argument on the public methods. Standalone consumers configure it at construction:
 
 ```ts
 import { createSuperAdminContext } from '@byline/auth'
@@ -661,10 +663,10 @@ The same `_bypassBeforeRead: true` escape hatch on read options is available for
 
 Two collection-level hooks fire automatically through the SDK:
 
-- **`beforeRead`** — called once per `find*` call (and once per populate batch per target collection), before any DB work. Returns a `QueryPredicate` AND-merged into the SQL. Per-`ReadContext` cache (`beforeReadCache`) ensures async hooks run once per collection per request. See [Authentication & Authorization § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) (the Quick Reference there carries six worked recipes).
-- **`afterRead`** — called once per materialised document on every read path and once per populated relation target. `ReadContext.afterReadFired` enforces "at most once per logical request" (A→B→A foreclosure). Mutations to `doc.fields` propagate into the shaped response.
+- **`beforeRead`** — contributes a `QueryPredicate` that is AND-merged into adapter reads. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. Security predicates use strict parsing: invalid or unsupported clauses fail closed instead of disappearing. See [Authentication & Authorization § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) (the Quick Reference there carries six worked recipes).
+- **`afterRead`** — runs on every returned materialisation, including historical versions, tree nodes, relation targets, and richtext targets, with the authenticated `RequestContext`. Mutations to `doc.fields` propagate into the shaped response; recursive access to a version still being processed fails closed.
 
-Hooks share `ReadContext` with populate: a relation field and a richtext document link pointing at the same target cost one materialisation, not two.
+Hooks share the operation's `ReadContext` with relation and richtext population. Custom hooks must thread `_readContext` through nested SDK reads; richtext adapters must use the framework-provided secure target reader rather than direct adapter access.
 
 ---
 
@@ -715,6 +717,9 @@ These are not the same package and should not be conflated. In-process SDK evolu
 | `populateDocuments` orchestration | `packages/core/src/services/populate.ts` |
 | `afterRead` orchestration | `packages/core/src/services/document-read.ts` |
 | `beforeRead` predicate application | `packages/core/src/auth/apply-before-read.ts` |
+| Strict security-predicate compiler | `packages/core/src/query/parse-where.ts` (`parsePredicateFilters`) |
+| Secure richtext target reader | `packages/core/src/services/richtext-populate.ts` |
+| Search authorization finishing | `packages/client/src/search.ts` |
 | Document write services | `packages/core/src/services/document-lifecycle/` (per-operation modules) |
 | `current_published_documents` view | `packages/db-postgres/src/database/migrations/0000_*.sql` |
 | Public client (no preview) | `packages/host-tanstack-start/src/integrations/byline-public-client.ts` |

@@ -13,6 +13,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Button, HistoryIcon, IconButton, Label, Select } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import { PreviewLink } from './preview-link.js'
 import styles from './view-menu.module.css'
@@ -86,7 +87,7 @@ export const ViewMenu = ({
   useEffect(() => {
     if (activeView === 'edit' && locale === 'all') {
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection, id: documentId },
         search: (prev: Record<string, unknown>) => ({
           ...prev,
@@ -103,19 +104,19 @@ export const ViewMenu = ({
     const search = (prev: Record<string, unknown>) => ({ ...prev, locale: value })
     if (activeView === 'api') {
       navigate({
-        to: '/admin/collections/$collection/$id/api' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id', 'api'),
         params: { collection, id: documentId },
         search: search as never,
       })
     } else if (activeView === 'history') {
       navigate({
-        to: '/admin/collections/$collection/$id/history' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id', 'history'),
         params: { collection, id: documentId },
         search: search as never,
       })
     } else {
       navigate({
-        to: '/admin/collections/$collection/$id' as never,
+        to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection, id: documentId },
         search: search as never,
       })
@@ -127,7 +128,7 @@ export const ViewMenu = ({
     const n = Number.parseInt(value, 10)
     const nextDepth = Number.isFinite(n) ? Math.max(0, Math.min(3, n)) : 0
     navigate({
-      to: '/admin/collections/$collection/$id/api' as never,
+      to: getAdminRoutePath('collections', '$collection', '$id', 'api'),
       params: { collection, id: documentId },
       // Store 0 as undefined so the URL stays clean when the user picks
       // "no populate" — avoids `?depth=0` in bookmarks / share links.
@@ -201,7 +202,7 @@ export const ViewMenu = ({
         variant={activeView === 'history' ? 'filled' : 'text'}
         onClick={() =>
           navigate({
-            to: '/admin/collections/$collection/$id/history' as never,
+            to: getAdminRoutePath('collections', '$collection', '$id', 'history'),
             params: { collection, id: documentId },
             search: locale ? { locale } : {},
           })
@@ -215,7 +216,7 @@ export const ViewMenu = ({
         className={cx('byline-view-menu-button', styles.button)}
         onClick={() =>
           navigate({
-            to: '/admin/collections/$collection/$id' as never,
+            to: getAdminRoutePath('collections', '$collection', '$id'),
             params: { collection, id: documentId },
             search: locale ? { locale } : {},
           })
@@ -229,7 +230,7 @@ export const ViewMenu = ({
         className={cx('byline-view-menu-button', styles.button)}
         onClick={() =>
           navigate({
-            to: '/admin/collections/$collection/$id/api' as never,
+            to: getAdminRoutePath('collections', '$collection', '$id', 'api'),
             params: { collection, id: documentId },
             search: locale ? { locale } : {},
           })

@@ -14,6 +14,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { AdminDashboard } from '../admin-shell/chrome/dashboard.js'
 import { type CollectionStatusCount, getCollectionStats } from '../server-fns/collections/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 
 export function createAdminDashboardRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
@@ -44,7 +45,7 @@ export function createAdminDashboardRoute(path: string) {
       return (
         <>
           <BreadcrumbsClient
-            breadcrumbs={[{ label: t('chrome.menu.dashboard'), href: '/admin' }]}
+            breadcrumbs={[{ label: t('chrome.menu.dashboard'), href: getAdminRoutePath() }]}
           />
           <AdminDashboard statsMap={statsMap} />
         </>

@@ -130,6 +130,13 @@ afterAll(async () => {
 })
 
 describe('search row-level authorization (beforeRead re-resolution)', () => {
+  it('rejects anonymous published contexts requesting status:any', async () => {
+    currentRequestContext = createRequestContext({ actor: null, readMode: 'published' })
+    await expect(
+      ctx.client.collection(notesDefinition.path).search({ query: 'report', status: 'any' })
+    ).rejects.toMatchObject({ code: 'ERR_UNAUTHENTICATED' })
+  })
+
   it('drops hits the actor’s row scoping does not permit', async () => {
     setActor('alice')
     const results = await ctx.client.collection(notesDefinition.path).search({ query: 'report' })
@@ -141,11 +148,12 @@ describe('search row-level authorization (beforeRead re-resolution)', () => {
     expect(results.hits).toHaveLength(2)
   })
 
-  it('keeps `total` as the provider’s pre-authorization count (documented approximation)', async () => {
+  it('does not expose the provider total when row authorization applies', async () => {
     setActor('alice')
     const results = await ctx.client.collection(notesDefinition.path).search({ query: 'report' })
-    expect(results.total).toBe(3)
+    expect(results.total).toBe(2)
     expect(results.hits).toHaveLength(2)
+    expect(results.facets).toBeUndefined()
   })
 
   it('returns nothing for an actor whose scoping matches no rows', async () => {

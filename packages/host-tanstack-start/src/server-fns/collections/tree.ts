@@ -16,10 +16,12 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { ERR_NOT_FOUND, getLogger } from '@byline/core'
+import { createReadContext, ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { getAdminBylineClient } from '../../integrations/byline-client.js'
+import { placeAdminTreeNode, removeAdminTreeNode } from './tree-mutation.js'
+import { getAdminTreeParent, getAdminUnplacedTreeDocuments } from './tree-read.js'
 
 // ---------------------------------------------------------------------------
 // Place / move a node within the tree (place / reorder / re-parent)
@@ -33,6 +35,7 @@ export const placeTreeNode = createServerFn({ method: 'POST' })
       parentDocumentId: string | null
       beforeDocumentId?: string | null
       afterDocumentId?: string | null
+      reconcile?: boolean
     }) => input
   )
   .handler(async ({ data }) => {
@@ -45,10 +48,11 @@ export const placeTreeNode = createServerFn({ method: 'POST' })
       }).log(getLogger())
     }
     const handle = getAdminBylineClient().collection(path)
-    const result = await handle.placeTreeNode(documentId, {
+    const result = await placeAdminTreeNode(handle, documentId, {
       parentDocumentId: data.parentDocumentId,
       beforeDocumentId: data.beforeDocumentId ?? null,
       afterDocumentId: data.afterDocumentId ?? null,
+      reconcile: data.reconcile,
     })
     return { status: 'ok' as const, orderKey: result.orderKey }
   })
@@ -58,7 +62,7 @@ export const placeTreeNode = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const removeFromTree = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; documentId: string }) => input)
+  .validator((input: { collection: string; documentId: string; reconcile?: boolean }) => input)
   .handler(async ({ data }) => {
     const { collection: path, documentId } = data
     const config = await ensureCollection(path)
@@ -68,7 +72,9 @@ export const removeFromTree = createServerFn({ method: 'POST' })
         details: { collectionPath: path },
       }).log(getLogger())
     }
-    await getAdminBylineClient().collection(path).removeFromTree(documentId)
+    await removeAdminTreeNode(getAdminBylineClient().collection(path), documentId, {
+      reconcile: data.reconcile,
+    })
     return { status: 'ok' as const }
   })
 
@@ -118,7 +124,7 @@ export const getTreeParent = createServerFn({ method: 'GET' })
         details: { collectionPath: path },
       }).log(getLogger())
     }
-    return getAdminBylineClient().collection(path).getTreeParent(documentId)
+    return getAdminTreeParent(getAdminBylineClient().collection(path), documentId)
   })
 
 // ---------------------------------------------------------------------------
@@ -154,8 +160,13 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
       }).log(getLogger())
     }
     const handle = getAdminBylineClient().collection(path)
+    const readContext = createReadContext()
 
-    const forest = await handle.getSubtree({ status: 'any', locale: data.locale })
+    const forest = await handle.getSubtree({
+      status: 'any',
+      locale: data.locale,
+      _readContext: readContext,
+    })
     const rows: CollectionTreeRow[] = []
     const placed = new Set<string>()
     const walk = (nodes: typeof forest, depth: number, parentId: string | null): void => {
@@ -180,9 +191,8 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
 
     // Surface documents not yet in the tree (e.g. freshly created) so they
     // remain reachable. Trees are small by design, so a single wide read is fine.
-    const all = await handle.find({ status: 'any', pageSize: 1000, _bypassBeforeRead: true })
-    for (const doc of all.docs) {
-      if (placed.has(doc.id)) continue
+    const unplaced = await getAdminUnplacedTreeDocuments(handle, placed, readContext, data.locale)
+    for (const doc of unplaced) {
       rows.push({
         id: doc.id,
         parentId: null,

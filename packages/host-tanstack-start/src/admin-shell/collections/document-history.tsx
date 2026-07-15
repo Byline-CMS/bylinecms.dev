@@ -52,12 +52,17 @@ const ACTION_KEYS: Record<string, string> = {
   'document.locales.changed': 'collections.documentHistory.actionLocalesChanged',
   'document.status.changed': 'collections.documentHistory.actionStatusChanged',
   'document.deleted': 'collections.documentHistory.actionDeleted',
+  'document.tree.placed': 'collections.documentHistory.actionTreePlaced',
+  'document.tree.reparented': 'collections.documentHistory.actionTreeReparented',
+  'document.tree.reordered': 'collections.documentHistory.actionTreeReordered',
+  'document.tree.removed': 'collections.documentHistory.actionTreeRemoved',
 }
 
 /** Render an audit before/after value inline: arrays comma-join, nullish → em-dash. */
 function formatAuditValue(value: unknown): string {
   if (value == null) return '—'
   if (Array.isArray(value)) return value.length > 0 ? value.join(', ') : '—'
+  if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
 

@@ -15,6 +15,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, Section, Select, Table } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'
 import { RouterPager } from '../chrome/router-pager.js'
 import styles from './list.module.css'
@@ -33,6 +34,10 @@ const ACTION_KEYS: Record<string, string> = {
   'document.locales.changed': 'activity.actions.localesChanged',
   'document.status.changed': 'activity.actions.statusChanged',
   'document.deleted': 'activity.actions.deleted',
+  'document.tree.placed': 'activity.actions.treePlaced',
+  'document.tree.reparented': 'activity.actions.treeReparented',
+  'document.tree.reordered': 'activity.actions.treeReordered',
+  'document.tree.removed': 'activity.actions.treeRemoved',
 }
 
 /** The selectable action types, in display order. `_all` clears the filter. */
@@ -43,12 +48,17 @@ const ACTION_FILTER_VALUES = [
   'document.path.changed',
   'document.locales.changed',
   'document.deleted',
+  'document.tree.placed',
+  'document.tree.reparented',
+  'document.tree.reordered',
+  'document.tree.removed',
 ] as const
 
 /** Render an audit before/after value inline: arrays comma-join, nullish → em-dash. */
 function formatAuditValue(value: unknown): string {
   if (value == null) return '—'
   if (Array.isArray(value)) return value.length > 0 ? value.join(', ') : '—'
+  if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
 
@@ -81,7 +91,7 @@ export const ActivitySystemView = ({ data }: { data: SystemActivityResponse }) =
     } else {
       params[key] = value
     }
-    navigate({ to: '/admin/activity' as never, search: params })
+    navigate({ to: getAdminRoutePath('activity'), search: params })
   }
 
   const collectionItems = [
@@ -134,7 +144,7 @@ export const ActivitySystemView = ({ data }: { data: SystemActivityResponse }) =
             <Button
               size="sm"
               variant="text"
-              onClick={() => navigate({ to: '/admin/activity' as never, search: {} })}
+              onClick={() => navigate({ to: getAdminRoutePath('activity'), search: {} })}
             >
               {t('activity.filters.clear')}
             </Button>
@@ -190,7 +200,7 @@ export const ActivitySystemView = ({ data }: { data: SystemActivityResponse }) =
                       <Table.Cell>
                         {col != null && entry.documentId != null ? (
                           <Link
-                            to={'/admin/collections/$collection/$id' as never}
+                            to={getAdminRoutePath('collections', '$collection', '$id')}
                             params={{ collection: col.path, id: entry.documentId }}
                           >
                             {collectionLabel}

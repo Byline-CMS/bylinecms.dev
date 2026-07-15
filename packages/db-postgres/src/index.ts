@@ -143,7 +143,7 @@ export const pgAdapter = ({
   const txManager = new TXManagerImpl({ db: dbManager })
 
   const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
-  const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale)
+  const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale, dbManager)
   const counterCommands = createCounterCommands(db)
   // Audit writes run on the DBManager so they join an ambient `withTransaction`
   // (atomic with the mutation they record); audit reads run on the pool.

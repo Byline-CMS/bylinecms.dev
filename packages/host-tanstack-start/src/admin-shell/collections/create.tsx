@@ -13,6 +13,7 @@ import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, useToastManager } from '@byline/ui/react'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { createCollectionDocument } from '../../server-fns/collections/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import { useTanStackNavigationGuard } from './tanstack-navigation-guard.js'
@@ -66,13 +67,13 @@ export const CreateView = ({
       // doesn't return the new document's id.
       if (result?.documentId) {
         navigate({
-          to: '/admin/collections/$collection/$id' as never,
+          to: getAdminRoutePath('collections', '$collection', '$id'),
           params: { collection: path, id: result.documentId } as never,
           search: { action: 'created' },
         })
       } else {
         navigate({
-          to: '/admin/collections/$collection' as never,
+          to: getAdminRoutePath('collections', '$collection'),
           params: { collection: path },
           search: { action: 'created' },
         })
@@ -117,7 +118,7 @@ export const CreateView = ({
           useNavigationGuard={useTanStackNavigationGuard}
           onCancel={() =>
             navigate({
-              to: '/admin/collections/$collection' as never,
+              to: getAdminRoutePath('collections', '$collection'),
               params: { collection: path },
             })
           }

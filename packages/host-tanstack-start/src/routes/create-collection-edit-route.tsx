@@ -19,6 +19,7 @@ import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs
 import { useNavigate } from '../admin-shell/chrome/loose-router.js'
 import { EditView } from '../admin-shell/collections/edit.js'
 import { getCollectionDocument } from '../server-fns/collections/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 
 const searchSchema = z.object({
@@ -116,11 +117,14 @@ export function createCollectionEditRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: `/admin` },
-              { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              {
+                label: collectionDef.labels.plural,
+                href: getAdminRoutePath('collections', collection),
+              },
               {
                 label: t('common.actions.edit'),
-                href: `/admin/collections/${collection}/${id}`,
+                href: getAdminRoutePath('collections', collection, id),
               },
             ]}
           />

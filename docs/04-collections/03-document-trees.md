@@ -39,10 +39,12 @@ export const Docs = defineCollection({
 
 Turning on `tree: true` enables four things: the tree storage and its commands,
 the authoring widget and tree list view in the admin, the hierarchical read path,
-and the `afterTreeChange` invalidation event. A tree collection owns its own
-ordering, so it cannot also be `orderable: true` — that combination is rejected
-at config validation. You do **not** add a `parent` relation field; the tree owns
-the parent edge.
+and the `afterTreeChange` invalidation event. A tree collection also requires an
+adapter that can lock, mutate, reconcile deletion, and append audit rows
+atomically; core rejects an unsupported adapter at startup. A tree collection
+owns its own ordering, so it cannot also be `orderable: true` — that combination
+is rejected at config validation. You do **not** add a `parent` relation field;
+the tree owns the parent edge.
 
 ## The three states of a node
 
@@ -54,12 +56,15 @@ Every document in a tree collection is in exactly one of three states:
 | **Root** | A top-level node, ordered among the other roots. |
 | **Child** | A nested node, ordered among its siblings under one parent. |
 
-In normal use you rarely see *unplaced*: every new document in a tree collection
-is **automatically placed as a root** when it is created, so the tree is never
-half-built. Authors then drag nodes into position or set a parent from the
-editor. Should a document ever end up unplaced (for example, created through a
-path that skipped auto-placement), saving it again re-roots it, and the editor
-widget offers an explicit **Add to tree** action.
+In normal use you rarely see *unplaced*: after creating a document, the
+lifecycle makes a best-effort attempt to append it as a root. The placement and
+its tree audit row are atomic with each other, but are deliberately separate
+from the version create; a runtime placement failure is logged and create still
+returns, leaving the document unplaced. Saving an unplaced document makes the
+same best-effort, race-safe repair without moving an already-placed node, and
+the editor widget offers an explicit **Add to tree** action. Automatic create /
+update repair is covered by `afterCreate` / `afterUpdate`, not a second
+`afterTreeChange` event.
 
 ### The rules that hold
 
@@ -69,7 +74,9 @@ widget offers an explicit **Add to tree** action.
   belongs in two places is expressed with an ordinary cross-link relation field
   ("See also"), never a second tree edge.
 - **Deleting a node promotes its children.** Children are never cascade-deleted;
-  when their parent is removed they are promoted to root and survive.
+  its direct children become roots, preserve their sibling order, and append
+  after existing roots. Soft deletion, promotion, edge removal, and all related
+  audit rows commit or roll back together.
 - **Per-parent ordering.** Sibling order is scoped to the parent — each parent is
   its own ordering keyspace, so reordering one branch never disturbs another.
 - **Locale-agnostic structure.** The tree references the logical document, so all
@@ -84,6 +91,9 @@ placed tree is drag-enabled — a grip handle drags a node together with its who
 subtree, and the drag's horizontal offset projects the target depth and parent
 (the Notion-style indent gesture), clamped to what the neighbouring rows allow.
 Drops persist immediately and optimistically, reverting with a toast on failure.
+Admin mutation requests enable no-op reconciliation by default, so retrying an
+already-committed drop can re-run a failed post-commit invalidation hook. Direct
+SDK callers opt into that behavior with `reconcile: true`.
 
 The document editor also carries a **tree-placement widget** in its sidebar
 (directly alongside the path widget). It uses the collection's own relation
@@ -99,11 +109,11 @@ than flowing through relationship population. The primitives are exposed on the
 
 | Method | Purpose |
 |---|---|
-| `getSubtree({ rootDocumentId \| null, depth, status })` | Read a nested subtree (node + ordered children). A `null` root reads the whole tree from its roots. |
-| `getAncestors({ documentId })` | Walk upward for breadcrumbs — an indexed single-collection lookup. |
-| `getTreeParent({ documentId })` | Distinguish *unplaced* (no edge) from *root* (edge, null parent) from *child* (edge, parent set). |
-| `placeTreeNode({ documentId, parentDocumentId \| null, before \| after })` | Place, reorder, or re-parent a node — they differ only in whether the parent changes. |
-| `removeFromTree({ documentId })` | Remove a node's edge so it becomes unplaced (distinct from deleting the document). |
+| `getSubtree({ rootDocumentId, depth, status, … })` | Read a nested subtree (node + ordered children). A `null` root reads the whole tree from its roots. |
+| `getAncestors(documentId, { status, locale, … })` | Walk upward for breadcrumbs — an indexed single-collection lookup. |
+| `getTreeParent(documentId, { status, locale, … })` | Distinguish *unplaced* from *root* from *child*, without leaking a hidden parent id. |
+| `placeTreeNode(documentId, { parentDocumentId, beforeDocumentId, afterDocumentId, reconcile })` | Place, reorder, or re-parent a node — they differ only in whether the parent changes. |
+| `removeFromTree(documentId, { reconcile })` | Remove a node's edge so it becomes unplaced (distinct from deleting the document). |
 
 Subtree reads run a depth-bounded recursive query and return the nodes in
 table-of-contents (pre-order) order. The **prev/next spine** is a depth-first
@@ -121,8 +131,9 @@ const nav = await client.collection('docs').getSubtree({
 })
 
 // Breadcrumbs for the current document (root → parent, already ordered).
-const ancestors = await client.collection('docs').getAncestors({
-  documentId: doc.id,
+const ancestors = await client.collection('docs').getAncestors(doc.id, {
+  status: 'published',
+  locale,
 })
 
 // Prev/next: flatten the ordered tree to a linear spine, find the neighbours.
@@ -134,15 +145,16 @@ const flatten = (nodes) => {
   }
 }
 flatten(nav)
-const i = spine.findIndex((n) => n.id === doc.id)
+const i = spine.findIndex((n) => n.document.id === doc.id)
 const prev = spine[i - 1] ?? null
 const next = spine[i + 1] ?? null
 ```
 
-Each node carries its `path` and the full ancestor `chain`, so a link target is
-the joined chain (`/docs/getting-started/cli`) rather than the bare slug — the
-[public URL resolution](#path-and-url-are-two-independent-axes) section below
-covers how those URLs resolve and self-heal.
+Each `TreeNode` carries `{ document, depth, children }`; its leaf path is
+`node.document.path`. Build a full link while recursively walking parent
+segments, or call `getAncestors()` for one document. The resulting joined chain
+(`/docs/getting-started/cli`) rather than the bare slug is covered in
+[public URL resolution](#path-and-url-are-two-independent-axes) below.
 
 ### Status applies at each edge
 
@@ -156,9 +168,20 @@ A published parent can own a draft-only child. Status is therefore evaluated
   not yet navigable. Descendants are not re-promoted to fill the gap.
 - **Admin/preview reads** (`status: 'any'`) see the full tree.
 
-Because the tree references the logical document, status-at-edge is evaluated
-against the locale being read, so a localized site narrows correctly per
-language.
+Structural visibility checks the selected current or published view, not locale
+completeness. The requested locale controls path/field reconstruction and any
+localized `beforeRead` predicate, with normal content fallback; a node is not
+removed from the structure merely because that locale lacks a translation.
+
+`beforeRead` uses the same strict edge semantics. The security predicate is
+validated in strict mode before use; unsupported predicates throw rather than
+being silently weakened. `getSubtree` omits a hidden node and its descendants
+without promotion. `getAncestors` stops at the first hidden ancestor (and
+returns no chain when the queried node itself is hidden). `getTreeParent`
+reports a hidden queried node as unplaced; for a visible child whose parent is
+hidden it preserves `placed: true`, redacts `parentDocumentId` to `null`, and
+returns `parentVisibility: 'redacted'`. Hydration re-applies the same filters to
+close structure/read races, never compacting past a newly hidden edge.
 
 ## Path and URL are two independent axes
 
@@ -188,7 +211,22 @@ const doc = await client.collection('docs')
   .findByPath(leaf, { status: 'published', locale })  // unique per collection + locale
 if (!doc) throw notFound()
 
-const ancestors = await client.collection('docs').getAncestors(doc.id)
+const ancestors = await client.collection('docs').getAncestors(doc.id, {
+  status: 'published',
+  locale,
+})
+
+// A truncated ancestor walk means a hidden node sits above the visible chain.
+const topId = ancestors.at(0)?.id ?? doc.id
+const parent = await client.collection('docs').getTreeParent(topId, {
+  status: 'published',
+  locale,
+})
+if (parent.parentVisibility === 'redacted' ||
+    (parent.placed && parent.parentDocumentId != null)) {
+  throw notFound()
+}
+
 const canonical = [...ancestors.map((a) => a.path), doc.path].join('/')
 if (canonical !== _splat) {
   throw redirect({ to: `/${lng}/docs/${canonical}`, statusCode: 301 })
@@ -206,9 +244,10 @@ This shape has three useful properties:
   ancestors, the bare `/docs/cli`, or a stale URL after a re-parent) `301`s to the
   one true URL derived from the live tree. There is no stored redirect table; the
   tree *is* the source of truth.
-- **Status-at-edge for free** — running `getAncestors` under `status: 'published'`
-  drops at the first unpublished ancestor, so an unreachable chain `404`s,
-  enforcing "an unpublished node hides its subtree" at the URL layer.
+- **Status-at-edge with an explicit reachability check** — `getAncestors` drops
+  at the first unpublished or row-hidden ancestor. Checking the top resolved
+  node's parent state distinguishes a true root from a truncated chain, so the
+  latter `404`s instead of redirecting to a shorter URL.
 
 The markdown / agent surface (the `.md` channel and `llms.txt`) inherits the same
 splat treatment, so hierarchical URLs work for `Accept: text/markdown` consumers
@@ -221,21 +260,44 @@ A non-unique-leaf hierarchy (where the same slug lives under different parents)
 would require a composite-key resolver and is a separate concern, not part of the
 tree primitive.
 
+## Audit and atomicity
+
+An actual explicit mutation records exactly one action with locked before/after
+placement snapshots (`placed`, `parentDocumentId`, `orderKey`, sibling `index`):
+`document.tree.placed`, `.reparented`, `.reordered`, or `.removed`. Concurrent
+mutations in one collection are serialized, so the predecessor snapshot and
+no-op decision are authoritative. Deleting a tree node records one reparent
+action per promoted child and a removal action when an existing edge is removed
+or children are promoted; those rows share the soft-delete transaction. An
+already-unplaced leaf records only `document.deleted`.
+
+Automatic root placement on create/update is the exception described above: its
+placement + audit are atomic, but the preceding version write is already
+committed and a runtime placement failure is best-effort.
+
 ## Invalidation
 
 Because tree mutations mint no version, the usual version-write invalidation does
-not fire. Each structural write instead emits the **`afterTreeChange`** collection
-hook, whose payload is the *affected set* rather than a single node — one
-structural change ripples outward to:
+not fire. An actual explicit place/reorder/re-parent/remove, or a delete that
+removes an edge or promotes children, emits **one post-commit `afterTreeChange`** event. Its `affectedDocumentIds` is a
+conservative invalidation set: the moved/removed subtree, old and new parents,
+and the complete affected old/new sibling groups. Delete promotion includes the
+deleted node and promoted child subtrees. Consumers should treat the set as a
+safe superset, not a minimal diff.
 
-- the moved node and **every descendant** (their breadcrumb trails changed),
-- the **old** parent's child list and the **new** parent's child list,
-- the **prev/next neighbours** on both sides of the flatten (old and new
-  positions).
+An exact placement or already-unplaced removal is a true no-op: no structural
+write, audit row, or hook. With `reconcile: true`, that same no-op emits a
+broader event so a caller can retry side effects after an earlier post-commit
+hook failure; it still writes and audits nothing. The tree event has no separate
+reconciliation flag, so consumers must be idempotent. Admin tree mutations
+default this option to true; SDK callers opt in explicitly.
 
-A single drag that relocates a subtree is therefore **one** logical event over
-many edges, batched — not one event per edge. Consumers (cache/ISR invalidation,
-markdown-export refresh, search reindexing) subscribe to this single event.
+A hook failure rejects the call after tree and audit data have committed. On a
+tree document delete, `afterTreeChange` and `afterDelete` are each attempted so
+one failure cannot suppress the other; multiple failures are reported together.
+Cache/ISR and markdown consumers can subscribe here. Search reindexing is needed
+only if a provider stores tree-derived hierarchy — the reference docs app stores
+the flat leaf path and invalidates its tree-derived cache without reindexing.
 
 ## Choosing a hierarchy model
 

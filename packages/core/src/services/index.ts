@@ -6,6 +6,7 @@ export {
   ERR_NOT_FOUND,
   ERR_PATCH_FAILED,
   ERR_READ_BUDGET_EXCEEDED,
+  ERR_READ_RECURSION,
   ERR_VALIDATION,
 } from '../lib/errors.js'
 export { normaliseDateFields } from '../utils/normalise-dates.js'
@@ -68,6 +69,7 @@ export {
 } from './richtext-embed.js'
 export {
   collectRichTextLeaves,
+  createRichTextDocumentReader,
   type PopulateRichTextFieldsOptions,
   populateRichTextFields,
   type RichTextAdapterPresence,

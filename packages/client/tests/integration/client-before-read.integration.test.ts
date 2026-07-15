@@ -81,6 +81,7 @@ const ownerOnlyDrafts: BeforeReadHookFn = ({ requestContext, collectionPath }) =
   // same actor class.
   const actor = requestContext.actor
   if (actor instanceof AdminAuth && actor.id === 'super') return
+  if (actor instanceof AdminAuth && actor.id === 'deny-all') return { id: { $in: [] } }
   const id = actor instanceof AdminAuth ? actor.id : '__none__'
   return {
     $or: [{ status: 'published' }, { status: 'draft', authorId: id }],
@@ -187,6 +188,10 @@ let aliceDraftId: string
 let bobDraftId: string
 let alicePublishedId: string
 let aliceAuthorId: string
+let aliceAuthorVersionId: string
+let aliceDraftVersionId: string
+let bobDraftVersionId: string
+let ownershipChangedId: string
 
 beforeAll(async () => {
   ctx = await setup()
@@ -198,6 +203,7 @@ beforeAll(async () => {
     .collection(authorsDefinition.path)
     .create({ name: 'Alice', tenantId: 'alice' })
   aliceAuthorId = aliceAuthor.documentId
+  aliceAuthorVersionId = aliceAuthor.documentVersionId
   await ctx.client.collection(authorsDefinition.path).changeStatus(aliceAuthorId, 'published')
 
   const bobAuthor = await ctx.client
@@ -216,6 +222,7 @@ beforeAll(async () => {
     author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
   })
   aliceDraftId = aliceDraft.documentId
+  aliceDraftVersionId = aliceDraft.documentVersionId
 
   const bobDraft = await ctx.client.collection(postsDefinition.path).create({
     title: 'Bob draft',
@@ -223,6 +230,7 @@ beforeAll(async () => {
     author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
   })
   bobDraftId = bobDraft.documentId
+  bobDraftVersionId = bobDraft.documentVersionId
 
   const alicePub = await ctx.client.collection(postsDefinition.path).create({
     title: 'Alice published',
@@ -231,6 +239,18 @@ beforeAll(async () => {
   })
   alicePublishedId = alicePub.documentId
   await ctx.client.collection(postsDefinition.path).changeStatus(alicePublishedId, 'published')
+
+  const ownershipChanged = await ctx.client.collection(postsDefinition.path).create({
+    title: 'Ownership changed',
+    authorId: 'alice',
+    author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
+  })
+  ownershipChangedId = ownershipChanged.documentId
+  await ctx.client.collection(postsDefinition.path).update(ownershipChangedId, {
+    title: 'Ownership changed',
+    authorId: 'bob',
+    author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
+  })
 }, 60_000)
 
 afterAll(async () => {
@@ -246,6 +266,13 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('beforeRead — find', () => {
+  it('compiles an empty id set to no rows without a UUID cast error', async () => {
+    setActor('deny-all')
+    const result = await ctx.client.collection(postsDefinition.path).find({ status: 'any' })
+    expect(result.docs).toEqual([])
+    expect(result.meta.total).toBe(0)
+  })
+
   it("alice sees her own drafts plus everyone's published", async () => {
     setActor('alice')
     const result = await ctx.client.collection(postsDefinition.path).find({ status: 'any' })
@@ -257,14 +284,14 @@ describe('beforeRead — find', () => {
     setActor('bob')
     const result = await ctx.client.collection(postsDefinition.path).find({ status: 'any' })
     const titles = result.docs.map((d) => d.fields.title).sort()
-    expect(titles).toEqual(['Alice published', 'Bob draft'])
+    expect(titles).toEqual(['Alice published', 'Bob draft', 'Ownership changed'])
   })
 
   it('user with the super branch sees all rows (hook returns void)', async () => {
     setActor(null)
     currentRequestContext = createSuperAdminContext({ id: 'super' })
     const result = await ctx.client.collection(postsDefinition.path).find({ status: 'any' })
-    expect(result.docs).toHaveLength(3)
+    expect(result.docs).toHaveLength(4)
   })
 
   it('the predicate AND-merges with a caller-supplied where', async () => {
@@ -312,7 +339,7 @@ describe('beforeRead — _bypassBeforeRead', () => {
     const result = await ctx.client
       .collection(postsDefinition.path)
       .find({ status: 'any', _bypassBeforeRead: true })
-    expect(result.docs).toHaveLength(3)
+    expect(result.docs).toHaveLength(4)
   })
 })
 
@@ -374,6 +401,15 @@ describe('beforeRead — countByStatus', () => {
 })
 
 describe('beforeRead — history access gate', () => {
+  it('returns empty metadata for an always-false predicate', async () => {
+    setActor('deny-all')
+    const result = await ctx.client.collection(postsDefinition.path).history(aliceDraftId)
+    expect(result).toMatchObject({
+      docs: [],
+      meta: { total: 0, totalPages: 0 },
+    })
+  })
+
   it("returns empty when the actor's predicate excludes the document", async () => {
     setActor('alice')
     const result = await ctx.client.collection(postsDefinition.path).history(bobDraftId)
@@ -384,6 +420,45 @@ describe('beforeRead — history access gate', () => {
     setActor('alice')
     const result = await ctx.client.collection(postsDefinition.path).history(aliceDraftId)
     expect(result.docs.length).toBeGreaterThan(0)
+  })
+
+  it('filters and counts each historical version by its own owner', async () => {
+    setActor('alice')
+    const alice = await ctx.client.collection(postsDefinition.path).history(ownershipChangedId)
+    expect(alice.meta.total).toBe(1)
+    expect(alice.meta.totalPages).toBe(1)
+    expect(alice.docs).toHaveLength(1)
+    expect(alice.docs[0]?.fields.authorId).toBe('alice')
+
+    setActor('bob')
+    const bob = await ctx.client.collection(postsDefinition.path).history(ownershipChangedId)
+    expect(bob.meta.total).toBe(1)
+    expect(bob.meta.totalPages).toBe(1)
+    expect(bob.docs).toHaveLength(1)
+    expect(bob.docs[0]?.fields.authorId).toBe('bob')
+  })
+})
+
+describe('beforeRead — historical version access', () => {
+  it('returns null for a row excluded by beforeRead', async () => {
+    setActor('alice')
+    await expect(
+      ctx.client.collection(postsDefinition.path).findByVersion(bobDraftVersionId)
+    ).resolves.toBeNull()
+  })
+
+  it('returns an admitted historical row', async () => {
+    setActor('alice')
+    await expect(
+      ctx.client.collection(postsDefinition.path).findByVersion(aliceDraftVersionId)
+    ).resolves.toMatchObject({ id: aliceDraftId })
+  })
+
+  it('does not resolve cross-collection or unknown version ids', async () => {
+    setActor('alice')
+    const posts = ctx.client.collection(postsDefinition.path)
+    await expect(posts.findByVersion(aliceAuthorVersionId)).resolves.toBeNull()
+    await expect(posts.findByVersion('00000000-0000-7000-8000-000000000000')).resolves.toBeNull()
   })
 })
 

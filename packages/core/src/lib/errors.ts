@@ -160,6 +160,7 @@ export const ErrorCodes = {
   DATABASE: 'ERR_DATABASE',
   STORAGE: 'ERR_STORAGE',
   READ_BUDGET_EXCEEDED: 'ERR_READ_BUDGET_EXCEEDED',
+  READ_RECURSION: 'ERR_READ_RECURSION',
   PATH_CONFLICT: 'ERR_PATH_CONFLICT',
   AUDIT_UNSUPPORTED: 'ERR_AUDIT_UNSUPPORTED',
 } as const
@@ -177,6 +178,7 @@ export const ERR_PATCH_FAILED = createErrorType(ErrorCodes.PATCH_FAILED)
 export const ERR_DATABASE = createErrorType(ErrorCodes.DATABASE)
 export const ERR_STORAGE = createErrorType(ErrorCodes.STORAGE)
 export const ERR_READ_BUDGET_EXCEEDED = createErrorType(ErrorCodes.READ_BUDGET_EXCEEDED)
+export const ERR_READ_RECURSION = createErrorType(ErrorCodes.READ_RECURSION)
 /**
  * Thrown when a write attempts to set `path` to a value already used by
  * another document in the same `(collection, locale)` scope. Surfaces the

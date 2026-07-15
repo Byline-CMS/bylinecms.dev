@@ -118,6 +118,9 @@ export const updateCollectionDocumentSystemFields = createServerFn({ method: 'PO
       locale: locale ?? serverConfig.i18n.content.defaultLocale,
       path: explicitPath,
       availableLocales,
+      // A failed after-hook happens after commit. Retrying this same admin save
+      // must re-run cache/search reconciliation when DB values are now current.
+      reconcile: true,
     })
 
     return { status: 'ok' as const }

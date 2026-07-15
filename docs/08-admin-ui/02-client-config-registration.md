@@ -99,11 +99,13 @@ correctness bug** here; the eager single point is an elegance/maintenance goal,
 not a fix.
 
 Public frontend code does not participate in this registration. It imports plain
-locale and route data through `byline/public.ts`. Likewise, document route modules
-only declare their route factory; the factory reads content-locale config through
-`getClientConfig()` during its loader/component lifecycle, after the parent
-`beforeLoad` or lazy-module registration has run. Route construction therefore
-does not create an eager import path into `byline/i18n.ts`.
+locale and route data through `byline/public.ts`; that facade re-exports the
+`routes` object, whose `admin`, `api`, and `signIn` properties public code
+canonicalizes with `resolveRoutes(routes)` without loading the admin config. Likewise, document route
+modules only declare their route factory; the factory reads content-locale config
+through `getClientConfig()` during its loader/component lifecycle, after the
+parent `beforeLoad` or lazy-module registration has run. Route construction
+therefore does not create an eager import path into `byline/i18n.ts`.
 
 ## Root cause — why the config graph isn't light
 

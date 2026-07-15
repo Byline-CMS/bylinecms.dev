@@ -113,9 +113,9 @@ Two approaches, not mutually exclusive:
 - Anonymous visitors see the change within the TTL window — acceptable for nearly all content sites.
 - Zero plumbing: no proxy API tokens to manage, no per-collection invalidation map to maintain.
 
-### B) Active — purge from `afterChange` hooks
+### B) Active — purge from collection lifecycle hooks
 
-When sub-minute propagation matters for anonymous traffic (breaking news, time-sensitive landing pages), wire purges into Byline's `afterChange` / `afterDelete` collection hooks. Two flavours, depending on your proxy plan:
+When sub-minute propagation matters for anonymous traffic (breaking news, time-sensitive landing pages), wire purges into the concrete Byline events that affect the public result: `afterCreate`, `afterUpdate`, `afterSystemFieldsChange`, `afterStatusChange`, `afterUnpublish`, `afterDelete`, and — for tree-derived URLs/navigation — `afterTreeChange`. Two flavours, depending on your proxy plan:
 
 1. **URL purge** (any Cloudflare plan): `POST /zones/:zone/purge_cache` with `{ files: [url] }`. Compute the public URL(s) from the document's `path` and locales and purge each.
 2. **Cache Tag purge** (Cloudflare Enterprise only): set a `Cache-Tag: news,news-<slug>` response header and purge by tag. Cleaner for list-view invalidation because one tag covers N URLs.
@@ -187,7 +187,7 @@ export async function cachedRead<T>(
   return value
 }
 
-/** Purge every entry carrying `tag`. Called from afterChange / afterDelete hooks. */
+/** Purge every entry carrying `tag`. Called from post-write collection hooks. */
 export function invalidateTag(tag: string): void {
   const keys = tagIndex.get(tag)
   if (!keys) return
@@ -232,18 +232,27 @@ tag: `cachedRead(\`news:list:${locale}:p${page}:published\`, ['cms::news'], read
 
 ### Invalidation via Byline collection hooks
 
-Tag-based invalidation pairs naturally with Byline's collection hooks. Every
-write-side hook context — `afterCreate`, `afterUpdate`, `afterStatusChange`,
-`afterUnpublish`, and `afterDelete` — carries the document's canonical
-(source-locale) `path`, so an invalidation hook can target the exact key/URL
-for the document that changed rather than purging the whole collection. In a
-collection definition:
+Tag-based invalidation pairs naturally with Byline's collection hooks. The
+version/status/delete contexts carry the document's canonical source-locale
+`path`. Non-versioned admin path/advertised-locale edits instead fire
+`afterSystemFieldsChange` with locked previous/current snapshots, while tree
+writes carry a conservative affected-document set through `afterTreeChange`.
+This lets an invalidation hook target the exact URL where possible and choose a
+coarser collection sweep for structural or retry reconciliation. In a collection
+definition:
 
 ```ts
 hooks: {
   afterUpdate: [
     async ({ path }) => {
       await invalidateTag(`cms::news::${path}`)
+      await invalidateTag('cms::news')
+    },
+  ],
+  afterSystemFieldsChange: [
+    async ({ previousPath, currentPath }) => {
+      if (previousPath) await invalidateTag(`cms::news::${previousPath}`)
+      if (currentPath) await invalidateTag(`cms::news::${currentPath}`)
       await invalidateTag('cms::news')
     },
   ],
@@ -254,8 +263,8 @@ hooks: {
     },
   ],
   afterCreate: [
-    async () => {
-      // No specific URL to purge yet — a create only widens the list view.
+    async ({ path }) => {
+      await invalidateTag(`cms::news::${path}`)
       await invalidateTag('cms::news')
     },
   ],
@@ -268,14 +277,30 @@ hooks: {
 },
 ```
 
-(`path` on these contexts is real, not aspirational — it is populated by the
-lifecycle from `byline_document_paths` for every write hook.)
+(`path` on the ordinary write contexts is real, not aspirational — it is
+populated by the lifecycle from `byline_document_paths`.)
 
-The same hook can drive both L1 invalidation (in-process, synchronous) and an L2 purge call to the CDN (network, asynchronous, fire-and-forget). Order them so the L1 invalidation always succeeds even if the CDN call fails.
+The reference app's direct-write policy is more precise: a path change starts
+old + current detail-tag, list, sitemap, and search reconciliation together; an advertised-locale-only change clears detail/alternate,
+list data where present, and sitemap data but does not reindex search. A no-op
+path reconciliation uses the coarse collection tag,
+because an earlier failed hook may have completed only part of its work. Tree
+changes likewise use a coarse docs-collection sweep.
+
+All these hooks run after commit. If invalidation throws, the write and audit
+remain committed. Hook arrays are sequential and fail-fast, so do not put
+independent cache/CDN/search effects in separate entries when each must get an
+attempt. The reference app starts search and local tag invalidations together,
+waits with `Promise.allSettled`, and throws one `AggregateError` after every
+awaited effect has settled; its per-document cache helper does the same for local
+detail, old-path, list, and sitemap tags. Optional cross-instance cache fan-out
+is deliberately fire-and-forget: failures are logged and do not join that
+aggregate. This is app-owned reliability policy, not an automatic core
+transaction or durable retry queue.
 
 ## Instance and clustering considerations
 
-An in-memory L1 cache lives **inside a single origin process**. When the application is scaled horizontally — multiple Node processes on one host, or multiple hosts behind a load balancer — each instance keeps its own copy. A write that invalidates a tag on instance A leaves instance B's entries untouched until they expire on their own TTL.
+An in-memory L1 cache lives **inside a single origin process**. When the application is scaled horizontally — multiple Node processes on one host, or multiple hosts behind a load balancer — each instance keeps its own copy. Without cluster fan-out, a write that invalidates a tag on instance A leaves instance B's entries untouched until TTL expiry. With the reference app's `cache.clusterEnabled`, invalidation is also sent asynchronously to sibling instances, but delivery can be delayed or fail and is not awaited by the write hook.
 
 The practical implications:
 
@@ -289,6 +314,6 @@ The right answer depends on the deployment topology (Fly.io regions, Kubernetes 
 
 1. **Start with the L2 reference strategy.** Copy `publicCacheMiddleware` (or write your own version of the same pattern) and apply it to every public read. Cookie-aware branching handles editor traffic. Add a matching CDN Cache Rule as defence in depth.
 2. **Measure.** Look at origin CPU, p95 DB query time on the hot read paths, and CDN hit rate before adding any in-memory layer.
-3. **Add L1 only where origin load justifies it.** Start with the two or three hottest server functions (typically a homepage list view and a few popular detail pages). Wire `afterChange` / `afterDelete` hooks for those collections.
+3. **Add L1 only where origin load justifies it.** Start with the two or three hottest server functions (typically a homepage list view and a few popular detail pages). Wire the concrete lifecycle hooks for those collections.
 4. **Add active CDN purge only where 60-second propagation is too slow.** Keep the URL list short and tied to specific collections, not a generic "purge everything that might be affected" routine.
 5. **Reach for shared-cache or cross-instance invalidation only when the deployment is genuinely multi-instance and the per-instance drift becomes visible.** This is rarely the right first move.

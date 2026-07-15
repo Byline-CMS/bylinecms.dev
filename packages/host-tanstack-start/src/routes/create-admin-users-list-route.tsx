@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { AdminUsersListView } from '../admin-shell/admin-users/list.js'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { type AdminUserListResponse, listAdminUsers } from '../server-fns/admin-users/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 
 const orderSchema = z.enum([
   'given_name',
@@ -72,8 +73,8 @@ export function createAdminUsersListRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: '/admin' },
-              { label: t('chrome.menu.adminUsers'), href: '/admin/users' },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              { label: t('chrome.menu.adminUsers'), href: getAdminRoutePath('users') },
             ]}
           />
           <AdminUsersListView data={data} />

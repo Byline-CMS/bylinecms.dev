@@ -25,6 +25,8 @@
  * adapters can implement per-leaf caching if needed.
  */
 
+import type { RequestContext } from '@byline/auth'
+
 import {
   type Field,
   type FieldSet,
@@ -33,10 +35,16 @@ import {
   isGroupField,
   type RichTextField,
   type RichTextPopulateFn,
+  type RichTextReadDocumentsFn,
 } from '../@types/field-types.js'
+import { applyBeforeRead } from '../auth/apply-before-read.js'
+import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
+import { ERR_READ_BUDGET_EXCEEDED, ERR_VALIDATION } from '../lib/errors.js'
+import { parsePredicateFilters } from '../query/parse-where.js'
+import { applyAfterRead } from './document-read.js'
 import { walkFieldTree } from './walk-field-tree.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
-import type { ReadContext } from '../@types/index.js'
+import type { DocumentFilter, IDbAdapter, ReadContext, ReadMode } from '../@types/index.js'
 
 /**
  * One rich-text leaf yielded by `collectRichTextLeaves`. The walker hands
@@ -88,6 +96,9 @@ export interface PopulateRichTextFieldsOptions {
   /** Registered server-side populate function from `ServerConfig`. */
   populate: RichTextPopulateFn
   readContext: ReadContext
+  requestContext: RequestContext
+  readMode: ReadMode
+  readDocuments: RichTextReadDocumentsFn
 }
 
 /**
@@ -111,7 +122,16 @@ export function resolvePopulateOnRead(field: RichTextField): boolean {
 export async function populateRichTextFields(
   options: PopulateRichTextFieldsOptions
 ): Promise<void> {
-  const { fields, collectionPath, documents, populate, readContext } = options
+  const {
+    fields,
+    collectionPath,
+    documents,
+    populate,
+    readContext,
+    requestContext,
+    readMode,
+    readDocuments,
+  } = options
   for (const doc of documents) {
     const docFields = (doc.fields ?? {}) as Record<string, any>
     for (const leaf of collectRichTextLeaves(fields, docFields)) {
@@ -121,9 +141,218 @@ export async function populateRichTextFields(
         fieldPath: leaf.fieldPath,
         collectionPath,
         readContext,
+        requestContext,
+        readMode,
+        readDocuments,
       })
     }
   }
+}
+
+/** Build the secure batch reader exposed to editor-agnostic adapters. */
+export function createRichTextDocumentReader(options: {
+  db: IDbAdapter
+  collections: readonly CollectionDefinition[]
+  requestContext: RequestContext
+  readContext: ReadContext
+  readMode: ReadMode
+  locale?: string
+  bypassBeforeRead?: true
+  /** Adapter reused recursively for rich-text fields on target documents. */
+  richTextPopulate?: RichTextPopulateFn
+}): RichTextReadDocumentsFn {
+  const {
+    db,
+    collections,
+    requestContext,
+    readContext,
+    readMode,
+    locale,
+    bypassBeforeRead,
+    richTextPopulate,
+  } = options
+  const state = getRichTextReaderState(readContext)
+
+  const read: RichTextReadDocumentsFn = async ({ collectionPath, documentIds, fields }) => {
+    if (documentIds.length === 0) return []
+    const definition = collections.find((candidate) => candidate.path === collectionPath)
+    if (definition == null) {
+      throw ERR_VALIDATION({
+        message: `richtext target collection '${collectionPath}' is not registered`,
+        details: { collectionPath },
+      })
+    }
+
+    assertActorCanPerform(requestContext, collectionPath, 'read')
+    const collection = await db.queries.collections.getCollectionByPath(collectionPath)
+    if (collection?.id == null) {
+      throw ERR_VALIDATION({
+        message: `richtext target collection '${collectionPath}' is not available`,
+        details: { collectionPath },
+      })
+    }
+
+    let filters: DocumentFilter[] | undefined
+    if (!bypassBeforeRead) {
+      const predicate = await applyBeforeRead({ definition, requestContext, readContext })
+      if (predicate != null) {
+        filters = await parsePredicateFilters(
+          predicate,
+          definition,
+          {
+            collections,
+            resolveCollectionId: async (path) => {
+              const row = await db.queries.collections.getCollectionByPath(path)
+              return row?.id ?? ''
+            },
+          },
+          { strict: true }
+        )
+      }
+    }
+
+    const collectionId = collection.id as string
+    const projection = fields == null ? '*' : [...fields].sort().join(',')
+    const resultById = new Map<string, Record<string, any>>()
+    const idsToFetch: string[] = []
+
+    for (const documentId of new Set(documentIds)) {
+      const key = richTextMaterializationKey(
+        collectionId,
+        documentId,
+        requestContext.requestId,
+        locale,
+        readMode,
+        projection
+      )
+      if (state.cache.has(key)) {
+        const cached = state.cache.get(key)
+        if (cached != null) resultById.set(documentId, cached)
+      } else if (!state.active.has(`${collectionId}:${documentId}`)) {
+        idsToFetch.push(documentId)
+      }
+    }
+
+    if (idsToFetch.length > 0) {
+      const fetched = (await db.queries.documents.getDocumentsByDocumentIds({
+        collection_id: collectionId,
+        document_ids: idsToFetch,
+        fields,
+        readMode,
+        locale,
+        filters: filters && filters.length > 0 ? filters : undefined,
+      })) as Array<Record<string, any>>
+      const fetchedById = new Map(
+        fetched
+          .filter((doc) => typeof doc.document_id === 'string')
+          .map((doc) => [doc.document_id as string, doc] as const)
+      )
+
+      for (const documentId of idsToFetch) {
+        const materializationKey = richTextMaterializationKey(
+          collectionId,
+          documentId,
+          requestContext.requestId,
+          locale,
+          readMode,
+          projection
+        )
+        // Earlier items in this batch may recursively populate a later target.
+        // Honour that completed/active state rather than reprocessing the stale
+        // raw row captured by the outer batch and overwriting its redacted cache.
+        if (state.cache.has(materializationKey)) {
+          const cached = state.cache.get(materializationKey)
+          if (cached != null) resultById.set(documentId, cached)
+          continue
+        }
+        const documentKey = `${collectionId}:${documentId}`
+        if (state.active.has(documentKey)) continue
+
+        const doc = fetchedById.get(documentId)
+        if (doc == null) {
+          state.cache.set(materializationKey, null)
+          continue
+        }
+
+        state.active.add(documentKey)
+        readContext.visited.add(documentKey)
+        try {
+          readContext.readCount += 1
+          if (readContext.readCount > readContext.maxReads) {
+            throw ERR_READ_BUDGET_EXCEEDED({
+              message: `richtext populate exceeded read budget (maxReads=${readContext.maxReads})`,
+              details: {
+                readCount: readContext.readCount,
+                maxReads: readContext.maxReads,
+                targetCollectionId: collectionId,
+                targetDocumentId: documentId,
+              },
+            })
+          }
+
+          if (richTextPopulate) {
+            await populateRichTextFields({
+              fields: definition.fields,
+              collectionPath,
+              documents: [doc],
+              populate: richTextPopulate,
+              readContext,
+              requestContext,
+              readMode,
+              readDocuments: read,
+            })
+          }
+          await applyAfterRead({
+            doc,
+            definition,
+            readContext,
+            requestContext,
+            locale,
+            readMode,
+            projection: fields,
+            materialization: 'richtext-target',
+          })
+          state.cache.set(materializationKey, doc)
+          resultById.set(documentId, doc)
+        } finally {
+          state.active.delete(documentKey)
+        }
+      }
+    }
+
+    return documentIds.flatMap((documentId) => {
+      const doc = resultById.get(documentId)
+      return doc == null ? [] : [doc]
+    })
+  }
+
+  return read
+}
+
+interface RichTextReaderState {
+  active: Set<string>
+  cache: Map<string, Record<string, any> | null>
+}
+
+const richTextReaderStates = new WeakMap<ReadContext, RichTextReaderState>()
+
+function getRichTextReaderState(readContext: ReadContext): RichTextReaderState {
+  const existing = richTextReaderStates.get(readContext)
+  if (existing) return existing
+  const state: RichTextReaderState = { active: new Set(), cache: new Map() }
+  richTextReaderStates.set(readContext, state)
+  return state
+}
+
+function richTextMaterializationKey(
+  collectionId: string,
+  documentId: string,
+  requestId: string,
+  locale: string | undefined,
+  readMode: ReadMode,
+  projection: string
+): string {
+  return `${collectionId}:${documentId}:${requestId}:${locale ?? 'all'}:${readMode}:${projection}`
 }
 
 // ---------------------------------------------------------------------------

@@ -28,6 +28,7 @@ import {
 } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'
 import { RouterPager } from '../chrome/router-pager.js'
 import {
@@ -45,7 +46,7 @@ import type {
 // are fixed at module scope; the `label` field is filled in per-render
 // inside the component so it can flow through `t(...)`. Same pattern the
 // account container's `panels` map uses.
-type ColumnTemplate = Omit<TableHeadingCellSortableProps, 'lng' | 'label'> & {
+type ColumnTemplate = Omit<TableHeadingCellSortableProps, 'lng' | 'label' | 'path'> & {
   labelKey: string
 }
 
@@ -53,7 +54,6 @@ const columnTemplates: ColumnTemplate[] = [
   {
     fieldName: 'given_name',
     labelKey: 'adminUsers.list.columns.givenName',
-    path: '/admin/users',
     sortable: true,
     scope: 'col',
     align: 'left',
@@ -62,7 +62,6 @@ const columnTemplates: ColumnTemplate[] = [
   {
     fieldName: 'family_name',
     labelKey: 'adminUsers.list.columns.familyName',
-    path: '/admin/users',
     sortable: true,
     scope: 'col',
     align: 'left',
@@ -71,7 +70,6 @@ const columnTemplates: ColumnTemplate[] = [
   {
     fieldName: 'email',
     labelKey: 'adminUsers.list.columns.email',
-    path: '/admin/users',
     sortable: true,
     scope: 'col',
     align: 'left',
@@ -80,7 +78,6 @@ const columnTemplates: ColumnTemplate[] = [
   {
     fieldName: 'updated_at',
     labelKey: 'adminUsers.list.columns.updated',
-    path: '/admin/users',
     sortable: true,
     scope: 'col',
     align: 'right',
@@ -89,7 +86,6 @@ const columnTemplates: ColumnTemplate[] = [
   {
     fieldName: 'created_at',
     labelKey: 'adminUsers.list.columns.created',
-    path: '/admin/users',
     sortable: true,
     scope: 'col',
     align: 'right',
@@ -136,7 +132,12 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
 
   const tableColumnDefs = useMemo(
-    () => columnTemplates.map(({ labelKey, ...rest }) => ({ ...rest, label: t(labelKey) })),
+    () =>
+      columnTemplates.map(({ labelKey, ...rest }) => ({
+        ...rest,
+        label: t(labelKey),
+        path: getAdminRoutePath('users'),
+      })),
     [t]
   )
 
@@ -232,7 +233,7 @@ export function AdminUsersListView({ data }: { data: AdminUserListResponse }) {
                   })}
                 >
                   <Table.Cell>
-                    <Link to={'/admin/users/$id' as never} params={{ id: user.id }}>
+                    <Link to={getAdminRoutePath('users', '$id')} params={{ id: user.id }}>
                       {user.given_name ?? (
                         <span
                           className={cx('muted byline-admin-users-list-not-set', styles.notSet)}

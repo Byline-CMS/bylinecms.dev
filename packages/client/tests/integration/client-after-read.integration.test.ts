@@ -121,7 +121,7 @@ describe('afterRead integration', () => {
     }
   })
 
-  it('dedups within a single ReadContext across multiple top-level calls', async () => {
+  it('redacts each fresh materialization within a shared ReadContext', async () => {
     const handle = ctx.client.collection(ctx.definition.path)
 
     const { documentId } = await handle.create({
@@ -137,9 +137,9 @@ describe('afterRead integration', () => {
     await handle.findById(documentId, { _readContext: rc })
     await handle.findById(documentId, { _readContext: rc })
 
-    // All three top-level calls share the ReadContext, so afterRead fires
-    // only on the first — the A→B→A guard in action.
-    expect(hookCalls.length).toBe(1)
+    // ReadContext shares predicate/populate state, but each query materializes
+    // a fresh object that must pass through redaction independently.
+    expect(hookCalls.length).toBe(3)
   })
 
   it('fires once per top-level call when no shared ReadContext', async () => {

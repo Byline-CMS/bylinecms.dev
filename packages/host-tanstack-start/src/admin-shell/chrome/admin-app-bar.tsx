@@ -14,6 +14,7 @@ import { LanguageMenu, useTranslation } from '@byline/i18n/react'
 import { Button } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getSignInRoutePath } from '../../routes/sign-in-path.js'
 import { adminSignOut, type CurrentAdminUser } from '../../server-fns/auth/index.js'
 import styles from './admin-app-bar.module.css'
 import { AdminDrawerToggle } from './admin-drawer-toggle.js'
@@ -48,7 +49,7 @@ export function AdminAppBar({ user }: AdminAppBarProps) {
       console.warn('sign-out request failed', err)
     }
     // Full-page navigation so the admin guard re-runs with cleared cookies.
-    window.location.assign('/sign-in')
+    window.location.assign(getSignInRoutePath())
   }
 
   return (

@@ -18,12 +18,14 @@ import {
   type CollectionHookSlot,
   normalizeCollectionHook,
   type RichTextEmbedFn,
+  type RichTextPopulateFn,
 } from '../../@types/index.js'
 import { getCollectionDefinition, getServerConfig } from '../../config/config.js'
 import { ERR_PATH_CONFLICT, ErrorCodes } from '../../lib/errors.js'
 import { generateKeyBetween } from '../../lib/fractional-index.js'
 import { createReadContext } from '../populate.js'
 import { embedRichTextFields } from '../richtext-embed.js'
+import { createRichTextDocumentReader } from '../richtext-populate.js'
 import type { BylineLogger } from '../../lib/logger.js'
 import type { SlugifierFn } from '../../utils/slugify.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -90,18 +92,36 @@ export async function applyRichTextEmbed(
   // `initBylineCore()` (unit tests, isolated tooling) — they have no
   // adapter to invoke, so this is a soft no-op.
   let embed: RichTextEmbedFn | undefined
+  let richTextPopulate: RichTextPopulateFn | undefined
+  let collections: readonly CollectionDefinition[]
   try {
-    embed = getServerConfig().fields?.richText?.embed
+    const config = getServerConfig()
+    embed = config.fields?.richText?.embed
+    richTextPopulate = config.fields?.richText?.populate
+    collections = config.collections
   } catch {
     return
   }
-  if (embed == null) return
+  if (embed == null || ctx.requestContext == null) return
+  const readContext = createReadContext()
+  const requestContext = { ...ctx.requestContext, readMode: 'published' as const }
   await embedRichTextFields({
     fields: ctx.definition.fields,
     collectionPath: ctx.collectionPath,
     data,
     embed,
-    readContext: createReadContext(),
+    readContext,
+    requestContext,
+    readMode: 'published',
+    readDocuments: createRichTextDocumentReader({
+      db: ctx.db,
+      collections,
+      requestContext,
+      readContext,
+      readMode: 'published',
+      locale: ctx.defaultLocale,
+      richTextPopulate,
+    }),
     logger: ctx.logger,
   })
 }
@@ -123,54 +143,6 @@ export async function maybeAppendOrderKey(
     collection_id: ctx.collectionId,
   })
   return generateKeyBetween(last, null)
-}
-
-/**
- * Append a document as the **last root** of its `tree: true` collection's tree.
- * Mints a fresh root-group `order_key` after the current trailing root. Used by
- * create's auto-place and update's self-heal so a tree collection never strands a
- * document in the "unplaced" limbo. Issues the storage command directly — the
- * caller has already asserted the relevant ability and this is a system step.
- */
-export async function appendTreeRoot(
-  ctx: DocumentLifecycleContext,
-  documentId: string
-): Promise<void> {
-  const roots = await ctx.db.queries.documents.getTreeChildren({
-    collectionId: ctx.collectionId,
-    parentDocumentId: null,
-  })
-  await ctx.db.commands.documents.placeTreeNode({
-    collectionId: ctx.collectionId,
-    documentId,
-    parentDocumentId: null,
-    beforeDocumentId: roots.at(-1)?.document_id ?? null,
-  })
-}
-
-/**
- * Self-heal a genuinely-*unplaced* document on update: if the collection is a
- * tree and the document has no edge row, append it as a root (mirroring create's
- * auto-place). `getTreeParent` distinguishes unplaced from root, so an existing
- * root or child is left exactly where it is — only strays (e.g. docs created
- * before the flag, or whose create-time auto-place failed) are re-treed.
- *
- * No-op for non-tree collections. Best-effort and post-version: a failure leaves
- * the document saved-but-unplaced and is logged, never thrown. See
- * docs/04-collections/03-document-trees.md.
- */
-export async function selfHealTreePlacement(
-  ctx: DocumentLifecycleContext,
-  documentId: string
-): Promise<void> {
-  if (ctx.definition.tree !== true) return
-  try {
-    const { placed } = await ctx.db.queries.documents.getTreeParent({ document_id: documentId })
-    if (placed) return
-    await appendTreeRoot(ctx, documentId)
-  } catch (err: unknown) {
-    ctx.logger.error({ err, documentId }, 'failed to self-heal tree placement on update')
-  }
 }
 
 /** Extract `id` from the document object returned by `createDocumentVersion`. */

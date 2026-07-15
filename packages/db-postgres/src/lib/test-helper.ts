@@ -46,7 +46,7 @@ export function setupTestDB(collections: CollectionDefinition[] = []) {
 
   // Recreate queryBuilders when collections are provided so that
   // DocumentQueries can resolve collection definitions by path.
-  queryBuilders = createQueryBuilders(db, collections, 'en')
+  queryBuilders = createQueryBuilders(db, collections, 'en', dbManager)
 
   return { pool, db, dbManager, txManager, commandBuilders, queryBuilders }
 }

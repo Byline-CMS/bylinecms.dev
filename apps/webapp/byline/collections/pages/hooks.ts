@@ -19,15 +19,71 @@
 
 import { defineHooks } from '@byline/core'
 
-import { invalidateDocument } from '@/lib/cache/with-cache'
+import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
+import { getSystemBylineClient } from '../../client.server.js'
+import { runSideEffects } from '../run-side-effects.js'
 
 export default defineHooks({
-  afterCreate: ({ path }) => invalidateDocument('pages', path, { sitemap: true }),
-  afterUpdate: ({ path, originalData }) =>
-    invalidateDocument('pages', path, {
-      prevPath: (originalData as { path?: string } | undefined)?.path,
-    }),
-  afterStatusChange: ({ path }) => invalidateDocument('pages', path, { sitemap: true }),
-  afterUnpublish: ({ path }) => invalidateDocument('pages', path, { sitemap: true }),
-  afterDelete: ({ path }) => invalidateDocument('pages', path, { sitemap: true }),
+  afterCreate: async ({ path, documentId }) => {
+    await runSideEffects(
+      'pages afterCreate',
+      () => invalidateDocument('pages', path, { sitemap: true }),
+      () => getSystemBylineClient().collection('pages').indexDocument(documentId)
+    )
+  },
+  afterUpdate: async ({ path, originalData, documentId }) => {
+    await runSideEffects(
+      'pages afterUpdate',
+      () =>
+        invalidateDocument('pages', path, {
+          prevPath: (originalData as { path?: string } | undefined)?.path,
+        }),
+      () => getSystemBylineClient().collection('pages').indexDocument(documentId)
+    )
+  },
+  afterSystemFieldsChange: async ({
+    documentId,
+    previousPath,
+    currentPath,
+    requested,
+    reconciliation,
+  }) => {
+    const invalidate = () =>
+      reconciliation && requested.path
+        ? invalidateCollection('pages')
+        : currentPath != null
+          ? invalidateDocument('pages', currentPath, {
+              prevPath: previousPath,
+              sitemap: true,
+            })
+          : undefined
+    await runSideEffects(
+      'pages afterSystemFieldsChange',
+      invalidate,
+      ...(requested.path
+        ? [() => getSystemBylineClient().collection('pages').indexDocument(documentId)]
+        : [])
+    )
+  },
+  afterStatusChange: async ({ path, documentId }) => {
+    await runSideEffects(
+      'pages afterStatusChange',
+      () => invalidateDocument('pages', path, { sitemap: true }),
+      () => getSystemBylineClient().collection('pages').indexDocument(documentId)
+    )
+  },
+  afterUnpublish: async ({ path, documentId }) => {
+    await runSideEffects(
+      'pages afterUnpublish',
+      () => invalidateDocument('pages', path, { sitemap: true }),
+      () => getSystemBylineClient().collection('pages').indexDocument(documentId)
+    )
+  },
+  afterDelete: async ({ path, documentId }) => {
+    await runSideEffects(
+      'pages afterDelete',
+      () => getSystemBylineClient().collection('pages').removeFromIndex(documentId),
+      () => invalidateDocument('pages', path, { sitemap: true })
+    )
+  },
 })

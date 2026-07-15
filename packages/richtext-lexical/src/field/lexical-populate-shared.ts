@@ -17,8 +17,7 @@
  * to import from the package's `server` entry.
  */
 
-import type { BylineClient } from '@byline/client'
-import type { ReadContext } from '@byline/core'
+import type { ReadContext, RichTextReadDocumentsFn } from '@byline/core'
 
 /**
  * Lexical-shaped node — only the fields the visitors need to read or
@@ -124,8 +123,8 @@ export interface LexicalNodeVisitor {
 }
 
 interface RunPopulateOptions {
-  client: BylineClient
   readContext: ReadContext
+  readDocuments: RichTextReadDocumentsFn
   visitors: LexicalNodeVisitor[]
   /**
    * One or more rich-text values to walk. The framework's read pipeline
@@ -142,16 +141,12 @@ interface RunPopulateOptions {
  * hydrations across all visitors, batch-fetch by source collection, and
  * apply.
  *
- * `readContext` is accepted (factories thread it through from
- * `RichTextPopulateContext` / `RichTextEmbedContext`) but currently unused —
- * the batch fetch goes straight to `getDocumentsByDocumentIds` and doesn't
- * recurse into populate or `afterRead`, so there's no visited-set or
- * read-budget state to share. Retained on the options shape so a future
- * visitor that performs nested populate can opt back in without another
- * contract churn.
+ * Callers provide the framework-owned `readDocuments` function, which enforces
+ * target abilities and `beforeRead` predicates for both read-time populate and
+ * write-time embed refreshes.
  */
 export async function runLexicalPopulate(options: RunPopulateOptions): Promise<void> {
-  const { client, visitors, values } = options
+  const { visitors, values, readDocuments } = options
 
   const pending: PendingHydration[] = []
   for (const value of values) {
@@ -178,21 +173,11 @@ export async function runLexicalPopulate(options: RunPopulateOptions): Promise<v
     bucket.add(p.documentId)
   }
 
-  // Fetch directly through the adapter rather than the client's `find()` —
-  // `parseWhere` has no handler for `id`, so `find({ where: { id: { $in } } })`
-  // silently dropped the filter and returned arbitrary docs ordered by
-  // `created_at desc`. This is the same primitive relation populate uses
-  // (`packages/core/src/services/populate.ts`) when it batches by document id.
   const fetched = new Map<string, Map<string, Record<string, any>>>()
   await Promise.all(
     Array.from(idsByCollection.entries()).map(async ([collectionPath, idSet]) => {
       const ids = Array.from(idSet)
-      const collectionId = await client.resolveCollectionId(collectionPath)
-      const rawDocs = await client.db.queries.documents.getDocumentsByDocumentIds({
-        collection_id: collectionId,
-        document_ids: ids,
-        readMode: 'published',
-      })
+      const rawDocs = await readDocuments({ collectionPath, documentIds: ids })
       const byId = new Map<string, Record<string, any>>()
       for (const raw of rawDocs as Array<Record<string, any>>) {
         if (typeof raw.document_id !== 'string') continue

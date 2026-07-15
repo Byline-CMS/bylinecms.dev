@@ -19,12 +19,14 @@
  *  - Top + bottom pagination (RouterPager)
  */
 
-import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { useRouterState } from '@tanstack/react-router'
 
 import { LocalDateTime } from '@byline/admin/react'
 import type { ListViewComponentProps, StoredFileValue, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
+import { Link, useNavigate } from '@byline/host-tanstack-start/admin-shell/chrome/loose-router'
 import { RouterPager } from '@byline/host-tanstack-start/admin-shell/chrome/router-pager'
+import { getAdminRoutePath } from '@byline/host-tanstack-start/routes/admin-path'
 import { useTranslation } from '@byline/i18n/react'
 import {
   Container,
@@ -160,7 +162,7 @@ export function MediaListView({
       delete params.page
       params.query = query
       navigate({
-        to: '/admin/collections/$collection',
+        to: getAdminRoutePath('collections', '$collection'),
         params: { collection: collectionPath },
         search: params,
       })
@@ -172,7 +174,7 @@ export function MediaListView({
     delete params.page
     delete params.query
     navigate({
-      to: '/admin/collections/$collection',
+      to: getAdminRoutePath('collections', '$collection'),
       params: { collection: collectionPath },
       search: params,
     })
@@ -190,7 +192,7 @@ export function MediaListView({
     params.order = order
     params.desc = desc
     navigate({
-      to: '/admin/collections/$collection',
+      to: getAdminRoutePath('collections', '$collection'),
       params: { collection: collectionPath },
       search: params,
     })
@@ -210,7 +212,7 @@ export function MediaListView({
             render={
               <Link
                 className={styles['create-link']}
-                to="/admin/collections/$collection/create"
+                to={getAdminRoutePath('collections', '$collection', 'create')}
                 params={{ collection: collectionPath }}
               />
             }
@@ -271,7 +273,7 @@ export function MediaListView({
               return (
                 <Link
                   key={doc.id}
-                  to="/admin/collections/$collection/$id"
+                  to={getAdminRoutePath('collections', '$collection', '$id')}
                   params={{ collection: collectionPath, id: doc.id }}
                   className={styles.card}
                 >

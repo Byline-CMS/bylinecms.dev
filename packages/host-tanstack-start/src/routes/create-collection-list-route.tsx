@@ -30,6 +30,7 @@ import {
   placeTreeNode,
   reorderCollectionDocument,
 } from '../server-fns/collections/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 import type { CollectionTreeRow } from '../server-fns/collections/tree.js'
 
 const searchSchema = z.object({
@@ -167,10 +168,10 @@ export function createCollectionListRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: `/admin` },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
               {
                 label: data.included.collection.labels.plural,
-                href: `/admin/collections/${collection}`,
+                href: getAdminRoutePath('collections', collection),
               },
             ]}
           />

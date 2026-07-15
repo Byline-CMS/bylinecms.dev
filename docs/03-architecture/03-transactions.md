@@ -10,10 +10,11 @@ Byline exposes a request-scoped `withTransaction` capability so that several
 database commands can commit or roll back atomically, without threading a
 transaction handle through every signature. The boundary is owned by the service
 layer; commands resolve their executor through an `AsyncLocalStorage`-propagated
-transaction. Its primary consumer is the
+transaction. Its primary consumers are the
 [document-level audit log](../06-auth-and-security/02-auditability.md#the-document-level-audit-log),
-where each audited write-point wraps its mutation and `audit.append` in one
-transaction so the change and its audit row commit together.
+the locked snapshots used by non-versioned system-field writes, and document
+tree mutations. Each audited write-point wraps its mutation and `audit.append`
+in one transaction so the change and its audit row commit together.
 
 ## The problem
 
@@ -25,7 +26,7 @@ transaction. That's a gap the moment a single logical operation must write
 two things atomically:
 
 - **The audit log (the forcing case).** A document-level change — a path
-  edit, a status transition, a delete — and its audit-log row must commit
+  edit, status transition, tree move/promotion, or delete — and its audit-log row must commit
   together. The one unacceptable outcome for an *auditability* feature is a
   change that succeeds while its audit row silently fails to write. See
   [Auditability](../06-auth-and-security/02-auditability.md).
@@ -88,6 +89,14 @@ layer**: each audited lifecycle service wraps its mutation +
 transaction-agnostic — correct whether called standalone (their statements run
 on the pool) or inside a `withTransaction` (they join the ambient tx).
 
+Collection `after*` hooks are deliberately outside this boundary. They run only
+after commit: a hook failure rejects the lifecycle call, but cannot roll back
+the mutation or its audit row. Side-effect consumers must therefore be
+idempotent and use the reconciliation paths described for
+[system fields](../04-collections/04-document-paths.md#server-transport) and
+[document trees](../04-collections/03-document-trees.md#invalidation) where
+available.
+
 When `get()` already returns a tx and a command opens its own
 `.transaction(...)`, Drizzle issues a **SAVEPOINT** (nested transaction): an
 inner failure rolls back to the savepoint, an outer failure rolls back
@@ -107,22 +116,28 @@ The capability was added without a big-bang rewrite of the adapter. In place:
    not just the four the audit log needs, transparently joins an ambient
    transaction with zero call-site changes.
 
-Still on the raw pool (migrate opportunistically): the **query builders** and
-the **counter commands**. Reads don't need to join the audit transaction, and
-counters aren't in any audit unit of work.
+Still on the raw pool (migrate opportunistically): ordinary
+**query-builder** methods, audit reads, and the **counter commands**. One
+deliberate query exception exists: `getDocumentSystemFieldsForUpdate` resolves
+through the ambient transaction so it can lock the logical document and return
+the authoritative path / advertised-locale snapshot used by the write and
+audit.
 
 **The one caveat:** an *unconverted* path won't see the ambient transaction —
-it silently runs on the pool. Since the command builders are fully converted,
-this now only means a `withTransaction` block should not rely on a **query** or
-**counter** call participating. Easy to honour; worth a deliberate check when
-those paths are eventually wrapped.
+it silently runs on the pool. A `withTransaction` block must therefore not
+assume an arbitrary **query** or **counter** call participates. Only contract
+capabilities explicitly documented as transaction-scoped may be relied on
+inside the unit of work.
 
 ## DB↔DB vs DB↔external — what this does and does not solve
 
 A sharp line, because conflating the two leads to a wrong design:
 
-- **DB ↔ DB** (audit + mutation; document + related record): **fully solved.**
-  Multiple commands, one transaction, atomic.
+- **DB ↔ DB** (audit + mutation; system-field snapshot + write; tree
+  mutation + audit): **fully solved when composed from transaction-aware
+  capabilities.** Multiple participating commands, one transaction, atomic.
+  For a tree document delete this includes the soft delete, child promotion,
+  edge removal, and every parent/child audit row.
 - **DB ↔ external side-effect** (file storage + media record): **not solved
   by transactions.** You cannot roll back an S3 / filesystem `PUT` inside a
   database transaction. That stays a **compensation / saga** concern — write
@@ -165,12 +180,12 @@ future adapter has a clear target:
    so a future Fastify/serverless adapter has an explicit method to satisfy
    or reject.
 3. **Non-support must be loud, never silent.** An adapter that cannot provide
-   interactive transactions must **throw** on `withTransaction` (or fail a
-   boot-time capability check), *not* degrade to running `fn` without
-   atomicity. Audit atomicity is the whole point; silently non-atomic audit
-   writes are worse than no feature. A non-transactional adapter is a
-   deployment the operator must consciously accept (and audit atomicity
-   degrades, documented and guarded).
+   interactive transactions must **throw** on audited lifecycle writes (or fail
+   a boot-time capability check), *not* degrade to running `fn` without
+   atomicity. System-field writes additionally require a transaction-scoped
+   lock/read capability. If any configured collection has `tree: true`, core
+   validates the complete locked tree mutation + delete-reconciliation
+   capability at startup.
 4. **Emulation is YAGNI.** A command-buffer / outbox that batches statements
    to flush as one HTTP request at "commit" is conceivable for HTTP-batch
    drivers — but it isn't worth designing until a second, genuinely
@@ -185,8 +200,10 @@ future adapter has a clear target:
 | `DBManager` / `TXManager` (ALS propagation) | `packages/db-postgres/src/lib/db-manager.ts` |
 | `withTransaction` capability (optional) on the contract | `packages/core/src/@types/db-types.ts` (`IDbAdapter.withTransaction?`) |
 | Command-builder executor getter (`private get db()`) | `packages/db-postgres/src/modules/storage/storage-commands.ts` (`CollectionCommands`, `DocumentCommands`) |
+| Transaction-scoped system-field lock/snapshot | `packages/db-postgres/src/modules/storage/storage-queries.ts` (`getDocumentSystemFieldsForUpdate`) |
 | Manager construction + `withTransaction` wiring | `packages/db-postgres/src/index.ts` (`pgAdapter`) |
 | Atomicity / propagation test | `packages/db-postgres/src/modules/storage/tests/storage-transactions.test.ts` |
-| Per-command transaction sites (now resolve via the getter) | `packages/db-postgres/src/modules/storage/storage-commands.ts` (6) |
+| Tree mutation/delete atomicity tests | `packages/db-postgres/src/modules/storage/tests/storage-document-tree-audit.test.ts` |
+| Per-command transaction sites (now resolve via the getter) | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | Prior-art ALS usage in-repo | `packages/core/src/lib/logger.ts` (`withLogContext`) |
 | First consumer | [the document-level audit log](../06-auth-and-security/02-auditability.md#the-document-level-audit-log) |

@@ -1,7 +1,7 @@
 ---
 title: "Search & Retrieval"
 path: "search"
-summary: "A pluggable SearchProvider seam in core with a built-in Postgres full-text driver (@byline/search-postgres). Collections opt in with a search config; core assembles a type-enriched SearchDocument that drivers index. Lifecycle hooks keep the index live, an admin reindex button rebuilds it, and client.collection(x).search() is the developer query surface. BM25 / vector / hybrid drivers and attachment extraction are sanctioned future phases."
+summary: "A pluggable SearchProvider seam with built-in Postgres full-text search, collection and zone queries, optional hydration, and strict post-ranking row authorization. Lifecycle hooks keep the published index live; BM25/vector/hybrid drivers and attachment extraction are future phases."
 ---
 
 # Search & Retrieval
@@ -9,13 +9,12 @@ summary: "A pluggable SearchProvider seam in core with a built-in Postgres full-
 :::note[Partly shipped]
 The `SearchProvider` seam, the built-in Postgres full-text driver, the
 type-enriched `SearchDocument` + assembler, lifecycle-hook indexing, the
-`reindex` command + admin button, and the single-collection
-`client.collection(x).search()` query surface are **shipped** (Phase 2). Still
-planned: the cross-collection **zone** query entry point, **`hydrate`**
-(two-tier rich results), **structured `where`** filtering and **facet
-aggregation** at query time, **attachment text-extraction** (Phase 3),
-**external drivers** (Phase 4), and the **MCP** tool (Phase 5). Each section
-below marks what is shipped vs planned.
+`reindex` command + admin button, single-collection and cross-collection
+**zone** queries, **`hydrate`** results, and post-ranking row authorization are
+**shipped** (Phase 2). Still planned: provider-side structured `where`
+filtering and facet aggregation, attachment text-extraction (Phase 3), external
+drivers (Phase 4), and the MCP tool (Phase 5). Each section below marks what is
+shipped vs planned.
 :::
 
 ## Overview
@@ -66,9 +65,10 @@ The vertical, top to bottom:
 4. **Lifecycle hooks** call `client.collection(x).indexDocument(id)` /
    `removeFromIndex(id)` to keep the index live; **`client.reindex()`** (and the
    admin **reindex button**) rebuild it.
-5. **`client.collection(x).search()`** is the developer query surface; the docs
+5. **`client.collection(x).search()`** and **`client.search({ zone })`** are
+   the developer query surfaces, with optional `hydrate: true`; the docs
    frontend (drawer modal → `/docs/search?q=` results route) is the worked
-   example.
+   collection-scoped example.
 
 ## The `SearchProvider` interface (shipped)
 
@@ -253,20 +253,29 @@ interface SearchFacetValue { id: number | string; term: string }  // counter id 
 Indexing is **published-only** and **event-driven**, hung off the same
 collection lifecycle hooks that drive L1 cache invalidation. The orchestration
 lives in **`@byline/client`** (the provider is a sink; it can't read source
-documents). A collection's `hooks.ts` calls:
+documents). Index maintenance deliberately uses `_bypassBeforeRead` and indexes
+**every published document**; actor-specific row authorization happens after
+provider ranking, never by baking one actor's visibility into the shared index.
+A collection's `hooks.ts` calls:
 
 | Hook | Action |
 |---|---|
 | `afterCreate` / `afterUpdate` / `afterStatusChange` / `afterUnpublish` | `client.collection(p).indexDocument(id)` |
+| `afterSystemFieldsChange` with a path request (including no-op reconciliation) | `client.collection(p).indexDocument(id)` |
+| advertised-locale-only system change | no search write in the reference app |
 | `afterDelete` | `client.collection(p).removeFromIndex(id)` |
+| `afterTreeChange` | no reindex unless the provider stores tree-derived hierarchy |
 
 `indexDocument` is a **re-sync by read**: for each content locale it reads the
 document's *published* view (`status: 'published'`, `onMissingLocale: 'omit'`,
 `_bypassBeforeRead`) and `upsert`s where present, `remove`s where absent. This
 one path handles publish, unpublish, draft-over-published, and plain edits
-uniformly and idempotently — the index always mirrors what a public reader can
-see. `removeFromIndex` drops all locales. The `docs` collection wires this as the
+uniformly and idempotently — the index mirrors published status/locale content
+for all rows, while actor-specific visibility is enforced after ranking.
+`removeFromIndex` drops all locales. The `docs` collection wires this as the
 worked example (`apps/webapp/byline/collections/docs/hooks.ts`).
+Unlike `reindex`, `removeFromIndex` does not assert an ability itself; keep it
+behind trusted lifecycle or tooling code and use the system-client convention.
 
 :::warning[Index from a system client, not the request-scoped one]
 Resolve the indexing client with `getSystemBylineClient()` (super-admin context,
@@ -280,10 +289,14 @@ system context is both correct and runtime-agnostic. (Both helpers live in
 `@byline/host-tanstack-start/integrations/byline-client`.)
 :::
 
-**Indexing is synchronous** inside the `afterX` hook (same Postgres, no
-consistency gap). An async outbox/queue for network-backed drivers (a slow vector
-write must not stall a publish) is deferred — the interface is unchanged, only
-the wiring differs by driver.
+**Indexing is awaited** inside the post-commit hook, but is not part of the
+source DB transaction. A provider/hook failure therefore rejects the call after
+content/system/tree data may already have committed, leaving a stale index until
+reconciliation. System-field and tree no-op retries have explicit reconciliation
+options; delete has no equivalent retry-by-delete path. The reference app at
+least attempts search and cache effects independently and aggregates failures,
+but a durable outbox/queue (also needed so a slow network driver does not stall a
+publish) remains deferred.
 
 ### Rebuild — `reindex` + the admin button (shipped)
 
@@ -317,7 +330,7 @@ Search is a first-class `@byline/client` method, parallel to `find()`.
 const results = await client.collection('docs').search({
   query: 'fractional indexing',
   locale,                // defaults to the client default
-  status: 'published',   // defaults to published; 'any' for admin
+  status: 'published',   // defaults to published
   where,                 // accepted; not yet applied by the Postgres driver
   facets,                // accepted; aggregation not yet implemented
   limit, offset,
@@ -333,9 +346,16 @@ const results = await client.collection('docs').search({
 
 `CollectionHandle.search()` asserts the collection `read` ability, scopes to the
 collection + `published` by default, and delegates to `provider.search()`. It
+accepts `status: 'any'`, but the framework lifecycle indexes published views
+only, so this does not make drafts appear in the built-in index; it only relaxes
+the provider filter for rows a custom indexing path may have supplied. It
 returns the **lightweight hit tier** — `title`, `path`, `score`, and
 matched-snippet `highlights` — enough to render a results list without
-hydration. Fetch hit ids via `findById` when a richer item is needed.
+hydration. Lightweight hits themselves are not document materializations, so
+`afterRead` does not transform them; when row authorization requires an internal
+projected re-read, that fresh internal document still runs its normal hook.
+Use `hydrate: true` when the returned result must carry an actor-redacted
+`ClientDocument`.
 
 ### Row-level authorization — "rank in the provider, authorise in core"
 
@@ -351,18 +371,24 @@ and the other `beforeRead` recipes hold on search exactly as they do on
 query entirely — the published-only index is already safe there and pays no
 extra cost.
 
-Two documented approximations follow from filtering **after** ranking:
+Filtering **after** ranking has deliberate aggregate semantics:
 
-- `total` (and facet counts) remain the **provider's pre-authorization**
-  numbers — approximate under row scoping, exact without it.
-- A page of hits can come back **shorter than `limit`** when candidates are
-  dropped; paginate on `offset`, not on received length. Exact paging under
-  scoping means pushing the `QueryPredicate` down into the provider — a
-  driver-capability follow-up (see [Open questions](#open-questions)).
+- When a collection predicate is active, or a zone excludes unreadable member
+  collections, `total` is the number of authorized hits surviving **this
+  provider page**, not a corpus-wide authorized total, and facets are omitted
+  rather than leaking provider-wide counts.
+- A page can therefore be shorter than `limit`; paginate using the provider
+  `offset`, not the received length. Exact authorized paging/totals require
+  pushing the predicate into a capable provider.
+- Without an authorization restriction, provider `total` / facets pass through
+  (even though hydration may independently discard a stale hit).
 
-`_bypassBeforeRead: true` on the search options is the same system-operation
-escape hatch the read methods take (admin tooling, migrations); the
-integration coverage lives in
+Security predicates are compiled in strict mode before they are trusted:
+unsupported fields/operators or malformed values throw instead of being
+silently dropped. `_bypassBeforeRead: true` is reserved for indexing and trusted
+system/admin tooling. It skips row predicates only — it does not skip collection
+`read` abilities, zone membership/readability checks, status scoping, or
+`afterRead`. Integration coverage lives in
 `packages/client/tests/integration/client-search-auth.integration.test.ts`.
 
 The docs frontend is the worked example: a drawer-modal search box →
@@ -370,7 +396,7 @@ The docs frontend is the worked example: a drawer-modal search box →
 → hits rendered with canonical hierarchical URLs (resolved via the cached nav
 tree) and safely-rendered `ts_headline` snippets.
 
-### Zone (cross-collection) search — `client.search({ zone })`
+### Zone (cross-collection) search — `client.search({ zone })` (shipped)
 
 The second query entry point, for heterogeneous hits ranked together across
 every collection indexed into a named zone:
@@ -386,10 +412,12 @@ the same rule the indexing assembler applies (`resolveSearchZones`:
 and the index contents can't drift. Per-member **read abilities** apply:
 collections the actor cannot `read` are excluded from the results, and the
 ability error surfaces only when the actor can read *none* of the zone's
-members. An unknown zone throws `ERR_VALIDATION`. `beforeRead` row scoping
-applies per collection exactly as on the single-collection entry point.
+members. An unknown zone throws `ERR_VALIDATION`. Each readable member's
+`beforeRead` predicate is strict-validated, then provider hits are authorized
+per collection after ranking. Any excluded member/predicate suppresses provider
+facets and changes `total` to the current page's surviving authorized hit count.
 
-### `hydrate` — two-tier rich results
+### `hydrate` — two-tier rich results (shipped)
 
 Both entry points take `hydrate: true`: core batch-reads each collection's hit
 ids through the normal read path and attaches a shaped `ClientDocument` as
@@ -398,7 +426,9 @@ that config is registered in the calling runtime, otherwise the full field
 set. Because the batch-read *is* an ordinary scoped read, authorisation comes
 free in the same query — and hits whose document no longer resolves (a stale
 index entry after an unindexed delete, or a row dropped by scoping) are
-removed. Both entry points share one finishing pipeline
+removed. Every freshly hydrated document runs `afterRead` with the actor-aware
+request context before attachment, so its mutations/redactions are visible in
+`hit.document`. Both entry points share one finishing pipeline
 (`packages/client/src/search.ts` → `finalizeSearchHits`); integration
 coverage: `client-zone-search.integration.test.ts`.
 
@@ -462,9 +492,9 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
    `ServerConfig.search` registration + boot validation; the collection
    `search` config; lifecycle-hook indexing; `reindex` + the `collections.<path>.reindex`
    ability + admin button; `client.collection(x).search()`; the docs frontend
-   results route. **Deferred within Phase 2:** the cross-collection `zone` query,
-   `hydrate`, structured `where` filtering, facet aggregation, row-level
-   authorization on search, and async/outbox indexing.
+   results route; cross-collection `zone` search, `hydrate`, and strict
+   post-ranking row authorization. **Deferred within Phase 2:** provider-side
+   structured `where` filtering, facet aggregation, and async/outbox indexing.
 3. **Attachment text-extraction** — the extraction-provider interface + a first
    driver, its own table, and the join into `body`. *(Planned.)*
 4. **External drivers** — a vector and/or hybrid driver against the same seam
@@ -477,21 +507,21 @@ in the [search & extraction strategy brief](../byline-search-extraction-strategy
 - **Resolved — per-locale indexing / `regconfig`.** Shipped: one `SearchDocument`
   per `(document, locale)`, indexed with a per-locale `regconfig`, plus a
   `defaultLocale` for locale-less queries.
-- **Resolved — sync indexing for the Postgres driver.** Shipped inline in the
-  lifecycle hook. Async/outbox for network-backed drivers remains.
+- **Resolved — awaited indexing for the Postgres driver.** Shipped inline in the
+  post-commit lifecycle hook. Async/durable outbox support remains open.
 - **Partly resolved — facets over EAV.** The `{ id, term }` projection is built
   and indexed (term searchable, id stored). Facet *aggregation queries* and the
   cardinality/typing story are still open (`capabilities.facets === false`).
 - **Resolved — row-level authorization on search.** "Rank in provider,
-  authorise in core" shipped: `search()` re-resolves candidate hit ids through
-  the normal read path when the collection has a `beforeRead` hook (see
-  [Row-level authorization](#row-level-authorization--rank-in-the-provider-authorise-in-core)).
-  **Still open — exact paging under scoping:** because core-side re-auth
-  filters *after* ranking, offset paging and `total` go approximate (short
-  pages, inflated totals, offset drift). The exact-paging alternative is to
-  push the `QueryPredicate` down into the provider (see *Multi-tenant scoping
-  at scale* below) — which only works if the scoping columns are indexed. The
-  two notes are the same trade seen from the auth side and the driver side.
+  authorise in core" shipped: `search()` strict-validates and re-resolves
+  candidate hit ids through the normal read path when a collection has a
+  `beforeRead` hook (see [Row-level authorization](#row-level-authorization--rank-in-the-provider-authorise-in-core)).
+  Restricted results suppress provider facets and report the surviving count
+  for the current provider page. **Still open — exact paging and corpus totals
+  under scoping:** post-ranking filtering can produce short pages and offset
+  drift. The exact alternative is to push the `QueryPredicate` down into the
+  provider (see *Multi-tenant scoping at scale* below), which only works if the
+  scoping columns are indexed.
 - **Zone definition & re-tagging.** Whether zones stay emergent from
   per-collection `search.zones` or get a lightweight registry (display labels, a
   declared default, validation). Re-tagging on a membership change is a cheap

@@ -159,7 +159,7 @@ export async function changeDocumentStatus(
  *
  * Flow:
  *   1. `hooks.beforeUnpublish({ documentId, collectionPath })`
- *   2. `db.commands.documents.archivePublishedVersions(...)`
+ *   2. Archive published versions and append the status audit atomically
  *   3. `hooks.afterUnpublish({ documentId, collectionPath, archivedCount })`
  */
 export async function unpublishDocument(
@@ -199,8 +199,25 @@ export async function unpublishDocument(
         path,
       })
 
-      const archivedCount = await db.commands.documents.archivePublishedVersions({
-        document_id: params.documentId,
+      const audit = requireAuditCapability(db)
+      const actor = auditActor(ctx)
+      const archivedCount = await audit.withTransaction(async () => {
+        const count = await db.commands.documents.archivePublishedVersions({
+          document_id: params.documentId,
+        })
+        if (count > 0) {
+          await audit.append({
+            documentId: params.documentId,
+            collectionId,
+            actorId: actor.actorId,
+            actorRealm: actor.actorRealm,
+            action: AUDIT_ACTIONS.statusChanged,
+            field: 'status',
+            before: 'published',
+            after: 'archived',
+          })
+        }
+        return count
       })
 
       await invokeHook(hooks?.afterUnpublish, {

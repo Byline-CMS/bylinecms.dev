@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createSuperAdminContext } from '@byline/auth'
+import { AdminAuth, createRequestContext, createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -151,6 +151,31 @@ describe('CollectionHandle.find populate integration', () => {
     })
     await client.collection('posts').find()
 
+    expect(getDocumentsByDocumentIds).not.toHaveBeenCalled()
+  })
+
+  it('asserts the target collection read ability before batch adapter access', async () => {
+    const { db, findDocuments, getDocumentsByDocumentIds } = makeAdapter()
+    findDocuments.mockResolvedValueOnce({
+      documents: [
+        rawDoc('posts', 'p1', {
+          title: 'T',
+          author: { targetDocumentId: 'a1', targetCollectionId: 'authors' },
+        }),
+      ],
+      total: 1,
+    })
+    const client = createBylineClient({
+      db,
+      collections: allCollections,
+      requestContext: createRequestContext({
+        actor: new AdminAuth({ id: 'posts-only', abilities: ['collections.posts.read'] }),
+      }),
+    })
+
+    await expect(client.collection('posts').find({ populate: true })).rejects.toMatchObject({
+      code: 'ERR_FORBIDDEN',
+    })
     expect(getDocumentsByDocumentIds).not.toHaveBeenCalled()
   })
 

@@ -45,6 +45,7 @@ export {
   ERR_DATABASE,
   ERR_NOT_FOUND,
   ERR_READ_BUDGET_EXCEEDED,
+  ERR_READ_RECURSION,
   ERR_STORAGE,
   ERR_UNHANDLED,
   ERR_VALIDATION,
@@ -64,6 +65,7 @@ export {
   type ParseContext,
   type ParsedSort,
   type ParsedWhere,
+  parsePredicateFilters,
   parseSort,
   parseWhere,
 } from './query/parse-where.js'

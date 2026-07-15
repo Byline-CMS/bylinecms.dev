@@ -206,7 +206,7 @@ hooks: {
 }
 ```
 
-When `departmentIds` is empty, `$in: []` returns no rows — deny by default. If the actor's department list is loaded asynchronously, make the hook `async`; the read context caches the predicate per `(collectionPath, actor)` so the lookup runs once per read regardless of populate fanout.
+When `departmentIds` is empty, `$in: []` returns no rows — deny by default. If the actor's department list is loaded asynchronously, make the hook `async`; the same operation context is threaded through direct reads and populate.
 
 → [Read-side scoping — `beforeRead`](#read-side-scoping--the-beforeread-hook)
 
@@ -220,7 +220,8 @@ A `profiles` collection (or similar user-shaped data) where ordinary users may o
 hooks: {
   beforeRead: ({ requestContext }) => {
     if (requestContext.actor?.hasAbility('collections.profiles.read.any')) return
-    return { id: requestContext.actor?.profileId ?? '__none__' }
+    const profileId = requestContext.actor?.profileId
+    return profileId ? { id: profileId } : { id: { $in: [] } }
   },
 }
 ```
@@ -381,11 +382,14 @@ interface RequestContext {
   requestId: string
   locale?: string
   readMode?: 'published' | 'any'
-  // populate cache, afterReadFired set, beforeReadCache (inherited from ReadContext)
 }
 ```
 
-`RequestContext` extends `ReadContext` — the same context that already carries the populate cache and the `afterReadFired` guard. Adding `actor` and `requestId` to that seed means every read concern (populate, `afterRead`, `beforeRead`, ability checks) shares one context object per logical request.
+`RequestContext` and `ReadContext` are separate objects. The client binds one
+authenticated request context to a logical read operation, then gives hooks an
+operation-scoped request-context clone carrying the effective `readMode`.
+Populate, richtext target reads, `beforeRead`, `afterRead`, and ability checks
+therefore share one actor and mode without mutating the configured context.
 
 Three classes of caller construct `RequestContext`:
 
@@ -406,6 +410,7 @@ collections.pages.update
 collections.pages.delete
 collections.pages.publish
 collections.pages.changeStatus
+collections.pages.reindex
 admin.users.create
 admin.roles.update
 admin.permissions.read
@@ -422,8 +427,7 @@ The flat-string choice is deliberate: it is what the role editor renders as a ch
 Collections auto-contribute their abilities at registration time:
 
 ```
-collections.<path>.{ read, create, update, delete }
-collections.<path>.{ publish, changeStatus }    // when a workflow is configured
+collections.<path>.{ read, create, update, delete, publish, changeStatus, reindex }
 ```
 
 `@byline/admin` registers its own abilities (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`, and the read-only `admin.activity.read` that gates the [system activity area](./02-auditability.md#the-system-activity-area)) the same way — via `register*Abilities()` exports. Future plugins follow the same pattern: register at init time, assert at call sites. The core knows nothing plugin-specific while still rendering a complete admin UI.
@@ -464,8 +468,8 @@ Call sites:
 
 - Every `document-lifecycle.*` write entry point (`createDocument`, `updateDocument`, `updateDocumentWithPatches`, `changeStatus`, `unpublishDocument`, `deleteDocument`, `restoreDocumentVersion`, `duplicateDocument`, `copyToLocale`).
 - `field-upload.uploadField` — uploads are effectively a write under collection scope, gated on `create` even when `shouldCreateDocument: false`. See [File / Media Uploads](../04-collections/05-file-media-uploads.md).
-- `@byline/client` `CollectionHandle` on every read path (`find`, `findById`, `findByPath`, `findOne`, `countByStatus`, `history`, `findByVersion`).
-- Every admin webapp document-collection server fn (`packages/host-tanstack-start/src/server-fns/collections/{list,get,history,stats,create,update,delete,status,upload,restore-version,duplicate,copy-to-locale}.ts`). Writes thread `requestContext` into `DocumentLifecycleContext`; reads call `assertActorCanPerform` directly before the adapter call.
+- `@byline/client` on every read path: ordinary finds, collection and zone search, status counts, history/version reads, audit-log access gates, document-tree reads, relation populate, and richtext target hydration.
+- Every admin webapp document-collection server fn (`packages/host-tanstack-start/src/server-fns/collections/`). Writes thread `requestContext` into `DocumentLifecycleContext`; ordinary reads delegate to the admin `BylineClient` so the same collection and row gates run.
 
 **`assertAdminActor` — admin management.** Policy:
 
@@ -530,39 +534,38 @@ beforeRead?: (ctx: {
 }) => QueryPredicate | void | Promise<QueryPredicate | void>
 ```
 
-The hook fires once per `findDocuments` call (and once per populate batch, per target collection), receives the actor and read context, and returns a `QueryPredicate`. The predicate is compiled into the same `EXISTS` / `LEFT JOIN LATERAL` SQL the client's existing `where` parser already emits, then **AND**ed onto whatever the caller passed in `where`. Callers never see the scope — it is invisible, query-level, and applies even when no `where` was specified. Returning `void` (or `undefined`) means "no scoping for this actor" — typically the admin / superuser path.
+The hook runs for collection reads and for target collections reached through relation or richtext population. It receives the actor and read context and returns a `QueryPredicate`. The predicate is compiled into the same `EXISTS` / `LEFT JOIN LATERAL` SQL the client's existing `where` parser already emits, then **AND**ed onto whatever the caller passed in `where`. Callers never see the scope — it is invisible, query-level, and applies even when no `where` was specified. Returning `void` (or `undefined`) means "no scoping for this actor" — typically the admin / superuser path.
 
-The predicate language is the same `WhereClause` shape callers already use, plus `$and` / `$or` for explicit combinators. Field names resolve through `field-store-map`, so any field type already filterable via client `where` is filterable from a hook. `status` and `path` inside a combinator — or inside a nested relation sub-clause — downshift to a direct outer-scope column comparison via `DocumentColumnFilter` (the adapter wires `status` to `td${depth}.status` inside a relation hop and `path` to a `pathProjection` subquery against `byline_document_paths`).
+The predicate language is the security-checked subset of `WhereClause`: scalar equality, `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` / `$contains` / `$in` / `$nin`, relation sub-clauses and quantifiers, and `$and` / `$or` combinators. Field names resolve through `field-store-map`. Reserved `id`, `status`, and `path` keys compile as document-column filters at the correct relation depth.
 
 Wired into:
 
-- Every `@byline/client` `CollectionHandle` read entry point.
-- `populateDocuments` — once per target collection per request, before the batch fetch.
-
-A per-`ReadContext` cache (`beforeReadCache`, keyed by `collectionPath`) ensures async hooks don't re-run across populate fanout for the same target collection.
+- Every `@byline/client` read entry point, including search finishing, historical reads, counts, and document-tree reads.
+- Authenticated `populateDocuments` calls and richtext target hydration, before target adapter access.
 
 **Composition rules:**
 
 - **Hook predicate AND user `where`.** The compiler merges them with implicit AND. A user passing `where: { status: 'draft' }` against Recipe 1 (owner-only drafts) sees only their own drafts — both clauses apply.
-- **`void` means "no scoping".** Use it for the superuser / unconditional-read branch. Do not return an empty object `{}` for the same purpose; treat empty objects as always-true predicates and prefer explicit early-return for readability.
-- **Deny via sentinel, not by throwing.** When the actor cannot read anything in a collection, return a predicate that yields no rows (`{ id: '__none__' }`) rather than throwing. Throwing collapses list endpoints; sentinel predicates produce the natural empty result.
+- **`void` means "no scoping".** Use it for the superuser / unconditional-read branch. Do not return an empty object `{}`; strict security-predicate parsing rejects it.
+- **Deny with an empty set, not an invalid UUID or an exception.** When the actor cannot read anything in a collection, return `{ id: { $in: [] } }`. It compiles to an always-false predicate without asking Postgres to cast a sentinel string to UUID; throwing would collapse list endpoints instead of producing the natural empty result.
+- **Security predicates are strict and fail closed.** Unknown fields or operators, empty predicates/combinators, unsupported `query`, unresolved relation targets, and malformed reserved-column operands raise a validation error instead of being silently discarded. The deliberate exception is a relation quantifier such as `$none: {}`, whose empty nested clause means "no resolving targets."
 - **Bypass is explicit.** Admin tooling, migrations, and seeds pass `_bypassBeforeRead: true` on the read options to skip the hook. This is a deliberate escape hatch and should never be used inside application code.
 
 **What `beforeRead` is *not* for:**
 
 - **Field-level redaction.** Use `afterRead` to mutate `doc.fields` — see [the next section](#field-level-redaction-with-afterread). `beforeRead` is row-level only.
-- **Computed-field filters.** The predicate compiles against EAV store columns and reserved document keys (`status`, `path`, `id`, system timestamps). Synthesise a real field if you need to filter on something derived.
+- **Computed-field filters.** The predicate compiles against EAV store columns and the reserved document keys `status`, `path`, and `id`. Synthesise a real field if you need to filter on something derived.
 - **Write-side checks.** `assertActorCanPerform` already gates every write path. Don't try to enforce mutation rules from a read hook.
 
 The `client-before-read.integration.test.ts` suite in `packages/client/tests/integration/` wires the owner-only-drafts and multi-tenant recipes end-to-end and serves as the executable companion.
 
 ### Field-level redaction with `afterRead`
 
-`afterRead` is the *materialised-document* hook. It fires once per document on every read path that flows through `@byline/client` or `populateDocuments`. The hook receives the document and the request context; mutations to `doc.fields` propagate back through the response.
+`afterRead` is the *materialised-document* hook. It runs on documents returned by `@byline/client`, including historical versions, tree hydration, relation targets, and richtext targets. The hook receives the document and the authenticated request context; mutations to `doc.fields` propagate back through the response. Recursive re-entry into an actively processing version fails closed rather than returning a potentially half-redacted object.
 
 ```ts
 afterRead?: (ctx: {
-  doc: ClientDocument
+  doc: Record<string, any>
   collectionPath: string
   requestContext: RequestContext
   readContext: ReadContext
@@ -576,13 +579,17 @@ Typical patterns:
 - **Hash** — replace with a deterministic non-reversible value.
 - **Tag** — add a synthetic field marking the row's visibility class.
 
-`afterRead` runs after populate on the source document, so hooks observe the fully populated tree. Hooks that perform their own reads must thread `readContext` back through (`client.collection(…).find({ _readContext: readContext })`) so visited-set / read-budget / `afterReadFired` machinery stays consistent.
+`afterRead` runs after populate on the source document, so hooks observe the fully populated tree. Hooks that perform their own reads must thread `readContext` back through (`client.collection(…).find({ _readContext: readContext })`) so recursion limits and the authenticated operation stay coherent.
 
 See [Collections — Lifecycle hooks](../04-collections/index.md#lifecycle-hooks) for the broader hook surface (create / update / delete / status-change / unpublish), and Quick Reference recipe 10 for a worked masking example.
 
 ### Admin UI surface
 
-Route trees under `apps/webapp/src/routes/(byline)/admin/`. The page-level routes are thin shells that call into route factories from `@byline/host-tanstack-start/routes`, so the admin UI is reusable across host installations.
+Repository route files live under `apps/webapp/src/routes/_byline/<configured-admin-segment>/`; for the default `routes.admin: '/admin'`, that is `apps/webapp/src/routes/_byline/admin/`. The page-level routes are thin shells that call into route factories from `@byline/host-tanstack-start/routes`, so the admin UI is reusable across host installations. When the configured segment changes, the filesystem route subtree and every route-factory ID must change with it.
+
+**Admin/sign-in route safety contract.** `routes.signIn` must be outside the configured admin and API trees. An unauthenticated admin layout redirects to configured `routes.signIn` with the original location in `callbackUrl`. The sign-in host accepts that untrusted value only when it is an unencoded root-relative path inside the configured admin subtree. It preserves a valid query string and hash, but rejects external or protocol-relative URLs, backslashes, control characters, encoded-path tricks, and paths outside the admin subtree. Rejected or missing callbacks fall back to the configured admin dashboard. Successful sign-in uses full-page navigation so the admin layout re-runs against the new session cookies.
+
+Host integrations should pass the already-validated destination to `SignInForm` as `redirectTo`. Its `callbackUrl` prop remains deprecated compatibility only. Likewise, `createAdminLayoutRoute(..., { signInPath })` and `configureSignInRoutePath()` are deprecated: configure `routes.signIn` instead, and any legacy override is accepted only when it resolves to exactly the configured path.
 
 | Area              | Capability                                                                                  |
 |-------------------|---------------------------------------------------------------------------------------------|
@@ -593,7 +600,7 @@ Route trees under `apps/webapp/src/routes/(byline)/admin/`. The page-level route
 | `permissions/`    | Read-only inspector — registered abilities, role-ability matrix, who-has-what lookup.       |
 | `collections/`    | Per-collection list / create / edit / history / status. Standard CMS surface.               |
 
-The role-ability editor (under `roles/`) is the primary control-plane UI: a checkbox tree driven by `listAbilities()`, grouped by ability `group`. Every checkbox toggle round-trips through `admin-roles.setRoleAbilities` (gated on `admin.permissions.update`).
+The role-ability editor (under `roles/`) is the primary control-plane UI: a checkbox tree driven by `listAbilities()`, grouped by ability `group`. Every checkbox toggle round-trips through `admin-permissions.setRoleAbilities` (gated on `admin.permissions.update`).
 
 The `permissions/` inspector is **read-only by design** — it surfaces what is registered and who holds it, but never edits. File-based config stays primary for anything schema-shaped (collections, fields, workflows, registered abilities). Drupal's structural mistake — making every schema-shaped decision live-editable from the UI — fragmented its source of truth between database rows and config files. Byline holds the line: file-based config is primary, the UI is an inspector for registered state, and only genuinely runtime concerns (feature flags, SMTP, branding) are ever live-editable.
 
@@ -703,6 +710,10 @@ The following are **declared in the contract but not implemented**, kept that wa
 | Admin server fns (auth)                  | `packages/host-tanstack-start/src/server-fns/auth/`                        |
 | Admin server fns (management)            | `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/` |
 | Admin route factories                    | `packages/host-tanstack-start/src/routes/create-admin-*-route.tsx`         |
-| Admin UI route shells                    | `apps/webapp/src/routes/(byline)/admin/`                                   |
+| Route config normalization               | `packages/core/src/config/routes.ts`                                       |
+| Admin paths + callback validation        | `packages/host-tanstack-start/src/routes/admin-path.ts`                    |
+| Canonical sign-in path                   | `packages/host-tanstack-start/src/routes/sign-in-path.ts`                  |
+| Sign-in form redirect validation         | `packages/admin/src/modules/auth/safe-redirect.ts`                         |
+| Admin UI route shells                    | `apps/webapp/src/routes/_byline/<configured-admin-segment>/`               |
 | Super-admin seed                         | `apps/webapp/byline/seeds/admin.ts`                                        |
 | Integration test for `beforeRead`        | `packages/client/tests/integration/client-before-read.integration.test.ts` |

@@ -21,6 +21,7 @@ import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logge
 import { Registry } from './lib/registry.js'
 import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
 import { discoverCounterGroups } from './services/discover-counter-groups.js'
+import { validateTreeAuditCapability } from './services/document-lifecycle/audit.js'
 import { validateTranslations } from './services/i18n-validator.js'
 import { validateRichTextFieldFlags } from './services/richtext-populate.js'
 import { validateSearchConfig } from './services/validate-search-config.js'
@@ -130,6 +131,10 @@ export const initBylineCore = async <TAdminStore = unknown>(
   validateSearchConfig(composed.collections, {
     provider: config.search != null,
   })
+
+  // Tree edges are unversioned metadata and may only run on adapters that can
+  // lock, mutate, and append audit rows in one transaction.
+  validateTreeAuditCapability(composed.collections, composed.db)
 
   // Validate the admin i18n translation registry against the configured
   // interface locale set. Throws on structural errors (missing bundle for

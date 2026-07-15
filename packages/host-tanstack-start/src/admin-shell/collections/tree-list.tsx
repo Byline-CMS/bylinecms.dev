@@ -41,6 +41,7 @@ import {
 } from '@dnd-kit/sortable'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { Link } from '../chrome/loose-router.js'
 import { TableHeadingCellSortable } from '../chrome/th-sortable.js'
 import { formatNumber } from '../chrome/utils.js'
@@ -240,7 +241,7 @@ export const TreeListView = ({
                 </span>
               )}
               <Link
-                to={'/admin/collections/$collection/$id' as never}
+                to={getAdminRoutePath('collections', '$collection', '$id')}
                 params={{ collection, id: row.id }}
               >
                 {column.formatter
@@ -277,7 +278,10 @@ export const TreeListView = ({
           <IconButton
             aria-label={t('collections.list.createAriaLabel')}
             render={
-              <Link to={'/admin/collections/$collection/create' as never} params={{ collection }} />
+              <Link
+                to={getAdminRoutePath('collections', '$collection', 'create')}
+                params={{ collection }}
+              />
             }
           >
             <PlusIcon height="18px" width="18px" svgClassName="stroke-white" />

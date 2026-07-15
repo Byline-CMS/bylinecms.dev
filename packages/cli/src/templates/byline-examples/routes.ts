@@ -7,9 +7,8 @@
  */
 
 /**
- * URL segments for admin and (future) public API routes. Defaults of
- * `/admin` and `/api` are applied automatically by `resolveRoutes()` —
- * keys only need to be set here when overriding either default.
+ * Client-safe URL paths for admin, sign-in, and the future public API.
+ * `resolveRoutes()` applies defaults and canonicalizes every consumer.
  */
 
 import type { RoutesConfig } from '@byline/core'
@@ -17,6 +16,7 @@ import type { RoutesConfig } from '@byline/core'
 export const routes: Partial<RoutesConfig> = {
   admin: '/admin',
   api: '/api',
+  signIn: '/sign-in',
 }
 
 /**

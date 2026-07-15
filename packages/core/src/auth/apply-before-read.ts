@@ -22,10 +22,10 @@ import type { QueryPredicate } from '../@types/query-predicate.js'
  * request, with caching across populate fanout.
  *
  * Behaviour:
- *   - Cache hit on `readContext.beforeReadCache` (keyed by collection
- *     path) returns the cached value immediately. The actor is invariant
- *     for the lifetime of one `ReadContext`, so a single key per
- *     collection is sufficient.
+ *   - Cache hit on `readContext.beforeReadCache` (keyed by collection path
+ *     and effective read mode) returns the cached value immediately. The
+ *     actor is invariant for the lifetime of one `ReadContext`, while nested
+ *     reads may deliberately select a different mode.
  *   - Each configured hook function runs in declaration order. Predicates
  *     returned by multiple hooks are combined with implicit AND. Hooks
  *     that return `void` / `undefined` are skipped.
@@ -43,15 +43,16 @@ export async function applyBeforeRead(params: {
 }): Promise<QueryPredicate | null> {
   const { definition, requestContext, readContext } = params
   const collectionPath = definition.path
+  const cacheKey = `${collectionPath}:${requestContext.readMode ?? 'any'}`
 
-  if (readContext.beforeReadCache.has(collectionPath)) {
-    return readContext.beforeReadCache.get(collectionPath) ?? null
+  if (readContext.beforeReadCache.has(cacheKey)) {
+    return readContext.beforeReadCache.get(cacheKey) ?? null
   }
 
   const resolved = await resolveHooks(definition)
   const hooks = normalizeBeforeReadHook(resolved?.beforeRead)
   if (hooks.length === 0) {
-    readContext.beforeReadCache.set(collectionPath, null)
+    readContext.beforeReadCache.set(cacheKey, null)
     return null
   }
 
@@ -71,12 +72,12 @@ export async function applyBeforeRead(params: {
   if (predicates.length === 0) {
     combined = null
   } else if (predicates.length === 1) {
-    combined = predicates[0]!
+    combined = predicates[0] ?? null
   } else {
     combined = { $and: predicates }
   }
 
-  readContext.beforeReadCache.set(collectionPath, combined)
+  readContext.beforeReadCache.set(cacheKey, combined)
   return combined
 }
 

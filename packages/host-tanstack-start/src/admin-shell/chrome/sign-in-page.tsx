@@ -19,7 +19,7 @@ import { setInterfaceLocaleFn } from '../../server-fns/i18n/index.js'
 import styles from './sign-in-page.module.css'
 
 interface SignInPageProps {
-  callbackUrl?: string
+  redirectTo: string
   activeLocale: LocaleCode
 }
 
@@ -44,7 +44,7 @@ interface SignInPageProps {
  * the form's action row can render a plain "Home" link beside the submit
  * button.
  */
-export function SignInPage({ callbackUrl, activeLocale }: SignInPageProps) {
+export function SignInPage({ redirectTo, activeLocale }: SignInPageProps) {
   const { i18n, serverURL } = getClientConfig()
   const localeDefinitions = buildLocaleDefinitions(
     i18n.interface.locales,
@@ -68,7 +68,7 @@ export function SignInPage({ callbackUrl, activeLocale }: SignInPageProps) {
             <LanguageMenu />
           </div>
           <div className={cx('byline-sign-in-page-inner', styles.inner)}>
-            <SignInForm callbackUrl={callbackUrl} homeUrl={serverURL} />
+            <SignInForm redirectTo={redirectTo} homeUrl={serverURL} />
           </div>
         </main>
       </BylineAdminServicesProvider>

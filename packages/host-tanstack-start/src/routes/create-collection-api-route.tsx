@@ -16,6 +16,7 @@ import { z } from 'zod'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { ApiView } from '../admin-shell/collections/api.js'
 import { getCollectionDocument } from '../server-fns/collections/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 
 const searchSchema = z.object({
@@ -81,15 +82,18 @@ export function createCollectionApiRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: `/admin` },
-              { label: collectionDef.labels.plural, href: `/admin/collections/${collection}` },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              {
+                label: collectionDef.labels.plural,
+                href: getAdminRoutePath('collections', collection),
+              },
               {
                 label: t('common.actions.edit'),
-                href: `/admin/collections/${collection}/${id}`,
+                href: getAdminRoutePath('collections', collection, id),
               },
               {
                 label: t('collections.viewMenu.apiButton'),
-                href: `/admin/collections/${collection}/${id}/api`,
+                href: getAdminRoutePath('collections', collection, id, 'api'),
               },
             ]}
           />

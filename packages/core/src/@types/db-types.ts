@@ -65,20 +65,13 @@ export interface ReadContext {
    */
   visited: Set<string>
   /**
-   * Composite keys (`${collection_path}:${document_id}`) for every
-   * document whose `afterRead` hook has fired during this request. Used
-   * to enforce "each document runs through `afterRead` at most once per
-   * logical request" — the rule that forecloses the A→B→A loop when a
-   * hook performs its own reads.
-   */
-  afterReadFired: Set<string>
-  /**
    * Per-request memoisation of `beforeRead` hook results, keyed by
-   * `collectionPath`. Populate fans out across many source documents and
+   * `collectionPath:readMode`. Populate fans out across many source documents and
    * many target-collection batches; without a cache, an async hook
    * (e.g. resolving the actor's tenant id) would re-run on every batch.
-   * Keyed by collection path because the actor is invariant for the
-   * lifetime of one `ReadContext`. `null` records "hook ran and returned
+   * The actor is invariant for the lifetime of one `ReadContext`; the mode
+   * is part of the key because nested reads may select another mode. `null`
+   * records "hook ran and returned
    * void" (i.e. no scoping applies); absence records "hook has not been
    * run yet for this collection".
    */
@@ -507,6 +500,38 @@ export interface ICollectionCommands {
   delete(id: string): Promise<any>
 }
 
+/** Locked structural state returned by tree mutation commands. */
+export interface TreePlacementState {
+  placed: boolean
+  parentDocumentId: string | null
+  orderKey: string | null
+  index: number | null
+}
+
+/** Result of an atomic place/reorder/remove tree command. */
+export interface TreeMutationResult {
+  changed: boolean
+  before: TreePlacementState
+  after: TreePlacementState
+  /** The pre-mutation sibling group, used only for post-commit hook fan-out. */
+  beforeSiblingDocumentIds: string[]
+  /** Locked pre-mutation node + descendants, populated when requested for hooks. */
+  beforeSubtreeDocumentIds: string[]
+}
+
+/** One child promoted to root while deleting its parent. */
+export interface TreePromotionChange {
+  documentId: string
+  before: TreePlacementState
+  after: TreePlacementState
+}
+
+/** Atomic edge reconciliation performed as part of document deletion. */
+export interface TreeDeleteMutationResult {
+  removed: TreeMutationResult
+  promoted: TreePromotionChange[]
+}
+
 export interface IDocumentCommands {
   createDocumentVersion(params: {
     documentId?: string
@@ -681,7 +706,9 @@ export interface IDocumentCommands {
     parentDocumentId: string | null
     beforeDocumentId?: string | null
     afterDocumentId?: string | null
-  }): Promise<{ orderKey: string }>
+    /** Internal create/self-heal guard: leave an already-placed node untouched. */
+    ifUnplaced?: boolean
+  }): Promise<TreeMutationResult>
 
   /**
    * Remove a document's edge row, returning it to the *unplaced* state (in the
@@ -689,7 +716,23 @@ export interface IDocumentCommands {
    * document and its content are untouched. No-op when the node is already
    * unplaced. See docs/04-collections/03-document-trees.md.
    */
-  removeFromTree(params: { documentId: string }): Promise<void>
+  removeFromTree(params: {
+    collectionId: string
+    documentId: string
+    /** Capture the authoritative pre-removal subtree under the tree lock. */
+    includeSubtree?: boolean
+  }): Promise<TreeMutationResult>
+
+  /**
+   * Atomically promote a node's direct children to roots and remove its edge,
+   * returning locked before/after states for parent and child audit rows. This
+   * optional capability is mandatory for adapters serving `tree: true`
+   * collections and is validated at bootstrap.
+   */
+  promoteChildrenAndRemoveFromTree?(params: {
+    collectionId: string
+    documentId: string
+  }): Promise<TreeDeleteMutationResult>
 }
 
 export interface ICollectionQueries {
@@ -699,6 +742,21 @@ export interface ICollectionQueries {
 }
 
 export interface IDocumentQueries {
+  /**
+   * Lock a logical document as the transaction mutex for its non-versioned
+   * system fields, then return their authoritative current values. Must be
+   * called inside `IDbAdapter.withTransaction`; adapters that support audited
+   * system-field writes implement this optional capability.
+   */
+  getDocumentSystemFieldsForUpdate?(params: {
+    collection_id: string
+    document_id: string
+  }): Promise<{
+    source_locale: string
+    path: string | null
+    availableLocales: string[]
+  } | null>
+
   getDocumentById(params: {
     collection_id: string
     document_id: string
@@ -792,7 +850,14 @@ export interface IDocumentQueries {
     onMissingLocale?: MissingLocalePolicy
   }): Promise<any | null>
 
-  getDocumentByVersion(params: { document_version_id: string; locale?: string }): Promise<any>
+  getDocumentByVersion(params: {
+    document_version_id: string
+    locale?: string
+    /** Optional collection ownership gate for client-facing historical reads. */
+    collection_id?: string
+    /** Historical-row `beforeRead` predicates compiled against this version. */
+    filters?: DocumentFilter[]
+  }): Promise<any | null>
 
   getDocumentsByVersionIds(params: {
     document_version_ids: string[]
@@ -833,6 +898,8 @@ export interface IDocumentQueries {
     order?: string
     desc?: boolean
     query?: string
+    /** Historical-row `beforeRead` predicates applied before count/pagination. */
+    filters?: DocumentFilter[]
   }): Promise<{
     documents: any[]
     meta: {
@@ -999,14 +1066,16 @@ export interface IDocumentQueries {
    * unpublished ancestor** — it does *not* skip past it. So an unpublished
    * mid-spine node truncates the returned chain, which the hierarchical-URL
    * splat handler turns into a 404 (the "unpublished node hides its subtree"
-   * decision, enforced at the URL layer). `readMode: 'any'` (the default) walks
-   * the raw edges, matching the breadcrumb/lifecycle use that wants every
-   * ancestor regardless of status.
+   * decision, enforced at the URL layer). Optional `filters` apply the same
+   * edge rule for `beforeRead`, including visibility of the queried node.
+   * `readMode: 'any'` (the default) otherwise walks current non-deleted rows.
    */
   getTreeAncestors(params: {
     document_id: string
     maxDepth?: number
     readMode?: ReadMode
+    locale?: string
+    filters?: DocumentFilter[]
   }): Promise<Array<{ document_id: string; depth: number }>>
 
   /**
@@ -1032,11 +1101,15 @@ export interface IDocumentQueries {
    * `getTreeAncestors` returns `[]` for *both* a root and an unplaced node, so it
    * cannot tell them apart; this primitive can. Backs the update-time self-heal
    * (re-root a stray doc) and the authoring widget's "Add to tree" vs "Top level"
-   * distinction.
+   * distinction. With visibility filters, a hidden queried node reports
+   * unplaced; a hidden parent is redacted to null while `placed` remains true.
    */
   getTreeParent(params: {
     document_id: string
-  }): Promise<{ placed: boolean; parentDocumentId: string | null }>
+    readMode?: ReadMode
+    locale?: string
+    filters?: DocumentFilter[]
+  }): Promise<{ placed: boolean; parentDocumentId: string | null; parentRedacted?: true }>
 
   /**
    * Read a node's subtree as a flat, **pre-order (depth-first)** list — each
@@ -1055,7 +1128,8 @@ export interface IDocumentQueries {
    * nodes, an unpublished node's entire subtree is omitted — the spine is
    * broken and descendants are not promoted (see docs/04-collections/03-document-trees.md).
    * `readMode: 'any'` (the default) includes every current, non-deleted node.
-   * Depth-bounded by `maxDepth` as a backstop.
+   * Optional `filters` enforce `beforeRead` at every edge with the same
+   * no-promotion semantics. Depth-bounded by `maxDepth` as a backstop.
    *
    * Returns structure only; hydrate content via `getDocumentsByDocumentIds`.
    */
@@ -1064,6 +1138,8 @@ export interface IDocumentQueries {
     rootDocumentId?: string | null
     maxDepth?: number
     readMode?: ReadMode
+    locale?: string
+    filters?: DocumentFilter[]
   }): Promise<
     Array<{
       document_id: string

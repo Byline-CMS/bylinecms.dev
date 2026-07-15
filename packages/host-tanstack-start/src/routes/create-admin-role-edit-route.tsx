@@ -19,6 +19,7 @@ import {
   listRegisteredAbilities,
 } from '../server-fns/admin-permissions/index.js'
 import { type AdminRoleResponse, getAdminRole } from '../server-fns/admin-roles/index.js'
+import { getAdminRoutePath } from './admin-path.js'
 
 interface LoaderData {
   role: AdminRoleResponse
@@ -62,9 +63,12 @@ export function createAdminRoleEditRoute(path: string) {
         <>
           <BreadcrumbsClient
             breadcrumbs={[
-              { label: t('chrome.menu.dashboard'), href: '/admin' },
-              { label: t('chrome.menu.adminRoles'), href: '/admin/roles' },
-              { label: t('adminRoles.breadcrumbDetail'), href: `/admin/roles/${role.id}` },
+              { label: t('chrome.menu.dashboard'), href: getAdminRoutePath() },
+              { label: t('chrome.menu.adminRoles'), href: getAdminRoutePath('roles') },
+              {
+                label: t('adminRoles.breadcrumbDetail'),
+                href: getAdminRoutePath('roles', role.id),
+              },
             ]}
           />
           <Section className="py-5 pb-2">

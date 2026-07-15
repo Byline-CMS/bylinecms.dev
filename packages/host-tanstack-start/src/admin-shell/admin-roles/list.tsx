@@ -46,6 +46,7 @@ import {
 } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { reorderAdminRoles } from '../../server-fns/admin-roles/reorder.js'
 import { Link } from '../chrome/loose-router.js'
 import { formatNumber } from '../chrome/utils.js'
@@ -97,7 +98,7 @@ const DraggableRow: React.FC<DraggableRowProps> = ({ item, disabled }) => {
         </div>
       </Table.Cell>
       <Table.Cell>
-        <Link to={'/admin/roles/$id' as never} params={{ id: item.id }}>
+        <Link to={getAdminRoutePath('roles', '$id')} params={{ id: item.id }}>
           {item.name}
         </Link>
       </Table.Cell>

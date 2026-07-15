@@ -117,10 +117,7 @@ const pagesDefinition = defineCollection({
 // shape of `@byline/richtext-lexical`'s `linkVisitor` without importing it.
 // ---------------------------------------------------------------------------
 
-// Assigned in `setup()` before any read fires the adapter.
-let client: BylineClient
-
-const richTextPopulate: RichTextPopulateFn = async ({ value }) => {
+const richTextPopulate: RichTextPopulateFn = async ({ value, readDocuments }) => {
   const root = (value as { root?: Record<string, any> } | null)?.root
   if (root == null) return
 
@@ -138,12 +135,7 @@ const richTextPopulate: RichTextPopulateFn = async ({ value }) => {
     const targetId = attrs.targetDocumentId as string | undefined
     if (!targetPath || !targetId) continue
 
-    const collectionId = await client.resolveCollectionId(targetPath)
-    const rows = (await client.db.queries.documents.getDocumentsByDocumentIds({
-      collection_id: collectionId,
-      document_ids: [targetId],
-      readMode: 'published',
-    })) as Array<Record<string, any>>
+    const rows = await readDocuments({ collectionPath: targetPath, documentIds: [targetId] })
 
     const title = (rows[0]?.fields as Record<string, any> | undefined)?.title
     attrs.document = {
@@ -224,7 +216,6 @@ async function setup(): Promise<Ctx> {
     requestContext: superAdmin,
     richTextPopulate,
   })
-  client = c
   return {
     client: c,
     db,

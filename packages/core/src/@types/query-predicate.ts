@@ -88,9 +88,9 @@ export type PredicateValue =
  * }
  * ```
  *
- * Returning `undefined` from `beforeRead` means "no scoping". Use a
- * sentinel predicate that yields no rows (e.g. `{ id: '__none__' }`)
- * rather than throwing when the actor can read nothing — empty results
+ * Returning `undefined` from `beforeRead` means "no scoping". Use
+ * `{ id: { $in: [] } }` as the always-false predicate rather than an invalid
+ * UUID sentinel or an exception when the actor can read nothing. Empty results
  * are the correct shape for list endpoints.
  */
 export interface QueryPredicate {

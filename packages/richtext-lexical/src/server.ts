@@ -115,8 +115,8 @@ export function lexicalEditorPopulateServer(options: LexicalServerOptions): Rich
   const visitors = options.visitors ?? [inlineImageVisitor, linkVisitor]
   return async (ctx: RichTextPopulateContext): Promise<void> => {
     await runLexicalPopulate({
-      client: options.getClient(),
       readContext: ctx.readContext,
+      readDocuments: ctx.readDocuments,
       visitors,
       values: [ctx.value],
     })
@@ -165,8 +165,8 @@ export function lexicalEditorEmbedServer(options: LexicalServerOptions): RichTex
   const visitors = options.visitors ?? [inlineImageVisitor, linkVisitor]
   return async (ctx: RichTextEmbedContext): Promise<void> => {
     await runLexicalPopulate({
-      client: options.getClient(),
       readContext: ctx.readContext,
+      readDocuments: ctx.readDocuments,
       visitors,
       values: [ctx.value],
     })
