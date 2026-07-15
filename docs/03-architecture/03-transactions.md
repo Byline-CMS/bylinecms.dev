@@ -163,8 +163,10 @@ commit or all roll back. After commit, storage cleanup and the tree/delete hooks
 cannot change that result. `deleteDocument` therefore resolves with either
 `{ outcome: 'committed', sideEffectFailures: [] }` or
 `{ outcome: 'committed-with-side-effect-failures', sideEffectFailures: [...] }`;
-it does not reject for those post-commit failures. A durable retry queue/outbox
-for the reported side effects remains deferred.
+it does not reject for those post-commit failures. Reported failures contain an
+allowlisted phase and only `ERR_STORAGE` or `ERR_UNHANDLED`; raw errors and
+storage paths are restricted to internal logs. A durable retry queue/outbox for
+the reported side effects remains deferred.
 
 ## Serverless / HTTP-gateway databases — the contract seam
 

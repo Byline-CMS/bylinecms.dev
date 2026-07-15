@@ -52,6 +52,30 @@ describe('bundled locale data', () => {
     expect(en['common.actions.save']).toBe('Save')
     expect(fr['common.actions.save']).toBe('Enregistrer')
   })
+
+  it('translates every tree and delete-warning key in each non-English bundle', () => {
+    const keys = [
+      'collections.list.treeConflictToast',
+      'collections.list.treeConflictDescription',
+      'collections.list.treeHookFailedToast',
+      'collections.list.treeHookFailedDescription',
+      'collections.list.treeRefreshFailedToast',
+      'collections.list.treeRefreshFailedDescription',
+      'collections.edit.deletedWithWarningsDescription',
+    ] as const
+    const nonEnglishBundles = { fr, es, de, it: itBundle, 'zh-CN': zhCN, ko } as const
+
+    expect(Object.keys(nonEnglishBundles)).toEqual(
+      bundledLocales.filter((locale) => locale !== 'en')
+    )
+    for (const key of keys) {
+      expect(en[key].trim(), `${key} must be non-empty in en`).not.toBe('')
+      for (const [locale, bundle] of Object.entries(nonEnglishBundles)) {
+        expect(bundle[key].trim(), `${key} must be non-empty in ${locale}`).not.toBe('')
+        expect(bundle[key], `${key} must be translated in ${locale}`).not.toBe(en[key])
+      }
+    }
+  })
 })
 
 describe('adminTranslations()', () => {

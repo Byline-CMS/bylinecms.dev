@@ -9,6 +9,7 @@
 import { createSuperAdminContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
+import { TREE_HOOK_COMMITTED_MARKER } from '../../lib/errors.js'
 import { validateTreeAuditCapability } from './audit.js'
 import { createDocument } from './create.js'
 import { deleteDocument } from './delete.js'
@@ -593,9 +594,7 @@ describe('document-tree lifecycle audit contract', () => {
     await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).resolves.toEqual({
       deletedVersionCount: 1,
       outcome: 'committed-with-side-effect-failures',
-      sideEffectFailures: [
-        { phase: 'afterTreeChange', message: 'hook failed', code: 'ERR_UNHANDLED' },
-      ],
+      sideEffectFailures: [{ phase: 'afterTreeChange', code: 'ERR_UNHANDLED' }],
     })
 
     expect(harness.deleted()).toBe(true)
@@ -631,11 +630,14 @@ describe('document-tree lifecycle audit contract', () => {
       deletedVersionCount: 1,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
-        { phase: 'afterTreeChange', message: 'tree hook failed', code: 'ERR_TREE_HOOK' },
-        { phase: 'afterDelete', message: 'delete hook failed', code: 'ERR_UNHANDLED' },
+        { phase: 'afterTreeChange', code: 'ERR_UNHANDLED' },
+        { phase: 'afterDelete', code: 'ERR_UNHANDLED' },
       ],
     })
     expect(JSON.parse(JSON.stringify(result))).toEqual(result)
+    expect(JSON.stringify(result)).not.toContain('tree hook failed')
+    expect(JSON.stringify(result)).not.toContain('delete hook failed')
+    expect(JSON.stringify(result)).not.toContain('ERR_TREE_HOOK')
 
     expect(afterTreeChange).toHaveBeenCalledOnce()
     expect(afterDelete).toHaveBeenCalledOnce()
@@ -673,13 +675,7 @@ describe('document-tree lifecycle audit contract', () => {
     await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).resolves.toEqual({
       deletedVersionCount: 1,
       outcome: 'committed-with-side-effect-failures',
-      sideEffectFailures: [
-        {
-          phase: 'afterDelete',
-          message: 'Unknown side-effect failure',
-          code: 'ERR_UNHANDLED',
-        },
-      ],
+      sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],
     })
     expect(loggerError).toHaveBeenCalledTimes(2)
     expect(harness.deleted()).toBe(true)
@@ -758,7 +754,11 @@ describe('document-tree lifecycle audit contract', () => {
     ).rejects.toMatchObject({
       name: 'BylineError',
       code: 'ERR_TREE_HOOK_COMMITTED',
-      message: expect.stringContaining('hook failed'),
+      message: expect.stringMatching(
+        new RegExp(
+          `^${TREE_HOOK_COMMITTED_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*hook failed`
+        )
+      ),
     })
 
     expect(harness.placement('node')).toEqual({ parentDocumentId: null, orderKey: 'key-1' })

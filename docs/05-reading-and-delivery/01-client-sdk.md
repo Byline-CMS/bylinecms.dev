@@ -285,7 +285,7 @@ if (deleted.outcome === 'committed-with-side-effect-failures') {
 
 Every write resolves the client's configured `requestContext` and runs `assertActorCanPerform('collections.<path>.<verb>')`. `actor: null` is rejected on writes.
 
-`delete` returns a discriminated committed result rather than using rejection for post-commit failures. `outcome: 'committed'` carries an empty `sideEffectFailures`; `outcome: 'committed-with-side-effect-failures'` carries one or more failures from `storageCleanup`, `afterTreeChange`, or `afterDelete`. Authorization, existence lookup, `beforeDelete`, and the transactional soft-delete + audit + tree reconciliation are pre-commit: any failure there rejects and no committed result is returned. Once that transaction commits, storage cleanup and both hook families get independent attempts; their failures cannot turn the committed delete into a rejected promise.
+`delete` returns a discriminated committed result rather than using rejection for post-commit failures. `outcome: 'committed'` carries an empty `sideEffectFailures`; `outcome: 'committed-with-side-effect-failures'` carries one or more failures from `storageCleanup`, `afterTreeChange`, or `afterDelete`. Each failure exposes only its `phase` and an allowlisted `code` (`ERR_STORAGE` or `ERR_UNHANDLED`); raw errors, hook messages, and storage paths remain in internal logs. Authorization, existence lookup, `beforeDelete`, and the transactional soft-delete + audit + tree reconciliation are pre-commit: any failure there rejects and no committed result is returned. Once that transaction commits, storage cleanup and both hook families get independent attempts; their failures cannot turn the committed delete into a rejected promise.
 
 → [Write surface](#write-surface)
 

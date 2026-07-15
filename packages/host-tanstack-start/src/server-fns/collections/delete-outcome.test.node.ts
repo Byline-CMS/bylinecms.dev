@@ -6,14 +6,16 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { DeleteDocumentSideEffectPhase } from '@byline/core'
+import type { DeleteDocumentResult, DeleteDocumentSideEffectPhase } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
 import { hasDeleteSideEffectFailures, toDeleteDocumentResponse } from './delete-outcome.js'
 
 describe('delete outcome transport and admin interpretation', () => {
   it('returns only allowlisted phase/code data for a committed warning', () => {
-    const response = toDeleteDocumentResponse({
+    // Simulate malformed runtime data from an older or compromised source. The
+    // core type rejects this shape, but the transport still sanitizes it.
+    const unsafeResult = {
       deletedVersionCount: 2,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
@@ -25,7 +27,8 @@ describe('delete outcome transport and admin interpretation', () => {
           code: 'ERR_INTERNAL',
         },
       ],
-    })
+    } as unknown as DeleteDocumentResult
+    const response = toDeleteDocumentResponse(unsafeResult)
 
     expect(response).toEqual({
       status: 'ok',

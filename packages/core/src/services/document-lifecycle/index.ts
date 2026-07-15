@@ -42,6 +42,7 @@ export type {
   DeleteDocumentCommittedWithSideEffectFailuresResult,
   DeleteDocumentOutcome,
   DeleteDocumentResult,
+  DeleteDocumentSideEffectCode,
   DeleteDocumentSideEffectFailure,
   DeleteDocumentSideEffectPhase,
 } from './delete.js'

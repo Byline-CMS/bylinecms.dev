@@ -205,6 +205,40 @@ describe('createRichTextDocumentReader', () => {
     )
   })
 
+  it('isolates direct readers by default and shares compiled filters only with an explicit domain', async () => {
+    const beforeRead = vi.fn(() => ({ tenant: 'alice' }))
+    const scopedTarget: CollectionDefinition = {
+      ...target,
+      hooks: { beforeRead },
+    }
+    const { db, getDocumentsByDocumentIds } = dbMock()
+    const readContext = createReadContext()
+    const requestContext = createRequestContext({
+      actor: new AdminAuth({ id: 'reader', abilities: ['collections.media.read'] }),
+      readMode: 'published',
+    })
+    const reader = (securityDomain?: object) =>
+      createRichTextDocumentReader({
+        db,
+        collections: [scopedTarget],
+        requestContext,
+        readContext,
+        readMode: 'published',
+        securityDomain,
+      })
+
+    await reader()({ collectionPath: 'media', documentIds: ['implicit-a'] })
+    await reader()({ collectionPath: 'media', documentIds: ['implicit-b'] })
+    const sharedDomain = {}
+    await reader(sharedDomain)({ collectionPath: 'media', documentIds: ['explicit-a'] })
+    await reader(sharedDomain)({ collectionPath: 'media', documentIds: ['explicit-b'] })
+
+    const calls = getDocumentsByDocumentIds.mock.calls
+    expect(calls[1]?.[0].filters).not.toBe(calls[0]?.[0].filters)
+    expect(calls[3]?.[0].filters).toBe(calls[2]?.[0].filters)
+    expect(beforeRead).toHaveBeenCalledTimes(3)
+  })
+
   it('reuses compiled security filters across relation and rich-text target population', async () => {
     const source: CollectionDefinition = {
       path: 'posts',

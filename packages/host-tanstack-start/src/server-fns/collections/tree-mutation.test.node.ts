@@ -1,3 +1,4 @@
+import { TREE_HOOK_COMMITTED_MARKER, TREE_PLACEMENT_STALE_MARKER } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -14,10 +15,18 @@ import {
 describe('admin tree mutations', () => {
   it('recognises a coded stale-tree conflict', () => {
     expect(isTreeMutationConflict({ code: 'ERR_CONFLICT' })).toBe(true)
-    expect(isTreeMutationConflict(new Error('tree placement is stale: neighbours moved'))).toBe(
-      true
-    )
     expect(isTreeMutationConflict(new Error('failed'))).toBe(false)
+  })
+
+  it('recognises a code-less stale-tree conflict by its stable marker', () => {
+    expect(
+      isTreeMutationConflict(
+        new Error(`${TREE_PLACEMENT_STALE_MARKER} completely reworded diagnostic`)
+      )
+    ).toBe(true)
+    expect(isTreeMutationConflict(new Error('tree placement is stale: neighbours moved'))).toBe(
+      false
+    )
   })
 
   it('recognises a coded committed tree-hook rejection', () => {
@@ -25,8 +34,19 @@ describe('admin tree mutations', () => {
     expect(isCommittedTreeHookFailure({ code: 'ERR_CONFLICT' })).toBe(false)
   })
 
+  it('recognises a code-less committed tree-hook rejection by its stable marker', () => {
+    expect(
+      isCommittedTreeHookFailure(
+        new Error(`${TREE_HOOK_COMMITTED_MARKER} completely reworded diagnostic`)
+      )
+    ).toBe(true)
+    expect(isCommittedTreeHookFailure(new Error('tree mutation committed; hook failed'))).toBe(
+      false
+    )
+  })
+
   it('refreshes canonical tree data after a rejected mutation', async () => {
-    const mutationError = new Error('tree placement is stale: neighbours moved')
+    const mutationError = new Error(`${TREE_PLACEMENT_STALE_MARKER} neighbours moved`)
     const refresh = vi.fn().mockResolvedValue(undefined)
 
     await expect(

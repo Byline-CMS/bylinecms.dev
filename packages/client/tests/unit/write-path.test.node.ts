@@ -439,13 +439,15 @@ describe('CollectionHandle.delete', () => {
     const { db } = makeAdapter()
     const client = createBylineClient({ db, requestContext: superAdmin, collections: [collection] })
 
-    await expect(client.collection('posts').delete('doc:1')).resolves.toEqual({
+    const result = await client.collection('posts').delete('doc:1')
+
+    expect(result).toEqual({
       deletedVersionCount: 3,
       outcome: 'committed-with-side-effect-failures',
-      sideEffectFailures: [
-        { phase: 'afterDelete', message: 'search unavailable', code: 'ERR_SEARCH' },
-      ],
+      sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],
     })
+    expect(JSON.stringify(result)).not.toContain('search unavailable')
+    expect(JSON.stringify(result)).not.toContain('ERR_SEARCH')
     expect(afterDelete).toHaveBeenCalledOnce()
   })
 })

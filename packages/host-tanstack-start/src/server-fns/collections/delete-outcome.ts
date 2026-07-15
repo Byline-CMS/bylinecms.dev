@@ -6,13 +6,15 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { DeleteDocumentResult, DeleteDocumentSideEffectPhase } from '@byline/core'
+import type {
+  DeleteDocumentResult,
+  DeleteDocumentSideEffectCode,
+  DeleteDocumentSideEffectPhase,
+} from '@byline/core'
 import { ErrorCodes } from '@byline/core'
 
 export type DeleteDocumentPublicSideEffectPhase = DeleteDocumentSideEffectPhase | 'unknown'
-export type DeleteDocumentPublicSideEffectCode =
-  | typeof ErrorCodes.UNHANDLED
-  | typeof ErrorCodes.STORAGE
+export type DeleteDocumentPublicSideEffectCode = DeleteDocumentSideEffectCode
 
 export interface DeleteDocumentPublicSideEffectFailure {
   phase: DeleteDocumentPublicSideEffectPhase

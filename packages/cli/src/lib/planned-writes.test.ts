@@ -94,4 +94,48 @@ describe('planned writes', () => {
     expect(existsSync(escaped)).toBe(false)
     expect(lstatSync(target).isSymbolicLink()).toBe(true)
   })
+
+  it('rolls back applied patches and creates when a target changes after preflight', () => {
+    const ctx = createTestContext()
+    contexts.push(ctx)
+    const patched = ctx.resolve('generated/existing.ts')
+    const createdDirectory = ctx.resolve('generated/nested')
+    const created = join(createdDirectory, 'created.ts')
+    const stale = ctx.resolve('generated/stale.ts')
+    mkdirSync(ctx.resolve('generated'))
+    writeFileSync(patched, 'original')
+    writeFileSync(stale, 'expected')
+
+    let observedPriorWrites = false
+    const staleWrite = {
+      // Change this target only once the apply loop has made both earlier writes visible.
+      get path() {
+        if (
+          !observedPriorWrites &&
+          readFileSync(patched, 'utf8') === 'patched' &&
+          existsSync(created)
+        ) {
+          observedPriorWrites = true
+          writeFileSync(stale, 'changed-after-preflight')
+        }
+        return stale
+      },
+      before: 'expected',
+      contents: 'replacement',
+      mode: 'patch' as const,
+    }
+
+    const result = applyPlannedWrites([
+      { path: patched, before: 'original', contents: 'patched', mode: 'patch' },
+      { path: created, contents: 'created', mode: 'create' },
+      staleWrite,
+    ])
+
+    expect(result).toEqual({ written: [], conflicts: [stale] })
+    expect(observedPriorWrites).toBe(true)
+    expect(readFileSync(patched, 'utf8')).toBe('original')
+    expect(existsSync(created)).toBe(false)
+    expect(existsSync(createdDirectory)).toBe(false)
+    expect(readFileSync(stale, 'utf8')).toBe('changed-after-preflight')
+  })
 })

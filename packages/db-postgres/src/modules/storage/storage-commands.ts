@@ -14,7 +14,13 @@ import type {
   TreeMutationResult,
   TreePlacementState,
 } from '@byline/core'
-import { ERR_CONFLICT, ERR_NOT_FOUND, ERR_VALIDATION, generateKeyBetween } from '@byline/core'
+import {
+  ERR_CONFLICT,
+  ERR_NOT_FOUND,
+  ERR_VALIDATION,
+  generateKeyBetween,
+  TREE_PLACEMENT_STALE_MARKER,
+} from '@byline/core'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
@@ -54,6 +60,9 @@ type TxConnection = Parameters<Parameters<DatabaseConnection['transaction']>[0]>
  * documentation hierarchy. See docs/04-collections/03-document-trees.md.
  */
 const TREE_MAX_DEPTH = 10_000
+
+const staleTreePlacementMessage = (message: string): string =>
+  `${TREE_PLACEMENT_STALE_MARKER} tree placement is stale: ${message}`
 
 /** Outcome of re-anchoring a single document's content source locale. */
 export type ReAnchorStatus = 'reanchored' | 'skipped-incomplete' | 'already-anchored' | 'not-found'
@@ -1312,20 +1321,20 @@ export class DocumentCommands implements IDocumentCommands {
       const liveIds = new Set(liveRows.map((row) => row.id))
       if (!liveIds.has(documentId)) {
         throw ERR_CONFLICT({
-          message: 'tree placement is stale: document no longer has a current version',
+          message: staleTreePlacementMessage('document no longer has a current version'),
           details: { documentId, collectionId },
         })
       }
       if (parentDocumentId != null && !liveIds.has(parentDocumentId)) {
         throw ERR_CONFLICT({
-          message: 'tree placement is stale: parent no longer has a current version',
+          message: staleTreePlacementMessage('parent no longer has a current version'),
           details: { documentId, parentDocumentId, collectionId },
         })
       }
       for (const neighbour of neighbours) {
         if (neighbour.id != null && !liveIds.has(neighbour.id)) {
           throw ERR_CONFLICT({
-            message: `tree placement is stale: ${neighbour.role} no longer has a current version`,
+            message: staleTreePlacementMessage(`${neighbour.role} no longer has a current version`),
             details: { documentId, collectionId, [neighbour.role]: neighbour.id },
           })
         }
@@ -1378,27 +1387,29 @@ export class DocumentCommands implements IDocumentCommands {
         : -1
       if (beforeDocumentId && leftIndex < 0) {
         throw ERR_CONFLICT({
-          message:
-            'tree placement is stale: beforeDocumentId is no longer in the target sibling group',
+          message: staleTreePlacementMessage(
+            'beforeDocumentId is no longer in the target sibling group'
+          ),
           details: { documentId, parentDocumentId, beforeDocumentId },
         })
       }
       if (afterDocumentId && rightIndex < 0) {
         throw ERR_CONFLICT({
-          message:
-            'tree placement is stale: afterDocumentId is no longer in the target sibling group',
+          message: staleTreePlacementMessage(
+            'afterDocumentId is no longer in the target sibling group'
+          ),
           details: { documentId, parentDocumentId, afterDocumentId },
         })
       }
       if (afterDocumentId && beforeDocumentId == null && rightIndex !== 0) {
         throw ERR_CONFLICT({
-          message: 'tree placement is stale: right neighbour is no longer first',
+          message: staleTreePlacementMessage('right neighbour is no longer first'),
           details: { documentId, parentDocumentId, afterDocumentId },
         })
       }
       if (beforeDocumentId && afterDocumentId == null && leftIndex !== targetGroup.length - 1) {
         throw ERR_CONFLICT({
-          message: 'tree placement is stale: left neighbour is no longer last',
+          message: staleTreePlacementMessage('left neighbour is no longer last'),
           details: { documentId, parentDocumentId, beforeDocumentId },
         })
       }
@@ -1407,7 +1418,7 @@ export class DocumentCommands implements IDocumentCommands {
       if (beforeDocumentId && afterDocumentId) {
         if (leftIndex + 1 !== rightIndex) {
           throw ERR_CONFLICT({
-            message: 'tree placement is stale: target neighbours are no longer adjacent',
+            message: staleTreePlacementMessage('target neighbours are no longer adjacent'),
             details: { documentId, parentDocumentId, beforeDocumentId, afterDocumentId },
           })
         }

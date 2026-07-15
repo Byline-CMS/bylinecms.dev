@@ -20,6 +20,19 @@ describe('static config evaluation', () => {
     })
   })
 
+  it('supports no-substitution template literal strings', () => {
+    expect(evaluateExportedConst('export const routes = { admin: `/cms` }', 'routes')).toEqual({
+      ok: true,
+      value: { admin: '/cms' },
+    })
+  })
+
+  it('rejects template literals with substitutions', () => {
+    const source = `const base = '/'; export const routes = { admin: \`\${base}cms\` }`
+
+    expect(evaluateExportedConst(source, 'routes').ok).toBe(false)
+  })
+
   it('recognizes only resolveRoutes imported from @byline/core', () => {
     expect(
       evaluateExportedConst(

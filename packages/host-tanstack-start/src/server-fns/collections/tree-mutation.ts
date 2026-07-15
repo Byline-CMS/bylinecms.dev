@@ -1,4 +1,5 @@
 import type { CollectionHandle, PlaceTreeNodeOptions, RemoveFromTreeOptions } from '@byline/client'
+import { ErrorCodes, TREE_HOOK_COMMITTED_MARKER, TREE_PLACEMENT_STALE_MARKER } from '@byline/core'
 
 function hasErrorCode(error: unknown, code: string): boolean {
   return (
@@ -9,17 +10,20 @@ function hasErrorCode(error: unknown, code: string): boolean {
   )
 }
 
-/** Works with both BylineError and the coded error reconstructed by TanStack Start. */
-export function isTreeMutationConflict(error: unknown): boolean {
-  return (
-    hasErrorCode(error, 'ERR_CONFLICT') ||
-    (error instanceof Error && error.message.startsWith('tree placement is stale:'))
-  )
+function hasMessageMarker(error: unknown, marker: string): boolean {
+  return error instanceof Error && error.message.startsWith(marker)
 }
 
-/** The tree/audit transaction committed even though its post-commit hook rejected. */
+/** Prefer the code; the marker survives transports that reconstruct a code-less Error. */
+export function isTreeMutationConflict(error: unknown): boolean {
+  if (hasErrorCode(error, ErrorCodes.CONFLICT)) return true
+  return hasMessageMarker(error, TREE_PLACEMENT_STALE_MARKER)
+}
+
+/** Detect when tree/audit committed even if transport reconstruction dropped the code. */
 export function isCommittedTreeHookFailure(error: unknown): boolean {
-  return hasErrorCode(error, 'ERR_TREE_HOOK_COMMITTED')
+  if (hasErrorCode(error, ErrorCodes.TREE_HOOK_COMMITTED)) return true
+  return hasMessageMarker(error, TREE_HOOK_COMMITTED_MARKER)
 }
 
 export type AdminTreeMoveOutcome =

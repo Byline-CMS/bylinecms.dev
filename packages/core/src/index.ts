@@ -55,6 +55,8 @@ export {
   ERR_VALIDATION,
   ErrorCodes,
   type ErrorReport,
+  TREE_HOOK_COMMITTED_MARKER,
+  TREE_PLACEMENT_STALE_MARKER,
 } from './lib/errors.js'
 export {
   generateKeyBetween,

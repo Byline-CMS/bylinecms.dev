@@ -10,7 +10,7 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_TREE_HOOK_COMMITTED } from '../../lib/errors.js'
+import { ERR_TREE_HOOK_COMMITTED, TREE_HOOK_COMMITTED_MARKER } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import {
   AUDIT_ACTIONS,
@@ -101,7 +101,7 @@ async function runCommittedTreeHook(
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause)
     throw ERR_TREE_HOOK_COMMITTED({
-      message: `tree mutation committed but afterTreeChange failed: ${message}`,
+      message: `${TREE_HOOK_COMMITTED_MARKER} tree mutation committed but afterTreeChange failed: ${message}`,
       cause,
       details: event,
     })

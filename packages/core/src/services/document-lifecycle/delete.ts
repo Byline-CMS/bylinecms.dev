@@ -27,10 +27,11 @@ export type DeleteDocumentOutcome = 'committed' | 'committed-with-side-effect-fa
 
 export type DeleteDocumentSideEffectPhase = 'storageCleanup' | 'afterTreeChange' | 'afterDelete'
 
+export type DeleteDocumentSideEffectCode = typeof ErrorCodes.STORAGE | typeof ErrorCodes.UNHANDLED
+
 export interface DeleteDocumentSideEffectFailure {
   phase: DeleteDocumentSideEffectPhase
-  message: string
-  code: string
+  code: DeleteDocumentSideEffectCode
 }
 
 export interface DeleteDocumentCommittedResult {
@@ -49,12 +50,12 @@ export type DeleteDocumentResult =
   | DeleteDocumentCommittedResult
   | DeleteDocumentCommittedWithSideEffectFailuresResult
 
-function readErrorString(error: unknown, property: 'message' | 'code'): string | undefined {
+function readErrorCode(error: unknown): string | undefined {
   try {
     if ((typeof error !== 'object' || error === null) && typeof error !== 'function') {
       return undefined
     }
-    const value = Reflect.get(error, property)
+    const value = Reflect.get(error, 'code')
     return typeof value === 'string' ? value : undefined
   } catch {
     return undefined
@@ -65,21 +66,9 @@ function serializeSideEffectFailure(
   phase: DeleteDocumentSideEffectPhase,
   error: unknown
 ): DeleteDocumentSideEffectFailure {
-  try {
-    return {
-      phase,
-      message:
-        typeof error === 'string'
-          ? error
-          : (readErrorString(error, 'message') ?? 'Unknown side-effect failure'),
-      code: readErrorString(error, 'code') ?? ErrorCodes.UNHANDLED,
-    }
-  } catch {
-    return {
-      phase,
-      message: 'Unknown side-effect failure',
-      code: ErrorCodes.UNHANDLED,
-    }
+  return {
+    phase,
+    code: readErrorCode(error) === ErrorCodes.STORAGE ? ErrorCodes.STORAGE : ErrorCodes.UNHANDLED,
   }
 }
 

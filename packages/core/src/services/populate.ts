@@ -257,7 +257,7 @@ export interface PopulateOptions {
    * lacks identity state.
    */
   requestContext?: RequestContext
-  /** Private cache domain shared by every read path in one client instance. */
+  /** Private cache domain explicitly shared by every read path in one client instance. */
   securityDomain?: object
   /**
    * Skip `beforeRead` hook resolution on every target collection. The
@@ -289,7 +289,7 @@ export interface PopulateOptions {
  */
 export async function populateDocuments(opts: PopulateOptions): Promise<void> {
   const ctx = opts.readContext ?? createReadContext()
-  const securityDomain = opts.securityDomain ?? opts.db
+  const securityDomain = opts.securityDomain ?? {}
   const operationRequestContext =
     opts.requestContext ??
     createRequestContext({ readMode: opts.readMode ?? 'any', locale: opts.locale })

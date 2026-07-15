@@ -23,7 +23,7 @@
  *   - removeFromTree returns a node to the unplaced state.
  */
 
-import { type CollectionDefinition, ErrorCodes } from '@byline/core'
+import { type CollectionDefinition, ErrorCodes, TREE_PLACEMENT_STALE_MARKER } from '@byline/core'
 import { sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -221,7 +221,10 @@ describe('document-tree commands', () => {
         parentDocumentId: parentA,
         beforeDocumentId: neighbour,
       })
-    ).rejects.toMatchObject({ code: ErrorCodes.CONFLICT })
+    ).rejects.toMatchObject({
+      code: ErrorCodes.CONFLICT,
+      message: expect.stringContaining(TREE_PLACEMENT_STALE_MARKER),
+    })
   })
 
   it('allows only one concurrent placement into the same asserted sibling gap', async () => {

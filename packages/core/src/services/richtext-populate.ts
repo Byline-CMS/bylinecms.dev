@@ -157,7 +157,7 @@ export function createRichTextDocumentReader(options: {
   readMode: ReadMode
   locale?: string
   bypassBeforeRead?: true
-  /** Private cache domain shared with the originating client read. */
+  /** Private cache domain explicitly shared with the originating client read. */
   securityDomain?: object
   /** Adapter reused recursively for rich-text fields on target documents. */
   richTextPopulate?: RichTextPopulateFn
@@ -172,7 +172,7 @@ export function createRichTextDocumentReader(options: {
     bypassBeforeRead,
     richTextPopulate,
   } = options
-  const securityDomain = options.securityDomain ?? db
+  const securityDomain = options.securityDomain ?? {}
   const state = getRichTextReaderState(readContext)
 
   const read: RichTextReadDocumentsFn = async ({ collectionPath, documentIds, fields }) => {

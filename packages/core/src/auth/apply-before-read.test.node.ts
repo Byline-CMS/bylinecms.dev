@@ -136,6 +136,26 @@ describe('applyBeforeRead', () => {
     expect(result).toEqual({ title: 'allowed' })
   })
 
+  it('ignores a caller-preseeded public cache entry on the compiled-filter path', async () => {
+    const hook = vi.fn(() => ({ title: 'allowed' }))
+    const readContext = createReadContext({
+      beforeReadCache: new Map([['posts:any', null]]),
+    })
+
+    const filters = await compileBeforeReadFilters({
+      definition: baseCollection(hook),
+      requestContext: createRequestContext(),
+      readContext,
+      securityDomain: {},
+      parseContext: { collections: [], resolveCollectionId: vi.fn() },
+    })
+
+    expect(hook).toHaveBeenCalledOnce()
+    expect(filters).toEqual([
+      expect.objectContaining({ kind: 'field', fieldName: 'title', value: 'allowed' }),
+    ])
+  })
+
   it('rejects reuse under a different actor authority', async () => {
     const hook = vi.fn(({ requestContext }: Parameters<BeforeReadHookFn>[0]) => ({
       title: requestContext.actor?.id,

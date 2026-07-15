@@ -167,6 +167,12 @@ export const ErrorCodes = {
   TREE_HOOK_COMMITTED: 'ERR_TREE_HOOK_COMMITTED',
 } as const
 
+/** Stable message fallback for stale tree-placement `ERR_CONFLICT` errors. */
+export const TREE_PLACEMENT_STALE_MARKER = '[ERR_CONFLICT:TREE_PLACEMENT_STALE]'
+
+/** Stable message fallback for `ERR_TREE_HOOK_COMMITTED` errors. */
+export const TREE_HOOK_COMMITTED_MARKER = '[ERR_TREE_HOOK_COMMITTED]'
+
 // ---------------------------------------------------------------------------
 // Pre-instantiated factories
 // ---------------------------------------------------------------------------

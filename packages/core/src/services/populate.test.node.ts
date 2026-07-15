@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { AdminAuth, createRequestContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BylineError, ErrorCodes } from '../lib/errors.js'
@@ -147,6 +148,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
       document_ids: string[]
       locale?: string
       fields?: string[]
+      filters?: unknown[]
     }) => {
       const bucket = store[params.collection_id] ?? {}
       return params.document_ids.map((id) => bucket[id]).filter((d) => d != null)
@@ -438,6 +440,45 @@ describe('buildBatchSelect', () => {
 // ---------------------------------------------------------------------------
 
 describe('populateDocuments', () => {
+  it('isolates direct callers by default and shares compiled filters only with an explicit domain', async () => {
+    const beforeRead = vi.fn(() => ({ name: 'allowed' }))
+    const scopedAuthors: CollectionDefinition = {
+      ...authorsCollection,
+      hooks: { beforeRead },
+    }
+    const { db, getDocumentsByDocumentIds } = makeMockAdapter()
+    const readContext = createReadContext()
+    const requestContext = createRequestContext({
+      actor: new AdminAuth({ id: 'reader', abilities: ['collections.authors.read'] }),
+    })
+    const populate = (suffix: string, securityDomain?: object) =>
+      populateDocuments({
+        db,
+        collections: [postsCollection, scopedAuthors],
+        collectionId: 'posts',
+        documents: [
+          shapedDoc('posts', `p-${suffix}`, {
+            author: relationRef('authors', `a-${suffix}`),
+          }),
+        ],
+        populate: true,
+        readContext,
+        requestContext,
+        securityDomain,
+      })
+
+    await populate('implicit-a')
+    await populate('implicit-b')
+    const sharedDomain = {}
+    await populate('explicit-a', sharedDomain)
+    await populate('explicit-b', sharedDomain)
+
+    const calls = getDocumentsByDocumentIds.mock.calls
+    expect(calls[1]?.[0].filters).not.toBe(calls[0]?.[0].filters)
+    expect(calls[3]?.[0].filters).toBe(calls[2]?.[0].filters)
+    expect(beforeRead).toHaveBeenCalledTimes(3)
+  })
+
   it('is a no-op when populate is omitted', async () => {
     const { db, getDocumentsByDocumentIds } = makeMockAdapter()
     const doc = shapedDoc('posts', 'p1', { author: relationRef('authors', 'a1') })
