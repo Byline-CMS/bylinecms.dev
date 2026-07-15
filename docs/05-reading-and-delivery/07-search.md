@@ -706,24 +706,11 @@ construction — which is the proof the seam boundary is drawn correctly.
    `ServerConfig.search` registration + boot validation; the collection
    `search` config; lifecycle-hook indexing; `reindex` + the `collections.<path>.reindex`
    ability + admin button; `client.collection(x).search()`; the docs frontend
-<<<<<<< HEAD
    results route; cross-collection `zone` search, `hydrate`, and strict
    post-ranking row authorization. **Deferred within Phase 2:** provider-side
    structured `where` filtering, facet aggregation, and async/outbox indexing.
 3. **Attachment text-extraction** — the extraction-provider interface + a first
    driver, its own table, and the join into `body`. *(Planned.)*
-=======
-   results route; the cross-collection `zone` query + `hydrate`
-   (`finalizeSearchHits`); row-level authorization on search. **Deferred
-   within Phase 2:** structured `where` filtering, facet aggregation (Postgres
-   driver), the `SearchQuery.driver` extension slot, and async/outbox
-   indexing.
-3. **Attachment text-extraction** — the extraction-provider interface + a
-   first classic (Tika-class) driver, the extraction table, the async
-   completion → `indexDocument` trigger, and the join into `body`. The
-   extractor router + a structure-aware (Docling-class) driver follow as
-   pure configuration — no new machinery. *(Planned.)*
->>>>>>> c8ac22ddd85dff0ff313e20f3f0db43aaa251648
 4. **External drivers** — a vector and/or hybrid driver against the same seam
    (the RAG payoff; the home for the private BM25 / metadata-ranking work).
    *(Planned — the
@@ -737,15 +724,8 @@ construction — which is the proof the seam boundary is drawn correctly.
 - **Resolved — per-locale indexing / `regconfig`.** Shipped: one `SearchDocument`
   per `(document, locale)`, indexed with a per-locale `regconfig`, plus a
   `defaultLocale` for locale-less queries.
-<<<<<<< HEAD
 - **Resolved — awaited indexing for the Postgres driver.** Shipped inline in the
   post-commit lifecycle hook. Async/durable outbox support remains open.
-=======
-- **Resolved — sync indexing for the Postgres driver.** Shipped inline in the
-  lifecycle hook. Async/outbox for network-backed drivers remains — and the
-  attachment-extraction completion trigger (Phase 3) wants the same
-  machinery, so the two should be designed together.
->>>>>>> c8ac22ddd85dff0ff313e20f3f0db43aaa251648
 - **Partly resolved — facets over EAV.** The `{ id, term }` projection is built
   and indexed (term searchable, id stored). Facet *aggregation queries* remain
   open for the Postgres driver (`capabilities.facets === false`) — but the
