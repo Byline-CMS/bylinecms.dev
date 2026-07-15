@@ -70,7 +70,7 @@ export interface BylineClientConfig {
   /** The database adapter (e.g. from @byline/db-postgres). Required when `config` is omitted. */
   db?: IDbAdapter
   /** All registered collection definitions. Required when `config` is omitted. */
-  collections?: CollectionDefinition[]
+  collections?: readonly CollectionDefinition[]
   /** Optional storage provider — needed for delete file cleanup. */
   storage?: IStorageProvider
   /**

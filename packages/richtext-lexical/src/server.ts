@@ -88,7 +88,7 @@ export interface LexicalServerOptions {
    * `getAdminBylineClient` in the webapp). Resolved lazily on every
    * call so registration order doesn't matter.
    */
-  getClient: () => BylineClient
+  getClient: () => BylineClient<any>
   /**
    * Override the visitor list. Defaults to every visitor the package
    * ships — currently `[inlineImageVisitor, linkVisitor]`. Useful when a

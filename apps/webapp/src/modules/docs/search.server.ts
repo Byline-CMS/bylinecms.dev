@@ -19,7 +19,7 @@
  * with no 301 hop.
  */
 
-import { getViewerBylineClient } from '@byline/host-tanstack-start/integrations/byline-viewer-client'
+import { getViewerBylineClient } from '~/client.server'
 
 import { flattenDocNav } from './nav'
 import { getDocsNav } from './nav.server'

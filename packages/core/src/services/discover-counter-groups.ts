@@ -92,7 +92,7 @@ function* findCounterFields(
 }
 
 export interface DiscoverCounterGroupsInput {
-  definitions: CollectionDefinition[]
+  definitions: readonly CollectionDefinition[]
   db: IDbAdapter
   logger?: BylineLogger
 }

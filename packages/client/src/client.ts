@@ -10,6 +10,7 @@ import { ERR_UNAUTHENTICATED, type RequestContext } from '@byline/auth'
 import type {
   BylineLogger,
   CollectionDefinition,
+  CollectionRegistry,
   IDbAdapter,
   IStorageProvider,
   RichTextPopulateFn,
@@ -63,9 +64,9 @@ const silentLogger: BylineLogger = {
  * definitions, and optional storage provider. Use `collection(path)` to get
  * a scoped handle for querying and mutating documents.
  */
-export class BylineClient {
+export class BylineClient<TRegistry extends CollectionRegistry = CollectionRegistry> {
   readonly db: IDbAdapter
-  readonly collections: CollectionDefinition[]
+  readonly collections: readonly CollectionDefinition[]
   readonly storage: IStorageProvider | undefined
   readonly logger: BylineLogger
   readonly defaultLocale: string
@@ -158,7 +159,9 @@ export class BylineClient {
    * Get a handle scoped to a single collection. All subsequent read/write
    * operations on the handle are performed against this collection.
    */
-  collection(path: string): CollectionHandle {
+  collection<TPath extends keyof TRegistry & string>(
+    path: TPath
+  ): CollectionHandle<TRegistry[TPath]> {
     const definition = this.collections.find((c) => c.path === path)
     if (!definition) {
       throw ERR_NOT_FOUND({
@@ -169,7 +172,7 @@ export class BylineClient {
         },
       })
     }
-    return new CollectionHandle(this, definition)
+    return new CollectionHandle<TRegistry[TPath]>(this, definition)
   }
 
   /**
@@ -207,6 +210,8 @@ export class BylineClient {
 /**
  * Create a new Byline client instance.
  */
-export function createBylineClient(config: BylineClientConfig): BylineClient {
-  return new BylineClient(config)
+export function createBylineClient<TRegistry extends CollectionRegistry = CollectionRegistry>(
+  config: BylineClientConfig
+): BylineClient<TRegistry> {
+  return new BylineClient<TRegistry>(config)
 }

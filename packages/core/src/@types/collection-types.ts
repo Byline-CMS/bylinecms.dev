@@ -1334,6 +1334,14 @@ export type CollectionFieldDataAllLocales<C extends CollectionDefinition> = Fiel
   C['fields']
 >
 
+/** Broad collection registry used when an application has not supplied its schema types. */
+export type CollectionRegistry = Record<string, Record<string, any>>
+
+/** Infer a path-to-fields registry from a shared readonly collection-definition tuple. */
+export type InferCollectionRegistry<TCollections extends readonly CollectionDefinition[]> = {
+  [TCollection in TCollections[number] as TCollection['path']]: CollectionFieldData<TCollection>
+}
+
 // ---------------------------------------------------------------------------
 // Block helpers — mirrors of defineCollection / CollectionFieldData / etc.
 // ---------------------------------------------------------------------------

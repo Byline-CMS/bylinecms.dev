@@ -116,7 +116,7 @@ export interface BaseConfig {
      */
     translations?: TranslationBundleShape
   }
-  collections: CollectionDefinition[]
+  collections: readonly CollectionDefinition[]
   /**
    * URL segments for admin and API routes. Both keys default to `/admin`
    * and `/api` respectively — installations only set this when they want

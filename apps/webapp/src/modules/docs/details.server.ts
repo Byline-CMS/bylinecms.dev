@@ -22,10 +22,7 @@
  * (`status: 'any'`, no spine enforcement).
  */
 
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
+import { getViewerBylineClient, isPreviewActive } from '~/client.server'
 
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import { resolveDocTreeBySplat } from './resolve.server'

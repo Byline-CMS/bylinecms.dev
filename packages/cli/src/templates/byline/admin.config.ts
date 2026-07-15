@@ -15,14 +15,14 @@
  * both imports behind `_byline/*` keeps the admin graph off public routes.
  *
  * This is the minimal scaffold: no example collections registered. Add
- * collection schemas + admin configs to the `collections` and `admin`
- * arrays as you create them.
+ * schemas to `collections/index.ts` and presentation configs to `admin`.
  */
 
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
 import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
 
+import { collections } from './collections/index.js'
 import { i18n } from './i18n.js'
 import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
@@ -32,7 +32,7 @@ export const config: ClientConfig = {
   serverURL,
   i18n,
   routes,
-  collections: [],
+  collections,
   admin: [],
   fields: {
     richText: { editor: LexicalRichTextField },

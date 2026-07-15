@@ -76,11 +76,11 @@ import type {
  *
  * Created via `client.collection('posts')`.
  */
-export class CollectionHandle {
-  private client: BylineClient
+export class CollectionHandle<TFields extends Record<string, any> = Record<string, any>> {
+  private client: BylineClient<any>
   private definition: CollectionDefinition
 
-  constructor(client: BylineClient, definition: CollectionDefinition) {
+  constructor(client: BylineClient<any>, definition: CollectionDefinition) {
     this.client = client
     this.definition = definition
   }
@@ -94,7 +94,7 @@ export class CollectionHandle {
    * (EXISTS subqueries against EAV store tables), and field-level sorting
    * (LATERAL JOINs).
    */
-  async find<F = Record<string, any>>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
+  async find<F = TFields>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
     const requestContext = await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
     const {
@@ -177,9 +177,7 @@ export class CollectionHandle {
    * Find a single document matching the given options. Returns `null` if no
    * document matches.
    */
-  async findOne<F = Record<string, any>>(
-    options: FindOneOptions<F> = {}
-  ): Promise<ClientDocument<F> | null> {
+  async findOne<F = TFields>(options: FindOneOptions<F> = {}): Promise<ClientDocument<F> | null> {
     const result = await this.find<F>({
       where: options.where,
       select: options.select,
@@ -404,7 +402,7 @@ export class CollectionHandle {
   /**
    * Find a document by its logical document ID.
    */
-  async findById<F = Record<string, any>>(
+  async findById<F = TFields>(
     documentId: string,
     options: FindByIdOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
@@ -467,7 +465,7 @@ export class CollectionHandle {
    * exists at the given path (the storage adapter resolves missing paths
    * to `null` rather than throwing).
    */
-  async findByPath<F = Record<string, any>>(
+  async findByPath<F = TFields>(
     path: string,
     options: FindByPathOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
@@ -674,7 +672,7 @@ export class CollectionHandle {
    * mirrors the storage adapter's `{ documents, meta }` shape, then is
    * mapped to the same `{ docs, meta }` envelope `find()` returns.
    */
-  async history<F = Record<string, any>>(
+  async history<F = TFields>(
     documentId: string,
     options: HistoryOptions = {}
   ): Promise<FindResult<F>> {
@@ -786,7 +784,7 @@ export class CollectionHandle {
    * expected to have already passed an access check on the parent
    * document. Use `history()` instead if you want the access gate.
    */
-  async findByVersion<F = Record<string, any>>(
+  async findByVersion<F = TFields>(
     versionId: string,
     options: FindByVersionOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
@@ -851,9 +849,7 @@ export class CollectionHandle {
    * `'published'` (the client default) — an unpublished node hides its whole
    * subtree in that mode.
    */
-  async getSubtree<F = Record<string, any>>(
-    options: GetSubtreeOptions<F> = {}
-  ): Promise<TreeNode<F>[]> {
+  async getSubtree<F = TFields>(options: GetSubtreeOptions<F> = {}): Promise<TreeNode<F>[]> {
     this.assertTreeCollection()
     await this.resolveAndAssertRead()
     const collectionId = await this.client.resolveCollectionId(this.definition.path)
@@ -902,7 +898,7 @@ export class CollectionHandle {
    * truncated chain), so a broken spine surfaces as a short chain the caller can
    * detect rather than a silently-compacted one.
    */
-  async getAncestors<F = Record<string, any>>(
+  async getAncestors<F = TFields>(
     documentId: string,
     options: GetAncestorsOptions<F> = {}
   ): Promise<ClientDocument<F>[]> {

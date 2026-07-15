@@ -40,7 +40,13 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "inputs": ["src/**/*.ts", "src/**/*.tsx", "tsconfig.json"]
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "byline/**/*.ts",
+        "byline/**/*.tsx",
+        "tsconfig.json"
+      ]
     },
     "test": {
       "outputs": []

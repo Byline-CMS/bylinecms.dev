@@ -17,11 +17,7 @@
  * news index page.
  */
 
-import {
-  getViewerBylineClient,
-  isPreviewActive,
-} from '@byline/host-tanstack-start/integrations/byline-viewer-client'
-
+import { getViewerBylineClient, isPreviewActive } from '~/client.server'
 import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
 
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'

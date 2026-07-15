@@ -69,11 +69,11 @@ export const Docs = defineCollection({
   // a collection *schema* is isomorphic — Byline bundles it into the browser
   // admin too (the admin reads field config from it), so anything the schema
   // *statically imports* ships to the client. Search indexing needs a
-  // server-only import (`getSystemBylineClient` from
-  // `@byline/host-tanstack-start`), which would crash the browser bundle if
-  // imported here. The **loader form** — a thunk that dynamically imports a
-  // sibling module — keeps `./hooks.ts` and its entire import graph out of
-  // the client bundle while running exactly like inline hooks on the server.
+  // server-only import from the app's `client.server.ts` boundary, which would
+  // crash the browser bundle if imported here. The **loader form** — a thunk
+  // that dynamically imports a sibling module — keeps `./hooks.ts` and its
+  // entire import graph out of the client bundle while running exactly like
+  // inline hooks on the server.
   // See ./hooks.ts for the worked example and the full explanation.
   hooks: () => import('./hooks.js'),
   fields: [

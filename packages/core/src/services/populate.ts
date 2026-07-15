@@ -209,7 +209,7 @@ export type {
 export interface PopulateOptions {
   db: IDbAdapter
   /** Every collection definition in the app — needed to resolve target fields. */
-  collections: CollectionDefinition[]
+  collections: readonly CollectionDefinition[]
   /** The source collection id for `documents`. */
   collectionId: string
   /**
@@ -540,7 +540,7 @@ type CollectionDefCache = Map<string, CollectionDefinition | null>
  */
 async function resolveCollectionDef(
   db: IDbAdapter,
-  collections: CollectionDefinition[],
+  collections: readonly CollectionDefinition[],
   id: string,
   cache: CollectionDefCache
 ): Promise<CollectionDefinition | undefined> {
@@ -585,7 +585,7 @@ async function resolveCollectionDef(
  */
 async function resolveBeforeReadFiltersForTarget(params: {
   targetDef: CollectionDefinition | undefined
-  collections: CollectionDefinition[]
+  collections: readonly CollectionDefinition[]
   requestContext: RequestContext | undefined
   readContext: ReadContext
   bypassBeforeRead: true | undefined

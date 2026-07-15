@@ -128,13 +128,13 @@ export class CollectionQueries implements ICollectionQueries {
  */
 export class DocumentQueries implements IDocumentQueries {
   private db: DatabaseConnection
-  private collections: CollectionDefinition[]
+  private collections: readonly CollectionDefinition[]
   private defaultContentLocale: string
   private collectionPathCache = new Map<string, string>()
 
   constructor(
     db: DatabaseConnection,
-    collections: CollectionDefinition[],
+    collections: readonly CollectionDefinition[],
     defaultContentLocale: string
   ) {
     this.db = db
@@ -2351,7 +2351,7 @@ export class DocumentQueries implements IDocumentQueries {
 
 export function createQueryBuilders(
   db: DatabaseConnection,
-  collections: CollectionDefinition[],
+  collections: readonly CollectionDefinition[],
   defaultContentLocale: string
 ) {
   return {

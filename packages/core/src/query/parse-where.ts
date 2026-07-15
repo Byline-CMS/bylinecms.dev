@@ -58,7 +58,7 @@ const DOCUMENT_LEVEL_KEYS = new Set(['status', 'path', 'query', 'id'])
  */
 export interface ParseContext {
   /** All registered collection definitions. */
-  collections: CollectionDefinition[]
+  collections: readonly CollectionDefinition[]
   /** Resolve a collection path → DB row id. */
   resolveCollectionId: (path: string) => Promise<string>
   /**

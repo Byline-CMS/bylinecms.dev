@@ -56,7 +56,7 @@ function registerCollection(definition: Partial<CollectionDefinition> & { path: 
         ...definition,
       } as CollectionDefinition,
     ],
-  } as Parameters<typeof defineServerConfig>[0])
+  } as unknown as Parameters<typeof defineServerConfig>[0])
 }
 
 function clearConfig(): void {

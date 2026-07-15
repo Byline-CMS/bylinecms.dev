@@ -23,8 +23,8 @@
  */
 
 import type { TreeNode } from '@byline/client'
-import { getPublicBylineClient } from '@byline/host-tanstack-start/integrations/byline-public-client'
 
+import { getPublicBylineClient } from '~/client.server'
 import type { DocFields } from '~/collections/docs/schema.js'
 import type { NewsFields } from '~/collections/news/schema.js'
 import type { PageFields } from '~/collections/pages/schema.js'

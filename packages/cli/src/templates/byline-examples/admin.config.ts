@@ -29,11 +29,12 @@ import { RichTextField as LexicalRichTextField } from '@byline/richtext-lexical'
 // commented `richText` block below for the exact shape.
 // import { lexicalEditor } from '@byline/richtext-lexical'
 
-import { Docs, DocsAdmin } from './collections/docs/index.js'
-import { Media, MediaAdmin } from './collections/media/index.js'
-import { News, NewsAdmin } from './collections/news/index.js'
-import { NewsCategories, NewsCategoriesAdmin } from './collections/news-categories/index.js'
-import { Pages, PagesAdmin } from './collections/pages/index.js'
+import { collections } from './collections/index.js'
+import { DocsAdmin } from './collections/docs/admin.js'
+import { MediaAdmin } from './collections/media/admin.js'
+import { NewsAdmin } from './collections/news/admin.js'
+import { NewsCategoriesAdmin } from './collections/news-categories/admin.js'
+import { PagesAdmin } from './collections/pages/admin.js'
 import { i18n } from './i18n.js'
 import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
@@ -43,7 +44,7 @@ export const config: ClientConfig = {
   serverURL,
   i18n,
   routes,
-  collections: [Docs, News, Pages, Media, NewsCategories],
+  collections,
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   fields: {
     // Default registration — every `type: 'richText'` field gets the full

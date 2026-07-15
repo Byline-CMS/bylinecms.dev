@@ -33,7 +33,7 @@ import type {
 
 export interface BylineCore<TAdminStore = unknown> {
   config: ServerConfig<TAdminStore>
-  collections: CollectionDefinition[]
+  collections: readonly CollectionDefinition[]
   db: IDbAdapter
   storage: IStorageProvider | undefined
   logger: BylineLogger
