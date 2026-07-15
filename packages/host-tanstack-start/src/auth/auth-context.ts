@@ -33,6 +33,19 @@
  * Burns a refresh-token rotation only when the access token actually
  * fails verification — not on every request. The "one session" UX is
  * the consequence of this helper working invisibly behind each call.
+ *
+ * Resolution is memoized per request (`oncePerRequest`): every call within
+ * one logical request returns the same `RequestContext` instance — same
+ * actor snapshot, same `requestId`. Two invariants depend on this:
+ *
+ *   - The read-authorization layer binds each `ReadContext` to one
+ *     immutable authority token that includes `requestId`; a fresh id per
+ *     call makes any two reads sharing a `ReadContext` (the admin tree
+ *     view, hook-threaded nested reads) throw
+ *     'ReadContext cannot be reused across request authorities'.
+ *   - The refresh path rotates the refresh token; a second unmemoized call
+ *     in the same request would re-run the dance against the
+ *     already-rotated cookie and sign the admin out.
  */
 
 import { ERR_UNAUTHENTICATED, type RequestContext } from '@byline/auth'
@@ -45,6 +58,7 @@ import {
   readRefreshTokenCookie,
   setSessionCookies,
 } from './auth-cookies.js'
+import { oncePerRequest } from './request-scope.js'
 
 function requireSessionProvider() {
   const provider = getServerConfig().sessionProvider
@@ -58,6 +72,10 @@ function requireSessionProvider() {
 }
 
 export async function getAdminRequestContext(): Promise<RequestContext> {
+  return oncePerRequest('byline:admin-request-context', resolveAdminRequestContext)
+}
+
+async function resolveAdminRequestContext(): Promise<RequestContext> {
   const provider = requireSessionProvider()
 
   const accessToken = readAccessTokenCookie()

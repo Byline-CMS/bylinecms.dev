@@ -49,6 +49,7 @@ import { getServerConfig } from '@byline/core'
 
 import { getAdminRequestContext } from '../auth/auth-context.js'
 import { readPreviewCookie } from '../auth/preview-cookies.js'
+import { oncePerRequest } from '../auth/request-scope.js'
 
 let cachedClient: BylineClient | undefined
 
@@ -56,26 +57,31 @@ export function getViewerBylineClient(): BylineClient {
   if (cachedClient) return cachedClient
   cachedClient = createBylineClient({
     config: getServerConfig(),
-    requestContext: async () => {
-      // No preview cookie → behave exactly like the public client.
-      // Cheap path; no JWT verification, no DB lookup.
-      if (!readPreviewCookie()) {
-        return createRequestContext({ readMode: 'published' })
-      }
-
-      // Preview cookie present → try the admin context. A failure means
-      // the cookie is stale (admin signed out, session expired, refresh
-      // rejected). We swallow the error and fall back to the public
-      // context so the page renders instead of erroring.
-      try {
-        const ctx = await getAdminRequestContext()
-        return { ...ctx, readMode: 'any' }
-      } catch {
-        return createRequestContext({ readMode: 'published' })
-      }
-    },
+    // Memoized per request so every read in one request binds the same
+    // context instance (and requestId) — reads sharing a ReadContext must
+    // resolve a single request authority.
+    requestContext: () => oncePerRequest('byline:viewer-request-context', resolveViewerContext),
   })
   return cachedClient
+}
+
+async function resolveViewerContext() {
+  // No preview cookie → behave exactly like the public client.
+  // Cheap path; no JWT verification, no DB lookup.
+  if (!readPreviewCookie()) {
+    return createRequestContext({ readMode: 'published' })
+  }
+
+  // Preview cookie present → try the admin context. A failure means
+  // the cookie is stale (admin signed out, session expired, refresh
+  // rejected). We swallow the error and fall back to the public
+  // context so the page renders instead of erroring.
+  try {
+    const ctx = await getAdminRequestContext()
+    return { ...ctx, readMode: 'any' as const }
+  } catch {
+    return createRequestContext({ readMode: 'published' })
+  }
 }
 
 /**

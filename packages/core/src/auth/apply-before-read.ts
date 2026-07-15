@@ -247,6 +247,17 @@ function createHookReadContext(parent: ReadContextScope, entry: BeforeReadCacheE
   return scoped
 }
 
+/**
+ * `requestId` stays in the token deliberately. A `ReadContext` is a
+ * per-logical-request object, and predicates cached on it may embed
+ * request-time state (embargo cutoffs, preview windows), so reusing one
+ * across requests must fail loudly even for the same actor. The flip side
+ * is a contract on host adapters: a `RequestContext` factory must return
+ * the same instance for every call within one logical request (see
+ * `oncePerRequest` in `@byline/host-tanstack-start`) — a factory that
+ * mints a fresh `requestId` per call makes any two reads sharing a
+ * `ReadContext` throw the cross-authority error above.
+ */
 function requestAuthorityToken(requestContext: RequestContext): string {
   const actor = requestContext.actor
   if (actor == null) {

@@ -33,13 +33,15 @@
  * process lifetime.
  *
  * Companion: `getAdminBylineClient` in `./byline-client.ts` for the
- * admin webapp's authenticated reads (resolves a fresh `RequestContext`
- * from session cookies on every call).
+ * admin webapp's authenticated reads (resolves the `RequestContext`
+ * from session cookies, memoized per request).
  */
 
 import { createRequestContext } from '@byline/auth'
 import { type BylineClient, createBylineClient } from '@byline/client'
 import { getServerConfig } from '@byline/core'
+
+import { oncePerRequest } from '../auth/request-scope.js'
 
 let cachedClient: BylineClient | undefined
 
@@ -47,7 +49,13 @@ export function getPublicBylineClient(): BylineClient {
   if (cachedClient) return cachedClient
   cachedClient = createBylineClient({
     config: getServerConfig(),
-    requestContext: () => createRequestContext({ readMode: 'published' }),
+    // Memoized per request so the anonymous context (and its requestId)
+    // is stable across every read in one request — reads sharing a
+    // ReadContext must bind a single request authority.
+    requestContext: () =>
+      oncePerRequest('byline:public-request-context', async () =>
+        createRequestContext({ readMode: 'published' })
+      ),
   })
   return cachedClient
 }

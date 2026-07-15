@@ -31,10 +31,12 @@ export function getAdminBylineClient(): BylineClient {
   if (cachedClient) return cachedClient
   cachedClient = createBylineClient({
     config: getServerConfig(),
-    // Resolved per-call so each server fn picks up the actor from the
-    // current request's session cookies. `getAdminRequestContext` runs the
-    // refresh dance on its own and throws `ERR_UNAUTHENTICATED` when no
-    // session is present — the client surfaces the throw verbatim.
+    // Resolved from the current request's session cookies, memoized per
+    // request: every read in one request binds the same context instance
+    // (and requestId), which the ReadContext authority check requires.
+    // `getAdminRequestContext` runs the refresh dance on its own and throws
+    // `ERR_UNAUTHENTICATED` when no session is present — the client
+    // surfaces the throw verbatim.
     requestContext: getAdminRequestContext,
   })
   return cachedClient

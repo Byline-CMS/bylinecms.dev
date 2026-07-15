@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   getCookie: vi.fn(),
   setCookie: vi.fn(),
   getRequestHeader: vi.fn(),
+  getRequest: vi.fn(),
 }))
 
 vi.mock('@byline/core', async () => {
@@ -47,6 +48,7 @@ vi.mock('@tanstack/react-start/server', () => ({
   getCookie: mocks.getCookie,
   setCookie: mocks.setCookie,
   getRequestHeader: mocks.getRequestHeader,
+  getRequest: mocks.getRequest,
 }))
 
 const { verifyAccessToken, refreshSession, getCookie, setCookie } = mocks
@@ -70,6 +72,12 @@ function stubActor() {
 describe('getAdminRequestContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default: no Start request in scope, so every call resolves fresh.
+    // The per-request memoization tests below override this with a
+    // stable request object.
+    mocks.getRequest.mockImplementation(() => {
+      throw new Error('No StartEvent found in AsyncLocalStorage')
+    })
   })
 
   afterEach(() => {
@@ -211,5 +219,84 @@ describe('getAdminRequestContext', () => {
     }
     const clears = setCookie.mock.calls.filter((c) => c[2]?.maxAge === 0)
     expect(clears.length).toBe(2)
+  })
+
+  describe('per-request memoization', () => {
+    it('returns the same context instance — and requestId — for every call in one request', async () => {
+      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      cookiesReturn({
+        byline_access_token: 'valid-access',
+        byline_refresh_token: 'some-refresh',
+      })
+      verifyAccessToken.mockResolvedValue({ actor: stubActor() })
+
+      const first = await getAdminRequestContext()
+      const second = await getAdminRequestContext()
+
+      // Reads sharing a ReadContext bind one request authority; the token
+      // includes requestId, so it must be stable within a request.
+      expect(second).toBe(first)
+      expect(second.requestId).toBe(first.requestId)
+      expect(verifyAccessToken).toHaveBeenCalledTimes(1)
+    })
+
+    it('resolves independently across different requests', async () => {
+      cookiesReturn({
+        byline_access_token: 'valid-access',
+        byline_refresh_token: 'some-refresh',
+      })
+      verifyAccessToken.mockResolvedValue({ actor: stubActor() })
+
+      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      const first = await getAdminRequestContext()
+      mocks.getRequest.mockReturnValue({ id: 'request-b' })
+      const second = await getAdminRequestContext()
+
+      expect(second).not.toBe(first)
+      expect(second.requestId).not.toBe(first.requestId)
+      expect(verifyAccessToken).toHaveBeenCalledTimes(2)
+    })
+
+    it('burns at most one refresh rotation per request', async () => {
+      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      cookiesReturn({
+        byline_access_token: 'stale-access',
+        byline_refresh_token: 'valid-refresh',
+      })
+      const actor = stubActor()
+      verifyAccessToken.mockRejectedValueOnce(new Error('expired')).mockResolvedValueOnce({ actor })
+      refreshSession.mockResolvedValueOnce({
+        accessToken: 'fresh-access',
+        refreshToken: 'fresh-refresh',
+        accessTokenExpiresAt: new Date(Date.now() + 15 * 60_000),
+        refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000),
+      })
+
+      const first = await getAdminRequestContext()
+      // A second unmemoized call would re-run the refresh dance against the
+      // request's stale cookie — now already rotated — and sign the admin out.
+      const second = await getAdminRequestContext()
+
+      expect(second).toBe(first)
+      expect(refreshSession).toHaveBeenCalledTimes(1)
+    })
+
+    it('memoizes the unauthenticated rejection within one request', async () => {
+      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      cookiesReturn({
+        byline_access_token: 'stale',
+        byline_refresh_token: 'bad-refresh',
+      })
+      verifyAccessToken.mockRejectedValue(new Error('expired'))
+      refreshSession.mockRejectedValue(new Error('revoked'))
+
+      await expect(getAdminRequestContext()).rejects.toMatchObject({
+        code: AuthErrorCodes.UNAUTHENTICATED,
+      })
+      await expect(getAdminRequestContext()).rejects.toMatchObject({
+        code: AuthErrorCodes.UNAUTHENTICATED,
+      })
+      expect(refreshSession).toHaveBeenCalledTimes(1)
+    })
   })
 })
