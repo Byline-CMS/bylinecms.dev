@@ -28,7 +28,7 @@ import {
 import { migrate, postgresSearch } from '@byline/search-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
-import { getAdminBylineClient } from './client.server.js'
+import { getAdminBylineClient } from './clients.server.js'
 import { collections } from './collections/index.js'
 import { serverHooks } from './collections/server-hooks.js'
 import { i18n } from './i18n.js'

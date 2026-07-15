@@ -110,17 +110,14 @@ describe('scaffold planning', () => {
     ).toBe(false)
   })
 
-  it('ships the example client-hook boundary test but no script helper tests', () => {
+  it('does not scaffold package-owned boundary tests or script helper tests', () => {
     const ctx = fixture({ examples: true, importDocs: true })
     const plan = buildScaffoldPlan(ctx)
     expect(
-      plan.writes.some((write) =>
-        write.path.endsWith('collections/client-hook-build-boundary.test.node.ts')
-      )
-    ).toBe(true)
-    expect(
       plan.writes.some(
-        (write) => write.path.includes('/scripts/') && write.path.endsWith('.test.node.ts')
+        (write) =>
+          write.path.endsWith('client-hook-boundary.test.node.ts') ||
+          (write.path.includes('/scripts/') && write.path.endsWith('.test.node.ts'))
       )
     ).toBe(false)
   })

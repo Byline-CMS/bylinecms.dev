@@ -559,7 +559,53 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 
 **`afterRead`** runs after populate on each fresh raw document materialization and receives mutable `ctx.doc`, the operation's immutable actor-aware `requestContext` (including effective `readMode`), and the shared `readContext`. The same object is processed only once, but a freshly materialized object may run again even for the same version. If a nested hook read reaches a version whose hook is still active, core fails closed with `ERR_READ_RECURSION` rather than returning a partially redacted object. Thread `ctx.readContext` into nested reads so budgets, predicate caching, and active-recursion guards remain effective.
 
-`afterSystemFieldsChange` and `afterTreeChange` run **after** their audited transaction commits. The system-field context distinguishes requested intent from fields that actually changed and carries locked previous/current path and advertised-locale snapshots. Actual changes fire once; exact no-ops normally write, audit, and emit nothing. Callers may opt into no-op reconciliation to re-run failed side effects without another mutation or audit row (`SystemFieldsChangeContext.reconciliation` identifies that case; tree consumers must simply be idempotent). Hook arrays remain sequential and fail-fast, so a hook that must attempt several independent cache/search/webhook effects should settle and aggregate those effects itself.
+`afterSystemFieldsChange` and `afterTreeChange` run **after** their audited transaction commits. The system-field context distinguishes requested intent from fields that actually changed and carries locked previous/current path and advertised-locale snapshots. Actual changes fire once; exact no-ops normally write, audit, and emit nothing. Callers may opt into no-op reconciliation to re-run failed side effects without another mutation or audit row (`SystemFieldsChangeContext.reconciliation` identifies that case; tree consumers must simply be idempotent). Hook arrays remain sequential and fail-fast.
+
+When one hook has several independent post-commit effects, the simplest readable pattern is native `Promise.all`. Every promise in the array starts before the hook awaits settlement, so a cache failure does not prevent search reconciliation from being attempted. The trade-off is ordinary `Promise.all` error behavior: the hook reports the first rejection, not every simultaneous rejection.
+
+```ts
+afterUpdate: async ({ documentId, path }) => {
+  // Cache invalidation and search reconciliation are independent post-commit
+  // effects. Promise.all starts both, but reports only the first rejection.
+  // For complete failure reporting, see "Advanced pattern: aggregate every
+  // side-effect failure" in docs/04-collections/index.md.
+  await Promise.all([
+    invalidateDocument('news', path, { list: true }),
+    getSystemBylineClient().collection('news').indexDocument(documentId),
+  ])
+}
+```
+
+#### Advanced pattern: aggregate every side-effect failure
+
+Most hooks should prefer `Promise.all` for familiarity. If operations need both an attempt **and** complete failure reporting—for example, an operator must see that cache, CDN, and webhook delivery all failed—use a small application-owned `Promise.allSettled` helper:
+
+```ts
+/**
+ * Run every lifecycle side effect, then report all failures together. Effects
+ * are invoked synchronously in declaration order before awaiting settlement.
+ */
+export async function runSideEffects(
+  label: string,
+  ...effects: Array<() => void | Promise<void>>
+): Promise<void> {
+  const pending = effects.map((effect) => {
+    try {
+      return Promise.resolve(effect())
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  })
+  const failures = (await Promise.allSettled(pending))
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason)
+  if (failures.length === 0) return
+
+  throw new AggregateError(failures, `${label}: ${failures.length} side effect(s) failed`)
+}
+```
+
+This is an optional reliability pattern, not part of Byline core. Keep it in application server code and use it only where aggregated diagnostics justify the extra abstraction.
 
 Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's `upload` block — not on the collection — because they are field-scoped and field-aware. A collection with multiple image/file fields runs each field's pipeline independently.
 

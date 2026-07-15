@@ -20,7 +20,7 @@
  * matched against the related news-category's `path` slug.
  */
 
-import { getViewerBylineClient, isPreviewActive } from '~/client.server'
+import { getViewerBylineClient, isPreviewActive } from '~/clients.server'
 
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { NewsListFields, NewsListResult, ResolvedNewsListInput } from './list'

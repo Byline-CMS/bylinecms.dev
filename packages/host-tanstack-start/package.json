@@ -119,6 +119,10 @@
     "./routes/*": {
       "types": "./dist/routes/*.d.ts",
       "import": "./dist/routes/*.js"
+    },
+    "./vite": {
+      "types": "./dist/vite/index.d.ts",
+      "import": "./dist/vite/index.js"
     }
   },
   "dependencies": {
@@ -142,7 +146,8 @@
     "@tanstack/react-router": "^1.167.0",
     "@tanstack/react-start": "^1.167.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "vite": "^8.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
@@ -159,6 +164,7 @@
     "rimraf": "^6.1.3",
     "typescript": "^7.0.2",
     "typescript-plugin-css-modules": "^5.2.0",
+    "vite": "^8.1.3",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

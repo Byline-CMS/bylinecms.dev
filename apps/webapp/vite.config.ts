@@ -3,13 +3,12 @@ import { fileURLToPath } from 'node:url'
 import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 
+import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { defineConfig, type Plugin, type PluginOption } from 'vite'
-
-import { clientHookBuildBoundary } from './byline/collections/client-hook-build-boundary.js'
 
 // Browser-only stub for `node:async_hooks`. @byline/core's logger module does
 // `await import('node:async_hooks')` at top level and falls back to a no-op
@@ -188,7 +187,7 @@ const config = defineConfig({
         }) as PluginOption)
       : null,
     browserAsyncHooksAlias(),
-    clientHookBuildBoundary(),
+    bylineClientHookBoundary(),
     devMarkdownPassthrough(),
     devtools(),
     nitro({

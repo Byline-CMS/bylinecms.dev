@@ -46,7 +46,7 @@ describe('Vite config safety', () => {
       readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
     )
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toContain(
-      'clientHookBuildBoundary()'
+      'bylineClientHookBoundary()'
     )
   })
 
@@ -63,11 +63,8 @@ describe('Vite config safety', () => {
     const ctx = fixture()
     const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
     const predecessor = canonical
-      .replace(
-        "import { clientHookBuildBoundary } from './byline/collections/client-hook-build-boundary.js'\n\n",
-        ''
-      )
-      .replace('    clientHookBuildBoundary(),\n', '')
+      .replace("import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'\n", '')
+      .replace('    bylineClientHookBoundary(),\n', '')
       .replace(
         [
           '        //',
@@ -93,6 +90,25 @@ describe('Vite config safety', () => {
     expect(preview.writes?.find((write) => write.path.endsWith('vite.config.ts'))?.before).toBe(
       predecessor
     )
+    expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'done' })
+    expect(readFileSync(ctx.resolve('vite.config.bak'), 'utf8')).toBe(predecessor)
+    expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)
+  })
+
+  it('replaces the canonical config that carried an app-owned build guard', async () => {
+    const ctx = fixture()
+    const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
+    const predecessor = canonical
+      .replace("import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'\n", '')
+      .replace(
+        "import { defineConfig, type Plugin } from 'vite'\n",
+        "import { defineConfig, type Plugin } from 'vite'\n\nimport { clientHookBuildBoundary } from './byline/collections/client-hook-build-boundary.js'\n"
+      )
+      .replace('bylineClientHookBoundary()', 'clientHookBuildBoundary()')
+    writeFileSync(ctx.resolve('vite.config.ts'), predecessor)
+
+    const preview = await wireViteConfig.preview(ctx)
+    expect(preview).toMatchObject({ status: 'done' })
     expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'done' })
     expect(readFileSync(ctx.resolve('vite.config.bak'), 'utf8')).toBe(predecessor)
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)

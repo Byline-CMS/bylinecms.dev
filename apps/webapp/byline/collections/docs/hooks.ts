@@ -24,22 +24,19 @@
  * fatal in `dev` (`Module "node:dns" has been externalized for browser
  * compatibility`).
  *
- * The schema avoids that by putting the dynamic import inside TanStack Start's
- * **server-only function** instead of using an inline object or plain import:
+ * The schema avoids that by carrying no hook import at all. The server-only
+ * registry owns the dynamic loader instead:
  *
- *     // schema.ts
- *     const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
- *     // ...
- *     hooks: loadHooks
+ *     // ../server-hooks.ts
+ *     collections: { docs: () => import('./docs/hooks.js') }
  *
- * The transform removes the callback body and its transitive import graph from
- * the client bundle. `@byline/core` resolves the real loader once on the server
- * (memoized) and calls these hooks exactly as it would inline ones. The
- * upshot: **inside this file we may statically import server-only modules
+ * Only `server.config.ts` imports that registry. `@byline/core` attaches and
+ * resolves the loader on the server, memoized by loader identity. The upshot:
+ * **inside this file we may statically import server-only modules
  * directly** — both the cache runtime and `node:crypto` below are the
  * affordance in action; placing either import at the top of `schema.ts`
- * would crash the dev server. See docs/04-collections/index.md → "Hooks must not
- * statically import server-only code" and docs/DATA-CACHE-DESIGN.md.
+ * would crash the dev server. See docs/04-collections/index.md → "Server-only
+ * hook registry" and docs/DATA-CACHE-DESIGN.md.
  *
  * ──────────────────────────────────────────────────────────────────────────
  *  Invalidation policy for `docs`
@@ -58,7 +55,10 @@
 
 import { createHash } from 'node:crypto'
 
-import { createPublicLifecycleHooks } from '../create-public-lifecycle-hooks.js'
+import { defineHooks } from '@byline/core'
+
+import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
+import { getSystemBylineClient } from '../../clients.server.js'
 
 // Search indexing rides the same lifecycle hooks as cache invalidation. The
 // orchestration lives in `@byline/client`: `indexDocument` re-reads the
@@ -66,10 +66,11 @@ import { createPublicLifecycleHooks } from '../create-public-lifecycle-hooks.js'
 // draft-over-published, and plain edits all converge on the same idempotent
 // path); `removeFromIndex` drops every locale on delete. See
 // docs/05-reading-and-delivery/07-search.md.
-export default createPublicLifecycleHooks({
-  collectionPath: 'docs',
-  listBearing: true,
-  onCreate: ({ data, collectionPath, documentId }) => {
+const list = { list: true }
+const structural = { list: true, sitemap: true }
+
+export default defineHooks({
+  afterCreate: async ({ data, collectionPath, documentId, path }) => {
     // Example use of a server-only import: derive a content fingerprint with
     // Node's crypto module — only safe here because this module never
     // reaches the client bundle (see the affordance note above).
@@ -77,13 +78,82 @@ export default createPublicLifecycleHooks({
     console.log(
       `afterCreate: document ${documentId} created in '${collectionPath}' (content fingerprint ${fingerprint})`
     )
+    // Cache invalidation and search reconciliation are independent post-commit
+    // effects. Promise.all starts both, but reports only the first rejection.
+    // For complete failure reporting, see "Advanced pattern: aggregate every
+    // side-effect failure" in docs/04-collections/index.md.
+    await Promise.all([
+      invalidateDocument('docs', path, structural),
+      getSystemBylineClient().collection('docs').indexDocument(documentId),
+    ])
   },
-  // A structural tree change (place / reorder / re-parent / promote-on-delete)
-  // ripples across the affected set — every moved node, its descendants, and
-  // both sibling lists have new breadcrumbs / hierarchical canonical URLs. Trees
-  // are small and restructures are infrequent, so the coarse collection-wide
-  // sweep (detail + list + sitemap) is the pragmatic correct choice over
-  // resolving the affected ids to paths. See docs/04-collections/03-document-trees.md →
-  // "Invalidation contract".
-  invalidateTree: true,
+  afterUpdate: async ({ path, documentId, originalData }) => {
+    // Cache invalidation and search reconciliation are independent post-commit
+    // effects. Promise.all starts both, but reports only the first rejection.
+    // For complete failure reporting, see "Advanced pattern: aggregate every
+    // side-effect failure" in docs/04-collections/index.md.
+    await Promise.all([
+      invalidateDocument('docs', path, {
+        prevPath: (originalData as { path?: string } | undefined)?.path,
+        ...list,
+      }),
+      getSystemBylineClient().collection('docs').indexDocument(documentId),
+    ])
+  },
+  afterSystemFieldsChange: async ({
+    documentId,
+    previousPath,
+    currentPath,
+    requested,
+    reconciliation,
+  }) => {
+    // Cache invalidation and search reconciliation are independent post-commit
+    // effects. Promise.all starts both, but reports only the first rejection.
+    // For complete failure reporting, see "Advanced pattern: aggregate every
+    // side-effect failure" in docs/04-collections/index.md.
+    await Promise.all([
+      reconciliation && requested.path
+        ? invalidateCollection('docs')
+        : currentPath != null
+          ? invalidateDocument('docs', currentPath, {
+              prevPath: previousPath,
+              ...structural,
+            })
+          : undefined,
+      ...(requested.path
+        ? [getSystemBylineClient().collection('docs').indexDocument(documentId)]
+        : []),
+    ])
+  },
+  afterStatusChange: async ({ path, documentId }) => {
+    // Cache invalidation and search reconciliation are independent post-commit
+    // effects. Promise.all starts both, but reports only the first rejection.
+    // For complete failure reporting, see "Advanced pattern: aggregate every
+    // side-effect failure" in docs/04-collections/index.md.
+    await Promise.all([
+      invalidateDocument('docs', path, structural),
+      getSystemBylineClient().collection('docs').indexDocument(documentId),
+    ])
+  },
+  afterUnpublish: async ({ path, documentId }) => {
+    // Cache invalidation and search reconciliation are independent post-commit
+    // effects. Promise.all starts both, but reports only the first rejection.
+    // For complete failure reporting, see "Advanced pattern: aggregate every
+    // side-effect failure" in docs/04-collections/index.md.
+    await Promise.all([
+      invalidateDocument('docs', path, structural),
+      getSystemBylineClient().collection('docs').indexDocument(documentId),
+    ])
+  },
+  afterDelete: async ({ path, documentId }) => {
+    // Cache invalidation and search reconciliation are independent post-commit
+    // effects. Promise.all starts both, but reports only the first rejection.
+    // For complete failure reporting, see "Advanced pattern: aggregate every
+    // side-effect failure" in docs/04-collections/index.md.
+    await Promise.all([
+      getSystemBylineClient().collection('docs').removeFromIndex(documentId),
+      invalidateDocument('docs', path, structural),
+    ])
+  },
+  afterTreeChange: () => invalidateCollection('docs'),
 })

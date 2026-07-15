@@ -24,7 +24,7 @@
 
 import type { TreeNode } from '@byline/client'
 
-import { getPublicBylineClient } from '~/client.server'
+import { getPublicBylineClient } from '~/clients.server'
 import type {
   DocsFields as DocFields,
   NewsFields,

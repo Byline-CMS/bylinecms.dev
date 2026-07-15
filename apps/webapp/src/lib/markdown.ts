@@ -22,7 +22,7 @@
 
 import { documentToMarkdown, getCollectionDefinition, getServerConfig } from '@byline/core'
 
-import { getPublicBylineClient } from '~/client.server'
+import { getPublicBylineClient } from '~/clients.server'
 import type { CollectionPath } from '~/generated/collection-types.js'
 
 import { getPublicConfig } from '@/config'

@@ -28,7 +28,7 @@
 
 - `apps/webapp/byline/collections/index.ts` is the single server-safe collection tuple. Import schema modules only; keep React/admin presentation imports out.
 - `apps/webapp/byline/public.ts` is the blessed client-safe configuration facade for public code. Do not expose admin/server config through it.
-- `apps/webapp/byline/client.server.ts` is the sole app-owned type assertion around host client singletons; never import it into browser code.
+- `apps/webapp/byline/clients.server.ts` is the sole app-owned type assertion around host client singletons; never import it into browser code.
 - Server bootstrap is a side effect of `apps/webapp/src/server.ts` importing `byline/server.config.ts`.
 - Keep both `byline/admin.config.ts` registrations: `_byline/route.tsx` `beforeLoad` protects child loaders, while `_byline/route.lazy.tsx` protects initial hydration. An eager import leaks the admin/editor graph into public bundles.
 

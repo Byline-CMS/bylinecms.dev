@@ -10,6 +10,8 @@ import type { SubEdit, SubEditResult } from './shared.js'
 const REL = 'vite.config.ts'
 const TEMPLATE_REL = 'host/vite.config.ts'
 const PREDECESSOR_HASHES = new Set([
+  // Canonical config with the app-owned client-hook build boundary.
+  'c85b9ed94e70e4d7854e73a71c0021642fcb72353d7af0ace0cb3192b447b94e',
   // Canonical config immediately before the client-hook build boundary shipped.
   '15b9a1f5d4ea4d29989a6b04f8d00651de098721fe23675ef50e5cacb4245b4c',
   '55625734b4e2a9eac6d05f3447e2535b0a7d3480cc8111f467a5e11539abf1cf',

@@ -24,22 +24,20 @@
  * pull that graph into the browser (silent in `build`, a `node:* externalized`
  * crash in `dev`).
  *
- * The schema sidesteps that by putting the dynamic import inside TanStack
- * Start's server-only function rather than using an inline object:
+ * The schema sidesteps that by carrying no hook import. The server-only hook
+ * registry owns the dynamic loader instead:
  *
- *     // schema.ts → the image field's upload block
- *     const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
- *     upload: { …, hooks: loadHooks }
+ *     // ../server-hooks.ts
+ *     uploads: { 'media.image': () => import('./media/hooks.js') }
  *
- * The transform removes the loader body and this file's import graph from the
- * client bundle. `@byline/core` resolves it once on the server and runs
- * these hooks exactly as it would inline ones.
+ * Only `server.config.ts` imports that registry. `@byline/core` attaches and
+ * resolves the loader on the server and runs these hooks exactly as it would
+ * definition-attached hooks.
  *
  * The upshot: **inside this file you may statically import anything
  * server-only.** The `node:crypto` import below is the demonstration — that
  * same import at the top of `schema.ts` would crash the dev server; here it
- * is safe. See docs/04-collections/index.md → "Hooks must not statically import
- * server-only code".
+ * is safe. See docs/04-collections/index.md → "Server-only hook registry".
  */
 
 import { randomUUID } from 'node:crypto'

@@ -1,3 +1,28 @@
+/**
+ * Compile-time contract between this application's collection schemas and its
+ * generated collection-type projection.
+ *
+ * ```text
+ * collections/index.ts                  generated/collection-types.ts
+ *   `typeof collections`                 `CollectionFields*ByPath`
+ *            |                                      |
+ *            v                                      v
+ *    inferred registry ----------- Exact -------- generated registry
+ *                                    |
+ *                                    v
+ *                         TypeScript error on drift
+ * ```
+ *
+ * The generated file is deliberately a standalone projection for typed clients
+ * and frontend code; it does not import the runtime schemas. This module joins
+ * those two app-owned sources at compile time and requires their collection
+ * keys, ordinary field shapes, and all-locale field shapes to match exactly.
+ *
+ * This file has no runtime behavior. Keep it application-owned: `@byline/core`
+ * provides the inference and code-generation machinery, but only this
+ * application knows its concrete collection tuple and generated output.
+ */
+
 import type { CollectionFieldData, CollectionFieldDataAllLocales } from '@byline/core'
 
 import type { collections } from './collections/index.js'

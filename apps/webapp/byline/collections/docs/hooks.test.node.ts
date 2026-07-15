@@ -27,7 +27,7 @@ const search = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/cache/with-cache', () => cache)
-vi.mock('../../client.server.js', () => ({
+vi.mock('../../clients.server.js', () => ({
   getSystemBylineClient: () => ({ collection: search.collection }),
 }))
 
@@ -206,16 +206,12 @@ describe('public collection lifecycle hooks', () => {
     expect(search.indexDocument).toHaveBeenCalledWith('doc-1')
   })
 
-  it('attempts cache and search independently and aggregates both failures', async () => {
+  it('starts search reconciliation even when cache invalidation rejects', async () => {
     const cacheFailure = new Error('cache failed')
-    const searchFailure = new Error('search failed')
     cache.invalidateDocument.mockRejectedValueOnce(cacheFailure)
-    search.indexDocument.mockRejectedValueOnce(searchFailure)
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    let caught: unknown
-    try {
-      await invokeHook(newsHooks.afterUpdate, {
+    await expect(
+      invokeHook(newsHooks.afterUpdate, {
         documentId: 'news-1',
         documentVersionId: 'version-1',
         collectionPath: 'news',
@@ -223,44 +219,29 @@ describe('public collection lifecycle hooks', () => {
         data: {},
         originalData: { path: 'old-path' },
       })
-    } catch (error) {
-      caught = error
-    }
+    ).rejects.toBe(cacheFailure)
 
     expect(cache.invalidateDocument).toHaveBeenCalledOnce()
     expect(search.indexDocument).toHaveBeenCalledOnce()
-    expect(caught).toBeInstanceOf(AggregateError)
-    expect((caught as AggregateError).errors).toEqual([cacheFailure, searchFailure])
-    expect(consoleError).toHaveBeenCalledOnce()
-    consoleError.mockRestore()
   })
 
-  it('attempts delete search and cache effects independently', async () => {
+  it('starts delete cache invalidation even when search removal rejects', async () => {
     const searchFailure = new Error('search failed')
-    const cacheFailure = new Error('cache failed')
     search.removeFromIndex.mockRejectedValueOnce(searchFailure)
-    cache.invalidateDocument.mockRejectedValueOnce(cacheFailure)
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    let caught: unknown
-    try {
-      await invokeHook(pagesHooks.afterDelete, {
+    await expect(
+      invokeHook(pagesHooks.afterDelete, {
         documentId: 'page-1',
         collectionPath: 'pages',
         path: 'page',
       })
-    } catch (error) {
-      caught = error
-    }
+    ).rejects.toBe(searchFailure)
 
     expect(search.removeFromIndex).toHaveBeenCalledWith('page-1')
     expect(cache.invalidateDocument).toHaveBeenCalledWith('pages', 'page', { sitemap: true })
     expect(search.removeFromIndex.mock.invocationCallOrder[0]).toBeLessThan(
       cache.invalidateDocument.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
     )
-    expect(caught).toBeInstanceOf(AggregateError)
-    expect((caught as AggregateError).errors).toEqual([searchFailure, cacheFailure])
-    consoleError.mockRestore()
   })
 
   it('does not duplicate search indexing for locale-only system plus content edits', async () => {

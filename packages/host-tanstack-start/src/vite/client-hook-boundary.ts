@@ -1,3 +1,20 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+/**
+ * Production client-bundle guard for server-only Byline lifecycle modules.
+ *
+ * Collection schemas are isomorphic, but registered lifecycle hooks may
+ * import Node APIs, caches, storage SDKs, and other server-only dependencies.
+ * This Vite plugin inspects emitted client chunks and fails the build if a
+ * hook implementation, server hook registry, or shared lifecycle helper
+ * becomes reachable from the browser bundle.
+ */
 import type { Plugin } from 'vite'
 
 const COLLECTION_HOOK_MODULE = /\/byline\/collections\/[^/]+\/hooks\.[cm]?[jt]sx?$/
@@ -11,10 +28,9 @@ export function findServerHookModules(moduleIds: Iterable<string>): string[] {
   })
 }
 
-/** Fail production client builds if a server lifecycle implementation re-enters the graph. */
-export function clientHookBuildBoundary(): Plugin {
+export function bylineClientHookBoundary(): Plugin {
   return {
-    name: 'byline:client-hook-build-boundary',
+    name: 'byline:client-hook-boundary',
     generateBundle(_options, bundle) {
       if (this.environment?.name !== 'client') return
       const leaked = findServerHookModules(

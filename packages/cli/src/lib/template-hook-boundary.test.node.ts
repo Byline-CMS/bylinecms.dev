@@ -24,16 +24,16 @@ describe('scaffold server hook boundary', () => {
     expect(serverConfig).toContain('hooks: serverHooks')
   })
 
-  it('ships the registry seam and client-build backstop in both scaffold flavors', () => {
+  it('ships the registry seam in both scaffold flavors and configures the host build guard', () => {
     for (const flavor of ['byline', 'byline-examples']) {
       expect(source(`${flavor}/collections/server-hooks.ts`)).toContain(
         'satisfies ServerHooksConfig'
       )
-      expect(source(`${flavor}/collections/client-hook-build-boundary.ts`)).toContain(
-        'server-hooks|lifecycle-hooks|side-effects'
-      )
       expect(source(`${flavor}/server.config.ts`)).toContain('hooks: serverHooks')
     }
-    expect(source('host/vite.config.ts')).toContain('clientHookBuildBoundary()')
+    expect(source('host/vite.config.ts')).toContain(
+      "import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'"
+    )
+    expect(source('host/vite.config.ts')).toContain('bylineClientHookBoundary()')
   })
 })

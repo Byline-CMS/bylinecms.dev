@@ -6,7 +6,40 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+/**
+ * Source-graph regression coverage for the boundary between portable
+ * collection configuration and server-only lifecycle code.
+ *
+ * This test protects three guarantees:
+ *
+ * 1. Collection schemas remain framework-independent: they do not import
+ *    TanStack Start, `createServerOnlyFn`, or lifecycle-hook modules.
+ * 2. The collection tuple and public configuration remain client-safe. Starting
+ *    from `collections/index.ts` or `byline/public.ts` and following every
+ *    ordinary `import` and re-export must never lead to lifecycle hooks, the
+ *    server-only app clients, or application cache implementations. These entry
+ *    points are consumed by browser-facing configuration, so one accidental
+ *    static import could make Node-only code load during development or enter a
+ *    client build. Server hooks instead remain reachable only through the lazy
+ *    registry imported by the server bootstrap.
+ * 3. The server configuration does reach the server hook registry, ensuring
+ *    lifecycle hooks are registered during server bootstrap.
+ *
+ * This complements the production Vite build guard rather than duplicating
+ * it. The Vite guard checks the emitted browser bundle, whereas this test
+ * checks the source/import graph used during development and SSR. Production
+ * tree-shaking can remove an accidentally imported server module and allow the
+ * bundle guard to pass even though the development server still evaluates that
+ * import. Keeping both checks protects the boundary in both environments.
+ *
+ * This test currently lives beside the collection definitions because that
+ * makes the boundary it protects easy to find while the v4 structure settles.
+ * We may move application architecture tests to a dedicated test directory in
+ * the future, but keeping it under `byline/collections` is the clearest location
+ * for now.
+ */
+
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, extname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -15,6 +48,17 @@ import { describe, expect, it } from 'vitest'
 const collectionsDirectory = dirname(fileURLToPath(import.meta.url))
 const bylineDirectory = resolve(collectionsDirectory, '..')
 const appDirectory = resolve(bylineDirectory, '..')
+const collectionNames = readdirSync(collectionsDirectory, { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isDirectory() && existsSync(resolve(collectionsDirectory, entry.name, 'schema.ts'))
+  )
+  .map((entry) => entry.name)
+  .sort()
+
+if (collectionNames.length === 0) {
+  throw new Error(`No collection schema directories found under ${collectionsDirectory}`)
+}
 
 function staticModuleSpecifiers(filePath: string): string[] {
   const source = readFileSync(filePath, 'utf8')
@@ -67,14 +111,10 @@ function collectStaticSourceGraph(entryPoints: string[]): Set<string> {
   return graph
 }
 
-describe('public collection hook boundary', () => {
-  it.each([
-    'docs',
-    'media',
-    'news',
-    'news-categories',
-    'pages',
-  ])('%s schema has no framework or lifecycle-hook module dependency', (name) => {
+describe('collection hook boundary', () => {
+  it.each(
+    collectionNames
+  )('%s schema has no framework or lifecycle-hook module dependency', (name) => {
     const schemaPath = resolve(collectionsDirectory, name, 'schema.ts')
     const source = readFileSync(schemaPath, 'utf8')
 
@@ -90,13 +130,9 @@ describe('public collection hook boundary', () => {
     ])
     const serverOnlyModules = [
       resolve(collectionsDirectory, 'server-hooks.ts'),
-      resolve(collectionsDirectory, 'create-public-lifecycle-hooks.ts'),
-      resolve(collectionsDirectory, 'run-side-effects.ts'),
-      resolve(bylineDirectory, 'client.server.ts'),
+      resolve(bylineDirectory, 'clients.server.ts'),
       resolve(appDirectory, 'src/lib/cache/with-cache.ts'),
-      ...['docs', 'media', 'news', 'news-categories', 'pages'].map((name) =>
-        resolve(collectionsDirectory, name, 'hooks.ts')
-      ),
+      ...collectionNames.map((name) => resolve(collectionsDirectory, name, 'hooks.ts')),
     ]
 
     expect(serverOnlyModules.filter((filePath) => graph.has(filePath))).toEqual([])

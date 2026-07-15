@@ -7,10 +7,10 @@
  */
 
 /**
- * Server-only lifecycle hooks for the `news-categories` collection — L1
- * cache invalidation. Loaded through a `createServerOnlyFn`-wrapped dynamic
- * import so the cache runtime stays out of the client bundle; see `../docs/hooks.ts`
- * for the full explanation of that affordance.
+ * Server-only lifecycle hooks for the `news-categories` collection — L1 cache
+ * invalidation. Loaded from `../server-hooks.ts`, which is reachable only from
+ * the server bootstrap, so the cache runtime stays out of the client bundle.
+ * See `../docs/hooks.ts` for the full boundary explanation.
  *
  * Categories are a cross-collection embed: their data is populated into
  * cached news reads (list rows and detail pages both render the category
