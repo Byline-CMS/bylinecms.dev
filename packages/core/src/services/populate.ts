@@ -140,9 +140,11 @@ import { populateRichTextFields } from './richtext-populate.js'
 import { walkFieldTree } from './walk-field-tree.js'
 import type {
   CollectionDefinition,
+  CycleRelationValue,
   DocumentFilter,
   FieldSet,
   IDbAdapter,
+  PopulatedRelationValue,
   PopulateFieldSpec,
   PopulateMap,
   PopulateSpec,
@@ -150,6 +152,7 @@ import type {
   ReadMode,
   RelatedDocumentValue,
   RelationField,
+  UnresolvedRelationValue,
 } from '../@types/index.js'
 
 // Re-export for back-compat with consumers that import ReadContext from
@@ -190,6 +193,14 @@ export type {
   PopulateMap,
   PopulateSpec,
 } from '../@types/populate-types.js'
+export type {
+  CycleRelationValue,
+  PopulatedRelationValue,
+  RelationFieldReadValue,
+  RelationReadValue,
+  UnpopulatedRelationValue,
+  UnresolvedRelationValue,
+} from '../@types/relation-types.js'
 
 // ---------------------------------------------------------------------------
 // PopulateOptions — the public entry
@@ -264,57 +275,6 @@ export interface PopulateOptions {
    * adapter is registered.
    */
   richTextPopulate?: import('../@types/index.js').RichTextPopulateFn
-}
-
-// ---------------------------------------------------------------------------
-// Relation envelope — the shared shape across all four relation states
-// ---------------------------------------------------------------------------
-//
-// Every relation leaf — whether an unpopulated ref, a successfully populated
-// link, a deleted target, or a cycle stop — shares the `RelatedDocumentValue`
-// base (`targetDocumentId`, `targetCollectionId`, and optional link
-// metadata `relationshipType` / `cascadeDelete`). The `_resolved` /
-// `_cycle` / `document` properties discriminate the four states:
-//
-//   Unpopulated (no populate pass, or this leaf not in scope)
-//     { targetDocumentId, targetCollectionId, relationshipType?, cascadeDelete? }
-//
-//   Populated (target fetched and attached)
-//     { ..., _resolved: true, document: { ...fetched target doc } }
-//
-//   Unresolved (target not found — usually deleted)
-//     { ..., _resolved: false }
-//
-//   Cycle (target already materialised earlier in this request)
-//     { ..., _resolved: true, _cycle: true }
-//
-// Narrowing at the call site is straightforward:
-//
-//   if (v._cycle)                             → cycle
-//   else if (v._resolved === false)           → unresolved (deleted)
-//   else if (v._resolved === true && v.document) → populated — read v.document
-//   else                                       → unpopulated raw ref
-
-/** Marker placed in a relation leaf when the target was already materialised earlier in this request. */
-export interface CycleRelationValue extends RelatedDocumentValue {
-  _resolved: true
-  _cycle: true
-}
-
-/** Marker placed in a relation leaf when the target was not found (deleted). */
-export interface UnresolvedRelationValue extends RelatedDocumentValue {
-  _resolved: false
-}
-
-/**
- * Envelope placed in a relation leaf when populate successfully fetched
- * the target document. The `document` field carries the raw storage-shape
- * doc (`@byline/client` then reshapes it to `ClientDocument` during
- * response shaping).
- */
-export interface PopulatedRelationValue extends RelatedDocumentValue {
-  _resolved: true
-  document: Record<string, any>
 }
 
 // ---------------------------------------------------------------------------

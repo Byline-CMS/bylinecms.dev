@@ -149,8 +149,12 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       break
 
     case 'float':
-    case 'decimal':
       schema = z.number()
+      break
+
+    case 'decimal':
+      // Postgres numeric values are restored as strings to preserve precision.
+      schema = z.string()
       break
 
     case 'image':
@@ -164,7 +168,7 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
           filename: z.string(),
           originalFilename: z.string(),
           mimeType: z.string(),
-          fileSize: z.string(),
+          fileSize: z.number(),
           storageProvider: z.string(),
           storagePath: z.string(),
           storageUrl: z.string().nullable().optional(),
@@ -213,7 +217,8 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
         if (typeof field.maxItems === 'number') arr = arr.max(field.maxItems)
         schema = arr
       } else {
-        schema = relationValue.nullable()
+        // Storage omits cleared values; it never restores a relation as null.
+        schema = relationValue
       }
       break
     }
