@@ -1,5 +1,23 @@
 # @byline/host-tanstack-start
 
+## 3.21.0
+
+### Minor Changes
+
+- added **`@byline/client`** collection-type inference and a **`@byline/core`** deterministic type emitter for generating application collection types
+  fixed hasMany relation, decimal, and file-size field-data types and canonicalized numeric writes across **`@byline/core`** / **`@byline/db-postgres`**
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@3.21.0
+  - @byline/ai@3.21.0
+  - @byline/auth@3.21.0
+  - @byline/client@3.21.0
+  - @byline/core@3.21.0
+  - @byline/i18n@3.21.0
+  - @byline/ui@3.21.0
+
 ## 3.20.4
 
 ### Patch Changes
