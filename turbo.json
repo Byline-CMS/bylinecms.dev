@@ -20,7 +20,12 @@
       "interactive": true
     },
     "byline:generate": {
-      "cache": false
+      "dependsOn": ["@byline/core#build"],
+      "outputs": ["byline/generated/collection-types.ts"]
+    },
+    "byline:generate:check": {
+      "dependsOn": ["@byline/core#build"],
+      "outputs": []
     },
     "drizzle:generate": {
       "cache": false

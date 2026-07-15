@@ -1,7 +1,6 @@
 import { Section } from '@byline/ui/react'
 
-import type { PhotoBlockData } from '~/blocks/photo-block'
-import type { RichTextBlockData } from '~/blocks/richtext-block'
+import type { PhotoBlockData, RichTextBlockData } from '~/generated/collection-types.js'
 
 import { PhotoBlock } from '@/ui/byline/blocks/photo-block'
 import { RichTextBlock } from '@/ui/byline/blocks/richtext-block'

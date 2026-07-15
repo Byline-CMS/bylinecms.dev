@@ -17,7 +17,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type { FindResult } from '@byline/client'
 
-import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
+import type { NewsCategoriesFields as NewsCategoryFields } from '~/generated/collection-types.js'
 
 export type NewsCategoriesListResult = FindResult<NewsCategoryFields>
 

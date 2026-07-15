@@ -22,8 +22,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type { ClientDocument, WithPopulated } from '@byline/client'
 
-import type { DocFields } from '~/collections/docs/schema.js'
-import type { MediaFields } from '~/collections/media/schema.js'
+import type { DocsFields as DocFields, MediaFields } from '~/generated/collection-types.js'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 import type { DocTreeResolution } from './resolve.server'

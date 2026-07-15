@@ -28,8 +28,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type { ClientDocument, WithPopulated } from '@byline/client'
 
-import type { MediaFields } from '~/collections/media/schema.js'
-import type { PageFields } from '~/collections/pages/schema.js'
+import type { MediaFields, PagesFields as PageFields } from '~/generated/collection-types.js'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 

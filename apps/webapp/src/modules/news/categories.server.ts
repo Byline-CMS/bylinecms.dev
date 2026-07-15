@@ -18,7 +18,7 @@
  */
 
 import { getViewerBylineClient, isPreviewActive } from '~/client.server'
-import type { NewsCategoryFields } from '~/collections/news-categories/schema.js'
+import type { NewsCategoriesFields as NewsCategoryFields } from '~/generated/collection-types.js'
 
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { NewsCategoriesListInput, NewsCategoriesListResult } from './categories'

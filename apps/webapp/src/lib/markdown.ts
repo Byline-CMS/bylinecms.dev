@@ -23,7 +23,7 @@
 import { documentToMarkdown, getCollectionDefinition, getServerConfig } from '@byline/core'
 
 import { getPublicBylineClient } from '~/client.server'
-import type { BylineCollections } from '~/collections/index'
+import type { CollectionFieldsByPath as BylineCollections } from '~/generated/collection-types.js'
 
 import { getPublicConfig } from '@/config'
 import { isRoutableLocale } from '@/i18n/i18n-config'

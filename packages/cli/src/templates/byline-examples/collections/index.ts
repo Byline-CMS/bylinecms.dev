@@ -8,6 +8,8 @@
 
 import type { InferCollectionRegistry } from '@byline/core'
 
+import type { CollectionFieldsByPath } from '../generated/collection-types.js'
+
 import { Docs } from './docs/schema.js'
 import { Media } from './media/schema.js'
 import { News } from './news/schema.js'
@@ -16,4 +18,5 @@ import { Pages } from './pages/schema.js'
 
 export const collections = [Docs, News, Pages, Media, NewsCategories] as const
 
-export type BylineCollections = InferCollectionRegistry<typeof collections>
+export type InferredBylineCollections = InferCollectionRegistry<typeof collections>
+export type BylineCollections = CollectionFieldsByPath

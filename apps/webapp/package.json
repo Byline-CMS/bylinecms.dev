@@ -24,6 +24,8 @@
     "build": "vite build",
     "preview": "vite preview --port 5173",
     "start": "NODE_ENV=production PORT=5173 node --env-file=.env.local .output/server/index.mjs",
+    "byline:generate": "tsx byline/scripts/generate-types.ts",
+    "byline:generate:check": "tsx byline/scripts/generate-types.ts --check",
     "clean": "node scripts/clean.js node_modules dist build .output .nitro .tanstack .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --mode=jsdom && vitest run --mode=node --passWithNoTests",

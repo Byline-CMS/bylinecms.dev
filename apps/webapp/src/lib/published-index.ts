@@ -25,9 +25,11 @@
 import type { TreeNode } from '@byline/client'
 
 import { getPublicBylineClient } from '~/client.server'
-import type { DocFields } from '~/collections/docs/schema.js'
-import type { NewsFields } from '~/collections/news/schema.js'
-import type { PageFields } from '~/collections/pages/schema.js'
+import type {
+  DocsFields as DocFields,
+  NewsFields,
+  PagesFields as PageFields,
+} from '~/generated/collection-types.js'
 
 import { advertisedLocalesFor } from '@/lib/alternates'
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'

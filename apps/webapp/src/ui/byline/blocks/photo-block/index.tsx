@@ -6,8 +6,7 @@ import type { ClientDocument } from '@byline/client'
 import { Container, FadeInLift } from '@byline/ui/react'
 import cx from 'classnames'
 
-import type { PhotoBlockData } from '~/blocks/photo-block'
-import type { MediaFields } from '~/collections/media/schema'
+import type { MediaFields, PhotoBlockData } from '~/generated/collection-types.js'
 
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'

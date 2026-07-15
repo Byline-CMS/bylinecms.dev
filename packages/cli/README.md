@@ -22,6 +22,20 @@ byline doctor                  Inspect the current app and report what's wired.
 
 See `byline init --help` for the full flag list.
 
+### Generated collection types
+
+`byline init` commits `byline/generated/collection-types.ts` and adds two application scripts:
+
+```sh
+pnpm byline:generate        # regenerate after changing collection or block schemas
+pnpm byline:generate:check  # fail without writing when the artifact is missing or stale
+```
+
+The application script evaluates `byline/collections/index.ts`; it does not load
+`server.config.ts`. That collection tuple remains the runtime registry, while the generated module
+is its deterministic, standalone TypeScript projection for typed clients and frontend code. Keep
+the artifact committed and run the check in CI.
+
 ### Already-wired apps (post-manual-config)
 
 If you wired Byline into your app by hand (collections, `server.config.ts`, env, routes, scaffold files all in place) and just need to provision the database and seed, use `setup` instead of `init`:

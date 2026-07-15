@@ -9,8 +9,8 @@
 import type { BylineClient } from '@byline/client'
 import { describe, expectTypeOf, it } from 'vitest'
 
-import type { DocFields } from './collections/docs/schema.js'
 import type { BylineCollections } from './collections/index.js'
+import type { DocsFields as DocFields } from './generated/collection-types.js'
 
 type AppClient = BylineClient<BylineCollections>
 

@@ -1,20 +1,16 @@
-import type { BlocksUnion } from '@byline/core'
 import { Section } from '@byline/ui/react'
 
-import { PhotoBlock as PhotoBlockDef } from '~/blocks/photo-block'
-import { RichTextBlock as RichTextBlockDef } from '~/blocks/richtext-block'
+import type { PhotoBlockData, RichTextBlockData } from '~/generated/collection-types.js'
 
 import { PhotoBlock } from '@/ui/byline/blocks/photo-block'
 import { RichTextBlock } from '@/ui/byline/blocks/richtext-block'
 import { toKebabCase } from '@/ui/utils/to-kebab-case'
 import type { Locale } from '@/i18n/i18n-config'
 
-const Blocks = [PhotoBlockDef, RichTextBlockDef] as const
-
-export type AnyBlock = BlocksUnion<typeof Blocks>
+export type AnyBlock = PhotoBlockData | RichTextBlockData
 
 // Mapped type ensures every AnyBlock['_type'] has a registered component.
-// TypeScript errors here if Blocks gains a new type without a matching entry.
+// TypeScript errors here if AnyBlock gains a new type without a matching entry.
 type BlockRegistry = {
   [K in AnyBlock['_type']]: React.ComponentType<{
     id: string

@@ -14,7 +14,9 @@ import { Media } from './media/schema.js'
 import { News } from './news/schema.js'
 import { NewsCategories } from './news-categories/schema.js'
 import { Pages } from './pages/schema.js'
+import type { CollectionFieldsByPath } from '../generated/collection-types.js'
 
 export const collections = [Docs, News, Pages, Media, NewsCategories] as const
 
-export type BylineCollections = InferCollectionRegistry<typeof collections>
+export type InferredBylineCollections = InferCollectionRegistry<typeof collections>
+export type BylineCollections = CollectionFieldsByPath

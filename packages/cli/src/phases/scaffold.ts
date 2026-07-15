@@ -7,6 +7,10 @@ import type { Phase } from '../types.js'
 const TARGET_DIR = 'byline'
 const BASE_TEMPLATE = 'byline'
 const EXAMPLES_TEMPLATE = 'byline-examples'
+const GENERATION_SCRIPTS = {
+  'byline:generate': 'tsx byline/scripts/generate-types.ts',
+  'byline:generate:check': 'tsx byline/scripts/generate-types.ts --check',
+} as const
 
 interface CopyEntry {
   fromAbs: string
@@ -72,8 +76,33 @@ export const scaffoldPhase: Phase = {
         `${skipped} file(s) already existed and were left untouched — re-running scaffold is non-destructive`
       )
     }
+    const addedScripts = ensureGenerationScripts(ctx)
+    if (addedScripts.length > 0) {
+      ctx.logger.success(`added package.json scripts: ${addedScripts.join(', ')}`)
+    }
     return { state: 'done' }
   },
+}
+
+export function ensureGenerationScripts(ctx: Context): string[] {
+  const packagePath = ctx.resolve('package.json')
+  if (!existsSync(packagePath)) return []
+
+  const pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+    scripts?: Record<string, string>
+    [key: string]: unknown
+  }
+  const scripts = { ...(pkg.scripts ?? {}) }
+  const added: string[] = []
+  for (const [name, command] of Object.entries(GENERATION_SCRIPTS)) {
+    if (scripts[name] !== undefined) continue
+    scripts[name] = command
+    added.push(name)
+  }
+  if (added.length === 0) return added
+
+  writeFileSync(packagePath, `${JSON.stringify({ ...pkg, scripts }, null, 2)}\n`, 'utf8')
+  return added
 }
 
 function collectEntries(ctx: Context, examples: boolean, importDocs: boolean): CopyEntry[] {
