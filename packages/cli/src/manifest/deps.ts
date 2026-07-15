@@ -15,6 +15,8 @@
  * user via the `@byline/*` package boundary and don't need declaring.
  */
 
+import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
+
 export type DepGroup = 'byline' | 'runtime' | 'dev'
 
 /**
@@ -35,14 +37,10 @@ export interface DepSpec {
   optional?: DepOptionalFlag
 }
 
-// Floor for installed `@byline/*` versions. The `@byline/*` packages release
-// in lockstep, and the templates we drop into the host project reference
-// 3.x-only APIs throughout (e.g. `i18n.translations` / `adminTranslations`,
-// `source_locale`, the audit log, and `lexicalEditorToMarkdownServer`). A `^2`
-// floor would let pnpm resolve the latest 2.x against these 3.x templates, so
-// we floor at the current major. Bump the minor when a template starts using an
-// API that landed in a later 3.x release.
-export const BYLINE_VERSION = '^3.21.0'
+// The templates and publishable packages release in lockstep with the CLI.
+// Changesets updates package.json during version-packages; deriving this range
+// makes that release version the sole source of truth for scaffolded installs.
+export const BYLINE_VERSION = BYLINE_RELEASE_POLICY.dependencyRange
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------

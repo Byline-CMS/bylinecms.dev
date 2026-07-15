@@ -3,11 +3,11 @@ import { join } from 'node:path'
 
 import { satisfies, subset, valid, validRange } from 'semver'
 
+import { BYLINE_RELEASE_POLICY } from './release-policy.js'
 import { resolveWorkspaceOwnership, workspacePackageDirectories } from './workspace-root.js'
 import type { Context } from '../context.js'
 import type { DepSpec } from '../manifest/deps.js'
 
-const SUPPORTED_BYLINE_RANGE = '>=3.21.0 <4.0.0-0'
 const BARE_WORKSPACE_RANGES = new Set(['workspace:*', 'workspace:^', 'workspace:~'])
 const resolvedVersions = new WeakMap<Context, Map<string, string | undefined>>()
 
@@ -48,7 +48,7 @@ export function checkDependencyVersion(
         reason: `${trimmed} target version could not be resolved locally`,
       }
     }
-    if (!valid(actualVersion) || !satisfies(actualVersion, SUPPORTED_BYLINE_RANGE)) {
+    if (!valid(actualVersion) || !satisfies(actualVersion, BYLINE_RELEASE_POLICY.supportedRange)) {
       return {
         status: 'incompatible',
         preserveDeclared: true,
@@ -69,13 +69,14 @@ export function checkDependencyVersion(
     return { status: 'incompatible', preserveDeclared: false, reason: 'invalid version range' }
   }
   try {
-    const compatible = validRange(range) !== null && subset(range, SUPPORTED_BYLINE_RANGE)
+    const compatible =
+      validRange(range) !== null && subset(range, BYLINE_RELEASE_POLICY.supportedRange)
     return compatible
       ? { status: 'compatible', preserveDeclared: trimmed.startsWith('workspace:'), reason: range }
       : {
           status: 'incompatible',
           preserveDeclared: trimmed.startsWith('workspace:'),
-          reason: `${range} is not wholly within ${SUPPORTED_BYLINE_RANGE}`,
+          reason: `${range} is not wholly within ${BYLINE_RELEASE_POLICY.supportedRange}`,
         }
   } catch {
     return { status: 'incompatible', preserveDeclared: false, reason: 'invalid version range' }

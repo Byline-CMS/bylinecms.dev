@@ -4,6 +4,7 @@ import {
   type DependencyCompatibility,
   evaluateDependencyCompatibility,
 } from '../lib/dependency-version.js'
+import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
 import { DEP_SPECS, type DepSpec } from '../manifest/deps.js'
 import { ENV_FILE_PATHS, ENV_SPECS, type EnvFile, type EnvKey } from '../manifest/env.js'
 import type { Context } from '../context.js'
@@ -45,7 +46,7 @@ export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
     }
     if (dependencyIssues.some((issue) => issue.compatibility?.preserveDeclared === true)) {
       ctx.logger.info(
-        'workspace links were preserved; update or link the local @byline package to a supported 3.21.x+ version'
+        `workspace links were preserved; update or link the local @byline package to a supported ${BYLINE_RELEASE_POLICY.displayFloor} version`
       )
     }
     ctx.logger.info('or run the full wizard: byline init')

@@ -7,41 +7,66 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { shouldHaltInit } from '../commands/init.js'
 import { findBylineDependencyIssues, findMissingBylineDeps } from '../commands/setup-checks.js'
 import { isDependencyVersionCompatible } from '../lib/dependency-version.js'
-import { DEP_SPECS } from '../manifest/deps.js'
+import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
+import { BYLINE_VERSION, DEP_SPECS } from '../manifest/deps.js'
 import { createTestContext, createTestContextAt } from '../test-helpers.js'
 import { depsPhase, validateDependencyPlan, validateDependencyPostconditions } from './deps.js'
 import type { Context } from '../context.js'
 
 const contexts: Context[] = []
 const roots: string[] = []
+const CURRENT_VERSION = BYLINE_VERSION.slice(1)
+const [CURRENT_MAJOR, CURRENT_MINOR, CURRENT_PATCH] = CURRENT_VERSION.split('.').map(Number) as [
+  number,
+  number,
+  number,
+]
+const NEXT_MAJOR_VERSION = `${CURRENT_MAJOR + 1}.0.0`
+const SAME_MAJOR_LATER_VERSION = `${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH + 1}`
+const BELOW_FLOOR_VERSION =
+  CURRENT_PATCH > 0
+    ? `${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH - 1}`
+    : CURRENT_MINOR > 0
+      ? `${CURRENT_MAJOR}.${CURRENT_MINOR - 1}.99`
+      : `${CURRENT_MAJOR - 1}.99.99`
 afterEach(() => {
   for (const ctx of contexts.splice(0)) rmSync(ctx.cwd, { recursive: true, force: true })
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
 describe('Byline dependency compatibility', () => {
-  const core = DEP_SPECS.find((spec) => spec.name === '@byline/core')!
+  const core = DEP_SPECS.find((spec) => spec.name === '@byline/core')
+  if (!core) throw new Error('@byline/core dependency spec is missing')
+
+  it('uses the CLI-derived release policy for every Byline dependency', () => {
+    expect(BYLINE_VERSION).toBe(BYLINE_RELEASE_POLICY.dependencyRange)
+    expect(
+      DEP_SPECS.filter((spec) => spec.group === 'byline').every(
+        (spec) => spec.version === BYLINE_RELEASE_POLICY.dependencyRange
+      )
+    ).toBe(true)
+  })
 
   it.each([
-    ['^3.21', true],
-    ['~3.22.0', true],
-    ['3.21.0', true],
-    ['3.99.4', true],
-    ['>=3.21.0 <4', true],
+    [BYLINE_VERSION, true],
+    [`~${CURRENT_VERSION}`, true],
+    [CURRENT_VERSION, true],
+    [SAME_MAJOR_LATER_VERSION, true],
+    [`>=${CURRENT_VERSION} <${CURRENT_MAJOR + 1}`, true],
     ['workspace:*', false],
     ['workspace:^', false],
     ['workspace:~', false],
-    ['workspace:^3.21.0', true],
-    ['workspace:~3.22.0', true],
-    ['workspace:3.23.1', true],
-    ['workspace:^3.20.0', false],
-    ['^3.20.0', false],
-    ['>=3.21.0', false],
-    ['^4.0.0', false],
-    ['^3.21.0 || ^4.0.0', false],
-    ['npm:@byline/core@^3.21.0', true],
-    ['npm:@byline/core@^4.0.0', false],
-    ['npm:@byline/admin@^3.21.0', false],
+    [`workspace:${BYLINE_VERSION}`, true],
+    [`workspace:~${CURRENT_VERSION}`, true],
+    [`workspace:${CURRENT_VERSION}`, true],
+    [`workspace:^${BELOW_FLOOR_VERSION}`, false],
+    [`^${BELOW_FLOOR_VERSION}`, false],
+    [`>=${CURRENT_VERSION}`, false],
+    [`^${NEXT_MAJOR_VERSION}`, false],
+    [`${BYLINE_VERSION} || ^${NEXT_MAJOR_VERSION}`, false],
+    [`npm:@byline/core@${BYLINE_VERSION}`, true],
+    [`npm:@byline/core@^${NEXT_MAJOR_VERSION}`, false],
+    [`npm:@byline/admin@${BYLINE_VERSION}`, false],
     ['latest', false],
   ])('classifies %s as compatible=%s', (range, compatible) => {
     expect(isDependencyVersionCompatible(core, range)).toBe(compatible)
@@ -68,18 +93,18 @@ describe('Byline dependency compatibility', () => {
     const ctx = createTestContext({ examples: false })
     contexts.push(ctx)
     const dependencies = compatibleDependencies()
-    dependencies['@byline/core'] = '^3.20.0'
-    dependencies['@byline/admin'] = '^3.22.0'
-    dependencies['@byline/ai'] = 'workspace:^3.21.0'
-    dependencies['@byline/ui'] = '^4.0.0'
+    dependencies['@byline/core'] = `^${BELOW_FLOOR_VERSION}`
+    dependencies['@byline/admin'] = BYLINE_VERSION
+    dependencies['@byline/ai'] = `workspace:${BYLINE_VERSION}`
+    dependencies['@byline/ui'] = `^${NEXT_MAJOR_VERSION}`
     writeFileSync(ctx.resolve('package.json'), `${JSON.stringify({ dependencies }, null, 2)}\n`)
 
     const plan = await depsPhase.plan(ctx)
     const command = plan.commands.flatMap((item) => item.args).join(' ')
-    expect(command).toContain('@byline/core@^3.21.0')
+    expect(command).toContain(`@byline/core@${BYLINE_VERSION}`)
     expect(command).not.toContain('@byline/admin@')
     expect(command).not.toContain('@byline/ai@')
-    expect(command).toContain('@byline/ui@^3.21.0')
+    expect(command).toContain(`@byline/ui@${BYLINE_VERSION}`)
     ctx.state.markPhaseComplete('deps')
     expect(await depsPhase.detect(ctx)).toBe('pending')
     expect(findMissingBylineDeps(ctx)?.map((spec) => spec.name)).toContain('@byline/core')
@@ -89,10 +114,10 @@ describe('Byline dependency compatibility', () => {
   })
 
   it.each([
-    ['3.20.9', 'incompatible'],
-    ['3.21.0', 'compatible'],
-    ['3.99.0', 'compatible'],
-    ['4.0.0', 'incompatible'],
+    [BELOW_FLOOR_VERSION, 'incompatible'],
+    [CURRENT_VERSION, 'compatible'],
+    [SAME_MAJOR_LATER_VERSION, 'compatible'],
+    [NEXT_MAJOR_VERSION, 'incompatible'],
   ] as const)('checks bare workspace links against resolved version %s', async (actual, status) => {
     const ctx = linkedWorkspaceContext(actual)
     const dependencies = compatibleDependencies()
@@ -132,12 +157,12 @@ describe('Byline dependency compatibility', () => {
   })
 
   it('uses included workspace metadata over stale node_modules and ignores excluded duplicates', async () => {
-    const ctx = linkedWorkspaceContext('3.20.0')
+    const ctx = linkedWorkspaceContext(BELOW_FLOOR_VERSION)
     const root = ctx.workspaceRoot
     mkdirSync(join(root, 'packages/excluded-core'), { recursive: true })
     writeFileSync(
       join(root, 'packages/excluded-core/package.json'),
-      '{"name":"@byline/core","version":"4.0.0"}\n'
+      `${JSON.stringify({ name: '@byline/core', version: NEXT_MAJOR_VERSION })}\n`
     )
     writeFileSync(
       join(root, 'pnpm-workspace.yaml'),
@@ -146,14 +171,14 @@ describe('Byline dependency compatibility', () => {
     mkdirSync(ctx.resolve('node_modules/@byline/core'), { recursive: true })
     writeFileSync(
       ctx.resolve('node_modules/@byline/core/package.json'),
-      '{"name":"@byline/core","version":"3.21.9"}\n'
+      `${JSON.stringify({ name: '@byline/core', version: SAME_MAJOR_LATER_VERSION })}\n`
     )
     const dependencies = compatibleDependencies()
     dependencies['@byline/core'] = 'workspace:*'
     writeFileSync(ctx.resolve('package.json'), `${JSON.stringify({ dependencies })}\n`)
     expect(await depsPhase.detect(ctx)).toBe('pending')
     const plan = await depsPhase.plan(ctx)
-    expect(plan.notes.join('\n')).toContain('resolves to unsupported 3.20.0')
+    expect(plan.notes.join('\n')).toContain(`resolves to unsupported ${BELOW_FLOOR_VERSION}`)
     expect((await depsPhase.apply(plan, ctx)).state).toBe('blocked')
   })
 
@@ -162,7 +187,7 @@ describe('Byline dependency compatibility', () => {
     mkdirSync(join(ctx.workspaceRoot, 'packages/excluded-core'), { recursive: true })
     writeFileSync(
       join(ctx.workspaceRoot, 'packages/excluded-core/package.json'),
-      '{"name":"@byline/core","version":"3.21.9"}\n'
+      `${JSON.stringify({ name: '@byline/core', version: SAME_MAJOR_LATER_VERSION })}\n`
     )
     writeFileSync(
       join(ctx.workspaceRoot, 'pnpm-workspace.yaml'),
@@ -177,11 +202,11 @@ describe('Byline dependency compatibility', () => {
   })
 
   it('treats duplicate included workspace package names as unknown', async () => {
-    const ctx = linkedWorkspaceContext('3.21.2')
+    const ctx = linkedWorkspaceContext(CURRENT_VERSION)
     mkdirSync(join(ctx.workspaceRoot, 'packages/core-copy'), { recursive: true })
     writeFileSync(
       join(ctx.workspaceRoot, 'packages/core-copy/package.json'),
-      '{"name":"@byline/core","version":"3.22.0"}\n'
+      `${JSON.stringify({ name: '@byline/core', version: SAME_MAJOR_LATER_VERSION })}\n`
     )
     const dependencies = compatibleDependencies()
     dependencies['@byline/core'] = 'workspace:*'
@@ -245,7 +270,7 @@ describe('Byline dependency compatibility', () => {
     [
       'compatible range',
       (deps: Record<string, string>): void => {
-        deps['@byline/core'] = '^3.22.0'
+        deps['@byline/core'] = BYLINE_VERSION
       },
     ],
     [
@@ -265,7 +290,7 @@ describe('Byline dependency compatibility', () => {
     contexts.push(ctx)
     ctx.pm = 'npm'
     const dependencies = compatibleDependencies()
-    dependencies['@byline/core'] = '^3.20.0'
+    dependencies['@byline/core'] = `^${BELOW_FLOOR_VERSION}`
     delete dependencies.classnames
     const packagePath = ctx.resolve('package.json')
     writeFileSync(packagePath, `${JSON.stringify({ dependencies }, null, 2)}\n`)
@@ -283,7 +308,7 @@ describe('Byline dependency compatibility', () => {
     const ctx = createTestContext({ examples: false })
     contexts.push(ctx)
     const dependencies = compatibleDependencies()
-    dependencies['@byline/core'] = '^3.20.0'
+    dependencies['@byline/core'] = `^${BELOW_FLOOR_VERSION}`
     writeFileSync(ctx.resolve('package.json'), `${JSON.stringify({ dependencies })}\n`)
     const plan = await depsPhase.plan(ctx)
     expect(plan.writes.some((write) => write.path.endsWith('pnpm-workspace.yaml'))).toBe(true)
@@ -301,7 +326,7 @@ describe('Byline dependency compatibility', () => {
     writeFileSync(join(root, 'package.json'), '{"private":true,"workspaces":["apps/*"]}\n')
     writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n')
     const dependencies = compatibleDependencies()
-    dependencies['@byline/core'] = '^3.20.0'
+    dependencies['@byline/core'] = `^${BELOW_FLOOR_VERSION}`
     writeFileSync(join(app, 'package.json'), `${JSON.stringify({ dependencies })}\n`)
     const ctx = createTestContextAt(app, { examples: false })
     contexts.push(ctx)

@@ -1,24 +1,21 @@
 #!/usr/bin/env node
-import { createRequire } from 'node:module'
-
 import { Command } from 'commander'
 
 import { runDoctor } from './commands/doctor.js'
 import { runInit } from './commands/init.js'
 import { runSetup } from './commands/setup.js'
+import { CLI_PACKAGE_VERSION } from './lib/release-policy.js'
 import { PHASE_IDS } from './phases/index.js'
 import type { PackageManager, PhaseId } from './types.js'
 
 const PACKAGE_MANAGERS: PackageManager[] = ['pnpm', 'npm', 'yarn', 'bun']
-const require = createRequire(import.meta.url)
-const packageVersion = (require('../package.json') as { version: string }).version
 
 const program = new Command()
 
 program
   .name('byline')
   .description('Guided installer for Byline CMS into a TanStack Start application')
-  .version(packageVersion)
+  .version(CLI_PACKAGE_VERSION)
 
 program
   .command('init')
