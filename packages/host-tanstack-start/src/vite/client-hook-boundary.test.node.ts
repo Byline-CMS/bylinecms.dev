@@ -20,6 +20,8 @@ describe('client hook boundary', () => {
     expect(
       findServerHookModules([
         '/project/byline/collections/docs/hooks.ts',
+        '/project/byline/collections/content-types/publications/file-hooks.ts',
+        '/project/byline/collections/content-types/publications/cover-hooks.tsx',
         '/project/byline/collections/server-hooks.ts?import',
         String.raw`C:\project\byline\collections\create-revalidation-lifecycle-hooks.ts`,
         '/project/byline/collections/events/hooks.mts',
@@ -28,6 +30,8 @@ describe('client hook boundary', () => {
       ])
     ).toEqual([
       '/project/byline/collections/docs/hooks.ts',
+      '/project/byline/collections/content-types/publications/file-hooks.ts',
+      '/project/byline/collections/content-types/publications/cover-hooks.tsx',
       '/project/byline/collections/server-hooks.ts?import',
       String.raw`C:\project\byline\collections\create-revalidation-lifecycle-hooks.ts`,
       '/project/byline/collections/events/hooks.mts',

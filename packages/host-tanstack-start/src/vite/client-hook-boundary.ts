@@ -17,14 +17,13 @@
  */
 import type { Plugin } from 'vite'
 
-const COLLECTION_HOOK_MODULE = /\/byline\/collections\/[^/]+\/hooks\.[cm]?[jt]sx?$/
-const SHARED_HOOK_MODULE =
-  /\/byline\/collections\/[^/]*(?:server-hooks|lifecycle-hooks|side-effects)\.[cm]?[jt]sx?$/
+const SERVER_HOOK_MODULE =
+  /\/byline\/collections\/(?:.+\/)?(?:hooks|[^/]+-hooks|[^/]+-lifecycle-hooks|[^/]+-side-effects)\.[cm]?[jt]sx?$/
 
 export function findServerHookModules(moduleIds: Iterable<string>): string[] {
   return [...moduleIds].filter((moduleId) => {
     const normalized = moduleId.replaceAll('\\', '/').split('?', 1)[0]
-    return COLLECTION_HOOK_MODULE.test(normalized) || SHARED_HOOK_MODULE.test(normalized)
+    return SERVER_HOOK_MODULE.test(normalized)
   })
 }
 
