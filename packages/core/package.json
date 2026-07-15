@@ -41,6 +41,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
+    "./codegen": {
+      "types": "./dist/codegen/index.d.ts",
+      "import": "./dist/codegen/index.js",
+      "require": "./dist/codegen/index.js"
+    },
     "./zod-schemas": {
       "types": "./dist/schemas/zod/index.d.ts",
       "import": "./dist/schemas/zod/index.js",

@@ -1,0 +1,119 @@
+import type { JsonObject, JsonValue, RelatedDocumentValue, StoredFileValue } from '@byline/core'
+
+export type MediaBlockData = {
+  _id: string
+  _type: 'media'
+  caption?: string | undefined
+  image: StoredFileValue
+}
+
+export type MediaBlockDataAllLocales = {
+  _id: string
+  _type: 'media'
+  caption?: { [locale: string]: string } | undefined
+  image: StoredFileValue
+}
+
+export type QuoteBlockData = {
+  _id: string
+  _type: "quote'block"
+  quotation: string
+  "tone'choice"?: 'calm' | "author's" | undefined
+}
+
+export type QuoteBlockDataAllLocales = {
+  _id: string
+  _type: "quote'block"
+  quotation: { [locale: string]: string }
+  "tone'choice"?: 'calm' | "author's" | undefined
+}
+
+export type AllFieldsFields = {
+  integer: number
+  float: number
+  counter: number
+  decimal: string
+  date: Date
+  datetime: Date
+  time: string
+  text: string
+  localizedText: string
+  textArea: string
+  boolean: boolean
+  checkbox: boolean
+  select: 'first' | "second's"
+  json: JsonValue
+  localizedJson: JsonValue
+  object: JsonObject
+  richText: JsonValue
+  file: StoredFileValue
+  image: StoredFileValue
+  relation: RelatedDocumentValue
+  relations: RelatedDocumentValue[]
+  optionalText?: string | undefined
+  group: {
+    title: string
+    enabled?: boolean | undefined
+  }
+  array: Array<{
+    _id: string
+    label: string
+    score?: number | undefined
+  }>
+  "content's": Array<QuoteBlockData | MediaBlockData>
+}
+
+export type AllFieldsFieldsAllLocales = {
+  integer: number
+  float: number
+  counter: number
+  decimal: string
+  date: Date
+  datetime: Date
+  time: string
+  text: string
+  localizedText: { [locale: string]: string }
+  textArea: string
+  boolean: boolean
+  checkbox: boolean
+  select: 'first' | "second's"
+  json: JsonValue
+  localizedJson: { [locale: string]: JsonValue }
+  object: JsonObject
+  richText: JsonValue
+  file: StoredFileValue
+  image: StoredFileValue
+  relation: RelatedDocumentValue
+  relations: RelatedDocumentValue[]
+  optionalText?: string | undefined
+  group: {
+    title: { [locale: string]: string }
+    enabled?: boolean | undefined
+  }
+  array: Array<{
+    _id: string
+    label: { [locale: string]: string }
+    score?: number | undefined
+  }>
+  "content's": Array<QuoteBlockDataAllLocales | MediaBlockDataAllLocales>
+}
+
+export type MinimalFields = {
+  title: string
+}
+
+export type MinimalFieldsAllLocales = {
+  title: string
+}
+
+export type CollectionFieldsByPath = {
+  'all-fields': AllFieldsFields
+  minimal: MinimalFields
+}
+
+export type CollectionFieldsAllLocalesByPath = {
+  'all-fields': AllFieldsFieldsAllLocales
+  minimal: MinimalFieldsAllLocales
+}
+
+export type CollectionPath = keyof CollectionFieldsByPath
