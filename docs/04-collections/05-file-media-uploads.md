@@ -166,9 +166,13 @@ fields: [
 A storage provider is identified at write time by `storedFile.storageProvider`; the read path doesn't need to know which provider produced a given file beyond what's already in the envelope.
 
 :::warning[upload.storage is server-only]
-**Setting it inline leaks into the client bundle.** A collection schema is **isomorphic** (bundled into the browser admin as well as the server). The `import { s3StorageProvider } from '@byline/storage-s3'` above is a *static* import at the top of the schema, so the provider's entire server-only graph — the AWS SDK, `node:*` built-ins — gets dragged into the client bundle. This is the same hazard as a hook statically importing server-only code (see [Collections → Hooks must not statically import server-only code](./index.md#hooks-must-not-statically-import-server-only-code)), but for a provider *instance* rather than a loader function, so the hook-specific `createServerOnlyFn(() => import(...))` pattern does not transplant directly.
+**Setting it inline leaks into the client bundle.** A collection schema is **isomorphic** (bundled into the browser admin as well as the server). The `import { s3StorageProvider } from '@byline/storage-s3'` above is a *static* import at the top of the schema, so the provider's entire server-only graph — the AWS SDK, `node:*` built-ins — gets dragged into the client bundle. This is the same hazard as a hook statically importing server-only code (see [Collections → Server-only hook registry](./index.md#server-only-hook-registry)), but for a provider *instance*. `ServerConfig.hooks` solves hook attachment; it does not attach per-field storage providers.
 
-Until a first-class deferral lands, prefer the **site-wide `ServerConfig.storage` default** (configured server-side in `server.config.ts`) over inline per-field providers, or hide the provider construction behind a client-safe, SSR-gated shim (the same technique as the hooks "Alternative" in [Collections](./index.md#lifecycle-hooks)). No collection ships an inline `upload.storage` today, so this is a latent affordance rather than an active bug. A build-time `server-only` poison that would catch it is a possible future safeguard.
+Until a first-class per-field storage registry lands, prefer the **site-wide
+`ServerConfig.storage` default** (configured server-side in `server.config.ts`)
+over inline per-field providers. No collection ships an inline
+`upload.storage` today, so this is a latent affordance rather than an active
+bug.
 :::
 
 → [Storage routing](#storage-routing)
@@ -177,35 +181,34 @@ Until a first-class deferral lands, prefer the **site-wide `ServerConfig.storage
 
 The `beforeStore` hook fires after auth + mime/size validation and before the storage write. Return a string to rewrite the filename; return `{ error }` to reject. Generated variant filenames inherit the new prefix automatically (`<basename>-<variantName>.<ext>`).
 
-**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+**Edit:** `apps/webapp/byline/collections/<name>/hooks.ts`, then register the
+loader in `apps/webapp/byline/collections/server-hooks.ts`.
 
 ```ts
-import type { BeforeStoreContext } from '@byline/core'
+// collections/media/hooks.ts — server-only
+import type { UploadHooks } from '@byline/core'
 
-fields: [
-  {
-    name: 'image',
-    type: 'image',
-    upload: {
-      hooks: {
-        beforeStore: [
-          // tenant-prefix everything
-          ({ filename, requestContext }) =>
-            `${requestContext.actor?.id ?? 'anon'}-${filename}`,
-          // …then prefix with publication ID if present in the form
-          ({ filename, fields }) =>
-            fields.publicationId ? `${fields.publicationId}-${filename}` : undefined,
-          // …then enforce uniqueness within the collection
-          async ({ filename, collectionPath }) => {
-            if (await isAssetTaken(collectionPath, filename)) {
-              return { error: `An asset with name '${filename}' already exists.` }
-            }
-          },
-        ],
-      },
+export default {
+  beforeStore: [
+    // tenant-prefix everything
+    ({ filename, requestContext }) =>
+      `${requestContext.actor?.id ?? 'anon'}-${filename}`,
+    // …then prefix with publication ID if present in the form
+    ({ filename, fields }) =>
+      fields.publicationId ? `${fields.publicationId}-${filename}` : undefined,
+    // …then enforce uniqueness within the collection
+    async ({ filename, collectionPath }) => {
+      if (await isAssetTaken(collectionPath, filename)) {
+        return { error: `An asset with name '${filename}' already exists.` }
+      }
     },
-  },
-]
+  ],
+} satisfies UploadHooks
+
+// collections/server-hooks.ts
+export const serverHooks = {
+  uploads: { 'media.image': () => import('./media/hooks.js') },
+} satisfies ServerHooksConfig
 ```
 
 Multi-function chains stack with fold semantics — each function sees the previous function's filename override. Returning `void` keeps the current filename; returning `{ error }` short-circuits with `ERR_VALIDATION` — no file is written, no variants generated, no later hook runs.
@@ -216,31 +219,24 @@ Multi-function chains stack with fold semantics — each function sees the previ
 
 `afterStore` runs after the storage write and variant generation, with the persisted `StoredFileValue` in hand. It is specifically best-effort: failures are logged via `logger.error`, do not roll back the storage write, and do not reject the upload.
 
-**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+**Edit:** the server-only upload hook module registered in
+`apps/webapp/byline/collections/server-hooks.ts`.
 
 ```ts
-import type { AfterStoreContext } from '@byline/core'
+import type { UploadHooks } from '@byline/core'
 
-fields: [
-  {
-    name: 'image',
-    type: 'image',
-    upload: {
-      hooks: {
-        afterStore: async ({ storedFile, fieldName, collectionPath, requestContext }) => {
-          await auditLog.write({
-            actor: requestContext.actor?.id ?? 'anon',
-            event: 'upload.complete',
-            collection: collectionPath,
-            field: fieldName,
-            fileId: storedFile.fileId,
-            bytes: storedFile.fileSize,
-          })
-        },
-      },
-    },
+export default {
+  afterStore: async ({ storedFile, fieldName, collectionPath, requestContext }) => {
+    await auditLog.write({
+      actor: requestContext.actor?.id ?? 'anon',
+      event: 'upload.complete',
+      collection: collectionPath,
+      field: fieldName,
+      fileId: storedFile.fileId,
+      bytes: storedFile.fileSize,
+    })
   },
-]
+} satisfies UploadHooks
 ```
 
 → [`beforeStore` and `afterStore` hooks](#beforestore-and-afterstore-hooks)
@@ -384,8 +380,9 @@ to serialize into the hooks' string-valued `ctx.fields`. It always also posts th
 full `fieldPath` and, in edit mode, `documentId`; hooks must treat these as
 client-supplied claims. `requireSavedDocument` hides the admin upload affordance
 until a document id exists, but API callers must still be rejected in
-`beforeStore` when that invariant matters. Put the lazy import inside a
-`createServerOnlyFn` loader to keep server-only hook dependencies out of browser bundles.
+`beforeStore` when that invariant matters. Register server-only upload hook
+loaders through `ServerConfig.hooks.uploads`; a loader attached to the
+isomorphic schema is still reachable from the browser build.
 
 The reference Media schema in `apps/webapp/byline/collections/media/schema.ts` carries every knob set deliberately (avif variants, 20 MB cap, common image mimetypes including SVG) and is the canonical worked example.
 
@@ -618,7 +615,11 @@ The current transport is internal to the TanStack Start app. A stable, framework
 
 ### `beforeStore` and `afterStore` hooks
 
-Server-side hooks live on `field.upload.hooks`. They bracket the storage provider's write step — not the network transmission, since by the time a hook fires the bytes are already on the server (an in-memory `Buffer` today; a `/tmp` file with a future streaming adapter — the contract is agnostic).
+Server-side hooks are attached to `field.upload.hooks` during server
+initialization, normally from `ServerConfig.hooks.uploads`. They bracket the
+storage provider's write step — not the network transmission, since by the time
+a hook fires the bytes are already on the server (an in-memory `Buffer` today;
+a `/tmp` file with a future streaming adapter — the contract is agnostic).
 
 **Validation order.** Hooks never see a file that's about to be rejected. The full pipeline:
 

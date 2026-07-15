@@ -9,6 +9,8 @@ There are two ways to get started with Byline:
 - [Experimental CLI](./01-experimental-cli.md) — install Byline into an existing TanStack Start application with `byline init` (plus `setup` and `doctor`).
 - [Development environment and example application](./02-development-environment.md) — clone this repo, provision PostgreSQL, seed the database, and run the example app (`apps/webapp`) in dev mode.
 
+Existing 3.21 applications should follow [Upgrading from 3.21 to 4.0](./03-upgrading-to-v4.md).
+
 If you're evaluating Byline, the development environment is the quickest way to see a working install; the CLI is the path to adding Byline to your own app.
 
 ## Where to go next
