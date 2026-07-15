@@ -136,9 +136,18 @@ export interface BylineClientConfig {
    *   - a static `RequestContext` — convenient for long-lived processes
    *     that authenticate once (seeds, migrations, CLI tooling); or
    *   - a factory `() => RequestContext | Promise<RequestContext>` —
-   *     resolved per-call so each operation picks up the current
-   *     authenticated request (the pattern Phase 5's admin webapp will
-   *     use to thread middleware-derived actors).
+   *     invoked per operation so each one picks up the current
+   *     authenticated request (the pattern the admin webapp uses to
+   *     thread middleware-derived actors).
+   *
+   * **Factory contract — request-stable resolution.** Within one logical
+   * request the factory must return the same context instance (same
+   * `requestId`) on every call. Reads that share a `ReadContext` bind an
+   * immutable request authority whose token includes `requestId`, so a
+   * factory that mints a fresh context per call makes the second such
+   * read throw `ERR_VALIDATION` ('ReadContext cannot be reused across
+   * request authorities'). Host adapters should memoize resolution per
+   * request — see `oncePerRequest` in `@byline/host-tanstack-start`.
    *
    * When omitted, calls fail closed with `ERR_UNAUTHENTICATED`. Scripts
    * and tests pass `createSuperAdminContext()` from `@byline/auth`.

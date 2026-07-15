@@ -57,12 +57,18 @@ export function getViewerBylineClient(): BylineClient {
   if (cachedClient) return cachedClient
   cachedClient = createBylineClient({
     config: getServerConfig(),
-    // Memoized per request so every read in one request binds the same
-    // context instance (and requestId) — reads sharing a ReadContext must
-    // resolve a single request authority.
-    requestContext: () => oncePerRequest('byline:viewer-request-context', resolveViewerContext),
+    requestContext: resolveViewerRequestContext,
   })
   return cachedClient
+}
+
+/**
+ * Preview-aware viewer context — memoized per request so every read in
+ * one request binds the same context instance (and requestId): reads
+ * sharing a ReadContext must resolve a single request authority.
+ */
+export function resolveViewerRequestContext() {
+  return oncePerRequest('byline:viewer-request-context', resolveViewerContext)
 }
 
 async function resolveViewerContext() {

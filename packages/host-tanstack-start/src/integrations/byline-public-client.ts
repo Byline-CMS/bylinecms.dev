@@ -37,11 +37,23 @@
  * from session cookies, memoized per request).
  */
 
-import { createRequestContext } from '@byline/auth'
+import { createRequestContext, type RequestContext } from '@byline/auth'
 import { type BylineClient, createBylineClient } from '@byline/client'
 import { getServerConfig } from '@byline/core'
 
 import { oncePerRequest } from '../auth/request-scope.js'
+
+/**
+ * Anonymous, published-only context — memoized per request so the
+ * context (and its requestId) is stable across every read in one
+ * request: reads sharing a ReadContext must bind a single request
+ * authority.
+ */
+export function resolvePublicRequestContext(): Promise<RequestContext> {
+  return oncePerRequest('byline:public-request-context', async () =>
+    createRequestContext({ readMode: 'published' })
+  )
+}
 
 let cachedClient: BylineClient | undefined
 
@@ -49,13 +61,7 @@ export function getPublicBylineClient(): BylineClient {
   if (cachedClient) return cachedClient
   cachedClient = createBylineClient({
     config: getServerConfig(),
-    // Memoized per request so the anonymous context (and its requestId)
-    // is stable across every read in one request — reads sharing a
-    // ReadContext must bind a single request authority.
-    requestContext: () =>
-      oncePerRequest('byline:public-request-context', async () =>
-        createRequestContext({ readMode: 'published' })
-      ),
+    requestContext: resolvePublicRequestContext,
   })
   return cachedClient
 }
