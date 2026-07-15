@@ -1,0 +1,6 @@
+interface:
+  display_name: "Release Byline"
+  short_description: "Run the guarded lockstep Byline release"
+  default_prompt: "Use $release to run the guarded Byline package release workflow."
+policy:
+  allow_implicit_invocation: false

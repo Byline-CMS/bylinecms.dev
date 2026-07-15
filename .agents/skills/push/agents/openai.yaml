@@ -1,0 +1,6 @@
+interface:
+  display_name: "Push Commits"
+  short_description: "Review and safely push local commits"
+  default_prompt: "Use $push to review and push the current branch after confirmation."
+policy:
+  allow_implicit_invocation: false

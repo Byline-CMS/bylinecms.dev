@@ -1,0 +1,6 @@
+interface:
+  display_name: "Commit Changes"
+  short_description: "Review, stage, verify, and commit changes"
+  default_prompt: "Use $commit to review and commit the current worktree safely."
+policy:
+  allow_implicit_invocation: false
