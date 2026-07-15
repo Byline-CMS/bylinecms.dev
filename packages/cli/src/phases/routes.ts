@@ -325,6 +325,28 @@ function planRuntimeRoutesWrite(
       migrationBlocked: true,
     }
   }
+  const generated = recognizeGeneratedRoutesSource(before, canonical)
+  if (generated) {
+    const generatedPrevious = validateRoutePaths(
+      ctx,
+      generated.adminPath,
+      generated.signInPath,
+      generated.apiPath
+    )
+    if (!generatedPrevious.ok) {
+      return {
+        note: `${path}: manual — generated predecessor has invalid route paths`,
+        migrationBlocked: true,
+      }
+    }
+    if (normalizeTemplateSource(before) === normalizeTemplateSource(desired)) {
+      return { precondition: { type: 'file', path, contents: before } }
+    }
+    return {
+      write: { path, contents: desired, mode: 'patch', before },
+      previousRoutes: generatedPrevious.value,
+    }
+  }
   if (
     previous.value.adminPath === routes.adminPath &&
     previous.value.apiPath === routes.apiPath &&
@@ -332,28 +354,9 @@ function planRuntimeRoutesWrite(
   ) {
     return { precondition: { type: 'file', path, contents: before } }
   }
-  const generated = recognizeGeneratedRoutesSource(before, canonical)
-  if (!generated) {
-    return {
-      note: `${path}: manual — existing user-owned routes.ts does not match a generated predecessor`,
-      migrationBlocked: true,
-    }
-  }
-  const generatedPrevious = validateRoutePaths(
-    ctx,
-    generated.adminPath,
-    generated.signInPath,
-    generated.apiPath
-  )
-  if (!generatedPrevious.ok) {
-    return {
-      note: `${path}: manual — generated predecessor has invalid route paths`,
-      migrationBlocked: true,
-    }
-  }
   return {
-    write: { path, contents: desired, mode: 'patch', before },
-    previousRoutes: generatedPrevious.value,
+    note: `${path}: manual — existing user-owned routes.ts does not match a generated predecessor`,
+    migrationBlocked: true,
   }
 }
 

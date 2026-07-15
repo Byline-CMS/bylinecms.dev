@@ -10,6 +10,7 @@ import {
 
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { PREVIOUS_RELEASE_ROUTES_SOURCE, readStaticRoutesSource } from '../lib/route-config.js'
 import { createTestContext } from '../test-helpers.js'
 import { promptsPhase } from './prompts.js'
 import { buildRoutesPlan, renameAdminSegment, routesPhase } from './routes.js'
@@ -391,6 +392,39 @@ describe('routes planning', () => {
     expect(existsSync(oldPath)).toBe(false)
     expect(existsSync(nextPath)).toBe(true)
     expect(await routesPhase.detect(ctx)).toBe('done')
+  })
+
+  it.each([
+    ['/admin', '/admin'],
+    ['/cms', '/cms'],
+  ])('rewrites the literal v3.21 routes source when its %s admin path is already aligned', async (adminPath, expectedAdminPath) => {
+    const ctx = fixture({ adminPath })
+    const configPath = ctx.resolve('byline/routes.ts')
+    mkdirSync(ctx.resolve('byline'), { recursive: true })
+    writeFileSync(
+      configPath,
+      previousReleaseRoutesSource().replace("admin: '/admin'", `admin: '${adminPath}'`)
+    )
+
+    const plan = buildRoutesPlan(ctx)
+    expect(plan.writes).toContainEqual(expect.objectContaining({ path: configPath, mode: 'patch' }))
+    expect(plan.notes.join('\n')).not.toContain('manual')
+
+    expect((await routesPhase.apply(plan, ctx)).state).toBe('done')
+    const migrated = readFileSync(configPath, 'utf8')
+    expect(migrated).toContain('resolveRoutes({')
+    expect(migrated).toContain(`admin: '${expectedAdminPath}'`)
+    expect(migrated).toContain("signIn: '/sign-in'")
+  })
+
+  it('pins the recognized predecessor to the literal v3.21 source shape', () => {
+    const literal = previousReleaseRoutesSource()
+    expect(PREVIOUS_RELEASE_ROUTES_SOURCE).toBe(literal)
+    expect(literal).not.toContain('signIn:')
+    expect(readStaticRoutesSource(PREVIOUS_RELEASE_ROUTES_SOURCE)).toEqual({
+      ok: true,
+      value: { admin: '/admin', api: '/api', signIn: '/sign-in' },
+    })
   })
 
   it('atomically migrates one generated custom sign-in route to another', async () => {
@@ -873,8 +907,9 @@ function previousReleaseRoutesSource(): string {
  */
 
 /**
- * Client-safe URL paths for admin, sign-in, and the future public API.
- * \`resolveRoutes()\` applies defaults and canonicalizes every consumer.
+ * URL segments for admin and (future) public API routes. Defaults of
+ * \`/admin\` and \`/api\` are applied automatically by \`resolveRoutes()\` —
+ * keys only need to be set here when overriding either default.
  */
 
 import type { RoutesConfig } from '@byline/core'
@@ -882,7 +917,6 @@ import type { RoutesConfig } from '@byline/core'
 export const routes: Partial<RoutesConfig> = {
   admin: '/admin',
   api: '/api',
-  signIn: '/sign-in',
 }
 
 /**

@@ -91,7 +91,7 @@ describe('scaffold planning', () => {
     expect(scaffold.notes.join('\n')).toContain('deferred atomically to the routes phase')
     expect((await scaffoldPhase.apply(scaffold, ctx)).state).toBe('done')
     expect(await scaffoldPhase.detect(ctx)).toBe('done')
-    expect(readFileSync(configPath, 'utf8')).toContain("signIn: '/sign-in'")
+    expect(readFileSync(configPath, 'utf8')).not.toContain('signIn:')
 
     expect((await routesPhase.apply(buildRoutesPlan(ctx), ctx)).state).toBe('done')
     expect(readFileSync(configPath, 'utf8')).toContain("signIn: '/staff/login'")
@@ -186,8 +186,9 @@ function previousReleaseRoutesSource(): string {
  */
 
 /**
- * Client-safe URL paths for admin, sign-in, and the future public API.
- * \`resolveRoutes()\` applies defaults and canonicalizes every consumer.
+ * URL segments for admin and (future) public API routes. Defaults of
+ * \`/admin\` and \`/api\` are applied automatically by \`resolveRoutes()\` —
+ * keys only need to be set here when overriding either default.
  */
 
 import type { RoutesConfig } from '@byline/core'
@@ -195,7 +196,6 @@ import type { RoutesConfig } from '@byline/core'
 export const routes: Partial<RoutesConfig> = {
   admin: '/admin',
   api: '/api',
-  signIn: '/sign-in',
 }
 
 /**

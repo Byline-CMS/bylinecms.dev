@@ -16,7 +16,7 @@ export const DEFAULT_SIGN_IN_PATH = '/sign-in'
 const ROUTE_SEGMENT_REGEX = /^[a-z][a-z0-9-]*$/
 const SYSTEM_ROUTE_SEGMENTS = new Set(['_serverfn', '_build', 'uploads', 'static', 'public'])
 const FILESYSTEM_SPECIAL_SEGMENTS = new Set(['index', 'route'])
-const PREVIOUS_RELEASE_ROUTES_SOURCE = `/**
+export const PREVIOUS_RELEASE_ROUTES_SOURCE = `/**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,8 +25,9 @@ const PREVIOUS_RELEASE_ROUTES_SOURCE = `/**
  */
 
 /**
- * Client-safe URL paths for admin, sign-in, and the future public API.
- * \`resolveRoutes()\` applies defaults and canonicalizes every consumer.
+ * URL segments for admin and (future) public API routes. Defaults of
+ * \`/admin\` and \`/api\` are applied automatically by \`resolveRoutes()\` —
+ * keys only need to be set here when overriding either default.
  */
 
 import type { RoutesConfig } from '@byline/core'
@@ -34,7 +35,6 @@ import type { RoutesConfig } from '@byline/core'
 export const routes: Partial<RoutesConfig> = {
   admin: '/admin',
   api: '/api',
-  signIn: '/sign-in',
 }
 
 /**
@@ -185,7 +185,7 @@ export function recognizeGeneratedRoutesSource(
   const current = renderGeneratedRoutesSource(
     canonical,
     parsed.value.admin,
-    '/api',
+    parsed.value.api,
     parsed.value.signIn
   )
   if (normalizeTemplateSource(source) === normalizeTemplateSource(current)) {
@@ -198,7 +198,7 @@ export function recognizeGeneratedRoutesSource(
   const previous = renderGeneratedRoutesSource(
     PREVIOUS_RELEASE_ROUTES_SOURCE,
     parsed.value.admin,
-    '/api',
+    parsed.value.api,
     parsed.value.signIn
   )
   return normalizeTemplateSource(source) === normalizeTemplateSource(previous)
