@@ -19,7 +19,7 @@ import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs
 import { useNavigate } from '../admin-shell/chrome/loose-router.js'
 import { EditView } from '../admin-shell/collections/edit.js'
 import { getCollectionDocument } from '../server-fns/collections/index.js'
-import type { ContentLocaleOption } from '../admin-shell/collections/view-menu.js'
+import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
@@ -27,12 +27,7 @@ const searchSchema = z.object({
   action: z.enum(['created']).optional(),
 })
 
-interface CollectionEditOpts {
-  contentLocales: ReadonlyArray<ContentLocaleOption>
-  defaultContentLocale: string
-}
-
-export function createCollectionEditRoute(path: string, opts: CollectionEditOpts) {
+export function createCollectionEditRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
     validateSearch: searchSchema,
@@ -82,6 +77,7 @@ export function createCollectionEditRoute(path: string, opts: CollectionEditOpts
       const { t } = useTranslation('byline-admin')
       const toastManager = useToastManager()
       const navigate = useNavigate()
+      const { contentLocales, defaultContentLocale } = getContentLocaleRouteConfig()
 
       // Post-create toast for the create → edit redirect (?action=created).
       // Ref-guarded for the same reason as the list route's created toast:
@@ -133,8 +129,8 @@ export function createCollectionEditRoute(path: string, opts: CollectionEditOpts
             adminConfig={adminConfig ?? undefined}
             initialData={data}
             locale={locale}
-            contentLocales={opts.contentLocales}
-            defaultContentLocale={opts.defaultContentLocale}
+            contentLocales={contentLocales}
+            defaultContentLocale={defaultContentLocale}
           />
         </>
       )

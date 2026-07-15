@@ -8,10 +8,11 @@
 
 /**
  * Registers Byline's client-side config (collection admin UI configs,
- * field editors, i18n, routes) in the current module graph. Imported as
- * a side-effect from `src/routes/__root.tsx` — that module runs in both
- * the SSR render and client module graphs, so a single import there
- * covers both contexts.
+ * field editors, i18n, routes) in the current module graph. The `_byline`
+ * route registers it from two complementary points: a dynamic import in
+ * `route.tsx` covers child loaders, while the side-effect import in
+ * `route.lazy.tsx` covers component render and initial hydration. Keeping
+ * both imports behind `_byline/*` keeps the admin graph off public routes.
  *
  * In TanStack Start with Vite 6 the server entry (`src/server.ts`) and
  * the SSR rendering context run in separate Vite environments, so

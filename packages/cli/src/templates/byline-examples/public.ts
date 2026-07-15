@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createCollectionApiRoute } from '@byline/host-tanstack-start/routes'
-
-export const Route = createCollectionApiRoute('/_byline/admin/collections/$collection/$id/api')
+/** Client-safe public configuration. Keep this barrel free of admin and server imports. */
+export { contentLocales, interfaceLocales } from './locales.js'
+export { routes } from './routes.js'
+export type { LocaleDefinition } from './locales.js'

@@ -11,9 +11,9 @@
  * `defineClientConfig` payload from the host's locale sets.
  *
  * The locale arrays themselves live in `./locales.ts`, a dependency-free
- * leaf module, so the public frontend can import them without pulling in
- * the admin translation graph this file depends on. Re-exported here for
- * back-compat with existing `~/i18n` / `../i18n.js` importers.
+ * leaf module exposed to public frontend code by `./public.ts`, without
+ * pulling in the admin translation graph this file depends on. Re-exported
+ * here for back-compat with existing `~/i18n` / `../i18n.js` importers.
  *
  * `interface` locales govern the CMS admin UI language.
  * `content` locales govern the languages a document can be published in.

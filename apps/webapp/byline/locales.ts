@@ -12,10 +12,11 @@
  * translation registry). `byline/i18n.ts` consumes these to assemble the
  * `defineServerConfig` / `defineClientConfig` payload.
  *
- * Kept separate from `byline/i18n.ts` precisely so the public frontend
- * can import the locale arrays without dragging the admin translation
- * graph (`@byline/i18n/admin`, the Lexical-adjacent module tree) into its
- * client bundle. Importing `byline/i18n.ts` would; importing this won't.
+ * Kept separate from `byline/i18n.ts` precisely so `byline/public.ts` can
+ * expose the locale arrays to the public frontend without dragging the
+ * admin translation graph (`@byline/i18n/admin`, the Lexical-adjacent
+ * module tree) into its client bundle. Importing `byline/i18n.ts` would;
+ * importing this won't.
  * That keeps the lazy-loaded admin/public split intact (see
  * `src/routes/_byline/route.lazy.tsx`).
  *
@@ -36,7 +37,7 @@ export interface LocaleDefinition {
 // (or a third-party plugin merged in via `mergeTranslations(...)`).
 // `adminTranslations({ locales })` in `byline/i18n.ts` throws at boot if
 // the requested code is not bundled.
-export const interfaceLocales: LocaleDefinition[] = [
+export const interfaceLocales = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
   { code: 'es', label: 'Español' },
@@ -44,7 +45,7 @@ export const interfaceLocales: LocaleDefinition[] = [
   { code: 'it', label: 'Italiano' },
   { code: 'zh-CN', label: '简体中文' },
   { code: 'ko', label: '한국어' },
-]
+] as const satisfies readonly LocaleDefinition[]
 
 /** Locales a document can be published in. */
 export const contentLocales = [
@@ -54,4 +55,4 @@ export const contentLocales = [
   { code: 'de', label: 'Deutsch' },
   { code: 'zh-CN', label: '中文' },
   { code: 'th-TH', label: 'ไทย' },
-] as const
+] as const satisfies readonly LocaleDefinition[]

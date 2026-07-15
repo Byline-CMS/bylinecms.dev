@@ -8,9 +8,4 @@
 
 import { createCollectionEditRoute } from '@byline/host-tanstack-start/routes'
 
-import { contentLocales, i18n } from '~/i18n'
-
-export const Route = createCollectionEditRoute('/_byline/admin/collections/$collection/$id/', {
-  contentLocales,
-  defaultContentLocale: i18n.content.defaultLocale,
-})
+export const Route = createCollectionEditRoute('/_byline/admin/collections/$collection/$id/')

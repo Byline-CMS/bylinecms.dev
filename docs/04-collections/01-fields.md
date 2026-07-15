@@ -300,7 +300,7 @@ Schema-side. Field hooks receive `ctx.setFieldValue(path, value)` for cross-fiel
 A field lives in two places at once:
 
 - **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data plus plain functions over data: field names, types, validation, defaults, schema-level adapter config (`editorConfig`, `embedRelationsOnSave`, `localized`, …), and the editor-behaviour hints that are functions of form data (`validate`, `condition`, client-side `hooks`). **Must be tsx-loadable** — the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
-- **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: per-field slot components, the per-field editor swap, columns, layout, preview URL. React is allowed here. Pulled in by `admin.config.ts`, which is side-effect-imported from `__root.tsx` so the registration covers both SSR and client module graphs.
+- **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: per-field slot components, the per-field editor swap, columns, layout, preview URL. React is allowed here. Pulled in by `admin.config.ts`, which the `_byline` route registers from `beforeLoad` for child loaders and from `route.lazy.tsx` for component render and hydration.
 
 The schema declares what the field *is*; the admin declares how it *renders*. The two cooperate at render time — schema declares `richText` and the admin attaches the editor component — and never collide because they target different layers of the pipeline.
 
