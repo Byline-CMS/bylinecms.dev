@@ -1,3 +1,8 @@
+import {
+  commitHookAttachment,
+  type HookAttachmentOperation,
+  prepareHookAttachment,
+} from './attach-hooks.js'
 import { resolveRoutes } from './routes.js'
 import { validateAdminConfigs } from './validate-admin-configs.js'
 import { validateCollections } from './validate-collections.js'
@@ -22,6 +27,7 @@ import type {
 const BYLINE_SERVER_CONFIG = Symbol.for('__byline_server_config__')
 const BYLINE_CLIENT_CONFIG = Symbol.for('__byline_client_config__')
 const BYLINE_CORE = Symbol.for('__byline_core__')
+const preparedHookAttachments = new WeakMap<object, readonly HookAttachmentOperation[]>()
 
 function getServerConfigInstance(): ResolvedServerConfig | null {
   return (globalThis as any)[BYLINE_SERVER_CONFIG] ?? null
@@ -56,7 +62,7 @@ function setBylineCoreInstance(core: unknown) {
  * still throw the loud "Byline has not been configured" error.
  */
 export const getCollectionDefinition = (path: string): CollectionDefinition | null => {
-  const config = getClientConfigInstance() ?? getServerConfigInstance()
+  const config = getServerConfigInstance() ?? getClientConfigInstance()
   if (config == null) return null
 
   return config.collections.find((collection) => collection.path === path) ?? null
@@ -101,13 +107,17 @@ export function resolveServerConfig<TAdminStore = unknown>(
   config: ServerConfig<TAdminStore>
 ): ResolvedServerConfig<TAdminStore> {
   validateCollections(config.collections)
-  return { ...config, routes: resolveRoutes(config.routes) }
+  const resolved = { ...config, routes: resolveRoutes(config.routes) }
+  preparedHookAttachments.set(resolved, prepareHookAttachment(resolved))
+  return resolved
 }
 
 /** Internal commit step used after initialization has completed successfully. */
 export function registerServerConfig<TAdminStore = unknown>(
   config: ResolvedServerConfig<TAdminStore>
 ): ResolvedServerConfig<TAdminStore> {
+  const attachments = preparedHookAttachments.get(config) ?? prepareHookAttachment(config)
+  commitHookAttachment(attachments)
   setServerConfigInstance(config)
   return config
 }

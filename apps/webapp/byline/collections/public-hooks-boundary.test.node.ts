@@ -74,15 +74,13 @@ describe('public collection hook boundary', () => {
     'news',
     'news-categories',
     'pages',
-  ])('%s schema keeps lifecycle hooks behind a server-only loader', (name) => {
+  ])('%s schema has no framework or lifecycle-hook module dependency', (name) => {
     const schemaPath = resolve(collectionsDirectory, name, 'schema.ts')
     const source = readFileSync(schemaPath, 'utf8')
 
-    expect(source).toMatch(
-      /const loadHooks\s*=\s*createServerOnlyFn\(\(\)\s*=>\s*import\(['"]\.\/hooks\.js['"]\)\)/
-    )
-    expect(source).toMatch(/hooks:\s*loadHooks/)
-    expect(staticModuleSpecifiers(schemaPath)).not.toContain('./hooks.js')
+    expect(source).not.toContain('@tanstack/react-start')
+    expect(source).not.toContain('createServerOnlyFn')
+    expect(source).not.toMatch(/['"]\.\/hooks\.js['"]/)
   })
 
   it('keeps the server-only lifecycle graph out of collection and public config graphs', () => {
@@ -91,13 +89,23 @@ describe('public collection hook boundary', () => {
       resolve(bylineDirectory, 'public.ts'),
     ])
     const serverOnlyModules = [
+      resolve(collectionsDirectory, 'server-hooks.ts'),
       resolve(collectionsDirectory, 'create-public-lifecycle-hooks.ts'),
       resolve(collectionsDirectory, 'run-side-effects.ts'),
       resolve(bylineDirectory, 'client.server.ts'),
       resolve(appDirectory, 'src/lib/cache/with-cache.ts'),
-      ...['docs', 'news', 'pages'].map((name) => resolve(collectionsDirectory, name, 'hooks.ts')),
+      ...['docs', 'media', 'news', 'news-categories', 'pages'].map((name) =>
+        resolve(collectionsDirectory, name, 'hooks.ts')
+      ),
     ]
 
     expect(serverOnlyModules.filter((filePath) => graph.has(filePath))).toEqual([])
+  })
+
+  it('reaches the server hook registry only from the server bootstrap graph', () => {
+    const serverHooks = resolve(collectionsDirectory, 'server-hooks.ts')
+    const graph = collectStaticSourceGraph([resolve(bylineDirectory, 'server.config.ts')])
+
+    expect(graph.has(serverHooks)).toBe(true)
   })
 })

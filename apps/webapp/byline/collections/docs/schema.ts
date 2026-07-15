@@ -6,8 +6,6 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createServerOnlyFn } from '@tanstack/react-start'
-
 import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
@@ -16,8 +14,6 @@ import { RichTextBlock } from '../../blocks/richtext-block.js'
 import { publishedOnField } from '../../fields/published-on-field.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
-
-const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
 
 export const Docs = defineCollection({
   path: 'docs',
@@ -67,19 +63,8 @@ export const Docs = defineCollection({
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true, // See type definition for details.
-  // Collection lifecycle hooks. Hooks run **server-side only**, but this
-  // schema is isomorphic (also bundled into the browser admin), so we declare
-  // the hooks via the **loader form**, wrapped in TanStack's server-only
-  // transform, rather than an inline object. The client receives only a
-  // throwing stub; `./hooks.ts` and its import graph stay out of the browser
-  // bundle, leaving that file free to import Node built-ins, DB clients,
-  // caches, or secrets. See
-  // `./hooks.ts` for the full explanation, and docs/04-collections/index.md →
-  // "Hooks must not statically import server-only code".
-  //
-  // (Hooks that only touch isomorphic code may still be declared inline as
-  // `hooks: { … }`; the loader form is what makes server-only imports safe.)
-  hooks: loadHooks,
+  // Server-only lifecycle hooks are registered in ../server-hooks.ts so this
+  // schema remains portable across host frameworks and safe in client graphs.
   fields: [
     {
       name: 'title',

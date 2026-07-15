@@ -103,7 +103,26 @@ describe('scaffold planning', () => {
     const ctx = fixture({ examples: true, importDocs: true })
     const plan = buildScaffoldPlan(ctx)
     expect(plan.writes.some((write) => write.path.endsWith('scripts/import-docs.ts'))).toBe(true)
-    expect(plan.writes.some((write) => write.path.includes('.test.node.ts'))).toBe(false)
+    expect(
+      plan.writes.some(
+        (write) => write.path.includes('/scripts/') && write.path.endsWith('.test.node.ts')
+      )
+    ).toBe(false)
+  })
+
+  it('ships the example client-hook boundary test but no script helper tests', () => {
+    const ctx = fixture({ examples: true, importDocs: true })
+    const plan = buildScaffoldPlan(ctx)
+    expect(
+      plan.writes.some((write) =>
+        write.path.endsWith('collections/client-hook-build-boundary.test.node.ts')
+      )
+    ).toBe(true)
+    expect(
+      plan.writes.some(
+        (write) => write.path.includes('/scripts/') && write.path.endsWith('.test.node.ts')
+      )
+    ).toBe(false)
   })
 
   it('patches a recognized Turbo task map and leaves unknown config manual', () => {

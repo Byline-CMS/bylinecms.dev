@@ -20,19 +20,17 @@
  * Search indexing is the canonical reason this matters: it imports the
  * server-only app client boundary from `byline/client.server.ts`. Importing
  * that from the schema would drag server code into the browser bundle (fatal
- * in dev). The schema avoids it by referencing these hooks through a
- * **dynamic import** instead of an inline object:
+ * in dev). The server bootstrap avoids it by registering these hooks from a
+ * server-only module:
  *
- *     // schema.ts
- *     hooks: () => import('./hooks.js')
+ *     // collections/server-hooks.ts
+ *     collections: { docs: () => import('./docs/hooks.js') }
  *
- * Because the schema reaches this module only through `import()`, this file —
- * and its entire transitive import graph — is **structurally absent** from
- * the client bundle. `@byline/core` resolves the loader once on the server
- * (memoized) and calls these hooks exactly as it would inline ones. The
- * upshot: **inside this file we may statically import server-only modules
- * directly.** See docs/04-collections → "Hooks must not statically import
- * server-only code".
+ * No client entry reaches that registry, so this file and its transitive graph
+ * are structurally absent from the client bundle without a host-framework
+ * transform. `@byline/core` attaches and resolves the loader on the server.
+ * The upshot: **inside this file we may statically import server-only modules
+ * directly.** See docs/04-collections → "Server-only hook registry".
  *
  * ──────────────────────────────────────────────────────────────────────────
  *  Search indexing

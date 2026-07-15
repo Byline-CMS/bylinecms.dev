@@ -9,6 +9,7 @@
 import { createSuperAdminContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
+import { commitHookAttachment, prepareHookAttachment } from '../config/attach-hooks.js'
 import { BylineError, ErrorCodes } from '../lib/errors.js'
 import { uploadField } from './field-upload.js'
 import type { CollectionDefinition, IDbAdapter, IStorageProvider } from '../@types/index.js'
@@ -206,6 +207,59 @@ function buildCtx(overrides?: Partial<FieldUploadContext>) {
 }
 
 describe('uploadField service', () => {
+  it('fires registry hooks for a nested array instance selected by its unique upload leaf', async () => {
+    const beforeStore = vi.fn()
+    const publicationFile = {
+      name: 'publicationFile',
+      type: 'file' as const,
+      upload: { mimeTypes: ['application/pdf'] },
+    }
+    const definition: CollectionDefinition = {
+      path: 'documents',
+      labels: { singular: 'Document', plural: 'Documents' },
+      fields: [
+        {
+          name: 'files',
+          type: 'array',
+          fields: [{ name: 'filesGroup', type: 'group', fields: [publicationFile] }],
+        },
+      ],
+    }
+    commitHookAttachment(
+      prepareHookAttachment({
+        collections: [definition],
+        hooks: {
+          uploads: {
+            'documents.files.filesGroup.publicationFile': { beforeStore },
+          },
+        },
+      })
+    )
+    const { ctx } = buildCtx({
+      definition,
+      collectionPath: 'documents',
+      fieldName: 'publicationFile',
+    })
+
+    await uploadField(ctx, {
+      buffer: Buffer.from('pdf'),
+      originalFilename: 'publication.pdf',
+      mimeType: 'application/pdf',
+      fileSize: 3,
+      fields: { runtimeFormPath: 'files[2].filesGroup.publicationFile' },
+      shouldCreateDocument: false,
+    })
+
+    expect(beforeStore).toHaveBeenCalledOnce()
+    expect(beforeStore).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fieldName: 'publicationFile',
+        field: publicationFile,
+        fields: { runtimeFormPath: 'files[2].filesGroup.publicationFile' },
+      })
+    )
+  })
+
   it('uploads a file without creating a document when requested', async () => {
     const { ctx, createDocumentVersion, upload } = buildCtx()
 

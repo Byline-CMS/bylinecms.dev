@@ -11,8 +11,10 @@ import {
   type CollectionDefinition,
   defineServerConfig,
   type IDbAdapter,
+  type IStorageProvider,
   type RichTextPopulateFn,
   type SearchProvider,
+  type ServerHooksConfig,
 } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 
@@ -45,6 +47,10 @@ export async function setupMultiCollectionTestClient(
      * true. Used by the richtext-populate integration test.
      */
     richTextPopulate?: RichTextPopulateFn
+    /** Optional storage provider used by field-upload integration tests. */
+    storage?: IStorageProvider
+    /** Optional server-only hook registry attached during config registration. */
+    hooks?: ServerHooksConfig
     /**
      * Optional search provider factory (e.g. `(db) => postgresSearch({
      * pool: db.pool })`) wired onto the client so `CollectionHandle.search`
@@ -72,6 +78,8 @@ export async function setupMultiCollectionTestClient(
       content: { defaultLocale: 'en', locales: ['en'] },
     },
     collections: definitions,
+    storage: options.storage,
+    hooks: options.hooks,
   })
 
   const requestContext =
@@ -83,6 +91,7 @@ export async function setupMultiCollectionTestClient(
     requestContext,
     richTextPopulate: options.richTextPopulate,
     search: options.search?.(db),
+    storage: options.storage,
   })
 
   const collectionIds: Record<string, string> = {}

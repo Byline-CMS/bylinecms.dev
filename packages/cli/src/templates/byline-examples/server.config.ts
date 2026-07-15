@@ -30,6 +30,7 @@ import { localStorageProvider } from '@byline/storage-local'
 
 import { getAdminBylineClient } from './client.server.js'
 import { collections } from './collections/index.js'
+import { serverHooks } from './collections/server-hooks.js'
 import { i18n } from './i18n.js'
 import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
@@ -139,6 +140,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     i18n,
     routes,
     collections,
+    hooks: serverHooks,
     db,
     adminStore,
     // Site-wide default storage provider — used by any upload collection

@@ -134,10 +134,10 @@ export interface UploadConfig {
    * have been written to the storage provider, before the document
    * version is created.
    *
-   * Accepts an inline object, or — because the schema is isomorphic — a
-   * **loader** (`hooks: () => import('./media.hooks.js')`) that defers the
-   * hooks module so server-only code (storage SDKs, `sharp`, AV scanners)
-   * never enters the client bundle. See {@link UploadHooksLoader}.
+   * Accepts an inline object or a lazy loader. Both remain reachable from an
+   * isomorphic schema, so use them only for isomorphic-safe hooks. Hooks that
+   * import server-only code belong in `ServerConfig.hooks.uploads`, registered
+   * from the server entry. See {@link UploadHooksLoader}.
    *
    * @see UploadHooks
    */
@@ -801,16 +801,13 @@ export interface UploadHooks {
  * `() => import('./media.hooks.js')` works directly against an
  * `export default { … } satisfies UploadHooks`).
  *
- * Same rationale as {@link CollectionHooksLoader}: upload hooks are declared
- * on a field *inside the collection schema*, which is **isomorphic** (bundled
- * into the client admin). `beforeStore` / `afterStore` bodies typically reach
- * for server-only code — storage SDKs, `sharp`, AV scanners, `node:crypto` —
- * so declaring them inline drags that graph into the client bundle. The
- * loader form defers the hooks module behind a dynamic `import()`, keeping it
- * structurally absent from the client.
+ * For hooks that are safe in both browser and server graphs, schemas may use
+ * this loader form directly. A dynamic import in an isomorphic schema is not
+ * by itself a client boundary: server-only hook modules must instead be
+ * registered through `ServerConfig.hooks.uploads`, from a server-only entry.
  *
  * @example
- * // media.schema.ts — isomorphic, client-safe by construction
+ * // media.schema.ts — only for isomorphic-safe hooks
  * {
  *   name: 'image',
  *   type: 'image',
@@ -820,7 +817,7 @@ export interface UploadHooks {
  *   },
  * }
  *
- * // media.hooks.ts — server-only; may import any server-only module freely
+ * // media.hooks.ts — must remain safe for every graph that imports the schema
  * export default { afterStore: (ctx) => { … } } satisfies UploadHooks
  */
 export type UploadHooksLoader = () => Promise<UploadHooks | { default: UploadHooks }>
@@ -1064,23 +1061,20 @@ export interface CollectionHooks {
  * (so `() => import('./docs.hooks.js')` works directly against an
  * `export default { … } satisfies CollectionHooks`).
  *
- * Why this exists: a `CollectionDefinition` is **isomorphic** — the same
- * schema module is bundled into the *client* admin as well as the server.
- * Any module the schema *statically imports* is dragged into the client
- * bundle, so a hook body that imports server-only code (cache invalidation,
- * queue clients, Node built-ins) leaks that entire graph into the browser.
- * The loader form defers the hooks module behind a dynamic `import()`, so
- * the hooks module and its server-only graph are *structurally absent* from
- * the client — no per-call-site SSR guards required.
+ * A loader attached directly to an isomorphic schema is suitable only when
+ * its hook module is safe in every graph that imports that schema. Dynamic
+ * imports may still become browser chunks. Register hooks that import
+ * server-only code through `ServerConfig.hooks.collections` from a server-only
+ * entry instead.
  *
  * @example
- * // docs.schema.ts — isomorphic, client-safe by construction
+ * // docs.schema.ts — only for isomorphic-safe hooks
  * export const Docs = defineCollection({
  *   // …declarative field config…
  *   hooks: () => import('./docs.hooks.js'),
  * })
  *
- * // docs.hooks.ts — server-only; may import any server-only module freely
+ * // docs.hooks.ts — must remain safe for every graph that imports the schema
  * import { invalidateDocument } from '@/lib/cache/with-cache'
  * export default {
  *   afterCreate: ({ collectionPath, path }) => invalidateDocument(collectionPath, path),
@@ -1150,12 +1144,15 @@ export interface CollectionDefinition {
   /**
    * Lifecycle hooks for server-side document operations.
    *
-   * Two forms:
+   * Two definition-attached forms:
    * - **Inline** (`hooks: { afterCreate, … }`) — valid for hooks whose
    *   bodies only touch isomorphic / declarative code.
-   * - **Loader** (`hooks: () => import('./docs.hooks.js')`) — defers the
-   *   hooks module behind a dynamic `import()` so server-only code never
-   *   enters the client bundle. See {@link CollectionHooksLoader}.
+   * - **Loader** (`hooks: () => import('./docs.hooks.js')`) — lazy, but still
+   *   part of the schema's reachable module graph. See
+   *   {@link CollectionHooksLoader}.
+   *
+   * Hooks that import server-only modules belong in
+   * `ServerConfig.hooks.collections`, registered from the server entry.
    */
   hooks?: CollectionHooks | CollectionHooksLoader
   /**

@@ -227,6 +227,7 @@ function collectTemplateEntries(
 
 export function shouldIncludeExampleTemplate(relativePath: string, importDocs: boolean): boolean {
   const rel = toPosixTemplatePath(relativePath)
+  if (rel === 'collections/client-hook-build-boundary.test.node.ts') return true
   if (rel.endsWith('.test.node.ts')) return false
   if (importDocs) return true
   return rel !== 'scripts/import-docs.ts' && !rel.startsWith('scripts/lib/')

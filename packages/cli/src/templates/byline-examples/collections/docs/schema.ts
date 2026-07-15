@@ -65,17 +65,8 @@ export const Docs = defineCollection({
   useAsPath: 'title',
   advertiseLocales: true, // Renders the available-locales sidebar widget.
   linksInEditor: true, // See type definition for details.
-  // Collection lifecycle hooks. Hook *bodies* only ever run server-side, but
-  // a collection *schema* is isomorphic — Byline bundles it into the browser
-  // admin too (the admin reads field config from it), so anything the schema
-  // *statically imports* ships to the client. Search indexing needs a
-  // server-only import from the app's `client.server.ts` boundary, which would
-  // crash the browser bundle if imported here. The **loader form** — a thunk
-  // that dynamically imports a sibling module — keeps `./hooks.ts` and its
-  // entire import graph out of the client bundle while running exactly like
-  // inline hooks on the server.
-  // See ./hooks.ts for the worked example and the full explanation.
-  hooks: () => import('./hooks.js'),
+  // Server-only lifecycle hooks are registered in ../server-hooks.ts so this
+  // schema remains portable across host frameworks and safe in client graphs.
   fields: [
     {
       name: 'title',

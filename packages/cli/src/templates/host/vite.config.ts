@@ -7,6 +7,8 @@ import { nitro } from 'nitro/vite'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 
+import { clientHookBuildBoundary } from './byline/collections/client-hook-build-boundary.js'
+
 // Browser-only stub for `node:async_hooks`. @byline/core's logger module does
 // `await import('node:async_hooks')` at top level and falls back to a no-op
 // store on failure — but Vite's externalized-Node-builtin shim warns on every
@@ -158,6 +160,7 @@ const config = defineConfig({
   },
   plugins: [
     browserAsyncHooksAlias(),
+    clientHookBuildBoundary(),
     devtools(),
     nitro({
       preset: 'node',

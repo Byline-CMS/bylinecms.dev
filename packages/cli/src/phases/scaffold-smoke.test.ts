@@ -17,6 +17,8 @@ const HOST_EXTERNALS = new Set([
   'mdast',
   'react',
   'react-dom',
+  'vite',
+  'vitest',
   '@tanstack/react-router',
   '@tanstack/react-start',
 ])
@@ -58,7 +60,12 @@ describe('temporary host scaffold smoke contracts', () => {
     expect(sourceFiles.every((path) => !readFileSync(path, 'utf8').includes('@/i18n/'))).toBe(true)
 
     const inventory = sourceFiles.map((path) => relative(ctx.cwd, path).replaceAll('\\', '/'))
-    expect(inventory.some((path) => path.endsWith('.test.node.ts'))).toBe(false)
+    expect(inventory.includes('byline/collections/client-hook-build-boundary.test.node.ts')).toBe(
+      answers.examples
+    )
+    expect(inventory.filter((path) => path.endsWith('.test.node.ts'))).toEqual(
+      answers.examples ? ['byline/collections/client-hook-build-boundary.test.node.ts'] : []
+    )
     expect(inventory.includes('byline/scripts/import-docs.ts')).toBe(answers.importDocs)
     expect(inventory.some((path) => path.startsWith('byline/scripts/lib/'))).toBe(
       answers.importDocs

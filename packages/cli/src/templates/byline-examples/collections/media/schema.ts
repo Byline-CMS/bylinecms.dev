@@ -128,6 +128,9 @@ export const Media = defineCollection({
             quality: 55,
           },
         ],
+        // Worked example: definition-attached inline hooks are appropriate
+        // when their entire implementation is isomorphic-safe. Hooks that
+        // import server-only code belong in collections/server-hooks.ts.
         hooks: {
           beforeStore: (ctx: BeforeStoreContext) => {
             console.log('beforeStore hook called', ctx)

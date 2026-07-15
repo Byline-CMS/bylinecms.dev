@@ -289,7 +289,7 @@ A collection lives in two files:
 
 - **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data: `path`, `labels`, `fields[]`, `useAsTitle`, `useAsPath`, `workflow`, `hooks`, `search`, `showStats`, `linksInEditor`, `orderable`, `version`. **Must be tsx-loadable** — the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
 
-  The schema is **isomorphic** — the same module is *also* pulled into the **client** admin bundle (the admin shell reads field config from it). So the constraint runs both ways: just as a schema must avoid browser-only globals (so the server bootstrap can load it), it must avoid **server-only** modules (so the client can bundle it without dragging Node built-ins or backend code into the browser). Declarative field data satisfies both directions for free. The **one exception is `hooks`** — their bodies run server-side only, but they are *referenced* from this client-bundled module, which makes them the single place server-only code can leak into the client. See [Hooks must not statically import server-only code](#hooks-must-not-statically-import-server-only-code).
+  The schema is **isomorphic** — the same module is *also* pulled into the **client** admin bundle (the admin shell reads field config from it). So the constraint runs both ways: just as a schema must avoid browser-only globals (so the server bootstrap can load it), it must avoid **server-only** modules (so the client can bundle it without dragging Node built-ins or backend code into the browser). Declarative field data and isomorphic-safe field hooks satisfy both directions. Register lifecycle/upload hooks that reach server-only code through the [server-only hook registry](#server-only-hook-registry), outside the schema graph.
 - **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: `columns`, `picker`, `tabSets` / `rows` / `groups` / `layout`, `preview.url`, `listView`, `fields{}` (per-field admin), `group`. React, CSS modules, and Vite-managed imports are all fine.
 
 The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides — the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `slug` from `schema.path` automatically). See [Fields](./01-fields.md) for the equivalent split at the field level.
@@ -303,7 +303,7 @@ export interface CollectionDefinition {
   path: string
   fields: Field[]
   workflow?: WorkflowConfig
-  hooks?: CollectionHooks
+  hooks?: CollectionHooks | CollectionHooksLoader
   search?: { fields: string[] }
   useAsTitle?: string
   useAsPath?: string
@@ -563,69 +563,46 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 
 Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's `upload` block — not on the collection — because they are field-scoped and field-aware. A collection with multiple image/file fields runs each field's pipeline independently.
 
-#### Hooks must not statically import server-only code
+#### Server-only hook registry
 
-Hooks are the one place a schema reaches server-only behaviour, and — because the schema is [isomorphic](#the-schema--admin-split) — they are also the one place server-only code can leak into the **client** bundle. The hook *bodies* never execute in the browser, but they are referenced from a client-bundled module, so the bundler keeps whatever they **statically import** at the top of the schema file. That pulls the entire transitive graph of those imports into the client.
+Collection schemas are [isomorphic](#the-schema--admin-split), so every static **or dynamic** import they contain is reachable from the browser build. A plain `() => import('./hooks.js')` is lazy loading, not a server boundary, and framework wrappers such as TanStack Start's `createServerOnlyFn` make the schema host-specific.
 
-The failure is easy to miss: a plain dynamic import still becomes a browser
-chunk in production, while dev may additionally evaluate Node built-ins through
-Vite's browser-external shim. Neither environment makes an unguarded dynamic
-hook loader a server boundary.
-
-**The rule:** a hook may *call* server-only code, but the schema file must never *statically import* it.
-
-**Recommended fix — a server-only loader.** `hooks` accepts a loader, but the
-dynamic import must live inside TanStack Start's `createServerOnlyFn`. The Start
-transform replaces the client body with a throwing stub and removes the dynamic
-import plus its transitive graph from the browser build.
+Register hooks that import server-only code through `ServerConfig.hooks` instead. The registry is imported only by `byline/server.config.ts`; client configuration and schemas never reach it.
 
 ```ts
-// docs.schema.ts — isomorphic, client-safe by construction
-import { createServerOnlyFn } from '@tanstack/react-start'
+// collections/server-hooks.ts — server-only and host-framework agnostic
+import type { ServerHooksConfig } from '@byline/core'
 
-const loadHooks = createServerOnlyFn(() => import('./docs.hooks.js'))
+export const serverHooks = {
+  collections: {
+    docs: () => import('./docs/hooks.js'),
+  },
+  uploads: {
+    'media.image': () => import('./media/hooks.js'),
+  },
+} satisfies ServerHooksConfig
+```
 
-export const Docs = defineCollection({
-  // …declarative field config…
-  hooks: loadHooks,
+```ts
+// server.config.ts
+import { serverHooks } from './collections/server-hooks.js'
+
+await initBylineCore({
+  // …db, collections, adapters…
+  hooks: serverHooks,
 })
 ```
 
-```ts
-// docs.hooks.ts — server-only; may statically import any server-only module freely
-import { invalidateDocument } from '@/cache/with-cache'
-import { defineHooks } from '@byline/core'
+Core validates the complete registry before initialization mutates any definition, then attaches it only when boot commits successfully. Reinitialization may replace hooks previously owned by the registry (for HMR), but a registry entry may never overwrite hooks authored directly on a definition. Loaders are resolved and memoized by identity exactly as definition-attached loaders are.
 
-export default defineHooks({
-  afterCreate: ({ collectionPath, path }) => invalidateDocument(collectionPath, path),
-})
-```
+Upload registry keys use `'<collectionPath>.<canonical schema path>'`. The schema path is the index-free walk of field names to the exact upload field. Array and group containers contribute their field name; a blocks field is followed by its block type:
 
-The loader is resolved once and memoized (keyed on the loader's identity), so the dynamic `import()` runs at most once per process regardless of how many documents flow through it. `defineHooks(...)` is optional — it mirrors `defineCollection` / `defineBlock` as a named factory; `export default { … } satisfies CollectionHooks` is equivalent. The hooks module's `default` export (or a bare returned object) is used. The inline form (`hooks: { … }`) stays valid for hooks whose bodies only touch isomorphic / declarative code.
+- `documents.files.filesGroup.publicationFile` targets runtime instances such as `files[2].filesGroup.publicationFile`.
+- `pages.content.hero.backgroundImage` targets `backgroundImage` inside the `hero` block type.
 
-**Field upload hooks (`field.upload.hooks`) use the same server-only loader.** `beforeStore` / `afterStore` are declared on an `upload`-capable field *inside the schema*, so they have identical client-bundle exposure — and are the most likely hooks to reach for server-only code (storage SDKs, `sharp`, AV scanners). Declare `const loadUploadHooks = createServerOnlyFn(() => import('./media.hooks.js'))`, then use `upload: { …, hooks: loadUploadHooks }`; the sibling module exports `default { … } satisfies UploadHooks`. (Note: **field-level** validation hooks like `beforeValidate` are a different case — they can legitimately run client-side, so they are not server-only and are not deferred this way.)
+Collection paths, field names, and block types used in registry paths must be non-empty and dot-free. Upload-capable leaf names must be unique within a collection because the existing upload transport still selects fields by leaf name. Unknown collection/field/block segments and paths ending on non-upload fields fail at boot.
 
-**Alternative — keep hooks inline behind a client-safe, SSR-gated shim.** When you'd rather keep hook bodies in the schema file, defer the server-only call behind a shim the schema imports by name — the shim's only static import is `import type`, and the real module loads behind an SSR guard, so it never enters the schema's static graph:
-
-```ts
-// cache/invalidate-deferred.ts — client-safe; statically imports only types
-import type { InvalidateDocumentOptions } from './with-cache'
-
-export async function invalidateDocument(path: string, opts?: InvalidateDocumentOptions) {
-  if (!import.meta.env.SSR) return            // dead-code-eliminated on the client
-  await (await import('./with-cache')).invalidateDocument(path, opts)
-}
-```
-
-```ts
-// schema.ts — hook body unchanged; the import no longer reaches server-only code
-import { invalidateDocument } from '@/cache/invalidate-deferred'
-```
-
-Verify both dev and production output. The reference app also fails its client
-build when any collection hook implementation or shared lifecycle module appears
-in a generated client chunk. If a server-only dependency appears in the client
-module graph, it is a schema-authoring bug, not a bundler-config problem.
+Definition-attached inline hooks and loaders remain valid for implementations whose entire import graph is isomorphic-safe. Field validation hooks such as `beforeValidate` are intentionally definition-attached because they may run in the browser. The reference scaffold also installs a production-build boundary that fails if `server-hooks.ts`, collection `hooks.ts`, or shared lifecycle modules enter a client chunk.
 
 ### Orderable collections
 

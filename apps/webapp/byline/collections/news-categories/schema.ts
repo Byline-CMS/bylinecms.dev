@@ -6,14 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createServerOnlyFn } from '@tanstack/react-start'
-
 import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, SINGLE_STATUS_WORKFLOW } from '@byline/core'
 
 // ---- Schema (server-safe, no UI concerns) ----
-
-const loadHooks = createServerOnlyFn(() => import('./hooks.js'))
 
 export const NewsCategories = defineCollection({
   path: 'news-categories',
@@ -46,10 +42,7 @@ export const NewsCategories = defineCollection({
   // value persists on `byline_documents.order_key` without bumping the
   // document version. See docs/04-collections/index.md (Orderable collections).
   orderable: true,
-  // Server-only lifecycle hooks (L1 cache invalidation). The TanStack wrapper
-  // removes the loader body and its import graph from the client build.
-  // See ./hooks.ts and docs/04-collections/index.md.
-  hooks: loadHooks,
+  // Server-only lifecycle hooks are registered in ../server-hooks.ts.
   fields: [
     { name: 'name', label: 'Name', type: 'text', localized: true },
     { name: 'description', label: 'Description', type: 'textArea', localized: true },

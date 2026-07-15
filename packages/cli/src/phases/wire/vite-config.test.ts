@@ -45,6 +45,9 @@ describe('Vite config safety', () => {
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(
       readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
     )
+    expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toContain(
+      'clientHookBuildBoundary()'
+    )
   })
 
   it('leaves a target changed after preview untouched', async () => {
@@ -60,6 +63,11 @@ describe('Vite config safety', () => {
     const ctx = fixture()
     const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
     const predecessor = canonical
+      .replace(
+        "import { clientHookBuildBoundary } from './byline/collections/client-hook-build-boundary.js'\n\n",
+        ''
+      )
+      .replace('    clientHookBuildBoundary(),\n', '')
       .replace(
         [
           '        //',

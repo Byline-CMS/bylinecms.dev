@@ -10,7 +10,13 @@ import type { SessionProvider } from '@byline/auth'
 
 import type { SlugifierFn } from '../utils/slugify.js'
 import type { CollectionAdminConfig } from './admin-types.js'
-import type { CollectionDefinition } from './collection-types.js'
+import type {
+  CollectionDefinition,
+  CollectionHooks,
+  CollectionHooksLoader,
+  UploadHooks,
+  UploadHooksLoader,
+} from './collection-types.js'
 import type { IDbAdapter } from './db-types.js'
 import type {
   RichTextEditorComponent,
@@ -200,6 +206,28 @@ export interface ClientConfig extends BaseConfig {
 export type ResolvedClientConfig = Omit<ClientConfig, 'routes'> & { routes: RoutesConfig }
 
 /**
+ * Server-only lifecycle hook registry. Collection keys are collection paths;
+ * upload keys are `<collectionPath>.<canonical schema path>`. Canonical upload
+ * paths contain field names without runtime array indexes, and include a block
+ * type segment immediately after a blocks field.
+ *
+ * @example
+ * ```ts
+ * hooks: {
+ *   collections: { docs: () => import('./collections/docs/hooks.js') },
+ *   uploads: {
+ *     'documents.files.filesGroup.publicationFile': () => import('./collections/files/hooks.js'),
+ *     'pages.content.hero.backgroundImage': () => import('./collections/pages/hero-hooks.js'),
+ *   },
+ * }
+ * ```
+ */
+export interface ServerHooksConfig {
+  collections?: Record<string, CollectionHooks | CollectionHooksLoader>
+  uploads?: Record<string, UploadHooks | UploadHooksLoader>
+}
+
+/**
  * Server-side configuration. Extends BaseConfig with database and storage
  * adapters. Deliberately does NOT extend ClientConfig — the server has no
  * knowledge of React components or admin UI presentation logic.
@@ -213,6 +241,13 @@ export type ResolvedClientConfig = Omit<ClientConfig, 'routes'> & { routes: Rout
  */
 export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
   db: IDbAdapter
+  /**
+   * Server-only collection and upload hooks, attached to schema definitions
+   * after initialization succeeds. Prefer this registry when hook modules
+   * import server-only code; portable schema modules stay host-agnostic and
+   * client-safe.
+   */
+  hooks?: ServerHooksConfig
   /**
    * Site-wide default storage provider for upload-capable image/file
    * fields.
