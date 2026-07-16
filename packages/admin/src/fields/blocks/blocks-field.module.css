@@ -6,6 +6,7 @@
  *   .byline-field-blocks-title          — block-list label heading
  *   .byline-field-blocks-stack          — vertical stack of blocks + add row
  *   .byline-field-blocks-add-row        — add-button row at the bottom
+ *   .byline-field-blocks-add-label      — clickable text label in the add row
  *   .byline-field-blocks-modal-head     — picker modal header
  *   .byline-field-blocks-modal-title    — picker modal title
  *   .byline-field-blocks-grid           — grid of variant cards
@@ -36,7 +37,33 @@
 :global(.byline-field-blocks-add-row) {
   display: flex;
   align-items: center;
+  font-size: 0.9rem;
+  color: var(--muted);
   gap: var(--spacing-8);
+}
+
+/* Text-styled companion button for the add row's label — clickable like the
+   icon button. Hovering anywhere on the row brightens the label text. */
+.add-label,
+:global(.byline-field-blocks-add-label) {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.add-label:disabled,
+:global(.byline-field-blocks-add-label):disabled {
+  cursor: default;
+}
+
+.add-row:hover .add-label:not(:disabled),
+:global(.byline-field-blocks-add-row):hover :global(.byline-field-blocks-add-label):not(:disabled) {
+  color: var(--text);
 }
 
 .modal-head,
@@ -54,6 +81,32 @@
 .modal-content,
 :global(.byline-field-blocks-card-cursor) {
   cursor: pointer;
+  /* Cap the picker's height and scroll the card grid when a collection
+     declares more blocks than fit. Mobile-first: 80% of the (dynamic)
+     viewport height, tightening to 70% on tablet and 60% on desktop —
+     smaller screens get proportionally more of the picker. `min-height: 0`
+     lets this flex child (Modal.Content is a flex column item) actually
+     shrink and scroll; `overscroll-behavior` keeps wheel momentum from
+     spilling into the document behind the modal. All caps stay inside the
+     Modal.Container's own viewport-height limit. */
+  max-height: 80dvh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 40rem) {
+  .modal-content,
+  :global(.byline-field-blocks-card-cursor) {
+    max-height: 70dvh;
+  }
+}
+
+@media (min-width: 64rem) {
+  .modal-content,
+  :global(.byline-field-blocks-card-cursor) {
+    max-height: 60dvh;
+  }
 }
 
 .grid,

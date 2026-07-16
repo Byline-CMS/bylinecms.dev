@@ -5,6 +5,8 @@
  *   .byline-field-array               — outer wrapper
  *   .byline-field-array-title         — array label heading
  *   .byline-field-array-stack         — vertical layout for items + add row
+ *   .byline-field-array-add-row       — add-button row at the bottom
+ *   .byline-field-array-add-label     — clickable text label in the add row
  *   .byline-field-array-card          — disable-sorting fallback card per item
  *   .byline-field-array-group-header  — sub-group title above grouped fields
  *   .byline-field-array-group-fields  — vertical stack of fields inside an item
@@ -45,4 +47,32 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-16);
+}
+
+.add-row,
+:global(.byline-field-array-add-row) {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+  gap: var(--spacing-8);
+}
+
+/* Text-styled companion button for the add row's label — clickable like the
+   icon button. Hovering anywhere on the row brightens the label text. */
+.add-label,
+:global(.byline-field-array-add-label) {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.add-row:hover .add-label,
+:global(.byline-field-array-add-row):hover :global(.byline-field-array-add-label) {
+  color: var(--text);
 }

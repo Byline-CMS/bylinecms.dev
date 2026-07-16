@@ -19,6 +19,7 @@
 :global(.byline-field-code-label-row) {
   display: flex;
   align-items: center;
+  margin-bottom: 0.25rem;
 }
 
 :global(.byline-field-code) {

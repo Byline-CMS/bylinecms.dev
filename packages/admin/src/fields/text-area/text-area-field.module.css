@@ -10,4 +10,5 @@
 :global(.byline-field-text-area-label-row) {
   display: flex;
   align-items: center;
+  margin-bottom: 0.25rem;
 }

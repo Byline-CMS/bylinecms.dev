@@ -286,9 +286,25 @@ export const BlocksField = ({
             }}
             disabled={!selectedBlockName}
             aria-label={t('fields.blocks.addBlockAriaLabel')}
+            variant="outlined"
           >
             <PlusIcon />
           </IconButton>
+          {/* Text-styled button so the label is clickable too. Removed from
+              the tab order (tabIndex -1) — the IconButton is the single
+              keyboard/screen-reader control for this action. */}
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={!selectedBlockName}
+            onClick={() => {
+              setPendingInsertIndex(null)
+              setShowAddBlockModal(true)
+            }}
+            className={cx('byline-field-blocks-add-label', styles['add-label'])}
+          >
+            {t('fields.blocks.addBlock')}
+          </button>
         </div>
       </DraggableSortable>
       <Modal
@@ -299,7 +315,7 @@ export const BlocksField = ({
           setPendingInsertIndex(null)
         }}
       >
-        <Modal.Container style={{ maxWidth: '600px' }}>
+        <Modal.Container style={{ maxWidth: '700px' }}>
           <Modal.Header className={cx('byline-field-blocks-modal-head', styles['modal-head'])}>
             <h3 className={cx('byline-field-blocks-modal-title', styles['modal-title'])}>
               {t('fields.blocks.modalTitle')}

@@ -290,7 +290,7 @@ export const ArrayField = ({
           className={cx('byline-field-array-stack', styles.stack)}
         >
           {items.map((item, index) => renderItem(item, index))}
-          <span>
+          <div className={cx('byline-field-array-add-row', styles['add-row'])}>
             <IconButton
               onClick={() => {
                 void handleAddItem()
@@ -299,7 +299,20 @@ export const ArrayField = ({
             >
               <PlusIcon />
             </IconButton>
-          </span>
+            {/* Text-styled button so the label is clickable too. Removed from
+                the tab order (tabIndex -1) — the IconButton is the single
+                keyboard/screen-reader control for this action. */}
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => {
+                void handleAddItem()
+              }}
+              className={cx('byline-field-array-add-label', styles['add-label'])}
+            >
+              {t('fields.array.addItem')}
+            </button>
+          </div>
         </DraggableSortable>
       )}
     </div>

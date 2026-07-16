@@ -7,6 +7,11 @@
  *                                  field has unsaved local changes
  */
 
+.label,
+:global(.byline-field-select-label) {
+  margin-bottom: 0.25rem;
+}
+
 .dirty,
 :global(.byline-field-select-dirty) {
   border-color: var(--blue-300);

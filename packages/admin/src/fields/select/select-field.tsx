@@ -38,10 +38,17 @@ export const SelectField = ({
   return (
     <div className={`byline-field-select ${field.name}`}>
       {field.label && (
-        <Label id={htmlId} htmlFor={htmlId} label={field.label} required={!field.optional} />
+        <Label
+          id={htmlId}
+          htmlFor={htmlId}
+          label={field.label}
+          required={!field.optional}
+          className={cx('byline-field-select-label', styles.label)}
+        />
       )}
       <Select<string>
-        size="sm"
+        size="xs"
+        variant="outlined"
         id={htmlId}
         name={field.name}
         placeholder="Select an option"

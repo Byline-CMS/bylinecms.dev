@@ -22,6 +22,7 @@
     width: 100%;
     padding: 0;
     align-items: center;
+    margin-bottom: 0.25rem;
     gap: var(--gap-2);
   }
 
