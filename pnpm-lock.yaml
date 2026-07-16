@@ -708,9 +708,6 @@ importers:
       react-swipeable:
         specifier: ^7.0.2
         version: 7.0.2(react@19.2.7)
-      uuid:
-        specifier: ^14.0.1
-        version: 14.0.1
       zod:
         specifier: ^4.4.3
         version: 4.4.3

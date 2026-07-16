@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { CLI_PACKAGE_VERSION } from './lib/release-policy.js'
 import {
   resolveWorkspaceOwnership,
   validateWorkspacePackageManager,
@@ -198,9 +199,12 @@ describe('workspace root ownership', () => {
       join(root, 'pnpm-workspace.yaml'),
       'packages:\n  - apps/*\n  - packages/*\nallowBuilds:\n  "@google/genai": true\n  esbuild: true\n  protobufjs: true\n  sharp: true\n'
     )
+    // The workspace-linked package's version must satisfy the CLI's derived
+    // release policy (`>=<cli version> <next major>`), which Changesets bumps
+    // every release — track it rather than pinning a literal that goes stale.
     writeFileSync(
       join(root, 'packages/core/package.json'),
-      '{"name":"@byline/core","version":"3.21.4"}\n'
+      `{"name":"@byline/core","version":"${CLI_PACKAGE_VERSION}"}\n`
     )
     const dependencies = compatibleDependencies()
     dependencies['@byline/core'] = 'workspace:*'

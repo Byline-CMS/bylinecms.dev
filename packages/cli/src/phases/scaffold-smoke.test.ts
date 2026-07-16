@@ -75,7 +75,9 @@ describe('temporary host scaffold smoke contracts', () => {
         'CollectionFieldsByPath',
       ])
     }
-  })
+    // `validateImports` builds a fresh ts-morph project per fixture file;
+    // slow CI runners overrun vitest's 5s default.
+  }, 30_000)
 
   it('assembles a custom nested sign-in route fixture with matching config and route ID', async () => {
     const ctx = createTestContext({
