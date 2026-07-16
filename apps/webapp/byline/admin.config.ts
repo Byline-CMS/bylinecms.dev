@@ -23,6 +23,7 @@
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
 
+import { PhotoBlockAdmin } from './blocks/photo-block.admin.js'
 import { QuoteBlockAdmin } from './blocks/quote-block.admin.js'
 import { DocsAdmin } from './collections/docs/admin.js'
 import { collections } from './collections/index.js'
@@ -30,7 +31,7 @@ import { MediaAdmin } from './collections/media/admin.js'
 import { NewsAdmin } from './collections/news/admin.js'
 import { NewsCategoriesAdmin } from './collections/news-categories/admin.js'
 import { PagesAdmin } from './collections/pages/admin.js'
-import { LexicalRichTextAi } from './fields/lexical-richtext-ai.js'
+import { LexicalRichTextAi } from './fields/richtext/lexical-richtext-ai.js'
 import { i18n } from './i18n.js'
 import { DEFAULT_SERVER_URL, routes } from './routes.js'
 
@@ -43,9 +44,10 @@ export const config: ClientConfig = {
   collections,
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   // Per-block admin config, keyed by blockType — applies wherever the block
-  // renders. QuoteBlockAdmin opts the quote's richtext into a plain non-AI
-  // editor while the site-wide registration below stays AI-enabled.
-  blockAdmin: [QuoteBlockAdmin],
+  // renders. Both entries opt a block richtext field into the minimal
+  // editor (extension half of `lexicalRichTextMinimal`, see the block
+  // schema files) while the site-wide registration below stays AI-enabled.
+  blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin],
   fields: {
     // Site-wide registration of the AI-enabled editor on every richtext
     // field. `LexicalRichTextAi` is built with

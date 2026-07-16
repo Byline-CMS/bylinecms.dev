@@ -7,6 +7,30 @@
  */
 
 import { type BlockData, type BlockFieldData, defineBlock } from '@byline/core'
+// Import from `/server` (data-only) rather than the package root so this
+// schema file stays tsx-loadable for seeds — the root barrel evaluates the
+// editor React components and their CSS imports.
+import { defaultEditorConfig, type EditorConfig } from '@byline/richtext-lexical/server'
+
+/**
+ * Settings half of the caption's tailored editor, baked directly into this
+ * block's schema (JSON-safe — no React). Minimal inline formatting: the
+ * block-format dropdown, alignment, inline code, undo/redo, and markdown
+ * affordances all switch off. The extension half (which node extensions
+ * survive — here Link/AutoLink stay so captions can carry credits) lives in
+ * ./photo-block.admin.ts, registered per-block-field via `defineBlockAdmin`.
+ */
+const captionEditorConfig: EditorConfig = (() => {
+  const config = structuredClone(defaultEditorConfig)
+  const o = config.settings.options
+  o.textAlignment = false
+  o.textStyle = false // hides the block-format dropdown (headings / lists / quote)
+  o.inlineCode = false
+  o.undoRedo = false
+  o.markdownToggle = false
+  o.markdownShortcutPlugin = false
+  return config
+})()
 
 export const PhotoBlock = defineBlock({
   blockType: 'photoBlock',
@@ -41,6 +65,7 @@ export const PhotoBlock = defineBlock({
       type: 'richText',
       optional: true,
       localized: true,
+      editorConfig: captionEditorConfig,
     },
   ],
 })

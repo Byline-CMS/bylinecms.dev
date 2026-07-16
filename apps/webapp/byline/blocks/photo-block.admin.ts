@@ -9,25 +9,23 @@
 import { defineBlockAdmin } from '@byline/core'
 import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/config'
 
-import { QuoteBlock } from './quote-block.js'
+import { PhotoBlock } from './photo-block.js'
 
 /**
- * Admin half of the QuoteBlock schema/admin split. Registered site-wide via
- * `blockAdmin: [QuoteBlockAdmin, …]` in `byline/admin.config.ts`, it applies
- * wherever the block renders (any collection, any nesting).
+ * Admin half of the PhotoBlock schema/admin split — the extension half of
+ * the caption's tailored editor (the settings half is `captionEditorConfig`
+ * in ./photo-block.ts). Built inline rather than via the shared
+ * `minimalRichTextAdmin()` helper because this block wants its own variant:
+ * everything minimal, but **Link/AutoLink stay** — captions legitimately
+ * carry links (photo credits, source attributions), and the toolbar's link
+ * button is gated on the Link extension's presence.
  *
- * `minimalRichTextAdmin()` is the extension half of the minimal editor —
- * the same `FieldAdminConfig` factory collections drop into their
- * `admin.tsx` `fields` map (see beta's publications `title`). It pairs with
- * the `lexicalRichTextMinimal()` schema helper on `quoteText` in
- * ./quote-block.ts: settings ride in the schema's `editorConfig` (JSON-safe),
- * extension removals live here (React references). The minimal editor also
- * replaces the site-wide AI-enabled registration for this field —
- * deliberately: a quotation is inline-formatting-only content.
+ * Registered via `blockAdmin: […]` in `byline/admin.config.ts`; applies
+ * wherever the block renders.
  */
-export const QuoteBlockAdmin = defineBlockAdmin(QuoteBlock, {
+export const PhotoBlockAdmin = defineBlockAdmin(PhotoBlock, {
   fields: {
-    quoteText: {
+    caption: {
       editor: lexicalEditor((c) => {
         c.extensions
           // Insert-menu contributors — with all of them gone the "Insert"
