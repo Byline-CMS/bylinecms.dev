@@ -52,13 +52,13 @@ import { ERR_UNAUTHENTICATED, type RequestContext } from '@byline/auth'
 import { getServerConfig } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
+import { oncePerRequest } from './request-scope.js'
 import {
   clearSessionCookies,
   readAccessTokenCookie,
   readRefreshTokenCookie,
   setSessionCookies,
-} from './auth-cookies.js'
-import { oncePerRequest } from './request-scope.js'
+} from './session-cookies.js'
 
 function requireSessionProvider() {
   const provider = getServerConfig().sessionProvider

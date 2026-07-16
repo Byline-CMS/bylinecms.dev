@@ -9,6 +9,24 @@ const project = new Project({ skipAddingFilesFromTsConfig: true })
 const generated = project.addSourceFileAtPath(
   resolve(templates, 'byline-examples/generated/collection-types.ts')
 )
+// Format 2 declares every type inside the `@byline/generated-types`
+// declaration-merge block; alias lookups search the whole file.
+function generatedTypeAliasOrThrow(name: string) {
+  const alias = generated
+    .getDescendantsOfKind(SyntaxKind.TypeAliasDeclaration)
+    .find((declaration) => declaration.getName() === name)
+  if (!alias) throw new Error(`Expected to find type alias named '${name}'.`)
+  return alias
+}
+// The plain-module body of the generated types, for in-memory typecheck
+// fixtures: the augmentation block unwrapped to top-level declarations.
+function generatedModuleBody(): string {
+  const match = generated
+    .getFullText()
+    .match(/declare module '@byline\/generated-types' \{\n([\s\S]*?)\n\}\n\ndeclare module/)
+  if (!match?.[1]) throw new Error('Expected a @byline/generated-types augmentation block.')
+  return match[1].replace(/^ {2}/gm, '')
+}
 const contentTypes = project.addSourceFileAtPath(resolve(templates, 'ui-byline/types/content.ts'))
 const renderer = project.addSourceFileAtPath(resolve(templates, 'ui-byline/render-blocks.tsx'))
 
@@ -64,19 +82,17 @@ describe('public block renderer templates', () => {
     )
     typeProject.createSourceFile(
       '/generated.ts',
-      generated.getFullText().replace(
-        /import type \{[\s\S]*?\} from '@byline\/core'/,
-        `type JsonValue = unknown
-           type RelatedDocumentValue = { documentId: string }
-           type StoredFileValue = { key: string }`
-      )
+      `type JsonValue = unknown
+       type RelatedDocumentValue = { documentId: string }
+       type StoredFileValue = { key: string }
+       ${generatedModuleBody()}`
     )
     typeProject.createSourceFile(
       '/content.ts',
       contentTypes
         .getFullText()
         .replace("from '@byline/client'", "from './client.js'")
-        .replace("from '~/generated/collection-types.js'", "from './generated.js'")
+        .replace("from '@byline/generated-types'", "from './generated.js'")
     )
     typeProject.createSourceFile(
       '/contract.ts',
@@ -136,8 +152,7 @@ describe('public block renderer templates', () => {
 })
 
 function contentBlockNames(collection: 'DocsFields' | 'PagesFields'): string[] {
-  const content = generated
-    .getTypeAliasOrThrow(collection)
+  const content = generatedTypeAliasOrThrow(collection)
     .getDescendantsOfKind(SyntaxKind.PropertySignature)
     .find((property) => property.getName() === 'content')
   const matches = content
@@ -149,7 +164,7 @@ function contentBlockNames(collection: 'DocsFields' | 'PagesFields'): string[] {
 }
 
 function blockDiscriminant(blockName: string): string {
-  const type = generated.getTypeAliasOrThrow(blockName)
+  const type = generatedTypeAliasOrThrow(blockName)
   const discriminant = type
     .getDescendantsOfKind(SyntaxKind.PropertySignature)
     .find((property) => property.getName() === '_type')

@@ -3,7 +3,7 @@
 import { Container } from '@byline/ui/react'
 import cx from 'classnames'
 
-import type { RichTextBlockData } from '~/generated/collection-types.js'
+import type { RichTextBlockData } from '@byline/generated-types'
 
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
 import type { Locale } from '@/ui/byline/types/i18n'

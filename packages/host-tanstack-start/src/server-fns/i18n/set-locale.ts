@@ -30,8 +30,8 @@ import { createServerFn } from '@tanstack/react-start'
 import type { AccountResponse } from '@byline/admin/admin-account'
 import { setPreferredLocaleCommand } from '@byline/admin/admin-account'
 import { AuthError, AuthErrorCodes } from '@byline/auth'
+import { getAdminRequestContext } from '@byline/client/server'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { clearAdminLocaleCookie, setAdminLocaleCookie } from '../../i18n/locale-cookie.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 

@@ -23,10 +23,10 @@
 import { getRequestHeader } from '@tanstack/react-start/server'
 
 import { AuthError, AuthErrorCodes } from '@byline/auth'
+import { getAdminRequestContext } from '@byline/client/server'
 import type { LocaleCode } from '@byline/i18n'
 import { resolveInterfaceLocale } from '@byline/i18n'
 
-import { getAdminRequestContext } from '../auth/auth-context.js'
 import { bylineCore } from '../integrations/byline-core.js'
 import { readAdminLocaleCookie } from './locale-cookie.js'
 

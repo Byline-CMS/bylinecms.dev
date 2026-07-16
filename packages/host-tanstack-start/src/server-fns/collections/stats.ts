@@ -8,8 +8,9 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { getAdminBylineClient } from '@byline/client/server'
+
 import { ensureCollection } from '../../integrations/api-utils.js'
-import { getAdminBylineClient } from '../../integrations/byline-client.js'
 
 // ---------------------------------------------------------------------------
 // Shared types

@@ -8,13 +8,13 @@
 
 /** Server-safe shared collection tuple. Keep presentation imports out of this module. */
 import type { InferCollectionRegistry } from '@byline/core'
+import type { CollectionFieldsByPath } from '@byline/generated-types'
 
 import { Docs } from './docs/schema.js'
 import { Media } from './media/schema.js'
 import { News } from './news/schema.js'
 import { NewsCategories } from './news-categories/schema.js'
 import { Pages } from './pages/schema.js'
-import type { CollectionFieldsByPath } from '../generated/collection-types.js'
 
 export const collections = [Docs, News, Pages, Media, NewsCategories] as const
 

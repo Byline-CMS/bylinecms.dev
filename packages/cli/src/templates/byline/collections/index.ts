@@ -8,7 +8,7 @@
 
 import type { InferCollectionRegistry } from '@byline/core'
 
-import type { CollectionFieldsByPath } from '../generated/collection-types.js'
+import type { CollectionFieldsByPath } from '@byline/generated-types'
 
 /** Add schema-only collection imports here; keep admin presentation separate. */
 export const collections = [] as const

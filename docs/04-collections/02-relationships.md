@@ -231,7 +231,7 @@ import type {
   MediaFields,
   NewsCategoriesFields,
   NewsFields,
-} from '~/generated/collection-types.js'
+} from '@byline/generated-types'
 
 type NewsListFields = WithPopulated<
   WithPopulated<NewsFields, 'category', NewsCategoriesFields>,

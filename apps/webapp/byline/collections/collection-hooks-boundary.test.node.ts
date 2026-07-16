@@ -130,12 +130,20 @@ describe('collection hook boundary', () => {
     ])
     const serverOnlyModules = [
       resolve(collectionsDirectory, 'server-hooks.ts'),
-      resolve(bylineDirectory, 'clients.server.ts'),
       resolve(appDirectory, 'src/lib/cache/with-cache.ts'),
       ...collectionNames.map((name) => resolve(collectionsDirectory, name, 'hooks.ts')),
     ]
 
     expect(serverOnlyModules.filter((filePath) => graph.has(filePath))).toEqual([])
+
+    // The server-side client getters now live in the `@byline/client/server`
+    // package subpath (the walker can't traverse into packages), so guard the
+    // boundary at the specifier level: nothing in these client-safe graphs may
+    // import it statically.
+    const serverImporters = [...graph].filter((filePath) =>
+      staticModuleSpecifiers(filePath).includes('@byline/client/server')
+    )
+    expect(serverImporters).toEqual([])
   })
 
   it('reaches the server hook registry only from the server bootstrap graph', () => {

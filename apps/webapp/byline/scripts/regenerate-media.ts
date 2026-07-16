@@ -64,13 +64,13 @@ import { createBylineClient } from '@byline/client'
 import { type FieldUploadContext, getCollectionDefinition, getServerConfig } from '@byline/core'
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 import { uploadField as coreUploadField } from '@byline/core/services'
+import type { MediaFields } from '@byline/generated-types'
 
 import {
   assertCompleteVariantSet,
   replaceMediaVersionPreservingStatus,
   storedFilePaths,
 } from './regenerate-media-operation.js'
-import type { CollectionFieldsByPath, MediaFields } from '../generated/collection-types.js'
 
 const COLLECTION_PATH = 'media'
 const FIELD_NAME = 'image'
@@ -100,7 +100,7 @@ async function run(): Promise<void> {
   }
 
   const requestContext = createSuperAdminContext({ id: 'regenerate-media-script' })
-  const client = createBylineClient<CollectionFieldsByPath>({ config, requestContext })
+  const client = createBylineClient({ config, requestContext })
 
   const { id: collectionId, version: collectionVersion } =
     await client.resolveCollectionRecord(COLLECTION_PATH)

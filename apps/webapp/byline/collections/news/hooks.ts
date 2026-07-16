@@ -20,10 +20,10 @@
  * big-hammers every news read when a category changes.
  */
 
+import { getSystemBylineClient } from '@byline/client/server'
 import { defineHooks } from '@byline/core'
 
 import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
-import { getSystemBylineClient } from '../../clients.server.js'
 
 const list = { list: true }
 const structural = { list: true, sitemap: true }

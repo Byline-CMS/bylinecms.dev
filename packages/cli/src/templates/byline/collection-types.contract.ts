@@ -29,7 +29,7 @@ import type { collections } from './collections/index.js'
 import type {
   CollectionFieldsAllLocalesByPath,
   CollectionFieldsByPath,
-} from './generated/collection-types.js'
+} from '@byline/generated-types'
 
 type InferredFieldsByPath = {
   [Definition in (typeof collections)[number] as Definition['path']]: CollectionFieldData<Definition>

@@ -66,7 +66,15 @@ describe('temporary host scaffold smoke contracts', () => {
       answers.importDocs
     )
     expect(inventory.includes('src/ui/byline/render-blocks.tsx')).toBe(answers.examples)
-    if (!answers.examples) expect(generatedImports).toEqual([])
+    // Without examples, the only generated imports are the structural
+    // registry aliases used by collections/index.ts and the contract file —
+    // no collection field shapes.
+    if (!answers.examples) {
+      expect([...new Set(generatedImports)].sort()).toEqual([
+        'CollectionFieldsAllLocalesByPath',
+        'CollectionFieldsByPath',
+      ])
+    }
   })
 
   it('assembles a custom nested sign-in route fixture with matching config and route ID', async () => {
@@ -168,7 +176,7 @@ function packageBoundary(specifier: string): string {
 function importedGeneratedNames(source: string): string[] {
   const names: string[] = []
   for (const match of source.matchAll(
-    /import type \{([^}]+)\} from ['"]~\/generated\/collection-types\.js['"]/g
+    /import type \{([^}]+)\} from ['"]@byline\/generated-types['"]/g
   )) {
     for (const item of match[1]?.split(',') ?? []) {
       const name = item.trim().split(/\s+as\s+/)[0]

@@ -9,8 +9,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { type WhoHasAbilityResponse, whoHasAbilityCommand } from '@byline/admin/admin-permissions'
+import { getAdminRequestContext } from '@byline/client/server'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export const whoHasAbility = createServerFn({ method: 'GET' })

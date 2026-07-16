@@ -8,10 +8,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { getAdminBylineClient } from '@byline/client/server'
 import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
-import { getAdminBylineClient } from '../../integrations/byline-client.js'
 import { type ActorLabelMap, resolveActorLabels } from './actors.js'
 
 // ---------------------------------------------------------------------------

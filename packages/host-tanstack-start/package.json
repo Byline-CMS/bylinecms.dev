@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "TanStack Start host adapter for Byline CMS — server fns, auth context, integration glue, admin shell, and route factories",
+  "description": "TanStack Start host adapter for Byline CMS \u2014 server fns, auth context, integration glue, admin shell, and route factories",
   "keywords": [
     "cms",
     "headless cms",
@@ -99,10 +99,6 @@
     "./server-fns/*": {
       "types": "./dist/server-fns/*.d.ts",
       "import": "./dist/server-fns/*.js"
-    },
-    "./auth/*": {
-      "types": "./dist/auth/*.d.ts",
-      "import": "./dist/auth/*.js"
     },
     "./integrations/*": {
       "types": "./dist/integrations/*.d.ts",

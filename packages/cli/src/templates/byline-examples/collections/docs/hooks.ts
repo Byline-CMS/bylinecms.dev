@@ -18,7 +18,7 @@
  * the client. Hook *bodies*, however, only ever run server-side.
  *
  * Search indexing is the canonical reason this matters: it imports the
- * server-only app client boundary from `byline/clients.server.ts`. Importing
+ * server-only client getters from `@byline/client/server`. Importing
  * that from the schema would drag server code into the browser bundle (fatal
  * in dev). The server bootstrap avoids it by registering these hooks from a
  * server-only module:
@@ -50,7 +50,7 @@
  */
 
 import { defineHooks } from '@byline/core'
-import { getSystemBylineClient } from '../../clients.server.js'
+import { getSystemBylineClient } from '@byline/client/server'
 
 export default defineHooks({
   beforeCreate: async ({ data, collectionPath }) => {

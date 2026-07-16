@@ -23,7 +23,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { readPreviewCookie } from '../../auth/preview-cookies.js'
+import { readPreviewCookie } from '@byline/client/server'
 
 export const getPreviewStateFn = createServerFn({ method: 'GET' }).handler(async () => {
   return { preview: readPreviewCookie() }

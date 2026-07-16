@@ -16,9 +16,11 @@
 
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
 import { JwtSessionProvider } from '@byline/admin/auth'
+import { getAdminBylineClient } from '@byline/client/server'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
+import { registerTanstackStartHostBridge } from '@byline/host-tanstack-start/integrations/host-bridge'
 import {
   lexicalEditorEmbedServer,
   lexicalEditorPopulateServer,
@@ -28,7 +30,6 @@ import {
 import { migrate, postgresSearch } from '@byline/search-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
-import { getAdminBylineClient } from './clients.server.js'
 import { collections } from './collections/index.js'
 import { serverHooks } from './collections/server-hooks.js'
 import { i18n } from './i18n.js'
@@ -128,6 +129,13 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     signingSecret,
   })
 
+  // Register the TanStack Start `HostRequestBridge` before any
+  // request-bound client getter (`@byline/client/server`) can run. The
+  // host adapter also registers it from its own side-effect imports, but
+  // doing it here makes registration structural at server boot rather
+  // than dependent on which host module happens to load first.
+  registerTanstackStartHostBridge()
+
   const core = await initBylineCore<AdminStore>({
     serverURL,
     i18n,
@@ -202,8 +210,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       // the admin webapp today — the populate phase inherits whichever
       // actor the request resolved. A future public-facing host would
       // register its own client whose `requestContext` factory resolves
-      // an end-user actor instead. See `@byline/host-tanstack-start/
-      // integrations/byline-client.ts` for how the admin client is built.
+      // an end-user actor instead. See `packages/client/src/server/
+      // clients.ts` (`@byline/client/server`) for how the admin client is built.
       //
       // Why a getter, not a value: `getAdminBylineClient()` reads the
       // server config singleton, which is only populated *after*

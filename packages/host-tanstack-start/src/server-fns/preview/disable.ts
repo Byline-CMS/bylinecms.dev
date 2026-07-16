@@ -16,7 +16,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { clearPreviewCookie } from '../../auth/preview-cookies.js'
+import { clearPreviewCookie } from '@byline/client/server'
 
 export const disablePreviewModeFn = createServerFn({ method: 'POST' }).handler(async () => {
   clearPreviewCookie()

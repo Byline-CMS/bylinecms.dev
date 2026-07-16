@@ -277,6 +277,12 @@ The likely shape of that next phase:
 3. Keep TanStack Start server functions for the admin UI if they remain useful internally — they're cheaper than a round-trip through the public HTTP layer.
 4. Allow another host framework (Fastify, Hono, whatever) to expose the same HTTP contracts while still using `@byline/core` underneath. The `host-tanstack-start` package becomes one host among several rather than the only one.
 
+The package name **`@byline/server` is reserved for this phase** — a decision
+made during the v4.x client/server DX work. It was deliberately *not* used for
+the server-side client getters (those live at `@byline/client/server`) so that
+the transport package, when it arrives, can claim the obvious name and design
+its namespace on a blank slate.
+
 At that point the architecture becomes:
 
 ```
@@ -311,7 +317,7 @@ If Byline is later hosted behind a dedicated API server (e.g. a Fastify applicat
 | Document server fns (current transport)  | `packages/host-tanstack-start/src/server-fns/collections/`                |
 | Auth server fns                          | `packages/host-tanstack-start/src/server-fns/auth/`                       |
 | Admin-management server fns              | `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/` |
-| Auth context resolver                    | `packages/host-tanstack-start/src/auth/auth-context.ts` (`getAdminRequestContext`) |
+| Auth context resolver                    | `packages/client/src/server/admin-context.ts` (`getAdminRequestContext`, exported from `@byline/client/server`) |
 | Route config / canonicalization           | `packages/core/src/config/routes.ts`                                      |
 | Shared root-relative redirect validation  | `packages/core/src/utils/root-relative-redirect.ts`                       |
 | Admin and sign-in path helpers            | `packages/host-tanstack-start/src/routes/{admin-path,sign-in-path}.ts`     |
@@ -321,4 +327,4 @@ If Byline is later hosted behind a dedicated API server (e.g. a Fastify applicat
 | Document read services + hooks           | `packages/core/src/services/document-read.ts` + `populate.ts`             |
 | Auth gates                               | `packages/core/src/auth/assert-actor-can-perform.ts`, `packages/admin/src/lib/assert-admin-actor.ts` |
 | Admin-management commands                | `packages/admin/src/modules/admin-{users,roles,permissions,account}/commands.ts` |
-| In-process client (used by admin reads)  | `packages/client/src/` + `packages/host-tanstack-start/src/integrations/byline-client.ts` |
+| In-process client (used by admin reads)  | `packages/client/src/` + `packages/client/src/server/clients.ts` (`@byline/client/server`) |

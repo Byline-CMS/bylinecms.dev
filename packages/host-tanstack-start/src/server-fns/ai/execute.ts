@@ -24,8 +24,7 @@ import type { ExecuteInstructionOptions, ExecuteInstructionParams } from '@bylin
 // Server-only execute API — kept on the `/server` subpath so the browser
 // barrel for `@byline/ai` stays free of pino + the provider SDKs.
 import { executeInstruction, executeInstructionStreaming } from '@byline/ai/server'
-
-import { getAdminRequestContext } from '../../auth/auth-context.js'
+import { getAdminRequestContext } from '@byline/client/server'
 
 /**
  * Wire shape — the same as `ExecuteInstruction` minus the in-process-only

@@ -10,8 +10,8 @@ import { createHash } from 'node:crypto'
 
 import type { Block, CollectionDefinition, Field, FieldSet } from '../@types/index.js'
 
-const FORMAT_VERSION = 1
-const HASH_DOMAIN = '@byline/core/codegen:collection-types:v1\n'
+const FORMAT_VERSION = 2
+const HASH_DOMAIN = '@byline/core/codegen:collection-types:v2\n'
 const IMPORT_ORDER = ['JsonObject', 'JsonValue', 'RelatedDocumentValue', 'StoredFileValue'] as const
 
 type CanonicalImport = (typeof IMPORT_ORDER)[number]
@@ -502,7 +502,41 @@ function emitBody(analysis: Analysis): string {
     usedImports.length === 0
       ? []
       : ['import type {', ...usedImports.map((name) => `  ${name},`), "} from '@byline/core'", '']
-  return `${[...importLines, ...declarations].join('\n').replace(/\n+$/, '')}\n`
+
+  // Every type declaration lives inside the `@byline/generated-types`
+  // declaration-merge block, so the published stub package is the one
+  // canonical import path for app collection types
+  // (`import type { NewsFields } from '@byline/generated-types'`). The
+  // file's top-level `@byline/core` imports remain visible inside the
+  // block (module augmentation is lexically scoped).
+  const declarationLines = declarations
+    .join('\n')
+    .replace(/\n+$/, '')
+    .split('\n')
+    .map((line) => (line.length === 0 ? line : `  ${line}`))
+
+  // Register the app's collection registry with @byline/client (a second
+  // declaration merge). Every bare `BylineClient` in the app's program —
+  // including the `@byline/client/server` getters — then resolves to
+  // `BylineClient<CollectionFieldsByPath>`. Both `@byline/generated-types`
+  // and `@byline/client` must be resolvable in the consuming program; apps
+  // that generate types depend on both.
+  const registerLines = [
+    "declare module '@byline/client' {",
+    '  interface Register {',
+    "    collections: import('@byline/generated-types').CollectionFieldsByPath",
+    '  }',
+    '}',
+  ]
+
+  return `${[
+    ...importLines,
+    "declare module '@byline/generated-types' {",
+    ...declarationLines,
+    '}',
+    '',
+    ...registerLines,
+  ].join('\n')}\n`
 }
 
 /**

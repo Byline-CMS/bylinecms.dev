@@ -9,8 +9,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { type AdminRoleResponse, createAdminRoleCommand } from '@byline/admin/admin-roles'
+import { getAdminRequestContext } from '@byline/client/server'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export interface CreateAdminRoleInput {

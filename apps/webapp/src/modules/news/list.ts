@@ -16,12 +16,11 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import type { FindResult, WithPopulated } from '@byline/client'
-
 import type {
   MediaFields,
   NewsCategoriesFields as NewsCategoryFields,
   NewsFields,
-} from '~/generated/collection-types.js'
+} from '@byline/generated-types'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 

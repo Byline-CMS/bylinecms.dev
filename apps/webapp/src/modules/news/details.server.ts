@@ -17,7 +17,7 @@
  * `featureImage` so the page renders without a follow-up request.
  */
 
-import { getViewerBylineClient, isPreviewActive } from '~/clients.server'
+import { getViewerBylineClient, isPreviewActive } from '@byline/client/server'
 
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { NewsDetailsFields, NewsDetailsInput, NewsDetailsResult } from './details'

@@ -23,10 +23,12 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import {
+  clearPreviewCookie,
+  clearSessionCookies,
+  readRefreshTokenCookie,
+} from '@byline/client/server'
 import { getServerConfig } from '@byline/core'
-
-import { clearSessionCookies, readRefreshTokenCookie } from '../../auth/auth-cookies.js'
-import { clearPreviewCookie } from '../../auth/preview-cookies.js'
 
 export const adminSignOut = createServerFn({ method: 'POST' }).handler(async () => {
   const provider = getServerConfig().sessionProvider

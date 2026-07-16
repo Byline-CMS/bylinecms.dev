@@ -1,6 +1,6 @@
 import type { WithPopulated } from '@byline/client'
 
-import type { DocsFields, MediaFields, PagesFields } from '~/generated/collection-types.js'
+import type { DocsFields, MediaFields, PagesFields } from '@byline/generated-types'
 
 type ContentBlockOf<Fields extends { content?: unknown }> =
   NonNullable<Fields['content']> extends Array<infer Block> ? Block : never

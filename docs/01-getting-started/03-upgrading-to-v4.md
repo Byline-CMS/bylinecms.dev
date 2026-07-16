@@ -1,10 +1,10 @@
 ---
-title: "Upgrading from 3.21 to 4.0"
+title: "Upgrading from 3.21 to 4.x"
 path: "upgrading-to-v4"
-summary: "Application migration guide for Byline 4.0: package alignment, route configuration, server-only lifecycle hooks, generated types, request contexts, and release validation."
+summary: "Application migration guide for Byline 4.x: package alignment, route configuration, server-only lifecycle hooks, package-import surface for clients and generated types, request contexts, and release validation."
 ---
 
-# Upgrading from 3.21 to 4.0
+# Upgrading from 3.21 to 4.x
 
 Byline 4.0 hardens boundaries that a 3.21 application could accidentally cross:
 server lifecycle code can no longer rely on a dynamic import inside an
@@ -19,12 +19,15 @@ schema migration over 3.21.0.
 
 ## Migration at a glance
 
-1. Update every published `@byline/*` package to major 4 together.
+1. Update every published `@byline/*` package to major 4 together (including
+   the new `@byline/generated-types`).
 2. Preview the v4 CLI's assessment, but review application-owned files manually.
 3. Make route configuration explicit, including `routes.signIn`.
 4. Move server-only collection and upload hooks into `ServerConfig.hooks`.
 5. Install the TanStack Start client-bundle hook boundary.
-6. Rename the app's typed client boundary to `clients.server.ts` and update imports.
+6. Adopt the package import surface: client getters from
+   `@byline/client/server`, generated types from `@byline/generated-types`,
+   and delete the app-local `client.server.ts` shim.
 7. Regenerate collection types and address type errors with generated types and
    operation-specific overlays.
 8. Review request-context, tree, search, delete, and custom-adapter behavior.
@@ -213,28 +216,42 @@ with stricter architecture tests should also assert that `collections/index.ts`
 and `byline/public.ts` cannot statically reach the registry, typed server
 clients, hook modules, or server cache implementations.
 
-## 5. Rename the typed server-client boundary
+## 5. Adopt the package client surface and delete the app shim
 
-The canonical app-owned file is now `byline/clients.server.ts`. The plural name
-reflects that it types and re-exports four host-owned clients: admin, public,
-system, and viewer.
-
-Rename the 3.21 file and update every app import:
-
-```text
-byline/client.server.ts  →  byline/clients.server.ts
-```
-
-For example:
+The typed server clients are no longer an app-owned file. The four client
+getters and the preview probe live on the client SDK's server subpath, fully
+typed against the application's generated collection registry (see step 6):
 
 ```ts
-import { getViewerBylineClient } from '~/clients.server'
-import { getSystemBylineClient } from '../../clients.server.js'
+import {
+  getAdminBylineClient,
+  getPublicBylineClient,
+  getSystemBylineClient,
+  getViewerBylineClient,
+  isPreviewActive,
+} from '@byline/client/server'
 ```
 
-The rename is an application-scaffold clarification, not a new runtime client.
-The file remains the single app-owned type assertion joining the host's runtime
-client getters to `BylineCollections`; browser modules must not import it.
+Delete the 3.21 `byline/client.server.ts` (the app-owned type-assertion shim)
+and point every consumer — route loaders, `*.server.ts` modules, lifecycle
+hooks, scripts — at `@byline/client/server` instead. The subpath is
+server-only: its `browser` export condition resolves to a stub that throws, so
+an accidental browser import fails loudly at bundle time.
+
+The getters are host-framework agnostic — they are implemented against the
+`HostRequestBridge` seam in `@byline/core`. The TanStack Start adapter
+registers the bridge at server boot; add the explicit registration to
+`byline/server.config.ts` (the v4 CLI scaffolds this):
+
+```ts
+import { registerTanstackStartHostBridge } from '@byline/host-tanstack-start/integrations/host-bridge'
+
+// before initBylineCore(...)
+registerTanstackStartHostBridge()
+```
+
+This is what keeps application read/write modules portable: they import the
+SDK, never the host framework.
 
 ## 6. Regenerate and consume canonical collection types
 
@@ -250,10 +267,22 @@ Commit `byline/generated/collection-types.ts`. Keep
 the generated ordinary and all-locale field maps still exactly match the
 runtime collection tuple.
 
-Application read contracts should import canonical fields and blocks from the
-generated file. Direct `CollectionFieldData<typeof Schema>` aliases remain
-useful inside schema-local helpers, but should not become a second app-wide type
-source.
+The generated file (format 2) is a pair of declaration merges rather than a
+module of local exports:
+
+- Every emitted type is declared into the `@byline/generated-types` stub
+  package, so application code imports collection types by package name:
+  `import type { NewsFields } from '@byline/generated-types'`. Add
+  `@byline/generated-types` to the app's dependencies (the CLI installs it).
+- A second block registers the registry with `@byline/client`'s `Register`
+  interface, so every bare `BylineClient` — including the
+  `@byline/client/server` getters and `createBylineClient` without an explicit
+  generic — resolves to the app's typed registry.
+
+Application read contracts should import canonical fields and blocks from
+`@byline/generated-types`. Direct `CollectionFieldData<typeof Schema>` aliases
+remain useful inside schema-local helpers, but should not become a second
+app-wide type source.
 
 Registry-backed clients infer the ordinary generated field shape:
 
@@ -266,7 +295,7 @@ use `Pick`; populated relations use `WithPopulated` or `WithPopulatedMany`:
 
 ```ts
 import type { WithPopulated } from '@byline/client'
-import type { MediaFields, NewsFields } from '~/generated/collection-types.js'
+import type { MediaFields, NewsFields } from '@byline/generated-types'
 
 type NewsCardFields = WithPopulated<
   Pick<NewsFields, 'title' | 'summary' | 'featureImage'>,
@@ -359,9 +388,11 @@ These are required capabilities, not optional feature negotiation. See
 [Transactions](../03-architecture/03-transactions.md) for the contract and
 atomicity requirements.
 
-A non-TanStack host must also provide request-stable `RequestContext`
-resolution and its own equivalent client/server module boundary. The
-`ServerConfig.hooks` registry itself is framework-independent.
+A non-TanStack host implements and registers the `HostRequestBridge` seam from
+`@byline/core` (request identity, cookie read, cookie write) — the entire
+`@byline/client/server` stack, including request-stable `RequestContext`
+resolution, then works unchanged. The `ServerConfig.hooks` registry itself is
+framework-independent.
 
 ## 10. Validate before deployment
 

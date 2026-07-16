@@ -21,7 +21,7 @@
  * via `./resolve.server`.
  */
 
-import { getPublicBylineClient } from '~/clients.server'
+import { getPublicBylineClient } from '@byline/client/server'
 
 import { isRoutableLocale } from '@/i18n/i18n-config'
 import { getDocumentMarkdown, markdownResponse } from '@/lib/markdown'

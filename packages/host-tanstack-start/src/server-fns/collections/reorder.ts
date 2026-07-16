@@ -8,6 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { getAdminRequestContext } from '@byline/client/server'
 import {
   assertActorCanPerform,
   ERR_NOT_FOUND,
@@ -18,7 +19,6 @@ import {
   getServerConfig,
 } from '@byline/core'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { ensureCollection } from '../../integrations/api-utils.js'
 
 // ---------------------------------------------------------------------------

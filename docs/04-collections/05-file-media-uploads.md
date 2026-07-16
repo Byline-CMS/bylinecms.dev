@@ -286,7 +286,7 @@ When a non-media collection references the Media library, populate carries the e
 
 ```ts
 import type { WithPopulated } from '@byline/client'
-import type { MediaFields, NewsFields } from '~/generated/collection-types.js'
+import type { MediaFields, NewsFields } from '@byline/generated-types'
 
 type NewsListFields = WithPopulated<NewsFields, 'featureImage', MediaFields>
 

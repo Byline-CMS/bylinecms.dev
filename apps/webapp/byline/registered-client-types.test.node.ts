@@ -6,11 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { BylineClient } from '@byline/client'
+import type { BylineClient, RegisteredCollections } from '@byline/client'
+import type { getViewerBylineClient } from '@byline/client/server'
+import type { DocsFields as DocFields } from '@byline/generated-types'
 import { describe, expectTypeOf, it } from 'vitest'
 
 import type { BylineCollections } from './collections/index.js'
-import type { DocsFields as DocFields } from './generated/collection-types.js'
 
 type AppClient = BylineClient<BylineCollections>
 
@@ -27,5 +28,13 @@ describe('application Byline client types', () => {
     type InferredFields = NonNullable<Awaited<ReturnType<typeof getDoc>>>['fields']
 
     expectTypeOf<InferredFields>().toEqualTypeOf<DocFields>()
+  })
+
+  it('registers the generated registry on @byline/client via declaration merging', () => {
+    // The generated file's `declare module '@byline/client'` block makes a
+    // bare `BylineClient` — including the host getters' return type —
+    // equivalent to the explicitly parameterised app client.
+    expectTypeOf<RegisteredCollections>().toEqualTypeOf<BylineCollections>()
+    expectTypeOf<ReturnType<typeof getViewerBylineClient>>().toEqualTypeOf<AppClient>()
   })
 })

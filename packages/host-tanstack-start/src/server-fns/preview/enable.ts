@@ -17,8 +17,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
-import { setPreviewCookie } from '../../auth/preview-cookies.js'
+import { getAdminRequestContext, setPreviewCookie } from '@byline/client/server'
 
 export const enablePreviewModeFn = createServerFn({ method: 'POST' }).handler(async () => {
   await getAdminRequestContext()

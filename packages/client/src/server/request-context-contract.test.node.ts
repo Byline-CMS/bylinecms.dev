@@ -8,29 +8,26 @@
 
 /**
  * Cross-layer contract test: a real `BylineClient` wired to the real
- * cookie-derived host factory (`getAdminRequestContext`) under a mocked
- * Start request, running two operations that share one `ReadContext`.
+ * cookie-derived request factory (`getAdminRequestContext`) over a fake
+ * `HostRequestBridge`, running two operations that share one
+ * `ReadContext`.
  *
  * This is the seam every per-layer suite missed when the admin tree view
  * broke with 'ReadContext cannot be reused across request authorities':
- * client tests used stable test contexts, host auth tests called the
- * factory once, and tree tests mocked the handle. Here the factory's
+ * client tests used stable test contexts, auth tests called the factory
+ * once, and tree tests mocked the handle. Here the factory's
  * request-stability contract (see `BylineClientConfig.requestContext`)
  * is exercised end-to-end through the SDK's authority binding.
  */
 
 import { AdminAuth } from '@byline/auth'
-import { createBylineClient } from '@byline/client'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createReadContext, registerHostRequestBridge } from '@byline/core'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   verifyAccessToken: vi.fn(),
   refreshSession: vi.fn(),
-  getCookie: vi.fn(),
-  setCookie: vi.fn(),
-  getRequestHeader: vi.fn(),
-  getRequest: vi.fn(),
 }))
 
 vi.mock('@byline/core', async () => {
@@ -46,16 +43,17 @@ vi.mock('@byline/core', async () => {
   }
 })
 
-vi.mock('@tanstack/react-start/server', () => ({
-  getCookie: mocks.getCookie,
-  setCookie: mocks.setCookie,
-  getRequestHeader: mocks.getRequestHeader,
-  getRequest: mocks.getRequest,
-}))
+import { createBylineClient } from '../client.js'
+import { getAdminRequestContext } from './admin-context.js'
 
-import { createReadContext } from '@byline/core'
+const BRIDGE_SLOT = Symbol.for('__byline_host_request_bridge__')
+const previousBridge = (globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT]
 
-import { getAdminRequestContext } from '../auth/auth-context.js'
+const bridge = {
+  getRequest: vi.fn<() => object | undefined>(),
+  getCookie: vi.fn<(name: string) => string | undefined>(),
+  setCookie: vi.fn(),
+}
 
 const postsCollection: CollectionDefinition = {
   path: 'posts',
@@ -78,10 +76,12 @@ function mockDb(): IDbAdapter {
   } as unknown as IDbAdapter
 }
 
-describe('host factory ↔ client authority contract', () => {
+describe('request factory ↔ client authority contract', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.getCookie.mockImplementation((name: string) =>
+    registerHostRequestBridge(bridge)
+    bridge.getRequest.mockReturnValue(undefined)
+    bridge.getCookie.mockImplementation((name: string) =>
       name === 'byline_access_token' ? 'valid-access' : undefined
     )
     mocks.verifyAccessToken.mockResolvedValue({
@@ -89,8 +89,12 @@ describe('host factory ↔ client authority contract', () => {
     })
   })
 
+  afterEach(() => {
+    ;(globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT] = previousBridge
+  })
+
   it('two reads sharing a ReadContext bind one authority within a request', async () => {
-    mocks.getRequest.mockReturnValue({ id: 'request-a' })
+    bridge.getRequest.mockReturnValue({ id: 'request-a' })
     const db = mockDb()
     const beforeRead = vi.fn(() => ({ title: 'scoped' }))
     const client = createBylineClient({
@@ -120,10 +124,10 @@ describe('host factory ↔ client authority contract', () => {
     })
     const readContext = createReadContext()
 
-    mocks.getRequest.mockReturnValue({ id: 'request-a' })
+    bridge.getRequest.mockReturnValue({ id: 'request-a' })
     await client.collection('posts').find({ status: 'any', _readContext: readContext })
 
-    mocks.getRequest.mockReturnValue({ id: 'request-b' })
+    bridge.getRequest.mockReturnValue({ id: 'request-b' })
     await expect(
       client.collection('posts').find({ status: 'any', _readContext: readContext })
     ).rejects.toThrow('cannot be reused across request authorities')

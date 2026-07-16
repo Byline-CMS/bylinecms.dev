@@ -27,7 +27,7 @@ const search = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/cache/with-cache', () => cache)
-vi.mock('../../clients.server.js', () => ({
+vi.mock('@byline/client/server', () => ({
   getSystemBylineClient: () => ({ collection: search.collection }),
 }))
 

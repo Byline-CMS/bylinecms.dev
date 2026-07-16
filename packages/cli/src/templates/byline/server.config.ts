@@ -29,7 +29,8 @@ import {
 } from '@byline/richtext-lexical/server'
 import { localStorageProvider } from '@byline/storage-local'
 
-import { getAdminBylineClient } from './clients.server.js'
+import { getAdminBylineClient } from '@byline/client/server'
+import { registerTanstackStartHostBridge } from '@byline/host-tanstack-start/integrations/host-bridge'
 import { collections } from './collections/index.js'
 import { serverHooks } from './collections/server-hooks.js'
 import { i18n } from './i18n.js'
@@ -86,6 +87,12 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     store: adminStore,
     signingSecret,
   })
+
+  // Register the TanStack Start `HostRequestBridge` before any
+  // request-bound client getter (`@byline/client/server`) can run —
+  // structural at server boot rather than dependent on which host
+  // module happens to load first.
+  registerTanstackStartHostBridge()
 
   const core = await initBylineCore<AdminStore>({
     serverURL,

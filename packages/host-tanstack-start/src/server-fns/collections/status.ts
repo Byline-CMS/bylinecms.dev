@@ -8,6 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { getAdminRequestContext } from '@byline/client/server'
 import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentLifecycleContext } from '@byline/core/services'
 import {
@@ -15,7 +16,6 @@ import {
   unpublishDocument as unpublishDocumentService,
 } from '@byline/core/services'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { ensureCollection } from '../../integrations/api-utils.js'
 
 // ---------------------------------------------------------------------------

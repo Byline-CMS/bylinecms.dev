@@ -17,25 +17,27 @@
  * the second bind sees a different authority token and throws
  * 'ReadContext cannot be reused across request authorities'.
  *
- * Memoizing on the current Start request makes every context factory
- * request-stable. It also means at most one session verification — and at
- * most one refresh-token rotation — per request, instead of one per call.
+ * Memoizing on the current request (via the registered
+ * `HostRequestBridge`) makes every context factory request-stable. It
+ * also means at most one session verification — and at most one
+ * refresh-token rotation — per request, instead of one per call.
  */
 
-import { getRequest } from '@tanstack/react-start/server'
+import { tryGetHostRequestBridge } from '@byline/core'
 
 const requestScopes = new WeakMap<object, Map<string, Promise<unknown>>>()
 
 /**
  * Resolve `factory` at most once per HTTP request for a given `key`. The
- * returned promise is memoized on the current Start request — rejections
+ * returned promise is memoized on the current request — rejections
  * included, since a request's cookies cannot change mid-flight and retrying
  * a failed refresh would burn a second rotation on an already-rotated
- * token. Outside the Start runtime (seed scripts, unit tests, background
- * jobs) there is no request to key on and the factory runs unmemoized.
+ * token. Outside a request (seed scripts, unit tests, background jobs) —
+ * or before a host bridge is registered — there is no request to key on
+ * and the factory runs unmemoized.
  */
 export function oncePerRequest<T>(key: string, factory: () => Promise<T>): Promise<T> {
-  const request = currentRequest()
+  const request = tryGetHostRequestBridge()?.getRequest()
   if (!request) return factory()
 
   let scope = requestScopes.get(request)
@@ -50,13 +52,4 @@ export function oncePerRequest<T>(key: string, factory: () => Promise<T>): Promi
   const pending = factory()
   scope.set(key, pending)
   return pending
-}
-
-function currentRequest(): object | undefined {
-  try {
-    return getRequest()
-  } catch {
-    // No StartEvent in AsyncLocalStorage — running outside a request.
-    return undefined
-  }
 }

@@ -20,10 +20,9 @@
  * on every edit alongside the HTML reads.
  */
 
+import { getPublicBylineClient } from '@byline/client/server'
 import { documentToMarkdown, getCollectionDefinition, getServerConfig } from '@byline/core'
-
-import { getPublicBylineClient } from '~/clients.server'
-import type { CollectionPath } from '~/generated/collection-types.js'
+import type { CollectionPath } from '@byline/generated-types'
 
 import { getPublicConfig } from '@/config'
 import { isRoutableLocale } from '@/i18n/i18n-config'

@@ -62,14 +62,14 @@ import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexic
 import { parseBodyToMdast } from './lib/parse-markdown.js'
 import { type DocLinkRewriteWarning, rewriteDocLinks } from './lib/rewrite-doc-links.js'
 import { stripLeadingH1IfMatches } from './lib/strip-leading-h1.js'
-import type { CollectionFieldsByPath, DocsFields } from '../generated/collection-types.js'
+import type { DocsFields } from '@byline/generated-types'
 
 const DOCS_COLLECTION = 'docs'
 const MEDIA_COLLECTION = 'media'
 const DOCS_URL_PREFIX = '/docs'
 const DEFAULT_IMPORT_STATUS = 'published'
 
-type AppBylineClient = BylineClient<CollectionFieldsByPath>
+type AppBylineClient = BylineClient
 type DocsHandle = CollectionHandle<DocsFields>
 
 interface Flags {
@@ -391,7 +391,7 @@ async function run(): Promise<void> {
 
   const config = getServerConfig()
   const requestContext = createSuperAdminContext({ id: 'import-docs-script' })
-  const client = createBylineClient<CollectionFieldsByPath>({ config, requestContext })
+  const client = createBylineClient({ config, requestContext })
   const handle = client.collection(DOCS_COLLECTION)
 
   // Pre-pass: map each source file to the path its imported doc will

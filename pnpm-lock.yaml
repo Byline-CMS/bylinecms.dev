@@ -51,6 +51,9 @@ importers:
       '@byline/db-postgres':
         specifier: workspace:*
         version: link:../../packages/db-postgres
+      '@byline/generated-types':
+        specifier: workspace:*
+        version: link:../../packages/generated-types
       '@byline/host-tanstack-start':
         specifier: workspace:*
         version: link:../../packages/host-tanstack-start
@@ -510,6 +513,9 @@ importers:
       '@byline/core':
         specifier: workspace:*
         version: link:../core
+      uuid:
+        specifier: ^14.0.1
+        version: 14.0.1
     devDependencies:
       '@biomejs/biome':
         specifier: 2.5.2
@@ -651,6 +657,15 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.1.0)(happy-dom@20.10.6)(jsdom@29.1.1)(vite@8.1.3(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.7)(sass@1.101.0)(stylus@0.62.0)(tsx@4.23.0)(yaml@2.9.0))
+
+  packages/generated-types:
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 2.5.2
+        version: 2.5.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
 
   packages/host-tanstack-start:
     dependencies:

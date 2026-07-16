@@ -69,7 +69,7 @@ import {
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 import { uploadField as coreUploadField } from '@byline/core/services'
 
-import type { CollectionFieldsByPath, MediaFields } from '../generated/collection-types.js'
+import type { MediaFields } from '@byline/generated-types'
 import {
   assertCompleteVariantSet,
   replaceMediaVersionPreservingStatus,
@@ -104,7 +104,7 @@ async function run(): Promise<void> {
   }
 
   const requestContext = createSuperAdminContext({ id: 'regenerate-media-script' })
-  const client = createBylineClient<CollectionFieldsByPath>({ config, requestContext })
+  const client = createBylineClient({ config, requestContext })
 
   const { id: collectionId, version: collectionVersion } =
     await client.resolveCollectionRecord(COLLECTION_PATH)

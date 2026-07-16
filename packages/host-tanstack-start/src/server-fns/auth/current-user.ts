@@ -21,8 +21,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { type Actor, AuthError } from '@byline/auth'
+import { getAdminRequestContext } from '@byline/client/server'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export interface CurrentAdminUser {

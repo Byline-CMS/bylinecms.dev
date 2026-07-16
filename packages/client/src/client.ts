@@ -22,6 +22,7 @@ import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { CollectionHandle } from './collection-handle.js'
 import { zoneSearch } from './search.js'
+import type { RegisteredCollections } from './register.js'
 import type { BylineClientConfig, ClientSearchResults, ZoneSearchOptions } from './types.js'
 
 /**
@@ -64,7 +65,7 @@ const silentLogger: BylineLogger = {
  * definitions, and optional storage provider. Use `collection(path)` to get
  * a scoped handle for querying and mutating documents.
  */
-export class BylineClient<TRegistry extends CollectionRegistry = CollectionRegistry> {
+export class BylineClient<TRegistry extends CollectionRegistry = RegisteredCollections> {
   readonly db: IDbAdapter
   readonly collections: readonly CollectionDefinition[]
   readonly storage: IStorageProvider | undefined
@@ -208,9 +209,11 @@ export class BylineClient<TRegistry extends CollectionRegistry = CollectionRegis
 }
 
 /**
- * Create a new Byline client instance.
+ * Create a new Byline client instance. The registry generic defaults to
+ * `RegisteredCollections`, so in an app whose generated types augment
+ * `Register` the returned client is fully typed with no explicit generic.
  */
-export function createBylineClient<TRegistry extends CollectionRegistry = CollectionRegistry>(
+export function createBylineClient<TRegistry extends CollectionRegistry = RegisteredCollections>(
   config: BylineClientConfig
 ): BylineClient<TRegistry> {
   return new BylineClient<TRegistry>(config)

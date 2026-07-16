@@ -16,10 +16,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { getAdminBylineClient } from '@byline/client/server'
 import { createReadContext, ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
-import { getAdminBylineClient } from '../../integrations/byline-client.js'
 import { placeAdminTreeNode, removeAdminTreeNode } from './tree-mutation.js'
 import { getAdminTreeParent, getAdminUnplacedTreeDocuments } from './tree-read.js'
 

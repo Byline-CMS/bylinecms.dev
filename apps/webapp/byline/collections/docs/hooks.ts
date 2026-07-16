@@ -55,10 +55,10 @@
 
 import { createHash } from 'node:crypto'
 
+import { getSystemBylineClient } from '@byline/client/server'
 import { defineHooks } from '@byline/core'
 
 import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
-import { getSystemBylineClient } from '../../clients.server.js'
 
 // Search indexing rides the same lifecycle hooks as cache invalidation. The
 // orchestration lives in `@byline/client`: `indexDocument` re-reads the

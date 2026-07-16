@@ -21,7 +21,7 @@
  * entirely and reads live.
  */
 
-import { getViewerBylineClient, isPreviewActive } from '~/clients.server'
+import { getViewerBylineClient, isPreviewActive } from '@byline/client/server'
 
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { PageDetailsFields, PageDetailsInput, PageDetailsResult } from './details'

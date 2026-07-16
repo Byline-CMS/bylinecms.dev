@@ -8,6 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { getAdminBylineClient } from '@byline/client/server'
 import {
   buildRelationSummaryPopulateMap,
   ERR_NOT_FOUND,
@@ -21,7 +22,6 @@ import {
 } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
-import { getAdminBylineClient } from '../../integrations/byline-client.js'
 import { serialise } from './utils'
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 import type { WithPopulated } from '@byline/client'
+import type { DocsFields, MediaFields, PagesFields } from '@byline/generated-types'
 import { describe, expectTypeOf, it } from 'vitest'
-
-import type { DocsFields, MediaFields, PagesFields } from '~/generated/collection-types.js'
 
 import type { PopulatedContentBlock, WithPopulatedPhotoBlockContent } from './content-types'
 

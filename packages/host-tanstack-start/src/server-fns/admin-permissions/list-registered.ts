@@ -12,8 +12,8 @@ import {
   type ListRegisteredAbilitiesResponse,
   listRegisteredAbilitiesCommand,
 } from '@byline/admin/admin-permissions'
+import { getAdminRequestContext } from '@byline/client/server'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 /**

@@ -19,7 +19,7 @@
  * with no 301 hop.
  */
 
-import { getViewerBylineClient } from '~/clients.server'
+import { getViewerBylineClient } from '@byline/client/server'
 
 import { flattenDocNav } from './nav'
 import { getDocsNav } from './nav.server'

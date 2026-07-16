@@ -24,12 +24,12 @@
  */
 
 import type { CollectionFieldData, CollectionFieldDataAllLocales } from '@byline/core'
-
-import type { collections } from './collections/index.js'
 import type {
   CollectionFieldsAllLocalesByPath,
   CollectionFieldsByPath,
-} from './generated/collection-types.js'
+} from '@byline/generated-types'
+
+import type { collections } from './collections/index.js'
 
 type InferredFieldsByPath = {
   [Definition in (typeof collections)[number] as Definition['path']]: CollectionFieldData<Definition>

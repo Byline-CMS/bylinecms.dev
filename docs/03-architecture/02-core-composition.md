@@ -168,4 +168,4 @@ not an optional adapter contract.
 | Richtext secure target reader         | `packages/core/src/services/richtext-populate.ts`                          |
 | Richtext adapter context contracts    | `packages/core/src/@types/field-types.ts`                                  |
 | `AbilityRegistry`                    | `packages/auth/src/abilities.ts`                                        |
-| Admin request-context resolver       | `packages/host-tanstack-start/src/auth/auth-context.ts` (`getAdminRequestContext`) |
+| Admin request-context resolver       | `packages/client/src/server/admin-context.ts` (`getAdminRequestContext`, exported from `@byline/client/server`) |

@@ -34,6 +34,7 @@ export {
 
 export { BylineClient, createBylineClient } from './client.js'
 export { CollectionHandle } from './collection-handle.js'
+export type { Register, RegisteredCollections } from './register.js'
 export type {
   AuditLogOptions,
   BylineClientConfig,

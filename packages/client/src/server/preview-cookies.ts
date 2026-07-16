@@ -31,9 +31,12 @@
  *   - `maxAge: 1 day`    — preview is meant to be a short-lived editorial
  *                          mode, not a permanent state. Admins can
  *                          re-enable from the admin UI when needed.
+ *
+ * Cookie transport goes through the registered `HostRequestBridge`, so
+ * this module is host-framework agnostic.
  */
 
-import { getCookie, setCookie } from '@tanstack/react-start/server'
+import { getHostRequestBridge } from '@byline/core'
 
 export const PREVIEW_COOKIE = 'byline_preview'
 const PREVIEW_MAX_AGE_SECONDS = 60 * 60 * 24 // 1 day
@@ -42,7 +45,7 @@ const IS_PROD = process.env.NODE_ENV === 'production'
 
 /** True iff the preview cookie is currently set on the request. */
 export function readPreviewCookie(): boolean {
-  return getCookie(PREVIEW_COOKIE) === '1'
+  return getHostRequestBridge().getCookie(PREVIEW_COOKIE) === '1'
 }
 
 /**
@@ -52,7 +55,7 @@ export function readPreviewCookie(): boolean {
  * the canonical entry point.
  */
 export function setPreviewCookie(): void {
-  setCookie(PREVIEW_COOKIE, '1', {
+  getHostRequestBridge().setCookie(PREVIEW_COOKIE, '1', {
     httpOnly: true,
     sameSite: 'lax',
     secure: IS_PROD,
@@ -63,7 +66,7 @@ export function setPreviewCookie(): void {
 
 /** Clear the preview cookie. Safe to call from any context. */
 export function clearPreviewCookie(): void {
-  setCookie(PREVIEW_COOKIE, '', {
+  getHostRequestBridge().setCookie(PREVIEW_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
     secure: IS_PROD,

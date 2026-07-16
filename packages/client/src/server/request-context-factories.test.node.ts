@@ -9,20 +9,17 @@
 /**
  * Direct regression coverage for the public and viewer request-context
  * factories: both must be request-stable (same instance, same requestId,
- * for every call within one Start request) so reads sharing a
- * `ReadContext` bind a single request authority.
+ * for every call within one request) so reads sharing a `ReadContext`
+ * bind a single request authority.
  */
 
 import { AdminAuth } from '@byline/auth'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { registerHostRequestBridge } from '@byline/core'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   verifyAccessToken: vi.fn(),
   refreshSession: vi.fn(),
-  getCookie: vi.fn(),
-  setCookie: vi.fn(),
-  getRequestHeader: vi.fn(),
-  getRequest: vi.fn(),
 }))
 
 vi.mock('@byline/core', async () => {
@@ -38,32 +35,36 @@ vi.mock('@byline/core', async () => {
   }
 })
 
-vi.mock('@tanstack/react-start/server', () => ({
-  getCookie: mocks.getCookie,
-  setCookie: mocks.setCookie,
-  getRequestHeader: mocks.getRequestHeader,
-  getRequest: mocks.getRequest,
-}))
+import { resolvePublicRequestContext, resolveViewerRequestContext } from './clients.js'
 
-import { resolvePublicRequestContext } from './byline-public-client.js'
-import { resolveViewerRequestContext } from './byline-viewer-client.js'
+const BRIDGE_SLOT = Symbol.for('__byline_host_request_bridge__')
+const previousBridge = (globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT]
+
+const bridge = {
+  getRequest: vi.fn<() => object | undefined>(),
+  getCookie: vi.fn<(name: string) => string | undefined>(),
+  setCookie: vi.fn(),
+}
 
 function cookiesReturn(values: Record<string, string | undefined>) {
-  mocks.getCookie.mockImplementation((name: string) => values[name])
+  bridge.getCookie.mockImplementation((name: string) => values[name])
 }
 
 describe('request-context factories', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.getRequest.mockImplementation(() => {
-      throw new Error('No StartEvent found in AsyncLocalStorage')
-    })
+    registerHostRequestBridge(bridge)
+    bridge.getRequest.mockReturnValue(undefined)
     cookiesReturn({})
+  })
+
+  afterEach(() => {
+    ;(globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT] = previousBridge
   })
 
   describe('resolvePublicRequestContext', () => {
     it('returns the same anonymous published context for every call in one request', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
 
       const first = await resolvePublicRequestContext()
       const second = await resolvePublicRequestContext()
@@ -75,9 +76,9 @@ describe('request-context factories', () => {
     })
 
     it('resolves independently across requests', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
       const first = await resolvePublicRequestContext()
-      mocks.getRequest.mockReturnValue({ id: 'request-b' })
+      bridge.getRequest.mockReturnValue({ id: 'request-b' })
       const second = await resolvePublicRequestContext()
 
       expect(second).not.toBe(first)
@@ -87,7 +88,7 @@ describe('request-context factories', () => {
 
   describe('resolveViewerRequestContext', () => {
     it('returns the same anonymous context per request when no preview cookie is set', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
 
       const first = await resolveViewerRequestContext()
       const second = await resolveViewerRequestContext()
@@ -98,7 +99,7 @@ describe('request-context factories', () => {
     })
 
     it('returns the same admin any-mode context per request in preview mode', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
       cookiesReturn({ byline_preview: '1', byline_access_token: 'valid-access' })
       const actor = new AdminAuth({ id: 'admin-1', abilities: [] })
       mocks.verifyAccessToken.mockResolvedValue({ actor })
@@ -115,7 +116,7 @@ describe('request-context factories', () => {
     })
 
     it('falls back to one stable anonymous context when the preview session is stale', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
       cookiesReturn({ byline_preview: '1', byline_access_token: 'stale' })
       mocks.verifyAccessToken.mockRejectedValue(new Error('expired'))
 
@@ -128,9 +129,9 @@ describe('request-context factories', () => {
     })
 
     it('resolves independently across requests', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
       const first = await resolveViewerRequestContext()
-      mocks.getRequest.mockReturnValue({ id: 'request-b' })
+      bridge.getRequest.mockReturnValue({ id: 'request-b' })
       const second = await resolveViewerRequestContext()
 
       expect(second).not.toBe(first)

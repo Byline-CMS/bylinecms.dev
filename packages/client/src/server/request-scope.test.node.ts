@@ -7,33 +7,40 @@
  */
 
 /**
- * Unit coverage for per-request memoization. Mocks the Start runtime's
- * `getRequest` so "which request am I in" can be simulated: a stable
- * object per request, or a throw when running outside a request.
+ * Unit coverage for per-request memoization. Registers a fake
+ * `HostRequestBridge` so "which request am I in" can be simulated: a
+ * stable object per request, or `undefined` when running outside a
+ * request.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const mocks = vi.hoisted(() => ({
-  getRequest: vi.fn(),
-}))
-
-vi.mock('@tanstack/react-start/server', () => ({
-  getRequest: mocks.getRequest,
-}))
+import { registerHostRequestBridge } from '@byline/core'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { oncePerRequest } from './request-scope.js'
+
+const BRIDGE_SLOT = Symbol.for('__byline_host_request_bridge__')
+const previousBridge = (globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT]
+
+const bridge = {
+  getRequest: vi.fn<() => object | undefined>(),
+  getCookie: vi.fn<(name: string) => string | undefined>(),
+  setCookie: vi.fn(),
+}
 
 describe('oncePerRequest', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.getRequest.mockImplementation(() => {
-      throw new Error('No StartEvent found in AsyncLocalStorage')
-    })
+    registerHostRequestBridge(bridge)
+    // Default: no request in scope, so every call resolves fresh.
+    bridge.getRequest.mockReturnValue(undefined)
+  })
+
+  afterEach(() => {
+    ;(globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT] = previousBridge
   })
 
   it('resolves the factory once per request per key', async () => {
-    mocks.getRequest.mockReturnValue({ id: 'request-a' })
+    bridge.getRequest.mockReturnValue({ id: 'request-a' })
     const factory = vi.fn(async () => ({ token: Math.random() }))
 
     const first = await oncePerRequest('ctx', factory)
@@ -48,9 +55,9 @@ describe('oncePerRequest', () => {
     const requestB = { id: 'b' }
     const factory = vi.fn(async () => ({ token: Math.random() }))
 
-    mocks.getRequest.mockReturnValue(requestA)
+    bridge.getRequest.mockReturnValue(requestA)
     const first = await oncePerRequest('ctx', factory)
-    mocks.getRequest.mockReturnValue(requestB)
+    bridge.getRequest.mockReturnValue(requestB)
     const second = await oncePerRequest('ctx', factory)
 
     expect(second).not.toBe(first)
@@ -58,7 +65,7 @@ describe('oncePerRequest', () => {
   })
 
   it('isolates entries by key within one request', async () => {
-    mocks.getRequest.mockReturnValue({ id: 'request-a' })
+    bridge.getRequest.mockReturnValue({ id: 'request-a' })
     const admin = vi.fn(async () => 'admin-context')
     const publicCtx = vi.fn(async () => 'public-context')
 
@@ -71,7 +78,7 @@ describe('oncePerRequest', () => {
   })
 
   it('memoizes rejections for the remainder of the request', async () => {
-    mocks.getRequest.mockReturnValue({ id: 'request-a' })
+    bridge.getRequest.mockReturnValue({ id: 'request-a' })
     const factory = vi.fn(async () => {
       throw new Error('no admin session')
     })
@@ -81,7 +88,18 @@ describe('oncePerRequest', () => {
     expect(factory).toHaveBeenCalledTimes(1)
   })
 
-  it('runs unmemoized outside the Start runtime', async () => {
+  it('runs unmemoized outside a request', async () => {
+    const factory = vi.fn(async () => ({ token: Math.random() }))
+
+    const first = await oncePerRequest('ctx', factory)
+    const second = await oncePerRequest('ctx', factory)
+
+    expect(second).not.toBe(first)
+    expect(factory).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs unmemoized when no host bridge is registered', async () => {
+    ;(globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT] = undefined
     const factory = vi.fn(async () => ({ token: Math.random() }))
 
     const first = await oncePerRequest('ctx', factory)

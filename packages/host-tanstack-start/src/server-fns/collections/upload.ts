@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
+import { getAdminRequestContext } from '@byline/client/server'
 import type {
   CollectionDefinition,
   FieldUploadContext,
@@ -12,7 +13,6 @@ import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byli
 import { getLogger, withLogContext } from '@byline/core/logger'
 import { uploadField as coreUploadField } from '@byline/core/services'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { ensureCollection } from '../../integrations/api-utils.js'
 
 /**

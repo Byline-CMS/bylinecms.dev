@@ -20,9 +20,9 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeader } from '@tanstack/react-start/server'
 
+import { setSessionCookies } from '@byline/client/server'
 import { getServerConfig } from '@byline/core'
 
-import { setSessionCookies } from '../../auth/auth-cookies.js'
 import { readAdminLocaleCookie } from '../../i18n/locale-cookie.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 

@@ -7,28 +7,18 @@
  */
 
 /**
- * Unit coverage for the admin request-context resolver. Mocks the
- * TanStack Start cookie helpers and the `bylineCore.sessionProvider` so
- * the branches can be exercised without a live Postgres or JWT
- * machinery.
+ * Unit coverage for the admin request-context resolver. Registers a fake
+ * `HostRequestBridge` and mocks the config's `sessionProvider` so the
+ * branches can be exercised without a live Postgres or JWT machinery.
  */
 
 import { AdminAuth, AuthError, AuthErrorCodes } from '@byline/auth'
+import { registerHostRequestBridge } from '@byline/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-// ---------------------------------------------------------------------------
-// Mocks — must be declared before the module under test is imported.
-// `vi.mock` is hoisted to the top of the file, so the fakes themselves
-// have to go through `vi.hoisted` to be available when the factory runs.
-// ---------------------------------------------------------------------------
 
 const mocks = vi.hoisted(() => ({
   verifyAccessToken: vi.fn(),
   refreshSession: vi.fn(),
-  getCookie: vi.fn(),
-  setCookie: vi.fn(),
-  getRequestHeader: vi.fn(),
-  getRequest: vi.fn(),
 }))
 
 vi.mock('@byline/core', async () => {
@@ -44,19 +34,19 @@ vi.mock('@byline/core', async () => {
   }
 })
 
-vi.mock('@tanstack/react-start/server', () => ({
-  getCookie: mocks.getCookie,
-  setCookie: mocks.setCookie,
-  getRequestHeader: mocks.getRequestHeader,
-  getRequest: mocks.getRequest,
-}))
+import { getAdminRequestContext } from './admin-context.js'
 
-const { verifyAccessToken, refreshSession, getCookie, setCookie } = mocks
+const BRIDGE_SLOT = Symbol.for('__byline_host_request_bridge__')
+const previousBridge = (globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT]
 
-// Import AFTER mocks are declared.
-import { getAdminRequestContext } from './auth-context.js'
+const bridge = {
+  getRequest: vi.fn<() => object | undefined>(),
+  getCookie: vi.fn<(name: string) => string | undefined>(),
+  setCookie: vi.fn(),
+}
 
-// ---------------------------------------------------------------------------
+const { verifyAccessToken, refreshSession } = mocks
+const { getCookie, setCookie } = bridge
 
 function cookiesReturn(values: Record<string, string | undefined>) {
   getCookie.mockImplementation((name: string) => values[name])
@@ -72,16 +62,16 @@ function stubActor() {
 describe('getAdminRequestContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Default: no Start request in scope, so every call resolves fresh.
-    // The per-request memoization tests below override this with a
-    // stable request object.
-    mocks.getRequest.mockImplementation(() => {
-      throw new Error('No StartEvent found in AsyncLocalStorage')
-    })
+    registerHostRequestBridge(bridge)
+    // Default: no request in scope, so every call resolves fresh. The
+    // per-request memoization tests below override this with a stable
+    // request object.
+    bridge.getRequest.mockReturnValue(undefined)
   })
 
   afterEach(() => {
     vi.clearAllMocks()
+    ;(globalThis as Record<PropertyKey, unknown>)[BRIDGE_SLOT] = previousBridge
   })
 
   it('returns the actor directly when the access token verifies', async () => {
@@ -223,7 +213,7 @@ describe('getAdminRequestContext', () => {
 
   describe('per-request memoization', () => {
     it('returns the same context instance — and requestId — for every call in one request', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
       cookiesReturn({
         byline_access_token: 'valid-access',
         byline_refresh_token: 'some-refresh',
@@ -247,9 +237,9 @@ describe('getAdminRequestContext', () => {
       })
       verifyAccessToken.mockResolvedValue({ actor: stubActor() })
 
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
       const first = await getAdminRequestContext()
-      mocks.getRequest.mockReturnValue({ id: 'request-b' })
+      bridge.getRequest.mockReturnValue({ id: 'request-b' })
       const second = await getAdminRequestContext()
 
       expect(second).not.toBe(first)
@@ -258,7 +248,7 @@ describe('getAdminRequestContext', () => {
     })
 
     it('burns at most one refresh rotation per request', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
       cookiesReturn({
         byline_access_token: 'stale-access',
         byline_refresh_token: 'valid-refresh',
@@ -282,7 +272,7 @@ describe('getAdminRequestContext', () => {
     })
 
     it('memoizes the unauthenticated rejection within one request', async () => {
-      mocks.getRequest.mockReturnValue({ id: 'request-a' })
+      bridge.getRequest.mockReturnValue({ id: 'request-a' })
       cookiesReturn({
         byline_access_token: 'stale',
         byline_refresh_token: 'bad-refresh',

@@ -28,9 +28,12 @@
  *   - `secure: true` in production — https-only; dev keeps it off so
  *                          cookies work on http://localhost.
  *   - `path: '/'`        — available everywhere in the app.
+ *
+ * Cookie transport goes through the registered `HostRequestBridge`, so
+ * this module is host-framework agnostic.
  */
 
-import { getCookie, setCookie } from '@tanstack/react-start/server'
+import { getHostRequestBridge } from '@byline/core'
 
 export const ACCESS_TOKEN_COOKIE = 'byline_access_token'
 export const REFRESH_TOKEN_COOKIE = 'byline_refresh_token'
@@ -39,12 +42,12 @@ const IS_PROD = process.env.NODE_ENV === 'production'
 
 /** Read the access-token cookie. Returns undefined when not present. */
 export function readAccessTokenCookie(): string | undefined {
-  return getCookie(ACCESS_TOKEN_COOKIE)
+  return getHostRequestBridge().getCookie(ACCESS_TOKEN_COOKIE)
 }
 
 /** Read the refresh-token cookie. Returns undefined when not present. */
 export function readRefreshTokenCookie(): string | undefined {
-  return getCookie(REFRESH_TOKEN_COOKIE)
+  return getHostRequestBridge().getCookie(REFRESH_TOKEN_COOKIE)
 }
 
 export interface SessionCookieTokens {
@@ -63,6 +66,7 @@ export interface SessionCookieTokens {
  * saves round trips when the refresh token has fully expired.
  */
 export function setSessionCookies(tokens: SessionCookieTokens): void {
+  const bridge = getHostRequestBridge()
   const now = Date.now()
   const accessMaxAgeSeconds = Math.max(
     0,
@@ -73,7 +77,7 @@ export function setSessionCookies(tokens: SessionCookieTokens): void {
     Math.floor((tokens.refreshTokenExpiresAt.getTime() - now) / 1000)
   )
 
-  setCookie(ACCESS_TOKEN_COOKIE, tokens.accessToken, {
+  bridge.setCookie(ACCESS_TOKEN_COOKIE, tokens.accessToken, {
     httpOnly: true,
     sameSite: 'lax',
     secure: IS_PROD,
@@ -81,7 +85,7 @@ export function setSessionCookies(tokens: SessionCookieTokens): void {
     maxAge: accessMaxAgeSeconds,
   })
 
-  setCookie(REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
+  bridge.setCookie(REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
     httpOnly: true,
     sameSite: 'lax',
     secure: IS_PROD,
@@ -96,14 +100,15 @@ export function setSessionCookies(tokens: SessionCookieTokens): void {
  * trying a token that the server has already rejected).
  */
 export function clearSessionCookies(): void {
-  setCookie(ACCESS_TOKEN_COOKIE, '', {
+  const bridge = getHostRequestBridge()
+  bridge.setCookie(ACCESS_TOKEN_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
     secure: IS_PROD,
     path: '/',
     maxAge: 0,
   })
-  setCookie(REFRESH_TOKEN_COOKIE, '', {
+  bridge.setCookie(REFRESH_TOKEN_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
     secure: IS_PROD,

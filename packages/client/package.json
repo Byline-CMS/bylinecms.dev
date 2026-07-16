@@ -41,6 +41,12 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "browser": "./dist/server/browser.js",
+      "import": "./dist/server/index.js",
+      "require": "./dist/server/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -48,7 +54,8 @@
   ],
   "dependencies": {
     "@byline/auth": "workspace:*",
-    "@byline/core": "workspace:*"
+    "@byline/core": "workspace:*",
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
@@ -71,6 +78,12 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "require": "./dist/index.js"
+      },
+      "./server": {
+        "types": "./dist/server/index.d.ts",
+        "browser": "./dist/server/browser.js",
+        "import": "./dist/server/index.js",
+        "require": "./dist/server/index.js"
       },
       "./package.json": "./package.json"
     },

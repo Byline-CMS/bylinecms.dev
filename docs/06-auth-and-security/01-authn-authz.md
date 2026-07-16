@@ -395,7 +395,7 @@ scope compiled for the first caller.
 
 Three classes of caller construct `RequestContext`:
 
-- **Admin server functions** call `getAdminRequestContext()` (`packages/host-tanstack-start/src/auth/auth-context.ts`). It reads the session cookie, calls `sessionProvider.verifyAccessToken`, and attaches the resolved `AdminAuth`. No actor → throws.
+- **Admin server functions** call `getAdminRequestContext()` (`packages/client/src/server/admin-context.ts`, exported from `@byline/client/server`). It reads the session cookie, calls `sessionProvider.verifyAccessToken`, and attaches the resolved `AdminAuth`. No actor → throws.
 - **Public readers** (the in-process `@byline/client`) default to `actor: null`, `readMode: 'published'`. Anonymous access is permitted on read paths only when the read mode is `'published'`.
 - **Scripts, seeds, and migrations** call `createSuperAdminContext({ id })` from `@byline/auth`. The fact that the caller is acting as super-admin is explicit in the code, not ambient, and every short-circuit on `actor.isSuperAdmin === true` is auditable.
 
@@ -711,7 +711,7 @@ The following are **declared in the contract but not implemented**, kept that wa
 | Admin store aggregate                    | `packages/admin/src/store.ts`                                              |
 | Postgres admin repositories              | `packages/db-postgres/src/modules/admin/` (subpath: `@byline/db-postgres/admin`) |
 | Admin schema + migration                 | `packages/db-postgres/src/database/schema/auth.ts`                         |
-| Admin server-fn auth context resolver    | `packages/host-tanstack-start/src/auth/auth-context.ts` (`getAdminRequestContext`) |
+| Admin server-fn auth context resolver    | `packages/client/src/server/admin-context.ts` (`getAdminRequestContext`, exported from `@byline/client/server`) |
 | Admin server fns (auth)                  | `packages/host-tanstack-start/src/server-fns/auth/`                        |
 | Admin server fns (management)            | `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/` |
 | Admin route factories                    | `packages/host-tanstack-start/src/routes/create-admin-*-route.tsx`         |

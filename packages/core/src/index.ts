@@ -42,6 +42,13 @@ export { RESERVED_FIELD_NAMES } from './config/validate-collections.js'
 export { type BylineCore, getBylineCore, initBylineCore } from './core.js'
 export * from './defaults/default-values.js'
 export {
+  getHostRequestBridge,
+  type HostCookieSetOptions,
+  type HostRequestBridge,
+  registerHostRequestBridge,
+  tryGetHostRequestBridge,
+} from './host/host-request-bridge.js'
+export {
   BylineError,
   ERR_AUDIT_UNSUPPORTED,
   ERR_CONFLICT,

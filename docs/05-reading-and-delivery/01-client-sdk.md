@@ -41,6 +41,29 @@ Run `pnpm byline:generate` after changing a collection, field, or block schema. 
 
 Typed clients use the generated `CollectionFieldsByPath` map as their registry provenance. A hand-authored compile contract maps `CollectionFieldData` and `CollectionFieldDataAllLocales` over `typeof collections` and requires exact key and value equality with both generated maps, so emitter or schema drift also fails application typecheck.
 
+The generated file (format 2) is a pair of TypeScript **declaration merges**, not a module of local exports:
+
+- Every emitted type lives inside a `declare module '@byline/generated-types'` block, so the published stub package `@byline/generated-types` is the one canonical import path — `import type { NewsFields } from '@byline/generated-types'` — from anywhere in the app. The stub itself is empty; the app's tsconfig `include` carrying the generated file into the program is what populates it. Imports are type-only and erased at runtime.
+- A second block registers the registry with the SDK: `declare module '@byline/client' { interface Register { collections: CollectionFieldsByPath } }`. Once merged, every **bare** `BylineClient` in the app's program — including `createBylineClient`'s default generic and the `@byline/client/server` getters below — resolves to `BylineClient<CollectionFieldsByPath>`: `client.collection('news')` autocompletes paths and returns generated field shapes with no explicit generics and no casts.
+
+Exactly one application per TypeScript program can hold these augmentations (declaration merging is program-global); one app per tsconfig — the supported layout — is safe. Unaugmented programs (a package's own tests, a script compiled outside the app) fall back to the loose `CollectionRegistry`.
+
+### Server client getters (`@byline/client/server`)
+
+Host applications rarely construct clients by hand. `@byline/client/server` exports four request-authority singletons plus the preview probe:
+
+```ts
+import {
+  getAdminBylineClient, // authenticated admin actor, resolved per request from session cookies
+  getPublicBylineClient, // anonymous, published-only; preview can never apply (feeds, sitemaps, CDN-cacheable)
+  getSystemBylineClient, // explicit super-admin context; background/maintenance work, no request needed
+  getViewerBylineClient, // public reads that honour an admin's preview-mode session
+  isPreviewActive, // cookie + admin session probe: `status: preview ? 'any' : 'published'`
+} from '@byline/client/server'
+```
+
+The subpath is host-framework agnostic: everything request-scoped bottoms out in the `HostRequestBridge` seam (`@byline/core`) — request identity, cookie read, cookie write — which a host adapter implements and registers at server boot (`registerTanstackStartHostBridge()` from `@byline/host-tanstack-start/integrations/host-bridge`, wired into the scaffolded `server.config.ts`). Application modules that read documents therefore never import the host framework, which is what keeps them portable across a future host migration. The subpath is server-only: the package's `browser` export condition resolves it to a stub that throws.
+
 ---
 
 ## Quick reference
@@ -218,7 +241,7 @@ import type {
   MediaFields,
   NewsCategoriesFields,
   NewsFields,
-} from './byline/generated/collection-types.js'
+} from '@byline/generated-types'
 
 type NewsListFields = WithPopulated<
   WithPopulated<NewsFields, 'category', NewsCategoriesFields>,
@@ -541,7 +564,7 @@ import type {
   MediaFields,
   NewsCategoriesFields,
   NewsFields,
-} from './byline/generated/collection-types.js'
+} from '@byline/generated-types'
 
 type NewsListFields = WithPopulated<
   WithPopulated<NewsFields, 'category', NewsCategoriesFields>,
@@ -575,7 +598,7 @@ Editorial metadata reads are intentionally stricter: `count` / `countByStatus`, 
 
 ### Preview mode (admin draft viewing on the public host)
 
-Editorial workflows usually want one extra capability: an admin should be able to navigate the public host pages and see their **own in-progress drafts** rendered exactly as the published version would be — without changing routes, without rebuilding markup, and without leaking drafts to ordinary visitors. `@byline/host-tanstack-start` ships a "viewer client" that layers preview-aware behaviour over the SDK without changing it.
+Editorial workflows usually want one extra capability: an admin should be able to navigate the public host pages and see their **own in-progress drafts** rendered exactly as the published version would be — without changing routes, without rebuilding markup, and without leaking drafts to ordinary visitors. `@byline/client/server` ships a "viewer client" that layers preview-aware behaviour over the SDK without changing it, implemented against the `HostRequestBridge` seam a host adapter registers at boot.
 
 **The plumbing splits into two layers** — a transport layer (cookie + viewer client + server fns) that decides what each request sees, and a UX layer (admin shell affordances) that lets editors flip the cookie and discover the resulting state.
 
@@ -583,8 +606,8 @@ Editorial workflows usually want one extra capability: an admin should be able t
 
 | Piece | Location | Role |
 |---|---|---|
-| `byline_preview` cookie | `@byline/host-tanstack-start/auth/preview-cookies` | Session-level "I want to see drafts" flag. httpOnly. Mere presence is the signal — no payload to verify. |
-| `getViewerBylineClient()` | `@byline/host-tanstack-start/integrations/byline-viewer-client` | Singleton `BylineClient` whose per-call `requestContext` factory upgrades to the admin actor when both the cookie and a valid admin session resolve. |
+| `byline_preview` cookie | `@byline/client/server` (`preview-cookies.ts`) | Session-level "I want to see drafts" flag. httpOnly. Mere presence is the signal — no payload to verify. |
+| `getViewerBylineClient()` | `@byline/client/server` | Singleton `BylineClient` whose per-call `requestContext` factory upgrades to the admin actor when both the cookie and a valid admin session resolve. |
 | `isPreviewActive()` | same module | Async check that returns `true` only when the cookie is set **and** `getAdminRequestContext()` resolves an admin. |
 | `enablePreviewModeFn` / `disablePreviewModeFn` / `getPreviewStateFn` | `@byline/host-tanstack-start/server-fns/preview` | Toggle the cookie / read its current state. Enable requires a valid admin context; disable and state-read are unauthenticated. |
 
@@ -729,10 +752,10 @@ These are not the same package and should not be conflated. In-process SDK evolu
 | Search authorization finishing | `packages/client/src/search.ts` |
 | Document write services | `packages/core/src/services/document-lifecycle/` (per-operation modules) |
 | `current_published_documents` view | `packages/db-postgres/src/database/migrations/0000_*.sql` |
-| Public client (no preview) | `packages/host-tanstack-start/src/integrations/byline-public-client.ts` |
-| Viewer client + `isPreviewActive` | `packages/host-tanstack-start/src/integrations/byline-viewer-client.ts` |
-| Admin client | `packages/host-tanstack-start/src/integrations/byline-client.ts` |
-| Preview cookie helpers | `packages/host-tanstack-start/src/auth/preview-cookies.ts` |
+| Public client (no preview) | `packages/client/src/server/clients.ts` (`@byline/client/server`) |
+| Viewer client + `isPreviewActive` | `packages/client/src/server/clients.ts` (`@byline/client/server`) |
+| Admin client | `packages/client/src/server/clients.ts` (`@byline/client/server`) |
+| Preview cookie helpers | `packages/client/src/server/preview-cookies.ts` (`@byline/client/server`) |
 | Preview enable/disable/state server fns | `packages/host-tanstack-start/src/server-fns/preview/` |
 | Drawer toggle | `packages/host-tanstack-start/src/admin-shell/chrome/preview-toggle.tsx` |
 | `<PreviewLink>` + `resolvePreviewUrl` | `packages/host-tanstack-start/src/admin-shell/collections/preview-link.tsx` |

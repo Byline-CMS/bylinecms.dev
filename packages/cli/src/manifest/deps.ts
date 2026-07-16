@@ -75,6 +75,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'types, config, patches, workflow, Zod schema builder',
   },
   {
+    name: '@byline/generated-types',
+    version: BYLINE_VERSION,
+    group: 'byline',
+    note: 'declaration-merge target for the app-generated collection types',
+  },
+  {
     name: '@byline/db-postgres',
     version: BYLINE_VERSION,
     group: 'byline',

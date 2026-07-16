@@ -17,10 +17,10 @@
  * publish / unpublish / delete) additionally sweep the sitemap.
  */
 
+import { getSystemBylineClient } from '@byline/client/server'
 import { defineHooks } from '@byline/core'
 
 import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache'
-import { getSystemBylineClient } from '../../clients.server.js'
 
 const structural = { sitemap: true }
 

@@ -19,14 +19,13 @@
  *   - `@byline/host-tanstack-start/server-fns/<module>` — TanStack Start
  *     server functions for each admin module (admin-account, admin-roles,
  *     admin-users, admin-permissions, auth, collections).
- *   - `@byline/host-tanstack-start/auth/auth-context` — request-scoped
- *     `RequestContext` resolution that reads session cookies, refreshes
- *     transparently, and surfaces `ERR_UNAUTHENTICATED` to callers.
  *   - `@byline/host-tanstack-start/integrations/*` — host-side adapters
  *     binding TanStack Start primitives to the framework-neutral
- *     contracts in `@byline/ui` and `@byline/client`
- *     (`bylineFieldServices`, `bylineAdminServices`, the admin
- *     `BylineClient` singleton).
+ *     contracts in `@byline/ui`, `@byline/core`, and `@byline/client`
+ *     (`bylineFieldServices`, `bylineAdminServices`, and `host-bridge` —
+ *     the `HostRequestBridge` implementation behind the
+ *     `@byline/client/server` getters; request-context resolution and the
+ *     client singletons themselves live in `@byline/client/server`).
  *   - `@byline/host-tanstack-start/admin-shell/{chrome,collections,...}` —
  *     router-coupled admin UI: shared shell chrome (menu drawer, app bar,
  *     route-error, breadcrumbs, etc.) plus per-area page containers.

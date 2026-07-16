@@ -340,7 +340,7 @@ it from a lifecycle hook couples that hook to a live HTTP request and throws
 import scripts, seeds, migrations, the CLI, and tests. Indexing is background
 maintenance — it reads the published view and `_bypassBeforeRead` — so the
 system context is both correct and runtime-agnostic. (Both helpers live in
-`@byline/host-tanstack-start/integrations/byline-client`.)
+`@byline/client/server`.)
 :::
 
 **Indexing is awaited** inside the post-commit hook, but is not part of the

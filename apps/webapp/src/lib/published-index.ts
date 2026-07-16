@@ -23,13 +23,12 @@
  */
 
 import type { TreeNode } from '@byline/client'
-
-import { getPublicBylineClient } from '~/clients.server'
+import { getPublicBylineClient } from '@byline/client/server'
 import type {
   DocsFields as DocFields,
   NewsFields,
   PagesFields as PageFields,
-} from '~/generated/collection-types.js'
+} from '@byline/generated-types'
 
 import { advertisedLocalesFor } from '@/lib/alternates'
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'

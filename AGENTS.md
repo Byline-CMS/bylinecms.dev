@@ -28,13 +28,14 @@
 
 - `apps/webapp/byline/collections/index.ts` is the single server-safe collection tuple. Import schema modules only; keep React/admin presentation imports out.
 - `apps/webapp/byline/public.ts` is the blessed client-safe configuration facade for public code. Do not expose admin/server config through it.
-- `apps/webapp/byline/clients.server.ts` is the sole app-owned type assertion around host client singletons; never import it into browser code.
+- Server client getters (`getAdminBylineClient`, `getPublicBylineClient`, `getSystemBylineClient`, `getViewerBylineClient`, `isPreviewActive`) come from `@byline/client/server` — typed via the generated `Register` merge, server-only (browser export condition throws). Never import it into browser code.
 - Server bootstrap is a side effect of `apps/webapp/src/server.ts` importing `byline/server.config.ts`.
 - Keep both `byline/admin.config.ts` registrations: `_byline/route.tsx` `beforeLoad` protects child loaders, while `_byline/route.lazy.tsx` protects initial hydration. An eager import leaks the admin/editor graph into public bundles.
 
 ## Generated Types And Files
 
 - After changing a collection, field, or block schema, run `pnpm byline:generate` and commit `apps/webapp/byline/generated/collection-types.ts`.
+- App code imports collection types from `@byline/generated-types` (the generated file declaration-merges into that stub package and into `@byline/client`'s `Register`); never import the generated file by path.
 - `pnpm byline:generate:check` is read-only and fails on missing/stale output; `byline/collection-types.contract.ts` checks generated types exactly against inference.
 - Never hand-edit generated collection types or `apps/webapp/src/routeTree.gen.ts`; both are excluded from Biome intentionally.
 - Generated collection types are canonical unpopulated read shapes. Keep operation-specific populate overlays near the query.

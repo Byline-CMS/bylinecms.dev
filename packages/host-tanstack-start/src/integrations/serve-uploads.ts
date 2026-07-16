@@ -46,6 +46,12 @@ import type { Stats } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { resolve as resolvePath } from 'node:path'
 
+// Belt-and-braces bridge registration: `serveUploads` is imported by every
+// scaffolded app's `src/server.ts` at boot, so pulling in the host bridge
+// here guarantees `@byline/client/server` getters can resolve cookies even
+// if a server config forgets the explicit `registerTanstackStartHostBridge()`.
+import './host-bridge.js'
+
 export interface UploadsHandlerOptions {
   /**
    * URL prefix to match. Trailing slash required. Default `'/uploads/'`.

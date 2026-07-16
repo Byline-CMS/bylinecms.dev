@@ -40,7 +40,7 @@ The rest of this section describes the strategy the reference middleware impleme
 
 The middleware checks the admin **session** cookies on every request:
 
-- `byline_access_token` and `byline_refresh_token` — set by the admin session (see [`packages/host-tanstack-start/src/auth/auth-cookies.ts`](../packages/host-tanstack-start/src/auth/auth-cookies.ts)).
+- `byline_access_token` and `byline_refresh_token` — set by the admin session (see `packages/client/src/server/session-cookies.ts` (`@byline/client/server`)).
 
 If **either** session cookie is present on the request, the response carries:
 
@@ -62,7 +62,7 @@ Cache-Control: public, s-maxage=60, stale-while-revalidate=86400
 
 ### Why `byline_preview` is not a bypass signal
 
-The preview cookie (see [`packages/host-tanstack-start/src/auth/preview-cookies.ts`](../packages/host-tanstack-start/src/auth/preview-cookies.ts)) is deliberately **not** included in the cache-bypass check:
+The preview cookie (see `packages/client/src/server/preview-cookies.ts` (`@byline/client/server`)) is deliberately **not** included in the cache-bypass check:
 
 - Preview mode only takes effect when paired with a valid admin session. `isPreviewActive()` checks the cookie *and* resolves `getAdminRequestContext()`; without a session it returns `false` and the server returns published content via `status: 'published'`.
 - A real preview session always carries the session cookies too, so bypass is already triggered by those — the preview cookie is redundant when it matters.

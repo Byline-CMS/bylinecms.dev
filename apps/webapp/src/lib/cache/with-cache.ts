@@ -37,7 +37,7 @@
  * drift. See docs/DATA-CACHE-DESIGN.md.
  */
 
-import type { CollectionPath } from '~/generated/collection-types.js'
+import type { CollectionPath } from '@byline/generated-types'
 
 import { getServerConfig } from '@/config'
 import { getCache, invalidateTag } from './index'

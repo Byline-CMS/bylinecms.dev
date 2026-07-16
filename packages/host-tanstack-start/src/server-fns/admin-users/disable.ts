@@ -9,8 +9,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { disableAdminUserCommand, type OkResponse } from '@byline/admin/admin-users'
+import { getAdminRequestContext } from '@byline/client/server'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 // No UI affordance yet — paired with `enable.ts`, both ship ahead of the

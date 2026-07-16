@@ -64,10 +64,7 @@
 import { createMiddleware } from '@tanstack/react-start'
 import { getCookie, setResponseHeader } from '@tanstack/react-start/server'
 
-import {
-  ACCESS_TOKEN_COOKIE,
-  REFRESH_TOKEN_COOKIE,
-} from '@byline/host-tanstack-start/auth/auth-cookies'
+import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@byline/client/server'
 
 const CACHE_BYPASS_COOKIES = [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE] as const
 

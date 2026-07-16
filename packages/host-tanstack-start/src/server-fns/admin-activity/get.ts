@@ -10,9 +10,9 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { assertAdminActor } from '@byline/admin'
 import { ADMIN_ACTIVITY_ABILITIES } from '@byline/admin/admin-activity'
+import { getAdminRequestContext } from '@byline/client/server'
 import { ERR_AUDIT_UNSUPPORTED, getLogger, getServerConfig } from '@byline/core'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { type ActorLabelMap, resolveActorLabels } from '../collections/actors.js'
 import type { AuditLogEntryDto } from '../collections/audit.js'
 

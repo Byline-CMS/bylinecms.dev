@@ -8,7 +8,7 @@
 
 import type { InferCollectionRegistry } from '@byline/core'
 
-import type { CollectionFieldsByPath } from '../generated/collection-types.js'
+import type { CollectionFieldsByPath } from '@byline/generated-types'
 
 import { Docs } from './docs/schema.js'
 import { Media } from './media/schema.js'

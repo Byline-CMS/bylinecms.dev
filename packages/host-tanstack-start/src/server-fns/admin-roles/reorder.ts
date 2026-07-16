@@ -9,8 +9,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { reorderAdminRolesCommand } from '@byline/admin/admin-roles'
+import { getAdminRequestContext } from '@byline/client/server'
 
-import { getAdminRequestContext } from '../../auth/auth-context.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export const reorderAdminRoles = createServerFn({ method: 'POST' })

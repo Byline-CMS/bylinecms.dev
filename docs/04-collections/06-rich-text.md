@@ -290,7 +290,7 @@ import {
   lexicalEditorEmbedServer,
   lexicalEditorPopulateServer,
 } from '@byline/richtext-lexical/server'
-import { getAdminBylineClient } from '@byline/host-tanstack-start/integrations/byline-client'
+import { getAdminBylineClient } from '@byline/client/server'
 
 await initBylineCore({
   // …db, collections, storage, sessionProvider, adminStore, …
