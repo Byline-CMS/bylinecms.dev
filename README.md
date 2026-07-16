@@ -4,13 +4,14 @@ A developer-friendly, open-source headless CMS — built with versioning,
 editorial workflow, and content translation as first-class concerns rather
 than features bolted on later.
 
-> Status: Byline is currently at a stable v3.x.x release. The major-version
+> Status: Byline is currently at a stable v4.x release. The major-version
 > bumps have been driven by lockstep versioning across the publishable
 > `@byline/*` packages rather than breaking redesigns — the architecture is
 > settled and there are unlikely to be any major architectural changes, though
 > there is still work to do.
-> If you're interested in Byline, v3 is a solid base for evaluation and
-> for building on.
+> If you're interested in Byline, v4 is a solid base for evaluation and
+> for building on. Upgrading from 3.21? See the
+> [migration guide](docs/01-getting-started/03-upgrading-to-v4.md).
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
@@ -49,6 +50,10 @@ overview; the highlights below link straight to the per-topic references.
   Byline to an existing TanStack Start app with `byline init` / `setup`.
 - **[Development environment](docs/01-getting-started/02-development-environment.md)**
   — clone this repo, bring up Postgres, seed, and run the example app.
+- **[Upgrading to v4](docs/01-getting-started/03-upgrading-to-v4.md)** — the
+  3.21 → 4.x application migration: package alignment, route configuration,
+  server-only hooks, the `@byline/client/server` + `@byline/generated-types`
+  import surface, and release validation gates.
 
 ### 2. [Why Byline](docs/02-why-byline/index.md)
 
@@ -97,7 +102,8 @@ schema versioning.
 
 - **[Client SDK](docs/05-reading-and-delivery/01-client-sdk.md)** — `@byline/client`
   as an in-process, server-side SDK: read DSL, write surface, populate, status
-  modes, and what it deliberately is *not*.
+  modes, the typed `@byline/client/server` getters + `@byline/generated-types`
+  registration, and what it deliberately is *not*.
 - **[Routing & API](docs/05-reading-and-delivery/02-routing-and-api.md)** — the
   internal TanStack-server-fn transport phase, today's server-fn surface, and
   what triggers a stable HTTP boundary.
@@ -111,6 +117,9 @@ schema versioning.
 - **[Caching](docs/05-reading-and-delivery/06-caching.md)** — L1/L2 cache layers,
   the reference `publicCacheMiddleware`, cookie-aware CDN bypass for editors,
   invalidation strategies, and clustering trade-offs.
+- **[Search](docs/05-reading-and-delivery/07-search.md)** — the pluggable
+  `SearchProvider` seam, the built-in Postgres full-text driver, lifecycle-hook
+  indexing, reindex, and the collection `search()` query surface.
 
 ### 6. [Auth & Security](docs/06-auth-and-security/index.md)
 
@@ -357,7 +366,7 @@ We’re not certain yet, and likely not at this early stage. Our priority is to 
 
 <details>
 <summary>6. What's here now?</summary>
-The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 3.x line but treating it as a release candidate: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, `hasMany` relations, list-view materialisation under load) deferred to fill in across the 3.x line.
+The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 4.x line: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, `hasMany` relations, a stable public HTTP API, list-view materialisation under load) deferred to fill in across the 4.x line.
 </details>
 
 <details>
