@@ -213,6 +213,15 @@ function serializeField(field: Field, value: unknown, ctx: Ctx, level: number): 
       // toggles (constrainedWidth, featured) and json/object is
       // machine-shaped — the export renders content, not configuration.
       return null
+    case 'code': {
+      // Fenced code block. The info string uses the schema's static
+      // `language` hint when present; a sibling `languageField` selection is
+      // not resolvable here (this serializer sees one field at a time), so
+      // those fences render bare — still valid markdown.
+      const text = stringValue(value)
+      if (text == null) return null
+      return `\`\`\`${field.language ?? ''}\n${text}\n\`\`\``
+    }
     default: {
       const text = stringValue(value)
       return text ? labelled(field, text) : null

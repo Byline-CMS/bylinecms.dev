@@ -138,6 +138,18 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       break
     }
 
+    case 'code': {
+      let codeSchema = z.string()
+      if (field.validation?.minLength) {
+        codeSchema = codeSchema.min(field.validation.minLength)
+      }
+      if (field.validation?.maxLength) {
+        codeSchema = codeSchema.max(field.validation.maxLength)
+      }
+      schema = codeSchema
+      break
+    }
+
     case 'integer':
       schema = z.number().int()
       break

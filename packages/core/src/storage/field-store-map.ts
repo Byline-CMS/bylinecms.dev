@@ -66,6 +66,7 @@ export const fieldTypeToStore: Readonly<Record<string, FieldStoreMapping | undef
   // Text store
   text: { storeType: 'text', valueColumn: 'value' },
   textArea: { storeType: 'text', valueColumn: 'value' },
+  code: { storeType: 'text', valueColumn: 'value' },
   select: { storeType: 'text', valueColumn: 'value' },
 
   // Numeric store

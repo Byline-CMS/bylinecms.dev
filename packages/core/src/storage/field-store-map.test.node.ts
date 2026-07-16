@@ -27,6 +27,7 @@ import {
 const VALUE_FIELD_TYPES = [
   'text',
   'textArea',
+  'code',
   'select',
   'integer',
   'float',

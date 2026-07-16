@@ -38,6 +38,7 @@ const DocsCollectionConfig = defineCollection({
     },
     { name: 'views', type: 'integer', optional: true },
     { name: 'price', label: 'Price', type: 'decimal', optional: true },
+    { name: 'snippet', type: 'code', language: 'typescript', optional: true },
 
     {
       name: 'content',
@@ -104,6 +105,7 @@ const sampleDocument: DocsFields = {
   featured: true,
   views: 100,
   price: '19.99',
+  snippet: 'const answer: number = 42\nexport { answer }',
   content: [
     {
       _id: 'block1',
@@ -177,6 +179,7 @@ const expectedRestored = {
   featured: true,
   views: 100,
   price: '19.99',
+  snippet: 'const answer: number = 42\nexport { answer }',
   content: [
     {
       _id: 'block1',

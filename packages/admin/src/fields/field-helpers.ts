@@ -30,6 +30,7 @@ export const placeholderForField = (f: Field): any => {
   switch (f.type) {
     case 'text':
     case 'textArea':
+    case 'code':
       return ''
     case 'checkbox':
       return false

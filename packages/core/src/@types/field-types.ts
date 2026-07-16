@@ -473,6 +473,46 @@ export interface TextAreaField extends LocalizableField {
 }
 
 // ---------------------------------------------------------------------------
+// Code field
+// ---------------------------------------------------------------------------
+
+/**
+ * A dedicated source-code field. Stores a plain string (text store — no
+ * migration relative to `text` / `textArea`); the admin renders a
+ * lazily-loaded CodeMirror editor with syntax highlighting.
+ */
+export interface CodeField extends LocalizableField {
+  type: 'code'
+  defaultValue?: DefaultValue<string>
+  /**
+   * Default syntax-highlight language for the admin editor (e.g.
+   * `'typescript'`, `'json'`, `'markdown'`). Unknown or omitted values render
+   * as plain text. Presentation-only — never persisted with the value.
+   */
+  language?: string
+  /**
+   * Name of a SIBLING field (same group/block level) whose string value
+   * drives the editor's highlight language at runtime — typically a `select`
+   * of languages next to the code field. Takes precedence over `language`
+   * when the sibling has a value. Presentation-only.
+   *
+   * @example
+   * ```ts
+   * fields: [
+   *   { name: 'language', type: 'select', options: [ ... ] },
+   *   { name: 'code', type: 'code', languageField: 'language' },
+   * ]
+   * ```
+   */
+  languageField?: string
+  validation?: {
+    minLength?: number
+    maxLength?: number
+    rules?: ValidationRule[]
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Checkbox field
 // ---------------------------------------------------------------------------
 
@@ -777,6 +817,7 @@ export type StructureField = GroupField | ArrayField | BlocksField
 export type ValueField =
   | TextField
   | TextAreaField
+  | CodeField
   | CheckboxField
   | BooleanField
   | SelectField

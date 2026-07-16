@@ -13,6 +13,7 @@ export const QuoteBlock = defineBlock({
         { label: 'Quoted', value: "author's" },
       ],
     },
+    { name: 'snippet', type: 'code', language: 'typescript', optional: true },
   ],
 })
 
@@ -38,6 +39,7 @@ export const AllFieldsCollection = defineCollection({
     { name: 'text', type: 'text' },
     { name: 'localizedText', type: 'text', localized: true },
     { name: 'textArea', type: 'textArea' },
+    { name: 'code', type: 'code', language: 'json' },
     { name: 'boolean', type: 'boolean' },
     { name: 'checkbox', type: 'checkbox' },
     {

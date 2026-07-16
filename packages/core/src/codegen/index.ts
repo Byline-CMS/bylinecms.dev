@@ -243,6 +243,7 @@ function analyze(collections: readonly CollectionDefinition[]): Analysis {
         break
       case 'boolean':
       case 'checkbox':
+      case 'code':
       case 'counter':
       case 'date':
       case 'datetime':
@@ -411,6 +412,7 @@ function emitBody(analysis: Analysis): string {
       case 'datetime':
         value = ['Date']
         break
+      case 'code':
       case 'decimal':
       case 'text':
       case 'textArea':

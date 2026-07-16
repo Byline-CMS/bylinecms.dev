@@ -19,6 +19,7 @@ export type QuoteBlockData = {
   _type: "quote'block"
   quotation: string
   "tone'choice"?: 'calm' | "author's" | undefined
+  snippet?: string | undefined
 }
 
 export type QuoteBlockDataAllLocales = {
@@ -26,6 +27,7 @@ export type QuoteBlockDataAllLocales = {
   _type: "quote'block"
   quotation: { [locale: string]: string }
   "tone'choice"?: 'calm' | "author's" | undefined
+  snippet?: string | undefined
 }
 
 export type AllFieldsFields = {
@@ -39,6 +41,7 @@ export type AllFieldsFields = {
   text: string
   localizedText: string
   textArea: string
+  code: string
   boolean: boolean
   checkbox: boolean
   select: 'first' | "second's"
@@ -74,6 +77,7 @@ export type AllFieldsFieldsAllLocales = {
   text: string
   localizedText: { [locale: string]: string }
   textArea: string
+  code: string
   boolean: boolean
   checkbox: boolean
   select: 'first' | "second's"

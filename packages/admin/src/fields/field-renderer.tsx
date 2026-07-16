@@ -21,6 +21,7 @@ import { useFormContext } from '../forms/form-context'
 import { ArrayField } from './array/array-field'
 import { BlocksField } from './blocks/blocks-field'
 import { CheckboxField } from './checkbox/checkbox-field'
+import { CodeField } from './code/code-field'
 import { DateTimeField } from './datetime/datetime-field'
 import styles from './field-renderer.module.css'
 import { FileField } from './file/file-field'
@@ -131,6 +132,18 @@ export const FieldRenderer = ({
       case 'textArea':
         return (
           <TextAreaField
+            field={hideLabel ? { ...field, label: undefined } : field}
+            defaultValue={defaultValue}
+            onChange={handleChange}
+            path={path}
+            id={htmlId}
+            locale={isLocalised ? contentLocale : undefined}
+            components={components}
+          />
+        )
+      case 'code':
+        return (
+          <CodeField
             field={hideLabel ? { ...field, label: undefined } : field}
             defaultValue={defaultValue}
             onChange={handleChange}
@@ -307,9 +320,13 @@ export const FieldRenderer = ({
     }
   }
 
-  // text and textArea render the badge inside their own Label row;
+  // text, textArea, and code render the badge inside their own Label row;
   // the outer wrapper is only needed for other field types.
-  const selfBadge = field.type === 'text' || field.type === 'textArea' || field.type === 'richText'
+  const selfBadge =
+    field.type === 'text' ||
+    field.type === 'textArea' ||
+    field.type === 'code' ||
+    field.type === 'richText'
 
   if (badge && !selfBadge) {
     return (

@@ -1,0 +1,83 @@
+/**
+ * CodeField — CodeMirror-backed source-code input.
+ *
+ * Override handles:
+ *   .byline-field-code            — the wrapper div (also carries the
+ *                                   --byline-code-* theme variables)
+ *   .byline-field-code-label-row  — the label + locale-badge row
+ *   .byline-field-code-loading    — the Suspense fallback textarea
+ *   .byline-code-editor           — the CodeMirror mount point
+ *
+ * Theming: the CodeMirror theme (see code-editor.tsx) is written entirely in
+ * terms of the --byline-code-* custom properties declared here, with dark
+ * values scoped under the admin's `.dark` root class — the editor follows
+ * theme flips live with zero JS. Consumers can re-skin the editor by
+ * overriding these variables on `.byline-field-code`.
+ */
+
+.label-row,
+:global(.byline-field-code-label-row) {
+  display: flex;
+  align-items: center;
+}
+
+:global(.byline-field-code) {
+  /* Chrome */
+  --byline-code-bg: var(--canvas-50, #fafafa);
+  --byline-code-fg: var(--canvas-950, #1c1c1e);
+  --byline-code-border: var(--canvas-300, #d6d6d6);
+  --byline-code-gutter-bg: var(--canvas-100, #f2f2f2);
+  --byline-code-gutter-fg: var(--canvas-500, #8b8b90);
+  --byline-code-active-line: rgba(0, 0, 0, 0.04);
+  --byline-code-selection: rgba(59, 130, 246, 0.18);
+  --byline-code-caret: var(--canvas-950, #1c1c1e);
+  --byline-code-focus-ring: rgba(59, 130, 246, 0.6);
+
+  /* Syntax */
+  --byline-code-keyword: #7c3aed;
+  --byline-code-string: #15803d;
+  --byline-code-comment: #767680;
+  --byline-code-number: #c2410c;
+  --byline-code-function: #1d4ed8;
+  --byline-code-type: #0f766e;
+  --byline-code-property: #a16207;
+  --byline-code-operator: #52525b;
+}
+
+:is([data-theme="dark"], :global(.dark)) {
+  :global(.byline-field-code) {
+    /* Chrome */
+    --byline-code-bg: var(--canvas-900, #1b1b1f);
+    --byline-code-fg: var(--canvas-100, #e6e6ea);
+    --byline-code-border: var(--canvas-700, #3f3f46);
+    --byline-code-gutter-bg: var(--canvas-800, #232327);
+    --byline-code-gutter-fg: var(--canvas-500, #77777f);
+    --byline-code-active-line: rgba(255, 255, 255, 0.05);
+    --byline-code-selection: rgba(96, 165, 250, 0.28);
+    --byline-code-caret: var(--canvas-100, #e6e6ea);
+    --byline-code-focus-ring: rgba(96, 165, 250, 0.55);
+
+    /* Syntax */
+    --byline-code-keyword: #c4b5fd;
+    --byline-code-string: #86efac;
+    --byline-code-comment: #8e8e96;
+    --byline-code-number: #fdba74;
+    --byline-code-function: #93c5fd;
+    --byline-code-type: #5eead4;
+    --byline-code-property: #fde047;
+    --byline-code-operator: #a1a1aa;
+  }
+}
+
+.loading,
+:global(.byline-field-code-loading) {
+  width: 100%;
+  resize: none;
+  font-family: var(--byline-code-font, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--byline-code-font-size, 13px);
+  color: var(--byline-code-fg);
+  background-color: var(--byline-code-bg);
+  border: 1px solid var(--byline-code-border);
+  border-radius: var(--byline-code-radius, 4px);
+  padding: 0.5rem;
+}

@@ -65,6 +65,7 @@ describe('emitCollectionTypes', () => {
       _type: "quote'block"
       quotation: Record<string, string>
       "tone'choice"?: 'calm' | "author's" | undefined
+      snippet?: string | undefined
     }>()
     expectTypeOf<CollectionFieldsByPath['all-fields']>().toEqualTypeOf<AllFieldsFields>()
     expectTypeOf<

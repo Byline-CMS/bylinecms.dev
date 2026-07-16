@@ -190,7 +190,11 @@ function withBoost(field: SearchField, decl: SearchFieldDecl): SearchField {
   return boost != null ? { ...field, boost } : field
 }
 
-/** Text-bearing scalar leaves collected when walking into a container field. */
+/**
+ * Text-bearing scalar leaves collected when walking into a container field.
+ * `code` is deliberately excluded — source snippets are full-text noise
+ * (identifiers, punctuation) that would pollute the index.
+ */
 const TEXT_LEAF_TYPES = new Set(['text', 'textArea'])
 
 /**

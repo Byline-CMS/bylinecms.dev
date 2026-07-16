@@ -59,6 +59,7 @@ type BaseFieldDataTypes = {
   richText: JsonValue
   select: never
   textArea: string
+  code: string
   text: string
   time: string
   relation: RelatedDocumentValue

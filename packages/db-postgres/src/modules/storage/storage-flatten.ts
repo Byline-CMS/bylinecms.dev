@@ -215,6 +215,7 @@ const flattenValueFieldData = (
   switch (field_type) {
     case 'text':
     case 'textArea':
+    case 'code':
     case 'select':
       return {
         locale,

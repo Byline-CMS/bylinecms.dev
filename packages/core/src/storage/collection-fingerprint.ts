@@ -108,6 +108,10 @@ function canonicalField(field: Field): CanonicalField {
 
     case 'text':
     case 'textArea':
+    // `code` folds in `validation` only — `language` / `languageField` are
+    // presentation hints for the admin editor and never affect the stored
+    // value's shape, so (like labels) they stay out of the fingerprint.
+    case 'code':
     case 'richText':
     case 'float':
     case 'integer':
