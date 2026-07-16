@@ -282,6 +282,55 @@ describe('validateAdminConfigs', () => {
     )
   })
 
+  // Rule 7 — itemViewSort shares the defaultSort rule set.
+  it('accepts an itemViewSort on a schema field', () => {
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      itemViewSort: { field: 'title' },
+    }
+    expect(() => validateAdminConfigs([admin], [collection])).not.toThrow()
+  })
+
+  it('accepts independent defaultSort and itemViewSort', () => {
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      defaultSort: { field: 'updatedAt', direction: 'desc' },
+      itemViewSort: { field: 'title' },
+    }
+    expect(() => validateAdminConfigs([admin], [collection])).not.toThrow()
+  })
+
+  it('rejects an itemViewSort field that resolves to nothing', () => {
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      itemViewSort: { field: 'nonexistent' },
+    }
+    expect(() => validateAdminConfigs([admin], [collection])).toThrow(
+      /itemViewSort\.field "nonexistent"/
+    )
+  })
+
+  it('rejects an itemViewSort direction outside asc/desc', () => {
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      itemViewSort: { field: 'title', direction: 'sideways' as 'asc' },
+    }
+    expect(() => validateAdminConfigs([admin], [collection])).toThrow(
+      /itemViewSort\.direction must be 'asc' or 'desc'/
+    )
+  })
+
+  it('rejects an itemViewSort on an orderable collection', () => {
+    const orderableCollection: CollectionDefinition = { ...collection, orderable: true }
+    const admin: CollectionAdminConfig = {
+      ...baseAdmin,
+      itemViewSort: { field: 'title' },
+    }
+    expect(() => validateAdminConfigs([admin], [orderableCollection])).toThrow(
+      /not allowed on an orderable collection/
+    )
+  })
+
   // Layout omitted — bookkeeping skipped, primitive declarations still checked.
   it('skips placement bookkeeping when layout is omitted', () => {
     const admin: CollectionAdminConfig = {

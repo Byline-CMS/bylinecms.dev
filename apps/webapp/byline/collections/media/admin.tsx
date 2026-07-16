@@ -100,6 +100,9 @@ export const MediaAdmin: CollectionAdminConfig = defineAdmin(Media, {
    * Shape matches `ColumnDefinition` so formatters can be reused across list and item view.
    */
   itemView: pickerViewColumns,
+  // Orders the relation picker by title, independent of the media list
+  // view's own sort. Same shape and boot validation as `defaultSort`.                     // 'asc' is the default
+  itemViewSort: { field: 'title', direction: 'asc' },
 
   /**
    * Custom list-view component that completely replaces the default table-based `ListView`

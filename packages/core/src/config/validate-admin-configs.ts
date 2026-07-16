@@ -165,30 +165,36 @@ function validateOne(
     if ('name' in field) topLevelFieldNames.add(field.name)
   }
 
-  // Rule 7 — defaultSort sanity. The list read applies this spec verbatim
-  // (host list server fn → parseSort), so a bad field name would silently
-  // fall back to `created_at desc` at request time — fail loudly at boot
-  // instead.
-  if (admin.defaultSort != null) {
-    const { field, direction } = admin.defaultSort
+  // Rule 7 — defaultSort / itemViewSort sanity. The list read applies these
+  // specs verbatim (host list server fn → parseSort), so a bad field name
+  // would silently fall back to `created_at desc` at request time — fail
+  // loudly at boot instead. Both options share one rule set.
+  const validateSortSpec = (
+    spec: { field: unknown; direction?: unknown } | undefined,
+    optionName: 'defaultSort' | 'itemViewSort'
+  ): void => {
+    if (spec == null) return
+    const { field, direction } = spec
     const documentColumns = new Set(['createdAt', 'updatedAt', 'path'])
     if (collection.orderable === true) {
       fail(
-        `defaultSort is not allowed on an orderable collection — manual ordering owns the default sort (order_key asc).`
+        `${optionName} is not allowed on an orderable collection — manual ordering owns the sort (order_key asc).`
       )
     }
     if (typeof field !== 'string' || field.length === 0) {
-      fail(`defaultSort.field must be a non-empty string.`)
+      fail(`${optionName}.field must be a non-empty string.`)
     }
     if (!topLevelFieldNames.has(field as string) && !documentColumns.has(field as string)) {
       fail(
-        `defaultSort.field "${String(field)}" is not a top-level schema field or a document column (createdAt, updatedAt, path).`
+        `${optionName}.field "${String(field)}" is not a top-level schema field or a document column (createdAt, updatedAt, path).`
       )
     }
     if (direction != null && direction !== 'asc' && direction !== 'desc') {
-      fail(`defaultSort.direction must be 'asc' or 'desc' (got "${String(direction)}").`)
+      fail(`${optionName}.direction must be 'asc' or 'desc' (got "${String(direction)}").`)
     }
   }
+  validateSortSpec(admin.defaultSort, 'defaultSort')
+  validateSortSpec(admin.itemViewSort, 'itemViewSort')
 
   // Build primitive lookup tables.
   const tabSets = admin.tabSets ?? []

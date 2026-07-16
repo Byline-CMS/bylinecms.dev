@@ -165,6 +165,13 @@ export const RelationPicker = ({
 
     setLoading(true)
     setError(null)
+    // Item-view sort: the target collection's `itemViewSort` (boot-validated)
+    // orders the picker independently of its list view's `defaultSort`.
+    // Passed as explicit params because the list server fn gives an explicit
+    // `order` top precedence; when absent the server falls back through
+    // `defaultSort` → `created_at desc` (or `order_key asc` for orderable
+    // collections) exactly as before.
+    const itemViewSort = targetAdminConfig?.itemViewSort
     getCollectionDocuments({
       collection: targetCollectionPath,
       params: {
@@ -172,6 +179,9 @@ export const RelationPicker = ({
         page_size: PAGE_SIZE,
         query: query.length > 0 ? query : undefined,
         fields: selectFields,
+        ...(itemViewSort != null
+          ? { order: String(itemViewSort.field), desc: itemViewSort.direction === 'desc' }
+          : {}),
       },
     })
       .then((response: any) => {
@@ -202,6 +212,7 @@ export const RelationPicker = ({
     pickerColumns,
     getCollectionDocuments,
     t,
+    targetAdminConfig?.itemViewSort,
   ])
 
   const resolvedDisplayField =

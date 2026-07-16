@@ -268,6 +268,26 @@ export interface CollectionAdminConfig<T = any> {
   itemView?: ColumnDefinition<T>[]
 
   /**
+   * Sort applied when this collection's documents are listed through the
+   * **item view** surfaces (currently the relation picker modal) —
+   * independent of the main list view's {@link defaultSort}. A media
+   * library, for example, can keep its list view newest-first while the
+   * picker orders by title:
+   *
+   * ```ts
+   * itemViewSort: { field: 'title' },
+   * ```
+   *
+   * Same shape and boot validation as `defaultSort`: `field` must be a
+   * top-level schema field or a document column (`createdAt` / `updatedAt` /
+   * `path`), `direction` defaults to `'asc'`, and the option is rejected on
+   * `orderable: true` collections (manual ordering owns their order
+   * everywhere). Falls back to `defaultSort` → `created_at desc` when
+   * omitted.
+   */
+  itemViewSort?: ListDefaultSort<T>
+
+  /**
    * @deprecated Renamed to {@link itemView}. Kept as a backwards-compatible
    * alias — `itemView` wins when both are present. Read both via
    * `resolveItemViewColumns(config)`. Will be removed in a future major.
