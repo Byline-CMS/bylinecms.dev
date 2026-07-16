@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   type ImportDocsForceConnection,
   type ImportDocsForceDatabase,
+  importDocsForceLockKey,
   replaceDeletedDocumentAtPath,
 } from './import-docs-force.js'
 
@@ -142,6 +143,16 @@ function createDatabase(initialVersions: VersionState[], options: DatabaseOption
 const params = { collectionId: 'docs-collection', locale: 'en', path: 'guide' }
 
 describe('forced docs replacement', () => {
+  it('encodes advisory-lock identities without PostgreSQL-forbidden NUL bytes', () => {
+    const key = importDocsForceLockKey(params)
+
+    expect(key).not.toContain(String.fromCharCode(0))
+    expect(JSON.parse(key)).toEqual([params.collectionId, params.locale, params.path])
+    expect(
+      importDocsForceLockKey({ collectionId: 'docs', locale: 'en:guide', path: 'intro' })
+    ).not.toBe(importDocsForceLockKey({ collectionId: 'docs:en', locale: 'guide', path: 'intro' }))
+  })
+
   it('keeps old published content hidden while replacing it with a draft', async () => {
     const state = createDatabase([
       { id: '001', documentId: 'doc-1', status: 'archived', deleted: true },

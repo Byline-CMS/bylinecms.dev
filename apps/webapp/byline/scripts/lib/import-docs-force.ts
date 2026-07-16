@@ -224,6 +224,22 @@ async function withForceRecoveryLock<T>(
 }
 
 /**
+ * Encode the advisory-lock identity as PostgreSQL-safe text.
+ *
+ * NUL separators look collision-proof in JavaScript but PostgreSQL `text`
+ * rejects U+0000 before `hashtextextended()` can consume the parameter.
+ * A JSON tuple remains unambiguous when any component contains punctuation
+ * while containing no raw control-byte separators.
+ */
+export function importDocsForceLockKey(params: {
+  collectionId: string
+  locale: string
+  path: string
+}): string {
+  return JSON.stringify([params.collectionId, params.locale, params.path])
+}
+
+/**
  * Temporarily expose one tombstoned version as a non-published update base.
  * All pre-existing statuses are restored after publish auto-archive runs. On
  * failure, versions created since the snapshot are re-tombstoned before the
@@ -242,7 +258,7 @@ export async function replaceDeletedDocumentAtPath<T>(
   replace: (documentId: string) => Promise<T>,
   reconcileDeleted: (documentId: string) => Promise<void>
 ): Promise<RecoveredDeletedDocument<T> | null> {
-  const lockKey = `${params.collectionId}\u0000${params.locale}\u0000${params.path}`
+  const lockKey = importDocsForceLockKey(params)
   return withForceRecoveryLock(database, lockKey, async (connection) => {
     const staged = await stageDeletedDocumentAtPath(
       connection,
