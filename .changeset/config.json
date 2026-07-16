@@ -11,6 +11,7 @@
       "@byline/client",
       "@byline/core",
       "@byline/db-postgres",
+      "@byline/generated-types",
       "@byline/host-tanstack-start",
       "@byline/i18n",
       "@byline/richtext-lexical",
