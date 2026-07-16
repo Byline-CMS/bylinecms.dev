@@ -9,7 +9,7 @@
 import type { SessionProvider } from '@byline/auth'
 
 import type { SlugifierFn } from '../utils/slugify.js'
-import type { CollectionAdminConfig } from './admin-types.js'
+import type { BlockAdminConfig, CollectionAdminConfig } from './admin-types.js'
 import type {
   CollectionDefinition,
   CollectionHooks,
@@ -157,6 +157,16 @@ export type TranslationBundleShape = Readonly<{
 export interface ClientConfig extends BaseConfig {
   /** Admin UI configuration for collections (client-side only). */
   admin?: CollectionAdminConfig[]
+
+  /**
+   * Admin UI configuration for blocks, keyed by `blockType` — the block-scoped
+   * analogue of `admin`. Because blocks are shared across collections, an
+   * entry applies wherever its block renders (any collection, any nesting).
+   * Boot-validated against the blocks declared in `collections`.
+   *
+   * @see BlockAdminConfig
+   */
+  blockAdmin?: BlockAdminConfig[]
   /**
    * Installation-wide slugifier — the **client-side** copy, used by the
    * admin path-widget to render the live `path` preview (create-mode

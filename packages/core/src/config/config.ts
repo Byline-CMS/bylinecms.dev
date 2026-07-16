@@ -4,7 +4,7 @@ import {
   prepareHookAttachment,
 } from './attach-hooks.js'
 import { resolveRoutes } from './routes.js'
-import { validateAdminConfigs } from './validate-admin-configs.js'
+import { validateAdminConfigs, validateBlockAdminConfigs } from './validate-admin-configs.js'
 import { validateCollections } from './validate-collections.js'
 import type {
   ClientConfig,
@@ -91,6 +91,7 @@ export const resolveItemViewColumns = (
 export function defineClientConfig(config: ClientConfig): ResolvedClientConfig {
   validateCollections(config.collections)
   validateAdminConfigs(config.admin, config.collections)
+  validateBlockAdminConfigs(config.blockAdmin, config.collections)
   const resolved = { ...config, routes: resolveRoutes(config.routes) }
   setClientConfigInstance(resolved)
   return resolved

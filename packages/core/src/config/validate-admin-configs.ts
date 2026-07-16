@@ -6,7 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionAdminConfig, CollectionDefinition } from '../@types/index.js'
+import type {
+  Block,
+  BlockAdminConfig,
+  CollectionAdminConfig,
+  CollectionDefinition,
+  Field,
+} from '../@types/index.js'
 
 /**
  * Validate every admin config in a configuration.
@@ -49,6 +55,88 @@ export function validateAdminConfigs(
 
   for (const admin of admins) {
     validateOne(admin, collectionsByPath)
+  }
+}
+
+/**
+ * Validate every block admin config in a configuration.
+ *
+ * Enforced rules (per `ClientConfig.blockAdmin` entry):
+ *  1. Block pairing — `blockType` matches a block declared on at least one
+ *     `type: 'blocks'` field across the registered collections (blocks have
+ *     no global registry; the collections walk is the source of truth).
+ *  2. Uniqueness — no two entries share a `blockType`.
+ *  3. `fields` map sanity — every key matches a top-level field name of the
+ *     block (when the same `blockType` appears in several collections, the
+ *     union of their top-level field names is accepted).
+ *
+ * Throws a plain `Error` for the same reason `validateAdminConfigs` does —
+ * this runs at startup, before the logger is necessarily wired up.
+ */
+export function validateBlockAdminConfigs(
+  blockAdmins: readonly BlockAdminConfig[] | undefined,
+  collections: readonly CollectionDefinition[]
+): void {
+  if (blockAdmins == null || blockAdmins.length === 0) return
+
+  // Collect blockType → union of top-level field names across every
+  // declaration site (including blocks nested inside groups/arrays/blocks).
+  const blockFieldNames = new Map<string, Set<string>>()
+
+  const walkBlock = (block: Block): void => {
+    let names = blockFieldNames.get(block.blockType)
+    if (names == null) {
+      names = new Set<string>()
+      blockFieldNames.set(block.blockType, names)
+    }
+    for (const field of block.fields) {
+      if ('name' in field) names.add(field.name)
+    }
+    walkFields(block.fields)
+  }
+
+  const walkFields = (fields: readonly Field[]): void => {
+    for (const field of fields) {
+      if (field.type === 'blocks') {
+        for (const block of field.blocks) walkBlock(block)
+      } else if ('fields' in field && Array.isArray(field.fields)) {
+        walkFields(field.fields)
+      }
+    }
+  }
+
+  for (const collection of collections) {
+    walkFields(collection.fields)
+  }
+
+  const seen = new Set<string>()
+  for (const entry of blockAdmins) {
+    // Rule 2 — uniqueness.
+    if (seen.has(entry.blockType)) {
+      throw new Error(
+        `Block admin config "${entry.blockType}" is registered more than once in \`blockAdmin\`.`
+      )
+    }
+    seen.add(entry.blockType)
+
+    // Rule 1 — block pairing.
+    const names = blockFieldNames.get(entry.blockType)
+    if (names == null) {
+      throw new Error(
+        `Block admin config "${entry.blockType}" has no matching block (no \`type: 'blocks'\` field of any registered collection declares a block with \`blockType: '${entry.blockType}'\`).`
+      )
+    }
+
+    // Rule 3 — `fields` keys must be top-level field names of the block.
+    if (entry.fields != null) {
+      for (const key of Object.keys(entry.fields)) {
+        if (!names.has(key)) {
+          throw new Error(
+            `Block "${entry.blockType}": \`fields["${key}"]\` references a name that is not a top-level field of the block. Per-field overrides apply only to the block's top-level fields.`
+          )
+        }
+      }
+    }
   }
 }
 

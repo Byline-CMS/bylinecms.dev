@@ -6,8 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, WorkflowStatus } from './collection-types.js'
-import type { FieldComponentSlots, RichTextEditorComponent } from './field-types.js'
+import type { BlockFieldData, CollectionDefinition, WorkflowStatus } from './collection-types.js'
+import type { Block, FieldComponentSlots, RichTextEditorComponent } from './field-types.js'
 
 /**
  * Props passed to a custom list-view component registered via
@@ -427,5 +427,69 @@ export function defineAdmin<T = any>(
   return {
     slug: schema.path,
     ...config,
+  }
+}
+
+/**
+ * Admin UI configuration for a block — the block-scoped analogue of
+ * `CollectionAdminConfig`, carrying **rendering overrides only**.
+ *
+ * Linked to a `Block` by `blockType` matching the block's `blockType`, and
+ * registered site-wide on `ClientConfig.blockAdmin`. Because blocks are
+ * cross-collection units (the same `defineBlock()` object is typically shared
+ * by several collections, and codegen dedupes their contracts structurally),
+ * a block's admin config applies wherever the block renders. If one
+ * collection genuinely needs different presentation for "the same" block,
+ * define a second block with a distinct `blockType`.
+ *
+ * v1 scope: `fields` keys address the block's **top-level** field names only —
+ * the same limitation `CollectionAdminConfig.fields` has for collections.
+ * Fields nested inside a group/array within the block inherit site-wide
+ * defaults.
+ */
+export interface BlockAdminConfig {
+  /** Must match the `blockType` of the corresponding `defineBlock()` definition. */
+  blockType: string
+
+  /**
+   * Per-field rendering overrides (`components` slots, richtext `editor`),
+   * keyed by the block's top-level field names. Same shape and semantics as
+   * `CollectionAdminConfig.fields`.
+   */
+  fields?: Record<string, FieldAdminConfig>
+}
+
+/**
+ * Type-safe factory for creating a `BlockAdminConfig` linked to a block
+ * schema. Sets `blockType` from the block's `blockType` and constrains the
+ * `fields` keys to the block's own top-level field names.
+ *
+ * Lives on the admin side of the schema/admin split: block schema files stay
+ * React-free and tsx-loadable, while this config may carry React component
+ * references (editor overrides, slot components). Keep them in separate
+ * files — the admin file imports the schema, never the reverse.
+ *
+ * @example
+ * ```ts
+ * // quote-block.admin.ts (admin-side — may import React)
+ * import { defineBlockAdmin } from '@byline/core'
+ * import { QuoteBlock } from './quote-block.js'
+ *
+ * export const QuoteBlockAdmin = defineBlockAdmin(QuoteBlock, {
+ *   fields: {
+ *     quoteText: { editor: PlainLexicalEditor },
+ *   },
+ * })
+ * ```
+ */
+export function defineBlockAdmin<B extends Block>(
+  block: B,
+  config: {
+    fields?: Partial<Record<Extract<keyof BlockFieldData<B>, string>, FieldAdminConfig>>
+  }
+): BlockAdminConfig {
+  return {
+    blockType: block.blockType,
+    fields: config.fields as Record<string, FieldAdminConfig> | undefined,
   }
 }

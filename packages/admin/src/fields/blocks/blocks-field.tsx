@@ -9,10 +9,12 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import type {
+  BlockAdminConfig,
   BlocksField as BlocksFieldType,
   Field,
   GroupField as GroupFieldType,
 } from '@byline/core'
+import { getClientConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import {
   Card,
@@ -59,6 +61,19 @@ export const BlocksField = ({
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null)
 
   const availableBlocks = useMemo(() => field.blocks ?? [], [field.blocks])
+
+  // Site-wide per-block admin config (`ClientConfig.blockAdmin`), resolved by
+  // blockType. Registry-based on purpose: blocks are cross-collection units,
+  // so their admin config applies wherever the block renders — no threading
+  // from the collection admin config is needed (mirrors how FieldRenderer
+  // resolves the global richText editor from client config).
+  const blockAdminByType = useMemo(() => {
+    const map = new Map<string, BlockAdminConfig>()
+    for (const entry of getClientConfig().blockAdmin ?? []) {
+      map.set(entry.blockType, entry)
+    }
+    return map
+  }, [])
   const [selectedBlockName, setSelectedBlockName] = useState<string>(
     () => availableBlocks[0]?.blockType ?? ''
   )
@@ -235,6 +250,7 @@ export const BlocksField = ({
         defaultValue={fieldData}
         path={arrayElementPath}
         contentLocale={contentLocale}
+        fieldAdmin={blockAdminByType.get(item._type)?.fields}
       />
     )
 

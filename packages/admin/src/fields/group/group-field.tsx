@@ -8,7 +8,7 @@
 
 import { useMemo } from 'react'
 
-import type { Field, GroupField as GroupFieldType } from '@byline/core'
+import type { Field, FieldAdminConfig, GroupField as GroupFieldType } from '@byline/core'
 import { ErrorText } from '@byline/ui/react'
 import cx from 'classnames'
 
@@ -44,6 +44,14 @@ interface GroupFieldProps {
    * locale badge.
    */
   contentLocale?: string
+  /**
+   * Per-child-field admin overrides (`components` slots, richtext `editor`),
+   * keyed by child field name. Threaded by `BlocksField` from the site-wide
+   * `ClientConfig.blockAdmin` registry so block children can take per-field
+   * admin config; plain groups receive none today (their children inherit
+   * site-wide defaults).
+   */
+  fieldAdmin?: Record<string, FieldAdminConfig>
 }
 
 export const GroupField = ({
@@ -52,6 +60,7 @@ export const GroupField = ({
   path,
   collectionPath,
   contentLocale,
+  fieldAdmin,
 }: GroupFieldProps) => {
   const fieldError = useFieldError(field.name)
   // Default value for a group field is a plain object: { rating: 5, comment: '...' }
@@ -94,6 +103,8 @@ export const GroupField = ({
               disableSorting={true}
               collectionPath={collectionPath}
               contentLocale={contentLocale}
+              components={fieldAdmin?.[innerField.name]?.components}
+              editor={fieldAdmin?.[innerField.name]?.editor}
             />
           )
         })}

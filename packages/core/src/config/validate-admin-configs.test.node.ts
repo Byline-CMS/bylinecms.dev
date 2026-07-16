@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { validateAdminConfigs } from './validate-admin-configs.js'
+import { validateAdminConfigs, validateBlockAdminConfigs } from './validate-admin-configs.js'
 import type { CollectionAdminConfig, CollectionDefinition } from '../@types/index.js'
 
 const collection: CollectionDefinition = {
@@ -303,5 +303,117 @@ describe('validateAdminConfigs', () => {
     expect(() => validateAdminConfigs([admin], [collection])).toThrow(
       /collides with a schema field/
     )
+  })
+})
+
+describe('validateBlockAdminConfigs', () => {
+  const quoteBlock = {
+    blockType: 'quoteBlock',
+    fields: [
+      { name: 'quoteText', label: 'Quote', type: 'richText' },
+      { name: 'source', label: 'Source', type: 'text' },
+    ],
+  }
+
+  const heroBlock = {
+    blockType: 'heroBlock',
+    fields: [{ name: 'heading', label: 'Heading', type: 'text' }],
+  }
+
+  const blockCollection: CollectionDefinition = {
+    path: 'pages',
+    labels: { singular: 'Page', plural: 'Pages' },
+    useAsPath: 'title',
+    fields: [
+      { name: 'title', label: 'Title', type: 'text' },
+      { name: 'content', label: 'Content', type: 'blocks', blocks: [quoteBlock] },
+      {
+        name: 'meta',
+        label: 'Meta',
+        type: 'group',
+        fields: [
+          // Blocks fields nested inside structure fields are still collected.
+          { name: 'panels', label: 'Panels', type: 'blocks', blocks: [heroBlock] },
+        ],
+      },
+    ],
+  } as CollectionDefinition
+
+  it('accepts a valid block admin config (baseline)', () => {
+    expect(() =>
+      validateBlockAdminConfigs(
+        [{ blockType: 'quoteBlock', fields: { quoteText: {} } }],
+        [blockCollection]
+      )
+    ).not.toThrow()
+  })
+
+  it('is a no-op when blockAdmins is undefined or empty', () => {
+    expect(() => validateBlockAdminConfigs(undefined, [blockCollection])).not.toThrow()
+    expect(() => validateBlockAdminConfigs([], [blockCollection])).not.toThrow()
+  })
+
+  // Rule 1 — block pairing.
+  it('rejects an entry whose blockType matches no declared block', () => {
+    expect(() =>
+      validateBlockAdminConfigs([{ blockType: 'missingBlock' }], [blockCollection])
+    ).toThrow(/no matching block/)
+  })
+
+  it('finds blocks declared inside nested structure fields', () => {
+    expect(() =>
+      validateBlockAdminConfigs(
+        [{ blockType: 'heroBlock', fields: { heading: {} } }],
+        [blockCollection]
+      )
+    ).not.toThrow()
+  })
+
+  // Rule 2 — uniqueness.
+  it('rejects duplicate blockType entries', () => {
+    expect(() =>
+      validateBlockAdminConfigs(
+        [{ blockType: 'quoteBlock' }, { blockType: 'quoteBlock' }],
+        [blockCollection]
+      )
+    ).toThrow(/registered more than once/)
+  })
+
+  // Rule 3 — fields map sanity.
+  it('rejects a fields key that is not a top-level field of the block', () => {
+    expect(() =>
+      validateBlockAdminConfigs(
+        [{ blockType: 'quoteBlock', fields: { doesNotExist: {} } }],
+        [blockCollection]
+      )
+    ).toThrow(/not a top-level field of the block/)
+  })
+
+  it('accepts the union of field names when a blockType appears in several collections', () => {
+    const other: CollectionDefinition = {
+      path: 'docs',
+      labels: { singular: 'Doc', plural: 'Docs' },
+      useAsPath: 'title',
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'content',
+          label: 'Content',
+          type: 'blocks',
+          blocks: [
+            {
+              blockType: 'quoteBlock',
+              fields: [{ name: 'attribution', label: 'Attribution', type: 'text' }],
+            },
+          ],
+        },
+      ],
+    } as CollectionDefinition
+    expect(() =>
+      validateBlockAdminConfigs(
+        [{ blockType: 'quoteBlock', fields: { quoteText: {}, attribution: {} } }],
+        [blockCollection, other]
+      )
+    ).not.toThrow()
   })
 })
