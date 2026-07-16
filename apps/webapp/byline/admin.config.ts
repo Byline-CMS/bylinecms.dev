@@ -23,6 +23,7 @@
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
 
+import { QuoteBlockAdmin } from './blocks/quote-block.admin.js'
 import { DocsAdmin } from './collections/docs/admin.js'
 import { collections } from './collections/index.js'
 import { MediaAdmin } from './collections/media/admin.js'
@@ -41,6 +42,10 @@ export const config: ClientConfig = {
   routes,
   collections,
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
+  // Per-block admin config, keyed by blockType — applies wherever the block
+  // renders. QuoteBlockAdmin opts the quote's richtext into a plain non-AI
+  // editor while the site-wide registration below stays AI-enabled.
+  blockAdmin: [QuoteBlockAdmin],
   fields: {
     // Site-wide registration of the AI-enabled editor on every richtext
     // field. `LexicalRichTextAi` is built with

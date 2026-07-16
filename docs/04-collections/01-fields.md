@@ -434,6 +434,27 @@ Lives on the admin side because it carries a React component reference, and sche
 
 For *settings* differences only (placeholder, toolbar toggles, the inline-image upload collection), use a schema-side preset like `lexicalRichTextCompact` instead — that data is JSON-safe and rides along in `RichTextField.editorConfig`. See [Rich Text](./06-rich-text.md) for the full editor configuration story.
 
+### Per-block field admin config (`defineBlockAdmin`)
+
+Fields nested inside a block can't be addressed from a collection's `fields{}` map (that map is top-level-only). The block-scoped counterpart is `defineBlockAdmin`: an admin config keyed by the block's own top-level field names, registered site-wide on `ClientConfig.blockAdmin` and applied wherever the block renders — any collection, any nesting.
+
+```ts
+// blocks/quote-block.admin.ts (admin-side — may carry React)
+import { defineBlockAdmin } from '@byline/core'
+import { QuoteBlock } from './quote-block.js'
+
+export const QuoteBlockAdmin = defineBlockAdmin(QuoteBlock, {
+  fields: {
+    quoteText: { editor: PlainLexicalEditor },  // same FieldAdminConfig shape
+  },
+})
+
+// admin.config.ts
+blockAdmin: [QuoteBlockAdmin],
+```
+
+The same schema/admin split applies: `defineBlock()` files stay React-free; the `.admin.ts` companion imports the schema, never the reverse. Registration is keyed by `blockType` because blocks are cross-collection units — the same block object shared by several collections gets one admin identity (mirroring how type generation dedupes block contracts). Boot validation rejects unknown `blockType`s, duplicates, and field keys that aren't top-level fields of the block. See [Blocks](./02-blocks.md) for the full design.
+
 ### Mixing both layers
 
 Because the helpers live at different layers, they stack freely on the same field.
@@ -626,6 +647,11 @@ Hiding a field does not clear it. The stored value rides along in every save whi
 | Field-hook pipeline (submit-time) + validation exemption | `packages/admin/src/forms/form-context.tsx` |
 | `FieldAdminConfig` (per-field admin shape) | `packages/core/src/@types/admin-types.ts` |
 | `CollectionAdminConfig` (collection-level admin shape) | `packages/core/src/@types/admin-types.ts` |
+| `BlockAdminConfig` + `defineBlockAdmin` (per-block admin) | `packages/core/src/@types/admin-types.ts` |
+| Block admin boot validation | `packages/core/src/config/validate-admin-configs.ts` |
+| Block admin resolution + threading | `packages/admin/src/fields/blocks/blocks-field.tsx` → `group/group-field.tsx` |
+| `CodeField` (code field schema type) | `packages/core/src/@types/field-types.ts` |
+| Code field widget (lazy CodeMirror 6) | `packages/admin/src/fields/code/` |
 | `RichTextEditorComponent` (per-field richtext override type) | `packages/core/src/@types/field-types.ts` |
 | Field-renderer dispatch (resolves slots + per-field editor) | `packages/admin/src/fields/field-renderer.tsx` |
 | Form-renderer (reads `adminConfig.fields[name]`) | `packages/admin/src/forms/form-renderer.tsx` |

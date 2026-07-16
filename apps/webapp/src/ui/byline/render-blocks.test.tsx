@@ -30,4 +30,34 @@ describe('RenderBlocks', () => {
       renderToStaticMarkup(RenderBlocks({ blocks: [unknown, richText], lng: 'en' }))
     ).toContain('rich-text-block')
   })
+
+  it('renders a code block with its language and caption', () => {
+    const code = {
+      _id: 'code1',
+      _type: 'codeBlock',
+      language: 'typescript',
+      code: 'const answer: number = 42',
+      caption: 'The answer',
+    } satisfies PopulatedContentBlock
+
+    const markup = renderToStaticMarkup(RenderBlocks({ blocks: [code], lng: 'en' }))
+    expect(markup).toContain('code-block')
+    expect(markup).toContain('answer')
+    expect(markup).toContain('The answer')
+  })
+
+  it('renders a quote block with highlight and source', () => {
+    const quote = {
+      _id: 'quote1',
+      _type: 'quoteBlock',
+      highlightQuote: 'A memorable line',
+      quoteText: { root: { children: [] } },
+      source: 'A. Author',
+    } satisfies PopulatedContentBlock
+
+    const markup = renderToStaticMarkup(RenderBlocks({ blocks: [quote], lng: 'en' }))
+    expect(markup).toContain('quote-block')
+    expect(markup).toContain('A memorable line')
+    expect(markup).toContain('A. Author')
+  })
 })

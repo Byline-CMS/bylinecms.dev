@@ -65,14 +65,6 @@ COLLECTIONS versioning Phase 2 — the smallest useful follow-up to the schema-v
 
 Sequenced after the markdown / `llms.txt` surface and the search-provider seam: the agent-readable representation and the retrieval layer land first, then the protocol surface that exposes them. See [MCP.md](./docs/05-reading-and-delivery/05-mcp-server.md).
 
-### Block config analogue — per-block `schema` / `admin` split
-
-Blocks today are a single `defineBlock()` schema object (e.g. `apps/webapp/byline/blocks/richtext-block.ts`), with **no admin-side counterpart**. Collections get the clean schema-vs-presentation split (`schema.ts` + `admin.tsx` via `defineAdmin()`); blocks don't. The consequence: a richText field nested inside a block can't be opted into a specific editor (or any other per-field admin override) the way a top-level collection field can — `blocks-field.tsx` renders block children through `GroupField → FieldRenderer` with no per-field admin config threaded down, so block-nested fields can only inherit the **global** `fields.richText.editor` registration in `admin.config.ts`. (That global is what AI richtext currently rides on — see the active registration in `byline/admin.config.ts`.)
-
-Sketch + implement a block analogue to the collection model: a `defineBlockAdmin()` (or equivalent) carrying a per-field admin map keyed by the block's field names, paired with the React-free `defineBlock()` schema — same "schema files stay tsx-loadable / React-free, admin config lives separately" contract the collections enforce. Then thread the resolved block admin config from `blocks-field.tsx` into each child `FieldRenderer` so per-block-field overrides (starting with `editor`, e.g. `aiRichTextAdmin()` on one block's richText but not another's) actually land. Scope spans `@byline/core` (the new define/types), `@byline/admin` (`blocks-field.tsx` propagation + field-renderer wiring), and the `apps/webapp/byline/blocks/*` authoring surface. Closely related to the deferred [per-collection / per-field editor selection](#per-collection--per-field-editor-selection-richtext-phase-6) item — this is the block-scoped half of that same editor-variance question.
-
-Note: this is **only** about field config inside the block field itself. The `LexicalNestedComposer`-based nested editors (admonition body, inline-image caption) bypass the extension graph entirely and are intentionally out of scope — AI is not available there by design.
-
 ### Admin client-config registration — single-point resolution
 
 The Byline client config (`defineClientConfig`) is registered from **two** points on the `_byline` route — `route.tsx` `beforeLoad` (loader phase) and `route.lazy.tsx`'s side-effect import (component render / hydration) — because neither alone covers both lifecycle moments. It works and is correct; collapsing to a **single eager point** only works if `admin.config`'s static graph is light enough not to bloat public-route bundles.

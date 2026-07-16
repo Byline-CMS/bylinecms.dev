@@ -1,6 +1,8 @@
 import { Section } from '@byline/ui/react'
 
+import { CodeBlock } from '@/ui/byline/blocks/code-block'
 import { PhotoBlock } from '@/ui/byline/blocks/photo-block'
+import { QuoteBlock } from '@/ui/byline/blocks/quote-block'
 import { RichTextBlock } from '@/ui/byline/blocks/richtext-block'
 import { toKebabCase } from '@/ui/utils/to-kebab-case'
 import type { Locale } from '@/i18n/i18n-config'
@@ -53,6 +55,14 @@ function renderBlock(
           lng={lng}
           constrainedLayout={constrainedLayout}
         />
+      )
+    case 'codeBlock':
+      return (
+        <CodeBlock id={block._id} block={block} lng={lng} constrainedLayout={constrainedLayout} />
+      )
+    case 'quoteBlock':
+      return (
+        <QuoteBlock id={block._id} block={block} lng={lng} constrainedLayout={constrainedLayout} />
       )
     default:
       return reportUnsupportedBlock(block)

@@ -163,6 +163,87 @@ const sampleDocument = {
         },
       },
     },
+    {
+      _type: 'codeBlock',
+      language: 'typescript',
+      code: "export function greet(name: string): string {\n  return `Hello, ${name}!`\n}\n\nconsole.log(greet('Byline'))",
+      caption: {
+        en: 'A TypeScript greeting function.',
+        es: 'Una función de saludo en TypeScript.',
+      },
+    },
+    {
+      _type: 'quoteBlock',
+      highlightQuote: {
+        en: 'Simplicity is the ultimate sophistication.',
+        es: 'La simplicidad es la máxima sofisticación.',
+      },
+      quoteText: {
+        en: {
+          root: {
+            children: [
+              {
+                children: [
+                  {
+                    detail: 0,
+                    format: 0,
+                    mode: 'normal',
+                    style: '',
+                    text: 'Any intelligent fool can make things bigger and more complex. It takes a touch of genius — and a lot of courage — to move in the opposite direction.',
+                    type: 'text',
+                    version: 1,
+                  },
+                ],
+                direction: 'ltr',
+                format: '',
+                indent: 0,
+                type: 'paragraph',
+                version: 1,
+                textFormat: 0,
+                textStyle: '',
+              },
+            ],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            type: 'root',
+            version: 1,
+          },
+        },
+        es: {
+          root: {
+            children: [
+              {
+                children: [
+                  {
+                    detail: 0,
+                    format: 0,
+                    mode: 'normal',
+                    style: '',
+                    text: 'Cualquier tonto inteligente puede hacer las cosas más grandes y complejas. Se necesita un toque de genialidad — y mucho coraje — para moverse en la dirección opuesta.',
+                    type: 'text',
+                    version: 1,
+                  },
+                ],
+                direction: 'ltr',
+                format: '',
+                indent: 0,
+                type: 'paragraph',
+                version: 1,
+                textFormat: 0,
+                textStyle: '',
+              },
+            ],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            type: 'root',
+            version: 1,
+          },
+        },
+      },
+      source: 'E. F. Schumacher',
+    },
   ],
 }
 

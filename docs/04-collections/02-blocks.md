@@ -202,7 +202,9 @@ Admin (`packages/admin/src/fields/code/`):
 
 ## 4. Phase C — reference blocks (bylinecms.dev)
 
-*Status: planned.*
+*Status: implemented (unreleased). Remaining: browser-preview verification of the
+lazy CodeMirror chunk, theme flip, and the plain-vs-AI editor contrast — the
+blocks themselves are exercised and persisting correctly via manual admin use.*
 
 Two new blocks in `apps/webapp/byline/blocks/`, registered in the `docs` and
 `pages` collections, wired end-to-end (typegen → frontend registry → tests →
