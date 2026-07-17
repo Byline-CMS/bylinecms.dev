@@ -211,7 +211,7 @@ Schema-side `editorConfig` can only carry **settings** (JSON-safe). For per-fiel
 **Edit:** `apps/webapp/byline/fields/<your-wrapper>.tsx` (component) + `apps/webapp/byline/collections/<name>/admin.tsx` (attachment).
 
 ```tsx
-// apps/webapp/byline/fields/lexical-richtext-ai.tsx
+// apps/webapp/byline/fields/richtext/lexical-richtext-ai.tsx
 import { lexicalEditor } from '@byline/richtext-lexical'
 import { AiLexicalExtension } from '@byline/ai/plugins/lexical'
 
@@ -238,7 +238,7 @@ fields: {
 
 For per-field **settings** (not extensions) the schema can carry an `editorConfig`. Helpers like `lexicalRichTextCompact` bake a settings preset into a `RichTextField` factory.
 
-**Edit:** `apps/webapp/byline/collections/<name>/schema.ts` (use) and `apps/webapp/byline/fields/lexical-richtext-compact.ts` (the helper itself).
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts` (use) and `apps/webapp/byline/fields/richtext/lexical-richtext-compact.ts` (the helper itself).
 
 ```ts
 import { lexicalRichTextCompact } from '../../fields/lexical-richtext-compact.js'
@@ -277,7 +277,7 @@ fields: [
 ]
 ```
 
-→ [Relations — embed and populate](#relations--embed-and-populate)
+→ [Relations — embed and populate](#relations-embed-and-populate)
 
 ### 11. Register the richtext server adapters
 
@@ -386,7 +386,7 @@ export interface ServerConfig<TAdminStore = unknown> {
 
 **Per-field override precedence.** `FieldComponentSlots.Field` overrides win over the site-wide default. `FieldAdminConfig.editor` (recipe 8) is the typed convenience for "this field needs a different editor entirely."
 
-**Why `editorConfig` stays opaque.** Lexical, TipTap, and ProseMirror don't share a feature graph. Each editor adapter owns its own config shape and its own cast at its own boundary. A shared feature-graph contract is [a future phase](#future-phases), not today's design.
+**Why `editorConfig` stays opaque.** Lexical, TipTap, and ProseMirror don't share a feature graph. Each editor adapter owns its own config shape and its own cast at its own boundary. A shared feature-graph contract is not part of today's design; see [Current limitations](#current-limitations).
 
 ### Editor settings and extensions
 
@@ -595,7 +595,7 @@ Same Lexical visitor pipeline, two trigger points. The package ships two distinc
 - **`lexicalEditorEmbedServer({ getClient })`** — produces a `RichTextEmbedFn`. The framework invokes it during `document-lifecycle` write paths (`createDocument`, `updateDocument`, `updateDocumentWithPatches`, `restoreDocumentVersion`, `duplicateDocument`, `copyToLocale`) for every richtext leaf whose effective `embedRelationsOnSave` is `true`.
 - **`lexicalEditorPopulateServer({ getClient })`** — produces a `RichTextPopulateFn`. The framework invokes it during the read pipeline for every richtext leaf whose effective `populateRelationsOnRead` is `true`.
 
-**Why this wiring lives in the host, not as a default.** Recipe 11 looks like ceremony but isn't. `@byline/core` deliberately does not depend on `@byline/richtext-lexical` (a hard dependency would privilege Lexical and defeat [Phase 2](#phase-2--a-second-editor-package)); validation can run only after `initBylineCore()` sees the registered adapters and collection set. The host is therefore the composition point. With default field flags (`embedRelationsOnSave: true`), `validateRichTextFieldFlags` throws at boot if either required adapter is absent. Core, not the editor package, owns target authorization and supplies each adapter invocation with the secure `readDocuments` capability.
+**Why this wiring lives in the host, not as a default.** Recipe 11 is explicit because `@byline/core` deliberately does not depend on `@byline/richtext-lexical`; a hard dependency would privilege Lexical and prevent another editor package from implementing the same contract. Validation can run only after `initBylineCore()` sees the registered adapters and collection set. The host is therefore the composition point. With default field flags (`embedRelationsOnSave: true`), `validateRichTextFieldFlags` throws at boot if either required adapter is absent. Core, not the editor package, owns target authorization and supplies each adapter invocation with the secure `readDocuments` capability.
 
 **Where each phase fits in the lifecycle:**
 
@@ -685,7 +685,7 @@ The `@byline/ai/plugins/lexical` package is the canonical third-party example. I
 - `AiPluginLexical` — the React component (drawer + command listener) the extension mounts.
 - `AiLexicalExtension` — a `defineExtension(...)` that wraps it. The extension declares `peerDependencies: [declarePeerDependency(BylineToolbarExtension, { items: [...] })]` for the toolbar button and `dependencies: [configExtension(ReactExtension, { decorators: [<AiPluginLexical key="d" />] })]` for the drawer mount.
 
-The host (`apps/webapp/byline/fields/lexical-richtext-ai.tsx`) is then a one-liner:
+The host (`apps/webapp/byline/fields/richtext/lexical-richtext-ai.tsx`) is then a one-liner:
 
 ```tsx
 export const LexicalRichTextAi = lexicalEditor((c) => {
@@ -760,7 +760,7 @@ No `featureAfterEditor` injection, no React-context registry hop — the extensi
 | `linksInEditor` collection flag | `packages/core/src/@types/collection-types.ts` |
 | AI plugin Lexical extension (worked third-party example) | `packages/ai/src/plugins/lexical/extension.tsx` |
 | Per-field component override | `FieldComponentSlots.Field` in `packages/core/src/@types/field-types.ts` |
-| Worked compact custom field (settings only) | `apps/webapp/byline/fields/lexical-richtext-compact.ts` |
-| Worked per-field AI editor (`aiRichTextAdmin`) | `apps/webapp/byline/fields/lexical-richtext-ai.tsx` |
+| Worked compact custom field (settings only) | `apps/webapp/byline/fields/richtext/lexical-richtext-compact.ts` |
+| Worked per-field AI editor (`aiRichTextAdmin`) | `apps/webapp/byline/fields/richtext/lexical-richtext-ai.tsx` |
 | Reference registration (client) | `apps/webapp/byline/admin.config.ts` |
 | Reference registration (server) | `apps/webapp/byline/server.config.ts` |

@@ -265,7 +265,7 @@ export const News = defineCollection({
 })
 ```
 
-→ [Version-bump policy](#version-bump-policy)
+→ [Version-bump policy](./08-collection-versioning.md#version-bump-policy)
 
 ### 12. Read `collection_version` from a document
 
@@ -276,7 +276,7 @@ const doc = await client.collection('news').findById(id)
 console.log(doc.collectionVersion)  // 3
 ```
 
-What you cannot do *yet*: ask the server to render that document against the historical schema. Reads still use the live `CollectionDefinition` regardless of `collectionVersion`. See [the boundary](./08-collection-versioning.md#boundary--what-does-not-read-by-version-yet).
+What you cannot do *yet*: ask the server to render that document against the historical schema. Reads still use the live `CollectionDefinition` regardless of `collectionVersion`. See [the boundary](./08-collection-versioning.md#boundary-what-does-not-read-by-version-yet).
 
 → [Collection Versioning](./08-collection-versioning.md)
 
@@ -331,7 +331,7 @@ export interface CollectionDefinition {
 | `linksInEditor` | When `true`, this collection's documents appear as linkable options inside the richtext editor's link plugin. Requires `useAsTitle`. |
 | `showStats` | When `true`, the admin landing page renders per-status counts inside this collection's card. Costs one DB round-trip per landing render — opt in deliberately. |
 | `orderable` | When `true`, documents carry a fractional-index `order_key` and the list view sorts by it ascending with drag-to-reorder. See [Orderable collections](#orderable-collections). |
-| `version` | Optional version pin. Omit to let the bootstrap auto-bump on schema change. See [Version-bump policy](#version-bump-policy). |
+| `version` | Optional version pin. Omit to let the bootstrap auto-bump on schema change. See [Version-bump policy](./08-collection-versioning.md#version-bump-policy). |
 
 `path` is reserved — `path` (top-level metadata, populated from `useAsPath`) is not a user-defined field and cannot be declared on `fields[]`.
 
@@ -537,7 +537,7 @@ workflow: defineWorkflow({
 })
 ```
 
-`defineWorkflow` guarantees the three base statuses are present and correctly ordered. Bespoke statuses (e.g. `inReview`) can be added between the base ones. Workflow status `label` and `verb` are presentational and **excluded from the schema fingerprint** — see [Fingerprint](#fingerprint).
+`defineWorkflow` guarantees the three base statuses are present and correctly ordered. Bespoke statuses (e.g. `inReview`) can be added between the base ones. Workflow status `label` and `verb` are presentational and **excluded from the schema fingerprint** — see [Fingerprint](./08-collection-versioning.md#fingerprint).
 
 Status changes mutate the existing version row in-place — they are lifecycle metadata, not content. The Zod schema builder derives the status enum dynamically from each collection's workflow.
 
@@ -556,7 +556,7 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 | Document tree | `afterTreeChange` |
 | Read | `beforeRead` (row-scoping predicate), `afterRead` (per-materialization mutation) |
 
-**`beforeRead`** is the row-scoping hook. It returns a `QueryPredicate` that is ANDed with caller filters, but the two inputs compile separately: caller `where` uses the ordinary query parser, while the hook predicate uses the strict security compiler. The strict result compiles once per logical `ReadContext` + collection + effective read mode in private, authority-bound state; concurrent populate branches share that result. Unsupported fields/operators or malformed values throw rather than being weakened or dropped, and top-level `status` / `path` operators are emitted as document-column filters consistently across list, detail, populate, count, history, and tree reads. The deprecated caller-owned `ReadContext.beforeReadCache` is ignored, and attempting to reuse a logical read across authorities fails closed. Coverage is end-to-end — ordinary reads and counts, every immutable row in `history()` / `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document/image targets all apply the target collection's ability and predicate. `auditLog()` is the deliberate exception described in [Auditability](../06-auth-and-security/02-auditability.md): it gates the document-grain log through the current document rather than applying a predicate to each audit row. See [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) for the full reference and worked recipes.
+**`beforeRead`** is the row-scoping hook. It returns a `QueryPredicate` that is ANDed with caller filters, but the two inputs compile separately: caller `where` uses the ordinary query parser, while the hook predicate uses the strict security compiler. The strict result compiles once per logical `ReadContext` + collection + effective read mode in private, authority-bound state; concurrent populate branches share that result. Unsupported fields/operators or malformed values throw rather than being weakened or dropped, and top-level `status` / `path` operators are emitted as document-column filters consistently across list, detail, populate, count, history, and tree reads. The deprecated caller-owned `ReadContext.beforeReadCache` is ignored, and attempting to reuse a logical read across authorities fails closed. Coverage is end-to-end — ordinary reads and counts, every immutable row in `history()` / `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document/image targets all apply the target collection's ability and predicate. `auditLog()` is the deliberate exception described in [Auditability](../06-auth-and-security/02-auditability.md): it gates the document-grain log through the current document rather than applying a predicate to each audit row. See [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook) for the full reference and worked recipes.
 
 **`afterRead`** runs after populate on each fresh raw document materialization and receives mutable `ctx.doc`, the operation's immutable actor-aware `requestContext` (including effective `readMode`), and the shared `readContext`. The same object is processed only once, but a freshly materialized object may run again even for the same version. If a nested hook read reaches a version whose hook is still active, core fails closed with `ERR_READ_RECURSION` rather than returning a partially redacted object. Thread `ctx.readContext` into nested reads so budgets, predicate caching, and active-recursion guards remain effective.
 
@@ -612,7 +612,7 @@ Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's 
 
 #### Server-only hook registry
 
-Collection schemas are [isomorphic](#the-schema--admin-split), so every static **or dynamic** import they contain is reachable from the browser build. A plain `() => import('./hooks.js')` is lazy loading, not a server boundary, and framework wrappers such as TanStack Start's `createServerOnlyFn` make the schema host-specific.
+Collection schemas are [isomorphic](#the-schema-admin-split), so every static **or dynamic** import they contain is reachable from the browser build. A plain `() => import('./hooks.js')` is lazy loading, not a server boundary, and framework wrappers such as TanStack Start's `createServerOnlyFn` make the schema host-specific.
 
 Register hooks that import server-only code through `ServerConfig.hooks` instead. The registry is imported only by `byline/server.config.ts`; client configuration and schemas never reach it.
 
@@ -741,7 +741,7 @@ If either becomes load-bearing for an external consumer, the fix lives in `parse
 | `collection_version` write | `packages/core/src/services/document-lifecycle/context.ts` (`DocumentLifecycleContext.collectionVersion`) |
 | Postgres schema (columns + views) | `packages/db-postgres/src/database/schema/index.ts` |
 | `collections.create/update` adapter | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
-| Baseline migration | `packages/db-postgres/src/database/migrations/0000_hard_madame_hydra.sql` |
+| Baseline migration | `packages/db-postgres/src/database/migrations/0000_ordinary_rhino.sql` |
 | Default `ListView` (table-based) | `packages/host-tanstack-start/src/admin-shell/collections/list.tsx` |
 | `RouterPager` (URL-driven pagination) | `packages/host-tanstack-start/src/admin-shell/chrome/router-pager.tsx` |
 | Reference custom list view | `apps/webapp/byline/collections/media/components/media-list-view.tsx` |

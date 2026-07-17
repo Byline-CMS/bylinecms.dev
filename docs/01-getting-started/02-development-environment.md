@@ -43,16 +43,12 @@ mkdir data
 Only the Postgres adapter is available at the moment.
 
 ```sh
-# Copy .env.example to .env in the apps/dashboard directory.
-# Read the notes in .env.example.
-cd packages/db-postgres
-cp .env.example .env
+# From the repository root, copy the adapter environment template.
+cp packages/db-postgres/.env.example packages/db-postgres/.env
 
 # Again, the default database root password is 'test'
 # (assuming you're using our docker-compose.yml file).
-cd src/database
-./db_init.sh
-cd ../..
+pnpm db:init
 ```
 
 :::warning[Foot-gun protection]
@@ -74,9 +70,8 @@ pnpm drizzle:migrate
 ```
 # Seed the database with a single super-admin user — and optionally,
 # categories and documents.
-# From /apps/webapp. Note that our seed scripts live in
+# From apps/webapp. The seed scripts live in
 # apps/webapp/byline/seeds, orchestrated by apps/webapp/byline/seed.ts
-# (for now and for 'reasons').
 cd apps/webapp
 
 # .env configuration
@@ -84,7 +79,7 @@ cp .env.local.example .env.local
 
 # generate JWT session key
 openssl rand -base64 48
-# past the above output into your .env.local file for
+# Paste the output into .env.local as:
 # BYLINE_JWT_SECRET=
 
 # Set the seed superadmin username email address and password
@@ -105,4 +100,4 @@ pnpm dev
 If you've built the project (above) and have Postgres up and running, you
 should be able to view the app on http://localhost:5173/.
 
-Enjoy and stay tuned!
+The application is now ready for local development.

@@ -7,7 +7,7 @@ summary: "Block architecture: defineBlock, the per-block schema/admin split (def
 # Blocks
 
 Companions:
-- [Fields API](./01-fields.md) — field types (including `code`), the schema-vs-admin split, conditional visibility, virtual fields.
+- [Fields](./01-fields.md) — field types (including `code`), the schema-vs-admin split, conditional visibility, virtual fields.
 - [Rich Text](./07-rich-text.md) — the Lexical adapter, `lexicalEditor()`, and per-field editor overrides.
 - [Relationships](./03-relationships.md) — relation fields and populate (block fields participate identically).
 - [File / Media Uploads](./06-file-media-uploads.md) — inline upload fields and `upload.location`.

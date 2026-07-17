@@ -1,7 +1,7 @@
 ---
 title: "MCP Server"
 path: "mcp"
-summary: "Byline as a Model Context Protocol server — a peer transport that binds the operation layer to MCP tools/resources/prompts, with draft-by-default writes, service-account auth, and the workflow lifecycle as the human gate. The literal proof of 'AI-first'."
+summary: "Planned Model Context Protocol support: a peer transport binding the operation layer to MCP tools, resources, and prompts, with draft-by-default writes, service-account authentication, and workflow review."
 ---
 
 # MCP Server
@@ -31,9 +31,9 @@ agentic workflow: a model can query collections, draft documents, populate
 relationships, and move content through the publishing lifecycle — under a scoped
 actor, gated by the same abilities the admin UI obeys.
 
-For an "AI-first headless CMS," this is not a side feature. It is the literal proof
-of the positioning: the place where Byline's structured storage, immutable
-versioning, and workflow lifecycle become tools an autonomous agent can use *safely*.
+For an AI-first headless CMS, MCP provides an agent-native interface to Byline's
+structured storage, immutable versioning, and workflow lifecycle. The same
+authorization rules continue to apply when the caller is an autonomous agent.
 
 ## Why it fits Byline cleanly
 
@@ -196,4 +196,3 @@ Transports is structured to avoid.
 | Zod → MCP inputSchema bridge     | `packages/mcp/src/schema/`                             |
 | Shared operation layer           | `packages/http/src/operations/` (see Transports)    |
 | Service-account actor + provider | extends `@byline/auth` `SessionProvider` (new work)    |
-

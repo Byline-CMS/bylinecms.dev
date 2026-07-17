@@ -16,7 +16,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
-    "directory": "apps/dashboard"
+    "directory": "apps/webapp"
   },
   "type": "module",
   "scripts": {
@@ -26,6 +26,7 @@
     "start": "NODE_ENV=production PORT=5173 node --env-file=.env.local .output/server/index.mjs",
     "byline:generate": "tsx byline/scripts/generate-types.ts",
     "byline:generate:check": "tsx byline/scripts/generate-types.ts --check",
+    "docs:check": "tsx byline/scripts/check-docs.ts '../../docs/**/*.md'",
     "clean": "node scripts/clean.js node_modules dist build .output .nitro .tanstack .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --mode=jsdom && vitest run --mode=node --passWithNoTests",

@@ -62,7 +62,7 @@ Both live in the same local Postgres container (`postgres/docker-compose.yml`). 
 Two layers prevent any test from ever pointing at the wrong database:
 
 1. **Script-level (braces)** — `packages/db-postgres/src/database/common.sh` parses `BYLINE_DB_POSTGRES_CONNECTION_STRING` and refuses to continue unless the derived database name ends in `_dev` or `_test`. `db_init.sh` and `db_init_test.sh` both go through it.
-2. **Runtime (belt)** — `assertTestDatabase()` in `packages/db-postgres/src/lib/test-db.ts` parses the connection string at the top of every test bootstrap and throws unless the DB name ends in `_test`. Imported by both the vitest globalSetup (`packages/client/tests/_global-setup.ts`) and the node:test bootstrap (`packages/db-postgres/src/lib/test-bootstrap.ts`).
+2. **Runtime (belt)** — `assertTestDatabase()` in `packages/db-postgres/src/lib/test-db.ts` parses the connection string at the top of every test bootstrap and throws unless the DB name ends in `_test`. Both Vitest global setup files call it: `packages/client/tests/_global-setup.ts` and `packages/db-postgres/tests/_global-setup.ts`.
 
 ## Isolation strategy
 
@@ -76,8 +76,8 @@ Both `@byline/client` and `@byline/db-postgres` use the same vitest config shape
 
 `.github/workflows/ci.yml` runs on every pull request and on direct pushes to `develop` / `main`. Two jobs:
 
-- **lint-and-typecheck** — `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm typecheck`.
-- **test-suite** — boots a Postgres service container with `byline_test` pre-created, writes `.env.test` files from the job-level env block, then runs `pnpm test` (unit) followed by `pnpm test:integration`. Both run in the same job so they share one `pnpm install`.
+- **lint-and-typecheck** — `pnpm install --frozen-lockfile` → `pnpm byline:generate:check` → `pnpm docs:check` → `pnpm lint` → `pnpm typecheck` → `pnpm knip`.
+- **test-suite** — boots a Postgres service container with `byline_test` pre-created, writes `.env.test` files from the job-level env block, builds the workspace packages, then runs `pnpm test` (unit) followed by `pnpm test:integration`. Both run in the same job so they share one `pnpm install`.
 
 Both jobs skip when the head commit starts with `chore(release):` so version-bump pushes from `pnpm version-packages` don't trigger redundant runs. Tag pushes (`git push --tags`) and `gh release create` aren't listened to at all, so the local-only release flow stays silent.
 

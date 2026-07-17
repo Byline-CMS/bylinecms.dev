@@ -4,16 +4,22 @@ path: "getting-started-cli"
 summary: "The experimental Byline CLI: 'byline init' against an existing TanStack Start app, plus 'setup' and 'doctor' for adding Byline to a fresh project."
 ---
 
-Note: We have an experimental CLI that will attempt to install Byline into an existing TanStack Start application. This has only been tested against up-to-date TanStack Start sites created with the Nitro (agnostic adapter). You can install TanStack Start with:
+:::note[Experimental]
+The CLI installs Byline into an existing TanStack Start application. It is
+currently tested against up-to-date TanStack Start sites using the Nitro
+(agnostic) adapter.
+:::
+
+Create a TanStack Start application with:
 
 ```sh
 npx @tanstack/cli@latest create
 
-#or
+# or
 
 pnpm dlx @tanstack/cli@latest create
 ```
-Then be sure to select the Nitro (agnostic) adapter.
+Select the Nitro (agnostic) adapter:
 ```
 ◆  Select deployment adapter:
 │  ○ None
@@ -23,7 +29,7 @@ Then be sure to select the Nitro (agnostic) adapter.
 │  ○ Railway
 └
 ```
-Once your TanStack Start application is ready you can initialize a Byline installation with:
+Once the TanStack Start application is ready, initialize Byline with:
 
 ```sh
 npx @byline/cli@latest init
@@ -60,9 +66,17 @@ reads it.
 
 If there are any issues, you can follow the example application in the Byline CMS main repo under `apps/webapp`.
 
-NOTE: For AI-assisted editing, you'll need to add your API keys as shown in `apps/webapp/.env.local.example`
+For AI-assisted editing, add the relevant provider API keys described in
+`apps/webapp/.env.local.example`.
 
-IMPORTANT: The core Byline routes will be placed under a pathless route at `routes/_byline`, with its own route.tsx template. To prevent your front-end TanStack Start application's styling from 'leaking' into the Byline dashboard, you'll need to create or move your top-most layout route into its own pathless layout route - for example, under `routes/_fontend` or `routes/_public` - with any styling, headers, footers etc., that might have been in __root.tsx - moved into the route.tsx layout file inside your frontend pathless layout route.
+:::warning[Keep public and admin layouts separate]
+The installer places Byline routes under the pathless `routes/_byline` layout.
+Put the public application's top-level layout under a separate pathless route,
+such as `routes/_frontend` or `routes/_public`. Move public styling, headers,
+footers, and other layout concerns out of `__root.tsx` and into that public
+layout's `route.tsx`. This prevents public application styles from affecting the
+Byline dashboard.
+:::
 
 See the TanStack Router docs for [File-Based Routing](https://tanstack.com/router/latest/docs/routing/file-based-routing) and [Virtual File Routes](https://tanstack.com/router/latest/docs/routing/virtual-file-routes) for more information.
 
@@ -112,9 +126,10 @@ to rerun phases that already detect as complete. Missing generated artifacts and
 recognized canonical predecessors can be upgraded, while divergent user-owned
 scaffold, route, Vite, Turbo, and CI files are preserved with a manual note.
 
-Registry-backed `@byline/*` dependency ranges must be wholly within
-`>=3.21.0 <4.0.0-0`; missing or incompatible declarations are planned at
-`^3.21.0`. Unbounded ranges, ranges admitting v4, and tags such as `latest` are
+The CLI derives its dependency policy from its own release. For CLI `4.3.0`,
+registry-backed `@byline/*` dependency ranges must be wholly within
+`>=4.3.0 <5.0.0-0`; missing or incompatible declarations are planned at
+`^4.3.0`. Unbounded ranges, ranges admitting v5, and tags such as `latest` are
 not compatible. Explicit compatible `workspace:` ranges are preserved. Bare
 `workspace:*`, `workspace:^`, and `workspace:~` links are never replaced: the
 linked version must resolve from exactly one included workspace package manifest

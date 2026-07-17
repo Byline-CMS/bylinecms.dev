@@ -142,7 +142,7 @@ This is a **deliberate asymmetry**: the editor's markdown source toggle
 are what GitHub, agents, and most renderers understand. The intended end
 state is *two accepted input dialects, one output dialect*: extend
 `parse-markdown.ts` to also accept GFM alerts (see
-[Future phases](#future-phases)).
+[Explicitly not](#explicitly-not)).
 
 ### Where the contract is pinned
 
@@ -249,4 +249,3 @@ descriptions.
   export output.
 - **Not the stable HTTP API.** The `.md` routes are app-owned representations
   of published documents, not a transport boundary (see Routing & API).
-

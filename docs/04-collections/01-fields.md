@@ -1,10 +1,10 @@
 ---
-title: "Fields API"
+title: "Fields"
 path: "fields"
-summary: "The Fields API: built-in types, optional, localized, validation, hooks, conditional visibility, cross-field writes, the schema-vs-admin split, and how to build reusable field helpers like publishedOnField."
+summary: "Fields in Byline: built-in types, optional, localized, validation, hooks, conditional visibility, cross-field writes, the schema-vs-admin split, and how to build reusable field helpers like publishedOnField."
 ---
 
-# Fields API
+# Fields
 
 Companions:
 - [Rich Text](./07-rich-text.md) — the Lexical adapter and how `lexicalEditor()` / per-field editor overrides plug in.

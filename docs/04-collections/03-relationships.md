@@ -189,7 +189,7 @@ const news = await client.collection('news').find({
 
 Programmatic cap is 8 (clamped by `ReadContext.maxDepth`); admin API preview cap is 3.
 
-→ [`ReadContext` — recursion safety](#readcontext--recursion-safety)
+→ [`ReadContext` — recursion safety](#readcontext-recursion-safety)
 
 ### 8. Handle the four envelope states
 
@@ -217,7 +217,7 @@ storage UUID.
 
 Link metadata (`relationship_type`, `cascade_delete`) survives population — it stays on the envelope after the target is attached.
 
-→ [The relation envelope — four states, one shape](#the-relation-envelope--four-states-one-shape)
+→ [The relation envelope — four states, one shape](#the-relation-envelope-four-states-one-shape)
 
 ### 9. Type populated relations with `WithPopulated`
 
@@ -299,7 +299,7 @@ export const Posts = defineCollection({
 
 `ReadContext` carries the operation's recursion state, read budget, and depth clamp. Threading it ensures nested reads remain in the same guarded operation; recursive access to an actively processing version fails closed.
 
-→ [`ReadContext` — recursion safety](#readcontext--recursion-safety)
+→ [`ReadContext` — recursion safety](#readcontext-recursion-safety)
 
 ---
 
@@ -475,7 +475,7 @@ The old `z.any()` catch-all is gone — the picker's contract is enforced at for
 
 A second application of the relationship primitive: links to other Byline documents *inside* a richtext field value, plus inline-image references to media documents. Two paired Lexical plugins consume the same `DocumentRelation` envelope this doc defines.
 
-The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts — lives in **[Rich Text → Relations — embed and populate](./07-rich-text.md#relations--embed-and-populate)**.
+The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts — lives in **[Rich Text → Relations — embed and populate](./07-rich-text.md#relations-embed-and-populate)**.
 
 One eligibility flag stays here because it lives on `CollectionDefinition`, not on the editor adapter:
 
@@ -510,7 +510,7 @@ The first production relation is in the News collection (`apps/webapp/byline/col
 }
 ```
 
-…and the seeded News documents in `apps/webapp/byline/seeds/documents.ts` reference existing Media items. Editing a news item shows the picker; saving writes through the standard form-state pipeline; reloading the API preview at depth 1 shows the populated Media envelope (including the file's `variants` array — see [File / Media Uploads](./06-file-media-uploads.md)); depth 2 walks into Media's own field set; deleting the referenced Media item and reloading at depth 1 shows the `_resolved: false` placeholder rather than a crash.
+…and the seeded News documents in `apps/webapp/byline/seeds/docs.ts` reference existing Media items. Editing a news item shows the picker; saving writes through the standard form-state pipeline; reloading the API preview at depth 1 shows the populated Media envelope (including the file's `variants` array — see [File / Media Uploads](./06-file-media-uploads.md)); depth 2 walks into Media's own field set; deleting the referenced Media item and reloading at depth 1 shows the `_resolved: false` placeholder rather than a crash.
 
 ---
 
@@ -608,8 +608,8 @@ indexed paths where `field_name` is the index segment).
 | Admin API preview depth selector | `apps/webapp/src/routes/_byline/<configured-admin-segment>/collections/$collection/$id/api.tsx` |
 | Admin `getDocument` server fn | `packages/host-tanstack-start/src/server-fns/collections/get.ts` |
 | `linksInEditor` flag | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.linksInEditor`) |
-| Richtext document links + embed / populate strategy | [Rich Text → Relations — embed and populate](./07-rich-text.md#relations--embed-and-populate) |
+| Richtext document links + embed / populate strategy | [Rich Text → Relations — embed and populate](./07-rich-text.md#relations-embed-and-populate) |
 | Reference relation field | `apps/webapp/byline/collections/news/schema.ts` (`featureImage` field) |
 | Reference list reading populated relations | `apps/webapp/src/modules/news/list.ts` |
-| Reference detail reading populated relations | `apps/webapp/src/modules/news/detail.ts` |
+| Reference detail reading populated relations | `apps/webapp/src/modules/news/details.ts` |
 | Integration tests | `packages/client/tests/integration/{client-populate-status,client-multi-relation}.integration.test.ts` |

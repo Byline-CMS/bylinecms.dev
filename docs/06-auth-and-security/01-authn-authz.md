@@ -134,7 +134,7 @@ export const Posts = defineCollection({
 
 The fallback `'__none__'` collapses cleanly when `actor` is absent — anonymous readers get the published-only branch.
 
-→ [Read-side scoping — `beforeRead`](#read-side-scoping--the-beforeread-hook)
+→ [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
 ### 5. Recipe — multi-tenant scoping
 
@@ -152,7 +152,7 @@ hooks: {
 
 Anonymous readers see nothing, because no tenant matches `'__none__'`. If a tenant has a public storefront, expose it through a separate collection or a dedicated `published-and-public` flag rather than relaxing this predicate — tenant scoping should never have a forgotten escape hatch.
 
-→ [Read-side scoping — `beforeRead`](#read-side-scoping--the-beforeread-hook)
+→ [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
 ### 6. Recipe — embargo / scheduled publish
 
@@ -171,7 +171,7 @@ hooks: {
 
 The predicate compares against `publishAt` at query time, so each request reads "now" — caching layers above this need to be cache-key-aware of time, or the embargo lifts late.
 
-→ [Read-side scoping — `beforeRead`](#read-side-scoping--the-beforeread-hook)
+→ [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
 ### 7. Recipe — soft-delete hide
 
@@ -190,7 +190,7 @@ hooks: {
 
 Pair with a `delete` collection method that performs the soft-delete write rather than a hard delete; otherwise the predicate has nothing to scope.
 
-→ [Read-side scoping — `beforeRead`](#read-side-scoping--the-beforeread-hook)
+→ [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
 ### 8. Recipe — department / workspace visibility
 
@@ -208,7 +208,7 @@ hooks: {
 
 When `departmentIds` is empty, `$in: []` returns no rows — deny by default. If the actor's department list is loaded asynchronously, make the hook `async`; the same operation context is threaded through direct reads and populate.
 
-→ [Read-side scoping — `beforeRead`](#read-side-scoping--the-beforeread-hook)
+→ [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
 ### 9. Recipe — self-only on user-like collections
 
@@ -228,7 +228,7 @@ hooks: {
 
 The reserved `id` key resolves to the logical document id. If your user model links profiles by a separate foreign key (e.g. `userId` rather than `profileId === actor.id`), filter on that field instead.
 
-→ [Read-side scoping — `beforeRead`](#read-side-scoping--the-beforeread-hook)
+→ [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
 ### 10. Mask or redact a field on read (`afterRead`)
 
@@ -357,7 +357,7 @@ const core = await initBylineCore<AdminStore>({
 
 `getAdminRequestContext()` calls `verifyAccessToken` on every admin request, so the `AdminAuth` your `resolveActor` returns is exactly what `assertAbility` / `assertActorCanPerform` check downstream. The `capabilities` flags drive which affordances the admin UI renders — a provider without `passwordChange` hides the password-change form rather than failing the call.
 
-→ [Sessions — `SessionProvider`](#sessions--sessionprovider-interface)
+→ [Sessions — `SessionProvider`](#sessions-sessionprovider-interface)
 
 ---
 
@@ -446,7 +446,7 @@ collections.<path>.{ read, create, update, delete, publish, changeStatus, reinde
 
 CASL's *ideas* (subject + action + conditions) are useful here; CASL itself is not adopted. CASL rules are code; flat abilities are data. Storing compiled CASL rules in a database and editing them from a UI was rejected as awkward at best.
 
-The six Quick Reference recipes above cover the common Layer-2 patterns end-to-end. The deeper mechanics of the hook itself are documented in [Read-side scoping](#read-side-scoping--the-beforeread-hook).
+The six Quick Reference recipes above cover the common Layer-2 patterns end-to-end. The deeper mechanics of the hook itself are documented in [Read-side scoping](#read-side-scoping-the-beforeread-hook).
 
 ### The enforcement boundary
 

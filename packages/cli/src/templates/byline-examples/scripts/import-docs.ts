@@ -22,8 +22,9 @@
  *   2. Parse the body to mdast via remark-parse + remark-gfm, lifting
  *      Docusaurus-style admonition fences (`:::note[Title] … :::`) into
  *      synthetic nodes (see lib/parse-markdown.ts).
- *   3. Rewrite `./SIBLING.md[#hash]` links to `/docs/<imported-path>`
- *      using a sourcePath→docPath map built from a frontmatter pre-pass.
+ *   3. Rewrite `./SIBLING.md[#hash]` links to the document's canonical,
+ *      tree-aware `/docs/<ancestor-path>/<imported-path>` URL using a
+ *      sourcePath→publicPath map built from a frontmatter pre-pass.
  *      Targets outside the batch are stripped to plain text.
  *   4. Convert mdast → Lexical SerializedEditorState.
  *   5. Resolve `featureImage` (a `media` path) to a relation envelope.
@@ -213,18 +214,37 @@ interface ProcessResult {
  * its target will be served at after import.
  */
 function buildSourcePathMap(files: string[], defaultLocale: string): Map<string, string> {
-  const map = new Map<string, string>()
+  const documents: Array<{ filePath: string; path: string }> = []
   for (const file of files) {
     try {
       const source = readFileSync(file, 'utf8')
       const parsed = parseDocFile(source, file)
       const locale = parsed.frontmatter.locale ?? defaultLocale
-      map.set(file, derivePath(parsed.frontmatter, locale))
+      documents.push({ filePath: file, path: derivePath(parsed.frontmatter, locale) })
     } catch {
       // Skip — pass 2 will surface the parse error against this file.
     }
   }
-  return map
+
+  const documentByFile = new Map(documents.map((document) => [document.filePath, document]))
+  const canonicalByFile = new Map<string, string>()
+  const resolveCanonicalPath = (document: (typeof documents)[number]): string => {
+    const cached = canonicalByFile.get(document.filePath)
+    if (cached != null) return cached
+    const [markdownIndex, longMarkdownIndex] = parentIndexFiles(document.filePath)
+    const parent =
+      documentByFile.get(markdownIndex) ?? documentByFile.get(longMarkdownIndex) ?? null
+    const ownPath = document.path.replace(/^\/+|\/+$/g, '')
+    const canonicalPath =
+      parent != null && parent.filePath !== document.filePath
+        ? `${resolveCanonicalPath(parent)}/${ownPath}`
+        : ownPath
+    canonicalByFile.set(document.filePath, canonicalPath)
+    return canonicalPath
+  }
+
+  for (const document of documents) resolveCanonicalPath(document)
+  return canonicalByFile
 }
 
 async function processFile(
@@ -244,7 +264,10 @@ async function processFile(
     pathMap,
     urlPrefix: DOCS_URL_PREFIX,
   })
-  if (flags.verbose) logLinkWarnings(filePath, linkWarnings)
+  const visibleLinkWarnings = flags.verbose
+    ? linkWarnings
+    : linkWarnings.filter((warning) => warning.kind !== 'rewritten-doc-link')
+  logLinkWarnings(filePath, visibleLinkWarnings)
   const { state, warnings } = mdastToLexical(mdast)
   if (flags.verbose) logWarnings(filePath, warnings)
 
@@ -319,17 +342,18 @@ async function processFile(
  * `dirname(D)/index.md`. The returned path may not exist (e.g. the docs root
  * has no `index.md`); the caller treats a miss as "this node is a root".
  */
-function parentIndexFile(filePath: string): string {
+function parentIndexFiles(filePath: string): [string, string] {
   const dir = dirname(filePath)
   const base = basename(filePath)
   const isIndex = base === 'index.md' || base === 'index.markdown'
-  return join(isIndex ? dirname(dir) : dir, 'index.md')
+  const parentDir = isIndex ? dirname(dir) : dir
+  return [join(parentDir, 'index.md'), join(parentDir, 'index.markdown')]
 }
 
 /**
  * Build the document tree from the source directory layout, after every file
  * has been imported (so all parent documents exist). A node's parent is the
- * `index.md` resolved by {@link parentIndexFile}; a node whose parent index is
+ * `index.md` or `index.markdown` resolved by {@link parentIndexFiles}; a node whose parent index is
  * not in the batch is a root. Structure is filesystem-derived (not name-matched
  * to paths), so directory names are free and `NN-` prefixes only affect order.
  *
@@ -356,7 +380,8 @@ async function placeTreeFromDirectories(
   let placed = 0
   let failed = 0
   for (const r of placeable) {
-    const parentId = idByFile.get(parentIndexFile(r.filePath))
+    const [markdownIndex, longMarkdownIndex] = parentIndexFiles(r.filePath)
+    const parentId = idByFile.get(markdownIndex) ?? idByFile.get(longMarkdownIndex)
     const parentDocumentId = parentId != null && parentId !== r.documentId ? parentId : null
     const groupKey = parentDocumentId ?? ROOT_GROUP
     const beforeDocumentId = lastSiblingByGroup.get(groupKey) ?? null

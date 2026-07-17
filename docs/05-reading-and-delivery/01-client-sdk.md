@@ -12,7 +12,7 @@ Companions:
 - [Relationships](../04-collections/03-relationships.md) — `populate` / `depth` machinery the SDK exposes.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
 - [Collections](../04-collections/index.md) — `CollectionAdminConfig.preview.url` builder used by the admin preview affordance.
-- [`packages/client/DESIGN.md`](../packages/client/DESIGN.md) — implementation-detail design doc; phase-by-phase status snapshot.
+- [`packages/client/DESIGN.md`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/packages/client/DESIGN.md) — implementation-detail design doc; phase-by-phase status snapshot.
 
 ## Overview
 
@@ -229,7 +229,7 @@ await client.collection('news').find({
 
 The default projection includes the target's `useAsTitle` field implicitly, so link labels keep working even if the caller didn't list it. Populate threads `readMode` through every hop — published-mode reads stay on `current_published_documents` all the way down.
 
-→ [Population](#population) · [Relationships § Populate](../04-collections/03-relationships.md#populate)
+→ [Population](#population) · [Relationships § Populate](../04-collections/03-relationships.md#the-populate-pipeline)
 
 ### 7. Type a populated relation with `WithPopulated`
 
@@ -382,7 +382,7 @@ The advanced example below is a real maintenance job that iterates a collection,
 - runs the core upload service to re-derive variants, then `handle.update(...)` to point the document at the new `storedFile`;
 - walks the workflow ladder forward via `changeStatus` to restore each doc's original status (since `update` always stamps a new version with the workflow's default status).
 
-The full source — including orphan-file cleanup and the workflow-restore helper — lives at [`apps/webapp/byline/scripts/regenerate-media.ts`](../apps/webapp/byline/scripts/regenerate-media.ts). The shape, condensed:
+The full source — including orphan-file cleanup and the workflow-restore helper — lives at [`apps/webapp/byline/scripts/regenerate-media.ts`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/apps/webapp/byline/scripts/regenerate-media.ts). The shape, condensed:
 
 ```ts
 import 'dotenv/config'
@@ -552,7 +552,7 @@ populate: { heroImage: true, author: { populate: { dept: true } } }
 depth: 2                                                    // default 1 when populate present
 ```
 
-The default projection includes the target's `useAsTitle` field implicitly, so widgets that render link labels keep working even if the caller's `select` didn't ask for it. Before each target fetch, populate asserts the target collection's `read` ability and applies its strict `beforeRead` predicate; row-hidden targets become unresolved relation values, while a missing target-collection ability rejects the read. See [Relationships § Populate](../04-collections/03-relationships.md#populate).
+The default projection includes the target's `useAsTitle` field implicitly, so widgets that render link labels keep working even if the caller's `select` didn't ask for it. Before each target fetch, populate asserts the target collection's `read` ability and applies its strict `beforeRead` predicate; row-hidden targets become unresolved relation values, while a missing target-collection ability rejects the read. See [Relationships § Populate](../04-collections/03-relationships.md#the-populate-pipeline).
 
 ### Typing populated relations
 
@@ -637,7 +637,7 @@ A stale cookie is therefore failure-mode-neutral: it never escalates a non-admin
 - Preview elevates `readMode` for the request, but it does **not** bypass `beforeRead` hooks. A multi-tenant or owner-only-drafts hook will still scope the rows the admin can see — preview just changes which version of those rows is returned.
 - The cookie has a 24-hour `maxAge` — preview is meant to be a short-lived editorial mode, not a permanent state. Re-enabling is a one-click action.
 - The same pattern works for any host fn — not just collection reads. Any server fn that wants the "promote to admin actor when preview is on" behaviour can compose `getViewerBylineClient` + `isPreviewActive` the same way.
-- **Front-end caching caveat.** Byline doesn't ship a built-in cache layer, but anything in front of your host (CDN, route-level cache headers, an in-process LRU) needs to either key off the `byline_preview` cookie or skip caching entirely when it's set — otherwise a single admin's preview view can poison a public cache entry and leak drafts to the next visitor. The Payload analogue is Next.js's `__prerender_bypass` cookie that disables ISR for the session; the underlying constraint is the same.
+- **Front-end caching caveat.** Byline doesn't ship a built-in cache layer, but anything in front of your host must bypass shared caches for authenticated editor requests and active preview reads. Do not use `byline_preview` alone as the bypass signal: a stale preview cookie without a valid session still receives published content and is safe to cache. In application code, use `isPreviewActive()`; at the CDN boundary, bypass on the admin session cookies. See [Caching](./06-caching.md#why-byline-preview-is-not-a-bypass-signal) for the complete policy.
 
 ### Write surface
 
@@ -693,7 +693,7 @@ The same `_bypassBeforeRead: true` escape hatch on read options is available for
 
 Two collection-level hooks fire automatically through the SDK:
 
-- **`beforeRead`** — contributes a `QueryPredicate` whose strict adapter filters are ANDed with, but compiled separately from, caller `where`. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. The strict result compiles once per logical `ReadContext` + client security domain + collection definition + effective mode in private authority-bound state; invalid or unsupported clauses fail closed instead of disappearing. The deprecated caller-owned `beforeReadCache` property is ignored, reuse under another request id, locale, or actor authority rejects, and cyclic hook reads fail with `ERR_READ_RECURSION`. See [Authentication & Authorization § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping--the-beforeread-hook) (the Quick Reference there carries six worked recipes).
+- **`beforeRead`** — contributes a `QueryPredicate` whose strict adapter filters are ANDed with, but compiled separately from, caller `where`. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. The strict result compiles once per logical `ReadContext` + client security domain + collection definition + effective mode in private authority-bound state; invalid or unsupported clauses fail closed instead of disappearing. The deprecated caller-owned `beforeReadCache` property is ignored, reuse under another request id, locale, or actor authority rejects, and cyclic hook reads fail with `ERR_READ_RECURSION`. See [Authentication & Authorization § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook) (the Quick Reference there carries six worked recipes).
 - **`afterRead`** — runs on every returned materialisation, including historical versions, tree nodes, relation targets, and richtext targets, with the authenticated `RequestContext`. Mutations to `doc.fields` propagate into the shaped response; recursive access to a version still being processed fails closed.
 
 Hooks share the operation's `ReadContext` with relation and richtext population. Custom hooks must thread `_readContext` through nested SDK reads; richtext adapters must use the framework-provided secure target reader rather than direct adapter access.
@@ -762,7 +762,7 @@ These are not the same package and should not be conflated. In-process SDK evolu
 | `CollectionAdminConfig.preview` type | `packages/core/src/@types/admin-types.ts` |
 | ContentAdminBar pill | `apps/webapp/src/ui/components/content-admin-bar.tsx` |
 | Reference news list server fn | `apps/webapp/src/modules/news/list.ts` |
-| Reference news detail server fn | `apps/webapp/src/modules/news/detail.ts` |
+| Reference news detail server fn | `apps/webapp/src/modules/news/details.ts` |
 | Reference news categories server fn | `apps/webapp/src/modules/news/categories.ts` |
 | Implementation-detail design notes | `packages/client/DESIGN.md` |
 | Integration test suite | `packages/client/tests/integration/` |

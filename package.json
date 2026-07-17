@@ -10,6 +10,7 @@
     "db:init:test": "cd packages/db-postgres/src/database && ./db_init_test.sh",
     "byline:generate": "turbo run byline:generate",
     "byline:generate:check": "turbo run byline:generate:check",
+    "docs:check": "pnpm --filter @byline/webapp docs:check",
     "drizzle:generate": "turbo run drizzle:generate",
     "drizzle:migrate": "turbo run drizzle:migrate",
     "build": "turbo run build",

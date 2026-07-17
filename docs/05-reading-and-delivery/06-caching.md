@@ -21,13 +21,13 @@ A Byline application has several places where work can be skipped on a hot read 
 | **L3 — Browser** | Minor; mostly relevant for static assets, not HTML | `max-age=0` on HTML by default | n/a |
 | **L4 — Client-side route loaders (TanStack Query / Router)** | Smooth client-side transitions, request de-duplication | Per-query staleness | Tag-based refetch on mutation |
 
-The `@byline/*` packages do not ship a caching layer of their own — caching policy is the application's concern. The demo `apps/webapp` in this repository contains worked examples of both: **L2** as copyable middleware (below), and **L1** as an opt-in tagged in-memory cache (`apps/webapp/src/lib/cache/`, off by default via `CACHING_DATA_REQUESTS`) whose consumers are the dynamic `sitemap.xml` route and the markdown export surface — the `.md` document representations and `llms.txt` (see [Markdown Export](./04-markdown-export.md) for that surface's tag and invalidation story). The full L1 design — stack choice, the tag-map fix, the per-document tag scheme, and the optional cluster fan-out — lives in [`apps/webapp/docs/DATA-CACHE-DESIGN.md`](../../apps/webapp/docs/DATA-CACHE-DESIGN.md).
+The `@byline/*` packages do not ship a caching layer of their own — caching policy is the application's concern. The demo `apps/webapp` in this repository contains worked examples of both: **L2** as copyable middleware (below), and **L1** as an opt-in tagged in-memory cache (`apps/webapp/src/lib/cache/`, off by default via `CACHING_DATA_REQUESTS`) whose consumers are the dynamic `sitemap.xml` route and the markdown export surface — the `.md` document representations and `llms.txt` (see [Markdown Export](./04-markdown-export.md) for that surface's tag and invalidation story). The full L1 design — stack choice, the tag-map fix, the per-document tag scheme, and the optional cluster fan-out — lives in [`apps/webapp/docs/DATA-CACHE-DESIGN.md`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/apps/webapp/docs/DATA-CACHE-DESIGN.md).
 
 ## L2 — CDN edge
 
 The demo application carries a reference middleware that other TanStack Start hosts can copy verbatim or treat as a starting point:
 
-- [`apps/webapp/src/middleware/public-cache.ts`](../apps/webapp/src/middleware/public-cache.ts) — `publicCacheMiddleware`.
+- [`apps/webapp/src/middleware/public-cache.ts`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/apps/webapp/src/middleware/public-cache.ts) — `publicCacheMiddleware`.
 
 In the demo it is applied to:
 
@@ -88,7 +88,7 @@ Independently of the origin middleware, configure your proxy to bypass cache whe
 
 This means that if the origin middleware ever fails to apply to a route (a new server function added without `publicCacheMiddleware`, for example), authenticated editors are still protected from stale anonymous HTML at the edge.
 
-Note: do not include `byline_preview` in this rule. The preview cookie is not a meaningful bypass signal on its own (see [Why `byline_preview` is not a bypass signal](#why-byline_preview-is-not-a-bypass-signal) above) — adding it would penalise users who once signed in with a stale `no-store` response for up to a day after sign-out.
+Note: do not include `byline_preview` in this rule. The preview cookie is not a meaningful bypass signal on its own (see [Why `byline_preview` is not a bypass signal](#why-byline-preview-is-not-a-bypass-signal) above) — adding it would penalise users who once signed in with a stale `no-store` response for up to a day after sign-out.
 
 ### When to skip `publicCacheMiddleware`
 
@@ -199,7 +199,7 @@ export function invalidateTag(tag: string): void {
 Using it from a public read, with the editor bypass:
 
 ```ts
-// modules/news/detail.ts — a cached published detail read
+// modules/news/details.ts — a cached published detail read
 import { getPublicBylineClient } from '@/lib/byline-client'
 import { isPreviewActive } from '@/lib/preview'
 import { cachedRead } from '@/cache/l1'

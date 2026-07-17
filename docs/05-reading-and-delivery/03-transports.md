@@ -136,7 +136,7 @@ JWT-session, built for an interactive UI.
 ## Mapping to the deployment scenarios
 
 The transport family is exactly the four deployment shapes in the
-[README](../README.md), made concrete:
+[repository README](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/README.md), made concrete:
 
 ```
  Scenario 1 — integrated all-in-one (today)

@@ -172,7 +172,8 @@ A pluggable `SearchProvider` seam in `@byline/core` (registered on
 `ServerConfig.search`, validated at `initBylineCore()` via `validateSearchConfig`)
 with a built-in Postgres full-text driver. The present-state reference is
 [docs/05-reading-and-delivery/07-search.md](docs/05-reading-and-delivery/07-search.md);
-the forward-looking landscape for the unbuilt phases is `docs/byline-search-extraction-strategy.md`.
+the forward-looking landscape for the unbuilt phases is
+`docs/05-reading-and-delivery/08-search-extraction-strategy.md`.
 
 - **Interface & types**: `SearchProvider` (`capabilities` + `upsert` / `remove` /
   `search` / `reindex?`), the type-enriched `SearchDocument` (a role-tagged

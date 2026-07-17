@@ -28,8 +28,9 @@
  *   2. Parse the body to mdast via remark-parse + remark-gfm, lifting
  *      Docusaurus-style admonition fences (`:::note[Title] … :::`) into
  *      synthetic nodes (see lib/parse-markdown.ts).
- *   3. Rewrite `./SIBLING.md[#hash]` links to `/docs/<imported-path>`
- *      using a sourcePath→docPath map built from a frontmatter pre-pass.
+ *   3. Rewrite `./SIBLING.md[#hash]` links to the document's canonical,
+ *      tree-aware `/docs/<ancestor-path>/<imported-path>` URL using a
+ *      sourcePath→publicPath map built from a frontmatter pre-pass.
  *      Targets outside the batch are stripped to plain text.
  *   4. Convert mdast → Lexical SerializedEditorState.
  *   5. Resolve `featureImage` (a `media` path) to a relation envelope.
@@ -86,7 +87,7 @@ import type { PgAdapter } from '@byline/db-postgres'
 import { type DocFrontmatter, parseDocFile } from './lib/frontmatter.js'
 import { exitImportDocsWithFailure } from './lib/import-docs-cli.js'
 import { replaceDeletedDocumentAtPath } from './lib/import-docs-force.js'
-import { placeTreeFromDirectories } from './lib/import-docs-tree.js'
+import { buildCanonicalSourcePathMap, placeTreeFromDirectories } from './lib/import-docs-tree.js'
 import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexical.js'
 import { parseBodyToMdast } from './lib/parse-markdown.js'
 import { type DocLinkRewriteWarning, rewriteDocLinks } from './lib/rewrite-doc-links.js'
@@ -240,18 +241,18 @@ interface ProcessResult {
  * its target will be served at after import.
  */
 function buildSourcePathMap(files: string[], defaultLocale: string): Map<string, string> {
-  const map = new Map<string, string>()
+  const documents: Array<{ filePath: string; path: string }> = []
   for (const file of files) {
     try {
       const source = readFileSync(file, 'utf8')
       const parsed = parseDocFile(source, file)
       const locale = parsed.frontmatter.locale ?? defaultLocale
-      map.set(file, derivePath(parsed.frontmatter, locale))
+      documents.push({ filePath: file, path: derivePath(parsed.frontmatter, locale) })
     } catch {
       // Skip — pass 2 will surface the parse error against this file.
     }
   }
-  return map
+  return buildCanonicalSourcePathMap(documents)
 }
 
 async function processFile(
@@ -272,7 +273,10 @@ async function processFile(
     pathMap,
     urlPrefix: DOCS_URL_PREFIX,
   })
-  if (flags.verbose) logLinkWarnings(filePath, linkWarnings)
+  const visibleLinkWarnings = flags.verbose
+    ? linkWarnings
+    : linkWarnings.filter((warning) => warning.kind !== 'rewritten-doc-link')
+  logLinkWarnings(filePath, visibleLinkWarnings)
   const { state, warnings } = mdastToLexical(mdast)
   if (flags.verbose) logWarnings(filePath, warnings)
 

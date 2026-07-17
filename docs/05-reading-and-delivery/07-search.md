@@ -299,7 +299,7 @@ conclusions double as a checklist for any external driver (Phase 4):
   structured `where` needs the predicate pushdown; and Solr's
   engine-specific power (boost functions, suggesters, facet pivots) is the
   motivating case for
-  [driver-specific query options](#driver-specific-query-options--the-typed-escape-hatch)
+  [driver-specific query options](#driver-specific-query-options-the-typed-escape-hatch)
   below.
 
 ## Index lifecycle (shipped)
@@ -584,7 +584,7 @@ Two boundary rules keep the hatch from rotting into the legacy reach-around:
   [Solr design study](#mapping-the-seam-to-solr-design-study) shows the
   aggregation path at the seam).
 - **Driver-specific query extensions** — the `SearchQuery.driver` slot
-  ([the typed escape hatch](#driver-specific-query-options--the-typed-escape-hatch) above).
+  ([the typed escape hatch](#driver-specific-query-options-the-typed-escape-hatch) above).
 - **MCP** exposes the same surface as a `search` tool (Phase 5).
 
 ## Search zones
@@ -610,7 +610,7 @@ tiles, and search rows.
 
 The **data half is shipped**: `hydrate: true` projects each hit's document to
 its collection's `itemView` columns when the admin config is registered in the
-calling runtime (see [`hydrate`](#hydrate--two-tier-rich-results)). The
+calling runtime (see [`hydrate`](#hydrate-two-tier-rich-results-shipped)). The
 **presentation half** — a host-UI component that dispatches each hydrated hit
 to its collection's item-view renderer — is an admin / host-UI concern above
 the core contract: `search()` returns data (rows, ids, optional shaped
@@ -627,7 +627,7 @@ and classic extractors (Apache Tika) are interchangeable drivers, exactly as
 clients against extraction services (a Tika server, docling-serve, a hosted
 VLM endpoint). The full landscape, tiered strategy (fast / local-ML / VLM),
 page-level routing, and licensing analysis live in the
-[search & extraction strategy brief](../byline-search-extraction-strategy.md).
+[search and document extraction strategy](./08-search-extraction-strategy.md).
 
 ### A sibling seam, not a search-driver sub-module
 
@@ -735,7 +735,7 @@ construction — which is the proof the seam boundary is drawn correctly.
   Postgres-side implementation, not design.
 - **Settled in design — driver-specific query extensions.** The
   declaration-merged `SearchQuery.driver` slot (see
-  [the typed escape hatch](#driver-specific-query-options--the-typed-escape-hatch)):
+  [the typed escape hatch](#driver-specific-query-options-the-typed-escape-hatch)):
   core declares the empty `SearchDriverExtensions` interface + one optional
   field, the client forwards it verbatim (pinned by test), drivers augment it
   namespaced by key. Open governance question: when to *promote* an option
@@ -744,7 +744,7 @@ construction — which is the proof the seam boundary is drawn correctly.
 - **Resolved — row-level authorization on search.** "Rank in provider,
   authorise in core" shipped: `search()` strict-validates and re-resolves
   candidate hit ids through the normal read path when a collection has a
-  `beforeRead` hook (see [Row-level authorization](#row-level-authorization--rank-in-the-provider-authorise-in-core)).
+  `beforeRead` hook (see [Row-level authorization](#row-level-authorization-rank-in-the-provider-authorise-in-core)).
   Restricted results suppress provider facets and report the surviving count
   for the current provider page. **Still open — exact paging and corpus totals
   under scoping:** post-ranking filtering can produce short pages and offset
@@ -779,6 +779,6 @@ construction — which is the proof the seam boundary is drawn correctly.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) —
   the `collections.<path>.reindex` ability and the `beforeRead`
   row-scoping that search honours.
-- [Search & extraction strategy brief](../byline-search-extraction-strategy.md) —
+- [Search and document extraction strategy](./08-search-extraction-strategy.md) —
   forward-looking landscape + tiered strategy for Phases 3–4 (attachment
   extraction, external drivers).

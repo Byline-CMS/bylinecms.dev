@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { exitImportDocsWithFailure } from './import-docs-cli.js'
 import {
+  buildCanonicalSourcePathMap,
   type ImportedTreeDocument,
   type ImportTreeHandle,
   placeTreeFromDirectories,
@@ -41,6 +42,34 @@ const documents: ImportedTreeDocument[] = [
 const quietLogger = { log: vi.fn(), error: vi.fn() }
 
 describe('import docs tree placement', () => {
+  it('builds canonical public paths from the source tree', () => {
+    const paths = buildCanonicalSourcePathMap(documents)
+
+    expect(paths).toEqual(
+      new Map([
+        ['/docs/index.md', 'root'],
+        ['/docs/guide/index.md', 'root/guide'],
+        ['/docs/guide/02-second.md', 'root/guide/second'],
+        ['/docs/guide/01-first.md', 'root/guide/first'],
+      ])
+    )
+  })
+
+  it('keeps documents without an index parent at the route root', () => {
+    const paths = buildCanonicalSourcePathMap([{ filePath: '/docs/guide/child.md', path: 'child' }])
+
+    expect(paths.get('/docs/guide/child.md')).toBe('child')
+  })
+
+  it('supports index.markdown parents when building public paths', () => {
+    const paths = buildCanonicalSourcePathMap([
+      { filePath: '/docs/guide/index.markdown', path: 'guide' },
+      { filePath: '/docs/guide/child.md', path: 'child' },
+    ])
+
+    expect(paths.get('/docs/guide/child.md')).toBe('guide/child')
+  })
+
   it('places shuffled input in deterministic source order', async () => {
     const { handle, groups } = createTreeHandle()
 

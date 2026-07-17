@@ -95,7 +95,7 @@ export const Profiles = defineCollection({
 
 AVIF is widely supported across modern browsers (Chrome 85+, Firefox 93+, Safari 16.4+) and typically yields ~20–30% smaller files than WebP at comparable quality. Sharp's avif quality scale is lower-numbered than webp/jpeg — `quality: 55` is a sensible AVIF default; bump to ~80 for WebP.
 
-→ [Variant persistence on `store_file`](#variant-persistence-on-store_file)
+→ [Variant persistence on `store_file`](#variant-persistence-on-store-file)
 
 ### 3. Multiple upload fields in one collection
 
@@ -282,7 +282,7 @@ export default {
 
 The `StoredFileValue` envelope round-trips intact through `@byline/client`. Variants ride along — no second round-trip — so you can build a `<picture>` / `srcset` directly.
 
-**Edit:** a server fn or component reading the document — for the Media collection, `apps/webapp/src/modules/news/detail.ts` reads `featureImage` via populate.
+**Edit:** a server fn or component reading the document — for the Media collection, `apps/webapp/src/modules/news/details.ts` reads `featureImage` via populate.
 
 ```ts
 import type { StoredFileValue } from '@byline/core'
@@ -313,7 +313,7 @@ const thumb = img?.variants?.find((v) => v.name === 'thumbnail')
 const url = thumb?.storageUrl ?? img?.storageUrl   // fallback to original
 ```
 
-→ [Variant persistence on `store_file`](#variant-persistence-on-store_file)
+→ [Variant persistence on `store_file`](#variant-persistence-on-store-file)
 
 ### 10. Read an uploaded image through a populated relation
 
@@ -606,7 +606,7 @@ Round-trip 2 (document save):      data.image: StoredFileValue → store_file ro
 - Network blip between the two round-trips.
 - Hard browser refresh — the `StoredFileValue` only lives in form state, so a reload before save abandons the file in storage.
 
-The single-shot `shouldCreateDocument: true` path does not have this gap. Storage write and document write are in the same handler, and the explicit `storage.delete(...)` rollback runs on document-creation failure inside `field-upload.ts`. Closing the gap on the form path is tracked as a future direction — see [Open questions](#open-questions).
+The single-shot `shouldCreateDocument: true` path does not have this gap. Storage write and document write are in the same handler, and the explicit `storage.delete(...)` rollback runs on document-creation failure inside `field-upload.ts`. Closing the gap on the form path is tracked as a future direction — see [Current limitations](#current-limitations).
 
 ### Variant persistence on `store_file`
 

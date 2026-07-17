@@ -6,6 +6,11 @@ export interface ImportedTreeDocument {
   path: string
 }
 
+export interface ImportSourceDocument {
+  filePath: string
+  path: string
+}
+
 export interface ImportTreeHandle {
   placeTreeNode(
     documentId: string,
@@ -29,6 +34,47 @@ function parentIndexFiles(filePath: string): [string, string] {
   const base = basename(filePath)
   const parentDir = base === 'index.md' || base === 'index.markdown' ? dirname(dir) : dir
   return [join(parentDir, 'index.md'), join(parentDir, 'index.markdown')]
+}
+
+function cleanPathSegment(path: string): string {
+  return path.replace(/^\/+|\/+$/g, '')
+}
+
+/**
+ * Build the public path for every source document from the same folder/index
+ * convention used by tree placement. The returned values are relative to the
+ * collection route, for example `collections/fields`.
+ */
+export function buildCanonicalSourcePathMap(
+  documents: readonly ImportSourceDocument[]
+): Map<string, string> {
+  const documentByFile = new Map(documents.map((document) => [document.filePath, document]))
+  const canonicalByFile = new Map<string, string>()
+  const visiting = new Set<string>()
+
+  const resolveCanonicalPath = (document: ImportSourceDocument): string => {
+    const cached = canonicalByFile.get(document.filePath)
+    if (cached != null) return cached
+    if (visiting.has(document.filePath)) {
+      throw new Error(`import-docs: cyclic source tree at '${document.filePath}'`)
+    }
+
+    visiting.add(document.filePath)
+    const [markdownIndex, longMarkdownIndex] = parentIndexFiles(document.filePath)
+    const parent =
+      documentByFile.get(markdownIndex) ?? documentByFile.get(longMarkdownIndex) ?? null
+    const ownPath = cleanPathSegment(document.path)
+    const canonicalPath =
+      parent != null && parent.filePath !== document.filePath
+        ? `${resolveCanonicalPath(parent)}/${ownPath}`
+        : ownPath
+    visiting.delete(document.filePath)
+    canonicalByFile.set(document.filePath, canonicalPath)
+    return canonicalPath
+  }
+
+  for (const document of documents) resolveCanonicalPath(document)
+  return canonicalByFile
 }
 
 /** Place imported documents from their folder/index layout in stable source order. */

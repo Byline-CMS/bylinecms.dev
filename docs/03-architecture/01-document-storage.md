@@ -10,7 +10,7 @@ Companions:
 - [Relationships](../04-collections/03-relationships.md) — the first read consumer that spans collections.
 - [Document Paths](../04-collections/05-document-paths.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
 - [Collection Versioning](../04-collections/08-collection-versioning.md) — schema versioning sits beside, but is independent of, document versioning.
-- [Storage benchmark sweep — 2026-04-18](../benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
+- [Storage benchmark sweep — 2026-04-18](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
 
 ## Overview
 
@@ -188,7 +188,7 @@ Dedicated non-versioned lifecycle services pair these changes with the document-
 
 ## Indicative benchmarks
 
-Numbers below are **development-machine, cold-path, indicative**. They are not a production performance gate. The full sweep was run on 2026-04-18 against an Apple M1 Pro MacBook Pro with local Dockerised Postgres 17, default config, no tuning. Reproduction commands and per-scale `EXPLAIN ANALYZE` plans live alongside [`benchmarks/storage/results/`](../benchmarks/storage/results/).
+Numbers below are **development-machine, cold-path, indicative**. They are not a production performance gate. The full sweep was run on 2026-04-18 against an Apple M1 Pro MacBook Pro with local Dockerised Postgres 17, default config, no tuning. Reproduction commands and per-scale `EXPLAIN ANALYZE` plans live in [`benchmarks/storage/results/`](https://github.com/Byline-CMS/bylinecms.dev/tree/develop/benchmarks/storage/results).
 
 The fixture is a `bench-articles` collection with 9 fields spanning 5 store tables (text, json, numeric, datetime, boolean) plus a relation to `bench-media`. Every 3rd article carries a hero relation. Each measurement is the median of 50 iterations after 10 warmup iterations.
 
@@ -269,7 +269,7 @@ The `_id` UUIDv7 on blocks and array items is **synthetic metadata**, not a data
 | `IDocumentQueries` interface             | `packages/core/src/@types/db-types.ts`                                                  |
 | Postgres schema                          | `packages/db-postgres/src/database/schema/index.ts`                                     |
 | Migrations                               | `packages/db-postgres/src/database/migrations/`                                         |
-| `current_documents` views                | both views (`current_documents`, `current_published_documents`) and the `byline_document_paths` table ship in the unified migration `0000_hard_madame_hydra.sql`; Drizzle definitions live in `packages/db-postgres/src/database/schema/index.ts` |
+| `current_documents` views                | both views (`current_documents`, `current_published_documents`) and the `byline_document_paths` table ship in the baseline migration `0000_ordinary_rhino.sql`; Drizzle definitions live in `packages/db-postgres/src/database/schema/index.ts` |
 | Reserved field names                     | `RESERVED_FIELD_NAMES` exported from `@byline/core`                                     |
 | Benchmark harness                        | `benchmarks/storage/harness/`                                                           |
 | Benchmark sweep results                  | `benchmarks/storage/results/2026-04-18-storage-cold-summary.md`                         |

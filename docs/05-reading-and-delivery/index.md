@@ -16,12 +16,12 @@ it efficiently.
 - [Routing & API](./02-routing-and-api.md) — the current transport surface
   (TanStack Start server functions) and the boundary where a stable HTTP API
   becomes worthwhile.
-- [Transports](./03-transports.md) — how Byline layers framework-agnostic logic
+- [Transports](./03-transports.md) **(planned)** — how Byline intends to layer framework-agnostic logic
   under host-specific bindings so the same operations can be exposed over
   different transports.
 - [Markdown Export](./04-markdown-export.md) — one-way Lexical-to-markdown
   rendering, the `.md` URL surface, and `llms.txt` for agent consumers.
-- [MCP Server](./05-mcp-server.md) — exposing Byline content to AI agents over
+- [MCP Server](./05-mcp-server.md) **(planned)** — exposing Byline content to AI agents over
   the Model Context Protocol.
 - [Caching](./06-caching.md) — CDN edge caching, invalidation strategies, and the
   optional in-memory data cache.
