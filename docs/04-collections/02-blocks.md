@@ -158,6 +158,23 @@ override beat the site-wide default.
 > `FormRenderer` → `FieldRenderer`), so dotted keys work identically inside
 > and outside blocks.
 
+### Arrays inside blocks — structural editing and sorting
+
+An `array` field renders its title, add-row, and per-item add-below / remove
+controls at **every** nesting depth — structural editing never depends on
+sortability. Drag-reordering is governed by a `disableSorting` flag threaded
+through the structural widgets: `BlocksField` passes `false` on its
+synthesized group, so arrays anywhere inside a block (directly or via a
+`group`) are fully drag-sortable — safe because each `DraggableSortable` is
+an independent dnd-kit `DndContext` with grip-scoped listeners, so an inner
+array's drags can't leak into the block-level context. Arrays inside plain
+top-level groups and arrays nested inside another array's items keep the
+conservative drag-free default (add/remove still available; grip-less items
+render through `StaticItem`, the non-dnd sibling of `SortableItem`).
+Browser-level coverage: `apps/webapp/e2e/array-in-block.spec.ts` (add →
+fill → save → keyboard drag-reorder → remove, round-tripped through
+reloads against the reference FAQBlock).
+
 ### What block admin config never touches
 
 `defineBlock` / `BlockData` / serialization / codegen / storage / zod — admin

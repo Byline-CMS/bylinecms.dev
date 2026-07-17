@@ -19,8 +19,8 @@
  *
  * Depends on the seeded FAQ fixture document
  * (`byline/seeds/faq-fixture.ts`, part of `pnpm tsx byline/seed.ts`) —
- * the admin cannot add FAQ array items itself yet
- * (ISSUE-array-fields-in-blocks.md).
+ * a stable item order this spec can assert against without creating its
+ * own items (structural editing flows live in array-in-block.spec.ts).
  */
 
 import { expect, test } from '@playwright/test'

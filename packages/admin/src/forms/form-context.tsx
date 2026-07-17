@@ -316,7 +316,15 @@ export const FormProvider = ({
   const getPatches = useCallback(() => patchesRef.current, [])
   const appendPatch = useCallback(
     (patch: DocumentPatch) => {
-      patchesRef.current = [...patchesRef.current, patch]
+      // Snapshot the patch at append time. Structural patches (array.insert,
+      // block add) carry item objects that are ALSO placed into the form
+      // store — and `setNestedValue` mutates store nodes in place, so a
+      // later nested write inside the item (e.g. adding an array item to a
+      // block added this session) would silently rewrite the queued patch.
+      // Serialized at save time, the block insert would then already contain
+      // the array items AND the array.insert patches would re-add them —
+      // duplicating items server-side (caught by e2e/array-in-block.spec.ts).
+      patchesRef.current = [...patchesRef.current, structuredClone(patch)]
       // Mark a generic dirty flag so hasChanges() becomes true even
       // for patches that don't correspond to a specific field.set.
       dirtyFields.current.add('__patch__')

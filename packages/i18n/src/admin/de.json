@@ -518,6 +518,7 @@
   "fields.sortable.collapseAriaLabel": "Element einklappen",
   "fields.draggableMenu.addBelow": "Unten hinzufügen",
   "fields.draggableMenu.remove": "Entfernen",
+  "fields.draggableMenu.triggerAriaLabel": "Elementaktionen",
   "diffModal.title": "Versionsvergleich",
   "diffModal.subtitleBefore": "Vergleich von",
   "diffModal.subtitleAfter": "(links) mit der aktuellen Version (rechts)",

@@ -518,6 +518,7 @@
   "fields.sortable.collapseAriaLabel": "항목 접기",
   "fields.draggableMenu.addBelow": "아래에 추가",
   "fields.draggableMenu.remove": "제거",
+  "fields.draggableMenu.triggerAriaLabel": "항목 작업",
   "diffModal.title": "버전 비교",
   "diffModal.subtitleBefore": "비교 중",
   "diffModal.subtitleAfter": "(왼쪽)과 현재 버전(오른쪽) 비교",

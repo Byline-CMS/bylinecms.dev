@@ -9,11 +9,11 @@
 /**
  * Fixture: one `pages` document carrying an FAQ block with two Q&A items.
  *
- * Exists because the admin cannot add FAQ array items yet
- * (ISSUE-array-fields-in-blocks.md) — this seeds the state needed to
- * exercise arrays-inside-blocks in the editor: the dotted schema-path
- * admin override (`faq.answer` in faq-block.admin.ts) and, once the
- * structural-editing fix lands, add/remove/drag on the `faq` array.
+ * Provides a stable, item-carrying FAQ block for the e2e suite — the
+ * block-admin-override spec asserts against this document's item order and
+ * answer content (dotted schema-path override `faq.answer` in
+ * faq-block.admin.ts), so editor flows that mutate items use their own
+ * throwaway documents instead (see array-in-block.spec.ts).
  *
  * Run directly: `cd apps/webapp && pnpm tsx byline/seeds/faq-fixture.ts`
  * (idempotent — skips creation when the fixture path already exists).

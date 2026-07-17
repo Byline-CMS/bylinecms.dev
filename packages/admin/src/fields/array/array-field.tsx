@@ -16,7 +16,7 @@ import cx from 'classnames'
 import { sliceFieldAdmin } from '../../fields/field-admin'
 import { defaultScalarForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
-import { SortableItem } from '../../fields/sortable-item'
+import { SortableItem, StaticItem } from '../../fields/sortable-item'
 import { useFormContext } from '../../forms/form-context'
 import styles from './array-field.module.css'
 
@@ -269,15 +269,27 @@ export const ArrayField = ({
       )
     })
 
-    const label = field.label ?? field.name
+    // Per-item label: the array label plus a 1-based position, so items
+    // read "Questions 1", "Questions 2" rather than all repeating the bare
+    // array label.
+    const itemLabel = `${field.label ?? field.name} ${index + 1}`
 
+    // `disableSorting` removes only the drag affordance. Structural editing
+    // (add-below / remove / collapse) is always available — StaticItem is
+    // the grip-less sibling of SortableItem (see sortable-item.tsx for why
+    // it is a separate component rather than a prop).
     if (disableSorting) {
       return (
-        <div key={itemWrapper.id} className={cx('byline-field-array-card', styles.card)}>
+        <StaticItem
+          key={itemWrapper.id}
+          label={itemLabel}
+          onAddBelow={() => handleInsertBelow(index)}
+          onRemove={() => handleRemoveItem(index)}
+        >
           <div className={cx('byline-field-array-group-fields', styles['group-fields'])}>
             {innerBody}
           </div>
-        </div>
+        </StaticItem>
       )
     }
 
@@ -285,7 +297,7 @@ export const ArrayField = ({
       <SortableItem
         key={itemWrapper.id}
         id={itemWrapper.id}
-        label={label}
+        label={itemLabel}
         onAddBelow={() => handleInsertBelow(index)}
         onRemove={() => handleRemoveItem(index)}
       >
@@ -296,14 +308,43 @@ export const ArrayField = ({
     )
   }
 
+  // The add-row renders in both branches — structural editing does not
+  // depend on sortability.
+  const addRow = (
+    <div className={cx('byline-field-array-add-row', styles['add-row'])}>
+      <IconButton
+        onClick={() => {
+          void handleAddItem()
+        }}
+        aria-label={t('fields.array.addItemAriaLabel')}
+      >
+        <PlusIcon />
+      </IconButton>
+      {/* Text-styled button so the label is clickable too. Removed from
+          the tab order (tabIndex -1) — the IconButton is the single
+          keyboard/screen-reader control for this action. */}
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => {
+          void handleAddItem()
+        }}
+        className={cx('byline-field-array-add-label', styles['add-label'])}
+      >
+        {t('fields.array.addItem')}
+      </button>
+    </div>
+  )
+
   return (
     <div className={`byline-field-array ${field.name}`}>
-      {!disableSorting && field.label && (
+      {field.label && (
         <h3 className={cx('byline-field-array-title', styles.title)}>{field.label}</h3>
       )}
       {disableSorting ? (
         <div className={cx('byline-field-array-stack', styles.stack)}>
           {items.map((item, index) => renderItem(item, index))}
+          {addRow}
         </div>
       ) : (
         <DraggableSortable
@@ -312,29 +353,7 @@ export const ArrayField = ({
           className={cx('byline-field-array-stack', styles.stack)}
         >
           {items.map((item, index) => renderItem(item, index))}
-          <div className={cx('byline-field-array-add-row', styles['add-row'])}>
-            <IconButton
-              onClick={() => {
-                void handleAddItem()
-              }}
-              aria-label={t('fields.array.addItemAriaLabel')}
-            >
-              <PlusIcon />
-            </IconButton>
-            {/* Text-styled button so the label is clickable too. Removed from
-                the tab order (tabIndex -1) — the IconButton is the single
-                keyboard/screen-reader control for this action. */}
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={() => {
-                void handleAddItem()
-              }}
-              className={cx('byline-field-array-add-label', styles['add-label'])}
-            >
-              {t('fields.array.addItem')}
-            </button>
-          </div>
+          {addRow}
         </DraggableSortable>
       )}
     </div>

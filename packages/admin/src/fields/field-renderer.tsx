@@ -300,6 +300,7 @@ export const FieldRenderer = ({
             }
             defaultValue={defaultValue}
             path={path}
+            disableSorting={disableSorting}
             collectionPath={collectionPath}
             contentLocale={contentLocale}
             fieldAdmin={fieldAdmin}

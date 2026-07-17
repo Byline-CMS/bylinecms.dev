@@ -34,6 +34,16 @@ interface GroupFieldProps {
   defaultValue: any
   path: string
   /**
+   * Threaded to child fields — governs only the *drag* affordance of any
+   * `array` children (structural add/remove always renders; see ArrayField).
+   * Defaults to `true` (conservative): arrays inside plain schema groups
+   * stay drag-free. `BlocksField` passes `false` on its synthesized group so
+   * arrays directly inside blocks are fully sortable — safe because each
+   * `DraggableSortable` is an independent DndContext with grip-scoped
+   * listeners.
+   */
+  disableSorting?: boolean
+  /**
    * Collection path forwarded to upload-capable child fields (`file` / `image`),
    * which need it to reach the `/upload` endpoint. Without it those fields fall
    * back to their empty placeholder and never render an upload widget.
@@ -62,6 +72,7 @@ export const GroupField = ({
   field,
   defaultValue,
   path,
+  disableSorting = true,
   collectionPath,
   contentLocale,
   fieldAdmin,
@@ -104,7 +115,7 @@ export const GroupField = ({
               field={innerField}
               defaultValue={groupData[innerField.name]}
               basePath={path}
-              disableSorting={true}
+              disableSorting={disableSorting}
               collectionPath={collectionPath}
               contentLocale={contentLocale}
               components={fieldAdmin?.[innerField.name]?.components}

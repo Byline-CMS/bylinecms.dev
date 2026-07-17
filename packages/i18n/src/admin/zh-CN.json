@@ -518,6 +518,7 @@
   "fields.sortable.collapseAriaLabel": "收起项",
   "fields.draggableMenu.addBelow": "在下方添加",
   "fields.draggableMenu.remove": "移除",
+  "fields.draggableMenu.triggerAriaLabel": "项目操作",
   "diffModal.title": "版本比较",
   "diffModal.subtitleBefore": "正在比较",
   "diffModal.subtitleAfter": "（左）与当前版本（右）",

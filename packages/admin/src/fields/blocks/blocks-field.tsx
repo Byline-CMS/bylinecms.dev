@@ -249,6 +249,11 @@ export const BlocksField = ({
         }
         defaultValue={fieldData}
         path={arrayElementPath}
+        // Arrays directly inside a block are fully sortable: each
+        // DraggableSortable is an independent DndContext and drag listeners
+        // are grip-scoped, so the inner array's drags can't leak into the
+        // block-level context (and vice versa).
+        disableSorting={false}
         contentLocale={contentLocale}
         fieldAdmin={blockAdminByType.get(item._type)?.fields}
       />

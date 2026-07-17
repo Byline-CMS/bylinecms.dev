@@ -518,6 +518,7 @@
   "fields.sortable.collapseAriaLabel": "Comprimi elemento",
   "fields.draggableMenu.addBelow": "Aggiungi sotto",
   "fields.draggableMenu.remove": "Rimuovi",
+  "fields.draggableMenu.triggerAriaLabel": "Azioni elemento",
   "diffModal.title": "Confronto versioni",
   "diffModal.subtitleBefore": "Confronto di",
   "diffModal.subtitleAfter": "(sinistra) con la versione attuale (destra)",

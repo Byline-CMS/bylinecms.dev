@@ -37,7 +37,15 @@ export function DraggableContextMenu({
 
   return (
     <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger render={<IconButton variant="text" size="sm" />}>
+      <DropdownMenu.Trigger
+        render={
+          <IconButton
+            variant="text"
+            size="sm"
+            aria-label={t('fields.draggableMenu.triggerAriaLabel')}
+          />
+        }
+      >
         <EllipsisIcon width="16px" height="16px" />
       </DropdownMenu.Trigger>
 

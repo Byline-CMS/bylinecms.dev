@@ -32,9 +32,9 @@ const answerEditorConfig: EditorConfig = (() => {
 /**
  * Reference block for an `array` field nested inside a block — an
  * accordion of question/answer pairs (ported from the FORRU beta
- * migration's legacy-block port). Currently also the repro for
- * ISSUE-array-fields-in-blocks.md (repo root): the `faq` array renders
- * without add / remove / drag-reorder controls in the admin.
+ * migration's legacy-block port). In the admin the `faq` array is fully
+ * editable and drag-sortable inside the block (e2e:
+ * apps/webapp/e2e/array-in-block.spec.ts).
  *
  * The extension half of the answer editor lives in ./faq-block.admin.ts,
  * addressed with the dotted schema-path key `faq.answer` — the reference

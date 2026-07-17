@@ -518,6 +518,7 @@
   "fields.sortable.collapseAriaLabel": "Collapse item",
   "fields.draggableMenu.addBelow": "Add Below",
   "fields.draggableMenu.remove": "Remove",
+  "fields.draggableMenu.triggerAriaLabel": "Item actions",
   "diffModal.title": "Version Comparison",
   "diffModal.subtitleBefore": "Comparing",
   "diffModal.subtitleAfter": "(left) against current version (right)",
