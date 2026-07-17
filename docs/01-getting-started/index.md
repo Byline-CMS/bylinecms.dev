@@ -12,7 +12,7 @@ For a broader introduction that explains why Byline exists, and why we think it'
 There are two paths to a running instance of Byline:
 
 1. [Experimental CLI](./01-experimental-cli.md) — install Byline into an existing TanStack Start application with `byline init` (plus `setup` and `doctor`).
-2. [Development environment and reference application](./02-development-environment.md) — clone this repo, provision PostgreSQL, seed the database, and run the example app (`apps/webapp`) in dev mode.
+2. [Development environment and reference application](./02-development-environment.md) — clone the main repo, provision PostgreSQL, seed the database, and run the example app (`apps/webapp`) in dev mode.
 
 If you're evaluating Byline, the development environment is the quickest way to see a working installation; the CLI is the path to adding Byline to your own app.
 
@@ -20,9 +20,8 @@ If you're evaluating Byline, the development environment is the quickest way to 
 
 - **Why it exists** — [Why Byline](../02-why-byline/index.md) sets out the
   motivation and the stance on AI-era content.
-- **Understand the model** — [Architecture](../03-architecture/index.md) is the
-  map of the load-bearing decisions (universal storage, immutable versioning, the
-  schema/admin split).
+- **Understand the model** — [Architecture](../03-architecture/index.md) is a
+  map of key architecural decisions (universal storage, immutable versioning, the schema/admin split).
 - **Model your content** — [Collections](../04-collections/index.md) is the
   working reference for defining a collection, its [fields](../04-collections/01-fields.md), [blocks](../04-collections/02-blocks.md),
   [relationships](../04-collections/03-relationships.md), and
