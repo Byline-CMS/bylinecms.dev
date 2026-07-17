@@ -1,10 +1,10 @@
 ---
-title: "Search and document extraction strategy"
+title: "Search & Document Extraction"
 path: "search-extraction-strategy"
 summary: "Forward-looking research for attachment extraction and retrieval: provider boundaries, persistence, indexing, chunking, and phased delivery."
 ---
 
-# Search and document extraction strategy
+# Search & Document Extraction
 
 :::note[Status]
 This is **forward-looking landscape research**, not a description of shipped
@@ -19,17 +19,6 @@ Typesense / OpenSearch / vector — search Phase 4), and §2–§5 inform the
 **`@byline/extract`** attachment-extraction pipeline (search Phase 3). When
 those phases begin, the relevant section here should graduate into its own
 design doc alongside `07-search.md` (as the search design did).
-:::
-
-:::note[Provenance]
-This document is a compiled, lightly edited reference of a working conversation
-exploring (a) the search landscape for Byline CMS and a tiered search-adapter
-strategy, and (b) the document-extraction landscape and a tiered
-`@byline/extract` adapter strategy. It is intended as a handoff brief for
-implementation work. Factual claims about third-party tools, licenses, pricing,
-and benchmarks reflect research as of **June 2026** and should be re-verified
-against current vendor/model documentation before committing to any one of
-them—licensing and managed-service pricing in this space move quickly.
 :::
 
 **Context assumed throughout:**
