@@ -84,112 +84,111 @@ describe('workspace root ownership', () => {
     expect(detectPackageManager(join(root, 'apps/webapp'))).toBe(manager)
   })
 
-  it.each([
-    'yarn',
-    'npm',
-    'bun',
-  ] as const)('synchronizes a completed setup/doctor preflight from persisted %s state', async (manager) => {
-    const root = mkdtempSync(join(tmpdir(), 'byline-persisted-manager-'))
-    roots.push(root)
-    writeFileSync(join(root, 'package.json'), '{"name":"standalone"}\n')
-    const ctx = createTestContextAt(root)
-    ctx.state.patchAnswers({ pm: manager })
-    ctx.state.markPhaseComplete('preflight')
-    ctx.pm = 'pnpm'
-    expect(await preflightPhase.detect(ctx)).toBe('done')
-    expect(ctx.pm).toBe(manager)
-  })
-
-  it.each([
-    'root',
-    'nested',
-  ] as const)('blocks noninteractive manager defaulting in a package.json-only %s workspace', async (location) => {
-    const root = packageJsonOnlyWorkspace()
-    const cwd = location === 'root' ? root : join(root, 'apps/webapp')
-    mkdirSync(join(cwd, '.git'), { recursive: true })
-    const ctx = createTestContextAt(cwd)
-    expect((await preflightPhase.apply(await preflightPhase.plan(ctx), ctx)).state).toBe('blocked')
-  })
-
-  it.each([
-    'root',
-    'nested',
-  ] as const)('creates complete pnpm metadata for an explicit package.json-only %s workspace', async (location) => {
-    const root = packageJsonOnlyWorkspace()
-    const cwd = location === 'root' ? root : join(root, 'apps/webapp')
-    mkdirSync(join(cwd, '.git'), { recursive: true })
-    const packagePath = join(cwd, 'package.json')
-    const existing = JSON.parse(readFileSync(packagePath, 'utf8')) as Record<string, unknown>
-    writeFileSync(
-      packagePath,
-      `${JSON.stringify({ ...existing, dependencies: compatibleDependencies() })}\n`
-    )
-    const ctx = createTestContextAt(cwd, { examples: false })
-    ctx.cliFlags.pm = 'pnpm'
-    expect((await preflightPhase.apply(await preflightPhase.plan(ctx), ctx)).state).toBe('done')
-    const deps = await depsPhase.plan(ctx)
-    const workspaceWrite = deps.writes.find(
-      (write) => write.path === join(root, 'pnpm-workspace.yaml')
-    )
-    expect(workspaceWrite?.contents).toContain('packages:')
-    expect(workspaceWrite?.contents).toContain('apps/*')
-    expect(workspaceWrite?.contents).toContain('allowBuilds:')
-    expect((await depsPhase.apply(deps, ctx)).state).toBe('done')
-    expect(resolveWorkspaceOwnership(cwd)).toMatchObject({ root, kind: 'pnpm' })
-  })
-
-  it.each([
-    'npm',
-    'yarn',
-    'bun',
-  ] as const)('uses explicit %s in a package.json-only workspace without creating pnpm metadata', async (manager) => {
-    const root = packageJsonOnlyWorkspace()
-    const app = join(root, 'apps/webapp')
-    const dependencies = compatibleDependencies()
-    delete dependencies.classnames
-    writeFileSync(
-      join(app, 'package.json'),
-      `${JSON.stringify({ name: '@fixture/webapp', dependencies })}\n`
-    )
-    mkdirSync(join(app, '.git'))
-    const ctx = createTestContextAt(app, { examples: false })
-    ctx.cliFlags.pm = manager
-    expect((await preflightPhase.apply(await preflightPhase.plan(ctx), ctx)).state).toBe('done')
-    const deps = await depsPhase.plan(ctx)
-    expect(deps.writes.some((write) => write.path.endsWith('pnpm-workspace.yaml'))).toBe(false)
-    expect(deps.commands[0]?.command).toBe(manager)
-  })
-
-  it.each([
-    'yarn',
-    'npm',
-    'bun',
-  ] as const)('targets a nested app safely with %s', async (manager) => {
-    const root = monorepo(manager)
-    const app = join(root, 'apps/webapp')
-    const dependencies = compatibleDependencies()
-    delete dependencies.classnames
-    writeFileSync(
-      join(app, 'package.json'),
-      `${JSON.stringify({ name: '@fixture/webapp', dependencies })}\n`
-    )
-    const ctx = createTestContextAt(app, { examples: false })
-    ctx.pm = manager
-    const command = (await depsPhase.plan(ctx)).commands[0]
-    expect(command?.command).toBe(manager)
-    if (manager === 'yarn') {
-      expect(command).toMatchObject({ cwd: root })
-      expect(command?.args.slice(0, 3)).toEqual(['workspace', '@fixture/webapp', 'add'])
-    } else if (manager === 'npm') {
-      expect(command).toMatchObject({ cwd: root })
-      expect(command?.args).toEqual(
-        expect.arrayContaining(['--workspace', './apps/webapp', 'classnames@^2.5.1'])
-      )
-    } else {
-      expect(command).toMatchObject({ cwd: app })
-      expect(command?.args).toContain('classnames@^2.5.1')
+  it.each(['yarn', 'npm', 'bun'] as const)(
+    'synchronizes a completed setup/doctor preflight from persisted %s state',
+    async (manager) => {
+      const root = mkdtempSync(join(tmpdir(), 'byline-persisted-manager-'))
+      roots.push(root)
+      writeFileSync(join(root, 'package.json'), '{"name":"standalone"}\n')
+      const ctx = createTestContextAt(root)
+      ctx.state.patchAnswers({ pm: manager })
+      ctx.state.markPhaseComplete('preflight')
+      ctx.pm = 'pnpm'
+      expect(await preflightPhase.detect(ctx)).toBe('done')
+      expect(ctx.pm).toBe(manager)
     }
-  })
+  )
+
+  it.each(['root', 'nested'] as const)(
+    'blocks noninteractive manager defaulting in a package.json-only %s workspace',
+    async (location) => {
+      const root = packageJsonOnlyWorkspace()
+      const cwd = location === 'root' ? root : join(root, 'apps/webapp')
+      mkdirSync(join(cwd, '.git'), { recursive: true })
+      const ctx = createTestContextAt(cwd)
+      expect((await preflightPhase.apply(await preflightPhase.plan(ctx), ctx)).state).toBe(
+        'blocked'
+      )
+    }
+  )
+
+  it.each(['root', 'nested'] as const)(
+    'creates complete pnpm metadata for an explicit package.json-only %s workspace',
+    async (location) => {
+      const root = packageJsonOnlyWorkspace()
+      const cwd = location === 'root' ? root : join(root, 'apps/webapp')
+      mkdirSync(join(cwd, '.git'), { recursive: true })
+      const packagePath = join(cwd, 'package.json')
+      const existing = JSON.parse(readFileSync(packagePath, 'utf8')) as Record<string, unknown>
+      writeFileSync(
+        packagePath,
+        `${JSON.stringify({ ...existing, dependencies: compatibleDependencies() })}\n`
+      )
+      const ctx = createTestContextAt(cwd, { examples: false })
+      ctx.cliFlags.pm = 'pnpm'
+      expect((await preflightPhase.apply(await preflightPhase.plan(ctx), ctx)).state).toBe('done')
+      const deps = await depsPhase.plan(ctx)
+      const workspaceWrite = deps.writes.find(
+        (write) => write.path === join(root, 'pnpm-workspace.yaml')
+      )
+      expect(workspaceWrite?.contents).toContain('packages:')
+      expect(workspaceWrite?.contents).toContain('apps/*')
+      expect(workspaceWrite?.contents).toContain('allowBuilds:')
+      expect((await depsPhase.apply(deps, ctx)).state).toBe('done')
+      expect(resolveWorkspaceOwnership(cwd)).toMatchObject({ root, kind: 'pnpm' })
+    }
+  )
+
+  it.each(['npm', 'yarn', 'bun'] as const)(
+    'uses explicit %s in a package.json-only workspace without creating pnpm metadata',
+    async (manager) => {
+      const root = packageJsonOnlyWorkspace()
+      const app = join(root, 'apps/webapp')
+      const dependencies = compatibleDependencies()
+      delete dependencies.classnames
+      writeFileSync(
+        join(app, 'package.json'),
+        `${JSON.stringify({ name: '@fixture/webapp', dependencies })}\n`
+      )
+      mkdirSync(join(app, '.git'))
+      const ctx = createTestContextAt(app, { examples: false })
+      ctx.cliFlags.pm = manager
+      expect((await preflightPhase.apply(await preflightPhase.plan(ctx), ctx)).state).toBe('done')
+      const deps = await depsPhase.plan(ctx)
+      expect(deps.writes.some((write) => write.path.endsWith('pnpm-workspace.yaml'))).toBe(false)
+      expect(deps.commands[0]?.command).toBe(manager)
+    }
+  )
+
+  it.each(['yarn', 'npm', 'bun'] as const)(
+    'targets a nested app safely with %s',
+    async (manager) => {
+      const root = monorepo(manager)
+      const app = join(root, 'apps/webapp')
+      const dependencies = compatibleDependencies()
+      delete dependencies.classnames
+      writeFileSync(
+        join(app, 'package.json'),
+        `${JSON.stringify({ name: '@fixture/webapp', dependencies })}\n`
+      )
+      const ctx = createTestContextAt(app, { examples: false })
+      ctx.pm = manager
+      const command = (await depsPhase.plan(ctx)).commands[0]
+      expect(command?.command).toBe(manager)
+      if (manager === 'yarn') {
+        expect(command).toMatchObject({ cwd: root })
+        expect(command?.args.slice(0, 3)).toEqual(['workspace', '@fixture/webapp', 'add'])
+      } else if (manager === 'npm') {
+        expect(command).toMatchObject({ cwd: root })
+        expect(command?.args).toEqual(
+          expect.arrayContaining(['--workspace', './apps/webapp', 'classnames@^2.5.1'])
+        )
+      } else {
+        expect(command).toMatchObject({ cwd: app })
+        expect(command?.args).toContain('classnames@^2.5.1')
+      }
+    }
+  )
 
   it('resolves a bare workspace link from local workspace package metadata', async () => {
     const root = monorepo('pnpm')
@@ -336,23 +335,23 @@ describe('workspace root ownership', () => {
     expect(existsSync(join(root, 'pnpm-workspace.yaml'))).toBe(false)
   })
 
-  it.each([
-    'npm',
-    'yarn',
-  ] as const)('does not emit %s workspace commands inside a pnpm workspace', async (manager) => {
-    const root = monorepo('pnpm')
-    const app = join(root, 'apps/webapp')
-    writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n')
-    const dependencies = compatibleDependencies()
-    delete dependencies.classnames
-    writeFileSync(join(app, 'package.json'), `${JSON.stringify({ dependencies })}\n`)
-    const ctx = createTestContextAt(app, { examples: false })
-    ctx.pm = manager
-    const plan = await depsPhase.plan(ctx)
-    expect(plan.commands).toEqual([])
-    expect(plan.writes).toEqual([])
-    expect((await depsPhase.apply(plan, ctx)).state).toBe('blocked')
-  })
+  it.each(['npm', 'yarn'] as const)(
+    'does not emit %s workspace commands inside a pnpm workspace',
+    async (manager) => {
+      const root = monorepo('pnpm')
+      const app = join(root, 'apps/webapp')
+      writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n')
+      const dependencies = compatibleDependencies()
+      delete dependencies.classnames
+      writeFileSync(join(app, 'package.json'), `${JSON.stringify({ dependencies })}\n`)
+      const ctx = createTestContextAt(app, { examples: false })
+      ctx.pm = manager
+      const plan = await depsPhase.plan(ctx)
+      expect(plan.commands).toEqual([])
+      expect(plan.writes).toEqual([])
+      expect((await depsPhase.apply(plan, ctx)).state).toBe('blocked')
+    }
+  )
 })
 
 function monorepo(packageManager: string): string {

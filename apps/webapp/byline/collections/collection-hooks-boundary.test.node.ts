@@ -112,16 +112,17 @@ function collectStaticSourceGraph(entryPoints: string[]): Set<string> {
 }
 
 describe('collection hook boundary', () => {
-  it.each(
-    collectionNames
-  )('%s schema has no framework or lifecycle-hook module dependency', (name) => {
-    const schemaPath = resolve(collectionsDirectory, name, 'schema.ts')
-    const source = readFileSync(schemaPath, 'utf8')
+  it.each(collectionNames)(
+    '%s schema has no framework or lifecycle-hook module dependency',
+    (name) => {
+      const schemaPath = resolve(collectionsDirectory, name, 'schema.ts')
+      const source = readFileSync(schemaPath, 'utf8')
 
-    expect(source).not.toContain('@tanstack/react-start')
-    expect(source).not.toContain('createServerOnlyFn')
-    expect(source).not.toMatch(/['"]\.\/hooks\.js['"]/)
-  })
+      expect(source).not.toContain('@tanstack/react-start')
+      expect(source).not.toContain('createServerOnlyFn')
+      expect(source).not.toMatch(/['"]\.\/hooks\.js['"]/)
+    }
+  )
 
   it('keeps the server-only lifecycle graph out of collection and public config graphs', () => {
     const graph = collectStaticSourceGraph([

@@ -174,22 +174,22 @@ describe('fingerprintCollection', () => {
     expect(await fingerprintCollection(b)).not.toBe(a)
   })
 
-  it.each([
-    'minItems',
-    'maxItems',
-  ] as const)('changes when relation %s changes', async (constraint) => {
-    const a = baseCollection()
-    const aRel = a.fields.find((f) => f.name === 'category') as any
-    aRel.hasMany = true
-    aRel[constraint] = 1
+  it.each(['minItems', 'maxItems'] as const)(
+    'changes when relation %s changes',
+    async (constraint) => {
+      const a = baseCollection()
+      const aRel = a.fields.find((f) => f.name === 'category') as any
+      aRel.hasMany = true
+      aRel[constraint] = 1
 
-    const b = baseCollection()
-    const bRel = b.fields.find((f) => f.name === 'category') as any
-    bRel.hasMany = true
-    bRel[constraint] = 2
+      const b = baseCollection()
+      const bRel = b.fields.find((f) => f.name === 'category') as any
+      bRel.hasMany = true
+      bRel[constraint] = 2
 
-    expect(await fingerprintCollection(b)).not.toBe(await fingerprintCollection(a))
-  })
+      expect(await fingerprintCollection(b)).not.toBe(await fingerprintCollection(a))
+    }
+  )
 
   it('changes when a block variant is renamed', async () => {
     const a = await fingerprintCollection(baseCollection())

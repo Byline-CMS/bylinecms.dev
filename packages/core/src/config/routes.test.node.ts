@@ -29,15 +29,12 @@ describe('resolveRoutes', () => {
     })
   })
 
-  it.each([
-    '/../cms',
-    '/cms?next=x',
-    '/cms#section',
-    '/cms\\users',
-    '/%63ms',
-  ])('rejects a non-segment admin route of %j', (admin) => {
-    expect(() => resolveRoutes({ admin })).toThrow(/routes\.admin/)
-  })
+  it.each(['/../cms', '/cms?next=x', '/cms#section', '/cms\\users', '/%63ms'])(
+    'rejects a non-segment admin route of %j',
+    (admin) => {
+      expect(() => resolveRoutes({ admin })).toThrow(/routes\.admin/)
+    }
+  )
 
   it('normalizes and validates the API route too', () => {
     expect(resolveRoutes({ api: 'content-api/' }).api).toBe('/content-api')

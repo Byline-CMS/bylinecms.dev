@@ -576,30 +576,33 @@ describe('CollectionHandle enforcement', () => {
     it.each([
       ['status $in', { status: { $in: ['published'] } }, 'status', '$in', ['published']],
       ['path $nin', { path: { $nin: ['private'] } }, 'path', '$nin', ['private']],
-    ])('appends top-level %s security filters identically with and without caller where', async (_name, predicate, column, operator, value) => {
-      for (const where of [undefined, { unknownCallerField: 'kept-permissive' }]) {
-        const db = mockDb()
-        const scoped: CollectionDefinition = {
-          ...postsCollection,
-          hooks: { beforeRead: () => predicate },
-        }
-        const client = createBylineClient({
-          db,
-          collections: [scoped],
-          requestContext: createSuperAdminContext(),
-        })
-
-        await client.collection('posts').find({ where })
-
-        expect(db.queries.documents.findDocuments).toHaveBeenCalledWith(
-          expect.objectContaining({
-            filters: [{ kind: 'docColumn', column, operator, value }],
-            status: undefined,
-            pathFilter: undefined,
+    ])(
+      'appends top-level %s security filters identically with and without caller where',
+      async (_name, predicate, column, operator, value) => {
+        for (const where of [undefined, { unknownCallerField: 'kept-permissive' }]) {
+          const db = mockDb()
+          const scoped: CollectionDefinition = {
+            ...postsCollection,
+            hooks: { beforeRead: () => predicate },
+          }
+          const client = createBylineClient({
+            db,
+            collections: [scoped],
+            requestContext: createSuperAdminContext(),
           })
-        )
+
+          await client.collection('posts').find({ where })
+
+          expect(db.queries.documents.findDocuments).toHaveBeenCalledWith(
+            expect.objectContaining({
+              filters: [{ kind: 'docColumn', column, operator, value }],
+              status: undefined,
+              pathFilter: undefined,
+            })
+          )
+        }
       }
-    })
+    )
 
     it('reuses one strict compilation and collection-id resolution during search finishing', async () => {
       const db = mockDb()

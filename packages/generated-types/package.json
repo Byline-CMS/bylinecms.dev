@@ -43,7 +43,7 @@
     "index.js"
   ],
   "devDependencies": {
-    "@biomejs/biome": "2.5.2",
+    "@biomejs/biome": "2.5.4",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

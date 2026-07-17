@@ -112,22 +112,22 @@ describe('routes planning', () => {
     expect(await routesPhase.detect(ctx)).toBe('done')
   })
 
-  it.each([
-    'directory',
-    'dangling symlink',
-  ] as const)('blocks all route writes when an expected target is a %s', async (kind) => {
-    const ctx = fixture({ adminPath: '/admin' })
-    const routePath = ctx.resolve('src/routes/_byline/admin/route.tsx')
-    mkdirSync(ctx.resolve('src/routes/_byline/admin'), { recursive: true })
-    if (kind === 'directory') mkdirSync(routePath)
-    else symlinkSync(ctx.resolve('outside/missing-route.tsx'), routePath)
+  it.each(['directory', 'dangling symlink'] as const)(
+    'blocks all route writes when an expected target is a %s',
+    async (kind) => {
+      const ctx = fixture({ adminPath: '/admin' })
+      const routePath = ctx.resolve('src/routes/_byline/admin/route.tsx')
+      mkdirSync(ctx.resolve('src/routes/_byline/admin'), { recursive: true })
+      if (kind === 'directory') mkdirSync(routePath)
+      else symlinkSync(ctx.resolve('outside/missing-route.tsx'), routePath)
 
-    const plan = buildRoutesPlan(ctx)
-    expect(plan.writes).toEqual([])
-    expect(plan.notes.join('\n')).toContain('not a regular file')
-    expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
-    expect(existsSync(ctx.resolve('byline/routes.ts'))).toBe(false)
-  })
+      const plan = buildRoutesPlan(ctx)
+      expect(plan.writes).toEqual([])
+      expect(plan.notes.join('\n')).toContain('not a regular file')
+      expect((await routesPhase.apply(plan, ctx)).state).toBe('partial')
+      expect(existsSync(ctx.resolve('byline/routes.ts'))).toBe(false)
+    }
+  )
 
   it('accepts safe shared-prefix sibling admin, API, and sign-in trees', () => {
     const ctx = fixture({ adminPath: '/internal/cms', signInPath: '/internal/login' })
@@ -149,23 +149,21 @@ describe('routes planning', () => {
     ).toBe(true)
   })
 
-  it.each([
-    '/bad/%api',
-    '/internal/../api',
-    '/internal api',
-    '/internal/route',
-  ])('fails closed for invalid configured API path %s', (api) => {
-    const ctx = fixture({ adminPath: '/cms' })
-    mkdirSync(ctx.resolve('byline'), { recursive: true })
-    writeFileSync(
-      ctx.resolve('byline/routes.ts'),
-      `export const routes = { admin: '/cms', api: '${api}', signIn: '/sign-in' }\n`
-    )
+  it.each(['/bad/%api', '/internal/../api', '/internal api', '/internal/route'])(
+    'fails closed for invalid configured API path %s',
+    (api) => {
+      const ctx = fixture({ adminPath: '/cms' })
+      mkdirSync(ctx.resolve('byline'), { recursive: true })
+      writeFileSync(
+        ctx.resolve('byline/routes.ts'),
+        `export const routes = { admin: '/cms', api: '${api}', signIn: '/sign-in' }\n`
+      )
 
-    const plan = buildRoutesPlan(ctx)
-    expect(plan.writes).toEqual([])
-    expect(plan.notes.join('\n')).toContain('invalid API path')
-  })
+      const plan = buildRoutesPlan(ctx)
+      expect(plan.writes).toEqual([])
+      expect(plan.notes.join('\n')).toContain('invalid API path')
+    }
+  )
 
   it('normalizes backslash route paths before renaming', () => {
     expect(renameAdminSegment('admin\\users\\index.tsx', ['internal', 'cms'])).toBe(
@@ -397,25 +395,30 @@ describe('routes planning', () => {
   it.each([
     ['/admin', '/admin'],
     ['/cms', '/cms'],
-  ])('rewrites the literal v3.21 routes source when its %s admin path is already aligned', async (adminPath, expectedAdminPath) => {
-    const ctx = fixture({ adminPath })
-    const configPath = ctx.resolve('byline/routes.ts')
-    mkdirSync(ctx.resolve('byline'), { recursive: true })
-    writeFileSync(
-      configPath,
-      previousReleaseRoutesSource().replace("admin: '/admin'", `admin: '${adminPath}'`)
-    )
+  ])(
+    'rewrites the literal v3.21 routes source when its %s admin path is already aligned',
+    async (adminPath, expectedAdminPath) => {
+      const ctx = fixture({ adminPath })
+      const configPath = ctx.resolve('byline/routes.ts')
+      mkdirSync(ctx.resolve('byline'), { recursive: true })
+      writeFileSync(
+        configPath,
+        previousReleaseRoutesSource().replace("admin: '/admin'", `admin: '${adminPath}'`)
+      )
 
-    const plan = buildRoutesPlan(ctx)
-    expect(plan.writes).toContainEqual(expect.objectContaining({ path: configPath, mode: 'patch' }))
-    expect(plan.notes.join('\n')).not.toContain('manual')
+      const plan = buildRoutesPlan(ctx)
+      expect(plan.writes).toContainEqual(
+        expect.objectContaining({ path: configPath, mode: 'patch' })
+      )
+      expect(plan.notes.join('\n')).not.toContain('manual')
 
-    expect((await routesPhase.apply(plan, ctx)).state).toBe('done')
-    const migrated = readFileSync(configPath, 'utf8')
-    expect(migrated).toContain('resolveRoutes({')
-    expect(migrated).toContain(`admin: '${expectedAdminPath}'`)
-    expect(migrated).toContain("signIn: '/sign-in'")
-  })
+      expect((await routesPhase.apply(plan, ctx)).state).toBe('done')
+      const migrated = readFileSync(configPath, 'utf8')
+      expect(migrated).toContain('resolveRoutes({')
+      expect(migrated).toContain(`admin: '${expectedAdminPath}'`)
+      expect(migrated).toContain("signIn: '/sign-in'")
+    }
+  )
 
   it('pins the recognized predecessor to the literal v3.21 source shape', () => {
     const literal = previousReleaseRoutesSource()
@@ -870,31 +873,30 @@ describe('routes planning', () => {
     expect(readFileSync(path, 'utf8')).toContain('getMyRoutes')
   })
 
-  it.each([
-    'missing',
-    'corrupt',
-    'wrong-shape',
-  ])('blocks all route writes when canonical routes template is %s', (state) => {
-    const ctx = fixture({ adminPath: '/internal/cms' })
-    const sourceTemplates = ctx.templatesDir()
-    const copiedTemplates = ctx.resolve('test-templates')
-    cpSync(sourceTemplates, copiedTemplates, { recursive: true })
-    Object.defineProperty(ctx, 'templatesDir', { value: () => copiedTemplates })
-    const canonical = `${copiedTemplates}/byline-examples/routes.ts`
-    if (state === 'missing') rmSync(canonical)
-    else if (state === 'corrupt')
-      writeFileSync(canonical, "export const routes = { admin: '/admin'\n")
-    else {
-      writeFileSync(
-        canonical,
-        "export const routes = { admin: '/admin', api: '/api', signIn: '/sign-in' }\n"
-      )
-    }
+  it.each(['missing', 'corrupt', 'wrong-shape'])(
+    'blocks all route writes when canonical routes template is %s',
+    (state) => {
+      const ctx = fixture({ adminPath: '/internal/cms' })
+      const sourceTemplates = ctx.templatesDir()
+      const copiedTemplates = ctx.resolve('test-templates')
+      cpSync(sourceTemplates, copiedTemplates, { recursive: true })
+      Object.defineProperty(ctx, 'templatesDir', { value: () => copiedTemplates })
+      const canonical = `${copiedTemplates}/byline-examples/routes.ts`
+      if (state === 'missing') rmSync(canonical)
+      else if (state === 'corrupt')
+        writeFileSync(canonical, "export const routes = { admin: '/admin'\n")
+      else {
+        writeFileSync(
+          canonical,
+          "export const routes = { admin: '/admin', api: '/api', signIn: '/sign-in' }\n"
+        )
+      }
 
-    const plan = buildRoutesPlan(ctx)
-    expect(plan.writes).toEqual([])
-    expect(plan.notes.join('\n')).toContain('canonical routes.ts template')
-  })
+      const plan = buildRoutesPlan(ctx)
+      expect(plan.writes).toEqual([])
+      expect(plan.notes.join('\n')).toContain('canonical routes.ts template')
+    }
+  )
 })
 
 function previousReleaseRoutesSource(): string {

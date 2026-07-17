@@ -72,22 +72,21 @@ describe('Byline dependency compatibility', () => {
     expect(isDependencyVersionCompatible(core, range)).toBe(compatible)
   })
 
-  it.each([
-    'workspace:*',
-    'workspace:^',
-    'workspace:~',
-  ])('never replaces the local workspace shorthand %s', async (workspaceRange) => {
-    const ctx = createTestContext({ examples: false })
-    contexts.push(ctx)
-    const dependencies = compatibleDependencies()
-    dependencies['@byline/core'] = workspaceRange
-    writeFileSync(ctx.resolve('package.json'), `${JSON.stringify({ dependencies }, null, 2)}\n`)
-    writeFileSync(ctx.resolve('pnpm-workspace.yaml'), completeWorkspaceYaml())
-    const plan = await depsPhase.plan(ctx)
-    expect(plan.commands.flatMap((command) => command.args).join(' ')).not.toContain(
-      '@byline/core@'
-    )
-  })
+  it.each(['workspace:*', 'workspace:^', 'workspace:~'])(
+    'never replaces the local workspace shorthand %s',
+    async (workspaceRange) => {
+      const ctx = createTestContext({ examples: false })
+      contexts.push(ctx)
+      const dependencies = compatibleDependencies()
+      dependencies['@byline/core'] = workspaceRange
+      writeFileSync(ctx.resolve('package.json'), `${JSON.stringify({ dependencies }, null, 2)}\n`)
+      writeFileSync(ctx.resolve('pnpm-workspace.yaml'), completeWorkspaceYaml())
+      const plan = await depsPhase.plan(ctx)
+      expect(plan.commands.flatMap((command) => command.args).join(' ')).not.toContain(
+        '@byline/core@'
+      )
+    }
+  )
 
   it('plans upgrades for incompatible declarations and leaves compatible ranges untouched', async () => {
     const ctx = createTestContext({ examples: false })
