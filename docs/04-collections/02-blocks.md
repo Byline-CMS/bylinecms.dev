@@ -226,17 +226,6 @@ media collection instead — the reference PhotoBlock relates to `media`.
 
 ---
 
-## Migrating Payload blocks
-
-A complete, decision-worked migration plan from a production Payload block
-library (17 blocks) to Byline blocks — including the relation-vs-inline-upload
-decision rule, polymorphic-relation workarounds, per-block field mappings, and
-the frontend porting loop — lives in the FORRU project:
-`beta.forru.org/MIGRATION-PLAN.md` §7 (BLOCKS) and §8 (FRONT END). It doubles
-as the playbook for any Payload → Byline block migration.
-
----
-
 ## Code map
 
 | Concern | Location |
