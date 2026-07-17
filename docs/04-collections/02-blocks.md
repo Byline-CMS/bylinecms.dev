@@ -225,8 +225,14 @@ seeds):
 
 ## 5. Phase D — FORRU legacy-block migration mapping
 
-*Status: draft — refined once Phase A/B APIs freeze; executed in beta.forru.org
-against published `@byline/* ^4.2.0`.*
+*Status: **done** — the full, decision-complete migration guide lives in the
+FORRU project itself: `beta.forru.org/MIGRATION-PLAN.md` §7 (BLOCKS) and §8
+(FRONT END). It supersedes the sketch below (kept here as the framework-side
+summary) and adds: the relation-vs-inline-upload decision rule, the
+block-factory pattern for collection-relative storage directories (pairs with
+the queued `upload.directory` option — recommended for 4.2), and the position
+that video/audio remain `file`-field helpers rather than new primitives.
+Executed in beta.forru.org against published `@byline/* ^4.2.0`.*
 
 ### Global caveats
 
