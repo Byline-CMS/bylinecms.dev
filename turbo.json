@@ -20,11 +20,11 @@
       "interactive": true
     },
     "byline:generate": {
-      "dependsOn": ["@byline/core#build"],
+      "dependsOn": ["@byline/core#build", "@byline/richtext-lexical#build"],
       "outputs": ["byline/generated/collection-types.ts"]
     },
     "byline:generate:check": {
-      "dependsOn": ["@byline/core#build"],
+      "dependsOn": ["@byline/core#build", "@byline/richtext-lexical#build"],
       "outputs": []
     },
     "drizzle:generate": {
