@@ -3,7 +3,7 @@ title: "Getting Started"
 path: "getting-started"
 summary: "Two ways to get started with Byline: add it to an existing TanStack Start app with the experimental CLI, or clone this repo and run the example application in dev mode."
 ---
-At this stage of development, the best way to get up to speed with Byline is to look at our working reference application in the main [GitHub repository](https://github.com/Byline-CMS/bylinecms.dev). The application is located in the `apps/webapp` directory, and is a fully configured Byline CMS instance built on TanStack Start. We've included several collection examples, options, and configuration settings that should give you a solid introduction to Byline.
+The best way to get up to speed with Byline is to look at our working reference application in the main [GitHub repository](https://github.com/Byline-CMS/bylinecms.dev). The application is located in the `apps/webapp` directory, and is a fully configured Byline CMS instance built on TanStack Start. We've included several collection examples, options, and configuration settings that should give you a solid introduction to Byline.
 
 The heart of Byline is its configuration system. In the example application — and by convention — Byline's configuration lives in `apps/webapp/byline`. This is where content collections are defined, which ultimately shapes how editors enter and manage content.
 
